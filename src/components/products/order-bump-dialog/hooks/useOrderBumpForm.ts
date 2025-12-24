@@ -1,0 +1,256 @@
+import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { parseBRLInput } from "@/lib/money";
+import { NormalizedOffer } from "@/services/offers";
+import { OrderBumpFormData, OrderBumpProduct, DEFAULT_FORM_VALUES } from "../types";
+
+interface UseOrderBumpFormProps {
+  open: boolean;
+  productId: string;
+  editOrderBump?: any;
+  products: OrderBumpProduct[];
+  offers: NormalizedOffer[];
+  selectedProductId: string;
+  selectedOfferId: string;
+  setSelectedProductId: (id: string) => void;
+  setSelectedOfferId: (id: string) => void;
+  onSuccess: () => void;
+  onClose: () => void;
+}
+
+export function useOrderBumpForm({
+  open,
+  productId,
+  editOrderBump,
+  products,
+  offers,
+  selectedProductId,
+  selectedOfferId,
+  setSelectedProductId,
+  setSelectedOfferId,
+  onSuccess,
+  onClose,
+}: UseOrderBumpFormProps) {
+  // Form data sem selectedProductId e selectedOfferId (gerenciados externamente)
+  const [formData, setFormData] = useState<Omit<OrderBumpFormData, "selectedProductId" | "selectedOfferId">>({
+    discountEnabled: DEFAULT_FORM_VALUES.discountEnabled,
+    discountPrice: DEFAULT_FORM_VALUES.discountPrice,
+    callToAction: DEFAULT_FORM_VALUES.callToAction,
+    customTitle: DEFAULT_FORM_VALUES.customTitle,
+    customDescription: DEFAULT_FORM_VALUES.customDescription,
+    showImage: DEFAULT_FORM_VALUES.showImage,
+  });
+  const [loading, setLoading] = useState(false);
+  const [productInitialized, setProductInitialized] = useState<string | null>(null);
+
+  const STORAGE_KEY = `orderBumpForm_${productId}`;
+
+  // Load form data when dialog opens
+  useEffect(() => {
+    if (!open) return;
+
+    if (editOrderBump) {
+      setFormData({
+        discountEnabled: !!editOrderBump.discount_price,
+        discountPrice: editOrderBump.discount_price
+          ? (editOrderBump.discount_price / 100).toFixed(2).replace(".", ",")
+          : "0,00",
+        callToAction: editOrderBump.call_to_action || DEFAULT_FORM_VALUES.callToAction,
+        showImage: editOrderBump.show_image !== false,
+        customTitle: "",
+        customDescription: "",
+      });
+      setProductInitialized(editOrderBump.product_id);
+      return;
+    }
+
+    // Try to load saved form data
+    const savedData = localStorage.getItem(STORAGE_KEY);
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+        setFormData({
+          discountEnabled: parsed.discountEnabled || false,
+          discountPrice: parsed.discountPrice || "0,00",
+          callToAction: parsed.callToAction || DEFAULT_FORM_VALUES.callToAction,
+          customTitle: parsed.customTitle || "",
+          customDescription: parsed.customDescription || "",
+          showImage: parsed.showImage !== undefined ? parsed.showImage : true,
+        });
+        // Restore selected IDs from localStorage
+        if (parsed.selectedProductId) {
+          setSelectedProductId(parsed.selectedProductId);
+        }
+        if (parsed.selectedOfferId) {
+          setSelectedOfferId(parsed.selectedOfferId);
+        }
+      } catch (e) {
+        console.error("Error loading saved form data:", e);
+      }
+    }
+  }, [open, editOrderBump, STORAGE_KEY, setSelectedProductId, setSelectedOfferId]);
+
+  // Load title and description when editing
+  useEffect(() => {
+    if (editOrderBump && products.length > 0 && selectedProductId) {
+      const product = products.find((p) => p.id === selectedProductId);
+      if (product) {
+        setFormData((prev) => ({
+          ...prev,
+          customTitle: editOrderBump.custom_title || product.name,
+          customDescription: editOrderBump.custom_description || product.description || "",
+        }));
+      }
+    }
+  }, [editOrderBump, products, selectedProductId, open]);
+
+  // Save form data to localStorage (only when not editing)
+  useEffect(() => {
+    if (open && !editOrderBump) {
+      const dataToSave = {
+        ...formData,
+        selectedProductId,
+        selectedOfferId,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+    }
+  }, [open, formData, selectedProductId, selectedOfferId, STORAGE_KEY, editOrderBump]);
+
+  // Update title/description when product changes (both new and edit mode)
+  useEffect(() => {
+    if (!selectedProductId) return;
+
+    const selectedProduct = products.find((p) => p.id === selectedProductId);
+    if (selectedProduct && productInitialized !== selectedProductId) {
+      setFormData((prev) => ({
+        ...prev,
+        customTitle: selectedProduct.name,
+        customDescription: selectedProduct.description || "",
+      }));
+      setProductInitialized(selectedProductId);
+    }
+  }, [selectedProductId, products, productInitialized]);
+
+  const updateField = useCallback(<K extends keyof OrderBumpFormData>(
+    field: K,
+    value: OrderBumpFormData[K]
+  ) => {
+    // Campos gerenciados externamente
+    if (field === "selectedProductId" || field === "selectedOfferId") {
+      return;
+    }
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  const resetForm = useCallback(() => {
+    setFormData({
+      discountEnabled: DEFAULT_FORM_VALUES.discountEnabled,
+      discountPrice: DEFAULT_FORM_VALUES.discountPrice,
+      callToAction: DEFAULT_FORM_VALUES.callToAction,
+      customTitle: DEFAULT_FORM_VALUES.customTitle,
+      customDescription: DEFAULT_FORM_VALUES.customDescription,
+      showImage: DEFAULT_FORM_VALUES.showImage,
+    });
+    setProductInitialized(null);
+    localStorage.removeItem(STORAGE_KEY);
+  }, [STORAGE_KEY]);
+
+  const handleSave = async () => {
+    const selectedProduct = products.find((p) => p.id === selectedProductId);
+    if (!selectedProduct?.id) {
+      toast.error("Selecione um produto válido antes de salvar.");
+      return;
+    }
+
+    if (!selectedOfferId) {
+      toast.error("Selecione uma oferta");
+      return;
+    }
+
+    const selectedOffer = offers.find((o) => o.id === selectedOfferId);
+    const currentPriceInCents = selectedOffer?.price || selectedProduct?.price || 0;
+    const originPriceInCents = parseBRLInput(formData.discountPrice);
+
+    if (formData.discountEnabled && originPriceInCents <= currentPriceInCents) {
+      toast.error("Valor deve ser maior que a oferta");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const { data: checkouts, error: checkoutsError } = await supabase
+        .from("checkouts")
+        .select("id")
+        .eq("product_id", productId)
+        .limit(1);
+
+      if (checkoutsError) throw checkoutsError;
+
+      if (!checkouts || checkouts.length === 0) {
+        toast.error("Nenhum checkout encontrado para este produto");
+        return;
+      }
+
+      const orderBump = {
+        checkout_id: checkouts[0].id,
+        product_id: selectedProductId,
+        offer_id: selectedOfferId,
+        active: true,
+        discount_enabled: !!formData.discountEnabled,
+        discount_price: formData.discountEnabled ? parseBRLInput(formData.discountPrice) : null,
+        call_to_action: formData.callToAction?.trim() || null,
+        custom_title: formData.customTitle?.trim() || null,
+        custom_description: formData.customDescription?.trim() || null,
+        show_image: !!formData.showImage,
+      };
+
+      if (editOrderBump) {
+        const { error: updateError } = await supabase
+          .from("order_bumps")
+          .update(orderBump)
+          .eq("id", editOrderBump.id);
+
+        if (updateError) throw updateError;
+        toast.success("Order bump atualizado com sucesso");
+      } else {
+        const { error: insertError } = await supabase.from("order_bumps").insert([orderBump]);
+
+        if (insertError) throw insertError;
+        toast.success("Order bump adicionado com sucesso");
+      }
+
+      resetForm();
+      onSuccess();
+      onClose();
+    } catch (error: any) {
+      console.error("Erro ao salvar order_bumps:", error);
+
+      if (error.code === "23505") {
+        toast.error("Este produto já está configurado como order bump");
+      } else {
+        toast.error(`Não foi possível salvar: ${error?.message ?? "erro desconhecido"}`);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    resetForm();
+    onClose();
+  };
+
+  return {
+    formData: {
+      ...formData,
+      selectedProductId,
+      selectedOfferId,
+    },
+    loading,
+    updateField,
+    handleSave,
+    handleCancel,
+  };
+}

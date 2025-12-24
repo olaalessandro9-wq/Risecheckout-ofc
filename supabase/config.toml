@@ -1,0 +1,89 @@
+project_id = "wivbtmtgpsxupfjwwovf"
+
+# =====================================================
+# EDGE FUNCTIONS - CONFIGURAÇÃO DE AUTENTICAÇÃO
+# =====================================================
+# verify_jwt = false → Função pública (não requer auth)
+# verify_jwt = true (ou omitido) → Requer autenticação
+# =====================================================
+
+# ✅ PÚBLICAS (Webhooks e callbacks externos)
+[functions.trigger-webhooks]
+verify_jwt = false
+
+[functions.mercadopago-webhook]
+verify_jwt = false
+
+[functions.pushinpay-webhook]
+verify_jwt = false
+
+[functions.mercadopago-oauth-callback]
+verify_jwt = false
+
+[functions.process-webhook-queue]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.stripe-connect-oauth]
+verify_jwt = false
+
+[functions.asaas-webhook]
+verify_jwt = false
+
+# ✅ PÚBLICAS (Checkout - acessadas por clientes anônimos)
+[functions.create-order]
+verify_jwt = false
+
+[functions.mercadopago-create-payment]
+verify_jwt = false
+
+[functions.stripe-create-payment]
+verify_jwt = false
+
+[functions.asaas-create-payment]
+verify_jwt = false
+
+[functions.asaas-validate-credentials]
+verify_jwt = false
+
+# ✅ PÚBLICAS (PushinPay - PIX)
+[functions.pushinpay-create-pix]
+verify_jwt = false
+
+[functions.pushinpay-get-status]
+verify_jwt = false
+
+# ✅ PÚBLICAS (Diagnóstico e Health Check)
+[functions.check-secrets]
+verify_jwt = false
+
+[functions.health]
+verify_jwt = false
+
+[functions.test-deploy]
+verify_jwt = false
+
+# ✅ AUTENTICADAS (Requerem login do vendedor)
+[functions.save-vendor-credentials]
+verify_jwt = true
+
+[functions.manage-affiliation]
+verify_jwt = true
+
+[functions.request-affiliation]
+verify_jwt = true
+
+[functions.migrate-credentials-to-vault]
+verify_jwt = true
+
+# ✅ AUTENTICADAS (Admin - Gerenciamento de usuários)
+[functions.manage-user-role]
+verify_jwt = true
+
+[functions.get-users-with-emails]
+verify_jwt = true
+
+[functions.manage-user-status]
+verify_jwt = true

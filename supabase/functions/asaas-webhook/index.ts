@@ -1,0 +1,178 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, asaas-access-token',
+};
+
+const SUPABASE_URL = "https://wivbtmtgpsxupfjwwovf.supabase.co";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+const ASAAS_WEBHOOK_TOKEN = Deno.env.get('ASAAS_WEBHOOK_TOKEN') || '';
+
+interface AsaasWebhookEvent {
+  event: string;
+  payment?: {
+    id: string;
+    customer: string;
+    billingType: string;
+    value: number;
+    status: string;
+    externalReference?: string;
+    description?: string;
+    confirmedDate?: string;
+    paymentDate?: string;
+  };
+}
+
+serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    // Validar token do webhook
+    const authHeader = req.headers.get('asaas-access-token') || '';
+    
+    if (!ASAAS_WEBHOOK_TOKEN) {
+      console.error('[asaas-webhook] ASAAS_WEBHOOK_TOKEN não configurado');
+      return new Response(
+        JSON.stringify({ error: 'Webhook token não configurado' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (authHeader !== ASAAS_WEBHOOK_TOKEN) {
+      console.error('[asaas-webhook] Token inválido');
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const event: AsaasWebhookEvent = await req.json();
+    console.log('[asaas-webhook] Evento recebido:', JSON.stringify(event, null, 2));
+
+    const { event: eventType, payment } = event;
+
+    if (!payment) {
+      console.log('[asaas-webhook] Evento sem payment, ignorando');
+      return new Response(
+        JSON.stringify({ received: true, message: 'Evento sem payment' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Eventos relevantes de pagamento
+    const relevantEvents = [
+      'PAYMENT_CONFIRMED',
+      'PAYMENT_RECEIVED',
+      'PAYMENT_OVERDUE',
+      'PAYMENT_REFUNDED',
+      'PAYMENT_DELETED',
+      'PAYMENT_UPDATED',
+      'PAYMENT_CREATED'
+    ];
+
+    if (!relevantEvents.includes(eventType)) {
+      console.log(`[asaas-webhook] Evento ${eventType} não processado`);
+      return new Response(
+        JSON.stringify({ received: true, message: `Evento ${eventType} não processado` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Mapear status Asaas para status interno
+    const statusMap: Record<string, string> = {
+      'PENDING': 'pending',
+      'RECEIVED': 'paid',
+      'CONFIRMED': 'paid',
+      'OVERDUE': 'expired',
+      'REFUNDED': 'refunded',
+      'RECEIVED_IN_CASH': 'paid',
+      'REFUND_REQUESTED': 'refund_requested',
+      'REFUND_IN_PROGRESS': 'refund_in_progress',
+      'CHARGEBACK_REQUESTED': 'chargeback',
+      'CHARGEBACK_DISPUTE': 'chargeback_dispute',
+      'AWAITING_RISK_ANALYSIS': 'pending',
+      'DUNNING_REQUESTED': 'pending',
+      'DUNNING_RECEIVED': 'paid'
+    };
+
+    const internalStatus = statusMap[payment.status] || 'pending';
+    const orderId = payment.externalReference;
+
+    if (!orderId) {
+      console.log('[asaas-webhook] Payment sem externalReference (orderId)');
+      return new Response(
+        JSON.stringify({ received: true, message: 'Payment sem orderId' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`[asaas-webhook] Atualizando order ${orderId} para status ${internalStatus}`);
+
+    // Atualizar order no banco
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    const updateData: Record<string, unknown> = {
+      status: internalStatus,
+      gateway_payment_id: payment.id,
+      updated_at: new Date().toISOString()
+    };
+
+    // Se pagamento confirmado, adicionar data
+    if (internalStatus === 'paid') {
+      updateData.paid_at = payment.confirmedDate || payment.paymentDate || new Date().toISOString();
+    }
+
+    const { error: updateError } = await supabase
+      .from('orders')
+      .update(updateData)
+      .eq('id', orderId);
+
+    if (updateError) {
+      console.error('[asaas-webhook] Erro ao atualizar order:', updateError);
+      return new Response(
+        JSON.stringify({ error: 'Erro ao atualizar order' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Registrar evento
+    const { error: eventError } = await supabase
+      .from('order_events')
+      .insert({
+        order_id: orderId,
+        type: `asaas.${eventType.toLowerCase()}`,
+        data: event,
+        gateway_event_id: payment.id,
+        occurred_at: new Date().toISOString(),
+        vendor_id: '00000000-0000-0000-0000-000000000000' // Placeholder, será atualizado se necessário
+      });
+
+    if (eventError) {
+      console.warn('[asaas-webhook] Erro ao registrar evento (não crítico):', eventError);
+    }
+
+    console.log(`[asaas-webhook] Order ${orderId} atualizada com sucesso para ${internalStatus}`);
+
+    return new Response(
+      JSON.stringify({ 
+        received: true, 
+        orderId, 
+        status: internalStatus,
+        asaasPaymentId: payment.id 
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error('[asaas-webhook] Exception:', error);
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Erro interno' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});

@@ -1,0 +1,310 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+
+const ALLOWED_ORIGINS = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "https://risecheckout.com",
+  "https://www.risecheckout.com",
+  "https://risecheckout-84776.lovable.app",
+  "https://prime-checkout-hub.lovable.app"
+];
+
+const getCorsHeaders = (origin: string) => ({
+  "Access-Control-Allow-Origin": ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+});
+
+// ==========================================
+// RATE LIMITING CONFIG
+// ==========================================
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minuto
+const RATE_LIMIT_MAX_REQUESTS = 5; // 5 solicitações por minuto
+
+serve(async (req) => {
+  const origin = req.headers.get("origin") || "";
+  const corsHeaders = getCorsHeaders(origin);
+
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  try {
+    // Setup Supabase Client
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    // Parse body
+    const { product_id } = await req.json();
+
+    if (!product_id) {
+      throw new Error("product_id é obrigatório");
+    }
+
+    // Get authenticated user
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      throw new Error("Usuário não autenticado");
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+
+    if (authError || !user) {
+      throw new Error("Usuário não autenticado");
+    }
+
+    console.log(`📝 [request-affiliation] Solicitação de ${maskEmail(user.email || '')} para produto ${product_id}`);
+
+    // ==========================================
+    // 0. RATE LIMITING - Prevenir abuso
+    // ==========================================
+    const rateLimitResult = await checkRateLimit(supabaseClient, user.id);
+    if (!rateLimitResult.allowed) {
+      console.warn(`🚫 [request-affiliation] Rate limit excedido para ${maskEmail(user.email || '')}`);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Muitas solicitações. Tente novamente em ${rateLimitResult.retryAfterSeconds} segundos.`,
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 429,
+        }
+      );
+    }
+
+    // Registrar tentativa
+    await recordRateLimitAttempt(supabaseClient, user.id);
+
+    // ==========================================
+    // 1. VALIDAR SE USUÁRIO TEM CONTA DE PAGAMENTO CONECTADA
+    // ==========================================
+    const { data: userProfile, error: profileError } = await supabaseClient
+      .from("profiles")
+      .select("mercadopago_collector_id, stripe_account_id")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      console.error(`🚨 [request-affiliation] Erro ao buscar perfil:`, profileError);
+      throw new Error("Erro ao verificar seu perfil");
+    }
+
+    const hasMercadoPago = !!userProfile?.mercadopago_collector_id;
+    const hasStripe = !!userProfile?.stripe_account_id;
+
+    if (!hasMercadoPago && !hasStripe) {
+      console.warn(`⚠️ [request-affiliation] Usuário ${maskEmail(user.email || '')} sem conta de pagamento conectada`);
+      throw new Error("Você precisa conectar uma conta de pagamento (Mercado Pago ou Stripe) antes de solicitar afiliação. Acesse as configurações para conectar sua conta.");
+    }
+
+    console.log(`✅ [request-affiliation] Conta de pagamento verificada: MP=${hasMercadoPago}, Stripe=${hasStripe}`);
+
+    // ==========================================
+    // 2. BUSCAR PRODUTO E VALIDAR PROGRAMA
+    // ==========================================
+    const { data: product, error: productError } = await supabaseClient
+      .from("products")
+      .select("id, name, user_id, affiliate_settings")
+      .eq("id", product_id)
+      .maybeSingle();
+
+    if (productError || !product) {
+      throw new Error("Produto não encontrado");
+    }
+
+    // ==========================================
+    // 🔒 SEGURANÇA: BLOQUEAR AUTO-AFILIAÇÃO
+    // ==========================================
+    if (product.user_id === user.id) {
+      console.warn(`🚫 [request-affiliation] Tentativa de auto-afiliação bloqueada: ${maskEmail(user.email || '')}`);
+      throw new Error("Você não pode se afiliar ao seu próprio produto");
+    }
+
+    // Verificar se o programa de afiliados está ativo
+    const affiliateSettings = (product.affiliate_settings as any) || {};
+    const programEnabled = affiliateSettings.enabled || false;
+
+    if (!programEnabled) {
+      throw new Error("O programa de afiliados não está ativo para este produto");
+    }
+
+    console.log(`✅ [request-affiliation] Programa ativo para produto: ${product.name}`);
+
+    // ==========================================
+    // 3. VALIDAR SE JÁ É AFILIADO
+    // ==========================================
+    const { data: existingAffiliation } = await supabaseClient
+      .from("affiliates")
+      .select("id, status")
+      .eq("product_id", product_id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (existingAffiliation) {
+      if (existingAffiliation.status === "active") {
+        throw new Error("Você já é um afiliado ativo deste produto");
+      } else if (existingAffiliation.status === "pending") {
+        throw new Error("Você já possui uma solicitação pendente para este produto");
+      } else if (existingAffiliation.status === "blocked") {
+        throw new Error("Você foi bloqueado e não pode se afiliar a este produto");
+      } else if (existingAffiliation.status === "rejected") {
+        // Permite reenviar se foi recusado anteriormente
+        console.log(`🔄 [request-affiliation] Reenviando solicitação previamente recusada`);
+      }
+    }
+
+    // ==========================================
+    // 4. CRIAR OU ATUALIZAR AFILIAÇÃO
+    // ==========================================
+    const requireApproval = affiliateSettings.requireApproval || false;
+    const defaultRate = affiliateSettings.defaultRate || 50;
+
+    // Status inicial e código seguro
+    // ✅ FIX: Sempre gerar código (coluna NOT NULL), mesmo para status pending
+    const initialStatus = requireApproval ? "pending" : "active";
+    const affiliateCode = generateSecureAffiliateCode();
+
+    let affiliation;
+
+    if (existingAffiliation && existingAffiliation.status === "rejected") {
+      // Atualizar registro existente
+      const { data, error } = await supabaseClient
+        .from("affiliates")
+        .update({
+          status: initialStatus,
+          affiliate_code: affiliateCode,
+          commission_rate: defaultRate,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existingAffiliation.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      affiliation = data;
+    } else {
+      // Criar novo registro
+      const { data, error } = await supabaseClient
+        .from("affiliates")
+        .insert({
+          product_id,
+          user_id: user.id,
+          status: initialStatus,
+          affiliate_code: affiliateCode,
+          commission_rate: defaultRate,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      affiliation = data;
+    }
+
+    console.log(`✅ [request-affiliation] Afiliação criada: ${affiliation.id} (status: ${initialStatus})`);
+
+    // ==========================================
+    // 5. RETORNAR RESPOSTA
+    // ==========================================
+    return new Response(
+      JSON.stringify({
+        success: true,
+        affiliation_id: affiliation.id,
+        status: initialStatus,
+        requires_approval: requireApproval,
+        affiliate_code: affiliateCode,
+        message: requireApproval 
+          ? "Solicitação enviada! Aguarde a aprovação do produtor."
+          : "Parabéns! Você já é um afiliado ativo. Seu link está disponível.",
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      }
+    );
+
+  } catch (error: any) {
+    console.error("🚨 [request-affiliation] Erro:", error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message || "Erro ao processar solicitação",
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      }
+    );
+  }
+});
+
+// ==========================================
+// 🔒 HELPER: Gerar código de afiliado SEGURO (crypto)
+// ==========================================
+function generateSecureAffiliateCode(): string {
+  const bytes = new Uint8Array(12);
+  crypto.getRandomValues(bytes);
+  const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+  return `AFF-${hex.slice(0, 8)}-${hex.slice(8, 16)}`;
+}
+
+// ==========================================
+// 🔒 HELPER: Mascarar PII (email) em logs
+// ==========================================
+function maskEmail(email: string): string {
+  if (!email || !email.includes('@')) return '***@***';
+  const [user, domain] = email.split('@');
+  const maskedUser = user.length > 2 ? user.substring(0, 2) + '***' : '***';
+  return `${maskedUser}@${domain}`;
+}
+
+// ==========================================
+// 🔒 RATE LIMITING: Verificar limite
+// ==========================================
+async function checkRateLimit(
+  supabase: any, 
+  userId: string
+): Promise<{ allowed: boolean; retryAfterSeconds?: number }> {
+  const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
+  
+  const { count, error } = await supabase
+    .from("rate_limit_attempts")
+    .select("*", { count: "exact", head: true })
+    .eq("identifier", `affiliation:${userId}`)
+    .eq("action", "request-affiliation")
+    .gte("created_at", windowStart);
+
+  if (error) {
+    console.error("Erro ao verificar rate limit:", error);
+    // Em caso de erro, permitir (fail-open para não bloquear usuários legítimos)
+    return { allowed: true };
+  }
+
+  const currentCount = count || 0;
+  
+  if (currentCount >= RATE_LIMIT_MAX_REQUESTS) {
+    return { 
+      allowed: false, 
+      retryAfterSeconds: Math.ceil(RATE_LIMIT_WINDOW_MS / 1000) 
+    };
+  }
+
+  return { allowed: true };
+}
+
+// ==========================================
+// 🔒 RATE LIMITING: Registrar tentativa
+// ==========================================
+async function recordRateLimitAttempt(supabase: any, userId: string): Promise<void> {
+  await supabase
+    .from("rate_limit_attempts")
+    .insert({
+      identifier: `affiliation:${userId}`,
+      action: "request-affiliation",
+      success: true,
+    });
+}

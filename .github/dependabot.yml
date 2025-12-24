@@ -1,0 +1,36 @@
+# Configuração do Dependabot para monitoramento de vulnerabilidades
+# Referência: https://docs.github.com/en/code-security/dependabot
+
+version: 2
+updates:
+  # Monitorar dependências npm/pnpm
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "olaalessandro9-wq"
+    labels:
+      - "dependencies"
+      - "security"
+    # Agrupar atualizações de patch
+    groups:
+      patch-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+    # Priorizar atualizações de segurança
+    versioning-strategy: increase
+
+  # Monitorar GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "github-actions"

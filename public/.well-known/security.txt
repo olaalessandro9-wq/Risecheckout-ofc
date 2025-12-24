@@ -1,0 +1,24 @@
+# Our security address
+Contact: mailto:security@risecheckout.com
+Contact: https://github.com/olaalessandro9-wq/risecheckout-84776/security/advisories/new
+
+# Our security policy
+Policy: https://github.com/olaalessandro9-wq/risecheckout-84776/blob/main/SECURITY.md
+
+# Our preferred languages
+Preferred-Languages: pt-BR, en
+
+# Our PGP key (optional - add later if needed)
+# Encryption: https://example.com/pgp-key.txt
+
+# Canonical URL
+Canonical: https://risecheckout.com/.well-known/security.txt
+
+# Expiration date (1 year from now)
+Expires: 2026-12-16T00:00:00.000Z
+
+# Acknowledgments page (optional - add later if needed)
+# Acknowledgments: https://risecheckout.com/security/hall-of-fame
+
+# Hiring (optional)
+# Hiring: https://risecheckout.com/careers

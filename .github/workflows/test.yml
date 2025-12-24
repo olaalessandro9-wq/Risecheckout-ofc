@@ -1,0 +1,42 @@
+name: Testes Automatizados
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v3
+      
+      - name: Instalar Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+      
+      - name: Configurar variáveis de ambiente
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          MERCADOPAGO_WEBHOOK_SECRET: ${{ secrets.MERCADOPAGO_WEBHOOK_SECRET }}
+        run: |
+          echo "SUPABASE_URL=$SUPABASE_URL" >> $GITHUB_ENV
+          echo "SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY" >> $GITHUB_ENV
+          echo "MERCADOPAGO_WEBHOOK_SECRET=$MERCADOPAGO_WEBHOOK_SECRET" >> $GITHUB_ENV
+      
+      - name: Executar testes
+        working-directory: ./supabase/functions
+        run: ./run-tests.sh
+      
+      - name: Notificar sucesso
+        if: success( )
+        run: echo "✅ Todos os testes passaram!"
+      
+      - name: Notificar falha
+        if: failure()
+        run: echo "❌ Testes falharam!"

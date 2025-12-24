@@ -1,0 +1,64 @@
+// Helper para carregar candidatos de Order Bump direto do Supabase.
+// Mantém a tipagem enxuta e independe de rotas /api inexistentes.
+// Uso típico no modal: fetchOrderBumpCandidates().then(setProdutos)
+
+import { supabase } from "@/integrations/supabase/client";
+
+// Se o projeto já tiver um tipo Product/ProductLite em src/types/product,
+// você pode trocar por esse import:
+// import type { ProductLite } from "@/types/product";
+
+export type OrderBumpCandidate = {
+  id: string;
+  name: string;
+  price: number; // Preço em centavos decimais (990.00 = R$ 9,90)
+  status?: string | null;
+  image_url?: string | null;
+  description?: string | null;
+};
+
+/**
+ * Busca produtos para serem candidatos de Order Bump.
+ * @param excludeProductId opcionalmente exclui o produto atual da lista
+ */
+export async function fetchOrderBumpCandidates(opts?: {
+  excludeProductId?: string;
+}): Promise<OrderBumpCandidate[]> {
+  const excludeId = opts?.excludeProductId;
+
+  // ✅ Buscar usuário atual para filtro explícito
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  
+  if (authError || !user) {
+    console.error("[OrderBump] Usuário não autenticado:", authError);
+    throw new Error("Usuário não autenticado");
+  }
+
+  // ✅ Filtro explícito por user_id (defesa em profundidade além do RLS)
+  let query = supabase
+    .from("products")
+    .select("id,name,price,image_url,description")
+    .eq("user_id", user.id)  // ✅ FILTRO EXPLÍCITO POR USUÁRIO
+    .eq("status", "active")
+    .order("created_at", { ascending: false });
+
+  // Se quiser excluir o produto atual:
+  if (excludeId) {
+    query = query.neq("id", excludeId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("[OrderBump] load products failed:", error);
+    throw error;
+  }
+
+  // Retorna produtos filtrados e validados
+  return (data ?? [])
+    .filter((p: any) => p && p.id && p.name)
+    .map((p: any) => ({
+      ...p,
+      price: Number(p.price) // Preço em centavos decimais (990.00 = R$ 9,90)
+    })) as unknown as OrderBumpCandidate[];
+}

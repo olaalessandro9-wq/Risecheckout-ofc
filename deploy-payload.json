@@ -1,0 +1,11 @@
+{
+  "project_id": "wivbtmtgpsxupfjwwovf",
+  "name": "mercadopago-webhook",
+  "files": [
+    {
+      "path": "index.ts",
+      "content": ""
+    }
+  ],
+  "verify_jwt": false
+}

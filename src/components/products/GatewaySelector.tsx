@@ -1,0 +1,181 @@
+/**
+ * GatewaySelector - Componente Reutilizável para Seleção de Gateway
+ * 
+ * Este componente renderiza dinamicamente os gateways disponíveis
+ * para um método de pagamento específico.
+ * 
+ * Características:
+ * - Renderização dinâmica baseada no registry
+ * - Suporta gateways ativos e "em breve"
+ * - Exibe taxas automaticamente
+ * - Type-safe
+ * - Fácil de manter
+ */
+
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { AlertCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  getActiveGatewaysByMethod,
+  getGatewaysByMethod,
+  formatGatewayFees,
+  type PaymentMethod,
+  type PaymentGateway,
+} from "@/config/payment-gateways";
+
+interface GatewaySelectorProps {
+  paymentMethod: PaymentMethod;
+  value: string;
+  onChange: (value: string) => void;
+  showComingSoon?: boolean;
+  credentials?: Record<string, { configured: boolean }>;
+}
+
+export function GatewaySelector({
+  paymentMethod,
+  value,
+  onChange,
+  showComingSoon = true,
+  credentials = {},
+}: GatewaySelectorProps) {
+  // Buscar gateways ativos
+  const activeGateways = getActiveGatewaysByMethod(paymentMethod);
+  
+  // Buscar gateways "em breve" (se habilitado)
+  const comingSoonGateways = showComingSoon
+    ? getGatewaysByMethod(paymentMethod).filter(
+        (g) => g.status === 'coming_soon'
+      )
+    : [];
+
+  // Se não houver gateways, mostrar mensagem
+  if (activeGateways.length === 0) {
+    return (
+      <div className="border rounded-lg p-4 bg-muted/30 text-center">
+        <p className="text-sm text-muted-foreground">
+          Nenhum gateway disponível para {paymentMethod}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <RadioGroup
+      value={value}
+      onValueChange={onChange}
+      className="grid grid-cols-1 md:grid-cols-2 gap-4"
+    >
+      {/* Gateways Ativos */}
+      {activeGateways.map((gateway) => (
+        <GatewayOption
+          key={gateway.id}
+          gateway={gateway}
+          paymentMethod={paymentMethod}
+          isSelected={value === gateway.id}
+          isConfigured={credentials[gateway.id]?.configured ?? true}
+        />
+      ))}
+
+      {/* Gateways "Em Breve" */}
+      {comingSoonGateways.map((gateway) => (
+        <GatewayComingSoonOption
+          key={gateway.id}
+          gateway={gateway}
+          paymentMethod={paymentMethod}
+        />
+      ))}
+
+      {/* Placeholder para "Outros Gateways" */}
+      {comingSoonGateways.length === 0 && (
+        <div className="border rounded-lg p-4 bg-muted/30 flex items-center gap-3 opacity-50">
+          <div className="w-4 h-4 rounded-full border-2 border-muted-foreground" />
+          <div>
+            <div className="font-medium text-muted-foreground">Outros gateways</div>
+            <div className="text-xs text-muted-foreground">Em breve</div>
+          </div>
+        </div>
+      )}
+    </RadioGroup>
+  );
+}
+
+// ============================================
+// SUB-COMPONENTES
+// ============================================
+
+interface GatewayOptionProps {
+  gateway: PaymentGateway;
+  paymentMethod: PaymentMethod;
+  isSelected: boolean;
+  isConfigured: boolean;
+}
+
+function GatewayOption({ gateway, paymentMethod, isSelected, isConfigured }: GatewayOptionProps) {
+  const fees = gateway.fees[paymentMethod];
+  const feesText = fees ? formatGatewayFees(fees) : 'Sem taxas';
+  
+  // ID único combinando método de pagamento + gateway para evitar conflitos
+  const uniqueId = `gateway-${paymentMethod}-${gateway.id}`;
+  
+  // Verificar se gateway requer credenciais
+  const requiresCredentials = gateway.requiresCredentials ?? true;
+  const isDisabled = requiresCredentials && !isConfigured;
+
+  return (
+    <Label
+      htmlFor={uniqueId}
+      className={cn(
+        "border rounded-lg p-4 flex items-center gap-3 transition-all",
+        isDisabled
+          ? "opacity-50 cursor-not-allowed bg-muted/30"
+          : "cursor-pointer",
+        !isDisabled && isSelected ? "ring-2 ring-primary bg-primary/5" : "",
+        !isDisabled && !isSelected ? "hover:bg-muted/50" : ""
+      )}
+    >
+      <RadioGroupItem id={uniqueId} value={gateway.id} disabled={isDisabled} />
+      <div className="flex-1">
+        <div className="font-medium">{gateway.displayName}</div>
+        <div className="text-xs text-muted-foreground">{feesText}</div>
+        {gateway.description && (
+          <div className="text-xs text-muted-foreground mt-1 opacity-75">
+            {gateway.description}
+          </div>
+        )}
+        {isDisabled && (
+          <div className="text-xs text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1">
+            <AlertCircle className="h-3 w-3" />
+            Configure na página Financeiro
+          </div>
+        )}
+      </div>
+      {gateway.status === 'beta' && (
+        <span className="text-xs bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 px-2 py-0.5 rounded">
+          Beta
+        </span>
+      )}
+    </Label>
+  );
+}
+
+interface GatewayComingSoonOptionProps {
+  gateway: PaymentGateway;
+  paymentMethod: PaymentMethod;
+}
+
+function GatewayComingSoonOption({ gateway, paymentMethod }: GatewayComingSoonOptionProps) {
+  const fees = gateway.fees[paymentMethod];
+  const feesText = fees ? formatGatewayFees(fees) : 'Sem taxas';
+
+  return (
+    <div className="border rounded-lg p-4 bg-muted/30 flex items-center gap-3 opacity-50 cursor-not-allowed">
+      <div className="w-4 h-4 rounded-full border-2 border-muted-foreground" />
+      <div className="flex-1">
+        <div className="font-medium text-muted-foreground">{gateway.displayName}</div>
+        <div className="text-xs text-muted-foreground">{feesText}</div>
+        <div className="text-xs text-muted-foreground mt-1">Em breve</div>
+      </div>
+    </div>
+  );
+}

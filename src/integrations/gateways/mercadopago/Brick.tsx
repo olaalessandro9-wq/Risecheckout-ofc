@@ -1,0 +1,136 @@
+/**
+ * Componente Brick do Mercado Pago
+ * Módulo: src/integrations/gateways/mercadopago
+ * 
+ * Componente React responsável por renderizar o formulário de cartão (Brick)
+ * do Mercado Pago.
+ */
+
+import React, { useEffect, useRef } from "react";
+import { MercadoPagoIntegration, BrickConfig } from "./types";
+
+interface BrickProps {
+  integration: MercadoPagoIntegration | null;
+  onPaymentReady?: () => void;
+  onPaymentError?: (error: any) => void;
+  onPaymentSubmit?: (data: any) => void;
+  customConfig?: Partial<BrickConfig>;
+}
+
+export const Brick = ({
+  integration,
+  onPaymentReady,
+  onPaymentError,
+  onPaymentSubmit,
+  customConfig,
+}: BrickProps) => {
+  const brickContainerId = "mercadopago-brick-container";
+  const brickInstanceRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!integration || !integration.active || !integration.config?.public_key) {
+      console.log("[MercadoPago] Brick não será renderizado (integração inválida)");
+      return;
+    }
+
+    const initBrick = async () => {
+      try {
+        // Verificar se MercadoPago está disponível
+        if (!window.MercadoPago) {
+          console.warn("[MercadoPago] MercadoPago SDK não está carregada");
+          return;
+        }
+
+        const mp = new window.MercadoPago(integration.config.public_key, {
+          locale: "pt-BR",
+        });
+
+        // Configuração do Brick
+        const brickConfig: BrickConfig = {
+          publicKey: integration.config.public_key,
+          locale: "pt-BR",
+          theme: {
+            colors: {
+              primary: "#3483FA",
+              secondary: "#555555",
+              error: "#FF5252",
+            },
+          },
+          callbacks: {
+            onReady: () => {
+              console.log("[MercadoPago] Brick está pronto");
+              onPaymentReady?.();
+            },
+            onSubmit: (data: unknown) => {
+              console.log("[MercadoPago] Pagamento submetido", data);
+              onPaymentSubmit?.(data);
+            },
+            onError: (error: unknown) => {
+              console.error("[MercadoPago] Erro no Brick", error);
+              onPaymentError?.(error);
+            },
+            onFieldChange: (field: unknown) => {
+              console.log("[MercadoPago] Campo alterado", field);
+            },
+          },
+          customizations: {
+            visual: {
+              hideFormTitle: false,
+              hidePaymentButton: false,
+            },
+            paymentMethods: {
+              maxInstallments: 12,
+              excluded: [],
+            },
+          },
+          ...customConfig,
+        };
+
+        // Renderizar Brick
+        const brickBuilder = mp.bricks();
+        await brickBuilder.create("payment", brickConfig);
+
+        brickInstanceRef.current = brickBuilder;
+
+        console.log(
+          "[MercadoPago] ✅ Brick renderizado com sucesso",
+          {
+            public_key: integration.config.public_key,
+          }
+        );
+      } catch (error) {
+        console.error("[MercadoPago] Erro ao renderizar Brick:", error);
+        onPaymentError?.(error);
+      }
+    };
+
+    // Executar apenas no navegador (não SSR)
+    if (typeof window !== "undefined") {
+      initBrick();
+    }
+
+    // Cleanup
+    return () => {
+      if (brickInstanceRef.current) {
+        brickInstanceRef.current.unmount();
+      }
+    };
+  }, [integration?.config?.public_key, integration?.active, onPaymentReady, onPaymentError, onPaymentSubmit, customConfig]);
+
+  // Renderizar container do Brick
+  return (
+    <div
+      id={brickContainerId}
+      style={{
+        width: "100%",
+        minHeight: "400px",
+        padding: "20px",
+        border: "1px solid #e0e0e0",
+        borderRadius: "8px",
+        backgroundColor: "#f9f9f9",
+      }}
+    />
+  );
+};
+
+Brick.displayName = "MercadoPagoBrick";

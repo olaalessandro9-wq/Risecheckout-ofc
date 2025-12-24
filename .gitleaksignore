@@ -1,0 +1,23 @@
+# ============================================================================
+# Gitleaks Ignore File
+# ============================================================================
+#
+# This file contains patterns and fingerprints to ignore during secret scanning.
+# Use this to suppress false positives, NOT to ignore real secrets.
+#
+# ============================================================================
+
+# Example: Ignore a specific fingerprint (from gitleaks report)
+# abc123def456:path/to/file.txt:secret-type
+
+# Ignore test files with mock secrets
+**/test/**
+**/tests/**
+**/__tests__/**
+**/*.test.ts
+**/*.spec.ts
+
+# Ignore example/template files
+**/.env.example
+**/.env.template
+**/example.env

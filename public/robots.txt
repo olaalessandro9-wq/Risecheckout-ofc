@@ -1,0 +1,31 @@
+# robots.txt for RiseCheckout
+# Updated: 2025-12-16
+
+# Allow all major search engines
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+# Block access to sensitive areas
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /.well-known/
+Disallow: /checkout/builder/
+Disallow: /dashboard/
+Disallow: /produtos/
+Disallow: /afiliados/
+Disallow: /financeiro/
+Disallow: /configuracoes/
+
+# Sitemap (if you have one)
+# Sitemap: https://risecheckout.com/sitemap.xml

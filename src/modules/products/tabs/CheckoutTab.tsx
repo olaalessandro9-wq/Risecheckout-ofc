@@ -1,0 +1,248 @@
+/**
+ * CheckoutTab - Aba de Gerenciamento de Checkouts
+ * 
+ * Esta aba gerencia:
+ * - Listagem de checkouts do produto
+ * - Adicionar novo checkout
+ * - Duplicar checkout existente
+ * - Deletar checkout
+ * - Configurar checkout (oferta associada)
+ * - Customizar checkout (personalização visual)
+ */
+
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { CheckoutTable } from "@/components/products/CheckoutTable";
+import { CheckoutConfigDialog } from "@/components/products/CheckoutConfigDialog";
+import { useProductContext } from "../context/ProductContext";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useConfirmDelete } from "@/components/common/ConfirmDelete";
+import { useBusy } from "@/components/BusyProvider";
+
+// Tipo Checkout (igual ao CheckoutTable)
+interface Checkout {
+  id: string;
+  name: string;
+  price: number;
+  visits: number;
+  offer: string;
+  isDefault: boolean;
+  linkId: string;
+}
+
+export function CheckoutTab() {
+  const { product, checkouts, refreshCheckouts } = useProductContext();
+  const navigate = useNavigate();
+  const { confirm, Bridge } = useConfirmDelete();
+  const busy = useBusy();
+
+  const [checkoutConfigDialogOpen, setCheckoutConfigDialogOpen] = useState(false);
+  const [editingCheckout, setEditingCheckout] = useState<Checkout | null>(null);
+  const [currentOfferId, setCurrentOfferId] = useState<string>("");
+  const [availableOffers, setAvailableOffers] = useState<any[]>([]);
+
+  // Carregar ofertas do produto
+  useEffect(() => {
+    if (product?.id) {
+      loadOffers();
+    }
+  }, [product?.id]);
+
+  const loadOffers = async () => {
+    if (!product?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('offers')
+        .select('id, name, price, is_default')
+        .eq('product_id', product.id)
+        .eq('status', 'active') // Apenas ofertas ativas
+        .order('created_at', { ascending: true });
+      
+      if (error) throw error;
+      setAvailableOffers(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar ofertas:', error);
+    }
+  };
+
+  const handleAddCheckout = () => {
+    setEditingCheckout(null);
+    setCurrentOfferId("");
+    setCheckoutConfigDialogOpen(true);
+  };
+
+  const handleDuplicateCheckout = async (checkout: Checkout) => {
+    try {
+      await busy.run(
+        async () => {
+          const { duplicateCheckout } = await import("@/lib/checkouts/duplicateCheckout");
+          const { id, editUrl } = await duplicateCheckout(checkout.id);
+          
+          // Recarregar checkouts
+          await refreshCheckouts();
+          
+          toast.success("Checkout duplicado com sucesso!");
+          
+          // Navegar para personalização do novo checkout
+          navigate(editUrl);
+        },
+        "Duplicando checkout..."
+      );
+    } catch (error) {
+      console.error("Error duplicating checkout:", error);
+      toast.error("Não foi possível duplicar o checkout");
+    }
+  };
+
+  const handleDeleteCheckout = async (id: string, name: string) => {
+    try {
+      await confirm({
+        resourceType: "Checkout",
+        resourceName: name,
+        onConfirm: async () => {
+          console.log("[CHECKOUT DEBUG] Deletando checkout:", id);
+          
+          // 1. Buscar payment_link associado ao checkout
+          const { data: checkoutLink } = await supabase
+            .from("checkout_links")
+            .select(`
+              link_id,
+              payment_links!inner (
+                id,
+                is_original
+              )
+            `)
+            .eq("checkout_id", id)
+            .maybeSingle();
+
+          // 2. Deletar associação checkout_links
+          const { error: linkError } = await supabase
+            .from("checkout_links")
+            .delete()
+            .eq("checkout_id", id);
+
+          if (linkError) {
+            console.error("[CHECKOUT DEBUG] Erro ao deletar links:", linkError);
+            throw linkError;
+          }
+
+          // 3. Se payment_link é duplicado (is_original = false), deletar
+          if (checkoutLink && checkoutLink.payment_links.is_original === false) {
+            console.log("[CHECKOUT DEBUG] Deletando payment_link duplicado:", checkoutLink.link_id);
+            const { error: paymentLinkError } = await supabase
+              .from("payment_links")
+              .delete()
+              .eq("id", checkoutLink.link_id);
+
+            if (paymentLinkError) {
+              console.error("[CHECKOUT DEBUG] Erro ao deletar payment_link:", paymentLinkError);
+              // Não falhar se não conseguir deletar o link
+            }
+          } else {
+            console.log("[CHECKOUT DEBUG] Payment_link é original, mantendo...");
+          }
+
+          // 4. Deletar checkout
+          const { error } = await supabase
+            .from("checkouts")
+            .delete()
+            .eq("id", id);
+
+          if (error) {
+            console.error("[CHECKOUT DEBUG] Erro ao deletar checkout:", error);
+            throw error;
+          }
+
+          await refreshCheckouts();
+          // Toast de sucesso é exibido pelo Bridge do useConfirmDelete
+        },
+      });
+    } catch (error) {
+      console.error("Error deleting checkout:", error);
+      // Não mostrar erro se o usuário cancelou
+      if (error instanceof Error && error.message !== "User cancelled") {
+        toast.error("Não foi possível excluir o checkout");
+      }
+    }
+  };
+
+  const handleConfigureCheckout = async (checkout: Checkout) => {
+    setEditingCheckout(checkout);
+    
+    // Carregar oferta associada a este checkout via checkout_links -> payment_links -> offers
+    try {
+      const { data, error } = await supabase
+        .from("checkout_links")
+        .select(`
+          link_id,
+          payment_links (
+            offer_id
+          )
+        `)
+        .eq("checkout_id", checkout.id)
+        .limit(1)
+        .maybeSingle();
+      
+      if (error) {
+        console.error("Error loading checkout offer:", error);
+        setCurrentOfferId("");
+      } else {
+        const offerId = (data as any)?.payment_links?.offer_id || "";
+        setCurrentOfferId(offerId);
+      }
+    } catch (error) {
+      console.error("Error loading checkout offer:", error);
+      setCurrentOfferId("");
+    }
+    
+    setCheckoutConfigDialogOpen(true);
+  };
+
+  const handleCustomizeCheckout = (checkout: Checkout) => {
+    navigate(`/dashboard/produtos/checkout/personalizar?id=${checkout.id}`);
+  };
+
+  if (!product?.id) {
+    return (
+      <div className="bg-card border border-border rounded-lg p-8">
+        <p className="text-muted-foreground">Carregando checkouts...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-card border border-border rounded-lg p-8 space-y-6">
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold text-foreground">Checkouts</h3>
+        <p className="text-sm text-muted-foreground mt-2">
+          Crie e personalize diferentes checkouts para seus produtos
+        </p>
+      </div>
+      <CheckoutTable
+        checkouts={checkouts}
+        onAdd={handleAddCheckout}
+        onDuplicate={handleDuplicateCheckout}
+        onDelete={handleDeleteCheckout}
+        onConfigure={handleConfigureCheckout}
+        onCustomize={handleCustomizeCheckout}
+      />
+      
+      <CheckoutConfigDialog
+        open={checkoutConfigDialogOpen}
+        onOpenChange={setCheckoutConfigDialogOpen}
+        checkout={editingCheckout || undefined}
+        availableOffers={availableOffers}
+        currentOfferId={currentOfferId}
+        productId={product.id}
+        onSave={async () => {
+          await refreshCheckouts();
+          await loadOffers();
+        }}
+      />
+      
+      <Bridge />
+    </div>
+  );
+}
