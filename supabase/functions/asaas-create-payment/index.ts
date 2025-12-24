@@ -4,7 +4,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { 
   isVendorOwner,
   calculatePlatformFeeCents,
-  PLATFORM_FEE_PERCENT
+  PLATFORM_FEE_PERCENT,
+  getGatewayCredentials,
+  validateCredentials
 } from "../_shared/platform-config.ts";
 
 const corsHeaders = {
@@ -113,26 +115,32 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // ==========================================
-    // 1. SEMPRE USAR CREDENCIAIS DA PLATAFORMA (RiseCheckout)
+    // 1. BUSCAR CREDENCIAIS DINAMICAMENTE (platform-config)
     // ==========================================
-    const PLATFORM_API_KEY = Deno.env.get('ASAAS_API_KEY');
-    
-    if (!PLATFORM_API_KEY) {
-      console.error('[asaas-create-payment] ❌ ASAAS_API_KEY não configurado!');
+    const { credentials, isOwner: isCredentialsOwner } = await getGatewayCredentials(supabase, vendorId, 'asaas');
+
+    // Validar credenciais
+    const validation = validateCredentials('asaas', credentials);
+    if (!validation.valid) {
+      console.error('[asaas-create-payment] ❌ Credenciais inválidas:', validation.missingFields);
       return new Response(
-        JSON.stringify({ success: false, error: 'Credenciais Asaas da plataforma não configuradas' }),
+        JSON.stringify({ 
+          success: false, 
+          error: `Credenciais Asaas faltando: ${validation.missingFields.join(', ')}` 
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // TODO: Buscar ambiente de platform_settings
-    const useSandbox = true;
-    const baseUrl = useSandbox 
-      ? 'https://sandbox.asaas.com/api/v3' 
+    // URL baseada no ambiente (DINÂMICO!)
+    const baseUrl = credentials.environment === 'sandbox'
+      ? 'https://sandbox.asaas.com/api/v3'
       : 'https://api.asaas.com/v3';
 
-    console.log(`[asaas-create-payment] 🔑 Usando credenciais RiseCheckout`);
-    console.log(`[asaas-create-payment] 🌐 Ambiente: ${useSandbox ? 'SANDBOX' : 'PRODUCTION'}`);
+    const PLATFORM_API_KEY = credentials.apiKey!;
+
+    console.log(`[asaas-create-payment] 🔑 Usando credenciais: ${isCredentialsOwner ? 'Owner (secrets)' : 'Vendor (integrations)'}`);
+    console.log(`[asaas-create-payment] 🌐 Ambiente: ${credentials.environment.toUpperCase()}`);
 
     // ==========================================
     // 2. CALCULAR SPLIT
