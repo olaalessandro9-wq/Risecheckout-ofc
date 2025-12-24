@@ -1,3 +1,10 @@
+/**
+ * Financeiro - Página de configuração de gateways para Vendors
+ * 
+ * Esta página é exclusiva para Vendors (user/seller).
+ * O Owner tem sua própria página: OwnerGateways.tsx
+ */
+
 import { useEffect, useState } from "react";
 import { Loader2, Wallet, CreditCard } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
@@ -7,9 +14,7 @@ import * as Stripe from "@/integrations/gateways/stripe";
 import * as Asaas from "@/integrations/gateways/asaas";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { usePermissions } from "@/hooks/usePermissions";
 import { PaymentCard } from "@/components/financeiro/PaymentCard";
-import { OwnerGatewayCard } from "@/components/financeiro/OwnerGatewayCard";
 import {
   Sheet,
   SheetContent,
@@ -24,8 +29,6 @@ type PaymentGateway = "pushinpay" | "mercadopago" | "stripe" | "asaas" | null;
 
 export default function Financeiro() {
   const { user } = useAuth();
-  const { role, isLoading: permissionsLoading } = usePermissions();
-  const isOwner = role === "owner";
 
   // Estados para vendors
   const [apiToken, setApiToken] = useState("");
@@ -41,16 +44,10 @@ export default function Financeiro() {
 
   // Carregar dados quando user estiver disponível
   useEffect(() => {
-    if (user?.id && !permissionsLoading) {
-      console.log('[Financeiro] User carregado, role:', role);
-      if (isOwner) {
-        // Owner não precisa carregar nada, apenas mostra cards estáticos
-        setLoadingData(false);
-      } else {
-        loadAllIntegrations();
-      }
+    if (user?.id) {
+      loadAllIntegrations();
     }
-  }, [user?.id, permissionsLoading, isOwner, role]);
+  }, [user?.id]);
 
   // Listener para OAuth success
   useEffect(() => {
@@ -226,7 +223,7 @@ export default function Financeiro() {
     }
   };
 
-  if (loadingData || permissionsLoading) {
+  if (loadingData) {
     return (
       <div className="flex items-center justify-center p-12">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -238,61 +235,42 @@ export default function Financeiro() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--text)' }}>
+        <h1 className="text-2xl font-bold mb-1 text-foreground">
           Financeiro
         </h1>
-        <p className="text-sm" style={{ color: 'var(--subtext)' }}>
-          {isOwner 
-            ? "Gerencie os ambientes dos gateways de pagamento" 
-            : "Configure suas integrações de pagamento"
-          }
+        <p className="text-sm text-muted-foreground">
+          Configure suas integrações de pagamento
         </p>
       </div>
 
       {/* Lista de Gateways */}
       <div className="max-w-3xl space-y-3">
-        {isOwner ? (
-          // Renderização para Owner - Cards estáticos (Produção)
-          gatewayConfig.map((gateway) => (
-            <OwnerGatewayCard
-              key={gateway.id}
-              name={gateway.name}
-              description={gateway.description}
-              icon={gateway.icon}
-              iconColor={gateway.iconColor}
-            />
-          ))
-        ) : (
-          // Renderização para Vendors - Cards com status de conexão
-          gatewayConfig.map((gateway) => (
-            <PaymentCard
-              key={gateway.id}
-              name={gateway.name}
-              description={gateway.description}
-              icon={gateway.icon}
-              iconColor={gateway.iconColor}
-              connected={gateway.connected}
-              onClick={() => setSelectedGateway(gateway.id)}
-            />
-          ))
-        )}
+        {gatewayConfig.map((gateway) => (
+          <PaymentCard
+            key={gateway.id}
+            name={gateway.name}
+            description={gateway.description}
+            icon={gateway.icon}
+            iconColor={gateway.iconColor}
+            connected={gateway.connected}
+            onClick={() => setSelectedGateway(gateway.id)}
+          />
+        ))}
       </div>
 
-      {/* Sheet lateral para configuração (apenas vendors) */}
-      {!isOwner && (
-        <Sheet 
-          open={selectedGateway !== null} 
-          onOpenChange={(open) => !open && setSelectedGateway(null)}
-        >
-          <SheetContent className="sm:max-w-[600px] overflow-y-auto">
-            <SheetHeader>
-              <SheetTitle>{getGatewayTitle()}</SheetTitle>
-              <SheetDescription>{getGatewayDescription()}</SheetDescription>
-            </SheetHeader>
-            {renderGatewayContent()}
-          </SheetContent>
-        </Sheet>
-      )}
+      {/* Sheet lateral para configuração */}
+      <Sheet 
+        open={selectedGateway !== null} 
+        onOpenChange={(open) => !open && setSelectedGateway(null)}
+      >
+        <SheetContent className="sm:max-w-[600px] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{getGatewayTitle()}</SheetTitle>
+            <SheetDescription>{getGatewayDescription()}</SheetDescription>
+          </SheetHeader>
+          {renderGatewayContent()}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
