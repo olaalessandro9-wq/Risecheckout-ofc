@@ -232,6 +232,33 @@ export async function saveAsaasSettings(
       }
     }
 
+    // Salvar wallet_id em profiles para que o split funcione
+    if (config.wallet_id) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ asaas_wallet_id: config.wallet_id })
+        .eq('id', vendorId);
+      
+      if (profileError) {
+        console.warn('[Asaas] Erro ao atualizar profiles.asaas_wallet_id:', profileError);
+      } else {
+        console.log('[Asaas] profiles.asaas_wallet_id atualizado:', config.wallet_id);
+      }
+
+      // Se o usuário também é afiliado, atualizar affiliates
+      const { error: affiliateError } = await supabase
+        .from('affiliates')
+        .update({ asaas_wallet_id: config.wallet_id })
+        .eq('user_id', vendorId);
+      
+      if (affiliateError && affiliateError.code !== 'PGRST116') {
+        // PGRST116 = no rows found (não é afiliado) - ignorar
+        console.warn('[Asaas] Erro ao atualizar affiliates.asaas_wallet_id:', affiliateError);
+      } else if (!affiliateError) {
+        console.log('[Asaas] affiliates.asaas_wallet_id atualizado para user_id:', vendorId);
+      }
+    }
+
     return { success: true };
   } catch (err) {
     console.error('[Asaas] Save settings exception:', err);
@@ -262,6 +289,20 @@ export async function disconnectAsaas(
         error: error.message,
       };
     }
+
+    // Limpar wallet_id em profiles
+    await supabase
+      .from('profiles')
+      .update({ asaas_wallet_id: null })
+      .eq('id', vendorId);
+
+    // Limpar wallet_id em affiliates
+    await supabase
+      .from('affiliates')
+      .update({ asaas_wallet_id: null })
+      .eq('user_id', vendorId);
+
+    console.log('[Asaas] Desconectado e wallet_id limpo para vendor:', vendorId);
 
     return { success: true };
   } catch (err) {
