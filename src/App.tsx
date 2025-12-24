@@ -52,6 +52,7 @@ import Ajuda from "./pages/Ajuda";
 const AdminHealth = lazy(() => import("./pages/AdminHealth"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const Afiliados = lazy(() => import("./pages/Afiliados"));
+const OwnerGateways = lazy(() => import("./pages/owner/OwnerGateways"));
 
 // ============================================================================
 // COMPONENTE DE LOADING
@@ -165,6 +166,20 @@ function App() {
                   <Route path="minhas-afiliacoes" element={<MinhasAfiliacoes />} />
                   <Route path="minhas-afiliacoes/:affiliationId" element={<AffiliationDetails />} />
                   <Route path="financeiro" element={<Financeiro />} />
+                  {/* Rota exclusiva Owner: Gateways da Plataforma (lazy loaded) */}
+                  <Route 
+                    path="gateways" 
+                    element={
+                      <RoleProtectedRoute 
+                        requiredRole="owner"
+                        showAccessDenied
+                      >
+                        <Suspense fallback={<PageLoader />}>
+                          <OwnerGateways />
+                        </Suspense>
+                      </RoleProtectedRoute>
+                    } 
+                  />
                   <Route path="integracoes" element={<Integracoes />} />
                   <Route path="ajuda" element={<Ajuda />} />
 

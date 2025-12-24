@@ -9,6 +9,7 @@ import {
   LifeBuoy,
   HelpCircle,
   Store,
+  Wallet,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { UserFooter } from "./UserFooter";
@@ -26,13 +27,22 @@ type Item = {
   requiresAdmin?: boolean;
 };
 
-function buildNavItems(params: { canAccessAdminPanel: boolean }): Item[] {
+/**
+ * buildNavItems - Constrói itens de navegação baseado no role do usuário
+ * 
+ * Owner: Vê "Gateways" (não "Financeiro") - credenciais via Secrets
+ * Outros: Vêm "Financeiro" para configurar suas próprias credenciais
+ */
+function buildNavItems(params: { canAccessAdminPanel: boolean; isOwner: boolean }): Item[] {
   const base: Item[] = [
     { label: "Dashboard", icon: LayoutDashboard, to: "/dashboard" },
     { label: "Produtos", icon: Package, to: "/dashboard/produtos" },
     { label: "Marketplace", icon: Store, to: "/dashboard/marketplace" },
     { label: "Afiliados", icon: Users, to: "/dashboard/afiliados" },
-    { label: "Financeiro", icon: Banknote, to: "/dashboard/financeiro" },
+    // Condicional: Owner vê "Gateways", demais veem "Financeiro"
+    params.isOwner
+      ? { label: "Gateways", icon: Wallet, to: "/dashboard/gateways" }
+      : { label: "Financeiro", icon: Banknote, to: "/dashboard/financeiro" },
     { label: "Integrações", icon: Plug, to: "/dashboard/integracoes" },
     { label: "Administração", icon: ShieldCheck, to: "/dashboard/admin", requiresAdmin: true },
     { label: "Suporte pelo WhatsApp", icon: LifeBuoy, external: SUPPORT_WHATSAPP_URL },
@@ -61,11 +71,12 @@ interface SidebarProps {
 export function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarProps) {
   const [isHovered, setIsHovered] = useState(false);
   const location = useLocation();
-  const { canAccessAdminPanel } = usePermissions();
+  const { canAccessAdminPanel, role } = usePermissions();
+  const isOwner = role === "owner";
 
   const navItems = useMemo(
-    () => buildNavItems({ canAccessAdminPanel }),
-    [canAccessAdminPanel]
+    () => buildNavItems({ canAccessAdminPanel, isOwner }),
+    [canAccessAdminPanel, isOwner]
   );
 
   const NavContent = ({ fullWidth = false }: { fullWidth?: boolean }) => (
