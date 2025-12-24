@@ -18,12 +18,17 @@ export interface ProductSettings {
   credit_card_gateway: string;
 }
 
+export interface GatewayCredentialStatus {
+  configured: boolean;
+  viaSecrets?: boolean;
+}
+
 export interface GatewayCredentials {
-  mercadopago?: { configured: boolean };
-  pushinpay?: { configured: boolean };
-  stripe?: { configured: boolean };
-  asaas?: { configured: boolean };
-  [key: string]: { configured: boolean } | undefined;
+  mercadopago?: GatewayCredentialStatus;
+  pushinpay?: GatewayCredentialStatus;
+  stripe?: GatewayCredentialStatus;
+  asaas?: GatewayCredentialStatus;
+  [key: string]: GatewayCredentialStatus | undefined;
 }
 
 export interface SettingsFormProps {
