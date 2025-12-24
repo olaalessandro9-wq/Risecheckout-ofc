@@ -409,7 +409,7 @@ async function calculateMarketplaceSplitData(
     
     const { data: affiliateData } = await supabase
       .from('affiliates')
-      .select('user_id, commission_rate, asaas_wallet_id')
+      .select('user_id, commission_rate')
       .eq('id', orderData.affiliate_id)
       .single();
     
@@ -417,10 +417,8 @@ async function calculateMarketplaceSplitData(
       result.affiliateUserId = affiliateData.user_id;
       result.affiliateCommissionPercent = affiliateData.commission_rate || 0;
       
-      // Wallet do afiliado: primeiro da tabela affiliates, depois profiles
-      if (affiliateData.asaas_wallet_id) {
-        result.affiliateWalletId = affiliateData.asaas_wallet_id;
-      } else if (affiliateData.user_id) {
+      // Wallet do afiliado: buscar direto em profiles (fonte única de verdade)
+      if (affiliateData.user_id) {
         const { data: profileData } = await supabase
           .from('profiles')
           .select('asaas_wallet_id')
