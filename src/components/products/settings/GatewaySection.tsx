@@ -3,7 +3,7 @@
  */
 
 import { Label } from "@/components/ui/label";
-import { Info, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Info, AlertCircle, CheckCircle2, Shield } from "lucide-react";
 import { GatewaySelector } from "../GatewaySelector";
 import { getGatewayById } from "@/config/payment-gateways";
 import type { SettingsFormProps, GatewayCredentials } from "./types";
@@ -15,12 +15,23 @@ interface GatewaySectionProps extends SettingsFormProps {
 interface GatewayCredentialStatusProps {
   gatewayId: string;
   isConfigured?: boolean;
+  viaSecrets?: boolean;
 }
 
-function GatewayCredentialStatus({ gatewayId, isConfigured }: GatewayCredentialStatusProps) {
+function GatewayCredentialStatus({ gatewayId, isConfigured, viaSecrets }: GatewayCredentialStatusProps) {
   const gateway = getGatewayById(gatewayId);
 
   if (!gateway?.requiresCredentials) return null;
+
+  // Owner com credenciais via Secrets
+  if (viaSecrets) {
+    return (
+      <div className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400">
+        <Shield className="h-3.5 w-3.5" />
+        Integrado via Secrets
+      </div>
+    );
+  }
 
   if (isConfigured) {
     return (
@@ -40,6 +51,9 @@ function GatewayCredentialStatus({ gatewayId, isConfigured }: GatewayCredentialS
 }
 
 export function GatewaySection({ form, setForm, credentials }: GatewaySectionProps) {
+  // Detectar se é Owner baseado nas credenciais
+  const isOwnerMode = Object.values(credentials).some(c => c?.viaSecrets);
+
   return (
     <section className="space-y-4">
       <div>
@@ -63,6 +77,7 @@ export function GatewaySection({ form, setForm, credentials }: GatewaySectionPro
           <GatewayCredentialStatus
             gatewayId={form.pix_gateway}
             isConfigured={credentials[form.pix_gateway as keyof GatewayCredentials]?.configured}
+            viaSecrets={credentials[form.pix_gateway as keyof GatewayCredentials]?.viaSecrets}
           />
         </div>
 
@@ -79,20 +94,23 @@ export function GatewaySection({ form, setForm, credentials }: GatewaySectionPro
           <GatewayCredentialStatus
             gatewayId={form.credit_card_gateway}
             isConfigured={credentials[form.credit_card_gateway as keyof GatewayCredentials]?.configured}
+            viaSecrets={credentials[form.credit_card_gateway as keyof GatewayCredentials]?.viaSecrets}
           />
         </div>
       </div>
 
-      {/* Aviso de Configuração */}
-      <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-        <div className="flex gap-2">
-          <Info className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
-          <div className="text-xs text-blue-700 dark:text-blue-300">
-            <strong>Importante:</strong> Certifique-se de configurar suas credenciais
-            do gateway escolhido na página <strong>Financeiro</strong> antes de usar.
+      {/* Aviso de Configuração - Não mostrar para Owner */}
+      {!isOwnerMode && (
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+          <div className="flex gap-2">
+            <Info className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+            <div className="text-xs text-blue-700 dark:text-blue-300">
+              <strong>Importante:</strong> Certifique-se de configurar suas credenciais
+              do gateway escolhido na página <strong>Financeiro</strong> antes de usar.
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </section>
   );
 }

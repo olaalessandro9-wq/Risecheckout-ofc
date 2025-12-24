@@ -29,7 +29,7 @@ interface GatewaySelectorProps {
   value: string;
   onChange: (value: string) => void;
   showComingSoon?: boolean;
-  credentials?: Record<string, { configured: boolean }>;
+  credentials?: Record<string, { configured: boolean; viaSecrets?: boolean }>;
 }
 
 export function GatewaySelector({
@@ -74,6 +74,7 @@ export function GatewaySelector({
           paymentMethod={paymentMethod}
           isSelected={value === gateway.id}
           isConfigured={credentials[gateway.id]?.configured ?? true}
+          viaSecrets={credentials[gateway.id]?.viaSecrets}
         />
       ))}
 
@@ -109,9 +110,10 @@ interface GatewayOptionProps {
   paymentMethod: PaymentMethod;
   isSelected: boolean;
   isConfigured: boolean;
+  viaSecrets?: boolean;
 }
 
-function GatewayOption({ gateway, paymentMethod, isSelected, isConfigured }: GatewayOptionProps) {
+function GatewayOption({ gateway, paymentMethod, isSelected, isConfigured, viaSecrets }: GatewayOptionProps) {
   const fees = gateway.fees[paymentMethod];
   const feesText = fees ? formatGatewayFees(fees) : 'Sem taxas';
   
@@ -119,8 +121,9 @@ function GatewayOption({ gateway, paymentMethod, isSelected, isConfigured }: Gat
   const uniqueId = `gateway-${paymentMethod}-${gateway.id}`;
   
   // Verificar se gateway requer credenciais
+  // Se viaSecrets = true (Owner), nunca desabilitar
   const requiresCredentials = gateway.requiresCredentials ?? true;
-  const isDisabled = requiresCredentials && !isConfigured;
+  const isDisabled = requiresCredentials && !isConfigured && !viaSecrets;
 
   return (
     <Label

@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getGatewayById, isGatewayAvailable, type PaymentMethod } from "@/config/payment-gateways";
+import { usePermissions } from "@/hooks/usePermissions";
 import type { ProductSettings, GatewayCredentials } from "./types";
 
 const DEFAULT_SETTINGS: ProductSettings = {
@@ -35,9 +36,24 @@ export function useProductSettings(
   const [credentials, setCredentials] = useState<GatewayCredentials>({});
   const [initial, setInitial] = useState<ProductSettings>(DEFAULT_SETTINGS);
   const [form, setForm] = useState<ProductSettings>(DEFAULT_SETTINGS);
+  
+  const { role } = usePermissions();
+  const isOwner = role === "owner";
 
   // Carregar credenciais do usuário
   const loadCredentials = useCallback(async (userId: string) => {
+    // Owner: todas as credenciais vêm das Secrets - sempre configuradas
+    if (isOwner) {
+      setCredentials({
+        mercadopago: { configured: true, viaSecrets: true },
+        pushinpay: { configured: true, viaSecrets: true },
+        stripe: { configured: true, viaSecrets: true },
+        asaas: { configured: true, viaSecrets: true },
+      });
+      return;
+    }
+
+    // Demais: buscar em vendor_integrations
     try {
       const [mpResult, ppResult, stripeResult, asaasResult] = await Promise.all([
         supabase
@@ -77,7 +93,7 @@ export function useProductSettings(
     } catch (error) {
       console.error("Error loading credentials:", error);
     }
-  }, []);
+  }, [isOwner]);
 
   // Carregar configurações do produto
   const loadSettings = useCallback(async () => {
