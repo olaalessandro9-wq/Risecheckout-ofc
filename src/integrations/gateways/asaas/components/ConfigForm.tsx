@@ -70,16 +70,19 @@ export function ConfigForm({ onConnectionChange }: ConfigFormProps) {
     }
   }, [isAdmin, environment]);
 
-  // Track changes
+  // Track changes - incluindo walletId
   useEffect(() => {
     if (config) {
-      const changed = apiKey !== config.apiKey || environment !== config.environment;
+      const changed = 
+        apiKey !== config.apiKey || 
+        environment !== config.environment ||
+        (walletId || '') !== (config.walletId || '');
       setHasChanges(changed);
-      if (changed) {
+      if (apiKey !== config.apiKey || environment !== config.environment) {
         setIsValidated(false);
       }
     }
-  }, [apiKey, environment, config]);
+  }, [apiKey, environment, walletId, config]);
 
   // Handle validation
   const handleValidate = async () => {
@@ -202,6 +205,17 @@ export function ConfigForm({ onConnectionChange }: ConfigFormProps) {
               </a>
             </p>
             <p className="mt-1">
+              <strong>Wallet ID:</strong> Encontre em{' '}
+              <a
+                href="https://www.asaas.com/myAccount"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                Minha Conta → Dados da conta
+              </a>
+            </p>
+            <p className="mt-1">
               <strong>Métodos suportados:</strong> PIX e Cartão de Crédito
             </p>
           </div>
@@ -286,23 +300,39 @@ export function ConfigForm({ onConnectionChange }: ConfigFormProps) {
         </div>
       </div>
 
-      {/* Wallet ID display (read-only after validation) */}
-      {walletId && isValidated && !hasChanges && (
-        <div className="space-y-2">
-          <Label htmlFor="walletId">Wallet ID (Account ID)</Label>
-          <Input
-            id="walletId"
-            type="text"
-            value={walletId}
-            readOnly
-            disabled
-            className="bg-muted/50 font-mono text-sm"
-          />
-          <p className="text-xs text-muted-foreground">
-            ID da sua conta no Asaas. Usado para identificação em splits.
+      {/* Wallet ID - Campo editável e sempre visível */}
+      <div className="space-y-2">
+        <Label htmlFor="walletId">
+          Wallet ID (Account ID)
+          <span className="text-muted-foreground ml-1 text-xs">(necessário para split)</span>
+        </Label>
+        <Input
+          id="walletId"
+          type="text"
+          value={walletId || ''}
+          onChange={(e) => setWalletId(e.target.value)}
+          placeholder="Ex: 12345678-abcd-1234-efgh-123456789012"
+          className="font-mono text-sm"
+        />
+        <p className="text-xs text-muted-foreground">
+          ID da sua conta Asaas. Encontre em{' '}
+          <a
+            href="https://www.asaas.com/myAccount"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            Minha Conta
+          </a>
+          {' '}→ seção "Dados da conta" → campo "Identificador da conta".
+        </p>
+        {!walletId && isValidated && (
+          <p className="text-xs text-yellow-600 dark:text-yellow-400 flex items-center gap-1">
+            <AlertCircle className="h-3 w-3" />
+            Wallet ID não detectado automaticamente. Insira manualmente para habilitar split.
           </p>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Validation result */}
       {lastResult && hasChanges && (
