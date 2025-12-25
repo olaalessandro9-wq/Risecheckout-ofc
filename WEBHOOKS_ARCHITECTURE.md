@@ -124,14 +124,22 @@ verify_jwt = false
 3. **O Supabase Gateway bloqueia requisições** sem JWT válido por padrão
 4. **Resultado sem essa config:** Erro `401 Unauthorized` ANTES de chegar ao código
 
-### app_settings
+### Secrets Management
 
-A tabela `app_settings` deve conter:
+> ⚠️ **IMPORTANT SECURITY NOTE (Updated 2025-12-25)**
+> 
+> Secrets are managed exclusively via **Supabase Edge Function Secrets** (`Deno.env.get()`).
+> The `app_settings` table is now blocked from storing any secrets via database trigger.
 
-| key | value | Uso |
-|-----|-------|-----|
-| `supabase_url` | URL do projeto | Usada pelo trigger para chamar Edge Functions |
-| `service_role_key` | Chave de serviço | Usada pelo trigger para autenticação |
+| Secret | Location | Usage |
+|--------|----------|-------|
+| `SUPABASE_URL` | Edge Function env | Used by functions to connect to Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | Edge Function env | Used for privileged operations |
+
+**How to configure:**
+1. Go to Supabase Dashboard → Settings → Edge Functions
+2. Add the required secrets
+3. Access in code via `Deno.env.get('SECRET_NAME')`
 
 ---
 
