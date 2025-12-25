@@ -77,6 +77,7 @@ export function useProductCore({
         user_id: data.user_id,
         created_at: data.created_at,
         updated_at: data.updated_at,
+        delivery_url: data.delivery_url,
       });
 
       // Extrair e notificar upsell_settings

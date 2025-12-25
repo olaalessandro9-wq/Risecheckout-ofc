@@ -21,6 +21,7 @@ export interface ProductData {
   user_id?: string;
   created_at?: string;
   updated_at?: string;
+  delivery_url?: string | null; // Link de entrega do produto digital
 }
 
 // ============================================================================
