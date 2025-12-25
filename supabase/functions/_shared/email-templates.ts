@@ -19,6 +19,7 @@ export interface PurchaseConfirmationData {
   paymentMethod?: string;
   sellerName?: string;
   supportEmail?: string;
+  deliveryUrl?: string;
 }
 
 export interface PaymentPendingData {
@@ -247,6 +248,16 @@ export function getPurchaseConfirmationTemplate(data: PurchaseConfirmationData):
         Abaixo estão os detalhes do seu pedido.
       </p>
       
+      ${data.deliveryUrl ? `
+      <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 32px; border-radius: 16px; margin: 24px 0; text-align: center;">
+        <h3 style="color: #ffffff; margin: 0 0 8px 0; font-size: 18px; font-weight: 700;">🎉 Seu acesso está liberado!</h3>
+        <p style="color: rgba(255,255,255,0.9); margin: 0 0 20px 0; font-size: 14px;">Clique no botão abaixo para acessar seu produto</p>
+        <a href="${data.deliveryUrl}" style="display: inline-block; background: #ffffff; color: #059669; padding: 16px 40px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 16px; box-shadow: 0 4px 14px rgba(0,0,0,0.15);">
+          Acessar Produto
+        </a>
+      </div>
+      ` : ''}
+      
       <div class="order-box">
         <h3>Detalhes do Pedido</h3>
         
@@ -300,13 +311,22 @@ export function getPurchaseConfirmationTemplate(data: PurchaseConfirmationData):
  * Template: Texto plano para confirmação de compra
  */
 export function getPurchaseConfirmationTextTemplate(data: PurchaseConfirmationData): string {
-  return `
+  let text = `
 COMPRA CONFIRMADA ✓
 
 Olá, ${data.customerName}!
 
 Seu pagamento foi confirmado e sua compra foi processada com sucesso.
+`;
 
+  if (data.deliveryUrl) {
+    text += `
+🎉 SEU ACESSO ESTÁ LIBERADO!
+Acesse seu produto: ${data.deliveryUrl}
+`;
+  }
+
+  text += `
 DETALHES DO PEDIDO
 ==================
 Produto: ${data.productName}
@@ -318,7 +338,9 @@ Em caso de dúvidas, entre em contato: ${data.supportEmail || 'suporte@risecheck
 
 ${data.sellerName ? `Vendido por: ${data.sellerName}` : ''}
 Processado com segurança por Rise Checkout
-  `.trim();
+  `;
+  
+  return text.trim();
 }
 
 /**

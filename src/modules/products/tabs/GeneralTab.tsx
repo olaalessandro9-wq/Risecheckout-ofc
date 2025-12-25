@@ -16,6 +16,7 @@ import {
   ProductImageSection,
   ProductOffersSection,
   ProductSupportSection,
+  ProductDeliverySection,
   GeneralTabActions,
 } from "./general";
 
@@ -93,6 +94,13 @@ export function GeneralTab() {
         />
 
         <ProductSupportSection
+          form={form}
+          setForm={setForm}
+          errors={errors}
+          clearError={clearError}
+        />
+
+        <ProductDeliverySection
           form={form}
           setForm={setForm}
           errors={errors}
