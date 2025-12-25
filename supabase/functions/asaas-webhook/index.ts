@@ -11,6 +11,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logSecurityEvent, SecurityAction } from "../_shared/audit-logger.ts";
+import { sendEmail } from '../_shared/zeptomail.ts';
+import { getPurchaseConfirmationTemplate, getPurchaseConfirmationTextTemplate, type PurchaseConfirmationData } from '../_shared/email-templates.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -138,10 +140,10 @@ serve(async (req) => {
 
     console.log(`[asaas-webhook] Atualizando order ${orderId} para status ${internalStatus}`);
 
-    // Buscar ordem para obter vendor_id
+    // Buscar ordem para obter vendor_id e dados para email
     const { data: orderData } = await supabase
       .from('orders')
-      .select('vendor_id')
+      .select('vendor_id, customer_email, customer_name, product_name, amount_cents')
       .eq('id', orderId)
       .single();
 
@@ -169,6 +171,37 @@ serve(async (req) => {
         JSON.stringify({ error: 'Erro ao atualizar order' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Enviar email de confirmação se pagamento aprovado
+    if (internalStatus === 'paid' && orderData?.customer_email) {
+      console.log('[asaas-webhook] Enviando email de confirmação');
+      try {
+        const emailData: PurchaseConfirmationData = {
+          customerName: orderData.customer_name || 'Cliente',
+          productName: orderData.product_name || 'Produto',
+          amountCents: orderData.amount_cents,
+          orderId: orderId,
+          paymentMethod: payment.billingType === 'PIX' ? 'PIX / Asaas' : 'Asaas',
+        };
+
+        const emailResult = await sendEmail({
+          to: { email: orderData.customer_email, name: orderData.customer_name || undefined },
+          subject: `✅ Compra Confirmada - ${orderData.product_name || 'Seu Pedido'}`,
+          htmlBody: getPurchaseConfirmationTemplate(emailData),
+          textBody: getPurchaseConfirmationTextTemplate(emailData),
+          type: 'transactional',
+          clientReference: `order_${orderId}_confirmation`,
+        });
+
+        if (emailResult.success) {
+          console.log('[asaas-webhook] ✅ Email de confirmação enviado:', emailResult.messageId);
+        } else {
+          console.warn('[asaas-webhook] ⚠️ Falha ao enviar email (não crítico):', emailResult.error);
+        }
+      } catch (emailError) {
+        console.warn('[asaas-webhook] ⚠️ Exceção ao enviar email (não crítico):', emailError);
+      }
     }
 
     // Registrar evento

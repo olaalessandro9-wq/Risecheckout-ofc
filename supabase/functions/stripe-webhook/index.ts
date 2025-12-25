@@ -11,6 +11,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.14.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { sendEmail } from '../_shared/zeptomail.ts';
+import { getPurchaseConfirmationTemplate, getPurchaseConfirmationTextTemplate, type PurchaseConfirmationData } from '../_shared/email-templates.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -86,6 +88,13 @@ serve(async (req) => {
         return new Response(JSON.stringify({ received: true }), { headers: corsHeaders });
       }
 
+      // Buscar dados do pedido antes de atualizar
+      const { data: order } = await supabaseClient
+        .from("orders")
+        .select("customer_email, customer_name, product_name, amount_cents")
+        .eq("id", orderId)
+        .single();
+
       // Atualizar pedido para PAID
       const { error: updateError } = await supabaseClient
         .from("orders")
@@ -104,6 +113,36 @@ serve(async (req) => {
       }
 
       logStep("Order updated to PAID", { orderId });
+
+      // Enviar email de confirmação
+      if (order?.customer_email) {
+        try {
+          const emailData: PurchaseConfirmationData = {
+            customerName: order.customer_name || 'Cliente',
+            productName: order.product_name || 'Produto',
+            amountCents: order.amount_cents,
+            orderId: orderId,
+            paymentMethod: 'Cartão de Crédito / Stripe',
+          };
+
+          const emailResult = await sendEmail({
+            to: { email: order.customer_email, name: order.customer_name || undefined },
+            subject: `✅ Compra Confirmada - ${order.product_name || 'Seu Pedido'}`,
+            htmlBody: getPurchaseConfirmationTemplate(emailData),
+            textBody: getPurchaseConfirmationTextTemplate(emailData),
+            type: 'transactional',
+            clientReference: `order_${orderId}_confirmation`,
+          });
+
+          if (emailResult.success) {
+            logStep("Confirmation email sent", { messageId: emailResult.messageId });
+          } else {
+            logStep("Email send failed (non-critical)", { error: emailResult.error });
+          }
+        } catch (emailError) {
+          logStep("Email exception (non-critical)", { error: emailError });
+        }
+      }
 
       // Disparar webhooks do vendedor
       try {
