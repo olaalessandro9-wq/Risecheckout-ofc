@@ -6,28 +6,31 @@
  * - Componentes modulares
  * - Zero prop drilling
  * - Sincronização automática entre abas
- * 
- * Redução: De 1.828 linhas para ~100 linhas (-94%)
+ * - Proteção contra navegação com alterações não salvas
  */
 
 import { useSearchParams } from "react-router-dom";
-import { ProductProvider } from "@/modules/products";
+import { ProductProvider, useProductContext } from "@/modules/products";
 import { ProductHeader } from "@/modules/products";
 import { ProductTabs } from "@/modules/products";
 import { UnsavedChangesGuard } from "@/providers/UnsavedChangesGuard";
 
 /**
- * Componente Interno - Consome o ProductContext
+ * Componente Interno - Consome o ProductContext e aplica o guard
  */
 function ProductEditInner() {
+  const { hasUnsavedChanges } = useProductContext();
+  
   return (
-    <div className="max-w-7xl mx-auto space-y-6 p-6">
-      {/* Cabeçalho com botões de ação */}
-      <ProductHeader />
-      
-      {/* Abas de edição */}
-      <ProductTabs />
-    </div>
+    <UnsavedChangesGuard isDirty={hasUnsavedChanges}>
+      <div className="max-w-7xl mx-auto space-y-6 p-6">
+        {/* Cabeçalho com botões de ação */}
+        <ProductHeader />
+        
+        {/* Abas de edição */}
+        <ProductTabs />
+      </div>
+    </UnsavedChangesGuard>
   );
 }
 
@@ -53,9 +56,7 @@ export default function ProductEdit() {
   
   return (
     <ProductProvider productId={productId}>
-      <UnsavedChangesGuard>
-        <ProductEditInner />
-      </UnsavedChangesGuard>
+      <ProductEditInner />
     </ProductProvider>
   );
 }
