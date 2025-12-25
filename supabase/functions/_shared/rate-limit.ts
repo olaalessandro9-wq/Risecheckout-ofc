@@ -7,7 +7,7 @@
  * Baseado em OWASP Top 10 - Authentication Failures (#7)
  */
 
-import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 interface RateLimitConfig {
   maxAttempts: number;
@@ -32,7 +32,7 @@ interface RateLimitAttempt {
 }
 
 export async function checkRateLimit(
-  supabase: SupabaseClient<any, any, any>,
+  supabase: any,
   config: RateLimitConfig
 ): Promise<RateLimitResult> {
   const { maxAttempts, windowMs, identifier, action } = config;
@@ -78,7 +78,7 @@ export async function checkRateLimit(
 }
 
 export async function recordAttempt(
-  supabase: SupabaseClient<any, any, any>,
+  supabase: any,
   config: RateLimitConfig,
   success: boolean = false
 ): Promise<void> {

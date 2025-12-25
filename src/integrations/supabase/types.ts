@@ -141,7 +141,6 @@ export type Database = {
       affiliates: {
         Row: {
           affiliate_code: string
-          asaas_wallet_id: string | null
           commission_rate: number | null
           created_at: string | null
           id: string
@@ -154,7 +153,6 @@ export type Database = {
         }
         Insert: {
           affiliate_code: string
-          asaas_wallet_id?: string | null
           commission_rate?: number | null
           created_at?: string | null
           id?: string
@@ -167,7 +165,6 @@ export type Database = {
         }
         Update: {
           affiliate_code?: string
-          asaas_wallet_id?: string | null
           commission_rate?: number | null
           created_at?: string | null
           id?: string
