@@ -1,0 +1,61 @@
+# =============================================================================
+# CODEOWNERS - RiseCheckout
+# =============================================================================
+# This file defines code ownership for automatic review assignments.
+# Security-critical paths require security team review before merge.
+# =============================================================================
+
+# Default owners for everything in the repo
+* @rise-checkout/core-team
+
+# =============================================================================
+# SECURITY-CRITICAL PATHS (Require Security Review)
+# =============================================================================
+
+# Supabase Edge Functions - Can access secrets and make external calls
+/supabase/functions/ @rise-checkout/security-team @rise-checkout/backend-team
+
+# Database Migrations - Can modify data structure and RLS policies
+/supabase/migrations/ @rise-checkout/security-team @rise-checkout/backend-team
+
+# Supabase Configuration
+/supabase/config.toml @rise-checkout/security-team
+
+# Security Configuration Files
+/.gitleaks.toml @rise-checkout/security-team
+/.pre-commit-config.yaml @rise-checkout/security-team
+/SECURITY.md @rise-checkout/security-team
+/SECURITY_POLICY.md @rise-checkout/security-team
+
+# GitHub Workflows - Can access secrets and modify CI/CD
+/.github/workflows/ @rise-checkout/security-team @rise-checkout/devops-team
+/.github/CODEOWNERS @rise-checkout/security-team
+
+# Environment and Configuration
+/.env* @rise-checkout/security-team
+/*.config.* @rise-checkout/core-team
+
+# =============================================================================
+# PAYMENT-CRITICAL PATHS (Require Payment Team Review)
+# =============================================================================
+
+# Payment integrations
+/src/**/payment* @rise-checkout/payment-team @rise-checkout/security-team
+/src/**/stripe* @rise-checkout/payment-team @rise-checkout/security-team
+/src/**/mercadopago* @rise-checkout/payment-team @rise-checkout/security-team
+/src/**/pix* @rise-checkout/payment-team @rise-checkout/security-team
+
+# =============================================================================
+# INTEGRATION PATHS
+# =============================================================================
+
+# Supabase client configuration
+/src/integrations/supabase/ @rise-checkout/backend-team
+
+# =============================================================================
+# DOCUMENTATION
+# =============================================================================
+
+# Deployment documentation (may contain sensitive procedures)
+/DEPLOY*.md @rise-checkout/security-team @rise-checkout/devops-team
+/CHECKLIST*.md @rise-checkout/security-team @rise-checkout/devops-team

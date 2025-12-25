@@ -1,0 +1,136 @@
+# =============================================================================
+# Gitleaks Configuration - RiseCheckout
+# =============================================================================
+# This file configures secret detection rules to prevent accidental commits
+# of API keys, tokens, and other sensitive information.
+# =============================================================================
+
+title = "RiseCheckout Security - Gitleaks Config"
+
+[extend]
+# Extend the default gitleaks rules
+useDefault = true
+
+# =============================================================================
+# Custom Rules for Supabase/Rise-specific secrets
+# =============================================================================
+
+[[rules]]
+id = "supabase-service-role-key"
+description = "Supabase Service Role Key (CRITICAL - full database access)"
+regex = '''eyJ[A-Za-z0-9_-]*\.eyJ[A-Za-z0-9_-]*["\s]*[,}]?.*service_role'''
+tags = ["supabase", "jwt", "critical"]
+keywords = ["service_role"]
+
+[[rules]]
+id = "supabase-jwt-token"
+description = "Supabase JWT Token (anon or service role)"
+regex = '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ild[A-Za-z0-9_-]{20,}'''
+tags = ["supabase", "jwt"]
+
+[[rules]]
+id = "stripe-secret-key"
+description = "Stripe Secret Key"
+regex = '''sk_(live|test)_[A-Za-z0-9]{20,}'''
+tags = ["stripe", "payment", "critical"]
+keywords = ["sk_live", "sk_test"]
+
+[[rules]]
+id = "stripe-restricted-key"
+description = "Stripe Restricted API Key"
+regex = '''rk_(live|test)_[A-Za-z0-9]{20,}'''
+tags = ["stripe", "payment"]
+keywords = ["rk_live", "rk_test"]
+
+[[rules]]
+id = "mercadopago-access-token"
+description = "MercadoPago Access Token"
+regex = '''(APP_USR|TEST)-[A-Za-z0-9]{8,}-[A-Za-z0-9]{4,}-[A-Za-z0-9]{4,}-[A-Za-z0-9]{4,}-[A-Za-z0-9]{12,}'''
+tags = ["mercadopago", "payment"]
+keywords = ["APP_USR", "TEST-"]
+
+[[rules]]
+id = "pushinpay-token"
+description = "PushinPay API Token"
+regex = '''[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'''
+path = '''(?i)(pushinpay|payment|gateway)'''
+tags = ["pushinpay", "payment"]
+
+[[rules]]
+id = "webhook-secret"
+description = "Webhook Secret/Signature Key"
+regex = '''whsec_[A-Za-z0-9]{32,}'''
+tags = ["webhook", "stripe"]
+keywords = ["whsec_"]
+
+[[rules]]
+id = "generic-api-key-assignment"
+description = "Generic API Key Assignment"
+regex = '''(?i)(api[_-]?key|apikey|api[_-]?secret|secret[_-]?key)\s*[:=]\s*['\"][A-Za-z0-9_\-]{16,}['\"]'''
+tags = ["generic", "api-key"]
+
+[[rules]]
+id = "bearer-token-header"
+description = "Bearer Token in Authorization Header"
+regex = '''[Bb]earer\s+eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+'''
+tags = ["jwt", "bearer"]
+keywords = ["Bearer", "bearer"]
+
+[[rules]]
+id = "database-connection-string"
+description = "Database Connection String with Password"
+regex = '''(?i)(postgres|mysql|mongodb|redis)://[^:]+:[^@]+@[^/]+'''
+tags = ["database", "critical"]
+
+# =============================================================================
+# Allowlist - Files and patterns to exclude from scanning
+# =============================================================================
+
+[allowlist]
+description = "Global allowlist for false positives"
+
+# Files that are safe to ignore
+paths = [
+  '''node_modules/''',
+  '''\.git/''',
+  '''dist/''',
+  '''build/''',
+  '''\.next/''',
+  '''coverage/''',
+  '''\.nyc_output/''',
+  '''bun\.lockb''',
+  '''package-lock\.json''',
+  '''yarn\.lock''',
+  '''pnpm-lock\.yaml''',
+]
+
+# Regex patterns for safe content
+regexes = [
+  # Example/placeholder tokens
+  '''YOUR_[A-Z_]+_HERE''',
+  '''<YOUR_[A-Z_]+>''',
+  '''PLACEHOLDER_[A-Z_]+''',
+  # Test tokens that are clearly fake
+  '''sk_test_FAKE[A-Za-z0-9]+''',
+  '''pk_test_FAKE[A-Za-z0-9]+''',
+  # Documentation examples
+  '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ''',
+]
+
+# =============================================================================
+# Per-rule allowlists for specific false positive patterns
+# =============================================================================
+
+[[rules]]
+id = "allowlist-supabase-anon-key-in-client"
+description = "Allow anon key in Supabase client (this is public/safe)"
+regex = '''SUPABASE_ANON_KEY'''
+allowlist = { paths = ["src/integrations/supabase/client.ts"] }
+
+# =============================================================================
+# Reporting Configuration
+# =============================================================================
+
+[redact]
+# Redact secrets in reports (show only first/last 4 chars)
+enabled = true

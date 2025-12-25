@@ -1,45 +1,55 @@
-# Política de Segurança
+# 🔐 Política de Segurança - RiseCheckout
 
 ## 🔒 Versões Suportadas
 
-Atualmente, as seguintes versões do RiseCheckout recebem atualizações de segurança:
-
 | Versão | Suportada          |
 | ------ | ------------------ |
-| main   | :white_check_mark: |
-| < main | :x:                |
+| main   | ✅ Suporte ativo    |
+| develop| ⚠️ Apenas desenvolvimento |
+| < 1.0  | ❌ Não suportada    |
 
 ## 🛡️ Reportar uma Vulnerabilidade
 
-Se você descobrir uma vulnerabilidade de segurança no RiseCheckout, por favor, reporte-a de forma responsável:
+Se você descobrir uma vulnerabilidade de segurança no RiseCheckout, por favor, reporte-a de forma responsável.
 
 ### Como Reportar
 
 1. **NÃO** abra uma issue pública no GitHub
-2. Envie um email para: **[SEU_EMAIL_DE_SEGURANÇA]**
-3. Inclua:
+2. **Email**: Envie detalhes para security@risecheckout.com
+3. **Inclua**:
    - Descrição detalhada da vulnerabilidade
    - Passos para reproduzir
    - Impacto potencial
    - Sugestões de correção (se houver)
 
-### O Que Esperar
+### Timeline de Resposta
 
-- **Confirmação:** Você receberá uma confirmação em até 48 horas
-- **Avaliação:** Avaliaremos a vulnerabilidade em até 7 dias
-- **Correção:** Vulnerabilidades críticas serão corrigidas em até 30 dias
-- **Divulgação:** Após a correção, publicaremos um advisory de segurança
+| Etapa | Prazo |
+|-------|-------|
+| Confirmação inicial | 24 horas |
+| Avaliação preliminar | 48 horas |
+| Atualização de status | 7 dias |
+| Correção para críticos | 14 dias |
 
-### Recompensas
+### O Que Qualifica como Vulnerabilidade
 
-Atualmente, não oferecemos um programa de bug bounty formal, mas:
-- Reconheceremos publicamente sua contribuição (se desejar)
-- Você será creditado no changelog da correção
-- Consideraremos recompensas caso a caso para vulnerabilidades críticas
+- Bypasses de autenticação/autorização
+- Exposição ou vazamento de dados
+- SQL injection, XSS, CSRF
+- Secrets ou credenciais expostos
+- Bypasses de políticas RLS
+- Vulnerabilidades em processamento de pagamentos
+- Sequestro de sessão
+
+### Fora do Escopo
+
+- Ataques de negação de serviço (DoS)
+- Engenharia social
+- Segurança física
+- Issues em dependências (reportar upstream)
+- Issues já conhecidos
 
 ## 🔐 Práticas de Segurança
-
-O RiseCheckout implementa as seguintes práticas de segurança:
 
 ### Conformidade com OWASP Top 10
 
@@ -56,37 +66,83 @@ O RiseCheckout implementa as seguintes práticas de segurança:
 
 ### Autenticação e Autorização
 
-- Autenticação via Supabase Auth (JWT)
-- Multi-Factor Authentication (MFA) disponível
-- Row Level Security (RLS) em todas as tabelas
-- Rate limiting em endpoints críticos
+- ✅ Autenticação via Supabase Auth (JWT)
+- ✅ Multi-Factor Authentication (MFA) disponível
+- ✅ Row Level Security (RLS) em todas as tabelas
+- ✅ Rate limiting em endpoints críticos
 
 ### Proteção de Dados
 
-- Secrets armazenados no Supabase Vault
-- HTTPS obrigatório em produção
-- Criptografia em trânsito e em repouso
-- Validação de senhas contra base de dados de vazamentos
+- ✅ Secrets armazenados no Supabase Vault
+- ✅ HTTPS obrigatório em produção
+- ✅ Criptografia em trânsito e em repouso
+- ✅ Validação de senhas contra base de dados de vazamentos
+
+### Gerenciamento de Secrets
+
+- ✅ Nenhum secret hardcoded no código
+- ✅ Gitleaks scanning em CI/CD
+- ✅ Pre-commit hooks para detecção local
+- ✅ Rotação trimestral de secrets
+
+### Segurança de Código
+
+- ✅ Validação de entrada com schemas Zod
+- ✅ Sanitização de saída com DOMPurify
+- ✅ Análise estática com CodeQL
+- ✅ Scanning de vulnerabilidades em dependências
 
 ### Monitoramento
 
-- Logging de eventos de segurança
-- Alertas para atividades suspeitas
-- Auditoria de acessos
+- ✅ Logging de eventos de segurança
+- ✅ Alertas para atividades suspeitas
+- ✅ Auditoria de acessos
+
+## 📋 Checklist de Segurança para Contribuidores
+
+Antes de submeter um PR:
+
+```
+[ ] Nenhum secret, API key ou token no código
+[ ] Nenhum secret em logs ou mensagens de erro
+[ ] Políticas RLS revisadas para novas tabelas
+[ ] Validação de entrada em todos os inputs do usuário
+[ ] CORS configurado corretamente
+[ ] Mensagens de erro não vazam informações sensíveis
+[ ] gitleaks passa localmente
+```
+
+## 🚨 Resposta a Incidentes
+
+### Se Você Suspeitar de uma Brecha
+
+1. **Imediatamente** rotacione credenciais afetadas
+2. **Documente** a linha do tempo dos eventos
+3. **Avalie** o escopo da exposição
+4. **Notifique** usuários afetados se necessário
+5. **Reporte** para security@risecheckout.com
+
+### Guia de Rotação de Secrets
+
+| Tipo de Secret | Frequência de Rotação | Localização |
+|----------------|----------------------|-------------|
+| Service Role Key | Imediato se exposto | Supabase Dashboard |
+| API Keys | Trimestral | Dashboard do Provider |
+| Webhook Secrets | Trimestral | Supabase Vault |
+| JWT Secrets | Anual | Supabase Dashboard |
 
 ## 📚 Recursos Adicionais
 
 - [OWASP Top 10](https://owasp.org/www-project-top-ten/)
-- [Supabase Security](https://supabase.com/docs/guides/platform/going-into-prod#security)
-- [GitHub Security Advisories](https://github.com/olaalessandro9-wq/risecheckout-84776/security/advisories)
+- [Supabase Security](https://supabase.com/docs/guides/platform/security)
+- [Gitleaks Documentation](https://github.com/gitleaks/gitleaks)
 
 ## 📞 Contato
 
-Para questões de segurança que não sejam vulnerabilidades:
-- Email: **[SEU_EMAIL]**
-- GitHub Discussions: [Link para Discussions]
+- **Issues de Segurança**: security@risecheckout.com
+- **Questões Gerais**: support@risecheckout.com
 
 ---
 
-**Última atualização:** 16 de Dezembro de 2025  
-**Versão da Política:** 1.0
+**Última atualização:** 25 de Dezembro de 2025
+**Versão da Política:** 2.0

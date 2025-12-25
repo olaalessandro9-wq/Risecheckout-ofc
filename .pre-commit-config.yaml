@@ -16,16 +16,17 @@
 
 repos:
   # -------------------------------------------------------------------------
-  # Gitleaks - Detecção de Secrets
+  # Gitleaks - Detecção de Secrets (USA CONFIG CUSTOMIZADO)
   # -------------------------------------------------------------------------
   # Previne commits de API keys, tokens, senhas e outros secrets
+  # Usa regras customizadas definidas em .gitleaks.toml
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.18.4
     hooks:
       - id: gitleaks
         name: 🔐 Gitleaks - Detectar secrets expostos
         description: Verifica se há secrets (API keys, tokens, senhas) no código
-        entry: gitleaks protect --staged --verbose --redact
+        entry: gitleaks protect --staged --verbose --redact --config=.gitleaks.toml
         language: system
         pass_filenames: false
 
