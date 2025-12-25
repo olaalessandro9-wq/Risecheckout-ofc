@@ -108,9 +108,29 @@ serve(async (req) => {
         throw new Error("Produto principal não encontrado.");
     }
 
+    // ==========================================
+    // 3.5 VALIDAR CHECKOUT_ID (Ownership - Graceful)
+    // ==========================================
+    let validatedCheckoutId = checkout_id;
+    if (checkout_id) {
+      const { data: checkout, error: checkoutError } = await supabaseClient
+        .from("checkouts")
+        .select("id, product_id")
+        .eq("id", checkout_id)
+        .eq("product_id", product_id) // ✅ OWNERSHIP: checkout pertence ao produto
+        .maybeSingle();
+
+      if (checkoutError || !checkout) {
+        console.warn(`⚠️ [create-order] checkout_id inválido ou não pertence ao produto: ${checkout_id}`);
+        validatedCheckoutId = null; // Graceful: não bloqueia, apenas limpa
+      } else {
+        console.log(`✅ [create-order] checkout_id validado: ${checkout_id}`);
+      }
+    }
+
     let finalPrice = Number(product.price);
     let offerName = null;
-    let validatedOfferId = null; 
+    let validatedOfferId = null;
 
     // ✅ P0-6: VALIDAR OFFER_ID (ownership + status)
     if (offer_id && offer_id !== product_id) {
@@ -571,7 +591,7 @@ serve(async (req) => {
     const { data: order, error: orderError } = await supabaseClient
       .from("orders")
       .insert({
-        checkout_id,
+        checkout_id: validatedCheckoutId, // ✅ Usar checkout validado (null se inválido)
         product_id,
         offer_id: validatedOfferId,
         amount_cents: amountInCents,

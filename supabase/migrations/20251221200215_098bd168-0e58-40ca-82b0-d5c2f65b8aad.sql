@@ -5,7 +5,7 @@ RETURNS trigger LANGUAGE plpgsql SET search_path TO 'public'
 AS $function$
 BEGIN
   IF NEW.credit_card_gateway::text = 'stripe' AND (NEW.stripe_public_key IS NULL OR NEW.stripe_public_key = '') THEN
-    NEW.stripe_public_key := '***REMOVED***';
+    NEW.stripe_public_key := 'pk_test_51SfMd9PUjGQrVYqGeXSGdTzPk4tchR8o6tFNoRgvl3FfFiVbpRZWSuVSwQmobg16oKfqPkIkVtW3HCbzEFDdwwvw00KgqBkhWC';
   END IF;
   RETURN NEW;
 END;
