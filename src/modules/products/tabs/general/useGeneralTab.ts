@@ -90,8 +90,10 @@ export function useGeneralTab() {
     const formChanged = (
       form.name !== product.name ||
       form.description !== (product.description || "") ||
+      form.price !== product.price ||
       form.support_name !== (product.support_name || "") ||
-      form.support_email !== (product.support_email || "")
+      form.support_email !== (product.support_email || "") ||
+      form.delivery_url !== (product.delivery_url || "")
     );
 
     const imageChanged = image.imageFile !== null || image.pendingRemoval;
@@ -131,7 +133,16 @@ export function useGeneralTab() {
       valid = false;
     }
 
-    if (form.support_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.support_email)) {
+    // Campos de suporte obrigatórios
+    if (!form.support_name.trim()) {
+      newErrors.support_name = "Nome de exibição é obrigatório";
+      valid = false;
+    }
+
+    if (!form.support_email.trim()) {
+      newErrors.support_email = "E-mail de suporte é obrigatório";
+      valid = false;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.support_email)) {
       newErrors.support_email = "E-mail inválido";
       valid = false;
     }
