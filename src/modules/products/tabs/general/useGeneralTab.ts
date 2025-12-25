@@ -73,7 +73,7 @@ export function useGeneralTab() {
         price: product.price,
         support_name: product.support_name || "",
         support_email: product.support_email || "",
-        delivery_url: (product as any).delivery_url || "",
+        delivery_url: product.delivery_url || "",
       });
     }
   }, [product]);

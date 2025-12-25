@@ -24,10 +24,9 @@ const productSchema = z.object({
 });
 
 const deliveryUrlSchema = z.string()
+  .min(1, { message: "O link de entrega é obrigatório" })
   .url({ message: "Link inválido. Insira uma URL válida." })
-  .startsWith("https://", { message: "O link deve começar com https://" })
-  .optional()
-  .or(z.literal(""));
+  .startsWith("https://", { message: "O link deve começar com https://" });
 
 interface AddProductDialogProps {
   open: boolean;
@@ -50,11 +49,6 @@ export function AddProductDialog({ open, onOpenChange, onProductAdded }: AddProd
   });
 
   const validateDeliveryUrl = (url: string): boolean => {
-    if (!url) {
-      setDeliveryUrlError("");
-      return true; // URL é opcional
-    }
-    
     const result = deliveryUrlSchema.safeParse(url);
     if (!result.success) {
       setDeliveryUrlError(result.error.errors[0].message);
@@ -95,8 +89,8 @@ export function AddProductDialog({ open, onOpenChange, onProductAdded }: AddProd
   const handleSubmit = async () => {
     if (!user) return;
     
-    // Validar URL se fornecida
-    if (formData.delivery_url && !validateDeliveryUrl(formData.delivery_url)) {
+    // Validar URL obrigatória
+    if (!validateDeliveryUrl(formData.delivery_url)) {
       return;
     }
     
@@ -228,7 +222,7 @@ export function AddProductDialog({ open, onOpenChange, onProductAdded }: AddProd
 
             <div className="space-y-2">
               <Label htmlFor="delivery_url" className="text-foreground">
-                Link de entrega (opcional)
+                Link de entrega
               </Label>
               <Input
                 id="delivery_url"
@@ -243,7 +237,7 @@ export function AddProductDialog({ open, onOpenChange, onProductAdded }: AddProd
                 <p className="text-xs text-destructive">{deliveryUrlError}</p>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  Você pode adicionar ou alterar este link depois nas configurações do produto.
+                  Você pode alterar este link depois nas configurações do produto.
                 </p>
               )}
             </div>
