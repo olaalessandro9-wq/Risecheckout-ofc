@@ -3,7 +3,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
+import { 
+  createBrowserRouter, 
+  RouterProvider, 
+  Navigate, 
+  Outlet,
+  useLocation,
+} from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { RoleProtectedRoute } from "@/components/RoleProtectedRoute";
 import { ThemeProvider } from "@/providers/theme";
@@ -16,7 +22,6 @@ import { useAffiliateTracking } from "@/hooks/useAffiliateTracking";
 // ============================================================================
 // ROTAS PÚBLICAS - Carregamento Normal (Eager Loading)
 // ============================================================================
-// Estas páginas são carregadas imediatamente pois são acessadas por todos
 import LandingPage from "./pages/LandingPage";
 import Auth from "./pages/Auth";
 import PublicCheckoutV2 from "./pages/PublicCheckoutV2";
@@ -30,9 +35,8 @@ import SolicitarAfiliacao from "./pages/SolicitarAfiliacao";
 import TermosDeUso from "./pages/TermosDeUso";
 
 // ============================================================================
-// ROTAS PROTEGIDAS - Eager Loading (Carregamento Imediato)
+// ROTAS PROTEGIDAS - Eager Loading
 // ============================================================================
-// Páginas principais do dashboard são carregadas imediatamente para navegação instantânea
 import Index from "./pages/Index";
 import Produtos from "./pages/Produtos";
 import ProductEdit from "./pages/ProductEdit";
@@ -45,10 +49,8 @@ import Integracoes from "./pages/Integracoes";
 import Ajuda from "./pages/Ajuda";
 
 // ============================================================================
-// ROTAS SENSÍVEIS - Lazy Loading (Segurança)
+// ROTAS SENSÍVEIS - Lazy Loading
 // ============================================================================
-// Páginas que requerem roles especiais usam lazy loading para segurança
-// O código só é baixado quando a rota é acessada
 const AdminHealth = lazy(() => import("./pages/AdminHealth"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const Afiliados = lazy(() => import("./pages/Afiliados"));
@@ -57,7 +59,6 @@ const OwnerGateways = lazy(() => import("./pages/owner/OwnerGateways"));
 // ============================================================================
 // COMPONENTE DE LOADING
 // ============================================================================
-// Exibido enquanto o código da página está sendo carregado
 function PageLoader() {
   return (
     <div className="flex items-center justify-center min-h-screen">
@@ -66,19 +67,149 @@ function PageLoader() {
   );
 }
 
-// Componente invisível para rastreamento de afiliados (fallback global)
-// Desabilitado em rotas de checkout - PublicCheckoutV2 usa configs do produtor
-function AffiliateTracker() {
+// ============================================================================
+// ROOT LAYOUT - Providers + Tracking
+// ============================================================================
+function RootLayout() {
   const location = useLocation();
   const isCheckoutRoute = location.pathname.startsWith('/pay/');
   
   useAffiliateTracking({ 
-    enabled: !isCheckoutRoute // Cede para o checkout com configs específicas
+    enabled: !isCheckoutRoute
   });
-  return null;
+
+  return (
+    <>
+      <Toaster />
+      <Sonner />
+      <Outlet />
+    </>
+  );
 }
 
-// QueryClient definido fora do componente - padrão estável
+// ============================================================================
+// DASHBOARD LAYOUT - Com AppShell
+// ============================================================================
+function DashboardLayout() {
+  return (
+    <ProtectedRoute>
+      <ThemeProvider>
+        <AppShell />
+      </ThemeProvider>
+    </ProtectedRoute>
+  );
+}
+
+// ============================================================================
+// ROUTER - createBrowserRouter para suporte a useBlocker
+// ============================================================================
+const router = createBrowserRouter([
+  {
+    element: <RootLayout />,
+    children: [
+      // ============================================================
+      // LANDING PAGE
+      // ============================================================
+      { path: "/", element: <LandingPage /> },
+      
+      // ============================================================
+      // ROTAS PÚBLICAS
+      // ============================================================
+      { path: "/auth", element: <Auth /> },
+      { path: "/c/:slug", element: <PaymentLinkRedirect /> },
+      { path: "/pay/:slug", element: <PublicCheckoutV2 /> },
+      { path: "/pay/pix/:orderId", element: <PixPaymentPage /> },
+      { path: "/pay/mercadopago/:orderId", element: <MercadoPagoPayment /> },
+      { path: "/success/:orderId", element: <PaymentSuccessPage /> },
+      { path: "/preview/success", element: <PaymentSuccessPage /> },
+      { path: "/oauth-success", element: <OAuthSuccess /> },
+      { path: "/afiliar/:product_id", element: <SolicitarAfiliacao /> },
+      { path: "/termos-de-uso", element: <TermosDeUso /> },
+
+      // ============================================================
+      // CHECKOUT BUILDER - Full screen (Protegido)
+      // ============================================================
+      {
+        path: "/dashboard/produtos/checkout/personalizar",
+        element: (
+          <ProtectedRoute>
+            <CheckoutCustomizer />
+          </ProtectedRoute>
+        ),
+      },
+
+      // ============================================================
+      // ROTAS PROTEGIDAS - Dashboard com AppShell
+      // ============================================================
+      {
+        path: "/dashboard",
+        element: <DashboardLayout />,
+        children: [
+          { index: true, element: <Index /> },
+          { path: "produtos", element: <Produtos /> },
+          { path: "produtos/editar", element: <ProductEdit /> },
+          { path: "marketplace", element: <Marketplace /> },
+          {
+            path: "afiliados",
+            element: (
+              <RoleProtectedRoute requiredPermission="canHaveAffiliates" showAccessDenied>
+                <Suspense fallback={<PageLoader />}>
+                  <Afiliados />
+                </Suspense>
+              </RoleProtectedRoute>
+            ),
+          },
+          { path: "minhas-afiliacoes", element: <MinhasAfiliacoes /> },
+          { path: "minhas-afiliacoes/:affiliationId", element: <AffiliationDetails /> },
+          { path: "financeiro", element: <Financeiro /> },
+          {
+            path: "gateways",
+            element: (
+              <RoleProtectedRoute requiredRole="owner" showAccessDenied>
+                <Suspense fallback={<PageLoader />}>
+                  <OwnerGateways />
+                </Suspense>
+              </RoleProtectedRoute>
+            ),
+          },
+          { path: "integracoes", element: <Integracoes /> },
+          { path: "ajuda", element: <Ajuda /> },
+          { path: "config", element: <Navigate to="admin" replace /> },
+          {
+            path: "admin",
+            element: (
+              <RoleProtectedRoute requiredRole="admin" showAccessDenied>
+                <Suspense fallback={<PageLoader />}>
+                  <AdminDashboard />
+                </Suspense>
+              </RoleProtectedRoute>
+            ),
+          },
+          {
+            path: "admin/health",
+            element: (
+              <RoleProtectedRoute requiredRole="admin" showAccessDenied>
+                <Suspense fallback={<PageLoader />}>
+                  <AdminHealth />
+                </Suspense>
+              </RoleProtectedRoute>
+            ),
+          },
+          { path: "*", element: <NotFound /> },
+        ],
+      },
+
+      // ============================================================
+      // 404 - Última rota
+      // ============================================================
+      { path: "*", element: <NotFound /> },
+    ],
+  },
+]);
+
+// ============================================================================
+// QUERY CLIENT
+// ============================================================================
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -89,149 +220,23 @@ const queryClient = new QueryClient({
   },
 });
 
+// ============================================================================
+// APP COMPONENT
+// ============================================================================
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <HelmetProvider>
         <AppErrorBoundary>
           <BusyProvider>
-          <TooltipProvider>
-            <BrowserRouter>
-              <AffiliateTracker />
-              <Toaster />
-              <Sonner />
-              <Routes>
-                {/* ============================================================ */}
-                {/* LANDING PAGE - Pública para verificação Stripe */}
-                {/* ============================================================ */}
-                <Route path="/" element={<LandingPage />} />
-                
-                {/* ============================================================ */}
-                {/* ROTAS PÚBLICAS - Sem sidebar, sem lazy loading */}
-                {/* ============================================================ */}
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/c/:slug" element={<PaymentLinkRedirect />} />
-                <Route path="/pay/:slug" element={<PublicCheckoutV2 />} />
-                <Route path="/pay/pix/:orderId" element={<PixPaymentPage />} />
-                <Route path="/pay/mercadopago/:orderId" element={<MercadoPagoPayment />} />
-                <Route path="/success/:orderId" element={<PaymentSuccessPage />} />
-                <Route path="/preview/success" element={<PaymentSuccessPage />} />
-                <Route path="/oauth-success" element={<OAuthSuccess />} />
-                <Route path="/afiliar/:product_id" element={<SolicitarAfiliacao />} />
-                <Route path="/termos-de-uso" element={<TermosDeUso />} />
-
-                {/* ============================================================ */}
-                {/* CHECKOUT BUILDER - Full screen sem sidebar (Protegido) */}
-                {/* ============================================================ */}
-                <Route
-                  path="/dashboard/produtos/checkout/personalizar"
-                  element={
-                    <ProtectedRoute>
-                      <CheckoutCustomizer />
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* ============================================================ */}
-                {/* ROTAS PROTEGIDAS - Com AppShell (sidebar) e Lazy Loading */}
-                {/* ============================================================ */}
-                <Route
-                  path="/dashboard/*"
-                  element={
-                    <ProtectedRoute>
-                      <ThemeProvider>
-                        <AppShell />
-                      </ThemeProvider>
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route index element={<Index />} />
-                  <Route path="produtos" element={<Produtos />} />
-                  <Route path="produtos/editar" element={<ProductEdit />} />
-                  <Route path="marketplace" element={<Marketplace />} />
-                  {/* Rota sensível: Gerenciamento de Afiliados (requer canHaveAffiliates) */}
-                  <Route 
-                    path="afiliados" 
-                    element={
-                      <RoleProtectedRoute 
-                        requiredPermission="canHaveAffiliates"
-                        showAccessDenied
-                      >
-                        <Suspense fallback={<PageLoader />}>
-                          <Afiliados />
-                        </Suspense>
-                      </RoleProtectedRoute>
-                    } 
-                  />
-                  <Route path="minhas-afiliacoes" element={<MinhasAfiliacoes />} />
-                  <Route path="minhas-afiliacoes/:affiliationId" element={<AffiliationDetails />} />
-                  <Route path="financeiro" element={<Financeiro />} />
-                  {/* Rota exclusiva Owner: Gateways da Plataforma (lazy loaded) */}
-                  <Route 
-                    path="gateways" 
-                    element={
-                      <RoleProtectedRoute 
-                        requiredRole="owner"
-                        showAccessDenied
-                      >
-                        <Suspense fallback={<PageLoader />}>
-                          <OwnerGateways />
-                        </Suspense>
-                      </RoleProtectedRoute>
-                    } 
-                  />
-                  <Route path="integracoes" element={<Integracoes />} />
-                  <Route path="ajuda" element={<Ajuda />} />
-
-                  {/* Compat: antiga rota /dashboard/config agora redireciona para /dashboard/admin */}
-                  <Route path="config" element={<Navigate to="admin" replace />} />
-
-                  {/* Rota Admin: Painel de Administração (requer admin) */}
-                  <Route 
-                    path="admin" 
-                    element={
-                      <RoleProtectedRoute 
-                        requiredRole="admin"
-                        showAccessDenied
-                      >
-                        <Suspense fallback={<PageLoader />}>
-                          <AdminDashboard />
-                        </Suspense>
-                      </RoleProtectedRoute>
-                    } 
-                  />
-
-                  {/* Rota Admin: Health Check (requer admin) */}
-                  <Route 
-                    path="admin/health" 
-                    element={
-                      <RoleProtectedRoute 
-                        requiredRole="admin"
-                        showAccessDenied
-                      >
-                        <Suspense fallback={<PageLoader />}>
-                          <AdminHealth />
-                        </Suspense>
-                      </RoleProtectedRoute>
-                    } 
-                  />
-
-                  {/* 404 interno do dashboard (evita tela em branco em rotas desconhecidas) */}
-                  <Route path="*" element={<NotFound />} />
-                </Route>
-
-                {/* ============================================================ */}
-                {/* 404 - Deve ser a última rota */}
-                {/* ============================================================ */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
-        </BusyProvider>
-      </AppErrorBoundary>
+            <TooltipProvider>
+              <RouterProvider router={router} />
+            </TooltipProvider>
+          </BusyProvider>
+        </AppErrorBoundary>
       </HelmetProvider>
     </QueryClientProvider>
   );
-};
+}
 
 export default App;
