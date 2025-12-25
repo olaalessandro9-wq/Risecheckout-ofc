@@ -87,3 +87,7 @@ verify_jwt = true
 
 [functions.manage-user-status]
 verify_jwt = true
+
+# ✅ AUTENTICADAS (Email)
+[functions.send-email]
+verify_jwt = true
