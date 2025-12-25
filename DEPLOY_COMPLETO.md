@@ -53,16 +53,16 @@ Todas as funções permitem requisições de:
 
 | Nome | Valor | Descrição |
 |------|-------|-----------|
-| `ENCRYPTION_KEY` | `<REDACTED_ENCRYPTION_KEY>` | Chave AES-256-GCM (32 bytes base64) |
-| `PLATFORM_PUSHINPAY_ACCOUNT_ID` | `9F73D854-4DA8-45E1-AFB6-9A8F803EFB7A` | ID da conta da plataforma |
+| `ENCRYPTION_KEY` | `<YOUR_ENCRYPTION_KEY>` | Chave AES-256-GCM (32 bytes base64) |
+| `PLATFORM_PUSHINPAY_ACCOUNT_ID` | `<YOUR_ACCOUNT_ID>` | ID da conta da plataforma |
 | `PLATFORM_FEE_PERCENT` | `7.5` | Taxa fixa da plataforma (7,5%) |
 | `PUSHINPAY_BASE_URL_PROD` | `https://api.pushinpay.com.br/api` | URL da API em produção |
 | `PUSHINPAY_BASE_URL_SANDBOX` | `https://api-sandbox.pushinpay.com.br/api` | URL da API em sandbox |
-| `PUSHINPAY_WEBHOOK_TOKEN` | `<REDACTED_WEBHOOK_TOKEN>` | Token de segurança do webhook |
+| `PUSHINPAY_WEBHOOK_TOKEN` | `<YOUR_WEBHOOK_TOKEN>` | Token de segurança do webhook |
 
 ### Como Configurar
 
-**Acesse:** https://supabase.com/dashboard/project/wivbtmtgpsxupfjwwovf/settings/secrets
+**Acesse:** Supabase Dashboard → Settings → Secrets
 
 Veja instruções detalhadas em: **CONFIGURAR_SECRETS.md**
 
@@ -73,7 +73,7 @@ Veja instruções detalhadas em: **CONFIGURAR_SECRETS.md**
 ### Endpoints Públicos
 
 ```
-Base URL: https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1
+Base URL: https://<YOUR_PROJECT_REF>.supabase.co/functions/v1
 ```
 
 | Função | Endpoint Completo | Método | Auth |
@@ -87,9 +87,10 @@ Base URL: https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1
 
 ```bash
 # Testar encrypt-token
-curl -X POST https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/encrypt-token \
+# NOTA: Substitua <YOUR_PROJECT_REF> e <YOUR_SUPABASE_ANON_KEY> pelos valores do seu projeto
+curl -X POST https://<YOUR_PROJECT_REF>.supabase.co/functions/v1/encrypt-token \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpdmJ0bXRncHN4dXBmand3b3ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEwNjYzMjgsImV4cCI6MjA3NjY0MjMyOH0.fiSC6Ic4JLO2haISk-qKBe_nyQ2CWOkEJstE2SehEY8" \
+  -H "Authorization: Bearer <YOUR_SUPABASE_ANON_KEY>" \
   -d '{"token":"test_token_123"}'
 ```
 
@@ -306,13 +307,12 @@ Serviço para comunicação com Edge Functions
 | **INSTRUCOES_FINAIS.md** | Instruções finais em português | 600+ |
 | **CONFIGURAR_SECRETS.md** | Guia de configuração de secrets | 200+ |
 | **DEPLOY_COMPLETO.md** | Este documento (resumo final) | 400+ |
-| **KEYS_SUPABASE.md** | Chaves do projeto (não commitado) | 50+ |
 | **README_PUSHINPAY.md** | Documentação técnica da integração | 1000+ |
 | **ARQUITETURA_PUSHINPAY.md** | Arquitetura e fluxos | 800+ |
 | **SEGURANCA_PUSHINPAY.md** | Documentação de segurança | 600+ |
 | **TESTES_PUSHINPAY.md** | Guia de testes | 500+ |
 
-**Total:** 9 documentos, 6.500+ linhas de documentação
+**Total:** 8 documentos, 5.000+ linhas de documentação
 
 ---
 
@@ -355,7 +355,7 @@ chmod +x test_encrypt.sh
 
 ### 1. Configurar Secrets (OBRIGATÓRIO)
 **Ação:** Configurar os 6 secrets no Supabase Dashboard  
-**Link:** https://supabase.com/dashboard/project/wivbtmtgpsxupfjwwovf/settings/secrets  
+**Link:** Supabase Dashboard → Settings → Secrets  
 **Documento:** CONFIGURAR_SECRETS.md
 
 ### 2. Testar Função encrypt-token
@@ -364,8 +364,8 @@ chmod +x test_encrypt.sh
 
 ### 3. Configurar Webhook na PushinPay
 **Ação:** Configurar webhook no dashboard da PushinPay  
-**URL:** `https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/pushinpay-webhook`  
-**Token:** `<REDACTED_WEBHOOK_TOKEN>`
+**URL:** `https://<YOUR_PROJECT_REF>.supabase.co/functions/v1/pushinpay-webhook`  
+**Token:** `<YOUR_WEBHOOK_TOKEN>`
 
 ### 4. Configurar Credenciais no Frontend
 **Ação:** Acessar página "Financeiro" e inserir Token PushinPay  
@@ -405,7 +405,7 @@ chmod +x test_encrypt.sh
   - [x] Tokens nunca armazenados em texto claro
 
 - [x] **Documentação**
-  - [x] 9 documentos criados (6.500+ linhas)
+  - [x] 8 documentos criados (5.000+ linhas)
   - [x] Instruções de deploy
   - [x] Guias de teste
   - [x] Documentação de segurança
@@ -448,8 +448,8 @@ chmod +x test_encrypt.sh
 
 ### Documentação
 
-- **Documentos:** 9 arquivos
-- **Linhas de Documentação:** 6.500+
+- **Documentos:** 8 arquivos
+- **Linhas de Documentação:** 5.000+
 - **Idioma:** Português (BR)
 
 ### Banco de Dados

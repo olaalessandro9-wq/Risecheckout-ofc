@@ -3,6 +3,15 @@
 # Script de Teste - Função encrypt-token
 # RiseCheckout - Integração PushinPay
 # ============================================================
+#
+# CONFIGURAÇÃO OBRIGATÓRIA:
+# Defina as variáveis de ambiente antes de executar:
+#
+#   export SUPABASE_PROJECT_REF="seu-project-ref"
+#   export SUPABASE_ANON_KEY="sua-anon-key"
+#
+# Ou crie um arquivo .env.local com essas variáveis.
+# ============================================================
 
 set -euo pipefail
 
@@ -10,13 +19,40 @@ echo "🧪 TESTE - Função encrypt-token"
 echo "================================"
 echo ""
 
+# Carregar variáveis de ambiente do .env.local se existir
+if [ -f ".env.local" ]; then
+  echo "📂 Carregando variáveis de .env.local..."
+  export $(grep -v '^#' .env.local | xargs)
+fi
+
+# Verificar se as variáveis obrigatórias estão definidas
+if [ -z "${SUPABASE_PROJECT_REF:-}" ]; then
+  echo "❌ Erro: SUPABASE_PROJECT_REF não definido"
+  echo ""
+  echo "Configure a variável de ambiente:"
+  echo "  export SUPABASE_PROJECT_REF=\"seu-project-ref\""
+  echo ""
+  echo "Ou crie um arquivo .env.local com:"
+  echo "  SUPABASE_PROJECT_REF=seu-project-ref"
+  exit 1
+fi
+
+if [ -z "${SUPABASE_ANON_KEY:-}" ]; then
+  echo "❌ Erro: SUPABASE_ANON_KEY não definido"
+  echo ""
+  echo "Configure a variável de ambiente:"
+  echo "  export SUPABASE_ANON_KEY=\"sua-anon-key\""
+  echo ""
+  echo "Ou crie um arquivo .env.local com:"
+  echo "  SUPABASE_ANON_KEY=sua-anon-key"
+  exit 1
+fi
+
 # Configurações
-PROJECT_REF="wivbtmtgpsxupfjwwovf"
-ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpdmJ0bXRncHN4dXBmand3b3ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEwNjYzMjgsImV4cCI6MjA3NjY0MjMyOH0.fiSC6Ic4JLO2haISk-qKBe_nyQ2CWOkEJstE2SehEY8"
-FUNCTION_URL="https://${PROJECT_REF}.supabase.co/functions/v1/encrypt-token"
+FUNCTION_URL="https://${SUPABASE_PROJECT_REF}.supabase.co/functions/v1/encrypt-token"
 
 echo "📍 URL: ${FUNCTION_URL}"
-echo "🔑 ANON KEY: ${ANON_KEY:0:50}..."
+echo "🔑 ANON KEY: ${SUPABASE_ANON_KEY:0:20}...${SUPABASE_ANON_KEY: -10}"
 echo ""
 
 # Teste 1: Token de teste simples
@@ -24,7 +60,7 @@ echo "🧪 Teste 1: Criptografar token de teste"
 echo "----------------------------------------"
 
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${FUNCTION_URL}" \
-  -H "apikey: ${ANON_KEY}" \
+  -H "apikey: ${SUPABASE_ANON_KEY}" \
   -H "Content-Type: application/json" \
   -d '{"token": "sandbox_teste_123"}')
 
@@ -48,7 +84,7 @@ echo "🧪 Teste 2: Token vazio (deve retornar 422)"
 echo "--------------------------------------------"
 
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${FUNCTION_URL}" \
-  -H "apikey: ${ANON_KEY}" \
+  -H "apikey: ${SUPABASE_ANON_KEY}" \
   -H "Content-Type: application/json" \
   -d '{"token": ""}')
 
@@ -72,7 +108,7 @@ echo "🧪 Teste 3: Sem campo token (deve retornar 422)"
 echo "------------------------------------------------"
 
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${FUNCTION_URL}" \
-  -H "apikey: ${ANON_KEY}" \
+  -H "apikey: ${SUPABASE_ANON_KEY}" \
   -H "Content-Type: application/json" \
   -d '{}')
 

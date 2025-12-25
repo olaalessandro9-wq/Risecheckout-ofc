@@ -7,12 +7,16 @@
 
 ---
 
-## ⚡ ATENÇÃO: Comandos Prontos para Copiar/Colar
+## ⚡ ATENÇÃO: Substitua os Placeholders
 
-Este documento contém **comandos prontos** com os valores reais já preenchidos.  
-**NÃO é necessário substituir placeholders!**
+Este documento contém **placeholders** que você deve substituir pelos valores reais do seu projeto.
 
-Basta copiar e colar cada bloco de comandos no terminal.
+**Placeholders a substituir:**
+- `<YOUR_PROJECT_REF>` → Seu project reference do Supabase
+- `<YOUR_SUPABASE_ANON_KEY>` → Sua anon key do Supabase
+- `<YOUR_ENCRYPTION_KEY>` → Sua chave de criptografia
+- `<YOUR_ACCOUNT_ID>` → ID da conta PushinPay da plataforma
+- `<YOUR_WEBHOOK_TOKEN>` → Token de segurança do webhook
 
 ---
 
@@ -29,33 +33,33 @@ Antes de iniciar, certifique-se de que:
 
 ## 🔐 Etapa 1: Configurar Secrets (15 min)
 
-### **Comandos Prontos:**
+### **Comandos (substitua os placeholders):**
 
 ```bash
 # 1. ENCRYPTION_KEY (chave de criptografia AES-256)
-supabase secrets set ENCRYPTION_KEY="Q1Z6U1VqZEdhV05GYzNsaFpXdz09" --project-ref wivbtmtgpsxupfjwwovf
+supabase secrets set ENCRYPTION_KEY="<YOUR_ENCRYPTION_KEY>" --project-ref <YOUR_PROJECT_REF>
 
 # 2. PLATFORM_PUSHINPAY_ACCOUNT_ID (ID da conta da plataforma)
-supabase secrets set PLATFORM_PUSHINPAY_ACCOUNT_ID="9F73D854-4DA8-45E1-AFB6-9A8F803EFB7A" --project-ref wivbtmtgpsxupfjwwovf
+supabase secrets set PLATFORM_PUSHINPAY_ACCOUNT_ID="<YOUR_ACCOUNT_ID>" --project-ref <YOUR_PROJECT_REF>
 
 # 3. PLATFORM_FEE_PERCENT (taxa da plataforma: 7.5%)
-supabase secrets set PLATFORM_FEE_PERCENT="7.5" --project-ref wivbtmtgpsxupfjwwovf
+supabase secrets set PLATFORM_FEE_PERCENT="7.5" --project-ref <YOUR_PROJECT_REF>
 
 # 4. PUSHINPAY_BASE_URL_PROD (URL de produção)
-supabase secrets set PUSHINPAY_BASE_URL_PROD="https://api.pushinpay.com.br/api" --project-ref wivbtmtgpsxupfjwwovf
+supabase secrets set PUSHINPAY_BASE_URL_PROD="https://api.pushinpay.com.br/api" --project-ref <YOUR_PROJECT_REF>
 
 # 5. PUSHINPAY_BASE_URL_SANDBOX (URL de sandbox)
-supabase secrets set PUSHINPAY_BASE_URL_SANDBOX="https://api-sandbox.pushinpay.com.br/api" --project-ref wivbtmtgpsxupfjwwovf
+supabase secrets set PUSHINPAY_BASE_URL_SANDBOX="https://api-sandbox.pushinpay.com.br/api" --project-ref <YOUR_PROJECT_REF>
 
 # 6. PUSHINPAY_WEBHOOK_TOKEN (token de validação do webhook)
-supabase secrets set PUSHINPAY_WEBHOOK_TOKEN="<REDACTED_WEBHOOK_TOKEN>" --project-ref wivbtmtgpsxupfjwwovf
+supabase secrets set PUSHINPAY_WEBHOOK_TOKEN="<YOUR_WEBHOOK_TOKEN>" --project-ref <YOUR_PROJECT_REF>
 ```
 
 ### **Validação:**
 
 ```bash
 # Listar secrets configuradas
-supabase secrets list --project-ref wivbtmtgpsxupfjwwovf
+supabase secrets list --project-ref <YOUR_PROJECT_REF>
 ```
 
 **Resultado esperado:**
@@ -72,27 +76,27 @@ PUSHINPAY_WEBHOOK_TOKEN
 
 ## 🚀 Etapa 2: Deploy das Edge Functions (30 min)
 
-### **Comandos Prontos:**
+### **Comandos:**
 
 ```bash
 # 1. encrypt-token (chamada pelo frontend - SEM JWT)
-supabase functions deploy encrypt-token --no-verify-jwt --project-ref wivbtmtgpsxupfjwwovf
+supabase functions deploy encrypt-token --no-verify-jwt --project-ref <YOUR_PROJECT_REF>
 
 # 2. pushinpay-create-pix (chamada pelo frontend - SEM JWT)
-supabase functions deploy pushinpay-create-pix --no-verify-jwt --project-ref wivbtmtgpsxupfjwwovf
+supabase functions deploy pushinpay-create-pix --no-verify-jwt --project-ref <YOUR_PROJECT_REF>
 
 # 3. pushinpay-get-status (chamada pelo frontend - SEM JWT)
-supabase functions deploy pushinpay-get-status --no-verify-jwt --project-ref wivbtmtgpsxupfjwwovf
+supabase functions deploy pushinpay-get-status --no-verify-jwt --project-ref <YOUR_PROJECT_REF>
 
 # 4. pushinpay-webhook (chamada pela PushinPay - COM JWT)
-supabase functions deploy pushinpay-webhook --project-ref wivbtmtgpsxupfjwwovf
+supabase functions deploy pushinpay-webhook --project-ref <YOUR_PROJECT_REF>
 ```
 
 ### **Validação:**
 
 ```bash
 # Listar funções deployadas
-supabase functions list --project-ref wivbtmtgpsxupfjwwovf
+supabase functions list --project-ref <YOUR_PROJECT_REF>
 ```
 
 **Resultado esperado:**
@@ -115,8 +119,8 @@ pushinpay-webhook
 
 | Campo | Valor |
 |-------|-------|
-| **URL** | `https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/pushinpay-webhook` |
-| **Token** | `<REDACTED_WEBHOOK_TOKEN>` |
+| **URL** | `https://<YOUR_PROJECT_REF>.supabase.co/functions/v1/pushinpay-webhook` |
+| **Token** | `<YOUR_WEBHOOK_TOKEN>` |
 | **Eventos** | `pix.created`, `pix.paid`, `pix.expired`, `pix.canceled` |
 
 4. Clique em "Salvar"
@@ -125,9 +129,9 @@ pushinpay-webhook
 
 ```bash
 # Testar webhook manualmente
-curl -X POST https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/pushinpay-webhook \
+curl -X POST https://<YOUR_PROJECT_REF>.supabase.co/functions/v1/pushinpay-webhook \
   -H "Content-Type: application/json" \
-  -H "X-Webhook-Token: <REDACTED_WEBHOOK_TOKEN>" \
+  -H "X-Webhook-Token: <YOUR_WEBHOOK_TOKEN>" \
   -d '{"event":"pix.paid","data":{"id":"test-id","status":"paid"}}'
 ```
 
@@ -145,9 +149,9 @@ curl -X POST https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/pushinpay-web
 **Comando:**
 
 ```bash
-curl -X POST https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/encrypt-token \
+curl -X POST https://<YOUR_PROJECT_REF>.supabase.co/functions/v1/encrypt-token \
   -H "Content-Type: application/json" \
-  -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpdmJ0bXRncHN4dXBmand3b3ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzA0Njk2MjcsImV4cCI6MjA0NjA0NTYyN30.Uh9Uw8lNJOqvZwDdLLfmLEkPF5pJMqH_K2mG_7wdQJQ" \
+  -H "apikey: <YOUR_SUPABASE_ANON_KEY>" \
   -d '{"token":"teste123"}'
 ```
 
@@ -221,7 +225,7 @@ curl -X POST https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/encrypt-token
 
 ```bash
 # Ver logs do webhook
-supabase functions logs pushinpay-webhook --project-ref wivbtmtgpsxupfjwwovf --tail
+supabase functions logs pushinpay-webhook --project-ref <YOUR_PROJECT_REF> --tail
 ```
 
 ---
@@ -241,7 +245,7 @@ supabase functions logs pushinpay-webhook --project-ref wivbtmtgpsxupfjwwovf --t
 
 **Resultado esperado:**
 - ✅ Split calculado corretamente
-- ✅ `account_id` da plataforma: `9F73D854-4DA8-45E1-AFB6-9A8F803EFB7A`
+- ✅ `account_id` da plataforma configurado
 - ✅ Valor do split em centavos correto
 
 ---
@@ -272,13 +276,13 @@ supabase functions logs pushinpay-webhook --project-ref wivbtmtgpsxupfjwwovf --t
 **Solução:**
 ```bash
 # Verificar logs
-supabase functions logs encrypt-token --project-ref wivbtmtgpsxupfjwwovf --tail
+supabase functions logs encrypt-token --project-ref <YOUR_PROJECT_REF> --tail
 
 # Reconfigurar chave
-supabase secrets set ENCRYPTION_KEY="Q1Z6U1VqZEdhV05GYzNsaFpXdz09" --project-ref wivbtmtgpsxupfjwwovf
+supabase secrets set ENCRYPTION_KEY="<YOUR_ENCRYPTION_KEY>" --project-ref <YOUR_PROJECT_REF>
 
 # Re-deploy
-supabase functions deploy encrypt-token --no-verify-jwt --project-ref wivbtmtgpsxupfjwwovf
+supabase functions deploy encrypt-token --no-verify-jwt --project-ref <YOUR_PROJECT_REF>
 ```
 
 ---
@@ -301,11 +305,11 @@ supabase functions deploy encrypt-token --no-verify-jwt --project-ref wivbtmtgps
 **Solução:**
 ```bash
 # Verificar logs
-supabase functions logs pushinpay-webhook --project-ref wivbtmtgpsxupfjwwovf --tail
+supabase functions logs pushinpay-webhook --project-ref <YOUR_PROJECT_REF> --tail
 
 # Verificar URL e token
-echo "URL: https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/pushinpay-webhook"
-echo "Token: <REDACTED_WEBHOOK_TOKEN>"
+echo "URL: https://<YOUR_PROJECT_REF>.supabase.co/functions/v1/pushinpay-webhook"
+echo "Token: Verificar no Supabase Dashboard → Settings → Secrets"
 
 # Reconfigurar no painel da PushinPay
 ```
@@ -318,25 +322,25 @@ echo "Token: <REDACTED_WEBHOOK_TOKEN>"
 
 ```bash
 # Etapa 1: Secrets (6 comandos)
-supabase secrets set ENCRYPTION_KEY="Q1Z6U1VqZEdhV05GYzNsaFpXdz09" --project-ref wivbtmtgpsxupfjwwovf
-supabase secrets set PLATFORM_PUSHINPAY_ACCOUNT_ID="9F73D854-4DA8-45E1-AFB6-9A8F803EFB7A" --project-ref wivbtmtgpsxupfjwwovf
-supabase secrets set PLATFORM_FEE_PERCENT="7.5" --project-ref wivbtmtgpsxupfjwwovf
-supabase secrets set PUSHINPAY_BASE_URL_PROD="https://api.pushinpay.com.br/api" --project-ref wivbtmtgpsxupfjwwovf
-supabase secrets set PUSHINPAY_BASE_URL_SANDBOX="https://api-sandbox.pushinpay.com.br/api" --project-ref wivbtmtgpsxupfjwwovf
-supabase secrets set PUSHINPAY_WEBHOOK_TOKEN="<REDACTED_WEBHOOK_TOKEN>" --project-ref wivbtmtgpsxupfjwwovf
+supabase secrets set ENCRYPTION_KEY="<YOUR_ENCRYPTION_KEY>" --project-ref <YOUR_PROJECT_REF>
+supabase secrets set PLATFORM_PUSHINPAY_ACCOUNT_ID="<YOUR_ACCOUNT_ID>" --project-ref <YOUR_PROJECT_REF>
+supabase secrets set PLATFORM_FEE_PERCENT="7.5" --project-ref <YOUR_PROJECT_REF>
+supabase secrets set PUSHINPAY_BASE_URL_PROD="https://api.pushinpay.com.br/api" --project-ref <YOUR_PROJECT_REF>
+supabase secrets set PUSHINPAY_BASE_URL_SANDBOX="https://api-sandbox.pushinpay.com.br/api" --project-ref <YOUR_PROJECT_REF>
+supabase secrets set PUSHINPAY_WEBHOOK_TOKEN="<YOUR_WEBHOOK_TOKEN>" --project-ref <YOUR_PROJECT_REF>
 
 # Etapa 2: Deploy (4 comandos)
-supabase functions deploy encrypt-token --no-verify-jwt --project-ref wivbtmtgpsxupfjwwovf
-supabase functions deploy pushinpay-create-pix --no-verify-jwt --project-ref wivbtmtgpsxupfjwwovf
-supabase functions deploy pushinpay-get-status --no-verify-jwt --project-ref wivbtmtgpsxupfjwwovf
-supabase functions deploy pushinpay-webhook --project-ref wivbtmtgpsxupfjwwovf
+supabase functions deploy encrypt-token --no-verify-jwt --project-ref <YOUR_PROJECT_REF>
+supabase functions deploy pushinpay-create-pix --no-verify-jwt --project-ref <YOUR_PROJECT_REF>
+supabase functions deploy pushinpay-get-status --no-verify-jwt --project-ref <YOUR_PROJECT_REF>
+supabase functions deploy pushinpay-webhook --project-ref <YOUR_PROJECT_REF>
 ```
 
 ### **Configuração Manual:**
 
 - Webhook na PushinPay:
-  - URL: `https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/pushinpay-webhook`
-  - Token: `<REDACTED_WEBHOOK_TOKEN>`
+  - URL: `https://<YOUR_PROJECT_REF>.supabase.co/functions/v1/pushinpay-webhook`
+  - Token: `<YOUR_WEBHOOK_TOKEN>`
   - Eventos: `pix.created`, `pix.paid`, `pix.expired`, `pix.canceled`
 
 ---
@@ -361,7 +365,7 @@ Após a execução completa:
 - `CHECKLIST_CONCLUSAO.md` - Checklist de aceite
 
 **Links Úteis:**
-- **Supabase Dashboard:** https://supabase.com/dashboard/project/wivbtmtgpsxupfjwwovf
+- **Supabase Dashboard:** https://supabase.com/dashboard
 - **PushinPay Dashboard:** https://app.pushinpay.com.br
 - **Documentação PushinPay:** https://app.theneo.io/pushinpay/pix/criar-pix
 

@@ -1,18 +1,67 @@
 #!/bin/bash
 
 # Script de Deploy Completo - Integração PushinPay
-# RiseCheckout - Valores Reais Pré-configurados
+# RiseCheckout
 # Data: 01/11/2025
+#
+# ============================================================
+# CONFIGURAÇÃO OBRIGATÓRIA:
+# ============================================================
+#
+# Antes de executar, defina as variáveis de ambiente:
+#
+#   export SUPABASE_PROJECT_REF="seu-project-ref"
+#   export SUPABASE_ANON_KEY="sua-anon-key"
+#   export ENCRYPTION_KEY="sua-chave-criptografia"
+#   export PLATFORM_PUSHINPAY_ACCOUNT_ID="id-conta-plataforma"
+#   export PUSHINPAY_WEBHOOK_TOKEN="token-webhook"
+#
+# Ou crie um arquivo .env.local na raiz do projeto.
+# ============================================================
 
 set -e
-
-PROJECT_REF="wivbtmtgpsxupfjwwovf"
 
 echo "=================================================="
 echo "  Deploy Completo - Integração PushinPay"
 echo "  Projeto: RiseCheckout"
 echo "  Tempo Estimado: 1h55min"
 echo "=================================================="
+echo ""
+
+# Carregar variáveis de ambiente do .env.local se existir
+if [ -f ".env.local" ]; then
+  echo "📂 Carregando variáveis de .env.local..."
+  export $(grep -v '^#' .env.local | xargs)
+fi
+
+# Verificar variáveis obrigatórias
+if [ -z "${SUPABASE_PROJECT_REF:-}" ]; then
+  echo "❌ Erro: SUPABASE_PROJECT_REF não definido"
+  echo "Configure com: export SUPABASE_PROJECT_REF=\"seu-project-ref\""
+  exit 1
+fi
+
+PROJECT_REF="$SUPABASE_PROJECT_REF"
+
+if [ -z "${ENCRYPTION_KEY:-}" ]; then
+  echo "❌ Erro: ENCRYPTION_KEY não definido"
+  echo "Configure com: export ENCRYPTION_KEY=\"sua-chave\""
+  exit 1
+fi
+
+if [ -z "${PLATFORM_PUSHINPAY_ACCOUNT_ID:-}" ]; then
+  echo "❌ Erro: PLATFORM_PUSHINPAY_ACCOUNT_ID não definido"
+  echo "Configure com: export PLATFORM_PUSHINPAY_ACCOUNT_ID=\"id-conta\""
+  exit 1
+fi
+
+if [ -z "${PUSHINPAY_WEBHOOK_TOKEN:-}" ]; then
+  echo "❌ Erro: PUSHINPAY_WEBHOOK_TOKEN não definido"
+  echo "Configure com: export PUSHINPAY_WEBHOOK_TOKEN=\"token\""
+  exit 1
+fi
+
+echo "✅ Todas as variáveis de ambiente estão configuradas"
 echo ""
 
 # Verificar se Supabase CLI está instalado
@@ -47,13 +96,13 @@ echo ""
 
 # 1. ENCRYPTION_KEY
 echo "1/6 Configurando ENCRYPTION_KEY..."
-supabase secrets set ENCRYPTION_KEY="Q1Z6U1VqZEdhV05GYzNsaFpXdz09" --project-ref "$PROJECT_REF"
+supabase secrets set ENCRYPTION_KEY="$ENCRYPTION_KEY" --project-ref "$PROJECT_REF"
 echo "✅ ENCRYPTION_KEY configurada"
 echo ""
 
 # 2. PLATFORM_PUSHINPAY_ACCOUNT_ID
 echo "2/6 Configurando PLATFORM_PUSHINPAY_ACCOUNT_ID..."
-supabase secrets set PLATFORM_PUSHINPAY_ACCOUNT_ID="9c83ed8a-2e48-4bdb-bfb5-4863a527f108" --project-ref "$PROJECT_REF"
+supabase secrets set PLATFORM_PUSHINPAY_ACCOUNT_ID="$PLATFORM_PUSHINPAY_ACCOUNT_ID" --project-ref "$PROJECT_REF"
 echo "✅ PLATFORM_PUSHINPAY_ACCOUNT_ID configurada"
 echo ""
 
@@ -77,7 +126,7 @@ echo ""
 
 # 6. PUSHINPAY_WEBHOOK_TOKEN
 echo "6/6 Configurando PUSHINPAY_WEBHOOK_TOKEN..."
-supabase secrets set PUSHINPAY_WEBHOOK_TOKEN="<REDACTED_WEBHOOK_TOKEN>" --project-ref "$PROJECT_REF"
+supabase secrets set PUSHINPAY_WEBHOOK_TOKEN="$PUSHINPAY_WEBHOOK_TOKEN" --project-ref "$PROJECT_REF"
 echo "✅ PUSHINPAY_WEBHOOK_TOKEN configurada"
 echo ""
 
@@ -149,10 +198,10 @@ echo ""
 echo "Acesse o painel da PushinPay e configure o webhook:"
 echo ""
 echo "URL:"
-echo "  https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/pushinpay-webhook"
+echo "  https://${PROJECT_REF}.supabase.co/functions/v1/pushinpay-webhook"
 echo ""
 echo "Token:"
-echo "  <REDACTED_WEBHOOK_TOKEN>"
+echo "  (Usar o valor de PUSHINPAY_WEBHOOK_TOKEN)"
 echo ""
 echo "Eventos:"
 echo "  - pix.created"
@@ -176,12 +225,8 @@ echo ""
 
 echo "Teste 1: Criptografia (encrypt-token)"
 echo ""
-echo "Execute o comando abaixo para testar:"
-echo ""
-echo "curl -X POST https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/encrypt-token \\"
-echo "  -H \"Content-Type: application/json\" \\"
-echo "  -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpdmJ0bXRncHN4dXBmand3b3ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzA0Njk2MjcsImV4cCI6MjA0NjA0NTYyN30.Uh9Uw8lNJOqvZwDdLLfmLEkPF5pJMqH_K2mG_7wdQJQ\" \\"
-echo "  -d '{\"token\":\"teste123\"}'"
+echo "Execute o script de teste:"
+echo "  ./test_encrypt.sh"
 echo ""
 
 read -p "Pressione ENTER para continuar..."
@@ -231,7 +276,6 @@ echo "1. Acesse o banco de dados (tabela payments_map)"
 echo "2. Verifique o campo split_rules"
 echo ""
 echo "Resultado esperado: Split de 7.5% aplicado"
-echo "Account ID da plataforma: 9c83ed8a-2e48-4bdb-bfb5-4863a527f108"
 echo ""
 
 read -p "Pressione ENTER após validar o split..."
@@ -271,18 +315,10 @@ if [[ $REPLY =~ ^[Ss]$ ]]; then
     echo "Integração PushinPay 100% funcional!"
     echo ""
     echo "URLs das funções:"
-    echo "  - encrypt-token: https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/encrypt-token"
-    echo "  - pushinpay-create-pix: https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/pushinpay-create-pix"
-    echo "  - pushinpay-get-status: https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/pushinpay-get-status"
-    echo "  - pushinpay-webhook: https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/pushinpay-webhook"
-    echo ""
-    echo "Webhook configurado:"
-    echo "  - URL: https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/pushinpay-webhook"
-    echo "  - Token: <REDACTED_WEBHOOK_TOKEN>"
-    echo ""
-    echo "Split de pagamento:"
-    echo "  - Taxa da plataforma: 7.5%"
-    echo "  - Account ID: 9c83ed8a-2e48-4bdb-bfb5-4863a527f108"
+    echo "  - encrypt-token: https://${PROJECT_REF}.supabase.co/functions/v1/encrypt-token"
+    echo "  - pushinpay-create-pix: https://${PROJECT_REF}.supabase.co/functions/v1/pushinpay-create-pix"
+    echo "  - pushinpay-get-status: https://${PROJECT_REF}.supabase.co/functions/v1/pushinpay-get-status"
+    echo "  - pushinpay-webhook: https://${PROJECT_REF}.supabase.co/functions/v1/pushinpay-webhook"
     echo ""
     echo "Próximos passos:"
     echo "  1. Teste em produção com token real da PushinPay"

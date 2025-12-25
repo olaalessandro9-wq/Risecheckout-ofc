@@ -1,0 +1,94 @@
+# =============================================================================
+# Pre-commit Configuration - RiseCheckout
+# =============================================================================
+#
+# Este arquivo configura hooks de pre-commit para prevenir commits de secrets
+# e outras vulnerabilidades de segurança.
+#
+# INSTALAÇÃO:
+#   pip install pre-commit
+#   pre-commit install
+#
+# EXECUÇÃO MANUAL:
+#   pre-commit run --all-files
+#
+# =============================================================================
+
+repos:
+  # -------------------------------------------------------------------------
+  # Gitleaks - Detecção de Secrets
+  # -------------------------------------------------------------------------
+  # Previne commits de API keys, tokens, senhas e outros secrets
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks
+        name: 🔐 Gitleaks - Detectar secrets expostos
+        description: Verifica se há secrets (API keys, tokens, senhas) no código
+        entry: gitleaks protect --staged --verbose --redact
+        language: system
+        pass_filenames: false
+
+  # -------------------------------------------------------------------------
+  # Hooks padrão do pre-commit
+  # -------------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      # Previne commits de arquivos grandes que podem conter dados sensíveis
+      - id: check-added-large-files
+        name: 📦 Verificar arquivos grandes
+        args: ['--maxkb=500']
+      
+      # Previne commits de arquivos com conflitos de merge não resolvidos
+      - id: check-merge-conflict
+        name: ⚠️ Verificar conflitos de merge
+      
+      # Verifica se arquivos JSON estão válidos
+      - id: check-json
+        name: 📋 Validar JSON
+      
+      # Verifica se arquivos YAML estão válidos
+      - id: check-yaml
+        name: 📋 Validar YAML
+      
+      # Remove whitespace no final das linhas
+      - id: trailing-whitespace
+        name: 🧹 Remover whitespace trailing
+        args: [--markdown-linebreak-ext=md]
+      
+      # Garante que arquivos terminam com newline
+      - id: end-of-file-fixer
+        name: 📄 Corrigir final de arquivo
+
+  # -------------------------------------------------------------------------
+  # ESLint para TypeScript/JavaScript
+  # -------------------------------------------------------------------------
+  - repo: local
+    hooks:
+      - id: eslint
+        name: 🔍 ESLint - Verificar código TypeScript
+        entry: npx eslint --fix
+        language: system
+        types: [typescript, javascript]
+        files: \.(ts|tsx|js|jsx)$
+        pass_filenames: true
+
+# =============================================================================
+# Configurações Globais
+# =============================================================================
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit]
+fail_fast: false
+
+# Arquivos a serem ignorados globalmente
+exclude: |
+  (?x)^(
+    node_modules/|
+    dist/|
+    build/|
+    .git/|
+    bun.lockb|
+    package-lock.json|
+    \.min\.(js|css)$
+  )
