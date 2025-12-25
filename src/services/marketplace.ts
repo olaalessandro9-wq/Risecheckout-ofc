@@ -13,6 +13,13 @@ export type MarketplaceFilters = {
   sortBy?: "recent" | "popular" | "commission";
   limit?: number;
   offset?: number;
+  // Filtros de aprovação
+  approvalImmediate?: boolean;
+  approvalModeration?: boolean;
+  // Filtros de tipo de produto (por categoria/tag)
+  typeEbook?: boolean;
+  typeService?: boolean;
+  typeCourse?: boolean;
 };
 
 export type MarketplaceProductWithDetails = MarketplaceProduct & {
@@ -50,6 +57,35 @@ export async function fetchMarketplaceProducts(
     // Filtro de comissão máxima
     if (filters.maxCommission) {
       query = query.lte("commission_percentage", filters.maxCommission);
+    }
+
+    // Filtro de aprovação
+    const approvalFilters: string[] = [];
+    if (filters.approvalImmediate) {
+      approvalFilters.push("requires_manual_approval.eq.false");
+    }
+    if (filters.approvalModeration) {
+      approvalFilters.push("requires_manual_approval.eq.true");
+    }
+    // Aplica apenas se algum filtro estiver ativo (não ambos ou nenhum)
+    if (approvalFilters.length === 1) {
+      query = query.or(approvalFilters[0]);
+    }
+
+    // Filtro de tipo de produto (baseado em tags do marketplace)
+    const typeFilters: string[] = [];
+    if (filters.typeEbook) {
+      typeFilters.push("marketplace_tags.cs.{ebook}");
+    }
+    if (filters.typeService) {
+      typeFilters.push("marketplace_tags.cs.{servico}");
+    }
+    if (filters.typeCourse) {
+      typeFilters.push("marketplace_tags.cs.{curso}");
+    }
+    // Aplica OR entre os tipos selecionados
+    if (typeFilters.length > 0 && typeFilters.length < 3) {
+      query = query.or(typeFilters.join(","));
     }
 
     // Ordenação

@@ -51,6 +51,51 @@ export function MarketplaceFilters({ categories, filters, onFiltersChange }: Mar
       minCommission: undefined,
       maxCommission: undefined,
       sortBy: "recent",
+      approvalImmediate: undefined,
+      approvalModeration: undefined,
+      typeEbook: undefined,
+      typeService: undefined,
+      typeCourse: undefined,
+    });
+  };
+
+  // Toggle filtro de aprovação
+  const handleApprovalChange = (type: "immediate" | "moderation", checked: boolean) => {
+    if (type === "immediate") {
+      onFiltersChange({ ...filters, approvalImmediate: checked || undefined });
+    } else {
+      onFiltersChange({ ...filters, approvalModeration: checked || undefined });
+    }
+  };
+
+  // Toggle filtro de tipo
+  const handleTypeChange = (type: "ebook" | "service" | "course", checked: boolean) => {
+    if (type === "ebook") {
+      onFiltersChange({ ...filters, typeEbook: checked || undefined });
+    } else if (type === "service") {
+      onFiltersChange({ ...filters, typeService: checked || undefined });
+    } else {
+      onFiltersChange({ ...filters, typeCourse: checked || undefined });
+    }
+  };
+
+  // Selecionar todos de um grupo
+  const handleSelectAllApproval = () => {
+    const allSelected = filters.approvalImmediate && filters.approvalModeration;
+    onFiltersChange({
+      ...filters,
+      approvalImmediate: allSelected ? undefined : true,
+      approvalModeration: allSelected ? undefined : true,
+    });
+  };
+
+  const handleSelectAllTypes = () => {
+    const allSelected = filters.typeEbook && filters.typeService && filters.typeCourse;
+    onFiltersChange({
+      ...filters,
+      typeEbook: allSelected ? undefined : true,
+      typeService: allSelected ? undefined : true,
+      typeCourse: allSelected ? undefined : true,
     });
   };
 
@@ -61,6 +106,11 @@ export function MarketplaceFilters({ categories, filters, onFiltersChange }: Mar
     filters.minCommission,
     filters.maxCommission,
     filters.sortBy !== "recent" ? filters.sortBy : null,
+    filters.approvalImmediate,
+    filters.approvalModeration,
+    filters.typeEbook,
+    filters.typeService,
+    filters.typeCourse,
   ].filter(Boolean).length;
 
   return (
@@ -104,47 +154,24 @@ export function MarketplaceFilters({ categories, filters, onFiltersChange }: Mar
         </div>
       </div>
 
-      {/* Produto (Autoral, Afiliação ativa) */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <Label className="text-xs font-medium">Produto</Label>
-          <button className="text-xs text-primary hover:underline">
-            (Selecionar todos)
-          </button>
-        </div>
-        <div className="space-y-2">
-          <div className="flex items-center space-x-2">
-            <Checkbox id="autoral" />
-            <label
-              htmlFor="autoral"
-              className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              Autoral
-            </label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox id="afiliacao-ativa" />
-            <label
-              htmlFor="afiliacao-ativa"
-              className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              Afiliação ativa
-            </label>
-          </div>
-        </div>
-      </div>
-
       {/* Aprovação (Imediata, Mediante moderação) */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <Label className="text-xs font-medium">Aprovação</Label>
-          <button className="text-xs text-primary hover:underline">
+          <button 
+            onClick={handleSelectAllApproval}
+            className="text-xs text-primary hover:underline"
+          >
             (Selecionar todos)
           </button>
         </div>
         <div className="space-y-2">
           <div className="flex items-center space-x-2">
-            <Checkbox id="imediata" />
+            <Checkbox 
+              id="imediata" 
+              checked={filters.approvalImmediate || false}
+              onCheckedChange={(checked) => handleApprovalChange("immediate", checked === true)}
+            />
             <label
               htmlFor="imediata"
               className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
@@ -153,7 +180,11 @@ export function MarketplaceFilters({ categories, filters, onFiltersChange }: Mar
             </label>
           </div>
           <div className="flex items-center space-x-2">
-            <Checkbox id="moderacao" />
+            <Checkbox 
+              id="moderacao" 
+              checked={filters.approvalModeration || false}
+              onCheckedChange={(checked) => handleApprovalChange("moderation", checked === true)}
+            />
             <label
               htmlFor="moderacao"
               className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
@@ -168,13 +199,20 @@ export function MarketplaceFilters({ categories, filters, onFiltersChange }: Mar
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <Label className="text-xs font-medium">Tipo</Label>
-          <button className="text-xs text-primary hover:underline">
+          <button 
+            onClick={handleSelectAllTypes}
+            className="text-xs text-primary hover:underline"
+          >
             (Selecionar todos)
           </button>
         </div>
         <div className="space-y-2">
           <div className="flex items-center space-x-2">
-            <Checkbox id="ebook" />
+            <Checkbox 
+              id="ebook" 
+              checked={filters.typeEbook || false}
+              onCheckedChange={(checked) => handleTypeChange("ebook", checked === true)}
+            />
             <label
               htmlFor="ebook"
               className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
@@ -183,7 +221,11 @@ export function MarketplaceFilters({ categories, filters, onFiltersChange }: Mar
             </label>
           </div>
           <div className="flex items-center space-x-2">
-            <Checkbox id="servico" />
+            <Checkbox 
+              id="servico" 
+              checked={filters.typeService || false}
+              onCheckedChange={(checked) => handleTypeChange("service", checked === true)}
+            />
             <label
               htmlFor="servico"
               className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
@@ -192,7 +234,11 @@ export function MarketplaceFilters({ categories, filters, onFiltersChange }: Mar
             </label>
           </div>
           <div className="flex items-center space-x-2">
-            <Checkbox id="curso" />
+            <Checkbox 
+              id="curso" 
+              checked={filters.typeCourse || false}
+              onCheckedChange={(checked) => handleTypeChange("course", checked === true)}
+            />
             <label
               htmlFor="curso"
               className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"

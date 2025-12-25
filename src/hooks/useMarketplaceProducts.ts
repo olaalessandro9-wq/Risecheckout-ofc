@@ -96,6 +96,11 @@ export function useMarketplaceProducts(): UseMarketplaceProductsReturn {
     filters.minCommission,
     filters.maxCommission,
     filters.sortBy,
+    filters.approvalImmediate,
+    filters.approvalModeration,
+    filters.typeEbook,
+    filters.typeService,
+    filters.typeCourse,
   ]);
 
   // Carregar mais produtos (paginação)
