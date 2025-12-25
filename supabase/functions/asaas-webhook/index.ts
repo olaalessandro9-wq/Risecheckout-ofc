@@ -1,12 +1,24 @@
+/**
+ * ============================================================================
+ * ASAAS WEBHOOK - Edge Function
+ * ============================================================================
+ * 
+ * Recebe eventos de pagamento do Asaas e atualiza status das ordens.
+ * 
+ * @module asaas-webhook
+ */
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { logSecurityEvent, SecurityAction } from "../_shared/audit-logger.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, asaas-access-token',
 };
 
-const SUPABASE_URL = "https://wivbtmtgpsxupfjwwovf.supabase.co";
+// URL dinâmica via env (corrigido de hardcoded)
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const ASAAS_WEBHOOK_TOKEN = Deno.env.get('ASAAS_WEBHOOK_TOKEN') || '';
 
@@ -31,6 +43,8 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
   try {
     // Validar token do webhook
     const authHeader = req.headers.get('asaas-access-token') || '';
@@ -45,6 +59,17 @@ serve(async (req) => {
 
     if (authHeader !== ASAAS_WEBHOOK_TOKEN) {
       console.error('[asaas-webhook] Token inválido');
+      
+      // Audit log para tentativa inválida
+      await logSecurityEvent(supabase, {
+        userId: '00000000-0000-0000-0000-000000000000',
+        action: SecurityAction.ACCESS_DENIED,
+        resource: 'asaas-webhook',
+        success: false,
+        request: req,
+        metadata: { reason: 'Invalid webhook token' }
+      });
+      
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -113,8 +138,14 @@ serve(async (req) => {
 
     console.log(`[asaas-webhook] Atualizando order ${orderId} para status ${internalStatus}`);
 
-    // Atualizar order no banco
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    // Buscar ordem para obter vendor_id
+    const { data: orderData } = await supabase
+      .from('orders')
+      .select('vendor_id')
+      .eq('id', orderId)
+      .single();
+
+    const vendorId = orderData?.vendor_id || '00000000-0000-0000-0000-000000000000';
 
     const updateData: Record<string, unknown> = {
       status: internalStatus,
@@ -149,12 +180,30 @@ serve(async (req) => {
         data: event,
         gateway_event_id: payment.id,
         occurred_at: new Date().toISOString(),
-        vendor_id: '00000000-0000-0000-0000-000000000000' // Placeholder, será atualizado se necessário
+        vendor_id: vendorId
       });
 
     if (eventError) {
       console.warn('[asaas-webhook] Erro ao registrar evento (não crítico):', eventError);
     }
+
+    // Audit log para pagamento processado
+    await logSecurityEvent(supabase, {
+      userId: vendorId,
+      action: SecurityAction.PROCESS_PAYMENT,
+      resource: 'orders',
+      resourceId: orderId,
+      success: true,
+      request: req,
+      metadata: {
+        gateway: 'asaas',
+        eventType,
+        paymentId: payment.id,
+        oldStatus: 'unknown',
+        newStatus: internalStatus,
+        value: payment.value
+      }
+    });
 
     console.log(`[asaas-webhook] Order ${orderId} atualizada com sucesso para ${internalStatus}`);
 

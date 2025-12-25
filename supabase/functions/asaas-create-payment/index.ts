@@ -1,13 +1,34 @@
+/**
+ * ============================================================================
+ * ASAAS CREATE PAYMENT - Edge Function
+ * ============================================================================
+ * 
+ * MODELO MARKETPLACE ASAAS - RiseCheckout
+ * Todas cobranças na conta RiseCheckout. Split BINÁRIO (nunca 3 partes).
+ * 
+ * Cenários:
+ * 1. OWNER DIRETO: 100% RiseCheckout
+ * 2. OWNER + AFILIADO: Afiliado recebe X% * 0.96, Owner recebe resto
+ * 3. VENDEDOR COMUM: 96% vendedor, 4% plataforma
+ * 
+ * @module asaas-create-payment
+ */
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+// Módulos compartilhados
 import { 
-  isVendorOwner,
   calculatePlatformFeeCents,
   PLATFORM_FEE_PERCENT,
   getGatewayCredentials,
   validateCredentials
 } from "../_shared/platform-config.ts";
+import { findOrCreateCustomer, CustomerData } from "../_shared/asaas-customer.ts";
+import { calculateMarketplaceSplitData } from "../_shared/asaas-split-calculator.ts";
+import { checkRateLimit, recordAttempt, getIdentifier } from "../_shared/rate-limit.ts";
+import { logSecurityEvent, SecurityAction } from "../_shared/audit-logger.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,35 +38,19 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
-interface CustomerData {
-  name: string;
-  email: string;
-  document: string;
-  phone?: string;
+// Configuração de rate limiting
+const RATE_LIMIT_CONFIG = {
+  maxAttempts: 10,
+  windowMs: 60 * 1000, // 1 minuto
+  action: 'asaas_create_payment'
+};
+
+interface AsaasSplitRule {
+  walletId: string;
+  fixedValue?: number;
+  percentualValue?: number;
 }
 
-/**
- * ============================================================================
- * MODELO MARKETPLACE ASAAS - RiseCheckout
- * ============================================================================
- * 
- * TODAS as cobranças são feitas na conta RiseCheckout (ASAAS_API_KEY).
- * O split é SEMPRE BINÁRIO (nunca 3 partes):
- * 
- * 1. OWNER vendendo DIRETO: splitRules = [] → 100% fica com RiseCheckout
- * 
- * 2. OWNER + AFILIADO: splitRules = [{ walletId: afiliado, percentualValue: X% * 0.96 }]
- *    - Desconta 4% da plataforma PRIMEIRO
- *    - Afiliado recebe sua % sobre o líquido
- *    - RiseCheckout recebe 4% + resto (em um único recebimento)
- * 
- * 3. VENDEDOR COMUM: splitRules = [{ walletId: vendedor, percentualValue: 96 }]
- *    - Vendedor recebe 96%
- *    - RiseCheckout recebe 4% automaticamente
- * 
- * IMPORTANTE: Vendedores NÃO têm afiliados (só Owner pode ter).
- * ============================================================================
- */
 interface PaymentRequest {
   vendorId: string;
   orderId: string;
@@ -57,35 +62,48 @@ interface PaymentRequest {
   installments?: number;
 }
 
-interface AsaasSplitRule {
-  walletId: string;
-  fixedValue?: number;
-  percentualValue?: number;
-}
-
-/**
- * Dados de split calculados internamente
- */
-interface CalculatedSplitData {
-  isOwner: boolean;
-  hasAffiliate: boolean;
-  affiliateId: string | null;
-  affiliateUserId: string | null;
-  affiliateWalletId: string | null;
-  affiliateCommissionPercent: number;
-  vendorWalletId: string | null;
-}
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+  // ==========================================
+  // RATE LIMITING
+  // ==========================================
+  const identifier = getIdentifier(req);
+  const rateLimitResult = await checkRateLimit(supabase, {
+    ...RATE_LIMIT_CONFIG,
+    identifier
+  });
+
+  if (!rateLimitResult.allowed) {
+    console.warn('[asaas-create-payment] Rate limit exceeded:', identifier);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'Too many requests',
+        message: `Rate limit exceeded. Try again in ${rateLimitResult.retryAfter} seconds.`,
+        retryAfter: rateLimitResult.retryAfter
+      }),
+      {
+        status: 429,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+          'Retry-After': rateLimitResult.retryAfter?.toString() || '60',
+          'X-RateLimit-Remaining': '0'
+        }
+      }
+    );
+  }
+
   try {
     const payload: PaymentRequest = await req.json();
+    
     console.log('[asaas-create-payment] ========================================');
     console.log('[asaas-create-payment] 🏪 MODELO MARKETPLACE ASAAS');
-    console.log('[asaas-create-payment] Todas cobranças no nome RiseCheckout');
     console.log('[asaas-create-payment] ========================================');
     console.log('[asaas-create-payment] Payload:', JSON.stringify({
       orderId: payload.orderId,
@@ -99,6 +117,7 @@ serve(async (req) => {
 
     // Validações básicas
     if (!vendorId || !orderId || !amountCents || !customer) {
+      await recordAttempt(supabase, { ...RATE_LIMIT_CONFIG, identifier }, false);
       return new Response(
         JSON.stringify({ success: false, error: 'Campos obrigatórios: vendorId, orderId, amountCents, customer' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -106,23 +125,22 @@ serve(async (req) => {
     }
 
     if (paymentMethod === 'credit_card' && !cardToken) {
+      await recordAttempt(supabase, { ...RATE_LIMIT_CONFIG, identifier }, false);
       return new Response(
         JSON.stringify({ success: false, error: 'cardToken é obrigatório para pagamento com cartão' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
     // ==========================================
-    // 1. BUSCAR CREDENCIAIS DINAMICAMENTE (platform-config)
+    // 1. BUSCAR CREDENCIAIS DINAMICAMENTE
     // ==========================================
     const { credentials, isOwner: isCredentialsOwner } = await getGatewayCredentials(supabase, vendorId, 'asaas');
 
-    // Validar credenciais
     const validation = validateCredentials('asaas', credentials);
     if (!validation.valid) {
       console.error('[asaas-create-payment] ❌ Credenciais inválidas:', validation.missingFields);
+      await recordAttempt(supabase, { ...RATE_LIMIT_CONFIG, identifier }, false);
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -132,18 +150,17 @@ serve(async (req) => {
       );
     }
 
-    // URL baseada no ambiente (DINÂMICO!)
     const baseUrl = credentials.environment === 'sandbox'
       ? 'https://sandbox.asaas.com/api/v3'
       : 'https://api.asaas.com/v3';
 
     const PLATFORM_API_KEY = credentials.apiKey!;
 
-    console.log(`[asaas-create-payment] 🔑 Usando credenciais: ${isCredentialsOwner ? 'Owner (secrets)' : 'Vendor (integrations)'}`);
+    console.log(`[asaas-create-payment] 🔑 Credenciais: ${isCredentialsOwner ? 'Owner' : 'Vendor'}`);
     console.log(`[asaas-create-payment] 🌐 Ambiente: ${credentials.environment.toUpperCase()}`);
 
     // ==========================================
-    // 2. CALCULAR SPLIT
+    // 2. CALCULAR SPLIT (módulo externo)
     // ==========================================
     const splitData = await calculateMarketplaceSplitData(supabase, orderId, vendorId);
     
@@ -153,14 +170,14 @@ serve(async (req) => {
     console.log(`[asaas-create-payment] - Tem Afiliado: ${splitData.hasAffiliate}`);
     console.log(`[asaas-create-payment] - Affiliate Wallet: ${splitData.affiliateWalletId || 'N/A'}`);
     console.log(`[asaas-create-payment] - Affiliate %: ${splitData.affiliateCommissionPercent}%`);
-    console.log(`[asaas-create-payment] - Vendor Wallet: ${splitData.vendorWalletId || 'N/A'}`);
     console.log('[asaas-create-payment] ========================================');
 
     // ==========================================
-    // 3. CRIAR CUSTOMER NO ASAAS
+    // 3. CRIAR CUSTOMER (módulo externo)
     // ==========================================
     const asaasCustomer = await findOrCreateCustomer(baseUrl, PLATFORM_API_KEY, customer);
     if (!asaasCustomer) {
+      await recordAttempt(supabase, { ...RATE_LIMIT_CONFIG, identifier }, false);
       return new Response(
         JSON.stringify({ success: false, error: 'Erro ao criar/buscar cliente no Asaas' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -168,7 +185,7 @@ serve(async (req) => {
     }
 
     // ==========================================
-    // 4. MONTAR SPLIT RULES (MODELO BINÁRIO)
+    // 4. MONTAR SPLIT RULES
     // ==========================================
     const splitRules: AsaasSplitRule[] = [];
     let platformFeeCents = 0;
@@ -176,11 +193,7 @@ serve(async (req) => {
     let vendorNetCents = amountCents;
     
     if (splitData.isOwner) {
-      // OWNER vendendo
       if (splitData.hasAffiliate && splitData.affiliateWalletId && splitData.affiliateCommissionPercent > 0) {
-        // OWNER + AFILIADO: Split ajustado
-        // Afiliado recebe (comissão% * 0.96) do total
-        // Exemplo: 50% comissão → 48% split → Owner recebe 52% (4% + 48%)
         const adjustedAffiliatePercent = splitData.affiliateCommissionPercent * (1 - PLATFORM_FEE_PERCENT);
         
         splitRules.push({
@@ -193,9 +206,7 @@ serve(async (req) => {
         affiliateCommissionCents = Math.floor(netAfterFee * (splitData.affiliateCommissionPercent / 100));
         vendorNetCents = netAfterFee - affiliateCommissionCents;
         
-        console.log(`[asaas-create-payment] 🏠 OWNER + AFILIADO:`);
-        console.log(`[asaas-create-payment]   Split ${adjustedAffiliatePercent.toFixed(2)}% → afiliado`);
-        console.log(`[asaas-create-payment]   Owner recebe ${(100 - adjustedAffiliatePercent).toFixed(2)}%`);
+        console.log(`[asaas-create-payment] 🏠 OWNER + AFILIADO: Split ${adjustedAffiliatePercent.toFixed(2)}%`);
         
       } else if (splitData.hasAffiliate && !splitData.affiliateWalletId) {
         console.warn(`[asaas-create-payment] ⚠️ Afiliado sem wallet! Venda sem split.`);
@@ -204,9 +215,9 @@ serve(async (req) => {
       }
       
     } else {
-      // VENDEDOR COMUM
       if (!splitData.vendorWalletId) {
         console.error(`[asaas-create-payment] ❌ Vendedor sem asaas_wallet_id!`);
+        await recordAttempt(supabase, { ...RATE_LIMIT_CONFIG, identifier }, false);
         return new Response(
           JSON.stringify({ 
             success: false, 
@@ -216,7 +227,6 @@ serve(async (req) => {
         );
       }
       
-      // 96% para vendedor, 4% fica com RiseCheckout
       splitRules.push({
         walletId: splitData.vendorWalletId,
         percentualValue: 96
@@ -279,6 +289,8 @@ serve(async (req) => {
 
     if (!chargeResponse.ok) {
       console.error('[asaas-create-payment] Erro:', chargeData);
+      await recordAttempt(supabase, { ...RATE_LIMIT_CONFIG, identifier }, false);
+      
       const errorMsg = chargeData.errors?.[0]?.description || chargeData.message || 'Erro ao criar cobrança';
       return new Response(
         JSON.stringify({ success: false, error: errorMsg }),
@@ -323,7 +335,31 @@ serve(async (req) => {
     }
 
     // ==========================================
-    // 8. RESPOSTA
+    // 8. REGISTRAR SUCESSO E AUDIT LOG
+    // ==========================================
+    await recordAttempt(supabase, { ...RATE_LIMIT_CONFIG, identifier }, true);
+    
+    // Audit log para rastreabilidade
+    await logSecurityEvent(supabase, {
+      userId: vendorId,
+      action: SecurityAction.PROCESS_PAYMENT,
+      resource: 'orders',
+      resourceId: orderId,
+      success: true,
+      request: req,
+      metadata: {
+        gateway: 'asaas',
+        paymentMethod,
+        amountCents,
+        paymentId: chargeData.id,
+        hasAffiliate: splitData.hasAffiliate,
+        platformFeeCents,
+        affiliateCommissionCents
+      }
+    });
+
+    // ==========================================
+    // 9. RESPOSTA
     // ==========================================
     const statusMap: Record<string, string> = {
       'PENDING': 'pending',
@@ -359,152 +395,11 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('[asaas-create-payment] Exception:', error);
+    await recordAttempt(supabase, { ...RATE_LIMIT_CONFIG, identifier }, false);
+    
     return new Response(
       JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Erro interno' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
-
-// ==========================================
-// HELPER: Calcular dados de split para Marketplace
-// ==========================================
-async function calculateMarketplaceSplitData(
-  supabase: any,
-  orderId: string,
-  vendorId: string
-): Promise<CalculatedSplitData> {
-  console.log('[calculateMarketplaceSplit] orderId:', orderId, 'vendorId:', vendorId);
-  
-  const result: CalculatedSplitData = {
-    isOwner: false,
-    hasAffiliate: false,
-    affiliateId: null,
-    affiliateUserId: null,
-    affiliateWalletId: null,
-    affiliateCommissionPercent: 0,
-    vendorWalletId: null
-  };
-
-  // 1. Verificar se é Owner
-  result.isOwner = await isVendorOwner(supabase, vendorId);
-  console.log('[calculateMarketplaceSplit] isOwner:', result.isOwner);
-
-  // 2. Buscar ordem para verificar afiliado
-  const { data: orderData, error: orderError } = await supabase
-    .from('orders')
-    .select('affiliate_id')
-    .eq('id', orderId)
-    .single();
-  
-  if (orderError) {
-    console.error('[calculateMarketplaceSplit] Erro ao buscar ordem:', orderError);
-    return result;
-  }
-
-  // 3. Se tem afiliado, buscar dados
-  if (orderData?.affiliate_id) {
-    result.hasAffiliate = true;
-    result.affiliateId = orderData.affiliate_id;
-    
-    const { data: affiliateData } = await supabase
-      .from('affiliates')
-      .select('user_id, commission_rate')
-      .eq('id', orderData.affiliate_id)
-      .single();
-    
-    if (affiliateData) {
-      result.affiliateUserId = affiliateData.user_id;
-      result.affiliateCommissionPercent = affiliateData.commission_rate || 0;
-      
-      // Wallet do afiliado: buscar direto em profiles (fonte única de verdade)
-      if (affiliateData.user_id) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('asaas_wallet_id')
-          .eq('id', affiliateData.user_id)
-          .single();
-        
-        if (profileData?.asaas_wallet_id) {
-          result.affiliateWalletId = profileData.asaas_wallet_id;
-        }
-      }
-      
-      console.log('[calculateMarketplaceSplit] Afiliado:', {
-        id: result.affiliateId,
-        userId: result.affiliateUserId,
-        walletId: result.affiliateWalletId,
-        commission: result.affiliateCommissionPercent
-      });
-    }
-  }
-
-  // 4. Se NÃO é Owner, buscar wallet do vendedor
-  if (!result.isOwner) {
-    const { data: vendorProfile } = await supabase
-      .from('profiles')
-      .select('asaas_wallet_id')
-      .eq('id', vendorId)
-      .single();
-    
-    result.vendorWalletId = vendorProfile?.asaas_wallet_id || null;
-    console.log('[calculateMarketplaceSplit] Vendor wallet:', result.vendorWalletId);
-  }
-
-  return result;
-}
-
-// ==========================================
-// HELPER: Buscar ou criar customer
-// ==========================================
-async function findOrCreateCustomer(
-  baseUrl: string, 
-  apiKey: string, 
-  customer: CustomerData
-): Promise<{ id: string } | null> {
-  const document = customer.document.replace(/\D/g, '');
-
-  // Tentar buscar por CPF/CNPJ
-  if (document) {
-    const searchResponse = await fetch(`${baseUrl}/customers?cpfCnpj=${document}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'access_token': apiKey
-      }
-    });
-
-    if (searchResponse.ok) {
-      const searchData = await searchResponse.json();
-      if (searchData.data?.[0]) {
-        console.log('[asaas] Customer encontrado:', searchData.data[0].id);
-        return { id: searchData.data[0].id };
-      }
-    }
-  }
-
-  // Criar novo customer
-  const createResponse = await fetch(`${baseUrl}/customers`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'access_token': apiKey
-    },
-    body: JSON.stringify({
-      name: customer.name,
-      email: customer.email,
-      cpfCnpj: document,
-      phone: customer.phone?.replace(/\D/g, ''),
-      notificationDisabled: false
-    })
-  });
-
-  if (!createResponse.ok) {
-    const errorData = await createResponse.json();
-    console.error('[asaas] Erro ao criar customer:', errorData);
-    return null;
-  }
-
-  const newCustomer = await createResponse.json();
-  console.log('[asaas] Customer criado:', newCustomer.id);
-  return { id: newCustomer.id };
-}

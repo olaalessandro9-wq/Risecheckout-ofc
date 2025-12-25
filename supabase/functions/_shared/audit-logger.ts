@@ -15,7 +15,7 @@
  * });
  */
 
-import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+// Usando any para evitar conflitos de versão de SupabaseClient
 
 // Ações de segurança padronizadas
 export const SecurityAction = {
@@ -66,7 +66,7 @@ interface LogSecurityEventParams {
  * Registra um evento de segurança no banco de dados
  */
 export async function logSecurityEvent(
-  supabase: SupabaseClient,
+  supabase: any,
   params: LogSecurityEventParams
 ): Promise<void> {
   const {
@@ -113,7 +113,7 @@ export async function logSecurityEvent(
  * Helper para log de acesso negado
  */
 export async function logAccessDenied(
-  supabase: SupabaseClient,
+  supabase: any,
   userId: string,
   resource: string,
   request?: Request,
@@ -133,7 +133,7 @@ export async function logAccessDenied(
  * Helper para log de permissão negada (role insuficiente)
  */
 export async function logPermissionDenied(
-  supabase: SupabaseClient,
+  supabase: any,
   userId: string,
   userRole: string,
   requiredRole: string,
