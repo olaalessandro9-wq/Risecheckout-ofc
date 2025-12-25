@@ -35,21 +35,25 @@ export const useCheckoutPageControllerV2 = () => {
   // 1. CAMADA DE DADOS (useCheckoutData)
   // ============================================================================
   
-  const { checkout, design, orderBumps, vendorId, isLoading, isError } = useCheckoutData();
+  const { checkout, design, orderBumps, isLoading, isError } = useCheckoutData();
   
   // ============================================================================
   // 2. CONFIGURAÇÕES DE INTEGRAÇÕES
   // ============================================================================
   
-  // Tracking
-  const { data: fbConfig } = Facebook.useFacebookConfig(vendorId || undefined);
-  const { data: utmifyConfig } = UTMify.useUTMifyConfig(vendorId || undefined);
-  const { data: googleAdsIntegration } = GoogleAds.useGoogleAdsConfig(vendorId || undefined);
-  const { data: tiktokIntegration } = TikTok.useTikTokConfig(vendorId || undefined);
-  const { data: kwaiIntegration } = Kwai.useKwaiConfig(vendorId || undefined);
+  // ✅ SEGURANÇA: Tracking configs agora são buscadas via checkout.id
+  // O backend resolve vendor_id internamente - cliente não precisa ver
+  const checkoutId = checkout?.id || undefined;
+  
+  // Tracking - configurações ficam associadas ao checkout, não ao vendor diretamente
+  const { data: fbConfig } = Facebook.useFacebookConfig(checkoutId);
+  const { data: utmifyConfig } = UTMify.useUTMifyConfig(checkoutId);
+  const { data: googleAdsIntegration } = GoogleAds.useGoogleAdsConfig(checkoutId);
+  const { data: tiktokIntegration } = TikTok.useTikTokConfig(checkoutId);
+  const { data: kwaiIntegration } = Kwai.useKwaiConfig(checkoutId);
   
   // Mercado Pago
-  const { data: mpIntegration } = MercadoPago.useMercadoPagoConfig(vendorId || undefined);
+  const { data: mpIntegration } = MercadoPago.useMercadoPagoConfig(checkoutId);
   const isMpAvailable = MercadoPago.useMercadoPagoAvailable(mpIntegration);
   const mercadoPagoPublicKey = mpIntegration?.config?.public_key || "";
   
@@ -109,8 +113,9 @@ function getRequiredFieldsArray(requiredFields: any): string[] {
   }), [design]);
   
   // PaymentGateway - Gerencia SDK e pagamentos
+  // ✅ SEGURANÇA: Não passa mais vendorId - backend resolve internamente
   const paymentGateway = usePaymentGateway({
-    vendorId: vendorId || null,
+    vendorId: null, // Backend resolve via checkout_id
     checkoutId: checkout?.id || null,
     productId: checkout?.product?.id || null,
     productName: checkout?.product?.name || null,
@@ -124,8 +129,9 @@ function getRequiredFieldsArray(requiredFields: any): string[] {
   });
   
   // TrackingService - Gerencia pixels
+  // ✅ SEGURANÇA: Usa checkoutId ao invés de vendorId
   const trackingService = useTrackingService({
-    vendorId: vendorId || null,
+    vendorId: null, // Backend resolve via checkout_id se necessário
     productId: checkout?.product?.id || null,
     productName: checkout?.product?.name || null,
     trackingConfig: {
@@ -208,7 +214,6 @@ function getRequiredFieldsArray(requiredFields: any): string[] {
       selectedPayment: paymentGateway.selectedPayment,
       finalTotalWithDiscount,
       appliedCouponData,
-      vendorId,
       mercadoPagoPublicKey,
       mercadoPagoSDKLoaded: paymentGateway.isSDKLoaded,
       shouldShowPaymentForm: Boolean(isMpAvailable && mercadoPagoPublicKey),

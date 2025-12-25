@@ -58,7 +58,7 @@ const PublicCheckoutV2: React.FC = () => {
   // 1. CAMADA DE DADOS
   // ============================================================================
 
-  const { checkout, design, orderBumps, vendorId, isLoading, isError } = useCheckoutData();
+  const { checkout, design, orderBumps, isLoading, isError } = useCheckoutData();
 
   // ============================================================================
   // TRACKING DE AFILIADOS (com configurações do produtor)
@@ -75,12 +75,15 @@ const PublicCheckoutV2: React.FC = () => {
     enabled: !isLoading && !!checkout?.product, // Aguarda dados carregarem
   });
 
+  // ✅ SEGURANÇA: Tracking configs usam checkout.id - vendorId não é mais exposto
+  const checkoutId = checkout?.id || undefined;
+  
   // Configurações de Tracking
-  const { data: fbConfig } = Facebook.useFacebookConfig(vendorId || undefined);
-  const { data: utmifyConfig } = UTMify.useUTMifyConfig(vendorId || undefined);
-  const { data: googleAdsIntegration } = GoogleAds.useGoogleAdsConfig(vendorId || undefined);
-  const { data: tiktokIntegration } = TikTok.useTikTokConfig(vendorId || undefined);
-  const { data: kwaiIntegration } = Kwai.useKwaiConfig(vendorId || undefined);
+  const { data: fbConfig } = Facebook.useFacebookConfig(checkoutId);
+  const { data: utmifyConfig } = UTMify.useUTMifyConfig(checkoutId);
+  const { data: googleAdsIntegration } = GoogleAds.useGoogleAdsConfig(checkoutId);
+  const { data: tiktokIntegration } = TikTok.useTikTokConfig(checkoutId);
+  const { data: kwaiIntegration } = Kwai.useKwaiConfig(checkoutId);
   
   // ✅ REFATORADO: Public key agora vem direto do checkout (desnormalizado)
   // Não precisa mais buscar vendor_integrations (evita problema de RLS)
@@ -125,7 +128,7 @@ const PublicCheckoutV2: React.FC = () => {
     orderId,
     submitPayment,
   } = usePaymentGateway({
-    vendorId,
+    vendorId: null, // ✅ SEGURANÇA: Backend resolve via checkout_id
     checkoutId: checkout?.id || null,
     productId: checkout?.product?.id || null,
     productName: checkout?.product?.name || null,
@@ -148,7 +151,7 @@ const PublicCheckoutV2: React.FC = () => {
   }, []);
 
   const { fireInitiateCheckout, firePurchase } = useTrackingService({
-    vendorId,
+    vendorId: null, // ✅ SEGURANÇA: Backend resolve via checkout_id se necessário
     productId: checkout?.product?.id || null,
     productName: checkout?.product?.name || null,
     trackingConfig: {
@@ -238,9 +241,9 @@ const PublicCheckoutV2: React.FC = () => {
   }
 
   // Criar objeto checkout compatível com o contexto
+  // ✅ SEGURANÇA: vendor_id não é mais exposto ao cliente
   const checkoutForContext = {
     ...checkout,
-    vendor_id: vendorId || undefined,
   };
 
   // Preparar productData para componentes compartilhados
@@ -263,10 +266,9 @@ const PublicCheckoutV2: React.FC = () => {
   // ============================================================================
 
   return (
-    <CheckoutProvider value={{ checkout: checkoutForContext as any, design, orderBumps: orderBumps || [], vendorId }}>
-      {/* Scripts de Tracking */}
+    <CheckoutProvider value={{ checkout: checkoutForContext as any, design, orderBumps: orderBumps || [], vendorId: null }}>
+      {/* Scripts de Tracking - ✅ SEGURANÇA: vendorId não é mais exposto */}
       <TrackingManager
-        vendorId={vendorId}
         productId={checkout.product.id}
         fbConfig={fbConfig}
         utmifyConfig={utmifyConfig}
