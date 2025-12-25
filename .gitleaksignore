@@ -5,24 +5,7 @@
 # This file contains patterns and fingerprints to ignore during secret scanning.
 # Use this to suppress false positives, NOT to ignore real secrets.
 #
-# IMPORTANT: These are HISTORICAL migrations that have already been executed.
-# The secrets contained in them have been rotated (or will be rotated).
-# We keep the files for Supabase migration history consistency.
-#
 # ============================================================================
-
-# =============================================================================
-# HISTORICAL MIGRATIONS WITH ROTATED SECRETS
-# =============================================================================
-# These migrations were executed in the past and contain secrets that have been
-# or will be rotated. They cannot be deleted due to Supabase migration tracking.
-
-# Migration with service_role_key (SECRET MUST BE ROTATED)
-supabase/migrations/20251212000632_7020416b-f6fc-49aa-a588-79020714b1f7.sql
-
-# Migrations with Stripe pk_test keys (test keys, low risk but rotated)
-supabase/migrations/20251218144010_0cc8627a-05f6-40cb-9be4-187d48f853c2.sql
-supabase/migrations/20251221200215_098bd168-0e58-40ca-82b0-d5c2f65b8aad.sql
 
 # =============================================================================
 # TEST FILES
