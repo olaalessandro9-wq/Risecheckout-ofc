@@ -1579,6 +1579,7 @@ export type Database = {
           affiliate_settings: Json | null
           created_at: string | null
           default_payment_method: string | null
+          delivery_url: string | null
           description: string | null
           id: string
           image_url: string | null
@@ -1604,6 +1605,7 @@ export type Database = {
           affiliate_settings?: Json | null
           created_at?: string | null
           default_payment_method?: string | null
+          delivery_url?: string | null
           description?: string | null
           id?: string
           image_url?: string | null
@@ -1629,6 +1631,7 @@ export type Database = {
           affiliate_settings?: Json | null
           created_at?: string | null
           default_payment_method?: string | null
+          delivery_url?: string | null
           description?: string | null
           id?: string
           image_url?: string | null

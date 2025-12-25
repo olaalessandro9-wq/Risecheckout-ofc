@@ -36,6 +36,7 @@ export function useGeneralTab() {
     price: 0,
     support_name: "",
     support_email: "",
+    delivery_url: "",
   });
 
   const [errors, setErrors] = useState<GeneralFormErrors>({
@@ -44,6 +45,7 @@ export function useGeneralTab() {
     price: "",
     support_name: "",
     support_email: "",
+    delivery_url: "",
   });
 
   // Estados de imagem
@@ -71,6 +73,7 @@ export function useGeneralTab() {
         price: product.price,
         support_name: product.support_name || "",
         support_email: product.support_email || "",
+        delivery_url: (product as any).delivery_url || "",
       });
     }
   }, [product]);
@@ -109,6 +112,7 @@ export function useGeneralTab() {
       price: "",
       support_name: "",
       support_email: "",
+      delivery_url: "",
     };
     let valid = true;
 
@@ -129,6 +133,12 @@ export function useGeneralTab() {
 
     if (form.support_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.support_email)) {
       newErrors.support_email = "E-mail inválido";
+      valid = false;
+    }
+
+    // Validar delivery_url se fornecida
+    if (form.delivery_url && !form.delivery_url.startsWith("https://")) {
+      newErrors.delivery_url = "O link deve começar com https://";
       valid = false;
     }
 
@@ -229,6 +239,7 @@ export function useGeneralTab() {
           price: form.price,
           support_name: form.support_name,
           support_email: form.support_email,
+          delivery_url: form.delivery_url || null,
           status: "active",
           image_url: finalImageUrl,
         })

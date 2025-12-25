@@ -143,9 +143,20 @@ serve(async (req) => {
     // Buscar ordem para obter vendor_id e dados para email
     const { data: orderData } = await supabase
       .from('orders')
-      .select('vendor_id, customer_email, customer_name, product_name, amount_cents')
+      .select('vendor_id, customer_email, customer_name, product_name, amount_cents, product_id')
       .eq('id', orderId)
       .single();
+
+    // Buscar delivery_url do produto
+    let deliveryUrl: string | undefined;
+    if (orderData?.product_id) {
+      const { data: product } = await supabase
+        .from('products')
+        .select('delivery_url')
+        .eq('id', orderData.product_id)
+        .single();
+      deliveryUrl = product?.delivery_url || undefined;
+    }
 
     const vendorId = orderData?.vendor_id || '00000000-0000-0000-0000-000000000000';
 
@@ -183,6 +194,7 @@ serve(async (req) => {
           amountCents: orderData.amount_cents,
           orderId: orderId,
           paymentMethod: payment.billingType === 'PIX' ? 'PIX / Asaas' : 'Asaas',
+          deliveryUrl: deliveryUrl,
         };
 
         const emailResult = await sendEmail({

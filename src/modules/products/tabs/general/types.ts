@@ -8,6 +8,7 @@ export interface GeneralFormData {
   price: number;
   support_name: string;
   support_email: string;
+  delivery_url: string;
 }
 
 export interface GeneralFormErrors {
@@ -16,6 +17,7 @@ export interface GeneralFormErrors {
   price: string;
   support_name: string;
   support_email: string;
+  delivery_url: string;
 }
 
 export interface ImageState {

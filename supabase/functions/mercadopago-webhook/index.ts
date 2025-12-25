@@ -540,6 +540,13 @@ serve(async (req) => {
     if (orderStatus === 'PAID' && order.customer_email) {
       logInfo('Enviando email de confirmação', { email: order.customer_email });
 
+      // Buscar delivery_url do produto
+      const { data: product } = await supabase
+        .from('products')
+        .select('delivery_url')
+        .eq('id', order.product_id)
+        .single();
+
       try {
         const emailData: PurchaseConfirmationData = {
           customerName: order.customer_name || 'Cliente',
@@ -547,6 +554,7 @@ serve(async (req) => {
           amountCents: order.amount_cents,
           orderId: order.id,
           paymentMethod: 'PIX / Mercado Pago',
+          deliveryUrl: product?.delivery_url || undefined,
         };
 
         const emailResult = await sendEmail({

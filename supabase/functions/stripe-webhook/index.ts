@@ -91,9 +91,20 @@ serve(async (req) => {
       // Buscar dados do pedido antes de atualizar
       const { data: order } = await supabaseClient
         .from("orders")
-        .select("customer_email, customer_name, product_name, amount_cents")
+        .select("customer_email, customer_name, product_name, amount_cents, product_id")
         .eq("id", orderId)
         .single();
+
+      // Buscar delivery_url do produto
+      let deliveryUrl: string | undefined;
+      if (order?.product_id) {
+        const { data: product } = await supabaseClient
+          .from("products")
+          .select("delivery_url")
+          .eq("id", order.product_id)
+          .single();
+        deliveryUrl = product?.delivery_url || undefined;
+      }
 
       // Atualizar pedido para PAID
       const { error: updateError } = await supabaseClient
@@ -123,6 +134,7 @@ serve(async (req) => {
             amountCents: order.amount_cents,
             orderId: orderId,
             paymentMethod: 'Cartão de Crédito / Stripe',
+            deliveryUrl: deliveryUrl,
           };
 
           const emailResult = await sendEmail({
