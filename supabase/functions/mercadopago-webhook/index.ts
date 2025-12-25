@@ -28,6 +28,8 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { rateLimitMiddleware, getIdentifier } from '../_shared/rate-limit.ts';
+import { sendEmail } from '../_shared/zeptomail.ts';
+import { getPurchaseConfirmationTemplate, getPurchaseConfirmationTextTemplate, type PurchaseConfirmationData } from '../_shared/email-templates.ts';
 
 // Versão da função - SEMPRE incrementar ao fazer mudanças significativas
 const FUNCTION_VERSION = "144";
@@ -505,12 +507,19 @@ serve(async (req) => {
       newStatus: orderStatus
     });
 
+    const updateData: Record<string, unknown> = {
+      status: orderStatus,
+      updated_at: new Date().toISOString()
+    };
+
+    // Se aprovado, adicionar paid_at
+    if (orderStatus === 'PAID') {
+      updateData.paid_at = new Date().toISOString();
+    }
+
     const { error: updateError } = await supabase
       .from('orders')
-      .update({
-        status: orderStatus,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', order.id);
 
     if (updateError) {
@@ -525,19 +534,55 @@ serve(async (req) => {
     logInfo('Pedido atualizado com sucesso', { orderId: order.id });
 
     // ========================================================================
-    // 10. WEBHOOKS ARE TRIGGERED AUTOMATICALLY BY DATABASE TRIGGER
+    // 10. SEND CONFIRMATION EMAIL (se pagamento aprovado)
+    // ========================================================================
+
+    if (orderStatus === 'PAID' && order.customer_email) {
+      logInfo('Enviando email de confirmação', { email: order.customer_email });
+
+      try {
+        const emailData: PurchaseConfirmationData = {
+          customerName: order.customer_name || 'Cliente',
+          productName: order.product_name || 'Produto',
+          amountCents: order.amount_cents,
+          orderId: order.id,
+          paymentMethod: 'PIX / Mercado Pago',
+        };
+
+        const emailResult = await sendEmail({
+          to: { email: order.customer_email, name: order.customer_name || undefined },
+          subject: `✅ Compra Confirmada - ${order.product_name || 'Seu Pedido'}`,
+          htmlBody: getPurchaseConfirmationTemplate(emailData),
+          textBody: getPurchaseConfirmationTextTemplate(emailData),
+          type: 'transactional',
+          clientReference: `order_${order.id}_confirmation`,
+        });
+
+        if (emailResult.success) {
+          logInfo('✅ Email de confirmação enviado', { messageId: emailResult.messageId });
+        } else {
+          logWarn('⚠️ Falha ao enviar email (não crítico)', { error: emailResult.error });
+        }
+      } catch (emailError) {
+        logWarn('⚠️ Exceção ao enviar email (não crítico)', emailError);
+      }
+    }
+
+    // ========================================================================
+    // 11. WEBHOOKS ARE TRIGGERED AUTOMATICALLY BY DATABASE TRIGGER
     // ========================================================================
 
     logInfo('Webhooks serão disparados automaticamente pelo trigger do banco');
 
     // ========================================================================
-    // 11. RETURN SUCCESS
+    // 12. RETURN SUCCESS
     // ========================================================================
 
     return createSuccessResponse({
       orderId: order.id,
       status: orderStatus,
       eventType,
+      emailSent: orderStatus === 'PAID' && !!order.customer_email,
       version: FUNCTION_VERSION
     });
 

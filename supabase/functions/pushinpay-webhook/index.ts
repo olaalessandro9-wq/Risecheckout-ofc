@@ -19,6 +19,8 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { sendEmail } from '../_shared/zeptomail.ts';
+import { getPurchaseConfirmationTemplate, getPurchaseConfirmationTextTemplate, type PurchaseConfirmationData } from '../_shared/email-templates.ts';
 
 const FUNCTION_VERSION = "3";
 
@@ -248,6 +250,41 @@ serve(async (req) => {
     }
 
     logInfo('✅ Pedido atualizado com sucesso');
+
+    // ========================================================================
+    // 6.1 SEND CONFIRMATION EMAIL (se pagamento aprovado)
+    // ========================================================================
+
+    if (newStatus === 'PAID' && order.customer_email) {
+      logInfo('Enviando email de confirmação', { email: order.customer_email });
+
+      try {
+        const emailData: PurchaseConfirmationData = {
+          customerName: order.customer_name || body.payer_name || 'Cliente',
+          productName: order.product_name || 'Produto',
+          amountCents: order.amount_cents,
+          orderId: order.id,
+          paymentMethod: 'PIX / PushinPay',
+        };
+
+        const emailResult = await sendEmail({
+          to: { email: order.customer_email, name: order.customer_name || undefined },
+          subject: `✅ Compra Confirmada - ${order.product_name || 'Seu Pedido'}`,
+          htmlBody: getPurchaseConfirmationTemplate(emailData),
+          textBody: getPurchaseConfirmationTextTemplate(emailData),
+          type: 'transactional',
+          clientReference: `order_${order.id}_confirmation`,
+        });
+
+        if (emailResult.success) {
+          logInfo('✅ Email de confirmação enviado', { messageId: emailResult.messageId });
+        } else {
+          logWarn('⚠️ Falha ao enviar email (não crítico)', { error: emailResult.error });
+        }
+      } catch (emailError) {
+        logWarn('⚠️ Exceção ao enviar email (não crítico)', emailError);
+      }
+    }
 
     // ========================================================================
     // 7. TRIGGER VENDOR WEBHOOKS
