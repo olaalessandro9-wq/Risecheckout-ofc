@@ -83,7 +83,6 @@ interface UseCheckoutDataReturn {
   checkout: Checkout | null;
   design: ThemePreset | null;
   orderBumps: OrderBump[];
-  vendorId: string | null;
   isLoading: boolean;
   isError: boolean;
 }
@@ -98,7 +97,6 @@ export function useCheckoutData(): UseCheckoutDataReturn {
   const [checkout, setCheckout] = useState<Checkout | null>(null);
   const [design, setDesign] = useState<ThemePreset | null>(null);
   const [orderBumps, setOrderBumps] = useState<OrderBump[]>([]);
-  const [vendorId, setVendorId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
 
@@ -211,6 +209,7 @@ export function useCheckoutData(): UseCheckoutDataReturn {
       // BUSCAR PRODUTO POR ID
       // ============================================================================
       
+      // ✅ SEGURANÇA: Não buscar user_id - cliente não precisa ver o ID do produtor
       const { data: productData, error: productError } = await supabase
         .from("products")
         .select(`
@@ -224,8 +223,7 @@ export function useCheckoutData(): UseCheckoutDataReturn {
           default_payment_method,
           upsell_settings,
           affiliate_settings,
-          status,
-          user_id
+          status
         `)
         .eq("id", productId)
         .maybeSingle();
@@ -240,9 +238,8 @@ export function useCheckoutData(): UseCheckoutDataReturn {
         throw new Error("Produto não disponível");
       }
 
-      // ✅ VENDOR_ID vem de products.user_id
-      const vendorIdFromProduct = productData.user_id;
-      setVendorId(vendorIdFromProduct);
+      // ✅ SEGURANÇA: vendor_id NÃO é mais exposto ao cliente
+      // O backend resolve o vendor_id internamente via checkout_id/product_id
 
       // ============================================================================
       // NORMALIZAR DADOS
@@ -369,7 +366,6 @@ export function useCheckoutData(): UseCheckoutDataReturn {
     checkout,
     design,
     orderBumps,
-    vendorId,
     isLoading,
     isError,
   };

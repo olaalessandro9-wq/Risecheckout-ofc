@@ -20,7 +20,6 @@ import * as Kwai from "@/integrations/tracking/kwai";
 // ============================================================================
 
 interface TrackingManagerProps {
-  vendorId: string | null;
   productId: string | null;
   fbConfig?: any;
   utmifyConfig?: any;
@@ -39,11 +38,13 @@ interface TrackingManagerProps {
  * Renderiza os pixels de tracking apenas se estiverem configurados
  * e ativos para o produto atual.
  * 
+ * ✅ SEGURANÇA: vendorId não é mais exposto ao cliente.
+ * O backend resolve o vendor internamente quando necessário.
+ * 
  * @param props - Configurações de tracking
  * 
  * @example
  * <TrackingManager
- *   vendorId="vendor-123"
  *   productId="product-456"
  *   fbConfig={fbConfig}
  *   googleAdsIntegration={googleAdsIntegration}
@@ -53,7 +54,6 @@ interface TrackingManagerProps {
  * />
  */
 export const TrackingManager: React.FC<TrackingManagerProps> = ({
-  vendorId,
   productId,
   fbConfig,
   utmifyConfig,
