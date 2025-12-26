@@ -2,6 +2,7 @@
 import { Bell, Menu } from "lucide-react";
 import clsx from "clsx";
 import ThemeToggle from "@/components/ThemeToggle";
+import { UserAvatar } from "@/components/layout/UserAvatar";
 
 type TopbarProps = {
   scrolled?: boolean;
@@ -21,7 +22,7 @@ export function Topbar({ scrolled, onNotificationsClick, onMenuClick }: TopbarPr
         scrolled ? "shadow-sm border-b border-border/60" : "border-b border-transparent"
       )}
     >
-      <div className="mx-auto flex h-14 w-full max-w-[1280px] items-center justify-between gap-2 px-4 md:px-6 lg:px-8">
+      <div className="flex h-14 w-full items-center justify-between gap-2 px-4 md:px-6 lg:px-8">
         {/* Menu mobile (visível apenas em telas pequenas) */}
         <button
           type="button"
@@ -35,7 +36,7 @@ export function Topbar({ scrolled, onNotificationsClick, onMenuClick }: TopbarPr
         {/* Espaçador para centralizar os botões à direita em desktop */}
         <div className="flex-1 md:flex-none" />
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {/* Notificações */}
           <button
             type="button"
@@ -44,12 +45,13 @@ export function Topbar({ scrolled, onNotificationsClick, onMenuClick }: TopbarPr
             className="relative inline-flex h-9 w-9 items-center justify-center rounded-md border border-transparent hover:bg-foreground/5 transition"
           >
             <Bell className="h-5 w-5" />
-            {/* Badge de não lidas (exemplo opcional) */}
-            {/* <span className="absolute -right-0.5 -top-0.5 inline-flex h-2 w-2 rounded-full bg-red-500" /> */}
           </button>
 
           {/* Toggle de tema */}
           <ThemeToggle />
+
+          {/* Avatar do usuário */}
+          <UserAvatar />
         </div>
       </div>
     </header>
