@@ -503,14 +503,33 @@ serve(async (req) => {
           return createErrorResponse(ERROR_CODES.TOKEN_REQUIRED, 'Token de cartão obrigatório', 400, corsHeaders);
         }
         
-        logInfo('Token recebido do frontend', { token: token.substring(0, 20) + '...', length: token.length });
+        // Validar paymentMethodId - OBRIGATÓRIO para evitar erros bin_not_found
+        if (!paymentMethodId) {
+          logError('❌ [CARTÃO] paymentMethodId não foi fornecido pelo frontend!', { 
+            orderId,
+            token: token.substring(0, 20) + '...'
+          });
+          return createErrorResponse(
+            ERROR_CODES.INVALID_REQUEST, 
+            'Bandeira do cartão (paymentMethodId) não identificada. Verifique o número do cartão.', 
+            400, 
+            corsHeaders
+          );
+        }
+        
+        logInfo('✅ Token e paymentMethodId recebidos', { 
+          token: token.substring(0, 20) + '...', 
+          length: token.length,
+          paymentMethodId,
+          issuerId: issuerId || 'não informado'
+        });
 
         const cardPayload: any = {
           transaction_amount: calculatedTotalCents / 100,
           token: token,
           description: `Pedido #${orderId.slice(0, 8)}`,
           installments: installments || 1,
-          payment_method_id: paymentMethodId || 'credit_card',
+          payment_method_id: paymentMethodId, // Agora é obrigatório, sem fallback
           payer: {
             email: payerEmail,
             first_name: payerName?.split(' ')[0] || 'Cliente',
@@ -527,7 +546,7 @@ serve(async (req) => {
           cardPayload.issuer_id = Number(issuerId);
         }
 
-        logInfo('📦 [CARTÃO] Payload preparado', {
+        logInfo('📦 [CARTÃO] Payload FINAL para Mercado Pago', {
           amount: cardPayload.transaction_amount,
           installments: cardPayload.installments,
           payment_method_id: cardPayload.payment_method_id,
