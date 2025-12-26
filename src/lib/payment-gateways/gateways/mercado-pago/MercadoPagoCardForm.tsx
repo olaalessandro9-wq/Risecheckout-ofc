@@ -373,6 +373,7 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & { textColor?: string,
           paymentMethodId: resolvedPaymentMethodId,
           issuerId: resolvedIssuerId,
           installments: parseInt(currentInstallment, 10),
+          holderDocument: currentCPF.replace(/\D/g, ''), // CPF limpo do titular
         };
 
         onSubmit(result);

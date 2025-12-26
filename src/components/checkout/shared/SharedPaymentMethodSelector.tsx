@@ -56,7 +56,7 @@ interface SharedPaymentMethodSelectorProps {
   // Props para integração real
   publicKey?: string | null;
   amount?: number; // em centavos
-  onSubmitPayment?: (token: string, installments: number, paymentMethodId: string, issuerId: string) => Promise<void>;
+  onSubmitPayment?: (token: string, installments: number, paymentMethodId: string, issuerId: string, holderDocument?: string) => Promise<void>;
   isProcessing?: boolean;
   onCardSubmitReady?: (submitFn: () => void) => void;
   
@@ -106,7 +106,8 @@ export const SharedPaymentMethodSelector: React.FC<SharedPaymentMethodSelectorPr
         result.token,
         result.installments,
         result.paymentMethodId,
-        result.issuerId
+        result.issuerId,
+        result.holderDocument // Propagar CPF do titular
       );
     }
   };
