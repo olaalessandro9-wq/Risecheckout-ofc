@@ -218,8 +218,8 @@ export function RecentCustomersTable({ customers, isLoading = false, onRefresh }
               </div>
             </div>
 
-            <div className="border border-border/30 rounded-xl overflow-hidden bg-background/20 backdrop-blur-sm">
-              <Table>
+            <div className="border border-border/30 rounded-xl overflow-hidden bg-background/20 backdrop-blur-sm overflow-x-auto">
+              <Table className="min-w-[800px]">
                 <TableHeader>
                   <TableRow className="bg-muted/30 hover:bg-muted/50 border-border/30">
                     <TableHead className="text-muted-foreground font-medium">ID</TableHead>
