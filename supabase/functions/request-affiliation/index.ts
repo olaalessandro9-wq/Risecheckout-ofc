@@ -81,11 +81,11 @@ serve(async (req) => {
     await recordRateLimitAttempt(supabaseClient, user.id);
 
     // ==========================================
-    // 1. VALIDAR SE USUÁRIO TEM CONTA DE PAGAMENTO CONECTADA
+    // 1. VALIDAR SE USUÁRIO TEM CONTA ASAAS CONECTADA
     // ==========================================
     const { data: userProfile, error: profileError } = await supabaseClient
       .from("profiles")
-      .select("mercadopago_collector_id, stripe_account_id")
+      .select("asaas_wallet_id")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -94,15 +94,14 @@ serve(async (req) => {
       throw new Error("Erro ao verificar seu perfil");
     }
 
-    const hasMercadoPago = !!userProfile?.mercadopago_collector_id;
-    const hasStripe = !!userProfile?.stripe_account_id;
+    const hasAsaas = !!userProfile?.asaas_wallet_id;
 
-    if (!hasMercadoPago && !hasStripe) {
-      console.warn(`⚠️ [request-affiliation] Usuário ${maskEmail(user.email || '')} sem conta de pagamento conectada`);
-      throw new Error("Você precisa conectar uma conta de pagamento (Mercado Pago ou Stripe) antes de solicitar afiliação. Acesse as configurações para conectar sua conta.");
+    if (!hasAsaas) {
+      console.warn(`⚠️ [request-affiliation] Usuário ${maskEmail(user.email || '')} sem conta Asaas conectada`);
+      throw new Error("Para se afiliar, você precisa conectar uma conta do Asaas. Acesse Financeiro para configurar.");
     }
 
-    console.log(`✅ [request-affiliation] Conta de pagamento verificada: MP=${hasMercadoPago}, Stripe=${hasStripe}`);
+    console.log(`✅ [request-affiliation] Conta Asaas verificada: wallet_id=${userProfile.asaas_wallet_id}`);
 
     // ==========================================
     // 2. BUSCAR PRODUTO E VALIDAR PROGRAMA

@@ -62,12 +62,12 @@ export function MinhasAfiliacoesContent() {
           return;
         }
 
-        // Buscar integração do Mercado Pago
+        // Buscar integração do Asaas
         const { data: integration } = await supabase
           .from('vendor_integrations')
           .select('*')
           .eq('vendor_id', user.id)
-          .eq('integration_type', 'MERCADOPAGO')
+          .eq('integration_type', 'ASAAS')
           .maybeSingle();
 
         const config = integration?.config as any;
@@ -96,10 +96,10 @@ export function MinhasAfiliacoesContent() {
 
     checkOAuthStatusAndFetchData();
 
-    // Listener para atualizar quando conectar/desconectar Mercado Pago
+    // Listener para atualizar quando conectar/desconectar Asaas
     const handleOAuthChange = (event: MessageEvent) => {
-      if (event.data?.type === 'mercadopago_oauth_success') {
-        console.log('[MinhasAfiliacoesContent] Mercado Pago conectado, atualizando...');
+      if (event.data?.type === 'asaas_connection_success') {
+        console.log('[MinhasAfiliacoesContent] Asaas conectado, atualizando...');
         checkOAuthStatusAndFetchData();
       }
     };
@@ -179,21 +179,21 @@ export function MinhasAfiliacoesContent() {
 
   return (
     <div className="space-y-6">
-      {/* ⚠️ Alerta de Conexão (se não tiver OAuth) */}
+      {/* ⚠️ Alerta de Conexão (se não tiver Asaas) */}
       {!hasOAuth && (
         <Alert variant="default" className="border-yellow-500 bg-yellow-50">
           <AlertCircle className="h-5 w-5 text-yellow-600" />
           <AlertTitle className="text-yellow-800 font-bold">Conexão Necessária</AlertTitle>
           <AlertDescription className="text-yellow-700">
             <p className="mb-3">
-              Para gerar links de afiliado e receber suas comissões automaticamente, você precisa conectar sua conta do Mercado Pago.
+              Para gerar links de afiliado e receber suas comissões automaticamente, você precisa conectar sua conta do Asaas.
             </p>
             <Button 
               variant="default" 
               className="bg-yellow-600 hover:bg-yellow-700 text-white"
               onClick={handleConnectMP}
             >
-              Conectar Conta Mercado Pago
+              Conectar Conta Asaas
             </Button>
           </AlertDescription>
         </Alert>
@@ -257,10 +257,10 @@ export function MinhasAfiliacoesContent() {
                         {item.status === 'active' ? (
                           !hasOAuth ? (
                             <div className="flex flex-col items-end gap-1">
-                              <span className="text-xs text-yellow-600 flex items-center gap-1">
-                                <AlertCircle className="h-3 w-3" />
-                                Conecte o Mercado Pago
-                              </span>
+                            <span className="text-xs text-yellow-600 flex items-center gap-1">
+                              <AlertCircle className="h-3 w-3" />
+                              Conecte o Asaas
+                            </span>
                               <Button 
                                 variant="outline" 
                                 size="sm" 
