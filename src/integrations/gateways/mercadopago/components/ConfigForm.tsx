@@ -242,6 +242,7 @@ export function ConfigForm({ onConnectionChange }: { onConnectionChange?: () => 
         access_token: accessToken,
         public_key: publicKey,
         is_test: true, // Sempre true para sandbox
+        environment: 'sandbox' as const, // ✅ FIX: Explicitamente definir ambiente
       };
 
       // Verificar se já existe

@@ -333,6 +333,7 @@ serve(async (req) => {
       user_id: collectorId,
       email: mercadopagoEmail,
       is_test: false, // OAuth é sempre produção
+      environment: 'production' as const, // ✅ FIX: Explicitamente definir ambiente
       connected_at: new Date().toISOString()
     };
 

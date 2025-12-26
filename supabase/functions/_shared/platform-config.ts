@@ -608,7 +608,7 @@ async function getVendorCredentials(
     walletId: config.wallet_id as string | undefined,
     collectorId: config.collector_id as string | undefined,
     accountId: config.account_id as string | undefined,
-    environment: (config.environment as 'sandbox' | 'production') || 'production'
+    environment: (config.environment as 'sandbox' | 'production') || (config.is_test === true ? 'sandbox' : 'production') // ✅ FIX: Fallback considera is_test
   };
   
   return {
