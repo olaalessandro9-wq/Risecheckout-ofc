@@ -1,0 +1,121 @@
+/**
+ * useCardValidation - Hook para validação de campos do formulário de cartão
+ * 
+ * Responsabilidade única: Validação e gerenciamento de erros
+ * Limite: < 100 linhas
+ */
+
+import { useState, useCallback } from 'react';
+
+export interface ValidationErrors {
+  cardNumber?: string;
+  expirationDate?: string;
+  securityCode?: string;
+  cardholderName?: string;
+  identificationNumber?: string;
+  submit?: string;
+}
+
+export interface CardValidationReturn {
+  errors: ValidationErrors;
+  hasAttemptedSubmit: boolean;
+  setHasAttemptedSubmit: (value: boolean) => void;
+  setErrors: React.Dispatch<React.SetStateAction<ValidationErrors>>;
+  clearError: (fieldName: string) => void;
+  clearCardNumberError: () => void;
+  clearExpirationDateError: () => void;
+  clearSecurityCodeError: () => void;
+  validateLocalFields: (name: string, cpf: string) => ValidationErrors;
+  mapMPErrorsToFields: (error: any) => ValidationErrors;
+}
+
+export function useCardValidation(): CardValidationReturn {
+  const [errors, setErrors] = useState<ValidationErrors>({});
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+
+  // Limpar erro de campo específico
+  const clearError = useCallback((fieldName: string) => {
+    setErrors(prev => {
+      if (!prev[fieldName as keyof ValidationErrors]) return prev;
+      const updated = { ...prev };
+      delete updated[fieldName as keyof ValidationErrors];
+      return updated;
+    });
+  }, []);
+
+  // Callbacks estáveis para limpar erros dos campos MP
+  const clearCardNumberError = useCallback(() => clearError('cardNumber'), [clearError]);
+  const clearExpirationDateError = useCallback(() => clearError('expirationDate'), [clearError]);
+  const clearSecurityCodeError = useCallback(() => clearError('securityCode'), [clearError]);
+
+  // Validar campos locais (Nome e CPF)
+  const validateLocalFields = useCallback((name: string, cpf: string): ValidationErrors => {
+    const localErrors: ValidationErrors = {};
+
+    if (!name.trim()) {
+      localErrors.cardholderName = 'Obrigatório';
+    }
+
+    if (!cpf.trim()) {
+      localErrors.identificationNumber = 'Obrigatório';
+    } else if (cpf.replace(/\D/g, '').length !== 11) {
+      localErrors.identificationNumber = 'CPF inválido';
+    }
+
+    return localErrors;
+  }, []);
+
+  // Mapear erros do SDK MP para campos
+  const mapMPErrorsToFields = useCallback((error: any): ValidationErrors => {
+    const mpErrors: ValidationErrors = {};
+
+    if (error.cause) {
+      const causes = Array.isArray(error.cause) ? error.cause : [error.cause];
+      
+      causes.forEach((c: any) => {
+        const field = c.field;
+        const code = c.code;
+        
+        console.log(`[useCardValidation] Erro - Field: ${field}, Code: ${code}`);
+
+        if (field === 'cardNumber' || ["205", "E301"].includes(code)) {
+          mpErrors.cardNumber = "Obrigatório";
+        }
+        
+        if (field === 'expirationMonth' || field === 'expirationYear' || ["208", "209", "325", "326"].includes(code)) {
+          mpErrors.expirationDate = "Obrigatório";
+        }
+        
+        if (field === 'securityCode' || ["224", "E302"].includes(code)) {
+          mpErrors.securityCode = "Obrigatório";
+        }
+        
+        if (["221", "316"].includes(code)) mpErrors.cardholderName = "Nome inválido";
+        if (["214", "324"].includes(code)) mpErrors.identificationNumber = "CPF inválido";
+      });
+    }
+
+    // Fallback: Se o SDK não retornou erros específicos mas falhou
+    if (Object.keys(mpErrors).length === 0 && error) {
+      console.log('[useCardValidation] Aplicando fallback de erros para campos vazios');
+      mpErrors.cardNumber = "Obrigatório";
+      mpErrors.expirationDate = "Obrigatório";
+      mpErrors.securityCode = "Obrigatório";
+    }
+
+    return mpErrors;
+  }, []);
+
+  return {
+    errors,
+    hasAttemptedSubmit,
+    setHasAttemptedSubmit,
+    setErrors,
+    clearError,
+    clearCardNumberError,
+    clearExpirationDateError,
+    clearSecurityCodeError,
+    validateLocalFields,
+    mapMPErrorsToFields
+  };
+}
