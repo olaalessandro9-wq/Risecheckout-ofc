@@ -1,5 +1,6 @@
 /**
- * Handlers para pagamentos Mercado Pago - Cartão de Crédito
+ * Handler para pagamentos com Cartão de Crédito no Mercado Pago
+ * Recebe parâmetros validados e retorna resultado padronizado
  */
 
 import { logInfo, logError } from '../utils/logger.ts';
@@ -18,15 +19,34 @@ export interface CardPaymentParams {
   applicationFeeCents: number;
 }
 
-export async function handleCardPayment(params: CardPaymentParams) {
+export interface CardPaymentResult {
+  success: boolean;
+  transactionId: string;
+  status: string;
+}
+
+export async function handleCardPayment(params: CardPaymentParams): Promise<CardPaymentResult> {
   const { 
-    orderId, calculatedTotalCents, payerEmail, payerName, payerDocument,
-    token, installments, paymentMethodId, issuerId, effectiveAccessToken, applicationFeeCents 
+    orderId, 
+    calculatedTotalCents, 
+    payerEmail, 
+    payerName, 
+    payerDocument,
+    token, 
+    installments, 
+    paymentMethodId, 
+    issuerId, 
+    effectiveAccessToken, 
+    applicationFeeCents 
   } = params;
 
+  // Validação crítica - paymentMethodId é OBRIGATÓRIO
   if (!paymentMethodId) {
     logError('❌ [CARTÃO] paymentMethodId não foi fornecido!', { orderId });
-    throw { code: 'INVALID_REQUEST', message: 'Bandeira do cartão não identificada.' };
+    throw { 
+      code: 'INVALID_REQUEST', 
+      message: 'Bandeira do cartão (paymentMethodId) não identificada. Verifique o número do cartão.' 
+    };
   }
 
   const cardPayload: any = {
@@ -46,20 +66,28 @@ export async function handleCardPayment(params: CardPaymentParams) {
     }
   };
 
+  // Adicionar issuer_id se disponível
   if (issuerId) {
     cardPayload.issuer_id = Number(issuerId);
   }
 
+  // SPLIT via application_fee (Modelo CAKTO)
   if (applicationFeeCents > 0) {
     cardPayload.application_fee = applicationFeeCents / 100;
-    logInfo('✅ [MP SPLIT CARTÃO] application_fee ADICIONADO', { cents: applicationFeeCents });
+    logInfo('✅ [MP SPLIT CARTÃO] application_fee ADICIONADO', {
+      cents: applicationFeeCents,
+      reais: applicationFeeCents / 100,
+      modelo: 'CAKTO'
+    });
   }
 
-  logInfo('📦 [CARTÃO] Payload para MP', {
+  logInfo('📦 [CARTÃO] Enviando para Mercado Pago', {
     amount: cardPayload.transaction_amount,
     installments: cardPayload.installments,
     payment_method_id: cardPayload.payment_method_id,
-    has_payer_document: !!payerDocument
+    issuer_id: cardPayload.issuer_id || 'não informado',
+    has_payer_document: !!payerDocument,
+    has_application_fee: applicationFeeCents > 0
   });
 
   const cardResponse = await fetch('https://api.mercadopago.com/v1/payments', {
@@ -77,11 +105,22 @@ export async function handleCardPayment(params: CardPaymentParams) {
   if (!cardResponse.ok) {
     logError('Erro na API do Mercado Pago (Cartão)', {
       message: cardData.message,
+      status: cardData.status,
       cause: cardData.cause,
-      payment_method_id_usado: cardPayload.payment_method_id
+      payment_method_id_usado: cardPayload.payment_method_id,
+      issuer_id_usado: cardPayload.issuer_id
     });
-    throw { code: 'GATEWAY_API_ERROR', message: cardData.message || 'Erro ao processar cartão', details: cardData };
+    throw { 
+      code: 'GATEWAY_API_ERROR', 
+      message: cardData.message || 'Erro ao processar cartão', 
+      details: cardData 
+    };
   }
+
+  logInfo('✅ [CARTÃO] Pagamento criado', { 
+    id: cardData.id, 
+    status: cardData.status 
+  });
 
   return {
     success: true,
