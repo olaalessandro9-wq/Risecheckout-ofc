@@ -551,6 +551,8 @@ serve(async (req) => {
           installments: cardPayload.installments,
           payment_method_id: cardPayload.payment_method_id,
           issuer_id: cardPayload.issuer_id || 'não informado',
+          has_payer_document: !!payerDocument,
+          payer_document_len: payerDocument?.length || 0,
           has_application_fee: applicationFeeCents > 0
         });
 

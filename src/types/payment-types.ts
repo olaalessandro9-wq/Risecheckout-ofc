@@ -62,6 +62,7 @@ export interface CardTokenResult {
   paymentMethodId: string;
   issuerId: string;
   installments: number;
+  holderDocument?: string; // CPF do titular do cartão (obrigatório para MP)
 }
 
 // ============================================

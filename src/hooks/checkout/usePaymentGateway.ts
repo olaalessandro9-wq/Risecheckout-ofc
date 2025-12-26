@@ -70,7 +70,7 @@ interface UsePaymentGatewayReturn {
   isSDKLoaded: boolean;
   showPixPayment: boolean;
   orderId: string | null;
-  submitPayment: (token?: string, installments?: number, paymentMethodId?: string, issuerId?: string) => Promise<void>;
+  submitPayment: (token?: string, installments?: number, paymentMethodId?: string, issuerId?: string, holderDocument?: string) => Promise<void>;
   validateOnly: () => Promise<ValidationResult>;
   isProcessing: boolean;
 }
@@ -185,7 +185,8 @@ export function usePaymentGateway({
     token?: string,
     installments?: number,
     paymentMethodId?: string,
-    issuerId?: string
+    issuerId?: string,
+    holderDocument?: string // CPF do titular do cartão (vem do MercadoPagoCardForm)
   ) => {
     if (isProcessing) return;
     setIsProcessing(true);
@@ -287,7 +288,7 @@ export function usePaymentGateway({
       if (actualPaymentMethod === "pix") {
         await handlePixPayment(createdOrderId, accessToken, activeGateway as PixGateway);
       } else {
-        await handleCardPayment(createdOrderId, accessToken, token!, installments || 1, paymentMethodId, issuerId);
+        await handleCardPayment(createdOrderId, accessToken, token!, installments || 1, paymentMethodId, issuerId, holderDocument);
       }
 
     } catch (error: any) {
@@ -426,7 +427,8 @@ export function usePaymentGateway({
     token: string,
     installments: number,
     paymentMethodId?: string,
-    issuerId?: string
+    issuerId?: string,
+    holderDocument?: string // CPF do titular vindo do formulário de cartão
   ) => {
     console.log(`[usePaymentGateway] Processando cartão via ${creditCardGateway}...`);
 
@@ -462,11 +464,20 @@ export function usePaymentGateway({
         toast.error("Pagamento não aprovado. Verifique os dados do cartão.");
       }
     } else if (creditCardGateway === 'mercadopago') {
+      // CORREÇÃO: Usar CPF do cartão (obrigatório), fallback para CPF pessoal (opcional)
+      const payerDocumentFinal = holderDocument || formData.document?.replace(/\D/g, '') || null;
+      
+      console.log('[usePaymentGateway] CPF enviado para MP:', {
+        holderDocument: holderDocument || '(vazio)',
+        formDataDocument: formData.document || '(vazio)',
+        payerDocumentFinal: payerDocumentFinal || '(NULL - PROBLEMA!)'
+      });
+      
       const paymentPayload = {
         orderId,
         payerEmail: formData.email,
         payerName: formData.name,
-        payerDocument: formData.document?.replace(/\D/g, '') || null,
+        payerDocument: payerDocumentFinal,
         paymentMethod: 'credit_card',
         token,
         installments,
