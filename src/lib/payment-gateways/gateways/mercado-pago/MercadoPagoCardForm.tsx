@@ -12,7 +12,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
-import { initMercadoPago, CardNumber, ExpirationDate, SecurityCode, createCardToken } from '@mercadopago/sdk-react';
+import { initMercadoPago, CardNumber, ExpirationDate, SecurityCode, createCardToken, getPaymentMethods, getIssuers } from '@mercadopago/sdk-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -39,6 +39,8 @@ interface SecureFieldsProps {
   onCardNumberChange?: () => void;
   onExpirationDateChange?: () => void;
   onSecurityCodeChange?: () => void;
+  // Callback para capturar BIN e resolver paymentMethodId/issuerId
+  onBinChange?: (bin: string) => void;
 }
 
 const SecureFields = memo(({ 
@@ -47,7 +49,8 @@ const SecureFields = memo(({
   placeholderColor,
   onCardNumberChange,
   onExpirationDateChange,
-  onSecurityCodeChange
+  onSecurityCodeChange,
+  onBinChange
 }: SecureFieldsProps) => {
   const readyCalledRef = useRef(false);
   const [isCardNumberReady, setIsCardNumberReady] = useState(false);
@@ -104,6 +107,12 @@ const SecureFields = memo(({
             style={secureFieldStyle}
             onReady={handleCardNumberReady}
             onChange={() => onCardNumberChange?.()}
+            onBinChange={(data) => {
+              if (data?.bin) {
+                console.log('[SecureFields] BIN detectado:', data.bin);
+                onBinChange?.(data.bin);
+              }
+            }}
           />
         </div>
       </div>
@@ -184,11 +193,60 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & { textColor?: string,
   const identificationNumberRef = useRef('');
   const selectedInstallmentRef = useRef('1');
   const onMountCalledRef = useRef(false);
+  
+  // Refs para paymentMethodId e issuerId (resolvidos via BIN)
+  const paymentMethodIdRef = useRef<string>('');
+  const issuerIdRef = useRef<string>('');
+  const lastBinRef = useRef<string>('');
 
   // Manter refs sincronizadas
   useEffect(() => { cardholderNameRef.current = cardholderName; }, [cardholderName]);
   useEffect(() => { identificationNumberRef.current = identificationNumber; }, [identificationNumber]);
   useEffect(() => { selectedInstallmentRef.current = selectedInstallment; }, [selectedInstallment]);
+  
+  // Callback para resolver paymentMethodId e issuerId a partir do BIN
+  const handleBinChange = useCallback(async (bin: string) => {
+    // Evitar chamadas duplicadas para o mesmo BIN
+    if (!bin || bin.length < 6 || bin === lastBinRef.current) return;
+    lastBinRef.current = bin;
+    
+    console.log('[MercadoPagoCardForm] Resolvendo paymentMethodId para BIN:', bin);
+    
+    try {
+      // Chamar getPaymentMethods para identificar a bandeira
+      const paymentMethods = await getPaymentMethods({ bin });
+      console.log('[MercadoPagoCardForm] PaymentMethods response:', paymentMethods);
+      
+      if (paymentMethods?.results && paymentMethods.results.length > 0) {
+        const method = paymentMethods.results[0];
+        paymentMethodIdRef.current = method.id || '';
+        console.log('[MercadoPagoCardForm] ✅ PaymentMethodId resolvido:', paymentMethodIdRef.current);
+        
+        // Tentar resolver o issuer
+        if (method.issuer?.id) {
+          issuerIdRef.current = method.issuer.id.toString();
+          console.log('[MercadoPagoCardForm] ✅ IssuerId (do paymentMethod):', issuerIdRef.current);
+        } else {
+          // Chamar getIssuers se necessário
+          try {
+            const issuers = await getIssuers({ bin, paymentMethodId: method.id });
+            console.log('[MercadoPagoCardForm] Issuers response:', issuers);
+            
+            if (issuers && issuers.length > 0) {
+              issuerIdRef.current = issuers[0].id?.toString() || '';
+              console.log('[MercadoPagoCardForm] ✅ IssuerId (de getIssuers):', issuerIdRef.current);
+            }
+          } catch (issuerError) {
+            console.log('[MercadoPagoCardForm] Issuers não disponível (normal para algumas bandeiras):', issuerError);
+          }
+        }
+      } else {
+        console.warn('[MercadoPagoCardForm] ⚠️ Nenhum paymentMethod encontrado para BIN:', bin);
+      }
+    } catch (error) {
+      console.error('[MercadoPagoCardForm] Erro ao resolver paymentMethodId:', error);
+    }
+  }, []);
 
   // ========== FUNÇÃO PARA LIMPAR ERRO DE CAMPO ESPECÍFICO ==========
   const clearError = useCallback((fieldName: string) => {
@@ -291,12 +349,29 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & { textColor?: string,
       if (token && token.id) {
         console.log('[MercadoPagoCardForm] Token criado:', token.id);
         
+        // Usar refs que foram resolvidas via BIN (fonte confiável)
+        // Fallback para dados do token apenas se refs estiverem vazias
         const tokenAny = token as any;
+        const resolvedPaymentMethodId = paymentMethodIdRef.current || tokenAny.payment_method?.id || tokenAny.paymentMethodId || '';
+        const resolvedIssuerId = issuerIdRef.current || tokenAny.issuer?.id?.toString() || tokenAny.issuerId?.toString() || '';
+        
+        console.log('[MercadoPagoCardForm] ✅ Dados finais para submit:', {
+          paymentMethodId: resolvedPaymentMethodId,
+          issuerId: resolvedIssuerId,
+          fonte: paymentMethodIdRef.current ? 'BIN resolution' : 'token fallback'
+        });
+        
+        // Validar se temos paymentMethodId
+        if (!resolvedPaymentMethodId) {
+          console.error('[MercadoPagoCardForm] ❌ paymentMethodId não foi resolvido!');
+          setErrors({ cardNumber: 'Não foi possível identificar a bandeira do cartão. Verifique o número.' });
+          return;
+        }
         
         const result: CardTokenResult = {
           token: token.id,
-          paymentMethodId: tokenAny.payment_method?.id || tokenAny.paymentMethodId || '',
-          issuerId: tokenAny.issuer?.id?.toString() || tokenAny.issuerId?.toString() || '',
+          paymentMethodId: resolvedPaymentMethodId,
+          issuerId: resolvedIssuerId,
           installments: parseInt(currentInstallment, 10),
         };
 
@@ -413,6 +488,7 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & { textColor?: string,
         onCardNumberChange={clearCardNumberError}
         onExpirationDateChange={clearExpirationDateError}
         onSecurityCodeChange={clearSecurityCodeError}
+        onBinChange={handleBinChange}
       />
 
       {/* ========== CAMPO: Nome do Titular ========== */}
