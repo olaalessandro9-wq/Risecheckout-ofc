@@ -66,9 +66,10 @@ const isActivePath = (pathname: string, itemPath: string): boolean => {
 interface SidebarProps {
   mobileOpen?: boolean;
   setMobileOpen?: (open: boolean) => void;
+  onExpandChange?: (expanded: boolean) => void;
 }
 
-export function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarProps) {
+export function Sidebar({ mobileOpen = false, setMobileOpen, onExpandChange }: SidebarProps) {
   const [isHovered, setIsHovered] = useState(false);
   const location = useLocation();
   const { canAccessAdminPanel, role } = usePermissions();
@@ -79,6 +80,16 @@ export function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarProps) {
     [canAccessAdminPanel, isOwner]
   );
 
+  // Notificar AppShell quando hover mudar
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+    onExpandChange?.(true);
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    onExpandChange?.(false);
+  };
   const NavContent = ({ fullWidth = false }: { fullWidth?: boolean }) => (
     <div className="flex flex-col h-full">
       {/* Brand / Logo */}
@@ -176,8 +187,8 @@ export function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarProps) {
     <>
       {/* Desktop Sidebar */}
       <aside
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
         className={cn(
           "hidden md:flex fixed left-0 top-0 z-50 h-screen shrink-0 flex-col",
           "border-r border-border/40 bg-background/80 backdrop-blur-xl",

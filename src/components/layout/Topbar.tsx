@@ -21,7 +21,7 @@ export function Topbar({ scrolled, onNotificationsClick, onMenuClick }: TopbarPr
         scrolled ? "shadow-sm border-b border-border/60" : "border-b border-transparent"
       )}
     >
-      <div className="mx-auto flex h-14 w-full max-w-[1280px] items-center justify-between gap-2 px-4">
+      <div className="mx-auto flex h-14 w-full max-w-[1280px] items-center justify-between gap-2 px-4 md:px-6 lg:px-8">
         {/* Menu mobile (visível apenas em telas pequenas) */}
         <button
           type="button"
