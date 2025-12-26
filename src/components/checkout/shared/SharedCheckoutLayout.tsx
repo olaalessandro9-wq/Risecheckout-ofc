@@ -55,7 +55,7 @@ interface SharedCheckoutLayoutProps {
   publicKey?: string | null;
   creditCardGateway?: string; // 'mercadopago' | 'stripe'
   amount?: number; // em centavos
-  onSubmitPayment?: (token: string, installments: number, paymentMethodId: string, issuerId: string) => Promise<void>;
+  onSubmitPayment?: (token: string, installments: number, paymentMethodId: string, issuerId: string, holderDocument?: string) => Promise<void>;
   
   // NOVO: Callback para quando o total/cupom muda
   onTotalChange?: (total: number, appliedCoupon: any) => void;

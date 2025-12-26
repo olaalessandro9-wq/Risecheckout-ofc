@@ -464,13 +464,12 @@ export function usePaymentGateway({
         toast.error("Pagamento não aprovado. Verifique os dados do cartão.");
       }
     } else if (creditCardGateway === 'mercadopago') {
-      // CORREÇÃO: Usar CPF do cartão (obrigatório), fallback para CPF pessoal (opcional)
-      const payerDocumentFinal = holderDocument || formData.document?.replace(/\D/g, '') || null;
+      // CORREÇÃO: Usar EXCLUSIVAMENTE o CPF do cartão (holderDocument) - sem fallback
+      const payerDocumentFinal = holderDocument?.replace(/\D/g, '') || null;
       
-      console.log('[usePaymentGateway] CPF enviado para MP:', {
+      console.log('[usePaymentGateway] CPF do cartão enviado para MP:', {
         holderDocument: holderDocument || '(vazio)',
-        formDataDocument: formData.document || '(vazio)',
-        payerDocumentFinal: payerDocumentFinal || '(NULL - PROBLEMA!)'
+        payerDocumentFinal: payerDocumentFinal || '(NULL - CPF do cartão obrigatório!)'
       });
       
       const paymentPayload = {

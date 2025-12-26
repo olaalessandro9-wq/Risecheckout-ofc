@@ -200,7 +200,8 @@ const PublicCheckoutV2: React.FC = () => {
     token: string, 
     installments: number, 
     paymentMethodId: string, 
-    issuerId: string
+    issuerId: string,
+    holderDocument?: string // CPF do titular do cartão (vem do MercadoPagoCardForm)
   ) => {
     if (!validateForm()) {
       return;
@@ -209,7 +210,7 @@ const PublicCheckoutV2: React.FC = () => {
     setProcessing(true);
     try {
       fireInitiateCheckout(selectedBumps, orderBumps || []);
-      await submitPayment(token, installments, paymentMethodId, issuerId);
+      await submitPayment(token, installments, paymentMethodId, issuerId, holderDocument);
     } catch (error) {
       console.error("[PublicCheckoutV2] Erro ao processar cartão:", error);
     } finally {
