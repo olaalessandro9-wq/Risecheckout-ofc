@@ -287,7 +287,7 @@ export function usePaymentGateway({
       if (actualPaymentMethod === "pix") {
         await handlePixPayment(createdOrderId, accessToken, activeGateway as PixGateway);
       } else {
-        await handleCardPayment(createdOrderId, accessToken, token!, installments || 1);
+        await handleCardPayment(createdOrderId, accessToken, token!, installments || 1, paymentMethodId, issuerId);
       }
 
     } catch (error: any) {
@@ -424,7 +424,9 @@ export function usePaymentGateway({
     orderId: string,
     accessToken: string,
     token: string,
-    installments: number
+    installments: number,
+    paymentMethodId?: string,
+    issuerId?: string
   ) => {
     console.log(`[usePaymentGateway] Processando cartão via ${creditCardGateway}...`);
 
@@ -467,7 +469,9 @@ export function usePaymentGateway({
         payerDocument: formData.document?.replace(/\D/g, '') || null,
         paymentMethod: 'credit_card',
         token,
-        installments
+        installments,
+        paymentMethodId,
+        issuerId
       };
 
       const { data: paymentData, error: paymentError } = await supabase.functions.invoke("mercadopago-create-payment", {
