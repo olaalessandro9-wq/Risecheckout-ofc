@@ -136,6 +136,11 @@ export const PAYMENT_GATEWAYS: Record<string, PaymentGateway> = {
     documentationUrl: 'https://stripe.com/docs',
   },
 
+  // ==================== GATEWAYS EM DESENVOLVIMENTO ====================
+  // PagSeguro, Cielo e Rede foram temporariamente removidos.
+  // Para reativar, descomentar os blocos abaixo.
+  
+  /*
   // ==================== PAGSEGURO ====================
   pagseguro: {
     id: 'pagseguro',
@@ -201,6 +206,7 @@ export const PAYMENT_GATEWAYS: Record<string, PaymentGateway> = {
     credentialsFields: ['pv', 'token'],
     documentationUrl: 'https://www.userede.com.br/desenvolvedores',
   },
+  */
 };
 
 // ============================================
@@ -286,6 +292,6 @@ export type GatewayId = keyof typeof PAYMENT_GATEWAYS;
 
 export type ActiveGatewayId = 'asaas' | 'mercadopago' | 'pushinpay' | 'stripe';
 
-export type PixGatewayId = 'asaas' | 'mercadopago' | 'pushinpay' | 'pagseguro';
+export type PixGatewayId = 'asaas' | 'mercadopago' | 'pushinpay';
 
-export type CreditCardGatewayId = 'asaas' | 'mercadopago' | 'stripe' | 'pagseguro' | 'cielo' | 'rede';
+export type CreditCardGatewayId = 'asaas' | 'mercadopago' | 'stripe';
