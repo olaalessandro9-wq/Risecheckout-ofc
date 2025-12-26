@@ -47,6 +47,7 @@ import Marketplace from "./pages/Marketplace";
 import Financeiro from "./pages/Financeiro";
 import Integracoes from "./pages/Integracoes";
 import Ajuda from "./pages/Ajuda";
+import Perfil from "./pages/Perfil";
 
 // ============================================================================
 // ROTAS SENSÍVEIS - Lazy Loading
@@ -174,6 +175,7 @@ const router = createBrowserRouter([
           },
           { path: "integracoes", element: <Integracoes /> },
           { path: "ajuda", element: <Ajuda /> },
+          { path: "perfil", element: <Perfil /> },
           { path: "config", element: <Navigate to="admin" replace /> },
           {
             path: "admin",
