@@ -160,7 +160,7 @@ serve(async (req) => {
       return createErrorResponse(ERROR_CODES.INVALID_REQUEST, 'Corpo da requisição inválido', 400, corsHeaders);
     }
 
-    const { orderId, payerEmail, payerName, payerDocument, paymentMethod, token, installments } = body;
+    const { orderId, payerEmail, payerName, payerDocument, paymentMethod, token, installments, paymentMethodId, issuerId } = body;
 
     if (!orderId || !payerEmail || !paymentMethod) {
       return createErrorResponse(ERROR_CODES.INVALID_REQUEST, 'Campos obrigatórios faltando: orderId, payerEmail, paymentMethod', 400, corsHeaders);
@@ -510,7 +510,7 @@ serve(async (req) => {
           token: token,
           description: `Pedido #${orderId.slice(0, 8)}`,
           installments: installments || 1,
-          payment_method_id: 'master', // Will be overridden by token
+          payment_method_id: paymentMethodId || 'credit_card',
           payer: {
             email: payerEmail,
             first_name: payerName?.split(' ')[0] || 'Cliente',
@@ -521,6 +521,19 @@ serve(async (req) => {
             } : undefined
           }
         };
+
+        // Adicionar issuer_id se disponível
+        if (issuerId) {
+          cardPayload.issuer_id = Number(issuerId);
+        }
+
+        logInfo('📦 [CARTÃO] Payload preparado', {
+          amount: cardPayload.transaction_amount,
+          installments: cardPayload.installments,
+          payment_method_id: cardPayload.payment_method_id,
+          issuer_id: cardPayload.issuer_id || 'não informado',
+          has_application_fee: applicationFeeCents > 0
+        });
 
         // 🔥 ADICIONAR application_fee (SPLIT REAL - Modelo CAKTO)
         if (applicationFeeCents > 0) {
@@ -545,7 +558,13 @@ serve(async (req) => {
         const cardData = await cardResponse.json();
 
         if (!cardResponse.ok) {
-          logError('Erro na API do Mercado Pago (Cartão)', cardData);
+          logError('Erro na API do Mercado Pago (Cartão)', {
+            message: cardData.message,
+            status: cardData.status,
+            cause: cardData.cause,
+            payment_method_id_usado: cardPayload.payment_method_id,
+            issuer_id_usado: cardPayload.issuer_id
+          });
           return createErrorResponse(ERROR_CODES.GATEWAY_API_ERROR, cardData.message || 'Erro ao processar cartão', 502, corsHeaders, cardData);
         }
 
