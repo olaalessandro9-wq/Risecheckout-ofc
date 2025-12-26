@@ -69,7 +69,7 @@ const Index = () => {
 
       <div className="space-y-4 md:space-y-6">
         {/* Top KPI Row - 4 Blocks */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           <MetricCard
             title="Faturamento"
             value={data?.metrics.totalRevenue || "R$ 0,00"}
@@ -112,7 +112,7 @@ const Index = () => {
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 md:gap-6">
           {/* Main Chart Section */}
-          <div className="xl:col-span-2 bg-card/40 backdrop-blur-xl border border-border rounded-2xl overflow-hidden p-4 md:p-6 min-h-[350px] md:min-h-[400px] lg:min-h-[450px]">
+          <div className="xl:col-span-2 min-h-[350px] md:min-h-[400px] lg:min-h-[450px]">
             <RevenueChart
               title="Fluxo de Faturamento"
               data={data?.chartData.map(d => ({ date: d.date, value: d.revenue })) || []}
