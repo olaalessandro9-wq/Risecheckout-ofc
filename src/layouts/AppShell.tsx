@@ -44,7 +44,7 @@ export default function AppShell() {
         {/* Sentinel invisível para ativar a sombra ao rolar */}
         <div ref={sentinelRef} className="h-1 w-full" />
         <main className="relative w-full">
-          <div className="mx-auto max-w-[1280px] px-4 pb-8 pt-4 md:px-6 lg:px-8">
+          <div className="px-4 pb-8 pt-4 md:px-6 lg:px-8">
             <Outlet />
           </div>
         </main>
