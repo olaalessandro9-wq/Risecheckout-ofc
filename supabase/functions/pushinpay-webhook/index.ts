@@ -19,8 +19,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { sendEmail } from '../_shared/zeptomail.ts';
-import { getPurchaseConfirmationTemplate, getPurchaseConfirmationTextTemplate, type PurchaseConfirmationData } from '../_shared/email-templates.ts';
+import { sendOrderConfirmationEmails, type OrderData } from '../_shared/send-order-emails.ts';
 
 const FUNCTION_VERSION = "3";
 
@@ -252,45 +251,38 @@ serve(async (req) => {
     logInfo('✅ Pedido atualizado com sucesso');
 
     // ========================================================================
-    // 6.1 SEND CONFIRMATION EMAIL (se pagamento aprovado)
+    // 6.1 SEND CONFIRMATION EMAILS (um para cada item do pedido)
     // ========================================================================
 
     if (newStatus === 'PAID' && order.customer_email) {
-      logInfo('Enviando email de confirmação', { email: order.customer_email });
-
-      // Buscar delivery_url do produto
-      const { data: product } = await supabase
-        .from('products')
-        .select('delivery_url')
-        .eq('id', order.product_id)
-        .single();
+      logInfo('Enviando emails de confirmação para todos os itens do pedido', { 
+        orderId: order.id,
+        email: order.customer_email 
+      });
 
       try {
-        const emailData: PurchaseConfirmationData = {
-          customerName: order.customer_name || body.payer_name || 'Cliente',
-          productName: order.product_name || 'Produto',
-          amountCents: order.amount_cents,
-          orderId: order.id,
-          paymentMethod: 'PIX / PushinPay',
-          deliveryUrl: product?.delivery_url || undefined,
+        const orderData: OrderData = {
+          id: order.id,
+          customer_name: order.customer_name || body.payer_name || null,
+          customer_email: order.customer_email,
+          amount_cents: order.amount_cents,
+          product_id: order.product_id,
+          product_name: order.product_name,
         };
 
-        const emailResult = await sendEmail({
-          to: { email: order.customer_email, name: order.customer_name || undefined },
-          subject: `✅ Compra Confirmada - ${order.product_name || 'Seu Pedido'}`,
-          htmlBody: getPurchaseConfirmationTemplate(emailData),
-          textBody: getPurchaseConfirmationTextTemplate(emailData),
-          type: 'transactional',
-          clientReference: `order_${order.id}_confirmation`,
-        });
+        const emailResult = await sendOrderConfirmationEmails(
+          supabase,
+          orderData,
+          'PIX / PushinPay'
+        );
 
-        if (emailResult.success) {
-          logInfo('✅ Email de confirmação enviado', { messageId: emailResult.messageId });
-        } else {
-          logWarn('⚠️ Falha ao enviar email (não crítico)', { error: emailResult.error });
-        }
+        logInfo('✅ Resultado do envio de emails', {
+          totalItems: emailResult.totalItems,
+          emailsSent: emailResult.emailsSent,
+          emailsFailed: emailResult.emailsFailed
+        });
       } catch (emailError) {
-        logWarn('⚠️ Exceção ao enviar email (não crítico)', emailError);
+        logWarn('⚠️ Exceção ao enviar emails (não crítico)', emailError);
       }
     }
 

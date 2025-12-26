@@ -11,8 +11,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.14.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { sendEmail } from '../_shared/zeptomail.ts';
-import { getPurchaseConfirmationTemplate, getPurchaseConfirmationTextTemplate, type PurchaseConfirmationData } from '../_shared/email-templates.ts';
+import { sendOrderConfirmationEmails, type OrderData } from '../_shared/send-order-emails.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -95,17 +94,6 @@ serve(async (req) => {
         .eq("id", orderId)
         .single();
 
-      // Buscar delivery_url do produto
-      let deliveryUrl: string | undefined;
-      if (order?.product_id) {
-        const { data: product } = await supabaseClient
-          .from("products")
-          .select("delivery_url")
-          .eq("id", order.product_id)
-          .single();
-        deliveryUrl = product?.delivery_url || undefined;
-      }
-
       // Atualizar pedido para PAID
       const { error: updateError } = await supabaseClient
         .from("orders")
@@ -125,32 +113,30 @@ serve(async (req) => {
 
       logStep("Order updated to PAID", { orderId });
 
-      // Enviar email de confirmação
+      // Enviar emails de confirmação para cada item do pedido
       if (order?.customer_email) {
+        logStep("Sending confirmation emails for all order items", { orderId });
         try {
-          const emailData: PurchaseConfirmationData = {
-            customerName: order.customer_name || 'Cliente',
-            productName: order.product_name || 'Produto',
-            amountCents: order.amount_cents,
-            orderId: orderId,
-            paymentMethod: 'Cartão de Crédito / Stripe',
-            deliveryUrl: deliveryUrl,
+          const orderData: OrderData = {
+            id: orderId,
+            customer_name: order.customer_name,
+            customer_email: order.customer_email,
+            amount_cents: order.amount_cents,
+            product_id: order.product_id,
+            product_name: order.product_name,
           };
 
-          const emailResult = await sendEmail({
-            to: { email: order.customer_email, name: order.customer_name || undefined },
-            subject: `✅ Compra Confirmada - ${order.product_name || 'Seu Pedido'}`,
-            htmlBody: getPurchaseConfirmationTemplate(emailData),
-            textBody: getPurchaseConfirmationTextTemplate(emailData),
-            type: 'transactional',
-            clientReference: `order_${orderId}_confirmation`,
-          });
+          const emailResult = await sendOrderConfirmationEmails(
+            supabaseClient,
+            orderData,
+            'Cartão de Crédito / Stripe'
+          );
 
-          if (emailResult.success) {
-            logStep("Confirmation email sent", { messageId: emailResult.messageId });
-          } else {
-            logStep("Email send failed (non-critical)", { error: emailResult.error });
-          }
+          logStep("Email results", {
+            totalItems: emailResult.totalItems,
+            emailsSent: emailResult.emailsSent,
+            emailsFailed: emailResult.emailsFailed
+          });
         } catch (emailError) {
           logStep("Email exception (non-critical)", { error: emailError });
         }
