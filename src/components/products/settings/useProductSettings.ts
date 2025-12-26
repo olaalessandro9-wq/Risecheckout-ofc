@@ -37,7 +37,7 @@ export function useProductSettings(
   const [initial, setInitial] = useState<ProductSettings>(DEFAULT_SETTINGS);
   const [form, setForm] = useState<ProductSettings>(DEFAULT_SETTINGS);
   
-  const { role } = usePermissions();
+  const { role, isLoading: permissionsLoading } = usePermissions();
   const isOwner = role === "owner";
 
   // Carregar credenciais do usuário
@@ -209,10 +209,14 @@ export function useProductSettings(
     }
   }, [form, productId, onModifiedChange]);
 
-  // Carregar ao montar
+  // Carregar ao montar - APENAS quando permissões estiverem prontas
   useEffect(() => {
-    loadSettings();
-  }, [loadSettings]);
+    if (!permissionsLoading && productId) {
+      loadSettings();
+    }
+  }, [loadSettings, permissionsLoading, productId]);
+  // Loading combinado: aguarda permissões E configurações
+  const isFullyLoading = loading || permissionsLoading;
 
   // Detectar mudanças
   const hasChanges = JSON.stringify(initial) !== JSON.stringify(form);
@@ -222,7 +226,7 @@ export function useProductSettings(
   }, [hasChanges, onModifiedChange]);
 
   return {
-    loading,
+    loading: isFullyLoading,
     saving,
     credentials,
     initial,
