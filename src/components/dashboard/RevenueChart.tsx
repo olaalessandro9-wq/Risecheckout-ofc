@@ -36,17 +36,17 @@ export function RevenueChart({ title, data, isLoading = false }: RevenueChartPro
       className="relative h-full"
     >
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-accent/5 to-transparent rounded-2xl blur-2xl opacity-50" />
-      <div className="relative h-full bg-card/40 backdrop-blur-xl border border-border/50 rounded-2xl p-6 hover:border-border transition-all duration-300 flex flex-col">
-        <div className="flex items-center justify-between mb-8">
-          <h3 className="text-lg font-bold text-card-foreground tracking-tight flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg ring-1" style={{backgroundColor: 'hsl(var(--success) / 0.1)', borderColor: 'hsl(var(--success) / 0.2)'}}>
-              <div className="h-4 w-1 rounded-full" style={{backgroundColor: 'hsl(var(--success))'}} />
+      <div className="relative h-full bg-card/40 backdrop-blur-xl border border-border/50 rounded-xl md:rounded-2xl p-4 md:p-6 hover:border-border transition-all duration-300 flex flex-col">
+        <div className="flex items-center justify-between mb-4 md:mb-6 lg:mb-8">
+          <h3 className="text-base md:text-lg font-bold text-card-foreground tracking-tight flex items-center gap-2 md:gap-3">
+            <div className="flex h-6 w-6 md:h-8 md:w-8 items-center justify-center rounded-lg ring-1" style={{backgroundColor: 'hsl(var(--success) / 0.1)', borderColor: 'hsl(var(--success) / 0.2)'}}>
+              <div className="h-3 md:h-4 w-0.5 md:w-1 rounded-full" style={{backgroundColor: 'hsl(var(--success))'}} />
             </div>
             {title}
           </h3>
         </div>
 
-        <div className="flex-1 min-h-[300px]">
+        <div className="flex-1 min-h-[200px] md:min-h-[250px] lg:min-h-[300px]">
           {isLoading ? (
             <div className="space-y-4 h-full flex flex-col justify-center">
               <Skeleton className="h-[200px] w-full bg-muted/20" />

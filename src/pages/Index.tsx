@@ -44,19 +44,19 @@ const Index = () => {
       initial="hidden"
       animate="show"
       variants={container}
-      className="space-y-8 p-1"
+      className="space-y-4 md:space-y-6 lg:space-y-8"
     >
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-4">
         <div>
-          <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary/80 to-primary/50 mb-2">
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary/80 to-primary/50 mb-1 md:mb-2">
             Dashboard
           </h1>
-          <p className="text-muted-foreground font-medium">
+          <p className="text-sm md:text-base text-muted-foreground font-medium">
             Visão geral do seu desempenho e métricas
           </p>
         </div>
 
-        <div className="bg-card/50 backdrop-blur-sm p-1.5 rounded-xl border border-border">
+        <div className="bg-card/50 backdrop-blur-sm p-1 md:p-1.5 rounded-xl border border-border w-full md:w-auto">
           <DateRangeFilter
             selectedPreset={selectedPreset}
             onPresetChange={handlePresetChange}
@@ -67,9 +67,9 @@ const Index = () => {
         </div>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4 md:space-y-6">
         {/* Top KPI Row - 4 Blocks */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">
           <MetricCard
             title="Faturamento"
             value={data?.metrics.totalRevenue || "R$ 0,00"}
@@ -110,9 +110,9 @@ const Index = () => {
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 md:gap-6">
           {/* Main Chart Section */}
-          <div className="lg:col-span-2 bg-card/40 backdrop-blur-xl border border-border rounded-2xl overflow-hidden p-6 h-[500px]">
+          <div className="xl:col-span-2 bg-card/40 backdrop-blur-xl border border-border rounded-2xl overflow-hidden p-4 md:p-6 min-h-[350px] md:min-h-[400px] lg:min-h-[450px]">
             <RevenueChart
               title="Fluxo de Faturamento"
               data={data?.chartData.map(d => ({ date: d.date, value: d.revenue })) || []}
@@ -121,9 +121,9 @@ const Index = () => {
           </div>
 
           {/* Side Metrics Section (Unified List Style) */}
-          <div className="lg:col-span-1 bg-card/40 backdrop-blur-xl border border-border rounded-2xl p-6 flex flex-col h-[500px]">
-            <h3 className="text-lg font-semibold text-foreground mb-6">Visão Geral</h3>
-            <div className="flex flex-col gap-3 flex-1 justify-center overflow-y-auto pr-2 custom-scrollbar">
+          <div className="xl:col-span-1 bg-card/40 backdrop-blur-xl border border-border rounded-2xl p-4 md:p-6 flex flex-col min-h-[350px] md:min-h-[400px] lg:min-h-[450px]">
+            <h3 className="text-base md:text-lg font-semibold text-foreground mb-4 md:mb-6">Visão Geral</h3>
+            <div className="flex flex-col gap-2 md:gap-3 flex-1 justify-center overflow-y-auto pr-2 custom-scrollbar">
               {[
                 {
                   title: "Vendas Aprovadas",
@@ -176,15 +176,15 @@ const Index = () => {
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: item.delay }}
-                  className={`flex items-center justify-between p-3 rounded-2xl bg-gradient-to-br from-muted/50 to-transparent border border-border hover:border-primary/20 transition-all duration-300 group hover:scale-[1.02] cursor-default ${item.glow} hover:shadow-xl`}
+                  className={`flex items-center justify-between p-2.5 md:p-3 rounded-xl md:rounded-2xl bg-gradient-to-br from-muted/50 to-transparent border border-border hover:border-primary/20 transition-all duration-300 group hover:scale-[1.02] cursor-default ${item.glow} hover:shadow-xl`}
                 >
-                  <div className="flex items-center gap-4">
-                    <div className={`p-2.5 rounded-xl ${item.iconBg} shadow-lg shadow-black/20 group-hover:scale-110 transition-transform duration-300 ring-1 ring-white/20`}>
+                  <div className="flex items-center gap-3 md:gap-4">
+                    <div className={`p-2 md:p-2.5 rounded-lg md:rounded-xl ${item.iconBg} shadow-lg shadow-black/20 group-hover:scale-110 transition-transform duration-300 ring-1 ring-white/20`}>
                       {item.icon}
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{item.title}</span>
-                      <span className="text-base font-bold text-foreground tracking-tight group-hover:tracking-normal transition-all">{item.value}</span>
+                      <span className="text-[9px] md:text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{item.title}</span>
+                      <span className="text-sm md:text-base font-bold text-foreground tracking-tight group-hover:tracking-normal transition-all">{item.value}</span>
                     </div>
                   </div>
                   <div className={`h-8 w-1 rounded-full bg-gradient-to-b ${item.bg} opacity-20 group-hover:opacity-100 transition-opacity`} />
@@ -195,7 +195,7 @@ const Index = () => {
         </div>
       </div>
 
-      <div className="pt-8">
+      <div className="pt-4 md:pt-6 lg:pt-8">
         <RecentCustomersTable
           customers={data?.recentCustomers || []}
           isLoading={isLoading}
