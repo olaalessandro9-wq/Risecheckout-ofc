@@ -72,6 +72,16 @@ export interface AffiliationDetails {
   checkouts: AffiliationCheckout[];
   producer: ProducerProfile | null;
   pixels: AffiliatePixel[];
+  // Novos campos de gateway
+  pix_gateway: string | null;
+  credit_card_gateway: string | null;
+  gateway_credentials: Record<string, string>;
+  // Configurações permitidas pelo owner
+  allowed_gateways: {
+    pix_allowed: string[];
+    credit_card_allowed: string[];
+    require_gateway_connection: boolean;
+  };
 }
 
 export interface OtherProducerProduct {
@@ -119,6 +129,9 @@ export function useAffiliationDetails(affiliationId: string | undefined): UseAff
           total_sales_amount,
           created_at,
           product_id,
+          pix_gateway,
+          credit_card_gateway,
+          gateway_credentials,
           product:products (
             id,
             name,
@@ -129,7 +142,8 @@ export function useAffiliationDetails(affiliationId: string | undefined): UseAff
             marketplace_rules,
             marketplace_category,
             user_id,
-            affiliate_settings
+            affiliate_settings,
+            affiliate_gateway_settings
           )
         `)
         .eq("id", affiliationId)
@@ -138,8 +152,16 @@ export function useAffiliationDetails(affiliationId: string | undefined): UseAff
       if (affiliationError) throw affiliationError;
       if (!affiliationData) throw new Error("Afiliação não encontrada");
 
-      const product = affiliationData.product as unknown as AffiliationProduct;
+      const product = affiliationData.product as unknown as (AffiliationProduct & { affiliate_gateway_settings?: any });
       const productId = affiliationData.product_id;
+
+      // Extrair configurações de gateway permitidas pelo owner
+      const gatewaySettings = product?.affiliate_gateway_settings || {};
+      const allowedGateways = {
+        pix_allowed: gatewaySettings.pix_allowed || ["asaas"],
+        credit_card_allowed: gatewaySettings.credit_card_allowed || ["mercadopago", "stripe"],
+        require_gateway_connection: gatewaySettings.require_gateway_connection ?? true,
+      };
 
       // Buscar ofertas do produto
       const { data: offersData } = await supabase
@@ -217,7 +239,7 @@ export function useAffiliationDetails(affiliationId: string | undefined): UseAff
         total_sales_count: affiliationData.total_sales_count || 0,
         total_sales_amount: affiliationData.total_sales_amount || 0,
         created_at: affiliationData.created_at,
-        product,
+        product: product as AffiliationProduct,
         offers: (offersData || []).map(o => ({
           ...o,
           price: o.price / 100 // Converter de centavos para reais
@@ -225,6 +247,11 @@ export function useAffiliationDetails(affiliationId: string | undefined): UseAff
         checkouts: checkoutsWithPaymentSlug,
         producer,
         pixels: (pixelsData || []) as AffiliatePixel[],
+        // Novos campos de gateway
+        pix_gateway: affiliationData.pix_gateway || null,
+        credit_card_gateway: affiliationData.credit_card_gateway || null,
+        gateway_credentials: (affiliationData.gateway_credentials as Record<string, string>) || {},
+        allowed_gateways: allowedGateways,
       });
     } catch (err: any) {
       console.error("Erro ao buscar detalhes da afiliação:", err);

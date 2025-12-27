@@ -131,20 +131,32 @@ export async function processAffiliate(
 
     const { data: affiliate } = await supabase
       .from("affiliates")
-      .select("id, user_id, commission_rate, status, asaas_wallet_id")
+      .select("id, user_id, commission_rate, status, pix_gateway, credit_card_gateway, gateway_credentials")
       .eq("affiliate_code", affiliate_code)
       .eq("product_id", product_id)
       .maybeSingle();
 
-    // Buscar wallet do profile se não tiver no affiliate
+    // Buscar wallet/credentials do profile se não tiver no affiliate
     let affiliateWalletFromProfile: string | null = null;
-    if (affiliate && !affiliate.asaas_wallet_id) {
+    let affiliateMpCollectorId: string | null = null;
+    let affiliateStripeAccountId: string | null = null;
+    
+    if (affiliate) {
       const { data: affiliateProfile } = await supabase
         .from("profiles")
-        .select("asaas_wallet_id")
+        .select("asaas_wallet_id, mercadopago_collector_id, stripe_account_id")
         .eq("id", affiliate.user_id)
         .maybeSingle();
+      
       affiliateWalletFromProfile = affiliateProfile?.asaas_wallet_id || null;
+      affiliateMpCollectorId = affiliateProfile?.mercadopago_collector_id || null;
+      affiliateStripeAccountId = affiliateProfile?.stripe_account_id || null;
+      
+      // Também verificar gateway_credentials do affiliate
+      const credentials = (affiliate.gateway_credentials as Record<string, string>) || {};
+      if (credentials.asaas_wallet_id) affiliateWalletFromProfile = credentials.asaas_wallet_id;
+      if (credentials.mercadopago_collector_id) affiliateMpCollectorId = credentials.mercadopago_collector_id;
+      if (credentials.stripe_account_id) affiliateStripeAccountId = credentials.stripe_account_id;
     }
 
     if (affiliate) {
@@ -152,12 +164,21 @@ export async function processAffiliate(
       if (requireApproval && affiliate.status !== "active") {
         console.warn(`[affiliate-processor] Aguardando aprovação: ${affiliate_code}`);
       } else if (affiliate.status === "active") {
-        affiliateWalletId = affiliate.asaas_wallet_id || affiliateWalletFromProfile;
+        // Determinar qual wallet usar baseado no gateway escolhido pelo afiliado
+        const affiliatePixGateway = affiliate.pix_gateway || "asaas";
+        
+        if (affiliatePixGateway === "asaas") {
+          affiliateWalletId = affiliateWalletFromProfile;
+        } else if (affiliatePixGateway === "mercadopago") {
+          // Para MP, usamos collector_id no split
+          affiliateWalletId = affiliateMpCollectorId;
+        }
+        // Stripe usa account_id mas não no mesmo formato de wallet
 
         if (affiliateWalletId) {
-          console.log(`[affiliate-processor] Wallet encontrado`);
+          console.log(`[affiliate-processor] Wallet encontrado para gateway ${affiliatePixGateway}`);
         } else {
-          console.warn("[affiliate-processor] Sem Wallet - Split não aplicado");
+          console.warn(`[affiliate-processor] Sem Wallet para ${affiliatePixGateway} - Split não aplicado`);
         }
 
         // Anti-Self-Referral
