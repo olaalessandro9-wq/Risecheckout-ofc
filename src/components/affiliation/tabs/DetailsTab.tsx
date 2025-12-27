@@ -1,21 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Mail, Clock, MousePointer, Gift, TrendingUp, FileText, AlertTriangle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Mail, Clock, MousePointer, Gift, TrendingUp, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { AffiliationDetails } from "@/hooks/useAffiliationDetails";
 
 interface DetailsTabProps {
@@ -23,10 +7,7 @@ interface DetailsTabProps {
   onRefetch: () => Promise<void>;
 }
 
-export function DetailsTab({ affiliation, onRefetch }: DetailsTabProps) {
-  const navigate = useNavigate();
-  const [isDeactivating, setIsDeactivating] = useState(false);
-
+export function DetailsTab({ affiliation }: DetailsTabProps) {
   const product = affiliation.product;
   const settings = product?.affiliate_settings || {};
 
@@ -38,26 +19,6 @@ export function DetailsTab({ affiliation, onRefetch }: DetailsTabProps) {
         return "Primeiro clique";
       default:
         return "Último clique";
-    }
-  };
-
-  const handleDeactivate = async () => {
-    setIsDeactivating(true);
-    try {
-      const { error } = await supabase
-        .from("affiliates")
-        .update({ status: "inactive" })
-        .eq("id", affiliation.id);
-
-      if (error) throw error;
-
-      toast.success("Afiliação desativada com sucesso");
-      navigate("/dashboard/minhas-afiliacoes");
-    } catch (err: any) {
-      console.error("Erro ao desativar afiliação:", err);
-      toast.error("Erro ao desativar afiliação");
-    } finally {
-      setIsDeactivating(false);
     }
   };
 
@@ -176,47 +137,6 @@ export function DetailsTab({ affiliation, onRefetch }: DetailsTabProps) {
           <p className="text-muted-foreground whitespace-pre-wrap">
             {product.marketplace_rules}
           </p>
-        </div>
-      )}
-
-      {/* Botão Desativar */}
-      {affiliation.status === 'active' && (
-        <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-6">
-          <div className="flex items-start justify-between">
-            <div>
-              <h3 className="font-semibold text-destructive">Desativar Afiliação</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                Ao desativar, você não receberá mais comissões por vendas deste produto.
-              </p>
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm" className="gap-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  Desativar
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Desativar Afiliação?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Tem certeza que deseja desativar sua afiliação com "{product?.name}"? 
-                    Você não receberá mais comissões por vendas deste produto.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleDeactivate}
-                    disabled={isDeactivating}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    {isDeactivating ? "Desativando..." : "Sim, Desativar"}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
         </div>
       )}
     </div>
