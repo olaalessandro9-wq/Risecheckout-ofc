@@ -335,15 +335,21 @@ const Afiliados = () => {
                     </TableCell>
                     <TableCell className="text-sm">{affiliate.product_name}</TableCell>
                     <TableCell>
-                      {affiliate.commission_rate ? (
-                        <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200">
-                          {affiliate.commission_rate}% (Custom)
-                        </Badge>
-                      ) : (
-                        <span className="text-sm text-muted-foreground flex items-center gap-1">
-                          {affiliate.product_settings?.defaultRate || 50}% (Padrão)
-                        </span>
-                      )}
+                      {(() => {
+                        const defaultRate = affiliate.product_settings?.defaultRate ?? 50;
+                        const effectiveRate = affiliate.commission_rate ?? defaultRate;
+                        const isCustom = affiliate.commission_rate !== null && affiliate.commission_rate !== defaultRate;
+                        
+                        return isCustom ? (
+                          <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200">
+                            {effectiveRate}% (Custom)
+                          </Badge>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">
+                            {effectiveRate}%
+                          </span>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell className="font-medium">{affiliate.total_sales_count}</TableCell>
                     <TableCell className="font-medium text-green-600">
