@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { ExternalLink } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -255,10 +256,21 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
                 {pixAllowed.map((gatewayId) => (
                   <div 
                     key={gatewayId} 
-                    className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30"
+                    className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
                   >
-                    <div className="h-2 w-2 rounded-full bg-primary" />
-                    <span className="text-sm font-medium">{GATEWAY_INFO[gatewayId]?.name || gatewayId}</span>
+                    <div className="flex items-center gap-3">
+                      <div className="h-2 w-2 rounded-full bg-primary" />
+                      <span className="text-sm font-medium">{GATEWAY_INFO[gatewayId]?.name || gatewayId}</span>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => navigate(`/dashboard/financeiro?gateway=${gatewayId}`)}
+                      className="gap-1"
+                    >
+                      Conectar
+                      <ExternalLink className="h-3 w-3" />
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -274,10 +286,21 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
                 {cardAllowed.map((gatewayId) => (
                   <div 
                     key={gatewayId} 
-                    className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30"
+                    className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
                   >
-                    <div className="h-2 w-2 rounded-full bg-primary" />
-                    <span className="text-sm font-medium">{GATEWAY_INFO[gatewayId]?.name || gatewayId}</span>
+                    <div className="flex items-center gap-3">
+                      <div className="h-2 w-2 rounded-full bg-primary" />
+                      <span className="text-sm font-medium">{GATEWAY_INFO[gatewayId]?.name || gatewayId}</span>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => navigate(`/dashboard/financeiro?gateway=${gatewayId}`)}
+                      className="gap-1"
+                    >
+                      Conectar
+                      <ExternalLink className="h-3 w-3" />
+                    </Button>
                   </div>
                 ))}
               </div>

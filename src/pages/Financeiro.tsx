@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Loader2, Wallet, CreditCard } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import * as PushinPay from "@/integrations/gateways/pushinpay";
@@ -29,6 +30,7 @@ type PaymentGateway = "pushinpay" | "mercadopago" | "stripe" | "asaas" | null;
 
 export default function Financeiro() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Estados para vendors
   const [apiToken, setApiToken] = useState("");
@@ -116,6 +118,20 @@ export default function Financeiro() {
       setLoadingData(false);
     }
   };
+
+  // Abrir modal automaticamente se vier com query param
+  useEffect(() => {
+    if (!loadingData) {
+      const gatewayParam = searchParams.get("gateway");
+      const validGateways = ["pushinpay", "mercadopago", "stripe", "asaas"];
+      
+      if (gatewayParam && validGateways.includes(gatewayParam)) {
+        setSelectedGateway(gatewayParam as PaymentGateway);
+        // Limpar param da URL para não reabrir
+        setSearchParams({}, { replace: true });
+      }
+    }
+  }, [loadingData, searchParams, setSearchParams]);
 
   // Auto-hide da mensagem de sucesso
   useEffect(() => {
