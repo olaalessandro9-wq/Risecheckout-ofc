@@ -256,14 +256,17 @@ export function useCheckoutData(): UseCheckoutDataReturn {
       
       let affiliatePixGateway: string | null = null;
       let affiliateCreditCardGateway: string | null = null;
+      let affiliateMercadoPagoPublicKey: string | null = null;
+      let affiliateStripePublicKey: string | null = null;
       
       const affiliateCode = getAffiliateCode();
       if (affiliateCode) {
         console.log('[useCheckoutData V2] Código de afiliado detectado:', affiliateCode);
         
+        // Buscar afiliado com user_id para depois buscar public keys
         const { data: affiliateData } = await supabase
           .from("affiliates")
-          .select("pix_gateway, credit_card_gateway, status")
+          .select("pix_gateway, credit_card_gateway, status, user_id")
           .eq("affiliate_code", affiliateCode)
           .eq("product_id", productId)
           .eq("status", "active")
@@ -276,6 +279,30 @@ export function useCheckoutData(): UseCheckoutDataReturn {
             pix: affiliatePixGateway, 
             card: affiliateCreditCardGateway 
           });
+          
+          // Buscar public keys do afiliado se ele configurou gateway de cartão
+          if (affiliateData.user_id && (affiliateCreditCardGateway === 'mercadopago' || affiliateCreditCardGateway === 'stripe')) {
+            const { data: affiliateIntegrations } = await supabase
+              .from("vendor_integrations")
+              .select("integration_type, config")
+              .eq("vendor_id", affiliateData.user_id)
+              .in("integration_type", ["MERCADOPAGO", "STRIPE"])
+              .eq("active", true);
+            
+            if (affiliateIntegrations) {
+              for (const integration of affiliateIntegrations) {
+                const config = integration.config as { public_key?: string } | null;
+                if (integration.integration_type === 'MERCADOPAGO' && config?.public_key) {
+                  affiliateMercadoPagoPublicKey = config.public_key;
+                  console.log('[useCheckoutData V2] ✅ Public key do afiliado (MP) encontrada');
+                }
+                if (integration.integration_type === 'STRIPE' && config?.public_key) {
+                  affiliateStripePublicKey = config.public_key;
+                  console.log('[useCheckoutData V2] ✅ Public key do afiliado (Stripe) encontrada');
+                }
+              }
+            }
+          }
         }
       }
 
@@ -302,9 +329,9 @@ export function useCheckoutData(): UseCheckoutDataReturn {
         seller_name: checkoutData.seller_name,
         pix_gateway: finalPixGateway as Checkout['pix_gateway'],
         credit_card_gateway: finalCreditCardGateway as Checkout['credit_card_gateway'],
-        // Payment keys desnormalizados (evita RLS de vendor_integrations)
-        mercadopago_public_key: checkoutData.mercadopago_public_key,
-        stripe_public_key: checkoutData.stripe_public_key,
+        // Payment keys: usar do afiliado se disponível, senão fallback para produtor
+        mercadopago_public_key: affiliateMercadoPagoPublicKey || checkoutData.mercadopago_public_key,
+        stripe_public_key: affiliateStripePublicKey || checkoutData.stripe_public_key,
         // Gateways originais do afiliado (para referência)
         affiliate_pix_gateway: affiliatePixGateway,
         affiliate_credit_card_gateway: affiliateCreditCardGateway,
