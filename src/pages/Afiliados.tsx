@@ -47,7 +47,7 @@ interface AffiliateData {
   product_settings: { defaultRate?: number };
   affiliate_name: string;
   affiliate_email: string;
-  status: "pending" | "active" | "rejected" | "blocked";
+  status: "pending" | "active" | "rejected" | "blocked" | "cancelled";
   commission_rate: number | null;
   affiliate_code: string | null;
   total_sales_count: number;
@@ -94,6 +94,7 @@ const Afiliados = () => {
           "Pendente": "pending",
           "Recusado": "rejected",
           "Bloqueado": "blocked",
+          "Cancelado": "cancelled",
         };
         filteredData = filteredData.filter(item => item.status === statusMap[statusFilter]);
       }
@@ -213,6 +214,7 @@ const Afiliados = () => {
       pending: "Pendente",
       rejected: "Recusado",
       blocked: "Bloqueado",
+      cancelled: "Cancelado",
     };
     return map[status] || status;
   };
@@ -223,6 +225,7 @@ const Afiliados = () => {
       case "pending": return "secondary";
       case "rejected": return "outline";
       case "blocked": return "destructive";
+      case "cancelled": return "destructive";
       default: return "outline";
     }
   };
@@ -244,7 +247,7 @@ const Afiliados = () => {
           { label: "Total", value: affiliates.length, color: "text-primary" },
           { label: "Aprovados", value: affiliates.filter(a => a.status === "active").length, color: "text-green-600" },
           { label: "Pendentes", value: affiliates.filter(a => a.status === "pending").length, color: "text-amber-600" },
-          { label: "Recusados e Bloqueados", value: affiliates.filter(a => a.status === "rejected" || a.status === "blocked").length, color: "text-red-600" },
+          { label: "Recusados, Bloqueados e Cancelados", value: affiliates.filter(a => a.status === "rejected" || a.status === "blocked" || a.status === "cancelled").length, color: "text-red-600" },
         ].map((stat, i) => (
           <Card key={i} className="p-4 border-l-4 border-l-primary/10 hover:border-l-primary transition-colors">
             <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
@@ -275,6 +278,7 @@ const Afiliados = () => {
                 <SelectItem value="Pendente">Pendentes</SelectItem>
                 <SelectItem value="Recusado">Recusados</SelectItem>
                 <SelectItem value="Bloqueado">Bloqueados</SelectItem>
+                <SelectItem value="Cancelado">Cancelados</SelectItem>
               </SelectContent>
             </Select>
           </div>
