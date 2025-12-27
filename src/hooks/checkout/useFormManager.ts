@@ -8,15 +8,19 @@
  * - Usa validators do domain (Single Source of Truth)
  * - Aceita snapshot override para resolver autofill
  * - Não faz toast (UI decide como exibir erros)
+ * 
+ * ✅ FIX CRÍTICO (Dezembro 2024):
+ * - localStorage NUNCA é lido/escrito se checkoutId estiver ausente
+ * - Hydration ocorre apenas quando checkoutId chega pela primeira vez
+ * - Elimina contaminação de dados entre checkouts diferentes
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { CheckoutFormData, CheckoutFormErrors, OrderBump } from "@/types/checkout";
 import {
   validatePersonalData,
   parseRequiredFields,
   type PersonalData,
-  type PersonalDataErrors,
   type RequiredFieldsConfig,
   type ValidationResult,
 } from "@/features/checkout/personal-data";
@@ -26,7 +30,7 @@ import {
 // ============================================================================
 
 interface UseFormManagerProps {
-  checkoutId?: string | null; // ✅ NOVO: Para isolar localStorage por checkout
+  checkoutId?: string | null;
   requiredFields: string[];
   orderBumps: OrderBump[];
   productPrice: number;
@@ -49,30 +53,76 @@ interface UseFormManagerReturn {
 }
 
 // ✅ FIX: Função para gerar chave de storage isolada por checkout
-const getStorageKey = (checkoutId?: string | null) => {
-  const base = "risecheckout_form_data";
-  return checkoutId ? `${base}:${checkoutId}` : base;
+const getStorageKey = (checkoutId: string) => {
+  return `risecheckout_form_data:${checkoutId}`;
 };
 
 const EXPIRATION_DAYS = 7; // 1 semana (LGPD compliance)
 
 // ============================================================================
+// HELPER: Carregar dados do localStorage
+// ============================================================================
+
+function loadFromStorage(storageKey: string): CheckoutFormData | null {
+  if (typeof window === 'undefined') return null;
+  
+  try {
+    const saved = localStorage.getItem(storageKey);
+    if (!saved) return null;
+    
+    const parsed = JSON.parse(saved);
+    
+    // 🔒 SEGURANÇA: Verificar expiração (7 dias)
+    if (parsed.timestamp) {
+      const now = Date.now();
+      const expirationTime = EXPIRATION_DAYS * 24 * 60 * 60 * 1000;
+      if ((now - parsed.timestamp) > expirationTime) {
+        console.log('[useFormManager] Dados expirados, removendo...');
+        localStorage.removeItem(storageKey);
+        return null;
+      }
+    }
+    
+    // 🔒 SEGURANÇA: Remover CPF/document do localStorage (LGPD)
+    const { document: _, cpf: __, ...safeData } = parsed.data || parsed;
+    return {
+      ...createEmptyFormData(),
+      ...safeData,
+      document: "", // Não carregar CPF do localStorage
+      cpf: "",      // Não carregar CPF do localStorage
+    };
+  } catch (e) {
+    console.warn("[useFormManager] Erro ao carregar dados do localStorage:", e);
+    return null;
+  }
+}
+
+// ============================================================================
+// HELPER: Salvar dados no localStorage
+// ============================================================================
+
+function saveToStorage(storageKey: string, formData: CheckoutFormData): void {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    // 🔒 SEGURANÇA: Não salvar CPF/document (LGPD)
+    const { document: _, cpf: __, ...safeData } = formData;
+    
+    const dataToSave = {
+      data: safeData,
+      timestamp: Date.now()
+    };
+    
+    localStorage.setItem(storageKey, JSON.stringify(dataToSave));
+  } catch (e) {
+    console.warn("[useFormManager] Erro ao salvar dados no localStorage:", e);
+  }
+}
+
+// ============================================================================
 // HOOK
 // ============================================================================
 
-/**
- * Hook para gerenciar o formulário de checkout.
- * 
- * @param props - Configurações do formulário
- * @returns Estado e funções para gerenciar o formulário
- * 
- * @example
- * const { formData, formErrors, updateField, validateForm } = useFormManager({
- *   requiredFields: ['name', 'email', 'phone'],
- *   orderBumps: [],
- *   productPrice: 100
- * });
- */
 export function useFormManager({
   checkoutId,
   requiredFields,
@@ -82,65 +132,52 @@ export function useFormManager({
   // Converter requiredFields para RequiredFieldsConfig tipado
   const requiredFieldsConfig = parseRequiredFields(requiredFields);
 
-  // ✅ FIX: Storage key isolada por checkout
-  const storageKey = getStorageKey(checkoutId);
-
-  // Estado do formulário com inicialização lazy do localStorage
-  const [formData, setFormData] = useState<CheckoutFormData>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem(storageKey);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          
-          // 🔒 SEGURANÇA: Verificar expiração (7 dias)
-          if (parsed.timestamp) {
-            const now = Date.now();
-            const expirationTime = EXPIRATION_DAYS * 24 * 60 * 60 * 1000;
-            if ((now - parsed.timestamp) > expirationTime) {
-              console.log('[useFormManager] Dados expirados, removendo...');
-              localStorage.removeItem(storageKey);
-              return createEmptyFormData();
-            }
-          }
-          
-          // 🔒 SEGURANÇA: Remover CPF/document do localStorage (LGPD)
-          const { document: _, cpf: __, ...safeData } = parsed.data || parsed;
-          return {
-            ...safeData,
-            document: "", // Não carregar CPF do localStorage
-            cpf: "",      // Não carregar CPF do localStorage
-          };
-        }
-      } catch (e) {
-        console.warn("Erro ao carregar dados do localStorage:", e);
-      }
-    }
-    return createEmptyFormData();
-  });
-
+  // ✅ FIX: Inicializa SEMPRE vazio - hydration vem depois
+  const [formData, setFormData] = useState<CheckoutFormData>(createEmptyFormData);
   const [formErrors, setFormErrors] = useState<CheckoutFormErrors>({});
   const [selectedBumps, setSelectedBumps] = useState<Set<string>>(new Set());
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Salvar no localStorage sempre que formData mudar
+  // ✅ FIX: Track se já hidratamos para este checkoutId (evita hydrate múltiplo)
+  const hydratedCheckoutIdRef = useRef<string | null>(null);
+
+  // ✅ FIX: Hydration quando checkoutId chega pela primeira vez
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        // 🔒 SEGURANÇA: Não salvar CPF/document (LGPD)
-        const { document: _, cpf: __, ...safeData } = formData;
-        
-        const dataToSave = {
-          data: safeData,
-          timestamp: Date.now()
-        };
-        
-        localStorage.setItem(storageKey, JSON.stringify(dataToSave));
-      } catch (e) {
-        console.warn("Erro ao salvar dados no localStorage:", e);
-      }
+    // Só hidrata se:
+    // 1. Temos checkoutId válido
+    // 2. Ainda não hidratamos para este checkoutId
+    if (!checkoutId) return;
+    if (hydratedCheckoutIdRef.current === checkoutId) return;
+
+    const storageKey = getStorageKey(checkoutId);
+    const savedData = loadFromStorage(storageKey);
+    
+    if (savedData) {
+      console.log('[useFormManager] Hidratando do localStorage:', {
+        checkoutId,
+        name: savedData.name,
+        email: savedData.email,
+      });
+      setFormData(savedData);
+    } else {
+      console.log('[useFormManager] Sem dados salvos para:', checkoutId);
     }
-  }, [formData, storageKey]);
+
+    // Marca como hidratado para este checkoutId
+    hydratedCheckoutIdRef.current = checkoutId;
+  }, [checkoutId]);
+
+  // ✅ FIX: Salvar no localStorage SOMENTE se temos checkoutId
+  useEffect(() => {
+    // Sem checkoutId = sem persistência (evita chave global contaminada)
+    if (!checkoutId) return;
+    
+    // Só salva após a hidratação inicial (evita sobrescrever com dados vazios)
+    if (hydratedCheckoutIdRef.current !== checkoutId) return;
+
+    const storageKey = getStorageKey(checkoutId);
+    saveToStorage(storageKey, formData);
+  }, [formData, checkoutId]);
 
   // Atualizar campo do formulário
   const updateField = useCallback((field: keyof CheckoutFormData, value: string) => {

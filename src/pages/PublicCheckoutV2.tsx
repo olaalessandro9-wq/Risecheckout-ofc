@@ -1,15 +1,10 @@
 /**
  * Página: PublicCheckoutV2
  * 
- * Responsabilidade Única: Renderizar o layout do checkout público.
- * 
- * ✅ REFATORADO: Agora usa CheckoutMasterLayout (Single Source of Truth)
- * - Garantia de consistência visual com Builder e Preview
- * - Mantém toda a lógica de negócio intacta (hooks, validação, pagamento)
- * - Estrutura de página unificada em 1 único componente
- * 
- * ✅ FIX AUTOFILL: Usa DOM snapshot no submit para resolver problema
- * de autofill onde campos aparecem preenchidos mas state está vazio.
+ * ✅ REFATORADO (RISE ARCHITECT PROTOCOL - Dezembro 2024):
+ * - Dividido em Loader (fetching) e Content (lógica)
+ * - Hooks só inicializados com checkoutId garantido (elimina timing bugs)
+ * - Snapshot sincroniza state após submit (evita regressão ao voltar)
  */
 
 import React from "react";
@@ -17,12 +12,9 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { CheckoutProvider } from "@/contexts/CheckoutContext";
 import { TrackingManager } from "@/components/checkout/v2/TrackingManager";
-import { SecurityBadges } from "@/components/checkout/SecurityBadges";
 
 // Componentes Compartilhados (Single Source of Truth)
-import {
-  SharedCheckoutLayout,
-} from "@/components/checkout/shared";
+import { SharedCheckoutLayout } from "@/components/checkout/shared";
 import { CheckoutMasterLayout } from "@/components/checkout/unified";
 
 // Hooks da nova arquitetura
@@ -46,22 +38,75 @@ import * as GoogleAds from "@/integrations/tracking/google-ads";
 import * as TikTok from "@/integrations/tracking/tiktok";
 import * as Kwai from "@/integrations/tracking/kwai";
 
+// Types from checkout domain
+import type { OrderBump, CheckoutDesign } from "@/types/checkout";
+
 // ============================================================================
-// COMPONENTE PRINCIPAL
+// LOADER COMPONENT (Boundary que busca dados)
 // ============================================================================
 
 const PublicCheckoutV2: React.FC = () => {
-  // ============================================================================
-  // 1. CAMADA DE DADOS
-  // ============================================================================
-
   const { checkout, design, orderBumps, isLoading, isError } = useCheckoutData();
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (isError || !checkout || !design || !checkout.product) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Checkout não encontrado</h1>
+          <p className="text-gray-600">Verifique o link e tente novamente.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ Dados garantidos - renderiza Content com props tipadas
+  // Casting para garantir ao TS que checkout.product existe
+  const validatedCheckout = checkout as typeof checkout & { 
+    product: NonNullable<typeof checkout.product> 
+  };
+
+  return (
+    <PublicCheckoutV2Content
+      checkout={validatedCheckout}
+      design={design}
+      orderBumps={orderBumps || []}
+    />
+  );
+};
+
+// ============================================================================
+// CONTENT COMPONENT (Lógica com checkoutId garantido)
+// ============================================================================
+
+interface ContentProps {
+  checkout: NonNullable<ReturnType<typeof useCheckoutData>["checkout"]> & { 
+    product: NonNullable<NonNullable<ReturnType<typeof useCheckoutData>["checkout"]>["product"]> 
+  };
+  design: NonNullable<ReturnType<typeof useCheckoutData>["design"]>;
+  orderBumps: OrderBump[];
+}
+
+const PublicCheckoutV2Content: React.FC<ContentProps> = ({
+  checkout,
+  design,
+  orderBumps,
+}) => {
+  // ✅ checkoutId SEMPRE disponível aqui (garantido pelo Loader)
+  const checkoutId = checkout.id;
+
   // ============================================================================
-  // TRACKING DE AFILIADOS (com configurações do produtor)
+  // AFFILIATE TRACKING
   // ============================================================================
-  // Busca as configurações de afiliação do produto e passa para o hook
-  const affiliateSettings = checkout?.product?.affiliate_settings as {
+  
+  const affiliateSettings = checkout.product.affiliate_settings as {
     cookieDuration?: number;
     attributionModel?: 'last_click' | 'first_click' | 'linear';
   } | undefined;
@@ -69,31 +114,26 @@ const PublicCheckoutV2: React.FC = () => {
   useAffiliateTracking({
     cookieDuration: affiliateSettings?.cookieDuration || 30,
     attributionModel: affiliateSettings?.attributionModel || 'last_click',
-    enabled: !isLoading && !!checkout?.product, // Aguarda dados carregarem
+    enabled: true,
   });
 
-  // ✅ SEGURANÇA: Tracking configs usam checkout.id - vendorId não é mais exposto
-  const checkoutId = checkout?.id || undefined;
+  // ============================================================================
+  // TRACKING CONFIGS
+  // ============================================================================
   
-  // Configurações de Tracking
   const { data: fbConfig } = Facebook.useFacebookConfig(checkoutId);
   const { data: utmifyConfig } = UTMify.useUTMifyConfig(checkoutId);
   const { data: googleAdsIntegration } = GoogleAds.useGoogleAdsConfig(checkoutId);
   const { data: tiktokIntegration } = TikTok.useTikTokConfig(checkoutId);
   const { data: kwaiIntegration } = Kwai.useKwaiConfig(checkoutId);
+
+  // ============================================================================
+  // FORM MANAGER (com checkoutId garantido)
+  // ============================================================================
   
-  // ✅ REFATORADO: Public key agora vem direto do checkout (desnormalizado)
-  // Não precisa mais buscar vendor_integrations (evita problema de RLS)
-
-  // ============================================================================
-  // 2. CAMADA DE LÓGICA (HOOKS DE SERVIÇO)
-  // ============================================================================
-
-  // Converte required_fields para array tipado usando domain helpers
-  const requiredFieldsConfig = parseRequiredFields(checkout?.product?.required_fields);
+  const requiredFieldsConfig = parseRequiredFields(checkout.product.required_fields);
   const requiredFieldsArray = requiredFieldsToArray(requiredFieldsConfig);
 
-  // Estado para cupom aplicado (gerenciado pelo OrderSummary)
   const [appliedCoupon, setAppliedCoupon] = React.useState<{
     id: string;
     code: string;
@@ -115,46 +155,48 @@ const PublicCheckoutV2: React.FC = () => {
     validateForm,
     setProcessing,
   } = useFormManager({
-    checkoutId: checkout?.id || null, // ✅ FIX: Isola localStorage por checkout
+    checkoutId, // ✅ GARANTIDO: nunca será null/undefined aqui
     requiredFields: requiredFieldsArray,
-    orderBumps: orderBumps || [],
-    productPrice: checkout?.product?.price || 0, // Já está em centavos
+    orderBumps: orderBumps,
+    productPrice: checkout.product.price,
   });
+
+  // ============================================================================
+  // PAYMENT GATEWAY
+  // ============================================================================
 
   const {
     selectedPayment,
     setSelectedPayment,
-    isSDKLoaded,
-    showPixPayment,
-    orderId,
     submitPayment,
   } = usePaymentGateway({
-    vendorId: null, // ✅ SEGURANÇA: Backend resolve via checkout_id
-    checkoutId: checkout?.id || null,
-    productId: checkout?.product?.id || null,
-    productName: checkout?.product?.name || null,
-    productPrice: checkout?.product?.price || 0,
-    publicKey: checkout?.mercadopago_public_key || null,
+    vendorId: null,
+    checkoutId,
+    productId: checkout.product.id,
+    productName: checkout.product.name,
+    productPrice: checkout.product.price,
+    publicKey: checkout.mercadopago_public_key || null,
     amount: calculateTotal(),
     formData,
     selectedBumps,
-    orderBumps: orderBumps || [],
-    // NOVO: Cupom aplicado
+    orderBumps,
     appliedCoupon,
-    // GATEWAYS CONFIGURADOS PELO VENDEDOR
-    pixGateway: checkout?.pix_gateway || 'pushinpay',
-    creditCardGateway: checkout?.credit_card_gateway || 'mercadopago',
+    pixGateway: checkout.pix_gateway || 'pushinpay',
+    creditCardGateway: checkout.credit_card_gateway || 'mercadopago',
   });
 
-  // Handler para quando o OrderSummary atualiza o total/cupom
   const handleTotalChange = React.useCallback((total: number, coupon: typeof appliedCoupon) => {
     setAppliedCoupon(coupon);
   }, []);
 
-  const { fireInitiateCheckout, firePurchase } = useTrackingService({
-    vendorId: null, // ✅ SEGURANÇA: Backend resolve via checkout_id se necessário
-    productId: checkout?.product?.id || null,
-    productName: checkout?.product?.name || null,
+  // ============================================================================
+  // TRACKING SERVICE
+  // ============================================================================
+
+  const { fireInitiateCheckout } = useTrackingService({
+    vendorId: null,
+    productId: checkout.product.id,
+    productName: checkout.product.name,
     trackingConfig: {
       fbConfig,
       utmifyConfig,
@@ -165,16 +207,14 @@ const PublicCheckoutV2: React.FC = () => {
   });
 
   // ============================================================================
-  // 3. HANDLERS (MEMOIZADOS para evitar re-renders)
+  // HANDLERS
   // ============================================================================
 
-  // Memoizar amount para evitar recálculos em cada render
   const memoizedAmount = React.useMemo(() => calculateTotal(), [calculateTotal]);
 
   const handleSubmit = React.useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // ✅ FIX CRÍTICO: Usa o form real do evento para snapshot
     const formElement = e.currentTarget;
     const snapshot = getSubmitSnapshot(formElement, formData);
     
@@ -183,20 +223,21 @@ const PublicCheckoutV2: React.FC = () => {
       email: snapshot.email,
     });
 
-    // Valida usando snapshot (não apenas state)
     const validation = validateForm(snapshot);
     if (!validation.isValid) {
       toast.error("Por favor, preencha todos os campos obrigatórios corretamente");
       return;
     }
 
+    // ✅ FIX: Sincroniza state com snapshot para manter consistência
+    updateMultipleFields(snapshot);
+
     setProcessing(true);
 
     try {
-      fireInitiateCheckout(selectedBumps, orderBumps || []);
+      fireInitiateCheckout(selectedBumps, orderBumps);
 
       if (selectedPayment === 'pix') {
-        // ✅ Passa snapshot como override para garantir dados corretos
         await submitPayment(undefined, undefined, undefined, undefined, undefined, snapshot);
       }
     } catch (error) {
@@ -204,9 +245,8 @@ const PublicCheckoutV2: React.FC = () => {
     } finally {
       setProcessing(false);
     }
-  }, [formData, validateForm, setProcessing, fireInitiateCheckout, selectedBumps, orderBumps, selectedPayment, submitPayment]);
+  }, [formData, validateForm, updateMultipleFields, setProcessing, fireInitiateCheckout, selectedBumps, orderBumps, selectedPayment, submitPayment]);
 
-  // Handler específico para o CustomCardForm - MEMOIZADO
   const handleCardSubmit = React.useCallback(async (
     token: string, 
     installments: number, 
@@ -214,7 +254,6 @@ const PublicCheckoutV2: React.FC = () => {
     issuerId: string,
     holderDocument?: string
   ) => {
-    // ✅ FIX CRÍTICO: Lê do DOM diretamente (sem usar formElement pois não é submit de form)
     const snapshot = getSubmitSnapshot(null, formData);
     
     console.log("[PublicCheckoutV2] Card snapshot capturado:", {
@@ -228,48 +267,26 @@ const PublicCheckoutV2: React.FC = () => {
       return;
     }
     
+    // ✅ FIX: Sincroniza state com snapshot para manter consistência
+    updateMultipleFields(snapshot);
+
     setProcessing(true);
     try {
-      fireInitiateCheckout(selectedBumps, orderBumps || []);
-      // ✅ Passa snapshot como override para garantir dados corretos
+      fireInitiateCheckout(selectedBumps, orderBumps);
       await submitPayment(token, installments, paymentMethodId, issuerId, holderDocument, snapshot);
     } catch (error) {
       console.error("[PublicCheckoutV2] Erro ao processar cartão:", error);
     } finally {
       setProcessing(false);
     }
-  }, [formData, validateForm, setProcessing, fireInitiateCheckout, selectedBumps, orderBumps, submitPayment]);
+  }, [formData, validateForm, updateMultipleFields, setProcessing, fireInitiateCheckout, selectedBumps, orderBumps, submitPayment]);
 
   // ============================================================================
-  // 4. RENDERIZAÇÃO CONDICIONAL (LOADING/ERROR)
+  // RENDER
   // ============================================================================
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const checkoutForContext = { ...checkout };
 
-  if (isError || !checkout || !design || !checkout.product) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Checkout não encontrado</h1>
-          <p className="text-gray-600">Verifique o link e tente novamente.</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Criar objeto checkout compatível com o contexto
-  // ✅ SEGURANÇA: vendor_id não é mais exposto ao cliente
-  const checkoutForContext = {
-    ...checkout,
-  };
-
-  // Preparar productData para componentes compartilhados
   const productData = {
     id: checkout.product.id,
     name: checkout.product.name,
@@ -278,19 +295,18 @@ const PublicCheckoutV2: React.FC = () => {
     image_url: checkout.product.image_url,
   };
 
-  // Preparar customization para o CheckoutMasterLayout
   const customization = {
     topComponents: checkout.top_components || [],
     bottomComponents: checkout.bottom_components || [],
   };
 
-  // ============================================================================
-  // 5. RENDERIZAÇÃO PRINCIPAL
-  // ============================================================================
+  const creditCardGateway = checkout.credit_card_gateway || 'mercadopago';
+  const cardPublicKey = creditCardGateway === 'stripe' 
+    ? checkout.stripe_public_key 
+    : checkout.mercadopago_public_key;
 
   return (
-    <CheckoutProvider value={{ checkout: checkoutForContext as any, design, orderBumps: orderBumps || [], vendorId: null }}>
-      {/* Scripts de Tracking - ✅ SEGURANÇA: vendorId não é mais exposto */}
+    <CheckoutProvider value={{ checkout: checkoutForContext as any, design, orderBumps, vendorId: null }}>
       <TrackingManager
         productId={checkout.product.id}
         fbConfig={fbConfig}
@@ -300,54 +316,41 @@ const PublicCheckoutV2: React.FC = () => {
         kwaiIntegration={kwaiIntegration}
       />
 
-      {/* Layout Principal */}
       <CheckoutMasterLayout
         mode="public"
         design={design}
         customization={customization as any}
         viewMode="public"
       >
-        {/* Determinar gateway e public key dinamicamente */}
-        {(() => {
-          const creditCardGateway = checkout?.credit_card_gateway || 'mercadopago';
-          const cardPublicKey = creditCardGateway === 'stripe' 
-            ? checkout?.stripe_public_key 
-            : checkout?.mercadopago_public_key;
-          
-          return (
-            <SharedCheckoutLayout
-              productData={productData}
-              orderBumps={orderBumps || []}
-              design={design}
-              selectedPayment={selectedPayment}
-              onPaymentChange={setSelectedPayment}
-              selectedBumps={selectedBumps}
-              onToggleBump={toggleBump}
-              mode="public"
-              formData={formData}
-              formErrors={formErrors}
-              onFieldChange={updateField}
-              requiredFields={checkout.product.required_fields}
-              isProcessing={isProcessing}
-              // Props do Custom Form - DINÂMICO POR GATEWAY
-              publicKey={cardPublicKey}
-              creditCardGateway={creditCardGateway}
-              amount={memoizedAmount}
-              onSubmitPayment={handleCardSubmit}
-              // NOVO: Callback para receber cupom aplicado
-              onTotalChange={handleTotalChange}
-              formWrapper={(children, formRef) => (
-                <form 
-                  ref={formRef as React.RefObject<HTMLFormElement>} 
-                  onSubmit={handleSubmit} 
-                  className="space-y-6"
-                >
-                  {children}
-                </form>
-              )}
-            />
-          );
-        })()}
+        <SharedCheckoutLayout
+          productData={productData}
+          orderBumps={orderBumps}
+          design={design}
+          selectedPayment={selectedPayment}
+          onPaymentChange={setSelectedPayment}
+          selectedBumps={selectedBumps}
+          onToggleBump={toggleBump}
+          mode="public"
+          formData={formData}
+          formErrors={formErrors}
+          onFieldChange={updateField}
+          requiredFields={checkout.product.required_fields}
+          isProcessing={isProcessing}
+          publicKey={cardPublicKey}
+          creditCardGateway={creditCardGateway}
+          amount={memoizedAmount}
+          onSubmitPayment={handleCardSubmit}
+          onTotalChange={handleTotalChange}
+          formWrapper={(children, formRef) => (
+            <form 
+              ref={formRef as React.RefObject<HTMLFormElement>} 
+              onSubmit={handleSubmit} 
+              className="space-y-6"
+            >
+              {children}
+            </form>
+          )}
+        />
       </CheckoutMasterLayout>
     </CheckoutProvider>
   );
