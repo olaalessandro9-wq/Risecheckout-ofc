@@ -118,7 +118,7 @@ export function usePixPayment({ config, amount }: UsePixPaymentProps): UsePixPay
           {
             body: {
               orderId,
-              vendorId: config.vendorId,
+              // vendorId não é mais necessário - busca da order no backend
               amountCents: amount,
               customer: {
                 name: config.formData.name,
