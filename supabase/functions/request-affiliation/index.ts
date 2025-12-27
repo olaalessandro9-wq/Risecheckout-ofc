@@ -137,7 +137,7 @@ serve(async (req) => {
     const pixAllowed = gatewaySettings.pix_allowed || ["asaas"];
     const cardAllowed = gatewaySettings.credit_card_allowed || ["mercadopago", "stripe"];
 
-    // VALIDAÇÃO OBRIGATÓRIA: Afiliado DEVE ter pelo menos um gateway PIX e um de Cartão
+    // LOG: Verificar gateways permitidos pelo produto (informativo, NÃO bloqueia)
     const hasAllowedPixGateway = (
       (pixAllowed.includes("asaas") && userProfile?.asaas_wallet_id) ||
       (pixAllowed.includes("mercadopago") && userProfile?.mercadopago_collector_id) ||
@@ -149,13 +149,9 @@ serve(async (req) => {
       (cardAllowed.includes("stripe") && userProfile?.stripe_account_id)
     );
 
-    if (!hasAllowedPixGateway || !hasAllowedCardGateway) {
-      const missing: string[] = [];
-      if (!hasAllowedPixGateway) missing.push("PIX");
-      if (!hasAllowedCardGateway) missing.push("Cartão");
-      console.warn(`⚠️ [request-affiliation] Usuário ${maskEmail(user.email || '')} sem gateway obrigatório: ${missing.join(", ")}`);
-      throw new Error(`Para se afiliar, você precisa conectar um gateway de ${missing.join(" e ")}. Acesse Financeiro para configurar.`);
-    }
+    // Apenas log informativo - afiliação é permitida sem gateway configurado
+    // O link de afiliado só será exibido quando o usuário configurar os gateways
+    console.log(`ℹ️ [request-affiliation] Gateway status: PIX=${hasAllowedPixGateway}, Card=${hasAllowedCardGateway} (não bloqueia afiliação)`);
 
     console.log(`✅ [request-affiliation] Programa ativo para produto: ${product.name}`);
 

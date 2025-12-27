@@ -15,9 +15,24 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
+// Mapeamento de status para labels e variantes
+const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  active: { label: "Aprovada", variant: "default" },
+  pending: { label: "Em análise", variant: "secondary" },
+  rejected: { label: "Recusada", variant: "destructive" },
+  blocked: { label: "Bloqueada", variant: "destructive" },
+  cancelled: { label: "Cancelada", variant: "destructive" },
+};
+
 export function AffiliationHeader({ affiliation }: AffiliationHeaderProps) {
   const navigate = useNavigate();
   const product = affiliation.product;
+  
+  // Obter configuração do status ou fallback
+  const statusConfig = STATUS_CONFIG[affiliation.status] || { 
+    label: affiliation.status, 
+    variant: "outline" as const 
+  };
 
   return (
     <div className="space-y-4">
@@ -60,16 +75,9 @@ export function AffiliationHeader({ affiliation }: AffiliationHeaderProps) {
               <div>
                 <h1 className="text-2xl font-bold truncate">{product?.name || "Produto"}</h1>
                 <div className="flex items-center gap-2 mt-1">
-                  <Badge variant="outline" className="text-xs">
-                    {product?.marketplace_category || "Produto Digital"}
-                  </Badge>
-                  <Badge 
-                    variant={affiliation.status === 'active' ? 'default' : 'secondary'}
-                    className="text-xs"
-                  >
-                    {affiliation.status === 'active' ? 'Afiliação Ativa' : 
-                     affiliation.status === 'pending' ? 'Pendente' : 
-                     affiliation.status === 'rejected' ? 'Recusada' : affiliation.status}
+                  <span className="text-sm text-muted-foreground">Status da afiliação:</span>
+                  <Badge variant={statusConfig.variant}>
+                    {statusConfig.label}
                   </Badge>
                 </div>
               </div>

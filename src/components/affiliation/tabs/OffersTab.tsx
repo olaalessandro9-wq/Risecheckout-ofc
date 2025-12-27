@@ -1,4 +1,6 @@
-import { Copy, ExternalLink, AlertCircle, XCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Copy, ExternalLink, AlertCircle, XCircle, Loader2, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -11,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { AffiliationDetails } from "@/hooks/useAffiliationDetails";
+import { supabase } from "@/integrations/supabase/client";
 
 interface OffersTabProps {
   affiliation: AffiliationDetails;
@@ -24,8 +27,46 @@ const formatCurrency = (value: number) => {
 };
 
 export function OffersTab({ affiliation }: OffersTabProps) {
+  const navigate = useNavigate();
   const { offers, checkouts, affiliate_code, commission_rate, status } = affiliation;
   const isCancelled = status === "cancelled";
+  const isActive = status === "active";
+  
+  const [userHasGateway, setUserHasGateway] = useState<boolean | null>(null);
+  const [loadingGateway, setLoadingGateway] = useState(true);
+
+  // Verificar se usuário tem gateway configurado
+  useEffect(() => {
+    const checkUserGateway = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setUserHasGateway(false);
+          setLoadingGateway(false);
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("asaas_wallet_id, mercadopago_collector_id, stripe_account_id")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        setUserHasGateway(!!(
+          profile?.asaas_wallet_id || 
+          profile?.mercadopago_collector_id || 
+          profile?.stripe_account_id
+        ));
+      } catch (err) {
+        console.error("Erro ao verificar gateway:", err);
+        setUserHasGateway(false);
+      } finally {
+        setLoadingGateway(false);
+      }
+    };
+
+    checkUserGateway();
+  }, []);
 
   const getAffiliateLink = (paymentLinkSlug: string | null) => {
     if (!paymentLinkSlug) return null;
@@ -44,6 +85,9 @@ export function OffersTab({ affiliation }: OffersTabProps) {
   // Encontrar checkout padrão
   const defaultCheckout = checkouts.find(c => c.is_default) || checkouts[0];
 
+  // Determinar se pode mostrar o link
+  const canShowLink = isActive && userHasGateway;
+
   if (offers.length === 0) {
     return (
       <div className="bg-card border rounded-lg p-8 text-center">
@@ -56,9 +100,56 @@ export function OffersTab({ affiliation }: OffersTabProps) {
     );
   }
 
+  // Renderizar mensagem baseada no status da afiliação
+  const renderStatusMessage = () => {
+    if (status === "pending") {
+      return (
+        <div className="flex items-center gap-3 p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-700 rounded-lg">
+          <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+          <div>
+            <h3 className="font-semibold text-amber-700 dark:text-amber-400">Afiliação em análise</h3>
+            <p className="text-sm text-amber-600 dark:text-amber-500">
+              Aguarde a aprovação do produtor para acessar seu link de afiliado.
+            </p>
+          </div>
+        </div>
+      );
+    }
+    
+    if (status === "rejected") {
+      return (
+        <div className="flex items-center gap-3 p-4 bg-destructive/10 border border-destructive/30 rounded-lg">
+          <XCircle className="h-5 w-5 text-destructive flex-shrink-0" />
+          <div>
+            <h3 className="font-semibold text-destructive">Afiliação recusada</h3>
+            <p className="text-sm text-muted-foreground">
+              Sua solicitação de afiliação foi recusada pelo produtor.
+            </p>
+          </div>
+        </div>
+      );
+    }
+    
+    if (status === "blocked") {
+      return (
+        <div className="flex items-center gap-3 p-4 bg-destructive/10 border border-destructive/30 rounded-lg">
+          <XCircle className="h-5 w-5 text-destructive flex-shrink-0" />
+          <div>
+            <h3 className="font-semibold text-destructive">Afiliação bloqueada</h3>
+            <p className="text-sm text-muted-foreground">
+              Você foi bloqueado e não pode mais promover este produto.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div className="space-y-6">
-      {/* Link Principal ou Mensagem de Cancelamento */}
+      {/* Link Principal ou Mensagens de Status */}
       <div className="bg-card border rounded-lg p-4">
         {isCancelled ? (
           <div className="flex items-center gap-3">
@@ -69,6 +160,34 @@ export function OffersTab({ affiliation }: OffersTabProps) {
                 Você não pode mais promover este produto.
               </p>
             </div>
+          </div>
+        ) : !isActive ? (
+          renderStatusMessage()
+        ) : loadingGateway ? (
+          <div className="flex items-center gap-2 text-muted-foreground py-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Verificando configurações...</span>
+          </div>
+        ) : !userHasGateway ? (
+          <div className="flex items-center gap-3">
+            <Settings className="h-5 w-5 text-amber-500 flex-shrink-0" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-amber-600 dark:text-amber-400">
+                Configure suas formas de recebimento
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Para ver seu link de afiliado, configure pelo menos uma forma de pagamento no menu Financeiro.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate("/dashboard/financeiro")}
+              className="gap-2"
+            >
+              <Settings className="h-4 w-4" />
+              Configurar
+            </Button>
           </div>
         ) : defaultCheckout?.payment_link_slug ? (
           <div className="flex items-center justify-between">
@@ -159,7 +278,7 @@ export function OffersTab({ affiliation }: OffersTabProps) {
                       size="sm"
                       className="gap-2"
                       onClick={() => copyLink(link)}
-                      disabled={!link || isCancelled}
+                      disabled={!link || !canShowLink}
                     >
                       <Copy className="h-4 w-4" />
                       Copiar Link
