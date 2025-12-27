@@ -81,11 +81,11 @@ serve(async (req) => {
     await recordRateLimitAttempt(supabaseClient, user.id);
 
     // ==========================================
-    // 1. VALIDAR SE USUÁRIO TEM CONTA ASAAS CONECTADA
+    // 1. VALIDAR PERFIL DO USUÁRIO (já não exige Asaas obrigatório)
     // ==========================================
     const { data: userProfile, error: profileError } = await supabaseClient
       .from("profiles")
-      .select("asaas_wallet_id")
+      .select("asaas_wallet_id, mercadopago_collector_id, stripe_account_id")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -94,21 +94,21 @@ serve(async (req) => {
       throw new Error("Erro ao verificar seu perfil");
     }
 
-    const hasAsaas = !!userProfile?.asaas_wallet_id;
+    // Verificar se tem pelo menos uma conexão de gateway
+    const hasAnyGateway = !!(
+      userProfile?.asaas_wallet_id || 
+      userProfile?.mercadopago_collector_id || 
+      userProfile?.stripe_account_id
+    );
 
-    if (!hasAsaas) {
-      console.warn(`⚠️ [request-affiliation] Usuário ${maskEmail(user.email || '')} sem conta Asaas conectada`);
-      throw new Error("Para se afiliar, você precisa conectar uma conta do Asaas. Acesse Financeiro para configurar.");
-    }
-
-    console.log(`✅ [request-affiliation] Conta Asaas verificada: wallet_id=${userProfile.asaas_wallet_id}`);
+    console.log(`✅ [request-affiliation] Conexões do usuário: Asaas=${!!userProfile?.asaas_wallet_id}, MP=${!!userProfile?.mercadopago_collector_id}, Stripe=${!!userProfile?.stripe_account_id}`);
 
     // ==========================================
     // 2. BUSCAR PRODUTO E VALIDAR PROGRAMA
     // ==========================================
     const { data: product, error: productError } = await supabaseClient
       .from("products")
-      .select("id, name, user_id, affiliate_settings")
+      .select("id, name, user_id, affiliate_settings, affiliate_gateway_settings")
       .eq("id", product_id)
       .maybeSingle();
 
@@ -130,6 +130,31 @@ serve(async (req) => {
 
     if (!programEnabled) {
       throw new Error("O programa de afiliados não está ativo para este produto");
+    }
+
+    // Verificar configurações de gateway do produto
+    const gatewaySettings = (product.affiliate_gateway_settings as any) || {};
+    const requireGatewayConnection = gatewaySettings.require_gateway_connection ?? true;
+    const pixAllowed = gatewaySettings.pix_allowed || ["asaas"];
+    const cardAllowed = gatewaySettings.credit_card_allowed || ["mercadopago", "stripe"];
+
+    // Se exige conexão de gateway, verificar se o usuário tem algum dos permitidos
+    if (requireGatewayConnection) {
+      const hasAllowedPixGateway = (
+        (pixAllowed.includes("asaas") && userProfile?.asaas_wallet_id) ||
+        (pixAllowed.includes("mercadopago") && userProfile?.mercadopago_collector_id) ||
+        (pixAllowed.includes("pushinpay")) // PushinPay usa credenciais da plataforma
+      );
+      
+      const hasAllowedCardGateway = (
+        (cardAllowed.includes("mercadopago") && userProfile?.mercadopago_collector_id) ||
+        (cardAllowed.includes("stripe") && userProfile?.stripe_account_id)
+      );
+
+      if (!hasAllowedPixGateway && !hasAllowedCardGateway) {
+        console.warn(`⚠️ [request-affiliation] Usuário ${maskEmail(user.email || '')} sem gateway permitido conectado`);
+        throw new Error("Para se afiliar, você precisa conectar um gateway de pagamento. Acesse Financeiro para configurar.");
+      }
     }
 
     console.log(`✅ [request-affiliation] Programa ativo para produto: ${product.name}`);

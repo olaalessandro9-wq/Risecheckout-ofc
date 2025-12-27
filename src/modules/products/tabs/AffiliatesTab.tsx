@@ -31,9 +31,15 @@ export function AffiliatesTab() {
   } = useProductContext();
 
   const [localSettings, setLocalSettings] = useState(affiliateSettings);
+  const [gatewaySettings, setGatewaySettings] = useState<AffiliateGatewaySettingsData>({
+    pix_allowed: ["asaas"],
+    credit_card_allowed: ["mercadopago", "stripe"],
+    require_gateway_connection: true,
+  });
   
   // Referência para o snapshot inicial (para comparar mudanças)
   const snapshotRef = useRef<string>("");
+  const gatewaySnapshotRef = useRef<string>("");
 
   // Sincronizar com Context quando mudar e atualizar snapshot
   useEffect(() => {
@@ -54,16 +60,54 @@ export function AffiliatesTab() {
     }
   }, [affiliateSettings]);
 
+  // Carregar gateway settings do produto
+  useEffect(() => {
+    if (product?.id) {
+      loadGatewaySettings();
+    }
+  }, [product?.id]);
+
+  const loadGatewaySettings = async () => {
+    if (!product?.id) return;
+    try {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data } = await supabase
+        .from("products")
+        .select("affiliate_gateway_settings")
+        .eq("id", product.id)
+        .single();
+      
+      if (data?.affiliate_gateway_settings) {
+        const raw = data.affiliate_gateway_settings as unknown as AffiliateGatewaySettingsData;
+        const settings: AffiliateGatewaySettingsData = {
+          pix_allowed: raw?.pix_allowed || ["asaas"],
+          credit_card_allowed: raw?.credit_card_allowed || ["mercadopago", "stripe"],
+          require_gateway_connection: raw?.require_gateway_connection ?? true,
+        };
+        setGatewaySettings(settings);
+        gatewaySnapshotRef.current = JSON.stringify(settings);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar gateway settings:", error);
+    }
+  };
+
   // Detectar mudanças comparando com snapshot
   useLayoutEffect(() => {
     const currentJson = JSON.stringify(localSettings);
-    const hasChanges = currentJson !== snapshotRef.current;
-    updateSettingsModified(hasChanges);
-  }, [localSettings, updateSettingsModified]);
+    const gatewayJson = JSON.stringify(gatewaySettings);
+    const hasSettingsChanges = currentJson !== snapshotRef.current;
+    const hasGatewayChanges = gatewayJson !== gatewaySnapshotRef.current;
+    updateSettingsModified(hasSettingsChanges || hasGatewayChanges);
+  }, [localSettings, gatewaySettings, updateSettingsModified]);
 
   const handleChange = (field: keyof AffiliateSettings, value: any) => {
     const newSettings = { ...localSettings, [field]: value } as AffiliateSettings;
     setLocalSettings(newSettings);
+  };
+
+  const handleGatewaySettingsChange = (settings: AffiliateGatewaySettingsData) => {
+    setGatewaySettings(settings);
   };
 
   const handleSave = async () => {
@@ -111,10 +155,20 @@ export function AffiliatesTab() {
         }
       }
 
+      // Salvar gateway settings
+      const { supabase } = await import("@/integrations/supabase/client");
+      await supabase
+        .from("products")
+        .update({ 
+          affiliate_gateway_settings: JSON.parse(JSON.stringify(gatewaySettings)) 
+        })
+        .eq("id", product.id);
+
       await saveAffiliateSettings(localSettings);
       
-      // Atualizar snapshot após salvar
+      // Atualizar snapshots após salvar
       snapshotRef.current = JSON.stringify(localSettings);
+      gatewaySnapshotRef.current = JSON.stringify(gatewaySettings);
       updateSettingsModified(false);
       
       toast.success("Configurações de afiliados salvas com sucesso");
@@ -125,7 +179,8 @@ export function AffiliatesTab() {
   };
 
   // Verificar se há mudanças comparando com snapshot
-  const hasChanges = JSON.stringify(localSettings) !== snapshotRef.current;
+  const hasChanges = JSON.stringify(localSettings) !== snapshotRef.current || 
+                     JSON.stringify(gatewaySettings) !== gatewaySnapshotRef.current;
 
   if (!product?.id) {
     return (
@@ -384,6 +439,15 @@ export function AffiliatesTab() {
                   </AlertDescription>
                 </Alert>
               </div>
+
+              <Separator />
+
+              {/* Gateways para Afiliados - NOVA SEÇÃO */}
+              <AffiliateGatewaySettings
+                value={gatewaySettings}
+                onChange={handleGatewaySettingsChange}
+                disabled={saving}
+              />
 
               <Separator />
 

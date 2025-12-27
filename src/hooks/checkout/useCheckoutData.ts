@@ -64,6 +64,9 @@ interface Checkout {
   rows?: any[];
   design?: any;
   theme?: string;
+  // Gateway do afiliado (se aplicável)
+  affiliate_pix_gateway?: string | null;
+  affiliate_credit_card_gateway?: string | null;
 }
 
 interface OrderBump {
@@ -99,6 +102,12 @@ export function useCheckoutData(): UseCheckoutDataReturn {
   const [orderBumps, setOrderBumps] = useState<OrderBump[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
+
+  // Obter código de afiliado da URL
+  const getAffiliateCode = (): string | null => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('ref') || null;
+  };
 
   useEffect(() => {
     if (slug) {
@@ -242,6 +251,35 @@ export function useCheckoutData(): UseCheckoutDataReturn {
       // O backend resolve o vendor_id internamente via checkout_id/product_id
 
       // ============================================================================
+      // BUSCAR GATEWAYS DO AFILIADO (se tiver ?ref= na URL)
+      // ============================================================================
+      
+      let affiliatePixGateway: string | null = null;
+      let affiliateCreditCardGateway: string | null = null;
+      
+      const affiliateCode = getAffiliateCode();
+      if (affiliateCode) {
+        console.log('[useCheckoutData V2] Código de afiliado detectado:', affiliateCode);
+        
+        const { data: affiliateData } = await supabase
+          .from("affiliates")
+          .select("pix_gateway, credit_card_gateway, status")
+          .eq("affiliate_code", affiliateCode)
+          .eq("product_id", productId)
+          .eq("status", "active")
+          .maybeSingle();
+        
+        if (affiliateData) {
+          affiliatePixGateway = affiliateData.pix_gateway;
+          affiliateCreditCardGateway = affiliateData.credit_card_gateway;
+          console.log('[useCheckoutData V2] Gateways do afiliado:', { 
+            pix: affiliatePixGateway, 
+            card: affiliateCreditCardGateway 
+          });
+        }
+      }
+
+      // ============================================================================
       // NORMALIZAR DADOS
       // ============================================================================
       
@@ -251,6 +289,10 @@ export function useCheckoutData(): UseCheckoutDataReturn {
       const requireCpf = requiredFields?.cpf ?? false;
       const defaultMethod = (productData.default_payment_method as 'pix' | 'credit_card') ?? 'pix';
 
+      // Determinar gateways finais (afiliado sobrescreve produto se configurado)
+      const finalPixGateway = affiliatePixGateway || checkoutData.pix_gateway;
+      const finalCreditCardGateway = affiliateCreditCardGateway || checkoutData.credit_card_gateway;
+
       // Montar objeto completo do checkout
       const fullCheckout: Checkout = {
         id: checkoutData.id,
@@ -258,11 +300,14 @@ export function useCheckoutData(): UseCheckoutDataReturn {
         slug: checkoutData.slug,
         visits_count: checkoutData.visits_count,
         seller_name: checkoutData.seller_name,
-        pix_gateway: checkoutData.pix_gateway,
-        credit_card_gateway: checkoutData.credit_card_gateway,
+        pix_gateway: finalPixGateway as Checkout['pix_gateway'],
+        credit_card_gateway: finalCreditCardGateway as Checkout['credit_card_gateway'],
         // Payment keys desnormalizados (evita RLS de vendor_integrations)
         mercadopago_public_key: checkoutData.mercadopago_public_key,
         stripe_public_key: checkoutData.stripe_public_key,
+        // Gateways originais do afiliado (para referência)
+        affiliate_pix_gateway: affiliatePixGateway,
+        affiliate_credit_card_gateway: affiliateCreditCardGateway,
         product: {
           id: productData.id,
           name: productData.name,
