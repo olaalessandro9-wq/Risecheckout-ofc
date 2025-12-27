@@ -274,7 +274,8 @@ export function usePaymentOrchestrator({
           orderResult.order_id,
           orderResult.access_token,
           activeGateway as CreditCardGateway,
-          cardData
+          cardData,
+          personalDataOverride // ✅ Passa override para processCardPayment
         );
       }
     } catch (error: any) {
