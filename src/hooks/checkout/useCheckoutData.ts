@@ -263,46 +263,28 @@ export function useCheckoutData(): UseCheckoutDataReturn {
       if (affiliateCode) {
         console.log('[useCheckoutData V2] Código de afiliado detectado:', affiliateCode);
         
-        // Buscar afiliado com user_id para depois buscar public keys
-        const { data: affiliateData } = await supabase
-          .from("affiliates")
-          .select("pix_gateway, credit_card_gateway, status, user_id")
-          .eq("affiliate_code", affiliateCode)
-          .eq("product_id", productId)
-          .eq("status", "active")
-          .maybeSingle();
-        
-        if (affiliateData) {
-          affiliatePixGateway = affiliateData.pix_gateway;
-          affiliateCreditCardGateway = affiliateData.credit_card_gateway;
-          console.log('[useCheckoutData V2] Gateways do afiliado:', { 
-            pix: affiliatePixGateway, 
-            card: affiliateCreditCardGateway 
+        // Usar RPC SECURITY DEFINER para buscar info do afiliado (contorna RLS)
+        const { data: affiliateInfo, error: affiliateError } = await supabase
+          .rpc('get_affiliate_checkout_info', {
+            p_affiliate_code: affiliateCode,
+            p_product_id: productId
           });
+        
+        if (affiliateError) {
+          console.warn('[useCheckoutData V2] Erro ao buscar info do afiliado:', affiliateError.message);
+        } else if (affiliateInfo && affiliateInfo.length > 0) {
+          const info = affiliateInfo[0];
+          affiliatePixGateway = info.pix_gateway;
+          affiliateCreditCardGateway = info.credit_card_gateway;
+          affiliateMercadoPagoPublicKey = info.mercadopago_public_key;
+          affiliateStripePublicKey = info.stripe_public_key;
           
-          // Buscar public keys do afiliado se ele configurou gateway de cartão
-          if (affiliateData.user_id && (affiliateCreditCardGateway === 'mercadopago' || affiliateCreditCardGateway === 'stripe')) {
-            const { data: affiliateIntegrations } = await supabase
-              .from("vendor_integrations")
-              .select("integration_type, config")
-              .eq("vendor_id", affiliateData.user_id)
-              .in("integration_type", ["MERCADOPAGO", "STRIPE"])
-              .eq("active", true);
-            
-            if (affiliateIntegrations) {
-              for (const integration of affiliateIntegrations) {
-                const config = integration.config as { public_key?: string } | null;
-                if (integration.integration_type === 'MERCADOPAGO' && config?.public_key) {
-                  affiliateMercadoPagoPublicKey = config.public_key;
-                  console.log('[useCheckoutData V2] ✅ Public key do afiliado (MP) encontrada');
-                }
-                if (integration.integration_type === 'STRIPE' && config?.public_key) {
-                  affiliateStripePublicKey = config.public_key;
-                  console.log('[useCheckoutData V2] ✅ Public key do afiliado (Stripe) encontrada');
-                }
-              }
-            }
-          }
+          console.log('[useCheckoutData V2] ✅ Info do afiliado via RPC:', { 
+            pix: affiliatePixGateway, 
+            card: affiliateCreditCardGateway,
+            hasMpKey: !!affiliateMercadoPagoPublicKey,
+            hasStripeKey: !!affiliateStripePublicKey
+          });
         }
       }
 

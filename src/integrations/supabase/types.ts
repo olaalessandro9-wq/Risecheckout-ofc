@@ -2218,6 +2218,15 @@ export type Database = {
         Args: { p_offer_id: string }
         Returns: string
       }
+      get_affiliate_checkout_info: {
+        Args: { p_affiliate_code: string; p_product_id: string }
+        Returns: {
+          credit_card_gateway: string
+          mercadopago_public_key: string
+          pix_gateway: string
+          stripe_public_key: string
+        }[]
+      }
       get_checkout_by_payment_slug: {
         Args: { p_slug: string }
         Returns: {
