@@ -17,6 +17,17 @@ import type {
 } from "./types";
 import type { PaymentMethod } from "@/types/checkout";
 
+/**
+ * Override de dados pessoais para blindar contra state desatualizado.
+ * Quando fornecido, esses dados têm PRIORIDADE TOTAL sobre config.formData.
+ */
+export interface PersonalDataOverride {
+  name: string;
+  email: string;
+  cpf?: string;
+  phone?: string;
+}
+
 interface UseOrderCreationProps {
   config: PaymentConfig;
 }
@@ -27,7 +38,8 @@ interface UseOrderCreationReturn {
     gateway: string,
     selectedBumps: Set<string>,
     orderBumps: any[],
-    appliedCoupon: AppliedCoupon | null
+    appliedCoupon: AppliedCoupon | null,
+    personalDataOverride?: PersonalDataOverride
   ) => Promise<CreateOrderResult>;
   isCreating: boolean;
   error: string | null;
@@ -42,7 +54,8 @@ export function useOrderCreation({ config }: UseOrderCreationProps): UseOrderCre
     gateway: string,
     selectedBumps: Set<string>,
     orderBumps: any[],
-    appliedCoupon: AppliedCoupon | null
+    appliedCoupon: AppliedCoupon | null,
+    personalDataOverride?: PersonalDataOverride
   ): Promise<CreateOrderResult> => {
     setIsCreating(true);
     setError(null);
@@ -53,21 +66,30 @@ export function useOrderCreation({ config }: UseOrderCreationProps): UseOrderCre
         .filter(b => selectedBumps.has(b.id))
         .map(b => b.id);
 
+      // ✅ FIX CRÍTICO: Override tem PRIORIDADE TOTAL sobre config.formData
+      // Isso garante que os dados do DOM snapshot sejam usados, não o state stale
+      const customerName = personalDataOverride?.name || config.formData.name;
+      const customerEmail = personalDataOverride?.email || config.formData.email;
+      const customerPhone = personalDataOverride?.phone || config.formData.phone;
+      const customerCpf = personalDataOverride?.cpf || config.formData.cpf || config.formData.document;
+
       console.log("[useOrderCreation] Criando pedido...", {
         gateway,
         paymentMethod,
         bumpsCount: orderBumpIds.length,
-        hasCoupon: !!appliedCoupon
+        hasCoupon: !!appliedCoupon,
+        usingOverride: !!personalDataOverride,
+        customerEmail, // Log para debug
       });
 
       const payload: CreateOrderPayload = {
         product_id: config.productId,
         offer_id: config.offerId || config.productId,
         checkout_id: config.checkoutId,
-        customer_name: config.formData.name,
-        customer_email: config.formData.email,
-        customer_phone: config.formData.phone || null,
-        customer_cpf: (config.formData.cpf || config.formData.document)?.replace(/\D/g, '') || null,
+        customer_name: customerName,
+        customer_email: customerEmail,
+        customer_phone: customerPhone || null,
+        customer_cpf: customerCpf?.replace(/\D/g, '') || null,
         order_bump_ids: orderBumpIds,
         gateway: gateway.toUpperCase(),
         payment_method: paymentMethod,

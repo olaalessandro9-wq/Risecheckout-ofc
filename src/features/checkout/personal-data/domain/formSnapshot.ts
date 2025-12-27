@@ -64,21 +64,29 @@ export function readAllFieldsFromDOM(): PersonalData {
 
 /**
  * Mescla dados do estado React com snapshot do DOM.
- * Prioriza valores do DOM quando o estado está vazio mas o DOM tem valor.
  * 
- * @param stateData - Dados do estado React (useFormManager)
- * @param domData - Dados lidos do DOM
+ * ✅ FIX CRÍTICO: PRIORIZA DOM SOBRE STATE
+ * O DOM é a fonte de verdade no momento do submit, pois reflete
+ * o que o usuário efetivamente digitou ou o autofill preencheu.
+ * O state pode estar desatualizado (stale) devido a:
+ * - Autofill que não dispara onChange
+ * - Atualizações assíncronas do React
+ * - Dados antigos do localStorage
+ * 
+ * @param stateData - Dados do estado React (useFormManager) - FALLBACK
+ * @param domData - Dados lidos do DOM - PRIORIDADE
  * @returns PersonalData mesclado
  */
 export function mergeWithDOMSnapshot(
   stateData: Partial<PersonalData>,
   domData: PersonalData
 ): PersonalData {
+  // ✅ DOM tem prioridade sobre state (domValue || stateValue)
   return {
-    name: (stateData.name?.trim() || domData.name?.trim()) || '',
-    email: (stateData.email?.trim() || domData.email?.trim()) || '',
-    cpf: (stateData.cpf?.trim() || domData.cpf?.trim()) || '',
-    phone: (stateData.phone?.trim() || domData.phone?.trim()) || '',
+    name: (domData.name?.trim() || stateData.name?.trim()) || '',
+    email: (domData.email?.trim() || stateData.email?.trim()) || '',
+    cpf: (domData.cpf?.trim() || stateData.cpf?.trim()) || '',
+    phone: (domData.phone?.trim() || stateData.phone?.trim()) || '',
   };
 }
 

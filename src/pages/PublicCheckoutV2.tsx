@@ -115,6 +115,7 @@ const PublicCheckoutV2: React.FC = () => {
     validateForm,
     setProcessing,
   } = useFormManager({
+    checkoutId: checkout?.id || null, // ✅ FIX: Isola localStorage por checkout
     requiredFields: requiredFieldsArray,
     orderBumps: orderBumps || [],
     productPrice: checkout?.product?.price || 0, // Já está em centavos
@@ -170,14 +171,17 @@ const PublicCheckoutV2: React.FC = () => {
   // Memoizar amount para evitar recálculos em cada render
   const memoizedAmount = React.useMemo(() => calculateTotal(), [calculateTotal]);
 
-  const handleSubmit = React.useCallback(async (e: React.FormEvent) => {
+  const handleSubmit = React.useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // ✅ FIX AUTOFILL: Lê dados do DOM via fallback (readAllFieldsFromDOM)
-    const snapshot = getSubmitSnapshot(null, formData);
+    // ✅ FIX CRÍTICO: Usa o form real do evento para snapshot
+    const formElement = e.currentTarget;
+    const snapshot = getSubmitSnapshot(formElement, formData);
     
-    // Sincroniza estado com snapshot (para garantir consistência)
-    updateMultipleFields(snapshot);
+    console.log("[PublicCheckoutV2] Snapshot capturado:", {
+      name: snapshot.name,
+      email: snapshot.email,
+    });
 
     // Valida usando snapshot (não apenas state)
     const validation = validateForm(snapshot);
@@ -192,14 +196,15 @@ const PublicCheckoutV2: React.FC = () => {
       fireInitiateCheckout(selectedBumps, orderBumps || []);
 
       if (selectedPayment === 'pix') {
-        await submitPayment();
+        // ✅ Passa snapshot como override para garantir dados corretos
+        await submitPayment(undefined, undefined, undefined, undefined, undefined, snapshot);
       }
     } catch (error) {
       console.error("[PublicCheckoutV2] Erro ao processar pagamento:", error);
     } finally {
       setProcessing(false);
     }
-  }, [formData, validateForm, updateMultipleFields, setProcessing, fireInitiateCheckout, selectedBumps, orderBumps, selectedPayment, submitPayment]);
+  }, [formData, validateForm, setProcessing, fireInitiateCheckout, selectedBumps, orderBumps, selectedPayment, submitPayment]);
 
   // Handler específico para o CustomCardForm - MEMOIZADO
   const handleCardSubmit = React.useCallback(async (
@@ -209,9 +214,13 @@ const PublicCheckoutV2: React.FC = () => {
     issuerId: string,
     holderDocument?: string
   ) => {
-    // ✅ FIX AUTOFILL: Lê dados do DOM via fallback (readAllFieldsFromDOM)
+    // ✅ FIX CRÍTICO: Lê do DOM diretamente (sem usar formElement pois não é submit de form)
     const snapshot = getSubmitSnapshot(null, formData);
-    updateMultipleFields(snapshot);
+    
+    console.log("[PublicCheckoutV2] Card snapshot capturado:", {
+      name: snapshot.name,
+      email: snapshot.email,
+    });
 
     const validation = validateForm(snapshot);
     if (!validation.isValid) {
@@ -222,13 +231,14 @@ const PublicCheckoutV2: React.FC = () => {
     setProcessing(true);
     try {
       fireInitiateCheckout(selectedBumps, orderBumps || []);
-      await submitPayment(token, installments, paymentMethodId, issuerId, holderDocument);
+      // ✅ Passa snapshot como override para garantir dados corretos
+      await submitPayment(token, installments, paymentMethodId, issuerId, holderDocument, snapshot);
     } catch (error) {
       console.error("[PublicCheckoutV2] Erro ao processar cartão:", error);
     } finally {
       setProcessing(false);
     }
-  }, [formData, validateForm, updateMultipleFields, setProcessing, fireInitiateCheckout, selectedBumps, orderBumps, submitPayment]);
+  }, [formData, validateForm, setProcessing, fireInitiateCheckout, selectedBumps, orderBumps, submitPayment]);
 
   // ============================================================================
   // 4. RENDERIZAÇÃO CONDICIONAL (LOADING/ERROR)
