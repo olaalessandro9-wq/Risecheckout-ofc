@@ -5,6 +5,7 @@
  * Menu de ações: Cancelar Afiliação (apenas para status active)
  */
 
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -24,6 +25,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { MoreVertical, XCircle } from "lucide-react";
 import type { Affiliation } from "@/hooks/useAffiliations";
 
@@ -37,6 +48,7 @@ const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondar
   pending: { label: "Analisando", variant: "secondary" },
   blocked: { label: "Bloqueado", variant: "destructive" },
   rejected: { label: "Bloqueado", variant: "destructive" },
+  cancelled: { label: "Cancelado", variant: "destructive" },
   inactive: { label: "Inativo", variant: "outline" },
 };
 
@@ -46,14 +58,25 @@ function formatDate(dateString: string): string {
 
 export function AffiliationsTable({ affiliations, onCancelAffiliation }: AffiliationsTableProps) {
   const navigate = useNavigate();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingCancelId, setPendingCancelId] = useState<string | null>(null);
 
   const handleRowClick = (id: string) => {
     navigate(`/dashboard/minhas-afiliacoes/${id}`);
   };
 
-  const handleCancel = async (e: React.MouseEvent, id: string) => {
+  const openConfirmModal = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    await onCancelAffiliation(id);
+    setPendingCancelId(id);
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmCancel = async () => {
+    if (pendingCancelId) {
+      await onCancelAffiliation(pendingCancelId);
+      setPendingCancelId(null);
+    }
+    setConfirmOpen(false);
   };
 
   if (affiliations.length === 0) {
@@ -111,13 +134,13 @@ export function AffiliationsTable({ affiliations, onCancelAffiliation }: Affilia
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        className="text-destructive focus:text-destructive"
-                        onClick={(e) => handleCancel(e, item.id)}
-                      >
-                        <XCircle className="h-4 w-4 mr-2" />
-                        Cancelar Afiliação
-                      </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={(e) => openConfirmModal(e, item.id)}
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Cancelar Afiliação
+                        </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
@@ -126,6 +149,27 @@ export function AffiliationsTable({ affiliations, onCancelAffiliation }: Affilia
           );
         })}
       </TableBody>
+
+      {/* Modal de Confirmação */}
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmação</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja remover esta afiliação?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              onClick={handleConfirmCancel}
+            >
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Table>
   );
 }

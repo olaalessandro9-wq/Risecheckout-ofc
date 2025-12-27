@@ -1,4 +1,4 @@
-import { Copy, ExternalLink, AlertCircle } from "lucide-react";
+import { Copy, ExternalLink, AlertCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -24,7 +24,8 @@ const formatCurrency = (value: number) => {
 };
 
 export function OffersTab({ affiliation }: OffersTabProps) {
-  const { offers, checkouts, affiliate_code, commission_rate } = affiliation;
+  const { offers, checkouts, affiliate_code, commission_rate, status } = affiliation;
+  const isCancelled = status === "cancelled";
 
   const getAffiliateLink = (paymentLinkSlug: string | null) => {
     if (!paymentLinkSlug) return null;
@@ -57,9 +58,19 @@ export function OffersTab({ affiliation }: OffersTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Link Principal */}
-      {defaultCheckout?.payment_link_slug && (
-        <div className="bg-card border rounded-lg p-4">
+      {/* Link Principal ou Mensagem de Cancelamento */}
+      <div className="bg-card border rounded-lg p-4">
+        {isCancelled ? (
+          <div className="flex items-center gap-3">
+            <XCircle className="h-5 w-5 text-destructive" />
+            <div>
+              <h3 className="font-semibold text-destructive">Afiliação Cancelada</h3>
+              <p className="text-sm text-muted-foreground">
+                Você não pode mais promover este produto.
+              </p>
+            </div>
+          </div>
+        ) : defaultCheckout?.payment_link_slug ? (
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-semibold">Seu Link de Afiliado</h3>
@@ -88,8 +99,10 @@ export function OffersTab({ affiliation }: OffersTabProps) {
               </Button>
             </div>
           </div>
-        </div>
-      )}
+        ) : (
+          <p className="text-muted-foreground text-sm">Nenhum link disponível</p>
+        )}
+      </div>
 
       {/* Tabela de Ofertas */}
       <div className="bg-card border rounded-lg">
@@ -146,7 +159,7 @@ export function OffersTab({ affiliation }: OffersTabProps) {
                       size="sm"
                       className="gap-2"
                       onClick={() => copyLink(link)}
-                      disabled={!link}
+                      disabled={!link || isCancelled}
                     >
                       <Copy className="h-4 w-4" />
                       Copiar Link
