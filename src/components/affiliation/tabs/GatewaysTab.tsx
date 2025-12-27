@@ -17,23 +17,11 @@ import { supabase } from "@/integrations/supabase/client";
 import type { AffiliationDetails } from "@/hooks/useAffiliationDetails";
 
 // Definições de gateways
-const GATEWAY_INFO: Record<string, { name: string; description: string }> = {
-  asaas: { 
-    name: "Asaas", 
-    description: "Split automático para afiliados"
-  },
-  mercadopago: { 
-    name: "Mercado Pago", 
-    description: "Gateway popular no Brasil"
-  },
-  pushinpay: { 
-    name: "PushinPay", 
-    description: "Gateway especializado em PIX"
-  },
-  stripe: { 
-    name: "Stripe", 
-    description: "Padrão internacional"
-  },
+const GATEWAY_INFO: Record<string, { name: string }> = {
+  asaas: { name: "Asaas" },
+  mercadopago: { name: "Mercado Pago" },
+  pushinpay: { name: "PushinPay" },
+  stripe: { name: "Stripe" },
 };
 
 interface GatewaysTabProps {
@@ -49,7 +37,7 @@ interface AffiliateGatewaySettings {
 interface GatewayConnection {
   id: string;
   connected: boolean;
-  info: { name: string; description: string };
+  info: { name: string };
 }
 
 export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
@@ -234,25 +222,22 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
           key={gatewayId}
           className={`flex items-center justify-between rounded-lg border p-4 ${
             isConnected 
-              ? "bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800" 
-              : "bg-muted/30 border-border"
+              ? "bg-green-100/80 border-green-300 dark:bg-green-900/40 dark:border-green-600" 
+              : "bg-muted/50 border-border"
           }`}
         >
           <div className="flex items-center gap-3">
             <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-muted-foreground/40"}`} />
-            <div>
-              <p className="font-medium text-sm">{info.name}</p>
-              <p className="text-xs text-muted-foreground">{info.description}</p>
-            </div>
+            <p className="font-medium text-sm text-foreground">{info.name}</p>
           </div>
           
           {isConnected ? (
-            <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300 dark:bg-green-950 dark:text-green-400 dark:border-green-700">
+            <Badge variant="outline" className="bg-green-200 text-green-800 border-green-400 dark:bg-green-800/60 dark:text-green-200 dark:border-green-500">
               <CheckCircle2 className="h-3 w-3 mr-1" />
               Conectado
             </Badge>
           ) : (
-            <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-700">
+            <Badge variant="outline" className="bg-amber-200 text-amber-800 border-amber-400 dark:bg-amber-800/60 dark:text-amber-200 dark:border-amber-500">
               <AlertCircle className="h-3 w-3 mr-1" />
               Não conectado
             </Badge>
@@ -266,16 +251,16 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
     <div className="space-y-6">
       {/* Status geral */}
       {isFullyConfigured ? (
-        <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/20">
-          <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-          <AlertDescription className="text-green-700 dark:text-green-300">
+        <Alert className="border-green-300 bg-green-100/80 dark:border-green-600 dark:bg-green-900/40">
+          <CheckCircle2 className="h-4 w-4 text-green-700 dark:text-green-300" />
+          <AlertDescription className="text-green-800 dark:text-green-200">
             Todos os gateways necessários estão conectados. Você está pronto para vender!
           </AlertDescription>
         </Alert>
       ) : (
-        <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20">
-          <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-          <AlertDescription className="text-amber-700 dark:text-amber-300">
+        <Alert className="border-amber-300 bg-amber-100/80 dark:border-amber-600 dark:bg-amber-900/40">
+          <AlertCircle className="h-4 w-4 text-amber-700 dark:text-amber-300" />
+          <AlertDescription className="text-amber-800 dark:text-amber-200">
             Você precisa conectar os gateways em <strong>Financeiro</strong> para poder vender como afiliado.
           </AlertDescription>
         </Alert>
@@ -291,7 +276,7 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
                 <CardTitle className="text-base">Gateways PIX Permitidos</CardTitle>
               </div>
               {hasConnectedPixGateway && (
-                <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300 dark:bg-green-950 dark:text-green-400">
+                <Badge variant="outline" className="bg-green-200 text-green-800 border-green-400 dark:bg-green-800/60 dark:text-green-200 dark:border-green-500">
                   <CheckCircle2 className="h-3 w-3 mr-1" />
                   OK
                 </Badge>
@@ -317,7 +302,7 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
                 <CardTitle className="text-base">Gateways de Cartão Permitidos</CardTitle>
               </div>
               {hasConnectedCardGateway && (
-                <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300 dark:bg-green-950 dark:text-green-400">
+                <Badge variant="outline" className="bg-green-200 text-green-800 border-green-400 dark:bg-green-800/60 dark:text-green-200 dark:border-green-500">
                   <CheckCircle2 className="h-3 w-3 mr-1" />
                   OK
                 </Badge>
