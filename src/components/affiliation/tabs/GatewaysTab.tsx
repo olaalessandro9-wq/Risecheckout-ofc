@@ -222,22 +222,22 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
           key={gatewayId}
           className={`flex items-center justify-between rounded-lg border p-4 ${
             isConnected 
-              ? "bg-green-100/80 border-green-300 dark:bg-green-900/40 dark:border-green-600" 
+              ? "bg-success/10 border-success/30" 
               : "bg-muted/50 border-border"
           }`}
         >
           <div className="flex items-center gap-3">
-            <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-muted-foreground/40"}`} />
+            <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-success" : "bg-muted-foreground/40"}`} />
             <p className="font-medium text-sm text-foreground">{info.name}</p>
           </div>
           
           {isConnected ? (
-            <Badge variant="outline" className="bg-green-200 text-green-800 border-green-400 dark:bg-green-800/60 dark:text-green-200 dark:border-green-500">
+            <Badge variant="outline" className="bg-success/20 text-success-foreground border-success/40">
               <CheckCircle2 className="h-3 w-3 mr-1" />
               Conectado
             </Badge>
           ) : (
-            <Badge variant="outline" className="bg-amber-200 text-amber-800 border-amber-400 dark:bg-amber-800/60 dark:text-amber-200 dark:border-amber-500">
+            <Badge variant="outline" className="bg-warning/20 text-warning-foreground border-warning/40">
               <AlertCircle className="h-3 w-3 mr-1" />
               Não conectado
             </Badge>
@@ -251,16 +251,16 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
     <div className="space-y-6">
       {/* Status geral */}
       {isFullyConfigured ? (
-        <Alert className="border-green-300 bg-green-100/80 dark:border-green-600 dark:bg-green-900/40">
-          <CheckCircle2 className="h-4 w-4 text-green-700 dark:text-green-300" />
-          <AlertDescription className="text-green-800 dark:text-green-200">
+        <Alert className="border-success/30 bg-success/10">
+          <CheckCircle2 className="h-4 w-4 text-success" />
+          <AlertDescription className="text-success-foreground">
             Todos os gateways necessários estão conectados. Você está pronto para vender!
           </AlertDescription>
         </Alert>
       ) : (
-        <Alert className="border-amber-300 bg-amber-100/80 dark:border-amber-600 dark:bg-amber-900/40">
-          <AlertCircle className="h-4 w-4 text-amber-700 dark:text-amber-300" />
-          <AlertDescription className="text-amber-800 dark:text-amber-200">
+        <Alert className="border-warning/30 bg-warning/10">
+          <AlertCircle className="h-4 w-4 text-warning" />
+          <AlertDescription className="text-warning-foreground">
             Você precisa conectar os gateways em <strong>Financeiro</strong> para poder vender como afiliado.
           </AlertDescription>
         </Alert>
@@ -276,7 +276,7 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
                 <CardTitle className="text-base">Gateways PIX Permitidos</CardTitle>
               </div>
               {hasConnectedPixGateway && (
-                <Badge variant="outline" className="bg-green-200 text-green-800 border-green-400 dark:bg-green-800/60 dark:text-green-200 dark:border-green-500">
+                <Badge variant="outline" className="bg-success/20 text-success-foreground border-success/40">
                   <CheckCircle2 className="h-3 w-3 mr-1" />
                   OK
                 </Badge>
@@ -302,7 +302,7 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
                 <CardTitle className="text-base">Gateways de Cartão Permitidos</CardTitle>
               </div>
               {hasConnectedCardGateway && (
-                <Badge variant="outline" className="bg-green-200 text-green-800 border-green-400 dark:bg-green-800/60 dark:text-green-200 dark:border-green-500">
+                <Badge variant="outline" className="bg-success/20 text-success-foreground border-success/40">
                   <CheckCircle2 className="h-3 w-3 mr-1" />
                   OK
                 </Badge>
@@ -336,12 +336,12 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
       <div className="text-center text-xs text-muted-foreground pt-2">
         {syncStatus === "synced" && (
           <span className="flex items-center justify-center gap-1">
-            <CheckCircle2 className="h-3 w-3 text-green-500" />
+            <CheckCircle2 className="h-3 w-3 text-success" />
             Gateways sincronizados automaticamente
           </span>
         )}
         {syncStatus === "error" && (
-          <span className="flex items-center justify-center gap-1 text-amber-600">
+          <span className="flex items-center justify-center gap-1 text-warning">
             <AlertCircle className="h-3 w-3" />
             Erro ao sincronizar - tente recarregar a página
           </span>

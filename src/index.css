@@ -65,8 +65,12 @@
 
     --success: 142 76% 36%;
     /* Cor de sucesso (verde) */
+    --success-foreground: 142 76% 20%;
+    /* Texto em sucesso (verde escuro) */
     --warning: 38 92% 50%;
     /* Cor de aviso (amarelo) */
+    --warning-foreground: 38 92% 28%;
+    /* Texto em aviso (amarelo escuro) */
     --info: 221 83% 53%;
     /* Cor de informação (azul) */
 
@@ -164,8 +168,10 @@
     /* Vermelho Sóbrio */
     --destructive-foreground: 0 0% 98%;
 
-    --success: 142 70% 29%;
-    --warning: 45 93% 47%;
+    --success: 142 70% 45%;
+    --success-foreground: 142 70% 85%;
+    --warning: 45 93% 55%;
+    --warning-foreground: 45 93% 85%;
     --info: 217 91% 60%;
 
     /* === BORDAS E INPUTS === */
