@@ -198,7 +198,7 @@ serve(async (req) => {
         .update({
           status: initialStatus,
           affiliate_code: affiliateCode,
-          commission_rate: defaultRate,
+          commission_rate: null, // NULL = herda dinamicamente do produto
           updated_at: new Date().toISOString(),
         })
         .eq("id", existingAffiliation.id)
@@ -216,7 +216,7 @@ serve(async (req) => {
           user_id: user.id,
           status: initialStatus,
           affiliate_code: affiliateCode,
-          commission_rate: defaultRate,
+          commission_rate: null, // NULL = herda dinamicamente do produto
         })
         .select()
         .single();
