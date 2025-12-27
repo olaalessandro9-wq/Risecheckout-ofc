@@ -3,7 +3,7 @@
  * Módulo: src/integrations/gateways/pushinpay
  * 
  * Componente para configurar credenciais da PushinPay no painel administrativo.
- * Permite salvar/atualizar token e selecionar ambiente (sandbox/production).
+ * Permite salvar/atualizar token, ID da conta e selecionar ambiente (sandbox/production).
  * 
  * Extraído de: src/pages/Financeiro.tsx
  */
@@ -24,6 +24,7 @@ export function ConfigForm() {
 
   // Estados
   const [apiToken, setApiToken] = useState("");
+  const [accountId, setAccountId] = useState("");
   const [showToken, setShowToken] = useState(false);
   const [hasExistingToken, setHasExistingToken] = useState(false);
   const [environment, setEnvironment] = useState<PushinPayEnvironment>("production");
@@ -70,6 +71,8 @@ export function ConfigForm() {
         } else {
           setApiToken(settings.pushinpay_token ?? "");
         }
+        // Carregar account_id existente
+        setAccountId(settings.pushinpay_account_id ?? "");
         // Se não for admin, forçar produção
         const configEnv = settings.environment ?? "production";
         setEnvironment(isAdmin ? configEnv : "production");
@@ -91,26 +94,38 @@ export function ConfigForm() {
       return;
     }
 
-    // Validação: se tem token existente e campo vazio
-    if (hasExistingToken && !apiToken.trim()) {
-      setMessage({ type: "error", text: "Para atualizar, informe um novo token ou mantenha o atual" });
-      return;
+    // Validação: se tem token existente e campo vazio, só salva account_id
+    const tokenToSave = apiToken.trim() || (hasExistingToken ? undefined : "");
+    
+    // Validação do account_id (opcional, mas recomendado para splits)
+    if (!accountId.trim() && hasExistingToken) {
+      // Apenas warning, não bloqueia
+      console.warn("[PushinPay] Account ID não configurado - splits podem não funcionar");
     }
 
     setLoading(true);
     setMessage(null);
 
     try {
-      const result = await savePushinPaySettings({
-        pushinpay_token: apiToken,
+      const settingsToSave: any = {
         environment,
-      });
+        pushinpay_account_id: accountId.trim() || null,
+      };
+      
+      // Só inclui token se foi fornecido um novo
+      if (tokenToSave) {
+        settingsToSave.pushinpay_token = tokenToSave;
+      }
+
+      const result = await savePushinPaySettings(settingsToSave);
 
       if (result.ok) {
         setMessage({ type: "success", text: "Integração PushinPay salva com sucesso!" });
         toast.success("Integração PushinPay salva com sucesso!");
-        setHasExistingToken(true);
-        setApiToken("");
+        if (tokenToSave) {
+          setHasExistingToken(true);
+          setApiToken("");
+        }
         setIsUpdateSectionOpen(false);
       } else {
         setMessage({ type: "error", text: `Erro ao salvar: ${result.error}` });
@@ -137,7 +152,7 @@ export function ConfigForm() {
     <div className="space-y-6 mt-6">
       {/* Descrição */}
       <p className="text-sm leading-relaxed" style={{ color: 'var(--subtext)' }}>
-        Conecte sua conta PushinPay informando o <strong>API Token</strong>.
+        Conecte sua conta PushinPay informando o <strong>API Token</strong> e o <strong>ID da Conta</strong> (para receber splits).
         {isAdmin && (
           <> Você pode solicitar acesso ao <em>Sandbox</em> direto no suporte deles.</>
         )}
@@ -156,11 +171,36 @@ export function ConfigForm() {
               </h4>
               <p className="text-sm leading-relaxed" style={{ color: 'var(--subtext)' }}>
                 Seu checkout está conectado e processando pagamentos PIX via PushinPay.
+                {accountId && (
+                  <span className="block mt-1 text-xs opacity-70">
+                    ID da Conta: {accountId.substring(0, 8)}...
+                  </span>
+                )}
               </p>
             </div>
           </div>
         </div>
       )}
+
+      {/* Campo: ID da Conta (sempre visível) */}
+      <div className="space-y-3">
+        <label className="block text-sm font-semibold" style={{ color: 'var(--text)' }}>
+          ID da Conta <span className="text-xs font-normal opacity-60">(para receber splits)</span>
+        </label>
+        <input
+          type="text"
+          value={accountId}
+          onChange={(e) => setAccountId(e.target.value)}
+          className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Ex: A0557404-1578-4F50-8AE7-..."
+        />
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+          <Info className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
+          <p className="text-xs leading-relaxed" style={{ color: 'var(--subtext)' }}>
+            O ID da Conta é necessário para receber pagamentos como afiliado (split). Você encontra esse ID no painel da PushinPay.
+          </p>
+        </div>
+      </div>
 
       {/* Formulário: Atualizar Token (Collapsible) ou Novo Token */}
       {hasExistingToken ? (
@@ -293,7 +333,7 @@ export function ConfigForm() {
             </p>
             {message.type === "success" && (
               <p className="text-xs" style={{ color: 'var(--subtext)' }}>
-                Token atualizado às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                Configurações salvas às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
               </p>
             )}
           </div>

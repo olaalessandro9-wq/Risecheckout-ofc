@@ -16,6 +16,7 @@ export type PushinPayEnvironment = "sandbox" | "production";
  */
 export interface PushinPaySettings {
   pushinpay_token: string;
+  pushinpay_account_id?: string;
   environment: PushinPayEnvironment;
 }
 
