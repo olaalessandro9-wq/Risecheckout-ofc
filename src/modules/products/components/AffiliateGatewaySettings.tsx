@@ -79,11 +79,7 @@ export function AffiliateGatewaySettings({
     onChange(newSettings);
   };
 
-  const handleRequireConnectionToggle = (checked: boolean) => {
-    const newSettings = { ...settings, require_gateway_connection: checked };
-    setSettings(newSettings);
-    onChange(newSettings);
-  };
+  // require_gateway_connection é SEMPRE true (regra de negócio obrigatória)
 
   return (
     <div className="space-y-6">
@@ -176,23 +172,6 @@ export function AffiliateGatewaySettings({
         </Alert>
       </div>
 
-      {/* Require Connection Toggle */}
-      <div className="flex items-center justify-between rounded-md border p-4 bg-card">
-        <div className="space-y-0.5">
-          <Label htmlFor="require-connection" className="text-sm font-medium">
-            Exigir conexão de gateway
-          </Label>
-          <p className="text-xs text-muted-foreground">
-            Afiliados precisam conectar pelo menos um gateway antes de vender
-          </p>
-        </div>
-        <Switch
-          id="require-connection"
-          checked={settings.require_gateway_connection}
-          onCheckedChange={handleRequireConnectionToggle}
-          disabled={disabled}
-        />
-      </div>
 
       {/* Validation warnings */}
       {settings.pix_allowed.length === 0 && settings.credit_card_allowed.length === 0 && (

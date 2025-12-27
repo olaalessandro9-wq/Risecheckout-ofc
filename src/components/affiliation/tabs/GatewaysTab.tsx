@@ -358,16 +358,14 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
         </Card>
       )}
 
-      {/* Info about requirement */}
-      {affiliateGatewaySettings?.require_gateway_connection && (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            O produtor exige que você conecte os gateways antes de poder vender. 
-            Acesse <strong>Financeiro</strong> para conectar suas contas.
-          </AlertDescription>
-        </Alert>
-      )}
+      {/* Info about requirement - sempre obrigatório */}
+      <Alert>
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          É obrigatório conectar um gateway PIX e um de Cartão para vender como afiliado.
+          Acesse <strong>Financeiro</strong> para conectar suas contas.
+        </AlertDescription>
+      </Alert>
 
       {/* Save Button */}
       <div className="flex justify-end">
