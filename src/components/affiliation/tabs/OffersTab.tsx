@@ -141,7 +141,7 @@ export function OffersTab({ affiliation }: OffersTabProps) {
                   </TableCell>
                   <TableCell>{formatCurrency(offer.price)}</TableCell>
                   <TableCell>
-                    <span className="text-green-600 font-semibold">
+                    <span className="text-success-foreground font-semibold">
                       {formatCurrency(commission)}
                     </span>
                     <span className="text-muted-foreground text-xs ml-1">
