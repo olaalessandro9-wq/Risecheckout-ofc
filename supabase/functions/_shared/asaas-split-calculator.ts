@@ -77,13 +77,33 @@ export async function calculateMarketplaceSplitData(
     
     const { data: affiliateData } = await supabase
       .from('affiliates')
-      .select('user_id, commission_rate')
+      .select('user_id, commission_rate, product_id')
       .eq('id', orderData.affiliate_id)
       .single();
     
     if (affiliateData) {
       result.affiliateUserId = affiliateData.user_id;
-      result.affiliateCommissionPercent = affiliateData.commission_rate || 0;
+      
+      // ========================================
+      // FIX: Se commission_rate é null, usar defaultRate do produto
+      // ========================================
+      let commissionRate = affiliateData.commission_rate;
+      
+      if (commissionRate === null || commissionRate === undefined) {
+        // Buscar defaultRate das configurações do produto
+        const { data: productData } = await supabase
+          .from('products')
+          .select('affiliate_settings')
+          .eq('id', affiliateData.product_id)
+          .single();
+        
+        const defaultRate = productData?.affiliate_settings?.defaultRate;
+        commissionRate = defaultRate ?? 0;
+        
+        console.log('[split-calculator] commission_rate NULL, usando defaultRate do produto:', commissionRate);
+      }
+      
+      result.affiliateCommissionPercent = commissionRate;
       
       // Wallet do afiliado: buscar em profiles (fonte única de verdade)
       if (affiliateData.user_id) {
