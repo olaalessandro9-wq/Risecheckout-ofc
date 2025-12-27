@@ -3,17 +3,16 @@
  * Módulo: src/integrations/gateways/pushinpay
  * 
  * Componente para configurar credenciais da PushinPay no painel administrativo.
- * Permite salvar/atualizar token, ID da conta e selecionar ambiente (sandbox/production).
- * 
- * Extraído de: src/pages/Financeiro.tsx
+ * Permite salvar/atualizar token e selecionar ambiente (sandbox/production).
+ * O Account ID é obtido automaticamente via API ao validar o token.
  */
 
 import { useState, useEffect } from "react";
-import { Loader2, CheckCircle2, AlertCircle, ChevronDown, Eye, EyeOff, Info } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, ChevronDown, Eye, EyeOff, Info, User } from "lucide-react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { toast } from "@/components/ui/sonner";
-import { savePushinPaySettings, getPushinPaySettings } from "../api";
-import type { PushinPayEnvironment } from "../types";
+import { savePushinPaySettings, getPushinPaySettings, fetchPushinPayAccountInfo } from "../api";
+import type { PushinPayEnvironment, PushinPayAccountInfo } from "../types";
 import { usePermissions } from "@/hooks/usePermissions";
 
 export function ConfigForm() {
@@ -24,13 +23,15 @@ export function ConfigForm() {
 
   // Estados
   const [apiToken, setApiToken] = useState("");
-  const [accountId, setAccountId] = useState("");
+  const [accountInfo, setAccountInfo] = useState<PushinPayAccountInfo | null>(null);
   const [showToken, setShowToken] = useState(false);
   const [hasExistingToken, setHasExistingToken] = useState(false);
+  const [existingAccountId, setExistingAccountId] = useState<string | null>(null);
   const [environment, setEnvironment] = useState<PushinPayEnvironment>("production");
   const [loading, setLoading] = useState(false);
+  const [validatingToken, setValidatingToken] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
   const [isUpdateSectionOpen, setIsUpdateSectionOpen] = useState(false);
 
   // Carregar configuração existente ao montar
@@ -71,8 +72,8 @@ export function ConfigForm() {
         } else {
           setApiToken(settings.pushinpay_token ?? "");
         }
-        // Carregar account_id existente
-        setAccountId(settings.pushinpay_account_id ?? "");
+        // Guardar account_id existente
+        setExistingAccountId(settings.pushinpay_account_id ?? null);
         // Se não for admin, forçar produção
         const configEnv = settings.environment ?? "production";
         setEnvironment(isAdmin ? configEnv : "production");
@@ -86,6 +87,7 @@ export function ConfigForm() {
 
   /**
    * Salva ou atualiza as configurações da PushinPay
+   * Auto-fetch do Account ID ao validar token
    */
   const onSave = async () => {
     // Validação: se não existe token e campo está vazio
@@ -94,22 +96,39 @@ export function ConfigForm() {
       return;
     }
 
-    // Validação: se tem token existente e campo vazio, só salva account_id
-    const tokenToSave = apiToken.trim() || (hasExistingToken ? undefined : "");
-    
-    // Validação do account_id (opcional, mas recomendado para splits)
-    if (!accountId.trim() && hasExistingToken) {
-      // Apenas warning, não bloqueia
-      console.warn("[PushinPay] Account ID não configurado - splits podem não funcionar");
-    }
+    const tokenToSave = apiToken.trim() || null;
 
     setLoading(true);
     setMessage(null);
+    setAccountInfo(null);
 
     try {
+      let accountIdToSave = existingAccountId;
+
+      // Se tem novo token, validar e buscar account_id automaticamente
+      if (tokenToSave) {
+        setValidatingToken(true);
+        setMessage({ type: "info", text: "Verificando token com a PushinPay..." });
+        
+        const fetchedAccountInfo = await fetchPushinPayAccountInfo(tokenToSave, environment);
+        setValidatingToken(false);
+        
+        if (!fetchedAccountInfo) {
+          setMessage({ type: "error", text: "Token inválido ou sem permissão. Verifique se o token está correto e se possui acesso à API." });
+          setLoading(false);
+          return;
+        }
+        
+        // Usar account_id retornado pela API
+        accountIdToSave = fetchedAccountInfo.id;
+        setAccountInfo(fetchedAccountInfo);
+        
+        console.log("[PushinPay] Conta validada:", fetchedAccountInfo.name, "ID:", fetchedAccountInfo.id);
+      }
+
       const settingsToSave: any = {
         environment,
-        pushinpay_account_id: accountId.trim() || null,
+        pushinpay_account_id: accountIdToSave,
       };
       
       // Só inclui token se foi fornecido um novo
@@ -120,11 +139,15 @@ export function ConfigForm() {
       const result = await savePushinPaySettings(settingsToSave);
 
       if (result.ok) {
-        setMessage({ type: "success", text: "Integração PushinPay salva com sucesso!" });
-        toast.success("Integração PushinPay salva com sucesso!");
+        const successMsg = accountInfo 
+          ? `Conectado como: ${accountInfo.name}` 
+          : "Integração PushinPay salva com sucesso!";
+        setMessage({ type: "success", text: successMsg });
+        toast.success(successMsg);
         if (tokenToSave) {
           setHasExistingToken(true);
           setApiToken("");
+          setExistingAccountId(accountIdToSave);
         }
         setIsUpdateSectionOpen(false);
       } else {
@@ -136,6 +159,7 @@ export function ConfigForm() {
       toast.error(`Erro: ${error.message}`);
     } finally {
       setLoading(false);
+      setValidatingToken(false);
     }
   };
 
@@ -152,7 +176,8 @@ export function ConfigForm() {
     <div className="space-y-6 mt-6">
       {/* Descrição */}
       <p className="text-sm leading-relaxed" style={{ color: 'var(--subtext)' }}>
-        Conecte sua conta PushinPay informando o <strong>API Token</strong> e o <strong>ID da Conta</strong> (para receber splits).
+        Conecte sua conta PushinPay informando apenas o <strong>API Token</strong>. 
+        O ID da conta será obtido automaticamente.
         {isAdmin && (
           <> Você pode solicitar acesso ao <em>Sandbox</em> direto no suporte deles.</>
         )}
@@ -171,36 +196,39 @@ export function ConfigForm() {
               </h4>
               <p className="text-sm leading-relaxed" style={{ color: 'var(--subtext)' }}>
                 Seu checkout está conectado e processando pagamentos PIX via PushinPay.
-                {accountId && (
-                  <span className="block mt-1 text-xs opacity-70">
-                    ID da Conta: {accountId.substring(0, 8)}...
-                  </span>
-                )}
               </p>
+              {existingAccountId && (
+                <div className="flex items-center gap-2 mt-2 text-xs opacity-70">
+                  <User className="h-3.5 w-3.5" />
+                  <span>ID da Conta: {existingAccountId.substring(0, 8)}...</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* Campo: ID da Conta (sempre visível) */}
-      <div className="space-y-3">
-        <label className="block text-sm font-semibold" style={{ color: 'var(--text)' }}>
-          ID da Conta <span className="text-xs font-normal opacity-60">(para receber splits)</span>
-        </label>
-        <input
-          type="text"
-          value={accountId}
-          onChange={(e) => setAccountId(e.target.value)}
-          className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="Ex: A0557404-1578-4F50-8AE7-..."
-        />
-        <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
-          <Info className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
-          <p className="text-xs leading-relaxed" style={{ color: 'var(--subtext)' }}>
-            O ID da Conta é necessário para receber pagamentos como afiliado (split). Você encontra esse ID no painel da PushinPay.
-          </p>
+      {/* Conta validada - mostrar após salvar com sucesso */}
+      {accountInfo && (
+        <div className="rounded-xl border-2 border-blue-500/50 bg-blue-500/10 p-5">
+          <div className="flex items-start gap-4">
+            <div className="bg-blue-500/20 rounded-lg p-2">
+              <User className="h-6 w-6 text-blue-500" />
+            </div>
+            <div className="flex-1">
+              <h4 className="text-base font-bold mb-1" style={{ color: 'var(--text)' }}>
+                {accountInfo.name}
+              </h4>
+              <p className="text-sm" style={{ color: 'var(--subtext)' }}>
+                {accountInfo.email}
+              </p>
+              <p className="text-xs opacity-60 mt-1">
+                ID: {accountInfo.id}
+              </p>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Formulário: Atualizar Token (Collapsible) ou Novo Token */}
       {hasExistingToken ? (
@@ -315,12 +343,18 @@ export function ConfigForm() {
           className={`flex items-start gap-4 p-5 rounded-xl border-2 animate-in fade-in duration-300 ${
             message.type === "success"
               ? "bg-green-500/10 border-green-500/50"
+              : message.type === "info"
+              ? "bg-blue-500/10 border-blue-500/50"
               : "bg-red-500/10 border-red-500/50"
           }`}
         >
           {message.type === "success" ? (
             <div className="bg-green-500/20 rounded-lg p-2">
               <CheckCircle2 className="h-6 w-6 text-green-500" />
+            </div>
+          ) : message.type === "info" ? (
+            <div className="bg-blue-500/20 rounded-lg p-2">
+              <Loader2 className="h-6 w-6 text-blue-500 animate-spin" />
             </div>
           ) : (
             <div className="bg-red-500/20 rounded-lg p-2">
@@ -346,8 +380,9 @@ export function ConfigForm() {
         onClick={onSave}
         className="w-full rounded-xl bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
       >
-        {loading && <Loader2 className="h-5 w-5 animate-spin" />}
-        {loading ? "Salvando integração..." : "Salvar integração"}
+        {validatingToken && <Loader2 className="h-5 w-5 animate-spin" />}
+        {loading && !validatingToken && <Loader2 className="h-5 w-5 animate-spin" />}
+        {validatingToken ? "Validando token..." : loading ? "Salvando integração..." : "Salvar integração"}
       </button>
     </div>
   );

@@ -12,11 +12,68 @@ import { supabase } from "@/integrations/supabase/client";
 import type { PaymentGatewaySettings } from "@/integrations/supabase/types-payment-gateway";
 import type {
   PushinPaySettings,
+  PushinPayEnvironment,
   PixChargeResponse,
   PixStatusResponse,
   PushinPayConnectionTestResponse,
   PushinPayStats,
+  PushinPayAccountInfo,
 } from "./types";
+
+// URLs da API PushinPay por ambiente
+const PUSHINPAY_API_URLS = {
+  sandbox: "https://api-sandbox.pushinpay.com.br/api",
+  production: "https://api.pushinpay.com.br/api",
+} as const;
+
+/**
+ * Busca informações da conta PushinPay usando o token
+ * Endpoint: GET /accounts/find
+ * 
+ * @param token - Token de API da PushinPay
+ * @param environment - Ambiente (sandbox ou production)
+ * @returns Dados da conta (id, name, email) ou null se erro
+ * 
+ * @example
+ * const account = await fetchPushinPayAccountInfo("pk_...", "production");
+ * if (account) {
+ *   console.log("Account ID:", account.id);
+ *   console.log("Nome:", account.name);
+ * }
+ */
+export async function fetchPushinPayAccountInfo(
+  token: string,
+  environment: PushinPayEnvironment = "production"
+): Promise<PushinPayAccountInfo | null> {
+  const baseUrl = PUSHINPAY_API_URLS[environment];
+  
+  try {
+    const response = await fetch(`${baseUrl}/accounts/find`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+      },
+    });
+    
+    if (!response.ok) {
+      console.error("[PushinPay] Erro ao buscar conta:", response.status, await response.text());
+      return null;
+    }
+    
+    const data = await response.json();
+    
+    return {
+      id: data.id,
+      name: data.name,
+      email: data.email,
+    };
+  } catch (error) {
+    console.error("[PushinPay] Erro ao buscar conta:", error);
+    return null;
+  }
+}
 
 /**
  * Salva ou atualiza as configurações da PushinPay para o usuário atual
