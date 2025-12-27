@@ -134,27 +134,27 @@ serve(async (req) => {
 
     // Verificar configurações de gateway do produto
     const gatewaySettings = (product.affiliate_gateway_settings as any) || {};
-    const requireGatewayConnection = gatewaySettings.require_gateway_connection ?? true;
     const pixAllowed = gatewaySettings.pix_allowed || ["asaas"];
     const cardAllowed = gatewaySettings.credit_card_allowed || ["mercadopago", "stripe"];
 
-    // Se exige conexão de gateway, verificar se o usuário tem algum dos permitidos
-    if (requireGatewayConnection) {
-      const hasAllowedPixGateway = (
-        (pixAllowed.includes("asaas") && userProfile?.asaas_wallet_id) ||
-        (pixAllowed.includes("mercadopago") && userProfile?.mercadopago_collector_id) ||
-        (pixAllowed.includes("pushinpay")) // PushinPay usa credenciais da plataforma
-      );
-      
-      const hasAllowedCardGateway = (
-        (cardAllowed.includes("mercadopago") && userProfile?.mercadopago_collector_id) ||
-        (cardAllowed.includes("stripe") && userProfile?.stripe_account_id)
-      );
+    // VALIDAÇÃO OBRIGATÓRIA: Afiliado DEVE ter pelo menos um gateway PIX e um de Cartão
+    const hasAllowedPixGateway = (
+      (pixAllowed.includes("asaas") && userProfile?.asaas_wallet_id) ||
+      (pixAllowed.includes("mercadopago") && userProfile?.mercadopago_collector_id) ||
+      (pixAllowed.includes("pushinpay")) // PushinPay usa credenciais da plataforma
+    );
+    
+    const hasAllowedCardGateway = (
+      (cardAllowed.includes("mercadopago") && userProfile?.mercadopago_collector_id) ||
+      (cardAllowed.includes("stripe") && userProfile?.stripe_account_id)
+    );
 
-      if (!hasAllowedPixGateway && !hasAllowedCardGateway) {
-        console.warn(`⚠️ [request-affiliation] Usuário ${maskEmail(user.email || '')} sem gateway permitido conectado`);
-        throw new Error("Para se afiliar, você precisa conectar um gateway de pagamento. Acesse Financeiro para configurar.");
-      }
+    if (!hasAllowedPixGateway || !hasAllowedCardGateway) {
+      const missing: string[] = [];
+      if (!hasAllowedPixGateway) missing.push("PIX");
+      if (!hasAllowedCardGateway) missing.push("Cartão");
+      console.warn(`⚠️ [request-affiliation] Usuário ${maskEmail(user.email || '')} sem gateway obrigatório: ${missing.join(", ")}`);
+      throw new Error(`Para se afiliar, você precisa conectar um gateway de ${missing.join(" e ")}. Acesse Financeiro para configurar.`);
     }
 
     console.log(`✅ [request-affiliation] Programa ativo para produto: ${product.name}`);
