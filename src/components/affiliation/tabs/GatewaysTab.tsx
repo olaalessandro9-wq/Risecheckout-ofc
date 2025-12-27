@@ -1,8 +1,8 @@
 /**
- * GatewaysTab - Aba de visualização de gateways para afiliados
+ * GatewaysTab - Seleção de gateways pelo afiliado
  * 
- * Mostra quais gateways o afiliado tem conectados (via Financeiro)
- * vs quais são permitidos pelo produtor. Não permite seleção aqui.
+ * MVP: Afiliado DEVE escolher 1 gateway PIX e 1 gateway Cartão
+ * para liberar os links de afiliação.
  */
 
 import { useState, useEffect } from "react";
@@ -11,7 +11,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, QrCode, CreditCard, CheckCircle2, AlertCircle, ExternalLink, ArrowRight } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Loader2, QrCode, CreditCard, CheckCircle2, AlertCircle, ArrowRight, Save } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { AffiliationDetails } from "@/hooks/useAffiliationDetails";
@@ -24,6 +26,10 @@ const GATEWAY_INFO: Record<string, { name: string }> = {
   stripe: { name: "Stripe" },
 };
 
+// Fallback padrão quando produtor não configurou
+const DEFAULT_PIX_GATEWAYS = ["asaas", "mercadopago", "pushinpay"];
+const DEFAULT_CARD_GATEWAYS = ["mercadopago", "stripe"];
+
 interface GatewaysTabProps {
   affiliation: AffiliationDetails;
   onRefetch: () => Promise<void>;
@@ -34,20 +40,18 @@ interface AffiliateGatewaySettings {
   credit_card_allowed?: string[];
 }
 
-interface GatewayConnection {
-  id: string;
-  connected: boolean;
-  info: { name: string };
-}
-
 export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [userConnections, setUserConnections] = useState<Record<string, boolean>>({});
-  const [affiliateGatewaySettings, setAffiliateGatewaySettings] = useState<AffiliateGatewaySettings | null>(null);
-  const [syncStatus, setSyncStatus] = useState<"synced" | "pending" | "error">("pending");
+  const [pixAllowed, setPixAllowed] = useState<string[]>([]);
+  const [cardAllowed, setCardAllowed] = useState<string[]>([]);
+  
+  // Seleções do usuário
+  const [selectedPixGateway, setSelectedPixGateway] = useState<string>("");
+  const [selectedCardGateway, setSelectedCardGateway] = useState<string>("");
 
-  // Buscar dados do produto (gateways permitidos) e conexões do usuário
   useEffect(() => {
     loadData();
   }, [affiliation.id]);
@@ -64,31 +68,31 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
 
       if (productError) throw productError;
 
-      const settings = (productData?.affiliate_gateway_settings as AffiliateGatewaySettings) || {
-        pix_allowed: ["asaas"],
-        credit_card_allowed: ["mercadopago", "stripe"],
-      };
-      setAffiliateGatewaySettings(settings);
+      const settings = productData?.affiliate_gateway_settings as AffiliateGatewaySettings | null;
+      
+      // Aplicar fallback se não configurado
+      const pixGateways = settings?.pix_allowed?.length ? settings.pix_allowed : DEFAULT_PIX_GATEWAYS;
+      const cardGateways = settings?.credit_card_allowed?.length ? settings.credit_card_allowed : DEFAULT_CARD_GATEWAYS;
+      
+      setPixAllowed(pixGateways);
+      setCardAllowed(cardGateways);
 
-      // 2. Buscar conexões do usuário (profiles e payment_gateway_settings)
+      // 2. Buscar conexões do usuário
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
-      // Buscar perfil
       const { data: profileData } = await supabase
         .from("profiles")
         .select("asaas_wallet_id, mercadopago_collector_id, stripe_account_id")
         .eq("id", user.id)
         .single();
 
-      // Buscar PushinPay
       const { data: pushinpayData } = await supabase
         .from("payment_gateway_settings")
         .select("pushinpay_account_id, pushinpay_token")
         .eq("user_id", user.id)
         .single();
 
-      // Mapear conexões
       const connections: Record<string, boolean> = {
         asaas: !!profileData?.asaas_wallet_id,
         mercadopago: !!profileData?.mercadopago_collector_id,
@@ -97,84 +101,93 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
       };
       setUserConnections(connections);
 
-      // 3. Sincronizar gateways automaticamente
-      await syncGateways(settings, connections, user.id);
+      // 3. Carregar seleções atuais do afiliado
+      if (affiliation.pix_gateway) {
+        setSelectedPixGateway(affiliation.pix_gateway);
+      }
+      if (affiliation.credit_card_gateway) {
+        setSelectedCardGateway(affiliation.credit_card_gateway);
+      }
 
     } catch (error) {
       console.error("Erro ao carregar dados de gateway:", error);
       toast.error("Erro ao carregar configurações de gateway");
-      setSyncStatus("error");
     } finally {
       setLoading(false);
     }
   };
 
-  /**
-   * Sincroniza automaticamente os gateways do afiliado
-   * baseado na intersecção entre permitidos e conectados
-   */
-  const syncGateways = async (
-    settings: AffiliateGatewaySettings, 
-    connections: Record<string, boolean>,
-    userId: string
-  ) => {
+  const handleSave = async () => {
+    if (!selectedPixGateway || !selectedCardGateway) {
+      toast.error("Selecione 1 gateway PIX e 1 gateway de Cartão");
+      return;
+    }
+
+    if (!userConnections[selectedPixGateway]) {
+      toast.error(`O gateway ${GATEWAY_INFO[selectedPixGateway]?.name || selectedPixGateway} não está conectado`);
+      return;
+    }
+
+    if (!userConnections[selectedCardGateway]) {
+      toast.error(`O gateway ${GATEWAY_INFO[selectedCardGateway]?.name || selectedCardGateway} não está conectado`);
+      return;
+    }
+
+    setSaving(true);
     try {
-      const pixAllowed = settings.pix_allowed || [];
-      const cardAllowed = settings.credit_card_allowed || [];
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
 
-      // Encontrar primeiro gateway PIX que está conectado E permitido
-      const selectedPix = pixAllowed.find(g => connections[g]) || null;
-      
-      // Encontrar primeiro gateway de Cartão que está conectado E permitido
-      const selectedCard = cardAllowed.find(g => connections[g]) || null;
-
-      // Buscar profile para credenciais
+      // Buscar credenciais
       const { data: profileData } = await supabase
         .from("profiles")
         .select("asaas_wallet_id, mercadopago_collector_id, stripe_account_id")
-        .eq("id", userId)
+        .eq("id", user.id)
         .single();
 
-      // Buscar PushinPay account_id
       const { data: pushinpayData } = await supabase
         .from("payment_gateway_settings")
         .select("pushinpay_account_id")
-        .eq("user_id", userId)
+        .eq("user_id", user.id)
         .single();
 
-      // Montar credenciais baseado nos gateways selecionados
+      // Montar credenciais
       const credentials: Record<string, string> = {};
       
-      if (selectedPix === "asaas" && profileData?.asaas_wallet_id) {
+      if (selectedPixGateway === "asaas" && profileData?.asaas_wallet_id) {
         credentials.asaas_wallet_id = profileData.asaas_wallet_id;
       }
-      if ((selectedPix === "mercadopago" || selectedCard === "mercadopago") && profileData?.mercadopago_collector_id) {
+      if ((selectedPixGateway === "mercadopago" || selectedCardGateway === "mercadopago") && profileData?.mercadopago_collector_id) {
         credentials.mercadopago_collector_id = profileData.mercadopago_collector_id;
       }
-      if (selectedPix === "pushinpay" && pushinpayData?.pushinpay_account_id) {
+      if (selectedPixGateway === "pushinpay" && pushinpayData?.pushinpay_account_id) {
         credentials.pushinpay_account_id = pushinpayData.pushinpay_account_id;
       }
-      if (selectedCard === "stripe" && profileData?.stripe_account_id) {
+      if (selectedCardGateway === "stripe" && profileData?.stripe_account_id) {
         credentials.stripe_account_id = profileData.stripe_account_id;
       }
 
-      // Atualizar afiliado com gateways e credenciais
+      // Atualizar afiliado
       const { error } = await supabase
         .from("affiliates")
         .update({
-          pix_gateway: selectedPix,
-          credit_card_gateway: selectedCard,
+          pix_gateway: selectedPixGateway,
+          credit_card_gateway: selectedCardGateway,
           gateway_credentials: credentials,
           updated_at: new Date().toISOString(),
         })
         .eq("id", affiliation.id);
 
       if (error) throw error;
-      
-      setSyncStatus("synced");
+
+      toast.success("Gateways configurados com sucesso!");
+      await onRefetch();
+
     } catch (error) {
-      console.error("Erro ao sincronizar gateways:", error);
-      setSyncStatus("error");
+      console.error("Erro ao salvar gateways:", error);
+      toast.error("Erro ao salvar configuração de gateways");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -190,62 +203,48 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
     );
   }
 
-  const pixAllowed = affiliateGatewaySettings?.pix_allowed || [];
-  const cardAllowed = affiliateGatewaySettings?.credit_card_allowed || [];
+  // Verificar se tem gateways conectados
+  const connectedPixGateways = pixAllowed.filter(g => userConnections[g]);
+  const connectedCardGateways = cardAllowed.filter(g => userConnections[g]);
+  const hasAnyConnectedGateway = connectedPixGateways.length > 0 || connectedCardGateways.length > 0;
+  
+  // Validação para salvar
+  const canSave = selectedPixGateway && 
+                  selectedCardGateway && 
+                  userConnections[selectedPixGateway] && 
+                  userConnections[selectedCardGateway];
 
-  if (pixAllowed.length === 0 && cardAllowed.length === 0) {
+  // Status de configuração completa
+  const isFullyConfigured = affiliation.pix_gateway && 
+                            affiliation.credit_card_gateway &&
+                            userConnections[affiliation.pix_gateway] &&
+                            userConnections[affiliation.credit_card_gateway];
+
+  // Se não tem nenhum gateway conectado
+  if (!hasAnyConnectedGateway) {
     return (
-      <div className="bg-card border rounded-lg p-8 text-center">
-        <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-        <h3 className="text-lg font-semibold mb-2">Gateways não configurados</h3>
-        <p className="text-muted-foreground">
-          O produtor ainda não configurou os gateways disponíveis para afiliados.
-        </p>
+      <div className="space-y-6">
+        <Alert className="border-warning/30 bg-warning/10">
+          <AlertCircle className="h-4 w-4 text-warning" />
+          <AlertDescription className="text-warning-foreground">
+            Você ainda não conectou nenhum gateway de pagamento. Conecte seus gateways em <strong>Financeiro</strong> para poder vender como afiliado.
+          </AlertDescription>
+        </Alert>
+
+        <div className="bg-card border rounded-lg p-8 text-center">
+          <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Nenhum gateway conectado</h3>
+          <p className="text-muted-foreground mb-6">
+            Para vender como afiliado, você precisa conectar pelo menos 1 gateway PIX e 1 gateway de Cartão.
+          </p>
+          <Button onClick={goToFinanceiro} size="lg" className="gap-2">
+            Ir para Financeiro
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     );
   }
-
-  // Verificar se tem pelo menos um gateway conectado que seja permitido
-  const hasConnectedPixGateway = pixAllowed.some(g => userConnections[g]);
-  const hasConnectedCardGateway = cardAllowed.some(g => userConnections[g]);
-  const isFullyConfigured = hasConnectedPixGateway && hasConnectedCardGateway;
-
-  const renderGatewayList = (gateways: string[], type: "pix" | "card") => {
-    return gateways.map((gatewayId) => {
-      const info = GATEWAY_INFO[gatewayId];
-      if (!info) return null;
-
-      const isConnected = userConnections[gatewayId];
-
-      return (
-        <div
-          key={gatewayId}
-          className={`flex items-center justify-between rounded-lg border p-4 ${
-            isConnected 
-              ? "bg-success/10 border-success/30" 
-              : "bg-muted/50 border-border"
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-success" : "bg-muted-foreground/40"}`} />
-            <p className="font-medium text-sm text-foreground">{info.name}</p>
-          </div>
-          
-          {isConnected ? (
-            <Badge variant="outline" className="bg-success/20 text-success-foreground border-success/40">
-              <CheckCircle2 className="h-3 w-3 mr-1" />
-              Conectado
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="bg-warning/20 text-warning-foreground border-warning/40">
-              <AlertCircle className="h-3 w-3 mr-1" />
-              Não conectado
-            </Badge>
-          )}
-        </div>
-      );
-    });
-  };
 
   return (
     <div className="space-y-6">
@@ -254,99 +253,192 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
         <Alert className="border-success/30 bg-success/10">
           <CheckCircle2 className="h-4 w-4 text-success" />
           <AlertDescription className="text-success-foreground">
-            Todos os gateways necessários estão conectados. Você está pronto para vender!
+            Gateways configurados! Seus links de afiliação estão liberados.
           </AlertDescription>
         </Alert>
       ) : (
         <Alert className="border-warning/30 bg-warning/10">
           <AlertCircle className="h-4 w-4 text-warning" />
           <AlertDescription className="text-warning-foreground">
-            Você precisa conectar os gateways em <strong>Financeiro</strong> para poder vender como afiliado.
+            Selecione <strong>1 gateway PIX</strong> e <strong>1 gateway de Cartão</strong> para liberar seus links.
           </AlertDescription>
         </Alert>
       )}
 
-      {/* PIX Gateways */}
-      {pixAllowed.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <QrCode className="h-5 w-5 text-primary" />
-                <CardTitle className="text-base">Gateways PIX Permitidos</CardTitle>
-              </div>
-              {hasConnectedPixGateway && (
-                <Badge variant="outline" className="bg-success/20 text-success-foreground border-success/40">
-                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                  OK
-                </Badge>
-              )}
-            </div>
-            <CardDescription>
-              Gateways que o produtor permite para pagamentos PIX
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {renderGatewayList(pixAllowed, "pix")}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Credit Card Gateways */}
-      {cardAllowed.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-primary" />
-                <CardTitle className="text-base">Gateways de Cartão Permitidos</CardTitle>
-              </div>
-              {hasConnectedCardGateway && (
-                <Badge variant="outline" className="bg-success/20 text-success-foreground border-success/40">
-                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                  OK
-                </Badge>
-              )}
-            </div>
-            <CardDescription>
-              Gateways que o produtor permite para pagamentos com cartão
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {renderGatewayList(cardAllowed, "card")}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Botão para ir ao Financeiro */}
-      {!isFullyConfigured && (
-        <div className="flex justify-center pt-4">
-          <Button 
-            onClick={goToFinanceiro} 
-            size="lg"
-            className="gap-2"
+      {/* Seleção PIX */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <QrCode className="h-5 w-5 text-primary" />
+            <CardTitle className="text-base">Selecione seu Gateway PIX</CardTitle>
+          </div>
+          <CardDescription>
+            Escolha qual gateway será usado para pagamentos via PIX
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <RadioGroup
+            value={selectedPixGateway}
+            onValueChange={setSelectedPixGateway}
+            className="space-y-3"
           >
-            Ir para Financeiro
+            {pixAllowed.map((gatewayId) => {
+              const info = GATEWAY_INFO[gatewayId];
+              if (!info) return null;
+
+              const isConnected = userConnections[gatewayId];
+
+              return (
+                <div
+                  key={gatewayId}
+                  className={`flex items-center space-x-3 rounded-lg border p-4 transition-colors ${
+                    selectedPixGateway === gatewayId
+                      ? "border-primary bg-primary/5"
+                      : isConnected
+                      ? "border-border hover:border-primary/50"
+                      : "border-border bg-muted/30 opacity-60"
+                  }`}
+                >
+                  <RadioGroupItem
+                    value={gatewayId}
+                    id={`pix-${gatewayId}`}
+                    disabled={!isConnected}
+                  />
+                  <Label
+                    htmlFor={`pix-${gatewayId}`}
+                    className={`flex-1 flex items-center justify-between cursor-pointer ${
+                      !isConnected ? "cursor-not-allowed" : ""
+                    }`}
+                  >
+                    <span className="font-medium">{info.name}</span>
+                    {isConnected ? (
+                      <Badge variant="outline" className="bg-success/20 text-success-foreground border-success/40">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Conectado
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-muted text-muted-foreground border-border">
+                        <AlertCircle className="h-3 w-3 mr-1" />
+                        Não conectado
+                      </Badge>
+                    )}
+                  </Label>
+                </div>
+              );
+            })}
+          </RadioGroup>
+          
+          {connectedPixGateways.length === 0 && (
+            <p className="text-sm text-muted-foreground mt-3">
+              Nenhum gateway PIX conectado. <button onClick={goToFinanceiro} className="text-primary hover:underline">Conecte no Financeiro</button>
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Seleção Cartão */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5 text-primary" />
+            <CardTitle className="text-base">Selecione seu Gateway de Cartão</CardTitle>
+          </div>
+          <CardDescription>
+            Escolha qual gateway será usado para pagamentos com cartão
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <RadioGroup
+            value={selectedCardGateway}
+            onValueChange={setSelectedCardGateway}
+            className="space-y-3"
+          >
+            {cardAllowed.map((gatewayId) => {
+              const info = GATEWAY_INFO[gatewayId];
+              if (!info) return null;
+
+              const isConnected = userConnections[gatewayId];
+
+              return (
+                <div
+                  key={gatewayId}
+                  className={`flex items-center space-x-3 rounded-lg border p-4 transition-colors ${
+                    selectedCardGateway === gatewayId
+                      ? "border-primary bg-primary/5"
+                      : isConnected
+                      ? "border-border hover:border-primary/50"
+                      : "border-border bg-muted/30 opacity-60"
+                  }`}
+                >
+                  <RadioGroupItem
+                    value={gatewayId}
+                    id={`card-${gatewayId}`}
+                    disabled={!isConnected}
+                  />
+                  <Label
+                    htmlFor={`card-${gatewayId}`}
+                    className={`flex-1 flex items-center justify-between cursor-pointer ${
+                      !isConnected ? "cursor-not-allowed" : ""
+                    }`}
+                  >
+                    <span className="font-medium">{info.name}</span>
+                    {isConnected ? (
+                      <Badge variant="outline" className="bg-success/20 text-success-foreground border-success/40">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Conectado
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-muted text-muted-foreground border-border">
+                        <AlertCircle className="h-3 w-3 mr-1" />
+                        Não conectado
+                      </Badge>
+                    )}
+                  </Label>
+                </div>
+              );
+            })}
+          </RadioGroup>
+          
+          {connectedCardGateways.length === 0 && (
+            <p className="text-sm text-muted-foreground mt-3">
+              Nenhum gateway de cartão conectado. <button onClick={goToFinanceiro} className="text-primary hover:underline">Conecte no Financeiro</button>
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Botão Salvar */}
+      <div className="flex flex-col items-center gap-3 pt-4">
+        <Button
+          onClick={handleSave}
+          disabled={!canSave || saving}
+          size="lg"
+          className="gap-2 w-full sm:w-auto"
+        >
+          {saving ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Save className="h-4 w-4" />
+          )}
+          Salvar Configuração
+        </Button>
+        
+        {!canSave && (
+          <p className="text-sm text-muted-foreground text-center">
+            Selecione 1 gateway PIX e 1 gateway de Cartão conectados para salvar
+          </p>
+        )}
+      </div>
+
+      {/* Link para Financeiro */}
+      {(connectedPixGateways.length === 0 || connectedCardGateways.length === 0) && (
+        <div className="flex justify-center pt-2">
+          <Button variant="outline" onClick={goToFinanceiro} className="gap-2">
+            Conectar mais gateways
             <ArrowRight className="h-4 w-4" />
           </Button>
         </div>
       )}
-
-      {/* Info sobre sincronização */}
-      <div className="text-center text-xs text-muted-foreground pt-2">
-        {syncStatus === "synced" && (
-          <span className="flex items-center justify-center gap-1">
-            <CheckCircle2 className="h-3 w-3 text-success" />
-            Gateways sincronizados automaticamente
-          </span>
-        )}
-        {syncStatus === "error" && (
-          <span className="flex items-center justify-center gap-1 text-warning">
-            <AlertCircle className="h-3 w-3" />
-            Erro ao sincronizar - tente recarregar a página
-          </span>
-        )}
-      </div>
     </div>
   );
 }
