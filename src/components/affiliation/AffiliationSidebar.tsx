@@ -11,16 +11,16 @@ interface AffiliationSidebarProps {
 
 const tabs = [
   {
-    id: "offers" as const,
-    label: "Ofertas",
-    icon: Package,
-    description: "Links e ofertas disponíveis",
-  },
-  {
     id: "gateways" as const,
     label: "Gateways",
     icon: CreditCard,
     description: "Configure seus gateways",
+  },
+  {
+    id: "offers" as const,
+    label: "Ofertas",
+    icon: Package,
+    description: "Links e ofertas disponíveis",
   },
   {
     id: "pixels" as const,
