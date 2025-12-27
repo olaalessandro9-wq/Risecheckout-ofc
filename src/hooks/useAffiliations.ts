@@ -77,15 +77,15 @@ export function useAffiliations(): UseAffiliationsResult {
     try {
       const { error: updateError } = await supabase
         .from("affiliates")
-        .update({ status: "inactive" })
+        .update({ status: "cancelled" })
         .eq("id", id);
 
       if (updateError) throw updateError;
 
-      // Atualiza o estado local
-      setAffiliations(prev => 
-        prev.map(aff => 
-          aff.id === id ? { ...aff, status: "inactive" } : aff
+      // Atualizar estado local
+      setAffiliations(prev =>
+        prev.map(aff =>
+          aff.id === id ? { ...aff, status: "cancelled" } : aff
         )
       );
 
