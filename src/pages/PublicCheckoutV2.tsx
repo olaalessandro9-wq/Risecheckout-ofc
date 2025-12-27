@@ -12,7 +12,7 @@
  * de autofill onde campos aparecem preenchidos mas state está vazio.
  */
 
-import React, { useRef } from "react";
+import React from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { CheckoutProvider } from "@/contexts/CheckoutContext";
@@ -51,9 +51,6 @@ import * as Kwai from "@/integrations/tracking/kwai";
 // ============================================================================
 
 const PublicCheckoutV2: React.FC = () => {
-  // Ref para o formulário (usado para ler DOM snapshot no submit)
-  const formRef = useRef<HTMLFormElement>(null);
-
   // ============================================================================
   // 1. CAMADA DE DADOS
   // ============================================================================
@@ -176,8 +173,8 @@ const PublicCheckoutV2: React.FC = () => {
   const handleSubmit = React.useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // ✅ FIX AUTOFILL: Lê dados do DOM para resolver problema de autofill
-    const snapshot = getSubmitSnapshot(formRef.current, formData);
+    // ✅ FIX AUTOFILL: Lê dados do DOM via fallback (readAllFieldsFromDOM)
+    const snapshot = getSubmitSnapshot(null, formData);
     
     // Sincroniza estado com snapshot (para garantir consistência)
     updateMultipleFields(snapshot);
@@ -212,8 +209,8 @@ const PublicCheckoutV2: React.FC = () => {
     issuerId: string,
     holderDocument?: string
   ) => {
-    // ✅ FIX AUTOFILL: Lê dados do DOM
-    const snapshot = getSubmitSnapshot(formRef.current, formData);
+    // ✅ FIX AUTOFILL: Lê dados do DOM via fallback (readAllFieldsFromDOM)
+    const snapshot = getSubmitSnapshot(null, formData);
     updateMultipleFields(snapshot);
 
     const validation = validateForm(snapshot);
