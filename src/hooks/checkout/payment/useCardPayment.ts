@@ -14,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { CreditCardGateway, CardPaymentData, PaymentConfig } from "./types";
+import type { PersonalDataOverride } from "./useOrderCreation";
 
 interface UseCardPaymentProps {
   config: PaymentConfig;
@@ -25,7 +26,8 @@ interface UseCardPaymentReturn {
     orderId: string,
     accessToken: string,
     gateway: CreditCardGateway,
-    cardData: CardPaymentData
+    cardData: CardPaymentData,
+    personalDataOverride?: PersonalDataOverride
   ) => Promise<void>;
 }
 
@@ -41,12 +43,19 @@ export function useCardPayment({ config, amount }: UseCardPaymentProps): UseCard
     orderId: string,
     accessToken: string,
     gateway: CreditCardGateway,
-    cardData: CardPaymentData
+    cardData: CardPaymentData,
+    personalDataOverride?: PersonalDataOverride
   ) => {
+    // ✅ FIX CRÍTICO: Usar override se fornecido, senão fallback para config.formData
+    const effectiveEmail = personalDataOverride?.email || config.formData.email;
+    const effectiveName = personalDataOverride?.name || config.formData.name;
+
     console.log(`[useCardPayment] Processando cartão via ${gateway}...`, {
       hasToken: !!cardData.token,
       installments: cardData.installments,
-      hasHolderDocument: !!cardData.holderDocument
+      hasHolderDocument: !!cardData.holderDocument,
+      usingOverride: !!personalDataOverride,
+      effectiveEmail,
     });
 
     switch (gateway) {
@@ -97,8 +106,8 @@ export function useCardPayment({ config, amount }: UseCardPaymentProps): UseCard
           {
             body: {
               orderId,
-              payerEmail: config.formData.email,
-              payerName: config.formData.name,
+              payerEmail: effectiveEmail,  // ✅ USAR OVERRIDE
+              payerName: effectiveName,    // ✅ USAR OVERRIDE
               payerDocument: payerDocumentFinal,
               paymentMethod: 'credit_card',
               token: cardData.token,
