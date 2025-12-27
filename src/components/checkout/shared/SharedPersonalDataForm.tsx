@@ -250,11 +250,14 @@ export const SharedPersonalDataForm: React.FC<SharedPersonalDataFormProps> = ({
           <div className="relative">
             <input
               type="text"
+              name="name"
+              autoComplete="name"
               placeholder="Digite seu nome completo"
               value={formData.name || ''}
               onChange={(e) => handleChange('name', e.target.value)}
+              onInput={(e) => handleChange('name', e.currentTarget.value)}
               onFocus={() => setFocusedField('name')}
-              onBlur={() => handleBlur('name', formData.name || '')}
+              onBlur={(e) => handleBlur('name', e.target.value)}
               disabled={disabled}
               className={inputClassName}
               style={{
@@ -282,11 +285,14 @@ export const SharedPersonalDataForm: React.FC<SharedPersonalDataFormProps> = ({
           <div className="relative">
             <input
               type="email"
+              name="email"
+              autoComplete="email"
               placeholder="Digite seu email"
               value={formData.email || ''}
               onChange={(e) => handleChange('email', e.target.value)}
+              onInput={(e) => handleChange('email', e.currentTarget.value)}
               onFocus={() => setFocusedField('email')}
-              onBlur={() => handleBlur('email', formData.email || '')}
+              onBlur={(e) => handleBlur('email', e.target.value)}
               disabled={disabled}
               className={inputClassName}
               style={{
@@ -315,11 +321,14 @@ export const SharedPersonalDataForm: React.FC<SharedPersonalDataFormProps> = ({
             <div className="relative">
               <input
                 type="text"
+                name="cpf"
+                autoComplete="off"
                 placeholder="000.000.000-00 ou 00.000.000/0000-00"
                 value={formData.cpf || ''}
                 onChange={(e) => handleChange('cpf', e.target.value)}
+                onInput={(e) => handleChange('cpf', e.currentTarget.value)}
                 onFocus={() => setFocusedField('cpf')}
-                onBlur={() => handleBlur('cpf', formData.cpf || '')}
+                onBlur={(e) => handleBlur('cpf', e.target.value)}
                 disabled={disabled}
                 maxLength={getMaxLength('cpf')}
                 className={inputClassName}
@@ -350,11 +359,14 @@ export const SharedPersonalDataForm: React.FC<SharedPersonalDataFormProps> = ({
             <div className="relative">
               <input
                 type="tel"
+                name="phone"
+                autoComplete="tel"
                 placeholder="(00) 00000-0000"
                 value={formData.phone || ''}
                 onChange={(e) => handleChange('phone', e.target.value)}
+                onInput={(e) => handleChange('phone', e.currentTarget.value)}
                 onFocus={() => setFocusedField('phone')}
-                onBlur={() => handleBlur('phone', formData.phone || '')}
+                onBlur={(e) => handleBlur('phone', e.target.value)}
                 disabled={disabled}
                 maxLength={getMaxLength('phone')}
                 className={inputClassName}
