@@ -12,6 +12,7 @@ import { getGatewayCredentials, validateCredentials } from '../_shared/platform-
 import { handlePixPayment } from './handlers/pix-handler.ts';
 import { handleCardPayment } from './handlers/card-handler.ts';
 import { logInfo, logError, logWarn } from './utils/logger.ts';
+import { sendOrderConfirmationEmails, type OrderData } from '../_shared/send-order-emails.ts';
 
 // ========================================================================
 // CONSTANTS
@@ -258,6 +259,12 @@ serve(async (req) => {
       payment_method: paymentMethod.toUpperCase(),
       updated_at: new Date().toISOString()
     };
+
+    // ✅ Se aprovado instantâneo (cartão), setar paid_at
+    if (paymentResult.status === 'approved') {
+      updateData.paid_at = new Date().toISOString();
+    }
+
     if (paymentMethod === 'pix' && paymentResult.qrCodeText) {
       updateData.pix_qr_code = paymentResult.qrCodeText;
       updateData.pix_id = paymentResult.transactionId;
@@ -266,7 +273,48 @@ serve(async (req) => {
     }
     await supabase.from('orders').update(updateData).eq('id', orderId);
 
-    // 10. RESPONSE
+    // ✅ 10. EMAIL & EVENT para pagamento aprovado instantâneo (cartão)
+    if (paymentResult.status === 'approved' && order.customer_email) {
+      logInfo('✅ Pagamento aprovado - enviando email de confirmação', { orderId, email: order.customer_email });
+
+      // 10.1 Disparar email de confirmação
+      const orderData: OrderData = {
+        id: orderId,
+        customer_name: order.customer_name,
+        customer_email: order.customer_email,
+        amount_cents: calculatedTotalCents,
+        product_id: order.product_id,
+        product_name: order.product_name,
+      };
+
+      try {
+        const emailResult = await sendOrderConfirmationEmails(supabase, orderData, 'Cartão de Crédito / Mercado Pago');
+        logInfo('📧 Emails enviados', { sent: emailResult.emailsSent, failed: emailResult.emailsFailed });
+      } catch (emailError: any) {
+        logError('Erro ao enviar emails (não crítico)', { message: emailError.message });
+      }
+
+      // 10.2 Registrar evento em order_events
+      try {
+        await supabase.from('order_events').insert({
+          order_id: orderId,
+          vendor_id: order.vendor_id,
+          type: 'purchase_approved',
+          occurred_at: new Date().toISOString(),
+          data: {
+            gateway: 'MERCADOPAGO',
+            payment_id: paymentResult.transactionId,
+            payment_method: 'CREDIT_CARD',
+            source: 'instant_approval'
+          }
+        });
+        logInfo('📝 Evento registrado', { event: 'purchase_approved' });
+      } catch (eventError: any) {
+        logError('Erro ao registrar evento (não crítico)', { message: eventError.message });
+      }
+    }
+
+    // 11. RESPONSE
     const responseData: any = { paymentId: paymentResult.transactionId, status: paymentResult.status };
     if (paymentMethod === 'pix' && paymentResult.qrCode) {
       responseData.pix = { qrCode: paymentResult.qrCodeText, qrCodeBase64: paymentResult.qrCode };
