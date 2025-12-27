@@ -95,3 +95,13 @@ export interface PushinPayStats {
   totalAmount: number;
   webhookStatus: "configured" | "not_configured" | "unknown";
 }
+
+/**
+ * Informações da conta PushinPay retornadas pela API
+ * Endpoint: GET /accounts/find
+ */
+export interface PushinPayAccountInfo {
+  id: string;       // Account ID para usar em splits
+  name: string;     // Nome da conta
+  email: string;    // Email da conta
+}
