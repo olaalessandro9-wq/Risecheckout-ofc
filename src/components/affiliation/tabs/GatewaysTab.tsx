@@ -220,10 +220,11 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
                             userConnections[affiliation.pix_gateway] &&
                             userConnections[affiliation.credit_card_gateway];
 
-  // Se não tem nenhum gateway conectado
+  // Se não tem nenhum gateway conectado - mostrar gateways disponíveis
   if (!hasAnyConnectedGateway) {
     return (
       <div className="space-y-6">
+        {/* Mensagem de aviso */}
         <Alert className="border-warning/30 bg-warning/10">
           <AlertCircle className="h-4 w-4 text-warning" />
           <AlertDescription className="text-warning-foreground">
@@ -231,17 +232,66 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
           </AlertDescription>
         </Alert>
 
-        <div className="bg-card border rounded-lg p-8 text-center">
-          <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Nenhum gateway conectado</h3>
-          <p className="text-muted-foreground mb-6">
-            Para vender como afiliado, você precisa conectar pelo menos 1 gateway PIX e 1 gateway de Cartão.
-          </p>
-          <Button onClick={goToFinanceiro} size="lg" className="gap-2">
-            Ir para Financeiro
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-        </div>
+        {/* Card com gateways disponíveis */}
+        <Card>
+          <CardHeader className="text-center">
+            <CardTitle className="flex items-center justify-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Gateways Disponíveis
+            </CardTitle>
+            <CardDescription>
+              Para vender como afiliado, você precisa conectar pelo menos 1 gateway PIX e 1 gateway de Cartão.
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent className="space-y-6">
+            {/* Seção PIX */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <QrCode className="h-4 w-4 text-primary" />
+                <span>Gateways PIX Disponíveis</span>
+              </div>
+              <div className="grid gap-2">
+                {pixAllowed.map((gatewayId) => (
+                  <div 
+                    key={gatewayId} 
+                    className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30"
+                  >
+                    <div className="h-2 w-2 rounded-full bg-primary" />
+                    <span className="text-sm font-medium">{GATEWAY_INFO[gatewayId]?.name || gatewayId}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Seção Cartão */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <CreditCard className="h-4 w-4 text-primary" />
+                <span>Gateways de Cartão Disponíveis</span>
+              </div>
+              <div className="grid gap-2">
+                {cardAllowed.map((gatewayId) => (
+                  <div 
+                    key={gatewayId} 
+                    className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30"
+                  >
+                    <div className="h-2 w-2 rounded-full bg-primary" />
+                    <span className="text-sm font-medium">{GATEWAY_INFO[gatewayId]?.name || gatewayId}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Botão */}
+            <div className="flex justify-center pt-4">
+              <Button onClick={goToFinanceiro} size="lg" className="gap-2">
+                Ir para Financeiro
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
