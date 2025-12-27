@@ -13,12 +13,12 @@
  * - src/hooks/checkout/payment/useCardPayment.ts
  */
 
-import { usePaymentOrchestrator } from "./payment/usePaymentOrchestrator";
+import { usePaymentOrchestrator, type PersonalDataOverride } from "./payment/usePaymentOrchestrator";
 import type { PixGateway, CreditCardGateway, AppliedCoupon } from "./payment/types";
 import type { PaymentMethod, CheckoutFormData } from "@/types/checkout";
 
 // Re-exportar tipos para compatibilidade
-export type { PixGateway, CreditCardGateway, AppliedCoupon };
+export type { PixGateway, CreditCardGateway, AppliedCoupon, PersonalDataOverride };
 
 // Interface de props mantida para compatibilidade
 interface UsePaymentGatewayProps {
@@ -55,7 +55,8 @@ interface UsePaymentGatewayReturn {
     installments?: number, 
     paymentMethodId?: string, 
     issuerId?: string, 
-    holderDocument?: string
+    holderDocument?: string,
+    personalDataOverride?: PersonalDataOverride
   ) => Promise<void>;
   validateOnly: () => Promise<ValidationResult>;
   isProcessing: boolean;

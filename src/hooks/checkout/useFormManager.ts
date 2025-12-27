@@ -26,6 +26,7 @@ import {
 // ============================================================================
 
 interface UseFormManagerProps {
+  checkoutId?: string | null; // ✅ NOVO: Para isolar localStorage por checkout
   requiredFields: string[];
   orderBumps: OrderBump[];
   productPrice: number;
@@ -47,8 +48,12 @@ interface UseFormManagerReturn {
   getRequiredFieldsConfig: () => RequiredFieldsConfig;
 }
 
-// Chave para localStorage
-const STORAGE_KEY = "risecheckout_form_data";
+// ✅ FIX: Função para gerar chave de storage isolada por checkout
+const getStorageKey = (checkoutId?: string | null) => {
+  const base = "risecheckout_form_data";
+  return checkoutId ? `${base}:${checkoutId}` : base;
+};
+
 const EXPIRATION_DAYS = 7; // 1 semana (LGPD compliance)
 
 // ============================================================================
@@ -69,6 +74,7 @@ const EXPIRATION_DAYS = 7; // 1 semana (LGPD compliance)
  * });
  */
 export function useFormManager({
+  checkoutId,
   requiredFields,
   orderBumps = [],
   productPrice,
@@ -76,11 +82,14 @@ export function useFormManager({
   // Converter requiredFields para RequiredFieldsConfig tipado
   const requiredFieldsConfig = parseRequiredFields(requiredFields);
 
+  // ✅ FIX: Storage key isolada por checkout
+  const storageKey = getStorageKey(checkoutId);
+
   // Estado do formulário com inicialização lazy do localStorage
   const [formData, setFormData] = useState<CheckoutFormData>(() => {
     if (typeof window !== 'undefined') {
       try {
-        const saved = localStorage.getItem(STORAGE_KEY);
+        const saved = localStorage.getItem(storageKey);
         if (saved) {
           const parsed = JSON.parse(saved);
           
@@ -90,7 +99,7 @@ export function useFormManager({
             const expirationTime = EXPIRATION_DAYS * 24 * 60 * 60 * 1000;
             if ((now - parsed.timestamp) > expirationTime) {
               console.log('[useFormManager] Dados expirados, removendo...');
-              localStorage.removeItem(STORAGE_KEY);
+              localStorage.removeItem(storageKey);
               return createEmptyFormData();
             }
           }
@@ -126,12 +135,12 @@ export function useFormManager({
           timestamp: Date.now()
         };
         
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+        localStorage.setItem(storageKey, JSON.stringify(dataToSave));
       } catch (e) {
         console.warn("Erro ao salvar dados no localStorage:", e);
       }
     }
-  }, [formData]);
+  }, [formData, storageKey]);
 
   // Atualizar campo do formulário
   const updateField = useCallback((field: keyof CheckoutFormData, value: string) => {

@@ -9,6 +9,8 @@
  * - Carregar SDK quando necessário
  * - Validar dados antes de processar
  * 
+ * ✅ FIX CRÍTICO: Agora aceita personalDataOverride para blindar contra state stale
+ * 
  * Arquitetura: Facade Pattern sobre hooks especializados
  */
 
@@ -16,7 +18,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import { createCardToken } from '@mercadopago/sdk-react';
 import type { PaymentMethod } from "@/types/checkout";
-import { useOrderCreation } from "./useOrderCreation";
+import { useOrderCreation, type PersonalDataOverride } from "./useOrderCreation";
 import { usePixPayment } from "./usePixPayment";
 import { useCardPayment } from "./useCardPayment";
 import type { 
@@ -26,6 +28,9 @@ import type {
   AppliedCoupon,
   CardPaymentData 
 } from "./types";
+
+// Re-export para uso externo
+export type { PersonalDataOverride };
 
 // ============================================================================
 // PROPS E RETURN TYPES
@@ -64,7 +69,8 @@ interface UsePaymentOrchestratorReturn {
     installments?: number, 
     paymentMethodId?: string, 
     issuerId?: string, 
-    holderDocument?: string
+    holderDocument?: string,
+    personalDataOverride?: PersonalDataOverride
   ) => Promise<void>;
   validateOnly: () => Promise<ValidationResult>;
   isProcessing: boolean;
@@ -196,7 +202,8 @@ export function usePaymentOrchestrator({
     installments?: number,
     paymentMethodId?: string,
     issuerId?: string,
-    holderDocument?: string
+    holderDocument?: string,
+    personalDataOverride?: PersonalDataOverride
   ) => {
     if (isProcessing) return;
     setIsProcessing(true);
@@ -206,14 +213,20 @@ export function usePaymentOrchestrator({
       const actualPaymentMethod: PaymentMethod = token ? "credit_card" : selectedPayment;
       const activeGateway = actualPaymentMethod === 'pix' ? pixGateway : creditCardGateway;
 
+      // ✅ FIX: Usar override se fornecido, senão fallback para formData
+      const effectiveName = personalDataOverride?.name || formData.name;
+      const effectiveEmail = personalDataOverride?.email || formData.email;
+
       console.log("[PaymentOrchestrator] Iniciando...", {
         method: actualPaymentMethod,
         gateway: activeGateway,
-        hasToken: !!token
+        hasToken: !!token,
+        usingOverride: !!personalDataOverride,
+        effectiveEmail, // Log para debug
       });
 
-      // Validações básicas
-      if (!formData.email || !formData.name) {
+      // Validações básicas usando dados efetivos
+      if (!effectiveEmail || !effectiveName) {
         toast.error("Por favor, preencha seus dados pessoais.");
         return;
       }
@@ -224,13 +237,14 @@ export function usePaymentOrchestrator({
         return;
       }
 
-      // 1. CRIAR PEDIDO
+      // 1. CRIAR PEDIDO (passa override para garantir dados corretos)
       const orderResult = await createOrder(
         actualPaymentMethod,
         activeGateway,
         selectedBumpsRef.current,
         orderBumpsRef.current,
-        appliedCouponRef.current || null
+        appliedCouponRef.current || null,
+        personalDataOverride // ✅ Passa override para createOrder
       );
 
       if (!orderResult.success) {
