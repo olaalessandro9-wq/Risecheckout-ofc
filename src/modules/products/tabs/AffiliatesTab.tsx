@@ -19,6 +19,7 @@ import { useProductContext } from "../context/ProductContext";
 import { toast } from "sonner";
 import { AffiliateSettings } from "../types/product.types";
 import { MarketplaceSettings } from "../components/MarketplaceSettings";
+import { AffiliateGatewaySettings, type AffiliateGatewaySettingsData } from "../components/AffiliateGatewaySettings";
 
 export function AffiliatesTab() {
   const { 

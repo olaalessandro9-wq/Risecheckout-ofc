@@ -5,6 +5,7 @@ import { useAffiliationDetails } from "@/hooks/useAffiliationDetails";
 import { AffiliationHeader } from "@/components/affiliation/AffiliationHeader";
 import { AffiliationSidebar, AffiliationTab } from "@/components/affiliation/AffiliationSidebar";
 import { OffersTab } from "@/components/affiliation/tabs/OffersTab";
+import { GatewaysTab } from "@/components/affiliation/tabs/GatewaysTab";
 import { PixelsTab } from "@/components/affiliation/tabs/PixelsTab";
 import { DetailsTab } from "@/components/affiliation/tabs/DetailsTab";
 import { OtherProductsTab } from "@/components/affiliation/tabs/OtherProductsTab";
@@ -38,6 +39,8 @@ export default function AffiliationDetails() {
     switch (activeTab) {
       case "offers":
         return <OffersTab affiliation={affiliation} />;
+      case "gateways":
+        return <GatewaysTab affiliation={affiliation} onRefetch={refetch} />;
       case "pixels":
         return (
           <PixelsTab

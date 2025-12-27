@@ -143,7 +143,10 @@ export type Database = {
           affiliate_code: string
           commission_rate: number | null
           created_at: string | null
+          credit_card_gateway: string | null
+          gateway_credentials: Json | null
           id: string
+          pix_gateway: string | null
           product_id: string
           status: string
           total_sales_amount: number | null
@@ -155,7 +158,10 @@ export type Database = {
           affiliate_code: string
           commission_rate?: number | null
           created_at?: string | null
+          credit_card_gateway?: string | null
+          gateway_credentials?: Json | null
           id?: string
+          pix_gateway?: string | null
           product_id: string
           status?: string
           total_sales_amount?: number | null
@@ -167,7 +173,10 @@ export type Database = {
           affiliate_code?: string
           commission_rate?: number | null
           created_at?: string | null
+          credit_card_gateway?: string | null
+          gateway_credentials?: Json | null
           id?: string
+          pix_gateway?: string | null
           product_id?: string
           status?: string
           total_sales_amount?: number | null
@@ -1576,6 +1585,7 @@ export type Database = {
       }
       products: {
         Row: {
+          affiliate_gateway_settings: Json | null
           affiliate_settings: Json | null
           created_at: string | null
           default_payment_method: string | null
@@ -1602,6 +1612,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          affiliate_gateway_settings?: Json | null
           affiliate_settings?: Json | null
           created_at?: string | null
           default_payment_method?: string | null
@@ -1628,6 +1639,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          affiliate_gateway_settings?: Json | null
           affiliate_settings?: Json | null
           created_at?: string | null
           default_payment_method?: string | null

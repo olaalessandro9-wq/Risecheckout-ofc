@@ -1,7 +1,7 @@
-import { Package, BarChart3, Info, ShoppingBag } from "lucide-react";
+import { Package, BarChart3, Info, ShoppingBag, CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type AffiliationTab = "offers" | "pixels" | "details" | "other-products";
+export type AffiliationTab = "offers" | "gateways" | "pixels" | "details" | "other-products";
 
 interface AffiliationSidebarProps {
   activeTab: AffiliationTab;
@@ -15,6 +15,12 @@ const tabs = [
     label: "Ofertas",
     icon: Package,
     description: "Links e ofertas disponíveis",
+  },
+  {
+    id: "gateways" as const,
+    label: "Gateways",
+    icon: CreditCard,
+    description: "Configure seus gateways",
   },
   {
     id: "pixels" as const,
