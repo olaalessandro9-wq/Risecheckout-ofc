@@ -7,10 +7,14 @@
  * - Garantia de consistência visual com Builder e Preview
  * - Mantém toda a lógica de negócio intacta (hooks, validação, pagamento)
  * - Estrutura de página unificada em 1 único componente
+ * 
+ * ✅ FIX AUTOFILL: Usa DOM snapshot no submit para resolver problema
+ * de autofill onde campos aparecem preenchidos mas state está vazio.
  */
 
-import React from "react";
+import React, { useRef } from "react";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { CheckoutProvider } from "@/contexts/CheckoutContext";
 import { TrackingManager } from "@/components/checkout/v2/TrackingManager";
 import { SecurityBadges } from "@/components/checkout/SecurityBadges";
@@ -28,6 +32,13 @@ import { usePaymentGateway } from "@/hooks/checkout/usePaymentGateway";
 import { useTrackingService } from "@/hooks/checkout/useTrackingService";
 import { useAffiliateTracking } from "@/hooks/useAffiliateTracking";
 
+// Personal Data Domain (Snapshot para resolver autofill)
+import {
+  getSubmitSnapshot,
+  requiredFieldsToArray,
+  parseRequiredFields,
+} from "@/features/checkout/personal-data";
+
 // Tracking Configs
 import * as Facebook from "@/integrations/tracking/facebook";
 import * as UTMify from "@/integrations/tracking/utmify";
@@ -35,25 +46,14 @@ import * as GoogleAds from "@/integrations/tracking/google-ads";
 import * as TikTok from "@/integrations/tracking/tiktok";
 import * as Kwai from "@/integrations/tracking/kwai";
 
-// Helper para converter required_fields para array de strings
-function getRequiredFieldsArray(requiredFields: any): string[] {
-  if (!requiredFields) return ['name', 'email'];
-  if (Array.isArray(requiredFields)) return requiredFields;
-  
-  // Se for um objeto { name: boolean, email: boolean, ... }
-  const result: string[] = [];
-  if (requiredFields.name) result.push('name');
-  if (requiredFields.email) result.push('email');
-  if (requiredFields.phone) result.push('phone');
-  if (requiredFields.cpf) result.push('cpf');
-  return result.length > 0 ? result : ['name', 'email'];
-}
-
 // ============================================================================
 // COMPONENTE PRINCIPAL
 // ============================================================================
 
 const PublicCheckoutV2: React.FC = () => {
+  // Ref para o formulário (usado para ler DOM snapshot no submit)
+  const formRef = useRef<HTMLFormElement>(null);
+
   // ============================================================================
   // 1. CAMADA DE DADOS
   // ============================================================================
@@ -92,7 +92,9 @@ const PublicCheckoutV2: React.FC = () => {
   // 2. CAMADA DE LÓGICA (HOOKS DE SERVIÇO)
   // ============================================================================
 
-  const requiredFieldsArray = getRequiredFieldsArray(checkout?.product?.required_fields);
+  // Converte required_fields para array tipado usando domain helpers
+  const requiredFieldsConfig = parseRequiredFields(checkout?.product?.required_fields);
+  const requiredFieldsArray = requiredFieldsToArray(requiredFieldsConfig);
 
   // Estado para cupom aplicado (gerenciado pelo OrderSummary)
   const [appliedCoupon, setAppliedCoupon] = React.useState<{
@@ -110,6 +112,7 @@ const PublicCheckoutV2: React.FC = () => {
     selectedBumps,
     isProcessing,
     updateField,
+    updateMultipleFields,
     toggleBump,
     calculateTotal,
     validateForm,
@@ -173,18 +176,24 @@ const PublicCheckoutV2: React.FC = () => {
   const handleSubmit = React.useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
+    // ✅ FIX AUTOFILL: Lê dados do DOM para resolver problema de autofill
+    const snapshot = getSubmitSnapshot(formRef.current, formData);
+    
+    // Sincroniza estado com snapshot (para garantir consistência)
+    updateMultipleFields(snapshot);
+
+    // Valida usando snapshot (não apenas state)
+    const validation = validateForm(snapshot);
+    if (!validation.isValid) {
+      toast.error("Por favor, preencha todos os campos obrigatórios corretamente");
       return;
     }
 
     setProcessing(true);
 
     try {
-      // Disparar evento de tracking
       fireInitiateCheckout(selectedBumps, orderBumps || []);
 
-      // Submeter pagamento (sem token, pois o PIX não precisa)
-      // Se for cartão, o submit é chamado pelo CustomCardForm
       if (selectedPayment === 'pix') {
         await submitPayment();
       }
@@ -193,7 +202,7 @@ const PublicCheckoutV2: React.FC = () => {
     } finally {
       setProcessing(false);
     }
-  }, [validateForm, setProcessing, fireInitiateCheckout, selectedBumps, orderBumps, selectedPayment, submitPayment]);
+  }, [formData, validateForm, updateMultipleFields, setProcessing, fireInitiateCheckout, selectedBumps, orderBumps, selectedPayment, submitPayment]);
 
   // Handler específico para o CustomCardForm - MEMOIZADO
   const handleCardSubmit = React.useCallback(async (
@@ -201,9 +210,15 @@ const PublicCheckoutV2: React.FC = () => {
     installments: number, 
     paymentMethodId: string, 
     issuerId: string,
-    holderDocument?: string // CPF do titular do cartão (vem do MercadoPagoCardForm)
+    holderDocument?: string
   ) => {
-    if (!validateForm()) {
+    // ✅ FIX AUTOFILL: Lê dados do DOM
+    const snapshot = getSubmitSnapshot(formRef.current, formData);
+    updateMultipleFields(snapshot);
+
+    const validation = validateForm(snapshot);
+    if (!validation.isValid) {
+      toast.error("Por favor, preencha todos os campos obrigatórios corretamente");
       return;
     }
     
@@ -216,7 +231,7 @@ const PublicCheckoutV2: React.FC = () => {
     } finally {
       setProcessing(false);
     }
-  }, [validateForm, setProcessing, fireInitiateCheckout, selectedBumps, orderBumps, submitPayment]);
+  }, [formData, validateForm, updateMultipleFields, setProcessing, fireInitiateCheckout, selectedBumps, orderBumps, submitPayment]);
 
   // ============================================================================
   // 4. RENDERIZAÇÃO CONDICIONAL (LOADING/ERROR)
