@@ -272,7 +272,11 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
       );
     }
 
-    // Botão padrão - Acessar produto
+    // Botão padrão - Texto dinâmico baseado no tipo de aprovação
+    const buttonText = product.requires_manual_approval 
+      ? "Solicitar afiliação"
+      : "Se afiliar e acessar";
+
     return (
       <Button
         onClick={handleRequest}
@@ -283,7 +287,7 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
           <Loader2 className="w-5 h-5 animate-spin" />
         ) : (
           <>
-            Acessar produto
+            {buttonText}
             <ArrowRight className="w-4 h-4" />
           </>
         )}
