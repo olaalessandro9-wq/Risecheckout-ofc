@@ -52,7 +52,7 @@ interface AsaasSplitRule {
 }
 
 interface PaymentRequest {
-  vendorId: string;
+  vendorId?: string; // Agora opcional - será buscado da order se não fornecido
   orderId: string;
   amountCents: number;
   paymentMethod: 'pix' | 'credit_card';
@@ -113,13 +113,14 @@ serve(async (req) => {
       hasCardToken: !!payload.cardToken
     }, null, 2));
 
-    const { vendorId, orderId, amountCents, paymentMethod, customer, description, cardToken, installments } = payload;
+    const { orderId, amountCents, paymentMethod, customer, description, cardToken, installments } = payload;
+    let { vendorId } = payload; // vendorId agora é opcional
 
-    // Validações básicas
-    if (!vendorId || !orderId || !amountCents || !customer) {
+    // Validações básicas (sem vendorId - será buscado da order)
+    if (!orderId || !amountCents || !customer) {
       await recordAttempt(supabase, { ...RATE_LIMIT_CONFIG, identifier }, false);
       return new Response(
-        JSON.stringify({ success: false, error: 'Campos obrigatórios: vendorId, orderId, amountCents, customer' }),
+        JSON.stringify({ success: false, error: 'Campos obrigatórios: orderId, amountCents, customer' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -133,9 +134,37 @@ serve(async (req) => {
     }
 
     // ==========================================
+    // BUSCAR VENDOR_ID DA ORDER (se não fornecido)
+    // ==========================================
+    if (!vendorId) {
+      console.log('[asaas-create-payment] vendorId não fornecido, buscando da order...');
+      
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .select('vendor_id')
+        .eq('id', orderId)
+        .maybeSingle();
+
+      if (orderError || !orderData) {
+        console.error('[asaas-create-payment] Erro ao buscar order:', orderError);
+        await recordAttempt(supabase, { ...RATE_LIMIT_CONFIG, identifier }, false);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Pedido não encontrado' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      vendorId = orderData.vendor_id;
+      console.log('[asaas-create-payment] ✅ vendorId obtido da order:', vendorId);
+    }
+
+    // Garantir que vendorId existe neste ponto
+    const resolvedVendorId: string = vendorId!;
+
+    // ==========================================
     // 1. BUSCAR CREDENCIAIS DINAMICAMENTE
     // ==========================================
-    const { credentials, isOwner: isCredentialsOwner } = await getGatewayCredentials(supabase, vendorId, 'asaas');
+    const { credentials, isOwner: isCredentialsOwner } = await getGatewayCredentials(supabase, resolvedVendorId, 'asaas');
 
     const validation = validateCredentials('asaas', credentials);
     if (!validation.valid) {
@@ -162,7 +191,7 @@ serve(async (req) => {
     // ==========================================
     // 2. CALCULAR SPLIT (módulo externo)
     // ==========================================
-    const splitData = await calculateMarketplaceSplitData(supabase, orderId, vendorId);
+    const splitData = await calculateMarketplaceSplitData(supabase, orderId, resolvedVendorId);
     
     console.log('[asaas-create-payment] ========================================');
     console.log('[asaas-create-payment] SPLIT CALCULADO:');
@@ -341,7 +370,7 @@ serve(async (req) => {
     
     // Audit log para rastreabilidade
     await logSecurityEvent(supabase, {
-      userId: vendorId,
+      userId: resolvedVendorId,
       action: SecurityAction.PROCESS_PAYMENT,
       resource: 'orders',
       resourceId: orderId,

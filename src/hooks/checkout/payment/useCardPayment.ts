@@ -137,7 +137,7 @@ export function useCardPayment({ config, amount }: UseCardPaymentProps): UseCard
           {
             body: {
               orderId,
-              vendorId: config.vendorId,
+              // vendorId não é mais necessário - busca da order no backend
               amountCents: amount,
               customer: {
                 name: config.formData.name,
