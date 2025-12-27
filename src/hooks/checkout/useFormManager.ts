@@ -4,12 +4,22 @@
  * Responsabilidade Única: Gerenciar o estado do formulário de dados pessoais,
  * validações, cupons e order bumps.
  * 
- * Este hook substitui e simplifica a lógica de useCheckoutLogic.ts.
+ * ✅ REFATORADO (RISE ARCHITECT PROTOCOL):
+ * - Usa validators do domain (Single Source of Truth)
+ * - Aceita snapshot override para resolver autofill
+ * - Não faz toast (UI decide como exibir erros)
  */
 
 import { useState, useCallback, useEffect } from "react";
-import { toast } from "sonner";
 import type { CheckoutFormData, CheckoutFormErrors, OrderBump } from "@/types/checkout";
+import {
+  validatePersonalData,
+  parseRequiredFields,
+  type PersonalData,
+  type PersonalDataErrors,
+  type RequiredFieldsConfig,
+  type ValidationResult,
+} from "@/features/checkout/personal-data";
 
 // ============================================================================
 // INTERFACE DO HOOK
@@ -27,10 +37,14 @@ interface UseFormManagerReturn {
   selectedBumps: Set<string>;
   isProcessing: boolean;
   updateField: (field: keyof CheckoutFormData, value: string) => void;
+  updateMultipleFields: (fields: Partial<CheckoutFormData>) => void;
   toggleBump: (bumpId: string) => void;
   calculateTotal: () => number;
-  validateForm: () => boolean;
+  validateForm: (snapshotOverride?: Partial<PersonalData>) => ValidationResult;
+  setFormErrors: (errors: CheckoutFormErrors) => void;
+  clearErrors: () => void;
   setProcessing: (value: boolean) => void;
+  getRequiredFieldsConfig: () => RequiredFieldsConfig;
 }
 
 // Chave para localStorage
@@ -59,6 +73,9 @@ export function useFormManager({
   orderBumps = [],
   productPrice,
 }: UseFormManagerProps): UseFormManagerReturn {
+  // Converter requiredFields para RequiredFieldsConfig tipado
+  const requiredFieldsConfig = parseRequiredFields(requiredFields);
+
   // Estado do formulário com inicialização lazy do localStorage
   const [formData, setFormData] = useState<CheckoutFormData>(() => {
     if (typeof window !== 'undefined') {
@@ -74,17 +91,7 @@ export function useFormManager({
             if ((now - parsed.timestamp) > expirationTime) {
               console.log('[useFormManager] Dados expirados, removendo...');
               localStorage.removeItem(STORAGE_KEY);
-              return {
-                name: "",
-                email: "",
-                phone: "",
-                document: "",
-                cpf: "",
-                address: "",
-                city: "",
-                state: "",
-                zipcode: "",
-              };
+              return createEmptyFormData();
             }
           }
           
@@ -100,17 +107,7 @@ export function useFormManager({
         console.warn("Erro ao carregar dados do localStorage:", e);
       }
     }
-    return {
-      name: "",
-      email: "",
-      phone: "",
-      document: "",
-      cpf: "",
-      address: "",
-      city: "",
-      state: "",
-      zipcode: "",
-    };
+    return createEmptyFormData();
   });
 
   const [formErrors, setFormErrors] = useState<CheckoutFormErrors>({});
@@ -141,14 +138,20 @@ export function useFormManager({
     setFormData((prev) => ({ ...prev, [field]: value }));
     
     // Limpar erro do campo quando o usuário começar a digitar
-    if (formErrors[field]) {
-      setFormErrors((prev) => {
+    setFormErrors((prev) => {
+      if (prev[field]) {
         const newErrors = { ...prev };
         delete newErrors[field];
         return newErrors;
-      });
-    }
-  }, [formErrors]);
+      }
+      return prev;
+    });
+  }, []);
+
+  // Atualizar múltiplos campos de uma vez (para sincronizar com DOM snapshot)
+  const updateMultipleFields = useCallback((fields: Partial<CheckoutFormData>) => {
+    setFormData((prev) => ({ ...prev, ...fields }));
+  }, []);
 
   // Alternar seleção de order bump
   const toggleBump = useCallback((bumpId: string) => {
@@ -177,43 +180,35 @@ export function useFormManager({
     return total;
   }, [productPrice, orderBumps, selectedBumps]);
 
-  // Validar formulário
-  const validateForm = useCallback((): boolean => {
-    const errors: CheckoutFormErrors = {};
+  // Limpar todos os erros
+  const clearErrors = useCallback(() => {
+    setFormErrors({});
+  }, []);
 
-    // Validar campos obrigatórios
-    requiredFields.forEach((field) => {
-      const value = formData[field as keyof CheckoutFormData];
-      if (!value || value.trim() === "") {
-        errors[field as keyof CheckoutFormErrors] = "Campo obrigatório";
-      }
-    });
+  // Retornar config de campos obrigatórios
+  const getRequiredFieldsConfig = useCallback(() => {
+    return requiredFieldsConfig;
+  }, [requiredFieldsConfig]);
 
-    // Validar email
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      errors.email = "Email inválido";
-    }
+  // Validar formulário usando domain validators
+  // Aceita snapshot override para resolver problema de autofill
+  const validateForm = useCallback((snapshotOverride?: Partial<PersonalData>): ValidationResult => {
+    // Mescla estado com snapshot (se fornecido)
+    const dataToValidate: PersonalData = {
+      name: snapshotOverride?.name ?? formData.name ?? '',
+      email: snapshotOverride?.email ?? formData.email ?? '',
+      cpf: snapshotOverride?.cpf ?? formData.cpf ?? '',
+      phone: snapshotOverride?.phone ?? formData.phone ?? '',
+    };
 
-    // Validar telefone (mínimo 10 dígitos)
-    if (formData.phone && formData.phone.replace(/\D/g, "").length < 10) {
-      errors.phone = "Telefone inválido";
-    }
+    // Usa validator do domain (Single Source of Truth)
+    const result = validatePersonalData(dataToValidate, requiredFieldsConfig);
 
-    // Validar CPF (11 dígitos)
-    if (formData.cpf && formData.cpf.replace(/\D/g, "").length !== 11) {
-      errors.cpf = "CPF inválido";
-    }
+    // Atualiza estado de erros
+    setFormErrors(result.errors as CheckoutFormErrors);
 
-    setFormErrors(errors);
-
-    // Mostrar toast se houver erros
-    if (Object.keys(errors).length > 0) {
-      toast.error("Por favor, preencha todos os campos obrigatórios corretamente");
-      return false;
-    }
-
-    return true;
-  }, [formData, requiredFields]);
+    return result;
+  }, [formData, requiredFieldsConfig]);
 
   return {
     formData,
@@ -221,9 +216,31 @@ export function useFormManager({
     selectedBumps,
     isProcessing,
     updateField,
+    updateMultipleFields,
     toggleBump,
     calculateTotal,
     validateForm,
+    setFormErrors,
+    clearErrors,
     setProcessing: setIsProcessing,
+    getRequiredFieldsConfig,
+  };
+}
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+function createEmptyFormData(): CheckoutFormData {
+  return {
+    name: "",
+    email: "",
+    phone: "",
+    document: "",
+    cpf: "",
+    address: "",
+    city: "",
+    state: "",
+    zipcode: "",
   };
 }
