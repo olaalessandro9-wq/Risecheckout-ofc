@@ -117,29 +117,23 @@ const Afiliados = () => {
   const handleAction = async (affiliationId: string, action: "approve" | "reject" | "block" | "unblock") => {
     try {
       setActionLoading(affiliationId);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Sessão expirada");
-
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-affiliation`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ affiliation_id: affiliationId, action }),
+      
+      const { data, error } = await supabase.functions.invoke('manage-affiliation', {
+        body: { 
+          affiliation_id: affiliationId, 
+          action 
         }
-      );
+      });
 
-      const result = await response.json();
-      if (!result.success) throw new Error(result.error || "Erro ao processar ação");
+      if (error) throw error;
+      if (!data.success) throw new Error(data.error || "Erro ao processar ação");
 
-      toast.success(result.message);
+      toast.success(data.message);
       fetchAffiliates();
 
     } catch (error: any) {
-      toast.error(error.message);
+      console.error("[handleAction] Erro:", error);
+      toast.error(error.message || "Erro ao processar ação");
     } finally {
       setActionLoading(null);
     }
