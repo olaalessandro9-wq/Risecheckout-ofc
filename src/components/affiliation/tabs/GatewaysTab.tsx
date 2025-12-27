@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Ban } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +26,10 @@ const GATEWAY_INFO: Record<string, { name: string }> = {
   pushinpay: { name: "PushinPay" },
   stripe: { name: "Stripe" },
 };
+
+// TODOS os gateways disponíveis no sistema
+const ALL_PIX_GATEWAYS = ["asaas", "mercadopago", "pushinpay"];
+const ALL_CARD_GATEWAYS = ["mercadopago", "stripe"];
 
 // Fallback padrão quando produtor não configurou
 const DEFAULT_PIX_GATEWAYS = ["asaas", "mercadopago", "pushinpay"];
@@ -221,7 +225,7 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
                             userConnections[affiliation.pix_gateway] &&
                             userConnections[affiliation.credit_card_gateway];
 
-  // Se não tem nenhum gateway conectado - mostrar gateways disponíveis
+  // Se não tem nenhum gateway conectado - mostrar TODOS gateways com estado
   if (!hasAnyConnectedGateway) {
     return (
       <div className="space-y-6">
@@ -250,29 +254,42 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <QrCode className="h-4 w-4 text-primary" />
-                <span>Gateways PIX Disponíveis</span>
+                <span>Gateways PIX</span>
               </div>
               <div className="grid gap-2">
-                {pixAllowed.map((gatewayId) => (
-                  <div 
-                    key={gatewayId} 
-                    className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="h-2 w-2 rounded-full bg-primary" />
-                      <span className="text-sm font-medium">{GATEWAY_INFO[gatewayId]?.name || gatewayId}</span>
-                    </div>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      onClick={() => navigate(`/dashboard/financeiro?gateway=${gatewayId}`)}
-                      className="gap-1"
+                {ALL_PIX_GATEWAYS.map((gatewayId) => {
+                  const isAllowedByProducer = pixAllowed.includes(gatewayId);
+                  
+                  return (
+                    <div 
+                      key={gatewayId} 
+                      className={`flex items-center justify-between p-3 rounded-lg border ${
+                        isAllowedByProducer ? "bg-muted/30" : "bg-muted/10 opacity-60"
+                      }`}
                     >
-                      Conectar
-                      <ExternalLink className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
+                      <div className="flex items-center gap-3">
+                        <div className={`h-2 w-2 rounded-full ${isAllowedByProducer ? "bg-primary" : "bg-muted-foreground"}`} />
+                        <span className="text-sm font-medium">{GATEWAY_INFO[gatewayId]?.name || gatewayId}</span>
+                      </div>
+                      {isAllowedByProducer ? (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => navigate(`/dashboard/financeiro?gateway=${gatewayId}`)}
+                          className="gap-1"
+                        >
+                          Conectar
+                          <ExternalLink className="h-3 w-3" />
+                        </Button>
+                      ) : (
+                        <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-xs">
+                          <Ban className="h-3 w-3 mr-1" />
+                          Desabilitado pelo produtor
+                        </Badge>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -280,29 +297,42 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <CreditCard className="h-4 w-4 text-primary" />
-                <span>Gateways de Cartão Disponíveis</span>
+                <span>Gateways de Cartão</span>
               </div>
               <div className="grid gap-2">
-                {cardAllowed.map((gatewayId) => (
-                  <div 
-                    key={gatewayId} 
-                    className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="h-2 w-2 rounded-full bg-primary" />
-                      <span className="text-sm font-medium">{GATEWAY_INFO[gatewayId]?.name || gatewayId}</span>
-                    </div>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      onClick={() => navigate(`/dashboard/financeiro?gateway=${gatewayId}`)}
-                      className="gap-1"
+                {ALL_CARD_GATEWAYS.map((gatewayId) => {
+                  const isAllowedByProducer = cardAllowed.includes(gatewayId);
+                  
+                  return (
+                    <div 
+                      key={gatewayId} 
+                      className={`flex items-center justify-between p-3 rounded-lg border ${
+                        isAllowedByProducer ? "bg-muted/30" : "bg-muted/10 opacity-60"
+                      }`}
                     >
-                      Conectar
-                      <ExternalLink className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
+                      <div className="flex items-center gap-3">
+                        <div className={`h-2 w-2 rounded-full ${isAllowedByProducer ? "bg-primary" : "bg-muted-foreground"}`} />
+                        <span className="text-sm font-medium">{GATEWAY_INFO[gatewayId]?.name || gatewayId}</span>
+                      </div>
+                      {isAllowedByProducer ? (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => navigate(`/dashboard/financeiro?gateway=${gatewayId}`)}
+                          className="gap-1"
+                        >
+                          Conectar
+                          <ExternalLink className="h-3 w-3" />
+                        </Button>
+                      ) : (
+                        <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-xs">
+                          <Ban className="h-3 w-3 mr-1" />
+                          Desabilitado pelo produtor
+                        </Badge>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -355,17 +385,21 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
             onValueChange={setSelectedPixGateway}
             className="space-y-3"
           >
-            {pixAllowed.map((gatewayId) => {
+            {ALL_PIX_GATEWAYS.map((gatewayId) => {
               const info = GATEWAY_INFO[gatewayId];
               if (!info) return null;
 
               const isConnected = userConnections[gatewayId];
+              const isAllowedByProducer = pixAllowed.includes(gatewayId);
+              const isDisabled = !isAllowedByProducer || !isConnected;
 
               return (
                 <div
                   key={gatewayId}
                   className={`flex items-center space-x-3 rounded-lg border p-4 transition-colors ${
-                    selectedPixGateway === gatewayId
+                    !isAllowedByProducer
+                      ? "border-destructive/20 bg-destructive/5 opacity-60"
+                      : selectedPixGateway === gatewayId
                       ? "border-primary bg-primary/5"
                       : isConnected
                       ? "border-border hover:border-primary/50"
@@ -375,16 +409,21 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
                   <RadioGroupItem
                     value={gatewayId}
                     id={`pix-${gatewayId}`}
-                    disabled={!isConnected}
+                    disabled={isDisabled}
                   />
                   <Label
                     htmlFor={`pix-${gatewayId}`}
                     className={`flex-1 flex items-center justify-between cursor-pointer ${
-                      !isConnected ? "cursor-not-allowed" : ""
+                      isDisabled ? "cursor-not-allowed" : ""
                     }`}
                   >
                     <span className="font-medium">{info.name}</span>
-                    {isConnected ? (
+                    {!isAllowedByProducer ? (
+                      <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">
+                        <Ban className="h-3 w-3 mr-1" />
+                        Desabilitado pelo produtor
+                      </Badge>
+                    ) : isConnected ? (
                       <Badge variant="outline" className="bg-success/20 text-success-foreground border-success/40">
                         <CheckCircle2 className="h-3 w-3 mr-1" />
                         Conectado
@@ -426,17 +465,21 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
             onValueChange={setSelectedCardGateway}
             className="space-y-3"
           >
-            {cardAllowed.map((gatewayId) => {
+            {ALL_CARD_GATEWAYS.map((gatewayId) => {
               const info = GATEWAY_INFO[gatewayId];
               if (!info) return null;
 
               const isConnected = userConnections[gatewayId];
+              const isAllowedByProducer = cardAllowed.includes(gatewayId);
+              const isDisabled = !isAllowedByProducer || !isConnected;
 
               return (
                 <div
                   key={gatewayId}
                   className={`flex items-center space-x-3 rounded-lg border p-4 transition-colors ${
-                    selectedCardGateway === gatewayId
+                    !isAllowedByProducer
+                      ? "border-destructive/20 bg-destructive/5 opacity-60"
+                      : selectedCardGateway === gatewayId
                       ? "border-primary bg-primary/5"
                       : isConnected
                       ? "border-border hover:border-primary/50"
@@ -446,16 +489,21 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
                   <RadioGroupItem
                     value={gatewayId}
                     id={`card-${gatewayId}`}
-                    disabled={!isConnected}
+                    disabled={isDisabled}
                   />
                   <Label
                     htmlFor={`card-${gatewayId}`}
                     className={`flex-1 flex items-center justify-between cursor-pointer ${
-                      !isConnected ? "cursor-not-allowed" : ""
+                      isDisabled ? "cursor-not-allowed" : ""
                     }`}
                   >
                     <span className="font-medium">{info.name}</span>
-                    {isConnected ? (
+                    {!isAllowedByProducer ? (
+                      <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">
+                        <Ban className="h-3 w-3 mr-1" />
+                        Desabilitado pelo produtor
+                      </Badge>
+                    ) : isConnected ? (
                       <Badge variant="outline" className="bg-success/20 text-success-foreground border-success/40">
                         <CheckCircle2 className="h-3 w-3 mr-1" />
                         Conectado
