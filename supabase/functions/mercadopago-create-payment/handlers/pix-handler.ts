@@ -13,6 +13,15 @@ export interface PixPaymentParams {
   payerDocument?: string;
   effectiveAccessToken: string;
   applicationFeeCents: number;
+  // Campos para qualidade MP
+  productId?: string;
+  productName?: string;
+  items?: Array<{
+    product_id: string;
+    product_name: string;
+    amount_cents: number;
+    quantity: number;
+  }>;
 }
 
 export interface PixPaymentResult {
@@ -31,13 +40,48 @@ export async function handlePixPayment(params: PixPaymentParams): Promise<PixPay
     payerName, 
     payerDocument, 
     effectiveAccessToken, 
-    applicationFeeCents 
+    applicationFeeCents,
+    productId,
+    productName,
+    items
   } = params;
+
+  // ✅ Montar additional_info.items para qualidade MP
+  const additionalInfoItems = items && items.length > 0 
+    ? items.map(item => ({
+        id: item.product_id.slice(0, 50),
+        title: (item.product_name || 'Produto').slice(0, 256),
+        description: (item.product_name || 'Produto digital').slice(0, 256),
+        category_id: 'digital_goods',
+        quantity: item.quantity,
+        unit_price: item.amount_cents / 100
+      }))
+    : [{
+        id: productId?.slice(0, 50) || orderId.slice(0, 8),
+        title: (productName || `Pedido ${orderId.slice(0, 8)}`).slice(0, 256),
+        description: (productName || 'Produto digital').slice(0, 256),
+        category_id: 'digital_goods',
+        quantity: 1,
+        unit_price: calculatedTotalCents / 100
+      }];
+
+  // ✅ URL do webhook para notificações
+  const notificationUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/mercadopago-webhook`;
 
   const pixPayload: any = {
     transaction_amount: calculatedTotalCents / 100,
     description: `Pedido #${orderId.slice(0, 8)}`,
     payment_method_id: 'pix',
+    
+    // ✅ CAMPOS OBRIGATÓRIOS PARA QUALIDADE MP
+    external_reference: orderId,
+    notification_url: notificationUrl,
+    
+    // ✅ ADDITIONAL_INFO COM ITEMS
+    additional_info: {
+      items: additionalInfoItems
+    },
+    
     payer: {
       email: payerEmail,
       first_name: payerName?.split(' ')[0] || 'Cliente',

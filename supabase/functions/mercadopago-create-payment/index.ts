@@ -210,8 +210,11 @@ serve(async (req) => {
       .maybeSingle();
     if (!order) return createErrorResponse(ERROR_CODES.ORDER_NOT_FOUND, 'Pedido não encontrado', 404, corsHeaders);
 
-    // 5. FETCH ITEMS & CALCULATE TOTAL
-    const { data: items } = await supabase.from('order_items').select('amount_cents, quantity').eq('order_id', orderId);
+    // 5. FETCH ITEMS & CALCULATE TOTAL (com product_id e product_name para qualidade MP)
+    const { data: items } = await supabase
+      .from('order_items')
+      .select('product_id, product_name, amount_cents, quantity')
+      .eq('order_id', orderId);
     if (!items?.length) return createErrorResponse(ERROR_CODES.PRODUCTS_NOT_FOUND, 'Pedido sem itens', 500, corsHeaders);
     const calculatedTotalCents = items.reduce((sum, i) => sum + i.amount_cents * i.quantity, 0);
 
@@ -229,18 +232,42 @@ serve(async (req) => {
       supabase, order, credentials.isOwner, calculatedTotalCents, credentials.accessToken, affiliateCollectorId
     );
 
-    // 8. PROCESS PAYMENT
+    // 8. PROCESS PAYMENT (com dados de produto para qualidade MP)
+    const firstItem = items[0];
     let paymentResult: any;
     try {
       if (paymentMethod === 'pix') {
         paymentResult = await handlePixPayment({
-          orderId, calculatedTotalCents, payerEmail, payerName, payerDocument, effectiveAccessToken, applicationFeeCents
+          orderId, 
+          calculatedTotalCents, 
+          payerEmail, 
+          payerName, 
+          payerDocument, 
+          effectiveAccessToken, 
+          applicationFeeCents,
+          // ✅ Dados para qualidade MP
+          productId: firstItem.product_id,
+          productName: firstItem.product_name,
+          items: items
         });
       } else if (paymentMethod === 'credit_card') {
         if (!token) return createErrorResponse(ERROR_CODES.TOKEN_REQUIRED, 'Token obrigatório', 400, corsHeaders);
         paymentResult = await handleCardPayment({
-          orderId, calculatedTotalCents, payerEmail, payerName, payerDocument, token,
-          installments: installments || 1, paymentMethodId, issuerId, effectiveAccessToken, applicationFeeCents
+          orderId, 
+          calculatedTotalCents, 
+          payerEmail, 
+          payerName, 
+          payerDocument, 
+          token,
+          installments: installments || 1, 
+          paymentMethodId, 
+          issuerId, 
+          effectiveAccessToken, 
+          applicationFeeCents,
+          // ✅ Dados para qualidade MP
+          productId: firstItem.product_id,
+          productName: firstItem.product_name,
+          items: items
         });
       } else {
         return createErrorResponse(ERROR_CODES.INVALID_REQUEST, 'Método inválido', 400, corsHeaders);
