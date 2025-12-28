@@ -94,10 +94,10 @@ serve(async (req) => {
       });
     }
 
-    // Buscar dados do webhook de outbound_webhooks
+    // Buscar dados do webhook de outbound_webhooks - usando secret_encrypted (seguro)
     const { data: webhook, error: webhookError } = await supabase
       .from('outbound_webhooks')
-      .select('url, secret, active')
+      .select('url, secret_encrypted, active')
       .eq('id', delivery.webhook_id)
       .single();
 
@@ -153,11 +153,11 @@ serve(async (req) => {
 
     console.log(`[process-webhook-queue] 🔄 Reenviando webhook ${delivery.id} para ${webhook.url}`);
 
-    // Gerar assinatura HMAC
+    // Gerar assinatura HMAC usando secret_encrypted (seguro)
     const timestamp = Math.floor(Date.now() / 1000).toString();
     const payloadString = JSON.stringify(delivery.payload);
     const signaturePayload = `${timestamp}.${payloadString}`;
-    const signature = createHmac('sha256', webhook.secret)
+    const signature = createHmac('sha256', webhook.secret_encrypted)
       .update(signaturePayload)
       .digest('hex');
 

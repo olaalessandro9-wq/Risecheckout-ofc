@@ -326,14 +326,14 @@ async function determineSmartSplit(
       .single();
     
     if (affiliate?.user_id) {
-      // Buscar credenciais PushinPay do afiliado
+      // Buscar credenciais PushinPay do afiliado - usando token_encrypted (seguro)
       const { data: affiliateSettings } = await supabase
         .from('payment_gateway_settings')
-        .select('pushinpay_token, pushinpay_account_id, environment')
+        .select('token_encrypted, pushinpay_account_id, environment')
         .eq('user_id', affiliate.user_id)
         .single();
       
-      if (affiliateSettings?.pushinpay_token && affiliateSettings?.pushinpay_account_id) {
+      if (affiliateSettings?.token_encrypted && affiliateSettings?.pushinpay_account_id) {
         console.log(`[${logPrefix}] ✅ Afiliado tem credenciais PushinPay - criando PIX pelo AFILIADO`);
         
         // PIX criado pelo afiliado, split para produtor + plataforma
@@ -364,7 +364,7 @@ async function determineSmartSplit(
         
         if (totalSplitCents <= maxSplitCents) {
           return {
-            pixCreatorToken: affiliateSettings.pushinpay_token,
+            pixCreatorToken: affiliateSettings.token_encrypted,
             pixCreatorAccountId: affiliateSettings.pushinpay_account_id,
             pixCreatorEnvironment: (affiliateSettings.environment as 'sandbox' | 'production') || 'production',
             pixCreatedBy: 'affiliate',
