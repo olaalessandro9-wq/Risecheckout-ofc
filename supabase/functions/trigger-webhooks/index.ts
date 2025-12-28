@@ -205,8 +205,9 @@ async function sendToExternalWebhook(
     const payloadString = JSON.stringify(payload);
     const timestamp = Date.now().toString();
     
-    // ✅ SEGURANÇA: Validar que webhook tem secret configurado
-    if (!webhook.secret || webhook.secret.trim() === '') {
+    // ✅ SEGURANÇA: Usar secret_encrypted (migrado de secret plaintext)
+    const webhookSecret = webhook.secret_encrypted || webhook.secret;
+    if (!webhookSecret || webhookSecret.trim() === '') {
       logError(`Webhook ${webhook.id} sem secret configurado - PULANDO`);
       return {
         success: false,
@@ -216,9 +217,9 @@ async function sendToExternalWebhook(
       };
     }
 
-    // Generate HMAC signature using webhook secret (SEM fallback)
+    // Generate HMAC signature using webhook secret_encrypted (SEM fallback)
     const signatureData = `${timestamp}.${payloadString}`;
-    const signature = await generateHmacSignature(signatureData, webhook.secret);
+    const signature = await generateHmacSignature(signatureData, webhookSecret);
 
     const response = await fetch(webhook.url, {
       method: "POST",
@@ -319,10 +320,10 @@ serve(async (req) => {
     logInfo("📦 Itens encontrados", { count: items.length, items: items.map((i: any) => ({ name: i.product_name, is_bump: i.is_bump })) });
 
     // 5. BUSCAR WEBHOOKS
-    // Nota: Buscamos webhooks ativos do vendedor
+    // Nota: Buscamos webhooks ativos do vendedor - usando secret_encrypted (seguro)
     const { data: webhooks, error: webHooksError } = await supabase
       .from("outbound_webhooks")
-      .select(`*, webhook_products(product_id)`)
+      .select(`id, url, name, events, secret_encrypted, webhook_products(product_id)`)
       .eq("vendor_id", order.vendor_id)
       .eq("active", true);
 
