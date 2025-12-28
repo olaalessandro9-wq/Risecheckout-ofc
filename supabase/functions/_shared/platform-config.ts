@@ -290,9 +290,9 @@ export const PLATFORM_MERCADOPAGO_COLLECTOR_ID = "3002802852";
 /**
  * Account ID da conta PushinPay da RiseCheckout
  * Este é o ID onde a taxa da plataforma será depositada via split
- * Configurado via variável de ambiente: PUSHINPAY_PLATFORM_ACCOUNT_ID
+ * ⚠️ LIDO EXCLUSIVAMENTE DO SECRET (sem hardcode)
  */
-export const PLATFORM_PUSHINPAY_ACCOUNT_ID = "A0557404-1578-4F50-8AE7-AEF8711F03D1";
+export const PLATFORM_PUSHINPAY_ACCOUNT_ID = Deno.env.get('PUSHINPAY_PLATFORM_ACCOUNT_ID') || '';
 
 // ========================================================================
 // STRIPE (se aplicável)
