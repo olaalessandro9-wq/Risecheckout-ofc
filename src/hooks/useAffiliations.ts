@@ -75,12 +75,19 @@ export function useAffiliations(): UseAffiliationsResult {
 
   const cancelAffiliation = useCallback(async (id: string): Promise<boolean> => {
     try {
-      const { error: updateError } = await supabase
-        .from("affiliates")
-        .update({ status: "cancelled" })
-        .eq("id", id);
+      // Usar Edge Function segura (não UPDATE direto via RLS)
+      const { data, error: invokeError } = await supabase.functions.invoke(
+        'update-affiliate-settings',
+        {
+          body: {
+            action: 'cancel_affiliation',
+            affiliate_id: id
+          }
+        }
+      );
 
-      if (updateError) throw updateError;
+      if (invokeError) throw invokeError;
+      if (data?.error) throw new Error(data.error);
 
       // Atualizar estado local
       setAffiliations(prev =>
