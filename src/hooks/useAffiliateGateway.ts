@@ -34,23 +34,28 @@ export function useAffiliateGateway(): UseAffiliateGatewayReturn {
   ): Promise<boolean> => {
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from("affiliates")
-        .update({
-          pix_gateway: data.pix_gateway,
-          credit_card_gateway: data.credit_card_gateway,
-          gateway_credentials: data.gateway_credentials || {},
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", affiliateId);
+      // Usar Edge Function segura (não UPDATE direto via RLS)
+      const { data: result, error: invokeError } = await supabase.functions.invoke(
+        'update-affiliate-settings',
+        {
+          body: {
+            action: 'update_gateways',
+            affiliate_id: affiliateId,
+            pix_gateway: data.pix_gateway,
+            credit_card_gateway: data.credit_card_gateway,
+            gateway_credentials: data.gateway_credentials || {},
+          }
+        }
+      );
 
-      if (error) throw error;
+      if (invokeError) throw invokeError;
+      if (result?.error) throw new Error(result.error);
       
       toast.success("Gateways atualizados com sucesso");
       return true;
     } catch (error) {
       console.error("Erro ao salvar gateways:", error);
-      toast.error("Erro ao salvar configurações de gateway");
+      toast.error(error instanceof Error ? error.message : "Erro ao salvar configurações de gateway");
       return false;
     } finally {
       setSaving(false);

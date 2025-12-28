@@ -91,3 +91,7 @@ verify_jwt = true
 # ✅ AUTENTICADAS (Email)
 [functions.send-email]
 verify_jwt = true
+
+# ✅ AUTENTICADAS (Afiliados - Update seguro)
+[functions.update-affiliate-settings]
+verify_jwt = true
