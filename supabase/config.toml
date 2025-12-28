@@ -95,3 +95,7 @@ verify_jwt = true
 # ✅ AUTENTICADAS (Afiliados - Update seguro)
 [functions.update-affiliate-settings]
 verify_jwt = true
+
+# ✅ AUTENTICADAS (Migração de credenciais para Vault)
+[functions.migrate-vendor-credentials-to-vault]
+verify_jwt = true
