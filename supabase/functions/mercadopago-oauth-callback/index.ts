@@ -322,19 +322,42 @@ serve(async (req) => {
       console.log('[OAuth Callback] ✅ Profiles atualizado com sucesso');
     }
 
-    // 9. Salvar/atualizar vendor_integrations
-    // ✅ CORREÇÃO: Usar schema correto - config é JSONB, active é boolean
-    console.log('[OAuth Callback] Salvando integração em vendor_integrations...');
+    // 9. Salvar credenciais no VAULT (SEC-01 FIX)
+    console.log('[OAuth Callback] Salvando credenciais no Supabase Vault...');
+    
+    // Importar dinamicamente o helper de vault
+    const { saveCredentialsToVault } = await import('../_shared/vault-credentials.ts');
+    
+    // Salvar tokens sensíveis no Vault
+    const vaultResult = await saveCredentialsToVault(supabase, vendorId, 'MERCADOPAGO', {
+      access_token: accessToken,
+      refresh_token: refreshToken
+    });
+    
+    if (!vaultResult.success) {
+      console.error('[OAuth Callback] Erro ao salvar no Vault:', vaultResult.error);
+      return new Response(errorHTML('Erro ao salvar credenciais de forma segura.'), {
+        headers: { 
+          'Content-Type': 'text/html; charset=utf-8',
+          ...corsHeaders
+        },
+        status: 500
+      });
+    }
+    console.log('[OAuth Callback] ✅ Credenciais salvas no Vault');
+    
+    // 10. Salvar/atualizar vendor_integrations (APENAS metadados públicos)
+    console.log('[OAuth Callback] Salvando metadados em vendor_integrations...');
     
     const integrationConfig = {
-      access_token: accessToken,
-      refresh_token: refreshToken,
+      // ✅ SEC-01 FIX: NÃO salvar tokens aqui, apenas metadados públicos
       public_key: publicKey || null,
       user_id: collectorId,
       email: mercadopagoEmail,
-      is_test: false, // OAuth é sempre produção
-      environment: 'production' as const, // ✅ FIX: Explicitamente definir ambiente
-      connected_at: new Date().toISOString()
+      is_test: false,
+      environment: 'production' as const,
+      connected_at: new Date().toISOString(),
+      credentials_in_vault: true // Flag indicando que tokens estão no Vault
     };
 
     const { data: existingIntegration } = await supabase

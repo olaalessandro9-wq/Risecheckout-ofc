@@ -176,16 +176,31 @@ serve(async (req) => {
         business_type: account.business_type 
       });
 
-      // Salvar integração em vendor_integrations
+      // ✅ SEC-01 FIX: Salvar tokens sensíveis no Vault
+      const { saveCredentialsToVault } = await import('../_shared/vault-credentials.ts');
+      
+      const vaultResult = await saveCredentialsToVault(supabaseClient, vendorId, 'STRIPE', {
+        access_token: accessToken!,
+        refresh_token: refreshToken || undefined
+      });
+      
+      if (!vaultResult.success) {
+        logStep("Error saving to Vault", { error: vaultResult.error });
+        throw new Error("Failed to save credentials securely");
+      }
+      
+      logStep("Credentials saved to Vault");
+
+      // Salvar integração em vendor_integrations (APENAS metadados públicos)
       const integrationConfig = {
         stripe_account_id: stripeAccountId,
-        access_token: accessToken, // Em produção, criptografar!
-        refresh_token: refreshToken,
+        // ✅ SEC-01 FIX: NÃO salvar tokens aqui
         livemode,
         is_test: !livemode,
         email: account.email,
         business_type: account.business_type,
         connected_at: new Date().toISOString(),
+        credentials_in_vault: true // Flag indicando que tokens estão no Vault
       };
 
       // Upsert na vendor_integrations
