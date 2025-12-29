@@ -2315,6 +2315,10 @@ export type Database = {
         Returns: undefined
       }
       is_admin: { Args: { p_user_id: string }; Returns: boolean }
+      is_product_in_active_public_checkout: {
+        Args: { _product_id: string }
+        Returns: boolean
+      }
       log_security_event: {
         Args: {
           p_action: string
