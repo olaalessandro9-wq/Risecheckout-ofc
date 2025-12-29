@@ -33,12 +33,11 @@ type Item = {
  * Owner: Vê "Gateways" (não "Financeiro") - credenciais via Secrets
  * Outros: Vêm "Financeiro" para configurar suas próprias credenciais
  */
-function buildNavItems(params: { canAccessAdminPanel: boolean; isOwner: boolean }): Item[] {
+function buildNavItems(params: { canAccessAdminPanel: boolean; isOwner: boolean; canHaveAffiliates: boolean }): Item[] {
   const base: Item[] = [
     { label: "Dashboard", icon: LayoutDashboard, to: "/dashboard" },
     { label: "Produtos", icon: Package, to: "/dashboard/produtos" },
     { label: "Marketplace", icon: Store, to: "/dashboard/marketplace" },
-    { label: "Afiliados", icon: Users, to: "/dashboard/afiliados" },
     // Condicional: Owner vê "Gateways", demais veem "Financeiro"
     params.isOwner
       ? { label: "Gateways", icon: Wallet, to: "/dashboard/gateways" }
@@ -48,6 +47,11 @@ function buildNavItems(params: { canAccessAdminPanel: boolean; isOwner: boolean 
     { label: "Suporte pelo WhatsApp", icon: LifeBuoy, external: SUPPORT_WHATSAPP_URL },
     { label: "Ajuda", icon: HelpCircle, external: HELP_CENTER_URL },
   ];
+
+  // Afiliados só aparece para quem pode ter afiliados (owners)
+  if (params.canHaveAffiliates) {
+    base.splice(3, 0, { label: "Afiliados", icon: Users, to: "/dashboard/afiliados" });
+  }
 
   return base.filter((item) => {
     if (!item.requiresAdmin) return true;
@@ -72,12 +76,12 @@ interface SidebarProps {
 export function Sidebar({ mobileOpen = false, setMobileOpen, onExpandChange }: SidebarProps) {
   const [isHovered, setIsHovered] = useState(false);
   const location = useLocation();
-  const { canAccessAdminPanel, role } = usePermissions();
+  const { canAccessAdminPanel, role, canHaveAffiliates } = usePermissions();
   const isOwner = role === "owner";
 
   const navItems = useMemo(
-    () => buildNavItems({ canAccessAdminPanel, isOwner }),
-    [canAccessAdminPanel, isOwner]
+    () => buildNavItems({ canAccessAdminPanel, isOwner, canHaveAffiliates }),
+    [canAccessAdminPanel, isOwner, canHaveAffiliates]
   );
 
   // Notificar AppShell quando hover mudar
