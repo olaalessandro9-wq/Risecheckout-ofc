@@ -2355,6 +2355,11 @@ export type Database = {
         Args: { p_code: string; p_product_id: string }
         Returns: Json
       }
+      vault_get_secret: { Args: { p_name: string }; Returns: string }
+      vault_upsert_secret: {
+        Args: { p_name: string; p_secret: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "user" | "owner" | "seller"
