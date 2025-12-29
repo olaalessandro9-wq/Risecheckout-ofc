@@ -35,6 +35,20 @@ serve(async (req) => {
     return new Response("Method not allowed", { status: 405 });
   }
 
+  // 🔒 SEGURANÇA: Validar X-Internal-Secret (obrigatório)
+  const internalSecret = req.headers.get('X-Internal-Secret');
+  const expectedSecret = Deno.env.get('INTERNAL_WEBHOOK_SECRET');
+
+  if (!internalSecret || internalSecret !== expectedSecret) {
+    console.log("[process-webhook-queue] ❌ Unauthorized: Invalid or missing X-Internal-Secret");
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized' }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  console.log("[process-webhook-queue] ✅ Autenticação validada");
+
   try {
     const payload = await req.json();
     const record = payload.record;
