@@ -7,17 +7,18 @@
  * - updateProductStatus: Alterar status do produto (active, blocked, deleted)
  * 
  * Apenas owners podem usar esta função
+ * CORS restrito a domínios permitidos
+ * 
+ * @version 1.1.0
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
-  // Handle CORS
+  const origin = req.headers.get("Origin");
+  const corsHeaders = getCorsHeaders(origin);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -26,10 +27,8 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     
-    // Cliente com service role para operações administrativas
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Cliente com token do usuário para verificar permissões
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
@@ -42,7 +41,6 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    // Verificar usuário autenticado
     const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
     if (authError || !user) {
       console.error("[manage-user-status] Erro de autenticação:", authError);
@@ -52,7 +50,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verificar se o usuário é owner
     const { data: callerRole, error: roleError } = await supabaseAdmin
       .from("user_roles")
       .select("role")
@@ -62,7 +59,6 @@ Deno.serve(async (req) => {
     if (roleError || callerRole?.role !== "owner") {
       console.error("[manage-user-status] Acesso negado. Role:", callerRole?.role);
       
-      // Logar tentativa de acesso não autorizado
       await supabaseAdmin.rpc("log_security_event", {
         p_user_id: user.id,
         p_action: "PERMISSION_DENIED",
@@ -77,13 +73,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Parse do body
     const body = await req.json();
     const { action, userId, status, reason, feePercent, productId } = body;
 
     console.log(`[manage-user-status] Action: ${action} by owner ${user.id}`);
 
-    // Ação: Atualizar status do usuário
     if (action === "updateStatus") {
       if (!userId || !status) {
         return new Response(
@@ -100,7 +94,6 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Atualizar profile
       const { error: updateError } = await supabaseAdmin
         .from("profiles")
         .update({
@@ -116,7 +109,6 @@ Deno.serve(async (req) => {
         throw updateError;
       }
 
-      // Logar ação
       await supabaseAdmin.rpc("log_security_event", {
         p_user_id: user.id,
         p_action: `USER_STATUS_CHANGED_TO_${status.toUpperCase()}`,
@@ -134,7 +126,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Ação: Atualizar taxa personalizada
     if (action === "updateCustomFee") {
       if (!userId) {
         return new Response(
@@ -143,7 +134,6 @@ Deno.serve(async (req) => {
         );
       }
 
-      // feePercent pode ser null para resetar
       if (feePercent !== null && (typeof feePercent !== "number" || feePercent < 0 || feePercent > 1)) {
         return new Response(
           JSON.stringify({ error: "feePercent deve ser um número entre 0 e 1 (ex: 0.04 = 4%)" }),
@@ -163,7 +153,6 @@ Deno.serve(async (req) => {
         throw updateError;
       }
 
-      // Logar ação
       await supabaseAdmin.rpc("log_security_event", {
         p_user_id: user.id,
         p_action: feePercent === null ? "CUSTOM_FEE_RESET" : "CUSTOM_FEE_SET",
@@ -190,7 +179,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Ação: Atualizar status do produto
     if (action === "updateProductStatus") {
       if (!productId || !status) {
         return new Response(
@@ -207,14 +195,12 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Buscar informações do produto antes de atualizar
       const { data: productData } = await supabaseAdmin
         .from("products")
         .select("name, user_id, status")
         .eq("id", productId)
         .single();
 
-      // Atualizar produto
       const { error: updateError } = await supabaseAdmin
         .from("products")
         .update({ status })
@@ -225,7 +211,6 @@ Deno.serve(async (req) => {
         throw updateError;
       }
 
-      // Logar ação
       await supabaseAdmin.rpc("log_security_event", {
         p_user_id: user.id,
         p_action: `PRODUCT_STATUS_CHANGED_TO_${status.toUpperCase()}`,

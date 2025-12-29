@@ -22,7 +22,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 
 interface Product {
   id: string;
@@ -55,11 +54,11 @@ export const UTMifyConfig = () => {
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [saving, setSaving] = useState(false);
   const [loadingConfig, setLoadingConfig] = useState(true);
+  const [hasExistingToken, setHasExistingToken] = useState(false);
   
   const [productsOpen, setProductsOpen] = useState(false);
   const [eventsOpen, setEventsOpen] = useState(false);
 
-  // Carregar produtos do vendedor
   useEffect(() => {
     if (user) {
       loadProducts();
@@ -70,7 +69,6 @@ export const UTMifyConfig = () => {
   const loadProducts = async () => {
     try {
       setLoadingProducts(true);
-      console.log("[UTMify] Carregando produtos para user:", user?.id);
       
       const { data, error } = await supabase
         .from("products")
@@ -79,16 +77,11 @@ export const UTMifyConfig = () => {
         .neq("status", "deleted")
         .order("name");
 
-      if (error) {
-        console.error("[UTMify] Erro ao carregar produtos:", error);
-        throw error;
-      }
-      
-      console.log("[UTMify] Produtos carregados:", data);
+      if (error) throw error;
       setProducts(data || []);
-    } catch (error: any) {
-      console.error("[UTMify] Erro ao carregar produtos:", error);
-      toast.error("Erro ao carregar produtos: " + (error.message || "Erro desconhecido"));
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
+      toast.error("Erro ao carregar produtos: " + errorMessage);
     } finally {
       setLoadingProducts(false);
     }
@@ -107,11 +100,17 @@ export const UTMifyConfig = () => {
       if (error) throw error;
 
       if (data) {
-        const config = data.config as { api_token?: string; selected_products?: string[]; selected_events?: string[] } | null;
-        setUtmifyToken(config?.api_token || "");
+        const config = data.config as { 
+          selected_products?: string[]; 
+          selected_events?: string[];
+          has_token?: boolean;
+        } | null;
+        
         setUtmifyActive(data.active || false);
         setSelectedProducts(config?.selected_products || []);
         setSelectedEvents(config?.selected_events || []);
+        setHasExistingToken(config?.has_token || false);
+        setUtmifyToken("");
       }
     } catch (error) {
       console.error("Error loading UTMify config:", error);
@@ -125,66 +124,65 @@ export const UTMifyConfig = () => {
     try {
       setSaving(true);
       
-      if (!utmifyToken.trim()) {
+      if (!utmifyToken.trim() && !hasExistingToken) {
         toast.error("API Token é obrigatório");
         return;
       }
 
-      // Verificar se já existe uma integração da UTMify para este usuário
-      const { data: existingData, error: checkError } = await supabase
-        .from("vendor_integrations")
-        .select("id")
-        .eq("vendor_id", user?.id)
-        .eq("integration_type", "UTMIFY")
-        .maybeSingle();
-
-      // Ativar automaticamente apenas se for uma nova integração (não existe no banco)
-      const shouldActivate = !existingData && !utmifyActive && utmifyToken.trim();
+      const shouldActivate = !hasExistingToken && !utmifyActive && utmifyToken.trim();
       const activeStatus = shouldActivate ? true : utmifyActive;
 
-      if (checkError) throw checkError;
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        toast.error("Sessão expirada. Faça login novamente.");
+        return;
+      }
 
-      const config = {
-        api_token: utmifyToken.trim(),
+      const credentials: Record<string, unknown> = {
         selected_products: selectedProducts,
         selected_events: selectedEvents,
+        has_token: true,
       };
 
-      if (existingData) {
-        // Atualizar integração existente
-        const { error: updateError } = await supabase
-          .from("vendor_integrations")
-          .update({
-            config,
-            active: activeStatus,
-            updated_at: new Date().toISOString()
-          })
-          .eq("id", existingData.id);
+      if (utmifyToken.trim()) {
+        credentials.api_token = utmifyToken.trim();
+      }
 
-        if (updateError) throw updateError;
-      } else {
-        // Criar nova integração
-        const { error: insertError } = await supabase
-          .from("vendor_integrations")
-          .insert({
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/vault-save`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${sessionData.session.access_token}`,
+          },
+          body: JSON.stringify({
             vendor_id: user?.id,
             integration_type: "UTMIFY",
-            config,
-            active: activeStatus
-          });
+            credentials,
+            active: activeStatus,
+          }),
+        }
+      );
 
-        if (insertError) throw insertError;
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Erro ao salvar credenciais");
       }
-      
-      // Atualizar estado local se foi ativado automaticamente
+
       if (shouldActivate) {
         setUtmifyActive(true);
       }
       
+      setHasExistingToken(true);
+      setUtmifyToken("");
+      
       toast.success("Integração UTMify salva com sucesso!");
     } catch (error) {
       console.error("Error saving UTMify integration:", error);
-      toast.error("Erro ao salvar integração UTMify");
+      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
+      toast.error("Erro ao salvar integração UTMify: " + errorMessage);
     } finally {
       setSaving(false);
     }
@@ -241,7 +239,11 @@ export const UTMifyConfig = () => {
               <CardTitle>UTMify</CardTitle>
               <CardDescription>Rastreamento de conversões com parâmetros UTM</CardDescription>
             </div>
-            <Badge variant={utmifyActive ? "default" : "secondary"} className={utmifyActive ? "bg-success" : "bg-muted"} style={utmifyActive ? {backgroundColor: 'hsl(var(--success))'} : {}}>
+            <Badge 
+              variant={utmifyActive ? "default" : "secondary"} 
+              className={utmifyActive ? "bg-success" : "bg-muted"} 
+              style={utmifyActive ? {backgroundColor: 'hsl(var(--success))'} : {}}
+            >
               {utmifyActive ? "ATIVO" : "INATIVO"}
             </Badge>
           </div>
@@ -257,14 +259,21 @@ export const UTMifyConfig = () => {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="utmify-token">API Token</Label>
+          <Label htmlFor="utmify-token">
+            API Token {hasExistingToken && <span className="text-muted-foreground">(já configurado)</span>}
+          </Label>
           <Input
             id="utmify-token"
-            type="text"
-            placeholder="Cole seu token da API da UTMify"
+            type="password"
+            placeholder={hasExistingToken ? "••••••••••••••••" : "Cole seu token da API da UTMify"}
             value={utmifyToken}
             onChange={(e) => setUtmifyToken(e.target.value)}
           />
+          {hasExistingToken && (
+            <p className="text-xs text-muted-foreground">
+              Token já salvo de forma segura. Deixe em branco para manter o atual ou digite um novo para substituir.
+            </p>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -342,9 +351,9 @@ export const UTMifyConfig = () => {
                         checked={selectedEvents.includes(event.id)}
                         className="mr-2"
                       />
-                      <div>
-                        <div className="font-medium">{event.label}</div>
-                        <div className="text-xs text-muted-foreground">{event.description}</div>
+                      <div className="flex flex-col">
+                        <span>{event.label}</span>
+                        <span className="text-xs text-muted-foreground">{event.description}</span>
                       </div>
                     </CommandItem>
                   ))}
@@ -366,20 +375,10 @@ export const UTMifyConfig = () => {
           )}
         </div>
 
-        <div className="flex items-center justify-between pt-4">
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="utmify-active"
-              checked={utmifyActive}
-              onCheckedChange={setUtmifyActive}
-            />
-            <Label htmlFor="utmify-active">Ativo</Label>
-          </div>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Salvar
-          </Button>
-        </div>
+        <Button onClick={handleSave} disabled={saving} className="w-full">
+          {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Salvar Configuração
+        </Button>
       </CardContent>
     </Card>
   );

@@ -6,18 +6,20 @@
  * Regras de segurança:
  * - Apenas owner pode ver emails
  * - Outros roles recebem lista vazia
+ * - CORS restrito a domínios permitidos
+ * 
+ * @version 1.1.0
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 type AppRole = "owner" | "admin" | "user" | "seller";
 
 Deno.serve(async (req: Request) => {
+  const origin = req.headers.get("Origin");
+  const corsHeaders = getCorsHeaders(origin);
+
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });

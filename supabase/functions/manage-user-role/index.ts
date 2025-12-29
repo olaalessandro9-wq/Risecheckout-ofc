@@ -9,16 +9,14 @@
  * - Owner pode fazer qualquer promoção/rebaixamento
  * - Ninguém pode rebaixar a si mesmo
  * - Todas as ações são registradas no audit log
+ * - CORS restrito a domínios permitidos
+ * 
+ * @version 1.1.0
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-// Tipos
 type AppRole = "owner" | "admin" | "user" | "seller";
 
 const ROLE_HIERARCHY: Record<AppRole, number> = {
@@ -34,18 +32,19 @@ interface RequestBody {
 }
 
 Deno.serve(async (req: Request) => {
+  const origin = req.headers.get("Origin");
+  const corsHeaders = getCorsHeaders(origin);
+
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Inicializar Supabase
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Cliente autenticado (para verificar quem está chamando)
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
@@ -58,7 +57,6 @@ Deno.serve(async (req: Request) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    // Verificar usuário autenticado
     const { data: { user: caller }, error: authError } = await supabaseAuth.auth.getUser();
     if (authError || !caller) {
       return new Response(
@@ -67,10 +65,8 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Cliente admin (para operações privilegiadas)
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Buscar role do caller
     const { data: callerRoleData, error: callerRoleError } = await supabaseAdmin
       .from("user_roles")
       .select("role")
@@ -87,11 +83,9 @@ Deno.serve(async (req: Request) => {
 
     const callerRole = callerRoleData.role as AppRole;
 
-    // Verificar se caller tem permissão (admin ou owner)
     if (callerRole !== "admin" && callerRole !== "owner") {
       console.warn(`[manage-user-role] Acesso negado para ${caller.id} (role: ${callerRole})`);
       
-      // Registrar tentativa no audit log
       await supabaseAdmin.rpc("log_security_event", {
         p_user_id: caller.id,
         p_action: "PERMISSION_DENIED",
@@ -108,11 +102,9 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Parse do body
     const body: RequestBody = await req.json();
     const { targetUserId, newRole } = body;
 
-    // Validações básicas
     if (!targetUserId || !newRole) {
       return new Response(
         JSON.stringify({ error: "targetUserId e newRole são obrigatórios" }),
@@ -128,14 +120,9 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // ========================================
-    // REGRA ABSOLUTA: NINGUÉM pode promover para owner
-    // O cargo de owner é protegido e só pode ser atribuído diretamente no banco
-    // ========================================
     if (newRole === "owner") {
       console.warn(`[manage-user-role] TENTATIVA BLOQUEADA de promoção para owner por ${caller.id}`);
       
-      // Registrar tentativa suspeita no audit log
       await supabaseAdmin.rpc("log_security_event", {
         p_user_id: caller.id,
         p_action: "BLOCKED_OWNER_PROMOTION",
@@ -152,7 +139,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Não pode alterar seu próprio role
     if (targetUserId === caller.id) {
       return new Response(
         JSON.stringify({ error: "Você não pode alterar seu próprio role" }),
@@ -160,7 +146,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Buscar role atual do target
     const { data: targetRoleData, error: targetRoleError } = await supabaseAdmin
       .from("user_roles")
       .select("role")
@@ -176,9 +161,7 @@ Deno.serve(async (req: Request) => {
 
     const currentRole = targetRoleData.role as AppRole;
 
-    // Verificar permissões específicas
     if (callerRole === "admin") {
-      // Admin só pode promover entre seller e user (owner já bloqueado acima)
       if (newRole === "admin") {
         return new Response(
           JSON.stringify({ error: "Admins não podem promover para admin" }),
@@ -186,7 +169,6 @@ Deno.serve(async (req: Request) => {
         );
       }
       
-      // Admin não pode rebaixar outros admins ou owners
       if (currentRole === "admin" || currentRole === "owner") {
         return new Response(
           JSON.stringify({ error: "Admins não podem alterar roles de outros admins ou owners" }),
@@ -195,9 +177,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Owner pode fazer tudo (exceto alterar seu próprio role, já verificado)
-
-    // Executar a alteração
     const { error: updateError } = await supabaseAdmin
       .from("user_roles")
       .update({ role: newRole })
@@ -211,7 +190,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Registrar no audit log
     await supabaseAdmin.rpc("log_security_event", {
       p_user_id: caller.id,
       p_action: "ROLE_CHANGE",

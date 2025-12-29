@@ -15,6 +15,7 @@ export function FacebookPixelConfig() {
   const [active, setActive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [hasExistingToken, setHasExistingToken] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -35,10 +36,15 @@ export function FacebookPixelConfig() {
       if (error) throw error;
 
       if (data) {
-        const config = data.config as { pixel_id?: string; access_token?: string } | null;
+        const config = data.config as { 
+          pixel_id?: string; 
+          has_token?: boolean;
+        } | null;
+        
         setPixelId(config?.pixel_id || "");
-        setAccessToken(config?.access_token || "");
+        setHasExistingToken(config?.has_token || false);
         setActive(data.active || false);
+        setAccessToken("");
       }
     } catch (error) {
       console.error("Error loading config:", error);
@@ -57,48 +63,56 @@ export function FacebookPixelConfig() {
         return;
       }
 
-      const { data: existingData, error: checkError } = await supabase
-        .from("vendor_integrations")
-        .select("id")
-        .eq("vendor_id", user?.id)
-        .eq("integration_type", "FACEBOOK_PIXEL")
-        .maybeSingle();
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        toast.error("Sessão expirada. Faça login novamente.");
+        return;
+      }
 
-      if (checkError) throw checkError;
-
-      const config = {
+      const credentials: Record<string, unknown> = {
         pixel_id: pixelId.trim(),
-        ...(accessToken.trim() && { access_token: accessToken.trim() }),
       };
 
-      if (existingData) {
-        const { error } = await supabase
-          .from("vendor_integrations")
-          .update({
-            config,
-            active,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", existingData.id);
+      if (accessToken.trim()) {
+        credentials.access_token = accessToken.trim();
+        credentials.has_token = true;
+      } else if (hasExistingToken) {
+        credentials.has_token = true;
+      }
 
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("vendor_integrations")
-          .insert({
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/vault-save`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${sessionData.session.access_token}`,
+          },
+          body: JSON.stringify({
             vendor_id: user?.id,
             integration_type: "FACEBOOK_PIXEL",
-            config,
+            credentials,
             active,
-          });
+          }),
+        }
+      );
 
-        if (error) throw error;
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Erro ao salvar credenciais");
+      }
+
+      if (accessToken.trim()) {
+        setHasExistingToken(true);
+        setAccessToken("");
       }
 
       toast.success("Configuração salva com sucesso!");
     } catch (error) {
       console.error("Error saving config:", error);
-      toast.error("Erro ao salvar configuração");
+      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
+      toast.error("Erro ao salvar configuração: " + errorMessage);
     } finally {
       setSaving(false);
     }
@@ -159,18 +173,21 @@ export function FacebookPixelConfig() {
 
         <div className="space-y-2">
           <Label htmlFor="access-token" style={{ color: "var(--text)" }}>
-            Access Token (Opcional)
+            Access Token (Opcional) {hasExistingToken && <span className="text-muted-foreground">(já configurado)</span>}
           </Label>
           <Input
             id="access-token"
             type="password"
-            placeholder="Para Conversions API"
+            placeholder={hasExistingToken ? "••••••••••••••••" : "Para Conversions API"}
             value={accessToken}
             onChange={(e) => setAccessToken(e.target.value)}
             className="font-mono"
           />
           <p className="text-xs" style={{ color: "var(--subtext)" }}>
-            Necessário apenas para rastreamento server-side
+            {hasExistingToken 
+              ? "Token já salvo de forma segura. Deixe em branco para manter o atual ou digite um novo para substituir."
+              : "Necessário apenas para rastreamento server-side (Conversions API)"
+            }
           </p>
         </div>
 
