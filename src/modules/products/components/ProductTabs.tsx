@@ -5,7 +5,7 @@
  * permitindo fácil navegação e adição de novas abas.
  */
 
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GeneralTab } from "../tabs/GeneralTab";
 import { ConfiguracoesTab } from "../tabs/ConfiguracoesTab";
@@ -13,9 +13,20 @@ import { OrderBumpTab } from "../tabs/OrderBumpTab";
 import { UpsellTab } from "../tabs/UpsellTab";
 import { CheckoutTab } from "../tabs/CheckoutTab";
 import { CuponsTab } from "../tabs/CuponsTab";
-import { AffiliatesTab } from "../tabs/AffiliatesTab";
 import { LinksTab } from "../tabs/LinksTab";
 import { usePermissions } from "@/hooks/usePermissions";
+import { Loader2 } from "lucide-react";
+
+// Lazy loading para AffiliatesTab (aba pesada, só carrega quando necessário)
+const AffiliatesTab = lazy(() => import("../tabs/AffiliatesTab").then(m => ({ default: m.AffiliatesTab })));
+
+function TabLoader() {
+  return (
+    <div className="flex items-center justify-center py-12">
+      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
 
 export function ProductTabs() {
   const [activeTab, setActiveTab] = useState("geral");
@@ -108,14 +119,16 @@ export function ProductTabs() {
         <CuponsTab />
       </TabsContent>
       
-      {/* ABA AFILIADOS - só renderiza se tem permissão */}
+      {/* ABA AFILIADOS - só renderiza se tem permissão, com lazy loading */}
       {canHaveAffiliates && (
         <TabsContent 
           value="afiliados" 
           className={`space-y-6 ${activeTab !== "afiliados" ? "hidden" : ""}`}
           forceMount
         >
-          <AffiliatesTab />
+          <Suspense fallback={<TabLoader />}>
+            <AffiliatesTab />
+          </Suspense>
         </TabsContent>
       )}
       
