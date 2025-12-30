@@ -10,3 +10,6 @@ export type { ValidationErrors, CardValidationReturn } from './useCardValidation
 
 export { useBinResolution } from './useBinResolution';
 export type { BinResolutionReturn } from './useBinResolution';
+
+export { useMercadoPagoInstallments } from './useMercadoPagoInstallments';
+export type { UseMercadoPagoInstallmentsProps, UseMercadoPagoInstallmentsReturn } from './useMercadoPagoInstallments';
