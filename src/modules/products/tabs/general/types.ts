@@ -9,6 +9,7 @@ export interface GeneralFormData {
   support_name: string;
   support_email: string;
   delivery_url: string;
+  external_delivery: boolean;
 }
 
 export interface GeneralFormErrors {

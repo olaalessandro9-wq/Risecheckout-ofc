@@ -22,6 +22,7 @@ export interface ProductData {
   created_at?: string;
   updated_at?: string;
   delivery_url?: string | null; // Link de entrega do produto digital
+  external_delivery?: boolean; // Quando true, entrega é feita por sistema externo (webhook/N8N)
 }
 
 // ============================================================================
