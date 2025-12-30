@@ -58,6 +58,7 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
 }> = ({
   publicKey,
   amount,
+  maxInstallments,
   onSubmit,
   onError,
   onReady,
@@ -78,7 +79,7 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
     setIdentificationNumber, 
     setSelectedInstallment,
     formatCPF 
-  } = useCardFormState(amount);
+  } = useCardFormState(amount, maxInstallments);
 
   const {
     errors,
@@ -303,7 +304,8 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
               backgroundColor,
               borderColor,
               borderWidth: '1px',
-              borderStyle: 'solid'
+              borderStyle: 'solid',
+              colorScheme: isLightColor(backgroundColor) ? 'light' : 'dark'
             }}
           >
             {state.installments.map((inst) => (
