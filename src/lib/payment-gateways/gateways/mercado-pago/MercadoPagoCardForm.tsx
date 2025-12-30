@@ -313,22 +313,25 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
             className="border z-50"
             style={{ 
               backgroundColor,
-              borderColor
-            }}
+              borderColor,
+              color: textColor,
+              // CSS variable para hover dinâmico
+              '--select-hover-bg': isLightColor(backgroundColor) ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.1)',
+            } as React.CSSProperties}
           >
-            {state.installments.map((inst) => {
-              const isLight = isLightColor(backgroundColor);
-              return (
-                <SelectItem 
-                  key={inst.value} 
-                  value={inst.value?.toString() || '1'} 
-                  className={`cursor-pointer ${isLight ? 'focus:bg-black/5 data-[highlighted]:bg-black/5' : 'focus:bg-white/10 data-[highlighted]:bg-white/10'}`}
-                  style={{ color: textColor }}
-                >
-                  {inst.label}
-                </SelectItem>
-              );
-            })}
+            {state.installments.map((inst) => (
+              <SelectItem 
+                key={inst.value} 
+                value={inst.value?.toString() || '1'} 
+                className="cursor-pointer"
+                style={{ 
+                  color: textColor,
+                  '--item-hover-bg': isLightColor(backgroundColor) ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.1)',
+                } as React.CSSProperties}
+              >
+                {inst.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>

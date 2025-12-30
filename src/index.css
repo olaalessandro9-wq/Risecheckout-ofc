@@ -410,3 +410,24 @@ iframe.mp-error {
 .animate-gradient-x {
   animation: gradient-x 15s ease infinite;
 }
+
+/* ========================================
+   RADIX SELECT - Dynamic Theme Support
+   ======================================== */
+
+/* Herdar cor do texto do container pai quando há style inline */
+[data-radix-select-content][style*="color"] [data-radix-select-item] {
+  color: inherit;
+}
+
+/* Aplicar hover background dinâmico via CSS variable */
+[data-radix-select-item][style] {
+  transition: background-color 0.15s ease;
+}
+
+[data-radix-select-item][style]:focus,
+[data-radix-select-item][style]:hover,
+[data-radix-select-item][style][data-highlighted] {
+  background-color: var(--item-hover-bg, rgba(0, 0, 0, 0.05)) !important;
+  color: inherit !important;
+}
