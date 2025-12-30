@@ -51,10 +51,9 @@ export function generateInstallments(
       hasInterest = true;
     }
 
-    // Verificar valor mínimo da parcela BASEADO NO VALOR ORIGINAL (sem juros)
-    // Mercado Pago valida com base no valor original, não no valor com juros
-    const baseInstallmentValue = amountReais / i;
-    if (baseInstallmentValue * 100 < minInstallmentValue) {
+    // Verificar valor mínimo da parcela com base no VALOR FINAL (com juros)
+    // Isso permite mais opções de parcelamento, similar ao comportamento Cakto/Kiwify
+    if (installmentAmount * 100 < minInstallmentValue) {
       break;
     }
 
