@@ -235,6 +235,33 @@ serve(async (req) => {
       }
     });
 
+    // Disparar webhooks do vendedor
+    const internalSecret = Deno.env.get('INTERNAL_WEBHOOK_SECRET');
+    if (internalSecret) {
+      try {
+        const webhookEventType = internalStatus === 'paid' ? 'purchase_approved' :
+                                 internalStatus === 'refunded' ? 'purchase_refunded' :
+                                 internalStatus === 'pending' ? 'pix_generated' : null;
+        
+        if (webhookEventType) {
+          const webhookResponse = await fetch(`${SUPABASE_URL}/functions/v1/trigger-webhooks`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Internal-Secret': internalSecret,
+            },
+            body: JSON.stringify({
+              order_id: orderId,
+              event_type: webhookEventType,
+            }),
+          });
+          console.log('[asaas-webhook] Resposta trigger-webhooks:', webhookResponse.status);
+        }
+      } catch (e) {
+        console.warn('[asaas-webhook] Erro ao disparar webhooks (não crítico):', e);
+      }
+    }
+
     console.log(`[asaas-webhook] Order ${orderId} atualizada com sucesso para ${internalStatus}`);
 
     return new Response(

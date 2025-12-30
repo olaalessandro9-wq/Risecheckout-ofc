@@ -145,9 +145,13 @@ serve(async (req) => {
       // Disparar webhooks do vendedor
       try {
         const supabaseUrl = Deno.env.get("SUPABASE_URL");
+        const internalSecret = Deno.env.get("INTERNAL_WEBHOOK_SECRET");
         await fetch(`${supabaseUrl}/functions/v1/trigger-webhooks`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "X-Internal-Secret": internalSecret || "",
+          },
           body: JSON.stringify({
             order_id: orderId,
             event_type: "purchase_approved",
@@ -222,9 +226,13 @@ serve(async (req) => {
         // Disparar webhook de reembolso
         try {
           const supabaseUrl = Deno.env.get("SUPABASE_URL");
+          const internalSecret = Deno.env.get("INTERNAL_WEBHOOK_SECRET");
           await fetch(`${supabaseUrl}/functions/v1/trigger-webhooks`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+              "Content-Type": "application/json",
+              "X-Internal-Secret": internalSecret || "",
+            },
             body: JSON.stringify({
               order_id: order.id,
               event_type: "purchase_refunded",

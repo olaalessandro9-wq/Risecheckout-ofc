@@ -106,8 +106,8 @@ export function usePixPayment({ config, amount }: UsePixPaymentProps): UsePixPay
           gateway: 'mercadopago',
           accessToken,
           amount,
-          qrCode: paymentData.data?.pix?.qr_code || paymentData.data?.pix?.qrCode,
-          qrCodeBase64: paymentData.data?.pix?.qr_code_base64 || paymentData.data?.pix?.qrCodeBase64
+          qrCode: paymentData.data?.pix?.qrCode || paymentData.data?.pix?.qr_code,
+          qrCodeBase64: paymentData.data?.pix?.qrCodeBase64 || paymentData.data?.pix?.qr_code_base64
         });
         break;
       }
