@@ -45,17 +45,8 @@ export const InstallmentsField = memo<InstallmentsFieldProps>(({
     });
     
     const installmentValue = formatter.format(installment.installmentAmount);
-    const totalValue = formatter.format(installment.totalAmount);
     
-    if (installment.installments === 1) {
-      return `À vista ${totalValue}`;
-    }
-    
-    if (installment.hasInterest) {
-      return `${installment.installments}x de ${installmentValue} (Total: ${totalValue})`;
-    }
-    
-    return `${installment.installments}x de ${installmentValue} sem juros`;
+    return `${installment.installments}x de ${installmentValue}`;
   };
   
   return (
