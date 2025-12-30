@@ -356,6 +356,28 @@ serve(async (req) => {
       } catch (eventError: any) {
         logError('Erro ao registrar evento (não crítico)', { message: eventError.message });
       }
+
+      // 10.3 Disparar webhooks externos para pagamento aprovado
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL');
+        const internalSecret = Deno.env.get('INTERNAL_WEBHOOK_SECRET');
+
+        const webhookResponse = await fetch(`${supabaseUrl}/functions/v1/trigger-webhooks`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Internal-Secret': internalSecret || ''
+          },
+          body: JSON.stringify({
+            order_id: orderId,
+            event_type: 'purchase_approved'
+          })
+        });
+        
+        logInfo('📡 Webhooks externos disparados', { status: webhookResponse.status, orderId });
+      } catch (webhookError: any) {
+        logError('Erro ao disparar webhooks (não crítico)', { message: webhookError.message });
+      }
     }
 
     // 11. RESPONSE
