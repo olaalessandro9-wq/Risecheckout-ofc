@@ -29,6 +29,23 @@ import { SecureFieldsPortal } from './components';
 // Controle de inicialização global do SDK
 let lastInitializedPublicKey: string | null = null;
 
+// Helper para determinar se a cor de fundo é clara
+const isLightColor = (color: string): boolean => {
+  if (!color || color === 'transparent') return true;
+  
+  // Converter hex para RGB
+  const hex = color.replace('#', '');
+  if (hex.length === 6) {
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    // Luminosidade relativa
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.5;
+  }
+  return true;
+};
+
 // Estilo compartilhado
 const inputContainerStyle = "relative flex h-10 w-full items-center rounded-xl border border-input bg-transparent px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2";
 
@@ -296,20 +313,22 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
             className="border z-50"
             style={{ 
               backgroundColor,
-              color: textColor,
               borderColor
             }}
           >
-            {state.installments.map((inst) => (
-              <SelectItem 
-                key={inst.value} 
-                value={inst.value?.toString() || '1'} 
-                className="cursor-pointer"
-                style={{ color: textColor }}
-              >
-                {inst.label}
-              </SelectItem>
-            ))}
+            {state.installments.map((inst) => {
+              const isLight = isLightColor(backgroundColor);
+              return (
+                <SelectItem 
+                  key={inst.value} 
+                  value={inst.value?.toString() || '1'} 
+                  className={`cursor-pointer ${isLight ? 'focus:bg-black/5 data-[highlighted]:bg-black/5' : 'focus:bg-white/10 data-[highlighted]:bg-white/10'}`}
+                  style={{ color: textColor }}
+                >
+                  {inst.label}
+                </SelectItem>
+              );
+            })}
           </SelectContent>
         </Select>
       </div>
