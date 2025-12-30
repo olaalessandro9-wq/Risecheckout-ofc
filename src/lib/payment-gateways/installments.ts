@@ -56,9 +56,7 @@ export function generateInstallments(
       break;
     }
 
-    const label = `${i}x de R$ ${installmentAmount.toFixed(2).replace('.', ',')}${
-      hasInterest ? ' (c/ juros)' : ' (à vista)'
-    }`;
+    const label = `${i}x de R$ ${installmentAmount.toFixed(2).replace('.', ',')}`;
 
     installments.push({
       value: i,
