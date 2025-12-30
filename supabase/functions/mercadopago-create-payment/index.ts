@@ -70,41 +70,48 @@ async function fetchCredentials(supabase: any, vendorId: string) {
   let credentialsResult;
   let isOwner = false;
   
-  // ✅ SEC-01 FIX: Importar helper de vault e priorizar Vault
-  const { getVendorCredentials } = await import('../_shared/vault-credentials.ts');
-  
   try {
+    // Tentar via getGatewayCredentials (Owner usa secrets, vendedor usa vendor_integrations)
     credentialsResult = await getGatewayCredentials(supabase, vendorId, 'mercadopago');
     isOwner = credentialsResult.isOwner;
+    logInfo(`Credenciais obtidas via getGatewayCredentials`, { isOwner, source: credentialsResult.source });
   } catch (credError: any) {
-    logWarn('Fallback para Vault/vendor_integrations', { error: credError.message });
+    logWarn('getGatewayCredentials falhou, tentando Vault...', { error: credError.message, vendorId });
     
-    // ✅ SEC-01 FIX: Usar helper que prioriza Vault
-    const { credentials: vaultCreds, source } = await getVendorCredentials(supabase, vendorId, 'MERCADOPAGO');
-    
-    if (!vaultCreds) {
+    // ✅ SEC-01 FIX: Import LAZY do helper de Vault (só quando necessário)
+    try {
+      const { getVendorCredentials } = await import('../_shared/vault-credentials.ts');
+      const { credentials: vaultCreds, source } = await getVendorCredentials(supabase, vendorId, 'MERCADOPAGO');
+      
+      if (!vaultCreds || !vaultCreds.accessToken) {
+        logError('Nenhuma credencial encontrada', { vendorId, source });
+        throw { code: 'GATEWAY_NOT_CONFIGURED', message: 'Mercado Pago não configurado para este vendedor' };
+      }
+      
+      logInfo(`✅ Credenciais via Vault: ${source}`, { isOwner: false });
+      
+      credentialsResult = {
+        isOwner: false,
+        credentials: {
+          accessToken: vaultCreds.accessToken,
+          environment: vaultCreds.environment || 'production'
+        },
+        source
+      };
+    } catch (vaultError: any) {
+      logError('Falha ao buscar do Vault', { error: vaultError.message, vendorId });
       throw { code: 'GATEWAY_NOT_CONFIGURED', message: 'Mercado Pago não configurado' };
     }
-    
-    logInfo(`✅ Credenciais via: ${source}`, { isOwner: false });
-    
-    credentialsResult = {
-      isOwner: false,
-      credentials: {
-        accessToken: vaultCreds.accessToken,
-        environment: vaultCreds.environment
-      },
-      source
-    };
   }
 
   const { credentials, source } = credentialsResult;
   const validation = validateCredentials('mercadopago', credentials);
   if (!validation.valid) {
-    throw { code: 'GATEWAY_NOT_CONFIGURED', message: 'Credenciais incompletas' };
+    logError('Credenciais incompletas', { missingFields: validation.missingFields, vendorId });
+    throw { code: 'GATEWAY_NOT_CONFIGURED', message: 'Credenciais Mercado Pago incompletas' };
   }
 
-  logInfo(`✅ Credenciais via: ${source}`, { isOwner, environment: credentials.environment });
+  logInfo(`✅ Credenciais validadas`, { isOwner, environment: credentials.environment, source });
   return { accessToken: credentials.accessToken!, environment: credentials.environment!, isOwner };
 }
 
@@ -115,29 +122,33 @@ async function fetchCredentials(supabase: any, vendorId: string) {
 async function calculateSplit(supabase: any, order: any, isOwner: boolean, calculatedTotalCents: number, gatewayToken: string, affiliateCollectorId: string | null) {
   let effectiveAccessToken = gatewayToken;
   let applicationFeeCents = 0;
-
-  // ✅ SEC-01 FIX: Importar helper de vault
-  const { getVendorCredentials } = await import('../_shared/vault-credentials.ts');
   
   // CENÁRIO 1: Owner + Afiliado
   if (isOwner && order.affiliate_id && order.commission_cents > 0 && affiliateCollectorId) {
     logInfo('🔄 [SPLIT] SEU produto via Afiliado');
     
-    // ✅ SEC-01 FIX: Buscar token do afiliado via Vault
-    const { credentials: affCreds, source } = await getVendorCredentials(
-      supabase, 
-      order.affiliate.user_id, 
-      'MERCADOPAGO'
-    );
-    
-    if (affCreds?.accessToken) {
-      effectiveAccessToken = affCreds.accessToken;
-      applicationFeeCents = calculatedTotalCents - order.commission_cents;
-      logInfo('💰 [SPLIT] CAKTO via Afiliado', { 
-        afiliado_recebe: order.commission_cents, 
-        voce_recebe: applicationFeeCents,
-        source
-      });
+    // ✅ SEC-01 FIX: Import LAZY do helper de Vault (só quando há afiliado)
+    try {
+      const { getVendorCredentials } = await import('../_shared/vault-credentials.ts');
+      const { credentials: affCreds, source } = await getVendorCredentials(
+        supabase, 
+        order.affiliate.user_id, 
+        'MERCADOPAGO'
+      );
+      
+      if (affCreds?.accessToken) {
+        effectiveAccessToken = affCreds.accessToken;
+        applicationFeeCents = calculatedTotalCents - order.commission_cents;
+        logInfo('💰 [SPLIT] CAKTO via Afiliado', { 
+          afiliado_recebe: order.commission_cents, 
+          voce_recebe: applicationFeeCents,
+          source
+        });
+      } else {
+        logWarn('⚠️ Afiliado sem token MP - usando token do Owner');
+      }
+    } catch (vaultErr: any) {
+      logWarn('⚠️ Erro ao buscar token do afiliado - usando token do Owner', { error: vaultErr.message });
     }
   } 
   // CENÁRIO 2: Vendedor
