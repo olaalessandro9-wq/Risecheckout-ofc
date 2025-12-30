@@ -54,9 +54,11 @@ export function useCardFormState(amount: number, maxInstallments?: number): Card
   // Gerar parcelas imediatamente
   useEffect(() => {
     if (amount > 0) {
-      const generatedInstallments = generateInstallments(amount, { maxInstallments });
+      // Só passar maxInstallments se tiver valor definido para não sobrescrever o default
+      const config = maxInstallments !== undefined ? { maxInstallments } : {};
+      const generatedInstallments = generateInstallments(amount, config);
       setInstallments(generatedInstallments);
-      console.log('[useCardFormState] Parcelas geradas:', generatedInstallments.length, 'max:', maxInstallments);
+      console.log('[useCardFormState] Parcelas geradas:', generatedInstallments.length, 'max:', maxInstallments ?? 'default');
     }
   }, [amount, maxInstallments]);
 
