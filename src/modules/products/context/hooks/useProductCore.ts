@@ -78,6 +78,7 @@ export function useProductCore({
         created_at: data.created_at,
         updated_at: data.updated_at,
         delivery_url: data.delivery_url,
+        external_delivery: data.external_delivery ?? false,
       });
 
       // Extrair e notificar upsell_settings
@@ -159,6 +160,8 @@ export function useProductCore({
           support_name: product.support_name,
           support_email: product.support_email,
           status: product.status,
+          delivery_url: product.external_delivery ? null : (product.delivery_url ?? null),
+          external_delivery: product.external_delivery ?? false,
         })
         .eq("id", productId)
         .eq("user_id", userId);
