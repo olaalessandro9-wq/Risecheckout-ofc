@@ -178,7 +178,7 @@ export const CardFormPreview: React.FC<CardFormPreviewProps> = ({ design }) => {
             className="text-sm"
             style={{ color: fieldText }}
           >
-            1x sem juros
+            1x de R$ 97,00
           </span>
           <svg 
             className="w-4 h-4 opacity-50" 

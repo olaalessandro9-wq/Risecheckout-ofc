@@ -3,24 +3,32 @@
  * 
  * Calcula parcelas com taxa fixa, sem precisar do BIN do cartão.
  * Usado por todos os gateways para exibir parcelas imediatamente.
+ * 
+ * Regra: parcela mínima de R$ 5,00 (COM JUROS)
  */
 
 import type { Installment } from '@/types/payment-types';
 
 interface InstallmentConfig {
   interestRate: number;     // Taxa mensal (ex: 0.0299 = 2.99%)
-  maxInstallments: number;  // Máximo de parcelas
+  maxInstallments?: number;  // Limite opcional (se não definido, calcula dinamicamente)
   minInstallmentValue: number; // Valor mínimo da parcela em centavos
 }
 
 const DEFAULT_CONFIG: InstallmentConfig = {
-  interestRate: 0.0299,      // 2.99% ao mês (taxa padrão do Mercado Pago)
-  maxInstallments: 12,
+  interestRate: 0.0299,      // 2.99% ao mês (taxa padrão)
   minInstallmentValue: 500,  // R$ 5,00 mínimo por parcela
 };
 
+// Limite técnico de segurança para evitar listas infinitas
+const ABSOLUTE_MAX_INSTALLMENTS = 60;
+
 /**
  * Gera lista de parcelas com cálculo de juros
+ * 
+ * A quantidade de parcelas é determinada pela regra:
+ * - Parcela COM JUROS >= R$ 5,00
+ * - Até maxInstallments se definido, senão até o limite técnico (60)
  */
 export function generateInstallments(
   amountCents: number,
@@ -36,10 +44,15 @@ export function generateInstallments(
     ...cleanConfig,
   };
 
+  // Limite efetivo: usa o menor entre maxInstallments (se definido) e o limite técnico
+  const effectiveMaxInstallments = maxInstallments !== undefined 
+    ? Math.min(maxInstallments, ABSOLUTE_MAX_INSTALLMENTS)
+    : ABSOLUTE_MAX_INSTALLMENTS;
+
   const installments: Installment[] = [];
   const amountReais = amountCents / 100;
 
-  for (let i = 1; i <= maxInstallments; i++) {
+  for (let i = 1; i <= effectiveMaxInstallments; i++) {
     let totalAmount: number;
     let installmentAmount: number;
     let hasInterest: boolean;
@@ -57,7 +70,6 @@ export function generateInstallments(
     }
 
     // Verificar valor mínimo da parcela com base no VALOR FINAL (com juros)
-    // Isso permite mais opções de parcelamento, similar ao comportamento Cakto/Kiwify
     if (installmentAmount * 100 < minInstallmentValue) {
       break;
     }

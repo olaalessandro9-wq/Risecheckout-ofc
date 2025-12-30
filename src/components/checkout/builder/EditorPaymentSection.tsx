@@ -166,7 +166,7 @@ export const EditorPaymentSection = ({
                 color: design.colors.creditCardFields?.textColor || design.colors.primaryText
               }}
             >
-              <span>1x de R$ 4,99 sem juros</span>
+              <span>1x de R$ 97,00</span>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
