@@ -211,7 +211,38 @@ Deno.serve(async (req) => {
       console.error(`[${functionName}] Erro ao atualizar pedido:`, updateError);
     }
 
-    // 9. Se houver ajuste de split, logar para pagamento manual
+    // 9. Disparar evento pix_generated para webhooks do vendedor
+    const internalSecret = Deno.env.get('INTERNAL_WEBHOOK_SECRET');
+    if (internalSecret) {
+      try {
+        console.log(`[${functionName}] Disparando evento pix_generated para order ${orderId}`);
+        
+        const webhookResponse = await fetch(`${supabaseUrl}/functions/v1/trigger-webhooks`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Internal-Secret': internalSecret,
+          },
+          body: JSON.stringify({
+            order_id: orderId,
+            event_type: 'pix_generated',
+          }),
+        });
+        
+        if (webhookResponse.ok) {
+          console.log(`[${functionName}] Evento pix_generated disparado com sucesso`);
+        } else {
+          const errorText = await webhookResponse.text();
+          console.warn(`[${functionName}] Erro ao disparar pix_generated:`, errorText);
+        }
+      } catch (webhookError) {
+        console.warn(`[${functionName}] Excecao ao disparar pix_generated (nao critico):`, webhookError);
+      }
+    } else {
+      console.warn(`[${functionName}] INTERNAL_WEBHOOK_SECRET nao configurado - pix_generated nao sera disparado`);
+    }
+
+    // 10. Se houver ajuste de split, logar para pagamento manual
     if (smartSplit.adjustedSplit && smartSplit.manualPaymentNeeded > 0) {
       await supabase.from('edge_function_errors').insert({
         function_name: `${functionName}-manual-payment`,
@@ -226,7 +257,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 10. Retornar dados do PIX
+    // 11. Retornar dados do PIX
     return new Response(JSON.stringify({
       ok: true,
       pix: {
