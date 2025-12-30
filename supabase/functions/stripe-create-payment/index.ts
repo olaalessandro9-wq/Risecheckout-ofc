@@ -297,6 +297,28 @@ serve(async (req) => {
           });
         }
       }
+
+      // Disparar webhooks externos para pagamento aprovado
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL');
+        const internalSecret = Deno.env.get('INTERNAL_WEBHOOK_SECRET');
+
+        await fetch(`${supabaseUrl}/functions/v1/trigger-webhooks`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Internal-Secret': internalSecret || ''
+          },
+          body: JSON.stringify({
+            order_id: order_id,
+            event_type: 'purchase_approved'
+          })
+        });
+        
+        logStep('Webhook purchase_approved disparado', { order_id });
+      } catch (webhookError) {
+        logStep('Erro ao disparar purchase_approved (não crítico)', { error: webhookError });
+      }
     }
 
     // Atualizar pedido
@@ -352,6 +374,28 @@ serve(async (req) => {
             pix_status: "pending",
           })
           .eq("id", order_id);
+
+        // Disparar webhook pix_generated
+        try {
+          const supabaseUrl = Deno.env.get('SUPABASE_URL');
+          const internalSecret = Deno.env.get('INTERNAL_WEBHOOK_SECRET');
+
+          await fetch(`${supabaseUrl}/functions/v1/trigger-webhooks`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Internal-Secret': internalSecret || ''
+            },
+            body: JSON.stringify({
+              order_id: order_id,
+              event_type: 'pix_generated'
+            })
+          });
+          
+          logStep('Webhook pix_generated disparado', { order_id });
+        } catch (webhookError) {
+          logStep('Erro ao disparar pix_generated (não crítico)', { error: webhookError });
+        }
       }
     }
 
