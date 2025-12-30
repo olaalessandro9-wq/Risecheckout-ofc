@@ -32,7 +32,12 @@ let lastInitializedPublicKey: string | null = null;
 // Estilo compartilhado
 const inputContainerStyle = "relative flex h-10 w-full items-center rounded-xl border border-input bg-transparent px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2";
 
-export const MercadoPagoCardForm: React.FC<CardFormProps & { textColor?: string, placeholderColor?: string }> = ({
+export const MercadoPagoCardForm: React.FC<CardFormProps & { 
+  textColor?: string, 
+  placeholderColor?: string,
+  backgroundColor?: string,
+  borderColor?: string 
+}> = ({
   publicKey,
   amount,
   onSubmit,
@@ -41,7 +46,9 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & { textColor?: string,
   onMount,
   isProcessing = false,
   textColor = '#ffffff',
-  placeholderColor = '#9ca3af'
+  placeholderColor = '#9ca3af',
+  backgroundColor = 'transparent',
+  borderColor = 'hsl(var(--border))'
 }) => {
   // Hooks refatorados
   const { 
@@ -163,7 +170,10 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & { textColor?: string,
         <Label className={`text-[11px] font-normal opacity-70 ${errors.cardNumber ? 'text-red-500' : ''}`}>
           Número do cartão
         </Label>
-        <div className={`${inputContainerStyle} ${errors.cardNumber ? 'border-red-500 ring-red-500' : ''}`}>
+        <div 
+          className={`${inputContainerStyle} ${errors.cardNumber ? 'border-red-500 ring-red-500' : ''}`}
+          style={{ backgroundColor, borderColor: errors.cardNumber ? undefined : borderColor }}
+        >
           <CreditCard className={`mr-2 h-4 w-4 flex-shrink-0 ${errors.cardNumber ? 'text-red-500' : 'text-gray-400'}`} />
           <div id="mp-card-number-slot" className="flex-1 h-full" />
         </div>
@@ -176,7 +186,10 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & { textColor?: string,
           <Label className={`text-[11px] font-normal opacity-70 ${errors.expirationDate ? 'text-red-500' : ''}`}>
             Validade
           </Label>
-          <div className={`${inputContainerStyle} ${errors.expirationDate ? 'border-red-500 ring-red-500' : ''}`}>
+          <div 
+            className={`${inputContainerStyle} ${errors.expirationDate ? 'border-red-500 ring-red-500' : ''}`}
+            style={{ backgroundColor, borderColor: errors.expirationDate ? undefined : borderColor }}
+          >
             <Calendar className={`mr-2 h-4 w-4 flex-shrink-0 ${errors.expirationDate ? 'text-red-500' : 'text-gray-400'}`} />
             <div id="mp-expiration-slot" className="flex-1 h-full" />
           </div>
@@ -188,7 +201,10 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & { textColor?: string,
           <Label className={`text-[11px] font-normal opacity-70 ${errors.securityCode ? 'text-red-500' : ''}`}>
             CVV
           </Label>
-          <div className={`${inputContainerStyle} ${errors.securityCode ? 'border-red-500 ring-red-500' : ''}`}>
+          <div 
+            className={`${inputContainerStyle} ${errors.securityCode ? 'border-red-500 ring-red-500' : ''}`}
+            style={{ backgroundColor, borderColor: errors.securityCode ? undefined : borderColor }}
+          >
             <Lock className={`mr-2 h-4 w-4 flex-shrink-0 ${errors.securityCode ? 'text-red-500' : 'text-gray-400'}`} />
             <div id="mp-security-slot" className="flex-1 h-full" />
           </div>
@@ -212,7 +228,10 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & { textColor?: string,
         <Label className={`text-[11px] font-normal opacity-70 ${errors.cardholderName ? 'text-red-500' : ''}`}>
           Nome do titular
         </Label>
-        <div className={`${inputContainerStyle} ${errors.cardholderName ? 'border-red-500 ring-red-500' : ''}`}>
+        <div 
+          className={`${inputContainerStyle} ${errors.cardholderName ? 'border-red-500 ring-red-500' : ''}`}
+          style={{ backgroundColor, borderColor: errors.cardholderName ? undefined : borderColor }}
+        >
           <User className={`mr-2 h-4 w-4 flex-shrink-0 ${errors.cardholderName ? 'text-red-500' : 'text-gray-400'}`} />
           <Input
             value={state.cardholderName}
@@ -233,7 +252,10 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & { textColor?: string,
         <Label className={`text-[11px] font-normal opacity-70 ${errors.identificationNumber ? 'text-red-500' : ''}`}>
           CPF do titular
         </Label>
-        <div className={`${inputContainerStyle} ${errors.identificationNumber ? 'border-red-500 ring-red-500' : ''}`}>
+        <div 
+          className={`${inputContainerStyle} ${errors.identificationNumber ? 'border-red-500 ring-red-500' : ''}`}
+          style={{ backgroundColor, borderColor: errors.identificationNumber ? undefined : borderColor }}
+        >
           <ShieldCheck className={`mr-2 h-4 w-4 flex-shrink-0 ${errors.identificationNumber ? 'text-red-500' : 'text-gray-400'}`} />
           <Input
             value={state.identificationNumber}
@@ -254,16 +276,37 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & { textColor?: string,
       <div className="space-y-1">
         <Label className="text-[11px] font-normal opacity-70" style={{ color: textColor }}>Parcelamento</Label>
         <Select value={state.selectedInstallment} onValueChange={setSelectedInstallment}>
-          <SelectTrigger className="w-full h-10 rounded-xl border border-input bg-transparent" style={{ color: textColor }}>
+          <SelectTrigger 
+            className="w-full h-10 rounded-xl" 
+            style={{ 
+              color: textColor,
+              backgroundColor,
+              borderColor,
+              borderWidth: '1px',
+              borderStyle: 'solid'
+            }}
+          >
             <SelectValue>
               <span style={{ color: textColor }}>
                 {state.installments.find(i => i.value?.toString() === state.selectedInstallment)?.label || 'Selecione'}
               </span>
             </SelectValue>
           </SelectTrigger>
-          <SelectContent className="bg-popover text-popover-foreground border-border">
+          <SelectContent 
+            className="border z-50"
+            style={{ 
+              backgroundColor,
+              color: textColor,
+              borderColor
+            }}
+          >
             {state.installments.map((inst) => (
-              <SelectItem key={inst.value} value={inst.value?.toString() || '1'} className="cursor-pointer hover:bg-accent hover:text-accent-foreground">
+              <SelectItem 
+                key={inst.value} 
+                value={inst.value?.toString() || '1'} 
+                className="cursor-pointer"
+                style={{ color: textColor }}
+              >
                 {inst.label}
               </SelectItem>
             ))}
