@@ -26,9 +26,14 @@ export function generateInstallments(
   amountCents: number,
   config: Partial<InstallmentConfig> = {}
 ): Installment[] {
+  // Filtrar propriedades undefined para não sobrescrever defaults
+  const cleanConfig = Object.fromEntries(
+    Object.entries(config).filter(([_, v]) => v !== undefined)
+  );
+
   const { interestRate, maxInstallments, minInstallmentValue } = {
     ...DEFAULT_CONFIG,
-    ...config,
+    ...cleanConfig,
   };
 
   const installments: Installment[] = [];
