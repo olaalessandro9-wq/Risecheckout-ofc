@@ -361,6 +361,41 @@ serve(async (req) => {
         qrCodeText = qrData.payload;
         console.log('[asaas-create-payment] QR Code obtido');
       }
+      
+      // ==========================================
+      // 7.1 DISPARAR WEBHOOK pix_generated
+      // ==========================================
+      try {
+        const internalSecret = Deno.env.get('INTERNAL_WEBHOOK_SECRET') || 'default-internal-secret';
+        
+        console.log('[asaas-create-payment] Disparando webhook pix_generated...');
+        
+        const webhookResponse = await fetch(
+          `${SUPABASE_URL}/functions/v1/trigger-webhooks`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+              'X-Internal-Secret': internalSecret
+            },
+            body: JSON.stringify({
+              order_id: orderId,
+              event_type: 'pix_generated'
+            })
+          }
+        );
+
+        if (webhookResponse.ok) {
+          console.log('[asaas-create-payment] ✅ Webhook pix_generated disparado');
+        } else {
+          const errorText = await webhookResponse.text();
+          console.warn('[asaas-create-payment] ⚠️ Webhook pix_generated falhou:', errorText);
+        }
+      } catch (webhookError) {
+        console.warn('[asaas-create-payment] ⚠️ Erro ao disparar webhook:', webhookError);
+        // Não bloquear o fluxo principal
+      }
     }
 
     // ==========================================
