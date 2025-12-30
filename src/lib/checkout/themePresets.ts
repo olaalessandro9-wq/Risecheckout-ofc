@@ -224,7 +224,7 @@ export const THEME_PRESETS: Record<'light' | 'dark', ThemePreset> = {
       active: '#10B981',
       icon: '#FFFFFF',
       formBackground: '#1A1A1A',
-      border: '#1A1A1A',
+      border: '#374151',
       unselectedButton: {
         text: '#FFFFFF',
         background: '#2A2A2A',
@@ -302,7 +302,7 @@ export const THEME_PRESETS: Record<'light' | 'dark', ThemePreset> = {
       creditCardFields: {
         textColor: '#FFFFFF',
         placeholderColor: '#9CA3AF',
-        borderColor: '#1A1A1A',
+      borderColor: '#374151',
         backgroundColor: '#1A1A1A',
         focusBorderColor: '#10B981',
         focusTextColor: '#FFFFFF',

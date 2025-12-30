@@ -200,15 +200,17 @@ export const SharedPaymentMethodSelector: React.FC<SharedPaymentMethodSelectorPr
             />
           ) : (
             // ARQUITETURA ATUAL: MercadoPagoCardForm (hardcoded)
-            <MercadoPagoCardForm 
-              publicKey={publicKey}
-              amount={amount}
-              onSubmit={handleCardSubmit}
-              isProcessing={isProcessing}
-              onMount={onCardSubmitReady}
-              textColor={design.colors.creditCardFields?.textColor || design.colors.primaryText}
-              placeholderColor={design.colors.creditCardFields?.placeholderColor || design.colors.secondaryText}
-            />
+              <MercadoPagoCardForm 
+                publicKey={publicKey}
+                amount={amount}
+                onSubmit={handleCardSubmit}
+                isProcessing={isProcessing}
+                onMount={onCardSubmitReady}
+                textColor={design.colors.creditCardFields?.textColor || design.colors.primaryText}
+                placeholderColor={design.colors.creditCardFields?.placeholderColor || design.colors.secondaryText}
+                backgroundColor={design.colors.creditCardFields?.backgroundColor || design.colors.formBackground}
+                borderColor={design.colors.creditCardFields?.borderColor || design.colors.formBackground}
+              />
           )}
         </div>
       )}

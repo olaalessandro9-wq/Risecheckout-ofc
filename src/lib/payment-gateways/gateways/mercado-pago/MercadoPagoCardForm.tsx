@@ -309,9 +309,9 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
               </span>
             </SelectValue>
           </SelectTrigger>
-          <SelectContent 
-            className="border z-50"
-            style={{ 
+              <SelectContent 
+                className="border z-50 max-h-60 overflow-hidden"
+                style={{
               backgroundColor,
               borderColor,
               color: textColor,
