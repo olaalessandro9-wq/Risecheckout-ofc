@@ -233,78 +233,100 @@ function getEmailWrapper(content: string): string {
  * Template: Confirmação de Compra (para cliente)
  */
 export function getPurchaseConfirmationTemplate(data: PurchaseConfirmationData): string {
+
+  const styles = `
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+      body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; background-color: #F8F9FA; color: #343A40; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+      .container { max-width: 600px; margin: 40px auto; background-color: #FFFFFF; border: 1px solid #E9ECEF; border-radius: 8px; overflow: hidden; }
+      .header { text-align: center; padding: 40px 20px; border-bottom: 1px solid #E9ECEF; }
+      .header img { max-width: 180px; }
+      .content { padding: 32px; }
+      .content h1 { font-size: 24px; font-weight: 700; color: #212529; margin: 0 0 12px; }
+      .content p { font-size: 16px; line-height: 1.6; margin: 0 0 24px; color: #495057; }
+      .cta-section { background-color: #F1F3F5; padding: 24px; border-radius: 6px; text-align: center; margin-bottom: 32px; }
+      .cta-section h2 { font-size: 18px; font-weight: 600; color: #212529; margin: 0 0 8px; }
+      .cta-section p { font-size: 14px; color: #495057; margin: 0 0 20px; }
+      .cta-button { display: inline-block; background-color: #007BFF; color: #FFFFFF; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 16px; }
+      .order-details { border: 1px solid #E9ECEF; border-radius: 6px; }
+      .order-details h2 { font-size: 18px; font-weight: 700; color: #212529; margin: 0; padding: 20px; border-bottom: 1px solid #E9ECEF; }
+      .order-item { display: flex; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #E9ECEF; }
+      .order-item:last-child { border-bottom: none; }
+      .order-label { font-size: 14px; color: #495057; }
+      .order-value { font-size: 14px; font-weight: 600; color: #212529; }
+      .total-row { display: flex; justify-content: space-between; padding: 20px; background-color: #F8F9FA; font-size: 18px; font-weight: 700; }
+      .support { text-align: center; padding: 32px; font-size: 14px; color: #6C757D; }
+      .support a { color: #007BFF; text-decoration: none; font-weight: 600; }
+      .footer { background-color: #F8F9FA; padding: 24px; text-align: center; font-size: 12px; color: #6C757D; }
+      .footer p { margin: 0 0 4px; }
+      .footer a { color: #495057; text-decoration: none; font-weight: 600; }
+    </style>
+  `;
+
   const content = `
     <div class="header">
-      <span class="success-badge">✓ Pagamento Confirmado</span>
-      <h1 style="margin-top: 16px;">Compra Realizada com Sucesso!</h1>
-      <p class="subtitle">Obrigado por sua compra</p>
+      <img src="https://www.risecheckout.com/logo-risecheckout-v2.png" alt="Rise Checkout Logo">
     </div>
-    
     <div class="content">
-      <p class="greeting">Olá, ${data.customerName}!</p>
-      
-      <p class="message">
-        Seu pagamento foi confirmado e sua compra foi processada com sucesso. 
-        Abaixo estão os detalhes do seu pedido.
-      </p>
+      <h1>Sua compra foi confirmada!</h1>
+      <p>Olá, ${data.customerName}, obrigado por comprar conosco. Seu pagamento foi processado com sucesso e os detalhes do seu pedido estão logo abaixo.</p>
       
       ${data.deliveryUrl ? `
-      <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 32px; border-radius: 16px; margin: 24px 0; text-align: center;">
-        <h3 style="color: #ffffff; margin: 0 0 8px 0; font-size: 18px; font-weight: 700;">🎉 Seu acesso está liberado!</h3>
-        <p style="color: rgba(255,255,255,0.9); margin: 0 0 20px 0; font-size: 14px;">Clique no botão abaixo para acessar seu produto</p>
-        <a href="${data.deliveryUrl}" style="display: inline-block; background: #ffffff; color: #059669; padding: 16px 40px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 16px; box-shadow: 0 4px 14px rgba(0,0,0,0.15);">
-          Acessar Produto
-        </a>
+      <div class="cta-section">
+        <h2>Seu acesso está liberado!</h2>
+        <p>Clique no botão abaixo para acessar o conteúdo que você adquiriu.</p>
+        <a href="${data.deliveryUrl}" class="cta-button">Acessar meu produto</a>
       </div>
       ` : ''}
-      
-      <div class="order-box">
-        <h3>Detalhes do Pedido</h3>
-        
-        <div class="order-row">
+
+      <div class="order-details">
+        <h2>Resumo do Pedido</h2>
+        <div class="order-item">
           <span class="order-label">Produto</span>
           <span class="order-value">${data.productName}</span>
         </div>
-        
-        <div class="order-row">
+        <div class="order-item">
           <span class="order-label">Nº do Pedido</span>
           <span class="order-value">#${data.orderId.substring(0, 8).toUpperCase()}</span>
         </div>
-        
         ${data.paymentMethod ? `
-        <div class="order-row">
+        <div class="order-item">
           <span class="order-label">Forma de Pagamento</span>
           <span class="order-value">${data.paymentMethod}</span>
         </div>
         ` : ''}
-        
         <div class="total-row">
-          <div class="order-row" style="border: none; padding: 0;">
-            <span class="order-label">Total Pago</span>
-            <span class="order-value">${formatCurrency(data.amountCents)}</span>
-          </div>
+          <span>Total</span>
+          <span>${formatCurrency(data.amountCents)}</span>
         </div>
       </div>
-      
-      <p class="message">
-        Em caso de dúvidas, entre em contato conosco através do email 
-        <a href="mailto:${data.supportEmail || 'suporte@risecheckout.com'}" style="color: #6366f1;">
-          ${data.supportEmail || 'suporte@risecheckout.com'}
-        </a>
-      </p>
     </div>
-    
+    <div class="support">
+      <p>Em caso de dúvidas sobre sua compra, responda a este email ou entre em contato diretamente com o vendedor através do email: <a href="mailto:${data.supportEmail || 'suporte@risecheckout.com'}">${data.supportEmail || 'suporte@risecheckout.com'}</a>.</p>
+    </div>
     <div class="footer">
-      ${data.sellerName ? `<p><strong>Vendido por:</strong> ${data.sellerName}</p>` : ''}
-      <p>Processado com segurança por Rise Checkout</p>
-      <p style="margin-top: 16px;">
-        <a href="https://risecheckout.com">Rise Checkout</a> • 
-        Plataforma de Pagamentos
-      </p>
+      ${data.sellerName ? `<p>Vendido por: <strong>${data.sellerName}</strong></p>` : ''}
+      <p>Pagamento processado com segurança por <strong>Rise Checkout</strong>.</p>
+      <p><a href="https://risecheckout.com">risecheckout.com</a></p>
     </div>
   `;
-  
-  return getEmailWrapper(content);
+
+  return `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Confirmação de Compra - Rise Checkout</title>
+      ${styles}
+    </head>
+    <body>
+      <div class="container">
+        ${content}
+      </div>
+    </body>
+    </html>
+  `;
 }
 
 /**
