@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Loader2, Send } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -186,32 +187,25 @@ export function TestWebhookDialog({
         executionMode: "production",
       };
 
-      // Enviar através de uma Edge Function auxiliar que faz o POST
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      
-      const response = await fetch(`${supabaseUrl}/functions/v1/send-webhook-test`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${supabaseAnonKey}`,
-          "apikey": supabaseAnonKey,
-        },
-        body: JSON.stringify({
+      // Enviar através da Edge Function usando supabase client
+      const { data: result, error } = await supabase.functions.invoke('send-webhook-test', {
+        body: {
           webhook_id: webhookId,
           webhook_url: webhookUrl,
           event_type: selectedEvent,
           payload: testPayload,
-        }),
+        },
       });
 
-      const result = await response.json();
+      if (error) {
+        throw error;
+      }
 
-      if (response.ok && result.success) {
+      if (result?.success) {
         toast.success(`Evento de teste enviado! Status: ${result.status_code}`);
         onOpenChange(false);
       } else {
-        toast.error(`Erro ao enviar: ${result.error || 'Erro desconhecido'}`);
+        toast.error(`Erro ao enviar: ${result?.error || 'Erro desconhecido'}`);
       }
     } catch (error) {
       console.error("Error sending test event:", error);
