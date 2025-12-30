@@ -317,31 +317,8 @@ serve(async (req) => {
     }
     await supabase.from('orders').update(updateData).eq('id', orderId);
 
-    // 9.1 Disparar webhook pix_generated para PIX
-    if (paymentMethod === 'pix' && paymentResult.qrCodeText) {
-      try {
-        const supabaseUrl = Deno.env.get('SUPABASE_URL');
-        const internalSecret = Deno.env.get('INTERNAL_WEBHOOK_SECRET');
-
-        const webhookResponse = await fetch(`${supabaseUrl}/functions/v1/trigger-webhooks`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Internal-Secret': internalSecret || ''
-          },
-          body: JSON.stringify({
-            order_id: orderId,
-            event_type: 'pix_generated'
-          })
-        });
-        
-        logInfo('📡 [PIX] Webhook pix_generated disparado', { status: webhookResponse.status, orderId });
-      } catch (webhookError: any) {
-        logWarn('Erro ao disparar pix_generated (não crítico)', { message: webhookError.message });
-      }
-    }
-
     // ✅ 10. EMAIL & EVENT para pagamento aprovado instantâneo (cartão)
+    // NOTA: pix_generated é disparado pelo mercadopago-webhook quando MP envia payment.created
     if (paymentResult.status === 'approved' && order.customer_email) {
       logInfo('✅ Pagamento aprovado - enviando email de confirmação', { orderId, email: order.customer_email });
 
