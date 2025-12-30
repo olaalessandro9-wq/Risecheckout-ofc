@@ -223,5 +223,3 @@ export const SharedPaymentMethodSelector: React.FC<SharedPaymentMethodSelectorPr
     </div>
   );
 };
-
-};
