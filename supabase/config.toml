@@ -48,6 +48,10 @@ verify_jwt = false
 [functions.asaas-validate-credentials]
 verify_jwt = false
 
+# ✅ PÚBLICAS (Teste de Webhooks)
+[functions.send-webhook-test]
+verify_jwt = false
+
 # ✅ PÚBLICAS (PushinPay - PIX)
 [functions.pushinpay-create-pix]
 verify_jwt = false
