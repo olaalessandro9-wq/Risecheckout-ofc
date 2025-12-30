@@ -92,6 +92,8 @@ export const GatewayCardForm: React.FC<GatewayCardFormProps> = ({
           onMount={onMount}
           textColor={textColor}
           placeholderColor={placeholderColor}
+          backgroundColor={backgroundColor}
+          borderColor={borderColor}
         />
       );
 
