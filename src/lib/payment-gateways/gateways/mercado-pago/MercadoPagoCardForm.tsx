@@ -311,8 +311,8 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
                 key={inst.value} 
                 value={inst.value?.toString() || '1'}
                 style={{ 
-                  backgroundColor: isLightColor(backgroundColor) ? '#ffffff' : '#1f2937',
-                  color: isLightColor(backgroundColor) ? '#111827' : '#f9fafb'
+                  backgroundColor: isLightColor(backgroundColor) ? '#ffffff' : '#1A1A1A',
+                  color: isLightColor(backgroundColor) ? '#111827' : '#FFFFFF'
                 }}
               >
                 {inst.label}
