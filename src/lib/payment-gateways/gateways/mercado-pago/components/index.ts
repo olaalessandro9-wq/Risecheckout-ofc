@@ -6,6 +6,3 @@ export { SecureFields } from './SecureFields';
 export type { SecureFieldsProps } from './SecureFields';
 
 export { SecureFieldsPortal, resetSecureFieldsState } from './SecureFieldsPortal';
-
-export { InstallmentsDropdown } from './InstallmentsDropdown';
-export type { InstallmentsDropdownProps } from './InstallmentsDropdown';

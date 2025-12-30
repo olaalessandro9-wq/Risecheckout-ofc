@@ -1,30 +1,51 @@
 /**
- * MercadoPagoCardForm
+ * MercadoPagoCardForm - REFATORADO
  * 
  * Componente principal do formulário de cartão usando @mercadopago/sdk-react
  * 
- * Parcelas: 100% locais via generateInstallments()
- * Regra: parcela mínima R$ 5,00 (com juros)
+ * REFATORAÇÃO:
+ * - Lógica de estado → useCardFormState
+ * - Lógica de validação → useCardValidation  
+ * - Resolução de BIN → useBinResolution
+ * - Campos seguros → SecureFields + SecureFieldsPortal
+ * 
+ * Este arquivo agora tem < 200 linhas (antes: 714)
  */
 
-import React, { useEffect, useCallback, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useCallback, useRef } from 'react';
 import { initMercadoPago, createCardToken } from '@mercadopago/sdk-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ChevronDown } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CreditCard, Calendar, Lock, User, ShieldCheck } from 'lucide-react';
 import type { CardFormProps, CardTokenResult } from '@/types/payment-types';
 
 // Hooks refatorados
-import { useCardValidation, useBinResolution } from './hooks';
+import { useCardFormState, useCardValidation, useBinResolution } from './hooks';
 
 // Componentes refatorados
-import { SecureFieldsPortal, InstallmentsDropdown } from './components';
-
-// Gerador de parcelas local
-import { generateInstallments } from '../../installments';
+import { SecureFieldsPortal } from './components';
 
 // Controle de inicialização global do SDK
 let lastInitializedPublicKey: string | null = null;
+
+// Helper para determinar se a cor de fundo é clara
+const isLightColor = (color: string): boolean => {
+  if (!color || color === 'transparent') return true;
+  
+  // Converter hex para RGB
+  const hex = color.replace('#', '');
+  if (hex.length === 6) {
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    // Luminosidade relativa
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.5;
+  }
+  return true;
+};
 
 // Estilo compartilhado
 const inputContainerStyle = "relative flex h-10 w-full items-center rounded-xl border border-input bg-transparent px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2";
@@ -37,7 +58,6 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
 }> = ({
   publicKey,
   amount,
-  maxInstallments,
   onSubmit,
   onError,
   onReady,
@@ -48,22 +68,18 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
   backgroundColor = 'transparent',
   borderColor = 'hsl(var(--border))'
 }) => {
-  // Estados locais do formulário
-  const [cardholderName, setCardholderName] = useState('');
-  const [identificationNumber, setIdentificationNumber] = useState('');
-  const [selectedInstallment, setSelectedInstallment] = useState('1');
-  
-  // Refs para valores atuais (usados no submit sem causar re-render)
-  const cardholderNameRef = useRef('');
-  const identificationNumberRef = useRef('');
-  const selectedInstallmentRef = useRef('1');
+  // Hooks refatorados
+  const { 
+    state, 
+    cardholderNameRef, 
+    identificationNumberRef, 
+    selectedInstallmentRef,
+    setCardholderName, 
+    setIdentificationNumber, 
+    setSelectedInstallment,
+    formatCPF 
+  } = useCardFormState(amount);
 
-  // Manter refs sincronizadas
-  useEffect(() => { cardholderNameRef.current = cardholderName; }, [cardholderName]);
-  useEffect(() => { identificationNumberRef.current = identificationNumber; }, [identificationNumber]);
-  useEffect(() => { selectedInstallmentRef.current = selectedInstallment; }, [selectedInstallment]);
-
-  // Hook de validação
   const {
     errors,
     setErrors,
@@ -76,31 +92,15 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
     setHasAttemptedSubmit
   } = useCardValidation();
 
-  // Hook de resolução de BIN (apenas para paymentMethodId/issuerId no submit)
   const { paymentMethodIdRef, issuerIdRef, handleBinChange } = useBinResolution();
 
-  // Parcelas 100% locais - calculadas imediatamente com base no valor
-  const installments = useMemo(() => {
-    return generateInstallments(amount, { maxInstallments });
-  }, [amount, maxInstallments]);
-
   const onMountCalledRef = useRef(false);
-
-  // Quando parcelas mudam, garantir que selectedInstallment é válido
-  useEffect(() => {
-    if (installments.length > 0) {
-      const currentValid = installments.some(i => i.value?.toString() === selectedInstallment);
-      if (!currentValid) {
-        const firstValue = installments[0].value?.toString() || '1';
-        setSelectedInstallment(firstValue);
-      }
-    }
-  }, [installments, selectedInstallment]);
 
   // Inicializar SDK
   useEffect(() => {
     if (publicKey && publicKey !== lastInitializedPublicKey) {
       try {
+        console.log('[MercadoPagoCardForm] Inicializando SDK');
         initMercadoPago(publicKey, { locale: 'pt-BR' });
         lastInitializedPublicKey = publicKey;
       } catch (e) {
@@ -115,17 +115,9 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
     onReady?.();
   }, [onReady]);
 
-  // Formatação de CPF
-  const formatCPF = useCallback((value: string) => {
-    const numbers = value.replace(/\D/g, '').slice(0, 11);
-    return numbers
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-  }, []);
-
   // Função de submit
   const handleSubmit = useCallback(async () => {
+    console.log('[MercadoPagoCardForm] Submit chamado');
     setHasAttemptedSubmit(true);
     
     const currentName = cardholderNameRef.current || '';
@@ -260,7 +252,7 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
         >
           <User className={`mr-2 h-4 w-4 flex-shrink-0 ${errors.cardholderName ? 'text-red-500' : 'text-gray-400'}`} />
           <Input
-            value={cardholderName}
+            value={state.cardholderName}
             onChange={(e) => {
               setCardholderName(e.target.value);
               clearError('cardholderName');
@@ -284,7 +276,7 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
         >
           <ShieldCheck className={`mr-2 h-4 w-4 flex-shrink-0 ${errors.identificationNumber ? 'text-red-500' : 'text-gray-400'}`} />
           <Input
-            value={identificationNumber}
+            value={state.identificationNumber}
             onChange={(e) => {
               setIdentificationNumber(formatCPF(e.target.value));
               clearError('identificationNumber');
@@ -298,21 +290,40 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
         {errors.identificationNumber && <span className="text-xs text-red-500 mt-0.5">{errors.identificationNumber}</span>}
       </div>
 
-      {/* Parcelamento - Dropdown Custom */}
+      {/* Parcelamento - Select Nativo para comportamento correto */}
       <div className="space-y-1">
-        <Label className="text-[11px] font-normal opacity-70" style={{ color: textColor }}>
-          Parcelamento
-        </Label>
-        <InstallmentsDropdown
-          installments={installments}
-          selectedValue={selectedInstallment}
-          onSelect={setSelectedInstallment}
-          isLoading={false}
-          textColor={textColor}
-          backgroundColor={backgroundColor}
-          borderColor={borderColor}
-          disabled={isProcessing}
-        />
+        <Label className="text-[11px] font-normal opacity-70" style={{ color: textColor }}>Parcelamento</Label>
+        <div className="relative">
+          <select
+            value={state.selectedInstallment}
+            onChange={(e) => setSelectedInstallment(e.target.value)}
+            className="w-full h-10 px-3 pr-8 rounded-xl border text-sm appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            style={{ 
+              color: textColor,
+              backgroundColor,
+              borderColor,
+              borderWidth: '1px',
+              borderStyle: 'solid'
+            }}
+          >
+            {state.installments.map((inst) => (
+              <option 
+                key={inst.value} 
+                value={inst.value?.toString() || '1'}
+                style={{ 
+                  backgroundColor: isLightColor(backgroundColor) ? '#ffffff' : '#1f2937',
+                  color: isLightColor(backgroundColor) ? '#111827' : '#f9fafb'
+                }}
+              >
+                {inst.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDown 
+            className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none opacity-50"
+            style={{ color: textColor }}
+          />
+        </div>
       </div>
 
       {/* Erro geral */}

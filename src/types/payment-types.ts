@@ -188,7 +188,6 @@ export interface IPaymentGateway {
 export interface CardFormProps {
   publicKey: string;
   amount: number; // em centavos
-  maxInstallments?: number; // Máximo de parcelas (default: 12)
   onSubmit: (result: CardTokenResult) => void | Promise<void>;
   onError?: (error: Error) => void;
   onReady?: () => void;
