@@ -1591,6 +1591,7 @@ export type Database = {
           default_payment_method: string | null
           delivery_url: string | null
           description: string | null
+          external_delivery: boolean | null
           id: string
           image_url: string | null
           marketplace_category: string | null
@@ -1618,6 +1619,7 @@ export type Database = {
           default_payment_method?: string | null
           delivery_url?: string | null
           description?: string | null
+          external_delivery?: boolean | null
           id?: string
           image_url?: string | null
           marketplace_category?: string | null
@@ -1645,6 +1647,7 @@ export type Database = {
           default_payment_method?: string | null
           delivery_url?: string | null
           description?: string | null
+          external_delivery?: boolean | null
           id?: string
           image_url?: string | null
           marketplace_category?: string | null

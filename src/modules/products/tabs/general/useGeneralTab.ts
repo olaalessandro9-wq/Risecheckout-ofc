@@ -37,6 +37,7 @@ export function useGeneralTab() {
     support_name: "",
     support_email: "",
     delivery_url: "",
+    external_delivery: false,
   });
 
   const [errors, setErrors] = useState<GeneralFormErrors>({
@@ -74,6 +75,7 @@ export function useGeneralTab() {
         support_name: product.support_name || "",
         support_email: product.support_email || "",
         delivery_url: product.delivery_url || "",
+        external_delivery: product.external_delivery || false,
       });
     }
   }, [product]);

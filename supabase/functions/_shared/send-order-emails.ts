@@ -156,10 +156,10 @@ export async function sendOrderConfirmationEmails(
     };
 
     try {
-      // Buscar delivery_url do produto específico
+      // Buscar delivery_url e external_delivery do produto específico
       const { data: product, error: productError } = await supabase
         .from('products')
-        .select('delivery_url, support_email')
+        .select('delivery_url, support_email, external_delivery')
         .eq('id', item.product_id)
         .single();
 
@@ -167,7 +167,19 @@ export async function sendOrderConfirmationEmails(
         logWarn('Erro ao buscar produto', { productId: item.product_id, error: productError.message });
       }
 
-      // Se produto não tem delivery_url, pular (não faz sentido enviar email sem link)
+      // Se produto tem entrega externa, pular envio de email (sistema próprio do vendedor)
+      if (product?.external_delivery === true) {
+        logInfo('🔗 Produto com entrega externa - pulando envio de email', { 
+          productId: item.product_id, 
+          productName: item.product_name,
+          isBump: item.is_bump 
+        });
+        itemDetail.error = 'Entrega externa configurada';
+        result.details.push(itemDetail);
+        continue;
+      }
+
+      // Se produto não tem delivery_url E não é externo, pular (não faz sentido enviar email sem link)
       if (!product?.delivery_url) {
         logWarn('Produto sem delivery_url - pulando envio de email', { 
           productId: item.product_id, 
