@@ -128,19 +128,20 @@ async function generateHmacSignature(payload: string, secret: string): Promise<s
 
 /**
  * Valida se uma URL é segura para envio de webhook
- * Bloqueia: IPs privados, localhost, metadata endpoints, non-HTTPS
+ * Bloqueia: IPs privados, localhost, metadata endpoints
+ * Permite: HTTP/HTTPS e portas customizadas (n8n usa 5678, etc.)
  */
 function isUrlSafe(urlString: string): boolean {
   try {
     const url = new URL(urlString);
     
-    // 1. Exigir HTTPS em produção
-    if (url.protocol !== 'https:') {
-      logError(`URL rejeitada: protocolo não-HTTPS`, { url: urlString });
+    // 1. Permitir HTTP e HTTPS (escolha do vendedor)
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+      logError(`URL rejeitada: protocolo inválido (deve ser http ou https)`, { url: urlString });
       return false;
     }
     
-    // 2. Bloquear IPs privados/reservados e hostnames perigosos
+    // 2. Bloquear IPs privados/reservados e hostnames perigosos (SSRF protection)
     const hostname = url.hostname.toLowerCase();
     const blockedPatterns = [
       /^localhost$/i,
@@ -160,17 +161,14 @@ function isUrlSafe(urlString: string): boolean {
     
     for (const pattern of blockedPatterns) {
       if (pattern.test(hostname)) {
-        logError(`URL rejeitada: hostname bloqueado`, { url: urlString, hostname });
+        logError(`URL rejeitada: hostname bloqueado (SSRF protection)`, { url: urlString, hostname });
         return false;
       }
     }
     
-    // 3. Bloquear portas sensíveis (apenas 443 permitida para HTTPS)
-    if (url.port && url.port !== '443' && url.port !== '') {
-      logError(`URL rejeitada: porta não-padrão`, { url: urlString, port: url.port });
-      return false;
-    }
+    // 3. Portas customizadas são PERMITIDAS (n8n usa 5678, Zapier, Make, etc.)
     
+    logInfo(`URL aprovada para envio`, { url: urlString });
     return true;
   } catch (error) {
     logError(`URL rejeitada: formato inválido`, { url: urlString, error });
