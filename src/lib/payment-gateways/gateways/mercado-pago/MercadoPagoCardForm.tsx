@@ -1,18 +1,13 @@
 /**
- * MercadoPagoCardForm - REFATORADO
+ * MercadoPagoCardForm
  * 
  * Componente principal do formulário de cartão usando @mercadopago/sdk-react
  * 
- * REFATORAÇÃO:
- * - Lógica de estado → useCardFormState
- * - Lógica de validação → useCardValidation  
- * - Resolução de BIN → useBinResolution
- * - Parcelas reais do MP → useMercadoPagoInstallments
- * - Campos seguros → SecureFields + SecureFieldsPortal
- * - Dropdown custom → InstallmentsDropdown (sem azul do SO)
+ * Parcelas: 100% locais via generateInstallments()
+ * Regra: parcela mínima R$ 5,00 (com juros)
  */
 
-import React, { useEffect, useCallback, useRef, useState } from 'react';
+import React, { useEffect, useCallback, useRef, useState, useMemo } from 'react';
 import { initMercadoPago, createCardToken } from '@mercadopago/sdk-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,10 +15,13 @@ import { CreditCard, Calendar, Lock, User, ShieldCheck } from 'lucide-react';
 import type { CardFormProps, CardTokenResult } from '@/types/payment-types';
 
 // Hooks refatorados
-import { useCardValidation, useBinResolution, useMercadoPagoInstallments } from './hooks';
+import { useCardValidation, useBinResolution } from './hooks';
 
 // Componentes refatorados
 import { SecureFieldsPortal, InstallmentsDropdown } from './components';
+
+// Gerador de parcelas local
+import { generateInstallments } from '../../installments';
 
 // Controle de inicialização global do SDK
 let lastInitializedPublicKey: string | null = null;
@@ -78,16 +76,13 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
     setHasAttemptedSubmit
   } = useCardValidation();
 
-  // Hook de resolução de BIN (agora expõe bin e paymentMethodId como estado)
-  const { paymentMethodIdRef, issuerIdRef, bin, paymentMethodId, handleBinChange } = useBinResolution();
+  // Hook de resolução de BIN (apenas para paymentMethodId/issuerId no submit)
+  const { paymentMethodIdRef, issuerIdRef, handleBinChange } = useBinResolution();
 
-  // Hook de parcelas reais do MP
-  const { installments, isLoading: isLoadingInstallments, source: installmentsSource } = useMercadoPagoInstallments({
-    amountCents: amount,
-    bin,
-    paymentMethodId,
-    maxInstallments
-  });
+  // Parcelas 100% locais - calculadas imediatamente com base no valor
+  const installments = useMemo(() => {
+    return generateInstallments(amount, { maxInstallments });
+  }, [amount, maxInstallments]);
 
   const onMountCalledRef = useRef(false);
 
@@ -98,21 +93,14 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
       if (!currentValid) {
         const firstValue = installments[0].value?.toString() || '1';
         setSelectedInstallment(firstValue);
-        console.log('[MercadoPagoCardForm] Ajustando parcela selecionada para:', firstValue);
       }
     }
   }, [installments, selectedInstallment]);
-
-  // Log de debug para parcelas
-  useEffect(() => {
-    console.log('[MercadoPagoCardForm] Parcelas atuais:', installments.length, 'fonte:', installmentsSource, 'BIN:', bin);
-  }, [installments, installmentsSource, bin]);
 
   // Inicializar SDK
   useEffect(() => {
     if (publicKey && publicKey !== lastInitializedPublicKey) {
       try {
-        console.log('[MercadoPagoCardForm] Inicializando SDK');
         initMercadoPago(publicKey, { locale: 'pt-BR' });
         lastInitializedPublicKey = publicKey;
       } catch (e) {
@@ -138,7 +126,6 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
 
   // Função de submit
   const handleSubmit = useCallback(async () => {
-    console.log('[MercadoPagoCardForm] Submit chamado');
     setHasAttemptedSubmit(true);
     
     const currentName = cardholderNameRef.current || '';
@@ -311,19 +298,16 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
         {errors.identificationNumber && <span className="text-xs text-red-500 mt-0.5">{errors.identificationNumber}</span>}
       </div>
 
-      {/* Parcelamento - Dropdown Custom (sem azul do SO) */}
+      {/* Parcelamento - Dropdown Custom */}
       <div className="space-y-1">
         <Label className="text-[11px] font-normal opacity-70" style={{ color: textColor }}>
           Parcelamento
-          {installmentsSource === 'mercadopago' && (
-            <span className="ml-1 text-green-500 text-[9px]">✓ MP</span>
-          )}
         </Label>
         <InstallmentsDropdown
           installments={installments}
           selectedValue={selectedInstallment}
           onSelect={setSelectedInstallment}
-          isLoading={isLoadingInstallments}
+          isLoading={false}
           textColor={textColor}
           backgroundColor={backgroundColor}
           borderColor={borderColor}
