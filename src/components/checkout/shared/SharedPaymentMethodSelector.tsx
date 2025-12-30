@@ -116,6 +116,12 @@ export const SharedPaymentMethodSelector: React.FC<SharedPaymentMethodSelectorPr
   const showRealForm = mode === 'public' && publicKey && amount && onSubmitPayment;
   const showPreviewForm = mode === 'editor' || mode === 'preview';
 
+  const fallbackBorderColor =
+    design.colors.creditCardFields?.borderColor ??
+    (design.colors.primaryText === '#FFFFFF'
+      ? 'rgba(255, 255, 255, 0.16)'
+      : 'rgba(0, 0, 0, 0.12)');
+
   // Determinar qual componente de formulário usar
   const useNewArchitecture = FEATURE_FLAGS.USE_NEW_PAYMENT_ARCHITECTURE;
 
@@ -196,24 +202,26 @@ export const SharedPaymentMethodSelector: React.FC<SharedPaymentMethodSelectorPr
               textColor={design.colors.creditCardFields?.textColor || design.colors.primaryText}
               placeholderColor={design.colors.creditCardFields?.placeholderColor || design.colors.secondaryText}
               backgroundColor={design.colors.creditCardFields?.backgroundColor || design.colors.formBackground}
-              borderColor={design.colors.creditCardFields?.borderColor}
+              borderColor={fallbackBorderColor}
             />
           ) : (
             // ARQUITETURA ATUAL: MercadoPagoCardForm (hardcoded)
-              <MercadoPagoCardForm 
-                publicKey={publicKey}
-                amount={amount}
-                onSubmit={handleCardSubmit}
-                isProcessing={isProcessing}
-                onMount={onCardSubmitReady}
-                textColor={design.colors.creditCardFields?.textColor || design.colors.primaryText}
-                placeholderColor={design.colors.creditCardFields?.placeholderColor || design.colors.secondaryText}
-                backgroundColor={design.colors.creditCardFields?.backgroundColor || design.colors.formBackground}
-                borderColor={design.colors.creditCardFields?.borderColor || design.colors.formBackground}
-              />
+            <MercadoPagoCardForm 
+              publicKey={publicKey}
+              amount={amount}
+              onSubmit={handleCardSubmit}
+              isProcessing={isProcessing}
+              onMount={onCardSubmitReady}
+              textColor={design.colors.creditCardFields?.textColor || design.colors.primaryText}
+              placeholderColor={design.colors.creditCardFields?.placeholderColor || design.colors.secondaryText}
+              backgroundColor={design.colors.creditCardFields?.backgroundColor || design.colors.formBackground}
+              borderColor={fallbackBorderColor}
+            />
           )}
         </div>
       )}
     </div>
   );
+};
+
 };
