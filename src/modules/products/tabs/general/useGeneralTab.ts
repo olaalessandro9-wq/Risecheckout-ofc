@@ -95,7 +95,8 @@ export function useGeneralTab() {
       form.price !== product.price ||
       form.support_name !== (product.support_name || "") ||
       form.support_email !== (product.support_email || "") ||
-      form.delivery_url !== (product.delivery_url || "")
+      form.delivery_url !== (product.delivery_url || "") ||
+      form.external_delivery !== (product.external_delivery ?? false)
     );
 
     const imageChanged = image.imageFile !== null || image.pendingRemoval;
@@ -252,7 +253,8 @@ export function useGeneralTab() {
           price: form.price,
           support_name: form.support_name,
           support_email: form.support_email,
-          delivery_url: form.delivery_url || null,
+          delivery_url: form.external_delivery ? null : (form.delivery_url || null),
+          external_delivery: form.external_delivery,
           status: "active",
           image_url: finalImageUrl,
         })
