@@ -74,7 +74,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 // Versão da função - SEMPRE incrementar ao fazer mudanças significativas
-const FUNCTION_VERSION = "472";
+const FUNCTION_VERSION = "473";
 
 // ========================================================================
 // CONFIGURATION & CONSTANTS
@@ -321,7 +321,7 @@ serve(async (req) => {
     // Nota: Buscamos webhooks ativos do vendedor - usando secret_encrypted (seguro)
     const { data: webhooks, error: webHooksError } = await supabase
       .from("outbound_webhooks")
-      .select(`id, url, name, events, secret_encrypted, webhook_products(product_id)`)
+      .select(`id, url, name, events, secret_encrypted, secret, webhook_products(product_id)`)
       .eq("vendor_id", order.vendor_id)
       .eq("active", true);
 
