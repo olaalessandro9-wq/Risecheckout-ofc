@@ -34,7 +34,7 @@ export interface CardFormStateReturn {
   formatCPF: (value: string) => string;
 }
 
-export function useCardFormState(amount: number): CardFormStateReturn {
+export function useCardFormState(amount: number, maxInstallments?: number): CardFormStateReturn {
   // Estados do formulário local
   const [cardholderName, setCardholderName] = useState('');
   const [identificationNumber, setIdentificationNumber] = useState('');
@@ -54,11 +54,11 @@ export function useCardFormState(amount: number): CardFormStateReturn {
   // Gerar parcelas imediatamente
   useEffect(() => {
     if (amount > 0) {
-      const generatedInstallments = generateInstallments(amount);
+      const generatedInstallments = generateInstallments(amount, { maxInstallments });
       setInstallments(generatedInstallments);
-      console.log('[useCardFormState] Parcelas geradas:', generatedInstallments.length);
+      console.log('[useCardFormState] Parcelas geradas:', generatedInstallments.length, 'max:', maxInstallments);
     }
-  }, [amount]);
+  }, [amount, maxInstallments]);
 
   // Formatação de CPF
   const formatCPF = useCallback((value: string) => {
