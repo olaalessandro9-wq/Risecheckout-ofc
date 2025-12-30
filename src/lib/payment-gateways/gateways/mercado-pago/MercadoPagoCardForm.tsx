@@ -16,6 +16,7 @@ import React, { useEffect, useCallback, useRef } from 'react';
 import { initMercadoPago, createCardToken } from '@mercadopago/sdk-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ChevronDown } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CreditCard, Calendar, Lock, User, ShieldCheck } from 'lucide-react';
 import type { CardFormProps, CardTokenResult } from '@/types/payment-types';
@@ -289,12 +290,14 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
         {errors.identificationNumber && <span className="text-xs text-red-500 mt-0.5">{errors.identificationNumber}</span>}
       </div>
 
-      {/* Parcelamento */}
+      {/* Parcelamento - Select Nativo para comportamento correto */}
       <div className="space-y-1">
         <Label className="text-[11px] font-normal opacity-70" style={{ color: textColor }}>Parcelamento</Label>
-        <Select value={state.selectedInstallment} onValueChange={setSelectedInstallment}>
-          <SelectTrigger 
-            className="w-full h-10 rounded-xl" 
+        <div className="relative">
+          <select
+            value={state.selectedInstallment}
+            onChange={(e) => setSelectedInstallment(e.target.value)}
+            className="w-full h-10 px-3 pr-8 rounded-xl border text-sm appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
             style={{ 
               color: textColor,
               backgroundColor,
@@ -303,37 +306,24 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
               borderStyle: 'solid'
             }}
           >
-            <SelectValue>
-              <span style={{ color: textColor }}>
-                {state.installments.find(i => i.value?.toString() === state.selectedInstallment)?.label || 'Selecione'}
-              </span>
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent 
-            className="border z-50"
-            style={{
-              backgroundColor,
-              borderColor,
-              color: textColor,
-              // CSS variable para hover dinâmico
-              '--select-hover-bg': isLightColor(backgroundColor) ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.1)',
-            } as React.CSSProperties}
-          >
             {state.installments.map((inst) => (
-              <SelectItem 
+              <option 
                 key={inst.value} 
-                value={inst.value?.toString() || '1'} 
-                className="cursor-pointer"
+                value={inst.value?.toString() || '1'}
                 style={{ 
-                  color: textColor,
-                  '--item-hover-bg': isLightColor(backgroundColor) ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.1)',
-                } as React.CSSProperties}
+                  backgroundColor: isLightColor(backgroundColor) ? '#ffffff' : '#1f2937',
+                  color: isLightColor(backgroundColor) ? '#111827' : '#f9fafb'
+                }}
               >
                 {inst.label}
-              </SelectItem>
+              </option>
             ))}
-          </SelectContent>
-        </Select>
+          </select>
+          <ChevronDown 
+            className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none opacity-50"
+            style={{ color: textColor }}
+          />
+        </div>
       </div>
 
       {/* Erro geral */}
