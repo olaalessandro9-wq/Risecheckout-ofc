@@ -569,10 +569,37 @@ serve(async (req) => {
     }
 
     // ========================================================================
-    // 11. WEBHOOKS ARE TRIGGERED AUTOMATICALLY BY DATABASE TRIGGER
+    // 11. TRIGGER VENDOR WEBHOOKS EXPLICITLY
     // ========================================================================
 
-    logInfo('Webhooks serão disparados automaticamente pelo trigger do banco');
+    // O trigger automático do banco não está funcionando consistentemente,
+    // então fazemos a chamada explícita com X-Internal-Secret
+    if (eventType) {
+      const internalSecret = Deno.env.get('INTERNAL_WEBHOOK_SECRET');
+      if (internalSecret) {
+        try {
+          const supabaseUrl = Deno.env.get('SUPABASE_URL');
+          const webhookResponse = await fetch(`${supabaseUrl}/functions/v1/trigger-webhooks`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Internal-Secret': internalSecret,
+            },
+            body: JSON.stringify({
+              order_id: order.id,
+              event_type: eventType,
+            }),
+          });
+          logInfo('Resposta trigger-webhooks', { status: webhookResponse.status });
+        } catch (e) {
+          logWarn('Erro ao disparar webhooks (não crítico)', e);
+        }
+      } else {
+        logWarn('INTERNAL_WEBHOOK_SECRET não configurado - webhooks não serão disparados');
+      }
+    }
+
+    logInfo('Webhooks disparados explicitamente');
 
     // ========================================================================
     // 12. RETURN SUCCESS
