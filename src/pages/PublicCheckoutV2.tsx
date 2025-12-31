@@ -23,6 +23,7 @@ import { useFormManager } from "@/hooks/checkout/useFormManager";
 import { usePaymentGateway } from "@/hooks/checkout/usePaymentGateway";
 import { useTrackingService } from "@/hooks/checkout/useTrackingService";
 import { useAffiliateTracking } from "@/hooks/useAffiliateTracking";
+import { useBuyerAuth } from "@/hooks/checkout/useBuyerAuth";
 
 // Personal Data Domain (Snapshot para resolver autofill)
 import {
@@ -162,7 +163,25 @@ const PublicCheckoutV2Content: React.FC<ContentProps> = ({
   });
 
   // ============================================================================
-  // PAYMENT GATEWAY
+  // BUYER AUTH (Login de Compradores)
+  // ============================================================================
+  
+  const buyerAuth = useBuyerAuth();
+
+  // Callback para auto-preencher formulário com dados do buyer
+  const handleFillBuyerData = React.useCallback((data: { 
+    name?: string; 
+    email?: string; 
+    phone?: string; 
+    maskedDocument?: string 
+  }) => {
+    updateMultipleFields({
+      name: data.name || formData.name,
+      email: data.email || formData.email,
+      phone: data.phone || formData.phone,
+    });
+  }, [updateMultipleFields, formData.name, formData.email, formData.phone]);
+
   // ============================================================================
 
   const {
@@ -341,6 +360,15 @@ const PublicCheckoutV2Content: React.FC<ContentProps> = ({
           amount={memoizedAmount}
           onSubmitPayment={handleCardSubmit}
           onTotalChange={handleTotalChange}
+          // Props de autenticação do buyer
+          buyerSession={buyerAuth.session}
+          buyerIsLoading={buyerAuth.isLoading}
+          buyerError={buyerAuth.error}
+          onBuyerLogin={buyerAuth.login}
+          onBuyerRegister={buyerAuth.register}
+          onBuyerLogout={buyerAuth.logout}
+          onBuyerClearError={buyerAuth.clearError}
+          onFillBuyerData={handleFillBuyerData}
           formWrapper={(children, formRef) => (
             <form 
               ref={formRef as React.RefObject<HTMLFormElement>} 
