@@ -69,6 +69,16 @@ verify_jwt = false
 [functions.test-deploy]
 verify_jwt = false
 
+# ✅ PÚBLICAS (Buyer Auth - não requer JWT do Supabase Auth)
+[functions.buyer-auth]
+verify_jwt = false
+
+[functions.buyer-session]
+verify_jwt = false
+
+[functions.buyer-profile]
+verify_jwt = false
+
 # ✅ AUTENTICADAS (Requerem login do vendedor)
 [functions.save-vendor-credentials]
 verify_jwt = true
