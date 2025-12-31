@@ -113,6 +113,13 @@ function saveToStorage(storageKey: string, formData: CheckoutFormData): void {
       timestamp: Date.now()
     };
     
+    console.log('[useFormManager] Salvando no localStorage:', {
+      storageKey,
+      name: safeData.name,
+      email: safeData.email,
+      phone: safeData.phone, // DEBUG: Verificar se phone está sendo salvo
+    });
+    
     localStorage.setItem(storageKey, JSON.stringify(dataToSave));
   } catch (e) {
     console.warn("[useFormManager] Erro ao salvar dados no localStorage:", e);
@@ -157,6 +164,7 @@ export function useFormManager({
         checkoutId,
         name: savedData.name,
         email: savedData.email,
+        phone: savedData.phone, // DEBUG: Verificar se phone está sendo carregado
       });
       setFormData(savedData);
     } else {
