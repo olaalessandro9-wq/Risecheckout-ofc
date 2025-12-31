@@ -26,8 +26,6 @@ import {
   SharedOrderSummary,
   SharedCheckoutButton,
 } from './index';
-import { BuyerQuickLogin } from '@/components/checkout/buyer';
-import type { BuyerSession } from '@/hooks/checkout/useBuyerAuth';
 
 interface SharedCheckoutLayoutProps {
   // Dados
@@ -68,16 +66,6 @@ interface SharedCheckoutLayoutProps {
   // Wrapper para formulário (usado no público)
   // Agora recebe formRef para permitir submit programático do PIX
   formWrapper?: (children: React.ReactNode, formRef: React.RefObject<HTMLFormElement>) => React.ReactNode;
-  
-  // Props de autenticação do buyer (opcionais)
-  buyerSession?: BuyerSession;
-  buyerIsLoading?: boolean;
-  buyerError?: string | null;
-  onBuyerLogin?: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  onBuyerRegister?: (email: string, password: string, name?: string, phone?: string, document?: string) => Promise<{ success: boolean; error?: string }>;
-  onBuyerLogout?: () => Promise<void>;
-  onBuyerClearError?: () => void;
-  onFillBuyerData?: (data: { name?: string; email?: string; phone?: string; maskedDocument?: string }) => void;
 }
 
 export const SharedCheckoutLayout: React.FC<SharedCheckoutLayoutProps> = ({
@@ -101,15 +89,6 @@ export const SharedCheckoutLayout: React.FC<SharedCheckoutLayoutProps> = ({
   onTotalChange,
   additionalContent,
   formWrapper,
-  // Props de autenticação do buyer
-  buyerSession,
-  buyerIsLoading,
-  buyerError,
-  onBuyerLogin,
-  onBuyerRegister,
-  onBuyerLogout,
-  onBuyerClearError,
-  onFillBuyerData,
 }) => {
   // Permitir interação em todos os modos (editor, preview, público)
   const disabled = false;
@@ -206,24 +185,8 @@ export const SharedCheckoutLayout: React.FC<SharedCheckoutLayoutProps> = ({
           <Divider />
         </>
       )}
-
-      {/* BuyerQuickLogin - Exibe barra de login/conta do buyer */}
-      {mode === 'public' && buyerSession && onBuyerLogin && onBuyerRegister && onBuyerLogout && onBuyerClearError && (
-        <>
-          <BuyerQuickLogin
-            session={buyerSession}
-            isLoading={buyerIsLoading || false}
-            error={buyerError || null}
-            onLogin={onBuyerLogin}
-            onRegister={onBuyerRegister}
-            onLogout={onBuyerLogout}
-            onClearError={onBuyerClearError}
-            onFillForm={onFillBuyerData}
-          />
-          <Divider />
-        </>
-      )}
       
+      {/* Formulário de Dados Pessoais */}
       <SharedPersonalDataForm
           design={design}
           mode={mode}
