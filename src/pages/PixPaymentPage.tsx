@@ -474,6 +474,37 @@ export const PixPaymentPage = () => {
     };
   }, [timeRemaining, paymentStatus]);
 
+  // Polling automático para verificar status do pagamento a cada 5 segundos
+  useEffect(() => {
+    // Só fazer polling se estiver aguardando pagamento e tiver QR code
+    if (paymentStatus !== "waiting" || !qrCode) {
+      return;
+    }
+
+    console.log("[PixPaymentPage] 🔄 Iniciando polling automático de status");
+
+    // Primeira verificação após 5 segundos (dar tempo pro usuário pagar)
+    const initialTimeout = setTimeout(() => {
+      checkPaymentStatus().catch(err => {
+        console.error("[PixPaymentPage] Erro no polling inicial:", err);
+      });
+    }, 5000);
+
+    // Polling a cada 5 segundos após a primeira verificação
+    const pollingInterval = setInterval(() => {
+      checkPaymentStatus().catch(err => {
+        console.error("[PixPaymentPage] Erro no polling:", err);
+      });
+    }, 5000);
+
+    // Cleanup: parar polling quando componente desmontar ou status mudar
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(pollingInterval);
+      console.log("[PixPaymentPage] 🛑 Polling automático parado");
+    };
+  }, [paymentStatus, qrCode, checkPaymentStatus]);
+
   // Copiar código PIX
   const copyToClipboard = async () => {
     try {
@@ -574,10 +605,17 @@ export const PixPaymentPage = () => {
                 </div>
               </div>
 
-              {/* Botão Confirmar pagamento */}
+              {/* Texto informativo sobre verificação automática */}
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800 text-center">
+                  🔄 Verificando pagamento automaticamente a cada 5 segundos...
+                </p>
+              </div>
+
+              {/* Botão Verificar agora (opcional) */}
               <Button
                 onClick={async () => {
-                  console.log("[PixPaymentPage] 🔍 Botão confirmar clicado");
+                  console.log("[PixPaymentPage] 🔍 Botão verificar agora clicado");
                   setCheckingPayment(true);
                   
                   try {
@@ -585,13 +623,13 @@ export const PixPaymentPage = () => {
                     
                     if (!result.paid) {
                       console.log("[PixPaymentPage] ⏳ Pagamento ainda não confirmado");
-                      toast.error(
-                        "Pagamento ainda não confirmado. Se você já pagou, aguarde até 30 segundos e tente novamente.",
-                        { duration: 5000 }
+                      toast.info(
+                        "Pagamento ainda não confirmado. Aguarde alguns segundos após pagar.",
+                        { duration: 4000 }
                       );
                     }
                   } catch (err: any) {
-                    console.error("[PixPaymentPage] ❌ Erro ao confirmar pagamento:", err);
+                    console.error("[PixPaymentPage] ❌ Erro ao verificar pagamento:", err);
                     const errorMsg = err?.message || "Erro ao verificar pagamento. Tente novamente.";
                     toast.error(errorMsg, { duration: 5000 });
                   } finally {
@@ -599,18 +637,19 @@ export const PixPaymentPage = () => {
                   }
                 }}
                 disabled={checkingPayment}
-                className="w-full bg-gray-900 hover:bg-gray-800 text-white mb-6 disabled:opacity-50"
+                variant="outline"
+                className="w-full mb-6 disabled:opacity-50"
                 size="lg"
               >
                 {checkingPayment ? (
                   <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900 mr-2"></div>
                     Verificando...
                   </>
                 ) : (
                   <>
                     <CheckCircle2 className="w-5 h-5 mr-2" />
-                    Confirmar pagamento
+                    Verificar agora
                   </>
                 )}
               </Button>
