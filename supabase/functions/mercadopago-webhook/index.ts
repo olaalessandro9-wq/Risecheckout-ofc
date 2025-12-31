@@ -3,25 +3,32 @@
  * MERCADOPAGO-WEBHOOK EDGE FUNCTION
  * ============================================================================
  * 
- * Versão: 144 (SECURITY FIX)
- * Última Atualização: 2025-12-12
- * Status: ✅ Validação Rigorosa Implementada
+ * Versão: 145 (CREDENTIALS FIX)
+ * Última Atualização: 2025-12-31
+ * Status: ✅ Credenciais Centralizadas via getGatewayCredentials
  * 
  * ============================================================================
- * MUDANÇAS NESTA VERSÃO (v144)
+ * MUDANÇAS NESTA VERSÃO (v145)
  * ============================================================================
  * 
- * 🔒 CORREÇÃO DE SEGURANÇA CRÍTICA:
- * - Implementada validação rigorosa de assinatura HMAC-SHA256
- * - Webhooks inválidos agora são REJEITADOS (não mais permitidos)
- * - Adicionado logging detalhado para monitoramento
+ * 🔧 CORREÇÃO CRÍTICA DE CREDENCIAIS:
+ * - Refatorada lógica de obtenção de credenciais para usar getGatewayCredentials
+ * - Agora busca accessToken corretamente do Supabase Vault (produção/OAuth)
+ * - Elimina duplicidade de código com mercadopago-create-payment
  * 
- * ANTES (v143): validateMercadoPagoSignature retornava { valid: true, skipped: true }
- *               mesmo quando a validação falhava
+ * ANTES (v144): Buscava accessToken apenas de vendor_integrations.config
+ *               Falhava para vendedores conectados via OAuth (produção)
  * 
- * AGORA (v144): validateMercadoPagoSignature retorna { valid: false, error: '...' }
- *               e o webhook é rejeitado com status HTTP apropriado
+ * AGORA (v145): Usa getGatewayCredentials que busca de múltiplas fontes:
+ *               - Secrets globais (Owner)
+ *               - vendor_integrations.config (Sandbox)
+ *               - Supabase Vault (Produção/OAuth)
  * 
+ * ============================================================================
+ * HISTÓRICO
+ * ============================================================================
+ * v144 (2025-12-12): Validação rigorosa de assinatura HMAC-SHA256
+ * v145 (2025-12-31): Credenciais centralizadas via getGatewayCredentials
  * ============================================================================
  */
 
@@ -29,9 +36,10 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { rateLimitMiddleware, getIdentifier } from '../_shared/rate-limit.ts';
 import { sendOrderConfirmationEmails, type OrderData } from '../_shared/send-order-emails.ts';
+import { getGatewayCredentials, validateCredentials } from '../_shared/platform-config.ts';
 
 // Versão da função - SEMPRE incrementar ao fazer mudanças significativas
-const FUNCTION_VERSION = "144";
+const FUNCTION_VERSION = "145";
 
 // ========================================================================
 // TYPES & INTERFACES
@@ -409,46 +417,45 @@ serve(async (req) => {
     const vendorId = order.vendor_id;
 
     // ========================================================================
-    // 5. FETCH MERCADO PAGO CREDENTIALS (CORRIGIDO: Busca de vendor_integrations)
+    // 5. FETCH MERCADO PAGO CREDENTIALS (v145: Usando getGatewayCredentials centralizado)
     // ========================================================================
 
-    logInfo('Buscando credenciais', { vendorId });
-
-    const { data: integration } = await supabase
-      .from('vendor_integrations')
-      .select('config')
-      .eq('vendor_id', vendorId)
-      .eq('integration_type', 'MERCADOPAGO')
-      .eq('active', true)
-      .maybeSingle();
-
-    if (!integration) {
-      logError('Integração do Mercado Pago não encontrada');
-      return createSuccessResponse({ message: 'Integração não encontrada' });
-    }
+    logInfo('Buscando credenciais via getGatewayCredentials', { vendorId });
 
     let accessToken: string | undefined;
     
-    // Verificar se é modo sandbox baseado em is_test da config
-    const isTestMode = integration.config?.is_test === true;
-    
-    logInfo('Modo de integração detectado', { 
-      isTestMode, 
-      configIsTest: integration.config?.is_test 
-    });
+    try {
+      const credentialsResult = await getGatewayCredentials(supabase, vendorId, 'mercadopago');
+      const validation = validateCredentials('mercadopago', credentialsResult.credentials);
 
-    if (isTestMode) {
-      // MODO SANDBOX: Usar credenciais direto da config
-      accessToken = integration.config?.access_token;
-      logInfo('✅ Usando credenciais de SANDBOX (is_test=true)');
-    } else {
-      // MODO PRODUÇÃO: Usar credenciais da config (ou Vault no futuro)
-      accessToken = integration.config?.access_token;
-      logInfo('✅ Usando credenciais de PRODUÇÃO');
+      if (!validation.valid) {
+        logError('🔴 Credenciais incompletas', { 
+          vendorId, 
+          missingFields: validation.missingFields,
+          source: credentialsResult.source 
+        });
+        return createSuccessResponse({ message: 'Credenciais incompletas para o vendedor' });
+      }
+
+      accessToken = credentialsResult.credentials.accessToken;
+      
+      logInfo('✅ Credenciais obtidas com sucesso', { 
+        source: credentialsResult.source,
+        isOwner: credentialsResult.isOwner,
+        environment: credentialsResult.credentials.environment
+      });
+
+    } catch (credError: any) {
+      logError('🔴 Falha ao obter credenciais do Mercado Pago', { 
+        vendorId, 
+        error: credError.message 
+      });
+      // Retorna 200 para não gerar retries do MP, mas registra o erro
+      return createSuccessResponse({ message: 'Falha ao obter credenciais do gateway' });
     }
 
     if (!accessToken) {
-      logError('Access token não encontrado');
+      logError('🔴 Access token não encontrado mesmo após busca centralizada', { vendorId });
       return createSuccessResponse({ message: 'Access token não encontrado' });
     }
 
