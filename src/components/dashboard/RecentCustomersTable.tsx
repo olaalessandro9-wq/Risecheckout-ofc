@@ -29,6 +29,7 @@ interface Customer {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
+  customerDocument: string;
   fullCreatedAt: string;
 }
 
@@ -159,6 +160,7 @@ export function RecentCustomersTable({ customers, isLoading = false, onRefresh }
           customerName: selectedOrder.customerName,
           customerEmail: selectedOrder.customerEmail,
           customerPhone: selectedOrder.customerPhone,
+          customerDocument: selectedOrder.customerDocument,
           productName: selectedOrder.productName,
           productImageUrl: selectedOrder.productImageUrl,
           amount: selectedOrder.value,

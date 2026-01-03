@@ -60,6 +60,7 @@ interface RecentCustomer {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
+  customerDocument: string;
   fullCreatedAt: string;
 }
 
@@ -74,6 +75,7 @@ interface Order {
   customer_name: string | null;
   customer_email: string | null;
   customer_phone: string | null;
+  customer_document: string | null;
   amount_cents: number;
   status: string;
   payment_method: string | null;
@@ -150,6 +152,7 @@ async function fetchOrders(
       customer_name,
       customer_email,
       customer_phone,
+      customer_document,
       amount_cents,
       status,
       payment_method,
@@ -321,6 +324,20 @@ function calculateChartData(orders: Order[], startDate: Date, endDate: Date): Ch
  * Formata dados de clientes recentes
  */
 function formatRecentCustomers(orders: Order[]): RecentCustomer[] {
+  // Função para aplicar máscara no CPF/CNPJ
+  const formatDocument = (doc: string | null): string => {
+    if (!doc) return "N/A";
+    const digits = doc.replace(/\D/g, '');
+    if (digits.length === 11) {
+      // CPF: 000.000.000-00
+      return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    } else if (digits.length === 14) {
+      // CNPJ: 00.000.000/0000-00
+      return digits.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+    }
+    return doc;
+  };
+
   return orders.map(order => {
     const product = Array.isArray(order.product) ? order.product[0] : order.product;
     
@@ -339,6 +356,7 @@ function formatRecentCustomers(orders: Order[]): RecentCustomer[] {
       customerName: order.customer_name || "N/A",
       customerEmail: order.customer_email || "N/A",
       customerPhone: order.customer_phone || "N/A",
+      customerDocument: formatDocument(order.customer_document),
       fullCreatedAt: order.created_at
     };
   });
