@@ -35,6 +35,13 @@ import SolicitarAfiliacao from "./pages/SolicitarAfiliacao";
 import TermosDeUso from "./pages/TermosDeUso";
 
 // ============================================================================
+// ÁREA DE MEMBROS (BUYER)
+// ============================================================================
+import BuyerAuth from "./pages/buyer/BuyerAuth";
+import BuyerDashboard from "./pages/buyer/BuyerDashboard";
+import BuyerProductContent from "./pages/buyer/BuyerProductContent";
+
+// ============================================================================
 // ROTAS PROTEGIDAS - Eager Loading
 // ============================================================================
 import Index from "./pages/Index";
@@ -126,6 +133,13 @@ const router = createBrowserRouter([
       { path: "/oauth-success", element: <OAuthSuccess /> },
       { path: "/afiliar/:product_id", element: <SolicitarAfiliacao /> },
       { path: "/termos-de-uso", element: <TermosDeUso /> },
+
+      // ============================================================
+      // ÁREA DE MEMBROS (BUYER)
+      // ============================================================
+      { path: "/minha-conta", element: <BuyerAuth /> },
+      { path: "/minha-conta/dashboard", element: <BuyerDashboard /> },
+      { path: "/minha-conta/produto/:productId", element: <BuyerProductContent /> },
 
       // ============================================================
       // CHECKOUT BUILDER - Full screen (Protegido)

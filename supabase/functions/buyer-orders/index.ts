@@ -1,0 +1,295 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-buyer-session",
+};
+
+// Validate buyer session and return buyer data
+async function validateSession(supabase: any, sessionToken: string | null) {
+  if (!sessionToken) {
+    return null;
+  }
+
+  const { data: session } = await supabase
+    .from("buyer_sessions")
+    .select(`
+      id,
+      expires_at,
+      is_valid,
+      buyer:buyer_id (
+        id,
+        email,
+        name,
+        is_active
+      )
+    `)
+    .eq("session_token", sessionToken)
+    .single();
+
+  if (!session || !session.is_valid || !session.buyer) {
+    return null;
+  }
+
+  const buyerData = Array.isArray(session.buyer) ? session.buyer[0] : session.buyer;
+
+  if (!buyerData.is_active) {
+    return null;
+  }
+
+  if (new Date(session.expires_at) < new Date()) {
+    return null;
+  }
+
+  return buyerData;
+}
+
+serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const url = new URL(req.url);
+    const pathParts = url.pathname.split("/").filter(Boolean);
+    const action = pathParts[pathParts.length - 1];
+
+    // Get session token from header
+    const sessionToken = req.headers.get("x-buyer-session");
+    const buyer = await validateSession(supabase, sessionToken);
+
+    if (!buyer) {
+      return new Response(
+        JSON.stringify({ error: "Sessão inválida ou expirada" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`[buyer-orders] Action: ${action}, Buyer: ${buyer.email}`);
+
+    // ============================================
+    // ORDERS - Listar pedidos do buyer
+    // ============================================
+    if (action === "orders" && req.method === "GET") {
+      const { data: orders, error } = await supabase
+        .from("orders")
+        .select(`
+          id,
+          product_id,
+          product_name,
+          amount_cents,
+          status,
+          payment_method,
+          created_at,
+          paid_at,
+          product:product_id (
+            id,
+            name,
+            image_url,
+            members_area_enabled
+          )
+        `)
+        .eq("buyer_id", buyer.id)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("[buyer-orders] Error fetching orders:", error);
+        return new Response(
+          JSON.stringify({ error: "Erro ao buscar pedidos" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ orders }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ============================================
+    // ACCESS - Listar produtos com acesso
+    // ============================================
+    if (action === "access" && req.method === "GET") {
+      const { data: access, error } = await supabase
+        .from("buyer_product_access")
+        .select(`
+          id,
+          product_id,
+          granted_at,
+          expires_at,
+          is_active,
+          access_type,
+          product:product_id (
+            id,
+            name,
+            description,
+            image_url,
+            members_area_enabled
+          )
+        `)
+        .eq("buyer_id", buyer.id)
+        .eq("is_active", true);
+
+      if (error) {
+        console.error("[buyer-orders] Error fetching access:", error);
+        return new Response(
+          JSON.stringify({ error: "Erro ao buscar acessos" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Group by product to remove duplicates (from bumps)
+      const uniqueProducts = new Map();
+      for (const item of access || []) {
+        if (!uniqueProducts.has(item.product_id)) {
+          uniqueProducts.set(item.product_id, item);
+        }
+      }
+
+      return new Response(
+        JSON.stringify({ access: Array.from(uniqueProducts.values()) }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ============================================
+    // CONTENT - Buscar conteúdo de um produto
+    // ============================================
+    if (action === "content" && req.method === "GET") {
+      const productId = url.searchParams.get("productId");
+
+      if (!productId) {
+        return new Response(
+          JSON.stringify({ error: "productId é obrigatório" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Check if buyer has access to this product
+      const { data: hasAccess } = await supabase
+        .from("buyer_product_access")
+        .select("id")
+        .eq("buyer_id", buyer.id)
+        .eq("product_id", productId)
+        .eq("is_active", true)
+        .limit(1)
+        .single();
+
+      if (!hasAccess) {
+        return new Response(
+          JSON.stringify({ error: "Você não tem acesso a este produto" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Get product info
+      const { data: product } = await supabase
+        .from("products")
+        .select("id, name, description, image_url, members_area_enabled, members_area_settings")
+        .eq("id", productId)
+        .single();
+
+      if (!product) {
+        return new Response(
+          JSON.stringify({ error: "Produto não encontrado" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (!product.members_area_enabled) {
+        return new Response(
+          JSON.stringify({ error: "Área de membros não está habilitada para este produto" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Get modules with content
+      const { data: modules, error: modulesError } = await supabase
+        .from("product_member_modules")
+        .select(`
+          id,
+          title,
+          description,
+          position,
+          is_active,
+          contents:product_member_content (
+            id,
+            title,
+            description,
+            content_type,
+            content_url,
+            content_data,
+            position,
+            is_active
+          )
+        `)
+        .eq("product_id", productId)
+        .eq("is_active", true)
+        .order("position", { ascending: true });
+
+      if (modulesError) {
+        console.error("[buyer-orders] Error fetching modules:", modulesError);
+        return new Response(
+          JSON.stringify({ error: "Erro ao buscar conteúdo" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Sort contents by position and filter inactive
+      const sortedModules = (modules || []).map(module => ({
+        ...module,
+        contents: (module.contents || [])
+          .filter((c: any) => c.is_active)
+          .sort((a: any, b: any) => a.position - b.position)
+      }));
+
+      return new Response(
+        JSON.stringify({
+          product: {
+            id: product.id,
+            name: product.name,
+            description: product.description,
+            imageUrl: product.image_url,
+            settings: product.members_area_settings,
+          },
+          modules: sortedModules,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ============================================
+    // PROFILE - Dados do buyer
+    // ============================================
+    if (action === "profile" && req.method === "GET") {
+      const { data: profile } = await supabase
+        .from("buyer_profiles")
+        .select("id, email, name, phone, created_at")
+        .eq("id", buyer.id)
+        .single();
+
+      return new Response(
+        JSON.stringify({ profile }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({ error: "Ação não encontrada" }),
+      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+
+  } catch (error) {
+    console.error("[buyer-orders] Error:", error);
+    return new Response(
+      JSON.stringify({ error: "Erro interno do servidor" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});

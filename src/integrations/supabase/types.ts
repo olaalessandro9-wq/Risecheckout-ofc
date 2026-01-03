@@ -263,6 +263,68 @@ export type Database = {
           },
         ]
       }
+      buyer_product_access: {
+        Row: {
+          access_type: string | null
+          buyer_id: string
+          expires_at: string | null
+          granted_at: string | null
+          id: string
+          is_active: boolean | null
+          order_id: string
+          product_id: string
+        }
+        Insert: {
+          access_type?: string | null
+          buyer_id: string
+          expires_at?: string | null
+          granted_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          order_id: string
+          product_id: string
+        }
+        Update: {
+          access_type?: string | null
+          buyer_id?: string
+          expires_at?: string | null
+          granted_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          order_id?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "buyer_product_access_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "buyer_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_product_access_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_product_access_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_product_access_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       buyer_profiles: {
         Row: {
           created_at: string | null
@@ -1408,6 +1470,7 @@ export type Database = {
           access_token: string | null
           affiliate_id: string | null
           amount_cents: number
+          buyer_id: string | null
           checkout_id: string | null
           commission_cents: number | null
           coupon_code: string | null
@@ -1441,6 +1504,7 @@ export type Database = {
           access_token?: string | null
           affiliate_id?: string | null
           amount_cents: number
+          buyer_id?: string | null
           checkout_id?: string | null
           commission_cents?: number | null
           coupon_code?: string | null
@@ -1474,6 +1538,7 @@ export type Database = {
           access_token?: string | null
           affiliate_id?: string | null
           amount_cents?: number
+          buyer_id?: string | null
           checkout_id?: string | null
           commission_cents?: number | null
           coupon_code?: string | null
@@ -1509,6 +1574,13 @@ export type Database = {
             columns: ["affiliate_id"]
             isOneToOne: false
             referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "buyer_profiles"
             referencedColumns: ["id"]
           },
           {
@@ -1802,6 +1874,104 @@ export type Database = {
         }
         Relationships: []
       }
+      product_member_content: {
+        Row: {
+          content_data: Json | null
+          content_type: string
+          content_url: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          module_id: string
+          position: number
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          content_data?: Json | null
+          content_type: string
+          content_url?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          module_id: string
+          position?: number
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          content_data?: Json | null
+          content_type?: string
+          content_url?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          module_id?: string
+          position?: number
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_member_content_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "product_member_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_member_modules: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          position: number
+          product_id: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          position?: number
+          product_id: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          position?: number
+          product_id?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_member_modules_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_member_modules_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           affiliate_gateway_settings: Json | null
@@ -1820,6 +1990,8 @@ export type Database = {
           marketplace_rules: string | null
           marketplace_tags: string[] | null
           marketplace_views: number | null
+          members_area_enabled: boolean | null
+          members_area_settings: Json | null
           name: string
           price: number
           required_fields: Json | null
@@ -1848,6 +2020,8 @@ export type Database = {
           marketplace_rules?: string | null
           marketplace_tags?: string[] | null
           marketplace_views?: number | null
+          members_area_enabled?: boolean | null
+          members_area_settings?: Json | null
           name: string
           price: number
           required_fields?: Json | null
@@ -1876,6 +2050,8 @@ export type Database = {
           marketplace_rules?: string | null
           marketplace_tags?: string[] | null
           marketplace_views?: number | null
+          members_area_enabled?: boolean | null
+          members_area_settings?: Json | null
           name?: string
           price?: number
           required_fields?: Json | null

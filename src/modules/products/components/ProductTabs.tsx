@@ -14,6 +14,7 @@ import { UpsellTab } from "../tabs/UpsellTab";
 import { CheckoutTab } from "../tabs/CheckoutTab";
 import { CuponsTab } from "../tabs/CuponsTab";
 import { LinksTab } from "../tabs/LinksTab";
+import { MembersAreaTab } from "../tabs/MembersAreaTab";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Loader2 } from "lucide-react";
 
@@ -62,6 +63,9 @@ export function ProductTabs() {
         )}
         <TabsTrigger value="links">
           Links
+        </TabsTrigger>
+        <TabsTrigger value="membros">
+          Área de Membros
         </TabsTrigger>
       </TabsList>
       
@@ -139,6 +143,15 @@ export function ProductTabs() {
         forceMount
       >
         <LinksTab />
+      </TabsContent>
+
+      {/* ABA ÁREA DE MEMBROS */}
+      <TabsContent 
+        value="membros" 
+        className={`space-y-6 ${activeTab !== "membros" ? "hidden" : ""}`}
+        forceMount
+      >
+        <MembersAreaTab />
       </TabsContent>
     </Tabs>
   );
