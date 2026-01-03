@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Package, User, Mail, Phone, CreditCard, Calendar, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { Package, User, Mail, Phone, CreditCard, Calendar, CheckCircle2, Clock, XCircle, FileText } from "lucide-react";
 
 interface OrderDetailsDialogProps {
   open: boolean;
@@ -16,6 +16,7 @@ interface OrderDetailsDialogProps {
     customerName: string;
     customerEmail: string;
     customerPhone: string;
+    customerDocument: string;
     productName: string;
     productImageUrl: string;
     amount: string;
@@ -147,6 +148,18 @@ export function OrderDetailsDialog({ open, onOpenChange, orderData }: OrderDetai
                   <div className="flex-1">
                     <p className="text-xs text-muted-foreground">Telefone</p>
                     <p className="text-sm font-medium text-foreground">{orderData.customerPhone}</p>
+                  </div>
+                </div>
+              )}
+
+              {orderData.customerDocument && orderData.customerDocument !== 'N/A' && (
+                <div className="flex items-center gap-2 p-2 rounded-md bg-muted/30">
+                  <div className="p-1.5 rounded-md bg-background">
+                    <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground">CPF/CNPJ</p>
+                    <p className="text-sm font-medium text-foreground">{orderData.customerDocument}</p>
                   </div>
                 </div>
               )}
