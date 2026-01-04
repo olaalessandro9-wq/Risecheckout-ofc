@@ -1,24 +1,25 @@
 /**
- * Stripe Create Payment Edge Function
+ * stripe-create-payment/index.ts - Orquestrador Principal
  * 
- * Cria Payment Intents para cartão de crédito e PIX via Stripe.
- * Suporta split de pagamentos via Stripe Connect.
+ * Responsabilidade ÚNICA: Orquestrar handlers modulares
  * 
- * ATUALIZADO: Taxa da plataforma = 4% (centralizada em platform-config.ts)
+ * Estrutura:
+ * - handlers/order-loader.ts (~100 linhas) - Carrega e valida pedido
+ * - handlers/intent-builder.ts (~115 linhas) - Monta PaymentIntent params
+ * - handlers/post-payment.ts (~150 linhas) - Comissão afiliado, webhooks, PIX
+ * - index.ts (~150 linhas) ← VOCÊ ESTÁ AQUI
  */
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.14.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { 
-  PLATFORM_FEE_PERCENT, 
-  calculatePlatformFeeCents,
-  getVendorFeePercent,
-  isVendorOwner
-} from "../_shared/platform-config.ts";
 import { rateLimitMiddleware, getIdentifier } from "../_shared/rate-limit.ts";
+import { withSentry, captureException } from "../_shared/sentry.ts";
+import { loadOrder, getVendorStripeConfig } from "./handlers/order-loader.ts";
+import { buildPaymentIntentParams } from "./handlers/intent-builder.ts";
+import { processAffiliateCommission, triggerWebhook, processPixPayment } from "./handlers/post-payment.ts";
 
-// Lista de origens permitidas (CORS restritivo)
+// 🔒 SEGURANÇA: Lista de domínios permitidos
 const ALLOWED_ORIGINS = [
   "http://localhost:5173",
   "http://localhost:3000",
@@ -41,22 +42,23 @@ const logStep = (step: string, details?: unknown) => {
 interface CreatePaymentRequest {
   order_id: string;
   payment_method: "credit_card" | "pix";
-  payment_method_id?: string; // Para cartão, ID do payment method criado no frontend
+  payment_method_id?: string;
   return_url?: string;
 }
 
-serve(async (req) => {
+serve(withSentry('stripe-create-payment', async (req) => {
   const origin = req.headers.get("origin") || "";
   const corsHeaders = getCorsHeaders(origin);
 
+  // 0. CORS Preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Rate limiting (P0 - proteção contra abuso)
+  // 1. Rate Limiting
   const rateLimitResponse = await rateLimitMiddleware(req, {
     maxAttempts: 10,
-    windowMs: 60 * 1000, // 1 minuto
+    windowMs: 60 * 1000,
     identifier: getIdentifier(req, false),
     action: "stripe_create_payment",
   });
@@ -66,14 +68,13 @@ serve(async (req) => {
     return rateLimitResponse;
   }
 
-  const supabaseClient = createClient(
+  const supabase = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
   );
 
-  // Capturar raw body no início para usar em caso de erro
   let rawBody = "";
-  
+
   try {
     rawBody = await req.text();
     const body: CreatePaymentRequest = JSON.parse(rawBody);
@@ -85,151 +86,37 @@ serve(async (req) => {
       throw new Error("order_id is required");
     }
 
-    // Buscar pedido com dados do afiliado
-    const { data: order, error: orderError } = await supabaseClient
-      .from("orders")
-      .select(`
-        *,
-        products (user_id, name),
-        affiliates (
-          id,
-          user_id,
-          commission_rate
-        )
-      `)
-      .eq("id", order_id)
-      .maybeSingle();
-
-    if (orderError || !order) {
-      logStep("Order not found", { order_id, error: orderError });
-      throw new Error("Order not found");
+    // 2. CARREGAR PEDIDO
+    const orderResult = await loadOrder(supabase, order_id, logStep);
+    if (!orderResult.success) {
+      throw new Error(orderResult.error);
     }
+    const { order } = orderResult;
 
-    logStep("Order found", { 
-      amount: order.amount_cents, 
-      vendor_id: order.vendor_id,
-      status: order.status,
-      has_affiliate: !!order.affiliate_id
-    });
+    // 3. BUSCAR CONFIG STRIPE DO VENDEDOR
+    const connectedAccountId = await getVendorStripeConfig(supabase, order.vendor_id, logStep);
 
-    // Verificar se pedido já foi pago
-    if (order.status === "PAID") {
-      throw new Error("Order already paid");
-    }
-
-    const vendorId = order.vendor_id;
-
-    // Buscar integração Stripe do vendedor
-    const { data: stripeIntegration } = await supabaseClient
-      .from("vendor_integrations")
-      .select("config, active")
-      .eq("vendor_id", vendorId)
-      .eq("integration_type", "STRIPE")
-      .maybeSingle();
-
-    // Decidir qual chave usar
-    let stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
-    let connectedAccountId: string | undefined;
-
-    if (stripeIntegration?.active && stripeIntegration?.config?.stripe_account_id) {
-      // Vendedor tem conta Stripe Connect
-      connectedAccountId = stripeIntegration.config.stripe_account_id;
-      logStep("Using Stripe Connect", { connectedAccountId });
-    } else {
-      logStep("Using platform Stripe account");
-    }
-
+    const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeSecretKey) {
       throw new Error("STRIPE_SECRET_KEY not configured");
     }
 
-    const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: "2023-10-16",
-    });
+    const stripe = new Stripe(stripeSecretKey, { apiVersion: "2023-10-16" });
 
-    // Preparar parâmetros do Payment Intent
-    const paymentIntentParams: Stripe.PaymentIntentCreateParams = {
-      amount: order.amount_cents,
-      currency: "brl",
-      metadata: {
-        order_id: order.id,
-        vendor_id: vendorId,
-        customer_email: order.customer_email || "",
-        customer_name: order.customer_name || "",
-        product_name: order.product_name || "",
-      },
-      description: `Pedido ${order.id} - ${order.product_name || "Produto"}`,
-    };
+    // 4. MONTAR PAYMENT INTENT
+    const intentParams = await buildPaymentIntentParams(supabase, {
+      order,
+      paymentMethod: payment_method,
+      paymentMethodId: payment_method_id,
+      returnUrl: return_url,
+      connectedAccountId,
+    }, logStep);
 
-    // Configurar método de pagamento
-    if (payment_method === "pix") {
-      paymentIntentParams.payment_method_types = ["pix"];
-      paymentIntentParams.payment_method_options = {
-        pix: {
-          expires_after_seconds: 3600, // 1 hora
-        },
-      };
-    } else {
-      paymentIntentParams.payment_method_types = ["card"];
-      if (payment_method_id) {
-        paymentIntentParams.payment_method = payment_method_id;
-        paymentIntentParams.confirm = true;
-        if (return_url) {
-          paymentIntentParams.return_url = return_url;
-        }
-      }
-    }
+    // 5. CRIAR PAYMENT INTENT
+    const paymentIntent = await stripe.paymentIntents.create(intentParams);
+    logStep("Payment Intent created", { id: paymentIntent.id, status: paymentIntent.status });
 
-    // Se tem conta conectada, configurar split (MODELO CAKTO)
-    // OWNER SIMPLIFICADO: Se vendedor é Owner, não cobrar application_fee
-    if (connectedAccountId) {
-      const isOwner = await isVendorOwner(supabaseClient, vendorId);
-      
-      if (isOwner) {
-        logStep("🏠 OWNER detectado - Skip application_fee (100% para Owner)");
-        // Não adicionar application_fee - Owner recebe 100%
-        paymentIntentParams.transfer_data = {
-          destination: connectedAccountId,
-        };
-      } else {
-        // Buscar taxa personalizada do vendedor
-        const vendorFeePercent = await getVendorFeePercent(supabaseClient, vendorId);
-        
-        // Taxa da plataforma já foi calculada no create-order
-        // Usar valor salvo ou recalcular com taxa dinâmica se não existir
-        const platformFee = order.platform_fee_cents || calculatePlatformFeeCents(order.amount_cents, vendorFeePercent);
-        
-        paymentIntentParams.application_fee_amount = platformFee;
-        paymentIntentParams.transfer_data = {
-          destination: connectedAccountId,
-        };
-
-        logStep("MODELO CAKTO - Split configured", { 
-          vendorFeePercent: `${vendorFeePercent * 100}%`,
-          isCustomFee: vendorFeePercent !== PLATFORM_FEE_PERCENT,
-          platformFee, 
-          vendorAmount: order.amount_cents - platformFee,
-          nota: 'Taxa proporcional já descontada no create-order'
-        });
-
-        // Atualizar taxa da plataforma no pedido se não existia
-        if (!order.platform_fee_cents) {
-          await supabaseClient
-            .from("orders")
-            .update({ platform_fee_cents: platformFee })
-            .eq("id", order_id);
-        }
-      }
-    }
-
-    // Criar Payment Intent
-    const paymentIntent = await stripe.paymentIntents.create(paymentIntentParams);
-    logStep("Payment Intent created", { 
-      id: paymentIntent.id, 
-      status: paymentIntent.status 
-    });
-
-    // Preparar campos para atualização
+    // 6. PREPARAR CAMPOS PARA ATUALIZAÇÃO
     const updateFields: Record<string, unknown> = {
       gateway_payment_id: paymentIntent.id,
       gateway: "stripe",
@@ -237,97 +124,23 @@ serve(async (req) => {
       updated_at: new Date().toISOString(),
     };
 
-    // SE O PAGAMENTO FOI APROVADO IMEDIATAMENTE, ATUALIZAR STATUS E PROCESSAR COMISSÃO
+    // 7. SE APROVADO IMEDIATAMENTE
     if (paymentIntent.status === "succeeded") {
       updateFields.status = "PAID";
       updateFields.paid_at = new Date().toISOString();
       logStep("Payment succeeded immediately - updating order to PAID");
 
-      // SPLIT DE AFILIADO (MODELO CAKTO): Transferir comissão já calculada sobre o líquido
-      if (order.affiliate_id && order.commission_cents && order.commission_cents > 0) {
-        try {
-          // Buscar stripe_account_id do afiliado
-          const affiliateUserId = order.affiliates?.user_id;
-          
-          if (affiliateUserId) {
-            const { data: affiliateProfile } = await supabaseClient
-              .from("profiles")
-              .select("stripe_account_id")
-              .eq("id", affiliateUserId)
-              .maybeSingle();
-
-            const affiliateStripeAccountId = affiliateProfile?.stripe_account_id;
-
-            if (affiliateStripeAccountId) {
-              // Criar transfer para o afiliado
-              // MODELO CAKTO: commission_cents já está calculado sobre o valor líquido
-              const transfer = await stripe.transfers.create({
-                amount: order.commission_cents,
-                currency: "brl",
-                destination: affiliateStripeAccountId,
-                transfer_group: order_id,
-                metadata: {
-                  order_id: order_id,
-                  affiliate_id: order.affiliate_id,
-                  type: "affiliate_commission",
-                  modelo: "cakto_proporcional",
-                  nota: "Comissão calculada sobre valor líquido (após taxa plataforma)"
-                },
-              });
-
-              logStep("MODELO CAKTO - Affiliate commission transferred", {
-                affiliate_id: order.affiliate_id,
-                commission_cents: order.commission_cents,
-                transfer_id: transfer.id,
-                destination: affiliateStripeAccountId,
-                nota: "Comissão sobre valor líquido"
-              });
-            } else {
-              logStep("Affiliate has no Stripe account connected - skipping transfer", {
-                affiliate_id: order.affiliate_id,
-                affiliate_user_id: affiliateUserId,
-              });
-            }
-          }
-        } catch (transferError) {
-          // Não falhar o pagamento se a transferência falhar
-          logStep("ERROR transferring affiliate commission", { 
-            error: transferError instanceof Error ? transferError.message : String(transferError),
-            affiliate_id: order.affiliate_id,
-          });
-        }
-      }
-
-      // Disparar webhooks externos para pagamento aprovado
-      try {
-        const supabaseUrl = Deno.env.get('SUPABASE_URL');
-        const internalSecret = Deno.env.get('INTERNAL_WEBHOOK_SECRET');
-
-        await fetch(`${supabaseUrl}/functions/v1/trigger-webhooks`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Internal-Secret': internalSecret || ''
-          },
-          body: JSON.stringify({
-            order_id: order_id,
-            event_type: 'purchase_approved'
-          })
-        });
-        
-        logStep('Webhook purchase_approved disparado', { order_id });
-      } catch (webhookError) {
-        logStep('Erro ao disparar purchase_approved (não crítico)', { error: webhookError });
-      }
+      // Transferir comissão do afiliado
+      await processAffiliateCommission(stripe, supabase, order, order_id, logStep);
+      
+      // Disparar webhook purchase_approved
+      await triggerWebhook('purchase_approved', order_id, logStep);
     }
 
-    // Atualizar pedido
-    await supabaseClient
-      .from("orders")
-      .update(updateFields)
-      .eq("id", order_id);
+    // 8. ATUALIZAR PEDIDO
+    await supabase.from("orders").update(updateFields).eq("id", order_id);
 
-    // Preparar resposta baseada no método de pagamento
+    // 9. PREPARAR RESPOSTA
     let responseData: Record<string, unknown> = {
       success: true,
       payment_intent_id: paymentIntent.id,
@@ -335,68 +148,10 @@ serve(async (req) => {
       status: paymentIntent.status,
     };
 
-    // Para PIX, confirmar e extrair QR Code
+    // 10. PROCESSAR PIX (confirmar e extrair QR Code)
     if (payment_method === "pix") {
-      // Confirmar para gerar QR Code
-      const confirmedIntent = await stripe.paymentIntents.confirm(paymentIntent.id, {
-        payment_method_data: {
-          type: "pix",
-          billing_details: {
-            email: order.customer_email || undefined,
-            name: order.customer_name || undefined,
-          },
-        },
-      });
-
-      logStep("PIX Payment Intent confirmed", { 
-        status: confirmedIntent.status,
-        hasNextAction: !!confirmedIntent.next_action 
-      });
-
-      const pixAction = confirmedIntent.next_action?.pix_display_qr_code;
-
-      if (pixAction) {
-        responseData = {
-          ...responseData,
-          status: confirmedIntent.status,
-          qr_code: pixAction.image_url_png,
-          qr_code_text: pixAction.data,
-          expires_at: pixAction.expires_at,
-          hosted_instructions_url: pixAction.hosted_instructions_url,
-        };
-
-        // Atualizar pedido com dados do PIX
-        await supabaseClient
-          .from("orders")
-          .update({
-            pix_qr_code: pixAction.data,
-            pix_created_at: new Date().toISOString(),
-            pix_status: "pending",
-          })
-          .eq("id", order_id);
-
-        // Disparar webhook pix_generated
-        try {
-          const supabaseUrl = Deno.env.get('SUPABASE_URL');
-          const internalSecret = Deno.env.get('INTERNAL_WEBHOOK_SECRET');
-
-          await fetch(`${supabaseUrl}/functions/v1/trigger-webhooks`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Internal-Secret': internalSecret || ''
-            },
-            body: JSON.stringify({
-              order_id: order_id,
-              event_type: 'pix_generated'
-            })
-          });
-          
-          logStep('Webhook pix_generated disparado', { order_id });
-        } catch (webhookError) {
-          logStep('Erro ao disparar pix_generated (não crítico)', { error: webhookError });
-        }
-      }
+      const pixData = await processPixPayment(stripe, supabase, paymentIntent, order, order_id, logStep);
+      responseData = { ...responseData, ...pixData };
     }
 
     logStep("Payment created successfully", { order_id, payment_method });
@@ -410,13 +165,14 @@ serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR", { message: errorMessage });
 
-    // Log erro no banco
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    await captureException(error instanceof Error ? error : new Error(String(error)), {
+      functionName: 'stripe-create-payment',
+      url: req.url,
+      method: req.method,
+      extra: { rawBody: rawBody || null },
+    });
 
-    await supabaseClient.from("edge_function_errors").insert({
+    await supabase.from("edge_function_errors").insert({
       function_name: "stripe-create-payment",
       error_message: errorMessage,
       request_payload: rawBody || null,
@@ -424,10 +180,7 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
-      { 
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400 
-      }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
     );
   }
-});
+}));

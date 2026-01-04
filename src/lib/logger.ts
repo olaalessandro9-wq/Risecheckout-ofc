@@ -4,9 +4,10 @@
  * Em DESENVOLVIMENTO: Todos os níveis de log são exibidos
  * Em PRODUÇÃO: Apenas errors são exibidos (para monitoramento)
  * 
- * NOTA: O vite.config.ts também remove console.* em produção via esbuild.drop
- * Este logger serve como camada adicional de controle e padronização.
+ * INTEGRAÇÃO SENTRY: Erros são enviados automaticamente para o Sentry
  */
+
+import * as Sentry from "@sentry/react";
 
 const isDev = import.meta.env.DEV;
 const LOG_PREFIX = '[Rise]';
@@ -48,7 +49,21 @@ export const logger = {
   error: (context: string, message: string, ...args: unknown[]) => {
     // Erros SEMPRE são logados (importante para monitoramento em produção)
     console.error(`🚨 ${config.prefix}[${context}] ${message}`, ...args);
-    // TODO: Integrar com Sentry/LogRocket aqui no futuro
+    
+    // Enviar para Sentry
+    const errorArg = args.find(arg => arg instanceof Error);
+    if (errorArg instanceof Error) {
+      Sentry.captureException(errorArg, {
+        tags: { context },
+        extra: { message, args: args.filter(a => !(a instanceof Error)) }
+      });
+    } else {
+      Sentry.captureMessage(`${context}: ${message}`, {
+        level: 'error',
+        tags: { context },
+        extra: { args }
+      });
+    }
   },
 };
 
