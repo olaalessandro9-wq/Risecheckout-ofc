@@ -1,15 +1,16 @@
 /**
- * ImageUploadZone - Área de upload de imagem com drag & drop
+ * ImageUploadZone - Área de upload com drag & drop e ícones de ação
  */
 
-import { useCallback, useState } from "react";
-import { Upload, X, Image as ImageIcon } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { Upload, Crop, Trash2, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ImageUploadZoneProps {
   imagePreview: string | null;
   onImageSelect: (file: File | null) => void;
+  onCropClick?: () => void;
   maxSizeMB?: number;
   acceptedFormats?: string[];
   recommendedSize?: string;
@@ -19,126 +20,172 @@ interface ImageUploadZoneProps {
 export function ImageUploadZone({
   imagePreview,
   onImageSelect,
+  onCropClick,
   maxSizeMB = 10,
-  acceptedFormats = ["image/png", "image/jpeg", "image/jpg", "image/webp"],
+  acceptedFormats = ["image/png", "image/jpeg", "image/jpg"],
   recommendedSize = "320x480 px",
   className,
 }: ImageUploadZoneProps) {
-  const [isDragging, setIsDragging] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const validateFile = useCallback(
+    (file: File): boolean => {
+      if (!acceptedFormats.includes(file.type)) {
+        alert("Formato não suportado. Use PNG ou JPG.");
+        return false;
+      }
+      if (file.size > maxSizeMB * 1024 * 1024) {
+        alert(`Arquivo muito grande. Máximo ${maxSizeMB}MB.`);
+        return false;
+      }
+      return true;
+    },
+    [acceptedFormats, maxSizeMB]
+  );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(true);
+    setIsDragOver(true);
   }, []);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(false);
+    setIsDragOver(false);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    
-    const file = e.dataTransfer.files[0];
-    if (file && validateFile(file)) {
-      onImageSelect(file);
-    }
-  }, [onImageSelect, maxSizeMB, acceptedFormats]);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragOver(false);
 
-  const validateFile = (file: File): boolean => {
-    if (!acceptedFormats.includes(file.type)) {
-      alert("Formato não suportado. Use PNG, JPG ou WebP.");
-      return false;
-    }
-    if (file.size > maxSizeMB * 1024 * 1024) {
-      alert(`Arquivo muito grande. Máximo ${maxSizeMB}MB.`);
-      return false;
-    }
-    return true;
-  };
+      const file = e.dataTransfer.files[0];
+      if (file && validateFile(file)) {
+        onImageSelect(file);
+      }
+    },
+    [onImageSelect, validateFile]
+  );
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && validateFile(file)) {
-      onImageSelect(file);
-    }
-    e.target.value = "";
-  };
+  const handleFileSelect = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file && validateFile(file)) {
+        onImageSelect(file);
+      }
+      // Reset input
+      if (inputRef.current) {
+        inputRef.current.value = "";
+      }
+    },
+    [onImageSelect, validateFile]
+  );
 
-  const handleRemoveImage = () => {
+  const handleRemoveImage = useCallback(() => {
     onImageSelect(null);
-  };
+  }, [onImageSelect]);
 
+  const handleClick = useCallback(() => {
+    inputRef.current?.click();
+  }, []);
+
+  // Hidden file input
+  const fileInput = (
+    <input
+      ref={inputRef}
+      type="file"
+      accept={acceptedFormats.join(",")}
+      onChange={handleFileSelect}
+      className="hidden"
+    />
+  );
+
+  // With image - show preview with action icons
   if (imagePreview) {
     return (
-      <div className={cn("relative group", className)}>
-        <div className="relative aspect-[2/3] w-full overflow-hidden rounded-lg border border-border bg-muted">
-          <img
-            src={imagePreview}
-            alt="Preview"
-            className="h-full w-full object-cover"
-          />
-          <Button
-            variant="destructive"
-            size="icon"
-            className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={handleRemoveImage}
-          >
-            <X className="h-4 w-4" />
-          </Button>
+      <div className={cn("space-y-2", className)}>
+        <div className="relative group rounded-lg overflow-hidden border border-border bg-muted/30">
+          <div className="flex items-center justify-center p-4">
+            <img
+              src={imagePreview}
+              alt="Preview"
+              className="max-h-40 max-w-full object-contain rounded"
+            />
+          </div>
+          
+          {/* Action buttons overlay */}
+          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+            {onCropClick && (
+              <Button
+                type="button"
+                size="icon"
+                variant="secondary"
+                className="h-10 w-10 rounded-full"
+                onClick={onCropClick}
+              >
+                <Crop className="h-5 w-5" />
+              </Button>
+            )}
+            <Button
+              type="button"
+              size="icon"
+              variant="destructive"
+              className="h-10 w-10 rounded-full"
+              onClick={handleRemoveImage}
+            >
+              <Trash2 className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
+        
+        <p className="text-xs text-muted-foreground text-center">
+          Passe o mouse para editar
+        </p>
+        
+        {fileInput}
       </div>
     );
   }
 
+  // Without image - show upload zone
   return (
     <div className={cn("space-y-2", className)}>
-      <label
+      <div
+        onClick={handleClick}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={cn(
-          "flex flex-col items-center justify-center gap-3 p-6",
-          "border-2 border-dashed rounded-lg cursor-pointer",
-          "transition-colors duration-200",
-          isDragging
+          "relative flex flex-col items-center justify-center gap-3 p-6 rounded-lg border-2 border-dashed cursor-pointer transition-colors",
+          isDragOver
             ? "border-primary bg-primary/5"
-            : "border-border hover:border-primary/50 hover:bg-muted/50"
+            : "border-muted-foreground/25 hover:border-muted-foreground/50 hover:bg-muted/30"
         )}
       >
-        <div className={cn(
-          "flex items-center justify-center w-12 h-12 rounded-full",
-          "bg-muted text-muted-foreground"
-        )}>
-          <Upload className="h-5 w-5" />
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+          <Upload className="h-6 w-6 text-muted-foreground" />
         </div>
         
-        <div className="text-center space-y-1">
+        <div className="text-center">
           <p className="text-sm font-medium">
-            <span className="text-primary">Selecione do computador</span>
+            Selecione do computador
           </p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground mt-1">
             ou arraste aqui
           </p>
         </div>
         
         <p className="text-xs text-muted-foreground">
-          PNG, JPG até {maxSizeMB}MB
+          PNG, JPG até {maxSizeMB} MB
         </p>
-        
-        <input
-          type="file"
-          accept={acceptedFormats.join(",")}
-          onChange={handleFileSelect}
-          className="hidden"
-        />
-      </label>
+      </div>
       
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <ImageIcon className="h-3 w-3" />
         <span>Tamanho recomendado: {recommendedSize}</span>
       </div>
+      
+      {fileInput}
     </div>
   );
 }
