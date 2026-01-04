@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-interface MemberModule {
+export interface MemberModule {
   id: string;
   product_id: string;
   title: string;
@@ -13,7 +13,7 @@ interface MemberModule {
   updated_at: string;
 }
 
-interface MemberContent {
+export interface MemberContent {
   id: string;
   module_id: string;
   title: string;
@@ -27,16 +27,16 @@ interface MemberContent {
   updated_at: string;
 }
 
-interface MemberModuleWithContents extends MemberModule {
+export interface MemberModuleWithContents extends MemberModule {
   contents: MemberContent[];
 }
 
-interface MembersAreaSettings {
+export interface MembersAreaSettings {
   enabled: boolean;
   settings: Record<string, any>;
 }
 
-interface UseMembersAreaReturn {
+export interface UseMembersAreaReturn {
   isLoading: boolean;
   isSaving: boolean;
   settings: MembersAreaSettings;
