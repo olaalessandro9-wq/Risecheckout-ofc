@@ -2,7 +2,7 @@
  * MembersAreaNavTabs - Navegação interna da área de membros
  */
 
-import { BookOpen, Users } from "lucide-react";
+import { BookOpen, Users, FolderKanban, Settings, Paintbrush } from "lucide-react";
 import type { MembersAreaTabType } from "../layouts/MembersAreaLayout";
 
 interface MembersAreaNavTabsProps {
@@ -13,6 +13,9 @@ interface MembersAreaNavTabsProps {
 const tabs: { id: MembersAreaTabType; label: string; icon: React.ReactNode }[] = [
   { id: "content", label: "Conteúdo", icon: <BookOpen className="h-4 w-4" /> },
   { id: "students", label: "Alunos", icon: <Users className="h-4 w-4" /> },
+  { id: "groups", label: "Grupos", icon: <FolderKanban className="h-4 w-4" /> },
+  { id: "settings", label: "Configurações", icon: <Settings className="h-4 w-4" /> },
+  { id: "builder", label: "Builder", icon: <Paintbrush className="h-4 w-4" /> },
 ];
 
 export function MembersAreaNavTabs({ currentTab, onTabChange }: MembersAreaNavTabsProps) {

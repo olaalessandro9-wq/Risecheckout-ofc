@@ -15,8 +15,11 @@ import { MembersAreaActions } from "../components/MembersAreaActions";
 import { MembersAreaNavTabs } from "../components/MembersAreaNavTabs";
 import { ContentTab } from "../views/ContentTab";
 import { StudentsTab } from "../views/StudentsTab";
+import { GroupsTab } from "../views/GroupsTab";
+import { SettingsTab } from "../views/SettingsTab";
+import { BuilderTab } from "../views/BuilderTab";
 
-export type MembersAreaTabType = "content" | "students";
+export type MembersAreaTabType = "content" | "students" | "groups" | "settings" | "builder";
 
 export function MembersAreaLayout() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -77,6 +80,15 @@ export function MembersAreaLayout() {
           )}
           {currentTab === "students" && (
             <StudentsTab productId={product?.id} />
+          )}
+          {currentTab === "groups" && (
+            <GroupsTab productId={product?.id} />
+          )}
+          {currentTab === "settings" && (
+            <SettingsTab productId={product?.id} />
+          )}
+          {currentTab === "builder" && (
+            <BuilderTab productId={product?.id} />
           )}
         </div>
       </div>
