@@ -97,78 +97,96 @@ export function AddModuleDialogNetflix({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[820px]">
-          <DialogHeader>
-            <DialogTitle>Módulos</DialogTitle>
-            <DialogDescription>Preencha os campos abaixo</DialogDescription>
-          </DialogHeader>
+        <DialogContent className="sm:max-w-[1000px] p-0 gap-0 overflow-hidden">
+          <div className="flex flex-col h-full">
+            {/* Header */}
+            <DialogHeader className="px-8 pt-8 pb-6">
+              <DialogTitle className="text-2xl font-semibold">Módulos</DialogTitle>
+              <DialogDescription className="text-muted-foreground">
+                Preencha os campos abaixo
+              </DialogDescription>
+            </DialogHeader>
 
-          <div className="grid grid-cols-1 sm:grid-cols-[1fr,280px] gap-8 py-4">
-            {/* Left Side - Tabs */}
-            <div className="space-y-5">
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid w-full grid-cols-2 mb-6 h-12">
-                  <TabsTrigger value="geral" className="text-base">Geral</TabsTrigger>
-                  <TabsTrigger value="cover" className="text-base">Cover</TabsTrigger>
-                </TabsList>
+            {/* Content Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr,320px] gap-0 flex-1">
+              {/* Left Side - Tabs */}
+              <div className="px-8 pb-6">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 h-14 mb-8 bg-muted/50">
+                    <TabsTrigger 
+                      value="geral" 
+                      className="text-base font-medium h-12 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                    >
+                      Geral
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="cover" 
+                      className="text-base font-medium h-12 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                    >
+                      Cover
+                    </TabsTrigger>
+                  </TabsList>
 
-                {/* Tab Geral - Module Name */}
-                <TabsContent value="geral" className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="module-title">Nome do Módulo</Label>
-                    <Input
-                      id="module-title"
-                      placeholder="Ex: Módulo 1"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      className="h-11"
-                      autoFocus
-                    />
-                  </div>
-                </TabsContent>
+                  {/* Tab Geral - Module Name */}
+                  <TabsContent value="geral" className="mt-0">
+                    <div className="space-y-3">
+                      <Label htmlFor="module-title" className="text-base font-medium">
+                        Nome do Módulo
+                      </Label>
+                      <Input
+                        id="module-title"
+                        placeholder="Ex: Módulo 1"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        className="h-14 text-base px-4"
+                        autoFocus
+                      />
+                    </div>
+                  </TabsContent>
 
-                {/* Tab Cover - Image Upload (Vertical) */}
-                <TabsContent value="cover" className="space-y-4">
-                  <div className="flex justify-center py-4">
-                    <ImageUploadZoneVertical
-                      imagePreview={imagePreview}
-                      onImageSelect={handleImageSelect}
-                      onCropClick={originalImageFile ? handleReCrop : undefined}
-                      maxSizeMB={10}
-                    />
-                  </div>
-                </TabsContent>
-              </Tabs>
+                  {/* Tab Cover - Image Upload (Vertical) */}
+                  <TabsContent value="cover" className="mt-0">
+                    <div className="flex justify-center py-6">
+                      <ImageUploadZoneVertical
+                        imagePreview={imagePreview}
+                        onImageSelect={handleImageSelect}
+                        onCropClick={originalImageFile ? handleReCrop : undefined}
+                        maxSizeMB={10}
+                      />
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </div>
 
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => onOpenChange(false)}
-                  className="flex-1"
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  onClick={handleSubmit}
-                  disabled={!title.trim() || isSaving}
-                  className="flex-1"
-                >
-                  {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Salvar
-                </Button>
+              {/* Right Side - Large Preview */}
+              <div className="hidden lg:flex flex-col bg-muted/30 p-8 border-l border-border">
+                <Label className="mb-4 text-base text-muted-foreground">Pré-visualização</Label>
+                <div className="flex-1 flex items-start justify-center pt-4">
+                  <ModuleCardPreview
+                    imageUrl={imagePreview}
+                    lessonsCount={0}
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Right Side - Large Preview */}
-            <div className="hidden sm:flex flex-col">
-              <Label className="mb-3 text-muted-foreground">Pré-visualização</Label>
-              <div className="flex-1 flex items-start justify-center">
-                <ModuleCardPreview
-                  imageUrl={imagePreview}
-                  lessonsCount={0}
-                />
-              </div>
+            {/* Footer with Buttons */}
+            <div className="flex justify-end gap-4 px-8 py-6 border-t border-border bg-muted/20">
+              <Button
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                className="h-12 px-8 text-base"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={!title.trim() || isSaving}
+                className="h-12 px-8 text-base"
+              >
+                {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Salvar
+              </Button>
             </div>
           </div>
         </DialogContent>
