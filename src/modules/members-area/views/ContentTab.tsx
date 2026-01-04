@@ -3,7 +3,7 @@
  */
 
 import { useState } from "react";
-import { Plus, Library, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
   ModulesList,
@@ -116,10 +116,6 @@ export function ContentTab({ membersAreaData }: ContentTabProps) {
       {/* Actions Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-2">
-            <Library className="h-4 w-4" />
-            Biblioteca de Vídeos
-          </Button>
           <Button 
             variant="ghost" 
             size="sm" 
@@ -139,14 +135,6 @@ export function ContentTab({ membersAreaData }: ContentTabProps) {
             )}
           </Button>
         </div>
-
-        <Button 
-          onClick={() => setIsAddModuleOpen(true)}
-          className="gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Adicionar Módulo
-        </Button>
       </div>
 
       {/* Stats */}
