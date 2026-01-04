@@ -36,14 +36,16 @@ export function ImageCropDialog({
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
-  // Load image URL
+  // Load image URL and reset crop area when imageFile changes
   useEffect(() => {
-    if (imageFile) {
+    if (imageFile && open) {
       const url = URL.createObjectURL(imageFile);
       setImageUrl(url);
+      // Reset crop area for fresh calculation
+      setCropArea({ x: 0, y: 0, width: 0, height: 0 });
       return () => URL.revokeObjectURL(url);
     }
-  }, [imageFile]);
+  }, [imageFile, open]);
 
   // Calculate initial crop area when image loads
   const handleImageLoad = useCallback(() => {
@@ -57,19 +59,23 @@ export function ImageCropDialog({
     let cropWidth: number;
     let cropHeight: number;
 
-    if (img.naturalWidth / img.naturalHeight > ASPECT_RATIO) {
+    // Use the displayed dimensions of the image
+    const displayedWidth = img.clientWidth;
+    const displayedHeight = img.clientHeight;
+
+    if (displayedWidth / displayedHeight > ASPECT_RATIO) {
       // Image is wider - fit by height
-      cropHeight = Math.min(containerRect.height * 0.8, img.height);
+      cropHeight = displayedHeight * 0.85;
       cropWidth = cropHeight * ASPECT_RATIO;
     } else {
       // Image is taller - fit by width
-      cropWidth = Math.min(containerRect.width * 0.6, img.width);
+      cropWidth = displayedWidth * 0.85;
       cropHeight = cropWidth / ASPECT_RATIO;
     }
 
-    // Center the crop area
-    const x = (img.width - cropWidth) / 2;
-    const y = (img.height - cropHeight) / 2;
+    // Center the crop area within the displayed image
+    const x = (displayedWidth - cropWidth) / 2;
+    const y = (displayedHeight - cropHeight) / 2;
 
     setCropArea({ x, y, width: cropWidth, height: cropHeight });
   }, []);
