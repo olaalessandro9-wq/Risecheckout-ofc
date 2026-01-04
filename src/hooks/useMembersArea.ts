@@ -7,6 +7,7 @@ export interface MemberModule {
   product_id: string;
   title: string;
   description: string | null;
+  cover_image_url: string | null;
   position: number;
   is_active: boolean;
   created_at: string;
@@ -43,7 +44,7 @@ export interface UseMembersAreaReturn {
   modules: MemberModuleWithContents[];
   updateSettings: (enabled: boolean, settings?: Record<string, any>) => Promise<void>;
   fetchModules: () => Promise<void>;
-  addModule: (title: string, description?: string) => Promise<MemberModule | null>;
+  addModule: (title: string, description?: string, coverImageUrl?: string) => Promise<MemberModule | null>;
   updateModule: (id: string, data: Partial<MemberModule>) => Promise<void>;
   deleteModule: (id: string) => Promise<void>;
   reorderModules: (orderedIds: string[]) => Promise<void>;
@@ -137,7 +138,7 @@ export function useMembersArea(productId: string | undefined): UseMembersAreaRet
     }
   }, [productId, settings.settings]);
 
-  const addModule = useCallback(async (title: string, description?: string): Promise<MemberModule | null> => {
+  const addModule = useCallback(async (title: string, description?: string, coverImageUrl?: string): Promise<MemberModule | null> => {
     if (!productId) return null;
 
     setIsSaving(true);
@@ -150,6 +151,7 @@ export function useMembersArea(productId: string | undefined): UseMembersAreaRet
           product_id: productId,
           title,
           description: description || null,
+          cover_image_url: coverImageUrl || null,
           position: maxPosition,
         })
         .select()

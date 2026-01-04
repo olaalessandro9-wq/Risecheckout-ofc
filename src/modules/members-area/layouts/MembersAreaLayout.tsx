@@ -76,7 +76,7 @@ export function MembersAreaLayout() {
         {/* Tab Content */}
         <div className="py-6">
           {currentTab === "content" && (
-            <ContentTab membersAreaData={membersAreaData} />
+            <ContentTab membersAreaData={membersAreaData} productId={product?.id} />
           )}
           {currentTab === "students" && (
             <StudentsTab productId={product?.id} />
