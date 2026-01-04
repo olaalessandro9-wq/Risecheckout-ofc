@@ -1,4 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import * as Sentry from '@sentry/react';
 import { Button } from '@/components/ui/button';
 
 interface Props {
@@ -35,6 +36,14 @@ export class AppErrorBoundary extends Component<Props, State> {
       errorInfo,
       componentStack: errorInfo.componentStack,
       timestamp: new Date().toISOString(),
+    });
+
+    // Enviar para Sentry com contexto completo
+    Sentry.captureException(error, {
+      extra: {
+        componentStack: errorInfo.componentStack,
+        timestamp: new Date().toISOString(),
+      },
     });
 
     this.setState({

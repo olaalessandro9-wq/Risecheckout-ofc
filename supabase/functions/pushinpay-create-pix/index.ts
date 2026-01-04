@@ -25,6 +25,7 @@ import {
   validateCredentials,
   PLATFORM_FEE_PERCENT
 } from "../_shared/platform-config.ts";
+import { withSentry, captureException } from "../_shared/sentry.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -68,7 +69,7 @@ interface SmartSplitDecision {
   manualPaymentNeeded: number; // Centavos que precisam ser pagos manualmente
 }
 
-Deno.serve(async (req) => {
+Deno.serve(withSentry('pushinpay-create-pix', async (req) => {
   // CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -279,7 +280,14 @@ Deno.serve(async (req) => {
     });
 
   } catch (error: any) {
-    console.error(`[${functionName}] Erro:`, error.message);
+    console.error(`[pushinpay-create-pix] Erro:`, error.message);
+    
+    // Enviar para Sentry
+    await captureException(error instanceof Error ? error : new Error(String(error)), {
+      functionName: 'pushinpay-create-pix',
+      url: req.url,
+      method: req.method,
+    });
     
     return new Response(JSON.stringify({
       ok: false,
@@ -289,7 +297,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
-});
+}));
 
 /**
  * SMART SPLIT: Determina quem cria o PIX e como montar os split_rules

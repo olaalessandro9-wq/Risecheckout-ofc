@@ -15,6 +15,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { rateLimitMiddleware, getIdentifier } from "../_shared/rate-limit.ts";
+import { withSentry, captureException } from "../_shared/sentry.ts";
 import { validateProduct, type ProductValidationResult } from "./handlers/product-validator.ts";
 import { processBumps, type BumpProcessingResult } from "./handlers/bump-processor.ts";
 import { processCoupon } from "./handlers/coupon-processor.ts";
@@ -46,7 +47,7 @@ function maskEmail(email: string): string {
   return `${maskedUser}@${domain}`;
 }
 
-serve(async (req) => {
+serve(withSentry('create-order', async (req) => {
   const origin = req.headers.get("origin") || "";
   const corsHeaders = getCorsHeaders(origin);
 
@@ -199,10 +200,18 @@ serve(async (req) => {
 
   } catch (error: any) {
     console.error("[create-order] Erro Fatal:", error);
+    
+    // Enviar para Sentry manualmente (erros tratados)
+    await captureException(error instanceof Error ? error : new Error(String(error)), {
+      functionName: 'create-order',
+      url: req.url,
+      method: req.method,
+    });
+    
     const origin = req.headers.get("origin") || "";
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
       { status: 400, headers: { ...getCorsHeaders(origin), "Content-Type": "application/json" } }
     );
   }
-});
+}));
