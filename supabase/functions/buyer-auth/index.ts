@@ -1,23 +1,48 @@
+/**
+ * buyer-auth Edge Function
+ * 
+ * Handles buyer authentication with bcrypt password hashing
+ * Supports transparent migration from SHA-256 (v1) to bcrypt (v2)
+ */
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Simple hash function for passwords (in production, use bcrypt)
+// Hash versions
+const HASH_VERSION_SHA256 = 1;
+const HASH_VERSION_BCRYPT = 2;
+const CURRENT_HASH_VERSION = HASH_VERSION_BCRYPT;
+const BCRYPT_COST = 10;
+
+// Hash password with bcrypt (current standard)
 async function hashPassword(password: string): Promise<string> {
+  const salt = await bcrypt.genSalt(BCRYPT_COST);
+  return await bcrypt.hash(password, salt);
+}
+
+// Legacy SHA-256 hash (for backwards compatibility)
+async function hashPasswordLegacy(password: string): Promise<string> {
   const encoder = new TextEncoder();
-  const data = encoder.encode(password + Deno.env.get("BUYER_AUTH_SALT") || "rise_checkout_salt");
+  const salt = Deno.env.get("BUYER_AUTH_SALT") || "rise_checkout_salt";
+  const data = encoder.encode(password + salt);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
-async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  const passwordHash = await hashPassword(password);
-  return passwordHash === hash;
+// Verify password (supports both SHA-256 and bcrypt)
+async function verifyPassword(password: string, hash: string, version: number): Promise<boolean> {
+  if (version === HASH_VERSION_SHA256) {
+    const legacyHash = await hashPasswordLegacy(password);
+    return legacyHash === hash;
+  }
+  return await bcrypt.compare(password, hash);
 }
 
 function generateSessionToken(): string {
@@ -69,6 +94,7 @@ serve(async (req) => {
         .eq("email", email.toLowerCase())
         .single();
 
+      // Always use bcrypt for new passwords
       const passwordHash = await hashPassword(password);
 
       if (existingBuyer) {
@@ -78,6 +104,7 @@ serve(async (req) => {
             .from("buyer_profiles")
             .update({ 
               password_hash: passwordHash,
+              password_hash_version: CURRENT_HASH_VERSION,
               name: name || undefined,
               phone: phone || undefined,
               updated_at: new Date().toISOString()
@@ -92,7 +119,7 @@ serve(async (req) => {
             );
           }
 
-          console.log(`[buyer-auth] Password set for existing buyer: ${email}`);
+          console.log(`[buyer-auth] Password set with bcrypt for existing buyer: ${email}`);
           return new Response(
             JSON.stringify({ success: true, message: "Senha definida com sucesso" }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -105,12 +132,13 @@ serve(async (req) => {
         );
       }
 
-      // Create new buyer
+      // Create new buyer with bcrypt hash
       const { data: newBuyer, error: createError } = await supabase
         .from("buyer_profiles")
         .insert({
           email: email.toLowerCase(),
           password_hash: passwordHash,
+          password_hash_version: CURRENT_HASH_VERSION,
           name: name || null,
           phone: phone || null,
         })
@@ -125,7 +153,7 @@ serve(async (req) => {
         );
       }
 
-      console.log(`[buyer-auth] New buyer created: ${email}`);
+      console.log(`[buyer-auth] New buyer created with bcrypt: ${email}`);
       return new Response(
         JSON.stringify({ success: true, buyerId: newBuyer.id }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -145,10 +173,10 @@ serve(async (req) => {
         );
       }
 
-      // Find buyer
+      // Find buyer (include password_hash_version)
       const { data: buyer, error: findError } = await supabase
         .from("buyer_profiles")
-        .select("id, email, name, password_hash, is_active")
+        .select("id, email, name, password_hash, password_hash_version, is_active")
         .eq("email", email.toLowerCase())
         .single();
 
@@ -177,14 +205,29 @@ serve(async (req) => {
         );
       }
 
-      // Verify password
-      const isValid = await verifyPassword(password, buyer.password_hash);
+      // Verify password using appropriate algorithm
+      const hashVersion = buyer.password_hash_version || HASH_VERSION_SHA256;
+      const isValid = await verifyPassword(password, buyer.password_hash, hashVersion);
+      
       if (!isValid) {
         console.log(`[buyer-auth] Login failed - wrong password: ${email}`);
         return new Response(
           JSON.stringify({ error: "Email ou senha inválidos" }),
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
+      }
+
+      // Transparent rehash: if using legacy SHA-256, upgrade to bcrypt
+      if (hashVersion === HASH_VERSION_SHA256) {
+        const newHash = await hashPassword(password);
+        await supabase
+          .from("buyer_profiles")
+          .update({ 
+            password_hash: newHash,
+            password_hash_version: CURRENT_HASH_VERSION 
+          })
+          .eq("id", buyer.id);
+        console.log(`[buyer-auth] Upgraded password hash to bcrypt for: ${email}`);
       }
 
       // Create session

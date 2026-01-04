@@ -337,6 +337,7 @@ export type Database = {
           last_login_at: string | null
           name: string | null
           password_hash: string
+          password_hash_version: number | null
           phone: string | null
           updated_at: string | null
         }
@@ -351,6 +352,7 @@ export type Database = {
           last_login_at?: string | null
           name?: string | null
           password_hash: string
+          password_hash_version?: number | null
           phone?: string | null
           updated_at?: string | null
         }
@@ -365,6 +367,7 @@ export type Database = {
           last_login_at?: string | null
           name?: string | null
           password_hash?: string
+          password_hash_version?: number | null
           phone?: string | null
           updated_at?: string | null
         }
