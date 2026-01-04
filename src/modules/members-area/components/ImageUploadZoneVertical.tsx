@@ -97,9 +97,9 @@ export function ImageUploadZoneVertical({
   // With image - show vertical preview with action icons
   if (imagePreview) {
     return (
-      <div className="flex flex-col items-center gap-4">
+      <div className="flex flex-col items-center gap-3">
         <div
-          className="relative w-[200px] aspect-[2/3] rounded-lg overflow-hidden border border-border bg-muted cursor-pointer group"
+          className="relative w-[160px] aspect-[2/3] rounded-lg overflow-hidden border border-border bg-muted cursor-pointer group"
           onClick={handleClick}
         >
           <img
@@ -109,30 +109,30 @@ export function ImageUploadZoneVertical({
           />
           
           {/* Action icons overlay */}
-          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
             {onCropClick && (
               <button
                 type="button"
                 onClick={handleCropClick}
-                className="p-3 bg-background/90 rounded-lg hover:bg-background transition-colors"
+                className="p-2 bg-background/90 rounded-lg hover:bg-background transition-colors"
                 title="Recortar"
               >
-                <Crop className="h-6 w-6 text-foreground" />
+                <Crop className="h-5 w-5 text-foreground" />
               </button>
             )}
             <button
               type="button"
               onClick={handleRemoveImage}
-              className="p-3 bg-destructive/90 rounded-lg hover:bg-destructive transition-colors"
+              className="p-2 bg-destructive/90 rounded-lg hover:bg-destructive transition-colors"
               title="Remover"
             >
-              <Trash2 className="h-6 w-6 text-destructive-foreground" />
+              <Trash2 className="h-5 w-5 text-destructive-foreground" />
             </button>
           </div>
         </div>
 
-        <p className="text-sm text-muted-foreground text-center">
-          Formatos aceitos: JPG ou PNG. Tamanho máximo: {maxSizeMB}MB
+        <p className="text-xs text-muted-foreground text-center">
+          JPG ou PNG. Máximo: {maxSizeMB}MB
         </p>
 
         <input
@@ -148,15 +148,15 @@ export function ImageUploadZoneVertical({
 
   // Without image - vertical drop zone
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="flex flex-col items-center gap-3">
       <div
         onClick={handleClick}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={`
-          w-[200px] aspect-[2/3] rounded-lg border-2 border-dashed 
-          flex flex-col items-center justify-center gap-4 cursor-pointer
+          w-[160px] aspect-[2/3] rounded-lg border-2 border-dashed 
+          flex flex-col items-center justify-center gap-2 cursor-pointer
           transition-colors
           ${
             isDragOver
@@ -165,21 +165,21 @@ export function ImageUploadZoneVertical({
           }
         `}
       >
-        <div className="p-4 rounded-full bg-muted">
-          <Upload className="h-8 w-8 text-muted-foreground" />
+        <div className="p-2 rounded-full bg-muted">
+          <Upload className="h-5 w-5 text-muted-foreground" />
         </div>
-        <div className="text-center px-4">
-          <p className="text-base font-medium text-foreground">
+        <div className="text-center px-2">
+          <p className="text-sm font-medium text-foreground">
             Arraste ou clique
           </p>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-xs text-muted-foreground mt-0.5">
             JPG ou PNG
           </p>
         </div>
       </div>
 
-      <p className="text-sm text-muted-foreground text-center">
-        Tamanho recomendado: 320×480 pixels
+      <p className="text-xs text-muted-foreground text-center">
+        Recomendado: 320×480px
       </p>
 
       <input

@@ -97,31 +97,31 @@ export function AddModuleDialogNetflix({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[1000px] p-0 gap-0 overflow-hidden">
+        <DialogContent className="sm:max-w-[900px] p-0 gap-0 overflow-hidden">
           <div className="flex flex-col h-full">
             {/* Header */}
-            <DialogHeader className="px-8 pt-8 pb-6">
-              <DialogTitle className="text-2xl font-semibold">Módulos</DialogTitle>
-              <DialogDescription className="text-muted-foreground">
+            <DialogHeader className="px-6 pt-6 pb-4">
+              <DialogTitle className="text-xl font-semibold">Módulos</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
                 Preencha os campos abaixo
               </DialogDescription>
             </DialogHeader>
 
             {/* Content Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr,320px] gap-0 flex-1">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr,280px] flex-1">
               {/* Left Side - Tabs */}
-              <div className="px-8 pb-6">
+              <div className="px-6 pb-4">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 h-14 mb-8 bg-muted/50">
+                  <TabsList className="grid w-full grid-cols-2 h-11 mb-6 bg-muted/50">
                     <TabsTrigger 
                       value="geral" 
-                      className="text-base font-medium h-12 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                      className="text-sm font-medium h-9 data-[state=active]:bg-background data-[state=active]:shadow-sm"
                     >
                       Geral
                     </TabsTrigger>
                     <TabsTrigger 
                       value="cover" 
-                      className="text-base font-medium h-12 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                      className="text-sm font-medium h-9 data-[state=active]:bg-background data-[state=active]:shadow-sm"
                     >
                       Cover
                     </TabsTrigger>
@@ -129,8 +129,8 @@ export function AddModuleDialogNetflix({
 
                   {/* Tab Geral - Module Name */}
                   <TabsContent value="geral" className="mt-0">
-                    <div className="space-y-3">
-                      <Label htmlFor="module-title" className="text-base font-medium">
+                    <div className="space-y-2">
+                      <Label htmlFor="module-title" className="text-sm font-medium">
                         Nome do Módulo
                       </Label>
                       <Input
@@ -138,7 +138,7 @@ export function AddModuleDialogNetflix({
                         placeholder="Ex: Módulo 1"
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
-                        className="h-14 text-base px-4"
+                        className="h-11 text-sm"
                         autoFocus
                       />
                     </div>
@@ -146,7 +146,7 @@ export function AddModuleDialogNetflix({
 
                   {/* Tab Cover - Image Upload (Vertical) */}
                   <TabsContent value="cover" className="mt-0">
-                    <div className="flex justify-center py-6">
+                    <div className="flex justify-center py-4">
                       <ImageUploadZoneVertical
                         imagePreview={imagePreview}
                         onImageSelect={handleImageSelect}
@@ -158,10 +158,10 @@ export function AddModuleDialogNetflix({
                 </Tabs>
               </div>
 
-              {/* Right Side - Large Preview */}
-              <div className="hidden lg:flex flex-col bg-muted/30 p-8 border-l border-border">
-                <Label className="mb-4 text-base text-muted-foreground">Pré-visualização</Label>
-                <div className="flex-1 flex items-start justify-center pt-4">
+              {/* Right Side - Full Preview Area */}
+              <div className="hidden lg:flex flex-col bg-muted/30 border-l border-border">
+                <Label className="px-6 pt-4 pb-2 text-sm text-muted-foreground">Pré-visualização</Label>
+                <div className="flex-1 flex items-center justify-center p-4">
                   <ModuleCardPreview
                     imageUrl={imagePreview}
                     lessonsCount={0}
@@ -171,18 +171,18 @@ export function AddModuleDialogNetflix({
             </div>
 
             {/* Footer with Buttons */}
-            <div className="flex justify-end gap-4 px-8 py-6 border-t border-border bg-muted/20">
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-border bg-muted/20">
               <Button
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                className="h-12 px-8 text-base"
+                className="h-10 px-6 text-sm"
               >
                 Cancelar
               </Button>
               <Button
                 onClick={handleSubmit}
                 disabled={!title.trim() || isSaving}
-                className="h-12 px-8 text-base"
+                className="h-10 px-6 text-sm"
               >
                 {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Salvar
