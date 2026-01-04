@@ -99,7 +99,7 @@ export function ImageUploadZoneVertical({
     return (
       <div className="flex flex-col items-center gap-4">
         <div
-          className="relative w-[220px] aspect-[2/3] rounded-lg overflow-hidden border border-border bg-muted cursor-pointer group"
+          className="relative w-[200px] aspect-[2/3] rounded-lg overflow-hidden border border-border bg-muted cursor-pointer group"
           onClick={handleClick}
         >
           <img
@@ -155,7 +155,7 @@ export function ImageUploadZoneVertical({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={`
-          w-[220px] aspect-[2/3] rounded-lg border-2 border-dashed 
+          w-[200px] aspect-[2/3] rounded-lg border-2 border-dashed 
           flex flex-col items-center justify-center gap-4 cursor-pointer
           transition-colors
           ${
