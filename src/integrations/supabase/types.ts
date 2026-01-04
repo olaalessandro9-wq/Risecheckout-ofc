@@ -2754,7 +2754,6 @@ export type Database = {
         Returns: string
       }
       slugify: { Args: { txt: string }; Returns: string }
-      unaccent: { Args: { "": string }; Returns: string }
       validate_coupon: {
         Args: { p_code: string; p_product_id: string }
         Returns: Json
