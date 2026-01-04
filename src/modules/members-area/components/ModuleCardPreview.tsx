@@ -18,8 +18,8 @@ export function ModuleCardPreview({
   className,
 }: ModuleCardPreviewProps) {
   return (
-    <div className={cn("w-full", className)}>
-      <div className="relative w-full max-w-[220px] aspect-[2/3] rounded-xl overflow-hidden bg-gradient-to-br from-zinc-800 to-zinc-900 shadow-2xl ring-1 ring-white/10 mx-auto">
+    <div className={cn("w-full max-w-[160px]", className)}>
+      <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-gradient-to-br from-zinc-800 to-zinc-900 shadow-lg ring-1 ring-white/10 mx-auto">
         {/* Image or Placeholder */}
         {imageUrl ? (
           <img
