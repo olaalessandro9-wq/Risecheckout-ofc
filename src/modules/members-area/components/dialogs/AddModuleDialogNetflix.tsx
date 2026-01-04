@@ -103,13 +103,13 @@ export function AddModuleDialogNetflix({
             <DialogDescription>Preencha os campos abaixo</DialogDescription>
           </DialogHeader>
 
-          <div className="grid grid-cols-1 sm:grid-cols-[1fr,260px] gap-8 py-4">
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr,280px] gap-8 py-4">
             {/* Left Side - Tabs */}
             <div className="space-y-5">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid w-full grid-cols-2 mb-4">
-                  <TabsTrigger value="geral">Geral</TabsTrigger>
-                  <TabsTrigger value="cover">Cover</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-2 mb-6 h-12">
+                  <TabsTrigger value="geral" className="text-base">Geral</TabsTrigger>
+                  <TabsTrigger value="cover" className="text-base">Cover</TabsTrigger>
                 </TabsList>
 
                 {/* Tab Geral - Module Name */}
@@ -121,6 +121,7 @@ export function AddModuleDialogNetflix({
                       placeholder="Ex: Módulo 1"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
+                      className="h-11"
                       autoFocus
                     />
                   </div>
