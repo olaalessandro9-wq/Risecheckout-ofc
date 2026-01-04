@@ -1,25 +1,22 @@
 /**
- * MembersAreaTab - Aba de configuração da Área de Membros
+ * MembersAreaTab - Aba simplificada que redireciona para a seção dedicada
  * 
- * Refatorado para seguir Rise Protocol (< 300 linhas)
- * Orquestra componentes menores para gestão de módulos e conteúdos
+ * Esta aba mostra apenas:
+ * - Toggle para ativar/desativar a área de membros
+ * - Botão grande para acessar a seção dedicada de gestão
  */
 
-import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useProductContext } from "../../context/ProductContext";
 import { useMembersArea } from "@/hooks/useMembersArea";
-import { Loader2 } from "lucide-react";
-import { 
-  MembersAreaHeader, 
-  ModulesList,
-  AddModuleDialog,
-  EditModuleDialog,
-  AddContentDialog,
-  EditContentDialog,
-} from "./components";
-import type { EditingModule, EditingContent } from "./types";
+import { Loader2, BookOpen, Users, Video, ArrowRight, Settings2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function MembersAreaTab() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { product: productData } = useProductContext();
   const {
     isLoading,
@@ -27,93 +24,17 @@ export function MembersAreaTab() {
     settings,
     modules,
     updateSettings,
-    addModule,
-    updateModule,
-    deleteModule,
-    addContent,
-    updateContent,
-    deleteContent,
   } = useMembersArea(productData?.id);
-
-  // Dialog states
-  const [isAddModuleOpen, setIsAddModuleOpen] = useState(false);
-  const [isAddContentOpen, setIsAddContentOpen] = useState(false);
-  const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
-  const [editingModule, setEditingModule] = useState<EditingModule | null>(null);
-  const [editingContent, setEditingContent] = useState<EditingContent | null>(null);
-
-  // Form states
-  const [moduleTitle, setModuleTitle] = useState("");
-  const [moduleDescription, setModuleDescription] = useState("");
-  const [contentTitle, setContentTitle] = useState("");
-  const [contentDescription, setContentDescription] = useState("");
-  const [contentType, setContentType] = useState<string>("video");
-  const [contentUrl, setContentUrl] = useState("");
 
   const handleToggleEnabled = async (enabled: boolean) => {
     await updateSettings(enabled);
   };
 
-  const handleAddModule = async () => {
-    if (!moduleTitle.trim()) return;
-    await addModule(moduleTitle, moduleDescription);
-    setModuleTitle("");
-    setModuleDescription("");
-    setIsAddModuleOpen(false);
-  };
-
-  const handleUpdateModule = async () => {
-    if (!editingModule || !editingModule.title.trim()) return;
-    await updateModule(editingModule.id, { 
-      title: editingModule.title, 
-      description: editingModule.description || null 
-    });
-    setEditingModule(null);
-  };
-
-  const handleDeleteModule = async (id: string) => {
-    if (confirm("Tem certeza que deseja excluir este módulo e todo seu conteúdo?")) {
-      await deleteModule(id);
-    }
-  };
-
-  const handleOpenAddContent = (moduleId: string) => {
-    setSelectedModuleId(moduleId);
-    setContentTitle("");
-    setContentDescription("");
-    setContentType("video");
-    setContentUrl("");
-    setIsAddContentOpen(true);
-  };
-
-  const handleAddContent = async () => {
-    if (!selectedModuleId || !contentTitle.trim()) return;
-    await addContent(selectedModuleId, {
-      title: contentTitle,
-      description: contentDescription || null,
-      content_type: contentType as any,
-      content_url: contentUrl || null,
-      content_data: {},
-      is_active: true,
-    });
-    setIsAddContentOpen(false);
-  };
-
-  const handleUpdateContent = async () => {
-    if (!editingContent || !editingContent.title.trim()) return;
-    await updateContent(editingContent.id, {
-      title: editingContent.title,
-      description: editingContent.description || null,
-      content_type: editingContent.content_type as any,
-      content_url: editingContent.content_url || null,
-    });
-    setEditingContent(null);
-  };
-
-  const handleDeleteContent = async (id: string) => {
-    if (confirm("Tem certeza que deseja excluir este conteúdo?")) {
-      await deleteContent(id);
-    }
+  const handleOpenMembersArea = () => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("section", "members-area");
+    newParams.set("tab", "content");
+    setSearchParams(newParams);
   };
 
   if (isLoading) {
@@ -124,72 +45,97 @@ export function MembersAreaTab() {
     );
   }
 
+  const totalContents = modules.reduce((acc, mod) => acc + (mod.contents?.length || 0), 0);
+
   return (
     <div className="space-y-6">
-      <MembersAreaHeader
-        enabled={settings.enabled}
-        isSaving={isSaving}
-        onToggle={handleToggleEnabled}
-      />
+      {/* Toggle de Ativação */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="h-5 w-5" />
+                Área de Membros
+              </CardTitle>
+              <CardDescription>
+                Entregue conteúdo exclusivo para seus clientes
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="members-area-enabled"
+                checked={settings.enabled}
+                onCheckedChange={handleToggleEnabled}
+                disabled={isSaving}
+              />
+              <Label htmlFor="members-area-enabled" className="text-sm">
+                {settings.enabled ? "Ativo" : "Inativo"}
+              </Label>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
 
+      {/* Card de Acesso à Seção Dedicada */}
       {settings.enabled && (
-        <>
-          <ModulesList
-            modules={modules}
-            onAddModule={() => setIsAddModuleOpen(true)}
-            onEditModule={setEditingModule}
-            onDeleteModule={handleDeleteModule}
-            onAddContent={handleOpenAddContent}
-            onEditContent={(content) => setEditingContent({
-              id: content.id,
-              title: content.title,
-              description: content.description,
-              content_type: content.content_type,
-              content_url: content.content_url,
-            })}
-            onDeleteContent={handleDeleteContent}
-          />
+        <Card className="border-dashed">
+          <CardContent className="pt-6">
+            <div className="flex flex-col md:flex-row items-center gap-6">
+              {/* Stats */}
+              <div className="flex-1 grid grid-cols-2 gap-4 w-full md:w-auto">
+                <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Video className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{modules.length}</p>
+                    <p className="text-xs text-muted-foreground">Módulos</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <BookOpen className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{totalContents}</p>
+                    <p className="text-xs text-muted-foreground">Conteúdos</p>
+                  </div>
+                </div>
+              </div>
 
-          <AddModuleDialog
-            open={isAddModuleOpen}
-            onOpenChange={setIsAddModuleOpen}
-            title={moduleTitle}
-            description={moduleDescription}
-            onTitleChange={setModuleTitle}
-            onDescriptionChange={setModuleDescription}
-            onSubmit={handleAddModule}
-            isSaving={isSaving}
-          />
+              {/* CTA */}
+              <div className="flex flex-col items-center md:items-end gap-2">
+                <Button 
+                  size="lg" 
+                  onClick={handleOpenMembersArea}
+                  className="gap-2 w-full md:w-auto"
+                >
+                  <Settings2 className="h-5 w-5" />
+                  Gerenciar Área de Membros
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Configure módulos, conteúdos e alunos
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-          <EditModuleDialog
-            module={editingModule}
-            onModuleChange={setEditingModule}
-            onSubmit={handleUpdateModule}
-            isSaving={isSaving}
-          />
-
-          <AddContentDialog
-            open={isAddContentOpen}
-            onOpenChange={setIsAddContentOpen}
-            title={contentTitle}
-            description={contentDescription}
-            contentType={contentType}
-            contentUrl={contentUrl}
-            onTitleChange={setContentTitle}
-            onDescriptionChange={setContentDescription}
-            onContentTypeChange={setContentType}
-            onContentUrlChange={setContentUrl}
-            onSubmit={handleAddContent}
-            isSaving={isSaving}
-          />
-
-          <EditContentDialog
-            content={editingContent}
-            onContentChange={setEditingContent}
-            onSubmit={handleUpdateContent}
-            isSaving={isSaving}
-          />
-        </>
+      {/* Dica quando desativado */}
+      {!settings.enabled && (
+        <Card className="bg-muted/30 border-dashed">
+          <CardContent className="py-8 text-center">
+            <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+            <h3 className="font-semibold mb-2">Área de Membros Desativada</h3>
+            <p className="text-sm text-muted-foreground max-w-md mx-auto">
+              Ative a área de membros para criar módulos com aulas, 
+              materiais complementares e gerenciar o acesso dos seus alunos.
+            </p>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

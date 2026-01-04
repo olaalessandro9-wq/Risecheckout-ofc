@@ -7,6 +7,7 @@
  * - Zero prop drilling
  * - Sincronização automática entre abas
  * - Proteção contra navegação com alterações não salvas
+ * - Suporte a sub-seções dedicadas (Área de Membros)
  */
 
 import { useSearchParams } from "react-router-dom";
@@ -14,13 +15,29 @@ import { ProductProvider, useProductContext } from "@/modules/products";
 import { ProductHeader } from "@/modules/products";
 import { ProductTabs } from "@/modules/products";
 import { UnsavedChangesGuard } from "@/providers/UnsavedChangesGuard";
+import { MembersAreaLayout } from "@/modules/members-area";
 
 /**
  * Componente Interno - Consome o ProductContext e aplica o guard
  */
 function ProductEditInner() {
+  const [searchParams] = useSearchParams();
   const { hasUnsavedChanges } = useProductContext();
   
+  // Detectar se está na sub-seção de área de membros
+  const section = searchParams.get("section");
+  const isInMembersArea = section === "members-area";
+  
+  // Se estiver na seção de área de membros, renderizar layout dedicado
+  if (isInMembersArea) {
+    return (
+      <UnsavedChangesGuard isDirty={hasUnsavedChanges}>
+        <MembersAreaLayout />
+      </UnsavedChangesGuard>
+    );
+  }
+  
+  // Layout padrão do produto
   return (
     <UnsavedChangesGuard isDirty={hasUnsavedChanges}>
       <div className="max-w-7xl mx-auto space-y-6 p-6">

@@ -9,6 +9,12 @@
 // PRODUTO BASE
 // ============================================================================
 
+export interface MembersAreaSettings {
+  cover_url?: string;
+  logo_url?: string;
+  primary_color?: string;
+}
+
 export interface ProductData {
   id?: string;
   name: string;
@@ -23,6 +29,8 @@ export interface ProductData {
   updated_at?: string;
   delivery_url?: string | null; // Link de entrega do produto digital
   external_delivery?: boolean; // Quando true, entrega é feita por sistema externo (webhook/N8N)
+  members_area_enabled?: boolean;
+  members_area_settings?: MembersAreaSettings | null;
 }
 
 // ============================================================================
