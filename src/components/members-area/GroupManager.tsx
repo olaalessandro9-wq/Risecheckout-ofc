@@ -1,0 +1,335 @@
+/**
+ * GroupManager - Manage access groups for a product
+ */
+
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Users,
+  Plus,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  Shield,
+  Star,
+  GripVertical,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
+import type { MemberGroup } from '@/modules/members-area/types';
+
+interface GroupManagerProps {
+  groups: MemberGroup[];
+  isLoading?: boolean;
+  onCreateGroup: (data: { name: string; description?: string; is_default?: boolean }) => Promise<void>;
+  onUpdateGroup: (groupId: string, data: { name?: string; description?: string; is_default?: boolean }) => Promise<void>;
+  onDeleteGroup: (groupId: string) => Promise<void>;
+  onManagePermissions: (groupId: string) => void;
+}
+
+export function GroupManager({
+  groups,
+  isLoading = false,
+  onCreateGroup,
+  onUpdateGroup,
+  onDeleteGroup,
+  onManagePermissions,
+}: GroupManagerProps) {
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<MemberGroup | null>(null);
+  const [formData, setFormData] = useState({ name: '', description: '', is_default: false });
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleOpenCreate = () => {
+    setFormData({ name: '', description: '', is_default: false });
+    setIsCreateDialogOpen(true);
+  };
+
+  const handleOpenEdit = (group: MemberGroup) => {
+    setFormData({
+      name: group.name,
+      description: group.description || '',
+      is_default: group.is_default,
+    });
+    setEditingGroup(group);
+  };
+
+  const handleCreate = async () => {
+    if (!formData.name.trim()) return;
+    setIsSaving(true);
+    await onCreateGroup(formData);
+    setIsSaving(false);
+    setIsCreateDialogOpen(false);
+  };
+
+  const handleUpdate = async () => {
+    if (!editingGroup || !formData.name.trim()) return;
+    setIsSaving(true);
+    await onUpdateGroup(editingGroup.id, formData);
+    setIsSaving(false);
+    setEditingGroup(null);
+  };
+
+  const handleDelete = async (groupId: string) => {
+    if (confirm('Tem certeza que deseja excluir este grupo?')) {
+      await onDeleteGroup(groupId);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <Users className="w-5 h-5 text-primary" />
+            Grupos de Acesso
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Gerencie os grupos que controlam o acesso aos módulos
+          </p>
+        </div>
+        <Button onClick={handleOpenCreate} size="sm">
+          <Plus className="w-4 h-4 mr-2" />
+          Novo Grupo
+        </Button>
+      </div>
+
+      {/* Groups List */}
+      <div className="space-y-2">
+        <AnimatePresence mode="popLayout">
+          {groups.map((group) => (
+            <motion.div
+              key={group.id}
+              layout
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className={cn(
+                'group flex items-center gap-4 p-4 rounded-lg border bg-card',
+                'hover:border-primary/30 transition-colors',
+                !group.is_active && 'opacity-60'
+              )}
+            >
+              {/* Drag Handle */}
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab">
+                <GripVertical className="w-4 h-4 text-muted-foreground" />
+              </div>
+
+              {/* Icon */}
+              <div className={cn(
+                'w-10 h-10 rounded-lg flex items-center justify-center',
+                group.is_default ? 'bg-primary/10' : 'bg-muted'
+              )}>
+                {group.is_default ? (
+                  <Star className="w-5 h-5 text-primary" />
+                ) : (
+                  <Shield className="w-5 h-5 text-muted-foreground" />
+                )}
+              </div>
+
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h4 className="font-medium text-sm">{group.name}</h4>
+                  {group.is_default && (
+                    <Badge variant="secondary" className="text-xs">
+                      Padrão
+                    </Badge>
+                  )}
+                </div>
+                {group.description && (
+                  <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                    {group.description}
+                  </p>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => onManagePermissions(group.id)}
+                >
+                  <Shield className="w-4 h-4 mr-1" />
+                  Permissões
+                </Button>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleOpenEdit(group)}>
+                      <Pencil className="w-4 h-4 mr-2" />
+                      Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleDelete(group.id)}
+                      className="text-destructive focus:text-destructive"
+                      disabled={group.is_default}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Excluir
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+
+        {groups.length === 0 && !isLoading && (
+          <div className="text-center py-8 text-muted-foreground">
+            <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
+            <p>Nenhum grupo criado ainda</p>
+            <Button variant="link" onClick={handleOpenCreate}>
+              Criar primeiro grupo
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Create Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Novo Grupo de Acesso</DialogTitle>
+            <DialogDescription>
+              Crie um grupo para controlar o acesso aos módulos
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Nome do grupo</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Ex: VIP, Premium, Básico..."
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">Descrição (opcional)</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Descreva o propósito deste grupo..."
+                rows={3}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="is_default">Grupo padrão</Label>
+                <p className="text-xs text-muted-foreground">
+                  Novos alunos serão adicionados automaticamente
+                </p>
+              </div>
+              <Switch
+                id="is_default"
+                checked={formData.is_default}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_default: checked }))}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreate} disabled={isSaving || !formData.name.trim()}>
+              {isSaving ? 'Criando...' : 'Criar Grupo'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editingGroup} onOpenChange={() => setEditingGroup(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Grupo</DialogTitle>
+            <DialogDescription>
+              Atualize as informações do grupo
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Nome do grupo</Label>
+              <Input
+                id="edit-name"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">Descrição</Label>
+              <Textarea
+                id="edit-description"
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                rows={3}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="edit-is_default">Grupo padrão</Label>
+                <p className="text-xs text-muted-foreground">
+                  Novos alunos serão adicionados automaticamente
+                </p>
+              </div>
+              <Switch
+                id="edit-is_default"
+                checked={formData.is_default}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_default: checked }))}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingGroup(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleUpdate} disabled={isSaving || !formData.name.trim()}>
+              {isSaving ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
