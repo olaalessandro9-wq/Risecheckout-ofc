@@ -1,0 +1,149 @@
+/**
+ * Quizzes Service
+ * Communicates with members-area-quizzes Edge Function
+ */
+
+import { supabase } from '@/integrations/supabase/client';
+import type {
+  Quiz,
+  QuizWithQuestions,
+  QuizAttempt,
+  QuizResult,
+  CreateQuizInput,
+  CreateQuestionInput,
+  SubmitQuizInput,
+} from '../types';
+
+const FUNCTION_NAME = 'members-area-quizzes';
+
+interface ServiceResponse<T> {
+  data: T | null;
+  error: string | null;
+}
+
+/**
+ * Invoke the quizzes edge function with authentication
+ */
+async function invokeQuizzesFunction<T>(
+  action: string,
+  payload: object
+): Promise<ServiceResponse<T>> {
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+
+    if (!token) {
+      return { data: null, error: 'Not authenticated' };
+    }
+
+    const { data, error } = await supabase.functions.invoke(FUNCTION_NAME, {
+      body: { action, ...payload },
+    });
+
+    if (error) {
+      return { data: null, error: error.message };
+    }
+
+    return { data: data as T, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return { data: null, error: message };
+  }
+}
+
+/**
+ * Get a quiz with all questions (for taking the quiz)
+ */
+export async function getQuiz(
+  quizId: string
+): Promise<ServiceResponse<QuizWithQuestions>> {
+  return invokeQuizzesFunction<QuizWithQuestions>('get', { quiz_id: quizId });
+}
+
+/**
+ * Create a new quiz
+ */
+export async function createQuiz(
+  input: CreateQuizInput
+): Promise<ServiceResponse<Quiz>> {
+  return invokeQuizzesFunction<Quiz>('create', input);
+}
+
+/**
+ * Add a question to a quiz
+ */
+export async function addQuestion(
+  input: CreateQuestionInput
+): Promise<ServiceResponse<{ question_id: string }>> {
+  return invokeQuizzesFunction<{ question_id: string }>('add_question', input);
+}
+
+/**
+ * Delete a question from a quiz
+ */
+export async function deleteQuestion(
+  questionId: string
+): Promise<ServiceResponse<{ success: boolean }>> {
+  return invokeQuizzesFunction<{ success: boolean }>('delete_question', {
+    question_id: questionId,
+  });
+}
+
+/**
+ * Submit quiz answers
+ */
+export async function submitQuiz(
+  buyerId: string,
+  input: SubmitQuizInput
+): Promise<ServiceResponse<QuizResult>> {
+  return invokeQuizzesFunction<QuizResult>('submit', {
+    buyer_id: buyerId,
+    ...input,
+  });
+}
+
+/**
+ * Get all attempts for a quiz by a student
+ */
+export async function getAttempts(
+  quizId: string,
+  buyerId: string
+): Promise<ServiceResponse<QuizAttempt[]>> {
+  return invokeQuizzesFunction<QuizAttempt[]>('get_attempts', {
+    quiz_id: quizId,
+    buyer_id: buyerId,
+  });
+}
+
+/**
+ * Get a specific attempt result
+ */
+export async function getAttemptResult(
+  attemptId: string
+): Promise<ServiceResponse<QuizResult>> {
+  return invokeQuizzesFunction<QuizResult>('get_result', {
+    attempt_id: attemptId,
+  });
+}
+
+/**
+ * Delete a quiz and all its questions
+ */
+export async function deleteQuiz(
+  quizId: string
+): Promise<ServiceResponse<{ success: boolean }>> {
+  return invokeQuizzesFunction<{ success: boolean }>('delete', {
+    quiz_id: quizId,
+  });
+}
+
+export const quizzesService = {
+  get: getQuiz,
+  create: createQuiz,
+  addQuestion,
+  deleteQuestion,
+  submit: submitQuiz,
+  getAttempts,
+  getAttemptResult,
+  delete: deleteQuiz,
+};
