@@ -21,6 +21,9 @@ export { MembersAreaLayout } from './layouts/MembersAreaLayout';
 // Views
 export { ContentTab } from './views/ContentTab';
 export { StudentsTab } from './views/StudentsTab';
+export { GroupsTab } from './views/GroupsTab';
+export { SettingsTab } from './views/SettingsTab';
+export { BuilderTab } from './views/BuilderTab';
 
 // Components
 export { BackButton } from './components/BackButton';
