@@ -3,23 +3,25 @@
  */
 
 import { useState } from "react";
-import { Plus, ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   ModulesList,
-  AddModuleDialog,
   EditModuleDialog,
   AddContentDialog,
   EditContentDialog,
 } from "@/modules/products/tabs/members-area/components";
+import { AddModuleDialogNetflix } from "@/modules/members-area/components/dialogs";
 import type { EditingModule, EditingContent } from "@/modules/products/tabs/members-area/types";
 import type { UseMembersAreaReturn } from "@/hooks/useMembersArea";
 
 interface ContentTabProps {
   membersAreaData: UseMembersAreaReturn;
+  productId?: string;
 }
 
-export function ContentTab({ membersAreaData }: ContentTabProps) {
+export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
   const {
     isSaving,
     modules,
@@ -38,20 +40,45 @@ export function ContentTab({ membersAreaData }: ContentTabProps) {
   const [editingModule, setEditingModule] = useState<EditingModule | null>(null);
   const [editingContent, setEditingContent] = useState<EditingContent | null>(null);
   const [allExpanded, setAllExpanded] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
 
-  // Form states
-  const [moduleTitle, setModuleTitle] = useState("");
-  const [moduleDescription, setModuleDescription] = useState("");
+  // Form states for content
   const [contentTitle, setContentTitle] = useState("");
   const [contentDescription, setContentDescription] = useState("");
   const [contentType, setContentType] = useState<string>("video");
   const [contentUrl, setContentUrl] = useState("");
 
-  const handleAddModule = async () => {
-    if (!moduleTitle.trim()) return;
-    await addModule(moduleTitle, moduleDescription);
-    setModuleTitle("");
-    setModuleDescription("");
+  const handleAddModule = async (title: string, imageFile: File | null) => {
+    let coverImageUrl: string | undefined;
+
+    // Upload image if provided
+    if (imageFile && productId) {
+      setIsUploading(true);
+      try {
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `${crypto.randomUUID()}.${fileExt}`;
+        const filePath = `${productId}/modules/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('product-images')
+          .upload(filePath, imageFile);
+
+        if (uploadError) {
+          console.error("[ContentTab] Upload error:", uploadError);
+        } else {
+          const { data: { publicUrl } } = supabase.storage
+            .from('product-images')
+            .getPublicUrl(filePath);
+          coverImageUrl = publicUrl;
+        }
+      } catch (error) {
+        console.error("[ContentTab] Error uploading image:", error);
+      } finally {
+        setIsUploading(false);
+      }
+    }
+
+    await addModule(title, undefined, coverImageUrl);
     setIsAddModuleOpen(false);
   };
 
@@ -162,15 +189,11 @@ export function ContentTab({ membersAreaData }: ContentTabProps) {
       />
 
       {/* Dialogs */}
-      <AddModuleDialog
+      <AddModuleDialogNetflix
         open={isAddModuleOpen}
         onOpenChange={setIsAddModuleOpen}
-        title={moduleTitle}
-        description={moduleDescription}
-        onTitleChange={setModuleTitle}
-        onDescriptionChange={setModuleDescription}
         onSubmit={handleAddModule}
-        isSaving={isSaving}
+        isSaving={isSaving || isUploading}
       />
 
       <EditModuleDialog
