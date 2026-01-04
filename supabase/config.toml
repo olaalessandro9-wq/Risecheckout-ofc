@@ -76,6 +76,26 @@ verify_jwt = false
 [functions.buyer-orders]
 verify_jwt = false
 
+# ✅ PÚBLICAS (Área de Membros - Drip e Progress usam buyer_token)
+[functions.members-area-drip]
+verify_jwt = false
+
+[functions.members-area-progress]
+verify_jwt = false
+
+[functions.members-area-quizzes]
+verify_jwt = false
+
+[functions.members-area-certificates]
+verify_jwt = false
+
+# ✅ AUTENTICADAS (Área de Membros - Gestão pelo vendedor)
+[functions.members-area-groups]
+verify_jwt = true
+
+[functions.members-area-students]
+verify_jwt = true
+
 # ✅ AUTENTICADAS (Requerem login do vendedor)
 [functions.save-vendor-credentials]
 verify_jwt = true
