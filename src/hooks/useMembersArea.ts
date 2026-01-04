@@ -94,7 +94,7 @@ export function useMembersArea(productId: string | undefined): UseMembersAreaRet
       // Sort contents by position
       const sortedModules = (modulesData || []).map((module) => ({
         ...module,
-        contents: (module.contents || []).sort((a: MemberContent, b: MemberContent) => a.position - b.position),
+        contents: (module.contents || []).sort((a, b) => a.position - b.position) as MemberContent[],
       })) as MemberModuleWithContents[];
 
       setModules(sortedModules);
