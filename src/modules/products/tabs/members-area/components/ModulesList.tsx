@@ -14,7 +14,7 @@ import type { MemberModuleWithContents } from "@/hooks/useMembersArea";
 interface ModulesListProps {
   modules: MemberModuleWithContents[];
   onAddModule: () => void;
-  onEditModule: (module: { id: string; title: string; description: string; cover_image_url: string | null }) => void;
+  onEditModule: (module: { id: string; title: string; cover_image_url: string | null }) => void;
   onDeleteModule: (id: string) => void;
   onAddContent: (moduleId: string) => void;
   onEditContent: (content: any) => void;
@@ -87,7 +87,6 @@ export function ModulesList({
                         onClick={() => onEditModule({ 
                           id: module.id, 
                           title: module.title, 
-                          description: module.description || "",
                           cover_image_url: module.cover_image_url || null,
                         })}
                       >
