@@ -134,7 +134,9 @@ export function StudentListView({
         )}
 
         {/* Students */}
-        {!isLoading && students.map((student, index) => (
+        {!isLoading && students.map((student, index) => {
+          const isOwner = student.access_type === 'owner';
+          return (
           <div
             key={student.buyer_id}
             className={cn(
@@ -151,9 +153,16 @@ export function StudentListView({
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0">
-                <p className="text-sm font-medium truncate">
-                  {student.buyer_name || 'Sem nome'}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium truncate">
+                    {student.buyer_name || 'Sem nome'}
+                  </p>
+                  {isOwner && (
+                    <Badge variant="default" className="text-xs py-0 px-1.5 bg-primary/20 text-primary">
+                      Produtor
+                    </Badge>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
                   <Mail className="w-3 h-3" />
                   {student.buyer_email}
@@ -213,7 +222,8 @@ export function StudentListView({
               </DropdownMenu>
             </div>
           </div>
-        ))}
+        );
+        })}
       </div>
 
       {/* Pagination */}

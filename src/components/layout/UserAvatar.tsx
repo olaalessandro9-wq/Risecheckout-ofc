@@ -2,7 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { User, LogOut, GraduationCap, Loader2 } from "lucide-react";
+import { User, LogOut, ArrowLeftRight, Loader2 } from "lucide-react";
 import { useProducerBuyerLink } from "@/hooks/useProducerBuyerLink";
 import { useState } from "react";
 import {
@@ -33,7 +33,7 @@ function getInitials(name: string | null | undefined, email?: string | null): st
 export function UserAvatar() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const { hasBuyerProfile, goToStudentPanel, isLoading: buyerLinkLoading } = useProducerBuyerLink();
+  const { canAccessStudentPanel, goToStudentPanel, isLoading: buyerLinkLoading } = useProducerBuyerLink();
   const [isNavigating, setIsNavigating] = useState(false);
   
   const { data: profile } = useQuery({
@@ -87,7 +87,7 @@ export function UserAvatar() {
           {initials}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuContent align="end" className="w-56 bg-popover border border-border shadow-lg">
         <DropdownMenuLabel className="font-normal">
           <p className="text-sm text-muted-foreground truncate">
             {user?.email}
@@ -99,8 +99,8 @@ export function UserAvatar() {
           <span>Meu Perfil</span>
         </DropdownMenuItem>
         
-        {/* Student Panel Link - shown if producer has buyer profile */}
-        {!buyerLinkLoading && hasBuyerProfile && (
+        {/* Opção para mudar para painel do aluno */}
+        {!buyerLinkLoading && canAccessStudentPanel && (
           <DropdownMenuItem 
             onClick={handleStudentPanelClick} 
             className="cursor-pointer"
@@ -109,9 +109,9 @@ export function UserAvatar() {
             {isNavigating ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
-              <GraduationCap className="mr-2 h-4 w-4" />
+              <ArrowLeftRight className="mr-2 h-4 w-4" />
             )}
-            <span>Meus Cursos</span>
+            <span>Mudar para Painel do Aluno</span>
           </DropdownMenuItem>
         )}
         
@@ -121,7 +121,7 @@ export function UserAvatar() {
           className="cursor-pointer text-destructive focus:text-destructive"
         >
           <LogOut className="mr-2 h-4 w-4" />
-          <span>Logout</span>
+          <span>Sair</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

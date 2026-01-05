@@ -1,6 +1,7 @@
 /**
  * Hook para vincular um produtor (Supabase Auth) ao seu perfil de buyer
  * Permite que produtores acessem o painel de aluno sem login separado
+ * Inclui verificação de produtos próprios com área de membros ativa
  */
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -10,6 +11,7 @@ const BUYER_SESSION_KEY = "buyer_session_token";
 
 interface ProducerBuyerLinkState {
   hasBuyerProfile: boolean | null;
+  hasOwnProducts: boolean;
   buyerId: string | null;
   isLoading: boolean;
   error: string | null;
@@ -25,24 +27,30 @@ interface UseProducerBuyerLinkReturn extends ProducerBuyerLinkState {
    * Navega para o painel do aluno, gerando sessão se necessário
    */
   goToStudentPanel: () => Promise<void>;
+  /**
+   * Indica se deve mostrar a opção de troca para painel do aluno
+   */
+  canAccessStudentPanel: boolean;
 }
 
 export function useProducerBuyerLink(): UseProducerBuyerLinkReturn {
   const { user, loading: authLoading } = useAuth();
   const [state, setState] = useState<ProducerBuyerLinkState>({
     hasBuyerProfile: null,
+    hasOwnProducts: false,
     buyerId: null,
     isLoading: true,
     error: null,
   });
 
-  // Verifica se o produtor tem um perfil de buyer com o mesmo email
+  // Verifica se o produtor tem um perfil de buyer ou produtos próprios
   useEffect(() => {
     if (authLoading) return;
 
     if (!user?.email) {
       setState({
         hasBuyerProfile: false,
+        hasOwnProducts: false,
         buyerId: null,
         isLoading: false,
         error: null,
@@ -57,7 +65,10 @@ export function useProducerBuyerLink(): UseProducerBuyerLinkReturn {
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: user.email }),
+            body: JSON.stringify({ 
+              email: user.email,
+              producerUserId: user.id,
+            }),
           }
         );
 
@@ -68,6 +79,7 @@ export function useProducerBuyerLink(): UseProducerBuyerLinkReturn {
         const data = await response.json();
         setState({
           hasBuyerProfile: data.hasBuyerProfile,
+          hasOwnProducts: data.hasOwnProducts || false,
           buyerId: data.buyerId || null,
           isLoading: false,
           error: null,
@@ -76,6 +88,7 @@ export function useProducerBuyerLink(): UseProducerBuyerLinkReturn {
         console.error("[useProducerBuyerLink] Error:", err);
         setState({
           hasBuyerProfile: false,
+          hasOwnProducts: false,
           buyerId: null,
           isLoading: false,
           error: err instanceof Error ? err.message : "Erro desconhecido",
@@ -84,12 +97,29 @@ export function useProducerBuyerLink(): UseProducerBuyerLinkReturn {
     };
 
     checkBuyerProfile();
-  }, [user?.email, authLoading]);
+  }, [user?.email, user?.id, authLoading]);
 
-  // Gera sessão de buyer automaticamente
+  // Gera sessão de buyer automaticamente (cria buyer_profile se necessário)
   const generateBuyerSession = useCallback(async (): Promise<string | null> => {
-    if (!user?.email || !state.hasBuyerProfile) {
+    if (!user?.email) {
       return null;
+    }
+
+    // Se tem produtos próprios mas não tem buyer profile, criar primeiro
+    if (state.hasOwnProducts && !state.buyerId) {
+      try {
+        await fetch(`${SUPABASE_URL}/functions/v1/buyer-auth/ensure-producer-access`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: user.email,
+            productId: "placeholder", // Será ignorado se já existir
+            producerUserId: user.id,
+          }),
+        });
+      } catch (err) {
+        console.error("[useProducerBuyerLink] Error ensuring access:", err);
+      }
     }
 
     try {
@@ -118,7 +148,7 @@ export function useProducerBuyerLink(): UseProducerBuyerLinkReturn {
       console.error("[useProducerBuyerLink] Error generating session:", err);
       return null;
     }
-  }, [user?.email, state.hasBuyerProfile]);
+  }, [user?.email, user?.id, state.hasOwnProducts, state.buyerId]);
 
   // Navega para o painel do aluno
   const goToStudentPanel = useCallback(async (): Promise<void> => {
@@ -128,9 +158,13 @@ export function useProducerBuyerLink(): UseProducerBuyerLinkReturn {
     }
   }, [generateBuyerSession]);
 
+  // Pode acessar o painel do aluno se tem compras OU produtos próprios
+  const canAccessStudentPanel = state.hasBuyerProfile || state.hasOwnProducts;
+
   return {
     ...state,
     generateBuyerSession,
     goToStudentPanel,
+    canAccessStudentPanel,
   };
 }

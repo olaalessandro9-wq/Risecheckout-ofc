@@ -43,9 +43,10 @@ export interface BuyerGroup {
 /** Buyer with their groups loaded */
 export interface BuyerWithGroups {
   buyer_id: string;
-  buyer_name: string;
+  buyer_name: string | null;
   buyer_email: string;
   groups: BuyerGroup[];
+  access_type?: string; // 'owner' | 'purchase' | etc
 }
 
 /** Input for creating a group */

@@ -56,6 +56,7 @@ export function StudentsTab({ productId }: StudentsTabProps) {
           id,
           buyer_id,
           granted_at,
+          access_type,
           buyer_profiles!inner(id, name, email)
         `, { count: 'exact' })
         .eq('product_id', productId)
@@ -87,6 +88,7 @@ export function StudentsTab({ productId }: StudentsTabProps) {
           buyer_email: profile?.email || '',
           buyer_name: profile?.name || null,
           groups: groupsData.filter(g => g.buyer_id === access.buyer_id),
+          access_type: access.access_type || undefined,
         };
       });
 
