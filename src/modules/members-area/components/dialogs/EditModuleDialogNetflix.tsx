@@ -18,12 +18,7 @@ import { Label } from "@/components/ui/label";
 import { ImageUploadZoneCompact } from "../ImageUploadZoneCompact";
 import { ModuleCardPreview } from "../ModuleCardPreview";
 import { ImageCropDialog } from "./ImageCropDialog";
-
-interface EditingModuleData {
-  id: string;
-  title: string;
-  cover_image_url: string | null;
-}
+import type { EditingModuleData } from "@/modules/members-area/types";
 
 interface EditModuleDialogNetflixProps {
   module: EditingModuleData | null;

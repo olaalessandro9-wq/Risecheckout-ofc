@@ -118,3 +118,10 @@ export interface UpdateContentInput {
   position?: number;
   is_active?: boolean;
 }
+
+/** Data structure for editing a module in dialogs */
+export interface EditingModuleData {
+  id: string;
+  title: string;
+  cover_image_url: string | null;
+}

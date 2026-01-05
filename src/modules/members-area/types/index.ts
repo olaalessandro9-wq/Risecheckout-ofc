@@ -15,6 +15,7 @@ export type {
   UpdateModuleInput,
   CreateContentInput,
   UpdateContentInput,
+  EditingModuleData,
 } from './module.types';
 
 // Group types
