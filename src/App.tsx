@@ -41,6 +41,7 @@ import BuyerAuth from "./pages/buyer/BuyerAuth";
 import BuyerDashboard from "./pages/buyer/BuyerDashboard";
 import BuyerProductContent from "./pages/buyer/BuyerProductContent";
 import BuyerHistory from "./pages/buyer/BuyerHistory";
+import BuyerProfile from "./pages/buyer/BuyerProfile";
 import StudentShell from "./layouts/StudentShell";
 
 // ============================================================================
@@ -150,6 +151,7 @@ const router = createBrowserRouter([
         children: [
           { path: "dashboard", element: <BuyerDashboard /> },
           { path: "historico", element: <BuyerHistory /> },
+          { path: "perfil", element: <BuyerProfile /> },
           { path: "produto/:productId", element: <BuyerProductContent /> },
         ],
       },
