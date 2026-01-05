@@ -8,16 +8,13 @@ import { Outlet, useNavigate } from "react-router-dom";
 import { useBuyerAuth } from "@/hooks/useBuyerAuth";
 import { useAuth } from "@/hooks/useAuth";
 import { useState } from "react";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { 
   GraduationCap, 
   LogOut, 
-  History, 
   ArrowLeftRight,
   Menu,
   X,
-  BookOpen,
   Loader2
 } from "lucide-react";
 import {
@@ -68,19 +65,6 @@ export default function StudentShell() {
   const isAlsoProducer = !!user;
   const initials = getInitials(buyer?.name, buyer?.email);
 
-  const navItems = [
-    {
-      label: "Meus Cursos",
-      icon: BookOpen,
-      path: "/minha-conta/dashboard",
-    },
-    {
-      label: "Histórico",
-      icon: History,
-      path: "/minha-conta/historico",
-    },
-  ];
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       {/* Header */}
@@ -99,25 +83,6 @@ export default function StudentShell() {
                 </p>
               </div>
             </div>
-
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-1">
-              {navItems.map((item) => (
-                <Button
-                  key={item.path}
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    "gap-2",
-                    window.location.pathname === item.path && "bg-muted"
-                  )}
-                  onClick={() => navigate(item.path)}
-                >
-                  <item.icon className="h-4 w-4" />
-                  {item.label}
-                </Button>
-              ))}
-            </nav>
 
             {/* User Avatar Dropdown */}
             <div className="flex items-center gap-2">
@@ -192,25 +157,6 @@ export default function StudentShell() {
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-border/50 bg-background/95 backdrop-blur-lg">
             <div className="container mx-auto px-4 py-3 space-y-1">
-              {navItems.map((item) => (
-                <Button
-                  key={item.path}
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    "w-full justify-start gap-2",
-                    window.location.pathname === item.path && "bg-muted"
-                  )}
-                  onClick={() => {
-                    navigate(item.path);
-                    setMobileMenuOpen(false);
-                  }}
-                >
-                  <item.icon className="h-4 w-4" />
-                  {item.label}
-                </Button>
-              ))}
-              
               {isAlsoProducer && (
                 <Button
                   variant="outline"

@@ -11,16 +11,24 @@ import {
   Loader2, 
   Search,
   Play,
-  Lock,
-  Filter
+  Lock
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+type FilterType = "todos" | "ativos" | "arquivados";
 
 export default function BuyerDashboard() {
   const navigate = useNavigate();
   const { buyer, isLoading: authLoading, isAuthenticated } = useBuyerAuth();
   const { access, isLoading: dataLoading, fetchAccess } = useBuyerOrders();
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterActive, setFilterActive] = useState(true);
+  const [filter, setFilter] = useState<FilterType>("ativos");
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -42,10 +50,20 @@ export default function BuyerDashboard() {
     );
   }
 
-  // Filter products with members area enabled
-  const productsWithContent = access.filter(
-    (a) => a.product?.members_area_enabled && a.is_active
-  );
+  // Filter products with members area enabled based on selected filter
+  const productsWithContent = access.filter((a) => {
+    if (!a.product?.members_area_enabled) return false;
+    
+    switch (filter) {
+      case "ativos":
+        return a.is_active === true;
+      case "arquivados":
+        return a.is_active === false;
+      case "todos":
+      default:
+        return true;
+    }
+  });
 
   // Apply search filter
   const filteredProducts = productsWithContent.filter((item) => {
@@ -70,21 +88,22 @@ export default function BuyerDashboard() {
           <div className="relative flex-1 sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar cursos..."
+              placeholder="Buscar..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
             />
           </div>
-          <Button
-            variant={filterActive ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFilterActive(!filterActive)}
-            className="gap-2"
-          >
-            <Filter className="h-4 w-4" />
-            Ativos
-          </Button>
+          <Select value={filter} onValueChange={(v) => setFilter(v as FilterType)}>
+            <SelectTrigger className="w-[130px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-popover border border-border shadow-lg">
+              <SelectItem value="todos">Todos</SelectItem>
+              <SelectItem value="ativos">Ativos</SelectItem>
+              <SelectItem value="arquivados">Arquivados</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
