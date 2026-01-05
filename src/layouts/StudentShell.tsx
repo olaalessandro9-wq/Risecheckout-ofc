@@ -15,7 +15,8 @@ import {
   ArrowLeftRight,
   Menu,
   X,
-  Loader2
+  Loader2,
+  User
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -97,12 +98,18 @@ export default function StudentShell() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56 bg-popover border border-border shadow-lg">
                   <DropdownMenuLabel className="font-normal">
-                    <p className="text-sm font-medium">{buyer?.name || "Aluno"}</p>
                     <p className="text-xs text-muted-foreground truncate">
                       {buyer?.email}
                     </p>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={() => navigate("/minha-conta/perfil")} 
+                    className="cursor-pointer"
+                  >
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Meu Perfil</span>
+                  </DropdownMenuItem>
                   
                   {/* Mudar para Painel do Produtor - se também é produtor */}
                   {isAlsoProducer && (
