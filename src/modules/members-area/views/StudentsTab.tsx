@@ -91,7 +91,41 @@ export function StudentsTab({ productId }: StudentsTabProps) {
     setIsLoading(true);
     
     try {
-      // Base query for buyers with access
+      // 1. Fetch product to get producer (owner) ID
+      const { data: productData } = await supabase
+        .from('products')
+        .select('user_id')
+        .eq('id', productId)
+        .single();
+
+      const producerId = productData?.user_id;
+      let producerStudent: BuyerWithGroups | null = null;
+
+      // 2. Fetch producer data if exists
+      if (producerId) {
+        const { data: producerProfile } = await supabase
+          .from('profiles')
+          .select('id, name')
+          .eq('id', producerId)
+          .single();
+
+        // Get producer email via RPC
+        const { data: producerEmail } = await supabase
+          .rpc('get_user_email', { user_id: producerId });
+
+        producerStudent = {
+          buyer_id: producerId,
+          buyer_email: producerEmail || '',
+          buyer_name: producerProfile?.name || null,
+          groups: [],
+          access_type: 'producer',
+          last_access_at: null,
+          progress_percent: 0,
+          status: 'active',
+        };
+      }
+
+      // 3. Base query for buyers with access (students)
       let query = supabase
         .from('buyer_product_access')
         .select(`
@@ -104,8 +138,8 @@ export function StudentsTab({ productId }: StudentsTabProps) {
         .eq('product_id', productId)
         .eq('is_active', true);
 
-      // Apply access type filter
-      if (filters.accessType) {
+      // Apply access type filter (only for students, not producer)
+      if (filters.accessType && filters.accessType !== 'producer') {
         query = query.eq('access_type', filters.accessType);
       }
 
@@ -158,7 +192,7 @@ export function StudentsTab({ productId }: StudentsTabProps) {
         }
       });
 
-      // Map to BuyerWithGroups format
+      // Map to BuyerWithGroups format (students only)
       let studentsWithGroups: BuyerWithGroups[] = (accessData || []).map(access => {
         const profile = access.buyer_profiles as any;
         const buyerProgress = buyerProgressMap[access.buyer_id];
@@ -174,7 +208,7 @@ export function StudentsTab({ productId }: StudentsTabProps) {
           buyer_email: profile?.email || '',
           buyer_name: profile?.name || null,
           groups: groupsData.filter(g => g.buyer_id === access.buyer_id),
-          access_type: access.access_type || undefined,
+          access_type: 'student', // All regular access is "student"
           last_access_at: profile?.last_login_at || null,
           progress_percent: progressPercent,
           status: 'active' as const,
@@ -188,12 +222,27 @@ export function StudentsTab({ productId }: StudentsTabProps) {
         );
       }
 
-      // Calculate stats
-      const totalStudents = filters.groupId ? studentsWithGroups.length : (count || 0);
+      // 4. Combine producer + students
+      let allStudents: BuyerWithGroups[] = [];
+      
+      // Include producer only if no filter or filter matches 'producer'
+      const shouldIncludeProducer = !filters.accessType || filters.accessType === 'producer';
+      const shouldIncludeStudents = !filters.accessType || filters.accessType === 'student';
+
+      if (producerStudent && shouldIncludeProducer && !filters.groupId) {
+        allStudents.push(producerStudent);
+      }
+      
+      if (shouldIncludeStudents) {
+        allStudents = [...allStudents, ...studentsWithGroups];
+      }
+
+      // Calculate stats (including producer)
+      const totalStudents = allStudents.length;
       let sumProgress = 0;
       let completedCount = 0;
 
-      studentsWithGroups.forEach(s => {
+      allStudents.forEach(s => {
         sumProgress += s.progress_percent || 0;
         if ((s.progress_percent || 0) >= 100) {
           completedCount += 1;
@@ -209,8 +258,8 @@ export function StudentsTab({ productId }: StudentsTabProps) {
         completionRate,
       });
 
-      setStudents(studentsWithGroups);
-      setTotal(filters.groupId ? studentsWithGroups.length : (count || 0));
+      setStudents(allStudents);
+      setTotal(allStudents.length);
     } catch (error) {
       console.error('Error fetching students:', error);
       toast.error('Erro ao carregar alunos');
@@ -248,8 +297,7 @@ export function StudentsTab({ productId }: StudentsTabProps) {
       s.buyer_email,
       s.last_access_at ? new Date(s.last_access_at).toLocaleDateString('pt-BR') : '—',
       String(s.progress_percent ?? 0),
-      s.access_type === 'owner' ? 'Administrador' : 
-        s.access_type === 'manual' ? 'Acesso Manual' : 'Aluno',
+      s.access_type === 'producer' ? 'Produtor' : 'Aluno',
     ]);
 
     const separator = format === 'csv' ? ',' : '\t';
