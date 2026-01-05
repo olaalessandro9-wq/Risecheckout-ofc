@@ -105,7 +105,7 @@ export function AddModuleDialogNetflix({
             </DialogHeader>
 
             {/* Content Grid - Responsive: stacked on mobile, side-by-side on lg+ */}
-            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr),400px] flex-1 min-h-0 overflow-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr),400px] flex-1 min-h-0 overflow-hidden">
               {/* Left Side - Form fields */}
               <div className="px-6 pb-6">
                 <div className="max-w-[520px] space-y-6">
