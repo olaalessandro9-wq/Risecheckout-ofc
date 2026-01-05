@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import type { ContentType } from "@/modules/members-area/types";
 
 export interface MemberModule {
   id: string;
@@ -19,7 +20,7 @@ export interface MemberContent {
   module_id: string;
   title: string;
   description: string | null;
-  content_type: "video" | "pdf" | "link" | "text" | "download";
+  content_type: ContentType;
   content_url: string | null;
   content_data: Record<string, any>;
   position: number;

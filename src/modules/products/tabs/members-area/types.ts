@@ -8,22 +8,11 @@ export interface ContentTypeOption {
   icon: React.ComponentType<{ className?: string }>;
 }
 
-export interface ModuleFormData {
-  title: string;
-  description: string;
-}
-
 export interface ContentFormData {
   title: string;
   description: string;
   contentType: string;
   contentUrl: string;
-}
-
-export interface EditingModule {
-  id: string;
-  title: string;
-  description: string;
 }
 
 export interface EditingContent {

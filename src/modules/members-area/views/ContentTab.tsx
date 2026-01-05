@@ -14,12 +14,7 @@ import {
 import { AddModuleDialogNetflix, EditModuleDialogNetflix } from "@/modules/members-area/components/dialogs";
 import type { EditingContent } from "@/modules/products/tabs/members-area/types";
 import type { UseMembersAreaReturn } from "@/hooks/useMembersArea";
-
-interface EditingModuleData {
-  id: string;
-  title: string;
-  cover_image_url: string | null;
-}
+import type { EditingModuleData, ContentType } from "@/modules/members-area/types";
 
 interface ContentTabProps {
   membersAreaData: UseMembersAreaReturn;
@@ -50,7 +45,7 @@ export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
   // Form states for content
   const [contentTitle, setContentTitle] = useState("");
   const [contentDescription, setContentDescription] = useState("");
-  const [contentType, setContentType] = useState<string>("video");
+  const [contentType, setContentType] = useState<ContentType>("video");
   const [contentUrl, setContentUrl] = useState("");
 
   const handleAddModule = async (title: string, imageFile: File | null) => {
@@ -148,7 +143,7 @@ export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
     await addContent(selectedModuleId, {
       title: contentTitle,
       description: contentDescription || null,
-      content_type: contentType as any,
+      content_type: contentType,
       content_url: contentUrl || null,
       content_data: {},
       is_active: true,
@@ -161,7 +156,7 @@ export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
     await updateContent(editingContent.id, {
       title: editingContent.title,
       description: editingContent.description || null,
-      content_type: editingContent.content_type as any,
+      content_type: editingContent.content_type as ContentType,
       content_url: editingContent.content_url || null,
     });
     setEditingContent(null);

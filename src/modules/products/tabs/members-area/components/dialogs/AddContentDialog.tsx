@@ -10,17 +10,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { contentTypeOptions } from "../../constants";
+import type { ContentType } from "@/modules/members-area/types";
 
 interface AddContentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
   description: string;
-  contentType: string;
+  contentType: ContentType;
   contentUrl: string;
   onTitleChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
-  onContentTypeChange: (value: string) => void;
+  onContentTypeChange: (value: ContentType) => void;
   onContentUrlChange: (value: string) => void;
   onSubmit: () => void;
   isSaving: boolean;
@@ -44,9 +45,10 @@ export function AddContentDialog({
     switch (contentType) {
       case "video": return "URL do Vídeo (YouTube, Vimeo, etc)";
       case "pdf": return "URL do PDF";
-      case "link": return "URL do Link";
       case "download": return "URL do Arquivo";
       case "text": return "Conteúdo (opcional)";
+      case "quiz": return "ID do Quiz";
+      case "live": return "URL da Live";
       default: return "URL";
     }
   };
@@ -63,7 +65,7 @@ export function AddContentDialog({
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label>Tipo de Conteúdo</Label>
-            <Select value={contentType} onValueChange={onContentTypeChange}>
+            <Select value={contentType} onValueChange={(value) => onContentTypeChange(value as ContentType)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
