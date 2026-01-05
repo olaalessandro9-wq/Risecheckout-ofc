@@ -80,7 +80,6 @@ export function ProductsTable() {
       await deleteProductCascade(supabase, productId);
     },
     onSuccess: async () => {
-      toast.success("Produto excluído! Checkouts e links foram desativados.");
       await loadProducts();
       await qc.invalidateQueries({ queryKey: ["products:list"] });
     },
