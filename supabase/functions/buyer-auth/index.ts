@@ -411,6 +411,134 @@ serve(async (req) => {
       );
     }
 
+    // ============================================
+    // CHECK-PRODUCER-BUYER - Verifica se produtor tem perfil buyer
+    // ============================================
+    if (action === "check-producer-buyer" && req.method === "POST") {
+      const { email } = await req.json();
+
+      if (!email) {
+        return new Response(
+          JSON.stringify({ error: "Email é obrigatório" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Check if buyer profile exists with purchases
+      const { data: buyer } = await supabase
+        .from("buyer_profiles")
+        .select("id")
+        .eq("email", email.toLowerCase())
+        .single();
+
+      if (!buyer) {
+        console.log(`[buyer-auth] No buyer profile for producer: ${email}`);
+        return new Response(
+          JSON.stringify({ hasBuyerProfile: false }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Check if buyer has any active product access
+      const { data: access } = await supabase
+        .from("buyer_product_access")
+        .select("id")
+        .eq("buyer_id", buyer.id)
+        .eq("is_active", true)
+        .limit(1);
+
+      const hasActiveAccess = access && access.length > 0;
+
+      console.log(`[buyer-auth] Producer buyer check: ${email}, hasAccess: ${hasActiveAccess}`);
+      return new Response(
+        JSON.stringify({
+          hasBuyerProfile: hasActiveAccess,
+          buyerId: hasActiveAccess ? buyer.id : null,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ============================================
+    // PRODUCER-LOGIN - Login automático de produtor como buyer
+    // ============================================
+    if (action === "producer-login" && req.method === "POST") {
+      const { email } = await req.json();
+
+      if (!email) {
+        return new Response(
+          JSON.stringify({ error: "Email é obrigatório" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Find buyer by email
+      const { data: buyer, error: findError } = await supabase
+        .from("buyer_profiles")
+        .select("id, email, name, is_active")
+        .eq("email", email.toLowerCase())
+        .single();
+
+      if (findError || !buyer) {
+        console.log(`[buyer-auth] Producer login failed - buyer not found: ${email}`);
+        return new Response(
+          JSON.stringify({ error: "Perfil de comprador não encontrado" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (!buyer.is_active) {
+        return new Response(
+          JSON.stringify({ error: "Conta desativada" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Create session (no password required - authenticated via producer session)
+      const sessionToken = generateSessionToken();
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 30);
+
+      const { error: sessionError } = await supabase
+        .from("buyer_sessions")
+        .insert({
+          buyer_id: buyer.id,
+          session_token: sessionToken,
+          expires_at: expiresAt.toISOString(),
+          ip_address: req.headers.get("x-forwarded-for") || null,
+          user_agent: req.headers.get("user-agent") || null,
+        });
+
+      if (sessionError) {
+        console.error("[buyer-auth] Error creating producer session:", sessionError);
+        return new Response(
+          JSON.stringify({ error: "Erro ao criar sessão" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Update last login
+      await supabase
+        .from("buyer_profiles")
+        .update({ last_login_at: new Date().toISOString() })
+        .eq("id", buyer.id);
+
+      console.log(`[buyer-auth] Producer login successful: ${email}`);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          sessionToken,
+          expiresAt: expiresAt.toISOString(),
+          buyer: {
+            id: buyer.id,
+            email: buyer.email,
+            name: buyer.name,
+          },
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(
       JSON.stringify({ error: "Ação não encontrada" }),
       { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }

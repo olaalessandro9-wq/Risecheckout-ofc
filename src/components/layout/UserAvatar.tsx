@@ -2,7 +2,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { User, LogOut } from "lucide-react";
+import { User, LogOut, GraduationCap, Loader2 } from "lucide-react";
+import { useProducerBuyerLink } from "@/hooks/useProducerBuyerLink";
+import { useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +33,8 @@ function getInitials(name: string | null | undefined, email?: string | null): st
 export function UserAvatar() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const { hasBuyerProfile, goToStudentPanel, isLoading: buyerLinkLoading } = useProducerBuyerLink();
+  const [isNavigating, setIsNavigating] = useState(false);
   
   const { data: profile } = useQuery({
     queryKey: ["user-profile", user?.id],
@@ -63,6 +67,15 @@ export function UserAvatar() {
   const handleProfileClick = () => {
     navigate("/dashboard/perfil");
   };
+
+  const handleStudentPanelClick = async () => {
+    setIsNavigating(true);
+    try {
+      await goToStudentPanel();
+    } finally {
+      setIsNavigating(false);
+    }
+  };
   
   return (
     <DropdownMenu>
@@ -85,6 +98,23 @@ export function UserAvatar() {
           <User className="mr-2 h-4 w-4" />
           <span>Meu Perfil</span>
         </DropdownMenuItem>
+        
+        {/* Student Panel Link - shown if producer has buyer profile */}
+        {!buyerLinkLoading && hasBuyerProfile && (
+          <DropdownMenuItem 
+            onClick={handleStudentPanelClick} 
+            className="cursor-pointer"
+            disabled={isNavigating}
+          >
+            {isNavigating ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <GraduationCap className="mr-2 h-4 w-4" />
+            )}
+            <span>Meus Cursos</span>
+          </DropdownMenuItem>
+        )}
+        
         <DropdownMenuSeparator />
         <DropdownMenuItem 
           onClick={handleLogout} 
