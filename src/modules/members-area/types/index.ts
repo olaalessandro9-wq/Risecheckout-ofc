@@ -30,6 +30,7 @@ export type {
   UpdatePermissionsInput,
   AssignBuyerGroupsInput,
   StudentStats,
+  StudentFilters,
 } from './group.types';
 
 // Progress types

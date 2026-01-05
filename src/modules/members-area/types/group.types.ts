@@ -59,6 +59,12 @@ export interface StudentStats {
   completionRate: number;
 }
 
+/** Filters for student list */
+export interface StudentFilters {
+  groupId: string | null;
+  accessType: 'all' | 'manual' | 'purchase' | null;
+}
+
 /** Input for creating a group */
 export interface CreateGroupInput {
   product_id: string;
