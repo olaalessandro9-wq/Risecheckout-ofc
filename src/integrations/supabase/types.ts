@@ -2453,6 +2453,7 @@ export type Database = {
           affiliate_gateway_settings: Json | null
           affiliate_settings: Json | null
           created_at: string | null
+          credit_card_gateway: string | null
           default_payment_method: string | null
           delivery_url: string | null
           description: string | null
@@ -2472,6 +2473,7 @@ export type Database = {
           members_area_settings: Json | null
           members_area_slug: string | null
           name: string
+          pix_gateway: string | null
           price: number
           required_fields: Json | null
           show_in_marketplace: boolean | null
@@ -2486,6 +2488,7 @@ export type Database = {
           affiliate_gateway_settings?: Json | null
           affiliate_settings?: Json | null
           created_at?: string | null
+          credit_card_gateway?: string | null
           default_payment_method?: string | null
           delivery_url?: string | null
           description?: string | null
@@ -2505,6 +2508,7 @@ export type Database = {
           members_area_settings?: Json | null
           members_area_slug?: string | null
           name: string
+          pix_gateway?: string | null
           price: number
           required_fields?: Json | null
           show_in_marketplace?: boolean | null
@@ -2519,6 +2523,7 @@ export type Database = {
           affiliate_gateway_settings?: Json | null
           affiliate_settings?: Json | null
           created_at?: string | null
+          credit_card_gateway?: string | null
           default_payment_method?: string | null
           delivery_url?: string | null
           description?: string | null
@@ -2538,6 +2543,7 @@ export type Database = {
           members_area_settings?: Json | null
           members_area_slug?: string | null
           name?: string
+          pix_gateway?: string | null
           price?: number
           required_fields?: Json | null
           show_in_marketplace?: boolean | null

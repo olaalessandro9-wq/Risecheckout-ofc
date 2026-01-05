@@ -96,34 +96,27 @@ export function useProductSettings(
   }, [isOwner]);
 
   // Carregar configurações do produto
+  // ✅ CORREÇÃO: Gateways agora vêm do PRODUTO, não do checkout
   const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
-      const [productResult, checkoutResult] = await Promise.all([
-        supabase
-          .from("products")
-          .select("required_fields, default_payment_method, user_id")
-          .eq("id", productId)
-          .maybeSingle(),
-        supabase
-          .from("checkouts")
-          .select("pix_gateway, credit_card_gateway")
-          .eq("product_id", productId)
-          .eq("is_default", true)
-          .maybeSingle(),
-      ]);
+      const { data: productResult, error: productError } = await supabase
+        .from("products")
+        .select("required_fields, default_payment_method, user_id, pix_gateway, credit_card_gateway")
+        .eq("id", productId)
+        .maybeSingle();
 
-      if (productResult.error || checkoutResult.error) {
-        console.error("Error loading settings:", productResult.error || checkoutResult.error);
+      if (productError) {
+        console.error("Error loading settings:", productError);
         toast.error("Erro ao carregar configurações.");
         return;
       }
 
-      if (productResult.data?.user_id) {
-        await loadCredentials(productResult.data.user_id);
+      if (productResult?.user_id) {
+        await loadCredentials(productResult.user_id);
       }
 
-      const rf = (productResult.data?.required_fields as Record<string, boolean>) || {};
+      const rf = (productResult?.required_fields as Record<string, boolean>) || {};
       const loadedSettings: ProductSettings = {
         required_fields: {
           name: true,
@@ -131,9 +124,9 @@ export function useProductSettings(
           phone: !!rf.phone,
           cpf: !!rf.cpf,
         },
-        default_payment_method: (productResult.data?.default_payment_method as PaymentMethod) || "pix",
-        pix_gateway: checkoutResult.data?.pix_gateway || "pushinpay",
-        credit_card_gateway: checkoutResult.data?.credit_card_gateway || "mercadopago",
+        default_payment_method: (productResult?.default_payment_method as PaymentMethod) || "pix",
+        pix_gateway: productResult?.pix_gateway || "mercadopago",
+        credit_card_gateway: productResult?.credit_card_gateway || "mercadopago",
       };
 
       setInitial(loadedSettings);
@@ -147,6 +140,7 @@ export function useProductSettings(
   }, [productId, loadCredentials]);
 
   // Salvar configurações
+  // ✅ CORREÇÃO: Gateways agora são salvos no PRODUTO, não no checkout
   const handleSave = useCallback(async () => {
     const pixGateway = getGatewayById(form.pix_gateway);
     const ccGateway = getGatewayById(form.credit_card_gateway);
@@ -163,38 +157,24 @@ export function useProductSettings(
 
     setSaving(true);
     try {
-      const [productResult, checkoutResult] = await Promise.all([
-        supabase
-          .from("products")
-          .update({
-            required_fields: {
-              name: true,
-              email: true,
-              phone: form.required_fields.phone,
-              cpf: form.required_fields.cpf,
-            },
-            default_payment_method: form.default_payment_method,
-          })
-          .eq("id", productId),
-        supabase
-          .from("checkouts")
-          .update({
-            pix_gateway: form.pix_gateway as "pushinpay" | "mercadopago",
-            credit_card_gateway: form.credit_card_gateway as "mercadopago",
-          })
-          .eq("product_id", productId)
-          .eq("is_default", true),
-      ]);
+      const { error: productError } = await supabase
+        .from("products")
+        .update({
+          required_fields: {
+            name: true,
+            email: true,
+            phone: form.required_fields.phone,
+            cpf: form.required_fields.cpf,
+          },
+          default_payment_method: form.default_payment_method,
+          pix_gateway: form.pix_gateway,
+          credit_card_gateway: form.credit_card_gateway,
+        })
+        .eq("id", productId);
 
-      if (productResult.error) {
-        console.error("Error saving product:", productResult.error);
+      if (productError) {
+        console.error("Error saving product:", productError);
         toast.error("Erro ao salvar configurações do produto.");
-        return;
-      }
-
-      if (checkoutResult.error) {
-        console.error("Error saving checkout:", checkoutResult.error);
-        toast.error("Erro ao salvar configurações de gateway.");
         return;
       }
 

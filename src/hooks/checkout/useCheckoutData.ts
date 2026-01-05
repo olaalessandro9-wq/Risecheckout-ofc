@@ -219,6 +219,7 @@ export function useCheckoutData(): UseCheckoutDataReturn {
       // ============================================================================
       
       // ✅ SEGURANÇA: Não buscar user_id - cliente não precisa ver o ID do produtor
+      // ✅ CORREÇÃO: Buscar pix_gateway e credit_card_gateway do PRODUTO (não do checkout)
       const { data: productData, error: productError } = await supabase
         .from("products")
         .select(`
@@ -232,7 +233,9 @@ export function useCheckoutData(): UseCheckoutDataReturn {
           default_payment_method,
           upsell_settings,
           affiliate_settings,
-          status
+          status,
+          pix_gateway,
+          credit_card_gateway
         `)
         .eq("id", productId)
         .maybeSingle();
@@ -298,9 +301,10 @@ export function useCheckoutData(): UseCheckoutDataReturn {
       const requireCpf = requiredFields?.cpf ?? false;
       const defaultMethod = (productData.default_payment_method as 'pix' | 'credit_card') ?? 'pix';
 
-      // Determinar gateways finais (afiliado sobrescreve produto se configurado)
-      const finalPixGateway = affiliatePixGateway || checkoutData.pix_gateway;
-      const finalCreditCardGateway = affiliateCreditCardGateway || checkoutData.credit_card_gateway;
+      // Determinar gateways finais (afiliado sobrescreve PRODUTO se configurado)
+      // ✅ CORREÇÃO: Gateway vem do PRODUTO, não do checkout
+      const finalPixGateway = affiliatePixGateway || productData.pix_gateway || 'mercadopago';
+      const finalCreditCardGateway = affiliateCreditCardGateway || productData.credit_card_gateway || 'mercadopago';
 
       // Montar objeto completo do checkout
       const fullCheckout: Checkout = {
