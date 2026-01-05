@@ -94,8 +94,8 @@ export function AddModuleDialogNetflix({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[1100px] h-[90vh] p-0 gap-0 overflow-hidden">
-          <div className="flex flex-col h-full min-h-0">
+        <DialogContent className="sm:max-w-[1100px] max-h-[90vh] p-0 gap-0">
+          <div className="flex flex-col">
             {/* Header */}
             <DialogHeader className="px-6 pt-6 pb-4 shrink-0">
               <DialogTitle className="text-xl font-semibold">Módulos</DialogTitle>
