@@ -1,6 +1,6 @@
 /**
  * AddModuleDialogNetflix - Dialog estilo Cakto com tabs (Geral/Cover)
- * Layout com formulário à esquerda e preview GRANDE à direita
+ * Layout com formulário à esquerda e preview GIGANTE à direita
  */
 
 import { useState, useEffect } from "react";
@@ -97,81 +97,86 @@ export function AddModuleDialogNetflix({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[900px] p-0 gap-0 overflow-hidden">
+        <DialogContent className="sm:max-w-[1100px] p-0 gap-0 overflow-hidden max-h-[90vh]">
           <div className="flex flex-col h-full">
             {/* Header */}
-            <DialogHeader className="px-6 pt-6 pb-4">
+            <DialogHeader className="px-6 pt-6 pb-4 shrink-0">
               <DialogTitle className="text-xl font-semibold">Módulos</DialogTitle>
               <DialogDescription className="text-sm text-muted-foreground">
                 Preencha os campos abaixo
               </DialogDescription>
             </DialogHeader>
 
-            {/* Content Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr,280px] flex-1">
-              {/* Left Side - Tabs */}
-              <div className="px-6 pb-4">
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 h-11 mb-6 bg-muted/50">
-                    <TabsTrigger 
-                      value="geral" 
-                      className="text-sm font-medium h-9 data-[state=active]:bg-background data-[state=active]:shadow-sm"
-                    >
-                      Geral
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      value="cover" 
-                      className="text-sm font-medium h-9 data-[state=active]:bg-background data-[state=active]:shadow-sm"
-                    >
-                      Cover
-                    </TabsTrigger>
-                  </TabsList>
+            {/* Content Grid - Responsive: stacked on mobile, side-by-side on lg+ */}
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr),400px] flex-1 min-h-0 overflow-auto">
+              {/* Left Side - Tabs with constrained width */}
+              <div className="px-6 pb-6">
+                <div className="max-w-[520px]">
+                  <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 h-11 mb-6 bg-muted/50">
+                      <TabsTrigger 
+                        value="geral" 
+                        className="text-sm font-medium h-9 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                      >
+                        Geral
+                      </TabsTrigger>
+                      <TabsTrigger 
+                        value="cover" 
+                        className="text-sm font-medium h-9 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                      >
+                        Cover
+                      </TabsTrigger>
+                    </TabsList>
 
-                  {/* Tab Geral - Module Name */}
-                  <TabsContent value="geral" className="mt-0">
-                    <div className="space-y-2">
-                      <Label htmlFor="module-title" className="text-sm font-medium">
-                        Nome do Módulo
-                      </Label>
-                      <Input
-                        id="module-title"
-                        placeholder="Ex: Módulo 1"
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                        className="h-11 text-sm"
-                        autoFocus
-                      />
-                    </div>
-                  </TabsContent>
+                    {/* Tab Geral - Module Name */}
+                    <TabsContent value="geral" className="mt-0">
+                      <div className="space-y-2">
+                        <Label htmlFor="module-title" className="text-sm font-medium">
+                          Nome do Módulo
+                        </Label>
+                        <Input
+                          id="module-title"
+                          placeholder="Ex: Módulo 1"
+                          value={title}
+                          onChange={(e) => setTitle(e.target.value)}
+                          className="h-11 text-sm"
+                          autoFocus
+                        />
+                      </div>
+                    </TabsContent>
 
-                  {/* Tab Cover - Image Upload (Vertical) */}
-                  <TabsContent value="cover" className="mt-0">
-                    <div className="flex justify-center py-4">
-                      <ImageUploadZoneVertical
-                        imagePreview={imagePreview}
-                        onImageSelect={handleImageSelect}
-                        onCropClick={originalImageFile ? handleReCrop : undefined}
-                        maxSizeMB={10}
-                      />
-                    </div>
-                  </TabsContent>
-                </Tabs>
+                    {/* Tab Cover - Image Upload (Vertical) */}
+                    <TabsContent value="cover" className="mt-0">
+                      <div className="flex justify-center py-4">
+                        <ImageUploadZoneVertical
+                          imagePreview={imagePreview}
+                          onImageSelect={handleImageSelect}
+                          onCropClick={originalImageFile ? handleReCrop : undefined}
+                          maxSizeMB={10}
+                        />
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                </div>
               </div>
 
-              {/* Right Side - Full Preview Area */}
-              <div className="hidden lg:flex flex-col bg-muted/30 border-l border-border">
-                <Label className="px-6 pt-4 pb-2 text-sm text-muted-foreground">Pré-visualização</Label>
-                <div className="flex-1 flex items-center justify-center p-4">
+              {/* Right Side - GIGANTE Preview Area (single block) */}
+              <div className="flex flex-col bg-muted/30 lg:border-l border-t lg:border-t-0 border-border min-h-[480px]">
+                <Label className="px-6 pt-5 pb-3 text-sm text-muted-foreground shrink-0">
+                  Pré-visualização
+                </Label>
+                <div className="flex-1 flex items-center justify-center p-6 pb-8">
                   <ModuleCardPreview
                     imageUrl={imagePreview}
                     lessonsCount={0}
+                    size="xl"
                   />
                 </div>
               </div>
             </div>
 
             {/* Footer with Buttons */}
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-border bg-muted/20">
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-border bg-muted/20 shrink-0">
               <Button
                 variant="outline"
                 onClick={() => onOpenChange(false)}
