@@ -105,7 +105,7 @@ export function AddModuleDialogNetflix({
             </DialogHeader>
 
             {/* Content Grid - Responsive: stacked on mobile, side-by-side on lg+ */}
-            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr),400px] flex-1 min-h-0 overflow-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr),480px] flex-1 min-h-0 overflow-hidden">
               {/* Left Side - Form fields */}
               <div className="px-6 pb-6">
                 <div className="max-w-[520px] space-y-6">
@@ -143,7 +143,7 @@ export function AddModuleDialogNetflix({
               </div>
 
               {/* Right Side - Preview Area */}
-              <div className="flex flex-col bg-muted/30 lg:border-l border-t lg:border-t-0 border-border max-h-[400px]">
+              <div className="flex flex-col bg-muted/30 lg:border-l border-t lg:border-t-0 border-border">
                 <Label className="px-6 pt-4 pb-2 text-sm text-muted-foreground shrink-0">
                   Pré-visualização
                 </Label>
