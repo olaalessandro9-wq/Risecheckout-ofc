@@ -11,6 +11,8 @@ export interface ProductValidationResult {
     name: string;
     user_id: string;
     affiliate_settings: Record<string, any>;
+    pix_gateway: string;
+    credit_card_gateway: string;
   };
   validatedOfferId: string | null;
   validatedCheckoutId: string | null;
@@ -35,10 +37,10 @@ export async function validateProduct(
 ): Promise<ProductValidationResult | Response> {
   const { product_id, offer_id, checkout_id } = input;
 
-  // 1. Buscar produto
+  // 1. Buscar produto (incluindo gateways)
   const { data: product, error: productError } = await supabase
     .from("products")
-    .select("id, price, name, user_id, affiliate_settings")
+    .select("id, price, name, user_id, affiliate_settings, pix_gateway, credit_card_gateway")
     .eq("id", product_id)
     .maybeSingle();
 
@@ -111,7 +113,9 @@ export async function validateProduct(
       price: product.price,
       name: product.name,
       user_id: product.user_id,
-      affiliate_settings: product.affiliate_settings || {}
+      affiliate_settings: product.affiliate_settings || {},
+      pix_gateway: product.pix_gateway || 'mercadopago',
+      credit_card_gateway: product.credit_card_gateway || 'mercadopago',
     },
     validatedOfferId,
     validatedCheckoutId,
