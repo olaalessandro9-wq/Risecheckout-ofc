@@ -62,7 +62,7 @@ export interface StudentStats {
 /** Filters for student list */
 export interface StudentFilters {
   groupId: string | null;
-  accessType: 'all' | 'manual' | 'purchase' | null;
+  accessType: 'all' | 'producer' | 'student' | null;
 }
 
 /** Input for creating a group */

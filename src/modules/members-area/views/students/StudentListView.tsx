@@ -130,7 +130,7 @@ export function StudentListView({
 
         {/* Students */}
         {!isLoading && students.map((student, index) => {
-          const isOwner = student.access_type === 'owner';
+          const isProducer = student.access_type === 'producer';
           const progress = student.progress_percent ?? 0;
           
           return (
@@ -155,7 +155,7 @@ export function StudentListView({
                     <p className="text-sm font-medium truncate uppercase">
                       {student.buyer_name || 'Sem nome'}
                     </p>
-                    {isOwner && (
+                    {isProducer && (
                       <Badge className="text-xs py-0 px-1.5 bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20">
                         Você
                       </Badge>

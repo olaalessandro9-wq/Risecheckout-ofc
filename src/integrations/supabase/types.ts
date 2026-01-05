@@ -3308,6 +3308,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_user_email: { Args: { user_id: string }; Returns: string }
       get_user_role: { Args: { p_user_id: string }; Returns: string }
       get_vault_secret: { Args: { p_name: string }; Returns: string }
       get_vendor_public_key: {

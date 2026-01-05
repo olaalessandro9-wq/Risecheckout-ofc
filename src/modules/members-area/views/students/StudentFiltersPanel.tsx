@@ -30,8 +30,8 @@ interface StudentFiltersPanelProps {
 
 const ACCESS_TYPE_OPTIONS = [
   { value: 'all', label: 'Todos' },
-  { value: 'manual', label: 'Adicionado manualmente' },
-  { value: 'purchase', label: 'Vinculado a uma venda' },
+  { value: 'producer', label: 'Produtor' },
+  { value: 'student', label: 'Aluno' },
 ];
 
 export function StudentFiltersPanel({
@@ -55,7 +55,7 @@ export function StudentFiltersPanel({
   const handleAccessTypeChange = (value: string) => {
     onFiltersChange({
       ...filters,
-      accessType: value === 'all' ? null : (value as 'manual' | 'purchase'),
+      accessType: value === 'all' ? null : (value as 'producer' | 'student'),
     });
   };
 

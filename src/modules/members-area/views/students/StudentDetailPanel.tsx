@@ -33,10 +33,8 @@ interface StudentDetailPanelProps {
 }
 
 const ACCESS_TYPE_LABELS: Record<string, string> = {
-  owner: 'Administrador',
-  purchase: 'Aluno',
-  manual: 'Acesso Manual',
-  affiliate: 'Afiliado',
+  producer: 'Produtor',
+  student: 'Aluno',
 };
 
 export function StudentDetailPanel({
@@ -67,8 +65,8 @@ export function StudentDetailPanel({
     });
   };
 
-  const isOwner = student.access_type === 'owner';
-  const accessTypeLabel = ACCESS_TYPE_LABELS[student.access_type || 'purchase'] || 'Aluno';
+  const isProducer = student.access_type === 'producer';
+  const accessTypeLabel = ACCESS_TYPE_LABELS[student.access_type || 'student'] || 'Aluno';
   const currentGroupIds = student.groups.map(g => g.group_id);
 
   const handleGroupToggle = async (groupId: string) => {
@@ -99,7 +97,7 @@ export function StudentDetailPanel({
                 <SheetTitle className="text-lg font-semibold uppercase truncate">
                   {student.buyer_name || 'Sem nome'}
                 </SheetTitle>
-                {isOwner && (
+                {isProducer && (
                   <Badge className="bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20">
                     Você
                   </Badge>
@@ -183,7 +181,7 @@ export function StudentDetailPanel({
           <Separator />
 
           {/* Actions */}
-          {!isOwner && (
+          {!isProducer && (
             <Button
               variant="destructive"
               className="w-full"
