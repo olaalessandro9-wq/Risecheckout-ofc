@@ -8,11 +8,41 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import type { MemberGroup, BuyerWithGroups } from "@/modules/members-area/types";
+import type { MemberGroup, BuyerWithGroups, StudentStats } from "@/modules/members-area/types";
 
 // Componentes inline simplificados (evita dependências circulares)
 import { StudentListView } from "./students/StudentListView";
 import { GroupManagerView } from "./students/GroupManagerView";
+
+// Helper functions to avoid TypeScript type instantiation depth issues
+async function fetchModuleIds(productId: string): Promise<string[]> {
+  const result = await (supabase as any)
+    .from('product_member_modules')
+    .select('id')
+    .eq('product_id', productId)
+    .eq('is_published', true);
+  return (result.data || []).map((m: { id: string }) => m.id);
+}
+
+async function fetchContentIds(moduleIds: string[]): Promise<string[]> {
+  if (moduleIds.length === 0) return [];
+  const result = await (supabase as any)
+    .from('product_member_content')
+    .select('id')
+    .in('module_id', moduleIds)
+    .eq('is_published', true);
+  return (result.data || []).map((c: { id: string }) => c.id);
+}
+
+async function fetchProgressData(buyerIds: string[], contentIds: string[]): Promise<{ buyer_id: string; progress_percent: number; completed_at: string | null }[]> {
+  if (buyerIds.length === 0 || contentIds.length === 0) return [];
+  const result = await (supabase as any)
+    .from('buyer_content_progress')
+    .select('buyer_id, progress_percent, completed_at')
+    .in('buyer_id', buyerIds)
+    .in('content_id', contentIds);
+  return result.data || [];
+}
 
 interface StudentsTabProps {
   productId?: string;
@@ -25,6 +55,11 @@ export function StudentsTab({ productId }: StudentsTabProps) {
   const [groups, setGroups] = useState<MemberGroup[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [stats, setStats] = useState<StudentStats>({
+    totalStudents: 0,
+    averageProgress: 0,
+    completionRate: 0,
+  });
   const limit = 20;
 
   const fetchGroups = useCallback(async () => {
@@ -57,7 +92,7 @@ export function StudentsTab({ productId }: StudentsTabProps) {
           buyer_id,
           granted_at,
           access_type,
-          buyer_profiles!inner(id, name, email)
+          buyer_profiles!inner(id, name, email, last_login_at)
         `, { count: 'exact' })
         .eq('product_id', productId)
         .eq('is_active', true)
@@ -80,16 +115,70 @@ export function StudentsTab({ productId }: StudentsTabProps) {
         groupsData = bg || [];
       }
 
+      // Get module IDs and content IDs using helper functions
+      const moduleIds = await fetchModuleIds(productId);
+      const productContentIds = await fetchContentIds(moduleIds);
+      const totalContents = productContentIds.length;
+
+      // Get progress for all buyers using helper function
+      const progressData = await fetchProgressData(buyerIds, productContentIds);
+
+      // Calculate progress per buyer
+      const buyerProgressMap: Record<string, { totalProgress: number; completedCount: number; count: number }> = {};
+      progressData.forEach(p => {
+        if (!buyerProgressMap[p.buyer_id]) {
+          buyerProgressMap[p.buyer_id] = { totalProgress: 0, completedCount: 0, count: 0 };
+        }
+        buyerProgressMap[p.buyer_id].totalProgress += (p.progress_percent || 0);
+        buyerProgressMap[p.buyer_id].count += 1;
+        if (p.completed_at) {
+          buyerProgressMap[p.buyer_id].completedCount += 1;
+        }
+      });
+
       // Map to BuyerWithGroups format
       const studentsWithGroups: BuyerWithGroups[] = (accessData || []).map(access => {
         const profile = access.buyer_profiles as any;
+        const buyerProgress = buyerProgressMap[access.buyer_id];
+        
+        // Calculate average progress for this buyer
+        let progressPercent = 0;
+        if (totalContents > 0 && buyerProgress) {
+          // Progress is (sum of all content progress) / total contents
+          progressPercent = Math.round(buyerProgress.totalProgress / totalContents);
+        }
+
         return {
           buyer_id: access.buyer_id,
           buyer_email: profile?.email || '',
           buyer_name: profile?.name || null,
           groups: groupsData.filter(g => g.buyer_id === access.buyer_id),
           access_type: access.access_type || undefined,
+          last_access_at: profile?.last_login_at || null,
+          progress_percent: progressPercent,
+          status: 'active' as const,
         };
+      });
+
+      // Calculate stats
+      const totalStudents = count || 0;
+      let sumProgress = 0;
+      let completedCount = 0;
+
+      studentsWithGroups.forEach(s => {
+        sumProgress += s.progress_percent || 0;
+        if ((s.progress_percent || 0) >= 100) {
+          completedCount += 1;
+        }
+      });
+
+      const averageProgress = totalStudents > 0 ? sumProgress / totalStudents : 0;
+      const completionRate = totalStudents > 0 ? (completedCount / totalStudents) * 100 : 0;
+
+      setStats({
+        totalStudents,
+        averageProgress,
+        completionRate,
       });
 
       setStudents(studentsWithGroups);
@@ -255,6 +344,7 @@ export function StudentsTab({ productId }: StudentsTabProps) {
             page={page}
             limit={limit}
             isLoading={isLoading}
+            stats={stats}
             onSearch={handleSearch}
             onPageChange={setPage}
             onAssignGroups={handleAssignGroups}

@@ -1,16 +1,11 @@
 /**
- * StudentListView - Wrapper simplificado do StudentList
+ * StudentListView - Lista de alunos estilo Kiwify
  */
 
 import { useState } from 'react';
 import {
   Users,
   Search,
-  MoreVertical,
-  Mail,
-  Calendar,
-  Shield,
-  UserX,
   ChevronLeft,
   ChevronRight,
   Loader2,
@@ -19,21 +14,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
-import type { BuyerWithGroups, MemberGroup } from '@/modules/members-area/types';
+import type { BuyerWithGroups, MemberGroup, StudentStats } from '@/modules/members-area/types';
+import { StudentStatsCards } from './StudentStatsCards';
+import { StudentDetailPanel } from './StudentDetailPanel';
 
 interface StudentListViewProps {
   students: BuyerWithGroups[];
@@ -42,6 +27,7 @@ interface StudentListViewProps {
   page: number;
   limit: number;
   isLoading?: boolean;
+  stats: StudentStats;
   onSearch: (query: string) => void;
   onPageChange: (page: number) => void;
   onAssignGroups: (buyerId: string, groupIds: string[]) => Promise<void>;
@@ -55,12 +41,14 @@ export function StudentListView({
   page,
   limit,
   isLoading = false,
+  stats,
   onSearch,
   onPageChange,
   onAssignGroups,
   onRevokeAccess,
 }: StudentListViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState<BuyerWithGroups | null>(null);
   const totalPages = Math.ceil(total / limit);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,22 +64,30 @@ export function StudentListView({
     return email.slice(0, 2).toUpperCase();
   };
 
-  const handleGroupChange = async (buyerId: string, groupId: string) => {
-    const student = students.find(s => s.buyer_id === buyerId);
-    if (!student) return;
+  const formatLastAccess = (date: string | null | undefined) => {
+    if (!date) return '—';
+    return new Date(date).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
 
-    const currentGroupIds = student.groups.map(g => g.group_id);
-    const isInGroup = currentGroupIds.includes(groupId);
+  const handleStudentClick = (student: BuyerWithGroups) => {
+    setSelectedStudent(student);
+  };
 
-    const newGroupIds = isInGroup
-      ? currentGroupIds.filter(id => id !== groupId)
-      : [...currentGroupIds, groupId];
-
-    await onAssignGroups(buyerId, newGroupIds);
+  const handleClosePanel = () => {
+    setSelectedStudent(null);
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Stats Cards */}
+      <StudentStatsCards stats={stats} isLoading={isLoading} />
+
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1 relative">
@@ -112,10 +108,9 @@ export function StudentListView({
       <div className="border rounded-lg overflow-hidden">
         {/* Table Header */}
         <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-muted/50 text-xs font-medium text-muted-foreground uppercase">
-          <div className="col-span-4">Aluno</div>
-          <div className="col-span-3">Grupos</div>
-          <div className="col-span-3">Acesso desde</div>
-          <div className="col-span-2 text-right">Ações</div>
+          <div className="col-span-5">Nome</div>
+          <div className="col-span-4">Último Acesso</div>
+          <div className="col-span-3">Progresso</div>
         </div>
 
         {/* Loading State */}
@@ -136,93 +131,54 @@ export function StudentListView({
         {/* Students */}
         {!isLoading && students.map((student, index) => {
           const isOwner = student.access_type === 'owner';
+          const progress = student.progress_percent ?? 0;
+          
           return (
-          <div
-            key={student.buyer_id}
-            className={cn(
-              'grid grid-cols-12 gap-4 px-4 py-3 items-center',
-              'hover:bg-muted/30 transition-colors',
-              index !== students.length - 1 && 'border-b'
-            )}
-          >
-            {/* Student Info */}
-            <div className="col-span-4 flex items-center gap-3">
-              <Avatar className="h-9 w-9">
-                <AvatarFallback className="text-xs">
-                  {getInitials(student.buyer_name, student.buyer_email)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium truncate">
-                    {student.buyer_name || 'Sem nome'}
-                  </p>
-                  {isOwner && (
-                    <Badge variant="default" className="text-xs py-0 px-1.5 bg-primary/20 text-primary">
-                      Produtor
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                  <Mail className="w-3 h-3" />
-                  {student.buyer_email}
-                </p>
-              </div>
-            </div>
-
-            {/* Groups */}
-            <div className="col-span-3">
-              <div className="flex items-center gap-1 flex-wrap">
-                {student.groups.length === 0 ? (
-                  <span className="text-xs text-muted-foreground">Nenhum grupo</span>
-                ) : (
-                  student.groups.slice(0, 2).map(g => {
-                    const group = groups.find(gr => gr.id === g.group_id);
-                    return (
-                      <Badge key={g.group_id} variant="secondary" className="text-xs py-0">
-                        {group?.name || 'Grupo'}
+            <div
+              key={student.buyer_id}
+              onClick={() => handleStudentClick(student)}
+              className={cn(
+                'grid grid-cols-12 gap-4 px-4 py-3 items-center cursor-pointer',
+                'hover:bg-muted/30 transition-colors',
+                index !== students.length - 1 && 'border-b'
+              )}
+            >
+              {/* Student Info - NOME */}
+              <div className="col-span-5 flex items-center gap-3">
+                <Avatar className="h-9 w-9">
+                  <AvatarFallback className="text-xs">
+                    {getInitials(student.buyer_name, student.buyer_email)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium truncate uppercase">
+                      {student.buyer_name || 'Sem nome'}
+                    </p>
+                    {isOwner && (
+                      <Badge className="text-xs py-0 px-1.5 bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20">
+                        Você
                       </Badge>
-                    );
-                  })
-                )}
-                {student.groups.length > 2 && (
-                  <Badge variant="outline" className="text-xs py-0">
-                    +{student.groups.length - 2}
-                  </Badge>
-                )}
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {student.buyer_email}
+                  </p>
+                </div>
+              </div>
+
+              {/* Last Access */}
+              <div className="col-span-4 text-sm text-muted-foreground">
+                {formatLastAccess(student.last_access_at)}
+              </div>
+
+              {/* Progress */}
+              <div className="col-span-3 flex items-center gap-3">
+                <Progress value={progress} className="h-2 flex-1" />
+                <span className="text-sm font-medium w-10 text-right">{progress}%</span>
               </div>
             </div>
-
-            {/* Access Date */}
-            <div className="col-span-3 text-sm text-muted-foreground flex items-center gap-1">
-              <Calendar className="w-3 h-3" />
-              {student.groups[0]?.granted_at
-                ? new Date(student.groups[0].granted_at).toLocaleDateString('pt-BR')
-                : '—'
-              }
-            </div>
-
-            {/* Actions */}
-            <div className="col-span-2 flex justify-end">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreVertical className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={() => onRevokeAccess(student.buyer_id)}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <UserX className="w-4 h-4 mr-2" />
-                    Revogar acesso
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        );
+          );
         })}
       </div>
 
@@ -255,6 +211,16 @@ export function StudentListView({
           </div>
         </div>
       )}
+
+      {/* Detail Panel */}
+      <StudentDetailPanel
+        student={selectedStudent}
+        groups={groups}
+        isOpen={!!selectedStudent}
+        onClose={handleClosePanel}
+        onAssignGroups={onAssignGroups}
+        onRevokeAccess={onRevokeAccess}
+      />
     </div>
   );
 }
