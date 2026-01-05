@@ -40,6 +40,8 @@ import TermosDeUso from "./pages/TermosDeUso";
 import BuyerAuth from "./pages/buyer/BuyerAuth";
 import BuyerDashboard from "./pages/buyer/BuyerDashboard";
 import BuyerProductContent from "./pages/buyer/BuyerProductContent";
+import BuyerHistory from "./pages/buyer/BuyerHistory";
+import StudentShell from "./layouts/StudentShell";
 
 // ============================================================================
 // ROTAS PROTEGIDAS - Eager Loading
@@ -135,11 +137,22 @@ const router = createBrowserRouter([
       { path: "/termos-de-uso", element: <TermosDeUso /> },
 
       // ============================================================
-      // ÁREA DE MEMBROS (BUYER)
+      // ÁREA DE MEMBROS (BUYER) - Rota de Login
       // ============================================================
       { path: "/minha-conta", element: <BuyerAuth /> },
-      { path: "/minha-conta/dashboard", element: <BuyerDashboard /> },
-      { path: "/minha-conta/produto/:productId", element: <BuyerProductContent /> },
+      
+      // ============================================================
+      // ÁREA DE MEMBROS (BUYER) - Com StudentShell Layout
+      // ============================================================
+      {
+        path: "/minha-conta",
+        element: <StudentShell />,
+        children: [
+          { path: "dashboard", element: <BuyerDashboard /> },
+          { path: "historico", element: <BuyerHistory /> },
+          { path: "produto/:productId", element: <BuyerProductContent /> },
+        ],
+      },
 
       // ============================================================
       // CHECKOUT BUILDER - Full screen (Protegido)
