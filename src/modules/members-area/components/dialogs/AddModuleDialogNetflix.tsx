@@ -94,7 +94,7 @@ export function AddModuleDialogNetflix({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[1100px] max-h-[90vh] p-0 gap-0">
+        <DialogContent className="sm:max-w-[820px] max-h-[90vh] p-0 gap-0">
           <div className="flex flex-col">
             {/* Header */}
             <DialogHeader className="px-6 pt-6 pb-4 shrink-0">
@@ -105,7 +105,7 @@ export function AddModuleDialogNetflix({
             </DialogHeader>
 
             {/* Content Grid - Responsive: stacked on mobile, side-by-side on lg+ */}
-            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr),480px] flex-1 min-h-0 overflow-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr),320px] flex-1 min-h-0 overflow-hidden">
               {/* Left Side - Form fields */}
               <div className="px-6 pb-6">
                 <div className="max-w-[520px] space-y-6">
