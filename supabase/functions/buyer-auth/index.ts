@@ -412,16 +412,28 @@ serve(async (req) => {
     }
 
     // ============================================
-    // CHECK-PRODUCER-BUYER - Verifica se produtor tem perfil buyer
+    // CHECK-PRODUCER-BUYER - Verifica se produtor tem perfil buyer ou produtos próprios
     // ============================================
     if (action === "check-producer-buyer" && req.method === "POST") {
-      const { email } = await req.json();
+      const { email, producerUserId } = await req.json();
 
       if (!email) {
         return new Response(
           JSON.stringify({ error: "Email é obrigatório" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
+      }
+
+      // Verificar se produtor tem produtos com área de membros ativa
+      let hasOwnProducts = false;
+      if (producerUserId) {
+        const { data: ownProducts } = await supabase
+          .from("products")
+          .select("id")
+          .eq("user_id", producerUserId)
+          .eq("members_area_enabled", true)
+          .limit(1);
+        hasOwnProducts = !!(ownProducts && ownProducts.length > 0);
       }
 
       // Check if buyer profile exists with purchases
@@ -431,32 +443,120 @@ serve(async (req) => {
         .eq("email", email.toLowerCase())
         .single();
 
-      if (!buyer) {
-        console.log(`[buyer-auth] No buyer profile for producer: ${email}`);
+      if (!buyer && !hasOwnProducts) {
+        console.log(`[buyer-auth] No buyer profile or own products for producer: ${email}`);
         return new Response(
-          JSON.stringify({ hasBuyerProfile: false }),
+          JSON.stringify({ hasBuyerProfile: false, hasOwnProducts: false }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
       // Check if buyer has any active product access
-      const { data: access } = await supabase
-        .from("buyer_product_access")
-        .select("id")
-        .eq("buyer_id", buyer.id)
-        .eq("is_active", true)
-        .limit(1);
+      let hasActiveAccess = false;
+      if (buyer) {
+        const { data: access } = await supabase
+          .from("buyer_product_access")
+          .select("id")
+          .eq("buyer_id", buyer.id)
+          .eq("is_active", true)
+          .limit(1);
+        hasActiveAccess = !!(access && access.length > 0);
+      }
 
-      const hasActiveAccess = access && access.length > 0;
+      const shouldShowStudentPanel = hasActiveAccess || hasOwnProducts;
 
-      console.log(`[buyer-auth] Producer buyer check: ${email}, hasAccess: ${hasActiveAccess}`);
+      console.log(`[buyer-auth] Producer buyer check: ${email}, hasAccess: ${hasActiveAccess}, hasOwnProducts: ${hasOwnProducts}`);
       return new Response(
         JSON.stringify({
-          hasBuyerProfile: hasActiveAccess,
-          buyerId: hasActiveAccess ? buyer.id : null,
+          hasBuyerProfile: shouldShowStudentPanel,
+          hasOwnProducts,
+          buyerId: buyer?.id || null,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // ============================================
+    // ENSURE-PRODUCER-ACCESS - Cria buyer_profile e acesso para o produtor
+    // ============================================
+    if (action === "ensure-producer-access" && req.method === "POST") {
+      const { email, productId, producerUserId } = await req.json();
+
+      if (!email || !productId) {
+        return new Response(
+          JSON.stringify({ error: "Email e productId são obrigatórios" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      try {
+        // Verificar ou criar buyer_profile
+        let { data: buyer } = await supabase
+          .from("buyer_profiles")
+          .select("id")
+          .eq("email", email.toLowerCase())
+          .single();
+
+        if (!buyer) {
+          // Buscar nome do produtor
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("name")
+            .eq("id", producerUserId)
+            .single();
+
+          // Criar buyer_profile para o produtor (senha = OWNER_NO_PASSWORD)
+          const { data: newBuyer, error: createError } = await supabase
+            .from("buyer_profiles")
+            .insert({
+              email: email.toLowerCase(),
+              password_hash: "OWNER_NO_PASSWORD",
+              password_hash_version: 2,
+              name: profile?.name || null,
+              is_active: true,
+            })
+            .select("id")
+            .single();
+
+          if (createError) {
+            console.error("[buyer-auth] Error creating producer buyer profile:", createError);
+            throw createError;
+          }
+          buyer = newBuyer;
+          console.log(`[buyer-auth] Created buyer profile for producer: ${email}`);
+        }
+
+        // Verificar se já tem acesso a este produto
+        const { data: existingAccess } = await supabase
+          .from("buyer_product_access")
+          .select("id")
+          .eq("buyer_id", buyer.id)
+          .eq("product_id", productId)
+          .single();
+
+        if (!existingAccess) {
+          // Criar acesso com access_type = 'owner'
+          await supabase.from("buyer_product_access").insert({
+            buyer_id: buyer.id,
+            product_id: productId,
+            order_id: "00000000-0000-0000-0000-000000000000", // Placeholder para owner
+            access_type: "owner",
+            is_active: true,
+          });
+          console.log(`[buyer-auth] Created owner access for producer: ${email} -> product: ${productId}`);
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, buyerId: buyer.id }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (error) {
+        console.error("[buyer-auth] Error ensuring producer access:", error);
+        return new Response(
+          JSON.stringify({ error: "Erro ao criar acesso do produtor" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // ============================================

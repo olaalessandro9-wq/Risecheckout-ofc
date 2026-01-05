@@ -113,9 +113,10 @@ serve(async (req) => {
     }
 
     // ============================================
-    // ACCESS - Listar produtos com acesso
+    // ACCESS - Listar produtos com acesso (comprados + próprios)
     // ============================================
     if (action === "access" && req.method === "GET") {
+      // 1. Buscar produtos com acesso via buyer_product_access
       const { data: access, error } = await supabase
         .from("buyer_product_access")
         .select(`
@@ -130,7 +131,8 @@ serve(async (req) => {
             name,
             description,
             image_url,
-            members_area_enabled
+            members_area_enabled,
+            user_id
           )
         `)
         .eq("buyer_id", buyer.id)
@@ -144,13 +146,51 @@ serve(async (req) => {
         );
       }
 
-      // Group by product to remove duplicates (from bumps)
+      // 2. Buscar produtos onde o produtor (pelo email) é o dono
+      // Primeiro, buscar o user_id do produtor pelo email do buyer
+      const { data: producerProfile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", buyer.email)
+        .single();
+
+      let ownProducts: any[] = [];
+      if (producerProfile) {
+        const { data: products } = await supabase
+          .from("products")
+          .select("id, name, description, image_url, members_area_enabled, user_id")
+          .eq("user_id", producerProfile.id)
+          .eq("members_area_enabled", true);
+        
+        if (products) {
+          ownProducts = products.map(p => ({
+            id: `own_${p.id}`,
+            product_id: p.id,
+            granted_at: null,
+            expires_at: null,
+            is_active: true,
+            access_type: "owner",
+            product: p,
+          }));
+        }
+      }
+
+      // 3. Unificar e remover duplicatas (prioriza owner se existir)
       const uniqueProducts = new Map();
+      
+      // Primeiro adiciona os produtos próprios
+      for (const item of ownProducts) {
+        uniqueProducts.set(item.product_id, item);
+      }
+      
+      // Depois adiciona os comprados (só se não existir)
       for (const item of access || []) {
         if (!uniqueProducts.has(item.product_id)) {
           uniqueProducts.set(item.product_id, item);
         }
       }
+
+      console.log(`[buyer-orders] Access for ${buyer.email}: ${uniqueProducts.size} products (${ownProducts.length} own)`);
 
       return new Response(
         JSON.stringify({ access: Array.from(uniqueProducts.values()) }),

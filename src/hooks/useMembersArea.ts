@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { ContentType } from "@/modules/members-area/types";
 
+const SUPABASE_URL = "https://wivbtmtgpsxupfjwwovf.supabase.co";
+
 export interface MemberModule {
   id: string;
   product_id: string;
@@ -128,6 +130,40 @@ export function useMembersArea(productId: string | undefined): UseMembersAreaRet
         .eq("id", productId);
 
       if (error) throw error;
+
+      // Se está ativando a área de membros, criar acesso automático para o produtor
+      if (enabled) {
+        try {
+          // Buscar dados do produto para obter o user_id do produtor
+          const { data: product } = await supabase
+            .from("products")
+            .select("user_id")
+            .eq("id", productId)
+            .single();
+
+          if (product?.user_id) {
+            // Buscar o usuário logado atualmente (que é o produtor)
+            const { data: { user: currentUser } } = await supabase.auth.getUser();
+            
+            if (currentUser?.email) {
+              // Criar buyer_profile e acesso via edge function
+              await fetch(`${SUPABASE_URL}/functions/v1/buyer-auth/ensure-producer-access`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  email: currentUser.email,
+                  productId: productId,
+                  producerUserId: product.user_id,
+                }),
+              });
+              console.log("[useMembersArea] Producer access ensured for:", currentUser.email);
+            }
+          }
+        } catch (accessError) {
+          console.error("[useMembersArea] Error ensuring producer access:", accessError);
+          // Não falha a operação principal se o acesso automático falhar
+        }
+      }
 
       setSettings({ enabled, settings: newSettings || settings.settings });
       toast.success("Configurações atualizadas!");
