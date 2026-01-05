@@ -1,5 +1,5 @@
 /**
- * AddModuleDialogNetflix - Dialog estilo Cakto com tabs (Geral/Cover)
+ * AddModuleDialogNetflix - Dialog estilo Cakto (sem tabs)
  * Layout com formulário à esquerda e preview GIGANTE à direita
  */
 
@@ -15,8 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ImageUploadZoneVertical } from "../ImageUploadZoneVertical";
+import { ImageUploadZoneCompact } from "../ImageUploadZoneCompact";
 import { ModuleCardPreview } from "../ModuleCardPreview";
 import { ImageCropDialog } from "./ImageCropDialog";
 
@@ -38,7 +37,6 @@ export function AddModuleDialogNetflix({
   const [croppedImageFile, setCroppedImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isCropOpen, setIsCropOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("geral");
 
   // Reset form when dialog closes
   useEffect(() => {
@@ -48,7 +46,6 @@ export function AddModuleDialogNetflix({
       setCroppedImageFile(null);
       setImagePreview(null);
       setIsCropOpen(false);
-      setActiveTab("geral");
     }
   }, [open]);
 
@@ -109,54 +106,39 @@ export function AddModuleDialogNetflix({
 
             {/* Content Grid - Responsive: stacked on mobile, side-by-side on lg+ */}
             <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr),400px] flex-1 min-h-0 overflow-auto">
-              {/* Left Side - Tabs with constrained width */}
+              {/* Left Side - Form fields */}
               <div className="px-6 pb-6">
-                <div className="max-w-[520px]">
-                  <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 h-11 mb-6 bg-muted/50">
-                      <TabsTrigger 
-                        value="geral" 
-                        className="text-sm font-medium h-9 data-[state=active]:bg-background data-[state=active]:shadow-sm"
-                      >
-                        Geral
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        value="cover" 
-                        className="text-sm font-medium h-9 data-[state=active]:bg-background data-[state=active]:shadow-sm"
-                      >
-                        Cover
-                      </TabsTrigger>
-                    </TabsList>
+                <div className="max-w-[520px] space-y-6">
+                  {/* Module Name Field */}
+                  <div className="space-y-2">
+                    <Label htmlFor="module-title" className="text-sm font-medium">
+                      Nome do Módulo
+                    </Label>
+                    <Input
+                      id="module-title"
+                      placeholder="Ex: Módulo 1"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      className="h-11 text-sm"
+                      autoFocus
+                    />
+                  </div>
 
-                    {/* Tab Geral - Module Name */}
-                    <TabsContent value="geral" className="mt-0">
-                      <div className="space-y-2">
-                        <Label htmlFor="module-title" className="text-sm font-medium">
-                          Nome do Módulo
-                        </Label>
-                        <Input
-                          id="module-title"
-                          placeholder="Ex: Módulo 1"
-                          value={title}
-                          onChange={(e) => setTitle(e.target.value)}
-                          className="h-11 text-sm"
-                          autoFocus
-                        />
-                      </div>
-                    </TabsContent>
-
-                    {/* Tab Cover - Image Upload (Vertical) */}
-                    <TabsContent value="cover" className="mt-0">
-                      <div className="flex justify-center py-4">
-                        <ImageUploadZoneVertical
-                          imagePreview={imagePreview}
-                          onImageSelect={handleImageSelect}
-                          onCropClick={originalImageFile ? handleReCrop : undefined}
-                          maxSizeMB={10}
-                        />
-                      </div>
-                    </TabsContent>
-                  </Tabs>
+                  {/* Image Upload Field */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">
+                      Imagem do Módulo
+                    </Label>
+                    <ImageUploadZoneCompact
+                      imagePreview={imagePreview}
+                      onImageSelect={handleImageSelect}
+                      onCropClick={originalImageFile ? handleReCrop : undefined}
+                      maxSizeMB={10}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Tamanho recomendado: 400 x 600 pixels (proporção 2:3)
+                    </p>
+                  </div>
                 </div>
               </div>
 
