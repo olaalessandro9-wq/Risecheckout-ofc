@@ -1,18 +1,21 @@
 /**
- * StudentsTab - Aba de gestão de alunos e grupos
+ * StudentsTab - Aba de gestão de alunos
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { Users, UserPlus, FolderOpen, Loader2 } from "lucide-react";
+import { Users, UserPlus, Filter, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import type { MemberGroup, BuyerWithGroups, StudentStats } from "@/modules/members-area/types";
-
-// Componentes inline simplificados (evita dependências circulares)
+import type { MemberGroup, BuyerWithGroups, StudentStats, StudentFilters } from "@/modules/members-area/types";
 import { StudentListView } from "./students/StudentListView";
-import { GroupManagerView } from "./students/GroupManagerView";
+import { StudentFiltersPanel } from "./students/StudentFiltersPanel";
 
 // Helper functions to avoid TypeScript type instantiation depth issues
 async function fetchModuleIds(productId: string): Promise<string[]> {
@@ -49,7 +52,6 @@ interface StudentsTabProps {
 }
 
 export function StudentsTab({ productId }: StudentsTabProps) {
-  const [activeView, setActiveView] = useState<"students" | "groups">("students");
   const [isLoading, setIsLoading] = useState(true);
   const [students, setStudents] = useState<BuyerWithGroups[]>([]);
   const [groups, setGroups] = useState<MemberGroup[]>([]);
@@ -60,6 +62,11 @@ export function StudentsTab({ productId }: StudentsTabProps) {
     averageProgress: 0,
     completionRate: 0,
   });
+  const [filters, setFilters] = useState<StudentFilters>({
+    groupId: null,
+    accessType: null,
+  });
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const limit = 20;
 
   const fetchGroups = useCallback(async () => {
@@ -84,7 +91,7 @@ export function StudentsTab({ productId }: StudentsTabProps) {
     setIsLoading(true);
     
     try {
-      // Fetch buyers with access to this product
+      // Base query for buyers with access
       let query = supabase
         .from('buyer_product_access')
         .select(`
@@ -95,15 +102,22 @@ export function StudentsTab({ productId }: StudentsTabProps) {
           buyer_profiles!inner(id, name, email, last_login_at)
         `, { count: 'exact' })
         .eq('product_id', productId)
-        .eq('is_active', true)
-        .range((page - 1) * limit, page * limit - 1);
+        .eq('is_active', true);
+
+      // Apply access type filter
+      if (filters.accessType) {
+        query = query.eq('access_type', filters.accessType);
+      }
+
+      // Apply pagination
+      query = query.range((page - 1) * limit, page * limit - 1);
 
       const { data: accessData, count, error } = await query;
 
       if (error) throw error;
 
       // Get group assignments for these buyers
-      const buyerIds = accessData?.map(a => a.buyer_id) || [];
+      let buyerIds = accessData?.map(a => a.buyer_id) || [];
       
       let groupsData: any[] = [];
       if (buyerIds.length > 0) {
@@ -113,6 +127,14 @@ export function StudentsTab({ productId }: StudentsTabProps) {
           .in('buyer_id', buyerIds)
           .eq('is_active', true);
         groupsData = bg || [];
+      }
+
+      // Filter by group if set
+      if (filters.groupId && buyerIds.length > 0) {
+        const buyersInGroup = groupsData
+          .filter(g => g.group_id === filters.groupId)
+          .map(g => g.buyer_id);
+        buyerIds = buyerIds.filter(id => buyersInGroup.includes(id));
       }
 
       // Get module IDs and content IDs using helper functions
@@ -137,14 +159,13 @@ export function StudentsTab({ productId }: StudentsTabProps) {
       });
 
       // Map to BuyerWithGroups format
-      const studentsWithGroups: BuyerWithGroups[] = (accessData || []).map(access => {
+      let studentsWithGroups: BuyerWithGroups[] = (accessData || []).map(access => {
         const profile = access.buyer_profiles as any;
         const buyerProgress = buyerProgressMap[access.buyer_id];
         
         // Calculate average progress for this buyer
         let progressPercent = 0;
         if (totalContents > 0 && buyerProgress) {
-          // Progress is (sum of all content progress) / total contents
           progressPercent = Math.round(buyerProgress.totalProgress / totalContents);
         }
 
@@ -160,8 +181,15 @@ export function StudentsTab({ productId }: StudentsTabProps) {
         };
       });
 
+      // Filter by group after mapping
+      if (filters.groupId) {
+        studentsWithGroups = studentsWithGroups.filter(s => 
+          s.groups.some(g => g.group_id === filters.groupId)
+        );
+      }
+
       // Calculate stats
-      const totalStudents = count || 0;
+      const totalStudents = filters.groupId ? studentsWithGroups.length : (count || 0);
       let sumProgress = 0;
       let completedCount = 0;
 
@@ -182,14 +210,14 @@ export function StudentsTab({ productId }: StudentsTabProps) {
       });
 
       setStudents(studentsWithGroups);
-      setTotal(count || 0);
+      setTotal(filters.groupId ? studentsWithGroups.length : (count || 0));
     } catch (error) {
       console.error('Error fetching students:', error);
       toast.error('Erro ao carregar alunos');
     } finally {
       setIsLoading(false);
     }
-  }, [productId, page, limit]);
+  }, [productId, page, limit, filters]);
 
   useEffect(() => {
     if (productId) {
@@ -203,15 +231,52 @@ export function StudentsTab({ productId }: StudentsTabProps) {
     fetchStudents(query);
   };
 
+  const handleFiltersChange = (newFilters: StudentFilters) => {
+    setFilters(newFilters);
+    setPage(1);
+  };
+
+  const handleExport = (format: 'csv' | 'xls') => {
+    if (students.length === 0) {
+      toast.error('Nenhum aluno para exportar');
+      return;
+    }
+
+    const headers = ['Nome', 'Email', 'Último Acesso', 'Progresso (%)', 'Tipo de Acesso'];
+    const rows = students.map(s => [
+      s.buyer_name || 'Sem nome',
+      s.buyer_email,
+      s.last_access_at ? new Date(s.last_access_at).toLocaleDateString('pt-BR') : '—',
+      String(s.progress_percent ?? 0),
+      s.access_type === 'owner' ? 'Administrador' : 
+        s.access_type === 'manual' ? 'Acesso Manual' : 'Aluno',
+    ]);
+
+    const separator = format === 'csv' ? ',' : '\t';
+    const content = [headers.join(separator), ...rows.map(r => r.join(separator))].join('\n');
+    const mimeType = format === 'csv' ? 'text/csv' : 'application/vnd.ms-excel';
+    const extension = format === 'csv' ? 'csv' : 'xls';
+
+    const blob = new Blob(['\ufeff' + content], { type: `${mimeType};charset=utf-8;` });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `alunos_${new Date().toISOString().split('T')[0]}.${extension}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast.success(`Exportado como ${extension.toUpperCase()}`);
+  };
+
   const handleAssignGroups = async (buyerId: string, groupIds: string[]) => {
     try {
-      // Remove all current groups
       await supabase
         .from('buyer_groups')
         .delete()
         .eq('buyer_id', buyerId);
 
-      // Add new groups
       if (groupIds.length > 0) {
         const inserts = groupIds.map(groupId => ({
           buyer_id: buyerId,
@@ -247,63 +312,7 @@ export function StudentsTab({ productId }: StudentsTabProps) {
     }
   };
 
-  const handleCreateGroup = async (data: { name: string; description?: string; is_default?: boolean }) => {
-    if (!productId) return;
-    
-    try {
-      const { error } = await supabase.from('product_member_groups').insert({
-        product_id: productId,
-        name: data.name,
-        description: data.description || null,
-        is_default: data.is_default || false,
-        position: groups.length,
-      });
-
-      if (error) throw error;
-      toast.success('Grupo criado');
-      fetchGroups();
-    } catch (error) {
-      console.error('Error creating group:', error);
-      toast.error('Erro ao criar grupo');
-    }
-  };
-
-  const handleUpdateGroup = async (groupId: string, data: { name?: string; description?: string; is_default?: boolean }) => {
-    try {
-      const { error } = await supabase
-        .from('product_member_groups')
-        .update(data)
-        .eq('id', groupId);
-
-      if (error) throw error;
-      toast.success('Grupo atualizado');
-      fetchGroups();
-    } catch (error) {
-      console.error('Error updating group:', error);
-      toast.error('Erro ao atualizar grupo');
-    }
-  };
-
-  const handleDeleteGroup = async (groupId: string) => {
-    try {
-      const { error } = await supabase
-        .from('product_member_groups')
-        .delete()
-        .eq('id', groupId);
-
-      if (error) throw error;
-      toast.success('Grupo excluído');
-      fetchGroups();
-    } catch (error) {
-      console.error('Error deleting group:', error);
-      toast.error('Erro ao excluir grupo');
-    }
-  };
-
-  const handleManagePermissions = (groupId: string) => {
-    // TODO: Open permissions modal
-    toast.info('Editor de permissões em desenvolvimento');
-  };
+  const hasActiveFilters = filters.groupId !== null || filters.accessType !== null;
 
   if (!productId) {
     return (
@@ -315,54 +324,75 @@ export function StudentsTab({ productId }: StudentsTabProps) {
 
   return (
     <div className="space-y-6">
-      <Tabs value={activeView} onValueChange={(v) => setActiveView(v as any)}>
-        <div className="flex items-center justify-between">
-          <TabsList>
-            <TabsTrigger value="students" className="gap-2">
-              <Users className="h-4 w-4" />
-              Lista de Alunos
-            </TabsTrigger>
-            <TabsTrigger value="groups" className="gap-2">
-              <FolderOpen className="h-4 w-4" />
-              Grupos de Acesso
-            </TabsTrigger>
-          </TabsList>
+      {/* Header Actions */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Users className="h-5 w-5" />
+          Lista de Alunos
+        </h2>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={hasActiveFilters ? "default" : "outline"}
+            size="sm"
+            className="gap-2"
+            onClick={() => setIsFiltersOpen(true)}
+          >
+            <Filter className="h-4 w-4" />
+            Filtros
+            {hasActiveFilters && (
+              <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-background text-foreground">
+                {(filters.groupId ? 1 : 0) + (filters.accessType ? 1 : 0)}
+              </span>
+            )}
+          </Button>
 
-          {activeView === "students" && (
-            <Button size="sm" className="gap-2">
-              <UserPlus className="h-4 w-4" />
-              Adicionar Aluno
-            </Button>
-          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Download className="h-4 w-4" />
+                Exportar
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleExport('xls')}>
+                Exportar XLS
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('csv')}>
+                Exportar CSV
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button size="sm" className="gap-2">
+            <UserPlus className="h-4 w-4" />
+            Adicionar Aluno
+          </Button>
         </div>
+      </div>
 
-        <TabsContent value="students" className="mt-6">
-          <StudentListView
-            students={students}
-            groups={groups}
-            total={total}
-            page={page}
-            limit={limit}
-            isLoading={isLoading}
-            stats={stats}
-            onSearch={handleSearch}
-            onPageChange={setPage}
-            onAssignGroups={handleAssignGroups}
-            onRevokeAccess={handleRevokeAccess}
-          />
-        </TabsContent>
+      {/* Student List */}
+      <StudentListView
+        students={students}
+        groups={groups}
+        total={total}
+        page={page}
+        limit={limit}
+        isLoading={isLoading}
+        stats={stats}
+        onSearch={handleSearch}
+        onPageChange={setPage}
+        onAssignGroups={handleAssignGroups}
+        onRevokeAccess={handleRevokeAccess}
+      />
 
-        <TabsContent value="groups" className="mt-6">
-          <GroupManagerView
-            groups={groups}
-            isLoading={isLoading}
-            onCreateGroup={handleCreateGroup}
-            onUpdateGroup={handleUpdateGroup}
-            onDeleteGroup={handleDeleteGroup}
-            onManagePermissions={handleManagePermissions}
-          />
-        </TabsContent>
-      </Tabs>
+      {/* Filters Panel */}
+      <StudentFiltersPanel
+        isOpen={isFiltersOpen}
+        onClose={() => setIsFiltersOpen(false)}
+        groups={groups}
+        filters={filters}
+        onFiltersChange={handleFiltersChange}
+      />
     </div>
   );
 }
