@@ -4,9 +4,7 @@ import { useBuyerAuth } from "@/hooks/useBuyerAuth";
 import { useBuyerOrders } from "@/hooks/useBuyerOrders";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
 import { 
   Loader2, 
   Search,
@@ -123,75 +121,44 @@ export default function BuyerDashboard() {
         </Card>
       )}
 
-      {/* Course Grid - Kiwify/Cakto Style */}
+      {/* Course Grid - Kiwify Style */}
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {filteredProducts.map((item) => {
-          // TODO: Calculate actual progress from buyer_content_progress
-          const progress = 0;
-
-          return (
-            <Link 
-              key={item.id} 
-              to={`/minha-conta/produto/${item.product_id}`}
-              className="group"
-            >
-              <Card className="overflow-hidden border-0 shadow-md hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02]">
-                {/* Course Image */}
-                <div className="aspect-video bg-gradient-to-br from-muted to-muted/50 overflow-hidden relative">
-                  {item.product?.image_url ? (
-                    <img
-                      src={item.product.image_url}
-                      alt={item.product.name}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Play className="h-12 w-12 text-muted-foreground/30" />
-                    </div>
-                  )}
-                  
-                  {/* Hover Overlay */}
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <Button size="sm" variant="secondary" className="gap-2">
-                      <Play className="h-4 w-4" />
-                      Acessar
-                    </Button>
-                  </div>
+        {filteredProducts.map((item) => (
+          <Card 
+            key={item.id} 
+            className="overflow-hidden border-0 shadow-md hover:shadow-xl transition-all duration-300 group"
+          >
+            {/* Course Image */}
+            <div className="aspect-video bg-gradient-to-br from-zinc-800 to-zinc-900 overflow-hidden">
+              {item.product?.image_url ? (
+                <img
+                  src={item.product.image_url}
+                  alt={item.product.name}
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <Play className="h-16 w-16 text-muted-foreground/30" />
                 </div>
+              )}
+            </div>
 
-                {/* Course Info */}
-                <CardContent className="p-4 space-y-3">
-                  <div>
-                    <h3 className="font-semibold line-clamp-2 group-hover:text-primary transition-colors">
-                      {item.product?.name}
-                    </h3>
-                  </div>
+            {/* Course Info */}
+            <CardContent className="p-4 space-y-4">
+              <h3 className="font-semibold text-base line-clamp-2 min-h-[2.5rem]">
+                {item.product?.name}
+              </h3>
 
-                  {/* Progress Bar */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">Progresso</span>
-                      <span className="font-medium">{progress}%</span>
-                    </div>
-                    <Progress value={progress} className="h-1.5" />
-                  </div>
-
-                  {/* Status Badge */}
-                  <div className="flex items-center justify-between">
-                    <Badge variant={item.is_active ? "default" : "secondary"} className="text-xs">
-                      {item.is_active ? "Ativo" : "Expirado"}
-                    </Badge>
-                    {item.expires_at && (
-                      <span className="text-xs text-muted-foreground">
-                        Expira em {new Date(item.expires_at).toLocaleDateString("pt-BR")}
-                      </span>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          );
-        })}
+              {/* Começar Button - Kiwify Style */}
+              <Link to={`/minha-conta/produto/${item.product_id}`} className="block">
+                <Button className="w-full gap-2" size="lg">
+                  Começar
+                  <Play className="h-4 w-4" />
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </div>
   );
