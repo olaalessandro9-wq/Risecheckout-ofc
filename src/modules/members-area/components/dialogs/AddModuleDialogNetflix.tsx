@@ -143,7 +143,7 @@ export function AddModuleDialogNetflix({
               </div>
 
               {/* Right Side - GIGANTE Preview Area (single block) */}
-              <div className="flex flex-col bg-muted/30 lg:border-l border-t lg:border-t-0 border-border min-h-[480px]">
+              <div className="flex flex-col bg-muted/30 lg:border-l border-t lg:border-t-0 border-border">
                 <Label className="px-6 pt-5 pb-3 text-sm text-muted-foreground shrink-0">
                   Pré-visualização
                 </Label>
