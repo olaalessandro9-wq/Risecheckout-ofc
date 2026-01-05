@@ -54,7 +54,7 @@ export default function StudentShell() {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     await logout();
-    navigate("/minha-conta");
+    navigate("/auth");
   };
 
   const handleBackToProducer = () => {
@@ -104,7 +104,7 @@ export default function StudentShell() {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
-                    onClick={() => navigate("/minha-conta/perfil")} 
+                    onClick={() => navigate("/dashboard/perfil")} 
                     className="cursor-pointer"
                   >
                     <User className="mr-2 h-4 w-4" />
