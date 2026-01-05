@@ -215,7 +215,7 @@ export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
         onEditModule={(module) => setEditingModule({
           id: module.id,
           title: module.title,
-          cover_image_url: (module as any).cover_image_url || null,
+          cover_image_url: module.cover_image_url,
         })}
         onDeleteModule={handleDeleteModule}
         onAddContent={handleOpenAddContent}
