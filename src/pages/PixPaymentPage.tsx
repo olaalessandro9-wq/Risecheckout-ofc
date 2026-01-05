@@ -605,12 +605,6 @@ export const PixPaymentPage = () => {
                 </div>
               </div>
 
-              {/* Texto informativo sobre verificação automática */}
-              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800 text-center">
-                  🔄 Verificando pagamento automaticamente a cada 5 segundos...
-                </p>
-              </div>
 
               {/* Botão Verificar agora (opcional) */}
               <Button
