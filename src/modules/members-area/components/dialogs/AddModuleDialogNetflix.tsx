@@ -151,7 +151,7 @@ export function AddModuleDialogNetflix({
                   <ModuleCardPreview
                     imageUrl={imagePreview}
                     lessonsCount={0}
-                    size="lg"
+                    size="xl"
                   />
                 </div>
               </div>
