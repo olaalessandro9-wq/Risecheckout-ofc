@@ -147,32 +147,41 @@ serve(async (req) => {
       }
 
       // 2. Buscar produtos onde o produtor (pelo email) é o dono
-      // Primeiro, buscar o user_id do produtor pelo email do buyer
-      const { data: producerProfile } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("email", buyer.email)
-        .single();
+      // Usar RPC para buscar user_id a partir do email (auth.users não é acessível diretamente)
+      const { data: producerId, error: rpcError } = await supabase
+        .rpc('get_user_id_by_email', { user_email: buyer.email });
+
+      if (rpcError) {
+        console.log(`[buyer-orders] RPC error getting producer id for ${buyer.email}:`, rpcError);
+      }
 
       let ownProducts: any[] = [];
-      if (producerProfile) {
-        const { data: products } = await supabase
+      if (producerId) {
+        console.log(`[buyer-orders] Found producer id ${producerId} for ${buyer.email}`);
+        const { data: products, error: productsError } = await supabase
           .from("products")
           .select("id, name, description, image_url, members_area_enabled, user_id")
-          .eq("user_id", producerProfile.id)
+          .eq("user_id", producerId)
           .eq("members_area_enabled", true);
         
-        if (products) {
+        if (productsError) {
+          console.log(`[buyer-orders] Error fetching producer products:`, productsError);
+        }
+
+        if (products && products.length > 0) {
+          console.log(`[buyer-orders] Found ${products.length} products owned by producer`);
           ownProducts = products.map(p => ({
             id: `own_${p.id}`,
             product_id: p.id,
             granted_at: null,
             expires_at: null,
             is_active: true,
-            access_type: "owner",
+            access_type: "producer",
             product: p,
           }));
         }
+      } else {
+        console.log(`[buyer-orders] No producer id found for ${buyer.email}`);
       }
 
       // 3. Unificar e remover duplicatas (prioriza owner se existir)
@@ -211,7 +220,7 @@ serve(async (req) => {
         );
       }
 
-      // Check if buyer has access to this product
+      // Check if buyer has access to this product (via purchase)
       const { data: hasAccess } = await supabase
         .from("buyer_product_access")
         .select("id")
@@ -221,12 +230,31 @@ serve(async (req) => {
         .limit(1)
         .single();
 
+      // If no direct access, check if buyer is the product owner
+      let isOwner = false;
       if (!hasAccess) {
+        const { data: producerId } = await supabase
+          .rpc('get_user_id_by_email', { user_email: buyer.email });
+        
+        if (producerId) {
+          const { data: productData } = await supabase
+            .from("products")
+            .select("user_id")
+            .eq("id", productId)
+            .single();
+          
+          isOwner = productData?.user_id === producerId;
+        }
+      }
+
+      if (!hasAccess && !isOwner) {
         return new Response(
           JSON.stringify({ error: "Você não tem acesso a este produto" }),
           { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+
+      console.log(`[buyer-orders] Content access for ${buyer.email} to product ${productId}: hasAccess=${!!hasAccess}, isOwner=${isOwner}`);
 
       // Get product info
       const { data: product } = await supabase
