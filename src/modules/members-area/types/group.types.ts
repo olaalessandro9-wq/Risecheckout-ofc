@@ -46,7 +46,17 @@ export interface BuyerWithGroups {
   buyer_name: string | null;
   buyer_email: string;
   groups: BuyerGroup[];
-  access_type?: string; // 'owner' | 'purchase' | etc
+  access_type?: string; // 'owner' | 'purchase' | 'manual' | 'affiliate'
+  last_access_at?: string | null;
+  progress_percent?: number;
+  status?: 'active' | 'inactive';
+}
+
+/** Statistics for student list */
+export interface StudentStats {
+  totalStudents: number;
+  averageProgress: number;
+  completionRate: number;
 }
 
 /** Input for creating a group */
