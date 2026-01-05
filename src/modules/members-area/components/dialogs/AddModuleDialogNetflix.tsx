@@ -144,10 +144,10 @@ export function AddModuleDialogNetflix({
 
               {/* Right Side - Preview Area */}
               <div className="flex flex-col bg-muted/30 lg:border-l border-t lg:border-t-0 border-border">
-                <Label className="px-6 pt-4 pb-2 text-sm text-muted-foreground shrink-0">
+                <Label className="px-6 pt-2 pb-1 text-sm text-muted-foreground shrink-0">
                   Pré-visualização
                 </Label>
-                <div className="flex-1 flex items-center justify-center p-4 pb-6">
+                <div className="flex-1 flex items-center justify-center px-4 py-2">
                   <ModuleCardPreview
                     imageUrl={imagePreview}
                     lessonsCount={0}
