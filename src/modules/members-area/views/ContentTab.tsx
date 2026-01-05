@@ -8,13 +8,18 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   ModulesList,
-  EditModuleDialog,
   AddContentDialog,
   EditContentDialog,
 } from "@/modules/products/tabs/members-area/components";
-import { AddModuleDialogNetflix } from "@/modules/members-area/components/dialogs";
-import type { EditingModule, EditingContent } from "@/modules/products/tabs/members-area/types";
+import { AddModuleDialogNetflix, EditModuleDialogNetflix } from "@/modules/members-area/components/dialogs";
+import type { EditingContent } from "@/modules/products/tabs/members-area/types";
 import type { UseMembersAreaReturn } from "@/hooks/useMembersArea";
+
+interface EditingModuleData {
+  id: string;
+  title: string;
+  cover_image_url: string | null;
+}
 
 interface ContentTabProps {
   membersAreaData: UseMembersAreaReturn;
@@ -37,7 +42,7 @@ export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
   const [isAddModuleOpen, setIsAddModuleOpen] = useState(false);
   const [isAddContentOpen, setIsAddContentOpen] = useState(false);
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
-  const [editingModule, setEditingModule] = useState<EditingModule | null>(null);
+  const [editingModule, setEditingModule] = useState<EditingModuleData | null>(null);
   const [editingContent, setEditingContent] = useState<EditingContent | null>(null);
   const [allExpanded, setAllExpanded] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -82,12 +87,44 @@ export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
     setIsAddModuleOpen(false);
   };
 
-  const handleUpdateModule = async () => {
-    if (!editingModule || !editingModule.title.trim()) return;
-    await updateModule(editingModule.id, { 
-      title: editingModule.title, 
-      description: editingModule.description || null 
-    });
+  const handleUpdateModule = async (id: string, title: string, imageFile: File | null, keepExistingImage: boolean) => {
+    let coverImageUrl: string | undefined;
+
+    // Upload new image if provided
+    if (imageFile && productId) {
+      setIsUploading(true);
+      try {
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `${crypto.randomUUID()}.${fileExt}`;
+        const filePath = `${productId}/modules/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('product-images')
+          .upload(filePath, imageFile);
+
+        if (uploadError) {
+          console.error("[ContentTab] Upload error:", uploadError);
+        } else {
+          const { data: { publicUrl } } = supabase.storage
+            .from('product-images')
+            .getPublicUrl(filePath);
+          coverImageUrl = publicUrl;
+        }
+      } catch (error) {
+        console.error("[ContentTab] Error uploading image:", error);
+      } finally {
+        setIsUploading(false);
+      }
+    }
+
+    // Build update object
+    const updateData: { title: string; cover_image_url?: string | null } = { title };
+    if (!keepExistingImage) {
+      // User selected a new image (or removed the image)
+      updateData.cover_image_url = coverImageUrl || null;
+    }
+
+    await updateModule(id, updateData);
     setEditingModule(null);
   };
 
@@ -175,7 +212,11 @@ export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
       <ModulesList
         modules={modules}
         onAddModule={() => setIsAddModuleOpen(true)}
-        onEditModule={setEditingModule}
+        onEditModule={(module) => setEditingModule({
+          id: module.id,
+          title: module.title,
+          cover_image_url: (module as any).cover_image_url || null,
+        })}
         onDeleteModule={handleDeleteModule}
         onAddContent={handleOpenAddContent}
         onEditContent={(content) => setEditingContent({
@@ -196,11 +237,11 @@ export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
         isSaving={isSaving || isUploading}
       />
 
-      <EditModuleDialog
+      <EditModuleDialogNetflix
         module={editingModule}
-        onModuleChange={setEditingModule}
+        onOpenChange={(open) => !open && setEditingModule(null)}
         onSubmit={handleUpdateModule}
-        isSaving={isSaving}
+        isSaving={isSaving || isUploading}
       />
 
       <AddContentDialog
