@@ -175,40 +175,67 @@ Deno.serve(async (req) => {
         );
       }
 
-      case "delete": {
-        if (!group_id) {
-          return new Response(
-            JSON.stringify({ error: "group_id required" }),
-            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-
-        // Verificar se não é o grupo default
-        const { data: group } = await supabase
-          .from("product_member_groups")
-          .select("is_default")
-          .eq("id", group_id)
-          .single();
-
-        if (group?.is_default) {
-          return new Response(
-            JSON.stringify({ error: "Cannot delete default group" }),
-            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-
-        const { error } = await supabase
-          .from("product_member_groups")
-          .delete()
-          .eq("id", group_id);
-
-        if (error) throw error;
-
+    case "delete": {
+      if (!group_id) {
         return new Response(
-          JSON.stringify({ success: true }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({ error: "group_id required" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+
+      // Verificar se não é o grupo default e obter product_id
+      const { data: group, error: fetchError } = await supabase
+        .from("product_member_groups")
+        .select("is_default, product_id")
+        .eq("id", group_id)
+        .single();
+
+      if (fetchError) {
+        return new Response(
+          JSON.stringify({ error: fetchError.message }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (group?.is_default) {
+        return new Response(
+          JSON.stringify({ error: "Não é possível excluir o grupo padrão" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Verificar se é o último grupo (não permitir exclusão)
+      const { count, error: countError } = await supabase
+        .from("product_member_groups")
+        .select("id", { count: 'exact', head: true })
+        .eq("product_id", group.product_id);
+
+      if (countError) {
+        return new Response(
+          JSON.stringify({ error: countError.message }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (count !== null && count <= 1) {
+        return new Response(
+          JSON.stringify({ error: "Não é possível excluir o único grupo. Produtos devem ter pelo menos 1 grupo." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { error } = await supabase
+        .from("product_member_groups")
+        .delete()
+        .eq("id", group_id);
+
+      if (error) throw error;
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
       case "permissions": {
         if (!group_id || !data?.permissions) {
