@@ -66,6 +66,7 @@ export function StudentsTab({ productId }: StudentsTabProps) {
   const [filters, setFilters] = useState<StudentFilters>({
     groupId: null,
     accessType: null,
+    status: null,
   });
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
@@ -135,7 +136,7 @@ export function StudentsTab({ productId }: StudentsTabProps) {
           buyer_id,
           granted_at,
           access_type,
-          buyer_profiles!inner(id, name, email, last_login_at)
+          buyer_profiles!inner(id, name, email, last_login_at, password_hash)
         `, { count: 'exact' })
         .eq('product_id', productId)
         .eq('is_active', true);
@@ -205,15 +206,22 @@ export function StudentsTab({ productId }: StudentsTabProps) {
           progressPercent = Math.round(buyerProgress.totalProgress / totalContents);
         }
 
+        // Determine status based on password_hash
+        const isPending = !profile?.password_hash || profile.password_hash === 'PENDING_PASSWORD_SETUP';
+        
+        // Map access_type for display
+        const accessType = access.access_type as BuyerWithGroups['access_type'];
+
         return {
           buyer_id: access.buyer_id,
           buyer_email: profile?.email || '',
           buyer_name: profile?.name || null,
           groups: groupsData.filter(g => g.buyer_id === access.buyer_id),
-          access_type: 'student', // All regular access is "student"
+          access_type: accessType,
           last_access_at: profile?.last_login_at || null,
           progress_percent: progressPercent,
-          status: 'active' as const,
+          status: isPending ? 'pending' : 'active',
+          invited_at: access.granted_at || null,
         };
       });
 
@@ -224,12 +232,17 @@ export function StudentsTab({ productId }: StudentsTabProps) {
         );
       }
 
+      // Filter by status
+      if (filters.status && filters.status !== 'all') {
+        studentsWithGroups = studentsWithGroups.filter(s => s.status === filters.status);
+      }
+
       // 4. Combine producer + students
       let allStudents: BuyerWithGroups[] = [];
       
       // Include producer only if no filter or filter matches 'producer'
       const shouldIncludeProducer = !filters.accessType || filters.accessType === 'producer';
-      const shouldIncludeStudents = !filters.accessType || filters.accessType === 'student';
+      const shouldIncludeStudents = !filters.accessType || filters.accessType !== 'producer';
 
       if (producerStudent && shouldIncludeProducer && !filters.groupId) {
         allStudents.push(producerStudent);
@@ -362,7 +375,7 @@ export function StudentsTab({ productId }: StudentsTabProps) {
     }
   };
 
-  const hasActiveFilters = filters.groupId !== null || filters.accessType !== null;
+  const hasActiveFilters = filters.groupId !== null || filters.accessType !== null || filters.status !== null;
 
   if (!productId) {
     return (
@@ -391,7 +404,7 @@ export function StudentsTab({ productId }: StudentsTabProps) {
             Filtros
             {hasActiveFilters && (
               <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-background text-foreground">
-                {(filters.groupId ? 1 : 0) + (filters.accessType ? 1 : 0)}
+                {(filters.groupId ? 1 : 0) + (filters.accessType ? 1 : 0) + (filters.status ? 1 : 0)}
               </span>
             )}
           </Button>

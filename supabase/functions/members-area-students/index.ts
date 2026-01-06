@@ -567,7 +567,7 @@ Deno.serve(async (req) => {
             product_id,
             order_id: "00000000-0000-0000-0000-000000000000", // Manual grant
             is_active: true,
-            access_type: "manual",
+            access_type: "invite",
             granted_at: new Date().toISOString(),
           }, {
             onConflict: "buyer_id,product_id,order_id",

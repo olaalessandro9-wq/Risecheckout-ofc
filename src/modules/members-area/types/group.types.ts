@@ -46,10 +46,11 @@ export interface BuyerWithGroups {
   buyer_name: string | null;
   buyer_email: string;
   groups: BuyerGroup[];
-  access_type?: string; // 'owner' | 'purchase' | 'manual' | 'affiliate'
+  access_type?: 'producer' | 'invite' | 'purchase' | 'lifetime' | 'subscription' | 'limited';
   last_access_at?: string | null;
   progress_percent?: number;
-  status?: 'active' | 'inactive';
+  status?: 'pending' | 'active';
+  invited_at?: string | null;
 }
 
 /** Statistics for student list */
@@ -62,7 +63,8 @@ export interface StudentStats {
 /** Filters for student list */
 export interface StudentFilters {
   groupId: string | null;
-  accessType: 'all' | 'producer' | 'student' | null;
+  accessType: 'all' | 'producer' | 'invite' | 'purchase' | null;
+  status: 'all' | 'pending' | 'active' | null;
 }
 
 /** Input for creating a group */
