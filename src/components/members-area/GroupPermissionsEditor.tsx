@@ -56,9 +56,9 @@ export function GroupPermissionsEditor({
         permMap[m.id] = false;
       });
 
-      // Apply existing permissions
+      // Apply existing permissions (handle both has_access and can_access from edge function)
       permissions.forEach(p => {
-        permMap[p.module_id] = p.has_access;
+        permMap[p.module_id] = p.has_access ?? p.can_access ?? false;
       });
 
       setLocalPermissions(permMap);

@@ -42,6 +42,18 @@ async function invokeGroupsFunction<T>(
       return { data: null, error: error.message };
     }
 
+    // Edge function returns { success: true, groups/group } wrapper
+    // Extract the actual data based on what we expect
+    if (data?.groups !== undefined) {
+      return { data: data.groups as T, error: null };
+    }
+    if (data?.group !== undefined) {
+      return { data: data.group as T, error: null };
+    }
+    if (data?.success !== undefined) {
+      return { data: data as T, error: null };
+    }
+
     return { data: data as T, error: null };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -101,7 +113,17 @@ export async function deleteGroup(
 export async function updatePermissions(
   input: UpdatePermissionsInput
 ): Promise<ServiceResponse<{ success: boolean }>> {
-  return invokeGroupsFunction<{ success: boolean }>('update_permissions', input);
+  // Edge function expects 'permissions' action with data.permissions array
+  // Convert has_access to can_access for edge function compatibility
+  const permissionsData = input.permissions.map(p => ({
+    module_id: p.module_id,
+    can_access: p.has_access,
+  }));
+  
+  return invokeGroupsFunction<{ success: boolean }>('permissions', {
+    group_id: input.group_id,
+    data: { permissions: permissionsData },
+  });
 }
 
 export const groupsService = {
