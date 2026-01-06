@@ -143,17 +143,17 @@ export default function BuyerDashboard() {
               )}
             </div>
 
-            {/* Course Info - More padding like Kiwify */}
-            <CardContent className="p-5 space-y-5">
-              <h3 className="font-semibold text-lg line-clamp-2 min-h-[3.5rem]">
+            {/* Course Info - Compact like Cakto */}
+            <CardContent className="p-4 space-y-3">
+              <h3 className="font-medium text-base line-clamp-2">
                 {item.product?.name}
               </h3>
 
-              {/* Começar Button - Kiwify Style */}
+              {/* Começar Button - Cakto Style */}
               <Link to={`/minha-conta/produto/${item.product_id}`} className="block">
-                <Button className="w-full gap-2 h-12 text-base" size="lg">
+                <Button className="w-full gap-2 h-10 text-sm" size="default">
                   Começar
-                  <Play className="h-5 w-5" />
+                  <Play className="h-4 w-4" />
                 </Button>
               </Link>
             </CardContent>
