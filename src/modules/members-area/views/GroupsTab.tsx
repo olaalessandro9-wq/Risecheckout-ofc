@@ -38,6 +38,14 @@ export function GroupsTab({ productId }: GroupsTabProps) {
   const [groupPermissions, setGroupPermissions] = useState<GroupPermission[]>([]);
   const [isLoadingGroup, setIsLoadingGroup] = useState(false);
 
+  // Handle opening modal for creating
+  const handleCreateGroupUnified = useCallback(() => {
+    setSelectedGroup(null);
+    setGroupPermissions([]);
+    setModalMode('create');
+    setModalOpen(true);
+  }, []);
+
   // Handle opening modal for editing
   const handleEditGroup = useCallback(async (groupId: string) => {
     setIsLoadingGroup(true);
@@ -138,6 +146,7 @@ export function GroupsTab({ productId }: GroupsTabProps) {
         onUpdateGroup={handleUpdateGroup}
         onDeleteGroup={handleDeleteGroup}
         onEditGroup={handleEditGroup}
+        onCreateGroupUnified={handleCreateGroupUnified}
       />
 
       <UnifiedGroupModal

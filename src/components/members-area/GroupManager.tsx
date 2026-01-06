@@ -51,25 +51,20 @@ interface GroupManagerProps {
   onUpdateGroup: (groupId: string, data: { name?: string; description?: string; is_default?: boolean }) => Promise<void>;
   onDeleteGroup: (groupId: string) => Promise<void>;
   onEditGroup: (groupId: string) => void;
+  onCreateGroupUnified: () => void;
 }
 
 export function GroupManager({
   groups,
   isLoading = false,
-  onCreateGroup,
   onUpdateGroup,
   onDeleteGroup,
   onEditGroup,
+  onCreateGroupUnified,
 }: GroupManagerProps) {
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<MemberGroup | null>(null);
   const [formData, setFormData] = useState({ name: '', description: '', is_default: false });
   const [isSaving, setIsSaving] = useState(false);
-
-  const handleOpenCreate = () => {
-    setFormData({ name: '', description: '', is_default: false });
-    setIsCreateDialogOpen(true);
-  };
 
   const handleOpenEdit = (group: MemberGroup) => {
     setFormData({
@@ -80,13 +75,6 @@ export function GroupManager({
     setEditingGroup(group);
   };
 
-  const handleCreate = async () => {
-    if (!formData.name.trim()) return;
-    setIsSaving(true);
-    await onCreateGroup(formData);
-    setIsSaving(false);
-    setIsCreateDialogOpen(false);
-  };
 
   const handleUpdate = async () => {
     if (!editingGroup || !formData.name.trim()) return;
@@ -115,7 +103,7 @@ export function GroupManager({
             Gerencie os grupos que controlam o acesso aos módulos
           </p>
         </div>
-        <Button onClick={handleOpenCreate} size="sm">
+        <Button onClick={onCreateGroupUnified} size="sm">
           <Plus className="w-4 h-4 mr-2" />
           Novo Grupo
         </Button>
@@ -232,70 +220,12 @@ export function GroupManager({
           <div className="text-center py-8 text-muted-foreground">
             <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
             <p>Nenhum grupo criado ainda</p>
-            <Button variant="link" onClick={handleOpenCreate}>
+            <Button variant="link" onClick={onCreateGroupUnified}>
               Criar primeiro grupo
             </Button>
           </div>
         )}
       </div>
-
-      {/* Create Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Novo Grupo de Acesso</DialogTitle>
-            <DialogDescription>
-              Crie um grupo para controlar o acesso aos módulos
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nome do grupo</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Ex: VIP, Premium, Básico..."
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Descrição (opcional)</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Descreva o propósito deste grupo..."
-                rows={3}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="is_default">Grupo padrão</Label>
-                <p className="text-xs text-muted-foreground">
-                  Novos alunos serão adicionados automaticamente
-                </p>
-              </div>
-              <Switch
-                id="is_default"
-                checked={formData.is_default}
-                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_default: checked }))}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleCreate} disabled={isSaving || !formData.name.trim()}>
-              {isSaving ? 'Criando...' : 'Criar Grupo'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={!!editingGroup} onOpenChange={() => setEditingGroup(null)}>
