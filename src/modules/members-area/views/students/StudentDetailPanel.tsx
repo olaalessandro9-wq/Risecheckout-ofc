@@ -45,7 +45,27 @@ export function StudentDetailPanel({
   };
 
   const isProducer = student.access_type === 'producer';
-  const accessTypeLabel = isProducer ? 'Produtor' : 'Aluno';
+
+  const getAccessTypeLabel = (accessType: string | undefined) => {
+    switch (accessType) {
+      case 'producer':
+        return 'Produtor';
+      case 'invite':
+        return 'Convite';
+      case 'purchase':
+        return 'Compra';
+      case 'lifetime':
+        return 'Vitalício';
+      case 'subscription':
+        return 'Assinatura';
+      case 'limited':
+        return 'Limitado';
+      default:
+        return 'Aluno';
+    }
+  };
+
+  const accessTypeLabel = getAccessTypeLabel(student.access_type);
   const currentGroupIds = student.groups.map(g => g.group_id);
 
   // Get group names for display
