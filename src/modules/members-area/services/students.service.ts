@@ -58,7 +58,14 @@ async function invokeStudentsFunction<T>(
  */
 export async function listStudents(
   productId: string,
-  options?: { page?: number; limit?: number; search?: string }
+  options?: { 
+    page?: number; 
+    limit?: number; 
+    search?: string;
+    access_type?: string;
+    status?: string;
+    group_id?: string;
+  }
 ): Promise<ServiceResponse<StudentListResponse>> {
   return invokeStudentsFunction<StudentListResponse>('list', {
     product_id: productId,
