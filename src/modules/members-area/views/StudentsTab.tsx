@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import type { MemberGroup, BuyerWithGroups, StudentStats, StudentFilters } from "@/modules/members-area/types";
 import { StudentListView } from "./students/StudentListView";
 import { StudentFiltersPanel } from "./students/StudentFiltersPanel";
+import { AddStudentDialog } from "../components/dialogs/AddStudentDialog";
 
 // Helper functions to avoid TypeScript type instantiation depth issues
 async function fetchModuleIds(productId: string): Promise<string[]> {
@@ -67,6 +68,7 @@ export function StudentsTab({ productId }: StudentsTabProps) {
     accessType: null,
   });
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
   const limit = 20;
 
   const fetchGroups = useCallback(async () => {
@@ -411,7 +413,7 @@ export function StudentsTab({ productId }: StudentsTabProps) {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button size="sm" className="gap-2">
+          <Button size="sm" className="gap-2" onClick={() => setIsAddStudentOpen(true)}>
             <UserPlus className="h-4 w-4" />
             Adicionar Aluno
           </Button>
@@ -440,6 +442,15 @@ export function StudentsTab({ productId }: StudentsTabProps) {
         groups={groups}
         filters={filters}
         onFiltersChange={handleFiltersChange}
+      />
+
+      {/* Add Student Dialog */}
+      <AddStudentDialog
+        open={isAddStudentOpen}
+        onOpenChange={setIsAddStudentOpen}
+        productId={productId}
+        groups={groups}
+        onSuccess={() => fetchStudents()}
       />
     </div>
   );

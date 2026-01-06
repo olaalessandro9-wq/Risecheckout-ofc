@@ -41,6 +41,7 @@ import BuyerAuth from "./pages/buyer/BuyerAuth";
 import BuyerDashboard from "./pages/buyer/BuyerDashboard";
 import BuyerProductContent from "./pages/buyer/BuyerProductContent";
 import BuyerHistory from "./pages/buyer/BuyerHistory";
+import SetupAccess from "./pages/buyer/SetupAccess";
 
 import StudentShell from "./layouts/StudentShell";
 
@@ -138,9 +139,10 @@ const router = createBrowserRouter([
       { path: "/termos-de-uso", element: <TermosDeUso /> },
 
       // ============================================================
-      // ÁREA DE MEMBROS (BUYER) - Rota de Login
+      // ÁREA DE MEMBROS (BUYER) - Rotas Públicas
       // ============================================================
       { path: "/minha-conta", element: <BuyerAuth /> },
+      { path: "/minha-conta/setup-acesso", element: <SetupAccess /> },
       
       // ============================================================
       // ÁREA DE MEMBROS (BUYER) - Com StudentShell Layout
