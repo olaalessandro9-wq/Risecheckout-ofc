@@ -34,6 +34,8 @@ export function GeneralTab() {
     hasChanges,
     isSaving,
     isDeleting,
+    memberGroups,
+    hasMembersArea,
     handleSave,
     handleDelete,
     handleImageFileChange,
@@ -91,6 +93,8 @@ export function GeneralTab() {
           onOffersChange={handleOffersChange}
           onModifiedChange={handleOffersModifiedChange}
           onOfferDeleted={handleOfferDeleted}
+          memberGroups={memberGroups}
+          hasMembersArea={hasMembersArea}
         />
 
         <ProductSupportSection

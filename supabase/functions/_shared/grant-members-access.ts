@@ -24,6 +24,7 @@ export interface GrantAccessInput {
   customerName: string | null;
   productId: string;
   productName: string | null;
+  offerId?: string; // ID da oferta para buscar grupo vinculado
 }
 
 export interface GrantAccessResult {
@@ -33,6 +34,7 @@ export interface GrantAccessResult {
   isNewBuyer?: boolean;
   inviteToken?: string;
   accessUrl?: string;
+  assignedGroupId?: string; // Grupo atribuído ao buyer
   error?: string;
 }
 
@@ -97,9 +99,9 @@ export async function grantMembersAccess(
   input: GrantAccessInput
 ): Promise<GrantAccessResult> {
   
-  const { orderId, customerEmail, customerName, productId, productName } = input;
+  const { orderId, customerEmail, customerName, productId, productName, offerId } = input;
   
-  logInfo('Iniciando concessão de acesso', { orderId, productId, customerEmail });
+  logInfo('Iniciando concessão de acesso', { orderId, productId, customerEmail, offerId });
 
   // ========================================================================
   // 1. VERIFICAR SE PRODUTO TEM ÁREA DE MEMBROS
@@ -201,6 +203,63 @@ export async function grantMembersAccess(
   }
 
   // ========================================================================
+  // 4. ATRIBUIR BUYER AO GRUPO
+  // ========================================================================
+
+  let assignedGroupId: string | undefined;
+
+  // 4.1 Buscar grupo da oferta (se houver offerId)
+  if (offerId) {
+    const { data: offer } = await supabase
+      .from('offers')
+      .select('member_group_id')
+      .eq('id', offerId)
+      .single();
+    
+    if (offer?.member_group_id) {
+      assignedGroupId = offer.member_group_id;
+      logInfo('Grupo encontrado na oferta', { offerId, groupId: assignedGroupId });
+    }
+  }
+
+  // 4.2 Se oferta não tem grupo, buscar grupo padrão do produto
+  if (!assignedGroupId) {
+    const { data: defaultGroup } = await supabase
+      .from('product_member_groups')
+      .select('id')
+      .eq('product_id', productId)
+      .eq('is_default', true)
+      .single();
+    
+    if (defaultGroup?.id) {
+      assignedGroupId = defaultGroup.id;
+      logInfo('Usando grupo padrão do produto', { productId, groupId: assignedGroupId });
+    }
+  }
+
+  // 4.3 Atribuir buyer ao grupo
+  if (assignedGroupId) {
+    const { error: groupError } = await supabase
+      .from('buyer_groups')
+      .upsert({
+        buyer_id: buyerId,
+        group_id: assignedGroupId,
+        is_active: true,
+        granted_at: new Date().toISOString(),
+      }, {
+        onConflict: 'buyer_id,group_id',
+      });
+
+    if (groupError) {
+      logWarn('Erro ao atribuir buyer ao grupo', groupError);
+    } else {
+      logInfo('Buyer atribuído ao grupo', { buyerId, groupId: assignedGroupId });
+    }
+  } else {
+    logWarn('Nenhum grupo encontrado para atribuir', { productId, offerId });
+  }
+
+  // ========================================================================
   // 4. GERAR INVITE TOKEN (se precisar setup de senha)
   // ========================================================================
 
@@ -239,7 +298,7 @@ export async function grantMembersAccess(
   }
 
   // ========================================================================
-  // 5. RETORNAR RESULTADO
+  // 6. RETORNAR RESULTADO
   // ========================================================================
 
   logInfo('Acesso à área de membros concedido com sucesso', {
@@ -248,6 +307,7 @@ export async function grantMembersAccess(
     productId,
     isNewBuyer,
     hasInviteToken: !!inviteToken,
+    assignedGroupId,
   });
 
   return {
@@ -257,5 +317,6 @@ export async function grantMembersAccess(
     isNewBuyer,
     inviteToken,
     accessUrl,
+    assignedGroupId,
   };
 }

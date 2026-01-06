@@ -1617,6 +1617,7 @@ export type Database = {
           created_at: string | null
           id: string
           is_default: boolean | null
+          member_group_id: string | null
           name: string
           price: number
           product_id: string
@@ -1627,6 +1628,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_default?: boolean | null
+          member_group_id?: string | null
           name: string
           price: number
           product_id: string
@@ -1637,6 +1639,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_default?: boolean | null
+          member_group_id?: string | null
           name?: string
           price?: number
           product_id?: string
@@ -1644,6 +1647,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "offers_member_group_id_fkey"
+            columns: ["member_group_id"]
+            isOneToOne: false
+            referencedRelation: "product_member_groups"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "offers_product_id_fkey"
             columns: ["product_id"]

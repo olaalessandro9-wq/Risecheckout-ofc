@@ -2,7 +2,7 @@
  * ProductOffersSection - Seção de ofertas do produto
  */
 
-import { OffersManager, type Offer } from "@/components/products/OffersManager";
+import { OffersManager, type Offer, type MemberGroupOption } from "@/components/products/OffersManager";
 import type { GeneralFormData } from "./types";
 
 interface Props {
@@ -12,6 +12,8 @@ interface Props {
   onOffersChange: (offers: Offer[]) => void;
   onModifiedChange: (modified: boolean) => void;
   onOfferDeleted: (offerId: string) => void;
+  memberGroups?: MemberGroupOption[];
+  hasMembersArea?: boolean;
 }
 
 export function ProductOffersSection({
@@ -21,6 +23,8 @@ export function ProductOffersSection({
   onOffersChange,
   onModifiedChange,
   onOfferDeleted,
+  memberGroups = [],
+  hasMembersArea = false,
 }: Props) {
   return (
     <OffersManager
@@ -31,6 +35,8 @@ export function ProductOffersSection({
       onOffersChange={onOffersChange}
       onModifiedChange={onModifiedChange}
       onOfferDeleted={onOfferDeleted}
+      memberGroups={memberGroups}
+      hasMembersArea={hasMembersArea}
     />
   );
 }
