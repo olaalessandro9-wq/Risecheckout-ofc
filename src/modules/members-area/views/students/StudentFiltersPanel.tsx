@@ -31,7 +31,14 @@ interface StudentFiltersPanelProps {
 const ACCESS_TYPE_OPTIONS = [
   { value: 'all', label: 'Todos' },
   { value: 'producer', label: 'Produtor' },
-  { value: 'student', label: 'Aluno' },
+  { value: 'invite', label: 'Convite' },
+  { value: 'purchase', label: 'Compra' },
+];
+
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'Todos' },
+  { value: 'pending', label: 'Pendente' },
+  { value: 'active', label: 'Ativo' },
 ];
 
 export function StudentFiltersPanel({
@@ -42,7 +49,7 @@ export function StudentFiltersPanel({
   onFiltersChange,
 }: StudentFiltersPanelProps) {
   const handleClearFilters = () => {
-    onFiltersChange({ groupId: null, accessType: null });
+    onFiltersChange({ groupId: null, accessType: null, status: null });
   };
 
   const handleGroupChange = (value: string) => {
@@ -55,11 +62,18 @@ export function StudentFiltersPanel({
   const handleAccessTypeChange = (value: string) => {
     onFiltersChange({
       ...filters,
-      accessType: value === 'all' ? null : (value as 'producer' | 'student'),
+      accessType: value === 'all' ? null : (value as 'producer' | 'invite' | 'purchase'),
     });
   };
 
-  const hasActiveFilters = filters.groupId !== null || filters.accessType !== null;
+  const handleStatusChange = (value: string) => {
+    onFiltersChange({
+      ...filters,
+      status: value === 'all' ? null : (value as 'pending' | 'active'),
+    });
+  };
+
+  const hasActiveFilters = filters.groupId !== null || filters.accessType !== null || filters.status !== null;
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
@@ -114,6 +128,26 @@ export function StudentFiltersPanel({
               </SelectTrigger>
               <SelectContent>
                 {ACCESS_TYPE_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Status Filter */}
+          <div className="space-y-2">
+            <Label htmlFor="status-filter">Status</Label>
+            <Select
+              value={filters.status ?? 'all'}
+              onValueChange={handleStatusChange}
+            >
+              <SelectTrigger id="status-filter">
+                <SelectValue placeholder="Selecione o status" />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>

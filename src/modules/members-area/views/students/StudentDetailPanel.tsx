@@ -111,10 +111,10 @@ export function StudentDetailPanel({
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Status</span>
             <Badge 
-              variant={student.status === 'inactive' ? 'destructive' : 'default'}
-              className={student.status === 'inactive' ? '' : 'bg-emerald-500 text-white hover:bg-emerald-600'}
+              variant={student.status === 'pending' ? 'secondary' : 'default'}
+              className={student.status === 'pending' ? 'bg-amber-500/20 text-amber-600' : 'bg-emerald-500 text-white hover:bg-emerald-600'}
             >
-              {student.status === 'inactive' ? 'Inativo' : 'Ativo'}
+              {student.status === 'pending' ? 'Pendente' : 'Ativo'}
             </Badge>
           </div>
 

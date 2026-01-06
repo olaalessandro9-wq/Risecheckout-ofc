@@ -9,6 +9,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  Clock,
+  CheckCircle2,
+  Mail,
+  ShoppingCart,
+  Crown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -108,9 +113,11 @@ export function StudentListView({
       <div className="border rounded-lg overflow-hidden">
         {/* Table Header */}
         <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-muted/50 text-xs font-medium text-muted-foreground uppercase">
-          <div className="col-span-5">Nome</div>
-          <div className="col-span-4">Último Acesso</div>
-          <div className="col-span-3">Progresso</div>
+          <div className="col-span-4">Nome</div>
+          <div className="col-span-2">Tipo</div>
+          <div className="col-span-2">Status</div>
+          <div className="col-span-2">Último Acesso</div>
+          <div className="col-span-2">Progresso</div>
         </div>
 
         {/* Loading State */}
@@ -128,58 +135,105 @@ export function StudentListView({
           </div>
         )}
 
-        {/* Students */}
-        {!isLoading && students.map((student, index) => {
-          const isProducer = student.access_type === 'producer';
-          const progress = student.progress_percent ?? 0;
-          
-          return (
-            <div
-              key={student.buyer_id}
-              onClick={() => handleStudentClick(student)}
-              className={cn(
-                'grid grid-cols-12 gap-4 px-4 py-3 items-center cursor-pointer',
-                'hover:bg-muted/30 transition-colors',
-                index !== students.length - 1 && 'border-b'
-              )}
-            >
-              {/* Student Info - NOME */}
-              <div className="col-span-5 flex items-center gap-3">
-                <Avatar className="h-9 w-9">
-                  <AvatarFallback className="text-xs">
-                    {getInitials(student.buyer_name, student.buyer_email)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium truncate uppercase">
-                      {student.buyer_name || 'Sem nome'}
-                    </p>
-                    {isProducer && (
-                      <Badge className="text-xs py-0 px-1.5 bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20">
-                        Você
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {student.buyer_email}
-                  </p>
-                </div>
-              </div>
+      {/* Students */}
+      {!isLoading && students.map((student, index) => {
+        const isProducer = student.access_type === 'producer';
+        const progress = student.progress_percent ?? 0;
+        const isPending = student.status === 'pending';
+        
+        // Access type badge config
+        const getAccessTypeBadge = () => {
+          switch (student.access_type) {
+            case 'producer':
+              return { label: 'Produtor', className: 'bg-emerald-500/20 text-emerald-600', icon: Crown };
+            case 'invite':
+              return { label: 'Convite', className: 'bg-purple-500/20 text-purple-600', icon: Mail };
+            case 'purchase':
+              return { label: 'Compra', className: 'bg-blue-500/20 text-blue-600', icon: ShoppingCart };
+            default:
+              return { label: 'Acesso', className: 'bg-zinc-500/20 text-zinc-600', icon: Users };
+          }
+        };
 
-              {/* Last Access */}
-              <div className="col-span-4 text-sm text-muted-foreground">
-                {formatLastAccess(student.last_access_at)}
-              </div>
-
-              {/* Progress */}
-              <div className="col-span-3 flex items-center gap-3">
-                <Progress value={progress} className="h-2 flex-1" />
-                <span className="text-sm font-medium w-10 text-right">{progress}%</span>
+        const accessBadge = getAccessTypeBadge();
+        const AccessIcon = accessBadge.icon;
+        
+        return (
+          <div
+            key={student.buyer_id}
+            onClick={() => handleStudentClick(student)}
+            className={cn(
+              'grid grid-cols-12 gap-4 px-4 py-3 items-center cursor-pointer',
+              'hover:bg-muted/30 transition-colors',
+              index !== students.length - 1 && 'border-b'
+            )}
+          >
+            {/* Student Info - NOME */}
+            <div className="col-span-4 flex items-center gap-3">
+              <Avatar className="h-9 w-9">
+                <AvatarFallback className="text-xs">
+                  {getInitials(student.buyer_name, student.buyer_email)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate uppercase">
+                  {student.buyer_name || 'Sem nome'}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {student.buyer_email}
+                </p>
               </div>
             </div>
-          );
-        })}
+
+            {/* Tipo de Acesso */}
+            <div className="col-span-2">
+              <Badge 
+                variant="secondary" 
+                className={cn("text-xs py-0.5 px-2 gap-1", accessBadge.className)}
+              >
+                <AccessIcon className="w-3 h-3" />
+                {accessBadge.label}
+              </Badge>
+            </div>
+
+            {/* Status */}
+            <div className="col-span-2">
+              <Badge 
+                variant="secondary" 
+                className={cn(
+                  "text-xs py-0.5 px-2 gap-1",
+                  isPending 
+                    ? "bg-amber-500/20 text-amber-600" 
+                    : "bg-emerald-500/20 text-emerald-600"
+                )}
+              >
+                {isPending ? (
+                  <>
+                    <Clock className="w-3 h-3" />
+                    Pendente
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-3 h-3" />
+                    Ativo
+                  </>
+                )}
+              </Badge>
+            </div>
+
+            {/* Last Access */}
+            <div className="col-span-2 text-sm text-muted-foreground">
+              {formatLastAccess(student.last_access_at)}
+            </div>
+
+            {/* Progress */}
+            <div className="col-span-2 flex items-center gap-2">
+              <Progress value={progress} className="h-2 flex-1" />
+              <span className="text-sm font-medium w-8 text-right">{progress}%</span>
+            </div>
+          </div>
+        );
+      })}
       </div>
 
       {/* Pagination */}
