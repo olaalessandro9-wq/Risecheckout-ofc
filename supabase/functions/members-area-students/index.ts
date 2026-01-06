@@ -30,6 +30,12 @@ interface StudentRequest {
   password?: string;
   // Purchase access fields
   customer_email?: string;
+  // List filters
+  page?: number;
+  limit?: number;
+  search?: string;
+  access_type?: string;
+  status?: string;
 }
 
 /**
@@ -739,74 +745,198 @@ Deno.serve(async (req) => {
           );
         }
 
-        // Fetch students with access
-        const { data: students, error } = await supabase
+        // Parse pagination and filter params
+        const pageNum = body.page ?? 1;
+        const limitNum = body.limit ?? 20;
+        const searchTerm = body.search?.toLowerCase().trim() || "";
+        const filterAccessType = body.access_type || null;
+        const filterStatus = body.status || null;
+        const filterGroupId = body.group_id || null;
+
+        console.log(`[members-area-students] List params: page=${pageNum}, limit=${limitNum}, search="${searchTerm}", accessType=${filterAccessType}, status=${filterStatus}, groupId=${filterGroupId}`);
+
+        // 1. Fetch all active accesses for this product
+        let accessQuery = supabase
           .from("buyer_product_access")
-          .select(`
-            id,
-            is_active,
-            granted_at,
-            expires_at,
-            access_type,
-            buyer_id,
-            order_id
-          `)
+          .select("id, buyer_id, granted_at, expires_at, access_type, order_id, is_active")
           .eq("product_id", product_id)
-          .order("granted_at", { ascending: false });
+          .eq("is_active", true);
 
-        if (error) throw error;
+        // Apply access_type filter at DB level if provided
+        if (filterAccessType && filterAccessType !== "all") {
+          accessQuery = accessQuery.eq("access_type", filterAccessType);
+        }
 
-        // Get buyer details
-        const buyerIds = [...new Set(students?.map(s => s.buyer_id).filter(Boolean) || [])];
-        
-        const { data: buyers } = await supabase
+        const { data: accessData, error: accessError } = await accessQuery.order("granted_at", { ascending: false });
+
+        if (accessError) {
+          console.error("[members-area-students] Error fetching access:", accessError);
+          throw accessError;
+        }
+
+        if (!accessData || accessData.length === 0) {
+          console.log("[members-area-students] No students found");
+          return new Response(
+            JSON.stringify({ students: [], total: 0, page: pageNum, limit: limitNum }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const buyerIds = [...new Set(accessData.map(a => a.buyer_id))];
+
+        // 2. Fetch buyer profiles
+        const { data: buyers, error: buyersError } = await supabase
           .from("buyer_profiles")
-          .select("id, name, email, created_at")
+          .select("id, name, email, last_login_at, password_hash")
           .in("id", buyerIds);
 
-        const buyersMap: Record<string, { id: string; name: string | null; email: string; created_at: string }> = {};
+        if (buyersError) {
+          console.error("[members-area-students] Error fetching buyers:", buyersError);
+          throw buyersError;
+        }
+
+        const buyersMap: Record<string, { id: string; name: string | null; email: string; last_login_at: string | null; password_hash: string | null }> = {};
         buyers?.forEach(b => { buyersMap[b.id] = b; });
-        
-        const { data: buyerGroups } = await supabase
+
+        // 3. Fetch buyer groups
+        const { data: buyerGroupsData } = await supabase
           .from("buyer_groups")
-          .select(`
-            buyer_id,
-            group_id
-          `)
+          .select("id, buyer_id, group_id, is_active, granted_at, expires_at")
           .in("buyer_id", buyerIds)
           .eq("is_active", true);
 
-        // Get group names
-        const groupIds = [...new Set(buyerGroups?.map(bg => bg.group_id) || [])];
-        const { data: groups } = await supabase
-          .from("product_member_groups")
-          .select("id, name")
-          .in("id", groupIds);
+        // If filtering by group, only keep buyers in that group
+        let filteredBuyerIds = buyerIds;
+        if (filterGroupId) {
+          const buyersInGroup = buyerGroupsData?.filter(bg => bg.group_id === filterGroupId).map(bg => bg.buyer_id) || [];
+          filteredBuyerIds = buyerIds.filter(id => buyersInGroup.includes(id));
+        }
 
-        const groupsMap: Record<string, string> = {};
-        groups?.forEach(g => { groupsMap[g.id] = g.name; });
+        // 4. Calculate progress per buyer
+        // First get modules for this product
+        const { data: modules } = await supabase
+          .from("product_member_modules")
+          .select("id")
+          .eq("product_id", product_id)
+          .eq("is_active", true);
 
-        // Map groups by buyer
-        const groupsByBuyer: Record<string, { id: string; name: string }[]> = {};
-        buyerGroups?.forEach(bg => {
-          if (!groupsByBuyer[bg.buyer_id]) {
-            groupsByBuyer[bg.buyer_id] = [];
-          }
-          groupsByBuyer[bg.buyer_id].push({
-            id: bg.group_id,
-            name: groupsMap[bg.group_id] || "Unknown",
+        const moduleIds = modules?.map(m => m.id) || [];
+        let totalContents = 0;
+        let contentIds: string[] = [];
+
+        if (moduleIds.length > 0) {
+          const { data: contents } = await supabase
+            .from("product_member_content")
+            .select("id")
+            .in("module_id", moduleIds)
+            .eq("is_active", true);
+          
+          contentIds = contents?.map(c => c.id) || [];
+          totalContents = contentIds.length;
+        }
+
+        // Fetch progress for all buyers
+        let progressMap: Record<string, number> = {};
+        if (contentIds.length > 0 && filteredBuyerIds.length > 0) {
+          const { data: progressData } = await supabase
+            .from("buyer_content_progress")
+            .select("buyer_id, progress_percent")
+            .in("buyer_id", filteredBuyerIds)
+            .in("content_id", contentIds);
+
+          // Calculate average progress per buyer
+          const buyerProgressTotals: Record<string, { sum: number; count: number }> = {};
+          progressData?.forEach(p => {
+            if (!buyerProgressTotals[p.buyer_id]) {
+              buyerProgressTotals[p.buyer_id] = { sum: 0, count: 0 };
+            }
+            buyerProgressTotals[p.buyer_id].sum += (p.progress_percent || 0);
+            buyerProgressTotals[p.buyer_id].count += 1;
           });
-        });
 
-        // Add data to students
-        const studentsWithGroups = students?.map(s => ({
-          ...s,
-          buyer: buyersMap[s.buyer_id] || null,
-          groups: groupsByBuyer[s.buyer_id] || [],
-        }));
+          Object.keys(buyerProgressTotals).forEach(buyerId => {
+            // Progress = (sum of progress for tracked contents) / total contents
+            progressMap[buyerId] = totalContents > 0 
+              ? Math.round(buyerProgressTotals[buyerId].sum / totalContents)
+              : 0;
+          });
+        }
+
+        // 5. Map to BuyerWithGroups format
+        let mappedStudents = accessData
+          .filter(a => filteredBuyerIds.includes(a.buyer_id))
+          .map(access => {
+            const buyer = buyersMap[access.buyer_id];
+            if (!buyer) return null;
+
+            const isPending = !buyer.password_hash || buyer.password_hash === "PENDING_PASSWORD_SETUP";
+            const groups = (buyerGroupsData || [])
+              .filter(bg => bg.buyer_id === access.buyer_id)
+              .map(bg => ({
+                id: bg.id,
+                buyer_id: bg.buyer_id,
+                group_id: bg.group_id,
+                is_active: bg.is_active,
+                granted_at: bg.granted_at,
+                expires_at: bg.expires_at,
+              }));
+
+            return {
+              buyer_id: access.buyer_id,
+              buyer_email: buyer.email,
+              buyer_name: buyer.name,
+              groups,
+              access_type: access.access_type as "purchase" | "invite" | "lifetime" | "subscription" | "limited",
+              last_access_at: buyer.last_login_at,
+              status: isPending ? "pending" : "active",
+              invited_at: access.granted_at,
+              progress_percent: progressMap[access.buyer_id] || 0,
+            };
+          })
+          .filter(Boolean) as any[];
+
+        // 6. Apply search filter (server-side)
+        if (searchTerm) {
+          mappedStudents = mappedStudents.filter(s => 
+            s.buyer_email.toLowerCase().includes(searchTerm) ||
+            (s.buyer_name && s.buyer_name.toLowerCase().includes(searchTerm))
+          );
+        }
+
+        // 7. Apply status filter (server-side)
+        if (filterStatus && filterStatus !== "all") {
+          mappedStudents = mappedStudents.filter(s => s.status === filterStatus);
+        }
+
+        // 8. Calculate stats before pagination
+        const total = mappedStudents.length;
+        let sumProgress = 0;
+        let completedCount = 0;
+        mappedStudents.forEach(s => {
+          sumProgress += s.progress_percent;
+          if (s.progress_percent >= 100) completedCount++;
+        });
+        const averageProgress = total > 0 ? sumProgress / total : 0;
+        const completionRate = total > 0 ? (completedCount / total) * 100 : 0;
+
+        // 9. Paginate
+        const startIndex = (pageNum - 1) * limitNum;
+        const paginatedStudents = mappedStudents.slice(startIndex, startIndex + limitNum);
+
+        console.log(`[members-area-students] Returning ${paginatedStudents.length} of ${total} students`);
 
         return new Response(
-          JSON.stringify({ success: true, students: studentsWithGroups }),
+          JSON.stringify({ 
+            students: paginatedStudents, 
+            total, 
+            page: pageNum, 
+            limit: limitNum,
+            stats: {
+              totalStudents: total,
+              averageProgress,
+              completionRate,
+            }
+          }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }

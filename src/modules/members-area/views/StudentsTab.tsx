@@ -1,9 +1,10 @@
 /**
  * StudentsTab - Aba de gestão de alunos
+ * Uses Edge Function for listing (bypasses RLS on buyer_profiles)
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { Users, UserPlus, Filter, Download, Loader2 } from "lucide-react";
+import { Users, UserPlus, Filter, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,36 +18,7 @@ import type { MemberGroup, BuyerWithGroups, StudentStats, StudentFilters } from 
 import { StudentListView } from "./students/StudentListView";
 import { StudentFiltersPanel } from "./students/StudentFiltersPanel";
 import { AddStudentDialog } from "../components/dialogs/AddStudentDialog";
-
-// Helper functions to avoid TypeScript type instantiation depth issues
-async function fetchModuleIds(productId: string): Promise<string[]> {
-  const result = await (supabase as any)
-    .from('product_member_modules')
-    .select('id')
-    .eq('product_id', productId)
-    .eq('is_published', true);
-  return (result.data || []).map((m: { id: string }) => m.id);
-}
-
-async function fetchContentIds(moduleIds: string[]): Promise<string[]> {
-  if (moduleIds.length === 0) return [];
-  const result = await (supabase as any)
-    .from('product_member_content')
-    .select('id')
-    .in('module_id', moduleIds)
-    .eq('is_published', true);
-  return (result.data || []).map((c: { id: string }) => c.id);
-}
-
-async function fetchProgressData(buyerIds: string[], contentIds: string[]): Promise<{ buyer_id: string; progress_percent: number; completed_at: string | null }[]> {
-  if (buyerIds.length === 0 || contentIds.length === 0) return [];
-  const result = await (supabase as any)
-    .from('buyer_content_progress')
-    .select('buyer_id, progress_percent, completed_at')
-    .in('buyer_id', buyerIds)
-    .in('content_id', contentIds);
-  return result.data || [];
-}
+import { studentsService } from "../services/students.service";
 
 interface StudentsTabProps {
   productId?: string;
@@ -58,6 +30,7 @@ export function StudentsTab({ productId }: StudentsTabProps) {
   const [groups, setGroups] = useState<MemberGroup[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
   const [stats, setStats] = useState<StudentStats>({
     totalStudents: 0,
     averageProgress: 0,
@@ -89,12 +62,12 @@ export function StudentsTab({ productId }: StudentsTabProps) {
     setGroups(data || []);
   }, [productId]);
 
-  const fetchStudents = useCallback(async (searchQuery = '') => {
+  const fetchStudents = useCallback(async (search = searchQuery) => {
     if (!productId) return;
     setIsLoading(true);
     
     try {
-      // 1. Fetch product to get producer (owner) ID
+      // Get producer info for local display
       const { data: productData } = await supabase
         .from('products')
         .select('user_id')
@@ -104,7 +77,6 @@ export function StudentsTab({ productId }: StudentsTabProps) {
       const producerId = productData?.user_id;
       let producerStudent: BuyerWithGroups | null = null;
 
-      // 2. Fetch producer data if exists
       if (producerId) {
         const { data: producerProfile } = await supabase
           .from('profiles')
@@ -112,7 +84,6 @@ export function StudentsTab({ productId }: StudentsTabProps) {
           .eq('id', producerId)
           .single();
 
-        // Get producer email via RPC
         const { data: producerEmail } = await supabase
           .rpc('get_user_email', { user_id: producerId });
 
@@ -128,160 +99,74 @@ export function StudentsTab({ productId }: StudentsTabProps) {
         };
       }
 
-      // 3. Base query for buyers with access (students)
-      let query = supabase
-        .from('buyer_product_access')
-        .select(`
-          id,
-          buyer_id,
-          granted_at,
-          access_type,
-          buyer_profiles!inner(id, name, email, last_login_at, password_hash)
-        `, { count: 'exact' })
-        .eq('product_id', productId)
-        .eq('is_active', true);
-
-      // Apply access type filter (only for students, not producer)
-      if (filters.accessType && filters.accessType !== 'producer') {
-        query = query.eq('access_type', filters.accessType);
-      }
-
-      // Apply pagination
-      query = query.range((page - 1) * limit, page * limit - 1);
-
-      const { data: accessData, count, error } = await query;
-
-      if (error) throw error;
-
-      // Get group assignments for these buyers
-      let buyerIds = accessData?.map(a => a.buyer_id) || [];
-      
-      let groupsData: any[] = [];
-      if (buyerIds.length > 0) {
-        const { data: bg } = await supabase
-          .from('buyer_groups')
-          .select('*')
-          .in('buyer_id', buyerIds)
-          .eq('is_active', true);
-        groupsData = bg || [];
-      }
-
-      // Filter by group if set
-      if (filters.groupId && buyerIds.length > 0) {
-        const buyersInGroup = groupsData
-          .filter(g => g.group_id === filters.groupId)
-          .map(g => g.buyer_id);
-        buyerIds = buyerIds.filter(id => buyersInGroup.includes(id));
-      }
-
-      // Get module IDs and content IDs using helper functions
-      const moduleIds = await fetchModuleIds(productId);
-      const productContentIds = await fetchContentIds(moduleIds);
-      const totalContents = productContentIds.length;
-
-      // Get progress for all buyers using helper function
-      const progressData = await fetchProgressData(buyerIds, productContentIds);
-
-      // Calculate progress per buyer
-      const buyerProgressMap: Record<string, { totalProgress: number; completedCount: number; count: number }> = {};
-      progressData.forEach(p => {
-        if (!buyerProgressMap[p.buyer_id]) {
-          buyerProgressMap[p.buyer_id] = { totalProgress: 0, completedCount: 0, count: 0 };
-        }
-        buyerProgressMap[p.buyer_id].totalProgress += (p.progress_percent || 0);
-        buyerProgressMap[p.buyer_id].count += 1;
-        if (p.completed_at) {
-          buyerProgressMap[p.buyer_id].completedCount += 1;
-        }
+      // Fetch students via Edge Function (bypasses RLS)
+      const { data, error } = await studentsService.list(productId, {
+        page,
+        limit,
+        search: search || undefined,
+        access_type: filters.accessType && filters.accessType !== 'producer' ? filters.accessType : undefined,
+        status: filters.status || undefined,
+        group_id: filters.groupId || undefined,
       });
 
-      // Map to BuyerWithGroups format (students only)
-      let studentsWithGroups: BuyerWithGroups[] = (accessData || []).map(access => {
-        const profile = access.buyer_profiles as any;
-        const buyerProgress = buyerProgressMap[access.buyer_id];
-        
-        // Calculate average progress for this buyer
-        let progressPercent = 0;
-        if (totalContents > 0 && buyerProgress) {
-          progressPercent = Math.round(buyerProgress.totalProgress / totalContents);
-        }
-
-        // Determine status based on password_hash
-        const isPending = !profile?.password_hash || profile.password_hash === 'PENDING_PASSWORD_SETUP';
-        
-        // Map access_type for display
-        const accessType = access.access_type as BuyerWithGroups['access_type'];
-
-        return {
-          buyer_id: access.buyer_id,
-          buyer_email: profile?.email || '',
-          buyer_name: profile?.name || null,
-          groups: groupsData.filter(g => g.buyer_id === access.buyer_id),
-          access_type: accessType,
-          last_access_at: profile?.last_login_at || null,
-          progress_percent: progressPercent,
-          status: isPending ? 'pending' : 'active',
-          invited_at: access.granted_at || null,
-        };
-      });
-
-      // Filter by group after mapping
-      if (filters.groupId) {
-        studentsWithGroups = studentsWithGroups.filter(s => 
-          s.groups.some(g => g.group_id === filters.groupId)
-        );
+      if (error) {
+        console.error('Error fetching students from service:', error);
+        toast.error('Erro ao carregar alunos');
+        setIsLoading(false);
+        return;
       }
 
-      // Filter by status
-      if (filters.status && filters.status !== 'all') {
-        studentsWithGroups = studentsWithGroups.filter(s => s.status === filters.status);
-      }
+      const studentsList = data?.students || [];
+      const backendTotal = data?.total || 0;
+      const backendStats = (data as any)?.stats;
 
-      // 4. Combine producer + students
+      // Combine producer + students
       let allStudents: BuyerWithGroups[] = [];
       
-      // Include producer only if no filter or filter matches 'producer'
       const shouldIncludeProducer = !filters.accessType || filters.accessType === 'producer';
       const shouldIncludeStudents = !filters.accessType || filters.accessType !== 'producer';
 
-      if (producerStudent && shouldIncludeProducer && !filters.groupId) {
+      // Only show producer on first page, without group filter, and matching search
+      const producerMatchesSearch = !search || 
+        producerStudent?.buyer_email.toLowerCase().includes(search.toLowerCase()) ||
+        producerStudent?.buyer_name?.toLowerCase().includes(search.toLowerCase());
+
+      if (producerStudent && shouldIncludeProducer && !filters.groupId && page === 1 && producerMatchesSearch) {
         allStudents.push(producerStudent);
       }
       
       if (shouldIncludeStudents) {
-        allStudents = [...allStudents, ...studentsWithGroups];
+        allStudents = [...allStudents, ...studentsList];
       }
 
-      // Calculate stats (including producer)
-      const totalStudents = allStudents.length;
-      let sumProgress = 0;
-      let completedCount = 0;
-
-      allStudents.forEach(s => {
-        sumProgress += s.progress_percent || 0;
-        if ((s.progress_percent || 0) >= 100) {
-          completedCount += 1;
-        }
-      });
-
-      const averageProgress = totalStudents > 0 ? sumProgress / totalStudents : 0;
-      const completionRate = totalStudents > 0 ? (completedCount / totalStudents) * 100 : 0;
-
-      setStats({
-        totalStudents,
-        averageProgress,
-        completionRate,
-      });
+      // Use backend stats if available, otherwise calculate
+      if (backendStats) {
+        // Add 1 for producer if we're showing them
+        const totalWithProducer = shouldIncludeProducer && !filters.groupId ? backendStats.totalStudents + 1 : backendStats.totalStudents;
+        setStats({
+          totalStudents: totalWithProducer,
+          averageProgress: backendStats.averageProgress || 0,
+          completionRate: backendStats.completionRate || 0,
+        });
+      } else {
+        setStats({
+          totalStudents: allStudents.length,
+          averageProgress: 0,
+          completionRate: 0,
+        });
+      }
 
       setStudents(allStudents);
-      setTotal(allStudents.length);
+      // Total includes producer when applicable
+      const displayTotal = shouldIncludeProducer && !filters.groupId && producerMatchesSearch ? backendTotal + 1 : backendTotal;
+      setTotal(displayTotal);
     } catch (error) {
       console.error('Error fetching students:', error);
       toast.error('Erro ao carregar alunos');
     } finally {
       setIsLoading(false);
     }
-  }, [productId, page, limit, filters]);
+  }, [productId, page, limit, filters, searchQuery]);
 
   useEffect(() => {
     if (productId) {
