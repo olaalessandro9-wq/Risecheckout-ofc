@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useProductContext } from "../../context/ProductContext";
-import type { Offer } from "@/components/products/OffersManager";
+import type { Offer, MemberGroupOption } from "@/components/products/OffersManager";
 import type { GeneralFormData, GeneralFormErrors, ImageState } from "./types";
 
 export function useGeneralTab() {
@@ -61,6 +61,10 @@ export function useGeneralTab() {
   const [deletedOfferIds, setDeletedOfferIds] = useState<string[]>([]);
   const [offersModified, setOffersModified] = useState(false);
 
+  // Estados de grupos de acesso
+  const [memberGroups, setMemberGroups] = useState<MemberGroupOption[]>([]);
+  const [hasMembersArea, setHasMembersArea] = useState(false);
+
   // Estados de UI
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -84,6 +88,39 @@ export function useGeneralTab() {
   useEffect(() => {
     setLocalOffers(offers);
   }, [offers]);
+
+  // Buscar grupos de acesso quando produto tem área de membros
+  useEffect(() => {
+    if (!product?.id) return;
+    
+    // Verificar se produto tem área de membros
+    setHasMembersArea(product.members_area_enabled || false);
+    
+    if (product.members_area_enabled) {
+      // Buscar grupos via edge function
+      const fetchGroups = async () => {
+        try {
+          const { data, error } = await supabase.functions.invoke('members-area-groups', {
+            body: { action: 'list', product_id: product.id }
+          });
+          
+          if (!error && data?.groups) {
+            setMemberGroups(data.groups.map((g: any) => ({
+              id: g.id,
+              name: g.name,
+              is_default: g.is_default,
+            })));
+          }
+        } catch (err) {
+          console.error('[useGeneralTab] Error fetching groups:', err);
+        }
+      };
+      
+      fetchGroups();
+    } else {
+      setMemberGroups([]);
+    }
+  }, [product?.id, product?.members_area_enabled]);
 
   // Detecção automática de mudanças (igual ConfiguracoesTab)
   const hasChanges = useMemo(() => {
@@ -215,11 +252,16 @@ export function useGeneralTab() {
           price: offer.price,
           is_default: false,
           status: "active",
+          member_group_id: offer.member_group_id || null,
         });
       } else {
         await supabase
           .from("offers")
-          .update({ name: offer.name, price: offer.price })
+          .update({ 
+            name: offer.name, 
+            price: offer.price,
+            member_group_id: offer.member_group_id || null,
+          })
           .eq("id", offer.id);
       }
     }
@@ -351,6 +393,10 @@ export function useGeneralTab() {
     hasChanges,
     isSaving,
     isDeleting,
+
+    // Estados de grupos (para ofertas)
+    memberGroups,
+    hasMembersArea,
 
     // Handlers
     handleSave,

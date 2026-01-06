@@ -1,16 +1,30 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, AlertCircle } from "lucide-react";
+import { Plus, Trash2, AlertCircle, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export interface Offer {
   id: string;
   name: string;
   price: number; // Centavos
+  is_default: boolean;
+  member_group_id?: string | null; // Grupo de acesso vinculado
+}
+
+export interface MemberGroupOption {
+  id: string;
+  name: string;
   is_default: boolean;
 }
 
@@ -27,6 +41,8 @@ interface OffersManagerProps {
   onOffersChange: (offers: Offer[]) => void;
   onModifiedChange: (modified: boolean) => void;
   onOfferDeleted?: (offerId: string) => void;
+  memberGroups?: MemberGroupOption[]; // Grupos disponíveis para seleção
+  hasMembersArea?: boolean; // Se o produto tem área de membros
 }
 
 export const OffersManager = ({
@@ -37,6 +53,8 @@ export const OffersManager = ({
   onOffersChange,
   onModifiedChange,
   onOfferDeleted,
+  memberGroups = [],
+  hasMembersArea = false,
 }: OffersManagerProps) => {
   const [errors, setErrors] = useState<Record<string, OfferError>>({});
 
@@ -93,6 +111,7 @@ export const OffersManager = ({
       name: "",
       price: 0,
       is_default: false,
+      member_group_id: null,
     };
     
     onOffersChange([...offers, newOffer]);
@@ -210,6 +229,37 @@ export const OffersManager = ({
                 )}
               </div>
             </div>
+
+            {/* Seleção de Grupo - só mostra se tem área de membros */}
+            {hasMembersArea && memberGroups.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-border/50">
+                <Label htmlFor={`offer-group-${defaultOffer.id}`} className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-muted-foreground" />
+                  Grupo de Acesso
+                </Label>
+                <Select
+                  value={defaultOffer.member_group_id || "default"}
+                  onValueChange={(value) => handleUpdateOffer(defaultOffer.id, 'member_group_id', value === "default" ? null : value)}
+                >
+                  <SelectTrigger id={`offer-group-${defaultOffer.id}`}>
+                    <SelectValue placeholder="Grupo padrão do produto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">
+                      Usar grupo padrão do produto
+                    </SelectItem>
+                    {memberGroups.map((group) => (
+                      <SelectItem key={group.id} value={group.id}>
+                        {group.name} {group.is_default && "(Padrão)"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Compradores desta oferta serão adicionados automaticamente a este grupo
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -267,6 +317,37 @@ export const OffersManager = ({
                 )}
               </div>
             </div>
+
+            {/* Seleção de Grupo - só mostra se tem área de membros */}
+            {hasMembersArea && memberGroups.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-border/50">
+                <Label htmlFor={`offer-group-${offer.id}`} className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-muted-foreground" />
+                  Grupo de Acesso
+                </Label>
+                <Select
+                  value={offer.member_group_id || "default"}
+                  onValueChange={(value) => handleUpdateOffer(offer.id, 'member_group_id', value === "default" ? null : value)}
+                >
+                  <SelectTrigger id={`offer-group-${offer.id}`}>
+                    <SelectValue placeholder="Grupo padrão do produto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">
+                      Usar grupo padrão do produto
+                    </SelectItem>
+                    {memberGroups.map((group) => (
+                      <SelectItem key={group.id} value={group.id}>
+                        {group.name} {group.is_default && "(Padrão)"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Compradores desta oferta serão adicionados automaticamente a este grupo
+                </p>
+              </div>
+            )}
           </div>
         ))}
 
