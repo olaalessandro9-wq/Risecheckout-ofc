@@ -95,7 +95,7 @@ export function ImageSelector({
               Formatos aceitos: JPG ou PNG. Tamanho máximo: 10MB
             </p>
             <p className="text-xs text-muted-foreground font-medium">
-              Tamanho recomendado: 800 x 500 pixels (proporção 16:10)
+              Tamanho recomendado: 800 x 600 pixels (proporção 4:3)
             </p>
           </label>
         </div>
@@ -121,7 +121,7 @@ export function ImageSelector({
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Cole a URL completa da imagem. Tamanho recomendado: 800 x 500 pixels (proporção 16:10)
+            Cole a URL completa da imagem. Tamanho recomendado: 800 x 600 pixels (proporção 4:3)
           </p>
         </div>
       )}
