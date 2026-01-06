@@ -13,6 +13,7 @@ import {
   Shield,
   Star,
   GripVertical,
+  Lock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +34,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import type { MemberGroup } from '@/modules/members-area/types';
@@ -191,14 +198,29 @@ export function GroupManager({
                       <Pencil className="w-4 h-4 mr-2" />
                       Editar
                     </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => handleDelete(group.id)}
-                      className="text-destructive focus:text-destructive"
-                      disabled={group.is_default}
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Excluir
-                    </DropdownMenuItem>
+                    {group.is_default ? (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center px-2 py-1.5 text-sm text-muted-foreground cursor-not-allowed">
+                              <Lock className="w-4 h-4 mr-2" />
+                              Excluir
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="left">
+                            <p>O grupo padrão não pode ser excluído</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : (
+                      <DropdownMenuItem
+                        onClick={() => handleDelete(group.id)}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Excluir
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>

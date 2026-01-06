@@ -131,7 +131,7 @@ export function useMembersArea(productId: string | undefined): UseMembersAreaRet
 
       if (error) throw error;
 
-      // Se está ativando a área de membros, criar acesso automático para o produtor
+      // Se está ativando a área de membros, criar acesso automático para o produtor e grupo padrão
       if (enabled) {
         try {
           // Buscar dados do produto para obter o user_id do produtor
@@ -159,9 +159,36 @@ export function useMembersArea(productId: string | undefined): UseMembersAreaRet
               console.log("[useMembersArea] Producer access ensured for:", currentUser.email);
             }
           }
+
+          // Criar grupo padrão automaticamente se não existir nenhum grupo
+          const { data: existingGroups } = await supabase.functions.invoke('members-area-groups', {
+            body: { action: 'list', product_id: productId }
+          });
+
+          const groupsList = existingGroups?.groups || existingGroups?.data || [];
+          
+          if (!groupsList.length) {
+            const { error: createGroupError } = await supabase.functions.invoke('members-area-groups', {
+              body: { 
+                action: 'create', 
+                product_id: productId,
+                data: { 
+                  name: 'Padrão', 
+                  description: 'Grupo padrão para todos os alunos', 
+                  is_default: true 
+                }
+              }
+            });
+
+            if (createGroupError) {
+              console.error("[useMembersArea] Error creating default group:", createGroupError);
+            } else {
+              console.log("[useMembersArea] Default group 'Padrão' created automatically");
+            }
+          }
         } catch (accessError) {
-          console.error("[useMembersArea] Error ensuring producer access:", accessError);
-          // Não falha a operação principal se o acesso automático falhar
+          console.error("[useMembersArea] Error in members area setup:", accessError);
+          // Não falha a operação principal se o setup automático falhar
         }
       }
 
