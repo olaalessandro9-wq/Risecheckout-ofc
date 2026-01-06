@@ -406,7 +406,7 @@ export type Database = {
           granted_at: string | null
           id: string
           is_active: boolean | null
-          order_id: string
+          order_id: string | null
           product_id: string
         }
         Insert: {
@@ -416,7 +416,7 @@ export type Database = {
           granted_at?: string | null
           id?: string
           is_active?: boolean | null
-          order_id: string
+          order_id?: string | null
           product_id: string
         }
         Update: {
@@ -426,7 +426,7 @@ export type Database = {
           granted_at?: string | null
           id?: string
           is_active?: boolean | null
-          order_id?: string
+          order_id?: string | null
           product_id?: string
         }
         Relationships: [

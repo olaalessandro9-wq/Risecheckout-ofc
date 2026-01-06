@@ -411,7 +411,7 @@ Deno.serve(async (req) => {
           access_type: "purchase",
           granted_at: new Date().toISOString(),
         }, {
-          onConflict: "buyer_id,product_id,order_id",
+          onConflict: "buyer_id,product_id",
         });
 
       const baseUrl = Deno.env.get("PUBLIC_SITE_URL") || "https://risecheckout.lovable.app";
@@ -559,22 +559,26 @@ Deno.serve(async (req) => {
           }
         }
 
-        // 2. Grant product access
+        // 2. Grant product access (order_id is NULL for invites)
         const { error: accessError } = await supabase
           .from("buyer_product_access")
           .upsert({
             buyer_id: buyerId,
             product_id,
-            order_id: "00000000-0000-0000-0000-000000000000", // Manual grant
+            order_id: null, // No order for manual invites
             is_active: true,
             access_type: "invite",
             granted_at: new Date().toISOString(),
           }, {
-            onConflict: "buyer_id,product_id,order_id",
+            onConflict: "buyer_id,product_id",
           });
 
         if (accessError) {
           console.error("[members-area-students] Error granting access:", accessError);
+          return new Response(
+            JSON.stringify({ error: "Erro ao conceder acesso ao produto" }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
         }
 
         // 3. Assign groups if provided
@@ -934,12 +938,12 @@ Deno.serve(async (req) => {
           .upsert({
             buyer_id,
             product_id,
-            order_id: order_id || "00000000-0000-0000-0000-000000000000",
+            order_id: order_id || null, // NULL for manual grants
             is_active: true,
-            access_type: "manual",
+            access_type: "invite", // Manual grants use invite type
             granted_at: new Date().toISOString(),
           }, {
-            onConflict: "buyer_id,product_id,order_id",
+            onConflict: "buyer_id,product_id",
           });
 
         if (error) throw error;
