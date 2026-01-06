@@ -30,9 +30,8 @@ interface StudentFiltersPanelProps {
 
 const ACCESS_TYPE_OPTIONS = [
   { value: 'all', label: 'Todos' },
-  { value: 'producer', label: 'Produtor' },
-  { value: 'invite', label: 'Convite' },
   { value: 'purchase', label: 'Compra' },
+  { value: 'invite', label: 'Convite' },
 ];
 
 const STATUS_OPTIONS = [
