@@ -11,7 +11,7 @@ export { ContentGate, ContentGateBadge } from './ContentGate';
 // Management Components
 export { GroupManager } from './GroupManager';
 export { StudentList } from './StudentList';
-export { GroupPermissionsEditor } from './GroupPermissionsEditor';
+export { UnifiedGroupModal } from './UnifiedGroupModal';
 
 // Player Components
 export { VideoPlayer } from './VideoPlayer';
