@@ -121,15 +121,15 @@ export default function BuyerDashboard() {
         </Card>
       )}
 
-      {/* Course Grid - Kiwify Style */}
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {/* Course Grid - Kiwify Style (Large Cards) */}
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {filteredProducts.map((item) => (
           <Card 
             key={item.id} 
-            className="overflow-hidden border-0 shadow-md hover:shadow-xl transition-all duration-300 group"
+            className="overflow-hidden border-0 shadow-lg hover:shadow-2xl transition-all duration-300 group bg-card"
           >
-            {/* Course Image */}
-            <div className="aspect-video bg-gradient-to-br from-zinc-800 to-zinc-900 overflow-hidden">
+            {/* Course Image - Larger aspect ratio like Kiwify */}
+            <div className="aspect-[16/10] bg-gradient-to-br from-zinc-800 to-zinc-900 overflow-hidden">
               {item.product?.image_url ? (
                 <img
                   src={item.product.image_url}
@@ -138,22 +138,22 @@ export default function BuyerDashboard() {
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                  <Play className="h-16 w-16 text-muted-foreground/30" />
+                  <Play className="h-20 w-20 text-muted-foreground/30" />
                 </div>
               )}
             </div>
 
-            {/* Course Info */}
-            <CardContent className="p-4 space-y-4">
-              <h3 className="font-semibold text-base line-clamp-2 min-h-[2.5rem]">
+            {/* Course Info - More padding like Kiwify */}
+            <CardContent className="p-5 space-y-5">
+              <h3 className="font-semibold text-lg line-clamp-2 min-h-[3.5rem]">
                 {item.product?.name}
               </h3>
 
               {/* Começar Button - Kiwify Style */}
               <Link to={`/minha-conta/produto/${item.product_id}`} className="block">
-                <Button className="w-full gap-2" size="lg">
+                <Button className="w-full gap-2 h-12 text-base" size="lg">
                   Começar
-                  <Play className="h-4 w-4" />
+                  <Play className="h-5 w-5" />
                 </Button>
               </Link>
             </CardContent>
