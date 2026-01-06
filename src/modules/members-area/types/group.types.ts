@@ -18,11 +18,12 @@ export interface MemberGroup {
 
 /** Permission linking a group to a module */
 export interface GroupPermission {
-  id: string;
-  group_id: string;
+  id?: string;
+  group_id?: string;
   module_id: string;
-  has_access: boolean;
-  created_at: string;
+  has_access?: boolean;
+  can_access?: boolean; // Edge function returns this format
+  created_at?: string;
 }
 
 /** Group with its permissions loaded */
