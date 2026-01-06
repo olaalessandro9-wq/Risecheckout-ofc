@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 interface GroupRequest {
-  action: "list" | "get" | "create" | "update" | "delete" | "permissions";
+  action: "list" | "get" | "create" | "update" | "delete" | "permissions" | "list_offers" | "link_offers";
   product_id?: string;
   group_id?: string;
   data?: {
@@ -14,6 +14,7 @@ interface GroupRequest {
     description?: string;
     is_default?: boolean;
     permissions?: { module_id: string; can_access: boolean }[];
+    offer_ids?: string[]; // IDs das ofertas a vincular ao grupo
   };
 }
 
@@ -263,6 +264,80 @@ Deno.serve(async (req) => {
           .insert(permissionsToInsert);
 
         if (error) throw error;
+
+        return new Response(
+          JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      case "list_offers": {
+        if (!product_id) {
+          return new Response(
+            JSON.stringify({ error: "product_id required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const { data: offers, error } = await supabase
+          .from("offers")
+          .select("id, name, price, is_default, member_group_id, status")
+          .eq("product_id", product_id)
+          .eq("status", "active")
+          .order("is_default", { ascending: false })
+          .order("created_at", { ascending: true });
+
+        if (error) throw error;
+
+        return new Response(
+          JSON.stringify({ success: true, offers }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      case "link_offers": {
+        if (!group_id) {
+          return new Response(
+            JSON.stringify({ error: "group_id required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const offerIds = data?.offer_ids || [];
+        
+        // Primeiro, buscar o product_id do grupo para validar ownership das ofertas
+        const { data: groupData, error: groupError } = await supabase
+          .from("product_member_groups")
+          .select("product_id")
+          .eq("id", group_id)
+          .single();
+
+        if (groupError || !groupData) {
+          return new Response(
+            JSON.stringify({ error: "Group not found" }),
+            { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Remover vínculo deste grupo de todas as ofertas do produto
+        await supabase
+          .from("offers")
+          .update({ member_group_id: null })
+          .eq("product_id", groupData.product_id)
+          .eq("member_group_id", group_id);
+
+        // Vincular as ofertas selecionadas a este grupo
+        if (offerIds.length > 0) {
+          const { error: updateError } = await supabase
+            .from("offers")
+            .update({ member_group_id: group_id })
+            .eq("product_id", groupData.product_id)
+            .in("id", offerIds);
+
+          if (updateError) throw updateError;
+        }
+
+        console.log(`[members-area-groups] Linked ${offerIds.length} offers to group ${group_id}`);
 
         return new Response(
           JSON.stringify({ success: true }),
