@@ -2,13 +2,8 @@
  * LinksTab - Aba de Links de Pagamento
  * 
  * Esta aba exibe os links de pagamento gerados automaticamente
- * para cada oferta do produto. Permite:
- * - Visualizar todos os links
- * - Copiar links
- * - Abrir links em nova aba
- * - Ativar/Desativar links
- * 
- * Os links são gerados automaticamente quando ofertas são criadas na aba Geral.
+ * para cada oferta do produto. Usa paymentLinks do ProductContext
+ * para manter sincronia automática com a aba Geral.
  */
 
 import { useState, useEffect } from "react";
@@ -19,97 +14,29 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 export function LinksTab() {
-  const { product } = useProductContext();
-  const [links, setLinks] = useState<PaymentLink[]>([]);
+  const { product, paymentLinks, refreshPaymentLinks } = useProductContext();
   const [loading, setLoading] = useState(true);
 
-  // Carregar links do produto
+  // Carregar links na primeira vez
   useEffect(() => {
     if (product?.id) {
-      loadLinks();
+      refreshPaymentLinks().finally(() => setLoading(false));
     }
   }, [product?.id]);
 
-  const loadLinks = async () => {
-    if (!product?.id) return;
-
-    try {
-      setLoading(true);
-
-      // Buscar payment_links com suas ofertas relacionadas
-      const { data: paymentLinks, error: linksError } = await supabase
-        .from('payment_links')
-        .select(`
-          id,
-          slug,
-          url,
-          status,
-          offer:offers (
-            id,
-            name,
-            price,
-            is_default,
-            product_id,
-            status
-          )
-        `)
-        .eq('offer.product_id', product.id)
-        .eq('status', 'active') // Apenas links ativos
-        .eq('offer.status', 'active') // Apenas ofertas ativas
-        .order('created_at', { ascending: true });
-
-      if (linksError) throw linksError;
-
-      // Para cada link, buscar checkouts associados através da oferta
-      const linksData: PaymentLink[] = [];
-
-      for (const link of paymentLinks || []) {
-        if (!link.offer) continue;
-
-        // Buscar checkouts associados a este link através de checkout_links
-        const { data: checkoutLinks, error: checkoutError } = await supabase
-          .from('checkout_links')
-          .select(`
-            checkout:checkouts (
-              id,
-              name
-            )
-          `)
-          .eq('link_id', link.id);  // ✅ Coluna correta: link_id
-
-        if (checkoutError) {
-          console.error('Erro ao buscar checkouts:', checkoutError);
-        }
-
-        // Mapear checkouts
-        const checkouts = (checkoutLinks || [])
-          .map(cl => cl.checkout)
-          .filter(Boolean)
-          .map(checkout => ({
-            id: checkout.id,
-            name: checkout.name
-          }));
-
-        linksData.push({
-          id: link.id,
-          slug: link.slug,
-          url: link.url,
-          offer_name: link.offer.name,
-          offer_price: link.offer.price,
-          is_default: link.offer.is_default || false,
-          status: link.status === 'active' ? 'active' : 'inactive',
-          checkouts: checkouts
-        });
-      }
-
-      setLinks(linksData);
-    } catch (error) {
-      console.error('Erro ao carregar links:', error);
-      toast.error('Não foi possível carregar os links de pagamento');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Mapear paymentLinks do contexto para o formato da LinksTable
+  const links: PaymentLink[] = paymentLinks
+    .filter(link => link.status === 'active')
+    .map(link => ({
+      id: link.id,
+      slug: link.slug,
+      url: link.url,
+      offer_name: link.offer_name,
+      offer_price: link.offer_price,
+      is_default: link.is_default,
+      status: link.status as 'active' | 'inactive',
+      checkouts: link.checkouts || []
+    }));
 
   const handleToggleStatus = async (linkId: string) => {
     try {
@@ -138,8 +65,8 @@ export function LinksTab() {
           : 'Link desativado com sucesso'
       );
 
-      // Recarregar links
-      loadLinks();
+      // Atualizar links via contexto
+      await refreshPaymentLinks();
     } catch (error) {
       console.error('Erro ao alterar status:', error);
       toast.error('Não foi possível alterar o status do link');

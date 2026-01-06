@@ -25,6 +25,7 @@ export function useGeneralTab() {
     offers,
     refreshOffers,
     refreshProduct,
+    refreshPaymentLinks,
     deleteProduct,
     updateGeneralModified,
   } = useProductContext();
@@ -317,6 +318,7 @@ export function useGeneralTab() {
 
       await refreshProduct();
       await refreshOffers();
+      await refreshPaymentLinks();
     } catch (error) {
       console.error("Erro ao salvar:", error);
       toast.error("Não foi possível salvar o produto");
@@ -334,6 +336,7 @@ export function useGeneralTab() {
     saveOffers,
     refreshProduct,
     refreshOffers,
+    refreshPaymentLinks,
   ]);
 
   // Handler de exclusão
