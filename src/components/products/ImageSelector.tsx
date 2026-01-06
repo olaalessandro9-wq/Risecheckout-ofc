@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { Upload, Link2, X } from "lucide-react";
+import { useState, useRef } from "react";
+import { Upload, Link2, X, Crop, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { ImageCropDialogProduct } from "./ImageCropDialogProduct";
 
 interface ImageSelectorProps {
   imageUrl?: string | null;
@@ -24,12 +25,41 @@ export function ImageSelector({
 }: ImageSelectorProps) {
   const [mode, setMode] = useState<"upload" | "url">("upload");
   const [urlInput, setUrlInput] = useState("");
+  const [isCropOpen, setIsCropOpen] = useState(false);
+  const [originalFile, setOriginalFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      onImageFileChange(file);
+      // Salvar arquivo original e abrir crop dialog
+      setOriginalFile(file);
+      setIsCropOpen(true);
     }
+    // Limpar input para permitir selecionar mesmo arquivo
+    if (e.target) {
+      e.target.value = "";
+    }
+  };
+
+  const handleCropComplete = (croppedFile: File) => {
+    onImageFileChange(croppedFile);
+    setIsCropOpen(false);
+  };
+
+  const handleReCrop = () => {
+    if (originalFile) {
+      setIsCropOpen(true);
+    } else if (imageFile) {
+      // Se não tem original, usar o arquivo atual
+      setOriginalFile(imageFile);
+      setIsCropOpen(true);
+    }
+  };
+
+  const handleEditImage = () => {
+    // Abre seletor de arquivo para trocar a imagem
+    fileInputRef.current?.click();
   };
 
   const handleUrlSubmit = () => {
@@ -42,31 +72,74 @@ export function ImageSelector({
   // Se já tem imagem (URL ou arquivo) e não está marcada para remoção
   if (!pendingRemoval && (imageUrl || imageFile)) {
     const displayUrl = imageFile ? URL.createObjectURL(imageFile) : imageUrl;
+    const canCrop = !!imageFile || !!originalFile;
     
     return (
-      <div className="mb-4">
+      <div className="space-y-3">
         <img 
           src={displayUrl || ""} 
           alt="Imagem do produto" 
           className="max-w-xs rounded-lg border border-border"
         />
-        <Button
-          variant="destructive"
-          size="sm"
-          onClick={onRemoveImage}
-          className="mt-2 gap-2"
-        >
-          <X className="w-4 h-4" />
-          Remover Imagem
-        </Button>
+        
+        {/* Botões de ação */}
+        <div className="flex flex-wrap gap-2">
+          {canCrop && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleReCrop}
+              className="gap-2"
+            >
+              <Crop className="w-4 h-4" />
+              Recortar
+            </Button>
+          )}
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleEditImage}
+            className="gap-2"
+          >
+            <Pencil className="w-4 h-4" />
+            Trocar imagem
+          </Button>
+          
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={onRemoveImage}
+            className="gap-2"
+          >
+            <X className="w-4 h-4" />
+            Remover
+          </Button>
+        </div>
+
+        {/* Input oculto para trocar imagem */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/jpg,image/png"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+
+        {/* Dialog de crop */}
+        {originalFile && (
+          <ImageCropDialogProduct
+            open={isCropOpen}
+            onOpenChange={setIsCropOpen}
+            imageFile={originalFile}
+            onCropComplete={handleCropComplete}
+          />
+        )}
       </div>
     );
   }
 
-  // Se marcado para remoção, mostrar opções de adicionar nova
-  // (mas não mostrar a mensagem de remoção)
-
-  // Seletor de modo (upload ou URL)
+  // Se marcado para remoção ou sem imagem - mostrar opções de adicionar
   return (
     <div className="space-y-4">
       <RadioGroup value={mode} onValueChange={(v) => setMode(v as "upload" | "url")}>
@@ -83,6 +156,7 @@ export function ImageSelector({
       {mode === "upload" ? (
         <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary/50 transition-colors">
           <input
+            ref={fileInputRef}
             type="file"
             id="product-image"
             accept="image/jpeg,image/jpg,image/png"
@@ -124,6 +198,16 @@ export function ImageSelector({
             Cole a URL completa da imagem. Tamanho recomendado: 800 x 600 pixels (proporção 4:3)
           </p>
         </div>
+      )}
+
+      {/* Dialog de crop (para quando selecionar arquivo) */}
+      {originalFile && (
+        <ImageCropDialogProduct
+          open={isCropOpen}
+          onOpenChange={setIsCropOpen}
+          imageFile={originalFile}
+          onCropComplete={handleCropComplete}
+        />
       )}
     </div>
   );
