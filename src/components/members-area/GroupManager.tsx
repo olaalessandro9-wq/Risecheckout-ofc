@@ -50,7 +50,7 @@ interface GroupManagerProps {
   onCreateGroup: (data: { name: string; description?: string; is_default?: boolean }) => Promise<void>;
   onUpdateGroup: (groupId: string, data: { name?: string; description?: string; is_default?: boolean }) => Promise<void>;
   onDeleteGroup: (groupId: string) => Promise<void>;
-  onManagePermissions: (groupId: string) => void;
+  onEditGroup: (groupId: string) => void;
 }
 
 export function GroupManager({
@@ -59,7 +59,7 @@ export function GroupManager({
   onCreateGroup,
   onUpdateGroup,
   onDeleteGroup,
-  onManagePermissions,
+  onEditGroup,
 }: GroupManagerProps) {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<MemberGroup | null>(null);
@@ -177,10 +177,10 @@ export function GroupManager({
                   variant="ghost"
                   size="sm"
                   className="opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => onManagePermissions(group.id)}
+                  onClick={() => onEditGroup(group.id)}
                 >
-                  <Shield className="w-4 h-4 mr-1" />
-                  Permissões
+                  <Pencil className="w-4 h-4 mr-1" />
+                  Editar
                 </Button>
 
                 <DropdownMenu>

@@ -5,7 +5,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
-import { groupsService } from '../services/groups.service';
+import { groupsService, type ProductOffer } from '../services/groups.service';
 import type {
   MemberGroup,
   GroupWithPermissions,
@@ -16,19 +16,23 @@ import type {
 
 interface UseGroupsReturn {
   groups: MemberGroup[];
+  offers: ProductOffer[];
   isLoading: boolean;
   isSaving: boolean;
   error: string | null;
   fetchGroups: () => Promise<void>;
+  fetchOffers: () => Promise<void>;
   getGroup: (groupId: string) => Promise<GroupWithPermissions | null>;
   createGroup: (input: Omit<CreateGroupInput, 'product_id'>) => Promise<MemberGroup | null>;
   updateGroup: (groupId: string, input: UpdateGroupInput) => Promise<boolean>;
   deleteGroup: (groupId: string) => Promise<boolean>;
   updatePermissions: (input: UpdatePermissionsInput) => Promise<boolean>;
+  linkOffers: (groupId: string, offerIds: string[]) => Promise<boolean>;
 }
 
 export function useGroups(productId: string | undefined): UseGroupsReturn {
   const [groups, setGroups] = useState<MemberGroup[]>([]);
+  const [offers, setOffers] = useState<ProductOffer[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,9 +55,22 @@ export function useGroups(productId: string | undefined): UseGroupsReturn {
     setIsLoading(false);
   }, [productId]);
 
+  const fetchOffers = useCallback(async () => {
+    if (!productId) return;
+
+    const { data, error: fetchError } = await groupsService.listOffers(productId);
+
+    if (fetchError) {
+      console.error('Erro ao carregar ofertas:', fetchError);
+    } else if (data) {
+      setOffers(data);
+    }
+  }, [productId]);
+
   useEffect(() => {
     fetchGroups();
-  }, [fetchGroups]);
+    fetchOffers();
+  }, [fetchGroups, fetchOffers]);
 
   const getGroup = useCallback(async (groupId: string): Promise<GroupWithPermissions | null> => {
     const { data, error: fetchError } = await groupsService.get(groupId);
@@ -152,16 +169,39 @@ export function useGroups(productId: string | undefined): UseGroupsReturn {
     return true;
   }, []);
 
+  const linkOffers = useCallback(async (
+    groupId: string,
+    offerIds: string[]
+  ): Promise<boolean> => {
+    setIsSaving(true);
+
+    const { error: linkError } = await groupsService.linkOffers(groupId, offerIds);
+
+    if (linkError) {
+      toast.error('Erro ao vincular ofertas');
+      setIsSaving(false);
+      return false;
+    }
+
+    // Refresh offers list after linking
+    await fetchOffers();
+    setIsSaving(false);
+    return true;
+  }, [fetchOffers]);
+
   return {
     groups,
+    offers,
     isLoading,
     isSaving,
     error,
     fetchGroups,
+    fetchOffers,
     getGroup,
     createGroup,
     updateGroup,
     deleteGroup,
     updatePermissions,
+    linkOffers,
   };
 }

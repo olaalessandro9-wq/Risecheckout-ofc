@@ -42,13 +42,16 @@ async function invokeGroupsFunction<T>(
       return { data: null, error: error.message };
     }
 
-    // Edge function returns { success: true, groups/group } wrapper
+    // Edge function returns { success: true, groups/group/offers } wrapper
     // Extract the actual data based on what we expect
     if (data?.groups !== undefined) {
       return { data: data.groups as T, error: null };
     }
     if (data?.group !== undefined) {
       return { data: data.group as T, error: null };
+    }
+    if (data?.offers !== undefined) {
+      return { data: data.offers as T, error: null };
     }
     if (data?.success !== undefined) {
       return { data: data as T, error: null };
@@ -126,6 +129,38 @@ export async function updatePermissions(
   });
 }
 
+/** Offer data returned by the edge function */
+export interface ProductOffer {
+  id: string;
+  name: string;
+  price: number;
+  is_default: boolean;
+  member_group_id: string | null;
+  status: string;
+}
+
+/**
+ * List all offers for a product
+ */
+export async function listOffers(
+  productId: string
+): Promise<ServiceResponse<ProductOffer[]>> {
+  return invokeGroupsFunction<ProductOffer[]>('list_offers', { product_id: productId });
+}
+
+/**
+ * Link offers to a group
+ */
+export async function linkOffers(
+  groupId: string,
+  offerIds: string[]
+): Promise<ServiceResponse<{ success: boolean }>> {
+  return invokeGroupsFunction<{ success: boolean }>('link_offers', {
+    group_id: groupId,
+    data: { offer_ids: offerIds },
+  });
+}
+
 export const groupsService = {
   list: listGroups,
   get: getGroup,
@@ -133,4 +168,6 @@ export const groupsService = {
   update: updateGroup,
   delete: deleteGroup,
   updatePermissions,
+  listOffers,
+  linkOffers,
 };
