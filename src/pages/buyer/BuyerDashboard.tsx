@@ -129,7 +129,7 @@ export default function BuyerDashboard() {
             className="overflow-hidden border-0 shadow-lg hover:shadow-2xl transition-all duration-300 group bg-card"
           >
             {/* Course Image - Larger aspect ratio like Kiwify */}
-            <div className="aspect-[16/10] bg-gradient-to-br from-zinc-800 to-zinc-900 overflow-hidden">
+            <div className="aspect-[4/3] bg-gradient-to-br from-zinc-800 to-zinc-900 overflow-hidden">
               {item.product?.image_url ? (
                 <img
                   src={item.product.image_url}
