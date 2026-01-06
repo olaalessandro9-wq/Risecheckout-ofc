@@ -37,6 +37,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { rateLimitMiddleware, getIdentifier } from '../_shared/rate-limit.ts';
 import { sendOrderConfirmationEmails, type OrderData } from '../_shared/send-order-emails.ts';
 import { getGatewayCredentials, validateCredentials } from '../_shared/platform-config.ts';
+import { grantMembersAccess } from '../_shared/grant-members-access.ts';
 
 // Versão da função - SEMPRE incrementar ao fazer mudanças significativas
 const FUNCTION_VERSION = "145";
@@ -540,7 +541,35 @@ serve(async (req) => {
     logInfo('Pedido atualizado com sucesso', { orderId: order.id });
 
     // ========================================================================
-    // 10. SEND CONFIRMATION EMAILS (um para cada item do pedido)
+    // 10. GRANT MEMBERS AREA ACCESS (se aplicável)
+    // ========================================================================
+
+    if (orderStatus === 'PAID') {
+      logInfo('Verificando acesso à área de membros', { orderId: order.id });
+      
+      try {
+        const accessResult = await grantMembersAccess(supabase, {
+          orderId: order.id,
+          customerEmail: order.customer_email,
+          customerName: order.customer_name,
+          productId: order.product_id,
+          productName: order.product_name,
+        });
+
+        if (accessResult.hasMembersArea) {
+          logInfo('✅ Acesso à área de membros concedido', {
+            buyerId: accessResult.buyerId,
+            isNewBuyer: accessResult.isNewBuyer,
+            hasInviteToken: !!accessResult.inviteToken,
+          });
+        }
+      } catch (accessError) {
+        logWarn('⚠️ Erro ao conceder acesso à área de membros (não crítico)', accessError);
+      }
+    }
+
+    // ========================================================================
+    // 11. SEND CONFIRMATION EMAILS (um para cada item do pedido)
     // ========================================================================
 
     if (orderStatus === 'PAID' && order.customer_email) {
@@ -576,7 +605,7 @@ serve(async (req) => {
     }
 
     // ========================================================================
-    // 11. TRIGGER VENDOR WEBHOOKS EXPLICITLY
+    // 12. TRIGGER VENDOR WEBHOOKS EXPLICITLY
     // ========================================================================
 
     // O trigger automático do banco não está funcionando consistentemente,
@@ -609,7 +638,7 @@ serve(async (req) => {
     logInfo('Webhooks disparados explicitamente');
 
     // ========================================================================
-    // 12. RETURN SUCCESS
+    // 13. RETURN SUCCESS
     // ========================================================================
 
     return createSuccessResponse({
