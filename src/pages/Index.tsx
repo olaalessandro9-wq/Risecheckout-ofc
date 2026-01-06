@@ -72,13 +72,7 @@ const Index = () => {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           <MetricCard
             title="Faturamento"
-            value={(() => {
-              // TEMP DEMO: Adiciona R$ 7.053,20 ao faturamento
-              const current = data?.metrics.totalRevenue || "R$ 0,00";
-              const numValue = parseFloat(current.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
-              const adjusted = numValue + 7053.20;
-              return `R$ ${adjusted.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-            })()}
+            value={data?.metrics.totalRevenue || "R$ 0,00"}
             isLoading={isLoading}
             icon={<DollarSign className="w-5 h-5" />}
             trend={data?.metrics.revenueTrend}
@@ -106,7 +100,7 @@ const Index = () => {
           />
           <MetricCard
             title="Taxa de Conversão"
-            value="79%"
+            value={data?.metrics.conversionRate || "0%"}
             isLoading={isLoading}
             icon={<TrendingUp className="w-5 h-5" />}
             trend={data?.metrics.conversionTrend}
