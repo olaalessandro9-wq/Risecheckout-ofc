@@ -12,6 +12,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logSecurityEvent, SecurityAction } from "../_shared/audit-logger.ts";
 import { sendOrderConfirmationEmails, type OrderData } from '../_shared/send-order-emails.ts';
+import { grantMembersAccess } from '../_shared/grant-members-access.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -170,6 +171,29 @@ serve(async (req) => {
         JSON.stringify({ error: 'Erro ao atualizar order' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Conceder acesso à área de membros (se aplicável)
+    if (internalStatus === 'paid' && orderData) {
+      console.log('[asaas-webhook] Verificando acesso à área de membros');
+      try {
+        const accessResult = await grantMembersAccess(supabase, {
+          orderId,
+          customerEmail: orderData.customer_email,
+          customerName: orderData.customer_name,
+          productId: orderData.product_id,
+          productName: orderData.product_name,
+        });
+
+        if (accessResult.hasMembersArea) {
+          console.log('[asaas-webhook] ✅ Acesso à área de membros concedido', {
+            buyerId: accessResult.buyerId,
+            isNewBuyer: accessResult.isNewBuyer,
+          });
+        }
+      } catch (accessError) {
+        console.warn('[asaas-webhook] ⚠️ Erro ao conceder acesso à área de membros (não crítico):', accessError);
+      }
     }
 
     // Enviar emails de confirmação para cada item do pedido

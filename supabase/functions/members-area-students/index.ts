@@ -15,7 +15,8 @@ interface StudentRequest {
     | "grant-access"
     | "invite"
     | "validate-invite-token"
-    | "use-invite-token";
+    | "use-invite-token"
+    | "generate-purchase-access";
   product_id?: string;
   buyer_id?: string;
   group_id?: string;
@@ -27,6 +28,8 @@ interface StudentRequest {
   // Token fields
   token?: string;
   password?: string;
+  // Purchase access fields
+  customer_email?: string;
 }
 
 /**
@@ -301,6 +304,157 @@ Deno.serve(async (req) => {
             name: buyer.name,
           },
           product_id: tokenData.product_id,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ========================================================================
+    // GENERATE PURCHASE ACCESS - Gera token de acesso para página de sucesso
+    // ========================================================================
+    if (action === "generate-purchase-access") {
+      const { order_id, customer_email, product_id } = body;
+
+      if (!order_id || !customer_email || !product_id) {
+        return new Response(
+          JSON.stringify({ error: "order_id, customer_email and product_id required" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log(`[members-area-students] Generating purchase access for order ${order_id}`);
+
+      // 1. Validar que a order existe e está PAID
+      const { data: order, error: orderError } = await supabase
+        .from("orders")
+        .select("id, status, customer_email, product_id")
+        .eq("id", order_id)
+        .single();
+
+      if (orderError || !order) {
+        console.log("[members-area-students] Order not found:", order_id);
+        return new Response(
+          JSON.stringify({ error: "Pedido não encontrado" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (order.status !== "PAID") {
+        return new Response(
+          JSON.stringify({ error: "Pedido ainda não foi pago" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Validar email
+      const normalizedEmail = customer_email.toLowerCase().trim();
+      if (order.customer_email?.toLowerCase().trim() !== normalizedEmail) {
+        return new Response(
+          JSON.stringify({ error: "Email não corresponde ao pedido" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // 2. Verificar se produto tem área de membros
+      const { data: product } = await supabase
+        .from("products")
+        .select("id, name, members_area_enabled, user_id")
+        .eq("id", product_id)
+        .single();
+
+      if (!product?.members_area_enabled) {
+        return new Response(
+          JSON.stringify({ error: "Produto não tem área de membros" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // 3. Buscar buyer_profile
+      let { data: buyer } = await supabase
+        .from("buyer_profiles")
+        .select("id, email, password_hash")
+        .eq("email", normalizedEmail)
+        .single();
+
+      if (!buyer) {
+        // Criar buyer se não existir
+        const { data: newBuyer, error: createError } = await supabase
+          .from("buyer_profiles")
+          .insert({
+            email: normalizedEmail,
+            password_hash: "PENDING_PASSWORD_SETUP",
+            is_active: true,
+          })
+          .select("id, email, password_hash")
+          .single();
+
+        if (createError) {
+          console.error("[members-area-students] Error creating buyer:", createError);
+          return new Response(
+            JSON.stringify({ error: "Erro ao criar perfil" }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        buyer = newBuyer;
+      }
+
+      const needsPasswordSetup = !buyer.password_hash || buyer.password_hash === "PENDING_PASSWORD_SETUP";
+
+      // 4. Garantir buyer_product_access existe
+      await supabase
+        .from("buyer_product_access")
+        .upsert({
+          buyer_id: buyer.id,
+          product_id: product_id,
+          order_id: order_id,
+          is_active: true,
+          access_type: "purchase",
+          granted_at: new Date().toISOString(),
+        }, {
+          onConflict: "buyer_id,product_id,order_id",
+        });
+
+      const baseUrl = Deno.env.get("PUBLIC_SITE_URL") || "https://risecheckout.lovable.app";
+
+      // 5. Se precisa setup de senha, gerar invite token
+      if (needsPasswordSetup) {
+        const rawToken = generateToken();
+        const tokenHash = await hashToken(rawToken);
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 7);
+
+        await supabase
+          .from("student_invite_tokens")
+          .insert({
+            token_hash: tokenHash,
+            buyer_id: buyer.id,
+            product_id: product_id,
+            invited_by: product.user_id,
+            expires_at: expiresAt.toISOString(),
+          });
+
+        const accessUrl = `${baseUrl}/minha-conta/setup-acesso?token=${rawToken}`;
+        
+        console.log(`[members-area-students] Generated setup access URL for buyer ${buyer.id}`);
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            needsPasswordSetup: true,
+            accessUrl,
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // 6. Buyer já tem senha - redirecionar para login
+      console.log(`[members-area-students] Buyer ${buyer.id} already has password, redirecting to login`);
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          needsPasswordSetup: false,
+          accessUrl: `${baseUrl}/minha-conta`,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

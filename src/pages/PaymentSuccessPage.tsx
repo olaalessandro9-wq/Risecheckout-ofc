@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
-import { CheckCircle2, Mail, MessageCircle, Copy, Check, Package, ShoppingBag } from "lucide-react";
+import { useParams, useSearchParams, useNavigate } from "react-router-dom";
+import { CheckCircle2, Mail, MessageCircle, Copy, Check, Package, ShoppingBag, GraduationCap, ArrowRight, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 
 interface OrderItem {
   id: string;
@@ -13,6 +14,7 @@ interface OrderItem {
 
 interface OrderDetails {
   id: string;
+  product_id: string;
   product_name: string | null;
   amount_cents: number;
   customer_email: string | null;
@@ -20,16 +22,21 @@ interface OrderDetails {
   order_items: OrderItem[];
   coupon_code: string | null;
   discount_amount_cents: number | null;
+  product?: {
+    members_area_enabled: boolean;
+  };
 }
 
 export const PaymentSuccessPage = () => {
   const { orderId } = useParams<{ orderId: string }>();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const token = searchParams.get('token');
   
   const [copied, setCopied] = useState(false);
   const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [accessingMembersArea, setAccessingMembersArea] = useState(false);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -46,6 +53,7 @@ export const PaymentSuccessPage = () => {
           .from('orders')
           .select(`
             id,
+            product_id,
             product_name,
             amount_cents,
             customer_email,
@@ -58,6 +66,9 @@ export const PaymentSuccessPage = () => {
               amount_cents,
               is_bump,
               quantity
+            ),
+            product:products!orders_product_id_fkey (
+              members_area_enabled
             )
           `)
           .eq('id', orderId)
@@ -67,7 +78,7 @@ export const PaymentSuccessPage = () => {
         if (error) {
           console.error('[PaymentSuccessPage] Erro ao buscar pedido:', error);
         } else {
-          setOrderDetails(data as OrderDetails);
+          setOrderDetails(data as unknown as OrderDetails);
         }
       } catch (err) {
         console.error('[PaymentSuccessPage] Erro:', err);
@@ -96,6 +107,45 @@ export const PaymentSuccessPage = () => {
 
   const mainProduct = orderDetails?.order_items?.find(item => !item.is_bump);
   const orderBumps = orderDetails?.order_items?.filter(item => item.is_bump) || [];
+  const hasMembersArea = orderDetails?.product?.members_area_enabled === true;
+
+  const handleAccessMembersArea = async () => {
+    if (!orderId || !orderDetails?.customer_email || !orderDetails?.product_id) return;
+    
+    setAccessingMembersArea(true);
+    
+    try {
+      // Chamar edge function para gerar token de acesso
+      const { data, error } = await supabase.functions.invoke('members-area-students', {
+        body: {
+          action: 'generate-purchase-access',
+          order_id: orderId,
+          customer_email: orderDetails.customer_email,
+          product_id: orderDetails.product_id,
+        },
+      });
+
+      if (error) {
+        console.error('[PaymentSuccessPage] Erro ao gerar acesso:', error);
+        // Fallback: redirecionar para login
+        navigate('/minha-conta');
+        return;
+      }
+
+      if (data?.accessUrl) {
+        // Redirecionar para URL de acesso
+        window.location.href = data.accessUrl;
+      } else {
+        // Fallback: redirecionar para login
+        navigate('/minha-conta');
+      }
+    } catch (err) {
+      console.error('[PaymentSuccessPage] Erro:', err);
+      navigate('/minha-conta');
+    } finally {
+      setAccessingMembersArea(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center p-4">
@@ -213,7 +263,44 @@ export const PaymentSuccessPage = () => {
               </div>
             )}
 
-            {/* Número do Pedido */}
+            {/* Card Área de Membros */}
+            {hasMembersArea && (
+              <div className="bg-gradient-to-r from-purple-500/10 to-violet-500/10 border border-purple-500/20 rounded-xl p-6">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                      <GraduationCap className="w-6 h-6 text-purple-400" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-white mb-1">
+                      Acesse seu Produto
+                    </h3>
+                    <p className="text-sm text-[#888888] mb-4">
+                      Clique abaixo para acessar a área de membros e começar a consumir seu conteúdo.
+                    </p>
+                    <Button
+                      onClick={handleAccessMembersArea}
+                      disabled={accessingMembersArea}
+                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                    >
+                      {accessingMembersArea ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Preparando acesso...
+                        </>
+                      ) : (
+                        <>
+                          Acessar minha Área de Membros
+                          <ArrowRight className="w-4 h-4 ml-2" />
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {orderId && (
               <div>
                 <label className="text-xs font-medium text-[#666666] uppercase tracking-wider block mb-3">
