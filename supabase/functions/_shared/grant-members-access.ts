@@ -190,7 +190,7 @@ export async function grantMembersAccess(
       access_type: 'purchase',
       granted_at: new Date().toISOString(),
     }, {
-      onConflict: 'buyer_id,product_id,order_id',
+      onConflict: 'buyer_id,product_id',
     });
 
   if (accessError) {

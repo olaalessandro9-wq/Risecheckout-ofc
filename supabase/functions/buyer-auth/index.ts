@@ -526,25 +526,9 @@ serve(async (req) => {
           console.log(`[buyer-auth] Created buyer profile for producer: ${email}`);
         }
 
-        // Verificar se já tem acesso a este produto
-        const { data: existingAccess } = await supabase
-          .from("buyer_product_access")
-          .select("id")
-          .eq("buyer_id", buyer.id)
-          .eq("product_id", productId)
-          .single();
-
-        if (!existingAccess) {
-          // Criar acesso com access_type = 'owner'
-          await supabase.from("buyer_product_access").insert({
-            buyer_id: buyer.id,
-            product_id: productId,
-            order_id: "00000000-0000-0000-0000-000000000000", // Placeholder para owner
-            access_type: "owner",
-            is_active: true,
-          });
-          console.log(`[buyer-auth] Created owner access for producer: ${email} -> product: ${productId}`);
-        }
+        // Producer access is handled via product ownership check, no need to create buyer_product_access
+        // This avoids polluting the students list and maintains clean access_type taxonomy
+        console.log(`[buyer-auth] Producer ${email} has access via product ownership, no buyer_product_access needed`);
 
         return new Response(
           JSON.stringify({ success: true, buyerId: buyer.id }),
