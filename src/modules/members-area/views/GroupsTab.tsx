@@ -1,11 +1,12 @@
 /**
  * GroupsTab - Manage access groups for a product's members area
+ * Uses unified modal for creating/editing groups with modules and offers
  */
 
 import { useState, useCallback } from 'react';
 import { Loader2 } from 'lucide-react';
 import { GroupManager } from '@/components/members-area/GroupManager';
-import { GroupPermissionsEditor } from '@/components/members-area/GroupPermissionsEditor';
+import { UnifiedGroupModal } from '@/components/members-area/UnifiedGroupModal';
 import { useGroups } from '../hooks/useGroups';
 import { useMembersArea } from '@/hooks/useMembersArea';
 import type { MemberGroup, GroupPermission } from '../types';
@@ -24,44 +25,75 @@ export function GroupsTab({ productId }: GroupsTabProps) {
     deleteGroup,
     getGroup,
     updatePermissions,
+    offers,
+    linkOffers,
   } = useGroups(productId);
 
   const { modules } = useMembersArea(productId);
 
-  // State for permissions editor
+  // State for unified modal
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   const [selectedGroup, setSelectedGroup] = useState<MemberGroup | null>(null);
   const [groupPermissions, setGroupPermissions] = useState<GroupPermission[]>([]);
-  const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
-  const [isLoadingPermissions, setIsLoadingPermissions] = useState(false);
+  const [isLoadingGroup, setIsLoadingGroup] = useState(false);
 
-  // Handle opening permissions editor
-  const handleManagePermissions = useCallback(async (groupId: string) => {
-    setIsLoadingPermissions(true);
-    
+  // Handle opening modal for editing
+  const handleEditGroup = useCallback(async (groupId: string) => {
+    setIsLoadingGroup(true);
     const groupWithPermissions = await getGroup(groupId);
     
     if (groupWithPermissions) {
       setSelectedGroup(groupWithPermissions);
       setGroupPermissions(groupWithPermissions.permissions || []);
-      setIsPermissionsOpen(true);
+      setModalMode('edit');
+      setModalOpen(true);
     }
-    
-    setIsLoadingPermissions(false);
+    setIsLoadingGroup(false);
   }, [getGroup]);
 
-  // Handle saving permissions
-  const handleSavePermissions = useCallback(async (
-    permissions: { module_id: string; has_access: boolean }[]
-  ) => {
-    if (!selectedGroup) return;
+  // Handle saving from unified modal
+  const handleSaveGroup = useCallback(async (data: {
+    name: string;
+    description?: string;
+    is_default: boolean;
+    permissions: { module_id: string; has_access: boolean }[];
+    linkedOfferIds: string[];
+  }) => {
+    if (modalMode === 'create') {
+      const newGroup = await createGroup({
+        name: data.name,
+        description: data.description,
+        is_default: data.is_default,
+      });
+      
+      if (newGroup) {
+        // Save permissions
+        await updatePermissions({
+          group_id: newGroup.id,
+          permissions: data.permissions,
+        });
+        // Link offers
+        await linkOffers(newGroup.id, data.linkedOfferIds);
+      }
+    } else if (selectedGroup) {
+      // Update group
+      await updateGroup(selectedGroup.id, {
+        name: data.name,
+        description: data.description,
+        is_default: data.is_default,
+      });
+      // Update permissions
+      await updatePermissions({
+        group_id: selectedGroup.id,
+        permissions: data.permissions,
+      });
+      // Update linked offers
+      await linkOffers(selectedGroup.id, data.linkedOfferIds);
+    }
+  }, [modalMode, selectedGroup, createGroup, updateGroup, updatePermissions, linkOffers]);
 
-    await updatePermissions({
-      group_id: selectedGroup.id,
-      permissions,
-    });
-  }, [selectedGroup, updatePermissions]);
-
-  // Wrapper functions to match GroupManager's expected signature (returns void)
+  // Wrapper functions
   const handleCreateGroup = useCallback(async (data: { name: string; description?: string; is_default?: boolean }) => {
     await createGroup(data);
   }, [createGroup]);
@@ -74,7 +106,7 @@ export function GroupsTab({ productId }: GroupsTabProps) {
     await deleteGroup(groupId);
   }, [deleteGroup]);
 
-  // Convert modules to the format expected by GroupPermissionsEditor
+  // Convert modules to the format expected
   const formattedModules: MemberModule[] = modules.map(m => ({
     id: m.id,
     product_id: m.product_id,
@@ -101,20 +133,22 @@ export function GroupsTab({ productId }: GroupsTabProps) {
     <div className="space-y-6">
       <GroupManager
         groups={groups}
-        isLoading={isLoading || isLoadingPermissions}
+        isLoading={isLoading || isLoadingGroup}
         onCreateGroup={handleCreateGroup}
         onUpdateGroup={handleUpdateGroup}
         onDeleteGroup={handleDeleteGroup}
-        onManagePermissions={handleManagePermissions}
+        onEditGroup={handleEditGroup}
       />
 
-      <GroupPermissionsEditor
-        open={isPermissionsOpen}
-        onOpenChange={setIsPermissionsOpen}
+      <UnifiedGroupModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        mode={modalMode}
         group={selectedGroup}
         modules={formattedModules}
+        offers={offers}
         permissions={groupPermissions}
-        onSave={handleSavePermissions}
+        onSave={handleSaveGroup}
       />
     </div>
   );
