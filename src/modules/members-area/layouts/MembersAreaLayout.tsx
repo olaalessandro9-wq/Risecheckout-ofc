@@ -58,8 +58,9 @@ export function MembersAreaLayout() {
     setSearchParams(newParams);
   };
 
-  const handleContentEditorSave = () => {
-    // Go back to content list - data will refresh via useEffect
+  const handleContentEditorSave = async () => {
+    // Refetch modules data to show the new content immediately
+    await membersAreaData.fetchModules();
     handleContentEditorBack();
   };
 
