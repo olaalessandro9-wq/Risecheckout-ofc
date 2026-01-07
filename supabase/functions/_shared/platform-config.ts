@@ -488,7 +488,7 @@ export interface GatewayCredentials {
 export interface GatewayCredentialsResult {
   isOwner: boolean;
   credentials: GatewayCredentials;
-  source: 'secrets' | 'vendor_integrations';
+  source: 'secrets' | 'vendor_integrations' | 'vault';
 }
 
 const INTEGRATION_TYPE_MAP: Record<GatewayType, string> = {
@@ -600,6 +600,46 @@ async function getVendorCredentials(
   }
   
   const config = integration.config as Record<string, unknown>;
+
+  // ✅ NOVO: Se credentials_in_vault, buscar do Vault
+  if (config.credentials_in_vault === true) {
+    console.log(`[platform-config] 🔐 Buscando credenciais do Vault para ${vendorId}`);
+    
+    try {
+      const { getVendorCredentials: getFromVault } = await import('./vault-credentials.ts');
+      const vaultResult = await getFromVault(supabase, vendorId, integrationType);
+      
+      if (!vaultResult.success || !vaultResult.credentials?.access_token) {
+        throw new Error(`Token não encontrado no Vault para ${vendorId}`);
+      }
+      
+      return {
+        isOwner: false,
+        credentials: {
+          accessToken: vaultResult.credentials.access_token,
+          collectorId: config.user_id as string | undefined,
+          environment: 'production'
+        },
+        source: 'vault' as const
+      };
+    } catch (vaultError: any) {
+      console.error(`[platform-config] ❌ Erro ao buscar do Vault:`, vaultError);
+      // Fallback para config se o Vault falhar (segurança)
+      if (config.access_token) {
+        console.warn(`[platform-config] ⚠️ Usando fallback para config após falha do Vault`);
+        return {
+          isOwner: false,
+          credentials: {
+            accessToken: config.access_token as string,
+            environment: 'production'
+          },
+          source: 'vendor_integrations'
+        };
+      }
+      throw new Error(`Falha ao recuperar credenciais do Vault: ${vaultError.message}`);
+    }
+  }
+
   
   const credentials: GatewayCredentials = {
     apiKey: config.api_key as string | undefined,
