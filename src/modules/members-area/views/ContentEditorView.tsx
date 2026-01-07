@@ -4,7 +4,7 @@
  * Full page experience with:
  * - Video section (YouTube/upload)
  * - Rich text editor
- * - Multiple attachments
+ * - Multiple attachments with real upload
  * - Release settings with after_content support
  */
 
@@ -22,6 +22,7 @@ import {
   ContentEditorHeader,
 } from "../components/editor";
 import { useDripSettings } from "../hooks/useDripSettings";
+import { useAttachmentUpload } from "../hooks/useAttachmentUpload";
 import type { ReleaseFormData, ContentAttachment, MemberContent } from "../types";
 
 interface ContentEditorViewProps {
@@ -52,6 +53,7 @@ const DEFAULT_RELEASE: ReleaseFormData = {
 export function ContentEditorView({ productId, onBack, onSave }: ContentEditorViewProps) {
   const [searchParams] = useSearchParams();
   const { fetchDripSettings, saveDripSettings, isLoading: isDripLoading } = useDripSettings();
+  const { isUploading, uploadProgress, uploadAttachments } = useAttachmentUpload();
 
   // Get params from URL
   const mode = searchParams.get("mode");
@@ -204,17 +206,18 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
         }
       }
 
-      // Save attachments (simplified - full implementation would handle uploads)
-      if (savedContentId) {
-        // Delete removed attachments (those not in current list)
+      // Upload attachments to Supabase Storage
+      if (savedContentId && productId) {
+        // Delete removed attachments from DB (orphans)
         const currentIds = attachments.filter(a => !a.id.startsWith("temp-")).map(a => a.id);
-        if (currentIds.length > 0) {
-          await supabase
-            .from("content_attachments")
-            .delete()
-            .eq("content_id", savedContentId)
-            .not("id", "in", `(${currentIds.join(",")})`);
-        }
+        await supabase
+          .from("content_attachments")
+          .delete()
+          .eq("content_id", savedContentId)
+          .not("id", "in", `(${currentIds.join(",") || "''"})`);
+
+        // Upload new attachments
+        await uploadAttachments(productId, savedContentId, attachments);
 
         // Save release settings
         const dripData: ReleaseFormData = {
@@ -238,7 +241,7 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
     } finally {
       setIsSaving(false);
     }
-  }, [canSave, isNew, moduleId, contentId, content, release, attachments, saveDripSettings, onSave]);
+  }, [canSave, isNew, moduleId, contentId, content, release, attachments, saveDripSettings, onSave, productId, uploadAttachments]);
 
   // Handlers
   const handleTitleChange = (value: string) => {
@@ -273,7 +276,7 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
     <div className="min-h-screen bg-background">
       <ContentEditorHeader
         isNew={isNew}
-        isSaving={isSaving || isDripLoading}
+        isSaving={isSaving || isDripLoading || isUploading}
         canSave={canSave}
         onBack={onBack}
         onCancel={onBack}
@@ -301,6 +304,8 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
         <VideoSection
           videoUrl={content.video_url}
           onVideoUrlChange={handleVideoUrlChange}
+          productId={productId}
+          currentContentId={contentId || undefined}
         />
 
         {/* Rich Text Editor */}
@@ -313,7 +318,8 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
         <AttachmentsSection
           attachments={attachments}
           onAttachmentsChange={handleAttachmentsChange}
-          isLoading={isSaving}
+          isLoading={isSaving || isUploading}
+          uploadProgress={uploadProgress}
         />
 
         {/* Release Settings */}
