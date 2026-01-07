@@ -60,7 +60,7 @@ export function ModuleCarousel({ modules, onSelectContent }: ModuleCarouselProps
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.4 }}
-        className="px-6 md:px-10 lg:px-16 mb-4"
+        className="px-6 md:px-10 lg:px-16 mb-2"
       >
         <h2 className="text-xl md:text-2xl font-semibold text-foreground">
           Módulos
@@ -97,7 +97,7 @@ export function ModuleCarousel({ modules, onSelectContent }: ModuleCarouselProps
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="flex gap-4 overflow-x-auto scrollbar-hide px-6 md:px-10 lg:px-16 pb-4"
+          className="flex gap-4 overflow-x-auto scrollbar-hide px-6 md:px-10 lg:px-16 pt-4 pb-4"
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
           {modules.map((module, index) => (
