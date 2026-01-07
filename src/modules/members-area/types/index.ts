@@ -16,6 +16,9 @@ export type {
   CreateContentInput,
   UpdateContentInput,
   EditingModuleData,
+  ContentFormData,
+  DripFormData,
+  ContentEditorState,
 } from './module.types';
 
 // Group types

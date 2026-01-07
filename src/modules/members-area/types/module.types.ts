@@ -125,3 +125,32 @@ export interface EditingModuleData {
   title: string;
   cover_image_url: string | null;
 }
+
+/** Form data for content editor */
+export interface ContentFormData {
+  title: string;
+  description: string | null;
+  content_type: ContentType;
+  content_url: string | null;
+  body: string | null;
+  content_data: Record<string, unknown> | null;
+  duration_seconds: number | null;
+  is_active: boolean;
+}
+
+/** Form data for drip content settings */
+export interface DripFormData {
+  release_type: ReleaseType;
+  days_after_purchase: number | null;
+  fixed_date: string | null;
+  after_content_id: string | null;
+}
+
+/** State for the content editor page */
+export interface ContentEditorState {
+  content: ContentFormData;
+  drip: DripFormData;
+  isNew: boolean;
+  moduleId: string;
+  contentId?: string;
+}
