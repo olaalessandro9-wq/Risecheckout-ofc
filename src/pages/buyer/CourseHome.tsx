@@ -1,30 +1,20 @@
 /**
- * BuyerProductContent Page
- * Displays product modules and content for buyers
- * 
- * @see RISE ARCHITECT PROTOCOL - Refatorado para compliance de 300 linhas
+ * CourseHome Page - Netflix-style Course Landing
+ * Displays hero banner and module carousel
  */
 
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import { useBuyerAuth } from "@/hooks/useBuyerAuth";
 import { useBuyerOrders } from "@/hooks/useBuyerOrders";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, ArrowLeft } from "lucide-react";
 
-// Components
-import {
-  BuyerProductHeader,
-  ModuleSidebar,
-  MobileModuleDrawer,
-  ContentViewer,
-  type Module,
-  type ContentItem,
-  type ProductData,
-} from "./components";
+import { HeroBanner, ModuleCarousel } from "./components/netflix";
+import type { Module, ContentItem, ProductData } from "./components/types";
 
-export default function BuyerProductContent() {
+export default function CourseHome() {
   const navigate = useNavigate();
   const { productId } = useParams<{ productId: string }>();
   const { isLoading: authLoading, isAuthenticated } = useBuyerAuth();
@@ -33,7 +23,6 @@ export default function BuyerProductContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [product, setProduct] = useState<ProductData | null>(null);
   const [modules, setModules] = useState<Module[]>([]);
-  const [selectedContent, setSelectedContent] = useState<ContentItem | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Redirect if not authenticated
@@ -54,10 +43,6 @@ export default function BuyerProductContent() {
         if (data) {
           setProduct(data.product);
           setModules(data.modules as Module[]);
-          // Auto-select first content if available
-          if (data.modules[0]?.contents[0]) {
-            setSelectedContent(data.modules[0].contents[0] as ContentItem);
-          }
         } else {
           setError("Não foi possível carregar o conteúdo.");
         }
@@ -71,6 +56,19 @@ export default function BuyerProductContent() {
     loadContent();
   }, [productId, isAuthenticated, fetchProductContent]);
 
+  // Handle starting course (first lesson)
+  const handleStartCourse = () => {
+    if (modules.length > 0 && modules[0].contents.length > 0) {
+      const firstContent = modules[0].contents[0];
+      navigate(`/minha-conta/produto/${productId}/aula/${firstContent.id}`);
+    }
+  };
+
+  // Handle selecting a content from carousel
+  const handleSelectContent = (content: ContentItem, module: Module) => {
+    navigate(`/minha-conta/produto/${productId}/aula/${content.id}`);
+  };
+
   if (authLoading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -81,43 +79,51 @@ export default function BuyerProductContent() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Card className="max-w-md">
-          <CardContent className="py-8 text-center">
-            <p className="text-destructive mb-4">{error}</p>
-            <Link to="/minha-conta/dashboard">
-              <Button variant="outline">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Voltar
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center space-y-4"
+        >
+          <p className="text-destructive">{error}</p>
+          <Link to="/minha-conta/dashboard">
+            <Button variant="outline">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar para Meus Cursos
+            </Button>
+          </Link>
+        </motion.div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background">
-      <BuyerProductHeader product={product} modules={modules} />
-
-      <div className="flex min-h-[calc(100vh-65px)]">
-        <ModuleSidebar
-          modules={modules}
-          selectedContent={selectedContent}
-          onSelectContent={setSelectedContent}
-        />
-
-        <main className="flex-1 p-6 overflow-y-auto">
-          <ContentViewer content={selectedContent} />
-        </main>
+      {/* Back Button - Floating */}
+      <div className="absolute top-4 left-4 z-30">
+        <Link to="/minha-conta/dashboard">
+          <Button variant="ghost" size="sm" className="gap-2 bg-background/50 backdrop-blur-sm">
+            <ArrowLeft className="h-4 w-4" />
+            Voltar
+          </Button>
+        </Link>
       </div>
 
-      <MobileModuleDrawer
+      {/* Hero Banner */}
+      <HeroBanner
+        product={product}
         modules={modules}
-        selectedContent={selectedContent}
-        onSelectContent={setSelectedContent}
+        onStartCourse={handleStartCourse}
       />
+
+      {/* Module Carousel */}
+      <ModuleCarousel
+        modules={modules}
+        onSelectContent={handleSelectContent}
+      />
+
+      {/* Spacer for bottom */}
+      <div className="h-16" />
     </div>
   );
 }
