@@ -98,7 +98,6 @@ export function MembersAreaLayout() {
 
       {/* Cover Image */}
       <MembersAreaCover 
-        productId={product?.id}
         coverUrl={product?.members_area_settings?.cover_url}
         productName={product?.name || "Área de Membros"}
       />
