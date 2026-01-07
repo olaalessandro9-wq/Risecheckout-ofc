@@ -3,16 +3,12 @@
  */
 
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { 
-  ModulesList,
-  AddContentDialog,
-  EditContentDialog,
-} from "@/modules/products/tabs/members-area/components";
+import { ModulesList } from "@/modules/products/tabs/members-area/components";
 import { AddModuleDialogNetflix, EditModuleDialogNetflix } from "@/modules/members-area/components/dialogs";
-import type { EditingContent } from "@/modules/products/tabs/members-area/types";
 import type { UseMembersAreaReturn } from "@/hooks/useMembersArea";
 import type { EditingModuleData, ContentType } from "@/modules/members-area/types";
 
@@ -22,31 +18,38 @@ interface ContentTabProps {
 }
 
 export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  
   const {
     isSaving,
     modules,
     addModule,
     updateModule,
     deleteModule,
-    addContent,
-    updateContent,
     deleteContent,
   } = membersAreaData;
 
   // Dialog states
   const [isAddModuleOpen, setIsAddModuleOpen] = useState(false);
-  const [isAddContentOpen, setIsAddContentOpen] = useState(false);
-  const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [editingModule, setEditingModule] = useState<EditingModuleData | null>(null);
-  const [editingContent, setEditingContent] = useState<EditingContent | null>(null);
   const [allExpanded, setAllExpanded] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Form states for content
-  const [contentTitle, setContentTitle] = useState("");
-  const [contentDescription, setContentDescription] = useState("");
-  const [contentType, setContentType] = useState<ContentType>("video");
-  const [contentUrl, setContentUrl] = useState("");
+  // Navigate to content editor
+  const handleOpenAddContent = (moduleId: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("mode", "new");
+    newParams.set("moduleId", moduleId);
+    setSearchParams(newParams);
+  };
+
+  const handleEditContent = (content: { id: string }) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("mode", "edit");
+    newParams.set("contentId", content.id);
+    newParams.set("moduleId", modules.find(m => m.contents?.some(c => c.id === content.id))?.id || "");
+    setSearchParams(newParams);
+  };
 
   const handleAddModule = async (title: string, imageFile: File | null) => {
     let coverImageUrl: string | undefined;
@@ -129,39 +132,6 @@ export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
     }
   };
 
-  const handleOpenAddContent = (moduleId: string) => {
-    setSelectedModuleId(moduleId);
-    setContentTitle("");
-    setContentDescription("");
-    setContentType("video");
-    setContentUrl("");
-    setIsAddContentOpen(true);
-  };
-
-  const handleAddContent = async () => {
-    if (!selectedModuleId || !contentTitle.trim()) return;
-    await addContent(selectedModuleId, {
-      title: contentTitle,
-      description: contentDescription || null,
-      content_type: contentType,
-      content_url: contentUrl || null,
-      content_data: {},
-      is_active: true,
-    });
-    setIsAddContentOpen(false);
-  };
-
-  const handleUpdateContent = async () => {
-    if (!editingContent || !editingContent.title.trim()) return;
-    await updateContent(editingContent.id, {
-      title: editingContent.title,
-      description: editingContent.description || null,
-      content_type: editingContent.content_type as ContentType,
-      content_url: editingContent.content_url || null,
-    });
-    setEditingContent(null);
-  };
-
   const handleDeleteContent = async (id: string) => {
     if (confirm("Tem certeza que deseja excluir este conteúdo?")) {
       await deleteContent(id);
@@ -214,13 +184,7 @@ export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
         })}
         onDeleteModule={handleDeleteModule}
         onAddContent={handleOpenAddContent}
-        onEditContent={(content) => setEditingContent({
-          id: content.id,
-          title: content.title,
-          description: content.description,
-          content_type: content.content_type,
-          content_url: content.content_url,
-        })}
+        onEditContent={handleEditContent}
         onDeleteContent={handleDeleteContent}
       />
 
@@ -237,28 +201,6 @@ export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
         onOpenChange={(open) => !open && setEditingModule(null)}
         onSubmit={handleUpdateModule}
         isSaving={isSaving || isUploading}
-      />
-
-      <AddContentDialog
-        open={isAddContentOpen}
-        onOpenChange={setIsAddContentOpen}
-        title={contentTitle}
-        description={contentDescription}
-        contentType={contentType}
-        contentUrl={contentUrl}
-        onTitleChange={setContentTitle}
-        onDescriptionChange={setContentDescription}
-        onContentTypeChange={setContentType}
-        onContentUrlChange={setContentUrl}
-        onSubmit={handleAddContent}
-        isSaving={isSaving}
-      />
-
-      <EditContentDialog
-        content={editingContent}
-        onContentChange={setEditingContent}
-        onSubmit={handleUpdateContent}
-        isSaving={isSaving}
       />
     </div>
   );
