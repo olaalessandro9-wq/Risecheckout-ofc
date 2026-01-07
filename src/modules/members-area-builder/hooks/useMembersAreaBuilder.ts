@@ -37,11 +37,25 @@ const INITIAL_STATE: BuilderState = {
   isSaving: false,
 };
 
+// Type guard for SectionType
+const VALID_SECTION_TYPES: SectionType[] = ['banner', 'modules', 'courses', 'continue_watching', 'text', 'spacer'];
+
+function isSectionType(type: string): type is SectionType {
+  return VALID_SECTION_TYPES.includes(type as SectionType);
+}
+
 // Helper to safely parse database data
 function parseSections(data: unknown[]): Section[] {
   return (data || []).map((item: any) => ({
-    ...item,
-    settings: item.settings as SectionSettings,
+    id: item.id,
+    product_id: item.product_id,
+    type: isSectionType(item.type) ? item.type : 'text',
+    title: item.title,
+    position: item.position,
+    settings: (item.settings || {}) as SectionSettings,
+    is_active: item.is_active,
+    created_at: item.created_at,
+    updated_at: item.updated_at,
   }));
 }
 
@@ -124,8 +138,15 @@ export function useMembersAreaBuilder(productId: string | undefined): UseMembers
       if (error) throw error;
       
       const newSection: Section = {
-        ...data,
-        settings: data.settings as SectionSettings,
+        id: data.id,
+        product_id: data.product_id,
+        type: type,
+        title: data.title,
+        position: data.position,
+        settings: (data.settings || {}) as unknown as SectionSettings,
+        is_active: data.is_active,
+        created_at: data.created_at,
+        updated_at: data.updated_at,
       };
       
       setState(prev => ({
@@ -148,7 +169,7 @@ export function useMembersAreaBuilder(productId: string | undefined): UseMembers
     try {
       const dbUpdates: Record<string, unknown> = { ...updates };
       if (updates.settings) {
-        dbUpdates.settings = updates.settings as Json;
+        dbUpdates.settings = updates.settings as unknown as Json;
       }
       
       const { error } = await supabase
@@ -237,7 +258,7 @@ export function useMembersAreaBuilder(productId: string | undefined): UseMembers
           type: section.type,
           title: section.title ? `${section.title} (cópia)` : null,
           position: section.position + 1,
-          settings: section.settings as Json,
+          settings: section.settings as unknown as Json,
           is_active: section.is_active,
         })
         .select()
@@ -246,8 +267,15 @@ export function useMembersAreaBuilder(productId: string | undefined): UseMembers
       if (error) throw error;
       
       const newSection: Section = {
-        ...data,
-        settings: data.settings as SectionSettings,
+        id: data.id,
+        product_id: data.product_id,
+        type: section.type,
+        title: data.title,
+        position: data.position,
+        settings: (data.settings || {}) as unknown as SectionSettings,
+        is_active: data.is_active,
+        created_at: data.created_at,
+        updated_at: data.updated_at,
       };
       
       const sectionsToUpdate = state.sections
