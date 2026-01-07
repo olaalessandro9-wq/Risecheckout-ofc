@@ -33,19 +33,21 @@ export function NetflixModuleCard({ module, index, onClick }: NetflixModuleCardP
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1, duration: 0.4 }}
-      whileHover={{ scale: 1.05, zIndex: 10 }}
-      whileTap={{ scale: 0.98 }}
       onClick={onClick}
       className="relative group cursor-pointer flex-shrink-0 w-[180px] md:w-[220px]"
     >
       {/* Card Container - Fixed aspect ratio 2:3 (poster style) */}
-      <div className="relative aspect-[2/3] rounded-xl overflow-hidden shadow-lg transition-shadow duration-300 group-hover:shadow-2xl group-hover:shadow-primary/20 ring-1 ring-white/10">
+      <motion.div 
+        whileHover={{ scale: 1.05, zIndex: 10 }}
+        whileTap={{ scale: 0.98 }}
+        className="relative aspect-[2/3] rounded-xl overflow-hidden shadow-lg transition-shadow duration-300 group-hover:shadow-2xl group-hover:shadow-primary/20 ring-1 ring-white/10"
+      >
         {/* Background Image or Gradient Fallback */}
         {module.cover_image_url ? (
           <img
             src={module.cover_image_url}
             alt={module.title}
-            className="absolute inset-0 h-full w-full object-cover"
+            className="absolute inset-0 h-full w-full object-cover object-top"
           />
         ) : (
           <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`}>
@@ -76,7 +78,7 @@ export function NetflixModuleCard({ module, index, onClick }: NetflixModuleCardP
             Módulo {index + 1}
           </span>
         </div>
-      </div>
+      </motion.div>
 
       {/* Title below card */}
       <div className="mt-3 space-y-1">
