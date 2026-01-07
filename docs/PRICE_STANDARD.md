@@ -68,28 +68,34 @@ const total = product.price * 100 + orderBump.price * 100; // Conversões manuai
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  1. BANCO DE DADOS (PostgreSQL)                            │
-│     ├─ products.price: INTEGER (centavos)                  │
-│     ├─ offers.price: INTEGER (centavos)                    │
-│     └─ order_bumps.discount_price: INTEGER (centavos)      │
+│     ├─ CATÁLOGO (NUMERIC armazenando centavos):            │
+│     │  ├─ products.price: NUMERIC(10,2)                    │
+│     │  ├─ offers.price: NUMERIC(10,2)                      │
+│     │  └─ order_bumps.discount_price: NUMERIC(10,2)        │
+│     │                                                       │
+│     └─ TRANSAÇÕES (INTEGER com sufixo _cents):             │
+│        ├─ orders.amount_cents: INTEGER                     │
+│        ├─ order_items.amount_cents: INTEGER                │
+│        └─ pix_transactions.value_cents: INTEGER            │
 │                                                             │
 │  2. BACKEND (Supabase Edge Functions)                      │
 │     ├─ Recebe: centavos                                    │
 │     ├─ Processa: centavos                                  │
-│     └─ Envia para gateway: centavos                        │
+│     └─ Envia para gateway: converte para reais             │
 │                                                             │
 │  3. FRONTEND (React/TypeScript)                            │
 │     ├─ Estado: centavos                                    │
 │     ├─ Lógica: centavos                                    │
-│     └─ Exibição: reais (via formatBRL)                     │
+│     └─ Exibição: reais (via formatBRL / PriceDisplay)      │
 │                                                             │
 │  4. INTERFACE (UI Components)                              │
 │     ├─ Input: CurrencyInput (recebe/retorna centavos)     │
-│     └─ Display: formatBRL (recebe centavos, mostra reais)  │
+│     └─ Display: PriceDisplay (recebe centavos, mostra BRL) │
 │                                                             │
-│  5. GATEWAYS (Mercado Pago, PushinPay)                     │
-│     ├─ Recebe: centavos                                    │
+│  5. GATEWAYS (Mercado Pago, PushinPay, Stripe)             │
+│     ├─ Recebe da Edge Function: centavos                   │
 │     ├─ Converte internamente: centavos → reais            │
-│     └─ Processa: reais                                     │
+│     └─ Processa: reais (API do gateway)                    │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -193,14 +199,20 @@ const [price, setPrice] = useState(1990); // centavos
 
 ## 🗄️ BANCO DE DADOS
 
-### Schema
+### Schema - Tipos SQL
+
+> ⚠️ **NOTA IMPORTANTE**: O sistema utiliza dois tipos SQL diferentes para armazenar centavos, dependendo do contexto. **Ambos armazenam valores em CENTAVOS**.
+
+#### Tabelas de Catálogo (NUMERIC)
+
+As tabelas de catálogo utilizam `NUMERIC(10,2)` para armazenar centavos. O `.00` é apenas precisão SQL, o valor inteiro representa centavos.
 
 ```sql
 -- PRODUCTS
 CREATE TABLE products (
   id UUID PRIMARY KEY,
   name TEXT NOT NULL,
-  price INTEGER NOT NULL,  -- CENTAVOS (ex: 1990 = R$ 19,90)
+  price NUMERIC(10,2) NOT NULL,  -- CENTAVOS (ex: 1990.00 = R$ 19,90)
   ...
 );
 
@@ -209,17 +221,73 @@ CREATE TABLE offers (
   id UUID PRIMARY KEY,
   product_id UUID REFERENCES products(id),
   name TEXT NOT NULL,
-  price INTEGER NOT NULL,  -- CENTAVOS (ex: 2990 = R$ 29,90)
+  price NUMERIC(10,2) NOT NULL,  -- CENTAVOS (ex: 2990.00 = R$ 29,90)
   ...
 );
 
 -- ORDER_BUMPS
 CREATE TABLE order_bumps (
   id UUID PRIMARY KEY,
-  discount_price INTEGER,  -- CENTAVOS (opcional)
+  discount_price NUMERIC(10,2),  -- CENTAVOS (opcional)
+  ...
+);
+
+-- COUPONS
+CREATE TABLE coupons (
+  id UUID PRIMARY KEY,
+  discount_value NUMERIC(10,2),  -- CENTAVOS para tipo 'fixed'
   ...
 );
 ```
+
+#### Tabelas de Transação (INTEGER)
+
+As tabelas de transação utilizam `INTEGER` puro para armazenar centavos.
+
+```sql
+-- ORDERS
+CREATE TABLE orders (
+  id UUID PRIMARY KEY,
+  amount_cents INTEGER NOT NULL,  -- CENTAVOS (ex: 1990 = R$ 19,90)
+  discount_amount_cents INTEGER,
+  commission_cents INTEGER,
+  platform_fee_cents INTEGER,
+  ...
+);
+
+-- ORDER_ITEMS
+CREATE TABLE order_items (
+  id UUID PRIMARY KEY,
+  amount_cents INTEGER NOT NULL,  -- CENTAVOS
+  ...
+);
+
+-- PIX_TRANSACTIONS
+CREATE TABLE pix_transactions (
+  id UUID PRIMARY KEY,
+  value_cents INTEGER NOT NULL,  -- CENTAVOS
+  ...
+);
+```
+
+### Resumo de Tipos por Tabela
+
+| Tabela | Coluna | Tipo SQL | Armazena |
+|--------|--------|----------|----------|
+| `products` | `price` | `NUMERIC(10,2)` | Centavos (ex: `4990.00` = R$49,90) |
+| `offers` | `price` | `NUMERIC(10,2)` | Centavos |
+| `order_bumps` | `discount_price` | `NUMERIC(10,2)` | Centavos |
+| `coupons` | `discount_value` | `NUMERIC(10,2)` | Centavos |
+| `orders` | `amount_cents` | `INTEGER` | Centavos |
+| `order_items` | `amount_cents` | `INTEGER` | Centavos |
+| `pix_transactions` | `value_cents` | `INTEGER` | Centavos |
+
+### Por que dois tipos?
+
+1. **NUMERIC(10,2)** - Usado em catálogo por flexibilidade histórica
+2. **INTEGER** - Usado em transações por nomenclatura explícita (`_cents`)
+
+**A regra permanece a mesma**: Todos os valores representam CENTAVOS, independente do tipo SQL.
 
 ### Queries
 
@@ -514,6 +582,22 @@ Consulte: `docs/PRICE_DISPLAY_COMPONENT.md`
 
 ## 📊 HISTÓRICO DE ATUALIZAÇÕES
 
+### Versão 1.2 (Janeiro 2025)
+
+**Correção**: Documentação atualizada para refletir schema real do banco
+
+**Mudanças**:
+- Documentado que tabelas de catálogo (`products`, `offers`, `order_bumps`) usam `NUMERIC(10,2)` para armazenar centavos
+- Documentado que tabelas de transação (`orders`, `order_items`) usam `INTEGER` para armazenar centavos
+- Adicionada tabela de resumo de tipos por tabela
+- Esclarecido que ambos os tipos armazenam CENTAVOS
+
+**Nota**: O sistema sempre funcionou corretamente. A discrepância era apenas entre a documentação e os tipos SQL reais.
+
+**Data**: 07/01/2025
+
+---
+
 ### Versão 1.1 (Dezembro 2024)
 
 **Adição**: Componente global `PriceDisplay`
@@ -536,6 +620,6 @@ Consulte: `docs/PRICE_DISPLAY_COMPONENT.md`
 
 ---
 
-**Última atualização**: 12/12/2024  
-**Versão**: 1.1  
+**Última atualização**: 07/01/2025  
+**Versão**: 1.2  
 **Status**: ✅ Ativo
