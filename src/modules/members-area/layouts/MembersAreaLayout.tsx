@@ -96,11 +96,8 @@ export function MembersAreaLayout() {
         </div>
       </div>
 
-      {/* Cover Image */}
-      <MembersAreaCover 
-        coverUrl={product?.members_area_settings?.cover_url}
-        productName={product?.name || "Área de Membros"}
-      />
+      {/* Cover Header */}
+      <MembersAreaCover productName={product?.name || "Área de Membros"} />
 
       {/* Navigation Tabs */}
       <div className="max-w-7xl mx-auto px-6">
