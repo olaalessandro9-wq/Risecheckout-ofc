@@ -42,6 +42,7 @@ export interface Module {
   title: string;
   description: string | null;
   position: number;
+  cover_image_url?: string | null;
   contents: ContentItem[];
 }
 

@@ -286,6 +286,7 @@ serve(async (req) => {
           description,
           position,
           is_active,
+          cover_image_url,
           contents:product_member_content (
             id,
             title,

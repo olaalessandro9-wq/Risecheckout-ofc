@@ -39,7 +39,8 @@ import TermosDeUso from "./pages/TermosDeUso";
 // ============================================================================
 import BuyerAuth from "./pages/buyer/BuyerAuth";
 import BuyerDashboard from "./pages/buyer/BuyerDashboard";
-import BuyerProductContent from "./pages/buyer/BuyerProductContent";
+import CourseHome from "./pages/buyer/CourseHome";
+import LessonViewer from "./pages/buyer/LessonViewer";
 import BuyerHistory from "./pages/buyer/BuyerHistory";
 import SetupAccess from "./pages/buyer/SetupAccess";
 
@@ -153,9 +154,14 @@ const router = createBrowserRouter([
         children: [
           { path: "dashboard", element: <BuyerDashboard /> },
           { path: "historico", element: <BuyerHistory /> },
-          { path: "produto/:productId", element: <BuyerProductContent /> },
         ],
       },
+      
+      // ============================================================
+      // ÁREA DE MEMBROS - Netflix-style Course Pages (Full Screen)
+      // ============================================================
+      { path: "/minha-conta/produto/:productId", element: <CourseHome /> },
+      { path: "/minha-conta/produto/:productId/aula/:contentId", element: <LessonViewer /> },
 
       // ============================================================
       // CHECKOUT BUILDER - Full screen (Protegido)
