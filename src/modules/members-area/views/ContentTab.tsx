@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { ModulesList } from "@/modules/products/tabs/members-area/components";
 import { AddModuleDialogNetflix, EditModuleDialogNetflix } from "@/modules/members-area/components/dialogs";
-import type { UseMembersAreaReturn } from "@/hooks/useMembersArea";
+import type { UseMembersAreaReturn } from "@/hooks/members-area";
 import type { EditingModuleData, ContentType } from "@/modules/members-area/types";
 
 interface ContentTabProps {
