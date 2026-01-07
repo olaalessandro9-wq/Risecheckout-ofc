@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
+import { SUPABASE_URL } from "@/config/supabase";
 
-const SUPABASE_URL = "https://wivbtmtgpsxupfjwwovf.supabase.co";
 const SESSION_KEY = "buyer_session_token";
 
 interface BuyerProfile {

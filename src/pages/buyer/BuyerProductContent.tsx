@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import DOMPurify from "dompurify";
 import { 
   Loader2, 
   ArrowLeft, 
@@ -13,17 +14,22 @@ import {
   FileText, 
   Link as LinkIcon, 
   Download, 
-  FileType,
-  ChevronRight
+  Layers,
+  ChevronRight,
+  Paperclip
 } from "lucide-react";
+
+/** Unified content type */
+type ContentDisplayType = "mixed" | "video" | "text" | "pdf" | "link" | "download";
 
 interface ContentItem {
   id: string;
   title: string;
   description: string | null;
-  content_type: "video" | "pdf" | "link" | "text" | "download";
+  content_type: ContentDisplayType;
   content_url: string | null;
-  content_data: Record<string, any>;
+  body: string | null;
+  content_data: Record<string, unknown>;
   position: number;
 }
 
@@ -40,22 +46,24 @@ interface ProductData {
   name: string;
   description: string | null;
   imageUrl: string | null;
-  settings: Record<string, any>;
+  settings: Record<string, unknown>;
 }
 
 const contentTypeIcons: Record<string, React.ReactNode> = {
+  mixed: <Layers className="h-4 w-4" />,
   video: <Play className="h-4 w-4" />,
+  text: <FileText className="h-4 w-4" />,
   pdf: <FileText className="h-4 w-4" />,
   link: <LinkIcon className="h-4 w-4" />,
-  text: <FileType className="h-4 w-4" />,
   download: <Download className="h-4 w-4" />,
 };
 
 const contentTypeLabels: Record<string, string> = {
+  mixed: "Conteúdo",
   video: "Vídeo",
+  text: "Texto",
   pdf: "PDF",
   link: "Link",
-  text: "Texto",
   download: "Download",
 };
 
@@ -88,15 +96,15 @@ export default function BuyerProductContent() {
         const data = await fetchProductContent(productId);
         if (data) {
           setProduct(data.product);
-          setModules(data.modules);
+          setModules(data.modules as Module[]);
           // Auto-select first content if available
           if (data.modules[0]?.contents[0]) {
-            setSelectedContent(data.modules[0].contents[0]);
+            setSelectedContent(data.modules[0].contents[0] as ContentItem);
           }
         } else {
           setError("Não foi possível carregar o conteúdo.");
         }
-      } catch (err) {
+      } catch {
         setError("Erro ao carregar conteúdo.");
       } finally {
         setIsLoading(false);
@@ -141,129 +149,193 @@ export default function BuyerProductContent() {
       );
     }
 
-    switch (selectedContent.content_type) {
-      case "video":
-        return (
-          <div className="space-y-4">
+    const contentType = selectedContent.content_type;
+
+    // Mixed content (Kiwify-style): video + body + attachments
+    if (contentType === "mixed") {
+      return (
+        <div className="space-y-6">
+          {/* Video section */}
+          {selectedContent.content_url && (
             <div className="aspect-video bg-black rounded-lg overflow-hidden">
-              {selectedContent.content_url ? (
-                <iframe
-                  src={selectedContent.content_url}
-                  className="w-full h-full"
-                  allowFullScreen
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full text-white">
-                  <p>Vídeo não disponível</p>
-                </div>
-              )}
+              <iframe
+                src={selectedContent.content_url}
+                className="w-full h-full"
+                allowFullScreen
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              />
             </div>
+          )}
+
+          {/* Title & Description */}
+          <div>
+            <h3 className="text-lg font-semibold">{selectedContent.title}</h3>
+            {selectedContent.description && (
+              <p className="text-muted-foreground mt-2">{selectedContent.description}</p>
+            )}
+          </div>
+
+          {/* Rich text body */}
+          {selectedContent.body && (
+            <div
+              className="prose prose-sm dark:prose-invert max-w-none"
+              dangerouslySetInnerHTML={{
+                __html: DOMPurify.sanitize(selectedContent.body),
+              }}
+            />
+          )}
+
+          {/* Attachments placeholder */}
+          {selectedContent.content_data?.attachments && (
+            <div className="border rounded-lg p-4">
+              <h4 className="font-medium flex items-center gap-2 mb-3">
+                <Paperclip className="h-4 w-4" />
+                Materiais
+              </h4>
+              <p className="text-sm text-muted-foreground">
+                Anexos disponíveis para download
+              </p>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Video only
+    if (contentType === "video") {
+      return (
+        <div className="space-y-4">
+          <div className="aspect-video bg-black rounded-lg overflow-hidden">
+            {selectedContent.content_url ? (
+              <iframe
+                src={selectedContent.content_url}
+                className="w-full h-full"
+                allowFullScreen
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-white">
+                <p>Vídeo não disponível</p>
+              </div>
+            )}
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold">{selectedContent.title}</h3>
+            {selectedContent.description && (
+              <p className="text-muted-foreground mt-2">{selectedContent.description}</p>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Text/HTML
+    if (contentType === "text") {
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle>{selectedContent.title}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div
+              className="prose prose-sm dark:prose-invert max-w-none"
+              dangerouslySetInnerHTML={{
+                __html: DOMPurify.sanitize(
+                  selectedContent.body || 
+                  (selectedContent.content_data?.html as string) || 
+                  selectedContent.description || 
+                  ""
+                ),
+              }}
+            />
+          </CardContent>
+        </Card>
+      );
+    }
+
+    // PDF
+    if (contentType === "pdf") {
+      return (
+        <div className="space-y-4">
+          {selectedContent.content_url && (
+            <iframe
+              src={selectedContent.content_url}
+              className="w-full h-[70vh] rounded-lg border"
+            />
+          )}
+          <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold">{selectedContent.title}</h3>
               {selectedContent.description && (
-                <p className="text-muted-foreground mt-2">{selectedContent.description}</p>
+                <p className="text-muted-foreground mt-1">{selectedContent.description}</p>
               )}
             </div>
-          </div>
-        );
-
-      case "pdf":
-        return (
-          <div className="space-y-4">
             {selectedContent.content_url && (
-              <iframe
-                src={selectedContent.content_url}
-                className="w-full h-[70vh] rounded-lg border"
-              />
+              <a href={selectedContent.content_url} target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" size="sm">
+                  <Download className="h-4 w-4 mr-2" />
+                  Baixar PDF
+                </Button>
+              </a>
             )}
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold">{selectedContent.title}</h3>
-                {selectedContent.description && (
-                  <p className="text-muted-foreground mt-1">{selectedContent.description}</p>
-                )}
-              </div>
-              {selectedContent.content_url && (
-                <a href={selectedContent.content_url} target="_blank" rel="noopener noreferrer">
-                  <Button variant="outline" size="sm">
-                    <Download className="h-4 w-4 mr-2" />
-                    Baixar PDF
-                  </Button>
-                </a>
-              )}
-            </div>
           </div>
-        );
-
-      case "link":
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>{selectedContent.title}</CardTitle>
-              {selectedContent.description && (
-                <CardDescription>{selectedContent.description}</CardDescription>
-              )}
-            </CardHeader>
-            <CardContent>
-              {selectedContent.content_url && (
-                <a
-                  href={selectedContent.content_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-primary hover:underline"
-                >
-                  <LinkIcon className="h-4 w-4" />
-                  Acessar Link
-                  <ChevronRight className="h-4 w-4" />
-                </a>
-              )}
-            </CardContent>
-          </Card>
-        );
-
-      case "text":
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>{selectedContent.title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div
-                className="prose prose-sm dark:prose-invert max-w-none"
-                dangerouslySetInnerHTML={{
-                  __html: selectedContent.content_data?.html || selectedContent.description || "",
-                }}
-              />
-            </CardContent>
-          </Card>
-        );
-
-      case "download":
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>{selectedContent.title}</CardTitle>
-              {selectedContent.description && (
-                <CardDescription>{selectedContent.description}</CardDescription>
-              )}
-            </CardHeader>
-            <CardContent>
-              {selectedContent.content_url && (
-                <a href={selectedContent.content_url} download>
-                  <Button>
-                    <Download className="h-4 w-4 mr-2" />
-                    Baixar Arquivo
-                  </Button>
-                </a>
-              )}
-            </CardContent>
-          </Card>
-        );
-
-      default:
-        return null;
+        </div>
+      );
     }
+
+    // Link
+    if (contentType === "link") {
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle>{selectedContent.title}</CardTitle>
+            {selectedContent.description && (
+              <CardDescription>{selectedContent.description}</CardDescription>
+            )}
+          </CardHeader>
+          <CardContent>
+            {selectedContent.content_url && (
+              <a
+                href={selectedContent.content_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-primary hover:underline"
+              >
+                <LinkIcon className="h-4 w-4" />
+                Acessar Link
+                <ChevronRight className="h-4 w-4" />
+              </a>
+            )}
+          </CardContent>
+        </Card>
+      );
+    }
+
+    // Download
+    if (contentType === "download") {
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle>{selectedContent.title}</CardTitle>
+            {selectedContent.description && (
+              <CardDescription>{selectedContent.description}</CardDescription>
+            )}
+          </CardHeader>
+          <CardContent>
+            {selectedContent.content_url && (
+              <a href={selectedContent.content_url} download>
+                <Button>
+                  <Download className="h-4 w-4 mr-2" />
+                  Baixar Arquivo
+                </Button>
+              </a>
+            )}
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return null;
   };
 
   return (
@@ -316,10 +388,10 @@ export default function BuyerProductContent() {
                               : "hover:bg-muted"
                           }`}
                         >
-                          {contentTypeIcons[content.content_type]}
+                          {contentTypeIcons[content.content_type] || contentTypeIcons.mixed}
                           <span className="truncate flex-1">{content.title}</span>
                           <Badge variant="outline" className="text-xs">
-                            {contentTypeLabels[content.content_type]}
+                            {contentTypeLabels[content.content_type] || "Conteúdo"}
                           </Badge>
                         </button>
                       ))}
@@ -359,7 +431,7 @@ export default function BuyerProductContent() {
                             : "hover:bg-muted"
                         }`}
                       >
-                        {contentTypeIcons[content.content_type]}
+                        {contentTypeIcons[content.content_type] || contentTypeIcons.mixed}
                         <span className="truncate">{content.title}</span>
                       </button>
                     ))}

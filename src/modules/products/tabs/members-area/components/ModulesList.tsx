@@ -1,5 +1,6 @@
 /**
  * ModulesList - Lista de módulos com accordion
+ * Uses unified content type system
  */
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,8 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Plus, Trash2, Edit2, GripVertical, Lock } from "lucide-react";
-import { contentTypeIcons } from "../constants";
+import { Plus, Trash2, Edit2, GripVertical, Lock, Layers, Video, FileText } from "lucide-react";
 import type { MemberModuleWithContents } from "@/hooks/useMembersArea";
 
 interface ModulesListProps {
@@ -17,8 +17,34 @@ interface ModulesListProps {
   onEditModule: (module: { id: string; title: string; cover_image_url: string | null }) => void;
   onDeleteModule: (id: string) => void;
   onAddContent: (moduleId: string) => void;
-  onEditContent: (content: any) => void;
+  onEditContent: (content: { id: string; title: string; content_type: string; content_url: string | null; description: string | null }) => void;
   onDeleteContent: (id: string) => void;
+}
+
+/** Get icon for content type */
+function getContentIcon(type: string) {
+  switch (type) {
+    case 'video':
+      return <Video className="h-4 w-4" />;
+    case 'text':
+      return <FileText className="h-4 w-4" />;
+    case 'mixed':
+    default:
+      return <Layers className="h-4 w-4" />;
+  }
+}
+
+/** Get label for content type */
+function getContentLabel(type: string): string {
+  switch (type) {
+    case 'video':
+      return 'Vídeo';
+    case 'text':
+      return 'Texto';
+    case 'mixed':
+    default:
+      return 'Conteúdo';
+  }
 }
 
 export function ModulesList({
@@ -129,12 +155,12 @@ export function ModulesList({
                             <div className="flex items-center gap-3">
                               <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
                               <div className="p-1.5 rounded bg-background">
-                                {contentTypeIcons[content.content_type]}
+                                {getContentIcon(content.content_type)}
                               </div>
                               <div>
                                 <p className="text-sm font-medium">{content.title}</p>
-                                <p className="text-xs text-muted-foreground capitalize">
-                                  {content.content_type}
+                                <p className="text-xs text-muted-foreground">
+                                  {getContentLabel(content.content_type)}
                                 </p>
                               </div>
                             </div>
@@ -143,7 +169,13 @@ export function ModulesList({
                                 size="icon"
                                 variant="ghost"
                                 className="h-8 w-8"
-                                onClick={() => onEditContent(content)}
+                                onClick={() => onEditContent({
+                                  id: content.id,
+                                  title: content.title,
+                                  content_type: content.content_type,
+                                  content_url: content.content_url,
+                                  description: content.description,
+                                })}
                               >
                                 <Edit2 className="h-3 w-3" />
                               </Button>

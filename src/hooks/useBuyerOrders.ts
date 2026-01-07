@@ -1,7 +1,6 @@
 import { useState, useCallback } from "react";
 import { getBuyerSessionToken } from "./useBuyerAuth";
-
-const SUPABASE_URL = "https://wivbtmtgpsxupfjwwovf.supabase.co";
+import { SUPABASE_URL } from "@/config/supabase";
 
 interface BuyerOrder {
   id: string;
@@ -36,13 +35,16 @@ interface BuyerAccess {
   } | null;
 }
 
+/** Content type for buyer view - supports mixed content (Kiwify-style) */
+type BuyerContentType = "mixed" | "video" | "pdf" | "link" | "text" | "download";
+
 interface ProductContent {
   product: {
     id: string;
     name: string;
     description: string | null;
     imageUrl: string | null;
-    settings: Record<string, any>;
+    settings: Record<string, unknown>;
   };
   modules: Array<{
     id: string;
@@ -53,9 +55,10 @@ interface ProductContent {
       id: string;
       title: string;
       description: string | null;
-      content_type: "video" | "pdf" | "link" | "text" | "download";
+      content_type: BuyerContentType;
       content_url: string | null;
-      content_data: Record<string, any>;
+      body: string | null;
+      content_data: Record<string, unknown>;
       position: number;
     }>;
   }>;

@@ -1,5 +1,6 @@
 /**
  * ContentCard - Card for individual content items within a module
+ * Unified content type system (mixed, video, text)
  */
 
 import { useState } from 'react';
@@ -7,10 +8,8 @@ import { motion } from 'framer-motion';
 import {
   Play,
   FileText,
-  Download,
-  HelpCircle,
+  Layers,
   Video,
-  Radio,
   MoreVertical,
   Pencil,
   Trash2,
@@ -30,8 +29,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { ContentType, MemberContent } from '@/modules/members-area/types';
+import type { MemberContent } from '@/modules/members-area/types';
 import { formatDuration } from '@/modules/members-area/utils';
+
+/** Unified content display types */
+type ContentDisplayType = 'mixed' | 'video' | 'text';
 
 interface ContentCardProps {
   content: MemberContent;
@@ -46,18 +48,24 @@ interface ContentCardProps {
   onToggleActive?: () => void;
 }
 
-const contentTypeConfig: Record<ContentType, {
+const contentTypeConfig: Record<ContentDisplayType, {
   icon: React.ElementType;
   label: string;
   color: string;
 }> = {
+  mixed: { icon: Layers, label: 'Conteúdo', color: 'text-primary' },
   video: { icon: Video, label: 'Vídeo', color: 'text-red-500' },
-  pdf: { icon: FileText, label: 'PDF', color: 'text-orange-500' },
   text: { icon: FileText, label: 'Texto', color: 'text-blue-500' },
-  download: { icon: Download, label: 'Download', color: 'text-green-500' },
-  quiz: { icon: HelpCircle, label: 'Quiz', color: 'text-purple-500' },
-  live: { icon: Radio, label: 'Ao Vivo', color: 'text-pink-500' },
 };
+
+/** Normalize any content_type to our unified system */
+function normalizeContentType(type: string): ContentDisplayType {
+  if (type === 'mixed' || type === 'video' || type === 'text') {
+    return type;
+  }
+  // Legacy types fallback to mixed
+  return 'mixed';
+}
 
 export function ContentCard({
   content,
@@ -73,7 +81,8 @@ export function ContentCard({
 }: ContentCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   
-  const config = contentTypeConfig[content.content_type as ContentType] || contentTypeConfig.text;
+  const normalizedType = normalizeContentType(content.content_type);
+  const config = contentTypeConfig[normalizedType];
   const Icon = config.icon;
 
   const formattedUnlockDate = unlockDate 
@@ -82,6 +91,9 @@ export function ContentCard({
         month: 'short',
       })
     : null;
+
+  // Check if content has video
+  const hasVideo = content.content_url || normalizedType === 'video';
 
   return (
     <motion.div
@@ -125,8 +137,8 @@ export function ContentCard({
           )}
         </div>
 
-        {/* Play overlay on hover (for video) */}
-        {content.content_type === 'video' && !isLocked && (
+        {/* Play overlay on hover (for video content) */}
+        {hasVideo && !isLocked && (
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ 
@@ -147,7 +159,7 @@ export function ContentCard({
         )}
 
         {/* Progress ring for video */}
-        {content.content_type === 'video' && progressPercent > 0 && !isCompleted && (
+        {hasVideo && progressPercent > 0 && !isCompleted && (
           <svg className="absolute inset-0 w-12 h-12 -rotate-90">
             <circle
               cx="24"
@@ -227,7 +239,7 @@ export function ContentCard({
             className="opacity-0 group-hover:opacity-100 transition-opacity"
             onClick={onPlay}
           >
-            {content.content_type === 'video' ? 'Assistir' : 'Abrir'}
+            {hasVideo ? 'Assistir' : 'Abrir'}
           </Button>
         )}
 
