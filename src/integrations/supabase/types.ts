@@ -1245,6 +1245,47 @@ export type Database = {
           },
         ]
       }
+      content_attachments: {
+        Row: {
+          content_id: string
+          created_at: string | null
+          file_name: string
+          file_size: number | null
+          file_type: string
+          file_url: string
+          id: string
+          position: number | null
+        }
+        Insert: {
+          content_id: string
+          created_at?: string | null
+          file_name: string
+          file_size?: number | null
+          file_type: string
+          file_url: string
+          id?: string
+          position?: number | null
+        }
+        Update: {
+          content_id?: string
+          created_at?: string | null
+          file_name?: string
+          file_size?: number | null
+          file_type?: string
+          file_url?: string
+          id?: string
+          position?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_attachments_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "product_member_content"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       content_release_settings: {
         Row: {
           after_content_id: string | null

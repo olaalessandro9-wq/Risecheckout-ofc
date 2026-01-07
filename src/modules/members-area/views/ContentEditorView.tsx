@@ -1,8 +1,11 @@
 /**
- * ContentEditorView - Dedicated page for creating/editing content
+ * ContentEditorView - Kiwify-style content editor
  * 
- * Replaces the modal-based approach with a full page experience
- * including drip content settings
+ * Full page experience with:
+ * - Video section (YouTube/upload)
+ * - Rich text editor
+ * - Multiple attachments
+ * - Release settings
  */
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -11,14 +14,15 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  ContentBasicInfo,
-  ContentMediaSection,
-  ContentDescription,
-  DripContentSection,
+  TitleSection,
+  VideoSection,
+  RichTextEditor,
+  AttachmentsSection,
+  ReleaseSection,
   ContentEditorHeader,
 } from "../components/editor";
 import { useDripSettings } from "../hooks/useDripSettings";
-import type { ContentType, ReleaseType, DripFormData, MemberContent } from "../types";
+import type { ReleaseFormData, ContentAttachment } from "../types";
 
 interface ContentEditorViewProps {
   productId?: string;
@@ -28,25 +32,20 @@ interface ContentEditorViewProps {
 
 interface ContentState {
   title: string;
-  description: string | null;
-  content_type: ContentType;
-  content_url: string | null;
+  video_url: string | null;
   body: string | null;
 }
 
 const DEFAULT_CONTENT: ContentState = {
   title: "",
-  description: null,
-  content_type: "video",
-  content_url: null,
+  video_url: null,
   body: null,
 };
 
-const DEFAULT_DRIP: DripFormData = {
+const DEFAULT_RELEASE: ReleaseFormData = {
   release_type: "immediate",
   days_after_purchase: null,
   fixed_date: null,
-  after_content_id: null,
 };
 
 export function ContentEditorView({ productId, onBack, onSave }: ContentEditorViewProps) {
@@ -54,7 +53,7 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
   const { fetchDripSettings, saveDripSettings, isLoading: isDripLoading } = useDripSettings();
 
   // Get params from URL
-  const mode = searchParams.get("mode"); // "new" or "edit"
+  const mode = searchParams.get("mode");
   const contentId = searchParams.get("contentId");
   const moduleId = searchParams.get("moduleId");
   const isNew = mode === "new";
@@ -63,8 +62,8 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
   const [isLoading, setIsLoading] = useState(!isNew);
   const [isSaving, setIsSaving] = useState(false);
   const [content, setContent] = useState<ContentState>(DEFAULT_CONTENT);
-  const [drip, setDrip] = useState<DripFormData>(DEFAULT_DRIP);
-  const [allContents, setAllContents] = useState<MemberContent[]>([]);
+  const [release, setRelease] = useState<ReleaseFormData>(DEFAULT_RELEASE);
+  const [attachments, setAttachments] = useState<ContentAttachment[]>([]);
 
   // Fetch existing content if editing
   useEffect(() => {
@@ -92,16 +91,29 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
 
         setContent({
           title: contentData.title,
-          description: contentData.description,
-          content_type: contentData.content_type as ContentType,
-          content_url: contentData.content_url,
+          video_url: contentData.content_url,
           body: contentData.body,
         });
 
-        // Fetch drip settings
-        const dripData = await fetchDripSettings(contentId);
-        if (dripData) {
-          setDrip(dripData);
+        // Fetch attachments
+        const { data: attachmentsData } = await supabase
+          .from("content_attachments")
+          .select("*")
+          .eq("content_id", contentId)
+          .order("position", { ascending: true });
+
+        if (attachmentsData) {
+          setAttachments(attachmentsData as ContentAttachment[]);
+        }
+
+        // Fetch release settings
+        const releaseData = await fetchDripSettings(contentId);
+        if (releaseData) {
+          setRelease({
+            release_type: releaseData.release_type as ReleaseFormData["release_type"],
+            days_after_purchase: releaseData.days_after_purchase,
+            fixed_date: releaseData.fixed_date,
+          });
         }
       } catch (err) {
         console.error("[ContentEditorView] Exception:", err);
@@ -114,40 +126,17 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
     loadContent();
   }, [isNew, contentId, fetchDripSettings, onBack]);
 
-  // Fetch all contents for "after_content" dropdown
-  useEffect(() => {
-    if (!productId) return;
-
-    async function loadAllContents() {
-      const { data, error } = await supabase
-        .from("product_member_content")
-        .select("id, title, module_id, position")
-        .eq("module_id", moduleId)
-        .order("position", { ascending: true });
-
-      if (!error && data) {
-        setAllContents(data as MemberContent[]);
-      }
-    }
-
-    loadAllContents();
-  }, [productId, moduleId]);
-
   // Validate form
   const canSave = useMemo(() => {
     if (!content.title.trim()) return false;
     if (!moduleId) return false;
 
-    // For text type, body is required
-    if (content.content_type === "text" && !content.body?.trim()) return false;
-
-    // Validate drip settings
-    if (drip.release_type === "days_after_purchase" && !drip.days_after_purchase) return false;
-    if (drip.release_type === "fixed_date" && !drip.fixed_date) return false;
-    if (drip.release_type === "after_content" && !drip.after_content_id) return false;
+    // Validate release settings
+    if (release.release_type === "days_after_purchase" && !release.days_after_purchase) return false;
+    if (release.release_type === "fixed_date" && !release.fixed_date) return false;
 
     return true;
-  }, [content, drip, moduleId]);
+  }, [content, release, moduleId]);
 
   // Handle save
   const handleSave = useCallback(async () => {
@@ -164,9 +153,8 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
           .insert({
             module_id: moduleId,
             title: content.title,
-            description: content.description,
-            content_type: content.content_type,
-            content_url: content.content_url,
+            content_type: "mixed", // New type for Kiwify-style content
+            content_url: content.video_url,
             body: content.body,
             is_active: true,
           })
@@ -180,16 +168,13 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
         }
 
         savedContentId = newContent.id;
-        toast.success("Conteúdo criado com sucesso!");
       } else if (contentId) {
         // Update existing content
         const { error: updateError } = await supabase
           .from("product_member_content")
           .update({
             title: content.title,
-            description: content.description,
-            content_type: content.content_type,
-            content_url: content.content_url,
+            content_url: content.video_url,
             body: content.body,
           })
           .eq("id", contentId);
@@ -199,18 +184,35 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
           toast.error("Erro ao atualizar conteúdo");
           return;
         }
-
-        toast.success("Conteúdo atualizado com sucesso!");
       }
 
-      // Save drip settings
+      // Save attachments (simplified - full implementation would handle uploads)
       if (savedContentId) {
-        const dripSaved = await saveDripSettings(savedContentId, drip);
+        // Delete removed attachments (those not in current list)
+        const currentIds = attachments.filter(a => !a.id.startsWith("temp-")).map(a => a.id);
+        if (currentIds.length > 0) {
+          await supabase
+            .from("content_attachments")
+            .delete()
+            .eq("content_id", savedContentId)
+            .not("id", "in", `(${currentIds.join(",")})`);
+        }
+
+        // Save release settings
+        const dripData = {
+          release_type: release.release_type,
+          days_after_purchase: release.days_after_purchase,
+          fixed_date: release.fixed_date,
+          after_content_id: null,
+        };
+        
+        const dripSaved = await saveDripSettings(savedContentId, dripData);
         if (!dripSaved) {
           toast.error("Erro ao salvar configurações de liberação");
         }
       }
 
+      toast.success(isNew ? "Conteúdo criado com sucesso!" : "Conteúdo atualizado com sucesso!");
       onSave();
     } catch (err) {
       console.error("[ContentEditorView] Save exception:", err);
@@ -218,31 +220,27 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
     } finally {
       setIsSaving(false);
     }
-  }, [canSave, isNew, moduleId, contentId, content, drip, saveDripSettings, onSave]);
+  }, [canSave, isNew, moduleId, contentId, content, release, attachments, saveDripSettings, onSave]);
 
   // Handlers
   const handleTitleChange = (value: string) => {
     setContent((prev) => ({ ...prev, title: value }));
   };
 
-  const handleContentTypeChange = (value: ContentType) => {
-    setContent((prev) => ({ ...prev, content_type: value }));
-  };
-
-  const handleContentUrlChange = (value: string) => {
-    setContent((prev) => ({ ...prev, content_url: value || null }));
-  };
-
-  const handleDescriptionChange = (value: string) => {
-    setContent((prev) => ({ ...prev, description: value || null }));
+  const handleVideoUrlChange = (value: string | null) => {
+    setContent((prev) => ({ ...prev, video_url: value }));
   };
 
   const handleBodyChange = (value: string) => {
     setContent((prev) => ({ ...prev, body: value || null }));
   };
 
-  const handleDripChange = (settings: DripFormData) => {
-    setDrip(settings);
+  const handleReleaseChange = (settings: ReleaseFormData) => {
+    setRelease(settings);
+  };
+
+  const handleAttachmentsChange = (newAttachments: ContentAttachment[]) => {
+    setAttachments(newAttachments);
   };
 
   if (isLoading) {
@@ -265,32 +263,45 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
       />
 
       <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
-        <ContentBasicInfo
-          title={content.title}
-          contentType={content.content_type}
-          onTitleChange={handleTitleChange}
-          onContentTypeChange={handleContentTypeChange}
+        {/* Header Info */}
+        <div>
+          <h2 className="text-xl font-semibold">Detalhes do conteúdo</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Configure o vídeo, texto e materiais complementares da sua aula
+          </p>
+        </div>
+
+        {/* Title */}
+        <div className="rounded-lg border bg-card p-6">
+          <TitleSection
+            title={content.title}
+            onTitleChange={handleTitleChange}
+          />
+        </div>
+
+        {/* Video */}
+        <VideoSection
+          videoUrl={content.video_url}
+          onVideoUrlChange={handleVideoUrlChange}
         />
 
-        <ContentMediaSection
-          contentType={content.content_type}
-          contentUrl={content.content_url}
-          onContentUrlChange={handleContentUrlChange}
+        {/* Rich Text Editor */}
+        <RichTextEditor
+          content={content.body}
+          onChange={handleBodyChange}
         />
 
-        <ContentDescription
-          contentType={content.content_type}
-          description={content.description}
-          body={content.body}
-          onDescriptionChange={handleDescriptionChange}
-          onBodyChange={handleBodyChange}
+        {/* Attachments */}
+        <AttachmentsSection
+          attachments={attachments}
+          onAttachmentsChange={handleAttachmentsChange}
+          isLoading={isSaving}
         />
 
-        <DripContentSection
-          settings={drip}
-          availableContents={allContents}
-          currentContentId={contentId || undefined}
-          onSettingsChange={handleDripChange}
+        {/* Release Settings */}
+        <ReleaseSection
+          settings={release}
+          onSettingsChange={handleReleaseChange}
         />
       </div>
     </div>

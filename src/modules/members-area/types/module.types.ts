@@ -1,23 +1,13 @@
 /**
  * Types for Members Area Modules and Content
- * Netflix-style course structure
+ * Netflix-style course structure with Kiwify-style multi-content support
  */
-
-/** Available content types in the members area */
-export type ContentType = 
-  | 'video'
-  | 'pdf'
-  | 'text'
-  | 'download'
-  | 'quiz'
-  | 'live';
 
 /** Content release type for drip functionality */
 export type ReleaseType = 
   | 'immediate'
   | 'days_after_purchase'
-  | 'fixed_date'
-  | 'after_content';
+  | 'fixed_date';
 
 /** Individual content item within a module */
 export interface MemberContent {
@@ -25,7 +15,7 @@ export interface MemberContent {
   module_id: string;
   title: string;
   description: string | null;
-  content_type: ContentType;
+  content_type: string;
   content_url: string | null;
   body: string | null;
   content_data: Record<string, unknown> | null;
@@ -34,6 +24,18 @@ export interface MemberContent {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+/** Content attachment (multiple files per content) */
+export interface ContentAttachment {
+  id: string;
+  content_id: string;
+  file_name: string;
+  file_url: string;
+  file_type: string;
+  file_size: number | null;
+  position: number;
+  created_at: string;
 }
 
 /** Content with release settings */
@@ -98,7 +100,7 @@ export interface CreateContentInput {
   module_id: string;
   title: string;
   description?: string;
-  content_type: ContentType;
+  content_type?: string;
   content_url?: string;
   body?: string;
   content_data?: Record<string, unknown>;
@@ -110,7 +112,7 @@ export interface CreateContentInput {
 export interface UpdateContentInput {
   title?: string;
   description?: string;
-  content_type?: ContentType;
+  content_type?: string;
   content_url?: string;
   body?: string;
   content_data?: Record<string, unknown>;
@@ -126,31 +128,30 @@ export interface EditingModuleData {
   cover_image_url: string | null;
 }
 
-/** Form data for content editor */
+/** Form data for content editor (Kiwify-style) */
 export interface ContentFormData {
   title: string;
-  description: string | null;
-  content_type: ContentType;
-  content_url: string | null;
+  video_url: string | null;
   body: string | null;
-  content_data: Record<string, unknown> | null;
-  duration_seconds: number | null;
-  is_active: boolean;
 }
 
-/** Form data for drip content settings */
-export interface DripFormData {
+/** Form data for release settings */
+export interface ReleaseFormData {
   release_type: ReleaseType;
   days_after_purchase: number | null;
   fixed_date: string | null;
-  after_content_id: string | null;
 }
 
 /** State for the content editor page */
 export interface ContentEditorState {
   content: ContentFormData;
-  drip: DripFormData;
+  release: ReleaseFormData;
+  attachments: ContentAttachment[];
   isNew: boolean;
   moduleId: string;
   contentId?: string;
 }
+
+// Legacy type alias for backwards compatibility
+export type ContentType = string;
+export type DripFormData = ReleaseFormData;
