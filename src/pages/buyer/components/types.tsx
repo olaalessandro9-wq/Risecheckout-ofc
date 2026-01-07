@@ -17,6 +17,14 @@ import {
  */
 export type BuyerContentDisplayType = "mixed" | "video" | "text" | "pdf" | "link" | "download";
 
+export interface ContentAttachment {
+  id: string;
+  file_name: string;
+  file_url: string;
+  file_type: string;
+  file_size: number | null;
+}
+
 export interface ContentItem {
   id: string;
   title: string;
@@ -26,6 +34,7 @@ export interface ContentItem {
   body: string | null;
   content_data: Record<string, unknown>;
   position: number;
+  attachments?: ContentAttachment[];
 }
 
 export interface Module {

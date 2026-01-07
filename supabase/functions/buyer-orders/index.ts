@@ -317,6 +317,43 @@ serve(async (req) => {
           .sort((a: any, b: any) => a.position - b.position)
       }));
 
+      // Fetch attachments for all contents
+      const allContentIds = sortedModules.flatMap(m => m.contents.map((c: any) => c.id));
+      
+      let attachmentsMap: Record<string, any[]> = {};
+      if (allContentIds.length > 0) {
+        const { data: attachments } = await supabase
+          .from("content_attachments")
+          .select("id, content_id, file_name, file_url, file_type, file_size, position")
+          .in("content_id", allContentIds)
+          .order("position", { ascending: true });
+
+        if (attachments && attachments.length > 0) {
+          console.log(`[buyer-orders] Found ${attachments.length} attachments for ${allContentIds.length} contents`);
+          for (const att of attachments) {
+            if (!attachmentsMap[att.content_id]) {
+              attachmentsMap[att.content_id] = [];
+            }
+            attachmentsMap[att.content_id].push({
+              id: att.id,
+              file_name: att.file_name,
+              file_url: att.file_url,
+              file_type: att.file_type,
+              file_size: att.file_size,
+            });
+          }
+        }
+      }
+
+      // Add attachments to each content
+      const modulesWithAttachments = sortedModules.map(module => ({
+        ...module,
+        contents: module.contents.map((c: any) => ({
+          ...c,
+          attachments: attachmentsMap[c.id] || [],
+        }))
+      }));
+
       return new Response(
         JSON.stringify({
           product: {
@@ -326,7 +363,7 @@ serve(async (req) => {
             imageUrl: product.image_url,
             settings: product.members_area_settings,
           },
-          modules: sortedModules,
+          modules: modulesWithAttachments,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
