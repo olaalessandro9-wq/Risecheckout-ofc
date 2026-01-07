@@ -1,7 +1,11 @@
 /**
  * Types for Members Area Modules and Content
  * Netflix-style course structure with Kiwify-style multi-content support
+ * 
+ * CANONICAL SOURCE - All other files should re-export from here
  */
+
+import type { Json } from "@/integrations/supabase/types";
 
 /** Content display type - unified system */
 export type ContentDisplayType = 'mixed' | 'video' | 'text';
@@ -22,7 +26,7 @@ export interface MemberContent {
   content_type: ContentDisplayType;
   content_url: string | null;
   body: string | null;
-  content_data: Record<string, unknown> | null;
+  content_data: Json | null;
   duration_seconds: number | null;
   position: number;
   is_active: boolean;

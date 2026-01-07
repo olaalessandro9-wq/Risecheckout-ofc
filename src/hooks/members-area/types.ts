@@ -1,44 +1,28 @@
 /**
  * Members Area Hook Types
- * Shared types for all useMembersArea sub-hooks
+ * 
+ * Re-exports canonical types from module + defines hook-specific types
+ * This ensures Single Source of Truth for all Members Area types
  */
 
 import type { Json } from "@/integrations/supabase/types";
-import type { ContentDisplayType } from "@/modules/members-area/types";
+import type { 
+  MemberModule, 
+  MemberContent, 
+  ModuleWithContents 
+} from "@/modules/members-area/types";
 
-export type { ContentDisplayType } from "@/modules/members-area/types";
+// Re-export canonical types for backwards compatibility
+export type { 
+  ContentDisplayType,
+  MemberModule,
+  MemberContent,
+} from "@/modules/members-area/types";
 
-export interface MemberModule {
-  id: string;
-  product_id: string;
-  title: string;
-  description: string | null;
-  cover_image_url: string | null;
-  position: number;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
+// Alias for backwards compatibility with existing code
+export type MemberModuleWithContents = ModuleWithContents;
 
-export interface MemberContent {
-  id: string;
-  module_id: string;
-  title: string;
-  description: string | null;
-  content_type: ContentDisplayType;
-  content_url: string | null;
-  body: string | null;
-  content_data: Json | null;
-  position: number;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface MemberModuleWithContents extends MemberModule {
-  contents: MemberContent[];
-}
-
+// Hook-specific types (not in module types)
 export interface MembersAreaSettings {
   enabled: boolean;
   settings: Json | null;
@@ -48,7 +32,7 @@ export interface UseMembersAreaReturn {
   isLoading: boolean;
   isSaving: boolean;
   settings: MembersAreaSettings;
-  modules: MemberModuleWithContents[];
+  modules: ModuleWithContents[];
   updateSettings: (enabled: boolean, settings?: Json) => Promise<void>;
   fetchModules: () => Promise<void>;
   addModule: (title: string, description?: string, coverImageUrl?: string) => Promise<MemberModule | null>;

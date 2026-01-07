@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Plus, Trash2, Edit2, GripVertical, Lock, Layers, Video, FileText } from "lucide-react";
-import type { MemberModuleWithContents } from "@/hooks/useMembersArea";
+import type { MemberModuleWithContents } from "@/hooks/members-area";
 
 interface ModulesListProps {
   modules: MemberModuleWithContents[];
