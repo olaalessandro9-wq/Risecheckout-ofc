@@ -2,7 +2,7 @@
  * MembersAreaCover - Capa visual da área de membros (display only)
  */
 
-import { Image as ImageIcon } from "lucide-react";
+
 
 interface MembersAreaCoverProps {
   coverUrl?: string;
@@ -12,16 +12,12 @@ interface MembersAreaCoverProps {
 export function MembersAreaCover({ coverUrl, productName }: MembersAreaCoverProps) {
   return (
     <div className="relative w-full h-48 md:h-64 bg-gradient-to-br from-primary/20 via-primary/10 to-background overflow-hidden">
-      {coverUrl ? (
+      {coverUrl && (
         <img 
           src={coverUrl} 
           alt="Capa da área de membros"
           className="w-full h-full object-cover"
         />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center">
-          <ImageIcon className="h-16 w-16 text-muted-foreground/30" />
-        </div>
       )}
 
       {/* Overlay gradient */}
