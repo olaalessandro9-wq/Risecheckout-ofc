@@ -5,7 +5,7 @@
 
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { ContentReleaseSettings, ContentAccessStatus } from '../types';
+import type { ContentReleaseSettings, ContentAccessStatus, ReleaseType } from '../types';
 
 interface UseContentDripReturn {
   isLoading: boolean;
@@ -58,7 +58,14 @@ export function useContentDrip(): UseContentDripReturn {
 
     if (settings) {
       settings.forEach(s => {
-        settingsMap.set(s.content_id, s as ContentReleaseSettings);
+        settingsMap.set(s.content_id, {
+          id: s.id,
+          content_id: s.content_id,
+          release_type: s.release_type as ReleaseType,
+          days_after_purchase: s.days_after_purchase,
+          fixed_date: s.fixed_date,
+          after_content_id: s.after_content_id,
+        });
       });
     }
 
@@ -128,7 +135,15 @@ export function useContentDrip(): UseContentDripReturn {
       };
     }
 
-    const releaseSettings = settings as ContentReleaseSettings;
+    const releaseSettings: ContentReleaseSettings = {
+      id: settings.id,
+      content_id: settings.content_id,
+      release_type: settings.release_type as ReleaseType,
+      days_after_purchase: settings.days_after_purchase,
+      fixed_date: settings.fixed_date,
+      after_content_id: settings.after_content_id,
+    };
+    
     const now = new Date();
 
     // Handle "after_content" type - check if prerequisite is completed

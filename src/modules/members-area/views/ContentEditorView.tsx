@@ -5,7 +5,7 @@
  * - Video section (YouTube/upload)
  * - Rich text editor
  * - Multiple attachments
- * - Release settings
+ * - Release settings with after_content support
  */
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -22,7 +22,7 @@ import {
   ContentEditorHeader,
 } from "../components/editor";
 import { useDripSettings } from "../hooks/useDripSettings";
-import type { ReleaseFormData, ContentAttachment } from "../types";
+import type { ReleaseFormData, ContentAttachment, MemberContent } from "../types";
 
 interface ContentEditorViewProps {
   productId?: string;
@@ -46,6 +46,7 @@ const DEFAULT_RELEASE: ReleaseFormData = {
   release_type: "immediate",
   days_after_purchase: null,
   fixed_date: null,
+  after_content_id: null,
 };
 
 export function ContentEditorView({ productId, onBack, onSave }: ContentEditorViewProps) {
@@ -64,17 +65,32 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
   const [content, setContent] = useState<ContentState>(DEFAULT_CONTENT);
   const [release, setRelease] = useState<ReleaseFormData>(DEFAULT_RELEASE);
   const [attachments, setAttachments] = useState<ContentAttachment[]>([]);
+  const [moduleContents, setModuleContents] = useState<Pick<MemberContent, "id" | "title">[]>([]);
 
-  // Fetch existing content if editing
+  // Fetch existing content and module contents if editing
   useEffect(() => {
-    if (isNew || !contentId) {
-      setIsLoading(false);
-      return;
-    }
-
-    async function loadContent() {
+    async function loadData() {
       setIsLoading(true);
       try {
+        // Always fetch module contents for after_content selection
+        if (moduleId) {
+          const { data: contentsData } = await supabase
+            .from("product_member_content")
+            .select("id, title")
+            .eq("module_id", moduleId)
+            .eq("is_active", true)
+            .order("position", { ascending: true });
+
+          if (contentsData) {
+            setModuleContents(contentsData);
+          }
+        }
+
+        if (isNew || !contentId) {
+          setIsLoading(false);
+          return;
+        }
+
         // Fetch content data
         const { data: contentData, error: contentError } = await supabase
           .from("product_member_content")
@@ -113,6 +129,7 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
             release_type: releaseData.release_type as ReleaseFormData["release_type"],
             days_after_purchase: releaseData.days_after_purchase,
             fixed_date: releaseData.fixed_date,
+            after_content_id: releaseData.after_content_id,
           });
         }
       } catch (err) {
@@ -123,8 +140,8 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
       }
     }
 
-    loadContent();
-  }, [isNew, contentId, fetchDripSettings, onBack]);
+    loadData();
+  }, [isNew, contentId, moduleId, fetchDripSettings, onBack]);
 
   // Validate form
   const canSave = useMemo(() => {
@@ -134,6 +151,7 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
     // Validate release settings
     if (release.release_type === "days_after_purchase" && !release.days_after_purchase) return false;
     if (release.release_type === "fixed_date" && !release.fixed_date) return false;
+    if (release.release_type === "after_content" && !release.after_content_id) return false;
 
     return true;
   }, [content, release, moduleId]);
@@ -199,11 +217,11 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
         }
 
         // Save release settings
-        const dripData = {
+        const dripData: ReleaseFormData = {
           release_type: release.release_type,
           days_after_purchase: release.days_after_purchase,
           fixed_date: release.fixed_date,
-          after_content_id: null,
+          after_content_id: release.after_content_id,
         };
         
         const dripSaved = await saveDripSettings(savedContentId, dripData);
@@ -302,6 +320,8 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
         <ReleaseSection
           settings={release}
           onSettingsChange={handleReleaseChange}
+          availableContents={moduleContents}
+          currentContentId={contentId || undefined}
         />
       </div>
     </div>

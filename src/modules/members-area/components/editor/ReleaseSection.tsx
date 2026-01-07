@@ -1,17 +1,28 @@
 /**
  * ReleaseSection - Content release/drip settings
- * Kiwify-style with simplified options
+ * Complete implementation with all release types including after_content
  */
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Clock, Calendar, Zap } from "lucide-react";
-import type { ReleaseFormData, ReleaseType } from "../../types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Clock, Calendar, Zap, CheckCircle2 } from "lucide-react";
+import type { ReleaseFormData, ReleaseType, MemberContent } from "../../types";
 
 interface ReleaseSectionProps {
   settings: ReleaseFormData;
   onSettingsChange: (settings: ReleaseFormData) => void;
+  /** Available contents for "after_content" selection */
+  availableContents?: Pick<MemberContent, "id" | "title">[];
+  /** Current content ID to exclude from selection */
+  currentContentId?: string;
 }
 
 const RELEASE_OPTIONS: { 
@@ -38,15 +49,30 @@ const RELEASE_OPTIONS: {
     description: "Liberar em uma data específica",
     icon: <Calendar className="h-5 w-5 text-orange-500" />,
   },
+  {
+    value: "after_content",
+    label: "Após conteúdo",
+    description: "Liberar após o aluno concluir outro conteúdo",
+    icon: <CheckCircle2 className="h-5 w-5 text-purple-500" />,
+  },
 ];
 
-export function ReleaseSection({ settings, onSettingsChange }: ReleaseSectionProps) {
+export function ReleaseSection({ 
+  settings, 
+  onSettingsChange,
+  availableContents = [],
+  currentContentId,
+}: ReleaseSectionProps) {
+  // Filter out current content from selectable options
+  const selectableContents = availableContents.filter(c => c.id !== currentContentId);
+
   const handleReleaseTypeChange = (value: ReleaseType) => {
     onSettingsChange({
       ...settings,
       release_type: value,
       days_after_purchase: value === "days_after_purchase" ? settings.days_after_purchase || 1 : null,
       fixed_date: value === "fixed_date" ? settings.fixed_date : null,
+      after_content_id: value === "after_content" ? settings.after_content_id : null,
     });
   };
 
@@ -57,6 +83,10 @@ export function ReleaseSection({ settings, onSettingsChange }: ReleaseSectionPro
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onSettingsChange({ ...settings, fixed_date: e.target.value || null });
+  };
+
+  const handleAfterContentChange = (contentId: string) => {
+    onSettingsChange({ ...settings, after_content_id: contentId || null });
   };
 
   return (
@@ -128,6 +158,35 @@ export function ReleaseSection({ settings, onSettingsChange }: ReleaseSectionPro
                     min={new Date().toISOString().split("T")[0]}
                   />
                 </div>
+              </div>
+            )}
+
+            {settings.release_type === "after_content" && option.value === "after_content" && (
+              <div className="ml-7 mt-2">
+                {selectableContents.length > 0 ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Liberar após concluir</span>
+                    <Select
+                      value={settings.after_content_id || ""}
+                      onValueChange={handleAfterContentChange}
+                    >
+                      <SelectTrigger className="w-64">
+                        <SelectValue placeholder="Selecione um conteúdo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {selectableContents.map((content) => (
+                          <SelectItem key={content.id} value={content.id}>
+                            {content.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">
+                    Nenhum outro conteúdo disponível no módulo para selecionar como pré-requisito.
+                  </p>
+                )}
               </div>
             )}
           </div>
