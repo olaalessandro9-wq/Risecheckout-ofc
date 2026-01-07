@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import type { ContentType } from "@/modules/members-area/types";
+import { SUPABASE_URL } from "@/config/supabase";
 
-const SUPABASE_URL = "https://wivbtmtgpsxupfjwwovf.supabase.co";
+/** Content display type - unified system */
+export type ContentDisplayType = "mixed" | "video" | "text";
 
 export interface MemberModule {
   id: string;
@@ -22,9 +23,10 @@ export interface MemberContent {
   module_id: string;
   title: string;
   description: string | null;
-  content_type: ContentType;
+  content_type: ContentDisplayType;
   content_url: string | null;
-  content_data: Record<string, any>;
+  body: string | null;
+  content_data: Record<string, unknown>;
   position: number;
   is_active: boolean;
   created_at: string;
@@ -37,7 +39,7 @@ export interface MemberModuleWithContents extends MemberModule {
 
 export interface MembersAreaSettings {
   enabled: boolean;
-  settings: Record<string, any>;
+  settings: Record<string, unknown>;
 }
 
 export interface UseMembersAreaReturn {
@@ -45,7 +47,7 @@ export interface UseMembersAreaReturn {
   isSaving: boolean;
   settings: MembersAreaSettings;
   modules: MemberModuleWithContents[];
-  updateSettings: (enabled: boolean, settings?: Record<string, any>) => Promise<void>;
+  updateSettings: (enabled: boolean, settings?: Record<string, unknown>) => Promise<void>;
   fetchModules: () => Promise<void>;
   addModule: (title: string, description?: string, coverImageUrl?: string) => Promise<MemberModule | null>;
   updateModule: (id: string, data: Partial<MemberModule>) => Promise<void>;
@@ -80,7 +82,7 @@ export function useMembersArea(productId: string | undefined): UseMembersAreaRet
 
       setSettings({
         enabled: product.members_area_enabled || false,
-        settings: (product.members_area_settings as Record<string, any>) || {},
+        settings: (product.members_area_settings as Record<string, unknown>) || {},
       });
 
       // Fetch modules with contents
@@ -95,10 +97,16 @@ export function useMembersArea(productId: string | undefined): UseMembersAreaRet
 
       if (modulesError) throw modulesError;
 
-      // Sort contents by position
+      // Sort contents by position and normalize content_type
       const sortedModules = (modulesData || []).map((module) => ({
         ...module,
-        contents: (module.contents || []).sort((a, b) => a.position - b.position) as MemberContent[],
+        contents: (module.contents || [])
+          .sort((a, b) => a.position - b.position)
+          .map((content) => ({
+            ...content,
+            // Normalize legacy content types to unified system
+            content_type: normalizeContentType(content.content_type),
+          })) as MemberContent[],
       })) as MemberModuleWithContents[];
 
       setModules(sortedModules);
@@ -116,7 +124,7 @@ export function useMembersArea(productId: string | undefined): UseMembersAreaRet
 
   const fetchModules = fetchData;
 
-  const updateSettings = useCallback(async (enabled: boolean, newSettings?: Record<string, any>) => {
+  const updateSettings = useCallback(async (enabled: boolean, newSettings?: Record<string, unknown>) => {
     if (!productId) return;
 
     setIsSaving(true);
@@ -320,13 +328,18 @@ export function useMembersArea(productId: string | undefined): UseMembersAreaRet
 
       if (error) throw error;
 
+      const normalizedContent = {
+        ...newContent,
+        content_type: normalizeContentType(newContent.content_type),
+      } as MemberContent;
+
       setModules(prev => prev.map(m => 
         m.id === moduleId 
-          ? { ...m, contents: [...m.contents, newContent as MemberContent] }
+          ? { ...m, contents: [...m.contents, normalizedContent] }
           : m
       ));
       toast.success("Conteúdo adicionado!");
-      return newContent as MemberContent;
+      return normalizedContent;
     } catch (error) {
       console.error("[useMembersArea] Error adding content:", error);
       toast.error("Erro ao adicionar conteúdo");
@@ -426,4 +439,27 @@ export function useMembersArea(productId: string | undefined): UseMembersAreaRet
     deleteContent,
     reorderContents,
   };
+}
+
+/**
+ * Normalize legacy content types to unified system
+ * - "mixed" = Kiwify-style (video + body + attachments)
+ * - "video" = video only
+ * - "text" = text/html only
+ * All other types map to "mixed" for flexibility
+ */
+function normalizeContentType(type: string): ContentDisplayType {
+  switch (type) {
+    case "mixed":
+    case "video":
+    case "text":
+      return type;
+    case "pdf":
+    case "download":
+    case "link":
+      // Legacy types become mixed for flexible display
+      return "mixed";
+    default:
+      return "mixed";
+  }
 }

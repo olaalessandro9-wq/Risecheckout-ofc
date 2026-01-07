@@ -5,8 +5,8 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { SUPABASE_URL } from "@/config/supabase";
 
-const SUPABASE_URL = "https://wivbtmtgpsxupfjwwovf.supabase.co";
 const BUYER_SESSION_KEY = "buyer_session_token";
 
 interface ProducerBuyerLinkState {
