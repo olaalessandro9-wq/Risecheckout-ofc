@@ -6,8 +6,67 @@
 import DOMPurify from "dompurify";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Download, Link as LinkIcon, ChevronRight, Paperclip } from "lucide-react";
-import type { ContentItem } from "./types";
+import { Download, Link as LinkIcon, ChevronRight, Paperclip, FileText, Image, Music, FileArchive, FileSpreadsheet } from "lucide-react";
+import type { ContentItem, ContentAttachment } from "./types";
+
+// Helper to get icon based on file type
+function getFileIcon(fileType: string) {
+  if (fileType.startsWith("image/")) return <Image className="h-4 w-4" />;
+  if (fileType.startsWith("audio/")) return <Music className="h-4 w-4" />;
+  if (fileType.includes("pdf")) return <FileText className="h-4 w-4" />;
+  if (fileType.includes("zip") || fileType.includes("rar")) return <FileArchive className="h-4 w-4" />;
+  if (fileType.includes("spreadsheet") || fileType.includes("excel")) return <FileSpreadsheet className="h-4 w-4" />;
+  return <Paperclip className="h-4 w-4" />;
+}
+
+// Helper to format file size
+function formatFileSize(bytes: number | null): string {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// Attachments list component
+function AttachmentsList({ attachments }: { attachments: ContentAttachment[] }) {
+  if (!attachments || attachments.length === 0) return null;
+
+  return (
+    <div className="border rounded-lg p-4 mt-4">
+      <h4 className="font-medium flex items-center gap-2 mb-3">
+        <Paperclip className="h-4 w-4" />
+        Materiais ({attachments.length})
+      </h4>
+      <div className="space-y-2">
+        {attachments.map((attachment) => (
+          <a
+            key={attachment.id}
+            href={attachment.file_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            download={attachment.file_name}
+            className="flex items-center gap-3 p-2 rounded-md hover:bg-muted transition-colors group"
+          >
+            <div className="p-2 bg-primary/10 rounded text-primary">
+              {getFileIcon(attachment.file_type)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">
+                {attachment.file_name}
+              </p>
+              {attachment.file_size && (
+                <p className="text-xs text-muted-foreground">
+                  {formatFileSize(attachment.file_size)}
+                </p>
+              )}
+            </div>
+            <Download className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 interface ContentViewerProps {
   content: ContentItem | null;
@@ -55,16 +114,8 @@ export function ContentViewer({ content }: ContentViewerProps) {
           />
         )}
 
-        {content.content_data?.attachments && (
-          <div className="border rounded-lg p-4">
-            <h4 className="font-medium flex items-center gap-2 mb-3">
-              <Paperclip className="h-4 w-4" />
-              Materiais
-            </h4>
-            <p className="text-sm text-muted-foreground">
-              Anexos disponíveis para download
-            </p>
-          </div>
+        {content.attachments && content.attachments.length > 0 && (
+          <AttachmentsList attachments={content.attachments} />
         )}
       </div>
     );
