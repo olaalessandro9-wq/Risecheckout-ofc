@@ -4,6 +4,7 @@
 
 // Module & Content types
 export type {
+  ContentDisplayType,
   ContentType,
   ReleaseType,
   MemberContent,
