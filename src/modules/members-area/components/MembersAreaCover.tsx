@@ -1,25 +1,14 @@
 /**
- * MembersAreaCover - Capa visual da área de membros (display only)
+ * MembersAreaCover - Header visual da área de membros
  */
 
-
-
 interface MembersAreaCoverProps {
-  coverUrl?: string;
   productName: string;
 }
 
-export function MembersAreaCover({ coverUrl, productName }: MembersAreaCoverProps) {
+export function MembersAreaCover({ productName }: MembersAreaCoverProps) {
   return (
     <div className="relative w-full h-48 md:h-64 bg-gradient-to-br from-primary/20 via-primary/10 to-background overflow-hidden">
-      {coverUrl && (
-        <img 
-          src={coverUrl} 
-          alt="Capa da área de membros"
-          className="w-full h-full object-cover"
-        />
-      )}
-
       {/* Overlay gradient */}
       <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
 
