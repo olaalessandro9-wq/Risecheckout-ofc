@@ -68,6 +68,7 @@ const AdminHealth = lazy(() => import("./pages/AdminHealth"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const Afiliados = lazy(() => import("./pages/Afiliados"));
 const OwnerGateways = lazy(() => import("./pages/owner/OwnerGateways"));
+const MembersAreaBuilderPage = lazy(() => import("./modules/members-area-builder").then(m => ({ default: m.MembersAreaBuilderPage })));
 
 // ============================================================================
 // COMPONENTE DE LOADING
@@ -171,6 +172,20 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <CheckoutCustomizer />
+          </ProtectedRoute>
+        ),
+      },
+      
+      // ============================================================
+      // MEMBERS AREA BUILDER - Full screen (Protegido)
+      // ============================================================
+      {
+        path: "/dashboard/produtos/:productId/members-area/builder",
+        element: (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <MembersAreaBuilderPage />
+            </Suspense>
           </ProtectedRoute>
         ),
       },
