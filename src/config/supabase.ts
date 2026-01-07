@@ -2,18 +2,9 @@
  * Supabase Configuration
  * 
  * Central config file for Supabase URL and keys.
- * SECURITY: No fallback values - requires proper environment configuration.
+ * Note: anon key is public by design - security is enforced by RLS policies.
+ * Secret keys (service_role) are stored in Supabase Secrets for edge functions.
  */
 
-const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
-
-if (!url || !anonKey) {
-  throw new Error(
-    '[SUPABASE CONFIG] Missing required environment variables. ' +
-    'Ensure VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY are set.'
-  );
-}
-
-export const SUPABASE_URL: string = url;
-export const SUPABASE_ANON_KEY: string = anonKey;
+export const SUPABASE_URL = "https://wivbtmtgpsxupfjwwovf.supabase.co";
+export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpdmJ0bXRncHN4dXBmand3b3ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3Mjg2NzIsImV4cCI6MjA4MTA4ODY3Mn0.h8HDRdHaVTZpZLqBxj7bODaUPCox2h6HF_3U1xfbSXY";
