@@ -7,6 +7,7 @@ export type {
   ContentType,
   ReleaseType,
   MemberContent,
+  ContentAttachment,
   ContentWithRelease,
   ContentReleaseSettings,
   MemberModule,
@@ -17,6 +18,7 @@ export type {
   UpdateContentInput,
   EditingModuleData,
   ContentFormData,
+  ReleaseFormData,
   DripFormData,
   ContentEditorState,
 } from './module.types';
