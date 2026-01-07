@@ -2499,6 +2499,57 @@ export type Database = {
           },
         ]
       }
+      product_members_sections: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          position: number
+          product_id: string
+          settings: Json | null
+          title: string | null
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          position?: number
+          product_id: string
+          settings?: Json | null
+          title?: string | null
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          position?: number
+          product_id?: string
+          settings?: Json | null
+          title?: string | null
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_members_sections_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_members_sections_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           affiliate_gateway_settings: Json | null
