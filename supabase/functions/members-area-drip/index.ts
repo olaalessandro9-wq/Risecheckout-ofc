@@ -5,13 +5,19 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+/**
+ * Canonical release types - aligned with DB and frontend
+ * NEVER use "after_completion" - always use "after_content"
+ */
+type ReleaseType = "immediate" | "days_after_purchase" | "fixed_date" | "after_content";
+
 interface DripRequest {
   action: "get-settings" | "update-settings" | "check-access" | "unlock-content";
   content_id?: string;
   product_id?: string;
   buyer_id?: string;
   settings?: {
-    release_type: "immediate" | "days_after_purchase" | "fixed_date" | "after_completion";
+    release_type: ReleaseType;
     days_after_purchase?: number;
     fixed_date?: string;
     after_content_id?: string;
@@ -128,14 +134,29 @@ Deno.serve(async (req) => {
           );
         }
 
+        // If immediate, delete settings instead of storing
+        if (settings.release_type === "immediate") {
+          await supabase
+            .from("content_release_settings")
+            .delete()
+            .eq("content_id", content_id);
+
+          console.log(`[members-area-drip] Deleted settings for content ${content_id} (immediate release)`);
+
+          return new Response(
+            JSON.stringify({ success: true }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
         const { error } = await supabase
           .from("content_release_settings")
           .upsert({
             content_id,
             release_type: settings.release_type,
-            days_after_purchase: settings.days_after_purchase || null,
-            fixed_date: settings.fixed_date || null,
-            after_content_id: settings.after_content_id || null,
+            days_after_purchase: settings.release_type === "days_after_purchase" ? (settings.days_after_purchase || null) : null,
+            fixed_date: settings.release_type === "fixed_date" ? (settings.fixed_date || null) : null,
+            after_content_id: settings.release_type === "after_content" ? (settings.after_content_id || null) : null,
           }, {
             onConflict: "content_id",
           });
@@ -257,7 +278,7 @@ Deno.serve(async (req) => {
             );
           }
 
-          case "after_completion": {
+          case "after_content": {
             // Verificar se o conteúdo anterior foi concluído
             const { data: progress } = await supabase
               .from("buyer_content_progress")

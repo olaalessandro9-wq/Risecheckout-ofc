@@ -7,7 +7,8 @@
 export type ReleaseType = 
   | 'immediate'
   | 'days_after_purchase'
-  | 'fixed_date';
+  | 'fixed_date'
+  | 'after_content';
 
 /** Individual content item within a module */
 export interface MemberContent {
@@ -140,6 +141,7 @@ export interface ReleaseFormData {
   release_type: ReleaseType;
   days_after_purchase: number | null;
   fixed_date: string | null;
+  after_content_id: string | null;
 }
 
 /** State for the content editor page */
