@@ -5,7 +5,7 @@
 
 import React from "react";
 import { Layers, Video, FileText } from "lucide-react";
-import type { ContentDisplayType } from "@/hooks/useMembersArea";
+import type { ContentDisplayType } from "@/modules/members-area/types";
 
 /** Content type configuration - unified system */
 export const contentTypeConfig: Record<ContentDisplayType, {

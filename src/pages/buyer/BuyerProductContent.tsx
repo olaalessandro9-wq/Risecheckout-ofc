@@ -19,14 +19,17 @@ import {
   Paperclip
 } from "lucide-react";
 
-/** Unified content type */
-type ContentDisplayType = "mixed" | "video" | "text" | "pdf" | "link" | "download";
+/** 
+ * Buyer page uses extended content types for legacy support
+ * The unified system (mixed/video/text) handles normalization upstream
+ */
+type BuyerContentDisplayType = "mixed" | "video" | "text" | "pdf" | "link" | "download";
 
 interface ContentItem {
   id: string;
   title: string;
   description: string | null;
-  content_type: ContentDisplayType;
+  content_type: BuyerContentDisplayType;
   content_url: string | null;
   body: string | null;
   content_data: Record<string, unknown>;

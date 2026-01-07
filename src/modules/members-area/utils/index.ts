@@ -2,6 +2,8 @@
  * Members Area Utils - Public Exports
  */
 
+export { normalizeContentType } from './content-type';
+
 export {
   validateVideoUrl,
   validatePdfUrl,

@@ -3,9 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SUPABASE_URL } from "@/config/supabase";
 import type { Json } from "@/integrations/supabase/types";
+import type { ContentDisplayType } from "@/modules/members-area/types";
+import { normalizeContentType } from "@/modules/members-area/utils";
 
-/** Content display type - unified system */
-export type ContentDisplayType = "mixed" | "video" | "text";
+// Re-export for backwards compatibility
+export type { ContentDisplayType } from "@/modules/members-area/types";
 
 export interface MemberModule {
   id: string;
@@ -442,25 +444,4 @@ export function useMembersArea(productId: string | undefined): UseMembersAreaRet
   };
 }
 
-/**
- * Normalize legacy content types to unified system
- * - "mixed" = Kiwify-style (video + body + attachments)
- * - "video" = video only
- * - "text" = text/html only
- * All other types map to "mixed" for flexibility
- */
-function normalizeContentType(type: string): ContentDisplayType {
-  switch (type) {
-    case "mixed":
-    case "video":
-    case "text":
-      return type;
-    case "pdf":
-    case "download":
-    case "link":
-      // Legacy types become mixed for flexible display
-      return "mixed";
-    default:
-      return "mixed";
-  }
-}
+// normalizeContentType is now imported from @/modules/members-area/utils

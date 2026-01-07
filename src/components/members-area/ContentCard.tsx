@@ -29,11 +29,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { MemberContent } from '@/modules/members-area/types';
-import { formatDuration } from '@/modules/members-area/utils';
-
-/** Unified content display types */
-type ContentDisplayType = 'mixed' | 'video' | 'text';
+import type { MemberContent, ContentDisplayType } from '@/modules/members-area/types';
+import { formatDuration, normalizeContentType } from '@/modules/members-area/utils';
 
 interface ContentCardProps {
   content: MemberContent;
@@ -57,15 +54,6 @@ const contentTypeConfig: Record<ContentDisplayType, {
   video: { icon: Video, label: 'Vídeo', color: 'text-red-500' },
   text: { icon: FileText, label: 'Texto', color: 'text-blue-500' },
 };
-
-/** Normalize any content_type to our unified system */
-function normalizeContentType(type: string): ContentDisplayType {
-  if (type === 'mixed' || type === 'video' || type === 'text') {
-    return type;
-  }
-  // Legacy types fallback to mixed
-  return 'mixed';
-}
 
 export function ContentCard({
   content,
