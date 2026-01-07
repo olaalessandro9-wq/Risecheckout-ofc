@@ -37,13 +37,26 @@ export function MembersAreaCover({ productId, coverUrl, productName }: MembersAr
         .from('product-images')
         .getPublicUrl(fileName);
 
+      // Fetch existing settings to merge (avoid overwriting other settings)
+      const { data: currentProduct } = await supabase
+        .from('products')
+        .select('members_area_settings')
+        .eq('id', productId)
+        .single();
+
+      const existingSettings = (currentProduct?.members_area_settings as Record<string, unknown>) || {};
+      
+      // Merge with new cover_url
+      const updatedSettings = {
+        ...existingSettings,
+        cover_url: publicUrl,
+      };
+
       // Update product settings
       const { error: updateError } = await supabase
         .from('products')
         .update({
-          members_area_settings: {
-            cover_url: publicUrl,
-          }
+          members_area_settings: updatedSettings
         })
         .eq('id', productId);
 
