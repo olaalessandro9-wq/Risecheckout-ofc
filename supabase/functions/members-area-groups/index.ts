@@ -103,10 +103,10 @@ Deno.serve(async (req) => {
           .from("product_member_groups")
           .select(`
             *,
-            permissions:product_member_group_permissions(
-              module_id,
-              can_access
-            )
+          permissions:product_member_group_permissions(
+            module_id,
+            has_access
+          )
           `)
           .eq("id", group_id)
           .single();
@@ -256,7 +256,7 @@ Deno.serve(async (req) => {
         const permissionsToInsert = data.permissions.map((p) => ({
           group_id,
           module_id: p.module_id,
-          can_access: p.can_access,
+          has_access: p.can_access,
         }));
 
         const { error } = await supabase
