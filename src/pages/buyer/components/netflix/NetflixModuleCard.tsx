@@ -4,7 +4,7 @@
  */
 
 import { motion } from "framer-motion";
-import { Play, PlayCircle, Layers } from "lucide-react";
+import { PlayCircle, Film } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { Module } from "../types";
 
@@ -17,7 +17,7 @@ interface NetflixModuleCardProps {
 export function NetflixModuleCard({ module, index, onClick }: NetflixModuleCardProps) {
   const lessonCount = module.contents.length;
   
-  // Placeholder gradient colors for modules without cover
+  // Fallback gradient colors for modules without cover
   const gradientColors = [
     "from-rose-600 to-purple-700",
     "from-blue-600 to-cyan-500",
@@ -36,24 +36,27 @@ export function NetflixModuleCard({ module, index, onClick }: NetflixModuleCardP
       whileHover={{ scale: 1.05, zIndex: 10 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className="relative group cursor-pointer flex-shrink-0 w-[260px] md:w-[300px]"
+      className="relative group cursor-pointer flex-shrink-0 w-[180px] md:w-[220px]"
     >
-      {/* Card Container */}
-      <div className="relative aspect-video rounded-lg overflow-hidden shadow-lg transition-shadow duration-300 group-hover:shadow-2xl group-hover:shadow-primary/20">
-        {/* Background Image or Gradient */}
-        {module.contents[0]?.content_url ? (
-          <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`}>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Layers className="h-16 w-16 text-white/30" />
-            </div>
-          </div>
+      {/* Card Container - Fixed aspect ratio 2:3 (poster style) */}
+      <div className="relative aspect-[2/3] rounded-xl overflow-hidden shadow-lg transition-shadow duration-300 group-hover:shadow-2xl group-hover:shadow-primary/20 ring-1 ring-white/10">
+        {/* Background Image or Gradient Fallback */}
+        {module.cover_image_url ? (
+          <img
+            src={module.cover_image_url}
+            alt={module.title}
+            className="absolute inset-0 h-full w-full object-cover"
+          />
         ) : (
           <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`}>
             <div className="absolute inset-0 flex items-center justify-center">
-              <Layers className="h-16 w-16 text-white/30" />
+              <Film className="h-16 w-16 text-white/30" />
             </div>
           </div>
         )}
+
+        {/* Gradient overlay for better readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
         {/* Hover Overlay */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center">
@@ -62,14 +65,14 @@ export function NetflixModuleCard({ module, index, onClick }: NetflixModuleCardP
 
         {/* Badge with lesson count */}
         <div className="absolute top-3 right-3">
-          <Badge variant="secondary" className="bg-black/60 text-white border-0 backdrop-blur-sm">
+          <Badge variant="secondary" className="bg-black/70 text-white border-0 backdrop-blur-sm text-xs font-semibold">
             {lessonCount} {lessonCount === 1 ? "aula" : "aulas"}
           </Badge>
         </div>
 
         {/* Module number */}
         <div className="absolute bottom-3 left-3">
-          <span className="text-xs font-medium text-white/70 bg-black/40 px-2 py-1 rounded backdrop-blur-sm">
+          <span className="text-xs font-medium text-white bg-black/50 px-2 py-1 rounded backdrop-blur-sm">
             Módulo {index + 1}
           </span>
         </div>
