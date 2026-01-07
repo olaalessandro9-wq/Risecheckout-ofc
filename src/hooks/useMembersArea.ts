@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SUPABASE_URL } from "@/config/supabase";
+import type { Json } from "@/integrations/supabase/types";
 
 /** Content display type - unified system */
 export type ContentDisplayType = "mixed" | "video" | "text";
@@ -26,7 +27,7 @@ export interface MemberContent {
   content_type: ContentDisplayType;
   content_url: string | null;
   body: string | null;
-  content_data: Record<string, unknown>;
+  content_data: Json | null;
   position: number;
   is_active: boolean;
   created_at: string;
@@ -39,7 +40,7 @@ export interface MemberModuleWithContents extends MemberModule {
 
 export interface MembersAreaSettings {
   enabled: boolean;
-  settings: Record<string, unknown>;
+  settings: Json | null;
 }
 
 export interface UseMembersAreaReturn {
@@ -47,7 +48,7 @@ export interface UseMembersAreaReturn {
   isSaving: boolean;
   settings: MembersAreaSettings;
   modules: MemberModuleWithContents[];
-  updateSettings: (enabled: boolean, settings?: Record<string, unknown>) => Promise<void>;
+  updateSettings: (enabled: boolean, settings?: Json) => Promise<void>;
   fetchModules: () => Promise<void>;
   addModule: (title: string, description?: string, coverImageUrl?: string) => Promise<MemberModule | null>;
   updateModule: (id: string, data: Partial<MemberModule>) => Promise<void>;
@@ -62,7 +63,7 @@ export interface UseMembersAreaReturn {
 export function useMembersArea(productId: string | undefined): UseMembersAreaReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [settings, setSettings] = useState<MembersAreaSettings>({ enabled: false, settings: {} });
+  const [settings, setSettings] = useState<MembersAreaSettings>({ enabled: false, settings: null });
   const [modules, setModules] = useState<MemberModuleWithContents[]>([]);
 
   // Fetch settings and modules
@@ -82,7 +83,7 @@ export function useMembersArea(productId: string | undefined): UseMembersAreaRet
 
       setSettings({
         enabled: product.members_area_enabled || false,
-        settings: (product.members_area_settings as Record<string, unknown>) || {},
+        settings: product.members_area_settings || null,
       });
 
       // Fetch modules with contents
@@ -124,7 +125,7 @@ export function useMembersArea(productId: string | undefined): UseMembersAreaRet
 
   const fetchModules = fetchData;
 
-  const updateSettings = useCallback(async (enabled: boolean, newSettings?: Record<string, unknown>) => {
+  const updateSettings = useCallback(async (enabled: boolean, newSettings?: Json) => {
     if (!productId) return;
 
     setIsSaving(true);
