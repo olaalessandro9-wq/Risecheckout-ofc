@@ -3310,6 +3310,10 @@ export type Database = {
         Args: { p_offer_id: string; p_slug?: string }
         Returns: string
       }
+      delete_gateway_credentials: {
+        Args: { p_gateway: string; p_vendor_id: string }
+        Returns: Json
+      }
       duplicate_checkout_shallow: {
         Args: { p_source_checkout_id: string }
         Returns: string
@@ -3338,6 +3342,10 @@ export type Database = {
           checkout_id: string
           product_id: string
         }[]
+      }
+      get_gateway_credentials: {
+        Args: { p_gateway: string; p_vendor_id: string }
+        Returns: Json
       }
       get_internal_webhook_secret: { Args: never; Returns: string }
       get_order_for_payment: {
@@ -3455,6 +3463,10 @@ export type Database = {
       product_has_active_checkout: {
         Args: { p_product_id: string }
         Returns: boolean
+      }
+      save_gateway_credentials: {
+        Args: { p_credentials: Json; p_gateway: string; p_vendor_id: string }
+        Returns: Json
       }
       save_vault_secret: {
         Args: { p_name: string; p_secret: string }

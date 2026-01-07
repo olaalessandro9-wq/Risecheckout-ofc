@@ -12,8 +12,6 @@
  * ============================================================================
  */
 
-import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
 // ========================================================================
 // TYPES
 // ========================================================================
@@ -33,6 +31,13 @@ export interface VaultResult {
   source?: string;
 }
 
+// Interface para resposta do RPC get_gateway_credentials
+interface VaultRpcResponse {
+  success: boolean;
+  error?: string;
+  credentials?: VaultCredentials;
+}
+
 // ========================================================================
 // SAVE CREDENTIALS TO VAULT
 // ========================================================================
@@ -40,14 +45,14 @@ export interface VaultResult {
 /**
  * Salva credenciais OAuth no Supabase Vault
  * 
- * @param supabase - Cliente Supabase com service role
+ * @param supabase - Cliente Supabase com service role (aceita any para flexibilidade)
  * @param vendorId - ID do vendedor
  * @param gateway - Tipo de gateway (MERCADOPAGO, STRIPE, etc.)
  * @param credentials - Credenciais a serem salvas
  * @returns Resultado da operação
  */
 export async function saveCredentialsToVault(
-  supabase: SupabaseClient,
+  supabase: any,
   vendorId: string,
   gateway: string,
   credentials: VaultCredentials
@@ -101,13 +106,13 @@ export async function saveCredentialsToVault(
 /**
  * Busca credenciais OAuth do Supabase Vault
  * 
- * @param supabase - Cliente Supabase com service role
+ * @param supabase - Cliente Supabase com service role (aceita any para flexibilidade)
  * @param vendorId - ID do vendedor
  * @param gateway - Tipo de gateway (MERCADOPAGO, STRIPE, etc.)
  * @returns Credenciais ou erro
  */
 export async function getVendorCredentials(
-  supabase: SupabaseClient,
+  supabase: any,
   vendorId: string,
   gateway: string
 ): Promise<VaultResult> {
@@ -143,21 +148,24 @@ export async function getVendorCredentials(
       };
     }
 
-    if (!data.success) {
+    // Cast para tipo conhecido
+    const rpcData = data as VaultRpcResponse;
+
+    if (!rpcData.success) {
       console.warn(`[vault-credentials] ⚠️ Credenciais não encontradas no Vault`, {
         vendorId,
         gateway: gatewayLower,
-        error: data.error
+        error: rpcData.error
       });
       return {
         success: false,
-        error: data.error || 'Credenciais não encontradas'
+        error: rpcData.error || 'Credenciais não encontradas'
       };
     }
 
     // Validar que credentials contém access_token
-    if (!data.credentials || !data.credentials.access_token) {
-      console.error(`[vault-credentials] ❌ Credenciais incompletas no Vault`, data.credentials);
+    if (!rpcData.credentials || !rpcData.credentials.access_token) {
+      console.error(`[vault-credentials] ❌ Credenciais incompletas no Vault`, rpcData.credentials);
       return {
         success: false,
         error: 'Credenciais incompletas (falta access_token)'
@@ -167,13 +175,13 @@ export async function getVendorCredentials(
     console.log(`[vault-credentials] ✅ Credenciais recuperadas com sucesso`, {
       vendorId,
       gateway: gatewayLower,
-      hasAccessToken: !!data.credentials.access_token,
-      hasRefreshToken: !!data.credentials.refresh_token
+      hasAccessToken: !!rpcData.credentials.access_token,
+      hasRefreshToken: !!rpcData.credentials.refresh_token
     });
 
     return {
       success: true,
-      credentials: data.credentials,
+      credentials: rpcData.credentials,
       source: 'vault'
     };
 
@@ -193,13 +201,13 @@ export async function getVendorCredentials(
 /**
  * Remove credenciais OAuth do Supabase Vault
  * 
- * @param supabase - Cliente Supabase com service role
+ * @param supabase - Cliente Supabase com service role (aceita any para flexibilidade)
  * @param vendorId - ID do vendedor
  * @param gateway - Tipo de gateway (MERCADOPAGO, STRIPE, etc.)
  * @returns Resultado da operação
  */
 export async function deleteCredentialsFromVault(
-  supabase: SupabaseClient,
+  supabase: any,
   vendorId: string,
   gateway: string
 ): Promise<VaultResult> {

@@ -83,7 +83,7 @@ async function fetchCredentials(supabase: any, vendorId: string) {
       const { getVendorCredentials } = await import('../_shared/vault-credentials.ts');
       const { credentials: vaultCreds, source } = await getVendorCredentials(supabase, vendorId, 'MERCADOPAGO');
       
-      if (!vaultCreds || !vaultCreds.accessToken) {
+      if (!vaultCreds || !vaultCreds.access_token) {
         logError('Nenhuma credencial encontrada', { vendorId, source });
         throw { code: 'GATEWAY_NOT_CONFIGURED', message: 'Mercado Pago não configurado para este vendedor' };
       }
@@ -93,8 +93,8 @@ async function fetchCredentials(supabase: any, vendorId: string) {
       credentialsResult = {
         isOwner: false,
         credentials: {
-          accessToken: vaultCreds.accessToken,
-          environment: vaultCreds.environment || 'production'
+          accessToken: vaultCreds.access_token,
+          environment: 'production' as const
         },
         source
       };
@@ -136,8 +136,8 @@ async function calculateSplit(supabase: any, order: any, isOwner: boolean, calcu
         'MERCADOPAGO'
       );
       
-      if (affCreds?.accessToken) {
-        effectiveAccessToken = affCreds.accessToken;
+      if (affCreds?.access_token) {
+        effectiveAccessToken = affCreds.access_token;
         applicationFeeCents = calculatedTotalCents - order.commission_cents;
         logInfo('💰 [SPLIT] CAKTO via Afiliado', { 
           afiliado_recebe: order.commission_cents, 
