@@ -3,6 +3,9 @@
  * Netflix-style course structure with Kiwify-style multi-content support
  */
 
+/** Content display type - unified system */
+export type ContentDisplayType = 'mixed' | 'video' | 'text';
+
 /** Content release type for drip functionality */
 export type ReleaseType = 
   | 'immediate'
@@ -16,7 +19,7 @@ export interface MemberContent {
   module_id: string;
   title: string;
   description: string | null;
-  content_type: string;
+  content_type: ContentDisplayType;
   content_url: string | null;
   body: string | null;
   content_data: Record<string, unknown> | null;

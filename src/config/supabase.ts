@@ -2,8 +2,18 @@
  * Supabase Configuration
  * 
  * Central config file for Supabase URL and keys.
- * Uses environment variables for security.
+ * SECURITY: No fallback values - requires proper environment configuration.
  */
 
-export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://wivbtmtgpsxupfjwwovf.supabase.co";
-export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpdmJ0bXRncHN4dXBmand3b3ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3Mjg2NzIsImV4cCI6MjA4MTA4ODY3Mn0.h8HDRdHaVTZpZLqBxj7bODaUPCox2h6HF_3U1xfbSXY";
+const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+
+if (!url || !anonKey) {
+  throw new Error(
+    '[SUPABASE CONFIG] Missing required environment variables. ' +
+    'Ensure VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY are set.'
+  );
+}
+
+export const SUPABASE_URL: string = url;
+export const SUPABASE_ANON_KEY: string = anonKey;
