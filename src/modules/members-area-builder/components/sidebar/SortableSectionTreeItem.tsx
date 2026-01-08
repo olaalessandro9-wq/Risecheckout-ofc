@@ -165,15 +165,19 @@ export function SortableSectionTreeItem({
       {/* Main section row */}
       <div
         className={cn(
-          'flex items-center gap-1 px-2 py-1.5 rounded-md cursor-pointer transition-colors',
+          'flex items-center gap-2 px-2 py-2 rounded-md cursor-pointer transition-colors',
           'hover:bg-accent/50',
           isSelected && 'bg-accent text-accent-foreground'
         )}
         onClick={onSelect}
       >
         {/* Drag handle */}
-        <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
-          <GripVertical className="h-3.5 w-3.5 text-muted-foreground opacity-50" />
+        <div 
+          {...attributes} 
+          {...listeners} 
+          className="cursor-grab active:cursor-grabbing p-1 hover:bg-accent/50 rounded"
+        >
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
         </div>
         
         {/* Expand/collapse chevron */}
@@ -303,13 +307,17 @@ function SortableModuleItem({ id, label, isHidden, onToggleVisibility }: Sortabl
       ref={setNodeRef}
       style={style}
       className={cn(
-        'flex items-center gap-2 px-2 py-1 text-sm rounded hover:bg-accent/30 group/module',
+        'flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-accent/30 group/module',
         isHidden ? 'text-muted-foreground/50' : 'text-muted-foreground hover:text-foreground'
       )}
     >
       {/* Drag handle */}
-      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
-        <GripVertical className="h-3 w-3 opacity-50" />
+      <div 
+        {...attributes} 
+        {...listeners} 
+        className="cursor-grab active:cursor-grabbing p-0.5 hover:bg-accent/50 rounded"
+      >
+        <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
       </div>
       
       {/* Module name */}
