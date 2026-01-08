@@ -1,5 +1,6 @@
 /**
  * Menu Preview - Sidebar Netflix-style preview no canvas
+ * Full height, collapsible
  * 
  * @see RISE ARCHITECT PROTOCOL
  */
@@ -7,8 +8,8 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import * as Icons from 'lucide-react';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
-import type { MembersAreaBuilderSettings, MenuItemConfig } from '../../types/builder.types';
+import { ChevronLeft, ChevronRight, Plus, User, LogOut } from 'lucide-react';
+import type { MembersAreaBuilderSettings } from '../../types/builder.types';
 
 interface MenuPreviewProps {
   settings: MembersAreaBuilderSettings;
@@ -34,15 +35,17 @@ export function MenuPreview({
     return IconComponent || Icons.Circle;
   };
 
+  const sidebarWidth = isCollapsed ? 64 : 220;
+
   return (
     <div
       className={cn(
-        'relative flex flex-col h-full border-r transition-all duration-300 sticky top-0',
+        'relative flex flex-col h-full border-r transition-all duration-300 flex-shrink-0',
         settings.theme === 'dark' 
           ? 'bg-zinc-900 border-zinc-800' 
           : 'bg-gray-50 border-gray-200',
       )}
-      style={{ width: isCollapsed ? '72px' : '200px' }}
+      style={{ width: sidebarWidth }}
     >
       {/* Collapse/Expand Button */}
       {!isPreviewMode && (
@@ -68,7 +71,8 @@ export function MenuPreview({
 
       {/* Logo Area */}
       <div className={cn(
-        'p-3 flex items-center border-b border-inherit',
+        'p-4 flex items-center border-b',
+        settings.theme === 'dark' ? 'border-zinc-800' : 'border-gray-200',
         isCollapsed ? 'justify-center' : 'gap-3'
       )}>
         {settings.logo_url ? (
@@ -116,23 +120,19 @@ export function MenuPreview({
               }}
               className={cn(
                 'flex items-center gap-3 rounded-lg transition-all cursor-pointer',
-                isCollapsed ? 'flex-col gap-1 p-2 w-14' : 'p-2.5',
+                isCollapsed ? 'flex-col gap-1 p-2 justify-center' : 'p-3',
                 settings.theme === 'dark'
                   ? 'hover:bg-zinc-800 text-zinc-400 hover:text-white'
                   : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900',
                 isActive && 'font-medium',
-                isSelected && !isPreviewMode && 'ring-2 ring-primary ring-offset-1',
+                isSelected && !isPreviewMode && 'ring-2 ring-primary ring-offset-2',
                 isSelected && settings.theme === 'dark' && 'ring-offset-zinc-900',
                 isSelected && settings.theme !== 'dark' && 'ring-offset-gray-50',
               )}
               style={isActive ? { color: settings.primary_color } : undefined}
             >
-              <IconComponent className={cn('flex-shrink-0', isCollapsed ? 'h-5 w-5' : 'h-5 w-5')} />
-              {isCollapsed ? (
-                <span className="text-[10px] text-center leading-tight truncate w-full">
-                  {item.label}
-                </span>
-              ) : (
+              <IconComponent className={cn('flex-shrink-0 h-5 w-5')} />
+              {!isCollapsed && (
                 <span className="text-sm truncate">{item.label}</span>
               )}
             </div>
@@ -140,20 +140,64 @@ export function MenuPreview({
         })}
 
         {/* Add Item Button (only in edit mode) */}
-        {!isPreviewMode && !isCollapsed && (
+        {!isPreviewMode && (
           <div
             className={cn(
-              'flex items-center gap-3 p-2.5 rounded-lg transition-colors cursor-pointer mt-2 border-2 border-dashed',
+              'flex items-center gap-3 rounded-lg transition-colors cursor-pointer mt-2 border-2 border-dashed',
+              isCollapsed ? 'p-2 justify-center' : 'p-3',
               settings.theme === 'dark'
                 ? 'border-zinc-700 text-zinc-500 hover:border-zinc-600 hover:text-zinc-400'
                 : 'border-gray-200 text-gray-400 hover:border-gray-300 hover:text-gray-500'
             )}
           >
-            <Plus className="h-5 w-5" />
-            <span className="text-sm">Adicionar item</span>
+            <Plus className="h-5 w-5 flex-shrink-0" />
+            {!isCollapsed && <span className="text-sm">Adicionar item</span>}
           </div>
         )}
       </nav>
+
+      {/* User Section at Bottom */}
+      <div className={cn(
+        'border-t p-3',
+        settings.theme === 'dark' ? 'border-zinc-800' : 'border-gray-200',
+      )}>
+        {/* User Info */}
+        <div className={cn(
+          'flex items-center gap-3 p-2 rounded-lg mb-2',
+          isCollapsed && 'justify-center',
+          settings.theme === 'dark' ? 'text-zinc-300' : 'text-gray-700'
+        )}>
+          <div className={cn(
+            'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0',
+            settings.theme === 'dark' ? 'bg-zinc-700' : 'bg-gray-200'
+          )}>
+            <User className="h-4 w-4" />
+          </div>
+          {!isCollapsed && (
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">Usuário</p>
+              <p className={cn(
+                'text-xs truncate',
+                settings.theme === 'dark' ? 'text-zinc-500' : 'text-gray-500'
+              )}>
+                usuario@email.com
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Logout */}
+        <div className={cn(
+          'flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors',
+          isCollapsed && 'justify-center',
+          settings.theme === 'dark'
+            ? 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
+            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+        )}>
+          <LogOut className="h-4 w-4 flex-shrink-0" />
+          {!isCollapsed && <span className="text-sm">Sair</span>}
+        </div>
+      </div>
     </div>
   );
 }
