@@ -14,12 +14,6 @@ import type {
   ContinueWatchingSettings,
   TextSettings,
   SpacerSettings,
-  DEFAULT_BANNER_SETTINGS,
-  DEFAULT_MODULES_SETTINGS,
-  DEFAULT_COURSES_SETTINGS,
-  DEFAULT_CONTINUE_WATCHING_SETTINGS,
-  DEFAULT_TEXT_SETTINGS,
-  DEFAULT_SPACER_SETTINGS,
 } from './types/builder.types';
 
 import {
@@ -41,6 +35,8 @@ const BannerConfig: SectionConfig<BannerSettings> = {
   description: 'Slideshow de imagens no topo da página',
   icon: 'Image',
   maxInstances: 1,
+  isRequired: false,
+  canDuplicate: false,
   defaults: BANNER_DEFAULTS,
 };
 
@@ -50,6 +46,8 @@ const ModulesConfig: SectionConfig<ModulesSettings> = {
   description: 'Exibe os módulos de um curso em carrossel',
   icon: 'LayoutGrid',
   maxInstances: -1,
+  isRequired: false,
+  canDuplicate: true,
   defaults: MODULES_DEFAULTS,
 };
 
@@ -59,6 +57,8 @@ const CoursesConfig: SectionConfig<CoursesSettings> = {
   description: 'Lista de cursos disponíveis',
   icon: 'BookOpen',
   maxInstances: -1,
+  isRequired: false,
+  canDuplicate: true,
   defaults: COURSES_DEFAULTS,
 };
 
@@ -68,6 +68,8 @@ const ContinueWatchingConfig: SectionConfig<ContinueWatchingSettings> = {
   description: 'Mostra conteúdos em progresso do aluno',
   icon: 'Play',
   maxInstances: 1,
+  isRequired: true, // Required section - cannot be deleted
+  canDuplicate: false,
   defaults: CONTINUE_DEFAULTS,
 };
 
@@ -77,6 +79,8 @@ const TextConfig: SectionConfig<TextSettings> = {
   description: 'Bloco de texto customizável',
   icon: 'Type',
   maxInstances: -1,
+  isRequired: false,
+  canDuplicate: true,
   defaults: TEXT_DEFAULTS,
 };
 
@@ -86,6 +90,8 @@ const SpacerConfig: SectionConfig<SpacerSettings> = {
   description: 'Espaço em branco entre seções',
   icon: 'Minus',
   maxInstances: -1,
+  isRequired: false,
+  canDuplicate: true,
   defaults: SPACER_DEFAULTS,
 };
 
@@ -130,8 +136,26 @@ export function canAddSection(type: SectionType, currentSections: { type: Sectio
   return count < config.maxInstances;
 }
 
+export function canDeleteSection(type: SectionType): boolean {
+  return !SectionRegistry[type].isRequired;
+}
+
+export function canDuplicateSection(type: SectionType): boolean {
+  return SectionRegistry[type].canDuplicate;
+}
+
+export function isRequiredSection(type: SectionType): boolean {
+  return SectionRegistry[type].isRequired;
+}
+
 export function getAvailableSectionTypes(currentSections: { type: SectionType }[]): SectionType[] {
   return (Object.keys(SectionRegistry) as SectionType[]).filter(
     type => canAddSection(type, currentSections)
+  );
+}
+
+export function getRequiredSectionTypes(): SectionType[] {
+  return (Object.keys(SectionRegistry) as SectionType[]).filter(
+    type => SectionRegistry[type].isRequired
   );
 }

@@ -7,7 +7,6 @@
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { 
   Select,
@@ -17,6 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { MembersAreaBuilderSettings } from '../../types/builder.types';
+import { MenuEditor } from './MenuEditor';
 
 interface GlobalSettingsPanelProps {
   settings: MembersAreaBuilderSettings;
@@ -41,7 +41,7 @@ export function GlobalSettingsPanel({ settings, onUpdate }: GlobalSettingsPanelP
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="dark">Escuro</SelectItem>
+                <SelectItem value="dark">Escuro (Netflix)</SelectItem>
                 <SelectItem value="light">Claro</SelectItem>
               </SelectContent>
             </Select>
@@ -65,6 +65,17 @@ export function GlobalSettingsPanel({ settings, onUpdate }: GlobalSettingsPanelP
             </div>
           </div>
         </div>
+      </div>
+
+      <Separator />
+
+      {/* Menu Editor */}
+      <div>
+        <h3 className="font-semibold text-lg mb-4">Menu de Navegação</h3>
+        <MenuEditor
+          items={settings.menu_items}
+          onUpdate={(items) => onUpdate({ menu_items: items })}
+        />
       </div>
 
       <Separator />
