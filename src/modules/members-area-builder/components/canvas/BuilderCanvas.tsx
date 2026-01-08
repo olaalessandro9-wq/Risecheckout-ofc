@@ -1,5 +1,6 @@
 /**
  * Builder Canvas - Área central de preview/edição com sidebar Netflix
+ * Layout edge-to-edge como Kiwify
  * 
  * @see RISE ARCHITECT PROTOCOL
  */
@@ -36,93 +37,153 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
 
   const isDesktop = viewMode === 'desktop';
 
-  return (
-    <div 
-      className={cn(
-        'flex-1 overflow-auto p-6 transition-all duration-300',
-        settings.theme === 'dark' ? 'bg-zinc-900' : 'bg-gray-100'
-      )}
-      onClick={() => actions.selectSection(null)}
-    >
-      {/* Canvas Frame */}
+  // Mobile view - centered with max-width
+  if (!isDesktop) {
+    return (
       <div 
         className={cn(
-          'mx-auto transition-all duration-300 rounded-lg overflow-hidden shadow-2xl flex',
-          isDesktop ? 'max-w-5xl flex-row' : 'max-w-sm flex-col',
-          settings.theme === 'dark' ? 'bg-zinc-950' : 'bg-white'
+          'flex-1 overflow-auto p-4 transition-all duration-300',
+          settings.theme === 'dark' ? 'bg-zinc-800' : 'bg-gray-200'
         )}
-        style={{ minHeight: '600px' }}
+        onClick={() => actions.selectSection(null)}
       >
-        {/* Desktop Sidebar */}
-        {isDesktop && (
-          <MenuPreview
-            settings={settings}
-            isPreviewMode={isPreviewMode}
-            isCollapsed={isMenuCollapsed}
-            selectedMenuItemId={selectedMenuItemId}
-            onToggleCollapse={actions.toggleMenuCollapse}
-            onSelectMenuItem={actions.selectMenuItem}
-          />
-        )}
+        <div 
+          className={cn(
+            'mx-auto transition-all duration-300 rounded-lg overflow-hidden shadow-2xl flex flex-col',
+            'max-w-sm',
+            settings.theme === 'dark' ? 'bg-zinc-950' : 'bg-white'
+          )}
+          style={{ minHeight: '600px' }}
+        >
+          {/* Main Content Area */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex flex-col overflow-auto">
+              {sections.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+                  <p className="text-lg mb-4">Nenhuma seção adicionada</p>
+                  <AddSectionButton 
+                    sections={sections} 
+                    onAdd={handleAddSection}
+                  />
+                </div>
+              ) : (
+                <>
+                  {sections.map((section, index) => (
+                    <SectionWrapper
+                      key={section.id}
+                      section={section}
+                      isSelected={selectedSectionId === section.id}
+                      isFirst={index === 0}
+                      isLast={index === sections.length - 1}
+                      isPreviewMode={isPreviewMode}
+                      onSelect={() => actions.selectSection(section.id)}
+                      onMoveUp={() => handleMoveSection(index, 'up')}
+                      onMoveDown={() => handleMoveSection(index, 'down')}
+                      onDuplicate={() => actions.duplicateSection(section.id)}
+                      onDelete={() => actions.deleteSection(section.id)}
+                      onToggleActive={() => actions.updateSection(section.id, { is_active: !section.is_active })}
+                    >
+                      <SectionView 
+                        section={section} 
+                        viewMode={viewMode}
+                        theme={settings.theme}
+                      />
+                    </SectionWrapper>
+                  ))}
+                  
+                  {!isPreviewMode && (
+                    <div className="flex justify-center py-8">
+                      <AddSectionButton 
+                        sections={sections} 
+                        onAdd={handleAddSection}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
 
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Sections */}
-          <div className="flex-1 flex flex-col overflow-auto">
-            {sections.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-                <p className="text-lg mb-4">Nenhuma seção adicionada</p>
-                <AddSectionButton 
-                  sections={sections} 
-                  onAdd={handleAddSection}
-                />
-              </div>
-            ) : (
-              <>
-                {sections.map((section, index) => (
-                  <SectionWrapper
-                    key={section.id}
-                    section={section}
-                    isSelected={selectedSectionId === section.id}
-                    isFirst={index === 0}
-                    isLast={index === sections.length - 1}
-                    isPreviewMode={isPreviewMode}
-                    onSelect={() => actions.selectSection(section.id)}
-                    onMoveUp={() => handleMoveSection(index, 'up')}
-                    onMoveDown={() => handleMoveSection(index, 'down')}
-                    onDuplicate={() => actions.duplicateSection(section.id)}
-                    onDelete={() => actions.deleteSection(section.id)}
-                    onToggleActive={() => actions.updateSection(section.id, { is_active: !section.is_active })}
-                  >
-                    <SectionView 
-                      section={section} 
-                      viewMode={viewMode}
-                      theme={settings.theme}
-                    />
-                  </SectionWrapper>
-                ))}
-                
-                {/* Add Section Button */}
-                {!isPreviewMode && (
-                  <div className="flex justify-center py-8">
-                    <AddSectionButton 
-                      sections={sections} 
-                      onAdd={handleAddSection}
-                    />
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-
-          {/* Mobile Bottom Nav */}
-          {!isDesktop && (
             <MobileBottomNav
               settings={settings}
               isPreviewMode={isPreviewMode}
               selectedMenuItemId={selectedMenuItemId}
               onSelectMenuItem={actions.selectMenuItem}
             />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop view - edge-to-edge layout
+  return (
+    <div 
+      className={cn(
+        'flex-1 flex overflow-hidden transition-all duration-300',
+        settings.theme === 'dark' ? 'bg-zinc-950' : 'bg-white'
+      )}
+      onClick={() => actions.selectSection(null)}
+    >
+      {/* Desktop Sidebar - Full height */}
+      <MenuPreview
+        settings={settings}
+        isPreviewMode={isPreviewMode}
+        isCollapsed={isMenuCollapsed}
+        selectedMenuItemId={selectedMenuItemId}
+        onToggleCollapse={actions.toggleMenuCollapse}
+        onSelectMenuItem={actions.selectMenuItem}
+      />
+
+      {/* Main Content Area - Takes remaining space */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-auto">
+          {sections.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-muted-foreground">
+              <p className={cn(
+                'text-lg mb-4',
+                settings.theme === 'dark' ? 'text-zinc-400' : 'text-gray-500'
+              )}>
+                Nenhuma seção adicionada
+              </p>
+              <AddSectionButton 
+                sections={sections} 
+                onAdd={handleAddSection}
+              />
+            </div>
+          ) : (
+            <div className="flex flex-col">
+              {sections.map((section, index) => (
+                <SectionWrapper
+                  key={section.id}
+                  section={section}
+                  isSelected={selectedSectionId === section.id}
+                  isFirst={index === 0}
+                  isLast={index === sections.length - 1}
+                  isPreviewMode={isPreviewMode}
+                  onSelect={() => actions.selectSection(section.id)}
+                  onMoveUp={() => handleMoveSection(index, 'up')}
+                  onMoveDown={() => handleMoveSection(index, 'down')}
+                  onDuplicate={() => actions.duplicateSection(section.id)}
+                  onDelete={() => actions.deleteSection(section.id)}
+                  onToggleActive={() => actions.updateSection(section.id, { is_active: !section.is_active })}
+                >
+                  <SectionView 
+                    section={section} 
+                    viewMode={viewMode}
+                    theme={settings.theme}
+                  />
+                </SectionWrapper>
+              ))}
+              
+              {!isPreviewMode && (
+                <div className="flex justify-center py-8">
+                  <AddSectionButton 
+                    sections={sections} 
+                    onAdd={handleAddSection}
+                  />
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
