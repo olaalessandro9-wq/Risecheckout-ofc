@@ -1,15 +1,16 @@
 /**
- * Banner Slide Upload - Upload de imagem para slides do banner
+ * Banner Slide Upload - Upload de imagem para slides do banner com crop
  * 
  * @see RISE ARCHITECT PROTOCOL
  */
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Upload, X, ImageIcon, Loader2 } from 'lucide-react';
+import { Upload, X, ImageIcon, Loader2, Crop } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { BannerImageCropDialog } from '../../dialogs/BannerImageCropDialog';
 
 interface BannerSlideUploadProps {
   imageUrl: string;
@@ -22,21 +23,11 @@ const MAX_SIZE_MB = 10;
 export function BannerSlideUpload({ imageUrl, onImageChange }: BannerSlideUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
+  const [fileToCrop, setFileToCrop] = useState<File | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleUpload = async (file: File) => {
-    // Validate file type
-    if (!ACCEPTED_TYPES.includes(file.type)) {
-      toast.error('Formato inválido. Use JPG, PNG, WebP ou GIF.');
-      return;
-    }
-
-    // Validate file size
-    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-      toast.error(`Arquivo muito grande. Máximo ${MAX_SIZE_MB}MB.`);
-      return;
-    }
-
     setIsUploading(true);
 
     try {
@@ -69,12 +60,26 @@ export function BannerSlideUpload({ imageUrl, onImageChange }: BannerSlideUpload
     }
   };
 
+  const validateFile = (file: File): boolean => {
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      toast.error('Formato inválido. Use JPG, PNG, WebP ou GIF.');
+      return false;
+    }
+
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      toast.error(`Arquivo muito grande. Máximo ${MAX_SIZE_MB}MB.`);
+      return false;
+    }
+
+    return true;
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      handleUpload(file);
+    if (file && validateFile(file)) {
+      setFileToCrop(file);
+      setCropDialogOpen(true);
     }
-    // Reset input
     if (inputRef.current) {
       inputRef.current.value = '';
     }
@@ -85,8 +90,9 @@ export function BannerSlideUpload({ imageUrl, onImageChange }: BannerSlideUpload
     setIsDragging(false);
     
     const file = e.dataTransfer.files?.[0];
-    if (file) {
-      handleUpload(file);
+    if (file && validateFile(file)) {
+      setFileToCrop(file);
+      setCropDialogOpen(true);
     }
   };
 
@@ -103,6 +109,26 @@ export function BannerSlideUpload({ imageUrl, onImageChange }: BannerSlideUpload
     onImageChange('');
   };
 
+  const handleCropComplete = useCallback((croppedFile: File) => {
+    handleUpload(croppedFile);
+    setFileToCrop(null);
+  }, []);
+
+  const handleReCrop = useCallback(async () => {
+    if (!imageUrl) return;
+
+    try {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const file = new File([blob], 'banner-recrop.jpg', { type: blob.type || 'image/jpeg' });
+      setFileToCrop(file);
+      setCropDialogOpen(true);
+    } catch (error) {
+      console.error('Error loading image for re-crop:', error);
+      toast.error('Erro ao carregar imagem para recorte.');
+    }
+  }, [imageUrl]);
+
   return (
     <div className="space-y-2">
       <input
@@ -114,7 +140,6 @@ export function BannerSlideUpload({ imageUrl, onImageChange }: BannerSlideUpload
       />
 
       {imageUrl ? (
-        // Image preview
         <div className="relative group rounded-lg overflow-hidden border bg-muted aspect-video">
           <img
             src={imageUrl}
@@ -133,6 +158,15 @@ export function BannerSlideUpload({ imageUrl, onImageChange }: BannerSlideUpload
             </Button>
             <Button
               size="sm"
+              variant="secondary"
+              onClick={handleReCrop}
+              disabled={isUploading}
+            >
+              <Crop className="h-4 w-4 mr-1" />
+              Recortar
+            </Button>
+            <Button
+              size="sm"
               variant="destructive"
               onClick={handleRemove}
               disabled={isUploading}
@@ -142,7 +176,6 @@ export function BannerSlideUpload({ imageUrl, onImageChange }: BannerSlideUpload
           </div>
         </div>
       ) : (
-        // Upload zone
         <div
           className={cn(
             'relative rounded-lg border-2 border-dashed p-6 transition-colors cursor-pointer',
@@ -172,6 +205,19 @@ export function BannerSlideUpload({ imageUrl, onImageChange }: BannerSlideUpload
             </>
           )}
         </div>
+      )}
+
+      {/* Crop Dialog */}
+      {fileToCrop && (
+        <BannerImageCropDialog
+          open={cropDialogOpen}
+          onOpenChange={(open) => {
+            setCropDialogOpen(open);
+            if (!open) setFileToCrop(null);
+          }}
+          imageFile={fileToCrop}
+          onCropComplete={handleCropComplete}
+        />
       )}
     </div>
   );
