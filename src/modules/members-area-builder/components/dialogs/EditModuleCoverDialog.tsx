@@ -152,33 +152,26 @@ export function EditModuleCoverDialog({
 
             {/* Upload Button */}
             <div className="flex justify-center">
-              <Button
-                variant="outline"
-                disabled={isUploading}
-                className="relative"
-                asChild
-              >
-                <label className="cursor-pointer">
-                  {isUploading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Enviando...
-                    </>
-                  ) : (
-                    <>
-                      <ImageIcon className="mr-2 h-4 w-4" />
-                      {previewUrl ? 'Trocar Imagem' : 'Adicionar Imagem'}
-                    </>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleImageUpload}
-                    disabled={isUploading}
-                  />
-                </label>
-              </Button>
+              <label className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 ${isUploading ? 'opacity-50 pointer-events-none' : 'cursor-pointer'}`}>
+                {isUploading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Enviando...
+                  </>
+                ) : (
+                  <>
+                    <ImageIcon className="h-4 w-4" />
+                    {previewUrl ? 'Trocar Imagem' : 'Adicionar Imagem'}
+                  </>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                  disabled={isUploading}
+                />
+              </label>
             </div>
 
             <p className="text-xs text-muted-foreground text-center">
