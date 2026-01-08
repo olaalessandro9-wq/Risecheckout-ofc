@@ -50,36 +50,6 @@ export function BannerEditor({ section, onUpdate }: BannerEditorProps) {
 
   return (
     <div className="space-y-4">
-      {/* Height */}
-      <div className="space-y-2">
-        <Label>Altura</Label>
-        <Select
-          value={settings.height || 'medium'}
-          onValueChange={(value: 'small' | 'medium' | 'large') => onUpdate({ height: value })}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="small">Pequeno (160px)</SelectItem>
-            <SelectItem value="medium">Médio (256px)</SelectItem>
-            <SelectItem value="large">Grande (384px)</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Transition Time */}
-      <div className="space-y-2">
-        <Label>Tempo de Transição (segundos)</Label>
-        <Input
-          type="number"
-          min={1}
-          max={30}
-          value={settings.transition_seconds || 5}
-          onChange={(e) => onUpdate({ transition_seconds: parseInt(e.target.value) || 5 })}
-        />
-      </div>
-
       {/* Slides */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -142,6 +112,36 @@ export function BannerEditor({ section, onUpdate }: BannerEditorProps) {
             </p>
           )}
         </div>
+      </div>
+
+      {/* Height */}
+      <div className="space-y-2">
+        <Label>Altura</Label>
+        <Select
+          value={settings.height || 'medium'}
+          onValueChange={(value: 'small' | 'medium' | 'large') => onUpdate({ height: value })}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="small">Pequeno (160px)</SelectItem>
+            <SelectItem value="medium">Médio (256px)</SelectItem>
+            <SelectItem value="large">Grande (384px)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Transition Time */}
+      <div className="space-y-2">
+        <Label>Tempo de Transição (segundos)</Label>
+        <Input
+          type="number"
+          min={1}
+          max={30}
+          value={settings.transition_seconds || 5}
+          onChange={(e) => onUpdate({ transition_seconds: parseInt(e.target.value) || 5 })}
+        />
       </div>
     </div>
   );
