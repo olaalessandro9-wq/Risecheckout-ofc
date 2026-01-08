@@ -8,7 +8,10 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import * as Icons from 'lucide-react';
-import { ChevronLeft, ChevronRight, Plus, User, LogOut } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, LogOut, User } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import type { MembersAreaBuilderSettings } from '../../types/builder.types';
 
 interface MenuPreviewProps {
@@ -20,6 +23,22 @@ interface MenuPreviewProps {
   onSelectMenuItem?: (itemId: string) => void;
 }
 
+function getInitials(name: string | null | undefined, email?: string | null): string {
+  if (name && name.trim()) {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  }
+  
+  if (email) {
+    return email.slice(0, 2).toUpperCase();
+  }
+  
+  return "??";
+}
+
 export function MenuPreview({ 
   settings, 
   isPreviewMode, 
@@ -28,6 +47,33 @@ export function MenuPreview({
   onToggleCollapse,
   onSelectMenuItem,
 }: MenuPreviewProps) {
+  const { user } = useAuth();
+  
+  const { data: profile } = useQuery({
+    queryKey: ["user-profile-builder", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("name")
+        .eq("id", user.id)
+        .single();
+      
+      if (error) {
+        console.error("Error fetching profile:", error);
+        return null;
+      }
+      
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const initials = getInitials(profile?.name, user?.email);
+  const displayName = profile?.name || user?.email?.split('@')[0] || 'Usuário';
+  const displayEmail = user?.email || '';
+
   const visibleItems = (settings.menu_items ?? []).filter(item => item.is_visible);
   
   const getIcon = (iconName: string) => {
@@ -167,20 +213,19 @@ export function MenuPreview({
           isCollapsed && 'justify-center',
           settings.theme === 'dark' ? 'text-zinc-300' : 'text-gray-700'
         )}>
-          <div className={cn(
-            'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0',
-            settings.theme === 'dark' ? 'bg-zinc-700' : 'bg-gray-200'
-          )}>
-            <User className="h-4 w-4" />
+          <div 
+            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-primary text-primary-foreground text-xs font-semibold"
+          >
+            {initials}
           </div>
           {!isCollapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">Usuário</p>
+              <p className="text-sm font-medium truncate">{displayName}</p>
               <p className={cn(
                 'text-xs truncate',
                 settings.theme === 'dark' ? 'text-zinc-500' : 'text-gray-500'
               )}>
-                usuario@email.com
+                {displayEmail}
               </p>
             </div>
           )}
