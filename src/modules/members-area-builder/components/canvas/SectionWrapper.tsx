@@ -117,7 +117,7 @@ export function SectionWrapper({
         {/* Section Header */}
         <div 
           className={cn(
-            'absolute -top-3 left-4 flex items-center gap-2 px-2 py-0.5 rounded-md text-xs font-medium transition-opacity z-10',
+            'absolute top-2 left-4 flex items-center gap-2 px-2 py-0.5 rounded-md text-xs font-medium transition-opacity z-10',
             'bg-background border',
             isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
           )}
