@@ -13,15 +13,15 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders } from "../_shared/cors.ts";
+import { handleCors } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
-  const origin = req.headers.get("Origin");
-  const corsHeaders = getCorsHeaders(origin);
-
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  // SECURITY: Validação CORS com bloqueio de origens inválidas
+  const corsResult = handleCors(req);
+  if (corsResult instanceof Response) {
+    return corsResult; // Retorna 403 ou preflight response
   }
+  const corsHeaders = corsResult.headers;
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
