@@ -34,9 +34,9 @@ const BannerConfig: SectionConfig<BannerSettings> = {
   label: 'Banner',
   description: 'Slideshow de imagens no topo da página',
   icon: 'Image',
-  maxInstances: 1,
+  maxInstances: -1,  // Unlimited banners
   isRequired: false,
-  canDuplicate: false,
+  canDuplicate: true, // Can duplicate
   defaults: BANNER_DEFAULTS,
 };
 
