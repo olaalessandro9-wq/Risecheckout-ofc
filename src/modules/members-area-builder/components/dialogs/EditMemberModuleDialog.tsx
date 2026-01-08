@@ -1,10 +1,11 @@
 /**
  * Edit Member Module Dialog
- * Dialog completo para editar módulo (título, descrição, ativo, capa)
+ * Dialog para editar módulo (título, ativo, capa)
  * 
  * @see RISE ARCHITECT PROTOCOL
- * - Usa ref para file input (evita bloqueios de label/asChild)
- * - Campos editáveis: título, descrição, is_active, cover_image_url
+ * - Usa estado local completo até "Salvar"
+ * - Upload/remoção de imagem só ocorre no "Salvar"
+ * - Campo descrição removido (não existe na área principal)
  */
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
@@ -19,7 +20,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Loader2, ImageIcon, X, Upload } from 'lucide-react';
 import type { MemberModule } from '@/modules/members-area/types/module.types';
@@ -37,42 +37,54 @@ export function EditMemberModuleDialog({
   module,
   onUpdate,
 }: EditMemberModuleDialogProps) {
-  // Form state
+  // Form state (local até salvar)
   const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
   const [isActive, setIsActive] = useState(true);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   
-  // Upload state
-  const [isUploading, setIsUploading] = useState(false);
+  // Image state (local até salvar)
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [markedForRemoval, setMarkedForRemoval] = useState(false);
+  
+  // UI state
   const [isSaving, setIsSaving] = useState(false);
   
-  // File input ref (evita bloqueios de label/asChild)
+  // File input ref
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Reset form when module changes
+  // Reset form when module changes or dialog opens
   useEffect(() => {
-    if (module) {
+    if (module && open) {
       setTitle(module.title || '');
-      setDescription(module.description || '');
       setIsActive(module.is_active ?? true);
-      setPreviewUrl(module.cover_image_url || null);
+      setLocalPreviewUrl(module.cover_image_url || null);
+      setPendingFile(null);
+      setMarkedForRemoval(false);
     }
-  }, [module]);
+  }, [module, open]);
 
-  // Handle file input click via ref
+  // Cleanup object URL on unmount
+  useEffect(() => {
+    return () => {
+      if (pendingFile && localPreviewUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(localPreviewUrl);
+      }
+    };
+  }, [pendingFile, localPreviewUrl]);
+
+  // Handle file input click
   const handleUploadClick = useCallback(() => {
-    if (fileInputRef.current && !isUploading) {
+    if (fileInputRef.current && !isSaving) {
       fileInputRef.current.click();
     }
-  }, [isUploading]);
+  }, [isSaving]);
 
-  // Handle image upload
-  const handleImageUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle image selection (local only, no upload yet)
+  const handleImageSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !module) return;
+    if (!file) return;
 
-    // Reset input para permitir selecionar o mesmo arquivo novamente
+    // Reset input
     event.target.value = '';
 
     // Validate file type
@@ -87,54 +99,40 @@ export function EditMemberModuleDialog({
       return;
     }
 
-    setIsUploading(true);
-
-    try {
-      // Generate unique filename
-      const fileExt = file.name.split('.').pop();
-      const fileName = `module-cover-${module.id}-${Date.now()}.${fileExt}`;
-      const filePath = `modules/${fileName}`;
-
-      // Upload to Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('product-images')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: true,
-        });
-
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('product-images')
-        .getPublicUrl(filePath);
-
-      const publicUrl = urlData.publicUrl;
-
-      // Update preview immediately
-      setPreviewUrl(publicUrl);
-
-      // Update module in database
-      await onUpdate(module.id, { cover_image_url: publicUrl });
-
-    } catch (error) {
-      console.error('[EditMemberModuleDialog] Upload error:', error);
-      toast.error('Erro ao fazer upload da imagem');
-    } finally {
-      setIsUploading(false);
+    // Revoke previous blob URL if exists
+    if (pendingFile && localPreviewUrl?.startsWith('blob:')) {
+      URL.revokeObjectURL(localPreviewUrl);
     }
-  }, [module, onUpdate]);
 
-  // Handle remove cover
-  const handleRemoveCover = useCallback(async () => {
-    if (!module) return;
+    // Create local preview (NO upload yet)
+    const objectUrl = URL.createObjectURL(file);
+    setLocalPreviewUrl(objectUrl);
+    setPendingFile(file);
+    setMarkedForRemoval(false);
+  }, [pendingFile, localPreviewUrl]);
+
+  // Handle remove cover (local only, no database update yet)
+  const handleRemoveCover = useCallback(() => {
+    // Revoke blob URL if exists
+    if (pendingFile && localPreviewUrl?.startsWith('blob:')) {
+      URL.revokeObjectURL(localPreviewUrl);
+    }
     
-    setPreviewUrl(null);
-    await onUpdate(module.id, { cover_image_url: null });
-  }, [module, onUpdate]);
+    setLocalPreviewUrl(null);
+    setPendingFile(null);
+    setMarkedForRemoval(true);
+  }, [pendingFile, localPreviewUrl]);
 
-  // Handle save all changes
+  // Handle cancel (discard all local changes)
+  const handleCancel = useCallback(() => {
+    // Revoke blob URL if exists
+    if (pendingFile && localPreviewUrl?.startsWith('blob:')) {
+      URL.revokeObjectURL(localPreviewUrl);
+    }
+    onOpenChange(false);
+  }, [pendingFile, localPreviewUrl, onOpenChange]);
+
+  // Handle save (upload image if pending, then save all)
   const handleSave = useCallback(async () => {
     if (!module) return;
     
@@ -147,12 +145,46 @@ export function EditMemberModuleDialog({
     setIsSaving(true);
 
     try {
+      let finalCoverUrl = module.cover_image_url;
+
+      // If there's a pending file, upload now
+      if (pendingFile) {
+        const fileExt = pendingFile.name.split('.').pop();
+        const fileName = `module-cover-${module.id}-${Date.now()}.${fileExt}`;
+        const filePath = `modules/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('product-images')
+          .upload(filePath, pendingFile, {
+            cacheControl: '3600',
+            upsert: true,
+          });
+
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage
+          .from('product-images')
+          .getPublicUrl(filePath);
+
+        finalCoverUrl = urlData.publicUrl;
+
+        // Revoke blob URL
+        if (localPreviewUrl?.startsWith('blob:')) {
+          URL.revokeObjectURL(localPreviewUrl);
+        }
+      } else if (markedForRemoval) {
+        // User wants to remove the image
+        finalCoverUrl = null;
+      }
+
+      // Save all changes at once
       await onUpdate(module.id, {
         title: title.trim(),
-        description: description.trim() || null,
         is_active: isActive,
+        cover_image_url: finalCoverUrl,
       });
       
+      toast.success('Módulo atualizado');
       onOpenChange(false);
     } catch (error) {
       console.error('[EditMemberModuleDialog] Save error:', error);
@@ -160,12 +192,12 @@ export function EditMemberModuleDialog({
     } finally {
       setIsSaving(false);
     }
-  }, [module, title, description, isActive, onUpdate, onOpenChange]);
+  }, [module, title, isActive, pendingFile, markedForRemoval, localPreviewUrl, onUpdate, onOpenChange]);
 
   if (!module) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleCancel}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Editar Módulo</DialogTitle>
@@ -180,19 +212,6 @@ export function EditMemberModuleDialog({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Nome do módulo"
-              disabled={isSaving}
-            />
-          </div>
-
-          {/* Description */}
-          <div className="space-y-2">
-            <Label htmlFor="module-description">Descrição</Label>
-            <Textarea
-              id="module-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Descrição do módulo (opcional)"
-              rows={3}
               disabled={isSaving}
             />
           </div>
@@ -212,10 +231,10 @@ export function EditMemberModuleDialog({
           <div className="space-y-2">
             <Label>Imagem de Capa</Label>
             
-            {previewUrl ? (
+            {localPreviewUrl ? (
               <div className="relative aspect-[2/3] w-full max-w-[200px] mx-auto rounded-lg overflow-hidden border">
                 <img
-                  src={previewUrl}
+                  src={localPreviewUrl}
                   alt={title}
                   className="w-full h-full object-cover"
                 />
@@ -243,8 +262,8 @@ export function EditMemberModuleDialog({
               type="file"
               accept="image/*"
               className="hidden"
-              onChange={handleImageUpload}
-              disabled={isUploading || isSaving}
+              onChange={handleImageSelect}
+              disabled={isSaving}
             />
 
             {/* Upload Button */}
@@ -253,19 +272,10 @@ export function EditMemberModuleDialog({
                 type="button"
                 variant="outline"
                 onClick={handleUploadClick}
-                disabled={isUploading || isSaving}
+                disabled={isSaving}
               >
-                {isUploading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Enviando...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="mr-2 h-4 w-4" />
-                    {previewUrl ? 'Trocar Imagem' : 'Adicionar Imagem'}
-                  </>
-                )}
+                <Upload className="mr-2 h-4 w-4" />
+                {localPreviewUrl ? 'Trocar Imagem' : 'Adicionar Imagem'}
               </Button>
             </div>
 
@@ -279,14 +289,14 @@ export function EditMemberModuleDialog({
         <div className="flex justify-end gap-2">
           <Button 
             variant="outline" 
-            onClick={() => onOpenChange(false)}
+            onClick={handleCancel}
             disabled={isSaving}
           >
             Cancelar
           </Button>
           <Button 
             onClick={handleSave}
-            disabled={isSaving || isUploading}
+            disabled={isSaving}
           >
             {isSaving ? (
               <>
