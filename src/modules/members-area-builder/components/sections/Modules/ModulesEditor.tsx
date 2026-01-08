@@ -126,7 +126,7 @@ export function ModulesEditor({ section, onUpdate, modules = [], onModuleEdit }:
               <ModuleListItem 
                 key={module.id} 
                 module={module} 
-                onEdit={() => onModuleEdit(module.id)}
+                onEdit={() => onModuleEdit?.(module.id)}
               />
             ))}
           </div>
