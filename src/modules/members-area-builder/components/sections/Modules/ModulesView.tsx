@@ -1,6 +1,6 @@
 /**
  * Modules View - Renderiza seção de módulos estilo Netflix
- * Usa dados reais dos módulos com suporte a edição individual
+ * Aplica filtro de visibilidade e ordem customizada
  * 
  * @see RISE ARCHITECT PROTOCOL
  */
@@ -23,8 +23,41 @@ export function ModulesView({ section, viewMode, theme, modules = [], onModuleCl
   const settings = section.settings as ModulesSettings;
   const cardsPerRow = viewMode === 'mobile' ? 2 : (settings.cards_per_row || 4);
   
-  // Se não houver módulos reais, mostrar placeholder
-  if (modules.length === 0) {
+  // Apply visibility filter and custom order
+  const getVisibleOrderedModules = (): MemberModule[] => {
+    const hiddenIds = settings.hidden_module_ids || [];
+    const orderIds = settings.module_order || [];
+    
+    // Filter out hidden modules
+    const visibleModules = modules.filter(m => !hiddenIds.includes(m.id));
+    
+    // Apply custom order if specified
+    if (orderIds.length === 0) return visibleModules;
+    
+    const moduleMap = new Map(visibleModules.map(m => [m.id, m]));
+    const ordered: MemberModule[] = [];
+    
+    // Add modules in order
+    for (const id of orderIds) {
+      const module = moduleMap.get(id);
+      if (module) {
+        ordered.push(module);
+        moduleMap.delete(id);
+      }
+    }
+    
+    // Add remaining modules not in order
+    for (const module of moduleMap.values()) {
+      ordered.push(module);
+    }
+    
+    return ordered;
+  };
+  
+  const visibleModules = getVisibleOrderedModules();
+  
+  // Se não houver módulos visíveis, mostrar placeholder
+  if (visibleModules.length === 0) {
     return (
       <div className="p-6">
         {section.title && (
@@ -39,8 +72,12 @@ export function ModulesView({ section, viewMode, theme, modules = [], onModuleCl
           'rounded-lg border-2 border-dashed p-8 text-center',
           theme === 'dark' ? 'border-zinc-700 text-zinc-400' : 'border-gray-300 text-gray-500'
         )}>
-          <p>Nenhum módulo cadastrado ainda.</p>
-          <p className="text-sm mt-1">Crie módulos na aba "Conteúdo" da área de membros.</p>
+          <p>Nenhum módulo visível nesta seção.</p>
+          <p className="text-sm mt-1">
+            {modules.length > 0 
+              ? 'Todos os módulos estão ocultos. Ative a visibilidade no painel lateral.'
+              : 'Crie módulos na aba "Conteúdo" da área de membros.'}
+          </p>
         </div>
       </div>
     );
@@ -65,16 +102,16 @@ export function ModulesView({ section, viewMode, theme, modules = [], onModuleCl
           gridTemplateColumns: `repeat(${cardsPerRow}, minmax(0, 1fr))` 
         }}
       >
-        {modules.map((module) => (
-              <ModuleCard 
-                key={module.id} 
-                module={module} 
-                showTitle={settings.show_title || 'always'}
-                showProgress={settings.show_progress}
-                theme={theme}
-                isPreviewMode={isPreviewMode}
-                onClick={() => onModuleClick?.(module.id)}
-              />
+        {visibleModules.map((module) => (
+          <ModuleCard 
+            key={module.id} 
+            module={module} 
+            showTitle={settings.show_title || 'always'}
+            showProgress={settings.show_progress}
+            theme={theme}
+            isPreviewMode={isPreviewMode}
+            onClick={() => onModuleClick?.(module.id)}
+          />
         ))}
       </div>
     </div>
@@ -191,4 +228,3 @@ function ModuleCard({ module, showTitle, showProgress, theme, isPreviewMode = fa
     </div>
   );
 }
-

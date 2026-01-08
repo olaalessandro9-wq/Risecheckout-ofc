@@ -1,6 +1,6 @@
 /**
  * Modules Editor - Editor de configurações de módulos
- * Agora também exibe lista de módulos para edição individual
+ * Suporta reordenação e visibilidade de módulos
  * 
  * @see RISE ARCHITECT PROTOCOL
  */
@@ -17,8 +17,24 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Pencil, ImageIcon } from 'lucide-react';
+import { Pencil, ImageIcon, GripVertical, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { Section, ModulesSettings, MemberModule } from '../../../types/builder.types';
 
 interface ModulesEditorProps {
@@ -30,6 +46,73 @@ interface ModulesEditorProps {
 
 export function ModulesEditor({ section, onUpdate, modules = [], onModuleEdit }: ModulesEditorProps) {
   const settings = section.settings as ModulesSettings;
+  const hiddenIds = settings.hidden_module_ids || [];
+  const orderIds = settings.module_order || [];
+  
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Get ordered modules
+  const getOrderedModules = (): MemberModule[] => {
+    if (orderIds.length === 0) return modules;
+    
+    const moduleMap = new Map(modules.map(m => [m.id, m]));
+    const ordered: MemberModule[] = [];
+    
+    // Add modules in order
+    for (const id of orderIds) {
+      const module = moduleMap.get(id);
+      if (module) {
+        ordered.push(module);
+        moduleMap.delete(id);
+      }
+    }
+    
+    // Add remaining modules not in order
+    for (const module of moduleMap.values()) {
+      ordered.push(module);
+    }
+    
+    return ordered;
+  };
+  
+  const orderedModules = getOrderedModules();
+
+  // Handle drag end
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (over && active.id !== over.id) {
+      const oldIndex = orderedModules.findIndex(m => m.id === active.id);
+      const newIndex = orderedModules.findIndex(m => m.id === over.id);
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newOrder = [...orderedModules];
+        const [moved] = newOrder.splice(oldIndex, 1);
+        newOrder.splice(newIndex, 0, moved);
+        
+        onUpdate({ module_order: newOrder.map(m => m.id) });
+      }
+    }
+  };
+
+  // Toggle module visibility
+  const handleToggleVisibility = (moduleId: string) => {
+    const newHiddenIds = hiddenIds.includes(moduleId)
+      ? hiddenIds.filter(id => id !== moduleId)
+      : [...hiddenIds, moduleId];
+    
+    onUpdate({ hidden_module_ids: newHiddenIds });
+  };
 
   return (
     <div className="space-y-6">
@@ -110,48 +193,93 @@ export function ModulesEditor({ section, onUpdate, modules = [], onModuleEdit }:
 
       <Separator />
 
-      {/* Modules List for Individual Editing */}
+      {/* Modules List for Ordering and Visibility */}
       <div className="space-y-3">
-        <h4 className="text-sm font-medium text-muted-foreground">
-          Editar Capas dos Módulos ({modules.length})
-        </h4>
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-medium text-muted-foreground">
+            Módulos ({modules.length})
+          </h4>
+          <p className="text-xs text-muted-foreground">
+            Arraste para reordenar
+          </p>
+        </div>
         
         {modules.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4 text-center">
             Nenhum módulo cadastrado.
           </p>
         ) : (
-          <div className="space-y-2">
-            {modules.map((module) => (
-              <ModuleListItem 
-                key={module.id} 
-                module={module} 
-                onEdit={() => onModuleEdit?.(module.id)}
-              />
-            ))}
-          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={orderedModules.map(m => m.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-2">
+                {orderedModules.map((module) => (
+                  <SortableModuleListItem 
+                    key={module.id} 
+                    module={module}
+                    isHidden={hiddenIds.includes(module.id)}
+                    onEdit={() => onModuleEdit?.(module.id)}
+                    onToggleVisibility={() => handleToggleVisibility(module.id)}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         )}
       </div>
     </div>
   );
 }
 
-interface ModuleListItemProps {
+interface SortableModuleListItemProps {
   module: MemberModule;
+  isHidden: boolean;
   onEdit: () => void;
+  onToggleVisibility: () => void;
 }
 
-function ModuleListItem({ module, onEdit }: ModuleListItemProps) {
+function SortableModuleListItem({ module, isHidden, onEdit, onToggleVisibility }: SortableModuleListItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: module.id });
+  
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
   return (
     <div 
+      ref={setNodeRef}
+      style={style}
       className={cn(
-        'flex items-center gap-3 p-2 rounded-lg border transition-colors cursor-pointer hover:bg-accent',
+        'flex items-center gap-3 p-2 rounded-lg border transition-colors group',
+        isHidden ? 'opacity-50 bg-muted/50' : 'hover:bg-accent',
         !module.is_active && 'opacity-60'
       )}
-      onClick={onEdit}
     >
+      {/* Drag Handle */}
+      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+      </div>
+
       {/* Thumbnail */}
-      <div className="w-10 h-14 rounded bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
+      <div 
+        className="w-10 h-14 rounded bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer"
+        onClick={onEdit}
+      >
         {module.cover_image_url ? (
           <img 
             src={module.cover_image_url} 
@@ -164,18 +292,38 @@ function ModuleListItem({ module, onEdit }: ModuleListItemProps) {
       </div>
 
       {/* Info */}
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{module.title}</p>
+      <div className="flex-1 min-w-0 cursor-pointer" onClick={onEdit}>
+        <p className={cn('text-sm font-medium truncate', isHidden && 'line-through')}>
+          {module.title}
+        </p>
         <p className="text-xs text-muted-foreground">
           {module.cover_image_url ? 'Com capa' : 'Sem capa'}
+          {isHidden && ' • Oculto'}
         </p>
       </div>
 
+      {/* Visibility Toggle */}
+      <Button 
+        variant="ghost" 
+        size="icon" 
+        className="flex-shrink-0 opacity-0 group-hover:opacity-100"
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleVisibility();
+        }}
+        title={isHidden ? 'Mostrar módulo' : 'Ocultar módulo'}
+      >
+        {isHidden ? (
+          <EyeOff className="h-4 w-4" />
+        ) : (
+          <Eye className="h-4 w-4" />
+        )}
+      </Button>
+
       {/* Edit Button */}
-      <Button variant="ghost" size="icon" className="flex-shrink-0">
+      <Button variant="ghost" size="icon" className="flex-shrink-0" onClick={onEdit}>
         <Pencil className="h-4 w-4" />
       </Button>
     </div>
   );
 }
-
