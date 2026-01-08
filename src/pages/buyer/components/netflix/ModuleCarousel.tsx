@@ -13,9 +13,10 @@ import type { Module, ContentItem } from "../types";
 interface ModuleCarouselProps {
   modules: Module[];
   onSelectContent: (content: ContentItem, module: Module) => void;
+  title?: string | null;
 }
 
-export function ModuleCarousel({ modules, onSelectContent }: ModuleCarouselProps) {
+export function ModuleCarousel({ modules, onSelectContent, title }: ModuleCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
@@ -63,7 +64,7 @@ export function ModuleCarousel({ modules, onSelectContent }: ModuleCarouselProps
         className="px-6 md:px-10 lg:px-16 mb-2"
       >
         <h2 className="text-xl md:text-2xl font-semibold text-foreground">
-          Módulos
+          {title || "Módulos"}
         </h2>
       </motion.div>
 
