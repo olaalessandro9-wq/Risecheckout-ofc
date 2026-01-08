@@ -5,7 +5,7 @@
  * @see RISE ARCHITECT PROTOCOL
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Plus, ArrowLeft, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -63,6 +63,14 @@ export function SectionTreePanel({
 }: SectionTreePanelProps) {
   // Drill-down state: which section is being edited (full panel)
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+  
+  // Sincronização: Preview → Sidebar
+  // Quando o usuário clica em uma seção no preview, abre automaticamente o editor
+  useEffect(() => {
+    if (selectedSectionId !== editingSectionId) {
+      setEditingSectionId(selectedSectionId);
+    }
+  }, [selectedSectionId]);
   
   // Sort sections by position
   const sortedSections = [...sections].sort((a, b) => a.position - b.position);
