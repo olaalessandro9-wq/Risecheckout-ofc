@@ -73,10 +73,10 @@ function ModuleCard({ module, showTitle, showProgress, theme }: ModuleCardProps)
   
   return (
     <div className="group relative">
-      {/* Thumbnail */}
+      {/* Thumbnail - Vertical poster format like Netflix */}
       <div 
         className={cn(
-          'relative aspect-video rounded-lg overflow-hidden',
+          'relative aspect-[2/3] rounded-lg overflow-hidden',
           theme === 'dark' ? 'bg-zinc-800' : 'bg-gray-200'
         )}
       >
