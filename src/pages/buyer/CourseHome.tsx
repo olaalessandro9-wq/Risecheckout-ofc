@@ -23,6 +23,39 @@ import {
   type MembersAreaBuilderSettings 
 } from "@/modules/members-area-builder/types/builder.types";
 
+// Helper to filter and order modules based on section settings
+function getVisibleOrderedModules(
+  allModules: Module[], 
+  settings: { hidden_module_ids?: string[]; module_order?: string[] }
+): Module[] {
+  const hiddenIds = settings.hidden_module_ids || [];
+  const orderIds = settings.module_order || [];
+  
+  // Filter hidden modules
+  const visibleModules = allModules.filter(m => !hiddenIds.includes(m.id));
+  
+  // Apply custom order if exists
+  if (orderIds.length === 0) return visibleModules;
+  
+  const moduleMap = new Map(visibleModules.map(m => [m.id, m]));
+  const ordered: Module[] = [];
+  
+  for (const id of orderIds) {
+    const module = moduleMap.get(id);
+    if (module) {
+      ordered.push(module);
+      moduleMap.delete(id);
+    }
+  }
+  
+  // Add remaining unordered modules
+  for (const module of moduleMap.values()) {
+    ordered.push(module);
+  }
+  
+  return ordered;
+}
+
 interface BuilderSection {
   id: string;
   product_id: string;
@@ -183,6 +216,16 @@ export default function CourseHome() {
                 }
                 
                 if (section.type === 'modules') {
+                  // Apply hidden_module_ids and module_order filters
+                  const sectionSettings = section.settings as {
+                    hidden_module_ids?: string[];
+                    module_order?: string[];
+                  };
+                  const visibleModules = getVisibleOrderedModules(modules, sectionSettings);
+                  
+                  // Don't render section if no visible modules
+                  if (visibleModules.length === 0) return null;
+                  
                   return (
                     <div key={section.id}>
                       {section.title && (
@@ -191,7 +234,7 @@ export default function CourseHome() {
                         </h2>
                       )}
                       <ModuleCarousel
-                        modules={modules}
+                        modules={visibleModules}
                         onSelectContent={handleSelectContent}
                       />
                     </div>
