@@ -203,7 +203,14 @@ export interface SectionConfig<T extends SectionSettings = SectionSettings> {
 // =====================================================
 
 export const DEFAULT_BANNER_SETTINGS: Omit<BannerSettings, 'type'> = {
-  slides: [],
+  slides: [
+    {
+      id: crypto.randomUUID(),
+      image_url: '',
+      link: '',
+      alt: '',
+    }
+  ],
   transition_seconds: 5,
   height: 'medium',
 };

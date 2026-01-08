@@ -82,6 +82,8 @@ export function BannerEditor({ section, onUpdate }: BannerEditorProps) {
                   size="icon"
                   className="h-6 w-6 text-destructive"
                   onClick={() => removeSlide(index)}
+                  disabled={slides.length <= 1}
+                  title={slides.length <= 1 ? 'Mínimo 1 slide obrigatório' : 'Remover slide'}
                 >
                   <Trash2 className="h-3 w-3" />
                 </Button>
