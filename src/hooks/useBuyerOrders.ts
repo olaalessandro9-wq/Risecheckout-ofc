@@ -38,6 +38,16 @@ interface BuyerAccess {
 /** Content type for buyer view - supports mixed content (Kiwify-style) */
 type BuyerContentType = "mixed" | "video" | "pdf" | "link" | "text" | "download";
 
+interface BuilderSection {
+  id: string;
+  product_id: string;
+  type: string;
+  title: string | null;
+  position: number;
+  settings: Record<string, unknown>;
+  is_active: boolean;
+}
+
 interface ProductContent {
   product: {
     id: string;
@@ -51,6 +61,7 @@ interface ProductContent {
     title: string;
     description: string | null;
     position: number;
+    cover_image_url?: string | null;
     contents: Array<{
       id: string;
       title: string;
@@ -62,6 +73,7 @@ interface ProductContent {
       position: number;
     }>;
   }>;
+  sections: BuilderSection[];
 }
 
 interface UseBuyerOrdersReturn {
