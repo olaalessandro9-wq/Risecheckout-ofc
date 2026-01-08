@@ -29,7 +29,7 @@ export function BuilderSidebar({ state, actions }: BuilderSidebarProps) {
   return (
     <aside className="w-80 border-l bg-background flex flex-col h-full overflow-hidden">
       <Tabs defaultValue="home" className="flex flex-col h-full">
-        <TabsList className="w-full justify-start rounded-none border-b h-12 px-2 shrink-0">
+        <TabsList className="w-full justify-start rounded-none border-b h-12 px-2 shrink-0 bg-transparent p-0">
           <TabsTrigger value="home" className="gap-2">
             <Home className="h-4 w-4" />
             Início
@@ -45,7 +45,7 @@ export function BuilderSidebar({ state, actions }: BuilderSidebarProps) {
         </TabsList>
 
         {/* Aba Início - Árvore de Navegação */}
-        <TabsContent value="home" className="flex-1 flex flex-col m-0 overflow-hidden">
+        <TabsContent value="home" className="flex-1 flex flex-col mt-0 data-[state=inactive]:hidden overflow-hidden">
           <SectionTreePanel
             sections={sections}
             selectedSectionId={selectedSectionId}
@@ -55,7 +55,7 @@ export function BuilderSidebar({ state, actions }: BuilderSidebarProps) {
         </TabsContent>
 
         {/* Aba Seções - Editor da Seção Selecionada */}
-        <TabsContent value="sections" className="flex-1 overflow-auto m-0 p-4">
+        <TabsContent value="sections" className="flex-1 overflow-auto mt-0 p-4 data-[state=inactive]:hidden">
           {selectedSection ? (
             <>
               <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
@@ -83,7 +83,7 @@ export function BuilderSidebar({ state, actions }: BuilderSidebarProps) {
         </TabsContent>
 
         {/* Aba Global - Configurações Globais */}
-        <TabsContent value="global" className="flex-1 overflow-auto m-0 p-4">
+        <TabsContent value="global" className="flex-1 overflow-auto mt-0 p-4 data-[state=inactive]:hidden">
           <GlobalSettingsPanel
             settings={settings}
             onUpdate={actions.updateSettings}

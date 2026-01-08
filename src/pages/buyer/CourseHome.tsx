@@ -1,6 +1,6 @@
 /**
- * CourseHome Page - Netflix-style Course Landing
- * Displays hero banner and module carousel
+ * CourseHome Page - Dynamic Sections from Builder
+ * Renders banner sections and module carousels based on Builder configuration
  */
 
 import { useEffect, useState } from "react";
@@ -12,7 +12,18 @@ import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft } from "lucide-react";
 
 import { HeroBanner, ModuleCarousel } from "./components/netflix";
+import { BuyerBannerSection } from "./components/sections/BuyerBannerSection";
 import type { Module, ContentItem, ProductData } from "./components/types";
+
+interface BuilderSection {
+  id: string;
+  product_id: string;
+  type: string;
+  title: string | null;
+  position: number;
+  settings: Record<string, unknown>;
+  is_active: boolean;
+}
 
 export default function CourseHome() {
   const navigate = useNavigate();
@@ -23,6 +34,7 @@ export default function CourseHome() {
   const [isLoading, setIsLoading] = useState(true);
   const [product, setProduct] = useState<ProductData | null>(null);
   const [modules, setModules] = useState<Module[]>([]);
+  const [sections, setSections] = useState<BuilderSection[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   // Redirect if not authenticated
@@ -43,6 +55,7 @@ export default function CourseHome() {
         if (data) {
           setProduct(data.product);
           setModules(data.modules as Module[]);
+          setSections(data.sections || []);
         } else {
           setError("Não foi possível carregar o conteúdo.");
         }
@@ -68,6 +81,15 @@ export default function CourseHome() {
   const handleSelectContent = (content: ContentItem, module: Module) => {
     navigate(`/minha-conta/produto/${productId}/aula/${content.id}`);
   };
+
+  // Check if we have Builder sections configured
+  const hasBuilderSections = sections.length > 0;
+  
+  // Get the first banner section from Builder (for hero)
+  const firstBannerSection = sections.find(s => s.type === 'banner');
+  
+  // Get modules section from Builder
+  const modulesSections = sections.filter(s => s.type === 'modules');
 
   if (authLoading || isLoading) {
     return (
@@ -109,18 +131,68 @@ export default function CourseHome() {
         </Link>
       </div>
 
-      {/* Hero Banner */}
-      <HeroBanner
-        product={product}
-        modules={modules}
-        onStartCourse={handleStartCourse}
-      />
-
-      {/* Module Carousel */}
-      <ModuleCarousel
-        modules={modules}
-        onSelectContent={handleSelectContent}
-      />
+      {/* Render sections based on Builder configuration */}
+      {hasBuilderSections ? (
+        // Use Builder sections
+        <div className="space-y-6">
+          {sections.map((section) => {
+            if (section.type === 'banner') {
+              const bannerSettings = section.settings as {
+                type: 'banner';
+                slides: Array<{ id: string; image_url: string; link?: string; alt?: string }>;
+                transition_seconds: number;
+                height: 'small' | 'medium' | 'large';
+                show_navigation: boolean;
+                show_indicators: boolean;
+              };
+              
+              // Only render if has slides
+              if (!bannerSettings.slides || bannerSettings.slides.length === 0) {
+                return null;
+              }
+              
+              return (
+                <BuyerBannerSection
+                  key={section.id}
+                  settings={bannerSettings}
+                  title={section.title}
+                />
+              );
+            }
+            
+            if (section.type === 'modules') {
+              return (
+                <div key={section.id}>
+                  {section.title && (
+                    <h2 className="text-lg font-semibold text-foreground mb-3 px-4 md:px-8">
+                      {section.title}
+                    </h2>
+                  )}
+                  <ModuleCarousel
+                    modules={modules}
+                    onSelectContent={handleSelectContent}
+                  />
+                </div>
+              );
+            }
+            
+            return null;
+          })}
+        </div>
+      ) : (
+        // Fallback to default layout if no Builder sections
+        <>
+          <HeroBanner
+            product={product}
+            modules={modules}
+            onStartCourse={handleStartCourse}
+          />
+          <ModuleCarousel
+            modules={modules}
+            onSelectContent={handleSelectContent}
+          />
+        </>
+      )}
 
       {/* Spacer for bottom */}
       <div className="h-16" />

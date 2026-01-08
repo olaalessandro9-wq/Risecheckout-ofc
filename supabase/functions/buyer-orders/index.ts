@@ -277,6 +277,18 @@ serve(async (req) => {
         );
       }
 
+      // Get Builder sections (banners, modules, etc.)
+      const { data: sections, error: sectionsError } = await supabase
+        .from("product_members_sections")
+        .select("*")
+        .eq("product_id", productId)
+        .eq("is_active", true)
+        .order("position", { ascending: true });
+
+      if (sectionsError) {
+        console.log("[buyer-orders] Error fetching sections (table may not exist):", sectionsError);
+      }
+
       // Get modules with content
       const { data: modules, error: modulesError } = await supabase
         .from("product_member_modules")
@@ -365,6 +377,7 @@ serve(async (req) => {
             settings: product.members_area_settings,
           },
           modules: modulesWithAttachments,
+          sections: sections || [],
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
