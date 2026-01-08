@@ -130,8 +130,10 @@ export interface BuilderState {
   sections: Section[];
   settings: MembersAreaBuilderSettings;
   selectedSectionId: string | null;
+  selectedMenuItemId: string | null;
   viewMode: ViewMode;
   isPreviewMode: boolean;
+  isMenuCollapsed: boolean;
   isDirty: boolean;
   isLoading: boolean;
   isSaving: boolean;
@@ -148,10 +150,12 @@ export interface BuilderActions {
   
   // Selection
   selectSection: (id: string | null) => void;
+  selectMenuItem: (id: string | null) => void;
   
   // View
   setViewMode: (mode: ViewMode) => void;
   togglePreviewMode: () => void;
+  toggleMenuCollapse: () => void;
   
   // Settings
   updateSettings: (settings: Partial<MembersAreaBuilderSettings>) => Promise<void>;

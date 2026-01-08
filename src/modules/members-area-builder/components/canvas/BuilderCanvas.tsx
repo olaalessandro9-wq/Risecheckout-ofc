@@ -19,7 +19,7 @@ interface BuilderCanvasProps {
 }
 
 export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
-  const { sections, selectedSectionId, viewMode, isPreviewMode, settings } = state;
+  const { sections, selectedSectionId, selectedMenuItemId, viewMode, isPreviewMode, isMenuCollapsed, settings } = state;
 
   const handleMoveSection = (index: number, direction: 'up' | 'down') => {
     const newIndex = direction === 'up' ? index - 1 : index + 1;
@@ -58,6 +58,10 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
           <MenuPreview
             settings={settings}
             isPreviewMode={isPreviewMode}
+            isCollapsed={isMenuCollapsed}
+            selectedMenuItemId={selectedMenuItemId}
+            onToggleCollapse={actions.toggleMenuCollapse}
+            onSelectMenuItem={actions.selectMenuItem}
           />
         )}
 
@@ -116,6 +120,8 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
             <MobileBottomNav
               settings={settings}
               isPreviewMode={isPreviewMode}
+              selectedMenuItemId={selectedMenuItemId}
+              onSelectMenuItem={actions.selectMenuItem}
             />
           )}
         </div>

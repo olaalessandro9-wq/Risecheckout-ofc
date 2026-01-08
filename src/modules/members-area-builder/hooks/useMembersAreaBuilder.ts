@@ -30,8 +30,10 @@ const INITIAL_STATE: BuilderState = {
   sections: [],
   settings: DEFAULT_BUILDER_SETTINGS,
   selectedSectionId: null,
+  selectedMenuItemId: null,
   viewMode: 'desktop',
   isPreviewMode: false,
+  isMenuCollapsed: false,
   isDirty: false,
   isLoading: true,
   isSaving: false,
@@ -332,7 +334,11 @@ export function useMembersAreaBuilder(productId: string | undefined): UseMembers
   // =====================================================
 
   const selectSection = useCallback((id: string | null) => {
-    setState(prev => ({ ...prev, selectedSectionId: id }));
+    setState(prev => ({ ...prev, selectedSectionId: id, selectedMenuItemId: null }));
+  }, []);
+
+  const selectMenuItem = useCallback((id: string | null) => {
+    setState(prev => ({ ...prev, selectedMenuItemId: id, selectedSectionId: null }));
   }, []);
 
   const setViewMode = useCallback((mode: ViewMode) => {
@@ -341,6 +347,10 @@ export function useMembersAreaBuilder(productId: string | undefined): UseMembers
 
   const togglePreviewMode = useCallback(() => {
     setState(prev => ({ ...prev, isPreviewMode: !prev.isPreviewMode }));
+  }, []);
+
+  const toggleMenuCollapse = useCallback(() => {
+    setState(prev => ({ ...prev, isMenuCollapsed: !prev.isMenuCollapsed }));
   }, []);
 
   // =====================================================
@@ -403,8 +413,10 @@ export function useMembersAreaBuilder(productId: string | undefined): UseMembers
     reorderSections,
     duplicateSection,
     selectSection,
+    selectMenuItem,
     setViewMode,
     togglePreviewMode,
+    toggleMenuCollapse,
     updateSettings,
     save,
     load,
