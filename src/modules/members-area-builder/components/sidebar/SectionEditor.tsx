@@ -29,17 +29,6 @@ interface SectionEditorProps {
 export function SectionEditor({ section, onUpdate, onUpdateSettings, modules, onModuleEdit }: SectionEditorProps) {
   return (
     <div className="space-y-6">
-      {/* Section Header */}
-      <div>
-        <h3 className="font-semibold text-lg">
-          {getSectionLabel(section.type)}
-        </h3>
-        <p className="text-sm text-muted-foreground">
-          Configure esta seção
-        </p>
-      </div>
-
-      <Separator />
 
       {/* Common Settings - Only for non-banner sections */}
       {section.type !== 'banner' && (
