@@ -83,7 +83,7 @@ export function HeroBanner({ product, modules, onStartCourse }: HeroBannerProps)
             <Button 
               size="lg" 
               onClick={onStartCourse}
-              className="gap-2 mt-2"
+              className="gap-2 mt-2 bg-primary text-primary-foreground hover:bg-primary/90"
             >
               <Play className="h-5 w-5" />
               Começar a Assistir

@@ -16,6 +16,7 @@ import { HeroBanner, ModuleCarousel } from "./components/netflix";
 import { BuyerBannerSection } from "./components/sections/BuyerBannerSection";
 import { BuyerSidebar } from "./components/layout/BuyerSidebar";
 import { BuyerMobileNav } from "./components/layout/BuyerMobileNav";
+import { MembersAreaThemeProvider } from "./components/MembersAreaThemeProvider";
 import type { Module, ContentItem, ProductData } from "./components/types";
 import { 
   DEFAULT_BUILDER_SETTINGS, 
@@ -131,95 +132,97 @@ export default function CourseHome() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Desktop Sidebar */}
-      <BuyerSidebar
-        settings={membersAreaSettings}
-        isCollapsed={isMenuCollapsed}
-        onToggleCollapse={() => setIsMenuCollapsed(!isMenuCollapsed)}
-      />
+    <MembersAreaThemeProvider settings={membersAreaSettings}>
+      <div className="min-h-screen bg-background flex">
+        {/* Desktop Sidebar */}
+        <BuyerSidebar
+          settings={membersAreaSettings}
+          isCollapsed={isMenuCollapsed}
+          onToggleCollapse={() => setIsMenuCollapsed(!isMenuCollapsed)}
+        />
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-x-hidden pb-16 lg:pb-0">
-        {/* Back Button - Floating */}
-        <div className="absolute top-4 left-4 z-30 lg:hidden">
-          <Link to="/minha-conta/dashboard">
-            <Button variant="ghost" size="sm" className="gap-2 bg-background/50 backdrop-blur-sm">
-              <ArrowLeft className="h-4 w-4" />
-              Voltar
-            </Button>
-          </Link>
-        </div>
+        {/* Main Content */}
+        <main className="flex-1 overflow-x-hidden pb-16 lg:pb-0">
+          {/* Back Button - Floating */}
+          <div className="absolute top-4 left-4 z-30 lg:hidden">
+            <Link to="/minha-conta/dashboard">
+              <Button variant="ghost" size="sm" className="gap-2 bg-background/50 backdrop-blur-sm">
+                <ArrowLeft className="h-4 w-4" />
+                Voltar
+              </Button>
+            </Link>
+          </div>
 
-        {/* Render sections based on Builder configuration */}
-        {hasBuilderSections ? (
-          // Use Builder sections
-          <div className="space-y-6">
-            {sections.map((section) => {
-              if (section.type === 'banner') {
-                const bannerSettings = section.settings as {
-                  type: 'banner';
-                  slides: Array<{ id: string; image_url: string; link?: string; alt?: string }>;
-                  transition_seconds: number;
-                  height: 'small' | 'medium' | 'large';
-                  show_navigation: boolean;
-                  show_indicators: boolean;
-                };
-                
-                // Only render if has slides
-                if (!bannerSettings.slides || bannerSettings.slides.length === 0) {
-                  return null;
+          {/* Render sections based on Builder configuration */}
+          {hasBuilderSections ? (
+            // Use Builder sections
+            <div className="space-y-6">
+              {sections.map((section) => {
+                if (section.type === 'banner') {
+                  const bannerSettings = section.settings as {
+                    type: 'banner';
+                    slides: Array<{ id: string; image_url: string; link?: string; alt?: string }>;
+                    transition_seconds: number;
+                    height: 'small' | 'medium' | 'large';
+                    show_navigation: boolean;
+                    show_indicators: boolean;
+                  };
+                  
+                  // Only render if has slides
+                  if (!bannerSettings.slides || bannerSettings.slides.length === 0) {
+                    return null;
+                  }
+                  
+                  return (
+                    <BuyerBannerSection
+                      key={section.id}
+                      settings={bannerSettings}
+                      title={section.title}
+                    />
+                  );
                 }
                 
-                return (
-                  <BuyerBannerSection
-                    key={section.id}
-                    settings={bannerSettings}
-                    title={section.title}
-                  />
-                );
-              }
-              
-              if (section.type === 'modules') {
-                return (
-                  <div key={section.id}>
-                    {section.title && (
-                      <h2 className="text-lg font-semibold text-foreground mb-3 px-4 md:px-8">
-                        {section.title}
-                      </h2>
-                    )}
-                    <ModuleCarousel
-                      modules={modules}
-                      onSelectContent={handleSelectContent}
-                    />
-                  </div>
-                );
-              }
-              
-              return null;
-            })}
-          </div>
-        ) : (
-          // Fallback to default layout if no Builder sections
-          <>
-            <HeroBanner
-              product={product}
-              modules={modules}
-              onStartCourse={handleStartCourse}
-            />
-            <ModuleCarousel
-              modules={modules}
-              onSelectContent={handleSelectContent}
-            />
-          </>
-        )}
+                if (section.type === 'modules') {
+                  return (
+                    <div key={section.id}>
+                      {section.title && (
+                        <h2 className="text-lg font-semibold text-foreground mb-3 px-4 md:px-8">
+                          {section.title}
+                        </h2>
+                      )}
+                      <ModuleCarousel
+                        modules={modules}
+                        onSelectContent={handleSelectContent}
+                      />
+                    </div>
+                  );
+                }
+                
+                return null;
+              })}
+            </div>
+          ) : (
+            // Fallback to default layout if no Builder sections
+            <>
+              <HeroBanner
+                product={product}
+                modules={modules}
+                onStartCourse={handleStartCourse}
+              />
+              <ModuleCarousel
+                modules={modules}
+                onSelectContent={handleSelectContent}
+              />
+            </>
+          )}
 
-        {/* Spacer for bottom */}
-        <div className="h-16 lg:h-8" />
-      </main>
+          {/* Spacer for bottom */}
+          <div className="h-16 lg:h-8" />
+        </main>
 
-      {/* Mobile Bottom Nav */}
-      <BuyerMobileNav settings={membersAreaSettings} />
-    </div>
+        {/* Mobile Bottom Nav */}
+        <BuyerMobileNav settings={membersAreaSettings} />
+      </div>
+    </MembersAreaThemeProvider>
   );
 }
