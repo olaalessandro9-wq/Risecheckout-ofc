@@ -4,11 +4,12 @@
  * @see RISE ARCHITECT PROTOCOL
  */
 
-import React from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
-import { MousePointer2, Hand } from 'lucide-react';
+import { MousePointer2, Hand, Loader2, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import type { MembersAreaBuilderSettings } from '../../types/builder.types';
 import { MenuEditor } from './MenuEditor';
 
@@ -18,18 +19,83 @@ interface MenuSettingsPanelProps {
 }
 
 export function MenuSettingsPanel({ settings, onUpdate }: MenuSettingsPanelProps) {
+  // Estado local para optimistic update (reage imediatamente)
+  const [localAnimation, setLocalAnimation] = useState(settings.sidebar_animation);
+  const [isSaving, setIsSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Sincronizar quando settings externo muda
+  useEffect(() => {
+    setLocalAnimation(settings.sidebar_animation);
+  }, [settings.sidebar_animation]);
+
+  const handleAnimationChange = useCallback((value: 'click' | 'hover') => {
+    // Cancelar debounce anterior
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    // Optimistic update: atualiza imediatamente no local
+    setLocalAnimation(value);
+    setIsSaving(true);
+    setJustSaved(false);
+
+    // Debounce: só salva após 500ms de inatividade
+    debounceRef.current = setTimeout(async () => {
+      await onUpdate({ sidebar_animation: value });
+      setIsSaving(false);
+      setJustSaved(true);
+      
+      // Mostrar checkmark por 1.5s
+      setTimeout(() => setJustSaved(false), 1500);
+    }, 500);
+  }, [onUpdate]);
+
+  // Cleanup do timeout no unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
+
   return (
     <div className="space-y-6">
       {/* Sidebar Animation - Desktop Only */}
       <div>
-        <h3 className="font-semibold text-lg mb-4">Animação do Menu (Desktop)</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-lg">Animação do Menu (Desktop)</h3>
+          
+          {/* Indicador de status */}
+          {isSaving && (
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Salvando...
+            </span>
+          )}
+          {justSaved && !isSaving && (
+            <span className="flex items-center gap-1.5 text-xs text-green-600">
+              <Check className="h-3 w-3" />
+              Salvo
+            </span>
+          )}
+        </div>
         
         <RadioGroup
-          value={settings.sidebar_animation}
-          onValueChange={(value: 'click' | 'hover') => onUpdate({ sidebar_animation: value })}
+          value={localAnimation}
+          onValueChange={handleAnimationChange}
+          disabled={isSaving}
           className="space-y-3"
         >
-          <div className="flex items-start space-x-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors cursor-pointer">
+          <div className={cn(
+            "flex items-start space-x-3 p-3 rounded-lg border transition-all cursor-pointer",
+            localAnimation === 'click' 
+              ? "border-primary bg-primary/5" 
+              : "border-border hover:bg-muted/50",
+            isSaving && "opacity-60 pointer-events-none"
+          )}>
             <RadioGroupItem value="click" id="menu-anim-click" className="mt-0.5" />
             <div className="flex-1">
               <Label htmlFor="menu-anim-click" className="flex items-center gap-2 cursor-pointer font-medium">
@@ -42,7 +108,13 @@ export function MenuSettingsPanel({ settings, onUpdate }: MenuSettingsPanelProps
             </div>
           </div>
           
-          <div className="flex items-start space-x-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors cursor-pointer">
+          <div className={cn(
+            "flex items-start space-x-3 p-3 rounded-lg border transition-all cursor-pointer",
+            localAnimation === 'hover' 
+              ? "border-primary bg-primary/5" 
+              : "border-border hover:bg-muted/50",
+            isSaving && "opacity-60 pointer-events-none"
+          )}>
             <RadioGroupItem value="hover" id="menu-anim-hover" className="mt-0.5" />
             <div className="flex-1">
               <Label htmlFor="menu-anim-hover" className="flex items-center gap-2 cursor-pointer font-medium">
