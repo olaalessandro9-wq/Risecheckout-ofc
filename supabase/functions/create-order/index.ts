@@ -3,39 +3,30 @@
  * 
  * Responsabilidade ÚNICA: Orquestrar handlers modulares
  * 
+ * SECURITY UPDATES:
+ * - VULN-005: Validação de schema com validators.ts
+ * - VULN-008: CORS com bloqueio de origens inválidas
+ * 
  * Estrutura:
  * - handlers/product-validator.ts (~110 linhas)
  * - handlers/bump-processor.ts (~140 linhas)
  * - handlers/coupon-processor.ts (~100 linhas)
  * - handlers/affiliate-processor.ts (~200 linhas)
  * - handlers/order-creator.ts (~180 linhas)
- * - index.ts (~150 linhas) ← VOCÊ ESTÁ AQUI
+ * - index.ts (~170 linhas) ← VOCÊ ESTÁ AQUI
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { rateLimitMiddleware, getIdentifier } from "../_shared/rate-limit.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
+import { handleCors } from "../_shared/cors.ts";
+import { validateCreateOrderInput, createValidationErrorResponse } from "../_shared/validators.ts";
 import { validateProduct, type ProductValidationResult } from "./handlers/product-validator.ts";
 import { processBumps, type BumpProcessingResult } from "./handlers/bump-processor.ts";
 import { processCoupon } from "./handlers/coupon-processor.ts";
 import { processAffiliate } from "./handlers/affiliate-processor.ts";
 import { createOrder } from "./handlers/order-creator.ts";
-
-// 🔒 SEGURANÇA: Lista de domínios permitidos
-const ALLOWED_ORIGINS = [
-  "http://localhost:5173",
-  "http://localhost:3000",
-  "https://risecheckout.com",
-  "https://www.risecheckout.com",
-  "https://risecheckout-84776.lovable.app",
-  "https://prime-checkout-hub.lovable.app"
-];
-
-const getCorsHeaders = (origin: string) => ({
-  "Access-Control-Allow-Origin": ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-});
 
 /**
  * Mascara email para logs (LGPD)
@@ -48,13 +39,12 @@ function maskEmail(email: string): string {
 }
 
 serve(withSentry('create-order', async (req) => {
-  const origin = req.headers.get("origin") || "";
-  const corsHeaders = getCorsHeaders(origin);
-
-  // 0. CORS Preflight
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  // 0. SECURITY: Validação CORS com bloqueio de origens inválidas
+  const corsResult = handleCors(req);
+  if (corsResult instanceof Response) {
+    return corsResult; // Retorna 403 ou preflight response
   }
+  const corsHeaders = corsResult.headers;
 
   // 1. Rate Limiting
   const identifier = getIdentifier(req, false);
@@ -85,7 +75,17 @@ serve(withSentry('create-order', async (req) => {
       body = JSON.parse(text);
     } catch (e) {
       console.error("[create-order] JSON inválido:", e);
-      throw new Error("Payload inválido: O corpo da requisição não é um JSON válido.");
+      return new Response(
+        JSON.stringify({ success: false, error: "Payload inválido: O corpo da requisição não é um JSON válido." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // 4. SECURITY: Validação de Schema (VULN-005)
+    const validation = validateCreateOrderInput(body);
+    if (!validation.success) {
+      console.warn("[create-order] Validação falhou:", validation.errors);
+      return createValidationErrorResponse(validation.errors || ["Dados inválidos"], corsHeaders);
     }
 
     const {
@@ -101,7 +101,7 @@ serve(withSentry('create-order', async (req) => {
       payment_method,
       coupon_id,
       affiliate_code
-    } = body;
+    } = validation.data!;
 
     console.log("[create-order] Processando:", {
       email: maskEmail(customer_email),
@@ -208,10 +208,9 @@ serve(withSentry('create-order', async (req) => {
       method: req.method,
     });
     
-    const origin = req.headers.get("origin") || "";
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
-      { status: 400, headers: { ...getCorsHeaders(origin), "Content-Type": "application/json" } }
+      JSON.stringify({ success: false, error: error.message || "Erro interno" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 }));
