@@ -81,9 +81,9 @@ export function BuyerSidebar({
   const sidebarWidth = isCollapsed ? 64 : 220;
 
   return (
-    <div
+    <aside
       className={cn(
-        'relative flex-col h-full border-r transition-all duration-300 flex-shrink-0 hidden lg:flex',
+        'sticky top-0 h-screen flex-col border-r transition-all duration-300 flex-shrink-0 hidden lg:flex overflow-hidden',
         settings.theme === 'dark' 
           ? 'bg-zinc-900 border-zinc-800' 
           : 'bg-muted/30 border-border',
@@ -217,6 +217,6 @@ export function BuyerSidebar({
           {!isCollapsed && <span className="text-sm">Sair</span>}
         </div>
       </div>
-    </div>
+    </aside>
   );
 }
