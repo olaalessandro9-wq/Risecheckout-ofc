@@ -1,11 +1,12 @@
 /**
  * Section Tree Panel - Painel com árvore de seções
  * Suporta drag-and-drop para reordenar seções
+ * Editor inline de seções quando selecionadas
  * 
  * @see RISE ARCHITECT PROTOCOL
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -39,6 +40,7 @@ interface SectionTreePanelProps {
   selectedSectionId: string | null;
   modules: MemberModule[];
   actions: BuilderActions;
+  onModuleEdit?: (moduleId: string) => void;
 }
 
 export function SectionTreePanel({
@@ -46,7 +48,11 @@ export function SectionTreePanel({
   selectedSectionId,
   modules,
   actions,
+  onModuleEdit,
 }: SectionTreePanelProps) {
+  // Track which section has its editor expanded
+  const [expandedEditorId, setExpandedEditorId] = useState<string | null>(null);
+  
   // Sort sections by position
   const sortedSections = [...sections].sort((a, b) => a.position - b.position);
   
@@ -71,6 +77,10 @@ export function SectionTreePanel({
   
   const handleDeleteSection = async (id: string) => {
     await actions.deleteSection(id);
+    // Close editor if deleted section was being edited
+    if (expandedEditorId === id) {
+      setExpandedEditorId(null);
+    }
   };
   
   const handleDragEnd = (event: DragEndEvent) => {
@@ -88,6 +98,12 @@ export function SectionTreePanel({
         actions.reorderSections(newOrder.map(s => s.id));
       }
     }
+  };
+
+  // Toggle editor for a section
+  const handleToggleEditor = (sectionId: string) => {
+    setExpandedEditorId(prev => prev === sectionId ? null : sectionId);
+    actions.selectSection(sectionId);
   };
 
   // Get modules for a specific section, applying order and visibility filters
@@ -162,12 +178,17 @@ export function SectionTreePanel({
                   key={section.id}
                   section={section}
                   isSelected={section.id === selectedSectionId}
+                  isEditing={section.id === expandedEditorId}
                   modules={getModulesForSection(section)}
                   allModules={modules}
                   onSelect={() => actions.selectSection(section.id)}
+                  onToggleEditor={() => handleToggleEditor(section.id)}
                   onDelete={() => handleDeleteSection(section.id)}
                   onToggleModuleVisibility={(moduleId) => handleToggleModuleVisibility(section.id, moduleId)}
                   onReorderModules={(orderedIds) => handleReorderModules(section.id, orderedIds)}
+                  onUpdateSection={(updates) => actions.updateSection(section.id, updates)}
+                  onUpdateSettings={(settings) => actions.updateSectionSettings(section.id, settings)}
+                  onModuleEdit={onModuleEdit}
                   isFirst={index === 0}
                   isLast={index === sortedSections.length - 1}
                 />

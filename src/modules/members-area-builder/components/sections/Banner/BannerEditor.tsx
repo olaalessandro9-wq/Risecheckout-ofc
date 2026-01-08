@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Plus, Trash2, GripVertical } from 'lucide-react';
+import { BannerSlideUpload } from './BannerSlideUpload';
 import type { Section, BannerSettings, BannerSlide } from '../../../types/builder.types';
 
 interface BannerEditorProps {
@@ -69,7 +70,7 @@ export function BannerEditor({ section, onUpdate }: BannerEditorProps) {
           {slides.map((slide, index) => (
             <div 
               key={slide.id} 
-              className="border rounded-lg p-3 space-y-2 bg-muted/30"
+              className="border rounded-lg p-3 space-y-3 bg-muted/30"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -86,10 +87,10 @@ export function BannerEditor({ section, onUpdate }: BannerEditorProps) {
                 </Button>
               </div>
 
-              <Input
-                placeholder="URL da imagem"
-                value={slide.image_url}
-                onChange={(e) => updateSlide(index, { image_url: e.target.value })}
+              {/* Image Upload */}
+              <BannerSlideUpload
+                imageUrl={slide.image_url}
+                onImageChange={(url) => updateSlide(index, { image_url: url })}
               />
 
               <Input
