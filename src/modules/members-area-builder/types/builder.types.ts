@@ -58,8 +58,6 @@ export interface BannerSettings {
   slides: BannerSlide[];
   transition_seconds: number;
   height: 'small' | 'medium' | 'large';
-  show_navigation: boolean;
-  show_indicators: boolean;
 }
 
 export interface ModulesSettings {
@@ -203,8 +201,6 @@ export const DEFAULT_BANNER_SETTINGS: Omit<BannerSettings, 'type'> = {
   slides: [],
   transition_seconds: 5,
   height: 'medium',
-  show_navigation: true,
-  show_indicators: true,
 };
 
 export const DEFAULT_MODULES_SETTINGS: Omit<ModulesSettings, 'type'> = {

@@ -8,7 +8,6 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { 
   Select,
   SelectContent,
@@ -79,25 +78,6 @@ export function BannerEditor({ section, onUpdate }: BannerEditorProps) {
           value={settings.transition_seconds || 5}
           onChange={(e) => onUpdate({ transition_seconds: parseInt(e.target.value) || 5 })}
         />
-      </div>
-
-      {/* Controls */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <Label>Mostrar Navegação</Label>
-          <Switch
-            checked={settings.show_navigation}
-            onCheckedChange={(checked) => onUpdate({ show_navigation: checked })}
-          />
-        </div>
-
-        <div className="flex items-center justify-between">
-          <Label>Mostrar Indicadores</Label>
-          <Switch
-            checked={settings.show_indicators}
-            onCheckedChange={(checked) => onUpdate({ show_indicators: checked })}
-          />
-        </div>
       </div>
 
       {/* Slides */}
