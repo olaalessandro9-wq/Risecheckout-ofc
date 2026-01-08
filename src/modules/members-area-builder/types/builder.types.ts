@@ -119,6 +119,9 @@ export interface MembersAreaBuilderSettings {
   // Menu
   menu_items: MenuItemConfig[];
   
+  // Sidebar Animation (Desktop only - mobile always uses bottom nav)
+  sidebar_animation: 'click' | 'hover';
+  
   // Login Page
   login_layout: 'centered' | 'sidebar';
   login_background_url?: string;
@@ -246,6 +249,7 @@ export const DEFAULT_BUILDER_SETTINGS: MembersAreaBuilderSettings = {
   favicon_url: undefined,
   share_image_url: undefined,
   menu_items: DEFAULT_MENU_ITEMS,
+  sidebar_animation: 'click',
   login_layout: 'centered',
   login_background_url: undefined,
   login_logo_url: undefined,
