@@ -1,14 +1,13 @@
 /**
  * Section Tree Panel - Painel com árvore de seções
- * Suporta drag-and-drop para reordenar seções
- * Editor inline de seções quando selecionadas
+ * Implementa navegação drill-down: Lista → Editor dedicado
  * 
  * @see RISE ARCHITECT PROTOCOL
  */
 
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Plus } from 'lucide-react';
+import { Plus, ArrowLeft, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -17,6 +16,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import {
   DndContext,
   closestCenter,
@@ -32,7 +42,8 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { SortableSectionTreeItem } from './SortableSectionTreeItem';
-import { SectionRegistry, getAvailableSectionTypes } from '../../registry';
+import { SectionEditor } from './SectionEditor';
+import { SectionRegistry, getAvailableSectionTypes, canDeleteSection, getSectionLabel } from '../../registry';
 import type { Section, SectionType, MemberModule, BuilderActions, ModulesSettings } from '../../types/builder.types';
 
 interface SectionTreePanelProps {
@@ -50,14 +61,19 @@ export function SectionTreePanel({
   actions,
   onModuleEdit,
 }: SectionTreePanelProps) {
-  // Track which section has its editor expanded
-  const [expandedEditorId, setExpandedEditorId] = useState<string | null>(null);
+  // Drill-down state: which section is being edited (full panel)
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   
   // Sort sections by position
   const sortedSections = [...sections].sort((a, b) => a.position - b.position);
   
   // Get available section types that can be added
   const availableTypes = getAvailableSectionTypes(sections);
+  
+  // Find the section being edited
+  const editingSection = editingSectionId 
+    ? sections.find(s => s.id === editingSectionId) 
+    : null;
   
   // DnD sensors
   const sensors = useSensors(
@@ -77,9 +93,9 @@ export function SectionTreePanel({
   
   const handleDeleteSection = async (id: string) => {
     await actions.deleteSection(id);
-    // Close editor if deleted section was being edited
-    if (expandedEditorId === id) {
-      setExpandedEditorId(null);
+    // Go back to list if deleted section was being edited
+    if (editingSectionId === id) {
+      setEditingSectionId(null);
     }
   };
   
@@ -100,58 +116,92 @@ export function SectionTreePanel({
     }
   };
 
-  // Toggle editor for a section
-  const handleToggleEditor = (sectionId: string) => {
-    setExpandedEditorId(prev => prev === sectionId ? null : sectionId);
+  // Navigate to section editor
+  const handleEditSection = (sectionId: string) => {
+    setEditingSectionId(sectionId);
     actions.selectSection(sectionId);
   };
 
-  // Get modules for a specific section, applying order and visibility filters
-  const getModulesForSection = (section: Section): MemberModule[] => {
-    if (section.type !== 'modules') return [];
-    
-    const settings = section.settings as ModulesSettings;
-    const hiddenIds = settings.hidden_module_ids || [];
-    const orderIds = settings.module_order || [];
-    
-    // Filter out hidden modules
-    let visibleModules = modules.filter(m => !hiddenIds.includes(m.id));
-    
-    // Apply custom order if specified
-    if (orderIds.length > 0) {
-      visibleModules.sort((a, b) => {
-        const indexA = orderIds.indexOf(a.id);
-        const indexB = orderIds.indexOf(b.id);
-        if (indexA === -1 && indexB === -1) return 0;
-        if (indexA === -1) return 1;
-        if (indexB === -1) return -1;
-        return indexA - indexB;
-      });
-    }
-    
-    return visibleModules;
+  // Go back to section list
+  const handleBack = () => {
+    setEditingSectionId(null);
   };
 
-  // Handle module visibility toggle
-  const handleToggleModuleVisibility = async (sectionId: string, moduleId: string) => {
-    const section = sections.find(s => s.id === sectionId);
-    if (!section || section.type !== 'modules') return;
+  // ==========================================
+  // STATE 2: Section Editor (Drill-Down View)
+  // ==========================================
+  if (editingSection) {
+    const canDelete = canDeleteSection(editingSection.type);
     
-    const settings = section.settings as ModulesSettings;
-    const hiddenIds = settings.hidden_module_ids || [];
-    
-    const newHiddenIds = hiddenIds.includes(moduleId)
-      ? hiddenIds.filter(id => id !== moduleId)
-      : [...hiddenIds, moduleId];
-    
-    await actions.updateSectionSettings(sectionId, { hidden_module_ids: newHiddenIds });
-  };
+    return (
+      <div className="flex flex-col h-full">
+        {/* Header with back button and section name */}
+        <div className="px-3 py-3 border-b flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={handleBack}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          
+          <span className="font-medium text-sm flex-1 truncate uppercase tracking-wider">
+            {getSectionLabel(editingSection.type)}
+          </span>
+          
+          {/* Delete button */}
+          {canDelete && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0 hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Excluir seção?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta ação não pode ser desfeita. A seção "{getSectionLabel(editingSection.type)}" será removida permanentemente.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => handleDeleteSection(editingSection.id)}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Excluir
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </div>
+        
+        {/* Full Section Editor */}
+        <ScrollArea className="flex-1">
+          <div className="p-4">
+            <SectionEditor
+              section={editingSection}
+              onUpdate={(updates) => actions.updateSection(editingSection.id, updates)}
+              onUpdateSettings={(settings) => actions.updateSectionSettings(editingSection.id, settings)}
+              modules={editingSection.type === 'modules' ? modules : undefined}
+              onModuleEdit={editingSection.type === 'modules' ? onModuleEdit : undefined}
+            />
+          </div>
+        </ScrollArea>
+      </div>
+    );
+  }
 
-  // Handle module reorder within section
-  const handleReorderModules = async (sectionId: string, orderedIds: string[]) => {
-    await actions.updateSectionSettings(sectionId, { module_order: orderedIds });
-  };
-
+  // ==========================================
+  // STATE 1: Section List (Default View)
+  // ==========================================
   return (
     <div className="flex flex-col h-full">
       {/* Sections Label */}
@@ -178,19 +228,9 @@ export function SectionTreePanel({
                   key={section.id}
                   section={section}
                   isSelected={section.id === selectedSectionId}
-                  isEditing={section.id === expandedEditorId}
-                  modules={getModulesForSection(section)}
-                  allModules={modules}
                   onSelect={() => actions.selectSection(section.id)}
-                  onToggleEditor={() => handleToggleEditor(section.id)}
+                  onEdit={() => handleEditSection(section.id)}
                   onDelete={() => handleDeleteSection(section.id)}
-                  onToggleModuleVisibility={(moduleId) => handleToggleModuleVisibility(section.id, moduleId)}
-                  onReorderModules={(orderedIds) => handleReorderModules(section.id, orderedIds)}
-                  onUpdateSection={(updates) => actions.updateSection(section.id, updates)}
-                  onUpdateSettings={(settings) => actions.updateSectionSettings(section.id, settings)}
-                  onModuleEdit={onModuleEdit}
-                  isFirst={index === 0}
-                  isLast={index === sortedSections.length - 1}
                 />
               ))}
             </SortableContext>
