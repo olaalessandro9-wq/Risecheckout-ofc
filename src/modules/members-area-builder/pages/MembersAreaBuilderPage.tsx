@@ -12,6 +12,7 @@ import { BuilderHeader } from '../components/header/BuilderHeader';
 import { BuilderCanvas } from '../components/canvas/BuilderCanvas';
 import { BuilderSidebar } from '../components/sidebar/BuilderSidebar';
 import { EditMemberModuleDialog } from '../components/dialogs/EditMemberModuleDialog';
+import { UnsavedChangesGuard } from '@/providers/UnsavedChangesGuard';
 
 export function MembersAreaBuilderPage() {
   const { productId } = useParams<{ productId: string }>();
@@ -39,37 +40,45 @@ export function MembersAreaBuilderPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
-      <BuilderHeader 
-        productId={productId} 
-        state={state} 
-        actions={actions} 
-      />
-      
-      <div className="flex-1 flex overflow-hidden">
-        <BuilderCanvas 
+    <UnsavedChangesGuard 
+      isDirty={state.isDirty}
+      title="Alterações não salvas"
+      description="Você tem alterações que não foram salvas. Deseja sair sem salvar?"
+      cancelText="Continuar editando"
+      confirmText="Sair sem salvar"
+    >
+      <div className="h-screen flex flex-col overflow-hidden">
+        <BuilderHeader 
+          productId={productId} 
           state={state} 
           actions={actions} 
         />
         
-        {!state.isPreviewMode && (
-          <BuilderSidebar 
+        <div className="flex-1 flex overflow-hidden">
+          <BuilderCanvas 
             state={state} 
             actions={actions} 
           />
-        )}
-      </div>
+          
+          {!state.isPreviewMode && (
+            <BuilderSidebar 
+              state={state} 
+              actions={actions} 
+            />
+          )}
+        </div>
 
-      {/* Module Edit Dialog */}
-      <EditMemberModuleDialog
-        open={state.isEditingModule}
-        onOpenChange={(open) => {
-          actions.setEditingModule(open);
-          if (!open) actions.selectModule(null);
-        }}
-        module={selectedModule}
-        onUpdate={actions.updateModule}
-      />
-    </div>
+        {/* Module Edit Dialog */}
+        <EditMemberModuleDialog
+          open={state.isEditingModule}
+          onOpenChange={(open) => {
+            actions.setEditingModule(open);
+            if (!open) actions.selectModule(null);
+          }}
+          module={selectedModule}
+          onUpdate={actions.updateModule}
+        />
+      </div>
+    </UnsavedChangesGuard>
   );
 }

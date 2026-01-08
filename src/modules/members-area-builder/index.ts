@@ -24,6 +24,8 @@ export type {
   MembersAreaBuilderSettings,
   BuilderState,
   BuilderActions,
+  ViewMode,
+  MemberModule,
 } from './types/builder.types';
 
 // Registry

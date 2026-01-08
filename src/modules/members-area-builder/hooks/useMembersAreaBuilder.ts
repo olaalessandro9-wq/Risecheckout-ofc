@@ -2,10 +2,15 @@
  * Members Area Builder - Main Hook
  * Gerencia o estado completo do builder
  * 
+ * FLUXO DE SALVAMENTO MANUAL:
+ * - Todas as operações (add, update, delete, reorder) alteram APENAS o estado local
+ * - O banco de dados só é modificado ao clicar em "Salvar"
+ * - isDirty = true quando há alterações não salvas
+ * 
  * @see RISE ARCHITECT PROTOCOL
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Json } from '@/integrations/supabase/types';
@@ -84,8 +89,17 @@ function parseSettings(data: unknown): MembersAreaBuilderSettings {
   };
 }
 
+// Helper to check if ID is temporary (not yet in DB)
+function isTemporaryId(id: string): boolean {
+  return id.startsWith('temp_');
+}
+
 export function useMembersAreaBuilder(productId: string | undefined): UseMembersAreaBuilderReturn {
   const [state, setState] = useState<BuilderState>(INITIAL_STATE);
+  
+  // Store original sections from DB for comparison during save
+  const originalSectionsRef = useRef<Section[]>([]);
+  const originalSettingsRef = useRef<MembersAreaBuilderSettings>(DEFAULT_BUILDER_SETTINGS);
 
   // =====================================================
   // LOAD
@@ -113,10 +127,17 @@ export function useMembersAreaBuilder(productId: string | undefined): UseMembers
       
       if (productError) throw productError;
       
+      const parsedSections = parseSections(sections || []);
+      const parsedSettings = parseSettings(product?.members_area_settings);
+      
+      // Store originals for comparison
+      originalSectionsRef.current = parsedSections;
+      originalSettingsRef.current = parsedSettings;
+      
       setState(prev => ({
         ...prev,
-        sections: parseSections(sections || []),
-        settings: parseSettings(product?.members_area_settings),
+        sections: parsedSections,
+        settings: parsedSettings,
         isLoading: false,
         isDirty: false,
       }));
@@ -132,206 +153,118 @@ export function useMembersAreaBuilder(productId: string | undefined): UseMembers
   }, [load]);
 
   // =====================================================
-  // SECTION CRUD
+  // SECTION CRUD (LOCAL ONLY - NO DATABASE CALLS)
   // =====================================================
 
   const addSection = useCallback(async (type: SectionType, position?: number): Promise<Section | null> => {
     if (!productId) return null;
     
-    try {
-      const newPosition = position ?? state.sections.length;
-      const defaults = getSectionDefaults(type);
-      
-      const { data, error } = await supabase
-        .from('product_members_sections')
-        .insert({
-          product_id: productId,
-          type,
-          title: null,
-          position: newPosition,
-          settings: defaults as Json,
-          is_active: true,
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      const newSection: Section = {
-        id: data.id,
-        product_id: data.product_id,
-        type: type,
-        title: data.title,
-        position: data.position,
-        settings: (data.settings || {}) as unknown as SectionSettings,
-        is_active: data.is_active,
-        created_at: data.created_at,
-        updated_at: data.updated_at,
-      };
-      
-      setState(prev => ({
-        ...prev,
-        sections: [...prev.sections, newSection].sort((a, b) => a.position - b.position),
-        selectedSectionId: newSection.id,
-        isDirty: true,
-      }));
-      
-      toast.success('Seção adicionada');
-      return newSection;
-    } catch (error) {
-      console.error('[useMembersAreaBuilder] Add section error:', error);
-      toast.error('Erro ao adicionar seção');
-      return null;
-    }
+    const newPosition = position ?? state.sections.length;
+    const defaults = getSectionDefaults(type);
+    
+    // Generate temporary ID - will be replaced with real DB ID on save
+    const newSection: Section = {
+      id: `temp_${crypto.randomUUID()}`,
+      product_id: productId,
+      type,
+      title: null,
+      position: newPosition,
+      settings: { type, ...defaults } as SectionSettings,
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    
+    setState(prev => ({
+      ...prev,
+      sections: [...prev.sections, newSection].sort((a, b) => a.position - b.position),
+      selectedSectionId: newSection.id,
+      isDirty: true,
+    }));
+    
+    toast.success('Seção adicionada');
+    return newSection;
   }, [productId, state.sections.length]);
 
   const updateSection = useCallback(async (id: string, updates: Partial<Section>) => {
-    try {
-      const dbUpdates: Record<string, unknown> = { ...updates };
-      if (updates.settings) {
-        dbUpdates.settings = updates.settings as unknown as Json;
-      }
-      
-      const { error } = await supabase
-        .from('product_members_sections')
-        .update(dbUpdates)
-        .eq('id', id);
-      
-      if (error) throw error;
-      
-      setState(prev => ({
-        ...prev,
-        sections: prev.sections.map(s => s.id === id ? { ...s, ...updates } : s),
-        isDirty: true,
-      }));
-    } catch (error) {
-      console.error('[useMembersAreaBuilder] Update section error:', error);
-      toast.error('Erro ao atualizar seção');
-    }
+    setState(prev => ({
+      ...prev,
+      sections: prev.sections.map(s => s.id === id ? { ...s, ...updates, updated_at: new Date().toISOString() } : s),
+      isDirty: true,
+    }));
   }, []);
 
   const updateSectionSettings = useCallback(async (id: string, settings: Partial<SectionSettings>) => {
-    const section = state.sections.find(s => s.id === id);
-    if (!section) return;
-    
-    const mergedSettings = { ...section.settings, ...settings } as SectionSettings;
-    await updateSection(id, { settings: mergedSettings });
-  }, [state.sections, updateSection]);
+    setState(prev => {
+      const section = prev.sections.find(s => s.id === id);
+      if (!section) return prev;
+      
+      const mergedSettings = { ...section.settings, ...settings } as SectionSettings;
+      
+      return {
+        ...prev,
+        sections: prev.sections.map(s => 
+          s.id === id ? { ...s, settings: mergedSettings, updated_at: new Date().toISOString() } : s
+        ),
+        isDirty: true,
+      };
+    });
+  }, []);
 
   const deleteSection = useCallback(async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('product_members_sections')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
-      
-      setState(prev => ({
-        ...prev,
-        sections: prev.sections.filter(s => s.id !== id),
-        selectedSectionId: prev.selectedSectionId === id ? null : prev.selectedSectionId,
-        isDirty: true,
-      }));
-      
-      toast.success('Seção removida');
-    } catch (error) {
-      console.error('[useMembersAreaBuilder] Delete section error:', error);
-      toast.error('Erro ao remover seção');
-    }
+    setState(prev => ({
+      ...prev,
+      sections: prev.sections.filter(s => s.id !== id),
+      selectedSectionId: prev.selectedSectionId === id ? null : prev.selectedSectionId,
+      isDirty: true,
+    }));
+    
+    toast.success('Seção removida');
   }, []);
 
   const reorderSections = useCallback(async (orderedIds: string[]) => {
-    try {
-      const updates = orderedIds.map((id, index) =>
-        supabase
-          .from('product_members_sections')
-          .update({ position: index })
-          .eq('id', id)
-      );
-      
-      await Promise.all(updates);
-      
-      setState(prev => {
-        const sectionMap = new Map(prev.sections.map(s => [s.id, s]));
-        const reordered = orderedIds.map((id, index) => ({
-          ...sectionMap.get(id)!,
-          position: index,
-        }));
-        return { ...prev, sections: reordered, isDirty: true };
-      });
-    } catch (error) {
-      console.error('[useMembersAreaBuilder] Reorder error:', error);
-      toast.error('Erro ao reordenar seções');
-    }
+    setState(prev => {
+      const sectionMap = new Map(prev.sections.map(s => [s.id, s]));
+      const reordered = orderedIds.map((id, index) => ({
+        ...sectionMap.get(id)!,
+        position: index,
+        updated_at: new Date().toISOString(),
+      }));
+      return { ...prev, sections: reordered, isDirty: true };
+    });
   }, []);
 
   const duplicateSection = useCallback(async (id: string): Promise<Section | null> => {
     const section = state.sections.find(s => s.id === id);
     if (!section || !productId) return null;
     
-    try {
-      const { data, error } = await supabase
-        .from('product_members_sections')
-        .insert({
-          product_id: productId,
-          type: section.type,
-          title: section.title ? `${section.title} (cópia)` : null,
-          position: section.position + 1,
-          settings: section.settings as unknown as Json,
-          is_active: section.is_active,
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      const newSection: Section = {
-        id: data.id,
-        product_id: data.product_id,
-        type: section.type,
-        title: data.title,
-        position: data.position,
-        settings: (data.settings || {}) as unknown as SectionSettings,
-        is_active: data.is_active,
-        created_at: data.created_at,
-        updated_at: data.updated_at,
+    const newSection: Section = {
+      id: `temp_${crypto.randomUUID()}`,
+      product_id: productId,
+      type: section.type,
+      title: section.title ? `${section.title} (cópia)` : null,
+      position: section.position + 1,
+      settings: { ...section.settings },
+      is_active: section.is_active,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    
+    setState(prev => {
+      // Shift positions of sections after the duplicated one
+      const updated = prev.sections.map(s =>
+        s.position > section.position ? { ...s, position: s.position + 1 } : s
+      );
+      return {
+        ...prev,
+        sections: [...updated, newSection].sort((a, b) => a.position - b.position),
+        selectedSectionId: newSection.id,
+        isDirty: true,
       };
-      
-      const sectionsToUpdate = state.sections
-        .filter(s => s.position > section.position)
-        .map(s => ({ id: s.id, position: s.position + 1 }));
-      
-      if (sectionsToUpdate.length > 0) {
-        await Promise.all(
-          sectionsToUpdate.map(({ id, position }) =>
-            supabase
-              .from('product_members_sections')
-              .update({ position })
-              .eq('id', id)
-          )
-        );
-      }
-      
-      setState(prev => {
-        const updated = prev.sections.map(s =>
-          s.position > section.position ? { ...s, position: s.position + 1 } : s
-        );
-        return {
-          ...prev,
-          sections: [...updated, newSection].sort((a, b) => a.position - b.position),
-          selectedSectionId: newSection.id,
-          isDirty: true,
-        };
-      });
-      
-      toast.success('Seção duplicada');
-      return newSection;
-    } catch (error) {
-      console.error('[useMembersAreaBuilder] Duplicate error:', error);
-      toast.error('Erro ao duplicar seção');
-      return null;
-    }
+    });
+    
+    toast.success('Seção duplicada');
+    return newSection;
   }, [productId, state.sections]);
 
   // =====================================================
@@ -359,43 +292,111 @@ export function useMembersAreaBuilder(productId: string | undefined): UseMembers
   }, []);
 
   // =====================================================
-  // SETTINGS
+  // SETTINGS (LOCAL ONLY)
   // =====================================================
 
   const updateSettings = useCallback(async (settings: Partial<MembersAreaBuilderSettings>) => {
-    if (!productId) return;
-    
-    const newSettings = { ...state.settings, ...settings };
-    
-    try {
-      const { error } = await supabase
-        .from('products')
-        .update({ members_area_settings: newSettings as unknown as Json })
-        .eq('id', productId);
-      
-      if (error) throw error;
-      
-      setState(prev => ({
-        ...prev,
-        settings: newSettings,
-        isDirty: true,
-      }));
-    } catch (error) {
-      console.error('[useMembersAreaBuilder] Update settings error:', error);
-      toast.error('Erro ao atualizar configurações');
-    }
-  }, [productId, state.settings]);
+    setState(prev => ({
+      ...prev,
+      settings: { ...prev.settings, ...settings },
+      isDirty: true,
+    }));
+  }, []);
 
   // =====================================================
-  // SAVE
+  // SAVE - Persist ALL changes to database
   // =====================================================
 
   const save = useCallback(async (): Promise<boolean> => {
+    if (!productId) return false;
+    
     setState(prev => ({ ...prev, isSaving: true }));
     
     try {
-      // Settings are saved immediately, so just mark as clean
-      setState(prev => ({ ...prev, isDirty: false, isSaving: false }));
+      // 1. Save settings
+      const { error: settingsError } = await supabase
+        .from('products')
+        .update({ members_area_settings: state.settings as unknown as Json })
+        .eq('id', productId);
+      
+      if (settingsError) throw settingsError;
+      
+      // 2. Get current DB section IDs
+      const originalIds = new Set(originalSectionsRef.current.map(s => s.id));
+      const currentIds = new Set(state.sections.map(s => s.id));
+      
+      // 3. Find sections to DELETE (in original but not in current, excluding temp IDs)
+      const toDelete = [...originalIds].filter(id => !currentIds.has(id));
+      
+      if (toDelete.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('product_members_sections')
+          .delete()
+          .in('id', toDelete);
+        
+        if (deleteError) throw deleteError;
+      }
+      
+      // 4. INSERT new sections (temp IDs)
+      const toInsert = state.sections.filter(s => isTemporaryId(s.id));
+      const insertedIdMap = new Map<string, string>(); // temp_id -> real_id
+      
+      for (const section of toInsert) {
+        const { data, error: insertError } = await supabase
+          .from('product_members_sections')
+          .insert({
+            product_id: productId,
+            type: section.type,
+            title: section.title,
+            position: section.position,
+            settings: section.settings as unknown as Json,
+            is_active: section.is_active,
+          })
+          .select('id')
+          .single();
+        
+        if (insertError) throw insertError;
+        if (data) {
+          insertedIdMap.set(section.id, data.id);
+        }
+      }
+      
+      // 5. UPDATE existing sections (not temp, exists in original)
+      const toUpdate = state.sections.filter(s => !isTemporaryId(s.id) && originalIds.has(s.id));
+      
+      for (const section of toUpdate) {
+        const { error: updateError } = await supabase
+          .from('product_members_sections')
+          .update({
+            title: section.title,
+            position: section.position,
+            settings: section.settings as unknown as Json,
+            is_active: section.is_active,
+          })
+          .eq('id', section.id);
+        
+        if (updateError) throw updateError;
+      }
+      
+      // 6. Update local state with real IDs and refresh originals
+      setState(prev => {
+        const updatedSections = prev.sections.map(s => {
+          const realId = insertedIdMap.get(s.id);
+          return realId ? { ...s, id: realId } : s;
+        });
+        
+        // Update refs
+        originalSectionsRef.current = updatedSections;
+        originalSettingsRef.current = prev.settings;
+        
+        return {
+          ...prev,
+          sections: updatedSections,
+          isDirty: false,
+          isSaving: false,
+        };
+      });
+      
       toast.success('Alterações salvas');
       return true;
     } catch (error) {
@@ -404,6 +405,22 @@ export function useMembersAreaBuilder(productId: string | undefined): UseMembers
       setState(prev => ({ ...prev, isSaving: false }));
       return false;
     }
+  }, [productId, state.sections, state.settings]);
+
+  // =====================================================
+  // DISCARD - Reload from database
+  // =====================================================
+
+  const discard = useCallback(() => {
+    // Restore from original refs
+    setState(prev => ({
+      ...prev,
+      sections: originalSectionsRef.current,
+      settings: originalSettingsRef.current,
+      isDirty: false,
+      selectedSectionId: null,
+    }));
+    toast.info('Alterações descartadas');
   }, []);
 
   // =====================================================
@@ -494,6 +511,7 @@ export function useMembersAreaBuilder(productId: string | undefined): UseMembers
     updateSettings,
     save,
     load,
+    discard,
     loadModules,
     updateModule,
     selectModule,
