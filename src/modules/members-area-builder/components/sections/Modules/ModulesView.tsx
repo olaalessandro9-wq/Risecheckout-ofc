@@ -92,13 +92,14 @@ function ModuleCard({ module, showTitle, showProgress, theme, onClick }: ModuleC
   
   return (
     <div 
-      className="group relative cursor-pointer"
+      className="group/module relative cursor-pointer"
       onClick={onClick}
     >
       {/* Thumbnail - Vertical poster format like Netflix */}
       <div 
         className={cn(
-          'relative aspect-[2/3] rounded-lg overflow-hidden transition-transform group-hover:scale-105',
+          'relative aspect-[2/3] rounded-lg overflow-hidden transition-all duration-200',
+          'group-hover/module:scale-105 group-hover/module:shadow-lg',
           theme === 'dark' ? 'bg-zinc-800' : 'bg-gray-200'
         )}
       >
@@ -123,13 +124,20 @@ function ModuleCard({ module, showTitle, showProgress, theme, onClick }: ModuleC
           </div>
         )}
 
-        {/* Hover Overlay with Edit Icon */}
+        {/* Subtle hover overlay - gradient only */}
         <div className={cn(
-          'absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity'
+          'absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent',
+          'opacity-0 group-hover/module:opacity-100 transition-opacity duration-200'
+        )} />
+
+        {/* Discrete edit icon - top right corner (Kiwify style) */}
+        <div className={cn(
+          'absolute top-2 right-2 w-7 h-7 rounded-md flex items-center justify-center',
+          'bg-black/70 backdrop-blur-sm border border-white/10',
+          'opacity-0 group-hover/module:opacity-100 transition-opacity duration-200',
+          'hover:bg-black/90'
         )}>
-          <div className="w-12 h-12 rounded-full flex items-center justify-center bg-primary">
-            <Pencil className="h-5 w-5 text-white" />
-          </div>
+          <Pencil className="h-3.5 w-3.5 text-white" />
         </div>
 
         {/* Inactive Badge */}
@@ -154,7 +162,7 @@ function ModuleCard({ module, showTitle, showProgress, theme, onClick }: ModuleC
       {showTitle !== 'never' && (
         <div className={cn(
           'mt-2 transition-opacity',
-          showTitle === 'hover' && 'opacity-0 group-hover:opacity-100'
+          showTitle === 'hover' && 'opacity-0 group-hover/module:opacity-100'
         )}>
           <h3 className={cn(
             'text-sm font-medium truncate',
