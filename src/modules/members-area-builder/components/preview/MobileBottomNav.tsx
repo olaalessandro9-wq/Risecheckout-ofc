@@ -16,7 +16,7 @@ interface MobileBottomNavProps {
 }
 
 export function MobileBottomNav({ settings, isPreviewMode, onSelectMenu }: MobileBottomNavProps) {
-  const visibleItems = settings.menu_items.filter(item => item.is_visible).slice(0, 5); // Max 5 items
+  const visibleItems = (settings.menu_items ?? []).filter(item => item.is_visible).slice(0, 5);
   
   const getIcon = (iconName: string) => {
     const IconComponent = (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[iconName];

@@ -61,7 +61,20 @@ function parseSections(data: unknown[]): Section[] {
 
 function parseSettings(data: unknown): MembersAreaBuilderSettings {
   if (!data || typeof data !== 'object') return DEFAULT_BUILDER_SETTINGS;
-  return data as MembersAreaBuilderSettings;
+  
+  const partial = data as Partial<MembersAreaBuilderSettings>;
+  
+  return {
+    theme: partial.theme ?? DEFAULT_BUILDER_SETTINGS.theme,
+    primary_color: partial.primary_color ?? DEFAULT_BUILDER_SETTINGS.primary_color,
+    logo_url: partial.logo_url,
+    favicon_url: partial.favicon_url,
+    share_image_url: partial.share_image_url,
+    menu_items: partial.menu_items ?? DEFAULT_BUILDER_SETTINGS.menu_items,
+    login_layout: partial.login_layout ?? DEFAULT_BUILDER_SETTINGS.login_layout,
+    login_background_url: partial.login_background_url,
+    login_logo_url: partial.login_logo_url,
+  };
 }
 
 export function useMembersAreaBuilder(productId: string | undefined): UseMembersAreaBuilderReturn {
