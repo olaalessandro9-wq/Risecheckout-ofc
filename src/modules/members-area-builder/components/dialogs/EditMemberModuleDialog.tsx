@@ -125,13 +125,26 @@ export function EditMemberModuleDialog({
     setFileToCrop(null);
   }, [pendingFile, localPreviewUrl]);
 
-  // Handle re-crop existing pending file
-  const handleReCrop = useCallback(() => {
+  // Handle re-crop (local file OR server image)
+  const handleReCrop = useCallback(async () => {
     if (pendingFile) {
+      // Case 1: Local pending file - use directly
       setFileToCrop(pendingFile);
       setCropDialogOpen(true);
+    } else if (localPreviewUrl && !markedForRemoval) {
+      // Case 2: Server image - fetch and convert to File
+      try {
+        const response = await fetch(localPreviewUrl);
+        const blob = await response.blob();
+        const file = new File([blob], 'cover-image.jpg', { type: blob.type || 'image/jpeg' });
+        setFileToCrop(file);
+        setCropDialogOpen(true);
+      } catch (error) {
+        console.error('[EditMemberModuleDialog] Error fetching image for crop:', error);
+        toast.error('Não foi possível carregar a imagem para recorte');
+      }
     }
-  }, [pendingFile]);
+  }, [pendingFile, localPreviewUrl, markedForRemoval]);
 
   // Handle remove cover (local only, no database update yet)
   const handleRemoveCover = useCallback(() => {
@@ -294,8 +307,8 @@ export function EditMemberModuleDialog({
                   {localPreviewUrl ? 'Trocar' : 'Adicionar'}
                 </Button>
 
-                {/* Crop button - only show if there's a pending file */}
-                {pendingFile && (
+                {/* Crop button - always show when there's an image */}
+                {localPreviewUrl && (
                   <Button
                     type="button"
                     variant="outline"
