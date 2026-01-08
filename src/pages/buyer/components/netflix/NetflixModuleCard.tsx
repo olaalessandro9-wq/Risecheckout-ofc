@@ -34,13 +34,13 @@ export function NetflixModuleCard({ module, index, onClick }: NetflixModuleCardP
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1, duration: 0.4 }}
       onClick={onClick}
-      className="relative group cursor-pointer flex-shrink-0 w-[180px] md:w-[220px]"
+      className="relative group/card cursor-pointer flex-shrink-0 w-[180px] md:w-[220px]"
     >
       {/* Card Container - Fixed aspect ratio 2:3 (poster style) */}
       <motion.div 
         whileHover={{ scale: 1.05, zIndex: 10 }}
         whileTap={{ scale: 0.98 }}
-        className="relative aspect-[2/3] rounded-xl overflow-hidden shadow-lg transition-shadow duration-300 group-hover:shadow-2xl group-hover:shadow-primary/20 ring-1 ring-white/10"
+        className="relative aspect-[2/3] rounded-xl overflow-hidden shadow-lg transition-shadow duration-300 group-hover/card:shadow-2xl group-hover/card:shadow-primary/20 ring-1 ring-white/10"
       >
         {/* Background Image or Gradient Fallback */}
         {module.cover_image_url ? (
@@ -61,8 +61,8 @@ export function NetflixModuleCard({ module, index, onClick }: NetflixModuleCardP
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
         {/* Hover Overlay */}
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center">
-          <PlayCircle className="h-14 w-14 text-white opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-75 group-hover:scale-100" />
+        <div className="absolute inset-0 bg-black/0 group-hover/card:bg-black/40 transition-all duration-300 flex items-center justify-center">
+          <PlayCircle className="h-14 w-14 text-white opacity-0 group-hover/card:opacity-100 transition-all duration-300 transform scale-75 group-hover/card:scale-100" />
         </div>
 
         {/* Badge with lesson count */}
@@ -82,7 +82,7 @@ export function NetflixModuleCard({ module, index, onClick }: NetflixModuleCardP
 
       {/* Title below card */}
       <div className="mt-3 space-y-1">
-        <h3 className="font-medium text-sm text-foreground line-clamp-1 group-hover:text-primary transition-colors">
+        <h3 className="font-medium text-sm text-foreground line-clamp-1 group-hover/card:text-primary transition-colors">
           {module.title}
         </h3>
         {module.description && (
