@@ -17,6 +17,7 @@ import type {
   SectionSettings,
   MembersAreaBuilderSettings,
   ViewMode,
+  MemberModule,
 } from '../types/builder.types';
 import { DEFAULT_BUILDER_SETTINGS } from '../types/builder.types';
 import { getSectionDefaults } from '../registry';
@@ -37,6 +38,9 @@ const INITIAL_STATE: BuilderState = {
   isDirty: false,
   isLoading: true,
   isSaving: false,
+  modules: [],
+  selectedModuleId: null,
+  isEditingModule: false,
 };
 
 // Type guard for SectionType
@@ -402,6 +406,75 @@ export function useMembersAreaBuilder(productId: string | undefined): UseMembers
   }, []);
 
   // =====================================================
+  // MODULES (for individual editing)
+  // =====================================================
+
+  const loadModules = useCallback(async () => {
+    if (!productId) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('product_member_modules')
+        .select('*')
+        .eq('product_id', productId)
+        .order('position', { ascending: true });
+      
+      if (error) throw error;
+      
+      setState(prev => ({
+        ...prev,
+        modules: (data || []) as MemberModule[],
+      }));
+    } catch (error) {
+      console.error('[useMembersAreaBuilder] Load modules error:', error);
+    }
+  }, [productId]);
+
+  const updateModule = useCallback(async (id: string, data: Partial<MemberModule>) => {
+    try {
+      const { error } = await supabase
+        .from('product_member_modules')
+        .update(data)
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      setState(prev => ({
+        ...prev,
+        modules: prev.modules.map(m => m.id === id ? { ...m, ...data } : m),
+      }));
+      
+      toast.success('Módulo atualizado');
+    } catch (error) {
+      console.error('[useMembersAreaBuilder] Update module error:', error);
+      toast.error('Erro ao atualizar módulo');
+    }
+  }, []);
+
+  const selectModule = useCallback((id: string | null) => {
+    setState(prev => ({ 
+      ...prev, 
+      selectedModuleId: id,
+      isEditingModule: id !== null,
+    }));
+  }, []);
+
+  const setEditingModule = useCallback((isEditing: boolean) => {
+    setState(prev => ({ 
+      ...prev, 
+      isEditingModule: isEditing,
+      selectedModuleId: isEditing ? prev.selectedModuleId : null,
+    }));
+  }, []);
+
+  // Load modules when productId changes
+  useEffect(() => {
+    if (productId) {
+      loadModules();
+    }
+  }, [productId, loadModules]);
+
+  // =====================================================
   // RETURN
   // =====================================================
 
@@ -420,6 +493,10 @@ export function useMembersAreaBuilder(productId: string | undefined): UseMembers
     updateSettings,
     save,
     load,
+    loadModules,
+    updateModule,
+    selectModule,
+    setEditingModule,
   };
 
   return { state, actions };

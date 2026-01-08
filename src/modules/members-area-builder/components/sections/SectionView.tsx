@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import type { Section, ViewMode } from '../../types/builder.types';
+import type { Section, ViewMode, MemberModule } from '../../types/builder.types';
 import { BannerView } from './Banner/BannerView';
 import { ModulesView } from './Modules/ModulesView';
 import { CoursesView } from './Courses/CoursesView';
@@ -17,16 +17,18 @@ interface SectionViewProps {
   section: Section;
   viewMode: ViewMode;
   theme: 'light' | 'dark';
+  modules?: MemberModule[];
+  onModuleClick?: (moduleId: string) => void;
 }
 
-export function SectionView({ section, viewMode, theme }: SectionViewProps) {
+export function SectionView({ section, viewMode, theme, modules, onModuleClick }: SectionViewProps) {
   const commonProps = { viewMode, theme };
 
   switch (section.type) {
     case 'banner':
       return <BannerView section={section} {...commonProps} />;
     case 'modules':
-      return <ModulesView section={section} {...commonProps} />;
+      return <ModulesView section={section} {...commonProps} modules={modules} onModuleClick={onModuleClick} />;
     case 'courses':
       return <CoursesView section={section} {...commonProps} />;
     case 'continue_watching':

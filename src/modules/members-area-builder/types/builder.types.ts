@@ -5,6 +5,11 @@
  * @see RISE ARCHITECT PROTOCOL
  */
 
+import type { MemberModule } from '@/modules/members-area/types/module.types';
+
+// Re-export for convenience
+export type { MemberModule };
+
 // =====================================================
 // SECTION TYPES
 // =====================================================
@@ -137,6 +142,10 @@ export interface BuilderState {
   isDirty: boolean;
   isLoading: boolean;
   isSaving: boolean;
+  // Modules data for editing
+  modules: MemberModule[];
+  selectedModuleId: string | null;
+  isEditingModule: boolean;
 }
 
 export interface BuilderActions {
@@ -163,6 +172,12 @@ export interface BuilderActions {
   // Persistence
   save: () => Promise<boolean>;
   load: () => Promise<void>;
+  
+  // Modules (for editing individual module covers)
+  loadModules: () => Promise<void>;
+  updateModule: (id: string, data: Partial<MemberModule>) => Promise<void>;
+  selectModule: (id: string | null) => void;
+  setEditingModule: (isEditing: boolean) => void;
 }
 
 // =====================================================
