@@ -227,17 +227,12 @@ export default function CourseHome() {
                   if (visibleModules.length === 0) return null;
                   
                   return (
-                    <div key={section.id}>
-                      {section.title && (
-                        <h2 className="text-lg font-semibold text-foreground mb-3 px-4 md:px-8">
-                          {section.title}
-                        </h2>
-                      )}
-                      <ModuleCarousel
-                        modules={visibleModules}
-                        onSelectContent={handleSelectContent}
-                      />
-                    </div>
+                    <ModuleCarousel
+                      key={section.id}
+                      modules={visibleModules}
+                      onSelectContent={handleSelectContent}
+                      title={section.title}
+                    />
                   );
                 }
                 
