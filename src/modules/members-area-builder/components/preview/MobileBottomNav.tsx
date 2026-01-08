@@ -12,10 +12,16 @@ import type { MembersAreaBuilderSettings } from '../../types/builder.types';
 interface MobileBottomNavProps {
   settings: MembersAreaBuilderSettings;
   isPreviewMode: boolean;
-  onSelectMenu?: () => void;
+  selectedMenuItemId?: string | null;
+  onSelectMenuItem?: (itemId: string) => void;
 }
 
-export function MobileBottomNav({ settings, isPreviewMode, onSelectMenu }: MobileBottomNavProps) {
+export function MobileBottomNav({ 
+  settings, 
+  isPreviewMode, 
+  selectedMenuItemId,
+  onSelectMenuItem,
+}: MobileBottomNavProps) {
   const visibleItems = (settings.menu_items ?? []).filter(item => item.is_visible).slice(0, 5);
   
   const getIcon = (iconName: string) => {
@@ -26,26 +32,34 @@ export function MobileBottomNav({ settings, isPreviewMode, onSelectMenu }: Mobil
   return (
     <div
       className={cn(
-        'flex items-center justify-around border-t px-2 py-2 transition-all duration-200',
+        'relative flex items-center justify-around border-t px-2 py-2 transition-all duration-200',
         settings.theme === 'dark' 
           ? 'bg-zinc-900 border-zinc-800' 
           : 'bg-white border-gray-200',
-        !isPreviewMode && 'cursor-pointer hover:border-primary/50 group relative'
       )}
-      onClick={onSelectMenu}
     >
       {visibleItems.map((item, index) => {
         const IconComponent = getIcon(item.icon);
-        const isActive = index === 0; // First item is "active"
+        const isActive = index === 0;
+        const isSelected = selectedMenuItemId === item.id;
         
         return (
           <div
             key={item.id}
+            onClick={(e) => {
+              if (!isPreviewMode) {
+                e.stopPropagation();
+                onSelectMenuItem?.(item.id);
+              }
+            }}
             className={cn(
-              'flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition-colors',
+              'flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition-colors cursor-pointer',
               settings.theme === 'dark'
                 ? 'text-zinc-500'
                 : 'text-gray-500',
+              isSelected && !isPreviewMode && 'ring-2 ring-primary ring-offset-1',
+              isSelected && settings.theme === 'dark' && 'ring-offset-zinc-900',
+              isSelected && settings.theme !== 'dark' && 'ring-offset-white',
             )}
             style={isActive ? { color: settings.primary_color } : undefined}
           >
@@ -56,18 +70,6 @@ export function MobileBottomNav({ settings, isPreviewMode, onSelectMenu }: Mobil
           </div>
         );
       })}
-
-      {/* Edit Indicator */}
-      {!isPreviewMode && (
-        <div className={cn(
-          'absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity',
-          settings.theme === 'dark' ? 'bg-black/50' : 'bg-white/50'
-        )}>
-          <div className="bg-primary text-primary-foreground px-2 py-1 rounded text-xs font-medium">
-            Editar Menu
-          </div>
-        </div>
-      )}
     </div>
   );
 }
