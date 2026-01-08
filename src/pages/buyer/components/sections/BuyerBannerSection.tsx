@@ -1,14 +1,14 @@
 /**
  * Buyer Banner Section - Renderiza banner do Builder na área do aluno
- * Usa os mesmos tamanhos/configurações do Builder
+ * Com suporte a swipe/drag via Embla Carousel
  * 
  * @see RISE ARCHITECT PROTOCOL
  */
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { ChevronLeft, ChevronRight, ImageIcon } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import useEmblaCarousel from 'embla-carousel-react';
+import Autoplay from 'embla-carousel-autoplay';
 
 interface BannerSlide {
   id: string;
@@ -22,8 +22,6 @@ interface BannerSettings {
   slides: BannerSlide[];
   transition_seconds: number;
   height: 'small' | 'medium' | 'large';
-  show_navigation: boolean;
-  show_indicators: boolean;
 }
 
 interface BuyerBannerSectionProps {
@@ -32,21 +30,39 @@ interface BuyerBannerSectionProps {
 }
 
 export function BuyerBannerSection({ settings, title }: BuyerBannerSectionProps) {
-  const [currentSlide, setCurrentSlide] = useState(0);
-  
   const slides = settings.slides || [];
   const hasSlides = slides.length > 0;
-  
-  // Auto-advance slides
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  const autoplayPlugin = Autoplay({
+    delay: (settings.transition_seconds || 5) * 1000,
+    stopOnInteraction: false,
+    stopOnMouseEnter: true,
+  });
+
+  const [emblaRef, emblaApi] = useEmblaCarousel(
+    { loop: true, dragFree: false },
+    slides.length > 1 ? [autoplayPlugin] : []
+  );
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setSelectedIndex(emblaApi.selectedScrollSnap());
+  }, [emblaApi]);
+
   useEffect(() => {
-    if (slides.length <= 1 || !settings.transition_seconds) return;
-    
-    const interval = setInterval(() => {
-      setCurrentSlide(prev => (prev + 1) % slides.length);
-    }, settings.transition_seconds * 1000);
-    
-    return () => clearInterval(interval);
-  }, [slides.length, settings.transition_seconds]);
+    if (!emblaApi) return;
+    emblaApi.on('select', onSelect);
+    onSelect();
+    return () => {
+      emblaApi.off('select', onSelect);
+    };
+  }, [emblaApi, onSelect]);
+
+  const scrollTo = useCallback((index: number) => {
+    if (!emblaApi) return;
+    emblaApi.scrollTo(index);
+  }, [emblaApi]);
 
   // Height classes matching Builder exactly
   const heightClass = {
@@ -54,18 +70,6 @@ export function BuyerBannerSection({ settings, title }: BuyerBannerSectionProps)
     medium: 'h-64',   // 256px
     large: 'h-96',    // 384px
   }[settings.height || 'medium'];
-
-  const goToSlide = (index: number) => {
-    setCurrentSlide(index);
-  };
-
-  const goToPrev = () => {
-    setCurrentSlide(prev => (prev - 1 + slides.length) % slides.length);
-  };
-
-  const goToNext = () => {
-    setCurrentSlide(prev => (prev + 1) % slides.length);
-  };
 
   if (!hasSlides) {
     return null; // Don't show empty banners in buyer area
@@ -80,68 +84,45 @@ export function BuyerBannerSection({ settings, title }: BuyerBannerSectionProps)
       )}
       
       <div className={cn('relative overflow-hidden', heightClass)}>
-        {/* Slides */}
-        <div 
-          className="absolute inset-0 flex transition-transform duration-500 ease-in-out"
-          style={{ transform: `translateX(-${currentSlide * 100}%)` }}
-        >
-          {slides.map((slide, index) => (
-            <div 
-              key={slide.id} 
-              className="relative w-full h-full flex-shrink-0"
-            >
-              <img
-                src={slide.image_url}
-                alt={slide.alt || `Slide ${index + 1}`}
-                className="w-full h-full object-cover"
-              />
-              {slide.link && (
-                <a 
-                  href={slide.link} 
-                  className="absolute inset-0"
-                  target="_blank"
-                  rel="noopener noreferrer"
+        <div ref={emblaRef} className="overflow-hidden h-full cursor-grab active:cursor-grabbing">
+          <div className="flex h-full">
+            {slides.map((slide, index) => (
+              <div 
+                key={slide.id} 
+                className="relative w-full h-full flex-shrink-0 flex-grow-0 basis-full"
+              >
+                <img
+                  src={slide.image_url}
+                  alt={slide.alt || `Slide ${index + 1}`}
+                  className="w-full h-full object-cover"
+                  draggable={false}
                 />
-              )}
-            </div>
-          ))}
+                {slide.link && (
+                  <a 
+                    href={slide.link} 
+                    className="absolute inset-0"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  />
+                )}
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Navigation Arrows */}
-        {settings.show_navigation && slides.length > 1 && (
-          <>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white"
-              onClick={goToPrev}
-            >
-              <ChevronLeft className="h-6 w-6" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white"
-              onClick={goToNext}
-            >
-              <ChevronRight className="h-6 w-6" />
-            </Button>
-          </>
-        )}
-
-        {/* Indicators */}
-        {settings.show_indicators && slides.length > 1 && (
+        {/* Indicators - Always visible when multiple slides */}
+        {slides.length > 1 && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
             {slides.map((_, index) => (
               <button
                 key={index}
                 className={cn(
                   'w-2 h-2 rounded-full transition-all',
-                  index === currentSlide 
+                  index === selectedIndex 
                     ? 'bg-white w-4' 
                     : 'bg-white/50 hover:bg-white/75'
                 )}
-                onClick={() => goToSlide(index)}
+                onClick={() => scrollTo(index)}
               />
             ))}
           </div>
