@@ -102,7 +102,8 @@ export function BuyerSidebar({
 
   return (
     <div 
-      className="relative flex-shrink-0 hidden lg:flex h-screen sticky top-0"
+      className="relative flex-shrink-0 hidden lg:flex h-screen"
+      style={{ width: sidebarWidth }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
@@ -135,7 +136,7 @@ export function BuyerSidebar({
         animate={{ width: sidebarWidth }}
         transition={{ duration: 0.3, ease: 'easeInOut' }}
         className={cn(
-          'h-full flex flex-col border-r flex-shrink-0',
+          'fixed left-0 top-0 h-screen flex flex-col border-r flex-shrink-0 z-20',
           settings.theme === 'dark' 
             ? 'bg-zinc-900 border-zinc-800' 
             : 'bg-muted/30 border-border',
