@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Section, SectionType } from '../../types/builder.types';
-import { canDeleteSection } from '../../registry';
+import { canDeleteSection, getSectionLabel } from '../../registry';
 
 // Icon mapping for section types
 const SECTION_ICONS: Record<SectionType, React.ComponentType<{ className?: string }>> = {
@@ -132,15 +132,3 @@ export function SortableSectionTreeItem({
   );
 }
 
-// Helper to get label
-function getSectionLabel(type: SectionType): string {
-  const labels: Record<SectionType, string> = {
-    banner: 'Banner',
-    modules: 'Módulos',
-    courses: 'Cursos',
-    continue_watching: 'Continuar Assistindo',
-    text: 'Texto',
-    spacer: 'Espaçador',
-  };
-  return labels[type];
-}
