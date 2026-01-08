@@ -11,7 +11,7 @@ import { useMembersAreaBuilder } from '../hooks/useMembersAreaBuilder';
 import { BuilderHeader } from '../components/header/BuilderHeader';
 import { BuilderCanvas } from '../components/canvas/BuilderCanvas';
 import { BuilderSidebar } from '../components/sidebar/BuilderSidebar';
-import { EditModuleCoverDialog } from '../components/dialogs/EditModuleCoverDialog';
+import { EditMemberModuleDialog } from '../components/dialogs/EditMemberModuleDialog';
 
 export function MembersAreaBuilderPage() {
   const { productId } = useParams<{ productId: string }>();
@@ -60,8 +60,8 @@ export function MembersAreaBuilderPage() {
         )}
       </div>
 
-      {/* Module Cover Edit Dialog */}
-      <EditModuleCoverDialog
+      {/* Module Edit Dialog */}
+      <EditMemberModuleDialog
         open={state.isEditingModule}
         onOpenChange={(open) => {
           actions.setEditingModule(open);
