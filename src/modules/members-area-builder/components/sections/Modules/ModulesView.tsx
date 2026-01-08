@@ -1,32 +1,49 @@
 /**
  * Modules View - Renderiza seção de módulos estilo Netflix
+ * Usa dados reais dos módulos com suporte a edição individual
  * 
  * @see RISE ARCHITECT PROTOCOL
  */
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { Play, Lock } from 'lucide-react';
-import type { Section, ModulesSettings, ViewMode } from '../../../types/builder.types';
+import { Play, Lock, Pencil } from 'lucide-react';
+import type { Section, ModulesSettings, ViewMode, MemberModule } from '../../../types/builder.types';
 
 interface ModulesViewProps {
   section: Section;
   viewMode: ViewMode;
   theme: 'light' | 'dark';
+  modules?: MemberModule[];
+  onModuleClick?: (moduleId: string) => void;
 }
 
-// Mock data para preview
-const MOCK_MODULES = [
-  { id: '1', title: 'Módulo 1 - Introdução', thumbnail: null, lessons: 5, progress: 100 },
-  { id: '2', title: 'Módulo 2 - Fundamentos', thumbnail: null, lessons: 8, progress: 60 },
-  { id: '3', title: 'Módulo 3 - Avançado', thumbnail: null, lessons: 12, progress: 0 },
-  { id: '4', title: 'Módulo 4 - Prática', thumbnail: null, lessons: 6, progress: 0 },
-  { id: '5', title: 'Módulo 5 - Bônus', thumbnail: null, lessons: 3, progress: 0, locked: true },
-];
-
-export function ModulesView({ section, viewMode, theme }: ModulesViewProps) {
+export function ModulesView({ section, viewMode, theme, modules = [], onModuleClick }: ModulesViewProps) {
   const settings = section.settings as ModulesSettings;
   const cardsPerRow = viewMode === 'mobile' ? 2 : (settings.cards_per_row || 4);
+  
+  // Se não houver módulos reais, mostrar placeholder
+  if (modules.length === 0) {
+    return (
+      <div className="p-6">
+        {section.title && (
+          <h2 className={cn(
+            'text-xl font-bold mb-4',
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          )}>
+            {section.title}
+          </h2>
+        )}
+        <div className={cn(
+          'rounded-lg border-2 border-dashed p-8 text-center',
+          theme === 'dark' ? 'border-zinc-700 text-zinc-400' : 'border-gray-300 text-gray-500'
+        )}>
+          <p>Nenhum módulo cadastrado ainda.</p>
+          <p className="text-sm mt-1">Crie módulos na aba "Conteúdo" da área de membros.</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="p-6">
@@ -40,20 +57,21 @@ export function ModulesView({ section, viewMode, theme }: ModulesViewProps) {
         </h2>
       )}
 
-      {/* Modules Grid/Carousel */}
+      {/* Modules Grid */}
       <div 
         className="grid gap-4"
         style={{ 
           gridTemplateColumns: `repeat(${cardsPerRow}, minmax(0, 1fr))` 
         }}
       >
-        {MOCK_MODULES.map((module) => (
+        {modules.map((module) => (
           <ModuleCard 
             key={module.id} 
             module={module} 
             showTitle={settings.show_title || 'always'}
             showProgress={settings.show_progress}
             theme={theme}
+            onClick={() => onModuleClick?.(module.id)}
           />
         ))}
       </div>
@@ -62,27 +80,31 @@ export function ModulesView({ section, viewMode, theme }: ModulesViewProps) {
 }
 
 interface ModuleCardProps {
-  module: typeof MOCK_MODULES[0];
+  module: MemberModule;
   showTitle: 'always' | 'hover' | 'never';
   showProgress: boolean;
   theme: 'light' | 'dark';
+  onClick?: () => void;
 }
 
-function ModuleCard({ module, showTitle, showProgress, theme }: ModuleCardProps) {
-  const isLocked = 'locked' in module && module.locked;
+function ModuleCard({ module, showTitle, showProgress, theme, onClick }: ModuleCardProps) {
+  const isInactive = !module.is_active;
   
   return (
-    <div className="group relative">
+    <div 
+      className="group relative cursor-pointer"
+      onClick={onClick}
+    >
       {/* Thumbnail - Vertical poster format like Netflix */}
       <div 
         className={cn(
-          'relative aspect-[2/3] rounded-lg overflow-hidden',
+          'relative aspect-[2/3] rounded-lg overflow-hidden transition-transform group-hover:scale-105',
           theme === 'dark' ? 'bg-zinc-800' : 'bg-gray-200'
         )}
       >
-        {module.thumbnail ? (
+        {module.cover_image_url ? (
           <img 
-            src={module.thumbnail} 
+            src={module.cover_image_url} 
             alt={module.title}
             className="w-full h-full object-cover"
           />
@@ -92,7 +114,7 @@ function ModuleCard({ module, showTitle, showProgress, theme }: ModuleCardProps)
               'w-12 h-12 rounded-full flex items-center justify-center',
               theme === 'dark' ? 'bg-zinc-700' : 'bg-gray-300'
             )}>
-              {isLocked ? (
+              {isInactive ? (
                 <Lock className="h-5 w-5 text-muted-foreground" />
               ) : (
                 <Play className="h-5 w-5 text-muted-foreground" />
@@ -101,29 +123,28 @@ function ModuleCard({ module, showTitle, showProgress, theme }: ModuleCardProps)
           </div>
         )}
 
-        {/* Hover Overlay */}
+        {/* Hover Overlay with Edit Icon */}
         <div className={cn(
-          'absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity',
-          isLocked && 'cursor-not-allowed'
+          'absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity'
         )}>
-          <div className={cn(
-            'w-12 h-12 rounded-full flex items-center justify-center',
-            isLocked ? 'bg-zinc-600' : 'bg-primary'
-          )}>
-            {isLocked ? (
-              <Lock className="h-5 w-5 text-white" />
-            ) : (
-              <Play className="h-5 w-5 text-white fill-white" />
-            )}
+          <div className="w-12 h-12 rounded-full flex items-center justify-center bg-primary">
+            <Pencil className="h-5 w-5 text-white" />
           </div>
         </div>
 
-        {/* Progress Bar */}
-        {showProgress && module.progress > 0 && (
+        {/* Inactive Badge */}
+        {isInactive && (
+          <div className="absolute top-2 left-2 px-2 py-0.5 rounded text-xs font-medium bg-amber-500/90 text-white">
+            Inativo
+          </div>
+        )}
+
+        {/* Progress Bar - placeholder since we don't have real progress */}
+        {showProgress && (
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50">
             <div 
               className="h-full bg-primary transition-all"
-              style={{ width: `${module.progress}%` }}
+              style={{ width: '0%' }}
             />
           </div>
         )}
@@ -141,11 +162,14 @@ function ModuleCard({ module, showTitle, showProgress, theme }: ModuleCardProps)
           )}>
             {module.title}
           </h3>
-          <p className="text-xs text-muted-foreground">
-            {module.lessons} aulas
-          </p>
+          {module.description && (
+            <p className="text-xs text-muted-foreground truncate">
+              {module.description}
+            </p>
+          )}
         </div>
       )}
     </div>
   );
 }
+

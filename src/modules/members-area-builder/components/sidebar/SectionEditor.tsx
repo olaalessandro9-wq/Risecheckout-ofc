@@ -16,15 +16,17 @@ import { CoursesEditor } from '../sections/Courses/CoursesEditor';
 import { ContinueWatchingEditor } from '../sections/ContinueWatching/ContinueWatchingEditor';
 import { TextEditor } from '../sections/Text/TextEditor';
 import { SpacerEditor } from '../sections/Spacer/SpacerEditor';
-import type { Section, SectionSettings } from '../../types/builder.types';
+import type { Section, SectionSettings, MemberModule } from '../../types/builder.types';
 
 interface SectionEditorProps {
   section: Section;
   onUpdate: (updates: Partial<Section>) => void;
   onUpdateSettings: (settings: Partial<SectionSettings>) => void;
+  modules?: MemberModule[];
+  onModuleEdit?: (moduleId: string) => void;
 }
 
-export function SectionEditor({ section, onUpdate, onUpdateSettings }: SectionEditorProps) {
+export function SectionEditor({ section, onUpdate, onUpdateSettings, modules, onModuleEdit }: SectionEditorProps) {
   return (
     <div className="space-y-6">
       {/* Section Header */}
@@ -75,7 +77,12 @@ export function SectionEditor({ section, onUpdate, onUpdateSettings }: SectionEd
           <BannerEditor section={section} onUpdate={onUpdateSettings} />
         )}
         {section.type === 'modules' && (
-          <ModulesEditor section={section} onUpdate={onUpdateSettings} />
+          <ModulesEditor 
+            section={section} 
+            onUpdate={onUpdateSettings} 
+            modules={modules}
+            onModuleEdit={onModuleEdit}
+          />
         )}
         {section.type === 'courses' && (
           <CoursesEditor section={section} onUpdate={onUpdateSettings} />
