@@ -171,6 +171,8 @@ export interface SectionConfig<T extends SectionSettings = SectionSettings> {
   description: string;
   icon: string; // Lucide icon name
   maxInstances: number; // -1 = unlimited
+  isRequired: boolean; // Cannot be deleted
+  canDuplicate: boolean; // Can be duplicated
   defaults: Omit<T, 'type'>;
 }
 
@@ -212,16 +214,19 @@ export const DEFAULT_SPACER_SETTINGS: Omit<SpacerSettings, 'type'> = {
   height: 40,
 };
 
+export const DEFAULT_MENU_ITEMS: MenuItemConfig[] = [
+  { id: 'home', label: 'Início', icon: 'Home', is_default: true, is_visible: true },
+  { id: 'continue', label: 'Continuar', icon: 'Play', is_default: true, is_visible: true },
+  { id: 'courses', label: 'Meus Cursos', icon: 'BookOpen', is_default: false, is_visible: true },
+];
+
 export const DEFAULT_BUILDER_SETTINGS: MembersAreaBuilderSettings = {
   theme: 'dark',
   primary_color: '#6366f1',
   logo_url: undefined,
   favicon_url: undefined,
   share_image_url: undefined,
-  menu_items: [
-    { id: 'home', label: 'Início', icon: 'Home', is_default: true, is_visible: true },
-    { id: 'courses', label: 'Meus Cursos', icon: 'BookOpen', is_default: true, is_visible: true },
-  ],
+  menu_items: DEFAULT_MENU_ITEMS,
   login_layout: 'centered',
   login_background_url: undefined,
   login_logo_url: undefined,
