@@ -16,9 +16,10 @@ interface ModulesViewProps {
   theme: 'light' | 'dark';
   modules?: MemberModule[];
   onModuleClick?: (moduleId: string) => void;
+  isPreviewMode?: boolean;
 }
 
-export function ModulesView({ section, viewMode, theme, modules = [], onModuleClick }: ModulesViewProps) {
+export function ModulesView({ section, viewMode, theme, modules = [], onModuleClick, isPreviewMode = false }: ModulesViewProps) {
   const settings = section.settings as ModulesSettings;
   const cardsPerRow = viewMode === 'mobile' ? 2 : (settings.cards_per_row || 4);
   
@@ -65,14 +66,15 @@ export function ModulesView({ section, viewMode, theme, modules = [], onModuleCl
         }}
       >
         {modules.map((module) => (
-          <ModuleCard 
-            key={module.id} 
-            module={module} 
-            showTitle={settings.show_title || 'always'}
-            showProgress={settings.show_progress}
-            theme={theme}
-            onClick={() => onModuleClick?.(module.id)}
-          />
+              <ModuleCard 
+                key={module.id} 
+                module={module} 
+                showTitle={settings.show_title || 'always'}
+                showProgress={settings.show_progress}
+                theme={theme}
+                isPreviewMode={isPreviewMode}
+                onClick={() => onModuleClick?.(module.id)}
+              />
         ))}
       </div>
     </div>
@@ -84,22 +86,26 @@ interface ModuleCardProps {
   showTitle: 'always' | 'hover' | 'never';
   showProgress: boolean;
   theme: 'light' | 'dark';
+  isPreviewMode?: boolean;
   onClick?: () => void;
 }
 
-function ModuleCard({ module, showTitle, showProgress, theme, onClick }: ModuleCardProps) {
+function ModuleCard({ module, showTitle, showProgress, theme, isPreviewMode = false, onClick }: ModuleCardProps) {
   const isInactive = !module.is_active;
   
   return (
     <div 
-      className="group/module relative cursor-pointer"
-      onClick={onClick}
+      className={cn(
+        'group/module relative',
+        !isPreviewMode && 'cursor-pointer'
+      )}
+      onClick={!isPreviewMode ? onClick : undefined}
     >
       {/* Thumbnail - Vertical poster format like Netflix */}
       <div 
         className={cn(
           'relative aspect-[2/3] rounded-lg overflow-hidden transition-all duration-200',
-          'group-hover/module:scale-105 group-hover/module:shadow-lg',
+          !isPreviewMode && 'group-hover/module:scale-105 group-hover/module:shadow-lg',
           theme === 'dark' ? 'bg-zinc-800' : 'bg-gray-200'
         )}
       >
@@ -124,21 +130,26 @@ function ModuleCard({ module, showTitle, showProgress, theme, onClick }: ModuleC
           </div>
         )}
 
-        {/* Subtle hover overlay - gradient only */}
-        <div className={cn(
-          'absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent',
-          'opacity-0 group-hover/module:opacity-100 transition-opacity duration-200'
-        )} />
+        {/* Hover overlay e ícone de edição - SÓ NO MODO EDITOR */}
+        {!isPreviewMode && (
+          <>
+            {/* Subtle hover overlay - gradient only */}
+            <div className={cn(
+              'absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent',
+              'opacity-0 group-hover/module:opacity-100 transition-opacity duration-200'
+            )} />
 
-        {/* Discrete edit icon - top right corner (Kiwify style) */}
-        <div className={cn(
-          'absolute top-2 right-2 w-7 h-7 rounded-md flex items-center justify-center',
-          'bg-black/70 backdrop-blur-sm border border-white/10',
-          'opacity-0 group-hover/module:opacity-100 transition-opacity duration-200',
-          'hover:bg-black/90'
-        )}>
-          <Pencil className="h-3.5 w-3.5 text-white" />
-        </div>
+            {/* Discrete edit icon - top right corner (Kiwify style) */}
+            <div className={cn(
+              'absolute top-2 right-2 w-7 h-7 rounded-md flex items-center justify-center',
+              'bg-black/70 backdrop-blur-sm border border-white/10',
+              'opacity-0 group-hover/module:opacity-100 transition-opacity duration-200',
+              'hover:bg-black/90'
+            )}>
+              <Pencil className="h-3.5 w-3.5 text-white" />
+            </div>
+          </>
+        )}
 
         {/* Inactive Badge */}
         {isInactive && (

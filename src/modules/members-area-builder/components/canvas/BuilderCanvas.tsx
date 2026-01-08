@@ -88,13 +88,14 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
                       onDelete={() => actions.deleteSection(section.id)}
                       onToggleActive={() => actions.updateSection(section.id, { is_active: !section.is_active })}
                     >
-                      <SectionView 
-                        section={section} 
-                        viewMode={viewMode}
-                        theme={settings.theme}
-                        modules={section.type === 'modules' ? modules : undefined}
-                        onModuleClick={section.type === 'modules' ? handleModuleClick : undefined}
-                      />
+                    <SectionView 
+                      section={section} 
+                      viewMode={viewMode}
+                      theme={settings.theme}
+                      modules={section.type === 'modules' ? modules : undefined}
+                      onModuleClick={section.type === 'modules' ? handleModuleClick : undefined}
+                      isPreviewMode={isPreviewMode}
+                    />
                     </SectionWrapper>
                   ))}
                   
@@ -174,13 +175,14 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
                   onDelete={() => actions.deleteSection(section.id)}
                   onToggleActive={() => actions.updateSection(section.id, { is_active: !section.is_active })}
                 >
-                  <SectionView 
-                    section={section} 
-                    viewMode={viewMode}
-                    theme={settings.theme}
-                    modules={section.type === 'modules' ? modules : undefined}
-                    onModuleClick={section.type === 'modules' ? handleModuleClick : undefined}
-                  />
+                      <SectionView 
+                        section={section} 
+                        viewMode={viewMode}
+                        theme={settings.theme}
+                        modules={section.type === 'modules' ? modules : undefined}
+                        onModuleClick={section.type === 'modules' ? handleModuleClick : undefined}
+                        isPreviewMode={isPreviewMode}
+                      />
                 </SectionWrapper>
               ))}
               

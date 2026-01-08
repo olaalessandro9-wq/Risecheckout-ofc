@@ -19,10 +19,18 @@ interface SectionViewProps {
   theme: 'light' | 'dark';
   modules?: MemberModule[];
   onModuleClick?: (moduleId: string) => void;
+  isPreviewMode?: boolean;
 }
 
-export function SectionView({ section, viewMode, theme, modules, onModuleClick }: SectionViewProps) {
-  const commonProps = { viewMode, theme };
+export function SectionView({ 
+  section, 
+  viewMode, 
+  theme, 
+  modules, 
+  onModuleClick,
+  isPreviewMode = false
+}: SectionViewProps) {
+  const commonProps = { viewMode, theme, isPreviewMode };
 
   switch (section.type) {
     case 'banner':
