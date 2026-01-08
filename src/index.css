@@ -431,3 +431,41 @@ iframe.mp-error {
   background-color: var(--item-hover-bg, rgba(0, 0, 0, 0.05)) !important;
   color: inherit !important;
 }
+
+/* ========================================
+   MEMBERS AREA - Dynamic Theme Variables
+   ======================================== */
+
+/* Override primary color with members area custom color */
+.members-area-root {
+  --primary: var(--members-primary);
+  --primary-foreground: var(--members-primary-foreground);
+}
+
+/* Utility classes for members area */
+.bg-members-primary {
+  background-color: hsl(var(--members-primary));
+}
+
+.text-members-primary {
+  color: hsl(var(--members-primary));
+}
+
+.border-members-primary {
+  border-color: hsl(var(--members-primary));
+}
+
+/* Hover variants */
+.hover\:bg-members-primary:hover {
+  background-color: hsl(var(--members-primary));
+}
+
+.hover\:text-members-primary:hover {
+  color: hsl(var(--members-primary));
+}
+
+/* Group hover variants */
+.group:hover .group-hover\:text-members-primary,
+.group\/card:hover .group-hover\/card\:text-members-primary {
+  color: hsl(var(--members-primary));
+}

@@ -40,7 +40,8 @@ export function NetflixModuleCard({ module, index, onClick }: NetflixModuleCardP
       <motion.div 
         whileHover={{ scale: 1.05, zIndex: 10 }}
         whileTap={{ scale: 0.98 }}
-        className="relative aspect-[2/3] rounded-xl overflow-hidden shadow-lg transition-shadow duration-300 group-hover/card:shadow-2xl group-hover/card:shadow-primary/20 ring-1 ring-white/10"
+        className="relative aspect-[2/3] rounded-xl overflow-hidden shadow-lg transition-shadow duration-300 group-hover/card:shadow-2xl ring-1 ring-white/10"
+        style={{ '--tw-shadow-color': 'hsl(var(--members-primary) / 0.2)' } as React.CSSProperties}
       >
         {/* Background Image or Gradient Fallback */}
         {module.cover_image_url ? (
@@ -82,7 +83,7 @@ export function NetflixModuleCard({ module, index, onClick }: NetflixModuleCardP
 
       {/* Title below card */}
       <div className="mt-3 space-y-1">
-        <h3 className="font-medium text-sm text-foreground line-clamp-1 group-hover/card:text-primary transition-colors">
+        <h3 className="font-medium text-sm text-foreground line-clamp-1 group-hover/card:text-members-primary transition-colors">
           {module.title}
         </h3>
         {module.description && (
