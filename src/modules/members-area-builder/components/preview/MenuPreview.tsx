@@ -16,7 +16,7 @@ interface MenuPreviewProps {
 }
 
 export function MenuPreview({ settings, isPreviewMode, onSelectMenu }: MenuPreviewProps) {
-  const visibleItems = settings.menu_items.filter(item => item.is_visible);
+  const visibleItems = (settings.menu_items ?? []).filter(item => item.is_visible);
   
   const getIcon = (iconName: string) => {
     const IconComponent = (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[iconName];
