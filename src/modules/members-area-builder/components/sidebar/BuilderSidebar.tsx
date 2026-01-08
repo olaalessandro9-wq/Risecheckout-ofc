@@ -18,8 +18,13 @@ interface BuilderSidebarProps {
 }
 
 export function BuilderSidebar({ state, actions }: BuilderSidebarProps) {
-  const { selectedSectionId, sections, settings } = state;
+  const { selectedSectionId, sections, settings, modules } = state;
   const selectedSection = sections.find(s => s.id === selectedSectionId);
+
+  const handleModuleEdit = (moduleId: string) => {
+    actions.selectModule(moduleId);
+    actions.setEditingModule(true);
+  };
 
   return (
     <aside className="w-80 border-l bg-background flex flex-col h-full overflow-hidden">
@@ -41,6 +46,8 @@ export function BuilderSidebar({ state, actions }: BuilderSidebarProps) {
               section={selectedSection}
               onUpdate={(updates) => actions.updateSection(selectedSection.id, updates)}
               onUpdateSettings={(settings) => actions.updateSectionSettings(selectedSection.id, settings)}
+              modules={selectedSection.type === 'modules' ? modules : undefined}
+              onModuleEdit={selectedSection.type === 'modules' ? handleModuleEdit : undefined}
             />
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
