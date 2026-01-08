@@ -68,14 +68,14 @@ export function ModuleCarousel({ modules, onSelectContent }: ModuleCarouselProps
       </motion.div>
 
       {/* Carousel Container */}
-      <div className="relative group">
+      <div className="relative group/carousel">
         {/* Left Arrow */}
         {showLeftArrow && (
           <Button
             variant="ghost"
             size="icon"
             onClick={() => scroll("left")}
-            className="absolute left-2 top-1/2 -translate-y-1/2 z-20 h-12 w-12 rounded-full bg-background/80 backdrop-blur-sm shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute left-2 top-1/2 -translate-y-1/2 z-20 h-12 w-12 rounded-full bg-background/80 backdrop-blur-sm shadow-lg opacity-0 group-hover/carousel:opacity-100 transition-opacity"
           >
             <ChevronLeft className="h-6 w-6" />
           </Button>
@@ -87,7 +87,7 @@ export function ModuleCarousel({ modules, onSelectContent }: ModuleCarouselProps
             variant="ghost"
             size="icon"
             onClick={() => scroll("right")}
-            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 h-12 w-12 rounded-full bg-background/80 backdrop-blur-sm shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 h-12 w-12 rounded-full bg-background/80 backdrop-blur-sm shadow-lg opacity-0 group-hover/carousel:opacity-100 transition-opacity"
           >
             <ChevronRight className="h-6 w-6" />
           </Button>
