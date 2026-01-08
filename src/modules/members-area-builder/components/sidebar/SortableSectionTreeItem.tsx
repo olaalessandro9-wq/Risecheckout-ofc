@@ -1,6 +1,7 @@
 /**
  * Sortable Section Tree Item - Item sortable da árvore de seções
  * Usa @dnd-kit para drag-and-drop
+ * Inclui editor inline colapsável
  * 
  * @see RISE ARCHITECT PROTOCOL
  */
@@ -22,9 +23,14 @@ import {
   Minus,
   Eye,
   EyeOff,
+  Settings2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import {
   DndContext,
   closestCenter,
@@ -40,7 +46,8 @@ import {
   verticalListSortingStrategy,
   useSortable as useNestedSortable,
 } from '@dnd-kit/sortable';
-import type { Section, SectionType, BannerSettings, MemberModule, ModulesSettings } from '../../types/builder.types';
+import { SectionEditor } from './SectionEditor';
+import type { Section, SectionType, BannerSettings, MemberModule, ModulesSettings, SectionSettings } from '../../types/builder.types';
 import { canDeleteSection } from '../../registry';
 
 // Icon mapping for section types
@@ -56,12 +63,17 @@ const SECTION_ICONS: Record<SectionType, React.ComponentType<{ className?: strin
 interface SortableSectionTreeItemProps {
   section: Section;
   isSelected: boolean;
+  isEditing: boolean;
   modules?: MemberModule[];
   allModules?: MemberModule[];
   onSelect: () => void;
+  onToggleEditor: () => void;
   onDelete: () => void;
   onToggleModuleVisibility?: (moduleId: string) => void;
   onReorderModules?: (orderedIds: string[]) => void;
+  onUpdateSection: (updates: Partial<Section>) => void;
+  onUpdateSettings: (settings: Partial<SectionSettings>) => void;
+  onModuleEdit?: (moduleId: string) => void;
   isFirst: boolean;
   isLast: boolean;
 }
@@ -69,12 +81,17 @@ interface SortableSectionTreeItemProps {
 export function SortableSectionTreeItem({
   section,
   isSelected,
+  isEditing,
   modules = [],
   allModules = [],
   onSelect,
+  onToggleEditor,
   onDelete,
   onToggleModuleVisibility,
   onReorderModules,
+  onUpdateSection,
+  onUpdateSettings,
+  onModuleEdit,
   isFirst,
   isLast,
 }: SortableSectionTreeItemProps) {
@@ -167,20 +184,22 @@ export function SortableSectionTreeItem({
         className={cn(
           'flex items-center gap-2 px-2 py-2 rounded-md cursor-pointer transition-colors',
           'hover:bg-accent/50',
-          isSelected && 'bg-accent text-accent-foreground'
+          isSelected && 'bg-accent text-accent-foreground',
+          isEditing && 'bg-primary/10 border border-primary/30'
         )}
-        onClick={onSelect}
+        onClick={onToggleEditor}
       >
         {/* Drag handle */}
         <div 
           {...attributes} 
           {...listeners} 
           className="cursor-grab active:cursor-grabbing p-1 hover:bg-accent/50 rounded"
+          onClick={(e) => e.stopPropagation()}
         >
           <GripVertical className="h-4 w-4 text-muted-foreground" />
         </div>
         
-        {/* Expand/collapse chevron */}
+        {/* Expand/collapse chevron for subitems */}
         {hasSubitems ? (
           <button
             className="p-0.5 hover:bg-accent rounded"
@@ -214,6 +233,11 @@ export function SortableSectionTreeItem({
           </span>
         )}
         
+        {/* Settings indicator when editing */}
+        {isEditing && (
+          <Settings2 className="h-3.5 w-3.5 text-primary" />
+        )}
+        
         {/* Delete button */}
         {canDelete && (
           <Button
@@ -230,8 +254,23 @@ export function SortableSectionTreeItem({
         )}
       </div>
       
-      {/* Subitems */}
-      {isExpanded && hasSubitems && (
+      {/* Inline Editor - Collapsible */}
+      <Collapsible open={isEditing}>
+        <CollapsibleContent className="overflow-hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0">
+          <div className="mx-2 mt-1 mb-2 p-3 rounded-lg bg-muted/50 border">
+            <SectionEditor
+              section={section}
+              onUpdate={onUpdateSection}
+              onUpdateSettings={onUpdateSettings}
+              modules={section.type === 'modules' ? allModules : undefined}
+              onModuleEdit={section.type === 'modules' ? onModuleEdit : undefined}
+            />
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+      
+      {/* Subitems (slides/modules) */}
+      {isExpanded && hasSubitems && !isEditing && (
         <div className="ml-6 border-l border-border pl-2 mt-1 space-y-0.5">
           {section.type === 'modules' ? (
             // Modules with DnD and visibility toggle
