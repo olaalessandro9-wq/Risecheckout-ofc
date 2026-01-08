@@ -6,9 +6,10 @@
 
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Home, Palette } from 'lucide-react';
+import { Home, Palette, Menu } from 'lucide-react';
 import { SectionTreePanel } from './SectionTreePanel';
 import { GlobalSettingsPanel } from './GlobalSettingsPanel';
+import { MenuSettingsPanel } from './MenuSettingsPanel';
 import type { BuilderState, BuilderActions } from '../../types/builder.types';
 
 interface BuilderSidebarProps {
@@ -32,6 +33,10 @@ export function BuilderSidebar({ state, actions }: BuilderSidebarProps) {
             <Home className="h-4 w-4" />
             Início
           </TabsTrigger>
+          <TabsTrigger value="menu" className="gap-2">
+            <Menu className="h-4 w-4" />
+            Menu
+          </TabsTrigger>
           <TabsTrigger value="global" className="gap-2">
             <Palette className="h-4 w-4" />
             Global
@@ -46,6 +51,14 @@ export function BuilderSidebar({ state, actions }: BuilderSidebarProps) {
             modules={modules}
             actions={actions}
             onModuleEdit={handleModuleEdit}
+          />
+        </TabsContent>
+
+        {/* Aba Menu - Configurações do Menu/Sidebar */}
+        <TabsContent value="menu" className="flex-1 overflow-auto mt-0 p-4 data-[state=inactive]:hidden">
+          <MenuSettingsPanel
+            settings={settings}
+            onUpdate={actions.updateSettings}
           />
         </TabsContent>
 
