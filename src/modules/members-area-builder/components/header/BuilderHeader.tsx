@@ -33,7 +33,7 @@ export function BuilderHeader({ productId, state, actions }: BuilderHeaderProps)
     if (isDirty) {
       // Could add confirmation dialog here
     }
-    navigate(`/dashboard/produtos/${productId}/members-area`);
+    navigate(`/dashboard/produtos/editar?id=${productId}&section=members-area&tab=content`);
   };
 
   const handleSave = async () => {
