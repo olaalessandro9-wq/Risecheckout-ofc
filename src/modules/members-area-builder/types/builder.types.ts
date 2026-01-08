@@ -152,7 +152,7 @@ export interface BuilderState {
 }
 
 export interface BuilderActions {
-  // Sections CRUD
+  // Sections CRUD (local only - no DB calls)
   addSection: (type: SectionType, position?: number) => Promise<Section | null>;
   updateSection: (id: string, updates: Partial<Section>) => Promise<void>;
   updateSectionSettings: (id: string, settings: Partial<SectionSettings>) => Promise<void>;
@@ -169,12 +169,13 @@ export interface BuilderActions {
   togglePreviewMode: () => void;
   toggleMenuCollapse: () => void;
   
-  // Settings
+  // Settings (local only)
   updateSettings: (settings: Partial<MembersAreaBuilderSettings>) => Promise<void>;
   
   // Persistence
   save: () => Promise<boolean>;
   load: () => Promise<void>;
+  discard: () => void; // Discard unsaved changes
   
   // Modules (for editing individual module covers)
   loadModules: () => Promise<void>;
