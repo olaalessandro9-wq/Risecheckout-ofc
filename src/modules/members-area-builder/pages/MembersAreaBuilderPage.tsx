@@ -11,10 +11,16 @@ import { useMembersAreaBuilder } from '../hooks/useMembersAreaBuilder';
 import { BuilderHeader } from '../components/header/BuilderHeader';
 import { BuilderCanvas } from '../components/canvas/BuilderCanvas';
 import { BuilderSidebar } from '../components/sidebar/BuilderSidebar';
+import { EditModuleCoverDialog } from '../components/dialogs/EditModuleCoverDialog';
 
 export function MembersAreaBuilderPage() {
   const { productId } = useParams<{ productId: string }>();
   const { state, actions } = useMembersAreaBuilder(productId);
+
+  // Find selected module for editing
+  const selectedModule = state.selectedModuleId 
+    ? state.modules.find(m => m.id === state.selectedModuleId) ?? null
+    : null;
 
   if (!productId) {
     return (
@@ -53,6 +59,17 @@ export function MembersAreaBuilderPage() {
           />
         )}
       </div>
+
+      {/* Module Cover Edit Dialog */}
+      <EditModuleCoverDialog
+        open={state.isEditingModule}
+        onOpenChange={(open) => {
+          actions.setEditingModule(open);
+          if (!open) actions.selectModule(null);
+        }}
+        module={selectedModule}
+        onUpdate={actions.updateModule}
+      />
     </div>
   );
 }

@@ -20,7 +20,7 @@ interface BuilderCanvasProps {
 }
 
 export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
-  const { sections, selectedSectionId, selectedMenuItemId, viewMode, isPreviewMode, isMenuCollapsed, settings } = state;
+  const { sections, selectedSectionId, selectedMenuItemId, viewMode, isPreviewMode, isMenuCollapsed, settings, modules } = state;
 
   const handleMoveSection = (index: number, direction: 'up' | 'down') => {
     const newIndex = direction === 'up' ? index - 1 : index + 1;
@@ -33,6 +33,11 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
 
   const handleAddSection = (type: SectionType) => {
     actions.addSection(type);
+  };
+
+  const handleModuleClick = (moduleId: string) => {
+    actions.selectModule(moduleId);
+    actions.setEditingModule(true);
   };
 
   const isDesktop = viewMode === 'desktop';
@@ -87,6 +92,8 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
                         section={section} 
                         viewMode={viewMode}
                         theme={settings.theme}
+                        modules={section.type === 'modules' ? modules : undefined}
+                        onModuleClick={section.type === 'modules' ? handleModuleClick : undefined}
                       />
                     </SectionWrapper>
                   ))}
@@ -171,6 +178,8 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
                     section={section} 
                     viewMode={viewMode}
                     theme={settings.theme}
+                    modules={section.type === 'modules' ? modules : undefined}
+                    onModuleClick={section.type === 'modules' ? handleModuleClick : undefined}
                   />
                 </SectionWrapper>
               ))}
