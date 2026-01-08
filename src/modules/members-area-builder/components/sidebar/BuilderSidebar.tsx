@@ -5,10 +5,11 @@
  */
 
 import React from 'react';
-import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings, Palette } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { Layers, Palette } from 'lucide-react';
 import { SectionEditor } from './SectionEditor';
+import { SectionTreePanel } from './SectionTreePanel';
 import { GlobalSettingsPanel } from './GlobalSettingsPanel';
 import type { BuilderState, BuilderActions } from '../../types/builder.types';
 
@@ -28,11 +29,11 @@ export function BuilderSidebar({ state, actions }: BuilderSidebarProps) {
 
   return (
     <aside className="w-80 border-l bg-background flex flex-col h-full overflow-hidden">
-      <Tabs defaultValue="section" className="flex flex-col h-full">
-        <TabsList className="w-full justify-start rounded-none border-b h-12 px-2">
-          <TabsTrigger value="section" className="gap-2">
-            <Settings className="h-4 w-4" />
-            Seção
+      <Tabs defaultValue="sections" className="flex flex-col h-full">
+        <TabsList className="w-full justify-start rounded-none border-b h-12 px-2 shrink-0">
+          <TabsTrigger value="sections" className="gap-2">
+            <Layers className="h-4 w-4" />
+            Seções
           </TabsTrigger>
           <TabsTrigger value="global" className="gap-2">
             <Palette className="h-4 w-4" />
@@ -40,22 +41,34 @@ export function BuilderSidebar({ state, actions }: BuilderSidebarProps) {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="section" className="flex-1 overflow-auto m-0 p-4">
-          {selectedSection ? (
-            <SectionEditor
-              section={selectedSection}
-              onUpdate={(updates) => actions.updateSection(selectedSection.id, updates)}
-              onUpdateSettings={(settings) => actions.updateSectionSettings(selectedSection.id, settings)}
-              modules={selectedSection.type === 'modules' ? modules : undefined}
-              onModuleEdit={selectedSection.type === 'modules' ? handleModuleEdit : undefined}
+        <TabsContent value="sections" className="flex-1 flex flex-col m-0 overflow-hidden">
+          {/* Section Tree - upper part */}
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <SectionTreePanel
+              sections={sections}
+              selectedSectionId={selectedSectionId}
+              modules={modules}
+              actions={actions}
             />
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-              <Settings className="h-8 w-8 mb-2" />
-              <p className="text-sm">
-                Selecione uma seção para editar
-              </p>
-            </div>
+          </div>
+          
+          {/* Section Editor - lower part (when section selected) */}
+          {selectedSection && (
+            <>
+              <Separator />
+              <div className="shrink-0 max-h-[50%] overflow-auto p-4">
+                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                  Configurações
+                </h3>
+                <SectionEditor
+                  section={selectedSection}
+                  onUpdate={(updates) => actions.updateSection(selectedSection.id, updates)}
+                  onUpdateSettings={(settings) => actions.updateSectionSettings(selectedSection.id, settings)}
+                  modules={selectedSection.type === 'modules' ? modules : undefined}
+                  onModuleEdit={selectedSection.type === 'modules' ? handleModuleEdit : undefined}
+                />
+              </div>
+            </>
           )}
         </TabsContent>
 
