@@ -31,11 +31,7 @@
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { handleCors } from '../_shared/cors.ts';
 
 interface SecretToMigrate {
   key: string;
@@ -165,10 +161,12 @@ function extractSecretsFromConfig(
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+  // SECURITY: Validar CORS no início
+  const corsResult = handleCors(req);
+  if (corsResult instanceof Response) {
+    return corsResult; // Retorna 403 ou preflight OK
   }
+  const corsHeaders = corsResult.headers;
 
   try {
     // 1. Inicializar Supabase Client com service_role

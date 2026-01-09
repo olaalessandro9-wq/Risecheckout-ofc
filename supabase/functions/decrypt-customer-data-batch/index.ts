@@ -11,11 +11,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { handleCors } from "../_shared/cors.ts";
 
 const MAX_ORDER_IDS = 20;
 
@@ -61,9 +57,12 @@ async function decryptValue(encrypted: string, key: CryptoKey): Promise<string |
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  // SECURITY: Validar CORS no início
+  const corsResult = handleCors(req);
+  if (corsResult instanceof Response) {
+    return corsResult; // Retorna 403 ou preflight OK
   }
+  const corsHeaders = corsResult.headers;
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
