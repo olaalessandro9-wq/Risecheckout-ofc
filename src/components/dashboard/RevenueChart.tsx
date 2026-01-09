@@ -1,4 +1,4 @@
-import { Card } from "@/components/ui/card";
+import { useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
@@ -27,73 +27,72 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-export function RevenueChart({ title, data, isLoading = false }: RevenueChartProps) {
-  // Calcular domínio dinâmico do eixo Y para melhor visualização
-  const getYAxisDomain = (): [number, number] => {
-    if (!data || data.length === 0) return [0, 100];
+/**
+ * Calcula domínio e ticks do eixo Y
+ * RISE ARCHITECT: Função pura extraída para memorização
+ */
+function calculateYAxisConfig(data: Array<{ date: string; value: number }>): {
+  domain: [number, number];
+  ticks: number[];
+} {
+  if (!data || data.length === 0) {
+    return { domain: [0, 100], ticks: [0, 20, 40, 60, 80, 100] };
+  }
+
+  const values = data.map(d => d.value);
+  const minValue = Math.min(...values);
+  const maxValue = Math.max(...values);
+
+  if (maxValue === 0) {
+    return { domain: [0, 100], ticks: [0, 20, 40, 60, 80, 100] };
+  }
+
+  const range = maxValue - minValue;
+  const marginPercentage = range < maxValue * 0.05 ? 0.15 : 0.1;
+  const margin = maxValue * marginPercentage;
+
+  let yMin: number;
+  if (minValue < maxValue * 0.2) {
+    yMin = 0;
+  } else {
+    yMin = Math.max(0, minValue - margin);
+  }
+
+  const yMaxWithMargin = maxValue + margin;
+
+  const roundUpToNice = (value: number): number => {
+    if (value === 0) return 0;
     
-    const values = data.map(d => d.value);
-    const minValue = Math.min(...values);
-    const maxValue = Math.max(...values);
+    let increment: number;
+    if (value <= 100) increment = 10;
+    else if (value <= 500) increment = 50;
+    else if (value <= 1000) increment = 100;
+    else if (value <= 2500) increment = 250;
+    else if (value <= 5000) increment = 500;
+    else if (value <= 10000) increment = 1000;
+    else if (value <= 25000) increment = 2500;
+    else if (value <= 50000) increment = 5000;
+    else increment = 10000;
     
-    // Se todos os valores forem zero, usar escala padrão
-    if (maxValue === 0) return [0, 100];
-    
-    // Calcular margem para dar respiro visual (10-15%)
-    const range = maxValue - minValue;
-    const marginPercentage = range < maxValue * 0.05 ? 0.15 : 0.1;
-    const margin = maxValue * marginPercentage;
-    
-    // Calcular yMin: só começa do zero se o valor mínimo for muito próximo de zero
-    let yMin: number;
-    if (minValue < maxValue * 0.2) {
-      yMin = 0;
-    } else {
-      yMin = Math.max(0, minValue - margin);
-    }
-    
-    // Calcular yMax com margem
-    const yMaxWithMargin = maxValue + margin;
-    
-    // Função para arredondar para valores "bonitos" próximos (não muito acima)
-    const roundUpToNice = (value: number): number => {
-      if (value === 0) return 0;
-      
-      // Determinar o incremento baseado na magnitude do valor
-      let increment: number;
-      if (value <= 100) increment = 10;
-      else if (value <= 500) increment = 50;
-      else if (value <= 1000) increment = 100;
-      else if (value <= 2500) increment = 250;
-      else if (value <= 5000) increment = 500;
-      else if (value <= 10000) increment = 1000;
-      else if (value <= 25000) increment = 2500;
-      else if (value <= 50000) increment = 5000;
-      else increment = 10000;
-      
-      // Arredondar para o próximo múltiplo do incremento
-      return Math.ceil(value / increment) * increment;
-    };
-    
-    // Arredondar yMin para baixo e yMax para cima
-    const yMinRounded = yMin === 0 ? 0 : Math.floor(yMin / 100) * 100;
-    const yMaxRounded = roundUpToNice(yMaxWithMargin);
-    
-    return [yMinRounded, yMaxRounded];
+    return Math.ceil(value / increment) * increment;
   };
 
-  // Gerar exatamente 6 ticks uniformemente distribuídos
-  const getYAxisTicks = () => {
-    const [yMin, yMax] = getYAxisDomain();
-    const ticks: number[] = [];
-    const step = (yMax - yMin) / 5; // 6 ticks = 5 intervalos
-    
-    for (let i = 0; i <= 5; i++) {
-      ticks.push(Math.round(yMin + (step * i)));
-    }
-    
-    return ticks;
-  };
+  const yMinRounded = yMin === 0 ? 0 : Math.floor(yMin / 100) * 100;
+  const yMaxRounded = roundUpToNice(yMaxWithMargin);
+
+  // Gerar 6 ticks uniformemente distribuídos
+  const ticks: number[] = [];
+  const step = (yMaxRounded - yMinRounded) / 5;
+  for (let i = 0; i <= 5; i++) {
+    ticks.push(Math.round(yMinRounded + (step * i)));
+  }
+
+  return { domain: [yMinRounded, yMaxRounded], ticks };
+}
+
+export function RevenueChart({ title, data, isLoading = false }: RevenueChartProps) {
+  // RISE ARCHITECT: Memorização para evitar recálculos desnecessários
+  const yAxisConfig = useMemo(() => calculateYAxisConfig(data), [data]);
 
   return (
     <motion.div
@@ -145,8 +144,8 @@ export function RevenueChart({ title, data, isLoading = false }: RevenueChartPro
                   style={{ fontSize: '11px', fontWeight: 500 }}
                   tickLine={false}
                   axisLine={false}
-                  domain={getYAxisDomain()}
-                  ticks={getYAxisTicks()}
+                  domain={yAxisConfig.domain}
+                  ticks={yAxisConfig.ticks}
                   tickFormatter={(value) => {
                     // Formatar valores grandes de forma compacta (ex: 2.5k, 10k)
                     if (value >= 1000) {
