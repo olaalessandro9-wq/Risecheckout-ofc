@@ -39,16 +39,12 @@ export function RevenueChart({ title, data, isLoading = false }: RevenueChartPro
     // Se todos os valores forem zero, usar escala padrão
     if (maxValue === 0) return [0, 'auto'];
     
-    // Calcular margem para dar respiro visual
+    // Calcular margem para dar respiro visual (10-15%)
     const range = maxValue - minValue;
-    
-    // Se a variação for muito pequena (menos de 5% do valor máximo),
-    // usar uma margem maior para mostrar melhor as variações
     const marginPercentage = range < maxValue * 0.05 ? 0.15 : 0.1;
     const margin = maxValue * marginPercentage;
     
     // Calcular yMin: só começa do zero se o valor mínimo for muito próximo de zero
-    // (menos de 20% do valor máximo)
     let yMin: number;
     if (minValue < maxValue * 0.2) {
       yMin = 0;
@@ -56,24 +52,34 @@ export function RevenueChart({ title, data, isLoading = false }: RevenueChartPro
       yMin = Math.max(0, minValue - margin);
     }
     
-    const yMax = maxValue + margin;
+    // Calcular yMax com margem
+    const yMaxWithMargin = maxValue + margin;
     
-    // Arredondar para valores "bonitos"
-    const roundToNice = (value: number): number => {
+    // Função para arredondar para valores "bonitos" próximos (não muito acima)
+    const roundUpToNice = (value: number): number => {
       if (value === 0) return 0;
-      const magnitude = Math.pow(10, Math.floor(Math.log10(value)));
-      const normalized = value / magnitude;
-      let nice: number;
       
-      if (normalized <= 1) nice = 1;
-      else if (normalized <= 2) nice = 2;
-      else if (normalized <= 5) nice = 5;
-      else nice = 10;
+      // Determinar o incremento baseado na magnitude do valor
+      let increment: number;
+      if (value <= 100) increment = 10;
+      else if (value <= 500) increment = 50;
+      else if (value <= 1000) increment = 100;
+      else if (value <= 2500) increment = 250;
+      else if (value <= 5000) increment = 500;
+      else if (value <= 10000) increment = 1000;
+      else if (value <= 25000) increment = 2500;
+      else if (value <= 50000) increment = 5000;
+      else increment = 10000;
       
-      return nice * magnitude;
+      // Arredondar para o próximo múltiplo do incremento
+      return Math.ceil(value / increment) * increment;
     };
     
-    return [Math.floor(yMin / 100) * 100, Math.ceil(roundToNice(yMax))];
+    // Arredondar yMin para baixo e yMax para cima
+    const yMinRounded = yMin === 0 ? 0 : Math.floor(yMin / 100) * 100;
+    const yMaxRounded = roundUpToNice(yMaxWithMargin);
+    
+    return [yMinRounded, yMaxRounded];
   };
 
   return (
