@@ -27,6 +27,7 @@ import { processBumps, type BumpProcessingResult } from "./handlers/bump-process
 import { processCoupon } from "./handlers/coupon-processor.ts";
 import { processAffiliate } from "./handlers/affiliate-processor.ts";
 import { createOrder } from "./handlers/order-creator.ts";
+import { logSecurityEvent, SecurityAction } from "../_shared/audit-logger.ts";
 
 /**
  * Mascara email para logs (LGPD)
@@ -182,6 +183,23 @@ serve(withSentry('create-order', async (req) => {
 
     // 9. RETORNO SUCESSO
     console.log(`[create-order] ✅ Pedido criado: ${orderResult.order_id}`);
+    
+    // SECURITY: Log payment processing
+    await logSecurityEvent(supabase, {
+      userId: product.user_id,
+      action: SecurityAction.PROCESS_PAYMENT,
+      resource: "orders",
+      resourceId: orderResult.order_id,
+      success: true,
+      request: req,
+      metadata: { 
+        email: maskEmail(customer_email),
+        amount_cents: amountInCents,
+        gateway,
+        payment_method,
+        has_affiliate: !!affiliateResult.affiliateId
+      }
+    });
     
     return new Response(
       JSON.stringify({

@@ -38,6 +38,7 @@ import { rateLimitMiddleware, getIdentifier } from '../_shared/rate-limit.ts';
 import { sendOrderConfirmationEmails, type OrderData } from '../_shared/send-order-emails.ts';
 import { getGatewayCredentials, validateCredentials } from '../_shared/platform-config.ts';
 import { grantMembersAccess } from '../_shared/grant-members-access.ts';
+import { logSecurityEvent, SecurityAction } from '../_shared/audit-logger.ts';
 
 // Versão da função - SEMPRE incrementar ao fazer mudanças significativas
 const FUNCTION_VERSION = "145";
@@ -539,6 +540,23 @@ serve(async (req) => {
     }
 
     logInfo('Pedido atualizado com sucesso', { orderId: order.id });
+
+    // SECURITY: Log payment status change
+    if (orderStatus === 'PAID') {
+      await logSecurityEvent(supabase, {
+        userId: vendorId,
+        action: SecurityAction.PROCESS_PAYMENT,
+        resource: "orders",
+        resourceId: order.id,
+        success: true,
+        metadata: { 
+          gateway: "mercadopago",
+          payment_status: payment.status,
+          payment_id: paymentId.toString(),
+          event_type: eventType
+        }
+      });
+    }
 
     // ========================================================================
     // 10. GRANT MEMBERS AREA ACCESS (se aplicável)
