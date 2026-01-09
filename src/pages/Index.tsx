@@ -3,7 +3,7 @@ import { MetricCard } from "@/components/dashboard/MetricCard";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { RecentCustomersTable } from "@/components/dashboard/RecentCustomersTable";
 import { DateRangeFilter } from "@/components/dashboard/DateRangeFilter";
-import { useDashboardAnalytics, getDateRangeFromPreset, type DateRangePreset } from "@/hooks/useDashboardAnalytics";
+import { useDashboardAnalytics, getDateRangeFromPreset, type DateRangePreset } from "@/hooks/dashboard";
 import { DollarSign, CreditCard, Clock, CheckCircle2, AlertCircle, Activity, TrendingUp, QrCode, Tags } from "lucide-react";
 import { motion } from "framer-motion";
 

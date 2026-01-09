@@ -18,7 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import { format, startOfMonth, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import type { DateRangePreset } from "@/hooks/useDashboardAnalytics";
+import type { DateRangePreset } from "@/hooks/dashboard";
 
 interface DateRangeFilterProps {
   selectedPreset: DateRangePreset;
