@@ -13,6 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OrderDetailsDialog } from "./OrderDetailsDialog";
 import { motion } from "framer-motion";
+import { useAuth } from "@/hooks/useAuth";
+import { useDecryptCustomerBatch } from "@/hooks/useDecryptCustomerBatch";
 
 interface Customer {
   id: string;
@@ -42,7 +44,33 @@ interface RecentCustomersTableProps {
 
 const ITEMS_PER_PAGE = 10;
 
+/**
+ * Verifica se um valor parece estar criptografado (base64 longo)
+ */
+function isEncryptedValue(value: string | null | undefined): boolean {
+  if (!value || value.trim() === "") return false;
+  // Valores criptografados são base64 com pelo menos 24 caracteres (IV + ciphertext)
+  return value.length > 24 && /^[A-Za-z0-9+/=]+$/.test(value);
+}
+
+/**
+ * Formata telefone para exibição
+ */
+function formatPhone(phone: string | null | undefined): string {
+  if (!phone) return "—";
+  // Remove caracteres não numéricos
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 11) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  }
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+  return phone;
+}
+
 export function RecentCustomersTable({ customers, isLoading = false, onRefresh }: RecentCustomersTableProps) {
+  const { user } = useAuth();
   const [selectedOrder, setSelectedOrder] = useState<Customer | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -71,6 +99,55 @@ export function RecentCustomersTable({ customers, isLoading = false, onRefresh }
     const endIndex = startIndex + ITEMS_PER_PAGE;
     return filteredCustomers.slice(startIndex, endIndex);
   }, [filteredCustomers, currentPage]);
+
+  // IDs dos pedidos da página atual que o usuário é produtor e precisa descriptografar
+  const orderIdsToDecrypt = useMemo(() => {
+    if (!user?.id) return [];
+    return paginatedCustomers
+      .filter(c => c.productOwnerId === user.id && isEncryptedValue(c.customerPhone))
+      .map(c => c.orderId);
+  }, [paginatedCustomers, user?.id]);
+
+  // Hook para descriptografar telefones em lote (apenas para produtores)
+  const { decryptedMap, isLoading: isDecrypting } = useDecryptCustomerBatch(
+    orderIdsToDecrypt,
+    orderIdsToDecrypt.length > 0
+  );
+
+  /**
+   * Retorna o telefone para exibição na tabela
+   * - Se produtor e descriptografado: mostra telefone formatado
+   * - Se produtor e carregando: mostra skeleton
+   * - Se não produtor ou criptografado: mostra mascarado
+   */
+  const getDisplayPhone = (customer: Customer): React.ReactNode => {
+    const isProducer = user?.id === customer.productOwnerId;
+    const isEncrypted = isEncryptedValue(customer.customerPhone);
+
+    // Se é produtor e o valor está criptografado
+    if (isProducer && isEncrypted) {
+      const decrypted = decryptedMap[customer.orderId]?.customer_phone;
+      
+      if (isDecrypting && !decrypted) {
+        return <Skeleton className="h-4 w-28 bg-primary/10" />;
+      }
+      
+      if (decrypted) {
+        return formatPhone(decrypted);
+      }
+      
+      // Fallback: ainda carregando ou erro
+      return <span className="text-muted-foreground/50">••••••••••</span>;
+    }
+
+    // Se não é produtor e está criptografado: mascarar
+    if (!isProducer && isEncrypted) {
+      return <span className="text-muted-foreground/50">••••••••••</span>;
+    }
+
+    // Valor legado não criptografado ou vazio
+    return customer.phone || "—";
+  };
 
   // Calcular range de páginas a exibir
   const pageNumbers = useMemo(() => {
@@ -272,7 +349,7 @@ export function RecentCustomersTable({ customers, isLoading = false, onRefresh }
                         <TableCell className="font-mono text-sm text-foreground/70 group-hover:text-foreground transition-colors">{customer.id}</TableCell>
                         <TableCell className="text-sm font-medium text-foreground">{customer.offer}</TableCell>
                         <TableCell className="text-sm text-foreground/80">{customer.client}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{customer.phone}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{getDisplayPhone(customer)}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{customer.createdAt}</TableCell>
                         <TableCell className="text-sm font-semibold text-foreground">{customer.value}</TableCell>
                         <TableCell>

@@ -155,3 +155,6 @@ verify_jwt = false
 [functions.decrypt-customer-data]
 verify_jwt = true
 
+[functions.decrypt-customer-data-batch]
+verify_jwt = true
+
