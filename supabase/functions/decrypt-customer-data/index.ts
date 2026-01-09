@@ -20,10 +20,10 @@ const corsHeaders = {
 type UserRole = "owner" | "admin" | "user" | "seller";
 
 /**
- * Obtém o role do usuário
+ * Obtém o role do usuário usando service role client
  */
-async function getUserRole(supabase: any, userId: string): Promise<UserRole> {
-  const { data, error } = await supabase.rpc("get_user_role", {
+async function getUserRole(supabaseAdmin: any, userId: string): Promise<UserRole> {
+  const { data, error } = await supabaseAdmin.rpc("get_user_role", {
     p_user_id: userId,
   });
 
@@ -83,46 +83,55 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const encryptionKey = Deno.env.get("BUYER_ENCRYPTION_KEY");
     
     if (!encryptionKey) {
+      console.error("[decrypt-customer-data] BUYER_ENCRYPTION_KEY not configured");
       throw new Error("BUYER_ENCRYPTION_KEY not configured");
     }
 
-    // Autenticação
+    // Autenticação - usar ANON_KEY para validar JWT do usuário
     const authHeader = req.headers.get("authorization");
     if (!authHeader) {
+      console.error("[decrypt-customer-data] No authorization header");
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const supabaseAuth = createClient(supabaseUrl, supabaseServiceKey, {
+    // Cliente para autenticação (ANON_KEY + Bearer do usuário)
+    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
     });
     
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
     if (authError || !user) {
+      console.error("[decrypt-customer-data] Auth error:", authError?.message || "No user");
       return new Response(
-        JSON.stringify({ error: "Invalid token" }),
+        JSON.stringify({ error: "Invalid token", details: authError?.message }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    // Cliente admin para operações privilegiadas (SERVICE_ROLE_KEY)
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
     const { order_id } = await req.json();
     if (!order_id) {
+      console.error("[decrypt-customer-data] Missing order_id");
       return new Response(
         JSON.stringify({ error: "order_id required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    console.log(`[decrypt-customer-data] User ${user.id} requesting order ${order_id}`);
 
     // Buscar pedido COM dados do produto (para pegar o user_id do produto)
-    const { data: order, error: orderError } = await supabase
+    const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
       .select(`
         id, 
@@ -138,6 +147,7 @@ serve(async (req) => {
       .single();
 
     if (orderError || !order) {
+      console.error("[decrypt-customer-data] Order not found:", order_id, orderError?.message);
       return new Response(
         JSON.stringify({ error: "Order not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -150,15 +160,17 @@ serve(async (req) => {
 
     // Verificar permissão de acesso
     const isProductOwner = user.id === productOwnerId;
-    const userRole = await getUserRole(supabase, user.id);
+    const userRole = await getUserRole(supabaseAdmin, user.id);
     const isOwner = userRole === "owner";
+
+    console.log(`[decrypt-customer-data] Access check: user=${user.id}, productOwner=${productOwnerId}, isProductOwner=${isProductOwner}, role=${userRole}, isOwner=${isOwner}`);
 
     // Regra: Só PRODUTOR do produto ou OWNER da plataforma podem acessar
     if (!isProductOwner && !isOwner) {
       console.log(`[decrypt-customer-data] ACCESS DENIED: user=${user.id}, productOwner=${productOwnerId}, role=${userRole}`);
       
       // Log de tentativa de acesso negado
-      await supabase.from("security_audit_log").insert({
+      await supabaseAdmin.from("security_audit_log").insert({
         user_id: user.id,
         action: "DECRYPT_CUSTOMER_DATA_DENIED",
         resource: "orders",
@@ -187,7 +199,7 @@ serve(async (req) => {
     const accessType = isProductOwner ? "vendor" : "admin";
 
     // Log de auditoria
-    await supabase.from("security_audit_log").insert({
+    await supabaseAdmin.from("security_audit_log").insert({
       user_id: user.id,
       action: "DECRYPT_CUSTOMER_DATA",
       resource: "orders",
