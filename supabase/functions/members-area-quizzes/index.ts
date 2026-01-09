@@ -1,9 +1,13 @@
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
+import { 
+  rateLimitMiddleware, 
+  RATE_LIMIT_CONFIGS,
+  getClientIP 
+} from "../_shared/rate-limiter.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// Use public CORS for members area
+const corsHeaders = PUBLIC_CORS_HEADERS;
 
 interface QuizRequest {
   action: "list" | "get" | "create" | "update" | "delete" | "submit" | "get-attempts";
@@ -166,6 +170,7 @@ async function handleGetAttempts(
 }
 
 Deno.serve(async (req) => {
+  // CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -174,6 +179,17 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Rate limiting
+    const rateLimitResult = await rateLimitMiddleware(
+      supabase as any,
+      req,
+      RATE_LIMIT_CONFIGS.MEMBERS_AREA
+    );
+    if (rateLimitResult) {
+      console.warn(`[members-area-quizzes] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      return rateLimitResult;
+    }
 
     const body: QuizRequest = await req.json();
     const { action, content_id, quiz_id, buyer_token, data } = body;
