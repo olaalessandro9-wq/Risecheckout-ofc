@@ -70,13 +70,5 @@ export function generateInstallments(
 
   return installments;
 }
-
-/**
- * Formata valor em centavos para BRL
- */
-export function formatCurrency(cents: number): string {
-  return (cents / 100).toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  });
-}
+// NOTA: formatCurrency foi removido - usar formatCentsToBRL de @/lib/money
+export { formatCentsToBRL as formatCurrency } from "@/lib/money";

@@ -1,19 +1,14 @@
 /**
  * Funções de formatação para o Dashboard
+ * 
+ * RISE ARCHITECT: formatCurrency unificado com src/lib/money.ts
  */
 
 import type { Order, RecentCustomer } from "../types";
+import { formatCentsToBRL } from "@/lib/money";
 
-// ============================================================================
-// CURRENCY & DATE FORMATTERS
-// ============================================================================
-
-export function formatCurrency(cents: number): string {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(cents / 100);
-}
+// Re-export para manter compatibilidade
+export const formatCurrency = formatCentsToBRL;
 
 export function formatDate(dateString: string): string {
   const date = new Date(dateString);
