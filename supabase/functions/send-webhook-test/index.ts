@@ -1,20 +1,39 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { handleCors, getCorsHeaders, PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
+import { 
+  rateLimitMiddleware, 
+  RATE_LIMIT_CONFIGS,
+  getClientIP 
+} from "../_shared/rate-limiter.ts";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  // CORS handling
+  const origin = req.headers.get("origin");
+  const corsResult = handleCors(req);
+  
+  // If it's a Response (preflight or error), return it
+  if (corsResult instanceof Response) {
+    return corsResult;
   }
+  
+  const corsHeaders = corsResult.headers;
 
   try {
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
+
+    // Rate limiting
+    const rateLimitResult = await rateLimitMiddleware(
+      supabaseClient as any,
+      req,
+      RATE_LIMIT_CONFIGS.WEBHOOK_TEST
+    );
+    if (rateLimitResult) {
+      console.warn(`[send-webhook-test] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      return rateLimitResult;
+    }
 
     const { webhook_id, webhook_url, event_type, payload } = await req.json();
 

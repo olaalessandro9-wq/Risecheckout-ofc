@@ -15,11 +15,15 @@ import {
   getGatewayCredentials,
   validateCredentials
 } from "../_shared/platform-config.ts";
+import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
+import { 
+  rateLimitMiddleware, 
+  RATE_LIMIT_CONFIGS,
+  getClientIP 
+} from "../_shared/rate-limiter.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Use public CORS for checkout/payment endpoints
+const corsHeaders = PUBLIC_CORS_HEADERS;
 
 // URLs corretas conforme documentação oficial
 const PUSHINPAY_URLS = {
@@ -53,21 +57,32 @@ Deno.serve(async (req) => {
   console.log(`[${functionName}] Iniciando...`);
 
   try {
-    // 1. Parse request body
+    // 1. Criar cliente Supabase
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Rate limiting
+    const rateLimitResult = await rateLimitMiddleware(
+      supabase as any,
+      req,
+      RATE_LIMIT_CONFIGS.MEMBERS_AREA // Using same config for status checks
+    );
+    if (rateLimitResult) {
+      console.warn(`[${functionName}] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      return rateLimitResult;
+    }
+
+    // 2. Parse request body
     const body: GetStatusRequest = await req.json();
     const { orderId } = body;
 
     console.log(`[${functionName}] orderId=${orderId}`);
 
-    // 2. Validações
+    // 3. Validações
     if (!orderId) {
       throw new Error('orderId é obrigatório');
     }
-
-    // 3. Criar cliente Supabase
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // 4. Buscar pedido e pix_id
     const { data: order, error: orderError } = await supabase

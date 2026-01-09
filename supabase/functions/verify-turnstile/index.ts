@@ -3,12 +3,17 @@
  * 
  * Verifica tokens do Cloudflare Turnstile (CAPTCHA)
  * Usada antes de processar pagamentos no checkout
+ * 
+ * SECURITY: Rate limiting implementado
  */
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { handleCors, PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
+import { 
+  rateLimitMiddleware, 
+  RATE_LIMIT_CONFIGS,
+  getClientIP 
+} from "../_shared/rate-limiter.ts";
 
 interface TurnstileVerifyRequest {
   token: string;
@@ -23,11 +28,30 @@ interface TurnstileVerifyResponse {
   cdata?: string;
 }
 
+// Use public CORS for Turnstile as it's called from checkout pages
+const corsHeaders = PUBLIC_CORS_HEADERS;
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Rate limiting
+    const rateLimitResult = await rateLimitMiddleware(
+      supabase as any,
+      req,
+      RATE_LIMIT_CONFIGS.TURNSTILE_VERIFY
+    );
+    if (rateLimitResult) {
+      console.warn(`[verify-turnstile] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      return rateLimitResult;
+    }
 
   try {
     const secretKey = Deno.env.get('TURNSTILE_SECRET_KEY');
