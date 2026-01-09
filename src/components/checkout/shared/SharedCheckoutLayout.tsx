@@ -17,7 +17,7 @@
  */
 
 import React from 'react';
-import { CheckCircle, Wallet, Zap } from 'lucide-react';
+import { CheckCircle, Wallet, Zap, ShieldCheck } from 'lucide-react';
 import {
   SharedProductSection,
   SharedPersonalDataForm,
@@ -26,6 +26,7 @@ import {
   SharedOrderSummary,
   SharedCheckoutButton,
 } from './index';
+import { TurnstileWidget } from '@/components/checkout/TurnstileWidget';
 
 interface SharedCheckoutLayoutProps {
   // Dados
@@ -66,6 +67,12 @@ interface SharedCheckoutLayoutProps {
   // Wrapper para formulário (usado no público)
   // Agora recebe formRef para permitir submit programático do PIX
   formWrapper?: (children: React.ReactNode, formRef: React.RefObject<HTMLFormElement>) => React.ReactNode;
+
+  // NOVO: Turnstile (Captcha)
+  turnstileToken?: string | null;
+  onTurnstileVerify?: (token: string) => void;
+  onTurnstileError?: (error: string) => void;
+  onTurnstileExpire?: () => void;
 }
 
 export const SharedCheckoutLayout: React.FC<SharedCheckoutLayoutProps> = ({
@@ -89,6 +96,11 @@ export const SharedCheckoutLayout: React.FC<SharedCheckoutLayoutProps> = ({
   onTotalChange,
   additionalContent,
   formWrapper,
+  // Turnstile props
+  turnstileToken,
+  onTurnstileVerify,
+  onTurnstileError,
+  onTurnstileExpire,
 }) => {
   // Permitir interação em todos os modos (editor, preview, público)
   const disabled = false;
@@ -301,6 +313,25 @@ export const SharedCheckoutLayout: React.FC<SharedCheckoutLayoutProps> = ({
         </>
       )}
 
+      {/* Turnstile Captcha - Apenas no modo público */}
+      {mode === 'public' && onTurnstileVerify && (
+        <div className="mt-6">
+          <div 
+            className="flex items-center justify-center gap-2 mb-3"
+            style={{ color: design.colors.secondaryText }}
+          >
+            <ShieldCheck className="w-4 h-4" />
+            <span className="text-xs">Verificação de segurança</span>
+          </div>
+          <TurnstileWidget
+            onVerify={onTurnstileVerify}
+            onError={onTurnstileError}
+            onExpire={onTurnstileExpire}
+            theme={design.colors.primaryText === '#FFFFFF' ? 'dark' : 'light'}
+          />
+        </div>
+      )}
+
       {/* Botão de Finalizar Compra */}
       {/* Agora o botão aparece para AMBOS os métodos, unificando a UX */}
       <div className="mt-6">
@@ -309,7 +340,7 @@ export const SharedCheckoutLayout: React.FC<SharedCheckoutLayoutProps> = ({
           design={design}
           mode={mode}
           isProcessing={isProcessing}
-          disabled={disabled}
+          disabled={mode === 'public' && !turnstileToken}
           onClick={handleCheckoutClick}
         />
       </div>
