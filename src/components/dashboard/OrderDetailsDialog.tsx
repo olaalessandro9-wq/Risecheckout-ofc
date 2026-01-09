@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -6,7 +7,9 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Package, User, Mail, Phone, CreditCard, Calendar, CheckCircle2, Clock, XCircle, FileText } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Package, User, Mail, Phone, CreditCard, Calendar, CheckCircle2, Clock, XCircle, FileText, Eye, Loader2 } from "lucide-react";
+import { useDecryptCustomerData } from "@/hooks/useDecryptCustomerData";
 
 interface OrderDetailsDialogProps {
   open: boolean;
@@ -59,11 +62,61 @@ const getStatusConfig = (status: string) => {
   }
 };
 
+// Máscara para dados sensíveis não revelados
+const MASKED_VALUE = "••••••••••••";
+
+// Verifica se o valor parece estar criptografado (base64 longo)
+const isEncryptedValue = (value: string | null | undefined): boolean => {
+  if (!value || value === "N/A") return false;
+  // Valores criptografados são base64 longos (>30 chars tipicamente)
+  return value.length > 30 && /^[A-Za-z0-9+/=]+$/.test(value);
+};
+
 export function OrderDetailsDialog({ open, onOpenChange, orderData }: OrderDetailsDialogProps) {
+  const { decryptedData, isLoading, error, decrypt, reset } = useDecryptCustomerData();
+
+  // Reset ao fechar o modal
+  useEffect(() => {
+    if (!open) {
+      reset();
+    }
+  }, [open, reset]);
+
   if (!orderData) return null;
 
   const statusConfig = getStatusConfig(orderData.status);
   const StatusIcon = statusConfig.icon;
+
+  const handleDecrypt = () => {
+    decrypt(orderData.id);
+  };
+
+  // Determina qual valor mostrar para telefone
+  const getPhoneDisplay = () => {
+    if (decryptedData?.customer_phone) {
+      return decryptedData.customer_phone;
+    }
+    if (isEncryptedValue(orderData.customerPhone)) {
+      return MASKED_VALUE;
+    }
+    return orderData.customerPhone;
+  };
+
+  // Determina qual valor mostrar para CPF
+  const getDocumentDisplay = () => {
+    if (decryptedData?.customer_document) {
+      return decryptedData.customer_document;
+    }
+    if (isEncryptedValue(orderData.customerDocument)) {
+      return MASKED_VALUE;
+    }
+    return orderData.customerDocument;
+  };
+
+  const phoneDisplay = getPhoneDisplay();
+  const documentDisplay = getDocumentDisplay();
+  const needsDecryption = isEncryptedValue(orderData.customerPhone) || isEncryptedValue(orderData.customerDocument);
+  const isDecrypted = !!decryptedData;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -115,10 +168,42 @@ export function OrderDetailsDialog({ open, onOpenChange, orderData }: OrderDetai
 
           {/* Cliente - Grid organizado */}
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-              <User className="w-3.5 h-3.5" />
-              <span>Informações do Cliente</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                <User className="w-3.5 h-3.5" />
+                <span>Informações do Cliente</span>
+              </div>
+              
+              {/* Botão Ver Dados - só aparece se há dados criptografados */}
+              {needsDecryption && !isDecrypted && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDecrypt}
+                  disabled={isLoading}
+                  className="h-7 text-xs gap-1.5"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Carregando...
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="w-3 h-3" />
+                      Ver dados sensíveis
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
+
+            {error && (
+              <p className="text-xs text-destructive bg-destructive/10 p-2 rounded-md">
+                {error}
+              </p>
+            )}
+
             <div className="grid gap-2">
               <div className="flex items-center gap-2 p-2 rounded-md bg-muted/30">
                 <div className="p-1.5 rounded-md bg-background">
@@ -140,26 +225,26 @@ export function OrderDetailsDialog({ open, onOpenChange, orderData }: OrderDetai
                 </div>
               </div>
 
-              {orderData.customerPhone && orderData.customerPhone !== 'N/A' && (
+              {phoneDisplay && phoneDisplay !== 'N/A' && (
                 <div className="flex items-center gap-2 p-2 rounded-md bg-muted/30">
                   <div className="p-1.5 rounded-md bg-background">
                     <Phone className="w-3.5 h-3.5 text-muted-foreground" />
                   </div>
                   <div className="flex-1">
                     <p className="text-xs text-muted-foreground">Telefone</p>
-                    <p className="text-sm font-medium text-foreground">{orderData.customerPhone}</p>
+                    <p className="text-sm font-medium text-foreground font-mono">{phoneDisplay}</p>
                   </div>
                 </div>
               )}
 
-              {orderData.customerDocument && orderData.customerDocument !== 'N/A' && (
+              {documentDisplay && documentDisplay !== 'N/A' && (
                 <div className="flex items-center gap-2 p-2 rounded-md bg-muted/30">
                   <div className="p-1.5 rounded-md bg-background">
                     <FileText className="w-3.5 h-3.5 text-muted-foreground" />
                   </div>
                   <div className="flex-1">
                     <p className="text-xs text-muted-foreground">CPF/CNPJ</p>
-                    <p className="text-sm font-medium text-foreground">{orderData.customerDocument}</p>
+                    <p className="text-sm font-medium text-foreground font-mono">{documentDisplay}</p>
                   </div>
                 </div>
               )}
