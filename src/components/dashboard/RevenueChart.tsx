@@ -39,18 +39,41 @@ export function RevenueChart({ title, data, isLoading = false }: RevenueChartPro
     // Se todos os valores forem zero, usar escala padrão
     if (maxValue === 0) return [0, 'auto'];
     
-    // Calcular margem de 10% para dar respiro visual
+    // Calcular margem para dar respiro visual
     const range = maxValue - minValue;
-    const margin = range * 0.1;
     
     // Se a variação for muito pequena (menos de 5% do valor máximo),
-    // usar uma margem fixa para mostrar melhor as variações
-    const effectiveMargin = range < maxValue * 0.05 ? maxValue * 0.05 : margin;
+    // usar uma margem maior para mostrar melhor as variações
+    const marginPercentage = range < maxValue * 0.05 ? 0.15 : 0.1;
+    const margin = maxValue * marginPercentage;
     
-    const yMin = Math.max(0, minValue - effectiveMargin);
-    const yMax = maxValue + effectiveMargin;
+    // Calcular yMin: só começa do zero se o valor mínimo for muito próximo de zero
+    // (menos de 20% do valor máximo)
+    let yMin: number;
+    if (minValue < maxValue * 0.2) {
+      yMin = 0;
+    } else {
+      yMin = Math.max(0, minValue - margin);
+    }
     
-    return [Math.floor(yMin), Math.ceil(yMax)];
+    const yMax = maxValue + margin;
+    
+    // Arredondar para valores "bonitos"
+    const roundToNice = (value: number): number => {
+      if (value === 0) return 0;
+      const magnitude = Math.pow(10, Math.floor(Math.log10(value)));
+      const normalized = value / magnitude;
+      let nice: number;
+      
+      if (normalized <= 1) nice = 1;
+      else if (normalized <= 2) nice = 2;
+      else if (normalized <= 5) nice = 5;
+      else nice = 10;
+      
+      return nice * magnitude;
+    };
+    
+    return [Math.floor(yMin / 100) * 100, Math.ceil(roundToNice(yMax))];
   };
 
   return (
