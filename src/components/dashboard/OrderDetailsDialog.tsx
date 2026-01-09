@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Package, User, Mail, Phone, CreditCard, Calendar, CheckCircle2, Clock, XCircle, FileText, Eye, Loader2 } from "lucide-react";
 import { useDecryptCustomerData } from "@/hooks/useDecryptCustomerData";
+import { useAuth } from "@/hooks/useAuth";
 
 interface OrderDetailsDialogProps {
   open: boolean;
@@ -26,6 +27,8 @@ interface OrderDetailsDialogProps {
     status: "Pago" | "Pendente" | "Reembolso" | "Chargeback";
     createdAt: string;
   } | null;
+  /** ID do dono do produto (products.user_id) - usado para auto-decrypt */
+  productOwnerId?: string;
 }
 
 const getStatusConfig = (status: string) => {
@@ -72,8 +75,22 @@ const isEncryptedValue = (value: string | null | undefined): boolean => {
   return value.length > 30 && /^[A-Za-z0-9+/=]+$/.test(value);
 };
 
-export function OrderDetailsDialog({ open, onOpenChange, orderData }: OrderDetailsDialogProps) {
-  const { decryptedData, isLoading, error, decrypt, reset } = useDecryptCustomerData();
+export function OrderDetailsDialog({ open, onOpenChange, orderData, productOwnerId }: OrderDetailsDialogProps) {
+  const { user } = useAuth();
+  
+  // Determinar se o usuário é o produtor do produto
+  const isProductOwner = user?.id === productOwnerId;
+  
+  // Verificar se precisa descriptografar
+  const needsDecryption = orderData ? (
+    isEncryptedValue(orderData.customerPhone) || isEncryptedValue(orderData.customerDocument)
+  ) : false;
+  
+  // Hook de descriptografia com auto-decrypt para produtores
+  const { decryptedData, isLoading, error, decrypt, reset } = useDecryptCustomerData({
+    autoDecrypt: open && isProductOwner && needsDecryption,
+    orderId: orderData?.id,
+  });
 
   // Reset ao fechar o modal
   useEffect(() => {
@@ -115,8 +132,13 @@ export function OrderDetailsDialog({ open, onOpenChange, orderData }: OrderDetai
 
   const phoneDisplay = getPhoneDisplay();
   const documentDisplay = getDocumentDisplay();
-  const needsDecryption = isEncryptedValue(orderData.customerPhone) || isEncryptedValue(orderData.customerDocument);
   const isDecrypted = !!decryptedData;
+  
+  // Mostrar botão apenas se:
+  // 1. Há dados criptografados
+  // 2. Ainda não descriptografou
+  // 3. NÃO é o produtor do produto (produtor tem auto-decrypt)
+  const showDecryptButton = needsDecryption && !isDecrypted && !isProductOwner;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -174,8 +196,8 @@ export function OrderDetailsDialog({ open, onOpenChange, orderData }: OrderDetai
                 <span>Informações do Cliente</span>
               </div>
               
-              {/* Botão Ver Dados - só aparece se há dados criptografados */}
-              {needsDecryption && !isDecrypted && (
+              {/* Botão Ver Dados - só aparece para NÃO produtores com dados criptografados */}
+              {showDecryptButton && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -195,6 +217,14 @@ export function OrderDetailsDialog({ open, onOpenChange, orderData }: OrderDetai
                     </>
                   )}
                 </Button>
+              )}
+              
+              {/* Loading para produtor (auto-decrypt) */}
+              {isProductOwner && isLoading && needsDecryption && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  <span>Carregando dados...</span>
+                </div>
               )}
             </div>
 

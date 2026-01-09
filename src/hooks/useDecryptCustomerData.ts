@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface DecryptedData {
@@ -10,16 +10,27 @@ interface UseDecryptCustomerDataReturn {
   decryptedData: DecryptedData | null;
   isLoading: boolean;
   error: string | null;
+  accessType: "vendor" | "admin" | null;
   decrypt: (orderId: string) => Promise<void>;
   reset: () => void;
 }
 
-export function useDecryptCustomerData(): UseDecryptCustomerDataReturn {
+interface UseDecryptCustomerDataOptions {
+  /** Se true, dispara decrypt automaticamente quando orderId mudar */
+  autoDecrypt?: boolean;
+  /** ID do pedido para auto-decrypt */
+  orderId?: string;
+}
+
+export function useDecryptCustomerData(
+  options?: UseDecryptCustomerDataOptions
+): UseDecryptCustomerDataReturn {
   const [decryptedData, setDecryptedData] = useState<DecryptedData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [accessType, setAccessType] = useState<"vendor" | "admin" | null>(null);
 
-  const decrypt = async (orderId: string) => {
+  const decrypt = useCallback(async (orderId: string) => {
     if (!orderId) {
       setError("ID do pedido não informado");
       return;
@@ -42,24 +53,34 @@ export function useDecryptCustomerData(): UseDecryptCustomerDataReturn {
       }
 
       setDecryptedData(data.data);
+      setAccessType(data.access_type || null);
     } catch (err: any) {
       console.error("[useDecryptCustomerData] Error:", err);
       setError(err.message || "Erro ao acessar dados");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const reset = () => {
+  const reset = useCallback(() => {
     setDecryptedData(null);
     setError(null);
     setIsLoading(false);
-  };
+    setAccessType(null);
+  }, []);
+
+  // Auto-decrypt quando habilitado e orderId presente
+  useEffect(() => {
+    if (options?.autoDecrypt && options?.orderId && !decryptedData && !isLoading && !error) {
+      decrypt(options.orderId);
+    }
+  }, [options?.autoDecrypt, options?.orderId, decrypt, decryptedData, isLoading, error]);
 
   return {
     decryptedData,
     isLoading,
     error,
+    accessType,
     decrypt,
     reset,
   };

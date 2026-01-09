@@ -57,6 +57,7 @@ interface RecentCustomer {
   // Dados completos para o dialog
   productName: string;
   productImageUrl: string;
+  productOwnerId: string;
   customerName: string;
   customerEmail: string;
   customerPhone: string;
@@ -160,7 +161,8 @@ async function fetchOrders(
       product:product_id (
         id,
         name,
-        image_url
+        image_url,
+        user_id
       )
     `)
     .eq("vendor_id", vendorId)
@@ -353,6 +355,7 @@ function formatRecentCustomers(orders: Order[]): RecentCustomer[] {
       status: translateStatus(order.status),
       productName: product?.name || "Produto não encontrado",
       productImageUrl: product?.image_url || "",
+      productOwnerId: product?.user_id || "",
       customerName: order.customer_name || "N/A",
       customerEmail: order.customer_email || "N/A",
       customerPhone: order.customer_phone || "N/A",
