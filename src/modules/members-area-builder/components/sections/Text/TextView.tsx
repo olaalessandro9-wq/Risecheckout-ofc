@@ -2,9 +2,11 @@
  * Text View - Renderiza seção de texto
  * 
  * @see RISE ARCHITECT PROTOCOL
+ * @security Uses DOMPurify to sanitize HTML content
  */
 
 import React from 'react';
+import DOMPurify from 'dompurify';
 import { cn } from '@/lib/utils';
 import { Type } from 'lucide-react';
 import type { Section, TextSettings, ViewMode } from '../../../types/builder.types';
@@ -32,6 +34,12 @@ export function TextView({ section, viewMode, theme }: TextViewProps) {
     );
   }
   
+  // SECURITY: Sanitize HTML content to prevent XSS attacks
+  const sanitizedContent = DOMPurify.sanitize(settings.content, {
+    ALLOWED_TAGS: ['p', 'br', 'b', 'strong', 'i', 'em', 'u', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'div', 'blockquote'],
+    ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style'],
+  });
+  
   return (
     <div className="p-6">
       <div 
@@ -41,7 +49,7 @@ export function TextView({ section, viewMode, theme }: TextViewProps) {
           settings.alignment === 'center' && 'text-center',
           settings.alignment === 'right' && 'text-right'
         )}
-        dangerouslySetInnerHTML={{ __html: settings.content }}
+        dangerouslySetInnerHTML={{ __html: sanitizedContent }}
       />
     </div>
   );
