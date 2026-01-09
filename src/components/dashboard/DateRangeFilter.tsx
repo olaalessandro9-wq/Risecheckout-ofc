@@ -100,20 +100,12 @@ export function DateRangeFilter({
 
   const handleCalendarOpenChange = (open: boolean) => {
     setIsCalendarOpen(open);
-  };
     
-    // Limpa timeout anterior se existir
-    if (timeoutRef.current) {
+    if (!open && timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
-    
-    // NÃO fecha dropdown automaticamente quando calendário fecha
-    // Deixa o usuário decidir se quer fechar ou escolher outro preset
   };
-
-  // Função não é mais necessária - cada calendário gerencia sua própria data independentemente
-
   const handleApply = () => {
     if (!leftDate || !rightDate) return;
     if (rightDate <= leftDate) return;
