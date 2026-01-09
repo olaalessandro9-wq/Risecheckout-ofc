@@ -2,10 +2,11 @@
  * Rate Limiter para Edge Functions
  * 
  * Implementa rate limiting baseado em IP usando a tabela buyer_rate_limits.
+ * Inclui verificação de IP Blocklist para bloqueio persistente.
  * 
  * VULN-002: Rate limiting expandido para funções críticas
  * 
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -30,6 +31,14 @@ export interface RateLimitResult {
   retryAfter?: string;
   /** Mensagem de erro (se bloqueado) */
   error?: string;
+  /** Se o IP está na blocklist persistente */
+  isBlocklisted?: boolean;
+}
+
+interface BlocklistCheckResult {
+  blocked: boolean;
+  reason: string | null;
+  expires_at: string | null;
 }
 
 /**
@@ -167,6 +176,62 @@ export function getClientIP(req: Request): string {
   
   // Fallback
   return "unknown";
+}
+
+/**
+ * Verifica se IP está na blocklist persistente
+ */
+export async function checkIPBlocklist(
+  supabase: SupabaseClient,
+  ipAddress: string
+): Promise<BlocklistCheckResult> {
+  try {
+    const { data, error } = await supabase
+      .rpc("is_ip_blocked", { p_ip_address: ipAddress });
+    
+    if (error) {
+      console.error("[rate-limiter] Erro ao verificar blocklist:", error);
+      // Fail open - permite se não conseguir verificar
+      return { blocked: false, reason: null, expires_at: null };
+    }
+    
+    // A função retorna um array com um resultado
+    if (data && data.length > 0 && data[0].blocked) {
+      return {
+        blocked: true,
+        reason: data[0].reason,
+        expires_at: data[0].expires_at,
+      };
+    }
+    
+    return { blocked: false, reason: null, expires_at: null };
+  } catch (error) {
+    console.error("[rate-limiter] Erro inesperado ao verificar blocklist:", error);
+    return { blocked: false, reason: null, expires_at: null };
+  }
+}
+
+/**
+ * Cria Response para IP bloqueado na blocklist
+ */
+export function createBlocklistResponse(result: BlocklistCheckResult): Response {
+  const expiresMsg = result.expires_at 
+    ? ` até ${new Date(result.expires_at).toLocaleString()}`
+    : " permanentemente";
+  
+  return new Response(
+    JSON.stringify({
+      error: "Forbidden",
+      message: `Acesso bloqueado${expiresMsg}. Motivo: ${result.reason || "Violações de segurança"}`,
+      blocked_until: result.expires_at,
+    }),
+    {
+      status: 403,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  );
 }
 
 /**
@@ -334,10 +399,11 @@ export function createRateLimitResponse(result: RateLimitResult): Response {
 
 /**
  * Middleware de rate limiting para Edge Functions
+ * Agora inclui verificação de IP Blocklist ANTES do rate limit.
  * 
  * @example
  * const rateLimitResult = await rateLimitMiddleware(supabase, req, RATE_LIMIT_CONFIGS.BUYER_AUTH_LOGIN);
- * if (rateLimitResult) return rateLimitResult; // Retorna 429 se bloqueado
+ * if (rateLimitResult) return rateLimitResult; // Retorna 403 ou 429 se bloqueado
  */
 export async function rateLimitMiddleware(
   supabase: SupabaseClient,
@@ -345,6 +411,15 @@ export async function rateLimitMiddleware(
   config: RateLimitConfig
 ): Promise<Response | null> {
   const clientIP = getClientIP(req);
+  
+  // 1. PRIMEIRO: Verificar IP Blocklist (bloqueio persistente)
+  const blocklistResult = await checkIPBlocklist(supabase, clientIP);
+  if (blocklistResult.blocked) {
+    console.warn(`[rate-limiter] IP ${clientIP} bloqueado na blocklist: ${blocklistResult.reason}`);
+    return createBlocklistResponse(blocklistResult);
+  }
+  
+  // 2. DEPOIS: Verificar Rate Limit (bloqueio temporário)
   const result = await checkRateLimit(supabase, clientIP, config);
   
   if (!result.allowed) {
@@ -352,4 +427,23 @@ export async function rateLimitMiddleware(
   }
   
   return null; // Permitido - continue processando
+}
+
+/**
+ * Middleware simplificado que APENAS verifica blocklist (sem rate limit)
+ * Útil para endpoints que já têm outro tipo de rate limiting
+ */
+export async function blocklistMiddleware(
+  supabase: SupabaseClient,
+  req: Request
+): Promise<Response | null> {
+  const clientIP = getClientIP(req);
+  
+  const blocklistResult = await checkIPBlocklist(supabase, clientIP);
+  if (blocklistResult.blocked) {
+    console.warn(`[blocklist] IP ${clientIP} bloqueado: ${blocklistResult.reason}`);
+    return createBlocklistResponse(blocklistResult);
+  }
+  
+  return null;
 }

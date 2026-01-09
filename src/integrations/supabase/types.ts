@@ -1514,6 +1514,45 @@ export type Database = {
         }
         Relationships: []
       }
+      ip_blocklist: {
+        Row: {
+          block_count: number | null
+          blocked_at: string | null
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          ip_address: string
+          is_active: boolean | null
+          metadata: Json | null
+          reason: string
+          updated_at: string | null
+        }
+        Insert: {
+          block_count?: number | null
+          blocked_at?: string | null
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          ip_address: string
+          is_active?: boolean | null
+          metadata?: Json | null
+          reason: string
+          updated_at?: string | null
+        }
+        Update: {
+          block_count?: number | null
+          blocked_at?: string | null
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          ip_address?: string
+          is_active?: boolean | null
+          metadata?: Json | null
+          reason?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       marketplace_categories: {
         Row: {
           active: boolean | null
@@ -2897,6 +2936,48 @@ export type Database = {
         }
         Relationships: []
       }
+      security_alerts: {
+        Row: {
+          acknowledged: boolean | null
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          alert_type: string
+          buyer_id: string | null
+          created_at: string | null
+          details: Json | null
+          id: string
+          ip_address: string | null
+          severity: string
+          user_id: string | null
+        }
+        Insert: {
+          acknowledged?: boolean | null
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type: string
+          buyer_id?: string | null
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          severity: string
+          user_id?: string | null
+        }
+        Update: {
+          acknowledged?: boolean | null
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type?: string
+          buyer_id?: string | null
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          severity?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       security_audit_log: {
         Row: {
           action: string
@@ -3380,6 +3461,7 @@ export type Database = {
         Returns: Json
       }
       can_have_affiliates: { Args: { p_user_id: string }; Returns: boolean }
+      cleanup_expired_blocks: { Args: never; Returns: number }
       cleanup_expired_buyer_sessions: { Args: never; Returns: number }
       cleanup_old_rate_limits: { Args: never; Returns: number }
       clone_checkout_deep: {
@@ -3400,6 +3482,17 @@ export type Database = {
       }
       create_payment_link_for_offer: {
         Args: { p_offer_id: string; p_slug?: string }
+        Returns: string
+      }
+      create_security_alert: {
+        Args: {
+          p_alert_type: string
+          p_buyer_id?: string
+          p_details?: Json
+          p_ip_address?: string
+          p_severity: string
+          p_user_id?: string
+        }
         Returns: string
       }
       delete_gateway_credentials: {
@@ -3522,6 +3615,14 @@ export type Database = {
         Returns: undefined
       }
       is_admin: { Args: { p_user_id: string }; Returns: boolean }
+      is_ip_blocked: {
+        Args: { p_ip_address: string }
+        Returns: {
+          blocked: boolean
+          expires_at: string
+          reason: string
+        }[]
+      }
       is_product_in_active_public_checkout: {
         Args: { _product_id: string }
         Returns: boolean
