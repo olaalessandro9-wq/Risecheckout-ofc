@@ -29,7 +29,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export function RevenueChart({ title, data, isLoading = false }: RevenueChartProps) {
   // Calcular domínio dinâmico do eixo Y para melhor visualização
-  const getYAxisDomain = () => {
+  const getYAxisDomain = (): [number, number] => {
     if (!data || data.length === 0) return [0, 'auto'];
     
     const values = data.map(d => d.value);
@@ -82,6 +82,19 @@ export function RevenueChart({ title, data, isLoading = false }: RevenueChartPro
     return [yMinRounded, yMaxRounded];
   };
 
+  // Gerar exatamente 6 ticks uniformemente distribuídos
+  const getYAxisTicks = () => {
+    const [yMin, yMax] = getYAxisDomain();
+    const ticks: number[] = [];
+    const step = (yMax - yMin) / 5; // 6 ticks = 5 intervalos
+    
+    for (let i = 0; i <= 5; i++) {
+      ticks.push(Math.round(yMin + (step * i)));
+    }
+    
+    return ticks;
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
@@ -132,7 +145,7 @@ export function RevenueChart({ title, data, isLoading = false }: RevenueChartPro
                   tickLine={false}
                   axisLine={false}
                   domain={getYAxisDomain()}
-                  tickCount={6}
+                  ticks={getYAxisTicks()}
                   tickFormatter={(value) => {
                     // Formatar valores grandes de forma compacta (ex: 2.5k, 10k)
                     if (value >= 1000) {
