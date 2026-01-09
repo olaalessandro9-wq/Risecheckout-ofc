@@ -2,9 +2,13 @@
  * order-creator.ts - Criação e Persistência do Pedido
  * 
  * Responsabilidade ÚNICA: Criar pedido no banco de dados
+ * 
+ * SECURITY UPDATE:
+ * - CPF e telefone são criptografados com AES-256-GCM antes de salvar (LGPD)
  */
 
 import { recordAttempt } from "../../_shared/rate-limit.ts";
+import { encryptValue } from "../../_shared/encryption.ts";
 import type { OrderItem } from "./bump-processor.ts";
 
 export interface OrderCreationResult {
@@ -125,7 +129,27 @@ export async function createOrder(
   // Gerar access token
   const accessToken = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
 
-  // Inserir pedido
+  // SECURITY: Criptografar dados sensíveis (LGPD)
+  let encryptedPhone: string | null = null;
+  let encryptedCpf: string | null = null;
+  
+  try {
+    encryptedPhone = await encryptValue(customer_phone);
+    encryptedCpf = await encryptValue(customer_cpf);
+    console.log("[order-creator] ✅ CPF/telefone criptografados com AES-256-GCM");
+  } catch (encryptError) {
+    console.error("[order-creator] ❌ Falha na criptografia:", encryptError);
+    // SECURITY: Não prosseguir sem criptografia
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: "Erro ao processar dados do cliente. Tente novamente." 
+      }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  // Inserir pedido com dados criptografados
   const { data: order, error: orderError } = await supabase
     .from("orders")
     .insert({
@@ -136,8 +160,8 @@ export async function createOrder(
       status: "pending",
       customer_name,
       customer_email,
-      customer_phone,
-      customer_document: customer_cpf,
+      customer_phone: encryptedPhone,      // ✅ Criptografado
+      customer_document: encryptedCpf,     // ✅ Criptografado
       payment_method: payment_method || "pix",
       gateway: gateway || "pushinpay",
       product_name,
