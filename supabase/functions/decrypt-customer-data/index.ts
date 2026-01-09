@@ -3,8 +3,10 @@
  * 
  * SECURITY:
  * - Requer autenticação (JWT)
- * - Só retorna dados de pedidos do próprio vendor
- * - Log de auditoria para cada acesso
+ * - Auto-decrypt para o PRODUTOR do produto (product.user_id)
+ * - Acesso via clique para o OWNER da plataforma
+ * - Afiliados NÃO têm acesso (403)
+ * - Log de auditoria para cada acesso com tipo (vendor/admin)
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -14,6 +16,24 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+type UserRole = "owner" | "admin" | "user" | "seller";
+
+/**
+ * Obtém o role do usuário
+ */
+async function getUserRole(supabase: any, userId: string): Promise<UserRole> {
+  const { data, error } = await supabase.rpc("get_user_role", {
+    p_user_id: userId,
+  });
+
+  if (error) {
+    console.error("[decrypt-customer-data] Erro ao buscar role:", error);
+    return "user";
+  }
+
+  return (data as UserRole) || "user";
+}
 
 /**
  * Deriva uma chave AES-256 a partir da BUYER_ENCRYPTION_KEY
@@ -101,18 +121,60 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Buscar pedido - só se pertencer ao vendor
+    // Buscar pedido COM dados do produto (para pegar o user_id do produto)
     const { data: order, error: orderError } = await supabase
       .from("orders")
-      .select("id, vendor_id, customer_phone, customer_document")
+      .select(`
+        id, 
+        vendor_id, 
+        customer_phone, 
+        customer_document,
+        product:product_id (
+          id,
+          user_id
+        )
+      `)
       .eq("id", order_id)
-      .eq("vendor_id", user.id)
       .single();
 
     if (orderError || !order) {
       return new Response(
-        JSON.stringify({ error: "Order not found or access denied" }),
+        JSON.stringify({ error: "Order not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Extrair product_owner_id
+    const product = Array.isArray(order.product) ? order.product[0] : order.product;
+    const productOwnerId = product?.user_id;
+
+    // Verificar permissão de acesso
+    const isProductOwner = user.id === productOwnerId;
+    const userRole = await getUserRole(supabase, user.id);
+    const isOwner = userRole === "owner";
+
+    // Regra: Só PRODUTOR do produto ou OWNER da plataforma podem acessar
+    if (!isProductOwner && !isOwner) {
+      console.log(`[decrypt-customer-data] ACCESS DENIED: user=${user.id}, productOwner=${productOwnerId}, role=${userRole}`);
+      
+      // Log de tentativa de acesso negado
+      await supabase.from("security_audit_log").insert({
+        user_id: user.id,
+        action: "DECRYPT_CUSTOMER_DATA_DENIED",
+        resource: "orders",
+        resource_id: order_id,
+        success: false,
+        ip_address: req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip"),
+        metadata: { 
+          reason: "not_product_owner_or_owner",
+          user_role: userRole,
+          product_owner_id: productOwnerId
+        }
+      });
+
+      return new Response(
+        JSON.stringify({ error: "Access denied: you don't have permission to view this data" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -120,6 +182,9 @@ serve(async (req) => {
     const key = await deriveKey(encryptionKey);
     const decryptedPhone = await decryptValue(order.customer_phone, key);
     const decryptedCpf = await decryptValue(order.customer_document, key);
+
+    // Determinar tipo de acesso para auditoria
+    const accessType = isProductOwner ? "vendor" : "admin";
 
     // Log de auditoria
     await supabase.from("security_audit_log").insert({
@@ -129,10 +194,14 @@ serve(async (req) => {
       resource_id: order_id,
       success: true,
       ip_address: req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip"),
-      metadata: { fields: ["customer_phone", "customer_document"] }
+      metadata: { 
+        fields: ["customer_phone", "customer_document"],
+        access_type: accessType,
+        product_owner_id: productOwnerId
+      }
     });
 
-    console.log(`[decrypt-customer-data] User ${user.id} accessed order ${order_id}`);
+    console.log(`[decrypt-customer-data] User ${user.id} (${accessType}) accessed order ${order_id}`);
 
     return new Response(
       JSON.stringify({
@@ -140,7 +209,8 @@ serve(async (req) => {
         data: {
           customer_phone: decryptedPhone,
           customer_document: decryptedCpf
-        }
+        },
+        access_type: accessType
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

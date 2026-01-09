@@ -23,6 +23,7 @@ import { AdminLogsTab } from "@/components/admin/AdminLogsTab";
 import { AdminFinanceTab } from "@/components/admin/AdminFinanceTab";
 import { AdminTrafficTab } from "@/components/admin/AdminTrafficTab";
 import { AdminProductsTab } from "@/components/admin/AdminProductsTab";
+import { AdminOrdersTab } from "@/components/admin/AdminOrdersTab";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { PeriodFilter } from "@/hooks/useAdminAnalytics";
@@ -137,6 +138,12 @@ export default function AdminDashboard() {
               Produtos
             </TabsTrigger>
           )}
+          {role === "owner" && (
+            <TabsTrigger value="orders" className="gap-2">
+              <DollarSign className="h-4 w-4" />
+              Pedidos
+            </TabsTrigger>
+          )}
           <TabsTrigger value="system" className="gap-2">
             <TrendingUp className="h-4 w-4" />
             Sistema
@@ -229,6 +236,13 @@ export default function AdminDashboard() {
         {role === "owner" && (
           <TabsContent value="products">
             <AdminProductsTab />
+          </TabsContent>
+        )}
+
+        {/* Tab: Pedidos (apenas owner) */}
+        {role === "owner" && (
+          <TabsContent value="orders">
+            <AdminOrdersTab period={period} />
           </TabsContent>
         )}
 

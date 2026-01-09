@@ -26,6 +26,7 @@ interface Customer {
   status: "Pago" | "Pendente" | "Reembolso" | "Chargeback";
   productName: string;
   productImageUrl: string;
+  productOwnerId: string;
   customerName: string;
   customerEmail: string;
   customerPhone: string;
@@ -167,6 +168,7 @@ export function RecentCustomersTable({ customers, isLoading = false, onRefresh }
           status: selectedOrder.status,
           createdAt: selectedOrder.createdAt,
         } : null}
+        productOwnerId={selectedOrder?.productOwnerId}
       />
 
       <motion.div
