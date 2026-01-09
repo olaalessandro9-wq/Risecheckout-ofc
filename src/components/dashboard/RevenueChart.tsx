@@ -28,6 +28,18 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function RevenueChart({ title, data, isLoading = false }: RevenueChartProps) {
+  // Calcular o valor máximo dinamicamente com 15% de margem
+  const maxValue = Math.max(...data.map(d => d.value), 0);
+  const yAxisMax = maxValue > 0 ? Math.ceil(maxValue * 1.15) : 100;
+
+  // Formatar valores grandes de forma legível
+  const formatYAxisTick = (value: number) => {
+    if (value >= 1000) {
+      return `R$ ${(value / 1000).toFixed(1)}k`;
+    }
+    return `R$ ${value}`;
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
@@ -77,7 +89,8 @@ export function RevenueChart({ title, data, isLoading = false }: RevenueChartPro
                   style={{ fontSize: '11px', fontWeight: 500 }}
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(value) => `R$ ${value}`}
+                  domain={[0, yAxisMax]}
+                  tickFormatter={formatYAxisTick}
                 />
                 <Tooltip
                   content={<CustomTooltip />}
