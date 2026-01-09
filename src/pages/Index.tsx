@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
-import { RecentCustomersTable } from "@/components/dashboard/RecentCustomersTable";
+import { RecentCustomersTable } from "@/components/dashboard/recent-customers";
 import { DateRangeFilter } from "@/components/dashboard/DateRangeFilter";
 import { useDashboardAnalytics, getDateRangeFromPreset, type DateRangePreset } from "@/hooks/dashboard";
 import { DollarSign, CreditCard, Clock, CheckCircle2, AlertCircle, Activity, TrendingUp, QrCode, Tags } from "lucide-react";

@@ -12,7 +12,7 @@
 
 import React, { useMemo } from 'react';
 import { ImageIcon } from '@/components/icons/ImageIcon';
-import { formatBRL } from '@/lib/formatters/money';
+import { formatCentsToBRL as formatBRL } from '@/lib/money';
 import type { ThemePreset } from '@/types/theme';
 import type { OrderBump, ProductData } from '@/hooks/useCheckoutState';
 

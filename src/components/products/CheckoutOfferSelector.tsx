@@ -4,7 +4,7 @@ import { useBusy } from "@/components/BusyProvider";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { formatBRL } from "@/lib/formatters/money";
+import { formatCentsToBRL as formatBRL } from "@/lib/money";
 import { AlertCircle } from "lucide-react";
 
 type Offer = { 

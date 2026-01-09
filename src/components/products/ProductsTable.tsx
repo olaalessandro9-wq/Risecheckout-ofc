@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, MoreVertical } from "lucide-react";
-import { formatBRL } from "@/lib/formatters/money";
+import { formatCentsToBRL as formatBRL } from "@/lib/money";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AddProductDialog } from "./AddProductDialog";

@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { formatBRL } from "@/lib/formatters/money";
+import { formatCentsToBRL as formatBRL } from "@/lib/money";
 
 export interface Checkout {
   id: string;

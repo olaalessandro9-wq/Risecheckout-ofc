@@ -1,6 +1,6 @@
 // src/components/checkout/builder/EditorOrderBumps.tsx
 import { Zap } from "lucide-react";
-import { formatBRL } from "@/lib/formatters/money";
+import { formatCentsToBRL as formatBRL } from "@/lib/money";
 import { ThemePreset } from "@/types/theme";
 
 interface EditorOrderBumpsProps {

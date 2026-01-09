@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Gift } from "lucide-react";
 import { Label } from "@/components/ui/label";
-import { formatBRL } from "@/lib/formatters/money";
+import { formatCentsToBRL as formatBRL } from "@/lib/money";
 import { OrderBumpProduct } from "./types";
 
 interface OrderBumpPreviewProps {

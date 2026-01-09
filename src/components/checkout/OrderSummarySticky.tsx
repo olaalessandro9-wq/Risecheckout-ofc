@@ -17,7 +17,7 @@
 
 import { useState } from "react";
 import { ImageIcon } from "@/components/icons/ImageIcon";
-import { formatBRL } from "@/lib/formatters/money";
+import { formatCentsToBRL as formatBRL } from "@/lib/money";
 import { Lock, Shield, CreditCard, Mail } from "lucide-react";
 
 interface OrderSummaryStickyProps {

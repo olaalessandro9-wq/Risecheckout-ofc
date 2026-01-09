@@ -11,7 +11,7 @@
 
 import React from 'react';
 import { ImageIcon } from '@/components/icons/ImageIcon';
-import { formatBRL } from '@/lib/formatters/money';
+import { formatCentsToBRL as formatBRL } from '@/lib/money';
 import type { ThemePreset } from '@/types/theme';
 
 // ============================================================================

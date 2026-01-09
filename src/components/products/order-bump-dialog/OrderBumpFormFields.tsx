@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatBRL } from "@/lib/formatters/money";
+import { formatCentsToBRL as formatBRL } from "@/lib/money";
 import { parseBRLInput } from "@/lib/money";
 import { NormalizedOffer } from "@/services/offers";
 import { OrderBumpProduct, OrderBumpFormData } from "./types";
