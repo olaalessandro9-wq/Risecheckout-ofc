@@ -28,9 +28,50 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function RevenueChart({ title, data, isLoading = false }: RevenueChartProps) {
-  // Calcular o valor máximo dinamicamente com 15% de margem
+  // Calcular o valor máximo dinamicamente
   const maxValue = Math.max(...data.map(d => d.value), 0);
-  const yAxisMax = maxValue > 0 ? Math.ceil(maxValue * 1.15) : 100;
+
+  // Gerar ticks inteligentes que se adaptam ao range dos dados
+  const generateSmartTicks = (max: number): number[] => {
+    if (max <= 0) return [0];
+    
+    // Determinar ordem de magnitude e step apropriado
+    const magnitude = Math.pow(10, Math.floor(Math.log10(max)));
+    const normalizedMax = max / magnitude;
+    
+    // Escolher incremento bonito baseado no range
+    let step: number;
+    if (normalizedMax <= 1.5) step = 0.25 * magnitude;
+    else if (normalizedMax <= 3) step = 0.5 * magnitude;
+    else if (normalizedMax <= 6) step = 1 * magnitude;
+    else step = 2 * magnitude;
+    
+    // Arredondar step para número bonito
+    if (step < 100) step = Math.ceil(step / 50) * 50;
+    else if (step < 500) step = Math.ceil(step / 100) * 100;
+    else if (step < 1000) step = Math.ceil(step / 250) * 250;
+    else step = Math.ceil(step / 500) * 500;
+    
+    // Garantir step mínimo
+    step = Math.max(step, 50);
+    
+    // Gerar 4-6 ticks
+    const ticks: number[] = [0];
+    let currentTick = step;
+    while (currentTick <= max * 1.1 && ticks.length < 6) {
+      ticks.push(currentTick);
+      currentTick += step;
+    }
+    // Garantir que o último tick cubra o valor máximo
+    if (ticks[ticks.length - 1] < max) {
+      ticks.push(currentTick);
+    }
+    
+    return ticks;
+  };
+
+  const smartTicks = generateSmartTicks(maxValue);
+  const yAxisMax = smartTicks[smartTicks.length - 1] || 100;
 
   // Formatar valores grandes de forma legível
   const formatYAxisTick = (value: number) => {
@@ -89,7 +130,10 @@ export function RevenueChart({ title, data, isLoading = false }: RevenueChartPro
                   style={{ fontSize: '11px', fontWeight: 500 }}
                   tickLine={false}
                   axisLine={false}
+                  type="number"
                   domain={[0, yAxisMax]}
+                  ticks={smartTicks}
+                  allowDataOverflow={false}
                   tickFormatter={formatYAxisTick}
                 />
                 <Tooltip

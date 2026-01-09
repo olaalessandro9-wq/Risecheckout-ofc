@@ -195,9 +195,10 @@ function calculateMetrics(
   
   const previousPaidOrders = previousOrders.filter(o => o.status?.toLowerCase() === "paid");
 
-  // Calcular receitas
-  const totalRevenue = paidOrders.reduce((sum, o) => sum + (o.amount_cents || 0), 0);
+  // Calcular receitas - FATURAMENTO = Vendas Aprovadas + Vendas Pendentes
+  const paidRevenue = paidOrders.reduce((sum, o) => sum + (o.amount_cents || 0), 0);
   const pendingRevenue = pendingOrders.reduce((sum, o) => sum + (o.amount_cents || 0), 0);
+  const totalRevenue = paidRevenue + pendingRevenue; // Faturamento total
   const previousRevenue = previousPaidOrders.reduce((sum, o) => sum + (o.amount_cents || 0), 0);
 
   // Calcular taxas
@@ -205,9 +206,9 @@ function calculateMetrics(
     return sum + calculateGatewayFee(o.amount_cents || 0);
   }, 0);
 
-  // Calcular ticket médio
+  // Calcular ticket médio (baseado apenas em vendas pagas)
   const averageTicketCents = paidOrders.length > 0
-    ? Math.round(totalRevenue / paidOrders.length)
+    ? Math.round(paidRevenue / paidOrders.length)
     : 0;
 
   // Calcular vendas por método de pagamento
@@ -230,14 +231,14 @@ function calculateMetrics(
     ? (previousPaidOrders.length / previousOrders.length) * 100
     : 0;
 
-  // Calcular trends
-  const revenueTrendValue = calculatePercentageChange(totalRevenue, previousRevenue);
+  // Calcular trends (baseado em vendas pagas apenas para comparação justa)
+  const revenueTrendValue = calculatePercentageChange(paidRevenue, previousRevenue);
   const conversionTrendValue = calculatePercentageChange(conversionRate, previousConversionRate);
 
   return {
     // Métricas financeiras
-    totalRevenue: formatCurrency(totalRevenue),
-    paidRevenue: formatCurrency(totalRevenue),
+    totalRevenue: formatCurrency(totalRevenue),   // Faturamento = Aprovadas + Pendentes
+    paidRevenue: formatCurrency(paidRevenue),     // Apenas Vendas Aprovadas
     pendingRevenue: formatCurrency(pendingRevenue),
     totalFees: formatCurrency(totalFees),
     
