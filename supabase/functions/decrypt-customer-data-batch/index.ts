@@ -12,6 +12,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { handleCors } from "../_shared/cors.ts";
+import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared/rate-limiter.ts";
 
 const MAX_ORDER_IDS = 20;
 
@@ -70,6 +71,19 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const encryptionKey = Deno.env.get("BUYER_ENCRYPTION_KEY");
     
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    // SECURITY: Rate limiting para dados sensíveis
+    const rateLimitResult = await rateLimitMiddleware(
+      supabaseAdmin as any,
+      req,
+      RATE_LIMIT_CONFIGS.DECRYPT_DATA
+    );
+    if (rateLimitResult) {
+      console.warn(`[decrypt-customer-data-batch] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      return rateLimitResult;
+    }
+    
     if (!encryptionKey) {
       console.error("[decrypt-batch] BUYER_ENCRYPTION_KEY not configured");
       throw new Error("BUYER_ENCRYPTION_KEY not configured");
@@ -99,9 +113,6 @@ serve(async (req) => {
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    // Cliente admin para operações privilegiadas
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
     const { order_ids, fields = ["customer_phone"] } = await req.json();
     

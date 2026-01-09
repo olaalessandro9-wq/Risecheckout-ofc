@@ -2,34 +2,21 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { requireCanHaveAffiliates } from "../_shared/role-validator.ts";
 import { logSecurityEvent, SecurityAction } from "../_shared/audit-logger.ts";
+import { handleCors } from "../_shared/cors.ts";
+import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared/rate-limiter.ts";
 
 // ==========================================
 // 🔒 CONSTANTES DE SEGURANÇA
 // ==========================================
 const MAX_COMMISSION_RATE = 90; // Limite máximo de comissão (previne 99%+)
 
-const ALLOWED_ORIGINS = [
-  "http://localhost:5173",
-  "http://localhost:3000",
-  "https://risecheckout.com",
-  "https://www.risecheckout.com",
-  "https://risecheckout-84776.lovable.app",
-  "https://prime-checkout-hub.lovable.app"
-];
-
-const getCorsHeaders = (origin: string) => ({
-  "Access-Control-Allow-Origin": ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-});
-
 serve(async (req) => {
-  const origin = req.headers.get("origin") || "";
-  const corsHeaders = getCorsHeaders(origin);
-
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  // SECURITY: Validação CORS centralizada
+  const corsResult = handleCors(req);
+  if (corsResult instanceof Response) {
+    return corsResult;
   }
+  const corsHeaders = corsResult.headers;
 
   try {
     // Setup Supabase Client
@@ -37,6 +24,17 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
+
+    // SECURITY: Rate limiting para gerenciamento de afiliados
+    const rateLimitResult = await rateLimitMiddleware(
+      supabaseClient as any,
+      req,
+      RATE_LIMIT_CONFIGS.AFFILIATION_MANAGE
+    );
+    if (rateLimitResult) {
+      console.warn(`[manage-affiliation] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      return rateLimitResult;
+    }
 
     // Parse body
     const { affiliation_id, action, commission_rate } = await req.json();

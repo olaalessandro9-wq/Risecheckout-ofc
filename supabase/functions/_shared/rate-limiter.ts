@@ -58,10 +58,18 @@ export const RATE_LIMIT_CONFIGS = {
     blockDurationMinutes: 15,
   },
   
-  // Members area - permitir uso normal mas prevenir abuso
+  // Members area - permitir uso normal mas prevenir abuso (READ)
   MEMBERS_AREA: {
     action: "members_area",
     maxAttempts: 60,
+    windowMinutes: 1,
+    blockDurationMinutes: 5,
+  },
+  
+  // Members area - escrita (mais restritivo)
+  MEMBERS_AREA_WRITE: {
+    action: "members_area_write",
+    maxAttempts: 30,
     windowMinutes: 1,
     blockDurationMinutes: 5,
   },
@@ -80,6 +88,62 @@ export const RATE_LIMIT_CONFIGS = {
     maxAttempts: 100,
     windowMinutes: 1,
     blockDurationMinutes: 1,
+  },
+  
+  // Decrypt data - sensível (dados PII)
+  DECRYPT_DATA: {
+    action: "decrypt_data",
+    maxAttempts: 20,
+    windowMinutes: 5,
+    blockDurationMinutes: 15,
+  },
+  
+  // Admin actions - muito restritivo
+  ADMIN_ACTION: {
+    action: "admin_action",
+    maxAttempts: 30,
+    windowMinutes: 5,
+    blockDurationMinutes: 30,
+  },
+  
+  // Send email - prevenir spam
+  SEND_EMAIL: {
+    action: "send_email",
+    maxAttempts: 20,
+    windowMinutes: 5,
+    blockDurationMinutes: 10,
+  },
+  
+  // Webhook test - moderado
+  WEBHOOK_TEST: {
+    action: "webhook_test",
+    maxAttempts: 10,
+    windowMinutes: 1,
+    blockDurationMinutes: 5,
+  },
+  
+  // Turnstile verify - moderado
+  TURNSTILE_VERIFY: {
+    action: "turnstile_verify",
+    maxAttempts: 30,
+    windowMinutes: 1,
+    blockDurationMinutes: 5,
+  },
+  
+  // Affiliation management
+  AFFILIATION_MANAGE: {
+    action: "affiliation_manage",
+    maxAttempts: 20,
+    windowMinutes: 5,
+    blockDurationMinutes: 10,
+  },
+  
+  // PIX creation
+  CREATE_PIX: {
+    action: "create_pix",
+    maxAttempts: 15,
+    windowMinutes: 1,
+    blockDurationMinutes: 5,
   },
 } as const;
 
