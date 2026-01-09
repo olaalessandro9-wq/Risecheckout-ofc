@@ -23,6 +23,7 @@ import { useFormManager } from "@/hooks/checkout/useFormManager";
 import { usePaymentGateway } from "@/hooks/checkout/usePaymentGateway";
 import { useTrackingService } from "@/hooks/checkout/useTrackingService";
 import { useAffiliateTracking } from "@/hooks/useAffiliateTracking";
+import { useTurnstileVerification } from "@/hooks/checkout/useTurnstileVerification";
 
 // Personal Data Domain (Snapshot para resolver autofill)
 import {
@@ -190,6 +191,18 @@ const PublicCheckoutV2Content: React.FC<ContentProps> = ({
   }, []);
 
   // ============================================================================
+  // TURNSTILE (CAPTCHA) VERIFICATION
+  // ============================================================================
+
+  const {
+    token: turnstileToken,
+    onTokenReceived: handleTurnstileVerify,
+    onWidgetError: handleTurnstileError,
+    onTokenExpired: handleTurnstileExpire,
+    verifyToken: verifyTurnstileToken,
+  } = useTurnstileVerification();
+
+  // ============================================================================
   // TRACKING SERVICE
   // ============================================================================
 
@@ -229,6 +242,13 @@ const PublicCheckoutV2Content: React.FC<ContentProps> = ({
       return;
     }
 
+    // ✅ Verificar Turnstile antes de processar
+    const turnstileResult = await verifyTurnstileToken();
+    if (!turnstileResult.success) {
+      toast.error(turnstileResult.error || "Falha na verificação de segurança");
+      return;
+    }
+
     // ✅ FIX: Sincroniza state com snapshot para manter consistência
     updateMultipleFields(snapshot);
 
@@ -245,7 +265,7 @@ const PublicCheckoutV2Content: React.FC<ContentProps> = ({
     } finally {
       setProcessing(false);
     }
-  }, [formData, validateForm, updateMultipleFields, setProcessing, fireInitiateCheckout, selectedBumps, orderBumps, selectedPayment, submitPayment]);
+  }, [formData, validateForm, updateMultipleFields, setProcessing, fireInitiateCheckout, selectedBumps, orderBumps, selectedPayment, submitPayment, verifyTurnstileToken]);
 
   const handleCardSubmit = React.useCallback(async (
     token: string, 
@@ -266,6 +286,13 @@ const PublicCheckoutV2Content: React.FC<ContentProps> = ({
       toast.error("Por favor, preencha todos os campos obrigatórios corretamente");
       return;
     }
+
+    // ✅ Verificar Turnstile antes de processar
+    const turnstileResult = await verifyTurnstileToken();
+    if (!turnstileResult.success) {
+      toast.error(turnstileResult.error || "Falha na verificação de segurança");
+      return;
+    }
     
     // ✅ FIX: Sincroniza state com snapshot para manter consistência
     updateMultipleFields(snapshot);
@@ -279,7 +306,7 @@ const PublicCheckoutV2Content: React.FC<ContentProps> = ({
     } finally {
       setProcessing(false);
     }
-  }, [formData, validateForm, updateMultipleFields, setProcessing, fireInitiateCheckout, selectedBumps, orderBumps, submitPayment]);
+  }, [formData, validateForm, updateMultipleFields, setProcessing, fireInitiateCheckout, selectedBumps, orderBumps, submitPayment, verifyTurnstileToken]);
 
   // ============================================================================
   // RENDER
@@ -341,6 +368,10 @@ const PublicCheckoutV2Content: React.FC<ContentProps> = ({
           amount={memoizedAmount}
           onSubmitPayment={handleCardSubmit}
           onTotalChange={handleTotalChange}
+          turnstileToken={turnstileToken}
+          onTurnstileVerify={handleTurnstileVerify}
+          onTurnstileError={handleTurnstileError}
+          onTurnstileExpire={handleTurnstileExpire}
           formWrapper={(children, formRef) => (
             <form 
               ref={formRef as React.RefObject<HTMLFormElement>} 

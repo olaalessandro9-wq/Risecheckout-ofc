@@ -146,3 +146,7 @@ verify_jwt = true
 # ✅ AUTENTICADAS (Migração de credenciais para Vault)
 [functions.migrate-vendor-credentials-to-vault]
 verify_jwt = true
+
+# ✅ PÚBLICAS (Turnstile Captcha - Verificação)
+[functions.verify-turnstile]
+verify_jwt = false
