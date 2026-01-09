@@ -17,7 +17,7 @@
  * ```
  */
 
-import { formatBRL } from "@/lib/formatters/money";
+import { formatCentsToBRL as formatBRL } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
 interface PriceDisplayProps {

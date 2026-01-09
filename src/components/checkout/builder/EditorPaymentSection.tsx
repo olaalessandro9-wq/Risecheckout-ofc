@@ -1,5 +1,5 @@
 import { Wallet, Lock as LockIconLucide, CheckCircle, ImageIcon } from "lucide-react";
-import { formatBRL } from "@/lib/formatters/money";
+import { formatCentsToBRL as formatBRL } from "@/lib/money";
 import { ThemePreset } from "@/types/theme";
 import { PixIcon, CreditCardIcon } from "@/components/icons";
 

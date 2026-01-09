@@ -1,0 +1,180 @@
+/**
+ * Tabela de clientes recentes - Container principal
+ * 
+ * RISE ARCHITECT PROTOCOL:
+ * - Limite de 150 linhas: ✓ (antes: 437 linhas)
+ * - Single Responsibility: Orquestra componentes filhos
+ * - Clean Architecture: Lógica separada em hooks
+ */
+
+import { useState, useMemo } from "react";
+import { Table, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import { motion } from "framer-motion";
+import { useAuth } from "@/hooks/useAuth";
+import { useDecryptCustomerBatch } from "@/hooks/useDecryptCustomerBatch";
+import { OrderDetailsDialog } from "../OrderDetailsDialog";
+import { CustomerTableHeader } from "./CustomerTableHeader";
+import { CustomerTableBody } from "./CustomerTableBody";
+import { CustomerPagination } from "./CustomerPagination";
+import { useCustomerPagination } from "./hooks/useCustomerPagination";
+import { isEncryptedValue, formatPhone, exportCustomersToCSV } from "./utils/customerUtils";
+import type { Customer, CustomerExportData } from "./types";
+
+interface RecentCustomersTableProps {
+  customers: Customer[];
+  isLoading?: boolean;
+  onRefresh?: () => void;
+}
+
+export function RecentCustomersTable({ customers, isLoading = false, onRefresh }: RecentCustomersTableProps) {
+  const { user } = useAuth();
+  const [selectedOrder, setSelectedOrder] = useState<Customer | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const pagination = useCustomerPagination(customers);
+
+  // IDs para descriptografia (apenas produtores)
+  const orderIdsToDecrypt = useMemo(() => {
+    if (!user?.id) return [];
+    return pagination.paginatedCustomers
+      .filter(c => c.productOwnerId === user.id && isEncryptedValue(c.customerPhone))
+      .map(c => c.orderId);
+  }, [pagination.paginatedCustomers, user?.id]);
+
+  const { decryptedMap, isLoading: isDecrypting } = useDecryptCustomerBatch(
+    orderIdsToDecrypt,
+    orderIdsToDecrypt.length > 0
+  );
+
+  const getDisplayPhone = (customer: Customer): React.ReactNode => {
+    const isProducer = user?.id === customer.productOwnerId;
+    const isEncrypted = isEncryptedValue(customer.customerPhone);
+
+    if (isProducer && isEncrypted) {
+      const decrypted = decryptedMap[customer.orderId]?.customer_phone;
+      if (isDecrypting && !decrypted) {
+        return <Skeleton className="h-4 w-28 bg-primary/10" />;
+      }
+      if (decrypted) return formatPhone(decrypted);
+      return <span className="text-muted-foreground/50">••••••••••</span>;
+    }
+
+    if (!isProducer && isEncrypted) {
+      return <span className="text-muted-foreground/50">••••••••••</span>;
+    }
+
+    return customer.phone || "—";
+  };
+
+  const handleRefresh = async () => {
+    if (onRefresh) {
+      setIsRefreshing(true);
+      try {
+        await onRefresh();
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } finally {
+        setIsRefreshing(false);
+      }
+    }
+  };
+
+  const handleViewDetails = (customer: Customer) => {
+    setSelectedOrder(customer);
+    setIsDialogOpen(true);
+  };
+
+  // Preparar dados para exportação
+  const exportData: CustomerExportData[] = pagination.filteredCustomers.map(c => ({
+    id: c.id,
+    offer: c.offer,
+    client: c.client,
+    email: c.email,
+    phone: c.phone,
+    createdAt: c.createdAt,
+    value: c.value,
+    status: c.status
+  }));
+
+  return (
+    <>
+      <OrderDetailsDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        orderData={selectedOrder ? {
+          id: selectedOrder.orderId,
+          customerName: selectedOrder.customerName,
+          customerEmail: selectedOrder.customerEmail,
+          customerPhone: selectedOrder.customerPhone,
+          customerDocument: selectedOrder.customerDocument,
+          productName: selectedOrder.productName,
+          productImageUrl: selectedOrder.productImageUrl,
+          amount: selectedOrder.value,
+          status: selectedOrder.status,
+          createdAt: selectedOrder.createdAt,
+        } : null}
+        productOwnerId={selectedOrder?.productOwnerId}
+      />
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+        className="relative"
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent rounded-2xl blur-xl opacity-20" />
+        <div className="relative bg-card/40 backdrop-blur-xl border border-border/50 rounded-2xl p-6 hover:border-primary/20 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5">
+          <div className="space-y-6">
+            <CustomerTableHeader
+              searchTerm={pagination.searchTerm}
+              onSearchChange={pagination.handleSearchChange}
+              onRefresh={handleRefresh}
+              onExport={() => exportCustomersToCSV(exportData)}
+              isLoading={isLoading}
+              isRefreshing={isRefreshing}
+              hasData={pagination.filteredCustomers.length > 0}
+            />
+
+            <div className="border border-border/30 rounded-xl overflow-hidden bg-background/20 backdrop-blur-sm overflow-x-auto">
+              <Table className="min-w-[800px]">
+                <TableHeader>
+                  <TableRow className="bg-muted/30 hover:bg-muted/50 border-border/30">
+                    <TableHead className="text-muted-foreground font-medium">ID</TableHead>
+                    <TableHead className="text-muted-foreground font-medium">Oferta</TableHead>
+                    <TableHead className="text-muted-foreground font-medium">Cliente</TableHead>
+                    <TableHead className="text-muted-foreground font-medium">Telefone</TableHead>
+                    <TableHead className="text-muted-foreground font-medium">Criado em</TableHead>
+                    <TableHead className="text-muted-foreground font-medium">Valor</TableHead>
+                    <TableHead className="text-muted-foreground font-medium">Status</TableHead>
+                    <TableHead className="text-muted-foreground font-medium text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <CustomerTableBody
+                  customers={pagination.paginatedCustomers}
+                  isLoading={isLoading}
+                  searchTerm={pagination.searchTerm}
+                  getDisplayPhone={getDisplayPhone}
+                  onViewDetails={handleViewDetails}
+                />
+              </Table>
+            </div>
+
+            {!isLoading && pagination.filteredCustomers.length > 0 && (
+              <CustomerPagination
+                currentPage={pagination.currentPage}
+                totalPages={pagination.totalPages}
+                totalItems={pagination.filteredCustomers.length}
+                itemsPerPage={10}
+                pageNumbers={pagination.pageNumbers}
+                onPageChange={pagination.handlePageChange}
+                onPrevious={pagination.handlePrevious}
+                onNext={pagination.handleNext}
+              />
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </>
+  );
+}

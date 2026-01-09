@@ -94,14 +94,13 @@ export function DateRangeFilter({
   };
 
   const handlePresetClick = (preset: DateRangePreset) => {
-    console.log('⚡ Preset clicked:', preset);
     onPresetChange(preset);
     setIsDropdownOpen(false);
   };
 
   const handleCalendarOpenChange = (open: boolean) => {
-    console.log('📅 Calendar openChange:', open);
     setIsCalendarOpen(open);
+  };
     
     // Limpa timeout anterior se existir
     if (timeoutRef.current) {
@@ -116,21 +115,9 @@ export function DateRangeFilter({
   // Função não é mais necessária - cada calendário gerencia sua própria data independentemente
 
   const handleApply = () => {
-    console.log("✅ handleApply called", { leftDate, rightDate });
+    if (!leftDate || !rightDate) return;
+    if (rightDate <= leftDate) return;
 
-    // Validação: ambas as datas devem estar preenchidas
-    if (!leftDate || !rightDate) {
-      console.warn("⚠️ Ambas as datas devem ser selecionadas");
-      return;
-    }
-
-    // Validação: data direita deve ser posterior à esquerda
-    if (rightDate <= leftDate) {
-      console.warn("⚠️ Data final deve ser posterior à data inicial");
-      return;
-    }
-
-    // Aplica o filtro
     onCustomDateChange(leftDate, rightDate);
     onPresetChange("custom");
     setSavedDateRange({ from: leftDate, to: rightDate });
@@ -140,7 +127,6 @@ export function DateRangeFilter({
   };
 
   const handleCancel = () => {
-    console.log("🚫 handleCancel called");
     setLeftDate(undefined);
     setRightDate(undefined);
     setIsCalendarOpen(false);
@@ -150,10 +136,7 @@ export function DateRangeFilter({
     <>
       <DropdownMenu 
         open={isDropdownOpen} 
-        onOpenChange={(open) => {
-          console.log('🔽 Dropdown onOpenChange:', open);
-          setIsDropdownOpen(open);
-        }}
+        onOpenChange={setIsDropdownOpen}
       >
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="gap-2 min-w-[200px] justify-between">
@@ -180,7 +163,6 @@ export function DateRangeFilter({
 
           <DropdownMenuItem 
             onClick={() => {
-              console.log("🔓 Opening calendar");
               // Se tem datas salvas, restaura elas; senão limpa
               if (savedDateRange?.from && savedDateRange?.to) {
                 setLeftDate(savedDateRange.from);
