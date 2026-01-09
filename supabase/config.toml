@@ -154,3 +154,7 @@ verify_jwt = false
 # ✅ AUTENTICADAS (Descriptografia de dados do cliente)
 [functions.decrypt-customer-data]
 verify_jwt = true
+
+# ✅ MIGRAÇÃO (Criptografia de dados legados)
+[functions.migrate-encrypt-orders]
+verify_jwt = false
