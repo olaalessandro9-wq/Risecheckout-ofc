@@ -14,11 +14,12 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { handleCors } from "../_shared/cors.ts";
+import { 
+  rateLimitMiddleware, 
+  RATE_LIMIT_CONFIGS,
+  getClientIP 
+} from "../_shared/rate-limiter.ts";
 
 // Ações permitidas para afiliados
 type AllowedAction = "update_gateways" | "cancel_affiliation";
@@ -43,12 +44,30 @@ const VALID_PIX_GATEWAYS = ["asaas", "mercadopago", "pushinpay", null];
 const VALID_CC_GATEWAYS = ["mercadopago", "stripe", "asaas", null];
 
 serve(async (req) => {
-  // CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+  // CORS handling
+  const corsResult = handleCors(req);
+  if (corsResult instanceof Response) {
+    return corsResult;
   }
+  const corsHeaders = corsResult.headers;
 
   try {
+    // Rate limiting - criar cliente admin primeiro
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const rateLimitResult = await rateLimitMiddleware(
+      supabaseAdmin as any,
+      req,
+      RATE_LIMIT_CONFIGS.AFFILIATION_MANAGE
+    );
+    if (rateLimitResult) {
+      console.warn(`[update-affiliate-settings] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      return rateLimitResult;
+    }
+
     // 1. Autenticação obrigatória
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -113,11 +132,7 @@ serve(async (req) => {
       );
     }
 
-    // 6. Criar cliente admin para UPDATE (bypassa RLS)
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    // 6. supabaseAdmin já criado acima para rate limiting - reutilizar
 
     // 7. Processar ação
     switch (action) {
