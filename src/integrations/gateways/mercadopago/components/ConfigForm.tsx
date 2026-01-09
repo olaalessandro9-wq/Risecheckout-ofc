@@ -220,6 +220,10 @@ export function ConfigForm({ onConnectionChange }: { onConnectionChange?: () => 
 
   // ========== SANDBOX (CREDENCIAIS MANUAIS) ==========
   
+  /**
+   * ✅ SECURITY FIX: Usa vault-save para armazenar tokens sensíveis no Vault
+   * Apenas metadados públicos ficam em vendor_integrations
+   */
   async function handleSaveSandbox() {
     if (!accessToken.trim() || !publicKey.trim()) {
       setMessage({ type: "error", text: "Por favor, informe o Access Token e Public Key" });
@@ -238,49 +242,31 @@ export function ConfigForm({ onConnectionChange }: { onConnectionChange?: () => 
     try {
       if (!user?.id) throw new Error("Usuário não autenticado");
 
-      const config = {
-        access_token: accessToken,
-        public_key: publicKey,
-        is_test: true, // Sempre true para sandbox
-        environment: 'sandbox' as const, // ✅ FIX: Explicitamente definir ambiente
-      };
+      // ✅ SECURITY: Usar vault-save para armazenar credenciais sensíveis no Vault
+      const { data: vaultResponse, error: vaultError } = await supabase.functions.invoke('vault-save', {
+        body: {
+          vendor_id: user.id,
+          integration_type: 'MERCADOPAGO',
+          credentials: {
+            access_token: accessToken,  // Vai para o Vault (sensível)
+            public_key: publicKey,      // Metadado público
+            is_test: true,
+            environment: 'sandbox',
+          },
+        },
+      });
 
-      // Verificar se já existe
-      const { data: existing } = await supabase
-        .from('vendor_integrations')
-        .select('id')
-        .eq('vendor_id', user.id)
-        .eq('integration_type', 'MERCADOPAGO')
-        .maybeSingle();
-
-      if (existing) {
-        // Atualizar
-        const { error } = await supabase
-          .from('vendor_integrations')
-          .update({
-            config,
-            active: true,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', existing.id);
-
-        if (error) throw error;
-      } else {
-        // Inserir
-        const { error } = await supabase
-          .from('vendor_integrations')
-          .insert({
-            vendor_id: user.id,
-            integration_type: 'MERCADOPAGO',
-            config,
-            active: true,
-          });
-
-        if (error) throw error;
+      if (vaultError) {
+        console.error('[ConfigForm] Vault save error:', vaultError);
+        throw new Error(vaultError.message || 'Erro ao salvar credenciais no Vault');
       }
 
-      setMessage({ type: "success", text: "Credenciais de Sandbox salvas com sucesso!" });
-      toast.success("Credenciais de Sandbox salvas!");
+      if (!vaultResponse?.success) {
+        throw new Error(vaultResponse?.error || 'Erro desconhecido ao salvar no Vault');
+      }
+
+      setMessage({ type: "success", text: "Credenciais de Sandbox salvas com segurança!" });
+      toast.success("Credenciais de Sandbox salvas no Vault!");
       setAccessToken("");
       setPublicKey("");
       loadIntegration();
