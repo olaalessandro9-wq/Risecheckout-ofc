@@ -132,6 +132,7 @@ export function RevenueChart({ title, data, isLoading = false }: RevenueChartPro
                   tickLine={false}
                   axisLine={false}
                   domain={getYAxisDomain()}
+                  tickCount={6}
                   tickFormatter={(value) => {
                     // Formatar valores grandes de forma compacta (ex: 2.5k, 10k)
                     if (value >= 1000) {
