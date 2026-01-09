@@ -20,6 +20,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { sendOrderConfirmationEmails, type OrderData } from '../_shared/send-order-emails.ts';
+import { logSecurityEvent, SecurityAction } from '../_shared/audit-logger.ts';
 
 const FUNCTION_VERSION = "3";
 
@@ -249,6 +250,23 @@ serve(async (req) => {
     }
 
     logInfo('✅ Pedido atualizado com sucesso');
+
+    // SECURITY: Log payment approval
+    if (newStatus === 'PAID') {
+      await logSecurityEvent(supabase, {
+        userId: order.vendor_id,
+        action: SecurityAction.PROCESS_PAYMENT,
+        resource: "orders",
+        resourceId: order.id,
+        success: true,
+        metadata: { 
+          gateway: "pushinpay",
+          payment_status: body.status,
+          pix_id: paymentId,
+          payer_name: body.payer_name || null
+        }
+      });
+    }
 
     // ========================================================================
     // 6.1 SEND CONFIRMATION EMAILS (um para cada item do pedido)

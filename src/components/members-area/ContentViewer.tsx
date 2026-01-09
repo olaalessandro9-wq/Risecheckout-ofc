@@ -1,9 +1,12 @@
 /**
  * ContentViewer - Universal content viewer that routes to appropriate player
+ * 
+ * @security Uses DOMPurify to sanitize HTML content (XSS prevention)
  */
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import DOMPurify from 'dompurify';
 import {
   X,
   ChevronLeft,
@@ -179,11 +182,19 @@ function ContentRenderer({
       );
 
     case 'text':
+      // SECURITY: Sanitize HTML content to prevent XSS attacks
+      const sanitizedBody = content.body 
+        ? DOMPurify.sanitize(content.body, {
+            ALLOWED_TAGS: ['p', 'br', 'b', 'strong', 'i', 'em', 'u', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'div', 'blockquote'],
+            ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style'],
+          })
+        : null;
+      
       return (
         <ScrollArea className="w-full max-w-3xl h-[80vh]">
           <div className="prose prose-neutral dark:prose-invert max-w-none p-6">
-            {content.body ? (
-              <div dangerouslySetInnerHTML={{ __html: content.body }} />
+            {sanitizedBody ? (
+              <div dangerouslySetInnerHTML={{ __html: sanitizedBody }} />
             ) : (
               <EmptyContent message="Conteúdo não disponível" />
             )}

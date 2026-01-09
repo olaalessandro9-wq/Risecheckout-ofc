@@ -34,6 +34,12 @@ import {
   sanitizePhone 
 } from "../_shared/sanitizer.ts";
 
+// Audit Logger for security events
+import { 
+  logSecurityEvent, 
+  SecurityAction 
+} from "../_shared/audit-logger.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -277,6 +283,17 @@ serve(async (req) => {
       
       if (!isValid) {
         console.log(`[buyer-auth] Login failed - wrong password: ${email}`);
+        
+        // SECURITY: Log failed login attempt
+        await logSecurityEvent(supabase, {
+          userId: buyer.id,
+          action: SecurityAction.LOGIN_FAILED,
+          resource: "buyer_auth",
+          success: false,
+          request: req,
+          metadata: { email: buyer.email, reason: "invalid_password" }
+        });
+        
         return new Response(
           JSON.stringify({ error: "Email ou senha inválidos" }),
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -325,6 +342,16 @@ serve(async (req) => {
         .update({ last_login_at: new Date().toISOString() })
         .eq("id", buyer.id);
 
+      // SECURITY: Log successful login
+      await logSecurityEvent(supabase, {
+        userId: buyer.id,
+        action: SecurityAction.LOGIN_SUCCESS,
+        resource: "buyer_auth",
+        success: true,
+        request: req,
+        metadata: { email: buyer.email }
+      });
+
       console.log(`[buyer-auth] Login successful: ${email}`);
       return new Response(
         JSON.stringify({
@@ -354,10 +381,28 @@ serve(async (req) => {
         );
       }
 
+      // Get session to retrieve buyer_id for audit log
+      const { data: session } = await supabase
+        .from("buyer_sessions")
+        .select("buyer_id")
+        .eq("session_token", sessionToken)
+        .single();
+
       await supabase
         .from("buyer_sessions")
         .update({ is_valid: false })
         .eq("session_token", sessionToken);
+
+      // SECURITY: Log logout event
+      if (session?.buyer_id) {
+        await logSecurityEvent(supabase, {
+          userId: session.buyer_id,
+          action: SecurityAction.LOGOUT,
+          resource: "buyer_auth",
+          success: true,
+          request: req,
+        });
+      }
 
       console.log("[buyer-auth] Logout successful");
       return new Response(
