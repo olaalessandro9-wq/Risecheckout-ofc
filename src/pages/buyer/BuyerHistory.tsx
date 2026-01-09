@@ -5,13 +5,7 @@ import { useBuyerOrders } from "@/hooks/useBuyerOrders";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Package, Calendar, ShoppingBag } from "lucide-react";
-
-function formatCurrency(cents: number): string {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(cents / 100);
-}
+import { formatCentsToBRL } from "@/lib/money";
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString("pt-BR", {
@@ -110,7 +104,7 @@ export default function BuyerHistory() {
                 </div>
                 <div className="flex items-center gap-4 flex-shrink-0">
                   <span className="font-semibold text-lg">
-                    {formatCurrency(order.amount_cents)}
+                    {formatCentsToBRL(order.amount_cents)}
                   </span>
                   {getStatusBadge(order.status)}
                 </div>

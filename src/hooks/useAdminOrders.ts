@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PeriodFilter } from "@/hooks/useAdminAnalytics";
 import { startOfDay, endOfDay, subDays } from "date-fns";
+import { formatCentsToBRL } from "@/lib/money";
 
 export interface AdminOrder {
   id: string;
@@ -20,13 +21,6 @@ export interface AdminOrder {
   paymentMethod: string | null;
   createdAt: string;
   fullCreatedAt: string;
-}
-
-function formatCurrency(cents: number): string {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(cents / 100);
 }
 
 function formatDate(dateString: string): string {
@@ -119,7 +113,7 @@ export function useAdminOrders(period: PeriodFilter) {
           productImageUrl: product?.image_url || "",
           productOwnerId: product?.user_id || "",
           vendorId: order.vendor_id,
-          amount: formatCurrency(order.amount_cents || 0),
+          amount: formatCentsToBRL(order.amount_cents || 0),
           amountCents: order.amount_cents || 0,
           status: translateStatus(order.status),
           paymentMethod: order.payment_method,
