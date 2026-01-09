@@ -56,9 +56,6 @@ export function useDashboardAnalytics(startDate: Date, endDate: Date) {
         fetchRecentOrders(vendorId, startDate, endDate)
       ]);
 
-      console.log("[useDashboardAnalytics] Métricas período atual:", currentMetrics);
-      console.log("[useDashboardAnalytics] Métricas período anterior:", previousMetrics);
-
       // Calcular métricas usando dados agregados do banco
       const metrics = calculateMetricsFromRpc(currentMetrics, previousMetrics);
 

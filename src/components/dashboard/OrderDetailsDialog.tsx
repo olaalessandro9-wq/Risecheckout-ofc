@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Package, User, Mail, Phone, CreditCard, Calendar, CheckCircle2, Clock, XCircle, FileText, Eye, Loader2 } from "lucide-react";
 import { useDecryptCustomerData } from "@/hooks/useDecryptCustomerData";
 import { useAuth } from "@/hooks/useAuth";
+import { isEncryptedValue } from "./recent-customers/utils/customerUtils";
 
 interface OrderDetailsDialogProps {
   open: boolean;
@@ -67,13 +68,6 @@ const getStatusConfig = (status: string) => {
 
 // Máscara para dados sensíveis não revelados
 const MASKED_VALUE = "••••••••••••";
-
-// Verifica se o valor parece estar criptografado (base64 longo)
-const isEncryptedValue = (value: string | null | undefined): boolean => {
-  if (!value || value === "N/A") return false;
-  // Valores criptografados são base64 longos (>30 chars tipicamente)
-  return value.length > 30 && /^[A-Za-z0-9+/=]+$/.test(value);
-};
 
 export function OrderDetailsDialog({ open, onOpenChange, orderData, productOwnerId }: OrderDetailsDialogProps) {
   const { user } = useAuth();
