@@ -1,10 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-buyer-session",
-};
+import { handleCors } from "../_shared/cors.ts";
+import { 
+  rateLimitMiddleware, 
+  RATE_LIMIT_CONFIGS,
+  getClientIP 
+} from "../_shared/rate-limiter.ts";
 
 // Validate buyer session and return buyer data
 async function validateSession(supabase: any, sessionToken: string | null) {
@@ -46,15 +47,32 @@ async function validateSession(supabase: any, sessionToken: string | null) {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  // CORS handling
+  const corsResult = handleCors(req);
+  if (corsResult instanceof Response) {
+    return corsResult;
   }
+  // Extend CORS headers to include x-buyer-session
+  const corsHeaders = {
+    ...corsResult.headers,
+    "Access-Control-Allow-Headers": corsResult.headers["Access-Control-Allow-Headers"] + ", x-buyer-session",
+  };
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Rate limiting
+    const rateLimitResult = await rateLimitMiddleware(
+      supabase as any,
+      req,
+      RATE_LIMIT_CONFIGS.MEMBERS_AREA
+    );
+    if (rateLimitResult) {
+      console.warn(`[buyer-orders] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      return rateLimitResult;
+    }
 
     const url = new URL(req.url);
     const pathParts = url.pathname.split("/").filter(Boolean);
