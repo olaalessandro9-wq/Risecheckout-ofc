@@ -3574,6 +3574,10 @@ export type Database = {
           product_id: string
         }[]
       }
+      get_dashboard_metrics: {
+        Args: { p_end_date: string; p_start_date: string; p_vendor_id: string }
+        Returns: Json
+      }
       get_gateway_credentials: {
         Args: { p_gateway: string; p_vendor_id: string }
         Returns: Json
