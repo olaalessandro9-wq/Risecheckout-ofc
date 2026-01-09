@@ -86,14 +86,15 @@ serve(async (req) => {
       );
     }
 
-    // Cliente para autenticação (ANON_KEY + Bearer do usuário)
-    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } }
-    });
+    // Extrair token do header
+    const token = authHeader.replace("Bearer ", "");
     
-    const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
+    // Cliente para autenticação (ANON_KEY) - usar getUser(token) explicitamente
+    const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey);
+    
+    const { data: { user }, error: authError } = await supabaseAnon.auth.getUser(token);
     if (authError || !user) {
-      console.error("[decrypt-batch] Auth error:", authError?.message || "No user");
+      console.error("[decrypt-batch] Auth error:", authError?.message || "No user", { token: token.substring(0, 20) + "..." });
       return new Response(
         JSON.stringify({ error: "Invalid token", details: authError?.message }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
