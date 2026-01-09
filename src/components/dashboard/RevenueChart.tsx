@@ -30,14 +30,14 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export function RevenueChart({ title, data, isLoading = false }: RevenueChartProps) {
   // Calcular domínio dinâmico do eixo Y para melhor visualização
   const getYAxisDomain = (): [number, number] => {
-    if (!data || data.length === 0) return [0, 'auto'];
+    if (!data || data.length === 0) return [0, 100];
     
     const values = data.map(d => d.value);
     const minValue = Math.min(...values);
     const maxValue = Math.max(...values);
     
     // Se todos os valores forem zero, usar escala padrão
-    if (maxValue === 0) return [0, 'auto'];
+    if (maxValue === 0) return [0, 100];
     
     // Calcular margem para dar respiro visual (10-15%)
     const range = maxValue - minValue;

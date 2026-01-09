@@ -138,10 +138,46 @@ function calculateGatewayFee(amountCents: number): number {
 // DATA FETCHING FUNCTIONS
 // ============================================================================
 
+interface RpcMetricsResult {
+  paid_count: number;
+  pending_count: number;
+  total_count: number;
+  paid_revenue_cents: number;
+  pending_revenue_cents: number;
+  total_revenue_cents: number;
+  pix_revenue_cents: number;
+  credit_card_revenue_cents: number;
+  fees_cents: number;
+}
+
 /**
- * Busca pedidos do Supabase para um período específico
+ * Busca métricas agregadas do banco via RPC (sem limite de 1000 registros)
  */
-async function fetchOrders(
+async function fetchAggregatedMetrics(
+  vendorId: string,
+  startDate: Date,
+  endDate: Date
+): Promise<RpcMetricsResult> {
+  const { data, error } = await supabase.rpc('get_dashboard_metrics', {
+    p_vendor_id: vendorId,
+    p_start_date: startOfDay(startDate).toISOString(),
+    p_end_date: endOfDay(endDate).toISOString()
+  });
+
+  if (error) {
+    console.error("[fetchAggregatedMetrics] Erro ao buscar métricas:", error);
+    throw error;
+  }
+
+  // O RPC retorna JSON, então precisamos fazer cast seguro
+  const result = data as unknown as RpcMetricsResult;
+  return result;
+}
+
+/**
+ * Busca pedidos recentes do Supabase (limitado a 50 para a tabela)
+ */
+async function fetchRecentOrders(
   vendorId: string,
   startDate: Date,
   endDate: Date
@@ -168,10 +204,52 @@ async function fetchOrders(
     .eq("vendor_id", vendorId)
     .gte("created_at", startOfDay(startDate).toISOString())
     .lte("created_at", endOfDay(endDate).toISOString())
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(50);
 
   if (error) {
-    console.error("[fetchOrders] Erro ao buscar pedidos:", error);
+    console.error("[fetchRecentOrders] Erro ao buscar pedidos:", error);
+    throw error;
+  }
+
+  return orders || [];
+}
+
+/**
+ * Busca dados para o gráfico (apenas pagos, agregados por dia)
+ */
+async function fetchChartOrders(
+  vendorId: string,
+  startDate: Date,
+  endDate: Date
+): Promise<Order[]> {
+  const { data: orders, error } = await supabase
+    .from("orders")
+    .select(`
+      id,
+      customer_name,
+      customer_email,
+      customer_phone,
+      customer_document,
+      amount_cents,
+      status,
+      payment_method,
+      created_at,
+      product:product_id (
+        id,
+        name,
+        image_url,
+        user_id
+      )
+    `)
+    .eq("vendor_id", vendorId)
+    .eq("status", "paid")
+    .gte("created_at", startOfDay(startDate).toISOString())
+    .lte("created_at", endOfDay(endDate).toISOString())
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("[fetchChartOrders] Erro ao buscar pedidos para gráfico:", error);
     throw error;
   }
 
@@ -246,6 +324,80 @@ function calculateMetrics(
     checkoutsStarted: currentOrders.length,
     totalPaidOrders: paidOrders.length,
     totalPendingOrders: pendingOrders.length,
+    conversionRate: `${conversionRate.toFixed(2)}%`,
+    
+    // Novas métricas
+    averageTicket: formatCurrency(averageTicketCents),
+    pixRevenue: formatCurrency(pixRevenue),
+    creditCardRevenue: formatCurrency(creditCardRevenue),
+    
+    // Trends
+    revenueTrend: {
+      value: Math.abs(revenueTrendValue),
+      isPositive: revenueTrendValue >= 0,
+      label: "vs. período anterior"
+    },
+    conversionTrend: {
+      value: Math.abs(conversionTrendValue),
+      isPositive: conversionTrendValue >= 0,
+      label: "vs. período anterior"
+    }
+  };
+}
+
+/**
+ * Calcula métricas do dashboard usando dados agregados do RPC
+ * Esta função NÃO tem limite de 1000 registros porque usa agregação no banco
+ */
+function calculateMetricsFromRpc(
+  current: RpcMetricsResult,
+  previous: RpcMetricsResult
+): DashboardMetrics {
+  // Extrair valores do período atual
+  const paidRevenue = current.paid_revenue_cents || 0;
+  const pendingRevenue = current.pending_revenue_cents || 0;
+  const totalRevenue = current.total_revenue_cents || 0;
+  const paidCount = current.paid_count || 0;
+  const pendingCount = current.pending_count || 0;
+  const totalCount = current.total_count || 0;
+  const totalFees = current.fees_cents || 0;
+  const pixRevenue = current.pix_revenue_cents || 0;
+  const creditCardRevenue = current.credit_card_revenue_cents || 0;
+
+  // Extrair valores do período anterior
+  const previousPaidRevenue = previous.paid_revenue_cents || 0;
+  const previousPaidCount = previous.paid_count || 0;
+  const previousTotalCount = previous.total_count || 0;
+
+  // Calcular ticket médio (baseado apenas em vendas pagas)
+  const averageTicketCents = paidCount > 0
+    ? Math.round(paidRevenue / paidCount)
+    : 0;
+
+  // Calcular taxa de conversão
+  const conversionRate = totalCount > 0
+    ? (paidCount / totalCount) * 100
+    : 0;
+  
+  const previousConversionRate = previousTotalCount > 0
+    ? (previousPaidCount / previousTotalCount) * 100
+    : 0;
+
+  // Calcular trends (baseado em vendas pagas apenas para comparação justa)
+  const revenueTrendValue = calculatePercentageChange(paidRevenue, previousPaidRevenue);
+  const conversionTrendValue = calculatePercentageChange(conversionRate, previousConversionRate);
+
+  return {
+    // Métricas financeiras
+    totalRevenue: formatCurrency(totalRevenue),   // Faturamento = Aprovadas + Pendentes
+    paidRevenue: formatCurrency(paidRevenue),     // Apenas Vendas Aprovadas
+    pendingRevenue: formatCurrency(pendingRevenue),
+    totalFees: formatCurrency(totalFees),
+    
+    // Métricas de conversão
+    checkoutsStarted: totalCount,
+    totalPaidOrders: paidCount,
+    totalPendingOrders: pendingCount,
     conversionRate: `${conversionRate.toFixed(2)}%`,
     
     // Novas métricas
@@ -389,23 +541,25 @@ export function useDashboardAnalytics(startDate: Date, endDate: Date) {
       const previousEndDate = new Date(startDate);
       previousEndDate.setDate(previousEndDate.getDate() - 1);
 
-      // Buscar pedidos do período atual e anterior em paralelo
-      const [currentOrders, previousOrders] = await Promise.all([
-        fetchOrders(vendorId, startDate, endDate),
-        fetchOrders(vendorId, previousStartDate, previousEndDate)
+      // Buscar métricas agregadas via RPC (sem limite de 1000!) + pedidos para gráfico e tabela
+      const [currentMetrics, previousMetrics, chartOrders, recentOrders] = await Promise.all([
+        fetchAggregatedMetrics(vendorId, startDate, endDate),
+        fetchAggregatedMetrics(vendorId, previousStartDate, previousEndDate),
+        fetchChartOrders(vendorId, startDate, endDate),
+        fetchRecentOrders(vendorId, startDate, endDate)
       ]);
 
-      console.log("[useDashboardAnalytics] Pedidos período atual:", currentOrders.length);
-      console.log("[useDashboardAnalytics] Pedidos período anterior:", previousOrders.length);
+      console.log("[useDashboardAnalytics] Métricas período atual:", currentMetrics);
+      console.log("[useDashboardAnalytics] Métricas período anterior:", previousMetrics);
 
-      // Calcular métricas
-      const metrics = calculateMetrics(currentOrders, previousOrders);
+      // Calcular métricas usando dados agregados do banco (CORRETO - sem limite de 1000)
+      const metrics = calculateMetricsFromRpc(currentMetrics, previousMetrics);
 
       // Calcular dados dos gráficos
-      const chartData = calculateChartData(currentOrders, startDate, endDate);
+      const chartData = calculateChartData(chartOrders, startDate, endDate);
 
       // Formatar clientes recentes
-      const recentCustomers = formatRecentCustomers(currentOrders);
+      const recentCustomers = formatRecentCustomers(recentOrders);
 
       return {
         metrics,
