@@ -3424,6 +3424,52 @@ export type Database = {
         }
         Relationships: []
       }
+      v_system_health_summary: {
+        Row: {
+          avg_value: number | null
+          error_count: number | null
+          event_count: number | null
+          hour: string | null
+          metric_type: string | null
+        }
+        Relationships: []
+      }
+      v_unresolved_errors: {
+        Row: {
+          error_message: string | null
+          error_stack: string | null
+          function_name: string | null
+          id: string | null
+          notes: string | null
+          order_id: string | null
+          request_payload: Json | null
+          timestamp: string | null
+          user_id: string | null
+        }
+        Insert: {
+          error_message?: string | null
+          error_stack?: string | null
+          function_name?: string | null
+          id?: string | null
+          notes?: string | null
+          order_id?: string | null
+          request_payload?: Json | null
+          timestamp?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          error_message?: string | null
+          error_stack?: string | null
+          function_name?: string | null
+          id?: string | null
+          notes?: string | null
+          order_id?: string | null
+          request_payload?: Json | null
+          timestamp?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       vendor_integrations_public: {
         Row: {
           active: boolean | null
