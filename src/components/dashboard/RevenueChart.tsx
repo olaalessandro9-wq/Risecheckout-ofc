@@ -138,6 +138,7 @@ export function RevenueChart({ title, data, isLoading = false }: RevenueChartPro
                   tickLine={false}
                   axisLine={false}
                   dy={10}
+                  padding={{ left: 20, right: 20 }}
                 />
                 <YAxis
                   stroke="hsl(var(--chart-axis))"
