@@ -28,57 +28,29 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function RevenueChart({ title, data, isLoading = false }: RevenueChartProps) {
-  // Calcular o valor máximo dinamicamente
-  const maxValue = Math.max(...data.map(d => d.value), 0);
-
-  // Gerar ticks inteligentes que se adaptam ao range dos dados
-  const generateSmartTicks = (max: number): number[] => {
-    if (max <= 0) return [0];
+  // Calcular domínio dinâmico do eixo Y para melhor visualização
+  const getYAxisDomain = () => {
+    if (!data || data.length === 0) return [0, 'auto'];
     
-    // Determinar ordem de magnitude e step apropriado
-    const magnitude = Math.pow(10, Math.floor(Math.log10(max)));
-    const normalizedMax = max / magnitude;
+    const values = data.map(d => d.value);
+    const minValue = Math.min(...values);
+    const maxValue = Math.max(...values);
     
-    // Escolher incremento bonito baseado no range
-    let step: number;
-    if (normalizedMax <= 1.5) step = 0.25 * magnitude;
-    else if (normalizedMax <= 3) step = 0.5 * magnitude;
-    else if (normalizedMax <= 6) step = 1 * magnitude;
-    else step = 2 * magnitude;
+    // Se todos os valores forem zero, usar escala padrão
+    if (maxValue === 0) return [0, 'auto'];
     
-    // Arredondar step para número bonito
-    if (step < 100) step = Math.ceil(step / 50) * 50;
-    else if (step < 500) step = Math.ceil(step / 100) * 100;
-    else if (step < 1000) step = Math.ceil(step / 250) * 250;
-    else step = Math.ceil(step / 500) * 500;
+    // Calcular margem de 10% para dar respiro visual
+    const range = maxValue - minValue;
+    const margin = range * 0.1;
     
-    // Garantir step mínimo
-    step = Math.max(step, 50);
+    // Se a variação for muito pequena (menos de 5% do valor máximo),
+    // usar uma margem fixa para mostrar melhor as variações
+    const effectiveMargin = range < maxValue * 0.05 ? maxValue * 0.05 : margin;
     
-    // Gerar 4-6 ticks
-    const ticks: number[] = [0];
-    let currentTick = step;
-    while (currentTick <= max * 1.1 && ticks.length < 6) {
-      ticks.push(currentTick);
-      currentTick += step;
-    }
-    // Garantir que o último tick cubra o valor máximo
-    if (ticks[ticks.length - 1] < max) {
-      ticks.push(currentTick);
-    }
+    const yMin = Math.max(0, minValue - effectiveMargin);
+    const yMax = maxValue + effectiveMargin;
     
-    return ticks;
-  };
-
-  const smartTicks = generateSmartTicks(maxValue);
-  const yAxisMax = smartTicks[smartTicks.length - 1] || 100;
-
-  // Formatar valores grandes de forma legível
-  const formatYAxisTick = (value: number) => {
-    if (value >= 1000) {
-      return `R$ ${(value / 1000).toFixed(1)}k`;
-    }
-    return `R$ ${value}`;
+    return [Math.floor(yMin), Math.ceil(yMax)];
   };
 
   return (
@@ -130,11 +102,14 @@ export function RevenueChart({ title, data, isLoading = false }: RevenueChartPro
                   style={{ fontSize: '11px', fontWeight: 500 }}
                   tickLine={false}
                   axisLine={false}
-                  type="number"
-                  domain={[0, yAxisMax]}
-                  ticks={smartTicks}
-                  allowDataOverflow={false}
-                  tickFormatter={formatYAxisTick}
+                  domain={getYAxisDomain()}
+                  tickFormatter={(value) => {
+                    // Formatar valores grandes de forma compacta (ex: 2.5k, 10k)
+                    if (value >= 1000) {
+                      return `R$ ${(value / 1000).toFixed(1)}k`;
+                    }
+                    return `R$ ${value}`;
+                  }}
                 />
                 <Tooltip
                   content={<CustomTooltip />}
