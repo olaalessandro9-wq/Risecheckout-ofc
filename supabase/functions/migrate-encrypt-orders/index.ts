@@ -82,18 +82,68 @@ serve(async (req) => {
   console.log("[migrate-encrypt-orders] Iniciando migração de dados sensíveis");
 
   try {
-    // Validar secret interno (apenas admin pode executar)
-    const internalSecret = req.headers.get("x-internal-secret");
-    const expectedSecret = Deno.env.get("INTERNAL_WEBHOOK_SECRET");
-    
-    if (!internalSecret || internalSecret !== expectedSecret) {
-      console.error("[migrate-encrypt-orders] Acesso negado - secret inválido");
+    // ========== AUTENTICAÇÃO JWT ADMIN ==========
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      console.error("[migrate-encrypt-orders] Acesso negado - token JWT ausente");
       return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
+        JSON.stringify({ error: "Authorization header required" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    // Criar cliente com token do usuário para validar claims
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+    
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    // Validar JWT e extrair claims
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims?.sub) {
+      console.error("[migrate-encrypt-orders] Token JWT inválido:", claimsError);
+      return new Response(
+        JSON.stringify({ error: "Invalid token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const userId = claimsData.claims.sub as string;
+    console.log(`[migrate-encrypt-orders] Usuário autenticado: ${userId}`);
+
+    // Verificar se é admin usando Service Role (para acessar RPC sem RLS)
+    const supabaseAdmin = createClient(
+      supabaseUrl,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    const { data: isAdminUser, error: adminError } = await supabaseAdmin.rpc("is_admin", {
+      p_user_id: userId
+    });
+
+    if (adminError) {
+      console.error("[migrate-encrypt-orders] Erro ao verificar admin:", adminError);
+      return new Response(
+        JSON.stringify({ error: "Failed to verify admin status" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!isAdminUser) {
+      console.error(`[migrate-encrypt-orders] Acesso negado - usuário ${userId} não é admin`);
+      return new Response(
+        JSON.stringify({ error: "Admin access required" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`[migrate-encrypt-orders] Admin confirmado: ${userId}`);
+
+    // ========== VALIDAÇÃO DA CHAVE DE CRIPTOGRAFIA ==========
     // Validar chave de criptografia
     const encryptionKey = Deno.env.get("BUYER_ENCRYPTION_KEY");
     if (!encryptionKey) {
@@ -104,10 +154,8 @@ serve(async (req) => {
       );
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    // Usar supabaseAdmin (já declarado acima) para operações com service role
+    const supabase = supabaseAdmin;
 
     // Derivar chave de criptografia
     const key = await deriveKey(encryptionKey);
@@ -199,9 +247,9 @@ serve(async (req) => {
       }
     }
 
-    // Log de auditoria
+    // Log de auditoria com user_id do admin que executou
     await supabase.from("security_audit_log").insert({
-      user_id: null,
+      user_id: userId,
       action: "DATA_MIGRATION_ENCRYPT",
       resource: "orders",
       success: results.errors === 0,
@@ -210,6 +258,7 @@ serve(async (req) => {
         migrated: results.migrated,
         already_encrypted: results.already_encrypted,
         errors: results.errors,
+        executed_by: userId,
         timestamp: new Date().toISOString()
       }
     });
