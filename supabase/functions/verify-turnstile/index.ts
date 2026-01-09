@@ -53,7 +53,6 @@ Deno.serve(async (req) => {
       return rateLimitResult;
     }
 
-  try {
     const secretKey = Deno.env.get('TURNSTILE_SECRET_KEY');
     
     if (!secretKey) {
