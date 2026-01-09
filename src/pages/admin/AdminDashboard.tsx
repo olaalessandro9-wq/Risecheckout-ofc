@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Activity, Shield, TrendingUp, DollarSign, Eye, Package } from "lucide-react";
+import { Users, Activity, Shield, TrendingUp, DollarSign, Eye, Package, ShieldAlert } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminUsersTab } from "@/components/admin/AdminUsersTab";
@@ -24,6 +24,7 @@ import { AdminFinanceTab } from "@/components/admin/AdminFinanceTab";
 import { AdminTrafficTab } from "@/components/admin/AdminTrafficTab";
 import { AdminProductsTab } from "@/components/admin/AdminProductsTab";
 import { AdminOrdersTab } from "@/components/admin/AdminOrdersTab";
+import { AdminSecurityAlertsTab } from "@/components/admin/AdminSecurityAlertsTab";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { PeriodFilter } from "@/hooks/useAdminAnalytics";
@@ -148,6 +149,12 @@ export default function AdminDashboard() {
             <TrendingUp className="h-4 w-4" />
             Sistema
           </TabsTrigger>
+          {role === "owner" && (
+            <TabsTrigger value="security" className="gap-2">
+              <ShieldAlert className="h-4 w-4" />
+              Segurança
+            </TabsTrigger>
+          )}
           {canViewSecurityLogs && (
             <TabsTrigger value="logs" className="gap-2">
               <Shield className="h-4 w-4" />
@@ -270,6 +277,13 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Tab: Segurança (apenas owner) */}
+        {role === "owner" && (
+          <TabsContent value="security">
+            <AdminSecurityAlertsTab />
+          </TabsContent>
+        )}
 
         {/* Tab: Logs (apenas owner) */}
         {canViewSecurityLogs && (

@@ -135,7 +135,9 @@ export default function AdminHealth() {
               {webhookStats?.delivered || 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              Taxa: {webhookStats ? ((webhookStats.delivered / webhookStats.total) * 100).toFixed(1) : 0}%
+              Taxa: {webhookStats && webhookStats.total > 0 
+                ? ((webhookStats.delivered / webhookStats.total) * 100).toFixed(1) 
+                : 0}%
             </p>
           </CardContent>
         </Card>
