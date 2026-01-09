@@ -120,7 +120,7 @@ export function RevenueChart({ title, data, isLoading = false }: RevenueChartPro
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data} margin={{ top: 10, right: 10, left: 25, bottom: 0 }}>
+              <LineChart data={data} margin={{ top: 10, right: 10, left: 40, bottom: 0 }}>
                 <defs>
                   <filter id="glow">
                     <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
