@@ -1,4 +1,20 @@
+/**
+ * members-area-certificates Edge Function
+ * 
+ * Handles certificate operations for the members area
+ * 
+ * SECURITY UPDATES:
+ * - VULN-002: Rate limiting implementado
+ * 
+ * @version 1.1.0
+ */
+
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { 
+  rateLimitMiddleware, 
+  RATE_LIMIT_CONFIGS,
+  getClientIP 
+} from "../_shared/rate-limiter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -42,6 +58,17 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // VULN-002: Rate limiting para members area
+    const rateLimitResult = await rateLimitMiddleware(
+      supabase, 
+      req, 
+      RATE_LIMIT_CONFIGS.MEMBERS_AREA
+    );
+    if (rateLimitResult) {
+      console.warn(`[members-area-certificates] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      return rateLimitResult;
+    }
 
     const body: CertificateRequest = await req.json();
     const { action, product_id, template_id, certificate_id, verification_code, buyer_token, data } = body;

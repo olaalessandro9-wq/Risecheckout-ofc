@@ -22,11 +22,17 @@
  * - Valida que o vendor_id corresponde ao usuário autenticado
  * - Usa vault_upsert_secret para idempotência
  * - Criptografa automaticamente via Vault
+ * - VULN-002: Rate limiting implementado
  * 
- * @version 2.0.0
+ * @version 2.1.0
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { 
+  rateLimitMiddleware, 
+  RATE_LIMIT_CONFIGS,
+  getClientIP 
+} from '../_shared/rate-limiter.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -126,6 +132,19 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // VULN-002: Rate limiting para vault-save
+    const rateLimitResult = await rateLimitMiddleware(
+      supabase, 
+      req, 
+      RATE_LIMIT_CONFIGS.VAULT_SAVE
+    );
+    if (rateLimitResult) {
+      console.warn(`[save-vendor-credentials] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      return rateLimitResult;
+    }
+
+    // 2. Verificar autenticação
 
     // 2. Verificar autenticação
     const authHeader = req.headers.get('Authorization');

@@ -3,11 +3,36 @@
  * 
  * Handles buyer authentication with bcrypt password hashing
  * Supports transparent migration from SHA-256 (v1) to bcrypt (v2)
+ * 
+ * SECURITY UPDATES:
+ * - VULN-002: Rate limiting para login/register
+ * - VULN-007: Política de senhas forte
+ * - VULN-006: Sanitização de inputs
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+
+// Rate Limiting imports
+import { 
+  rateLimitMiddleware, 
+  RATE_LIMIT_CONFIGS,
+  getClientIP 
+} from "../_shared/rate-limiter.ts";
+
+// Password Policy imports
+import { 
+  validatePassword, 
+  formatPasswordError 
+} from "../_shared/password-policy.ts";
+
+// Sanitization imports  
+import { 
+  sanitizeEmail, 
+  sanitizeName, 
+  sanitizePhone 
+} from "../_shared/sanitizer.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -71,7 +96,24 @@ serve(async (req) => {
     // REGISTER - Criar nova conta ou definir senha
     // ============================================
     if (action === "register" && req.method === "POST") {
-      const { email, password, name, phone } = await req.json();
+      // Rate limit para registro
+      const rateLimitResult = await rateLimitMiddleware(
+        supabase, 
+        req, 
+        RATE_LIMIT_CONFIGS.BUYER_AUTH_REGISTER
+      );
+      if (rateLimitResult) {
+        console.warn(`[buyer-auth] Rate limit exceeded for register from IP: ${getClientIP(req)}`);
+        return rateLimitResult;
+      }
+
+      const rawBody = await req.json();
+      
+      // Sanitizar inputs
+      const email = sanitizeEmail(rawBody.email);
+      const password = rawBody.password; // Não sanitizar senha (pode ter chars especiais)
+      const name = sanitizeName(rawBody.name);
+      const phone = sanitizePhone(rawBody.phone);
 
       if (!email || !password) {
         return new Response(
@@ -80,9 +122,18 @@ serve(async (req) => {
         );
       }
 
-      if (password.length < 6) {
+      // VULN-007: Validação de força da senha
+      const passwordValidation = validatePassword(password);
+      if (!passwordValidation.valid) {
         return new Response(
-          JSON.stringify({ error: "Senha deve ter no mínimo 6 caracteres" }),
+          JSON.stringify({ 
+            error: formatPasswordError(passwordValidation),
+            validation: {
+              score: passwordValidation.score,
+              errors: passwordValidation.errors,
+              suggestions: passwordValidation.suggestions,
+            }
+          }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -91,7 +142,7 @@ serve(async (req) => {
       const { data: existingBuyer } = await supabase
         .from("buyer_profiles")
         .select("id, password_hash")
-        .eq("email", email.toLowerCase())
+        .eq("email", email)
         .single();
 
       // Always use bcrypt for new passwords
@@ -164,7 +215,22 @@ serve(async (req) => {
     // LOGIN - Autenticar buyer
     // ============================================
     if (action === "login" && req.method === "POST") {
-      const { email, password } = await req.json();
+      // Rate limit para login (mais restritivo)
+      const rateLimitResult = await rateLimitMiddleware(
+        supabase, 
+        req, 
+        RATE_LIMIT_CONFIGS.BUYER_AUTH_LOGIN
+      );
+      if (rateLimitResult) {
+        console.warn(`[buyer-auth] Rate limit exceeded for login from IP: ${getClientIP(req)}`);
+        return rateLimitResult;
+      }
+
+      const rawBody = await req.json();
+      
+      // Sanitizar email
+      const email = sanitizeEmail(rawBody.email);
+      const password = rawBody.password;
 
       if (!email || !password) {
         return new Response(
