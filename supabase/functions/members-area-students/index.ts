@@ -648,7 +648,7 @@ Deno.serve(async (req) => {
         }
 
         // 5. Build access link
-        const baseUrl = Deno.env.get("PUBLIC_SITE_URL") || "https://risecheckout.lovable.app";
+        const baseUrl = Deno.env.get("PUBLIC_SITE_URL") || "https://risecheckout.com";
         const accessLink = `${baseUrl}/minha-conta/setup-acesso?token=${rawToken}`;
 
         // 6. Get producer info
