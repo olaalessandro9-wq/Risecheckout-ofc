@@ -74,6 +74,12 @@ export function UnifiedGroupModal({
   
   // UI state
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Validation errors
+  const [errors, setErrors] = useState<{
+    name?: string;
+    modules?: string;
+  }>({});
 
   // Initialize form when modal opens or group changes
   useEffect(() => {
@@ -138,12 +144,20 @@ export function UnifiedGroupModal({
     [modules.length, accessCount]
   );
 
+  // Validation
+  const isFormInvalid = useMemo(() => {
+    if (!name.trim()) return true;
+    if (modules.length > 0 && accessCount === 0) return true;
+    return false;
+  }, [name, modules.length, accessCount]);
+
   // Handlers
   const handleToggleModule = (moduleId: string) => {
     setModuleAccess(prev => ({
       ...prev,
       [moduleId]: !prev[moduleId],
     }));
+    if (errors.modules) setErrors(prev => ({ ...prev, modules: undefined }));
   };
 
   const handleSelectAllModules = () => {
@@ -153,6 +167,7 @@ export function UnifiedGroupModal({
       newState[m.id] = shouldSelect;
     });
     setModuleAccess(newState);
+    if (errors.modules) setErrors(prev => ({ ...prev, modules: undefined }));
   };
 
   const handleToggleOffer = (offerId: string) => {
@@ -163,7 +178,21 @@ export function UnifiedGroupModal({
   };
 
   const handleSave = async () => {
-    if (!name.trim()) return;
+    // Validate
+    const newErrors: typeof errors = {};
+    
+    if (!name.trim()) {
+      newErrors.name = 'O nome do grupo é obrigatório';
+    }
+    
+    if (modules.length > 0 && accessCount === 0) {
+      newErrors.modules = 'Selecione pelo menos 1 módulo';
+    }
+    
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
     
     setIsSaving(true);
     
@@ -214,13 +243,20 @@ export function UnifiedGroupModal({
           {/* Basic Info Section */}
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="group-name">Nome do grupo</Label>
+              <Label htmlFor="group-name">Nome do grupo *</Label>
               <Input
                 id="group-name"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (errors.name) setErrors(prev => ({ ...prev, name: undefined }));
+                }}
                 placeholder="Ex: VIP, Premium, Básico..."
+                className={errors.name ? 'border-destructive' : ''}
               />
+              {errors.name && (
+                <p className="text-sm text-destructive">{errors.name}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -328,6 +364,10 @@ export function UnifiedGroupModal({
                 <p className="text-sm">Nenhum módulo criado ainda</p>
               </div>
             )}
+            
+            {errors.modules && (
+              <p className="text-sm text-destructive mt-1">{errors.modules}</p>
+            )}
           </div>
 
           <Separator />
@@ -403,7 +443,7 @@ export function UnifiedGroupModal({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button onClick={handleSave} disabled={isSaving || !name.trim()}>
+          <Button onClick={handleSave} disabled={isSaving || isFormInvalid}>
             {isSaving ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />

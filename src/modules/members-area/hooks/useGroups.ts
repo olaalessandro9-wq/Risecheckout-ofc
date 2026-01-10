@@ -26,8 +26,8 @@ interface UseGroupsReturn {
   createGroup: (input: Omit<CreateGroupInput, 'product_id'>) => Promise<MemberGroup | null>;
   updateGroup: (groupId: string, input: UpdateGroupInput) => Promise<boolean>;
   deleteGroup: (groupId: string) => Promise<boolean>;
-  updatePermissions: (input: UpdatePermissionsInput) => Promise<boolean>;
-  linkOffers: (groupId: string, offerIds: string[]) => Promise<boolean>;
+  updatePermissions: (input: UpdatePermissionsInput, options?: { silent?: boolean }) => Promise<boolean>;
+  linkOffers: (groupId: string, offerIds: string[], options?: { silent?: boolean }) => Promise<boolean>;
 }
 
 export function useGroups(productId: string | undefined): UseGroupsReturn {
@@ -152,7 +152,8 @@ export function useGroups(productId: string | undefined): UseGroupsReturn {
   }, []);
 
   const updatePermissions = useCallback(async (
-    input: UpdatePermissionsInput
+    input: UpdatePermissionsInput,
+    options?: { silent?: boolean }
   ): Promise<boolean> => {
     setIsSaving(true);
 
@@ -164,21 +165,26 @@ export function useGroups(productId: string | undefined): UseGroupsReturn {
       return false;
     }
 
-    toast.success('Permissões atualizadas');
+    if (!options?.silent) {
+      toast.success('Permissões atualizadas');
+    }
     setIsSaving(false);
     return true;
   }, []);
 
   const linkOffers = useCallback(async (
     groupId: string,
-    offerIds: string[]
+    offerIds: string[],
+    options?: { silent?: boolean }
   ): Promise<boolean> => {
     setIsSaving(true);
 
     const { error: linkError } = await groupsService.linkOffers(groupId, offerIds);
 
     if (linkError) {
-      toast.error('Erro ao vincular ofertas');
+      if (!options?.silent) {
+        toast.error('Erro ao vincular ofertas');
+      }
       setIsSaving(false);
       return false;
     }
