@@ -1,8 +1,11 @@
 import { useState, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { SUPABASE_URL } from "@/config/supabase";
+import { createLogger } from "@/lib/logger";
 import { buyerQueryKeys } from "./useBuyerOrders";
 import { buyerSessionQueryKey } from "./useBuyerSession";
+
+const log = createLogger("BuyerAuth");
 
 const SESSION_KEY = "buyer_session_token";
 
@@ -57,7 +60,7 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
           queryClient.setQueryData(buyerSessionQueryKey, { valid: false, buyer: null });
         }
       } catch (error) {
-        console.error("[useBuyerAuth] Error validating session:", error);
+        log.error("Error validating session", error);
         clearSessionToken();
       } finally {
         setIsLoading(false);
@@ -94,7 +97,7 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
       
       return { success: true };
     } catch (error) {
-      console.error("[useBuyerAuth] Login error:", error);
+      log.error("Login error", error);
       return { success: false, error: "Erro de conexão" };
     }
   }, [queryClient]);
@@ -115,7 +118,7 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
 
       return { success: true };
     } catch (error) {
-      console.error("[useBuyerAuth] Register error:", error);
+      log.error("Register error", error);
       return { success: false, error: "Erro de conexão" };
     }
   }, []);
@@ -130,7 +133,7 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
           body: JSON.stringify({ sessionToken: token }),
         });
       } catch (error) {
-        console.error("[useBuyerAuth] Logout error:", error);
+        log.error("Logout error", error);
       }
     }
     clearSessionToken();
@@ -155,7 +158,7 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
         needsPasswordSetup: data.needsPasswordSetup || false,
       };
     } catch (error) {
-      console.error("[useBuyerAuth] Check email error:", error);
+      log.error("Check email error", error);
       return { exists: false, needsPasswordSetup: false };
     }
   }, []);

@@ -6,8 +6,11 @@
 import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { createLogger } from "@/lib/logger";
 import { normalizeContentType } from "@/modules/members-area/utils";
 import type { MemberContent, MemberModuleWithContents } from "./types";
+
+const log = createLogger("MembersAreaContents");
 
 interface UseMembersAreaContentsProps {
   modules: MemberModuleWithContents[];
@@ -65,7 +68,7 @@ export function useMembersAreaContents({
       toast.success("Conteúdo adicionado!");
       return normalizedContent;
     } catch (error) {
-      console.error("[useMembersAreaContents] Error adding content:", error);
+      log.error("Error adding content", error);
       toast.error("Erro ao adicionar conteúdo");
       return null;
     } finally {
@@ -89,7 +92,7 @@ export function useMembersAreaContents({
       })));
       toast.success("Conteúdo atualizado!");
     } catch (error) {
-      console.error("[useMembersAreaContents] Error updating content:", error);
+      log.error("Error updating content", error);
       toast.error("Erro ao atualizar conteúdo");
     } finally {
       setIsSaving(false);
@@ -112,7 +115,7 @@ export function useMembersAreaContents({
       })));
       toast.success("Conteúdo excluído!");
     } catch (error) {
-      console.error("[useMembersAreaContents] Error deleting content:", error);
+      log.error("Error deleting content", error);
       toast.error("Erro ao excluir conteúdo");
     } finally {
       setIsSaving(false);
@@ -142,7 +145,7 @@ export function useMembersAreaContents({
         };
       }));
     } catch (error) {
-      console.error("[useMembersAreaContents] Error reordering contents:", error);
+      log.error("Error reordering contents", error);
       toast.error("Erro ao reordenar conteúdos");
     }
   }, [setModules]);
