@@ -4,11 +4,11 @@
  * With sidebar (desktop) and bottom nav (mobile) from Builder settings
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useBuyerAuth } from "@/hooks/useBuyerAuth";
-import { useBuyerOrders } from "@/hooks/useBuyerOrders";
+import { useBuyerProductContent } from "@/hooks/useBuyerOrders";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft } from "lucide-react";
 
@@ -70,15 +70,26 @@ export default function CourseHome() {
   const navigate = useNavigate();
   const { productId } = useParams<{ productId: string }>();
   const { isLoading: authLoading, isAuthenticated } = useBuyerAuth();
-  const { fetchProductContent } = useBuyerOrders();
+  
+  // React Query declarativo - elimina o loop de useEffect
+  const { data, isLoading: queryLoading, error: queryError } = useBuyerProductContent(productId);
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [product, setProduct] = useState<ProductData | null>(null);
-  const [modules, setModules] = useState<Module[]>([]);
-  const [sections, setSections] = useState<BuilderSection[]>([]);
-  const [membersAreaSettings, setMembersAreaSettings] = useState<MembersAreaBuilderSettings>(DEFAULT_BUILDER_SETTINGS);
-  const [error, setError] = useState<string | null>(null);
   const [isMenuCollapsed, setIsMenuCollapsed] = useState(false);
+
+  // Derived state from query data
+  const product = data?.product as ProductData | null;
+  const modules = (data?.modules as Module[]) || [];
+  const sections = (data?.sections as BuilderSection[]) || [];
+  
+  const membersAreaSettings = useMemo(() => {
+    if (product?.settings && typeof product.settings === 'object') {
+      return {
+        ...DEFAULT_BUILDER_SETTINGS,
+        ...(product.settings as Partial<MembersAreaBuilderSettings>),
+      };
+    }
+    return DEFAULT_BUILDER_SETTINGS;
+  }, [product?.settings]);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -87,38 +98,8 @@ export default function CourseHome() {
     }
   }, [authLoading, isAuthenticated, navigate]);
 
-  // Fetch content on mount
-  useEffect(() => {
-    const loadContent = async () => {
-      if (!productId || !isAuthenticated) return;
-
-      setIsLoading(true);
-      try {
-        const data = await fetchProductContent(productId);
-        if (data) {
-          setProduct(data.product);
-          setModules(data.modules as Module[]);
-          setSections(data.sections || []);
-          
-          // Extract members area settings from product
-          if (data.product.settings && typeof data.product.settings === 'object') {
-            setMembersAreaSettings({
-              ...DEFAULT_BUILDER_SETTINGS,
-              ...(data.product.settings as Partial<MembersAreaBuilderSettings>),
-            });
-          }
-        } else {
-          setError("Não foi possível carregar o conteúdo.");
-        }
-      } catch {
-        setError("Erro ao carregar conteúdo.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadContent();
-  }, [productId, isAuthenticated, fetchProductContent]);
+  const isLoading = authLoading || queryLoading;
+  const error = queryError ? "Erro ao carregar conteúdo." : null;
 
   // Handle starting course (first lesson)
   const handleStartCourse = () => {

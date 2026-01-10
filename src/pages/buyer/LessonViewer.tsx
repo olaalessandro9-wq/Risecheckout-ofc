@@ -7,7 +7,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useBuyerAuth } from "@/hooks/useBuyerAuth";
-import { useBuyerOrders } from "@/hooks/useBuyerOrders";
+import { useBuyerProductContent } from "@/hooks/useBuyerOrders";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, ChevronLeft, ChevronRight, Check, Menu } from "lucide-react";
 import {
@@ -26,13 +26,15 @@ export default function LessonViewer() {
   const navigate = useNavigate();
   const { productId, contentId } = useParams<{ productId: string; contentId: string }>();
   const { isLoading: authLoading, isAuthenticated } = useBuyerAuth();
-  const { fetchProductContent } = useBuyerOrders();
+  
+  // React Query declarativo - elimina o loop de useEffect
+  const { data, isLoading: queryLoading, error: queryError } = useBuyerProductContent(productId);
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [product, setProduct] = useState<ProductData | null>(null);
-  const [modules, setModules] = useState<Module[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Derived state from query data
+  const product = data?.product as ProductData | null;
+  const modules = (data?.modules as Module[]) || [];
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -41,29 +43,8 @@ export default function LessonViewer() {
     }
   }, [authLoading, isAuthenticated, navigate]);
 
-  // Fetch content on mount
-  useEffect(() => {
-    const loadContent = async () => {
-      if (!productId || !isAuthenticated) return;
-
-      setIsLoading(true);
-      try {
-        const data = await fetchProductContent(productId);
-        if (data) {
-          setProduct(data.product);
-          setModules(data.modules as Module[]);
-        } else {
-          setError("Não foi possível carregar o conteúdo.");
-        }
-      } catch {
-        setError("Erro ao carregar conteúdo.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadContent();
-  }, [productId, isAuthenticated, fetchProductContent]);
+  const isLoading = authLoading || queryLoading;
+  const error = queryError ? "Erro ao carregar conteúdo." : null;
 
   // Find current content and module
   const { currentContent, currentModule, allContents, currentIndex } = useMemo(() => {
