@@ -110,7 +110,7 @@ verify_jwt = false
 
 # ✅ AUTENTICADAS (Área de Membros - Gestão pelo vendedor)
 [functions.members-area-groups]
-verify_jwt = true
+verify_jwt = false
 
 # ✅ PÚBLICAS (Área de Membros - Students tem ações públicas para tokens)
 [functions.members-area-students]
