@@ -53,20 +53,21 @@ async function hashToken(token: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
+import { genSaltSync, hashSync, compareSync } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+
 /**
- * Hash password using bcrypt (via Deno)
+ * Hash password using bcrypt - SYNC for Deno Deploy compatibility
  */
-async function hashPassword(password: string): Promise<string> {
-  const { hash } = await import("https://deno.land/x/bcrypt@v0.4.1/mod.ts");
-  return await hash(password);
+function hashPassword(password: string): string {
+  const salt = genSaltSync(10);
+  return hashSync(password, salt);
 }
 
 /**
- * Verify password against hash
+ * Verify password against hash - SYNC for Deno Deploy compatibility
  */
-async function verifyPassword(password: string, passwordHash: string): Promise<boolean> {
-  const { compare } = await import("https://deno.land/x/bcrypt@v0.4.1/mod.ts");
-  return await compare(password, passwordHash);
+function verifyPassword(password: string, passwordHash: string): boolean {
+  return compareSync(password, passwordHash);
 }
 
 /**
@@ -261,7 +262,7 @@ Deno.serve(async (req) => {
         }
 
         // Hash and save password
-        const passwordHash = await hashPassword(password);
+        const passwordHash = hashPassword(password);
         
         const { error: updateError } = await supabase
           .from("buyer_profiles")

@@ -12,7 +12,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+import { genSaltSync, hashSync, compareSync } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 // Rate Limiting imports
 import { 
@@ -51,10 +51,10 @@ const HASH_VERSION_BCRYPT = 2;
 const CURRENT_HASH_VERSION = HASH_VERSION_BCRYPT;
 const BCRYPT_COST = 10;
 
-// Hash password with bcrypt (current standard)
-async function hashPassword(password: string): Promise<string> {
-  const salt = await bcrypt.genSalt(BCRYPT_COST);
-  return await bcrypt.hash(password, salt);
+// Hash password with bcrypt (current standard) - SYNC for Deno Deploy compatibility
+function hashPassword(password: string): string {
+  const salt = genSaltSync(BCRYPT_COST);
+  return hashSync(password, salt);
 }
 
 // Legacy SHA-256 hash (for backwards compatibility)
@@ -67,13 +67,13 @@ async function hashPasswordLegacy(password: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
-// Verify password (supports both SHA-256 and bcrypt)
+// Verify password (supports both SHA-256 and bcrypt) - SYNC for Deno Deploy compatibility
 async function verifyPassword(password: string, hash: string, version: number): Promise<boolean> {
   if (version === HASH_VERSION_SHA256) {
     const legacyHash = await hashPasswordLegacy(password);
     return legacyHash === hash;
   }
-  return await bcrypt.compare(password, hash);
+  return compareSync(password, hash);
 }
 
 function generateSessionToken(): string {
@@ -152,7 +152,7 @@ serve(async (req) => {
         .single();
 
       // Always use bcrypt for new passwords
-      const passwordHash = await hashPassword(password);
+      const passwordHash = hashPassword(password);
 
       if (existingBuyer) {
         // If password is pending, allow setting it
@@ -302,7 +302,7 @@ serve(async (req) => {
 
       // Transparent rehash: if using legacy SHA-256, upgrade to bcrypt
       if (hashVersion === HASH_VERSION_SHA256) {
-        const newHash = await hashPassword(password);
+        const newHash = hashPassword(password);
         await supabase
           .from("buyer_profiles")
           .update({ 

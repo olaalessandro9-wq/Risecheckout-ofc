@@ -5,7 +5,7 @@
  * Rise Protocol: Single responsibility, no external dependencies beyond std
  */
 
-import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+import { genSaltSync, hashSync, compareSync } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 // Hash versions
 export const HASH_VERSION_SHA256 = 1;
@@ -17,10 +17,11 @@ const BCRYPT_COST = 10;
 
 /**
  * Hash a password using bcrypt (current standard)
+ * Uses SYNC functions because Deno Deploy doesn't support Web Workers
  */
-export async function hashPassword(password: string): Promise<string> {
-  const salt = await bcrypt.genSalt(BCRYPT_COST);
-  return await bcrypt.hash(password, salt);
+export function hashPassword(password: string): string {
+  const salt = genSaltSync(BCRYPT_COST);
+  return hashSync(password, salt);
 }
 
 /**
@@ -38,8 +39,8 @@ export async function verifyPassword(
     return legacyHash === hash;
   }
   
-  // Bcrypt verification
-  return await bcrypt.compare(password, hash);
+  // Bcrypt verification (sync because Deno Deploy doesn't support Web Workers)
+  return compareSync(password, hash);
 }
 
 /**
@@ -66,7 +67,7 @@ export function needsRehash(version: number): boolean {
  * Rehash a password with the current algorithm (bcrypt)
  * Returns the new hash and version
  */
-export async function rehashPassword(password: string): Promise<{ hash: string; version: number }> {
-  const hash = await hashPassword(password);
+export function rehashPassword(password: string): { hash: string; version: number } {
+  const hash = hashPassword(password);
   return { hash, version: CURRENT_HASH_VERSION };
 }
