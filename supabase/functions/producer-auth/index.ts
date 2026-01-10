@@ -264,12 +264,24 @@ serve(async (req) => {
       await supabase.from("profiles").update({ last_login_at: new Date().toISOString() }).eq("id", producer.id);
       await logAuditEvent(supabase, producer.id, "LOGIN_SUCCESS", true, clientIP, userAgent, { email });
 
-      console.log(`[producer-auth] Login successful: ${email}`);
+      // Fetch user role
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", producer.id)
+        .single();
+
+      console.log(`[producer-auth] Login successful: ${email}, role: ${roleData?.role || "user"}`);
       return jsonResponse({
         success: true,
         sessionToken,
         expiresAt: expiresAt.toISOString(),
-        producer: { id: producer.id, email: producer.email, name: producer.name },
+        producer: { 
+          id: producer.id, 
+          email: producer.email, 
+          name: producer.name,
+          role: roleData?.role || "user",
+        },
       }, corsHeaders);
     }
 
@@ -332,9 +344,21 @@ serve(async (req) => {
 
       await supabase.from("producer_sessions").update({ last_activity_at: new Date().toISOString() }).eq("id", session.id);
 
+      // Fetch user role
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", producerData.id)
+        .single();
+
       return jsonResponse({
         valid: true,
-        producer: { id: producerData.id, email: producerData.email, name: producerData.name },
+        producer: { 
+          id: producerData.id, 
+          email: producerData.email, 
+          name: producerData.name,
+          role: roleData?.role || "user",
+        },
       }, corsHeaders);
     }
 
