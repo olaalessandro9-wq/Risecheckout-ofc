@@ -1,6 +1,8 @@
 /**
  * ModulesList - Lista de módulos com drag-and-drop
  * Uses unified content type system
+ * 
+ * Architecture: Single DndContext with multiple SortableContexts (one for modules, one per content list)
  */
 
 import { useState, useCallback } from "react";
@@ -29,6 +31,10 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Plus, Trash2, Edit2, GripVertical, Lock, Layers, Video, FileText } from "lucide-react";
 import type { MemberModuleWithContents, MemberContent } from "@/hooks/members-area";
 
+// =====================================================
+// TYPES
+// =====================================================
+
 interface ModulesListProps {
   modules: MemberModuleWithContents[];
   onAddModule: () => void;
@@ -40,6 +46,10 @@ interface ModulesListProps {
   onReorderModules: (orderedIds: string[]) => Promise<void>;
   onReorderContents: (moduleId: string, orderedIds: string[]) => Promise<void>;
 }
+
+// =====================================================
+// UTILS
+// =====================================================
 
 /** Get icon for content type */
 function getContentIcon(type: string) {
@@ -65,6 +75,18 @@ function getContentLabel(type: string): string {
     default:
       return 'Conteúdo';
   }
+}
+
+// Container ID prefixes for distinguishing module vs content drag
+const MODULES_CONTAINER_ID = "modules";
+const CONTENTS_CONTAINER_PREFIX = "contents:";
+
+/** Extract moduleId from containerId like "contents:abc123" */
+function extractModuleIdFromContainerId(containerId: string): string | null {
+  if (containerId.startsWith(CONTENTS_CONTAINER_PREFIX)) {
+    return containerId.slice(CONTENTS_CONTAINER_PREFIX.length);
+  }
+  return null;
 }
 
 // =====================================================
@@ -101,15 +123,15 @@ function SortableContentItem({ content, onEditContent, onDeleteContent }: Sortab
       className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
     >
       <div className="flex items-center gap-3">
-        <button
+        {/* Drag Handle - using span to avoid nested button issues */}
+        <span
           ref={setActivatorNodeRef}
-          type="button"
-          className="touch-none cursor-grab active:cursor-grabbing"
+          className="touch-none cursor-grab active:cursor-grabbing p-1"
           {...attributes}
           {...listeners}
         >
           <GripVertical className="h-4 w-4 text-muted-foreground" />
-        </button>
+        </span>
         <div className="p-1.5 rounded bg-background">
           {getContentIcon(content.content_type)}
         </div>
@@ -149,7 +171,7 @@ function SortableContentItem({ content, onEditContent, onDeleteContent }: Sortab
 }
 
 // =====================================================
-// CONTENTS LIST WITH DND
+// CONTENTS LIST (Simple renderer, no DndContext)
 // =====================================================
 
 interface ContentsListProps {
@@ -157,32 +179,9 @@ interface ContentsListProps {
   contents: MemberContent[];
   onEditContent: (content: { id: string; title: string; content_type: string; content_url: string | null; description: string | null }) => void;
   onDeleteContent: (id: string) => void;
-  onReorderContents: (moduleId: string, orderedIds: string[]) => Promise<void>;
 }
 
-function ContentsList({ moduleId, contents, onEditContent, onDeleteContent, onReorderContents }: ContentsListProps) {
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const oldIndex = contents.findIndex(c => c.id === active.id);
-    const newIndex = contents.findIndex(c => c.id === over.id);
-
-    if (oldIndex === -1 || newIndex === -1) return;
-
-    const newOrder = arrayMove(contents, oldIndex, newIndex);
-    await onReorderContents(moduleId, newOrder.map(c => c.id));
-  }, [contents, moduleId, onReorderContents]);
-
+function ContentsList({ moduleId, contents, onEditContent, onDeleteContent }: ContentsListProps) {
   if (contents.length === 0) {
     return (
       <p className="text-sm text-muted-foreground py-2">
@@ -192,27 +191,22 @@ function ContentsList({ moduleId, contents, onEditContent, onDeleteContent, onRe
   }
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragEnd={handleDragEnd}
+    <SortableContext
+      id={`${CONTENTS_CONTAINER_PREFIX}${moduleId}`}
+      items={contents.map(c => c.id)}
+      strategy={verticalListSortingStrategy}
     >
-      <SortableContext
-        items={contents.map(c => c.id)}
-        strategy={verticalListSortingStrategy}
-      >
-        <div className="space-y-2">
-          {contents.map((content) => (
-            <SortableContentItem
-              key={content.id}
-              content={content}
-              onEditContent={onEditContent}
-              onDeleteContent={onDeleteContent}
-            />
-          ))}
-        </div>
-      </SortableContext>
-    </DndContext>
+      <div className="space-y-2">
+        {contents.map((content) => (
+          <SortableContentItem
+            key={content.id}
+            content={content}
+            onEditContent={onEditContent}
+            onDeleteContent={onDeleteContent}
+          />
+        ))}
+      </div>
+    </SortableContext>
   );
 }
 
@@ -227,7 +221,6 @@ interface SortableModuleItemProps {
   onAddContent: (moduleId: string) => void;
   onEditContent: (content: { id: string; title: string; content_type: string; content_url: string | null; description: string | null }) => void;
   onDeleteContent: (id: string) => void;
-  onReorderContents: (moduleId: string, orderedIds: string[]) => Promise<void>;
 }
 
 function SortableModuleItem({
@@ -237,7 +230,6 @@ function SortableModuleItem({
   onAddContent,
   onEditContent,
   onDeleteContent,
-  onReorderContents,
 }: SortableModuleItemProps) {
   const {
     attributes,
@@ -265,17 +257,21 @@ function SortableModuleItem({
     >
       <AccordionTrigger className="hover:no-underline">
         <div className="flex items-center gap-3 flex-1">
-          <button
+          {/* 
+            Drag Handle - using <span> instead of <button> to avoid nested buttons
+            (AccordionTrigger is already a button).
+            Using capture phase for stopPropagation to not overwrite dnd-kit listeners.
+          */}
+          <span
             ref={setActivatorNodeRef}
-            type="button"
-            className="touch-none cursor-grab active:cursor-grabbing"
+            className="touch-none cursor-grab active:cursor-grabbing p-1"
             {...attributes}
             {...listeners}
-            onMouseDown={(e) => e.stopPropagation()}
-            onPointerDown={(e) => e.stopPropagation()}
+            onPointerDownCapture={(e) => e.stopPropagation()}
+            onMouseDownCapture={(e) => e.stopPropagation()}
           >
             <GripVertical className="h-4 w-4 text-muted-foreground" />
-          </button>
+          </span>
           <div className="text-left">
             <p className="font-medium">{module.title}</p>
             <p className="text-xs text-muted-foreground">
@@ -324,13 +320,12 @@ function SortableModuleItem({
 
           <Separator />
 
-          {/* Contents List with DnD */}
+          {/* Contents List - SortableContext is inside ContentsList */}
           <ContentsList
             moduleId={module.id}
             contents={module.contents}
             onEditContent={onEditContent}
             onDeleteContent={onDeleteContent}
-            onReorderContents={onReorderContents}
           />
         </div>
       </AccordionContent>
@@ -355,6 +350,7 @@ export function ModulesList({
 }: ModulesListProps) {
   const [openItems, setOpenItems] = useState<string[]>([]);
 
+  // Single sensor configuration for the entire DndContext
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 8 },
@@ -364,18 +360,46 @@ export function ModulesList({
     })
   );
 
-  const handleModuleDragEnd = useCallback(async (event: DragEndEvent) => {
+  // Unified drag end handler that determines whether we're reordering modules or contents
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const oldIndex = modules.findIndex(m => m.id === active.id);
-    const newIndex = modules.findIndex(m => m.id === over.id);
+    // Get container IDs from sortable data
+    const activeContainerId = active.data.current?.sortable?.containerId as string | undefined;
+    const overContainerId = over.data.current?.sortable?.containerId as string | undefined;
 
-    if (oldIndex === -1 || newIndex === -1) return;
+    // If containers don't match, ignore (no cross-container drag support)
+    if (activeContainerId !== overContainerId) return;
 
-    const newOrder = arrayMove(modules, oldIndex, newIndex);
-    await onReorderModules(newOrder.map(m => m.id));
-  }, [modules, onReorderModules]);
+    // Determine if this is a module drag or content drag
+    if (activeContainerId === MODULES_CONTAINER_ID) {
+      // Reordering modules
+      const oldIndex = modules.findIndex(m => m.id === active.id);
+      const newIndex = modules.findIndex(m => m.id === over.id);
+
+      if (oldIndex === -1 || newIndex === -1) return;
+
+      const newOrder = arrayMove(modules, oldIndex, newIndex);
+      await onReorderModules(newOrder.map(m => m.id));
+    } else if (activeContainerId?.startsWith(CONTENTS_CONTAINER_PREFIX)) {
+      // Reordering contents within a module
+      const moduleId = extractModuleIdFromContainerId(activeContainerId);
+      if (!moduleId) return;
+
+      const module = modules.find(m => m.id === moduleId);
+      if (!module) return;
+
+      const contents = module.contents || [];
+      const oldIndex = contents.findIndex(c => c.id === active.id);
+      const newIndex = contents.findIndex(c => c.id === over.id);
+
+      if (oldIndex === -1 || newIndex === -1) return;
+
+      const newOrder = arrayMove(contents, oldIndex, newIndex);
+      await onReorderContents(moduleId, newOrder.map(c => c.id));
+    }
+  }, [modules, onReorderModules, onReorderContents]);
 
   return (
     <Card>
@@ -403,12 +427,14 @@ export function ModulesList({
             </p>
           </div>
         ) : (
+          /* Single DndContext for both modules and contents */
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
-            onDragEnd={handleModuleDragEnd}
+            onDragEnd={handleDragEnd}
           >
             <SortableContext
+              id={MODULES_CONTAINER_ID}
               items={modules.map(m => m.id)}
               strategy={verticalListSortingStrategy}
             >
@@ -427,7 +453,6 @@ export function ModulesList({
                     onAddContent={onAddContent}
                     onEditContent={onEditContent}
                     onDeleteContent={onDeleteContent}
-                    onReorderContents={onReorderContents}
                   />
                 ))}
               </Accordion>
