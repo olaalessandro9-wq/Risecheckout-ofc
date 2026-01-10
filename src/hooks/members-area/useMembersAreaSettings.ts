@@ -1,15 +1,68 @@
 /**
  * Members Area Settings Hook
  * Handles fetching and updating product members area settings
+ * OTIMIZADO: Usa React Query para cache inteligente
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SUPABASE_URL } from "@/config/supabase";
 import type { Json } from "@/integrations/supabase/types";
 import type { MembersAreaSettings, MemberModuleWithContents, MemberContent } from "./types";
 import { normalizeContentType } from "@/modules/members-area/utils";
+
+// Cache de 5 minutos
+const SETTINGS_STALE_TIME = 5 * 60 * 1000;
+const SETTINGS_CACHE_TIME = 10 * 60 * 1000;
+
+// Query keys centralizadas
+export const membersAreaQueryKeys = {
+  all: ["members-area"] as const,
+  settings: (productId: string) => [...membersAreaQueryKeys.all, "settings", productId] as const,
+  modules: (productId: string) => [...membersAreaQueryKeys.all, "modules", productId] as const,
+};
+
+// Função para buscar settings
+async function fetchMembersAreaSettings(productId: string): Promise<MembersAreaSettings> {
+  const { data: product, error } = await supabase
+    .from("products")
+    .select("members_area_enabled, members_area_settings")
+    .eq("id", productId)
+    .single();
+
+  if (error) throw error;
+
+  return {
+    enabled: product.members_area_enabled || false,
+    settings: product.members_area_settings || null,
+  };
+}
+
+// Função para buscar módulos
+async function fetchMembersAreaModules(productId: string): Promise<MemberModuleWithContents[]> {
+  const { data: modulesData, error } = await supabase
+    .from("product_member_modules")
+    .select(`
+      *,
+      contents:product_member_content (*)
+    `)
+    .eq("product_id", productId)
+    .order("position", { ascending: true });
+
+  if (error) throw error;
+
+  return (modulesData || []).map((module) => ({
+    ...module,
+    contents: (module.contents || [])
+      .sort((a, b) => a.position - b.position)
+      .map((content) => ({
+        ...content,
+        content_type: normalizeContentType(content.content_type),
+      })) as MemberContent[],
+  })) as MemberModuleWithContents[];
+}
 
 interface UseMembersAreaSettingsReturn {
   isLoading: boolean;
@@ -23,78 +76,49 @@ interface UseMembersAreaSettingsReturn {
 }
 
 export function useMembersAreaSettings(productId: string | undefined): UseMembersAreaSettingsReturn {
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
-  const [settings, setSettings] = useState<MembersAreaSettings>({ enabled: false, settings: null });
-  const [modules, setModules] = useState<MemberModuleWithContents[]>([]);
+  const [localModules, setLocalModules] = useState<MemberModuleWithContents[]>([]);
 
-  const fetchData = useCallback(async () => {
-    if (!productId) return;
+  // Query para settings
+  const settingsQuery = useQuery({
+    queryKey: productId ? membersAreaQueryKeys.settings(productId) : ["disabled"],
+    queryFn: () => fetchMembersAreaSettings(productId!),
+    enabled: !!productId,
+    staleTime: SETTINGS_STALE_TIME,
+    gcTime: SETTINGS_CACHE_TIME,
+  });
 
-    setIsLoading(true);
-    try {
-      const { data: product, error: productError } = await supabase
-        .from("products")
-        .select("members_area_enabled, members_area_settings")
-        .eq("id", productId)
-        .single();
+  // Query para módulos
+  const modulesQuery = useQuery({
+    queryKey: productId ? membersAreaQueryKeys.modules(productId) : ["disabled"],
+    queryFn: () => fetchMembersAreaModules(productId!),
+    enabled: !!productId,
+    staleTime: SETTINGS_STALE_TIME,
+    gcTime: SETTINGS_CACHE_TIME,
+  });
 
-      if (productError) throw productError;
+  // Sincronizar localModules com query data
+  const modules = localModules.length > 0 ? localModules : (modulesQuery.data ?? []);
 
-      setSettings({
-        enabled: product.members_area_enabled || false,
-        settings: product.members_area_settings || null,
-      });
+  // Mutation para atualizar settings
+  const updateMutation = useMutation({
+    mutationFn: async ({ enabled, newSettings }: { enabled: boolean; newSettings?: Json }) => {
+      if (!productId) throw new Error("Product ID required");
 
-      const { data: modulesData, error: modulesError } = await supabase
-        .from("product_member_modules")
-        .select(`
-          *,
-          contents:product_member_content (*)
-        `)
-        .eq("product_id", productId)
-        .order("position", { ascending: true });
-
-      if (modulesError) throw modulesError;
-
-      const sortedModules = (modulesData || []).map((module) => ({
-        ...module,
-        contents: (module.contents || [])
-          .sort((a, b) => a.position - b.position)
-          .map((content) => ({
-            ...content,
-            content_type: normalizeContentType(content.content_type),
-          })) as MemberContent[],
-      })) as MemberModuleWithContents[];
-
-      setModules(sortedModules);
-    } catch (error) {
-      console.error("[useMembersAreaSettings] Error fetching data:", error);
-      toast.error("Erro ao carregar dados da área de membros");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [productId]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  const updateSettings = useCallback(async (enabled: boolean, newSettings?: Json) => {
-    if (!productId) return;
-
-    setIsSaving(true);
-    try {
+      const currentSettings = settingsQuery.data?.settings;
+      
       const { error } = await supabase
         .from("products")
         .update({
           members_area_enabled: enabled,
-          members_area_settings: newSettings || settings.settings,
+          members_area_settings: newSettings || currentSettings,
         })
         .eq("id", productId);
 
       if (error) throw error;
 
+      // Configurações adicionais quando habilitado
       if (enabled) {
         try {
           const { data: product } = await supabase
@@ -143,23 +167,48 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
         }
       }
 
-      setSettings({ enabled, settings: newSettings || settings.settings });
+      return { enabled, settings: newSettings || currentSettings };
+    },
+    onSuccess: (data) => {
+      // Atualizar cache
+      if (productId) {
+        queryClient.setQueryData(membersAreaQueryKeys.settings(productId), {
+          enabled: data.enabled,
+          settings: data.settings,
+        });
+      }
       toast.success("Configurações atualizadas!");
-    } catch (error) {
+    },
+    onError: (error) => {
       console.error("[useMembersAreaSettings] Error updating settings:", error);
       toast.error("Erro ao atualizar configurações");
-    } finally {
+    },
+    onSettled: () => {
       setIsSaving(false);
-    }
-  }, [productId, settings.settings]);
+    },
+  });
+
+  const updateSettings = useCallback(async (enabled: boolean, newSettings?: Json) => {
+    if (!productId) return;
+    setIsSaving(true);
+    await updateMutation.mutateAsync({ enabled, newSettings });
+  }, [productId, updateMutation]);
+
+  const fetchData = useCallback(async () => {
+    if (!productId) return;
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: membersAreaQueryKeys.settings(productId) }),
+      queryClient.invalidateQueries({ queryKey: membersAreaQueryKeys.modules(productId) }),
+    ]);
+  }, [productId, queryClient]);
 
   return {
-    isLoading,
+    isLoading: settingsQuery.isLoading || modulesQuery.isLoading,
     isSaving,
     setIsSaving,
-    settings,
+    settings: settingsQuery.data ?? { enabled: false, settings: null },
     modules,
-    setModules,
+    setModules: setLocalModules,
     updateSettings,
     fetchData,
   };

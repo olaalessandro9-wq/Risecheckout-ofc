@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getBuyerSessionToken } from "./useBuyerAuth";
 import { SUPABASE_URL } from "@/config/supabase";
 
@@ -76,110 +76,152 @@ interface ProductContent {
   sections: BuilderSection[];
 }
 
-interface UseBuyerOrdersReturn {
-  orders: BuyerOrder[];
-  access: BuyerAccess[];
-  isLoading: boolean;
-  error: string | null;
-  fetchOrders: () => Promise<void>;
-  fetchAccess: () => Promise<void>;
-  fetchProductContent: (productId: string) => Promise<ProductContent | null>;
+// Constantes de cache - 5 minutos para dados que mudam pouco
+const STALE_TIME = 5 * 60 * 1000; // 5 minutos
+const CACHE_TIME = 10 * 60 * 1000; // 10 minutos
+
+// Headers helper
+const getHeaders = () => {
+  const token = getBuyerSessionToken();
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { "x-buyer-session": token } : {}),
+  };
+};
+
+// Fetch functions separadas para React Query
+async function fetchBuyerOrders(): Promise<BuyerOrder[]> {
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/buyer-orders/orders`, {
+    method: "GET",
+    headers: getHeaders(),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || "Erro ao buscar pedidos");
+  }
+
+  return data.orders || [];
 }
 
-export function useBuyerOrders(): UseBuyerOrdersReturn {
-  const [orders, setOrders] = useState<BuyerOrder[]>([]);
-  const [access, setAccess] = useState<BuyerAccess[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+async function fetchBuyerAccess(): Promise<BuyerAccess[]> {
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/buyer-orders/access`, {
+    method: "GET",
+    headers: getHeaders(),
+  });
 
-  const getHeaders = () => {
-    const token = getBuyerSessionToken();
-    return {
-      "Content-Type": "application/json",
-      ...(token ? { "x-buyer-session": token } : {}),
-    };
-  };
+  const data = await response.json();
 
-  const fetchOrders = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/buyer-orders/orders`, {
-        method: "GET",
-        headers: getHeaders(),
-      });
+  if (!response.ok) {
+    throw new Error(data.error || "Erro ao buscar acessos");
+  }
 
-      const data = await response.json();
+  return data.access || [];
+}
 
-      if (!response.ok) {
-        throw new Error(data.error || "Erro ao buscar pedidos");
-      }
-
-      setOrders(data.orders || []);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Erro desconhecido";
-      setError(message);
-      console.error("[useBuyerOrders] Error fetching orders:", err);
-    } finally {
-      setIsLoading(false);
+async function fetchBuyerProductContent(productId: string): Promise<ProductContent | null> {
+  const response = await fetch(
+    `${SUPABASE_URL}/functions/v1/buyer-orders/content?productId=${productId}`,
+    {
+      method: "GET",
+      headers: getHeaders(),
     }
-  }, []);
+  );
 
-  const fetchAccess = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || "Erro ao buscar conteúdo");
+  }
+
+  return data;
+}
+
+// Query Keys centralizadas
+export const buyerQueryKeys = {
+  all: ["buyer"] as const,
+  orders: () => [...buyerQueryKeys.all, "orders"] as const,
+  access: () => [...buyerQueryKeys.all, "access"] as const,
+  content: (productId: string) => [...buyerQueryKeys.all, "content", productId] as const,
+};
+
+// Hook principal com React Query
+export function useBuyerOrders() {
+  const queryClient = useQueryClient();
+
+  // Query para pedidos
+  const ordersQuery = useQuery({
+    queryKey: buyerQueryKeys.orders(),
+    queryFn: fetchBuyerOrders,
+    staleTime: STALE_TIME,
+    gcTime: CACHE_TIME,
+    retry: 1,
+  });
+
+  // Query para acessos
+  const accessQuery = useQuery({
+    queryKey: buyerQueryKeys.access(),
+    queryFn: fetchBuyerAccess,
+    staleTime: STALE_TIME,
+    gcTime: CACHE_TIME,
+    retry: 1,
+  });
+
+  // Função para buscar conteúdo de um produto (usa cache)
+  const fetchProductContent = async (productId: string): Promise<ProductContent | null> => {
     try {
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/buyer-orders/access`, {
-        method: "GET",
-        headers: getHeaders(),
+      return await queryClient.fetchQuery({
+        queryKey: buyerQueryKeys.content(productId),
+        queryFn: () => fetchBuyerProductContent(productId),
+        staleTime: STALE_TIME,
+        gcTime: CACHE_TIME,
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Erro ao buscar acessos");
-      }
-
-      setAccess(data.access || []);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Erro desconhecido";
-      setError(message);
-      console.error("[useBuyerOrders] Error fetching access:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  const fetchProductContent = useCallback(async (productId: string): Promise<ProductContent | null> => {
-    try {
-      const response = await fetch(
-        `${SUPABASE_URL}/functions/v1/buyer-orders/content?productId=${productId}`,
-        {
-          method: "GET",
-          headers: getHeaders(),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Erro ao buscar conteúdo");
-      }
-
-      return data;
     } catch (err) {
       console.error("[useBuyerOrders] Error fetching content:", err);
       return null;
     }
-  }, []);
+  };
+
+  // Funções de refetch para manter compatibilidade
+  const fetchOrders = async () => {
+    await queryClient.invalidateQueries({ queryKey: buyerQueryKeys.orders() });
+  };
+
+  const fetchAccess = async () => {
+    await queryClient.invalidateQueries({ queryKey: buyerQueryKeys.access() });
+  };
 
   return {
-    orders,
-    access,
-    isLoading,
-    error,
+    orders: ordersQuery.data ?? [],
+    access: accessQuery.data ?? [],
+    isLoading: ordersQuery.isLoading || accessQuery.isLoading,
+    error: ordersQuery.error?.message || accessQuery.error?.message || null,
     fetchOrders,
     fetchAccess,
     fetchProductContent,
   };
+}
+
+// Hook específico para conteúdo de produto com cache
+export function useBuyerProductContent(productId: string | undefined) {
+  return useQuery({
+    queryKey: productId ? buyerQueryKeys.content(productId) : ["disabled"],
+    queryFn: () => fetchBuyerProductContent(productId!),
+    enabled: !!productId,
+    staleTime: STALE_TIME,
+    gcTime: CACHE_TIME,
+    retry: 1,
+  });
+}
+
+// Hook específico para acessos (para uso direto)
+export function useBuyerAccessQuery() {
+  return useQuery({
+    queryKey: buyerQueryKeys.access(),
+    queryFn: fetchBuyerAccess,
+    staleTime: STALE_TIME,
+    gcTime: CACHE_TIME,
+    retry: 1,
+  });
 }
