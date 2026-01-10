@@ -287,13 +287,13 @@ export async function grantMembersAccess(
       // Não é erro fatal
     } else {
       inviteToken = rawToken;
-      const baseUrl = Deno.env.get('PUBLIC_SITE_URL') || 'https://risecheckout.lovable.app';
+      const baseUrl = Deno.env.get('PUBLIC_SITE_URL') || 'https://risecheckout.com';
       accessUrl = `${baseUrl}/minha-conta/setup-acesso?token=${rawToken}`;
       logInfo('Invite token criado', { buyerId, productId });
     }
   } else {
     // Buyer já tem senha, link direto para login
-    const baseUrl = Deno.env.get('PUBLIC_SITE_URL') || 'https://risecheckout.lovable.app';
+    const baseUrl = Deno.env.get('PUBLIC_SITE_URL') || 'https://risecheckout.com';
     accessUrl = `${baseUrl}/minha-conta`;
   }
 
