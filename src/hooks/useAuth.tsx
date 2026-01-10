@@ -5,6 +5,7 @@
  * instead of Supabase Auth directly.
  */
 
+import { useMemo } from "react";
 import { useProducerSession } from "./useProducerSession";
 import { useProducerAuth } from "./useProducerAuth";
 
@@ -12,17 +13,20 @@ export const useAuth = () => {
   const { producer, isValid, isLoading, clearSession } = useProducerSession();
   const { logout } = useProducerAuth();
 
-  // Transform producer to user-like object for backward compatibility
-  const user = producer ? {
-    id: producer.id,
-    email: producer.email,
-    user_metadata: {
-      name: producer.name,
-      phone: producer.phone,
-      avatar_url: producer.avatar_url,
-    },
-    role: producer.role,
-  } : null;
+  // FIXED: Memoize user to prevent infinite re-renders
+  const user = useMemo(() => {
+    if (!producer) return null;
+    return {
+      id: producer.id,
+      email: producer.email,
+      user_metadata: {
+        name: producer.name,
+        phone: producer.phone,
+        avatar_url: producer.avatar_url,
+      },
+      role: producer.role,
+    };
+  }, [producer]);
 
   const signOut = async () => {
     await logout();

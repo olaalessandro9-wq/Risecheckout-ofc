@@ -73,40 +73,12 @@ export function useProducerAuth(): UseProducerAuthReturn {
   const setSessionToken = (token: string) => localStorage.setItem(SESSION_KEY, token);
   const clearSessionToken = () => localStorage.removeItem(SESSION_KEY);
 
-  // Validate session on mount
+  // REMOVED: Duplicate session validation - useProducerSession already handles this via React Query
+  // This eliminates duplicate /validate calls that were causing performance issues
   useEffect(() => {
-    const validateSession = async () => {
-      const token = getSessionToken();
-      if (!token) {
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/producer-auth/validate`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionToken: token }),
-        });
-
-        const data = await response.json();
-        if (data.valid && data.producer) {
-          setProducer(data.producer);
-          queryClient.setQueryData(producerSessionQueryKey, { valid: true, producer: data.producer });
-        } else {
-          clearSessionToken();
-          queryClient.setQueryData(producerSessionQueryKey, { valid: false, producer: null });
-        }
-      } catch (error) {
-        log.error("Error validating session", error);
-        clearSessionToken();
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    validateSession();
-  }, [queryClient]);
+    // Just set loading to false - let useProducerSession handle validation
+    setIsLoading(false);
+  }, []);
 
   const login = useCallback(async (email: string, password: string): Promise<LoginResult> => {
     try {

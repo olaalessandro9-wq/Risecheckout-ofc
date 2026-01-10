@@ -101,9 +101,12 @@ export function ProductsTable() {
     },
   });
 
+  // FIXED: Use user?.id instead of user object to prevent infinite loop
   useEffect(() => {
-    loadProducts();
-  }, [user]);
+    if (user?.id) {
+      loadProducts();
+    }
+  }, [user?.id]);
 
   const loadProducts = async () => {
     if (!user) return;
