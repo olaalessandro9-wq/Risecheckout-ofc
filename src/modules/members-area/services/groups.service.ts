@@ -115,7 +115,15 @@ export async function updateGroup(
   groupId: string,
   input: UpdateGroupInput
 ): Promise<ServiceResponse<MemberGroup>> {
-  return invokeGroupsFunction<MemberGroup>('update', { group_id: groupId, ...input });
+  // Edge function expects group_id at root and fields inside data object
+  return invokeGroupsFunction<MemberGroup>('update', {
+    group_id: groupId,
+    data: {
+      name: input.name,
+      description: input.description,
+      is_default: input.is_default,
+    },
+  });
 }
 
 /**

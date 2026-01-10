@@ -1,9 +1,9 @@
 /**
  * GroupManager - Manage access groups for a product
+ * Optimized: Removed heavy framer-motion layout animations
  */
 
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, memo } from 'react';
 import {
   Users,
   Plus,
@@ -109,112 +109,106 @@ export function GroupManager({
         </Button>
       </div>
 
-      {/* Groups List */}
+      {/* Groups List - Optimized without heavy animations */}
       <div className="space-y-2">
-        <AnimatePresence mode="popLayout">
-          {groups.map((group) => (
-            <motion.div
-              key={group.id}
-              layout
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className={cn(
-                'group flex items-center gap-4 p-4 rounded-lg border bg-card',
-                'hover:border-primary/30 transition-colors',
-                !group.is_active && 'opacity-60'
+        {groups.map((group) => (
+          <div
+            key={group.id}
+            className={cn(
+              'group flex items-center gap-4 p-4 rounded-lg border bg-card',
+              'hover:border-primary/30 transition-colors',
+              !group.is_active && 'opacity-60'
+            )}
+          >
+            {/* Drag Handle */}
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab">
+              <GripVertical className="w-4 h-4 text-muted-foreground" />
+            </div>
+
+            {/* Icon */}
+            <div className={cn(
+              'w-10 h-10 rounded-lg flex items-center justify-center',
+              group.is_default ? 'bg-primary/10' : 'bg-muted'
+            )}>
+              {group.is_default ? (
+                <Star className="w-5 h-5 text-primary" />
+              ) : (
+                <Shield className="w-5 h-5 text-muted-foreground" />
               )}
-            >
-              {/* Drag Handle */}
-              <div className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab">
-                <GripVertical className="w-4 h-4 text-muted-foreground" />
-              </div>
+            </div>
 
-              {/* Icon */}
-              <div className={cn(
-                'w-10 h-10 rounded-lg flex items-center justify-center',
-                group.is_default ? 'bg-primary/10' : 'bg-muted'
-              )}>
-                {group.is_default ? (
-                  <Star className="w-5 h-5 text-primary" />
-                ) : (
-                  <Shield className="w-5 h-5 text-muted-foreground" />
-                )}
-              </div>
-
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h4 className="font-medium text-sm">{group.name}</h4>
-                  {group.is_default && (
-                    <Badge variant="secondary" className="text-xs">
-                      Padrão
-                    </Badge>
-                  )}
-                </div>
-                {group.description && (
-                  <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
-                    {group.description}
-                  </p>
-                )}
-              </div>
-
-              {/* Actions */}
+            {/* Info */}
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => onEditGroup(group.id)}
-                >
-                  <Pencil className="w-4 h-4 mr-1" />
-                  Editar
-                </Button>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <MoreVertical className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => handleOpenEdit(group)}>
-                      <Pencil className="w-4 h-4 mr-2" />
-                      Editar
-                    </DropdownMenuItem>
-                    {group.is_default ? (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="flex items-center px-2 py-1.5 text-sm text-muted-foreground cursor-not-allowed">
-                              <Lock className="w-4 h-4 mr-2" />
-                              Excluir
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent side="left">
-                            <p>O grupo padrão não pode ser excluído</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    ) : (
-                      <DropdownMenuItem
-                        onClick={() => handleDelete(group.id)}
-                        className="text-destructive focus:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Excluir
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <h4 className="font-medium text-sm">{group.name}</h4>
+                {group.is_default && (
+                  <Badge variant="secondary" className="text-xs">
+                    Padrão
+                  </Badge>
+                )}
               </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+              {group.description && (
+                <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                  {group.description}
+                </p>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={() => onEditGroup(group.id)}
+              >
+                <Pencil className="w-4 h-4 mr-1" />
+                Editar
+              </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleOpenEdit(group)}>
+                    <Pencil className="w-4 h-4 mr-2" />
+                    Editar
+                  </DropdownMenuItem>
+                  {group.is_default ? (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center px-2 py-1.5 text-sm text-muted-foreground cursor-not-allowed">
+                            <Lock className="w-4 h-4 mr-2" />
+                            Excluir
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="left">
+                          <p>O grupo padrão não pode ser excluído</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ) : (
+                    <DropdownMenuItem
+                      onClick={() => handleDelete(group.id)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Excluir
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        ))}
 
         {groups.length === 0 && !isLoading && (
           <div className="text-center py-8 text-muted-foreground">
