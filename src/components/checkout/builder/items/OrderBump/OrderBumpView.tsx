@@ -1,5 +1,5 @@
 import { ComponentData } from "../../types";
-import { useCheckoutData } from "@/contexts/CheckoutDataContext";
+import { useCheckoutContext } from "@/contexts/CheckoutContext";
 import { Zap } from "lucide-react";
 
 interface OrderBumpViewProps {
@@ -14,7 +14,7 @@ export const OrderBumpView = ({ component, design, isPreviewMode = false }: Orde
   // Tenta acessar os dados reais do Context (se disponível)
   let orderBumps: any[] = [];
   try {
-    const checkoutData = useCheckoutData();
+    const checkoutData = useCheckoutContext();
     orderBumps = checkoutData.orderBumps || [];
   } catch {
     // Context não disponível (estamos no editor)

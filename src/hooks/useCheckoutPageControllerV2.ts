@@ -19,7 +19,7 @@ import { toast } from "sonner";
 // Hooks V2
 import { useCheckoutData } from "@/hooks/checkout/useCheckoutData";
 import { useFormManager } from "@/hooks/checkout/useFormManager";
-import { usePaymentGateway } from "@/hooks/checkout/usePaymentGateway";
+import { usePaymentOrchestrator } from "@/hooks/checkout/payment/usePaymentOrchestrator";
 import { useTrackingService } from "@/hooks/checkout/useTrackingService";
 
 // Integrações de Tracking
@@ -112,9 +112,9 @@ function getRequiredFieldsArray(requiredFields: any): string[] {
     focusTextColor: design?.colors.creditCardFields?.focusTextColor || design?.colors.primaryText,
   }), [design]);
   
-  // PaymentGateway - Gerencia SDK e pagamentos
+  // PaymentOrchestrator - Gerencia SDK e pagamentos
   // ✅ SEGURANÇA: Não passa mais vendorId - backend resolve internamente
-  const paymentGateway = usePaymentGateway({
+  const paymentGateway = usePaymentOrchestrator({
     vendorId: null, // Backend resolve via checkout_id
     checkoutId: checkout?.id || null,
     productId: checkout?.product?.id || null,
@@ -125,7 +125,6 @@ function getRequiredFieldsArray(requiredFields: any): string[] {
     formData: formManager.formData,
     selectedBumps: formManager.selectedBumps,
     orderBumps: orderBumps || [],
-    cardFieldsStyle: cardFormStyles,
   });
   
   // TrackingService - Gerencia pixels
