@@ -274,7 +274,7 @@ function SortableModuleItem({
           <div className="text-left">
             <p className="font-medium">{module.title}</p>
             <p className="text-xs text-muted-foreground">
-              {module.contents.length} conteúdo{module.contents.length !== 1 ? "s" : ""}
+              {(module.contents || []).length} conteúdo{(module.contents || []).length !== 1 ? "s" : ""}
             </p>
           </div>
           {!module.is_active && (
