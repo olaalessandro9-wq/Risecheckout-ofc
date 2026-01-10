@@ -82,6 +82,7 @@ function SortableContentItem({ content, onEditContent, onDeleteContent }: Sortab
     attributes,
     listeners,
     setNodeRef,
+    setActivatorNodeRef,
     transform,
     transition,
     isDragging,
@@ -101,6 +102,7 @@ function SortableContentItem({ content, onEditContent, onDeleteContent }: Sortab
     >
       <div className="flex items-center gap-3">
         <button
+          ref={setActivatorNodeRef}
           type="button"
           className="touch-none cursor-grab active:cursor-grabbing"
           {...attributes}
@@ -241,6 +243,7 @@ function SortableModuleItem({
     attributes,
     listeners,
     setNodeRef,
+    setActivatorNodeRef,
     transform,
     transition,
     isDragging,
@@ -263,11 +266,13 @@ function SortableModuleItem({
       <AccordionTrigger className="hover:no-underline">
         <div className="flex items-center gap-3 flex-1">
           <button
+            ref={setActivatorNodeRef}
             type="button"
             className="touch-none cursor-grab active:cursor-grabbing"
             {...attributes}
             {...listeners}
-            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
           >
             <GripVertical className="h-4 w-4 text-muted-foreground" />
           </button>
