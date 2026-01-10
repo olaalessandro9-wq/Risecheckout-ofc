@@ -12,8 +12,8 @@ export * from "./types";
 // API
 export * from "./api";
 
-// Hooks
-export * from "./hooks";
+// Hooks (refatorado em arquivos individuais < 300 linhas)
+export * from "./hooks/index";
 
 // Componentes
 export { Brick } from "./Brick";
