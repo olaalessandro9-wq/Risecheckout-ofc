@@ -64,8 +64,11 @@ export function useProducerSession() {
     queryFn: validateProducerSession,
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 30, // 30 minutes
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false, // Prevent flickering on focus
     retry: 1,
+    refetchInterval: false, // No polling
+    refetchOnMount: true,
+    refetchOnReconnect: false, // Prevent flickering on reconnect
   });
 
   const invalidateSession = () => {

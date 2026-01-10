@@ -1,7 +1,6 @@
 // src/components/layout/UserFooter.tsx
 import { LogOut } from "lucide-react";
-import { signOut, supabase } from "@/lib/auth";
-import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import clsx from "clsx";
 
 interface UserFooterProps {
@@ -9,13 +8,8 @@ interface UserFooterProps {
 }
 
 export function UserFooter({ isCollapsed }: UserFooterProps) {
-  const [email, setEmail] = useState<string | undefined>(undefined);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setEmail(data.user?.email ?? undefined);
-    });
-  }, []);
+  const { user, signOut } = useAuth();
+  const email = user?.email;
 
   return (
     <div className="mt-auto border-t border-border/50 p-3">

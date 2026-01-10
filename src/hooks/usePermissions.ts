@@ -13,8 +13,7 @@
  * - Este hook NÃO substitui validação no backend! Sempre valide nas Edge Functions.
  */
 
-import { useState, useEffect, useMemo } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 
 // Tipos de role do sistema
@@ -52,62 +51,17 @@ const ROLE_PRIORITY: Record<AppRole, number> = {
  */
 export function usePermissions(): Permissions {
   const { user, loading: authLoading } = useAuth();
-  const [role, setRole] = useState<AppRole>("user");
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  useEffect(() => {
-    async function fetchRole() {
-      if (!user) {
-        setRole("user");
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        // Chamar RPC para obter role (SECURITY DEFINER, seguro)
-        const { data, error: rpcError } = await supabase.rpc("get_user_role", {
-          p_user_id: user.id,
-        });
-
-        if (rpcError) {
-          console.error("[usePermissions] Erro ao buscar role:", rpcError);
-          throw rpcError;
-        }
-
-        // Validar que o role retornado é válido
-        const validRoles: AppRole[] = ["owner", "admin", "user", "seller"];
-        const fetchedRole = (data as string) || "user";
-        
-        if (validRoles.includes(fetchedRole as AppRole)) {
-          setRole(fetchedRole as AppRole);
-        } else {
-          console.warn("[usePermissions] Role inválido retornado:", fetchedRole);
-          setRole("user");
-        }
-      } catch (err) {
-        console.error("[usePermissions] Erro:", err);
-        setError(err as Error);
-        setRole("user"); // Fallback seguro
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    if (!authLoading) {
-      fetchRole();
-    }
-  }, [user, authLoading]);
+  
+  // Get role directly from producer profile (already loaded by useAuth)
+  // No need for additional RPC call - role is part of producer data
+  const role: AppRole = (user?.role as AppRole) || "user";
 
   // Derivar permissões baseadas no role
   const permissions = useMemo<Permissions>(() => {
     return {
       role,
-      isLoading: isLoading || authLoading,
-      error,
+      isLoading: authLoading,
+      error: null,
 
       // APENAS Owner pode TER programa de afiliados
       // Vendedores podem SE AFILIAR, mas não podem TER afiliados próprios
@@ -131,7 +85,7 @@ export function usePermissions(): Permissions {
       // Apenas owner pode gerenciar usuários
       canManageUsers: role === "owner",
     };
-  }, [role, isLoading, authLoading, error]);
+  }, [role, authLoading]);
 
   return permissions;
 }
