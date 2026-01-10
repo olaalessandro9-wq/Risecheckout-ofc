@@ -63,9 +63,8 @@ export function FacebookPixelConfig() {
         return;
       }
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        toast.error("Sessão expirada. Faça login novamente.");
+      if (!user?.id) {
+        toast.error("Usuário não autenticado");
         return;
       }
 
@@ -80,27 +79,18 @@ export function FacebookPixelConfig() {
         credentials.has_token = true;
       }
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/vault-save`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${sessionData.session.access_token}`,
-          },
-          body: JSON.stringify({
-            vendor_id: user?.id,
-            integration_type: "FACEBOOK_PIXEL",
-            credentials,
-            active,
-          }),
-        }
-      );
+      // Usar supabase.functions.invoke ao invés de fetch direto
+      const { data: result, error } = await supabase.functions.invoke("vault-save", {
+        body: {
+          vendor_id: user.id,
+          integration_type: "FACEBOOK_PIXEL",
+          credentials,
+          active,
+        },
+      });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Erro ao salvar credenciais");
+      if (error) {
+        throw new Error(error.message || "Erro ao salvar credenciais");
       }
 
       if (accessToken.trim()) {

@@ -14,9 +14,11 @@ import { toast } from "@/components/ui/sonner";
 import { savePushinPaySettings, getPushinPaySettings, fetchPushinPayAccountInfo } from "../api";
 import type { PushinPayEnvironment, PushinPayAccountInfo } from "../types";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useAuth } from "@/hooks/useAuth";
 
 export function ConfigForm() {
   const { role } = usePermissions();
+  const { user } = useAuth();
   
   // Apenas admin pode usar sandbox
   const isAdmin = role === 'admin';
@@ -36,8 +38,10 @@ export function ConfigForm() {
 
   // Carregar configuração existente ao montar
   useEffect(() => {
-    loadSettings();
-  }, []);
+    if (user?.id) {
+      loadSettings();
+    }
+  }, [user?.id]);
 
   // Forçar produção se não for admin
   useEffect(() => {
@@ -60,9 +64,10 @@ export function ConfigForm() {
    * Carrega configurações existentes da PushinPay
    */
   const loadSettings = async () => {
+    if (!user?.id) return;
     try {
       setLoadingData(true);
-      const settings = await getPushinPaySettings();
+      const settings = await getPushinPaySettings(user.id);
       
       if (settings) {
         // Token mascarado indica que já existe
@@ -136,7 +141,7 @@ export function ConfigForm() {
         settingsToSave.pushinpay_token = tokenToSave;
       }
 
-      const result = await savePushinPaySettings(settingsToSave);
+      const result = await savePushinPaySettings(user!.id, settingsToSave);
 
       if (result.ok) {
         const successMsg = accountInfo 

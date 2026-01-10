@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { AffiliationDetails } from "@/hooks/useAffiliationDetails";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
 interface OffersTabProps {
@@ -28,6 +29,7 @@ const formatCurrency = (value: number) => {
 
 export function OffersTab({ affiliation }: OffersTabProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { offers, checkouts, affiliate_code, commission_rate, status } = affiliation;
   const isCancelled = status === "cancelled";
   const isActive = status === "active";
@@ -38,14 +40,13 @@ export function OffersTab({ affiliation }: OffersTabProps) {
   // Verificar se usuário tem gateway configurado
   useEffect(() => {
     const checkUserGateway = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          setUserHasGateway(false);
-          setLoadingGateway(false);
-          return;
-        }
+      if (!user?.id) {
+        setUserHasGateway(false);
+        setLoadingGateway(false);
+        return;
+      }
 
+      try {
         const { data: profile } = await supabase
           .from("profiles")
           .select("asaas_wallet_id, mercadopago_collector_id, stripe_account_id")
@@ -66,7 +67,7 @@ export function OffersTab({ affiliation }: OffersTabProps) {
     };
 
     checkUserGateway();
-  }, []);
+  }, [user?.id]);
 
   const getAffiliateLink = (paymentLinkSlug: string | null) => {
     if (!paymentLinkSlug) return null;

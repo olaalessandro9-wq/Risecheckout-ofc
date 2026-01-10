@@ -27,6 +27,7 @@ import {
   Users
 } from "lucide-react";
 import { useAffiliateRequest } from "@/hooks/useAffiliateRequest";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
@@ -50,6 +51,7 @@ interface Offer {
 
 export function ProductDetails({ product, open, onOpenChange }: ProductDetailsProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loadingOffers, setLoadingOffers] = useState(false);
   const [maxCommission, setMaxCommission] = useState<number>(0);
@@ -74,25 +76,14 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
       return;
     }
 
-    const checkOwnership = async () => {
-      setCheckingOwner(true);
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user && product.producer_id === user.id) {
-          setIsOwner(true);
-        } else {
-          setIsOwner(false);
-        }
-      } catch (err) {
-        console.error("Erro ao verificar proprietário:", err);
-        setIsOwner(false);
-      } finally {
-        setCheckingOwner(false);
-      }
-    };
-
-    checkOwnership();
-  }, [product?.id, product?.producer_id, open]);
+    setCheckingOwner(true);
+    if (user?.id && product.producer_id === user.id) {
+      setIsOwner(true);
+    } else {
+      setIsOwner(false);
+    }
+    setCheckingOwner(false);
+  }, [product?.id, product?.producer_id, open, user?.id]);
 
   // Verificar status ao abrir (somente se não for o dono)
   useEffect(() => {

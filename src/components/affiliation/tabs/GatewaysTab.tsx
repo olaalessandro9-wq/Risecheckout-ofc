@@ -16,6 +16,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Loader2, QrCode, CreditCard, CheckCircle2, AlertCircle, ArrowRight, Save } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import type { AffiliationDetails } from "@/hooks/useAffiliationDetails";
 
@@ -47,6 +48,7 @@ interface AffiliateGatewaySettings {
 
 export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [userConnections, setUserConnections] = useState<Record<string, boolean>>({});
@@ -58,10 +60,14 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
   const [selectedCardGateway, setSelectedCardGateway] = useState<string>("");
 
   useEffect(() => {
-    loadData();
-  }, [affiliation.id]);
+    if (user?.id) {
+      loadData();
+    }
+  }, [affiliation.id, user?.id]);
 
   const loadData = async () => {
+    if (!user?.id) return;
+    
     setLoading(true);
     try {
       // 1. Buscar configurações de gateway do produto
@@ -82,10 +88,7 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
       setPixAllowed(pixGateways);
       setCardAllowed(cardGateways);
 
-      // 2. Buscar conexões do usuário
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
-
+      // 2. Buscar conexões do usuário (usando user.id do hook)
       const { data: profileData } = await supabase
         .from("profiles")
         .select("asaas_wallet_id, mercadopago_collector_id, stripe_account_id")
@@ -123,6 +126,11 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
   };
 
   const handleSave = async () => {
+    if (!user?.id) {
+      toast.error("Usuário não autenticado");
+      return;
+    }
+
     if (!selectedPixGateway || !selectedCardGateway) {
       toast.error("Selecione 1 gateway PIX e 1 gateway de Cartão");
       return;
@@ -140,10 +148,7 @@ export function GatewaysTab({ affiliation, onRefetch }: GatewaysTabProps) {
 
     setSaving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
-
-      // Buscar credenciais
+      // Buscar credenciais (usando user.id do hook)
       const { data: profileData } = await supabase
         .from("profiles")
         .select("asaas_wallet_id, mercadopago_collector_id, stripe_account_id")

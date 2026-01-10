@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface PaymentAccountStatus {
   hasPaymentAccount: boolean | null;
@@ -13,6 +14,7 @@ interface PaymentAccountStatus {
  * (Mercado Pago ou Stripe) para receber comissões de afiliação.
  */
 export function usePaymentAccountCheck(): PaymentAccountStatus {
+  const { user } = useAuth();
   const [status, setStatus] = useState<PaymentAccountStatus>({
     hasPaymentAccount: null,
     hasMercadoPago: false,
@@ -22,19 +24,17 @@ export function usePaymentAccountCheck(): PaymentAccountStatus {
 
   useEffect(() => {
     const checkPaymentAccount = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) {
-          setStatus({
-            hasPaymentAccount: false,
-            hasMercadoPago: false,
-            hasStripe: false,
-            isLoading: false,
-          });
-          return;
-        }
+      if (!user?.id) {
+        setStatus({
+          hasPaymentAccount: false,
+          hasMercadoPago: false,
+          hasStripe: false,
+          isLoading: false,
+        });
+        return;
+      }
 
+      try {
         const { data: profile } = await supabase
           .from("profiles")
           .select("mercadopago_collector_id, stripe_account_id")
@@ -63,7 +63,7 @@ export function usePaymentAccountCheck(): PaymentAccountStatus {
     };
 
     checkPaymentAccount();
-  }, []);
+  }, [user?.id]);
 
   return status;
 }

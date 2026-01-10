@@ -65,9 +65,10 @@ export default function Financeiro() {
   }, []);
 
   const loadAllIntegrations = async () => {
+    if (!user?.id) return;
     try {
       // Carregar PushinPay
-      const settings = await getPushinPaySettings();
+      const settings = await getPushinPaySettings(user.id);
       if (settings) {
         if (settings.pushinpay_token === "••••••••") {
           setHasExistingToken(true);
@@ -156,7 +157,7 @@ export default function Financeiro() {
     setMessage(null);
 
     try {
-      const result = await savePushinPaySettings({
+      const result = await savePushinPaySettings(user!.id, {
         pushinpay_token: apiToken,
         environment,
       });
