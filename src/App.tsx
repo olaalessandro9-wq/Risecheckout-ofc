@@ -26,6 +26,7 @@ import LandingPage from "./pages/LandingPage";
 import Auth from "./pages/Auth";
 import Cadastro from "./pages/Cadastro";
 import RecuperarSenha from "./pages/RecuperarSenha";
+import RedefinirSenha from "./pages/RedefinirSenha";
 import PublicCheckoutV2 from "./pages/PublicCheckoutV2";
 import PaymentLinkRedirect from "./pages/PaymentLinkRedirect";
 import PixPaymentPage from "./pages/PixPaymentPage";
@@ -137,6 +138,7 @@ const router = createBrowserRouter([
       { path: "/auth", element: <Auth /> },
       { path: "/cadastro", element: <Cadastro /> },
       { path: "/recuperar-senha", element: <RecuperarSenha /> },
+      { path: "/redefinir-senha", element: <RedefinirSenha /> },
       { path: "/c/:slug", element: <PaymentLinkRedirect /> },
       { path: "/pay/:slug", element: <PublicCheckoutV2 /> },
       { path: "/pay/pix/:orderId", element: <PixPaymentPage /> },
