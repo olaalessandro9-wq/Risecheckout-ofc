@@ -110,6 +110,23 @@ export function useMembersAreaModules({
   }, [setModules, setIsSaving]);
 
   const reorderModules = useCallback(async (orderedIds: string[]) => {
+    // 1. Salvar estado anterior para possível rollback
+    let previousModules: MemberModuleWithContents[] = [];
+
+    // 2. Atualizar state IMEDIATAMENTE (otimista - elimina animação duplicada)
+    setModules(prev => {
+      previousModules = prev;
+      const moduleMap = new Map(prev.map(m => [m.id, m]));
+      return orderedIds
+        .map((id, index) => {
+          const module = moduleMap.get(id);
+          if (!module) return null;
+          return { ...module, position: index };
+        })
+        .filter((m): m is MemberModuleWithContents => m !== null);
+    });
+
+    // 3. Persistir em background
     try {
       const updates = orderedIds.map((id, index) => 
         supabase
@@ -119,20 +136,11 @@ export function useMembersAreaModules({
       );
 
       await Promise.all(updates);
-
-      setModules(prev => {
-        const moduleMap = new Map(prev.map(m => [m.id, m]));
-        return orderedIds
-          .map((id, index) => {
-            const module = moduleMap.get(id);
-            if (!module) return null;
-            return { ...module, position: index };
-          })
-          .filter((m): m is MemberModuleWithContents => m !== null);
-      });
     } catch (error) {
+      // 4. Rollback em caso de erro
       log.error("Error reordering modules", error);
       toast.error("Erro ao reordenar módulos");
+      setModules(previousModules);
     }
   }, [setModules]);
 
