@@ -4,6 +4,9 @@
  */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SUPABASE_URL } from "@/config/supabase";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("BuyerSession");
 
 const SESSION_KEY = "buyer_session_token";
 
@@ -60,7 +63,7 @@ async function validateBuyerSession(): Promise<SessionValidation> {
     clearBuyerSessionToken();
     return { valid: false, buyer: null };
   } catch (error) {
-    console.error("[useBuyerSession] Error validating session:", error);
+    log.error("Error validating session", error);
     return { valid: false, buyer: null };
   }
 }

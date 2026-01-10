@@ -10,6 +10,9 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { SUPABASE_URL } from "@/config/supabase";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("ProducerBuyerLink");
 
 const BUYER_SESSION_KEY = "buyer_session_token";
 
@@ -92,7 +95,7 @@ export function useProducerBuyerLink() {
           }),
         });
       } catch (err) {
-        console.error("[useProducerBuyerLink] Error ensuring access:", err);
+        log.error("Error ensuring access", err);
       }
     }
 
@@ -119,7 +122,7 @@ export function useProducerBuyerLink() {
 
       return null;
     } catch (err) {
-      console.error("[useProducerBuyerLink] Error generating session:", err);
+      log.error("Error generating session", err);
       return null;
     }
   }, [user?.email, user?.id, query.data]);

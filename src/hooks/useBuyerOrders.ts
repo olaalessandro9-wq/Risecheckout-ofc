@@ -1,6 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getBuyerSessionToken } from "./useBuyerAuth";
 import { SUPABASE_URL } from "@/config/supabase";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("BuyerOrders");
 
 interface BuyerOrder {
   id: string;
@@ -178,7 +181,7 @@ export function useBuyerOrders() {
         gcTime: CACHE_TIME,
       });
     } catch (err) {
-      console.error("[useBuyerOrders] Error fetching content:", err);
+      log.error("Error fetching content", err);
       return null;
     }
   };

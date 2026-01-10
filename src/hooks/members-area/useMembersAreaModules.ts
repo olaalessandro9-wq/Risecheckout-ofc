@@ -6,7 +6,10 @@
 import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { createLogger } from "@/lib/logger";
 import type { MemberModule, MemberModuleWithContents } from "./types";
+
+const log = createLogger("MembersAreaModules");
 
 interface UseMembersAreaModulesProps {
   productId: string | undefined;
@@ -58,7 +61,7 @@ export function useMembersAreaModules({
       toast.success("Módulo criado!");
       return data;
     } catch (error) {
-      console.error("[useMembersAreaModules] Error adding module:", error);
+      log.error("Error adding module", error);
       toast.error("Erro ao criar módulo");
       return null;
     } finally {
@@ -79,7 +82,7 @@ export function useMembersAreaModules({
       setModules(prev => prev.map(m => m.id === id ? { ...m, ...data } : m));
       toast.success("Módulo atualizado!");
     } catch (error) {
-      console.error("[useMembersAreaModules] Error updating module:", error);
+      log.error("Error updating module", error);
       toast.error("Erro ao atualizar módulo");
     } finally {
       setIsSaving(false);
@@ -99,7 +102,7 @@ export function useMembersAreaModules({
       setModules(prev => prev.filter(m => m.id !== id));
       toast.success("Módulo excluído!");
     } catch (error) {
-      console.error("[useMembersAreaModules] Error deleting module:", error);
+      log.error("Error deleting module", error);
       toast.error("Erro ao excluir módulo");
     } finally {
       setIsSaving(false);
@@ -125,7 +128,7 @@ export function useMembersAreaModules({
         }));
       });
     } catch (error) {
-      console.error("[useMembersAreaModules] Error reordering modules:", error);
+      log.error("Error reordering modules", error);
       toast.error("Erro ao reordenar módulos");
     }
   }, [setModules]);
