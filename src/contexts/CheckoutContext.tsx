@@ -1,22 +1,41 @@
 /**
- * Context API para o Sistema de Checkout
+ * Context API para o Sistema de Checkout (UNIFICADO)
  * 
- * Fornece os dados do checkout (produto, design, order bumps) para todos
- * os componentes filhos, evitando "prop drilling".
+ * Single Source of Truth para dados do checkout.
+ * Fornece dados do checkout (produto, design, order bumps, customização)
+ * para todos os componentes filhos, evitando "prop drilling".
+ * 
+ * Usado por: Builder, Preview e Checkout Público
  */
 
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode, useMemo } from 'react';
+import type { ThemePreset } from '@/lib/checkout/themePresets';
+import type { CheckoutCustomization } from '@/hooks/useCheckoutEditor';
 import type { Checkout, CheckoutDesign, OrderBump } from '@/types/checkout';
 
 // ============================================================================
-// INTERFACE DO CONTEXTO
+// INTERFACE DO CONTEXTO (UNIFICADA)
 // ============================================================================
 
-interface CheckoutContextValue {
+export interface CheckoutContextValue {
+  /** Dados completos do checkout (se disponível) */
   checkout: Checkout | null;
-  design: CheckoutDesign | null;
+  /** Design/tema do checkout */
+  design: ThemePreset | CheckoutDesign | null;
+  /** Order bumps disponíveis */
   orderBumps: OrderBump[];
+  /** ID do vendor (null em checkout público por segurança) */
   vendorId: string | null;
+  /** Dados do produto (formato simplificado para compatibilidade) */
+  productData?: {
+    id?: string;
+    name?: string;
+    description?: string;
+    price?: number;
+    image_url?: string | null;
+  };
+  /** Customizações do checkout (topComponents, bottomComponents) */
+  customization?: CheckoutCustomization;
 }
 
 // ============================================================================
@@ -29,15 +48,70 @@ const CheckoutContext = createContext<CheckoutContextValue | undefined>(undefine
 // PROVIDER
 // ============================================================================
 
-interface CheckoutProviderProps {
+// Interface para Provider com `value` direto (forma padrão - PublicCheckoutV2)
+interface CheckoutProviderValueProps {
   children: ReactNode;
   value: CheckoutContextValue;
 }
 
-export const CheckoutProvider: React.FC<CheckoutProviderProps> = ({ children, value }) => {
+// Interface para Provider com props separadas (forma usada no CheckoutEditorMode)
+interface CheckoutProviderPropsProps {
+  children: ReactNode;
+  design?: ThemePreset;
+  customization?: CheckoutCustomization;
+  productData?: CheckoutContextValue['productData'];
+  orderBumps?: OrderBump[];
+}
+
+type CheckoutProviderProps = CheckoutProviderValueProps | CheckoutProviderPropsProps;
+
+/**
+ * Provider que envolve os componentes e fornece os dados do checkout.
+ * Aceita tanto `value` quanto props separadas para flexibilidade.
+ * 
+ * @example
+ * // Forma 1: Com value (PublicCheckoutV2)
+ * <CheckoutProvider value={{ checkout, design, orderBumps, vendorId: null }}>
+ *   {children}
+ * </CheckoutProvider>
+ * 
+ * @example
+ * // Forma 2: Com props separadas (CheckoutEditorMode)
+ * <CheckoutProvider
+ *   design={design}
+ *   customization={customization}
+ *   productData={productData}
+ *   orderBumps={orderBumps}
+ * >
+ *   {children}
+ * </CheckoutProvider>
+ */
+export const CheckoutProvider: React.FC<CheckoutProviderProps> = (props) => {
+  // Determinar se estamos usando `value` ou props separadas
+  const contextValue = useMemo<CheckoutContextValue>(() => {
+    if ('value' in props) {
+      return props.value;
+    }
+    // Construir value a partir de props separadas
+    return {
+      checkout: null,
+      design: props.design || null,
+      orderBumps: props.orderBumps || [],
+      vendorId: null,
+      productData: props.productData,
+      customization: props.customization,
+    };
+  }, [
+    'value' in props ? props.value : null,
+    'value' in props ? null : props.orderBumps,
+    'value' in props ? null : props.productData,
+    'value' in props ? null : props.design,
+    'value' in props ? null : props.customization,
+  ]);
+
   return (
-    <CheckoutContext.Provider value={value}>
-      {children}
+    <CheckoutContext.Provider value={contextValue}>
+      {props.children}
     </CheckoutContext.Provider>
   );
 };
@@ -52,10 +126,10 @@ export const CheckoutProvider: React.FC<CheckoutProviderProps> = ({ children, va
  * @throws Error se usado fora do CheckoutProvider
  * 
  * @example
- * const { checkout, design } = useCheckoutContext();
+ * const { checkout, design, orderBumps, productData } = useCheckoutContext();
  * 
- * return <div style={{ backgroundColor: design.colors.background }}>
- *   {checkout.product.name}
+ * return <div style={{ backgroundColor: design?.colors?.background }}>
+ *   {productData?.name || checkout?.product?.name}
  * </div>;
  */
 export const useCheckoutContext = (): CheckoutContextValue => {
@@ -67,3 +141,17 @@ export const useCheckoutContext = (): CheckoutContextValue => {
   
   return context;
 };
+
+// ============================================================================
+// ALIAS PARA COMPATIBILIDADE
+// ============================================================================
+
+/**
+ * @deprecated Use useCheckoutContext ao invés. Mantido para compatibilidade.
+ */
+export const useCheckoutData = useCheckoutContext;
+
+/**
+ * @deprecated Use CheckoutProvider ao invés. Mantido para compatibilidade.
+ */
+export const CheckoutDataProvider = CheckoutProvider;

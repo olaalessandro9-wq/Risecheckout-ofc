@@ -60,7 +60,36 @@ export interface OrderBump {
   name: string;
   description?: string;
   price: number;
-  image_url?: string;
+  original_price?: number | null;
+  image_url?: string | null;
+  call_to_action?: string;
+  product_id?: string;
+  product?: {
+    id: string;
+    name: string;
+    description?: string;
+    price: number;
+    image_url?: string | null;
+  };
+  offer?: {
+    id: string;
+    name: string;
+    price: number;
+  };
+}
+
+export interface UpsellSettings {
+  enabled: boolean;
+  redirectUrl?: string;
+  productId?: string;
+  offerId?: string;
+}
+
+export interface AffiliateSettings {
+  enabled?: boolean;
+  commissionPercentage?: number;
+  cookieDuration?: number;
+  attributionModel?: 'last_click' | 'first_click' | 'linear';
 }
 
 export interface Checkout {
@@ -69,9 +98,9 @@ export interface Checkout {
   name: string;
   product: CheckoutProduct;
   vendor_id?: string;
-  rows?: any[];
-  top_components?: any[];
-  bottom_components?: any[];
+  rows?: CheckoutRow[];
+  top_components?: CheckoutComponent[];
+  bottom_components?: CheckoutComponent[];
 }
 
 export interface CouponData {
@@ -137,6 +166,10 @@ export interface CardData {
 // TIPOS DE TRACKING
 // ============================================================================
 
+/**
+ * TrackingConfig usa `any` para compatibilidade com os módulos
+ * de tracking existentes que definem seus próprios tipos internos.
+ */
 export interface TrackingConfig {
   fbConfig?: any;
   utmifyConfig?: any;
@@ -188,10 +221,30 @@ export interface PaymentState {
 // TIPOS DO CHECKOUT BUILDER
 // ============================================================================
 
+export type CheckoutComponentType = 
+  | "text" 
+  | "image" 
+  | "advantage" 
+  | "seal" 
+  | "timer" 
+  | "testimonial" 
+  | "video";
+
+export interface CheckoutComponentContent {
+  title?: string;
+  description?: string;
+  imageUrl?: string;
+  layout?: 'list' | 'grid';
+  highlightColor?: string;
+  backgroundColor?: string;
+  showImages?: boolean;
+  [key: string]: unknown;
+}
+
 export interface CheckoutComponent {
   id: string;
-  type: "text" | "image" | "advantage" | "seal" | "timer" | "testimonial" | "video";
-  content?: any;
+  type: CheckoutComponentType;
+  content?: CheckoutComponentContent;
 }
 
 // Re-exportar tipos do useCheckoutEditor (apenas os que existem)

@@ -14,7 +14,7 @@
 import React from "react";
 import { CheckoutCustomization, ViewMode } from "@/hooks/useCheckoutEditor";
 import { ThemePreset } from "@/types/theme";
-import { CheckoutDataProvider } from "@/contexts/CheckoutDataContext";
+import { CheckoutProvider } from "@/contexts/CheckoutContext";
 import { CheckoutMasterLayout } from "@/components/checkout/unified";
 import { SharedCheckoutLayout } from "@/components/checkout/shared";
 
@@ -48,7 +48,7 @@ export const CheckoutEditorMode = ({
   isPreviewMode = false,
 }: CheckoutEditorModeProps) => {
   return (
-    <CheckoutDataProvider
+    <CheckoutProvider
       design={design}
       customization={customization}
       productData={productData}
@@ -75,6 +75,6 @@ export const CheckoutEditorMode = ({
           mode="editor"
         />
       </CheckoutMasterLayout>
-    </CheckoutDataProvider>
+    </CheckoutProvider>
   );
 };

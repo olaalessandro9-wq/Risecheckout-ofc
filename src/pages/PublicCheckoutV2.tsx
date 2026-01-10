@@ -20,7 +20,7 @@ import { CheckoutMasterLayout } from "@/components/checkout/unified";
 // Hooks da nova arquitetura
 import { useCheckoutData } from "@/hooks/checkout/useCheckoutData";
 import { useFormManager } from "@/hooks/checkout/useFormManager";
-import { usePaymentGateway } from "@/hooks/checkout/usePaymentGateway";
+import { usePaymentOrchestrator } from "@/hooks/checkout/payment/usePaymentOrchestrator";
 import { useTrackingService } from "@/hooks/checkout/useTrackingService";
 import { useAffiliateTracking } from "@/hooks/useAffiliateTracking";
 import { useTurnstileVerification } from "@/hooks/checkout/useTurnstileVerification";
@@ -170,7 +170,7 @@ const PublicCheckoutV2Content: React.FC<ContentProps> = ({
     selectedPayment,
     setSelectedPayment,
     submitPayment,
-  } = usePaymentGateway({
+  } = usePaymentOrchestrator({
     vendorId: null,
     checkoutId,
     productId: checkout.product.id,

@@ -8,17 +8,12 @@
  * ✅ Parcelas exibidas imediatamente (sem esperar BIN)
  * ✅ PCI DSS Compliance via @mercadopago/sdk-react
  * ✅ Preview do formulário no Builder (sem iframes)
- * 
- * FEATURE FLAG: USE_NEW_PAYMENT_ARCHITECTURE
- * - Quando ativado: Usa GatewayCardForm (suporta múltiplos gateways)
- * - Quando desativado: Usa MercadoPagoCardForm (comportamento atual)
  */
 
 import React from 'react';
 import { PixIcon, CreditCardIcon } from '@/components/icons';
-import { MercadoPagoCardForm, type CardTokenResult } from '@/lib/payment-gateways';
+import { type CardTokenResult } from '@/lib/payment-gateways';
 import { CardFormPreview } from './CardFormPreview';
-import { FEATURE_FLAGS } from '@/config/feature-flags';
 import { GatewayCardForm } from '@/components/checkout/payment/GatewayCardForm';
 
 interface CreditCardFieldColors {
@@ -122,9 +117,6 @@ export const SharedPaymentMethodSelector: React.FC<SharedPaymentMethodSelectorPr
       ? 'rgba(255, 255, 255, 0.16)'
       : 'rgba(0, 0, 0, 0.12)');
 
-  // Determinar qual componente de formulário usar
-  const useNewArchitecture = FEATURE_FLAGS.USE_NEW_PAYMENT_ARCHITECTURE;
-
   return (
     <div>
       <div className="space-y-3 mb-6">
@@ -160,14 +152,12 @@ export const SharedPaymentMethodSelector: React.FC<SharedPaymentMethodSelectorPr
            - Permite visualizar e editar estilos
            - Consistente para qualquer gateway futuro
         
-        2. Checkout Público: 
-           - USE_NEW_PAYMENT_ARCHITECTURE = true: GatewayCardForm (multi-gateway)
-           - USE_NEW_PAYMENT_ARCHITECTURE = false: MercadoPagoCardForm (atual)
+        2. Checkout Público: GatewayCardForm (multi-gateway)
       */}
       
       {/* Preview para Builder/Preview - Mostra quando cartão selecionado */}
       {showPreviewForm && (
-        <div 
+        <div
           className={`mt-4 transition-all duration-300 ${
             isCardSelected 
               ? 'opacity-100 h-auto' 
@@ -189,35 +179,19 @@ export const SharedPaymentMethodSelector: React.FC<SharedPaymentMethodSelectorPr
           }`}
           aria-hidden={!isCardSelected}
         >
-          {useNewArchitecture ? (
-            // NOVA ARQUITETURA: GatewayCardForm (multi-gateway)
-            <GatewayCardForm
-              gateway={creditCardGateway}
-              publicKey={publicKey}
-              amount={amount}
-              payerEmail={payerEmail}
-              onSubmit={handleCardSubmit}
-              isProcessing={isProcessing}
-              onMount={onCardSubmitReady}
-              textColor={design.colors.creditCardFields?.textColor || design.colors.primaryText}
-              placeholderColor={design.colors.creditCardFields?.placeholderColor || design.colors.secondaryText}
-              backgroundColor={design.colors.creditCardFields?.backgroundColor || design.colors.formBackground}
-              borderColor={fallbackBorderColor}
-            />
-          ) : (
-            // ARQUITETURA ATUAL: MercadoPagoCardForm (hardcoded)
-            <MercadoPagoCardForm 
-              publicKey={publicKey}
-              amount={amount}
-              onSubmit={handleCardSubmit}
-              isProcessing={isProcessing}
-              onMount={onCardSubmitReady}
-              textColor={design.colors.creditCardFields?.textColor || design.colors.primaryText}
-              placeholderColor={design.colors.creditCardFields?.placeholderColor || design.colors.secondaryText}
-              backgroundColor={design.colors.creditCardFields?.backgroundColor || design.colors.formBackground}
-              borderColor={fallbackBorderColor}
-            />
-          )}
+          <GatewayCardForm
+            gateway={creditCardGateway}
+            publicKey={publicKey}
+            amount={amount}
+            payerEmail={payerEmail}
+            onSubmit={handleCardSubmit}
+            isProcessing={isProcessing}
+            onMount={onCardSubmitReady}
+            textColor={design.colors.creditCardFields?.textColor || design.colors.primaryText}
+            placeholderColor={design.colors.creditCardFields?.placeholderColor || design.colors.secondaryText}
+            backgroundColor={design.colors.creditCardFields?.backgroundColor || design.colors.formBackground}
+            borderColor={fallbackBorderColor}
+          />
         </div>
       )}
     </div>
