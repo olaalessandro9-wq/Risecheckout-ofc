@@ -39,28 +39,29 @@ export const Pixel = ({ config }: PixelProps) => {
       }
 
       try {
-        // Inicializar função fbq (padrão do Facebook)
-        // @ts-ignore
-        window.fbq = function () {
-          // @ts-ignore
-          window.fbq.callMethod
-            ? // @ts-ignore
-              window.fbq.callMethod.apply(window.fbq, arguments)
-            : // @ts-ignore
-              window.fbq.queue.push(arguments);
+        // Criar função fbq tipada (padrão do Facebook)
+        const fbqFunction = function(...args: unknown[]) {
+          if (window.fbq?.callMethod) {
+            window.fbq.callMethod(...args);
+          } else if (window.fbq?.queue) {
+            window.fbq.queue.push(args);
+          }
         };
 
-        // Metadados do fbq
-        // @ts-ignore
-        if (!window._fbq) window._fbq = window.fbq;
-        // @ts-ignore
-        window.fbq.push = window.fbq;
-        // @ts-ignore
-        window.fbq.loaded = true;
-        // @ts-ignore
-        window.fbq.version = "2.0";
-        // @ts-ignore
-        window.fbq.queue = [];
+        // Inicializar objeto fbq com metadados
+        const fbq = fbqFunction as typeof window.fbq;
+        if (fbq) {
+          fbq.queue = [];
+          fbq.loaded = true;
+          fbq.version = "2.0";
+          fbq.push = fbqFunction as typeof window.fbq;
+        }
+
+        // Atribuir ao window
+        window.fbq = fbq;
+        if (!window._fbq) {
+          window._fbq = fbq;
+        }
 
         // Criar elemento script
         const script = document.createElement("script");
@@ -82,12 +83,10 @@ export const Pixel = ({ config }: PixelProps) => {
         }
 
         // Inicializar pixel com o ID
-        // @ts-ignore
-        window.fbq("init", config.pixel_id);
+        window.fbq?.("init", config.pixel_id);
 
         // Disparar evento PageView
-        // @ts-ignore
-        window.fbq("track", "PageView");
+        window.fbq?.("track", "PageView");
 
         console.log(
           `[Facebook] ✅ Pixel ${config.pixel_id} inicializado com sucesso`,

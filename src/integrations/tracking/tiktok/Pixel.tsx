@@ -39,24 +39,31 @@ export const Pixel = ({ config }: PixelProps) => {
       }
 
       try {
-        // Inicializar função ttq (padrão do TikTok)
-        // @ts-ignore
+        // Inicializar fila e objeto ttq tipados
         window._tiktok_pixel = window._tiktok_pixel || [];
-        // @ts-ignore
+        
         window.ttq = {
-          track: function (eventName: string, eventData: any) {
-            // @ts-ignore
-            window._tiktok_pixel.push({
+          track: (eventName: string, eventData?: Record<string, unknown>) => {
+            window._tiktok_pixel?.push({
               event: eventName,
               data: eventData,
             });
+          },
+          page: () => {
+            window._tiktok_pixel?.push({ event: "PageView" });
+          },
+          load: (pixelId: string) => {
+            window._tiktok_pixel?.push({ event: "load", data: { pixelId } });
+          },
+          identify: (userData: Record<string, unknown>) => {
+            window._tiktok_pixel?.push({ event: "identify", data: userData });
           },
         };
 
         // Criar elemento script
         const script = document.createElement("script");
         script.async = true;
-        script.src = `https://analytics.tiktok.com/i18n/pixel/events.js?v=1`;
+        script.src = "https://analytics.tiktok.com/i18n/pixel/events.js?v=1";
         script.onerror = () => {
           console.error("[TikTok] Erro ao carregar script do TikTok Pixel");
         };

@@ -39,22 +39,25 @@ export const Pixel = ({ config }: PixelProps) => {
       }
 
       try {
-        // Inicializar função kwaiq (padrão do Kwai)
-        // @ts-ignore
+        // Inicializar fila e função kwaiq tipados
         window._kwai_pixel = window._kwai_pixel || [];
-        // @ts-ignore
-        window.kwaiq = function (eventName: string, eventData: any) {
-          // @ts-ignore
-          window._kwai_pixel.push({
+        
+        const kwaiqFunction = (eventName: string, eventData?: Record<string, unknown>) => {
+          window._kwai_pixel?.push({
             event: eventName,
             data: eventData,
           });
         };
 
+        // Adicionar método track para compatibilidade
+        kwaiqFunction.track = kwaiqFunction;
+
+        window.kwaiq = kwaiqFunction;
+
         // Criar elemento script
         const script = document.createElement("script");
         script.async = true;
-        script.src = `https://s3.amazonaws.com/kwai-pixel/pixel.js?v=1`;
+        script.src = "https://s3.amazonaws.com/kwai-pixel/pixel.js?v=1";
         script.onerror = () => {
           console.error("[Kwai] Erro ao carregar script do Kwai Pixel");
         };
