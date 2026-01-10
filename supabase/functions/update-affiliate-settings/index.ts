@@ -15,6 +15,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
+import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 import { 
   rateLimitMiddleware, 
   RATE_LIMIT_CONFIGS,
@@ -68,35 +69,26 @@ serve(async (req) => {
       return rateLimitResult;
     }
 
-    // 1. Autenticação obrigatória
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      console.error("[update-affiliate-settings] Sem header de autorização");
-      return new Response(
-        JSON.stringify({ error: "Não autorizado" }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // 2. Criar cliente Supabase com token do usuário
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    // 3. Verificar usuário autenticado
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      console.error("[update-affiliate-settings] Erro de autenticação:", authError?.message);
+    // 1. Autenticação via unified-auth (suporta X-Producer-Session-Token e JWT)
+    let producer;
+    try {
+      producer = await requireAuthenticatedProducer(supabaseAdmin, req);
+    } catch (error) {
+      console.error("[update-affiliate-settings] Erro de autenticação:", error);
       return new Response(
         JSON.stringify({ error: "Usuário não autenticado" }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const userId = user.id;
+    const userId = producer.id;
     console.log(`[update-affiliate-settings] Usuário: ${userId.substring(0, 8)}...`);
+
+    // 2. Criar cliente Supabase para queries com RLS
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+    );
 
     // 4. Parse do payload
     const payload: RequestPayload = await req.json();
