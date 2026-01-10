@@ -6,7 +6,7 @@
  * MIGRATED: Uses useAuth() instead of supabase.auth.getUser()
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createLogger } from "@/lib/logger";
 
@@ -105,8 +105,20 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
     gcTime: SETTINGS_CACHE_TIME,
   });
 
-  // Sincronizar localModules com query data
-  const modules = localModules.length > 0 ? localModules : (modulesQuery.data ?? []);
+  // Reset localModules quando productId muda
+  useEffect(() => {
+    setLocalModules([]);
+  }, [productId]);
+
+  // Sincronizar localModules quando modulesQuery.data carrega/muda
+  useEffect(() => {
+    if (modulesQuery.data && modulesQuery.data.length > 0) {
+      setLocalModules(modulesQuery.data);
+    }
+  }, [modulesQuery.data]);
+
+  // Usar sempre localModules (agora sincronizado com React Query)
+  const modules = localModules;
 
   // Mutation para atualizar settings
   const updateMutation = useMutation({
