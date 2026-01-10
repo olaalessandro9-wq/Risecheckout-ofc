@@ -403,8 +403,13 @@ export function useMercadoPagoBrick({
             locale: 'pt-BR'
           }).then((data: any) => {
             if (data?.[0]?.payer_costs) setInstallments(data[0].payer_costs);
+          }).catch((err: unknown) => {
+            console.warn('[MercadoPago] Erro ao recalcular parcelas:', err);
+            // Manter parcelas anteriores como fallback seguro
           });
-        } catch (e) {}
+        } catch (err: unknown) {
+          console.warn('[MercadoPago] Erro ao iniciar recálculo de parcelas:', err);
+        }
     }, 500);
     return () => clearTimeout(timer);
   }, [amount, isReady, publicKey]);
