@@ -24,6 +24,8 @@ import { useAffiliateTracking } from "@/hooks/useAffiliateTracking";
 // ============================================================================
 import LandingPage from "./pages/LandingPage";
 import Auth from "./pages/Auth";
+import Cadastro from "./pages/Cadastro";
+import RecuperarSenha from "./pages/RecuperarSenha";
 import PublicCheckoutV2 from "./pages/PublicCheckoutV2";
 import PaymentLinkRedirect from "./pages/PaymentLinkRedirect";
 import PixPaymentPage from "./pages/PixPaymentPage";
@@ -38,6 +40,8 @@ import TermosDeUso from "./pages/TermosDeUso";
 // ÁREA DE MEMBROS (BUYER)
 // ============================================================================
 import BuyerAuth from "./pages/buyer/BuyerAuth";
+import BuyerCadastro from "./pages/buyer/BuyerCadastro";
+import BuyerRecuperarSenha from "./pages/buyer/BuyerRecuperarSenha";
 import BuyerDashboard from "./pages/buyer/BuyerDashboard";
 import CourseHome from "./pages/buyer/CourseHome";
 import LessonViewer from "./pages/buyer/LessonViewer";
@@ -130,6 +134,8 @@ const router = createBrowserRouter([
       // ROTAS PÚBLICAS
       // ============================================================
       { path: "/auth", element: <Auth /> },
+      { path: "/cadastro", element: <Cadastro /> },
+      { path: "/recuperar-senha", element: <RecuperarSenha /> },
       { path: "/c/:slug", element: <PaymentLinkRedirect /> },
       { path: "/pay/:slug", element: <PublicCheckoutV2 /> },
       { path: "/pay/pix/:orderId", element: <PixPaymentPage /> },
@@ -144,6 +150,8 @@ const router = createBrowserRouter([
       // ÁREA DE MEMBROS (BUYER) - Rotas Públicas
       // ============================================================
       { path: "/minha-conta", element: <BuyerAuth /> },
+      { path: "/minha-conta/cadastro", element: <BuyerCadastro /> },
+      { path: "/minha-conta/recuperar-senha", element: <BuyerRecuperarSenha /> },
       { path: "/minha-conta/setup-acesso", element: <SetupAccess /> },
       
       // ============================================================
