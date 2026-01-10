@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useState, useMemo } from "react";
+import { Navigate, Link } from "react-router-dom";
 import { useBuyerAuth } from "@/hooks/useBuyerAuth";
-import { useBuyerOrders } from "@/hooks/useBuyerOrders";
+import { useBuyerAccessQuery } from "@/hooks/useBuyerOrders";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,23 +22,44 @@ import {
 type FilterType = "todos" | "ativos" | "arquivados";
 
 export default function BuyerDashboard() {
-  const navigate = useNavigate();
   const { buyer, isLoading: authLoading, isAuthenticated } = useBuyerAuth();
-  const { access, isLoading: dataLoading, fetchAccess } = useBuyerOrders();
+  
+  // Usa React Query diretamente - dados são cacheados automaticamente
+  const { data: access = [], isLoading: dataLoading } = useBuyerAccessQuery();
+  
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<FilterType>("ativos");
 
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      navigate("/minha-conta");
-    }
-  }, [authLoading, isAuthenticated, navigate]);
+  // Redirect if not authenticated
+  if (!authLoading && !isAuthenticated) {
+    return <Navigate to="/minha-conta" replace />;
+  }
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchAccess();
-    }
-  }, [isAuthenticated, fetchAccess]);
+  // Memoized filtering para evitar recálculos desnecessários
+  const filteredProducts = useMemo(() => {
+    // Filter products with members area enabled based on selected filter
+    const productsWithContent = access.filter((a) => {
+      if (!a.product?.members_area_enabled) return false;
+      
+      switch (filter) {
+        case "ativos":
+          return a.is_active === true;
+        case "arquivados":
+          return a.is_active === false;
+        case "todos":
+        default:
+          return true;
+      }
+    });
+
+    // Apply search filter
+    if (!searchQuery) return productsWithContent;
+    
+    return productsWithContent.filter((item) => {
+      const name = item.product?.name?.toLowerCase() || "";
+      return name.includes(searchQuery.toLowerCase());
+    });
+  }, [access, filter, searchQuery]);
 
   if (authLoading || dataLoading) {
     return (
@@ -47,28 +68,6 @@ export default function BuyerDashboard() {
       </div>
     );
   }
-
-  // Filter products with members area enabled based on selected filter
-  const productsWithContent = access.filter((a) => {
-    if (!a.product?.members_area_enabled) return false;
-    
-    switch (filter) {
-      case "ativos":
-        return a.is_active === true;
-      case "arquivados":
-        return a.is_active === false;
-      case "todos":
-      default:
-        return true;
-    }
-  });
-
-  // Apply search filter
-  const filteredProducts = productsWithContent.filter((item) => {
-    if (!searchQuery) return true;
-    const name = item.product?.name?.toLowerCase() || "";
-    return name.includes(searchQuery.toLowerCase());
-  });
 
   return (
     <div className="space-y-6">

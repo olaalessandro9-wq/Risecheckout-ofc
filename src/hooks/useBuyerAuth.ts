@@ -1,5 +1,8 @@
 import { useState, useCallback, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { SUPABASE_URL } from "@/config/supabase";
+import { buyerQueryKeys } from "./useBuyerOrders";
+import { buyerSessionQueryKey } from "./useBuyerSession";
 
 const SESSION_KEY = "buyer_session_token";
 
@@ -20,6 +23,7 @@ interface UseBuyerAuthReturn {
 }
 
 export function useBuyerAuth(): UseBuyerAuthReturn {
+  const queryClient = useQueryClient();
   const [buyer, setBuyer] = useState<BuyerProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -46,8 +50,11 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
         const data = await response.json();
         if (data.valid && data.buyer) {
           setBuyer(data.buyer);
+          // Atualizar cache de sessão
+          queryClient.setQueryData(buyerSessionQueryKey, { valid: true, buyer: data.buyer });
         } else {
           clearSessionToken();
+          queryClient.setQueryData(buyerSessionQueryKey, { valid: false, buyer: null });
         }
       } catch (error) {
         console.error("[useBuyerAuth] Error validating session:", error);
@@ -58,7 +65,7 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
     };
 
     validateSession();
-  }, []);
+  }, [queryClient]);
 
   const login = useCallback(async (email: string, password: string) => {
     try {
@@ -80,12 +87,17 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
 
       setSessionToken(data.sessionToken);
       setBuyer(data.buyer);
+      
+      // Atualizar cache de sessão e invalidar queries de dados
+      queryClient.setQueryData(buyerSessionQueryKey, { valid: true, buyer: data.buyer });
+      queryClient.invalidateQueries({ queryKey: buyerQueryKeys.all });
+      
       return { success: true };
     } catch (error) {
       console.error("[useBuyerAuth] Login error:", error);
       return { success: false, error: "Erro de conexão" };
     }
-  }, []);
+  }, [queryClient]);
 
   const register = useCallback(async (email: string, password: string, name?: string) => {
     try {
@@ -123,7 +135,11 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
     }
     clearSessionToken();
     setBuyer(null);
-  }, []);
+    
+    // Limpar todos os caches de buyer
+    queryClient.setQueryData(buyerSessionQueryKey, { valid: false, buyer: null });
+    queryClient.removeQueries({ queryKey: buyerQueryKeys.all });
+  }, [queryClient]);
 
   const checkEmail = useCallback(async (email: string) => {
     try {

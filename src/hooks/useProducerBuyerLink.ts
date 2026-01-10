@@ -2,102 +2,74 @@
  * Hook para vincular um produtor (Supabase Auth) ao seu perfil de buyer
  * Permite que produtores acessem o painel de aluno sem login separado
  * Inclui verificação de produtos próprios com área de membros ativa
+ * 
+ * OTIMIZADO: Usa React Query para cache e navigate() ao invés de window.location.href
  */
-import { useState, useEffect, useCallback } from "react";
+import { useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { SUPABASE_URL } from "@/config/supabase";
 
 const BUYER_SESSION_KEY = "buyer_session_token";
 
-interface ProducerBuyerLinkState {
-  hasBuyerProfile: boolean | null;
+// Cache de 10 minutos para evitar verificações repetidas
+const LINK_STALE_TIME = 10 * 60 * 1000;
+const LINK_CACHE_TIME = 15 * 60 * 1000;
+
+interface ProducerBuyerLinkData {
+  hasBuyerProfile: boolean;
   hasOwnProducts: boolean;
   buyerId: string | null;
-  isLoading: boolean;
-  error: string | null;
 }
 
-interface UseProducerBuyerLinkReturn extends ProducerBuyerLinkState {
-  /**
-   * Gera uma sessão de buyer automaticamente usando o email do produtor
-   * Retorna o token de sessão se bem-sucedido
-   */
-  generateBuyerSession: () => Promise<string | null>;
-  /**
-   * Navega para o painel do aluno, gerando sessão se necessário
-   */
-  goToStudentPanel: () => Promise<void>;
-  /**
-   * Indica se deve mostrar a opção de troca para painel do aluno
-   */
-  canAccessStudentPanel: boolean;
-}
-
-export function useProducerBuyerLink(): UseProducerBuyerLinkReturn {
-  const { user, loading: authLoading } = useAuth();
-  const [state, setState] = useState<ProducerBuyerLinkState>({
-    hasBuyerProfile: null,
-    hasOwnProducts: false,
-    buyerId: null,
-    isLoading: true,
-    error: null,
-  });
-
-  // Verifica se o produtor tem um perfil de buyer ou produtos próprios
-  useEffect(() => {
-    if (authLoading) return;
-
-    if (!user?.email) {
-      setState({
-        hasBuyerProfile: false,
-        hasOwnProducts: false,
-        buyerId: null,
-        isLoading: false,
-        error: null,
-      });
-      return;
+// Função de verificação de perfil
+async function checkProducerBuyerProfile(
+  email: string,
+  producerId: string
+): Promise<ProducerBuyerLinkData> {
+  const response = await fetch(
+    `${SUPABASE_URL}/functions/v1/buyer-auth/check-producer-buyer`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        email,
+        producerUserId: producerId,
+      }),
     }
+  );
 
-    const checkBuyerProfile = async () => {
-      try {
-        const response = await fetch(
-          `${SUPABASE_URL}/functions/v1/buyer-auth/check-producer-buyer`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-              email: user.email,
-              producerUserId: user.id,
-            }),
-          }
-        );
+  if (!response.ok) {
+    throw new Error("Erro ao verificar perfil de buyer");
+  }
 
-        if (!response.ok) {
-          throw new Error("Erro ao verificar perfil de buyer");
-        }
+  const data = await response.json();
+  return {
+    hasBuyerProfile: data.hasBuyerProfile || false,
+    hasOwnProducts: data.hasOwnProducts || false,
+    buyerId: data.buyerId || null,
+  };
+}
 
-        const data = await response.json();
-        setState({
-          hasBuyerProfile: data.hasBuyerProfile,
-          hasOwnProducts: data.hasOwnProducts || false,
-          buyerId: data.buyerId || null,
-          isLoading: false,
-          error: null,
-        });
-      } catch (err) {
-        console.error("[useProducerBuyerLink] Error:", err);
-        setState({
-          hasBuyerProfile: false,
-          hasOwnProducts: false,
-          buyerId: null,
-          isLoading: false,
-          error: err instanceof Error ? err.message : "Erro desconhecido",
-        });
-      }
-    };
+// Query key para link produtor-buyer
+const producerBuyerLinkQueryKey = (email: string) => 
+  ["producer-buyer-link", email] as const;
 
-    checkBuyerProfile();
-  }, [user?.email, user?.id, authLoading]);
+export function useProducerBuyerLink() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { user, loading: authLoading } = useAuth();
+
+  // Query com cache para verificação de perfil
+  const query = useQuery({
+    queryKey: user?.email ? producerBuyerLinkQueryKey(user.email) : ["disabled"],
+    queryFn: () => checkProducerBuyerProfile(user!.email!, user!.id),
+    enabled: !authLoading && !!user?.email && !!user?.id,
+    staleTime: LINK_STALE_TIME,
+    gcTime: LINK_CACHE_TIME,
+    retry: 1,
+  });
 
   // Gera sessão de buyer automaticamente (cria buyer_profile se necessário)
   const generateBuyerSession = useCallback(async (): Promise<string | null> => {
@@ -105,15 +77,17 @@ export function useProducerBuyerLink(): UseProducerBuyerLinkReturn {
       return null;
     }
 
+    const data = query.data;
+
     // Se tem produtos próprios mas não tem buyer profile, criar primeiro
-    if (state.hasOwnProducts && !state.buyerId) {
+    if (data?.hasOwnProducts && !data?.buyerId) {
       try {
         await fetch(`${SUPABASE_URL}/functions/v1/buyer-auth/ensure-producer-access`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             email: user.email,
-            productId: "placeholder", // Será ignorado se já existir
+            productId: "placeholder",
             producerUserId: user.id,
           }),
         });
@@ -137,10 +111,10 @@ export function useProducerBuyerLink(): UseProducerBuyerLinkReturn {
         throw new Error(errorData.error || "Erro ao gerar sessão");
       }
 
-      const data = await response.json();
-      if (data.sessionToken) {
-        localStorage.setItem(BUYER_SESSION_KEY, data.sessionToken);
-        return data.sessionToken;
+      const responseData = await response.json();
+      if (responseData.sessionToken) {
+        localStorage.setItem(BUYER_SESSION_KEY, responseData.sessionToken);
+        return responseData.sessionToken;
       }
 
       return null;
@@ -148,21 +122,33 @@ export function useProducerBuyerLink(): UseProducerBuyerLinkReturn {
       console.error("[useProducerBuyerLink] Error generating session:", err);
       return null;
     }
-  }, [user?.email, user?.id, state.hasOwnProducts, state.buyerId]);
+  }, [user?.email, user?.id, query.data]);
 
-  // Navega para o painel do aluno
+  // Navega para o painel do aluno - OTIMIZADO: usa navigate() ao invés de window.location.href
   const goToStudentPanel = useCallback(async (): Promise<void> => {
     const token = await generateBuyerSession();
     if (token) {
-      window.location.href = "/minha-conta/dashboard";
+      // Invalidar queries de buyer para forçar refetch com nova sessão
+      queryClient.invalidateQueries({ queryKey: ["buyer"] });
+      // Usar navigate ao invés de reload completo
+      navigate("/minha-conta/dashboard");
     }
-  }, [generateBuyerSession]);
+  }, [generateBuyerSession, navigate, queryClient]);
 
+  // Estado derivado
+  const hasBuyerProfile = query.data?.hasBuyerProfile ?? null;
+  const hasOwnProducts = query.data?.hasOwnProducts ?? false;
+  const buyerId = query.data?.buyerId ?? null;
+  
   // Pode acessar o painel do aluno se tem compras OU produtos próprios
-  const canAccessStudentPanel = state.hasBuyerProfile || state.hasOwnProducts;
+  const canAccessStudentPanel = hasBuyerProfile || hasOwnProducts;
 
   return {
-    ...state,
+    hasBuyerProfile,
+    hasOwnProducts,
+    buyerId,
+    isLoading: authLoading || query.isLoading,
+    error: query.error?.message || null,
     generateBuyerSession,
     goToStudentPanel,
     canAccessStudentPanel,
