@@ -8,6 +8,7 @@
  * - VULN-002: Rate limiting para login/register
  * - VULN-007: Política de senhas forte
  * - VULN-006: Sanitização de inputs
+ * - Password Reset Flow with email
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -39,6 +40,9 @@ import {
   logSecurityEvent, 
   SecurityAction 
 } from "../_shared/audit-logger.ts";
+
+// Email sending
+import { sendEmail } from "../_shared/zeptomail.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -77,6 +81,12 @@ async function verifyPassword(password: string, hash: string, version: number): 
 }
 
 function generateSessionToken(): string {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return Array.from(array, b => b.toString(16).padStart(2, "0")).join("");
+}
+
+function generateResetToken(): string {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
   return Array.from(array, b => b.toString(16).padStart(2, "0")).join("");
@@ -518,6 +528,296 @@ serve(async (req) => {
           exists: true,
           needsPasswordSetup: buyer.password_hash === "PENDING_PASSWORD_SETUP",
         }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ============================================
+    // REQUEST-PASSWORD-RESET - Solicitar redefinição de senha
+    // ============================================
+    if (action === "request-password-reset" && req.method === "POST") {
+      const rawBody = await req.json();
+      const email = sanitizeEmail(rawBody.email);
+
+      if (!email) {
+        return new Response(
+          JSON.stringify({ error: "Email é obrigatório" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Find buyer by email
+      const { data: buyer, error: findError } = await supabase
+        .from("buyer_profiles")
+        .select("id, email, name")
+        .eq("email", email.toLowerCase())
+        .single();
+
+      if (findError || !buyer) {
+        console.log(`[buyer-auth] Password reset request for unknown email: ${email}`);
+        return new Response(
+          JSON.stringify({ error: "E-mail não encontrado na base de dados" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Generate reset token
+      const resetToken = generateResetToken();
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour expiration
+
+      // Save token to database
+      const { error: updateError } = await supabase
+        .from("buyer_profiles")
+        .update({
+          reset_token: resetToken,
+          reset_token_expires_at: expiresAt.toISOString(),
+        })
+        .eq("id", buyer.id);
+
+      if (updateError) {
+        console.error("[buyer-auth] Error saving reset token:", updateError);
+        return new Response(
+          JSON.stringify({ error: "Erro ao processar solicitação" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Build reset link
+      const siteUrl = Deno.env.get("PUBLIC_SITE_URL") || "https://risecheckout.com";
+      const resetLink = `${siteUrl}/minha-conta/redefinir-senha?token=${resetToken}`;
+
+      // Send email
+      const emailResult = await sendEmail({
+        to: { email: buyer.email, name: buyer.name || undefined },
+        subject: "Redefinir sua senha - RiseCheckout",
+        type: "transactional",
+        htmlBody: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          </head>
+          <body style="margin: 0; padding: 0; background-color: #0a0a0b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0a0a0b; padding: 40px 20px;">
+              <tr>
+                <td align="center">
+                  <table width="600" cellpadding="0" cellspacing="0" style="background-color: #141416; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+                    <!-- Header -->
+                    <tr>
+                      <td style="padding: 40px 40px 20px 40px; text-align: center;">
+                        <div style="display: inline-block; background: linear-gradient(135deg, #3b82f6, #8b5cf6); width: 50px; height: 50px; border-radius: 12px; line-height: 50px; color: white; font-weight: bold; font-size: 24px;">R</div>
+                        <h1 style="color: white; margin: 20px 0 0 0; font-size: 24px; font-weight: 600;">RiseCheckout</h1>
+                      </td>
+                    </tr>
+                    
+                    <!-- Content -->
+                    <tr>
+                      <td style="padding: 20px 40px;">
+                        <h2 style="color: white; margin: 0 0 20px 0; font-size: 20px;">Olá${buyer.name ? `, ${buyer.name}` : ''}!</h2>
+                        <p style="color: #94a3b8; margin: 0 0 20px 0; font-size: 16px; line-height: 1.6;">
+                          Recebemos uma solicitação para redefinir sua senha. Clique no botão abaixo para criar uma nova senha:
+                        </p>
+                        
+                        <!-- Button -->
+                        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
+                          <tr>
+                            <td align="center">
+                              <a href="${resetLink}" style="display: inline-block; background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                                Redefinir Senha
+                              </a>
+                            </td>
+                          </tr>
+                        </table>
+                        
+                        <p style="color: #64748b; margin: 20px 0; font-size: 14px;">
+                          Este link expira em <strong style="color: #94a3b8;">1 hora</strong>.
+                        </p>
+                        
+                        <p style="color: #64748b; margin: 20px 0 0 0; font-size: 14px;">
+                          Se você não solicitou esta alteração, ignore este email. Sua senha permanecerá a mesma.
+                        </p>
+                      </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                      <td style="padding: 20px 40px 40px 40px; border-top: 1px solid rgba(255,255,255,0.1);">
+                        <p style="color: #64748b; margin: 0; font-size: 12px; text-align: center;">
+                          © 2025 RiseCheckout Inc. Todos os direitos reservados.
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </body>
+          </html>
+        `,
+        textBody: `
+Olá${buyer.name ? `, ${buyer.name}` : ''}!
+
+Recebemos uma solicitação para redefinir sua senha.
+
+Clique no link abaixo para criar uma nova senha:
+${resetLink}
+
+Este link expira em 1 hora.
+
+Se você não solicitou esta alteração, ignore este email.
+
+Atenciosamente,
+Equipe RiseCheckout
+        `,
+      });
+
+      if (!emailResult.success) {
+        console.error("[buyer-auth] Error sending reset email:", emailResult.error);
+        return new Response(
+          JSON.stringify({ error: "Erro ao enviar email. Tente novamente." }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log(`[buyer-auth] Password reset email sent to: ${email}`);
+      return new Response(
+        JSON.stringify({ success: true, message: "Email enviado" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ============================================
+    // VERIFY-RESET-TOKEN - Verificar token de reset
+    // ============================================
+    if (action === "verify-reset-token" && req.method === "POST") {
+      const { token } = await req.json();
+
+      if (!token) {
+        return new Response(
+          JSON.stringify({ valid: false, error: "Token não fornecido" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Find buyer by reset token
+      const { data: buyer, error: findError } = await supabase
+        .from("buyer_profiles")
+        .select("id, email, reset_token_expires_at")
+        .eq("reset_token", token)
+        .single();
+
+      if (findError || !buyer) {
+        console.log(`[buyer-auth] Invalid reset token: ${token.substring(0, 10)}...`);
+        return new Response(
+          JSON.stringify({ valid: false, error: "Link inválido ou já utilizado" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Check if token is expired
+      if (!buyer.reset_token_expires_at || new Date(buyer.reset_token_expires_at) < new Date()) {
+        console.log(`[buyer-auth] Expired reset token for: ${buyer.email}`);
+        return new Response(
+          JSON.stringify({ valid: false, error: "Link expirado. Solicite um novo." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ valid: true, email: buyer.email }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ============================================
+    // RESET-PASSWORD - Redefinir senha com token
+    // ============================================
+    if (action === "reset-password" && req.method === "POST") {
+      const { token, password } = await req.json();
+
+      if (!token || !password) {
+        return new Response(
+          JSON.stringify({ error: "Token e senha são obrigatórios" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Find buyer by reset token
+      const { data: buyer, error: findError } = await supabase
+        .from("buyer_profiles")
+        .select("id, email, reset_token_expires_at")
+        .eq("reset_token", token)
+        .single();
+
+      if (findError || !buyer) {
+        return new Response(
+          JSON.stringify({ error: "Link inválido ou já utilizado" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Check if token is expired
+      if (!buyer.reset_token_expires_at || new Date(buyer.reset_token_expires_at) < new Date()) {
+        return new Response(
+          JSON.stringify({ error: "Link expirado. Solicite um novo." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Validate password strength
+      const passwordValidation = validatePassword(password);
+      if (!passwordValidation.valid) {
+        return new Response(
+          JSON.stringify({ 
+            error: formatPasswordError(passwordValidation),
+            validation: {
+              score: passwordValidation.score,
+              errors: passwordValidation.errors,
+              suggestions: passwordValidation.suggestions,
+            }
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Hash new password
+      const passwordHash = hashPassword(password);
+
+      // Update password and clear reset token
+      const { error: updateError } = await supabase
+        .from("buyer_profiles")
+        .update({
+          password_hash: passwordHash,
+          password_hash_version: CURRENT_HASH_VERSION,
+          reset_token: null,
+          reset_token_expires_at: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", buyer.id);
+
+      if (updateError) {
+        console.error("[buyer-auth] Error updating password:", updateError);
+        return new Response(
+          JSON.stringify({ error: "Erro ao redefinir senha" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Log security event (using LOGIN_SUCCESS as PASSWORD_RESET may not exist)
+      await logSecurityEvent(supabase, {
+        userId: buyer.id,
+        action: SecurityAction.LOGIN_SUCCESS,
+        resource: "buyer_auth_password_reset",
+        success: true,
+        request: req,
+        metadata: { email: buyer.email, type: "password_reset" }
+      });
+
+      console.log(`[buyer-auth] Password reset successful for: ${buyer.email}`);
+      return new Response(
+        JSON.stringify({ success: true, message: "Senha redefinida com sucesso" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
