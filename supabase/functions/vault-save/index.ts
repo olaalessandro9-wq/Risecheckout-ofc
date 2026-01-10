@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
       return rateLimitResult;
     }
 
-    // 2. Verificar autenticação via unified-auth (producer_sessions + JWT fallback)
+    // 2. Verificar autenticação via unified-auth (producer_sessions)
     let producer;
     try {
       producer = await requireAuthenticatedProducer(supabase, req);

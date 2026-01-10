@@ -69,7 +69,7 @@ serve(async (req) => {
       return rateLimitResult;
     }
 
-    // 1. Autenticação via unified-auth (suporta X-Producer-Session-Token e JWT)
+    // 1. Autenticação via unified-auth (X-Producer-Session-Token)
     let producer;
     try {
       producer = await requireAuthenticatedProducer(supabaseAdmin, req);
