@@ -467,6 +467,102 @@ if (!accessToken) {
 
 ---
 
+### 8. `unified-auth.ts`
+
+**Propósito**: Autenticação centralizada de produtores via `producer_sessions`.
+
+#### RISE ARCHITECT PROTOCOL - Conformidade 100%
+
+Este módulo segue rigorosamente o protocolo:
+- ✅ Zero fallbacks legados
+- ✅ Caminho único de autenticação
+- ✅ Sem código morto
+
+#### Interface de Retorno
+
+```typescript
+interface ProducerAuth {
+  id: string;           // UUID do produtor
+  email: string;        // Email do produtor
+  name: string | null;  // Nome (pode ser null)
+  role: string;         // "owner" | "admin" | "user" | "seller"
+}
+```
+
+#### Funções Exportadas
+
+| Função | Parâmetros | Retorno | Descrição |
+|--------|------------|---------|-----------|
+| `getAuthenticatedProducer` | (supabase, request) | `Promise<ProducerAuth \| null>` | Tenta autenticar, retorna null se falhar |
+| `requireAuthenticatedProducer` | (supabase, request) | `Promise<ProducerAuth>` | Exige autenticação, throws se falhar |
+| `unauthorizedResponse` | (corsHeaders) | `Response` | Response 401 padronizada |
+
+#### Exemplo de Uso
+
+```typescript
+import { 
+  requireAuthenticatedProducer, 
+  unauthorizedResponse 
+} from "../_shared/unified-auth.ts";
+
+// Em uma Edge Function protegida:
+let producer;
+try {
+  producer = await requireAuthenticatedProducer(supabaseAdmin, req);
+} catch {
+  return unauthorizedResponse(corsHeaders);
+}
+
+console.log(`Autenticado: ${producer.email} (${producer.role})`);
+```
+
+#### Header Esperado
+
+```
+X-Producer-Session-Token: <token_de_64_caracteres>
+```
+
+#### Fluxo de Validação
+
+```
+┌─────────────────────────────────────────────────────────┐
+│              VALIDAÇÃO DE SESSION TOKEN                  │
+└─────────────────────────────────────────────────────────┘
+                         │
+                         ▼
+         ┌───────────────────────────────┐
+         │ Extrai X-Producer-Session-Token│
+         │ do header                      │
+         └───────────────┬───────────────┘
+                         │
+            Token existe? 
+                         │
+         ┌───────────────┴───────────────┐
+         ▼ NÃO                           ▼ SIM
+  ┌─────────────┐            ┌───────────────────────┐
+  │ return null │            │ Busca em              │
+  └─────────────┘            │ producer_sessions     │
+                             │ WHERE is_valid = true │
+                             │ AND expires_at > now  │
+                             └───────────┬───────────┘
+                                         │
+                          Sessão válida?
+                                         │
+                         ┌───────────────┴───────────────┐
+                         ▼ NÃO                           ▼ SIM
+                  ┌─────────────┐            ┌───────────────────┐
+                  │ return null │            │ Busca profile     │
+                  └─────────────┘            │ e user_role       │
+                                             └─────────┬─────────┘
+                                                       │
+                                                       ▼
+                                             ┌───────────────────┐
+                                             │ return ProducerAuth│
+                                             └───────────────────┘
+```
+
+---
+
 ## 🔒 Segurança
 
 ### Princípios Aplicados

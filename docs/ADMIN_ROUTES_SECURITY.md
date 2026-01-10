@@ -1,7 +1,7 @@
 # 🔐 Documentação de Segurança para Rotas Administrativas
 
 **Projeto:** RiseCheckout  
-**Última Atualização:** Dezembro 2024  
+**Última Atualização:** Janeiro 2026  
 **Status:** Ativo
 
 ---
@@ -60,9 +60,11 @@ Este documento estabelece o **padrão obrigatório** para implementação de rot
 │         Validação REAL no servidor - NUNCA confiar          │
 │         apenas no frontend!                                 │
 │                                                             │
+│  ✓ Autentica via unified-auth.ts (producer_sessions)        │
 │  ✓ Usa role-validator.ts para verificar permissões          │
 │  ✓ Registra eventos de segurança via audit-logger.ts        │
-│  ✓ Retorna 403 Forbidden se não autorizado                  │
+│  ✓ Retorna 401 Unauthorized se não autenticado              │
+│  ✓ Retorna 403 Forbidden se sem permissão                   │
 │  ✓ Única fonte de verdade para autorização                  │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -307,11 +309,14 @@ Ao revisar PRs que adicionam rotas administrativas, verifique:
 
 - `src/components/RoleProtectedRoute.tsx` - Implementação do componente
 - `src/hooks/usePermissions.ts` - Hook de permissões frontend
-- `supabase/functions/_shared/role-validator.ts` - Validação backend
+- `supabase/functions/_shared/unified-auth.ts` - Autenticação via producer_sessions
+- `supabase/functions/_shared/role-validator.ts` - Validação de roles
 - `supabase/functions/_shared/audit-logger.ts` - Logs de segurança
+- `docs/AUTHENTICATION_SYSTEM.md` - Documentação completa de autenticação
 - `SECURITY.md` - Política geral de segurança do projeto
 - `SECURITY_POLICY.md` - Gestão de secrets e resposta a incidentes
 
 ---
 
 *Documento mantido pela equipe de desenvolvimento RiseCheckout.*
+*Atualizado para refletir sistema de autenticação via producer_sessions (Janeiro 2026).*

@@ -65,10 +65,59 @@ RiseCheckout é uma plataforma de checkout high-end no modelo **Marketplace**.
 | `stripe-webhook` | Processar eventos Stripe |
 | `create-order` | Criar pedidos |
 | `trigger-webhooks` | Disparar webhooks do vendedor |
+| `producer-auth` | Login/logout de produtores |
+
+---
+
+## 🔑 Sistema de Autenticação
+
+RiseCheckout utiliza autenticação customizada via `producer_sessions`, independente do Supabase Auth.
+
+### Componentes
+
+| Componente | Descrição |
+|------------|-----------|
+| `producer_sessions` | Tabela de sessões ativas |
+| `producer-auth` | Edge Function de login/logout |
+| `unified-auth.ts` | Módulo compartilhado de validação |
+
+### Fluxo
+
+```
+┌────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  Frontend  │────▶│  producer-auth   │────▶│producer_sessions│
+│   Login    │     │  Edge Function   │     │    (tabela)     │
+└────────────┘     └──────────────────┘     └─────────────────┘
+       │                                            │
+       │ Recebe session_token                       │
+       ▼                                            │
+┌────────────┐     ┌──────────────────┐             │
+│  Frontend  │────▶│  Edge Function   │─────────────┘
+│   Request  │     │   (protegida)    │ Valida via unified-auth.ts
+└────────────┘     └──────────────────┘
+```
+
+### Header de Autenticação
+
+```
+X-Producer-Session-Token: <token_64_caracteres>
+```
+
+### RISE ARCHITECT PROTOCOL
+
+Este sistema segue 100% o protocolo:
+- ✅ Zero fallbacks
+- ✅ Caminho único de autenticação
+- ✅ Sem código morto
+
+---
 
 ## 📖 Documentação Relacionada
 
+- [Sistema de Autenticação Completo](./AUTHENTICATION_SYSTEM.md)
 - [Módulos Compartilhados](../supabase/functions/_shared/README.md)
+- [Módulo unified-auth.ts](../supabase/functions/_shared/README.md#8-unified-authts)
+- [Segurança de Rotas Admin](./ADMIN_ROUTES_SECURITY.md)
 - [Asaas Create Payment](../supabase/functions/asaas-create-payment/README.md)
 - [Asaas Webhook](../supabase/functions/asaas-webhook/README.md)
 - [Stripe Create Payment](../supabase/functions/stripe-create-payment/README.md)
