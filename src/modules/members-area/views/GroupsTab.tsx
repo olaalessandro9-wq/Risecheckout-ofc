@@ -85,19 +85,23 @@ export function GroupsTab({ productId }: GroupsTabProps) {
         await linkOffers(newGroup.id, data.linkedOfferIds, { silent: true });
       }
     } else if (selectedGroup) {
-      // Update group
-      await updateGroup(selectedGroup.id, {
+      // Update group - VERIFICAR SUCESSO antes de continuar
+      const updatedGroup = await updateGroup(selectedGroup.id, {
         name: data.name,
         description: data.description,
         is_default: data.is_default,
       });
-      // Update permissions (silent - toast já foi mostrado no updateGroup)
-      await updatePermissions({
-        group_id: selectedGroup.id,
-        permissions: data.permissions,
-      }, { silent: true });
-      // Update linked offers (silent)
-      await linkOffers(selectedGroup.id, data.linkedOfferIds, { silent: true });
+      
+      // Só atualiza permissões e ofertas se o update do grupo teve sucesso
+      if (updatedGroup) {
+        // Update permissions (silent - toast já foi mostrado no updateGroup)
+        await updatePermissions({
+          group_id: selectedGroup.id,
+          permissions: data.permissions,
+        }, { silent: true });
+        // Update linked offers (silent)
+        await linkOffers(selectedGroup.id, data.linkedOfferIds, { silent: true });
+      }
     }
   }, [modalMode, selectedGroup, createGroup, updateGroup, updatePermissions, linkOffers]);
 

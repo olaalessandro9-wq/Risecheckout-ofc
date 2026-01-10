@@ -133,6 +133,14 @@ Deno.serve(async (req) => {
           );
         }
 
+        // Se criando como padrão, desativar outros grupos primeiro
+        if (data.is_default === true) {
+          await supabase
+            .from("product_member_groups")
+            .update({ is_default: false })
+            .eq("product_id", product_id);
+        }
+
         const { data: group, error } = await supabase
           .from("product_member_groups")
           .insert({
@@ -160,6 +168,25 @@ Deno.serve(async (req) => {
             JSON.stringify({ error: "group_id and data required" }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
+        }
+
+        // Se estiver definindo como padrão, desativar outros grupos primeiro
+        if (data.is_default === true) {
+          // Buscar o product_id do grupo atual
+          const { data: currentGroup } = await supabase
+            .from("product_member_groups")
+            .select("product_id")
+            .eq("id", group_id)
+            .single();
+
+          if (currentGroup?.product_id) {
+            // Desativar is_default de todos os outros grupos do produto
+            await supabase
+              .from("product_member_groups")
+              .update({ is_default: false })
+              .eq("product_id", currentGroup.product_id)
+              .neq("id", group_id);
+          }
         }
 
         const updateData: Record<string, unknown> = {};

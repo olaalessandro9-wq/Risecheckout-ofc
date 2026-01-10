@@ -1,14 +1,12 @@
 /**
  * UnifiedGroupModal - Modal unificado para criar/editar grupos
  * Inclui seções para módulos e ofertas (estilo Kiwify)
+ * Optimized: Removed heavy framer-motion animations for better performance
  */
 
-import { useState, useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useMemo, memo } from 'react';
 import {
   BookOpen,
-  Check,
-  X,
   Loader2,
   Save,
   Tag,
@@ -313,14 +311,11 @@ export function UnifiedGroupModal({
                   <span className="text-sm font-medium">Todos os módulos</span>
                 </div>
 
-                {/* Modules List */}
+                {/* Modules List - Optimized without animations */}
                 <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                  {modules.map((module, index) => (
-                    <motion.div
+                  {modules.map((module) => (
+                    <div
                       key={module.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.03 }}
                       className={cn(
                         'flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors',
                         moduleAccess[module.id]
@@ -354,7 +349,7 @@ export function UnifiedGroupModal({
                           </p>
                         )}
                       </div>
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
               </>
