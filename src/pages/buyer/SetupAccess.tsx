@@ -188,9 +188,9 @@ export default function SetupAccess() {
 
       if (data?.success) {
         toast.success("Acesso liberado!");
-        // Navigate to product
+        // Navigate to student dashboard (Meus Cursos)
         setTimeout(() => {
-          navigate(`/minha-conta/produto/${productId}`);
+          navigate("/minha-conta/dashboard");
         }, 500);
       } else {
         throw new Error(data?.error || "Erro ao ativar acesso");
@@ -227,9 +227,8 @@ export default function SetupAccess() {
     if (tokenInfo?.buyer_email) {
       params.set("email", tokenInfo.buyer_email);
     }
-    if (tokenInfo?.product_id) {
-      params.set("redirect", `/minha-conta/produto/${tokenInfo.product_id}`);
-    }
+    // Always redirect to dashboard (Meus Cursos) after login
+    params.set("redirect", "/minha-conta/dashboard");
     navigate(`/minha-conta?${params.toString()}`);
   };
 
@@ -268,8 +267,8 @@ export default function SetupAccess() {
         
         toast.success("Conta criada com sucesso!");
         
-        // Redirect to product
-        navigate(`/minha-conta/produto/${data.product_id}`);
+        // Redirect to student dashboard (Meus Cursos)
+        navigate("/minha-conta/dashboard");
       } else {
         throw new Error(data?.error || "Erro ao criar conta");
       }
