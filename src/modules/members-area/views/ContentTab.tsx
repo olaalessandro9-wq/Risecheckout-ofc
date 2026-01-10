@@ -27,6 +27,8 @@ export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
     updateModule,
     deleteModule,
     deleteContent,
+    reorderModules,
+    reorderContents,
   } = membersAreaData;
 
   // Dialog states
@@ -186,6 +188,8 @@ export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
         onAddContent={handleOpenAddContent}
         onEditContent={handleEditContent}
         onDeleteContent={handleDeleteContent}
+        onReorderModules={reorderModules}
+        onReorderContents={reorderContents}
       />
 
       {/* Dialogs */}
