@@ -50,27 +50,17 @@ export function ConfigForm() {
   const checkStatus = async () => {
     try {
       setLoading(true);
-      const { data: session } = await supabase.auth.getSession();
       
-      const { data, error } = await supabase.functions.invoke('stripe-connect-oauth', {
-        body: {},
-        headers: {
-          Authorization: `Bearer ${session?.session?.access_token}`,
-        },
+      // Usar supabase.functions.invoke com query param via body
+      const { data: statusData, error } = await supabase.functions.invoke('stripe-connect-oauth', {
+        body: { action: 'status' },
       });
 
-      // Parse URL params para action=status
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-connect-oauth?action=status`,
-        {
-          headers: {
-            Authorization: `Bearer ${session?.session?.access_token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      if (error) {
+        console.error('[StripeConfig] Error checking status:', error);
+        return;
+      }
 
-      const statusData = await response.json();
       setStatus(statusData);
     } catch (error) {
       console.error('[StripeConfig] Error checking status:', error);
@@ -82,25 +72,19 @@ export function ConfigForm() {
   const handleConnect = async () => {
     try {
       setConnecting(true);
-      const { data: session } = await supabase.auth.getSession();
       
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-connect-oauth?action=start`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${session?.session?.access_token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      const data = await response.json();
+      const { data, error } = await supabase.functions.invoke('stripe-connect-oauth', {
+        body: { action: 'start' },
+      });
       
-      if (data.url) {
+      if (error) {
+        throw new Error(error.message || 'Erro ao iniciar conexão');
+      }
+      
+      if (data?.url) {
         window.location.href = data.url;
       } else {
-        throw new Error(data.error || 'Erro ao iniciar conexão');
+        throw new Error(data?.error || 'Erro ao iniciar conexão');
       }
     } catch (error: any) {
       toast.error(`Erro: ${error.message}`);
@@ -113,26 +97,20 @@ export function ConfigForm() {
     
     try {
       setDisconnecting(true);
-      const { data: session } = await supabase.auth.getSession();
       
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-connect-oauth?action=disconnect`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${session?.session?.access_token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      const data = await response.json();
+      const { data, error } = await supabase.functions.invoke('stripe-connect-oauth', {
+        body: { action: 'disconnect' },
+      });
       
-      if (data.success) {
+      if (error) {
+        throw new Error(error.message || 'Erro ao desconectar');
+      }
+      
+      if (data?.success) {
         toast.success("Stripe desconectado com sucesso");
         setStatus({ connected: false, account_id: null, email: null, livemode: null, connected_at: null });
       } else {
-        throw new Error(data.error || 'Erro ao desconectar');
+        throw new Error(data?.error || 'Erro ao desconectar');
       }
     } catch (error: any) {
       toast.error(`Erro: ${error.message}`);

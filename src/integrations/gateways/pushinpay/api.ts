@@ -76,13 +76,14 @@ export async function fetchPushinPayAccountInfo(
 }
 
 /**
- * Salva ou atualiza as configurações da PushinPay para o usuário atual
+ * Salva ou atualiza as configurações da PushinPay para o usuário especificado
  * 
+ * @param userId - ID do usuário autenticado
  * @param settings - Configurações da PushinPay (token e ambiente)
  * @returns Objeto com status de sucesso e mensagem de erro (se houver)
  * 
  * @example
- * const result = await savePushinPaySettings({
+ * const result = await savePushinPaySettings(user.id, {
  *   pushinpay_token: "pk_test_...",
  *   environment: "sandbox"
  * });
@@ -92,19 +93,16 @@ export async function fetchPushinPayAccountInfo(
  * }
  */
 export async function savePushinPaySettings(
+  userId: string,
   settings: PushinPaySettings
 ): Promise<{ ok: boolean; error?: string }> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  
-  if (!user) {
+  if (!userId) {
     return { ok: false, error: "Usuário não autenticado" };
   }
 
   try {
     const updateData: Record<string, any> = {
-      user_id: user.id,
+      user_id: userId,
       pushinpay_token: settings.pushinpay_token,
       environment: settings.environment,
     };
@@ -129,31 +127,28 @@ export async function savePushinPaySettings(
 }
 
 /**
- * Recupera as configurações da PushinPay do usuário atual
+ * Recupera as configurações da PushinPay do usuário especificado
  * 
+ * @param userId - ID do usuário autenticado
  * @returns Configurações da PushinPay (com token mascarado) ou null se não encontrado
  * 
  * @example
- * const settings = await getPushinPaySettings();
+ * const settings = await getPushinPaySettings(user.id);
  * 
  * if (settings) {
  *   console.log("Ambiente:", settings.environment);
  *   // Token sempre retorna mascarado: "••••••••"
  * }
  */
-export async function getPushinPaySettings(): Promise<PushinPaySettings | null> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  
-  if (!user) {
+export async function getPushinPaySettings(userId: string): Promise<PushinPaySettings | null> {
+  if (!userId) {
     return null;
   }
 
   const { data, error } = await supabase
     .from("payment_gateway_settings")
     .select("environment, pushinpay_account_id, pushinpay_token")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .single() as any;
 
   if (error || !data) {

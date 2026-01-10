@@ -3,30 +3,44 @@ import { createClient } from '@supabase/supabase-js';
 
 export async function POST(request: Request) {
   try {
-    // ✅ 1. AUTENTICAR USUÁRIO
+    // ✅ 1. AUTENTICAR USUÁRIO (suporta ambos: producer_session_token e JWT)
+    const producerToken = request.headers.get('X-Producer-Session-Token');
     const authHeader = request.headers.get('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized: Missing or invalid token' }),
-        { 
-          status: 401,
-          headers: { 'Content-Type': 'application/json' }
-        }
-      );
-    }
-
-    const token = authHeader.replace('Bearer ', '');
     
     const supabase = createClient(
       import.meta.env.VITE_SUPABASE_URL,
       import.meta.env.VITE_SUPABASE_ANON_KEY
     );
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    let userId: string | null = null;
 
-    if (authError || !user) {
+    // Tentar producer session token primeiro
+    if (producerToken) {
+      const { data: session } = await supabase
+        .from("producer_sessions")
+        .select("producer_id")
+        .eq("session_token", producerToken)
+        .eq("is_valid", true)
+        .gt("expires_at", new Date().toISOString())
+        .single();
+      
+      if (session?.producer_id) {
+        userId = session.producer_id;
+      }
+    }
+
+    // Fallback para JWT (compatibilidade)
+    if (!userId && authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user } } = await supabase.auth.getUser(token);
+      if (user) {
+        userId = user.id;
+      }
+    }
+
+    if (!userId) {
       return new Response(
-        JSON.stringify({ error: 'Unauthorized: Invalid token' }),
+        JSON.stringify({ error: 'Unauthorized: Invalid or missing token' }),
         { 
           status: 401,
           headers: { 'Content-Type': 'application/json' }
@@ -72,15 +86,15 @@ export async function POST(request: Request) {
       );
     }
 
-    // ✅ 4. VALIDAR OWNERSHIP (paths devem começar com user.id)
+    // ✅ 4. VALIDAR OWNERSHIP (paths devem começar com userId)
     const invalidPaths = paths.filter(path => {
       // Paths devem estar no formato: {user_id}/...
-      return !path.startsWith(`${user.id}/`);
+      return !path.startsWith(`${userId}/`);
     });
 
     if (invalidPaths.length > 0) {
       console.warn('[storage/remove] Forbidden paths:', { 
-        user_id: user.id, 
+        user_id: userId, 
         invalid: invalidPaths 
       });
       
@@ -113,7 +127,7 @@ export async function POST(request: Request) {
     }
 
     console.log('[storage/remove] Success:', { 
-      user_id: user.id, 
+      user_id: userId, 
       bucket, 
       count: paths.length 
     });
