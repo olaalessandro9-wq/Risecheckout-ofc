@@ -6,11 +6,14 @@
  * - Estatísticas de segurança
  * - IP Blocklist
  * - Ações de reconhecimento e bloqueio
+ * 
+ * MIGRATED: Uses useAuth() instead of supabase.auth.getUser()
  */
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 export interface SecurityAlert {
   id: string;
@@ -52,6 +55,7 @@ export interface AlertFilters {
 }
 
 export function useSecurityAlerts() {
+  const { user } = useAuth();
   const [alerts, setAlerts] = useState<SecurityAlert[]>([]);
   const [blockedIPs, setBlockedIPs] = useState<BlockedIP[]>([]);
   const [stats, setStats] = useState<SecurityStats | null>(null);
@@ -156,15 +160,18 @@ export function useSecurityAlerts() {
 
   // Reconhecer um alerta
   const acknowledgeAlert = useCallback(async (alertId: string) => {
+    if (!user?.id) {
+      toast.error("Usuário não autenticado");
+      return;
+    }
+
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      
       const { error } = await supabase
         .from("security_alerts")
         .update({
           acknowledged: true,
           acknowledged_at: new Date().toISOString(),
-          acknowledged_by: userData.user?.id,
+          acknowledged_by: user.id,
         })
         .eq("id", alertId);
 
@@ -177,13 +184,16 @@ export function useSecurityAlerts() {
       console.error("[useSecurityAlerts] Erro ao reconhecer alerta:", err);
       toast.error("Erro ao reconhecer alerta");
     }
-  }, [fetchAlerts, fetchStats]);
+  }, [user?.id, fetchAlerts, fetchStats]);
 
   // Bloquear um IP manualmente
   const blockIP = useCallback(async (ipAddress: string, reason: string, expiresInDays?: number) => {
+    if (!user?.id) {
+      toast.error("Usuário não autenticado");
+      return;
+    }
+
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      
       const expiresAt = expiresInDays 
         ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString()
         : null;
@@ -195,7 +205,7 @@ export function useSecurityAlerts() {
           reason,
           expires_at: expiresAt,
           is_active: true,
-          created_by: userData.user?.id,
+          created_by: user.id,
           metadata: { manual_block: true },
         }, { onConflict: "ip_address" });
 
@@ -208,7 +218,7 @@ export function useSecurityAlerts() {
       console.error("[useSecurityAlerts] Erro ao bloquear IP:", err);
       toast.error("Erro ao bloquear IP");
     }
-  }, [fetchBlockedIPs, fetchStats]);
+  }, [user?.id, fetchBlockedIPs, fetchStats]);
 
   // Desbloquear um IP
   const unblockIP = useCallback(async (ipAddress: string) => {

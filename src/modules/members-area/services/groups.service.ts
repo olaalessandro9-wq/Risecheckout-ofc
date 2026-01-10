@@ -1,9 +1,12 @@
 /**
  * Groups Service
  * Communicates with members-area-groups Edge Function
+ * 
+ * MIGRATED: Uses getProducerSessionToken() instead of supabase.auth.getSession()
  */
 
-import { supabase } from '@/integrations/supabase/client';
+import { SUPABASE_URL } from '@/config/supabase';
+import { getProducerSessionToken } from '@/hooks/useProducerAuth';
 import type {
   MemberGroup,
   GroupWithPermissions,
@@ -27,19 +30,25 @@ async function invokeGroupsFunction<T>(
   payload: object
 ): Promise<ServiceResponse<T>> {
   try {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData?.session?.access_token;
+    const token = getProducerSessionToken();
 
     if (!token) {
       return { data: null, error: 'Not authenticated' };
     }
 
-    const { data, error } = await supabase.functions.invoke(FUNCTION_NAME, {
-      body: { action, ...payload },
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/${FUNCTION_NAME}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Producer-Session-Token': token,
+      },
+      body: JSON.stringify({ action, ...payload }),
     });
 
-    if (error) {
-      return { data: null, error: error.message };
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { data: null, error: data.error || `HTTP ${response.status}` };
     }
 
     // Edge function returns { success: true, groups/group/offers } wrapper

@@ -1,22 +1,14 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 const NotFound = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const { isAuthenticated, loading } = useAuth();
 
   useEffect(() => {
     console.error("404 Error: User attempted to access non-existent route:", location.pathname);
-    
-    // Verificar se o usuário está autenticado
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setIsAuthenticated(!!session);
-    };
-    
-    checkAuth();
   }, [location.pathname]);
 
   const handleReturnHome = () => {
@@ -36,7 +28,7 @@ const NotFound = () => {
           onClick={handleReturnHome}
           className="text-blue-500 underline hover:text-blue-700 cursor-pointer"
         >
-          {isAuthenticated === null ? "Return to Home" : isAuthenticated ? "Return to Dashboard" : "Return to Home"}
+          {loading ? "Return to Home" : isAuthenticated ? "Return to Dashboard" : "Return to Home"}
         </button>
       </div>
     </div>
