@@ -122,10 +122,13 @@ export function useMembersAreaModules({
 
       setModules(prev => {
         const moduleMap = new Map(prev.map(m => [m.id, m]));
-        return orderedIds.map((id, index) => ({
-          ...moduleMap.get(id)!,
-          position: index,
-        }));
+        return orderedIds
+          .map((id, index) => {
+            const module = moduleMap.get(id);
+            if (!module) return null;
+            return { ...module, position: index };
+          })
+          .filter((m): m is MemberModuleWithContents => m !== null);
       });
     } catch (error) {
       log.error("Error reordering modules", error);

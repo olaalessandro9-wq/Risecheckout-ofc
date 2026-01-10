@@ -138,10 +138,13 @@ export function useMembersAreaContents({
         const contentMap = new Map(m.contents.map(c => [c.id, c]));
         return {
           ...m,
-          contents: orderedIds.map((id, index) => ({
-            ...contentMap.get(id)!,
-            position: index,
-          })),
+          contents: orderedIds
+            .map((id, index) => {
+              const content = contentMap.get(id);
+              if (!content) return null;
+              return { ...content, position: index };
+            })
+            .filter((c): c is MemberContent => c !== null),
         };
       }));
     } catch (error) {
