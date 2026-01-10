@@ -88,6 +88,10 @@ verify_jwt = false
 [functions.buyer-auth]
 verify_jwt = false
 
+# ✅ PÚBLICAS (Autenticação de Produtores)
+[functions.producer-auth]
+verify_jwt = false
+
 [functions.buyer-orders]
 verify_jwt = false
 
