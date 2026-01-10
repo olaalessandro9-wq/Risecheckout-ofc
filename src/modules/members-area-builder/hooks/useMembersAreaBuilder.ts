@@ -162,6 +162,18 @@ export function useMembersAreaBuilder(productId: string | undefined): UseMembers
     const newPosition = position ?? state.sections.length;
     const defaults = getSectionDefaults(type);
     
+    // Build settings - for modules section, inherit current module order
+    let settings = { type, ...defaults } as SectionSettings;
+    
+    if (type === 'modules') {
+      // Snapshot current module order from Content tab
+      const currentModuleOrder = state.modules.map(m => m.id);
+      settings = {
+        ...settings,
+        module_order: currentModuleOrder,
+      } as SectionSettings;
+    }
+    
     // Generate temporary ID - will be replaced with real DB ID on save
     const newSection: Section = {
       id: `temp_${crypto.randomUUID()}`,
@@ -169,7 +181,7 @@ export function useMembersAreaBuilder(productId: string | undefined): UseMembers
       type,
       title: null,
       position: newPosition,
-      settings: { type, ...defaults } as SectionSettings,
+      settings,
       is_active: true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -184,7 +196,7 @@ export function useMembersAreaBuilder(productId: string | undefined): UseMembers
     
     toast.success('Seção adicionada');
     return newSection;
-  }, [productId, state.sections.length]);
+  }, [productId, state.sections.length, state.modules]);
 
   const updateSection = useCallback(async (id: string, updates: Partial<Section>) => {
     setState(prev => ({
