@@ -1,187 +1,16 @@
 /**
- * Hooks para o Mercado Pago Gateway
- * Módulo: src/integrations/gateways/mercadopago
+ * useMercadoPagoBrick - Hook para gerenciar formulário de cartão customizado
  * 
- * Este arquivo contém hooks React para carregar e gerenciar
- * a configuração do Mercado Pago do banco de dados.
+ * Responsabilidade única: Gerenciar Card Form API do Mercado Pago
+ * Limite: < 300 linhas
  */
 
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { MercadoPagoConfig, MercadoPagoIntegration } from "./types";
-import { initializeMercadoPago } from "./api";
-
-/**
- * Hook para carregar a configuração do Mercado Pago de um vendedor
- * 
- * Busca no banco de dados (vendor_integrations) a configuração do Mercado Pago
- * específica para o vendedor. Inclui cache de 5 minutos.
- * 
- * @param vendorId - ID do vendedor (opcional)
- * @returns Query result com os dados da integração
- * 
- * @example
- * const { data: mpIntegration, isLoading, error } = useMercadoPagoConfig(vendorId);
- * 
- * if (isLoading) return <div>Carregando...</div>;
- * if (error) return <div>Erro ao carregar config</div>;
- * if (!mpIntegration) return null;
- * 
- * return <div>Mercado Pago ativado</div>;
- */
-export function useMercadoPagoConfig(vendorId?: string) {
-  return useQuery({
-    queryKey: ["mercadopago-config", vendorId],
-    queryFn: async (): Promise<MercadoPagoIntegration | null> => {
-      // Validação: se não tem vendorId, retorna null
-      if (!vendorId) {
-        console.warn("[MercadoPago] vendorId não fornecido para useMercadoPagoConfig");
-        return null;
-      }
-
-      try {
-        // Query ao banco de dados
-        const { data, error } = await supabase
-          .from("vendor_integrations")
-          .select("*")
-          .eq("vendor_id", vendorId)
-          .eq("integration_type", "MERCADOPAGO")
-          .eq("active", true)
-          .maybeSingle();
-
-        // Tratamento de erro
-        if (error) {
-          // PGRST116 = nenhuma linha encontrada (não é erro crítico)
-          if (error.code === "PGRST116") {
-            console.log("[MercadoPago] Integração não encontrada para vendor:", vendorId);
-            return null;
-          }
-          console.error("[MercadoPago] Erro ao carregar configuração:", error);
-          return null;
-        }
-
-        // Validação: dados vazios ou integração inativa
-        if (!data || !data.active) {
-          console.log("[MercadoPago] Integração não encontrada ou desativada para vendor:", vendorId);
-          return null;
-        }
-
-        console.log("[MercadoPago] Configuração carregada com sucesso para vendor:", vendorId);
-
-        return data as unknown as MercadoPagoIntegration;
-      } catch (error) {
-        console.error("[MercadoPago] Erro inesperado ao carregar config:", error);
-        return null;
-      }
-    },
-    enabled: !!vendorId,
-    staleTime: 1000 * 60 * 5,
-    retry: 2,
-  });
-}
-
-/**
- * Hook para inicializar o Mercado Pago no frontend
- * 
- * Carrega o script do Mercado Pago e inicializa a SDK.
- * 
- * @param publicKey - Public Key do Mercado Pago
- * @returns true se inicializado com sucesso
- * 
- * @example
- * const isInitialized = useMercadoPagoInit(publicKey);
- * 
- * if (isInitialized) {
- *   // Pronto para usar Brick
- * }
- */
-export function useMercadoPagoInit(publicKey?: string): boolean {
-  const [isInitialized, setIsInitialized] = React.useState(false);
-
-  React.useEffect(() => {
-    if (!publicKey) {
-      setIsInitialized(false);
-      return;
-    }
-
-    const initMP = async () => {
-      try {
-        // Carregar script do Mercado Pago
-        if (!window.MercadoPago) {
-          const script = document.createElement("script");
-          script.src = "https://sdk.mercadopago.com/js/v2";
-          script.async = true;
-          script.onload = () => {
-            if (window.MercadoPago) {
-              new window.MercadoPago(publicKey, {
-                locale: "pt-BR",
-              });
-              console.log("[MercadoPago] ✅ SDK carregada e inicializada");
-              setIsInitialized(true);
-            }
-          };
-          script.onerror = () => {
-            console.error("[MercadoPago] Erro ao carregar SDK");
-            setIsInitialized(false);
-          };
-          document.head.appendChild(script);
-        } else {
-          // SDK já carregada
-          new window.MercadoPago(publicKey, {
-            locale: "pt-BR",
-          });
-          console.log("[MercadoPago] SDK já estava carregada");
-          setIsInitialized(true);
-        }
-      } catch (error) {
-        console.error("[MercadoPago] Erro ao inicializar:", error);
-        setIsInitialized(false);
-      }
-    };
-
-    initMP();
-  }, [publicKey]);
-
-  return isInitialized;
-}
-
-/**
- * Hook para verificar se o Mercado Pago está disponível
- * 
- * @param integration - Integração do Mercado Pago
- * @returns true se disponível e ativo
- * 
- * @example
- * const isAvailable = useMercadoPagoAvailable(integration);
- * 
- * if (isAvailable) {
- *   // Mostrar opção de pagamento
- * }
- */
-export function useMercadoPagoAvailable(
-  integration: MercadoPagoIntegration | null | undefined
-): boolean {
-  // Validação: integração inválida ou desativada
-  if (!integration || !integration.active) {
-    return false;
-  }
-
-  // Validação: public key configurada
-  if (!integration.config?.public_key) {
-    return false;
-  }
-
-  return true;
-}
-
-// Import React para useEffect
-import React from "react";
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 /**
  * Interfaces para useMercadoPagoBrick
  */
-interface UseMercadoPagoBrickProps {
+export interface UseMercadoPagoBrickProps {
   amount: number;
   publicKey: string;
   payerEmail: string;
@@ -189,7 +18,7 @@ interface UseMercadoPagoBrickProps {
   onFormError?: (error: string) => void;
 }
 
-interface FieldErrors {
+export interface FieldErrors {
   cardNumber?: string;
   expirationDate?: string;
   securityCode?: string;
@@ -198,13 +27,38 @@ interface FieldErrors {
   installments?: string;
 }
 
+export interface MercadoPagoBrickReturn {
+  isReady: boolean;
+  installments: MercadoPagoInstallment[];
+  fieldErrors: FieldErrors;
+  clearFieldError: (field: keyof FieldErrors) => void;
+  submit: () => Promise<MercadoPagoTokenResult>;
+}
+
+export interface MercadoPagoInstallment {
+  installments: number;
+  installment_rate: number;
+  discount_rate: number;
+  labels: string[];
+  min_allowed_amount: number;
+  max_allowed_amount: number;
+  recommended_message: string;
+  installment_amount: number;
+  total_amount: number;
+}
+
+export interface MercadoPagoTokenResult {
+  token: string;
+  paymentMethodId: string;
+  installments: string;
+  issuerId: string;
+}
+
 /**
  * Hook para gerenciar o formulário de cartão customizado do Mercado Pago
  * 
  * Usa a Card Form API (baixo nível) do Mercado Pago para controle total
  * sobre validação, campos customizados e UX.
- * 
- * Migrado de: src/hooks/useMercadoPagoBrick.ts
  * 
  * @param props - Configurações do formulário
  * @returns Estado e métodos do formulário
@@ -223,13 +77,13 @@ export function useMercadoPagoBrick({
   payerEmail,
   onFormMounted,
   onFormError
-}: UseMercadoPagoBrickProps) {
+}: UseMercadoPagoBrickProps): MercadoPagoBrickReturn {
   const [isReady, setIsReady] = useState(false);
-  const [installments, setInstallments] = useState<any[]>([]);
+  const [installments, setInstallments] = useState<MercadoPagoInstallment[]>([]);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   
-  const cardFormRef = useRef<any>(null);
-  const isMountingRef = useRef(false); // Novo ref para evitar race conditions
+  const cardFormRef = useRef<unknown>(null);
+  const isMountingRef = useRef(false);
   const paymentMethodRef = useRef<string>(""); 
   const amountRef = useRef(amount); 
 
@@ -268,9 +122,8 @@ export function useMercadoPagoBrick({
     return () => clearInterval(interval);
   }, [isReady, clearFieldError]);
 
-  // Inicialização SDK - CORRIGIDA
+  // Inicialização SDK
   useEffect(() => {
-    // 1. Verificações de segurança
     if (!publicKey || !window.MercadoPago) return;
     if (cardFormRef.current || isMountingRef.current) {
         console.log('[MercadoPago] Instância já existe ou está montando.');
@@ -280,7 +133,6 @@ export function useMercadoPagoBrick({
     const formElement = document.getElementById('form-checkout');
     if (!formElement) return;
 
-    // 2. Travar montagem múltipla
     isMountingRef.current = true;
     console.log('[useMercadoPagoBrick] Inicializando SDK...');
 
@@ -328,7 +180,7 @@ export function useMercadoPagoBrick({
           cardholderEmail: { id: "form-checkout__cardholderEmail" },
         },
         callbacks: {
-          onFormMounted: (error: any) => {
+          onFormMounted: (error: unknown) => {
             if (error) {
                console.warn("Erro mount:", error);
                isMountingRef.current = false;
@@ -338,22 +190,22 @@ export function useMercadoPagoBrick({
             setIsReady(true);
             onFormMounted?.();
           },
-          onBinChange: (bin: string) => {
+          onBinChange: () => {
              clearFieldError('cardNumber');
           },
-          onPaymentMethodsReceived: (error: any, methods: any) => {
+          onPaymentMethodsReceived: (error: unknown, methods: Array<{ id: string }>) => {
             if (!error && methods?.[0]) {
               paymentMethodRef.current = methods[0].id;
               const input = document.getElementById('paymentMethodId') as HTMLInputElement;
               if (input) input.value = methods[0].id;
             }
           },
-          onInstallmentsReceived: (error: any, data: any) => {
+          onInstallmentsReceived: (error: unknown, data: Array<{ payer_costs: MercadoPagoInstallment[] }>) => {
             if (!error && data?.[0]?.payer_costs) {
               setInstallments(data[0].payer_costs);
             }
           },
-          onFormTokenError: (error: any) => { 
+          onFormTokenError: () => { 
              // Deixa o catch do submit lidar
           }
         },
@@ -372,14 +224,13 @@ export function useMercadoPagoBrick({
 
     initBrick();
 
-    // Limpeza ao desmontar
     return () => {
         console.log('[useMercadoPagoBrick] Desmontando...');
         if (cardFormRef.current) {
             try {
-                // Tenta desmontar se o método existir
-                if (typeof cardFormRef.current.unmount === 'function') {
-                    cardFormRef.current.unmount();
+                const formInstance = cardFormRef.current as { unmount?: () => void };
+                if (typeof formInstance.unmount === 'function') {
+                    formInstance.unmount();
                 }
             } catch(e) {
                 console.log('Erro ao desmontar brick:', e);
@@ -389,7 +240,7 @@ export function useMercadoPagoBrick({
         isMountingRef.current = false;
         setIsReady(false);
     };
-  }, [publicKey]); // Dependência única para evitar re-inits desnecessários 
+  }, [publicKey, clearFieldError, onFormError, onFormMounted]);
 
   // Recálculo parcelas
   useEffect(() => {
@@ -401,11 +252,10 @@ export function useMercadoPagoBrick({
             amount: amount.toString(),
             bin: '520000',
             locale: 'pt-BR'
-          }).then((data: any) => {
+          }).then((data: Array<{ payer_costs: MercadoPagoInstallment[] }>) => {
             if (data?.[0]?.payer_costs) setInstallments(data[0].payer_costs);
           }).catch((err: unknown) => {
             console.warn('[MercadoPago] Erro ao recalcular parcelas:', err);
-            // Manter parcelas anteriores como fallback seguro
           });
         } catch (err: unknown) {
           console.warn('[MercadoPago] Erro ao iniciar recálculo de parcelas:', err);
@@ -414,7 +264,7 @@ export function useMercadoPagoBrick({
     return () => clearTimeout(timer);
   }, [amount, isReady, publicKey]);
 
-  const submit = async () => {
+  const submit = async (): Promise<MercadoPagoTokenResult> => {
     if (!cardFormRef.current) throw new Error('Formulário não inicializado');
 
     const docInput = document.getElementById('docNumberVisual') as HTMLInputElement;
@@ -427,7 +277,8 @@ export function useMercadoPagoBrick({
     }
 
     try {
-        const tokenData = await cardFormRef.current.createCardToken({
+        const formInstance = cardFormRef.current as { createCardToken: (opts: { cardholderEmail: string }) => Promise<{ id?: string; token?: string }> };
+        const tokenData = await formInstance.createCardToken({
           cardholderEmail: payerEmail,
         });
 
@@ -437,22 +288,24 @@ export function useMercadoPagoBrick({
 
         setFieldErrors({}); 
         return {
-            token: tokenData.id || tokenData.token,
-            paymentMethodId: paymentMethodRef.current || (document.getElementById('paymentMethodId') as HTMLInputElement)?.value,
-            installments: (document.getElementById('form-checkout__installments') as HTMLSelectElement)?.value,
-            issuerId: (document.getElementById('form-checkout__issuer') as HTMLSelectElement)?.value
+            token: tokenData.id || tokenData.token || '',
+            paymentMethodId: paymentMethodRef.current || (document.getElementById('paymentMethodId') as HTMLInputElement)?.value || '',
+            installments: (document.getElementById('form-checkout__installments') as HTMLSelectElement)?.value || '1',
+            issuerId: (document.getElementById('form-checkout__issuer') as HTMLSelectElement)?.value || ''
         };
 
-    } catch (error: any) {
-        const rawList = Array.isArray(error) ? error : (error.cause || [error]);
+    } catch (error: unknown) {
+        const errorObj = error as { cause?: unknown };
+        const rawList = Array.isArray(error) ? error : (errorObj.cause || [error]);
         const errorList = Array.isArray(rawList) ? rawList : [rawList];
         
         const mappedErrors: FieldErrors = {};
         
-        errorList.forEach((e: any) => {
-            const code = String(e.code || '');
-            const msg = String(e.message || '').toLowerCase();
-            const desc = String(e.description || '').toLowerCase();
+        errorList.forEach((e: unknown) => {
+            const errItem = e as { code?: string; message?: string; description?: string };
+            const code = String(errItem.code || '');
+            const msg = String(errItem.message || '').toLowerCase();
+            const desc = String(errItem.description || '').toLowerCase();
             
             // CARTÃO
             if (
@@ -462,7 +315,6 @@ export function useMercadoPagoBrick({
             ) {
                 mappedErrors.cardNumber = "Número inválido";
             }
-
             // VALIDADE
             else if (
                 ['208', '209', '325', '326'].includes(code) || 
@@ -471,7 +323,6 @@ export function useMercadoPagoBrick({
             ) {
                 mappedErrors.expirationDate = "Data inválida";
             }
-
             // CVV
             else if (
                 ['220', '221', '224', '225', '226', 'E302'].includes(code) || 
@@ -489,7 +340,6 @@ export function useMercadoPagoBrick({
         if (Object.keys(mappedErrors).length > 0) {
              setFieldErrors(mappedErrors);
         } else {
-             // Caso venha uma lista totalmente vazia
              console.warn("⚠️ [FALLBACK] SDK falhou sem lista de erros.");
              setFieldErrors({
                 cardNumber: "Obrigatório",
