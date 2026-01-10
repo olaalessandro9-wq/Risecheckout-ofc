@@ -83,6 +83,9 @@ export function UnifiedGroupModal({
 
   // Initialize form when modal opens or group changes
   useEffect(() => {
+    // Guard: Don't reinitialize during save to prevent visual "flicker"
+    if (isSaving) return;
+    
     if (open) {
       if (mode === 'edit' && group) {
         setName(group.name);
@@ -126,7 +129,7 @@ export function UnifiedGroupModal({
         setLinkedOffers(offerMap);
       }
     }
-  }, [open, mode, group, modules, offers, permissions]);
+  }, [open, mode, group, modules, offers, permissions, isSaving]);
 
   // Computed values
   const accessCount = useMemo(() => 
