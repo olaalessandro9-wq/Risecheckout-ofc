@@ -14,7 +14,6 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
-  DragStartEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -81,14 +80,6 @@ function getContentLabel(type: string): string {
 // Container ID prefixes for distinguishing module vs content drag
 const MODULES_CONTAINER_ID = "modules";
 const CONTENTS_CONTAINER_PREFIX = "contents:";
-
-/** Extract moduleId from containerId like "contents:abc123" */
-function extractModuleIdFromContainerId(containerId: string): string | null {
-  if (containerId.startsWith(CONTENTS_CONTAINER_PREFIX)) {
-    return containerId.slice(CONTENTS_CONTAINER_PREFIX.length);
-  }
-  return null;
-}
 
 // =====================================================
 // SORTABLE CONTENT ITEM
@@ -377,52 +368,25 @@ export function ModulesList({
     return map;
   }, [modules]);
 
-  // Debug: log drag start
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    const { active } = event;
-    const isModule = moduleIdSet.has(active.id as string);
-    const isContent = contentToModuleMap.has(active.id as string);
-    console.log('[DnD] Drag started:', {
-      id: active.id,
-      isModule,
-      isContent,
-      moduleOfContent: isContent ? contentToModuleMap.get(active.id as string) : null,
-    });
-  }, [moduleIdSet, contentToModuleMap]);
 
   // Unified drag end handler using deterministic maps (not relying on containerId)
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
-    
-    console.log('[DnD] Drag ended:', {
-      activeId: active.id,
-      overId: over?.id,
-      activeContainerId: active.data.current?.sortable?.containerId,
-      overContainerId: over?.data.current?.sortable?.containerId,
-    });
 
-    if (!over || active.id === over.id) {
-      console.log('[DnD] Early return: no over or same id');
-      return;
-    }
+    if (!over || active.id === over.id) return;
 
     const activeId = active.id as string;
     const overId = over.id as string;
 
     // Case 1: Both are modules
     if (moduleIdSet.has(activeId) && moduleIdSet.has(overId)) {
-      console.log('[DnD] Reordering MODULES');
       const oldIndex = modules.findIndex(m => m.id === activeId);
       const newIndex = modules.findIndex(m => m.id === overId);
 
-      if (oldIndex === -1 || newIndex === -1) {
-        console.log('[DnD] Module index not found', { oldIndex, newIndex });
-        return;
-      }
+      if (oldIndex === -1 || newIndex === -1) return;
 
       const newOrder = arrayMove(modules, oldIndex, newIndex);
       await onReorderModules(newOrder.map(m => m.id));
-      console.log('[DnD] Modules reordered successfully');
       return;
     }
 
@@ -431,33 +395,18 @@ export function ModulesList({
     const overModuleId = contentToModuleMap.get(overId);
 
     if (activeModuleId && overModuleId && activeModuleId === overModuleId) {
-      console.log('[DnD] Reordering CONTENTS in module:', activeModuleId);
       const module = modules.find(m => m.id === activeModuleId);
-      if (!module) {
-        console.log('[DnD] Module not found for contents');
-        return;
-      }
+      if (!module) return;
 
       const contents = module.contents || [];
       const oldIndex = contents.findIndex(c => c.id === activeId);
       const newIndex = contents.findIndex(c => c.id === overId);
 
-      if (oldIndex === -1 || newIndex === -1) {
-        console.log('[DnD] Content index not found', { oldIndex, newIndex });
-        return;
-      }
+      if (oldIndex === -1 || newIndex === -1) return;
 
       const newOrder = arrayMove(contents, oldIndex, newIndex);
       await onReorderContents(activeModuleId, newOrder.map(c => c.id));
-      console.log('[DnD] Contents reordered successfully');
-      return;
     }
-
-    // Case 3: Cross-module or invalid - ignore
-    console.log('[DnD] Ignored: cross-module or invalid drag', {
-      activeModuleId,
-      overModuleId,
-    });
   }, [modules, moduleIdSet, contentToModuleMap, onReorderModules, onReorderContents]);
 
   return (
@@ -490,7 +439,6 @@ export function ModulesList({
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
-            onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
             <SortableContext
