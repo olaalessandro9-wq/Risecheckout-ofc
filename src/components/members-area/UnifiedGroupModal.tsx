@@ -46,7 +46,8 @@ interface UnifiedGroupModalProps {
     is_default: boolean;
     permissions: { module_id: string; has_access: boolean }[];
     linkedOfferIds: string[];
-  }) => Promise<void>;
+  }) => Promise<boolean>;
+  isLoadingPermissions?: boolean;
 }
 
 export function UnifiedGroupModal({
@@ -58,6 +59,7 @@ export function UnifiedGroupModal({
   offers,
   permissions = [],
   onSave,
+  isLoadingPermissions = false,
 }: UnifiedGroupModalProps) {
   // Form state
   const [name, setName] = useState('');
@@ -203,7 +205,7 @@ export function UnifiedGroupModal({
       .filter(([, isLinked]) => isLinked)
       .map(([id]) => id);
     
-    await onSave({
+    const success = await onSave({
       name: name.trim(),
       description: description.trim() || undefined,
       is_default: isDefault,
@@ -212,7 +214,11 @@ export function UnifiedGroupModal({
     });
     
     setIsSaving(false);
-    onOpenChange(false);
+    
+    // Only close modal if save was successful
+    if (success) {
+      onOpenChange(false);
+    }
   };
 
   const formatPrice = (cents: number) => {
@@ -297,7 +303,12 @@ export function UnifiedGroupModal({
               </span>
             </div>
 
-            {modules.length > 0 ? (
+            {isLoadingPermissions ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-sm text-muted-foreground">Carregando permissões...</span>
+              </div>
+            ) : modules.length > 0 ? (
               <>
                 {/* Select All Checkbox */}
                 <div 

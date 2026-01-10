@@ -45,10 +45,20 @@ async function invokeGroupsFunction<T>(
       body: JSON.stringify({ action, ...payload }),
     });
 
-    const data = await response.json();
+    // Parse response robustly
+    const text = await response.text();
+    let data: Record<string, unknown>;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      console.error(`[groups.service] Failed to parse response: ${text.slice(0, 300)}`);
+      return { data: null, error: `HTTP ${response.status}: Invalid JSON response` };
+    }
 
     if (!response.ok) {
-      return { data: null, error: data.error || `HTTP ${response.status}` };
+      const errorMessage = (data?.error as string) || `HTTP ${response.status}`;
+      console.error(`[groups.service] Error ${action}:`, errorMessage);
+      return { data: null, error: errorMessage };
     }
 
     // Edge function returns { success: true, groups/group/offers } wrapper
@@ -69,6 +79,7 @@ async function invokeGroupsFunction<T>(
     return { data: data as T, error: null };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error(`[groups.service] Exception in ${action}:`, message);
     return { data: null, error: message };
   }
 }
