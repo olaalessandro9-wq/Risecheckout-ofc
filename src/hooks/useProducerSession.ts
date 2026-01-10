@@ -7,9 +7,11 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SUPABASE_URL } from "@/config/supabase";
-import { producerSessionQueryKey } from "./useProducerAuth";
 
 const SESSION_KEY = "producer_session_token";
+
+// Export query key for use in other hooks
+export const producerSessionQueryKey = ["producer-session"] as const;
 
 interface ProducerProfile {
   id: string;

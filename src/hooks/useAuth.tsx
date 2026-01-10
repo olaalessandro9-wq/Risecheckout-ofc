@@ -1,38 +1,41 @@
-import { useState, useEffect } from "react";
-import { User, Session } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+/**
+ * useAuth - Unified authentication hook for producers
+ * 
+ * Uses the custom session system (producer_sessions table)
+ * instead of Supabase Auth directly.
+ */
+
+import { useProducerSession } from "./useProducerSession";
+import { useProducerAuth } from "./useProducerAuth";
 
 export const useAuth = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { producer, isValid, isLoading, clearSession } = useProducerSession();
+  const { logout } = useProducerAuth();
 
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+  // Transform producer to user-like object for backward compatibility
+  const user = producer ? {
+    id: producer.id,
+    email: producer.email,
+    user_metadata: {
+      name: producer.name,
+      phone: producer.phone,
+      avatar_url: producer.avatar_url,
+    },
+    role: producer.role,
+  } : null;
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await logout();
+    clearSession();
   };
 
   return { 
     user, 
-    session, 
-    loading, 
-    signOut
+    session: isValid ? { user } : null,
+    loading: isLoading, 
+    signOut,
+    // Additional fields for convenience
+    producer,
+    isAuthenticated: isValid,
   };
 };

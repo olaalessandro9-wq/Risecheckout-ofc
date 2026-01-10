@@ -9,6 +9,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { SUPABASE_URL } from "@/config/supabase";
 import { createLogger } from "@/lib/logger";
+import { producerSessionQueryKey } from "./useProducerSession";
 
 const log = createLogger("ProducerAuth");
 
@@ -62,7 +63,6 @@ interface RegisterData {
   cpfCnpj?: string;
 }
 
-export const producerSessionQueryKey = ["producer-session"];
 
 export function useProducerAuth(): UseProducerAuthReturn {
   const queryClient = useQueryClient();
