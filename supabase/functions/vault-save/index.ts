@@ -34,6 +34,7 @@ import {
   getClientIP 
 } from '../_shared/rate-limiter.ts';
 import { handleCors } from '../_shared/cors.ts';
+import { requireAuthenticatedProducer, unauthorizedResponse } from '../_shared/unified-auth.ts';
 
 type IntegrationType = 
   | 'MERCADOPAGO' 
@@ -142,25 +143,12 @@ Deno.serve(async (req) => {
       return rateLimitResult;
     }
 
-    // 2. Verificar autenticação
-
-    // 2. Verificar autenticação
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Não autenticado' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Token inválido' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // 2. Verificar autenticação via unified-auth (producer_sessions + JWT fallback)
+    let producer;
+    try {
+      producer = await requireAuthenticatedProducer(supabase, req);
+    } catch {
+      return unauthorizedResponse(corsHeaders);
     }
 
     // 3. Parse request body
@@ -176,8 +164,8 @@ Deno.serve(async (req) => {
     }
 
     // 5. Validar que o vendor_id corresponde ao usuário autenticado
-    if (vendor_id !== user.id) {
-      console.warn(`[save-vendor-credentials] Tentativa de acesso não autorizado: user ${user.id} tentou salvar para vendor ${vendor_id}`);
+    if (vendor_id !== producer.id) {
+      console.warn(`[save-vendor-credentials] Tentativa de acesso não autorizado: user ${producer.id} tentou salvar para vendor ${vendor_id}`);
       return new Response(
         JSON.stringify({ error: 'Não autorizado a salvar credenciais de outro vendedor' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

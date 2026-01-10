@@ -28,6 +28,9 @@ export interface ProducerAuth {
   role: string;
 }
 
+// deno-lint-ignore no-explicit-any
+type AnySupabaseClient = any;
+
 /**
  * Attempts to authenticate a producer from the request.
  * Tries producer_session_token first, then falls back to JWT.
@@ -37,7 +40,7 @@ export interface ProducerAuth {
  * @returns ProducerAuth object or null if not authenticated
  */
 export async function getAuthenticatedProducer(
-  supabase: SupabaseClient,
+  supabase: AnySupabaseClient,
   request: Request
 ): Promise<ProducerAuth | null> {
   // 1. Try X-Producer-Session-Token header (new system)
@@ -87,7 +90,7 @@ export async function getAuthenticatedProducer(
  * @throws Error if not authenticated
  */
 export async function requireAuthenticatedProducer(
-  supabase: SupabaseClient,
+  supabase: AnySupabaseClient,
   request: Request
 ): Promise<ProducerAuth> {
   const producer = await getAuthenticatedProducer(supabase, request);
@@ -103,28 +106,31 @@ export async function requireAuthenticatedProducer(
  * Validates a producer session token against the database.
  */
 async function validateProducerSessionToken(
-  supabase: SupabaseClient,
+  supabase: AnySupabaseClient,
   token: string
 ): Promise<ProducerAuth | null> {
   try {
+    // First get the session
     const { data: session, error } = await supabase
       .from("producer_sessions")
-      .select(`
-        id,
-        expires_at,
-        is_valid,
-        producer:profiles!producer_sessions_producer_id_fkey (
-          id,
-          email,
-          name
-        )
-      `)
+      .select("id, producer_id, expires_at, is_valid")
       .eq("session_token", token)
       .eq("is_valid", true)
       .gt("expires_at", new Date().toISOString())
       .single();
 
-    if (error || !session?.producer) {
+    if (error || !session) {
+      return null;
+    }
+
+    // Then get producer profile
+    const { data: producer } = await supabase
+      .from("profiles")
+      .select("id, email, name")
+      .eq("id", session.producer_id)
+      .single();
+
+    if (!producer) {
       return null;
     }
 
@@ -132,13 +138,13 @@ async function validateProducerSessionToken(
     const { data: roleData } = await supabase
       .from("user_roles")
       .select("role")
-      .eq("user_id", session.producer.id)
+      .eq("user_id", producer.id)
       .single();
 
     return {
-      id: session.producer.id,
-      email: session.producer.email,
-      name: session.producer.name,
+      id: producer.id,
+      email: producer.email,
+      name: producer.name,
       role: roleData?.role || "user",
     };
   } catch (error) {
@@ -151,7 +157,7 @@ async function validateProducerSessionToken(
  * Validates a JWT token via Supabase Auth (legacy fallback).
  */
 async function validateJWT(
-  supabase: SupabaseClient,
+  supabase: AnySupabaseClient,
   token: string
 ): Promise<ProducerAuth | null> {
   try {

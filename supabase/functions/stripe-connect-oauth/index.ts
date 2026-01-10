@@ -10,6 +10,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.14.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -42,27 +43,38 @@ serve(async (req) => {
     });
 
     const url = new URL(req.url);
-    const action = url.searchParams.get("action") || "start";
     
+    // Suporte para action via query param OU body
+    let action = url.searchParams.get("action");
+    let bodyData: any = {};
+    
+    if (req.method === "POST" || req.method === "GET") {
+      try {
+        const clonedReq = req.clone();
+        bodyData = await clonedReq.json().catch(() => ({}));
+        if (bodyData.action) {
+          action = bodyData.action;
+        }
+      } catch {
+        // Body vazio é OK
+      }
+    }
+    
+    action = action || "start";
     logStep("Processing action", { action });
 
     // ========================================
     // ACTION: START - Inicia fluxo OAuth
     // ========================================
     if (action === "start") {
-      const authHeader = req.headers.get("Authorization");
-      if (!authHeader) {
-        throw new Error("Authorization header required");
+      let producer;
+      try {
+        producer = await requireAuthenticatedProducer(supabaseClient, req);
+      } catch {
+        return unauthorizedResponse(corsHeaders);
       }
 
-      const token = authHeader.replace("Bearer ", "");
-      const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-      
-      if (userError || !userData.user) {
-        throw new Error("User not authenticated");
-      }
-
-      const vendorId = userData.user.id;
+      const vendorId = producer.id;
       logStep("Starting OAuth for vendor", { vendorId });
 
       // Gerar state único para CSRF protection
@@ -235,19 +247,14 @@ serve(async (req) => {
     // ACTION: DISCONNECT - Desconecta conta
     // ========================================
     if (action === "disconnect") {
-      const authHeader = req.headers.get("Authorization");
-      if (!authHeader) {
-        throw new Error("Authorization header required");
+      let producer;
+      try {
+        producer = await requireAuthenticatedProducer(supabaseClient, req);
+      } catch {
+        return unauthorizedResponse(corsHeaders);
       }
 
-      const token = authHeader.replace("Bearer ", "");
-      const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-      
-      if (userError || !userData.user) {
-        throw new Error("User not authenticated");
-      }
-
-      const vendorId = userData.user.id;
+      const vendorId = producer.id;
       logStep("Disconnecting Stripe for vendor", { vendorId });
 
       // Buscar integração existente
@@ -294,19 +301,14 @@ serve(async (req) => {
     // ACTION: STATUS - Verifica status da conexão
     // ========================================
     if (action === "status") {
-      const authHeader = req.headers.get("Authorization");
-      if (!authHeader) {
-        throw new Error("Authorization header required");
+      let producer;
+      try {
+        producer = await requireAuthenticatedProducer(supabaseClient, req);
+      } catch {
+        return unauthorizedResponse(corsHeaders);
       }
 
-      const token = authHeader.replace("Bearer ", "");
-      const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-      
-      if (userError || !userData.user) {
-        throw new Error("User not authenticated");
-      }
-
-      const vendorId = userData.user.id;
+      const vendorId = producer.id;
 
       const { data: integration } = await supabaseClient
         .from("vendor_integrations")

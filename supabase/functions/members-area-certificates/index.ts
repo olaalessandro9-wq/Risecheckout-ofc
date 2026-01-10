@@ -15,6 +15,7 @@ import {
   RATE_LIMIT_CONFIGS,
   getClientIP 
 } from "../_shared/rate-limiter.ts";
+import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -282,23 +283,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Ações de vendedor (templates)
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Authorization required" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Invalid token" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // Ações de vendedor (templates) - autenticar via unified-auth
+    let producer;
+    try {
+      producer = await requireAuthenticatedProducer(supabase, req);
+    } catch {
+      return unauthorizedResponse(corsHeaders);
     }
 
     // Verificar ownership do produto
@@ -309,7 +299,7 @@ Deno.serve(async (req) => {
         .eq("id", product_id)
         .single();
 
-      if (!product || product.user_id !== user.id) {
+      if (!product || product.user_id !== producer.id) {
         return new Response(
           JSON.stringify({ error: "Access denied" }),
           { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
