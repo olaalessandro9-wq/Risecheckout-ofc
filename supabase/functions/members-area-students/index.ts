@@ -436,7 +436,7 @@ Deno.serve(async (req) => {
           onConflict: "buyer_id,product_id",
         });
 
-      const baseUrl = Deno.env.get("PUBLIC_SITE_URL") || "https://risecheckout.lovable.app";
+      const baseUrl = Deno.env.get("PUBLIC_SITE_URL") || "https://risecheckout.com";
 
       // 5. Se precisa setup de senha, gerar invite token
       if (needsPasswordSetup) {
