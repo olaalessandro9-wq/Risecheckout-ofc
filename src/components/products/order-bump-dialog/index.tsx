@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Gift, Loader2 } from "lucide-react";
 import { parseBRLInput } from "@/lib/money";
 import { NormalizedOffer } from "@/services/offers";
+import { useAuth } from "@/hooks/useAuth";
 
 import { OrderBumpDialogProps } from "./types";
 import { useOrderBumpData } from "./hooks/useOrderBumpData";
@@ -23,6 +24,8 @@ export function OrderBumpDialog({
   onSuccess,
   editOrderBump,
 }: OrderBumpDialogProps) {
+  const { user } = useAuth();
+  
   // Estado independente para selectedProductId - fonte única de verdade
   const [selectedProductId, setSelectedProductId] = useState<string>(
     editOrderBump?.product_id || ""
@@ -64,6 +67,7 @@ export function OrderBumpDialog({
     open,
     productId,
     selectedProductId,
+    userId: user?.id || "",
     onOffersLoaded: handleOffersLoaded,
   });
 

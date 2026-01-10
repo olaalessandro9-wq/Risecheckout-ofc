@@ -8,6 +8,7 @@ interface UseOrderBumpDataProps {
   open: boolean;
   productId: string;
   selectedProductId: string;
+  userId: string;
   onOffersLoaded: (offers: NormalizedOffer[]) => void;
 }
 
@@ -15,6 +16,7 @@ export function useOrderBumpData({
   open,
   productId,
   selectedProductId,
+  userId,
   onOffersLoaded,
 }: UseOrderBumpDataProps) {
   const [products, setProducts] = useState<OrderBumpProduct[]>([]);
@@ -26,12 +28,12 @@ export function useOrderBumpData({
 
   // Load products when dialog opens
   useEffect(() => {
-    if (!open) return;
+    if (!open || !userId) return;
 
     let active = true;
     setLoadingProducts(true);
 
-    fetchOrderBumpCandidates({ excludeProductId: productId })
+    fetchOrderBumpCandidates(userId, { excludeProductId: productId })
       .then((rows) => {
         if (!active) return;
         setProducts(rows as OrderBumpProduct[]);
@@ -49,7 +51,7 @@ export function useOrderBumpData({
     return () => {
       active = false;
     };
-  }, [open, productId]);
+  }, [open, productId, userId]);
 
   // Load offers when product changes
   useEffect(() => {
