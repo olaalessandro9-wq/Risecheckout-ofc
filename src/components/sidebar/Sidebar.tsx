@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   LayoutDashboard,
   PackageSearch,
@@ -11,7 +11,7 @@ import {
   LifeBuoy,
   LogOut,
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 
 // --- util: link do WhatsApp ---
@@ -74,31 +74,15 @@ function SidebarItem({ to, icon: Icon, label, externalHref, onClick, disabled }:
 }
 
 export default function Sidebar() {
-  const [email, setEmail] = useState<string | null>(null);
+  const { user, signOut } = useAuth();
   const { canHaveAffiliates, canAccessAdminPanel } = usePermissions();
 
-  // Carrega o e-mail do usuário logado
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const { data } = await supabase.auth.getUser();
-        if (!mounted) return;
-        setEmail(data.user?.email ?? null);
-      } catch {
-        setEmail(null);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
+  const email = user?.email ?? null;
   const waHref = useMemo(buildWhatsAppHref, []);
 
   const handleLogout = async () => {
     try {
-      await supabase.auth.signOut();
+      await signOut();
     } finally {
       window.location.assign('/auth');
     }
