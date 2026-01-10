@@ -5,7 +5,7 @@
  * Architecture: Single DndContext with multiple SortableContexts (one for modules, one per content list)
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   DndContext,
   closestCenter,
@@ -14,6 +14,7 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragStartEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -260,15 +261,18 @@ function SortableModuleItem({
           {/* 
             Drag Handle - using <span> instead of <button> to avoid nested buttons
             (AccordionTrigger is already a button).
-            Using capture phase for stopPropagation to not overwrite dnd-kit listeners.
+            onClickCapture prevents accordion toggle when clicking the handle,
+            but does NOT block pointer/mouse down which dnd-kit needs to initiate drag.
           */}
           <span
             ref={setActivatorNodeRef}
             className="touch-none cursor-grab active:cursor-grabbing p-1"
             {...attributes}
             {...listeners}
-            onPointerDownCapture={(e) => e.stopPropagation()}
-            onMouseDownCapture={(e) => e.stopPropagation()}
+            onClickCapture={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
           >
             <GripVertical className="h-4 w-4 text-muted-foreground" />
           </span>
@@ -360,46 +364,101 @@ export function ModulesList({
     })
   );
 
-  // Unified drag end handler that determines whether we're reordering modules or contents
+  // Deterministic lookup structures - avoids relying on containerId from dnd-kit data
+  const moduleIdSet = useMemo(() => new Set(modules.map(m => m.id)), [modules]);
+  
+  const contentToModuleMap = useMemo(() => {
+    const map = new Map<string, string>();
+    modules.forEach(m => {
+      (m.contents || []).forEach(c => {
+        map.set(c.id, m.id);
+      });
+    });
+    return map;
+  }, [modules]);
+
+  // Debug: log drag start
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const { active } = event;
+    const isModule = moduleIdSet.has(active.id as string);
+    const isContent = contentToModuleMap.has(active.id as string);
+    console.log('[DnD] Drag started:', {
+      id: active.id,
+      isModule,
+      isContent,
+      moduleOfContent: isContent ? contentToModuleMap.get(active.id as string) : null,
+    });
+  }, [moduleIdSet, contentToModuleMap]);
+
+  // Unified drag end handler using deterministic maps (not relying on containerId)
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
+    
+    console.log('[DnD] Drag ended:', {
+      activeId: active.id,
+      overId: over?.id,
+      activeContainerId: active.data.current?.sortable?.containerId,
+      overContainerId: over?.data.current?.sortable?.containerId,
+    });
 
-    // Get container IDs from sortable data
-    const activeContainerId = active.data.current?.sortable?.containerId as string | undefined;
-    const overContainerId = over.data.current?.sortable?.containerId as string | undefined;
+    if (!over || active.id === over.id) {
+      console.log('[DnD] Early return: no over or same id');
+      return;
+    }
 
-    // If containers don't match, ignore (no cross-container drag support)
-    if (activeContainerId !== overContainerId) return;
+    const activeId = active.id as string;
+    const overId = over.id as string;
 
-    // Determine if this is a module drag or content drag
-    if (activeContainerId === MODULES_CONTAINER_ID) {
-      // Reordering modules
-      const oldIndex = modules.findIndex(m => m.id === active.id);
-      const newIndex = modules.findIndex(m => m.id === over.id);
+    // Case 1: Both are modules
+    if (moduleIdSet.has(activeId) && moduleIdSet.has(overId)) {
+      console.log('[DnD] Reordering MODULES');
+      const oldIndex = modules.findIndex(m => m.id === activeId);
+      const newIndex = modules.findIndex(m => m.id === overId);
 
-      if (oldIndex === -1 || newIndex === -1) return;
+      if (oldIndex === -1 || newIndex === -1) {
+        console.log('[DnD] Module index not found', { oldIndex, newIndex });
+        return;
+      }
 
       const newOrder = arrayMove(modules, oldIndex, newIndex);
       await onReorderModules(newOrder.map(m => m.id));
-    } else if (activeContainerId?.startsWith(CONTENTS_CONTAINER_PREFIX)) {
-      // Reordering contents within a module
-      const moduleId = extractModuleIdFromContainerId(activeContainerId);
-      if (!moduleId) return;
+      console.log('[DnD] Modules reordered successfully');
+      return;
+    }
 
-      const module = modules.find(m => m.id === moduleId);
-      if (!module) return;
+    // Case 2: Both are contents in the SAME module
+    const activeModuleId = contentToModuleMap.get(activeId);
+    const overModuleId = contentToModuleMap.get(overId);
+
+    if (activeModuleId && overModuleId && activeModuleId === overModuleId) {
+      console.log('[DnD] Reordering CONTENTS in module:', activeModuleId);
+      const module = modules.find(m => m.id === activeModuleId);
+      if (!module) {
+        console.log('[DnD] Module not found for contents');
+        return;
+      }
 
       const contents = module.contents || [];
-      const oldIndex = contents.findIndex(c => c.id === active.id);
-      const newIndex = contents.findIndex(c => c.id === over.id);
+      const oldIndex = contents.findIndex(c => c.id === activeId);
+      const newIndex = contents.findIndex(c => c.id === overId);
 
-      if (oldIndex === -1 || newIndex === -1) return;
+      if (oldIndex === -1 || newIndex === -1) {
+        console.log('[DnD] Content index not found', { oldIndex, newIndex });
+        return;
+      }
 
       const newOrder = arrayMove(contents, oldIndex, newIndex);
-      await onReorderContents(moduleId, newOrder.map(c => c.id));
+      await onReorderContents(activeModuleId, newOrder.map(c => c.id));
+      console.log('[DnD] Contents reordered successfully');
+      return;
     }
-  }, [modules, onReorderModules, onReorderContents]);
+
+    // Case 3: Cross-module or invalid - ignore
+    console.log('[DnD] Ignored: cross-module or invalid drag', {
+      activeModuleId,
+      overModuleId,
+    });
+  }, [modules, moduleIdSet, contentToModuleMap, onReorderModules, onReorderContents]);
 
   return (
     <Card>
@@ -431,6 +490,7 @@ export function ModulesList({
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
             <SortableContext
