@@ -96,13 +96,18 @@ export function useGroups(productId: string | undefined): UseGroupsReturn {
     });
 
     if (createError) {
-      toast.error('Erro ao criar grupo');
+      toast.error(`Erro ao criar grupo: ${createError}`);
       setIsSaving(false);
       return null;
     }
 
     if (data) {
-      setGroups(prev => [...prev, data]);
+      // Se o grupo foi criado como padrão, atualizar os outros grupos no estado local
+      if (input.is_default === true) {
+        setGroups(prev => [...prev.map(g => ({ ...g, is_default: false })), data]);
+      } else {
+        setGroups(prev => [...prev, data]);
+      }
       toast.success('Grupo criado com sucesso');
     }
 
@@ -119,13 +124,22 @@ export function useGroups(productId: string | undefined): UseGroupsReturn {
     const { data, error: updateError } = await groupsService.update(groupId, input);
 
     if (updateError) {
-      toast.error('Erro ao atualizar grupo');
+      toast.error(`Erro ao atualizar grupo: ${updateError}`);
       setIsSaving(false);
       return false;
     }
 
     if (data) {
-      setGroups(prev => prev.map(g => g.id === groupId ? data : g));
+      // Se o grupo foi definido como padrão, atualizar os outros grupos no estado local
+      if (input.is_default === true) {
+        setGroups(prev => prev.map(g => 
+          g.id === groupId 
+            ? data 
+            : { ...g, is_default: false }
+        ));
+      } else {
+        setGroups(prev => prev.map(g => g.id === groupId ? data : g));
+      }
       toast.success('Grupo atualizado');
     }
 

@@ -46,28 +46,38 @@ export function GroupsTab({ productId }: GroupsTabProps) {
     setModalOpen(true);
   }, []);
 
-  // Handle opening modal for editing
+  // Handle opening modal for editing - INSTANT OPEN, load details in background
   const handleEditGroup = useCallback(async (groupId: string) => {
-    setIsLoadingGroup(true);
-    const groupWithPermissions = await getGroup(groupId);
+    // Find group from local state for instant opening
+    const localGroup = groups.find(g => g.id === groupId);
     
-    if (groupWithPermissions) {
-      setSelectedGroup(groupWithPermissions);
-      setGroupPermissions(groupWithPermissions.permissions || []);
+    if (localGroup) {
+      // Open modal immediately with local data
+      setSelectedGroup(localGroup);
+      setGroupPermissions([]); // Will be populated when fetch completes
       setModalMode('edit');
       setModalOpen(true);
+      setIsLoadingGroup(true);
+      
+      // Fetch full details in background
+      const groupWithPermissions = await getGroup(groupId);
+      
+      if (groupWithPermissions) {
+        setSelectedGroup(groupWithPermissions);
+        setGroupPermissions(groupWithPermissions.permissions || []);
+      }
+      setIsLoadingGroup(false);
     }
-    setIsLoadingGroup(false);
-  }, [getGroup]);
+  }, [getGroup, groups]);
 
-  // Handle saving from unified modal
+  // Handle saving from unified modal - returns success boolean
   const handleSaveGroup = useCallback(async (data: {
     name: string;
     description?: string;
     is_default: boolean;
     permissions: { module_id: string; has_access: boolean }[];
     linkedOfferIds: string[];
-  }) => {
+  }): Promise<boolean> => {
     if (modalMode === 'create') {
       const newGroup = await createGroup({
         name: data.name,
@@ -83,17 +93,19 @@ export function GroupsTab({ productId }: GroupsTabProps) {
         }, { silent: true });
         // Link offers (silent)
         await linkOffers(newGroup.id, data.linkedOfferIds, { silent: true });
+        return true;
       }
+      return false;
     } else if (selectedGroup) {
       // Update group - VERIFICAR SUCESSO antes de continuar
-      const updatedGroup = await updateGroup(selectedGroup.id, {
+      const success = await updateGroup(selectedGroup.id, {
         name: data.name,
         description: data.description,
         is_default: data.is_default,
       });
       
       // Só atualiza permissões e ofertas se o update do grupo teve sucesso
-      if (updatedGroup) {
+      if (success) {
         // Update permissions (silent - toast já foi mostrado no updateGroup)
         await updatePermissions({
           group_id: selectedGroup.id,
@@ -101,8 +113,11 @@ export function GroupsTab({ productId }: GroupsTabProps) {
         }, { silent: true });
         // Update linked offers (silent)
         await linkOffers(selectedGroup.id, data.linkedOfferIds, { silent: true });
+        return true;
       }
+      return false;
     }
+    return false;
   }, [modalMode, selectedGroup, createGroup, updateGroup, updatePermissions, linkOffers]);
 
   // Wrapper functions
@@ -162,6 +177,7 @@ export function GroupsTab({ productId }: GroupsTabProps) {
         offers={offers}
         permissions={groupPermissions}
         onSave={handleSaveGroup}
+        isLoadingPermissions={isLoadingGroup}
       />
     </div>
   );
