@@ -4,6 +4,7 @@ import { requireCanHaveAffiliates } from "../_shared/role-validator.ts";
 import { logSecurityEvent, SecurityAction } from "../_shared/audit-logger.ts";
 import { handleCors } from "../_shared/cors.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared/rate-limiter.ts";
+import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 
 // ==========================================
 // 🔒 CONSTANTES DE SEGURANÇA
@@ -54,17 +55,12 @@ serve(async (req) => {
       }
     }
 
-    // Get authenticated user (produtor)
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      throw new Error("Usuário não autenticado");
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
-
-    if (authError || !user) {
-      throw new Error("Usuário não autenticado");
+    // Get authenticated producer via unified-auth
+    let producer;
+    try {
+      producer = await requireAuthenticatedProducer(supabaseClient, req);
+    } catch {
+      return unauthorizedResponse(corsHeaders);
     }
 
     // ==========================================
@@ -73,12 +69,12 @@ serve(async (req) => {
     // Apenas owner/admin podem gerenciar afiliados
     await requireCanHaveAffiliates(
       supabaseClient,
-      user.id,
+      producer.id,
       "manage_affiliation",
       req
     );
 
-    console.log(`🔧 [manage-affiliation] ${maskEmail(user.email || '')} executando ação: ${action} em ${affiliation_id}`);
+    console.log(`🔧 [manage-affiliation] ${maskEmail(producer.email || '')} executando ação: ${action} em ${affiliation_id}`);
 
     // ==========================================
     // 1. BUSCAR AFILIAÇÃO E VALIDAR PROPRIEDADE
@@ -106,7 +102,7 @@ serve(async (req) => {
 
     // Verificar se o usuário autenticado é o dono do produto
     const product = (affiliation as any).products;
-    if (product.user_id !== user.id) {
+    if (product.user_id !== producer.id) {
       throw new Error("Você não tem permissão para gerenciar este afiliado");
     }
 
@@ -188,7 +184,7 @@ serve(async (req) => {
       await supabaseClient.from("affiliate_audit_log").insert({
         affiliate_id: affiliation_id,
         action: action,
-        performed_by: user.id,
+        performed_by: producer.id,
         previous_status: affiliation.status,
         new_status: newStatus,
         metadata: {
