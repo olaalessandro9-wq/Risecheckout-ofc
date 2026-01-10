@@ -14,7 +14,7 @@ export async function POST(request: Request) {
 
     let userId: string | null = null;
 
-    // Tentar producer session token primeiro
+    // Autenticação via X-Producer-Session-Token (sistema producer_sessions)
     if (producerToken) {
       const { data: session } = await supabase
         .from("producer_sessions")
@@ -29,15 +29,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // Fallback para JWT (compatibilidade)
-    if (!userId && authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.replace('Bearer ', '');
-      const { data: { user } } = await supabase.auth.getUser(token);
-      if (user) {
-        userId = user.id;
-      }
-    }
-
+    // Sem fallback JWT - sistema 100% producer_sessions
     if (!userId) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized: Invalid or missing token' }),

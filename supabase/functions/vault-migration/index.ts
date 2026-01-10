@@ -32,6 +32,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { handleCors } from '../_shared/cors.ts';
+import { requireAuthenticatedProducer } from '../_shared/unified-auth.ts';
 
 interface SecretToMigrate {
   key: string;
@@ -174,21 +175,13 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // 2. Verificar autenticação
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    // 2. Autenticação via unified-auth (suporta X-Producer-Session-Token e JWT)
+    let producer;
+    try {
+      producer = await requireAuthenticatedProducer(supabase, req);
+    } catch (error) {
       return new Response(
         JSON.stringify({ error: 'Não autenticado' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Token inválido' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -207,7 +200,7 @@ Deno.serve(async (req) => {
     }
 
     console.log(`[migrate-credentials-to-vault] Iniciando migração`);
-    console.log(`[migrate-credentials-to-vault] Solicitado por: ${user.email}`);
+    console.log(`[migrate-credentials-to-vault] Solicitado por: ${producer.email}`);
     console.log(`[migrate-credentials-to-vault] Opções:`, JSON.stringify(options));
 
     // 4. Construir query para buscar integrações

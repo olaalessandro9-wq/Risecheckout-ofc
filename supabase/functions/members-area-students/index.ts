@@ -5,6 +5,7 @@ import {
   RATE_LIMIT_CONFIGS,
   getClientIP 
 } from "../_shared/rate-limiter.ts";
+import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 
 // Use public CORS for members area (accessed by buyers)
 const corsHeaders = PUBLIC_CORS_HEADERS;
@@ -484,22 +485,14 @@ Deno.serve(async (req) => {
     }
 
     // ========================================================================
-    // AUTHENTICATED ACTIONS - Require producer login
+    // AUTHENTICATED ACTIONS - Require producer login via unified-auth
     // ========================================================================
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    let producer;
+    try {
+      producer = await requireAuthenticatedProducer(supabase, req);
+    } catch (error) {
       return new Response(
         JSON.stringify({ error: "Authorization required" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const jwtToken = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabase.auth.getUser(jwtToken);
-    
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Invalid token" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -514,7 +507,7 @@ Deno.serve(async (req) => {
         .eq("id", product_id)
         .single();
 
-      if (productError || !product || product.user_id !== user.id) {
+      if (productError || !product || product.user_id !== producer.id) {
         return new Response(
           JSON.stringify({ error: "Product not found or access denied" }),
           { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -635,7 +628,7 @@ Deno.serve(async (req) => {
             token_hash: tokenHash,
             buyer_id: buyerId,
             product_id,
-            invited_by: user.id,
+            invited_by: producer.id,
             expires_at: expiresAt.toISOString(),
           });
 
@@ -655,13 +648,13 @@ Deno.serve(async (req) => {
         const { data: producerProfile } = await supabase
           .from("profiles")
           .select("name")
-          .eq("id", user.id)
+          .eq("id", producer.id)
           .single();
 
         // 7. Send email
         const studentName = name || normalizedEmail.split("@")[0];
         const producerName = producerProfile?.name || "Produtor";
-        const producerEmail = user.email || "";
+        const producerEmail = producer.email || "";
 
         const htmlBody = `
 <!DOCTYPE html>
