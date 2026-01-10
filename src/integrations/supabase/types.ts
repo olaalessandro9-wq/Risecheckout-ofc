@@ -2341,6 +2341,94 @@ export type Database = {
         }
         Relationships: []
       }
+      producer_audit_log: {
+        Row: {
+          action: string
+          created_at: string | null
+          details: Json | null
+          failure_reason: string | null
+          id: string
+          ip_address: string | null
+          producer_id: string | null
+          success: boolean | null
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          details?: Json | null
+          failure_reason?: string | null
+          id?: string
+          ip_address?: string | null
+          producer_id?: string | null
+          success?: boolean | null
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          details?: Json | null
+          failure_reason?: string | null
+          id?: string
+          ip_address?: string | null
+          producer_id?: string | null
+          success?: boolean | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producer_audit_log_producer_id_fkey"
+            columns: ["producer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      producer_sessions: {
+        Row: {
+          created_at: string | null
+          expires_at: string
+          id: string
+          ip_address: string | null
+          is_valid: boolean | null
+          last_activity_at: string | null
+          producer_id: string
+          session_token: string
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          ip_address?: string | null
+          is_valid?: boolean | null
+          last_activity_at?: string | null
+          producer_id: string
+          session_token: string
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          ip_address?: string | null
+          is_valid?: boolean | null
+          last_activity_at?: string | null
+          producer_id?: string
+          session_token?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producer_sessions_producer_id_fkey"
+            columns: ["producer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_member_content: {
         Row: {
           body: string | null
@@ -2709,12 +2797,19 @@ export type Database = {
           cpf_cnpj: string | null
           created_at: string | null
           custom_fee_percent: number | null
+          email: string | null
           id: string
+          is_active: boolean | null
+          last_login_at: string | null
           mercadopago_collector_id: string | null
           mercadopago_connected_at: string | null
           mercadopago_email: string | null
           name: string
+          password_hash: string | null
+          password_hash_version: number | null
           phone: string | null
+          reset_token: string | null
+          reset_token_expires_at: string | null
           status: string | null
           status_changed_at: string | null
           status_changed_by: string | null
@@ -2731,12 +2826,19 @@ export type Database = {
           cpf_cnpj?: string | null
           created_at?: string | null
           custom_fee_percent?: number | null
+          email?: string | null
           id: string
+          is_active?: boolean | null
+          last_login_at?: string | null
           mercadopago_collector_id?: string | null
           mercadopago_connected_at?: string | null
           mercadopago_email?: string | null
           name: string
+          password_hash?: string | null
+          password_hash_version?: number | null
           phone?: string | null
+          reset_token?: string | null
+          reset_token_expires_at?: string | null
           status?: string | null
           status_changed_at?: string | null
           status_changed_by?: string | null
@@ -2753,12 +2855,19 @@ export type Database = {
           cpf_cnpj?: string | null
           created_at?: string | null
           custom_fee_percent?: number | null
+          email?: string | null
           id?: string
+          is_active?: boolean | null
+          last_login_at?: string | null
           mercadopago_collector_id?: string | null
           mercadopago_connected_at?: string | null
           mercadopago_email?: string | null
           name?: string
+          password_hash?: string | null
+          password_hash_version?: number | null
           phone?: string | null
+          reset_token?: string | null
+          reset_token_expires_at?: string | null
           status?: string | null
           status_changed_at?: string | null
           status_changed_by?: string | null
