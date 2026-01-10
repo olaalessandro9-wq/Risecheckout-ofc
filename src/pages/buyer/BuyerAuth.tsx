@@ -109,9 +109,9 @@ export default function BuyerAuth() {
           <div className="mx-auto mb-2 h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
             <LogIn className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-bold">Área de Membros</CardTitle>
+          <CardTitle className="text-2xl font-bold">Painel do Aluno</CardTitle>
           <CardDescription>
-            Faça login para acessar seus conteúdos exclusivos
+            Acesse seus cursos e conteúdos comprados
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -180,7 +180,7 @@ export default function BuyerAuth() {
           </form>
 
           <p className="text-xs text-center text-muted-foreground mt-6">
-            Não tem uma conta? O acesso é liberado automaticamente após a compra.
+            Seu acesso é criado automaticamente ao comprar um produto ou receber um convite.
           </p>
         </CardContent>
       </Card>
