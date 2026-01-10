@@ -175,7 +175,7 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // 2. Autenticação via unified-auth (suporta X-Producer-Session-Token e JWT)
+    // 2. Autenticação via unified-auth (X-Producer-Session-Token)
     let producer;
     try {
       producer = await requireAuthenticatedProducer(supabase, req);

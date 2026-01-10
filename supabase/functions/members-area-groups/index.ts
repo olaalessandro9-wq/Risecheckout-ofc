@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
 
     const body: GroupRequest = await req.json();
     
-    // Verificar autenticação via unified-auth (producer_sessions + JWT fallback)
+    // Verificar autenticação via unified-auth (producer_sessions)
     let producer;
     try {
       producer = await requireAuthenticatedProducer(supabase, req);
