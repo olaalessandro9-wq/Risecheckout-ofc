@@ -97,7 +97,15 @@ export async function getGroup(
 export async function createGroup(
   input: CreateGroupInput
 ): Promise<ServiceResponse<MemberGroup>> {
-  return invokeGroupsFunction<MemberGroup>('create', input);
+  // Edge function expects product_id at root level and fields inside data object
+  return invokeGroupsFunction<MemberGroup>('create', {
+    product_id: input.product_id,
+    data: {
+      name: input.name,
+      description: input.description,
+      is_default: input.is_default,
+    },
+  });
 }
 
 /**
