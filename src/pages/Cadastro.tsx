@@ -5,12 +5,12 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useFormValidation } from "@/hooks/useFormValidation";
+import { useProducerAuth } from "@/hooks/useProducerAuth";
 import { 
   AlertCircle, 
   CheckCircle2, 
@@ -27,6 +27,7 @@ type ViewType = "choose-profile" | "already-has-account" | "producer-form";
 export default function Cadastro() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { register, isAuthenticated, isLoading: authLoading } = useProducerAuth();
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState<ViewType>("choose-profile");
 
@@ -37,6 +38,13 @@ export default function Cadastro() {
       setView("producer-form");
     }
   }, [searchParams]);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      navigate("/dashboard");
+    }
+  }, [authLoading, isAuthenticated, navigate]);
 
   // Signup fields
   const nameField = useFormValidation('name', true);
@@ -70,45 +78,41 @@ export default function Cadastro() {
         return;
       }
 
-      const { data: authData, error: signupError } = await supabase.auth.signUp({
+      const result = await register({
         email: emailField.value,
         password: passwordField.value,
-        options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
-          data: {
-            name: nameField.value,
-          },
-        },
+        name: nameField.value,
+        phone: phoneField.getRawValue() || undefined,
+        cpfCnpj: cpfCnpjField.getRawValue(),
       });
 
-      if (signupError) throw signupError;
-
-      if (!authData.user) {
-        throw new Error('Erro ao criar usuário');
+      if (!result.success) {
+        if (result.passwordValidation) {
+          toast.error(result.passwordValidation.errors.join(", "));
+        } else {
+          toast.error(result.error || "Erro ao criar conta");
+        }
+        setLoading(false);
+        return;
       }
 
-      const { error: profileError } = await (supabase as any)
-        .from('vendor_profiles')
-        .insert({
-          user_id: authData.user.id,
-          name: nameField.value,
-          phone: phoneField.getRawValue() || '',
-          cpf_cnpj: cpfCnpjField.getRawValue(),
-        });
-
-      if (profileError) {
-        console.error('Erro ao criar perfil do vendedor:', profileError);
-        toast.error('Conta criada, mas houve erro ao salvar dados. Entre em contato com suporte.');
-      } else {
-        toast.success("Cadastro realizado! Verifique seu email.");
-        navigate("/auth");
-      }
+      toast.success("Cadastro realizado! Faça login para continuar.");
+      navigate("/auth");
     } catch (error: any) {
       toast.error(error.message || "Erro ao criar conta");
     } finally {
       setLoading(false);
     }
   };
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-[#0A0A0B]">
+        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+      </div>
+    );
+  }
 
   // Shared layout wrapper
   const PageLayout = ({ children }: { children: React.ReactNode }) => (
@@ -293,7 +297,7 @@ export default function Cadastro() {
 
       <div className="space-y-4">
         <Button
-          onClick={() => navigate("/recuperar-senha")}
+          onClick={() => navigate("/minha-conta/recuperar-senha")}
           className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90 transition-opacity text-white font-semibold rounded-xl text-base"
         >
           Criar nova senha
@@ -412,7 +416,7 @@ export default function Cadastro() {
           <div className="relative">
             <Input
               type="password"
-              placeholder="No mínimo 6 caracteres"
+              placeholder="No mínimo 8 caracteres"
               value={passwordField.value}
               onChange={passwordField.onChange}
               onBlur={passwordField.onBlur}
@@ -450,7 +454,7 @@ export default function Cadastro() {
         </p>
         <button
           onClick={() => setView("choose-profile")}
-          className="text-sm text-slate-500 hover:text-white transition-colors inline-flex items-center gap-2"
+          className="text-sm text-slate-400 hover:text-white transition-colors inline-flex items-center gap-2"
         >
           <ArrowLeft className="w-4 h-4" />
           Voltar ao quiz
@@ -463,7 +467,7 @@ export default function Cadastro() {
     <PageLayout>
       <AnimatePresence mode="wait">
         {view === "choose-profile" && <ChooseProfileView key="choose" />}
-        {view === "already-has-account" && <AlreadyHasAccountView key="account" />}
+        {view === "already-has-account" && <AlreadyHasAccountView key="already" />}
         {view === "producer-form" && <ProducerFormView key="form" />}
       </AnimatePresence>
     </PageLayout>
