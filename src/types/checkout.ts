@@ -166,16 +166,21 @@ export interface CardData {
 // TIPOS DE TRACKING
 // ============================================================================
 
+import type { FacebookPixelConfig } from "@/integrations/tracking/facebook/types";
+import type { GoogleAdsIntegration } from "@/integrations/tracking/google-ads/types";
+import type { TikTokIntegration } from "@/integrations/tracking/tiktok/types";
+import type { KwaiIntegration } from "@/integrations/tracking/kwai/types";
+import type { UTMifyIntegration } from "@/integrations/tracking/utmify/types";
+
 /**
- * TrackingConfig usa `any` para compatibilidade com os módulos
- * de tracking existentes que definem seus próprios tipos internos.
+ * TrackingConfig tipado com interfaces dos módulos de tracking
  */
 export interface TrackingConfig {
-  fbConfig?: any;
-  utmifyConfig?: any;
-  googleAdsIntegration?: any;
-  tiktokIntegration?: any;
-  kwaiIntegration?: any;
+  fbConfig?: FacebookPixelConfig | null;
+  utmifyConfig?: UTMifyIntegration | null;
+  googleAdsIntegration?: GoogleAdsIntegration | null;
+  tiktokIntegration?: TikTokIntegration | null;
+  kwaiIntegration?: KwaiIntegration | null;
 }
 
 export interface PurchaseData {
