@@ -42,6 +42,7 @@ import TermosDeUso from "./pages/TermosDeUso";
 import BuyerAuth from "./pages/buyer/BuyerAuth";
 import BuyerCadastro from "./pages/buyer/BuyerCadastro";
 import BuyerRecuperarSenha from "./pages/buyer/BuyerRecuperarSenha";
+import BuyerResetPassword from "./pages/buyer/BuyerResetPassword";
 import BuyerDashboard from "./pages/buyer/BuyerDashboard";
 import CourseHome from "./pages/buyer/CourseHome";
 import LessonViewer from "./pages/buyer/LessonViewer";
@@ -152,6 +153,7 @@ const router = createBrowserRouter([
       { path: "/minha-conta", element: <BuyerAuth /> },
       { path: "/minha-conta/cadastro", element: <BuyerCadastro /> },
       { path: "/minha-conta/recuperar-senha", element: <BuyerRecuperarSenha /> },
+      { path: "/minha-conta/redefinir-senha", element: <BuyerResetPassword /> },
       { path: "/minha-conta/setup-acesso", element: <SetupAccess /> },
       
       // ============================================================
