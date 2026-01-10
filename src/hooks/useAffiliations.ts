@@ -5,11 +5,14 @@
  * - Fetch das afiliações do usuário logado
  * - Cancelamento de afiliação
  * - Gerenciamento de estados de loading/error
+ * 
+ * MIGRATED: Uses useAuth() instead of supabase.auth.getUser()
  */
 
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 export interface Affiliation {
   id: string;
@@ -31,20 +34,21 @@ interface UseAffiliationsResult {
 }
 
 export function useAffiliations(): UseAffiliationsResult {
+  const { user } = useAuth();
   const [affiliations, setAffiliations] = useState<Affiliation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchAffiliations = useCallback(async () => {
+    if (!user?.id) {
+      setAffiliations([]);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setAffiliations([]);
-        return;
-      }
 
       const { data, error: fetchError } = await supabase
         .from("affiliates")
@@ -71,7 +75,7 @@ export function useAffiliations(): UseAffiliationsResult {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
   const cancelAffiliation = useCallback(async (id: string): Promise<boolean> => {
     try {

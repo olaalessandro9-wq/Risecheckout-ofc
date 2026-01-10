@@ -10,10 +10,12 @@
  * - Cálculos: ./utils/calculations.ts
  * - Formatadores: ./utils/formatters.ts
  * - Presets: ./utils/datePresets.ts
+ * 
+ * MIGRATED: Uses useAuth() instead of supabase.auth.getSession()
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import type { DashboardData } from "./types";
 import { fetchAggregatedMetrics } from "./api/fetchMetrics";
 import { fetchRecentOrders, fetchChartOrders } from "./api/fetchOrders";
@@ -28,16 +30,16 @@ import { formatRecentCustomers } from "./utils/formatters";
  * @returns Query com dados do dashboard, loading state e função de refetch
  */
 export function useDashboardAnalytics(startDate: Date, endDate: Date) {
+  const { user } = useAuth();
+
   return useQuery({
-    queryKey: ["dashboard-analytics", startDate.toISOString(), endDate.toISOString()],
+    queryKey: ["dashboard-analytics", user?.id, startDate.toISOString(), endDate.toISOString()],
     queryFn: async (): Promise<DashboardData> => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
+      if (!user?.id) {
         throw new Error("Usuário não autenticado");
       }
 
-      const vendorId = session.user.id;
+      const vendorId = user.id;
 
       // Calcular período anterior (mesmo tamanho do período atual)
       const daysDiff = Math.ceil(
@@ -71,6 +73,7 @@ export function useDashboardAnalytics(startDate: Date, endDate: Date) {
         recentCustomers
       };
     },
+    enabled: !!user?.id,
     staleTime: 1000 * 60 * 5, // 5 minutos
   });
 }

@@ -1,17 +1,12 @@
 // Helper para carregar candidatos de Order Bump direto do Supabase.
-// Mantém a tipagem enxuta e independe de rotas /api inexistentes.
-// Uso típico no modal: fetchOrderBumpCandidates().then(setProdutos)
+// MIGRATED: Uses useAuth pattern - receives userId as parameter
 
 import { supabase } from "@/integrations/supabase/client";
-
-// Se o projeto já tiver um tipo Product/ProductLite em src/types/product,
-// você pode trocar por esse import:
-// import type { ProductLite } from "@/types/product";
 
 export type OrderBumpCandidate = {
   id: string;
   name: string;
-  price: number; // Preço em centavos decimais (990.00 = R$ 9,90)
+  price: number;
   status?: string | null;
   image_url?: string | null;
   description?: string | null;
@@ -19,30 +14,26 @@ export type OrderBumpCandidate = {
 
 /**
  * Busca produtos para serem candidatos de Order Bump.
- * @param excludeProductId opcionalmente exclui o produto atual da lista
+ * @param userId - ID do usuário autenticado (obrigatório)
+ * @param excludeProductId - opcionalmente exclui o produto atual da lista
  */
-export async function fetchOrderBumpCandidates(opts?: {
-  excludeProductId?: string;
-}): Promise<OrderBumpCandidate[]> {
-  const excludeId = opts?.excludeProductId;
-
-  // ✅ Buscar usuário atual para filtro explícito
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  
-  if (authError || !user) {
-    console.error("[OrderBump] Usuário não autenticado:", authError);
+export async function fetchOrderBumpCandidates(
+  userId: string,
+  opts?: { excludeProductId?: string }
+): Promise<OrderBumpCandidate[]> {
+  if (!userId) {
     throw new Error("Usuário não autenticado");
   }
 
-  // ✅ Filtro explícito por user_id (defesa em profundidade além do RLS)
+  const excludeId = opts?.excludeProductId;
+
   let query = supabase
     .from("products")
     .select("id,name,price,image_url,description")
-    .eq("user_id", user.id)  // ✅ FILTRO EXPLÍCITO POR USUÁRIO
+    .eq("user_id", userId)
     .eq("status", "active")
     .order("created_at", { ascending: false });
 
-  // Se quiser excluir o produto atual:
   if (excludeId) {
     query = query.neq("id", excludeId);
   }
@@ -54,11 +45,10 @@ export async function fetchOrderBumpCandidates(opts?: {
     throw error;
   }
 
-  // Retorna produtos filtrados e validados
   return (data ?? [])
     .filter((p: any) => p && p.id && p.name)
     .map((p: any) => ({
       ...p,
-      price: Number(p.price) // Preço em centavos decimais (990.00 = R$ 9,90)
+      price: Number(p.price)
     })) as unknown as OrderBumpCandidate[];
 }

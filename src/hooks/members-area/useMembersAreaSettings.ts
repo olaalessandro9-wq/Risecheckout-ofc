@@ -2,6 +2,8 @@
  * Members Area Settings Hook
  * Handles fetching and updating product members area settings
  * OTIMIZADO: Usa React Query para cache inteligente
+ * 
+ * MIGRATED: Uses useAuth() instead of supabase.auth.getUser()
  */
 
 import { useState, useCallback } from "react";
@@ -12,6 +14,7 @@ const log = createLogger("MembersAreaSettings");
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SUPABASE_URL } from "@/config/supabase";
+import { useAuth } from "@/hooks/useAuth";
 import type { Json } from "@/integrations/supabase/types";
 import type { MembersAreaSettings, MemberModuleWithContents, MemberContent } from "./types";
 import { normalizeContentType } from "@/modules/members-area/utils";
@@ -80,6 +83,7 @@ interface UseMembersAreaSettingsReturn {
 
 export function useMembersAreaSettings(productId: string | undefined): UseMembersAreaSettingsReturn {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
   const [localModules, setLocalModules] = useState<MemberModuleWithContents[]>([]);
 
@@ -122,7 +126,7 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
       if (error) throw error;
 
       // Configurações adicionais quando habilitado
-      if (enabled) {
+      if (enabled && user?.email) {
         try {
           const { data: product } = await supabase
             .from("products")
@@ -131,19 +135,15 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
             .single();
 
           if (product?.user_id) {
-            const { data: { user: currentUser } } = await supabase.auth.getUser();
-            
-            if (currentUser?.email) {
-              await fetch(`${SUPABASE_URL}/functions/v1/buyer-auth/ensure-producer-access`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  email: currentUser.email,
-                  productId: productId,
-                  producerUserId: product.user_id,
-                }),
-              });
-            }
+            await fetch(`${SUPABASE_URL}/functions/v1/buyer-auth/ensure-producer-access`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email: user.email,
+                productId: productId,
+                producerUserId: product.user_id,
+              }),
+            });
           }
 
           const { data: existingGroups } = await supabase.functions.invoke('members-area-groups', {

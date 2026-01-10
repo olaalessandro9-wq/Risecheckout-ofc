@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { Loader2, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { getProducerSessionToken } from "@/hooks/useProducerAuth";
+import { SUPABASE_URL } from "@/config/supabase";
 import {
   Command,
   CommandEmpty,
@@ -132,8 +134,8 @@ export const UTMifyConfig = () => {
       const shouldActivate = !hasExistingToken && !utmifyActive && utmifyToken.trim();
       const activeStatus = shouldActivate ? true : utmifyActive;
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
+      const token = getProducerSessionToken();
+      if (!token) {
         toast.error("Sessão expirada. Faça login novamente.");
         return;
       }
@@ -149,12 +151,12 @@ export const UTMifyConfig = () => {
       }
 
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/vault-save`,
+        `${SUPABASE_URL}/functions/v1/vault-save`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${sessionData.session.access_token}`,
+            "X-Producer-Session-Token": token,
           },
           body: JSON.stringify({
             vendor_id: user?.id,
@@ -280,11 +282,7 @@ export const UTMifyConfig = () => {
           <Label>Produtos</Label>
           <Popover open={productsOpen} onOpenChange={setProductsOpen}>
             <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                className="w-full justify-between"
-              >
+              <Button variant="outline" role="combobox" className="w-full justify-between">
                 {getSelectedProductsLabel()}
                 <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
@@ -295,14 +293,8 @@ export const UTMifyConfig = () => {
                 <CommandEmpty>Nenhum produto encontrado.</CommandEmpty>
                 <CommandGroup className="max-h-64 overflow-auto">
                   {products.map((product) => (
-                    <CommandItem
-                      key={product.id}
-                      onSelect={() => toggleProduct(product.id)}
-                    >
-                      <Checkbox
-                        checked={selectedProducts.includes(product.id)}
-                        className="mr-2"
-                      />
+                    <CommandItem key={product.id} onSelect={() => toggleProduct(product.id)}>
+                      <Checkbox checked={selectedProducts.includes(product.id)} className="mr-2" />
                       {product.name}
                     </CommandItem>
                   ))}
@@ -314,11 +306,7 @@ export const UTMifyConfig = () => {
             <div className="flex flex-wrap gap-2 mt-2">
               {selectedProducts.map((productId) => {
                 const product = products.find(p => p.id === productId);
-                return product ? (
-                  <Badge key={productId} variant="secondary">
-                    {product.name}
-                  </Badge>
-                ) : null;
+                return product ? <Badge key={productId} variant="secondary">{product.name}</Badge> : null;
               })}
             </div>
           )}
@@ -328,11 +316,7 @@ export const UTMifyConfig = () => {
           <Label>Eventos</Label>
           <Popover open={eventsOpen} onOpenChange={setEventsOpen}>
             <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                className="w-full justify-between"
-              >
+              <Button variant="outline" role="combobox" className="w-full justify-between">
                 {getSelectedEventsLabel()}
                 <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
@@ -343,14 +327,8 @@ export const UTMifyConfig = () => {
                 <CommandEmpty>Nenhum evento encontrado.</CommandEmpty>
                 <CommandGroup className="max-h-64 overflow-auto">
                   {UTMIFY_EVENTS.map((event) => (
-                    <CommandItem
-                      key={event.id}
-                      onSelect={() => toggleEvent(event.id)}
-                    >
-                      <Checkbox
-                        checked={selectedEvents.includes(event.id)}
-                        className="mr-2"
-                      />
+                    <CommandItem key={event.id} onSelect={() => toggleEvent(event.id)}>
+                      <Checkbox checked={selectedEvents.includes(event.id)} className="mr-2" />
                       <div className="flex flex-col">
                         <span>{event.label}</span>
                         <span className="text-xs text-muted-foreground">{event.description}</span>
@@ -365,11 +343,7 @@ export const UTMifyConfig = () => {
             <div className="flex flex-wrap gap-2 mt-2">
               {selectedEvents.map((eventId) => {
                 const event = UTMIFY_EVENTS.find(e => e.id === eventId);
-                return event ? (
-                  <Badge key={eventId} variant="secondary">
-                    {event.label}
-                  </Badge>
-                ) : null;
+                return event ? <Badge key={eventId} variant="secondary">{event.label}</Badge> : null;
               })}
             </div>
           )}
