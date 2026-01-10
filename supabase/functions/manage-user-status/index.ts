@@ -15,6 +15,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared/rate-limiter.ts";
+import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 
 Deno.serve(async (req) => {
   // SECURITY: Validação CORS com bloqueio de origens inválidas
@@ -41,42 +42,24 @@ Deno.serve(async (req) => {
       return rateLimitResult;
     }
     
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Token de autenticação não fornecido" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // SECURITY: Autenticação via unified-auth
+    let producer;
+    try {
+      producer = await requireAuthenticatedProducer(supabaseAdmin, req);
+    } catch {
+      return unauthorizedResponse(corsHeaders);
     }
 
-    const supabaseUser = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
-    if (authError || !user) {
-      console.error("[manage-user-status] Erro de autenticação:", authError);
-      return new Response(
-        JSON.stringify({ error: "Usuário não autenticado" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const { data: callerRole, error: roleError } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .single();
-
-    if (roleError || callerRole?.role !== "owner") {
-      console.error("[manage-user-status] Acesso negado. Role:", callerRole?.role);
+    // Verificar se é owner
+    if (producer.role !== "owner") {
+      console.error("[manage-user-status] Acesso negado. Role:", producer.role);
       
       await supabaseAdmin.rpc("log_security_event", {
-        p_user_id: user.id,
+        p_user_id: producer.id,
         p_action: "PERMISSION_DENIED",
         p_resource: "manage-user-status",
         p_success: false,
-        p_metadata: { attempted_role: callerRole?.role },
+        p_metadata: { attempted_role: producer.role },
       });
 
       return new Response(
@@ -88,7 +71,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action, userId, status, reason, feePercent, productId } = body;
 
-    console.log(`[manage-user-status] Action: ${action} by owner ${user.id}`);
+    console.log(`[manage-user-status] Action: ${action} by owner ${producer.id}`);
 
     if (action === "updateStatus") {
       if (!userId || !status) {
@@ -112,7 +95,7 @@ Deno.serve(async (req) => {
           status,
           status_reason: reason || null,
           status_changed_at: new Date().toISOString(),
-          status_changed_by: user.id,
+          status_changed_by: producer.id,
         })
         .eq("id", userId);
 
@@ -122,7 +105,7 @@ Deno.serve(async (req) => {
       }
 
       await supabaseAdmin.rpc("log_security_event", {
-        p_user_id: user.id,
+        p_user_id: producer.id,
         p_action: `USER_STATUS_CHANGED_TO_${status.toUpperCase()}`,
         p_resource: "profiles",
         p_resource_id: userId,
@@ -166,7 +149,7 @@ Deno.serve(async (req) => {
       }
 
       await supabaseAdmin.rpc("log_security_event", {
-        p_user_id: user.id,
+        p_user_id: producer.id,
         p_action: feePercent === null ? "CUSTOM_FEE_RESET" : "CUSTOM_FEE_SET",
         p_resource: "profiles",
         p_resource_id: userId,
@@ -224,7 +207,7 @@ Deno.serve(async (req) => {
       }
 
       await supabaseAdmin.rpc("log_security_event", {
-        p_user_id: user.id,
+        p_user_id: producer.id,
         p_action: `PRODUCT_STATUS_CHANGED_TO_${status.toUpperCase()}`,
         p_resource: "products",
         p_resource_id: productId,
