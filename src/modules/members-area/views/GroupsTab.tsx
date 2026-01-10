@@ -76,13 +76,13 @@ export function GroupsTab({ productId }: GroupsTabProps) {
       });
       
       if (newGroup) {
-        // Save permissions
+        // Save permissions (silent - toast já foi mostrado no createGroup)
         await updatePermissions({
           group_id: newGroup.id,
           permissions: data.permissions,
-        });
-        // Link offers
-        await linkOffers(newGroup.id, data.linkedOfferIds);
+        }, { silent: true });
+        // Link offers (silent)
+        await linkOffers(newGroup.id, data.linkedOfferIds, { silent: true });
       }
     } else if (selectedGroup) {
       // Update group
@@ -91,13 +91,13 @@ export function GroupsTab({ productId }: GroupsTabProps) {
         description: data.description,
         is_default: data.is_default,
       });
-      // Update permissions
+      // Update permissions (silent - toast já foi mostrado no updateGroup)
       await updatePermissions({
         group_id: selectedGroup.id,
         permissions: data.permissions,
-      });
-      // Update linked offers
-      await linkOffers(selectedGroup.id, data.linkedOfferIds);
+      }, { silent: true });
+      // Update linked offers (silent)
+      await linkOffers(selectedGroup.id, data.linkedOfferIds, { silent: true });
     }
   }, [modalMode, selectedGroup, createGroup, updateGroup, updatePermissions, linkOffers]);
 
