@@ -39,18 +39,16 @@ export const Tracker = ({ integration }: TrackerProps) => {
       }
 
       try {
-        // Inicializar função gtag (padrão do Google)
-        // @ts-ignore
+        // Inicializar dataLayer e gtag (padrão do Google)
         window.dataLayer = window.dataLayer || [];
-        // @ts-ignore
-        window.gtag = function () {
-          // @ts-ignore
-          window.dataLayer.push(arguments);
+        
+        // Criar função gtag tipada
+        window.gtag = function(...args: unknown[]) {
+          window.dataLayer?.push(args);
         };
 
-        // Metadados do gtag
-        // @ts-ignore
-        window.gtag("js", new Date());
+        // Metadados do gtag - passar Date como string para compatibilidade
+        window.gtag("js", new Date().toISOString());
 
         // Criar elemento script
         const script = document.createElement("script");
@@ -72,7 +70,6 @@ export const Tracker = ({ integration }: TrackerProps) => {
         }
 
         // Configurar Google Ads
-        // @ts-ignore
         window.gtag("config", integration.config.conversion_id, {
           allow_google_signals: true,
           allow_ad_personalization_signals: true,
