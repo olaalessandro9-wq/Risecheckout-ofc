@@ -42,7 +42,7 @@ export function getCorsHeaders(origin: string | null): Record<string, string> | 
   if (!origin) {
     return {
       "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
-      "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-buyer-session",
+      "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-buyer-session, x-producer-session-token",
       "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
       "Access-Control-Max-Age": "86400",
     };
@@ -56,7 +56,7 @@ export function getCorsHeaders(origin: string | null): Record<string, string> | 
 
   return {
     "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-buyer-session",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-buyer-session, x-producer-session-token",
     "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
     "Access-Control-Max-Age": "86400",
   };
@@ -109,5 +109,7 @@ export function handleCors(req: Request): { headers: Record<string, string> } | 
  */
 export const PUBLIC_CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-producer-session-token, x-buyer-session",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Max-Age": "86400",
 };
