@@ -45,18 +45,18 @@ interface BlocklistCheckResult {
  * Configurações pré-definidas para funções críticas
  */
 export const RATE_LIMIT_CONFIGS = {
-  // Login/Register - mais restritivo para prevenir brute force
+  // Login/Register - balanceado para produção
   BUYER_AUTH_LOGIN: {
     action: "buyer_auth_login",
-    maxAttempts: 5,
-    windowMinutes: 15,
-    blockDurationMinutes: 30,
+    maxAttempts: 10,        // 10 tentativas a cada 10 minutos
+    windowMinutes: 10,
+    blockDurationMinutes: 15,
   },
   BUYER_AUTH_REGISTER: {
     action: "buyer_auth_register",
-    maxAttempts: 3,
-    windowMinutes: 60,
-    blockDurationMinutes: 60,
+    maxAttempts: 5,         // 5 tentativas a cada 30 minutos
+    windowMinutes: 30,
+    blockDurationMinutes: 30,
   },
   
   // Vault - sensível, limitar acesso
