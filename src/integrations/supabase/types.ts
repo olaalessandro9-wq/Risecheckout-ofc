@@ -1610,6 +1610,113 @@ export type Database = {
         }
         Relationships: []
       }
+      gdpr_audit_log: {
+        Row: {
+          action: string
+          anonymized_email: string | null
+          executed_at: string
+          executed_by: string | null
+          gdpr_request_id: string | null
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          original_email_hash: string | null
+          records_affected: number | null
+          table_name: string | null
+        }
+        Insert: {
+          action: string
+          anonymized_email?: string | null
+          executed_at?: string
+          executed_by?: string | null
+          gdpr_request_id?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          original_email_hash?: string | null
+          records_affected?: number | null
+          table_name?: string | null
+        }
+        Update: {
+          action?: string
+          anonymized_email?: string | null
+          executed_at?: string
+          executed_by?: string | null
+          gdpr_request_id?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          original_email_hash?: string | null
+          records_affected?: number | null
+          table_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gdpr_audit_log_gdpr_request_id_fkey"
+            columns: ["gdpr_request_id"]
+            isOneToOne: false
+            referencedRelation: "gdpr_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gdpr_requests: {
+        Row: {
+          created_at: string
+          email: string
+          email_normalized: string
+          id: string
+          ip_address: string | null
+          processed_at: string | null
+          records_anonymized: number | null
+          rejection_reason: string | null
+          requested_at: string
+          status: string
+          tables_affected: Json | null
+          token_expires_at: string
+          updated_at: string
+          user_agent: string | null
+          verification_token: string
+          verified_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          email_normalized?: string
+          id?: string
+          ip_address?: string | null
+          processed_at?: string | null
+          records_anonymized?: number | null
+          rejection_reason?: string | null
+          requested_at?: string
+          status?: string
+          tables_affected?: Json | null
+          token_expires_at: string
+          updated_at?: string
+          user_agent?: string | null
+          verification_token: string
+          verified_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          email_normalized?: string
+          id?: string
+          ip_address?: string | null
+          processed_at?: string | null
+          records_anonymized?: number | null
+          rejection_reason?: string | null
+          requested_at?: string
+          status?: string
+          tables_affected?: Json | null
+          token_expires_at?: string
+          updated_at?: string
+          user_agent?: string | null
+          verification_token?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       ip_blocklist: {
         Row: {
           block_count: number | null
@@ -3712,6 +3819,14 @@ export type Database = {
         Returns: Json
       }
       can_have_affiliates: { Args: { p_user_id: string }; Returns: boolean }
+      check_gdpr_request_limit: {
+        Args: { p_email: string }
+        Returns: {
+          can_request: boolean
+          last_request_at: string
+          reason: string
+        }[]
+      }
       cleanup_expired_blocks: { Args: never; Returns: number }
       cleanup_expired_buyer_sessions: { Args: never; Returns: number }
       cleanup_old_data: {
@@ -3861,6 +3976,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      hash_email: { Args: { p_email: string }; Returns: string }
       increment_affiliate_sales: {
         Args: { p_affiliate_id: string; p_amount_cents: number }
         Returns: undefined
