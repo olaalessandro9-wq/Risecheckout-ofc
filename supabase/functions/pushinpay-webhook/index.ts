@@ -21,6 +21,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { sendOrderConfirmationEmails, type OrderData } from '../_shared/send-order-emails.ts';
 import { logSecurityEvent, SecurityAction } from '../_shared/audit-logger.ts';
+import { grantMembersAccess } from '../_shared/grant-members-access.ts';
 
 const FUNCTION_VERSION = "3";
 
@@ -301,6 +302,37 @@ serve(async (req) => {
         });
       } catch (emailError) {
         logWarn('⚠️ Exceção ao enviar emails (não crítico)', emailError);
+      }
+    }
+
+    // ========================================================================
+    // 6.2 GRANT MEMBERS AREA ACCESS
+    // ========================================================================
+
+    if (newStatus === 'PAID') {
+      logInfo('Verificando acesso à área de membros', { orderId: order.id });
+      
+      try {
+        const accessResult = await grantMembersAccess(supabase, {
+          orderId: order.id,
+          customerEmail: order.customer_email,
+          customerName: order.customer_name || body.payer_name || null,
+          productId: order.product_id,
+          productName: order.product_name,
+          offerId: order.offer_id,
+        });
+
+        if (accessResult.hasMembersArea) {
+          logInfo('✅ Acesso à área de membros concedido', {
+            buyerId: accessResult.buyerId,
+            isNewBuyer: accessResult.isNewBuyer,
+            hasInviteToken: !!accessResult.inviteToken,
+          });
+        } else {
+          logInfo('Produto não possui área de membros configurada');
+        }
+      } catch (accessError) {
+        logWarn('⚠️ Erro ao conceder acesso à área de membros (não crítico)', accessError);
       }
     }
 

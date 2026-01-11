@@ -12,6 +12,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.14.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { sendOrderConfirmationEmails, type OrderData } from '../_shared/send-order-emails.ts';
+import { grantMembersAccess } from '../_shared/grant-members-access.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -90,7 +91,7 @@ serve(async (req) => {
       // Buscar dados do pedido antes de atualizar
       const { data: order } = await supabaseClient
         .from("orders")
-        .select("customer_email, customer_name, product_name, amount_cents, product_id")
+        .select("customer_email, customer_name, product_name, amount_cents, product_id, offer_id")
         .eq("id", orderId)
         .single();
 
@@ -139,6 +140,33 @@ serve(async (req) => {
           });
         } catch (emailError) {
           logStep("Email exception (non-critical)", { error: emailError });
+        }
+      }
+
+      // Grant members area access
+      if (order) {
+        logStep("Checking members area access");
+        try {
+          const accessResult = await grantMembersAccess(supabaseClient, {
+            orderId,
+            customerEmail: order.customer_email,
+            customerName: order.customer_name,
+            productId: order.product_id,
+            productName: order.product_name,
+            offerId: order.offer_id,
+          });
+
+          if (accessResult.hasMembersArea) {
+            logStep("Members area access granted", {
+              buyerId: accessResult.buyerId,
+              isNewBuyer: accessResult.isNewBuyer,
+              hasInviteToken: !!accessResult.inviteToken,
+            });
+          } else {
+            logStep("Product has no members area configured");
+          }
+        } catch (accessError) {
+          logStep("Members access error (non-critical)", { error: accessError });
         }
       }
 
