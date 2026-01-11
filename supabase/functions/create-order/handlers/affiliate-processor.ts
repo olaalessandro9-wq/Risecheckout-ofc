@@ -129,34 +129,55 @@ export async function processAffiliate(
   if (affiliate_code && affiliateProgramEnabled) {
     console.log(`[affiliate-processor] Buscando código: ${affiliate_code}`);
 
+    // =====================================================
+    // OPT-4: Query unificada com JOIN (elimina query separada de profile)
+    // ANTES: 2 queries (affiliates + profiles)
+    // DEPOIS: 1 query com JOIN
+    // =====================================================
     const { data: affiliate } = await supabase
       .from("affiliates")
-      .select("id, user_id, commission_rate, status, pix_gateway, credit_card_gateway, gateway_credentials")
+      .select(`
+        id, 
+        user_id, 
+        commission_rate, 
+        status, 
+        pix_gateway, 
+        credit_card_gateway, 
+        gateway_credentials,
+        profiles:user_id(
+          asaas_wallet_id,
+          mercadopago_collector_id,
+          stripe_account_id
+        )
+      `)
       .eq("affiliate_code", affiliate_code)
       .eq("product_id", product_id)
       .maybeSingle();
 
-    // Buscar wallet/credentials do profile se não tiver no affiliate
+    // Extrair wallet IDs do profile já carregado via JOIN
     let affiliateWalletFromProfile: string | null = null;
     let affiliateMpCollectorId: string | null = null;
     let affiliateStripeAccountId: string | null = null;
     
     if (affiliate) {
-      const { data: affiliateProfile } = await supabase
-        .from("profiles")
-        .select("asaas_wallet_id, mercadopago_collector_id, stripe_account_id")
-        .eq("id", affiliate.user_id)
-        .maybeSingle();
+      // Profile já vem no JOIN - sem query adicional
+      const affiliateProfile = affiliate.profiles as { 
+        asaas_wallet_id: string | null; 
+        mercadopago_collector_id: string | null; 
+        stripe_account_id: string | null 
+      } | null;
       
       affiliateWalletFromProfile = affiliateProfile?.asaas_wallet_id || null;
       affiliateMpCollectorId = affiliateProfile?.mercadopago_collector_id || null;
       affiliateStripeAccountId = affiliateProfile?.stripe_account_id || null;
       
-      // Também verificar gateway_credentials do affiliate
+      // Override com gateway_credentials do affiliate se existir
       const credentials = (affiliate.gateway_credentials as Record<string, string>) || {};
       if (credentials.asaas_wallet_id) affiliateWalletFromProfile = credentials.asaas_wallet_id;
       if (credentials.mercadopago_collector_id) affiliateMpCollectorId = credentials.mercadopago_collector_id;
       if (credentials.stripe_account_id) affiliateStripeAccountId = credentials.stripe_account_id;
+      
+      console.log("[affiliate-processor] OPT-4: Profile carregado via JOIN");
     }
 
     if (affiliate) {
