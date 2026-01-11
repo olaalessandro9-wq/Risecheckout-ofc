@@ -214,7 +214,10 @@ export async function checkIPBlocklist(
 /**
  * Cria Response para IP bloqueado na blocklist
  */
-export function createBlocklistResponse(result: BlocklistCheckResult): Response {
+export function createBlocklistResponse(
+  result: BlocklistCheckResult,
+  corsHeaders: Record<string, string> = {}
+): Response {
   const expiresMsg = result.expires_at 
     ? ` até ${new Date(result.expires_at).toLocaleString()}`
     : " permanentemente";
@@ -229,6 +232,7 @@ export function createBlocklistResponse(result: BlocklistCheckResult): Response 
       status: 403,
       headers: {
         "Content-Type": "application/json",
+        ...corsHeaders,
       },
     }
   );
@@ -380,7 +384,10 @@ export async function checkRateLimit(
 /**
  * Cria Response de erro para rate limit excedido
  */
-export function createRateLimitResponse(result: RateLimitResult): Response {
+export function createRateLimitResponse(
+  result: RateLimitResult,
+  corsHeaders: Record<string, string> = {}
+): Response {
   return new Response(
     JSON.stringify({
       error: "Too Many Requests",
@@ -392,6 +399,7 @@ export function createRateLimitResponse(result: RateLimitResult): Response {
       headers: {
         "Content-Type": "application/json",
         "Retry-After": result.retryAfter || "60",
+        ...corsHeaders,
       },
     }
   );
@@ -408,7 +416,8 @@ export function createRateLimitResponse(result: RateLimitResult): Response {
 export async function rateLimitMiddleware(
   supabase: SupabaseClient,
   req: Request,
-  config: RateLimitConfig
+  config: RateLimitConfig,
+  corsHeaders: Record<string, string> = {}
 ): Promise<Response | null> {
   const clientIP = getClientIP(req);
   
@@ -416,14 +425,14 @@ export async function rateLimitMiddleware(
   const blocklistResult = await checkIPBlocklist(supabase, clientIP);
   if (blocklistResult.blocked) {
     console.warn(`[rate-limiter] IP ${clientIP} bloqueado na blocklist: ${blocklistResult.reason}`);
-    return createBlocklistResponse(blocklistResult);
+    return createBlocklistResponse(blocklistResult, corsHeaders);
   }
   
   // 2. DEPOIS: Verificar Rate Limit (bloqueio temporário)
   const result = await checkRateLimit(supabase, clientIP, config);
   
   if (!result.allowed) {
-    return createRateLimitResponse(result);
+    return createRateLimitResponse(result, corsHeaders);
   }
   
   return null; // Permitido - continue processando
@@ -435,14 +444,15 @@ export async function rateLimitMiddleware(
  */
 export async function blocklistMiddleware(
   supabase: SupabaseClient,
-  req: Request
+  req: Request,
+  corsHeaders: Record<string, string> = {}
 ): Promise<Response | null> {
   const clientIP = getClientIP(req);
   
   const blocklistResult = await checkIPBlocklist(supabase, clientIP);
   if (blocklistResult.blocked) {
     console.warn(`[blocklist] IP ${clientIP} bloqueado: ${blocklistResult.reason}`);
-    return createBlocklistResponse(blocklistResult);
+    return createBlocklistResponse(blocklistResult, corsHeaders);
   }
   
   return null;

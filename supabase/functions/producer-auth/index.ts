@@ -89,7 +89,7 @@ serve(async (req) => {
     // REGISTER
     // ============================================
     if (action === "register" && req.method === "POST") {
-      const rateLimitResult = await rateLimitMiddleware(supabase, req, RATE_LIMIT_CONFIGS.BUYER_AUTH_REGISTER);
+      const rateLimitResult = await rateLimitMiddleware(supabase, req, RATE_LIMIT_CONFIGS.BUYER_AUTH_REGISTER, corsHeaders);
       if (rateLimitResult) return rateLimitResult;
 
       const rawBody = await req.json();
@@ -190,7 +190,7 @@ serve(async (req) => {
     // LOGIN
     // ============================================
     if (action === "login" && req.method === "POST") {
-      const rateLimitResult = await rateLimitMiddleware(supabase, req, RATE_LIMIT_CONFIGS.BUYER_AUTH_LOGIN);
+      const rateLimitResult = await rateLimitMiddleware(supabase, req, RATE_LIMIT_CONFIGS.BUYER_AUTH_LOGIN, corsHeaders);
       if (rateLimitResult) return rateLimitResult;
 
       const rawBody = await req.json();
@@ -367,7 +367,7 @@ serve(async (req) => {
     // ============================================
     if (action === "request-password-reset" && req.method === "POST") {
       // Rate limit to prevent email spam
-      const rateLimitResult = await rateLimitMiddleware(supabase, req, PASSWORD_RESET_RATE_LIMIT);
+      const rateLimitResult = await rateLimitMiddleware(supabase, req, PASSWORD_RESET_RATE_LIMIT, corsHeaders);
       if (rateLimitResult) {
         console.warn(`[producer-auth] Rate limit exceeded for password-reset`);
         return rateLimitResult;
