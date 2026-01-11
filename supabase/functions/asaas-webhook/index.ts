@@ -3,9 +3,9 @@
  * ASAAS-WEBHOOK EDGE FUNCTION
  * ============================================================================
  * 
- * Versão: 2 (REFATORADO)
+ * Versão: 3 (+ Dead Letter Queue)
  * Última Atualização: 2026-01-11
- * Status: ✅ Refatorado para usar helpers compartilhados
+ * Status: ✅ DLQ integrada para zero perda de webhooks
  * ============================================================================
  */
 
@@ -17,12 +17,13 @@ import {
   createErrorResponse, 
   createLogger,
   mapAsaasStatus,
+  saveToDeadLetterQueue,
   CORS_HEADERS,
   ERROR_CODES
 } from '../_shared/webhook-helpers.ts';
 import { processPostPaymentActions } from '../_shared/webhook-post-payment.ts';
 
-const FUNCTION_VERSION = "2";
+const FUNCTION_VERSION = "3";
 const logger = createLogger('asaas-webhook', FUNCTION_VERSION);
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
@@ -53,6 +54,9 @@ serve(async (req) => {
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  
+  let event: AsaasWebhookEvent | null = null;
+  let orderId: string | undefined;
 
   try {
     // Validate Token
@@ -76,24 +80,24 @@ serve(async (req) => {
       return createErrorResponse(ERROR_CODES.UNAUTHORIZED, 'Unauthorized', 401);
     }
 
-    const event: AsaasWebhookEvent = await req.json();
-    logger.info('Evento recebido', { event: event.event });
+    event = await req.json();
+    logger.info('Evento recebido', { event: event?.event });
 
-    const { event: eventType, payment } = event;
+    const { event: eventType, payment } = event || {};
 
     if (!payment) {
       logger.info('Evento sem payment, ignorando');
       return createSuccessResponse({ received: true, message: 'Evento sem payment' });
     }
 
-    if (!RELEVANT_EVENTS.includes(eventType)) {
+    if (!RELEVANT_EVENTS.includes(eventType || '')) {
       logger.info(`Evento ${eventType} não processado`);
       return createSuccessResponse({ received: true, message: `Evento ${eventType} não processado` });
     }
 
     // Map Status
     const { orderStatus, eventType: webhookEventType } = mapAsaasStatus(payment.status);
-    const orderId = payment.externalReference;
+    orderId = payment.externalReference;
 
     if (!orderId) {
       logger.info('Payment sem externalReference (orderId)');
@@ -129,6 +133,17 @@ serve(async (req) => {
 
     if (updateError) {
       logger.error('Erro ao atualizar order', updateError);
+      
+      // 🆕 Salvar na DLQ em caso de erro de update
+      await saveToDeadLetterQueue(supabase, {
+        gateway: 'asaas',
+        eventType: eventType || 'unknown',
+        payload: event,
+        errorCode: ERROR_CODES.UPDATE_ERROR,
+        errorMessage: updateError.message,
+        orderId
+      });
+      
       return createErrorResponse(ERROR_CODES.UPDATE_ERROR, 'Erro ao atualizar order', 500);
     }
 
@@ -150,7 +165,7 @@ serve(async (req) => {
     // Log Event
     await supabase.from('order_events').insert({
       order_id: orderId,
-      type: `asaas.${eventType.toLowerCase()}`,
+      type: `asaas.${eventType?.toLowerCase()}`,
       data: event,
       gateway_event_id: payment.id,
       occurred_at: new Date().toISOString(),
@@ -180,6 +195,19 @@ serve(async (req) => {
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Erro interno';
     logger.error('Exception', error);
+
+    // 🆕 Salvar na DLQ para erros críticos não tratados
+    if (supabase && event) {
+      await saveToDeadLetterQueue(supabase, {
+        gateway: 'asaas',
+        eventType: event?.event || 'unknown',
+        payload: event,
+        errorCode: ERROR_CODES.INTERNAL_ERROR,
+        errorMessage: msg,
+        orderId
+      });
+    }
+
     return createErrorResponse(ERROR_CODES.INTERNAL_ERROR, msg, 500);
   }
 });

@@ -1431,6 +1431,42 @@ export type Database = {
         }
         Relationships: []
       }
+      data_retention_log: {
+        Row: {
+          checkout_visits_deleted: number | null
+          executed_at: string | null
+          execution_time_ms: number | null
+          gateway_webhook_dlq_deleted: number | null
+          id: number
+          order_events_deleted: number | null
+          security_audit_log_deleted: number | null
+          trigger_debug_logs_deleted: number | null
+          webhook_deliveries_deleted: number | null
+        }
+        Insert: {
+          checkout_visits_deleted?: number | null
+          executed_at?: string | null
+          execution_time_ms?: number | null
+          gateway_webhook_dlq_deleted?: number | null
+          id?: number
+          order_events_deleted?: number | null
+          security_audit_log_deleted?: number | null
+          trigger_debug_logs_deleted?: number | null
+          webhook_deliveries_deleted?: number | null
+        }
+        Update: {
+          checkout_visits_deleted?: number | null
+          executed_at?: string | null
+          execution_time_ms?: number | null
+          gateway_webhook_dlq_deleted?: number | null
+          id?: number
+          order_events_deleted?: number | null
+          security_audit_log_deleted?: number | null
+          trigger_debug_logs_deleted?: number | null
+          webhook_deliveries_deleted?: number | null
+        }
+        Relationships: []
+      }
       downsells: {
         Row: {
           active: boolean | null
@@ -1517,6 +1553,60 @@ export type Database = {
           resolved_by?: string | null
           timestamp?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      gateway_webhook_dlq: {
+        Row: {
+          attempts: number | null
+          created_at: string | null
+          error_code: string
+          error_message: string
+          event_type: string
+          gateway: string
+          headers: Json | null
+          id: string
+          last_attempt_at: string | null
+          order_id: string | null
+          payload: Json
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string | null
+        }
+        Insert: {
+          attempts?: number | null
+          created_at?: string | null
+          error_code: string
+          error_message: string
+          event_type: string
+          gateway: string
+          headers?: Json | null
+          id?: string
+          last_attempt_at?: string | null
+          order_id?: string | null
+          payload: Json
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string | null
+        }
+        Update: {
+          attempts?: number | null
+          created_at?: string | null
+          error_code?: string
+          error_message?: string
+          event_type?: string
+          gateway?: string
+          headers?: Json | null
+          id?: string
+          last_attempt_at?: string | null
+          order_id?: string | null
+          payload?: Json
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string | null
         }
         Relationships: []
       }
@@ -3624,6 +3714,14 @@ export type Database = {
       can_have_affiliates: { Args: { p_user_id: string }; Returns: boolean }
       cleanup_expired_blocks: { Args: never; Returns: number }
       cleanup_expired_buyer_sessions: { Args: never; Returns: number }
+      cleanup_old_data: {
+        Args: never
+        Returns: {
+          rows_deleted: number
+          table_name: string
+        }[]
+      }
+      cleanup_old_data_with_log: { Args: never; Returns: undefined }
       cleanup_old_rate_limits: { Args: never; Returns: number }
       clone_checkout_deep: {
         Args: { dst_checkout_id: string; src_checkout_id: string }
