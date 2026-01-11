@@ -71,7 +71,7 @@ export function MetricCard({
                   <div className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-lg ${trend.isPositive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
                     }`}>
                     {trend.isPositive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                    <span>{trend.value}%</span>
+                    <span>{Math.round(trend.value)}%</span>
                   </div>
                 )}
               </div>

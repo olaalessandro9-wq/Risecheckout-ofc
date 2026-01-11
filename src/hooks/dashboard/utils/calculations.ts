@@ -96,12 +96,12 @@ export function calculateMetricsFromRpc(
     
     // Trends
     revenueTrend: {
-      value: Math.abs(revenueTrendValue),
+      value: Math.round(Math.abs(revenueTrendValue)),
       isPositive: revenueTrendValue >= 0,
       label: "vs. período anterior"
     },
     conversionTrend: {
-      value: Math.abs(conversionTrendValue),
+      value: Math.round(Math.abs(conversionTrendValue)),
       isPositive: conversionTrendValue >= 0,
       label: "vs. período anterior"
     }
