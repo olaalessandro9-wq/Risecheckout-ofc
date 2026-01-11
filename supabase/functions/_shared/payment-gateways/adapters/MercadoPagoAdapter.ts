@@ -9,6 +9,7 @@
  * - Pagamentos via Cartão de Crédito
  * - Split de pagamentos (disbursements)
  * - Ambientes de teste (sandbox) e produção
+ * - Circuit Breaker para resiliência
  * 
  * @example
  * ```typescript
@@ -24,6 +25,7 @@
 
 import { IPaymentGateway } from "../IPaymentGateway.ts";
 import { PaymentRequest, PaymentResponse, PaymentSplitRule } from "../types.ts";
+import { CircuitBreaker, CircuitOpenError, GATEWAY_CIRCUIT_CONFIGS } from "../../circuit-breaker.ts";
 
 export class MercadoPagoAdapter implements IPaymentGateway {
   readonly providerName = "mercadopago";
@@ -31,6 +33,7 @@ export class MercadoPagoAdapter implements IPaymentGateway {
   private accessToken: string;
   private environment: 'sandbox' | 'production';
   private apiUrl = 'https://api.mercadopago.com/v1/payments';
+  private circuitBreaker: CircuitBreaker;
 
   /**
    * Cria uma nova instância do adaptador Mercado Pago
@@ -44,6 +47,7 @@ export class MercadoPagoAdapter implements IPaymentGateway {
     }
     this.accessToken = accessToken;
     this.environment = environment;
+    this.circuitBreaker = new CircuitBreaker(GATEWAY_CIRCUIT_CONFIGS.mercadopago);
   }
 
   /**
@@ -54,83 +58,99 @@ export class MercadoPagoAdapter implements IPaymentGateway {
    */
   async createPix(request: PaymentRequest): Promise<PaymentResponse> {
     try {
-      const document = request.customer.document || '';
-      
-      // 1. Traduzir: RiseCheckout → Mercado Pago
-      const mpPayload = {
-        transaction_amount: request.amount_cents / 100, // Centavos → Reais
-        description: request.description,
-        payment_method_id: 'pix',
-        payer: {
-          email: request.customer.email,
-          first_name: request.customer.name.split(' ')[0],
-          last_name: request.customer.name.split(' ').slice(1).join(' ') || 'Cliente',
-          identification: {
-            type: document.length === 11 ? 'CPF' : 'CNPJ',
-            number: document
-          }
-        },
-        external_reference: request.order_id,
-        notification_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/mercadopago-webhook`
-      };
+      // Circuit Breaker: Proteger contra falhas em cascata
+      return await this.circuitBreaker.execute(async () => {
+        const document = request.customer.document || '';
+        
+        // 1. Traduzir: RiseCheckout → Mercado Pago
+        const mpPayload = {
+          transaction_amount: request.amount_cents / 100, // Centavos → Reais
+          description: request.description,
+          payment_method_id: 'pix',
+          payer: {
+            email: request.customer.email,
+            first_name: request.customer.name.split(' ')[0],
+            last_name: request.customer.name.split(' ').slice(1).join(' ') || 'Cliente',
+            identification: {
+              type: document.length === 11 ? 'CPF' : 'CNPJ',
+              number: document
+            }
+          },
+          external_reference: request.order_id,
+          notification_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/mercadopago-webhook`
+        };
 
-      // ✅ NOVO: Adicionar split se houver regras válidas
-      const disbursements = this.buildDisbursements(request.split_rules);
-      
-      if (disbursements && disbursements.length > 0) {
-        (mpPayload as any).disbursements = disbursements;
-        console.log(`[MercadoPagoAdapter] Split ativo com ${disbursements.length} destinatário(s)`);
-      } else if (request.split_rules && request.split_rules.length > 0) {
-        console.warn('[MercadoPagoAdapter] Split solicitado mas nenhum destinatário tem collector_id. Dinheiro vai todo pro produtor.');
-      }
+        // ✅ NOVO: Adicionar split se houver regras válidas
+        const disbursements = this.buildDisbursements(request.split_rules);
+        
+        if (disbursements && disbursements.length > 0) {
+          (mpPayload as any).disbursements = disbursements;
+          console.log(`[MercadoPagoAdapter] Split ativo com ${disbursements.length} destinatário(s)`);
+        } else if (request.split_rules && request.split_rules.length > 0) {
+          console.warn('[MercadoPagoAdapter] Split solicitado mas nenhum destinatário tem collector_id. Dinheiro vai todo pro produtor.');
+        }
 
-      console.log(`[MercadoPagoAdapter] Criando PIX para pedido ${request.order_id}`);
+        console.log(`[MercadoPagoAdapter] Criando PIX para pedido ${request.order_id}`);
 
-      // 2. Fazer requisição à API do Mercado Pago
-      const response = await fetch(this.apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.accessToken}`,
-          'X-Idempotency-Key': request.order_id
-        },
-        body: JSON.stringify(mpPayload)
+        // 2. Fazer requisição à API do Mercado Pago
+        const response = await fetch(this.apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.accessToken}`,
+            'X-Idempotency-Key': request.order_id
+          },
+          body: JSON.stringify(mpPayload)
+        });
+
+        const data = await response.json();
+
+        // 3. Verificar erros (não contabilizar como falha do circuit breaker para erros de negócio)
+        if (!response.ok) {
+          console.error('[MercadoPagoAdapter] Erro na API:', data);
+          return {
+            success: false,
+            transaction_id: '',
+            status: 'error',
+            raw_response: data,
+            error_message: data.message || 'Erro ao processar pagamento com Mercado Pago'
+          };
+        }
+
+        // 4. Traduzir: Mercado Pago → RiseCheckout
+        const qrCodeData = data.point_of_interaction?.transaction_data;
+        
+        return {
+          success: true,
+          transaction_id: data.id?.toString() || '',
+          qr_code: qrCodeData?.qr_code_base64,
+          qr_code_text: qrCodeData?.qr_code,
+          status: this.mapMercadoPagoStatus(data.status),
+          raw_response: data
+        };
       });
 
-      const data = await response.json();
-
-      // 3. Verificar erros
-      if (!response.ok) {
-        console.error('[MercadoPagoAdapter] Erro na API:', data);
+    } catch (error: unknown) {
+      // Circuit Breaker aberto - gateway temporariamente indisponível
+      if (error instanceof CircuitOpenError) {
+        console.warn(`[MercadoPagoAdapter] Circuit breaker OPEN: ${error.message}`);
         return {
           success: false,
           transaction_id: '',
           status: 'error',
-          raw_response: data,
-          error_message: data.message || 'Erro ao processar pagamento com Mercado Pago'
+          raw_response: { circuit_breaker: 'open' },
+          error_message: 'Gateway temporariamente indisponível. Tente novamente em alguns segundos.'
         };
       }
 
-      // 4. Traduzir: Mercado Pago → RiseCheckout
-      const qrCodeData = data.point_of_interaction?.transaction_data;
-      
-      return {
-        success: true,
-        transaction_id: data.id?.toString() || '',
-        qr_code: qrCodeData?.qr_code_base64,
-        qr_code_text: qrCodeData?.qr_code,
-        status: this.mapMercadoPagoStatus(data.status),
-        raw_response: data
-      };
-
-    } catch (error: any) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       console.error('[MercadoPagoAdapter] Exception:', error);
       return {
         success: false,
         transaction_id: '',
         status: 'error',
         raw_response: error,
-        error_message: error.message || 'Erro desconhecido ao processar PIX'
+        error_message: errorMessage || 'Erro desconhecido ao processar PIX'
       };
     }
   }
@@ -147,81 +167,97 @@ export class MercadoPagoAdapter implements IPaymentGateway {
         throw new Error('Token do cartão é obrigatório');
       }
 
-      const document = request.customer.document || '';
+      // Circuit Breaker: Proteger contra falhas em cascata
+      return await this.circuitBreaker.execute(async () => {
+        const document = request.customer.document || '';
 
-      // 1. Traduzir: RiseCheckout → Mercado Pago
-      const mpPayload = {
-        transaction_amount: request.amount_cents / 100,
-        description: request.description,
-        token: request.card_token,
-        installments: request.installments || 1,
-        statement_descriptor: 'RISECHECKOUT',
-        payer: {
-          email: request.customer.email,
-          first_name: request.customer.name.split(' ')[0],
-          last_name: request.customer.name.split(' ').slice(1).join(' ') || 'Cliente',
-          identification: {
-            type: document.length === 11 ? 'CPF' : 'CNPJ',
-            number: document
-          }
-        },
-        external_reference: request.order_id,
-        notification_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/mercadopago-webhook`
-      };
+        // 1. Traduzir: RiseCheckout → Mercado Pago
+        const mpPayload = {
+          transaction_amount: request.amount_cents / 100,
+          description: request.description,
+          token: request.card_token,
+          installments: request.installments || 1,
+          statement_descriptor: 'RISECHECKOUT',
+          payer: {
+            email: request.customer.email,
+            first_name: request.customer.name.split(' ')[0],
+            last_name: request.customer.name.split(' ').slice(1).join(' ') || 'Cliente',
+            identification: {
+              type: document.length === 11 ? 'CPF' : 'CNPJ',
+              number: document
+            }
+          },
+          external_reference: request.order_id,
+          notification_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/mercadopago-webhook`
+        };
 
-      // ✅ NOVO: Adicionar split se houver regras válidas
-      const disbursements = this.buildDisbursements(request.split_rules);
-      
-      if (disbursements && disbursements.length > 0) {
-        (mpPayload as any).disbursements = disbursements;
-        console.log(`[MercadoPagoAdapter] Split ativo com ${disbursements.length} destinatário(s)`);
-      } else if (request.split_rules && request.split_rules.length > 0) {
-        console.warn('[MercadoPagoAdapter] Split solicitado mas nenhum destinatário tem collector_id. Dinheiro vai todo pro produtor.');
-      }
+        // ✅ NOVO: Adicionar split se houver regras válidas
+        const disbursements = this.buildDisbursements(request.split_rules);
+        
+        if (disbursements && disbursements.length > 0) {
+          (mpPayload as any).disbursements = disbursements;
+          console.log(`[MercadoPagoAdapter] Split ativo com ${disbursements.length} destinatário(s)`);
+        } else if (request.split_rules && request.split_rules.length > 0) {
+          console.warn('[MercadoPagoAdapter] Split solicitado mas nenhum destinatário tem collector_id. Dinheiro vai todo pro produtor.');
+        }
 
-      console.log(`[MercadoPagoAdapter] Criando pagamento com cartão para pedido ${request.order_id}`);
+        console.log(`[MercadoPagoAdapter] Criando pagamento com cartão para pedido ${request.order_id}`);
 
-      // 2. Fazer requisição à API do Mercado Pago
-      const response = await fetch(this.apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.accessToken}`,
-          'X-Idempotency-Key': request.order_id
-        },
-        body: JSON.stringify(mpPayload)
+        // 2. Fazer requisição à API do Mercado Pago
+        const response = await fetch(this.apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.accessToken}`,
+            'X-Idempotency-Key': request.order_id
+          },
+          body: JSON.stringify(mpPayload)
+        });
+
+        const data = await response.json();
+
+        // 3. Verificar erros
+        if (!response.ok) {
+          console.error('[MercadoPagoAdapter] Erro na API:', data);
+          return {
+            success: false,
+            transaction_id: '',
+            status: 'error',
+            raw_response: data,
+            error_message: data.message || 'Erro ao processar pagamento com cartão'
+          };
+        }
+
+        // 4. Traduzir: Mercado Pago → RiseCheckout
+        return {
+          success: true,
+          transaction_id: data.id?.toString() || '',
+          status: this.mapMercadoPagoStatus(data.status),
+          raw_response: data
+        };
       });
 
-      const data = await response.json();
-
-      // 3. Verificar erros
-      if (!response.ok) {
-        console.error('[MercadoPagoAdapter] Erro na API:', data);
+    } catch (error: unknown) {
+      // Circuit Breaker aberto
+      if (error instanceof CircuitOpenError) {
+        console.warn(`[MercadoPagoAdapter] Circuit breaker OPEN: ${error.message}`);
         return {
           success: false,
           transaction_id: '',
           status: 'error',
-          raw_response: data,
-          error_message: data.message || 'Erro ao processar pagamento com cartão'
+          raw_response: { circuit_breaker: 'open' },
+          error_message: 'Gateway temporariamente indisponível. Tente novamente em alguns segundos.'
         };
       }
 
-      // 4. Traduzir: Mercado Pago → RiseCheckout
-      return {
-        success: true,
-        transaction_id: data.id?.toString() || '',
-        status: this.mapMercadoPagoStatus(data.status),
-        raw_response: data
-      };
-
-    } catch (error: any) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       console.error('[MercadoPagoAdapter] Exception:', error);
       return {
         success: false,
         transaction_id: '',
         status: 'error',
         raw_response: error,
-        error_message: error.message || 'Erro desconhecido ao processar cartão'
+        error_message: errorMessage || 'Erro desconhecido ao processar cartão'
       };
     }
   }
