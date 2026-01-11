@@ -3,79 +3,35 @@
  * PUSHINPAY-WEBHOOK EDGE FUNCTION
  * ============================================================================
  * 
- * Versão: 3
- * Data de Criação: 2025-12-17
- * Última Atualização: 2025-12-17
- * Status: ✅ Corrigido para usar pix_id (lowercase)
- * 
- * ============================================================================
- * CORREÇÕES APLICADAS (v3):
- * - Busca por pix_id ao invés de payment_id (coluna não existe)
- * - Normaliza ID para lowercase (PushinPay envia uppercase)
- * - Adiciona paid_at quando status = paid
- * - Dispara webhooks via trigger-webhooks com event_type correto
+ * Versão: 4 (REFATORADO)
+ * Última Atualização: 2026-01-11
+ * Status: ✅ Refatorado para usar helpers compartilhados
  * ============================================================================
  */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { sendOrderConfirmationEmails, type OrderData } from '../_shared/send-order-emails.ts';
 import { logSecurityEvent, SecurityAction } from '../_shared/audit-logger.ts';
-import { grantMembersAccess } from '../_shared/grant-members-access.ts';
+import { 
+  createSuccessResponse, 
+  createErrorResponse, 
+  createLogger,
+  mapPushinPayStatus,
+  CORS_HEADERS,
+  ERROR_CODES
+} from '../_shared/webhook-helpers.ts';
+import { processPostPaymentActions } from '../_shared/webhook-post-payment.ts';
 
-const FUNCTION_VERSION = "3";
-
-// ========================================================================
-// TYPES & INTERFACES
-// ========================================================================
+const FUNCTION_VERSION = "4";
+const logger = createLogger('pushinpay-webhook', FUNCTION_VERSION);
 
 interface PushinPayWebhookBody {
   id: string;
   status: 'created' | 'paid' | 'canceled' | 'expired';
   value?: number;
-  end_to_end_id?: string | null;
   payer_name?: string | null;
   payer_national_registration?: string | null;
-  webhook_url?: string | null;
-  created_at?: string;
-  updated_at?: string;
 }
-
-// ========================================================================
-// CONSTANTS
-// ========================================================================
-
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-pushinpay-token'
-};
-
-// ========================================================================
-// HELPER FUNCTIONS
-// ========================================================================
-
-function logInfo(message: string, data?: any) {
-  console.log(`[pushinpay-webhook] [v${FUNCTION_VERSION}] [INFO] ${message}`, data ? JSON.stringify(data) : '');
-}
-
-function logError(message: string, error?: any) {
-  console.error(`[pushinpay-webhook] [v${FUNCTION_VERSION}] [ERROR] ${message}`, error);
-}
-
-function logWarn(message: string, data?: any) {
-  console.warn(`[pushinpay-webhook] [v${FUNCTION_VERSION}] [WARN] ${message}`, data ? JSON.stringify(data) : '');
-}
-
-function createResponse(success: boolean, message: string, status: number, extra?: any) {
-  return new Response(JSON.stringify({ success, message, ...extra }), {
-    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-    status
-  });
-}
-
-// ========================================================================
-// MAIN HANDLER
-// ========================================================================
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -83,48 +39,35 @@ serve(async (req) => {
   }
 
   try {
-    logInfo('========== WEBHOOK RECEBIDO ==========');
+    logger.info('========== WEBHOOK RECEBIDO ==========');
 
-    // ========================================================================
-    // 1. VALIDATE TOKEN
-    // ========================================================================
-    
+    // Validate Token
     const receivedToken = req.headers.get('x-pushinpay-token');
     const expectedToken = Deno.env.get('PUSHINPAY_WEBHOOK_TOKEN');
 
-    logInfo('Validação de token', { 
-      tokenRecebido: receivedToken ? 'presente' : 'ausente',
-      tokenConfigurado: expectedToken ? 'sim' : 'NÃO'
-    });
-
     if (!expectedToken) {
-      logError('PUSHINPAY_WEBHOOK_TOKEN não configurado!');
-      return createResponse(false, 'Webhook token not configured', 500);
+      logger.error('PUSHINPAY_WEBHOOK_TOKEN não configurado!');
+      return createErrorResponse(ERROR_CODES.SECRET_NOT_CONFIGURED, 'Token não configurado', 500);
     }
 
     if (!receivedToken || receivedToken !== expectedToken) {
-      logWarn('Token inválido ou ausente');
-      return createResponse(false, 'Unauthorized', 401);
+      logger.warn('Token inválido ou ausente');
+      return createErrorResponse(ERROR_CODES.UNAUTHORIZED, 'Unauthorized', 401);
     }
 
-    logInfo('✅ Token validado com sucesso');
+    logger.info('✅ Token validado');
 
-    // ========================================================================
-    // 2. PARSE REQUEST
-    // ========================================================================
-    
+    // Parse Request
     let body: PushinPayWebhookBody;
     const contentType = req.headers.get('content-type') || '';
     
     if (contentType.includes('application/x-www-form-urlencoded')) {
       const text = await req.text();
       const params = new URLSearchParams(text);
-      const valueStr = params.get('value');
       body = {
         id: params.get('id') || '',
         status: (params.get('status') as PushinPayWebhookBody['status']) || 'created',
-        value: valueStr ? parseInt(valueStr, 10) : undefined,
-        end_to_end_id: params.get('end_to_end_id') || undefined,
+        value: params.get('value') ? parseInt(params.get('value')!, 10) : undefined,
         payer_name: params.get('payer_name') || undefined,
         payer_national_registration: params.get('payer_national_registration') || undefined,
       };
@@ -132,35 +75,22 @@ serve(async (req) => {
       body = await req.json();
     }
 
-    logInfo('Payload recebido', { 
-      id_original: body.id, 
-      status: body.status,
-      value: body.value 
-    });
+    logger.info('Payload recebido', { id: body.id, status: body.status });
 
     if (!body.id) {
-      return createResponse(false, 'Missing payment ID', 400);
+      return createErrorResponse(ERROR_CODES.PAYMENT_ID_MISSING, 'Missing payment ID', 400);
     }
 
-    // ✅ CORREÇÃO CRÍTICA: Normalizar ID para lowercase
-    // PushinPay envia UUID em UPPERCASE, mas salvamos em lowercase no pix_id
+    // Normalize ID to lowercase
     const paymentId = body.id.toLowerCase();
-    logInfo('ID normalizado para lowercase', { original: body.id, normalizado: paymentId });
+    logger.info('ID normalizado', { original: body.id, normalizado: paymentId });
 
-    // ========================================================================
-    // 3. INITIALIZE SUPABASE
-    // ========================================================================
-    
+    // Initialize Supabase
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // ========================================================================
-    // 4. FIND ORDER BY pix_id (não payment_id!)
-    // ========================================================================
-
-    logInfo('Buscando pedido por pix_id', { pix_id: paymentId });
-
+    // Find Order
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .select('*')
@@ -168,71 +98,45 @@ serve(async (req) => {
       .single();
 
     if (orderError || !order) {
-      logError('Pedido não encontrado por pix_id', { pix_id: paymentId, error: orderError?.message });
-      return createResponse(false, 'Order not found', 404, { pix_id: paymentId });
+      logger.error('Pedido não encontrado', { pix_id: paymentId });
+      return createErrorResponse(ERROR_CODES.ORDER_NOT_FOUND, 'Order not found', 404);
     }
 
-    logInfo('✅ Pedido encontrado', { 
-      order_id: order.id, 
-      status_atual: order.status,
-      vendor_id: order.vendor_id
-    });
+    logger.info('✅ Pedido encontrado', { order_id: order.id, status_atual: order.status });
 
-    // ========================================================================
-    // 5. PROCESS STATUS
-    // ========================================================================
-
-    // Ignorar evento created (PIX já foi criado antes)
+    // Ignore 'created' events
     if (body.status === 'created') {
-      logInfo('Evento created recebido - apenas log');
-      return createResponse(true, 'Event logged', 200);
+      logger.info('Evento created - apenas log');
+      return createSuccessResponse({ message: 'Event logged' });
     }
 
-    // Evitar reprocessamento se já está paid
+    // Avoid reprocessing
     if (body.status === 'paid' && order.status?.toUpperCase() === 'PAID') {
-      logWarn('Pedido já está PAID - ignorando duplicata');
-      return createResponse(true, 'Already processed', 200);
+      logger.warn('Pedido já está PAID - ignorando duplicata');
+      return createSuccessResponse({ message: 'Already processed' });
     }
 
-    // Mapear status do PushinPay para status interno
-    let newStatus: string;
-    let shouldTriggerWebhook = false;
-    let webhookEventType: string | null = null;
+    // Map Status
+    const { orderStatus, eventType } = mapPushinPayStatus(body.status);
 
-    switch (body.status) {
-      case 'paid':
-        newStatus = 'PAID';
-        shouldTriggerWebhook = true;
-        webhookEventType = 'purchase_approved';
-        break;
-      case 'expired':
-        newStatus = 'EXPIRED';
-        break;
-      case 'canceled':
-        newStatus = 'CANCELLED';
-        break;
-      default:
-        logWarn('Status desconhecido', { status: body.status });
-        return createResponse(true, `Unknown status: ${body.status}`, 200);
+    if (orderStatus === 'PENDING') {
+      logger.warn('Status desconhecido', { status: body.status });
+      return createSuccessResponse({ message: `Unknown status: ${body.status}` });
     }
 
-    logInfo('Atualizando pedido', { order_id: order.id, old_status: order.status, new_status: newStatus });
+    logger.info('Atualizando pedido', { old_status: order.status, new_status: orderStatus });
 
-    // ========================================================================
-    // 6. UPDATE ORDER
-    // ========================================================================
-
-    const updateData: any = {
-      status: newStatus,
+    // Update Order
+    const updateData: Record<string, unknown> = {
+      status: orderStatus,
       pix_status: body.status,
       updated_at: new Date().toISOString(),
     };
 
-    if (newStatus === 'PAID') {
+    if (orderStatus === 'PAID') {
       updateData.paid_at = new Date().toISOString();
     }
 
-    // Salvar dados do pagador se disponíveis
     if (body.payer_name && !order.customer_name) {
       updateData.customer_name = body.payer_name;
     }
@@ -246,170 +150,62 @@ serve(async (req) => {
       .eq('id', order.id);
 
     if (updateError) {
-      logError('Erro ao atualizar pedido', updateError);
-      return createResponse(false, 'Failed to update order', 500);
+      logger.error('Erro ao atualizar pedido', updateError);
+      return createErrorResponse(ERROR_CODES.UPDATE_ERROR, 'Failed to update order', 500);
     }
 
-    logInfo('✅ Pedido atualizado com sucesso');
+    logger.info('✅ Pedido atualizado');
 
-    // SECURITY: Log payment approval
-    if (newStatus === 'PAID') {
+    // Security Log
+    if (orderStatus === 'PAID') {
       await logSecurityEvent(supabase, {
         userId: order.vendor_id,
         action: SecurityAction.PROCESS_PAYMENT,
         resource: "orders",
         resourceId: order.id,
         success: true,
-        metadata: { 
-          gateway: "pushinpay",
-          payment_status: body.status,
-          pix_id: paymentId,
-          payer_name: body.payer_name || null
-        }
+        metadata: { gateway: "pushinpay", payment_status: body.status, pix_id: paymentId }
       });
     }
 
-    // ========================================================================
-    // 6.1 SEND CONFIRMATION EMAILS (um para cada item do pedido)
-    // ========================================================================
-
-    if (newStatus === 'PAID' && order.customer_email) {
-      logInfo('Enviando emails de confirmação para todos os itens do pedido', { 
+    // Post-Payment Actions
+    if (orderStatus === 'PAID') {
+      await processPostPaymentActions(supabase, {
         orderId: order.id,
-        email: order.customer_email 
-      });
-
-      try {
-        const orderData: OrderData = {
-          id: order.id,
-          customer_name: order.customer_name || body.payer_name || null,
-          customer_email: order.customer_email,
-          amount_cents: order.amount_cents,
-          product_id: order.product_id,
-          product_name: order.product_name,
-        };
-
-        const emailResult = await sendOrderConfirmationEmails(
-          supabase,
-          orderData,
-          'PIX / PushinPay'
-        );
-
-        logInfo('✅ Resultado do envio de emails', {
-          totalItems: emailResult.totalItems,
-          emailsSent: emailResult.emailsSent,
-          emailsFailed: emailResult.emailsFailed
-        });
-      } catch (emailError) {
-        logWarn('⚠️ Exceção ao enviar emails (não crítico)', emailError);
-      }
+        customerEmail: order.customer_email,
+        customerName: order.customer_name || body.payer_name || null,
+        productId: order.product_id,
+        productName: order.product_name,
+        amountCents: order.amount_cents,
+        offerId: order.offer_id,
+        paymentMethod: 'PIX / PushinPay',
+        vendorId: order.vendor_id,
+      }, eventType, logger);
     }
 
-    // ========================================================================
-    // 6.2 GRANT MEMBERS AREA ACCESS
-    // ========================================================================
-
-    if (newStatus === 'PAID') {
-      logInfo('Verificando acesso à área de membros', { orderId: order.id });
-      
-      try {
-        const accessResult = await grantMembersAccess(supabase, {
-          orderId: order.id,
-          customerEmail: order.customer_email,
-          customerName: order.customer_name || body.payer_name || null,
-          productId: order.product_id,
-          productName: order.product_name,
-          offerId: order.offer_id,
-        });
-
-        if (accessResult.hasMembersArea) {
-          logInfo('✅ Acesso à área de membros concedido', {
-            buyerId: accessResult.buyerId,
-            isNewBuyer: accessResult.isNewBuyer,
-            hasInviteToken: !!accessResult.inviteToken,
-          });
-        } else {
-          logInfo('Produto não possui área de membros configurada');
-        }
-      } catch (accessError) {
-        logWarn('⚠️ Erro ao conceder acesso à área de membros (não crítico)', accessError);
-      }
-    }
-
-    // ========================================================================
-    // 7. TRIGGER VENDOR WEBHOOKS
-    // ========================================================================
-
-    if (shouldTriggerWebhook && webhookEventType) {
-      logInfo('Disparando webhooks do vendedor', { event_type: webhookEventType });
-
-      // 🔒 SEGURANÇA P0: Não usar secret hardcoded - exigir configuração
-      const internalSecret = Deno.env.get('INTERNAL_WEBHOOK_SECRET');
-      
-      if (!internalSecret) {
-        logWarn('⚠️ INTERNAL_WEBHOOK_SECRET não configurado - pulando trigger de webhooks externos');
-        logWarn('Configure o secret em Supabase > Settings > Edge Functions > Secrets');
-      } else {
-        try {
-          const webhookResponse = await fetch(`${supabaseUrl}/functions/v1/trigger-webhooks`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Internal-Secret': internalSecret,
-            },
-            body: JSON.stringify({
-              order_id: order.id,
-              event_type: webhookEventType,
-            }),
-          });
-
-          logInfo('Resposta trigger-webhooks', { status: webhookResponse.status });
-
-          if (!webhookResponse.ok) {
-            const errorText = await webhookResponse.text();
-            logWarn('Erro ao disparar webhooks', { error: errorText });
-          } else {
-            logInfo('✅ Webhooks disparados com sucesso');
-          }
-        } catch (webhookError) {
-          logWarn('Exceção ao disparar webhooks', webhookError);
-        }
-      }
-    }
-
-    // ========================================================================
-    // 8. LOG EVENT
-    // ========================================================================
-
+    // Log Event
     try {
       await supabase.from('order_events').insert({
         order_id: order.id,
         vendor_id: order.vendor_id,
         type: `pushinpay_${body.status}`,
         occurred_at: new Date().toISOString(),
-        data: { 
-          status: body.status, 
-          payer_name: body.payer_name,
-          payer_document: body.payer_national_registration,
-          source: 'pushinpay_webhook',
-          version: FUNCTION_VERSION
-        },
+        data: { status: body.status, payer_name: body.payer_name, version: FUNCTION_VERSION },
       });
-      logInfo('✅ Evento registrado');
     } catch (eventError) {
-      logWarn('Erro ao registrar evento', eventError);
+      logger.warn('Erro ao registrar evento', eventError);
     }
 
-    logInfo('========== WEBHOOK PROCESSADO ==========');
+    logger.info('========== WEBHOOK PROCESSADO ==========');
 
-    return createResponse(true, 'Webhook processed successfully', 200, {
+    return createSuccessResponse({
       order_id: order.id,
-      new_status: newStatus,
-      webhook_triggered: shouldTriggerWebhook,
+      new_status: orderStatus,
     });
 
-  } catch (error: any) {
-    logError('Erro geral', error);
-    return createResponse(false, error.message || 'Internal server error', 500);
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : 'Internal server error';
+    logger.error('Erro geral', error);
+    return createErrorResponse(ERROR_CODES.INTERNAL_ERROR, msg, 500);
   }
 });
