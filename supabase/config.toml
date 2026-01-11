@@ -162,3 +162,10 @@ verify_jwt = true
 [functions.decrypt-customer-data-batch]
 verify_jwt = true
 
+# ✅ PÚBLICAS (LGPD - Direito ao Esquecimento)
+[functions.gdpr-request]
+verify_jwt = false
+
+[functions.gdpr-forget]
+verify_jwt = false
+
