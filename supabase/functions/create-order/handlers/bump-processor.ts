@@ -2,6 +2,11 @@
  * bump-processor.ts - Processamento de Order Bumps
  * 
  * Responsabilidade ÚNICA: Validar e calcular preços dos order bumps
+ * 
+ * OTIMIZADO em 2026-01-11:
+ * - Eliminado N+1 query pattern (antes: N queries por bump)
+ * - Agora usa batch queries com Maps para O(1) lookup
+ * - Redução estimada: -50-150ms por transação com bumps
  */
 
 export interface OrderItem {
@@ -25,8 +30,31 @@ export interface BumpProcessingInput {
   checkout_id?: string;
 }
 
+interface OfferData {
+  id: string;
+  price: number;
+  name: string;
+}
+
+interface ProductData {
+  id: string;
+  price: number;
+  name: string;
+}
+
+interface BumpData {
+  id: string;
+  product_id: string;
+  offer_id: string | null;
+  custom_title: string | null;
+  discount_enabled: boolean | null;
+  discount_price: number | null;
+}
+
 /**
  * Processa order bumps e retorna lista de itens com totais
+ * 
+ * OTIMIZAÇÃO: Usa batch queries + Maps ao invés de queries individuais no loop
  */
 export async function processBumps(
   supabase: any,
@@ -78,10 +106,56 @@ export async function processBumps(
     );
   }
 
-  console.log("[bump-processor] Bumps validados:", bumps.map((b: any) => b.id));
+  console.log("[bump-processor] Bumps validados:", bumps.map((b: BumpData) => b.id));
 
-  // Processar cada bump
-  for (const bump of bumps) {
+  // =====================================================
+  // OTIMIZAÇÃO: Batch queries para eliminar N+1
+  // =====================================================
+  
+  // Coletar IDs únicos para batch queries
+  const offerIds = bumps
+    .map((b: BumpData) => b.offer_id)
+    .filter((id: string | null): id is string => id !== null);
+  
+  const productIds = bumps
+    .map((b: BumpData) => b.product_id)
+    .filter((id: string | null): id is string => id !== null);
+
+  // Batch queries em paralelo (ao invés de N queries no loop)
+  const [offersResult, productsResult] = await Promise.all([
+    offerIds.length > 0
+      ? supabase
+          .from("offers")
+          .select("id, price, name")
+          .in("id", offerIds)
+      : Promise.resolve({ data: [] as OfferData[], error: null }),
+    
+    productIds.length > 0
+      ? supabase
+          .from("products")
+          .select("id, price, name")
+          .in("id", productIds)
+      : Promise.resolve({ data: [] as ProductData[], error: null })
+  ]);
+
+  // Criar Maps para O(1) lookup (ao invés de queries)
+  const offersMap = new Map<string, OfferData>(
+    (offersResult.data || []).map((o: OfferData) => [o.id, o])
+  );
+  
+  const productsMap = new Map<string, ProductData>(
+    (productsResult.data || []).map((p: ProductData) => [p.id, p])
+  );
+
+  console.log("[bump-processor] Batch query results:", {
+    offers: offersMap.size,
+    products: productsMap.size
+  });
+
+  // =====================================================
+  // Processar cada bump usando Maps (sem queries adicionais)
+  // =====================================================
+  for (const bump of bumps as BumpData[]) {
     try {
       if (!bump.product_id) {
         console.warn(`[bump-processor] Bump ${bump.id} sem produto vinculado`);
@@ -93,12 +167,8 @@ export async function processBumps(
 
       // PRIORIDADE 1: Preço da OFFER vinculada (já em centavos)
       if (bump.offer_id) {
-        const { data: bumpOffer } = await supabase
-          .from("offers")
-          .select("price, name")
-          .eq("id", bump.offer_id)
-          .maybeSingle();
-
+        const bumpOffer = offersMap.get(bump.offer_id);
+        
         if (bumpOffer) {
           bumpPriceCents = Number(bumpOffer.price);
           if (!bump.custom_title) bumpName = bumpOffer.name;
@@ -108,18 +178,14 @@ export async function processBumps(
 
       // PRIORIDADE 2: Fallback para PRODUCT (BRL → centavos)
       if (bumpPriceCents === 0) {
-        const { data: bumpProduct } = await supabase
-          .from("products")
-          .select("price, name")
-          .eq("id", bump.product_id)
-          .maybeSingle();
+        const bumpProduct = productsMap.get(bump.product_id);
 
         if (bumpProduct) {
           bumpPriceCents = Math.round(Number(bumpProduct.price) * 100);
           if (!bump.custom_title) bumpName = bumpProduct.name;
           console.log(`[bump-processor] Bump via product: ${bumpPriceCents} centavos`);
         } else {
-          console.warn(`[bump-processor] Produto ${bump.product_id} não existe`);
+          console.warn(`[bump-processor] Produto ${bump.product_id} não encontrado no batch`);
           continue;
         }
       }
