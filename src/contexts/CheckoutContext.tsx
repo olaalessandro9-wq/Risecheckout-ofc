@@ -142,16 +142,6 @@ export const useCheckoutContext = (): CheckoutContextValue => {
   return context;
 };
 
-// ============================================================================
-// ALIAS PARA COMPATIBILIDADE
-// ============================================================================
-
-/**
- * @deprecated Use useCheckoutContext ao invés. Mantido para compatibilidade.
- */
-export const useCheckoutData = useCheckoutContext;
-
-/**
- * @deprecated Use CheckoutProvider ao invés. Mantido para compatibilidade.
- */
-export const CheckoutDataProvider = CheckoutProvider;
+// Aliases removidos em 2026-01-11 (RISE Protocol cleanup)
+// useCheckoutData → use useCheckoutContext
+// CheckoutDataProvider → use CheckoutProvider

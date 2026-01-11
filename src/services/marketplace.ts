@@ -211,16 +211,6 @@ export async function trackProductClick(productId: string): Promise<void> {
   }
 }
 
-// ❌ REMOVIDO: requestAffiliation
-// Função insegura removida em 2025-12-22 por vulnerabilidades de segurança:
-// - Códigos previsíveis (userId-productId-timestamp)
-// - Sem rate limiting
-// - Sem validação de conta de pagamento
-// - Sem proteção anti-auto-afiliação
-// 
-// ✅ USE: Edge Function `request-affiliation` via useAffiliateRequest hook
-// @see supabase/functions/request-affiliation/index.ts
-
 /**
  * Verifica se o usuário já é afiliado de um produto
  */
