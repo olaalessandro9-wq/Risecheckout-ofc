@@ -116,7 +116,8 @@ serve(async (req) => {
       const rateLimitResult = await rateLimitMiddleware(
         supabase, 
         req, 
-        RATE_LIMIT_CONFIGS.BUYER_AUTH_REGISTER
+        RATE_LIMIT_CONFIGS.BUYER_AUTH_REGISTER,
+        corsHeaders
       );
       if (rateLimitResult) {
         console.warn(`[buyer-auth] Rate limit exceeded for register from IP: ${getClientIP(req)}`);
@@ -235,7 +236,8 @@ serve(async (req) => {
       const rateLimitResult = await rateLimitMiddleware(
         supabase, 
         req, 
-        RATE_LIMIT_CONFIGS.BUYER_AUTH_LOGIN
+        RATE_LIMIT_CONFIGS.BUYER_AUTH_LOGIN,
+        corsHeaders
       );
       if (rateLimitResult) {
         console.warn(`[buyer-auth] Rate limit exceeded for login from IP: ${getClientIP(req)}`);
