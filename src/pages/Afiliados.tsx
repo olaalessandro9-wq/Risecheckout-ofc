@@ -1,18 +1,19 @@
+/**
+ * Afiliados Page (REFATORADO)
+ * 
+ * Gerenciamento de afiliados pelo produtor.
+ * 
+ * Arquitetura modular:
+ * - AffiliatesMetrics: Cards de métricas
+ * - AffiliatesTable: Tabela com ações
+ * - EditCommissionDialog: Modal de edição
+ */
+
 import { useEffect, useState, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import { Search, Download, RefreshCw, Check, X, Ban, MoreVertical, Loader2, Pencil } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  DropdownMenuLabel,
-} from "@/components/ui/dropdown-menu";
+import { Search, Download, RefreshCw } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -20,23 +21,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+import {
+  AffiliatesMetrics,
+  AffiliatesTable,
+  EditCommissionDialog,
+} from "@/components/affiliates";
 
 // Interface atualizada para RPC v2
 interface AffiliateData {
@@ -68,7 +60,7 @@ const Afiliados = () => {
   const [selectedAffiliate, setSelectedAffiliate] = useState<AffiliateData | null>(null);
   const [customCommission, setCustomCommission] = useState("");
 
-  // Implementação manual de Debounce
+  // Debounce do termo de busca
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
@@ -112,17 +104,14 @@ const Afiliados = () => {
     fetchAffiliates();
   }, [fetchAffiliates]);
 
-  // --- Lógica de Ações ---
+  // --- Handlers ---
 
   const handleAction = async (affiliationId: string, action: "approve" | "reject" | "block" | "unblock") => {
     try {
       setActionLoading(affiliationId);
       
       const { data, error } = await supabase.functions.invoke('manage-affiliation', {
-        body: { 
-          affiliation_id: affiliationId, 
-          action 
-        }
+        body: { affiliation_id: affiliationId, action }
       });
 
       if (error) throw error;
@@ -130,7 +119,6 @@ const Afiliados = () => {
 
       toast.success(data.message);
       fetchAffiliates();
-
     } catch (error: any) {
       console.error("[handleAction] Erro:", error);
       toast.error(error.message || "Erro ao processar ação");
@@ -138,8 +126,6 @@ const Afiliados = () => {
       setActionLoading(null);
     }
   };
-
-  // --- Lógica de Edição de Comissão ---
 
   const handleEdit = (affiliate: AffiliateData) => {
     setSelectedAffiliate(affiliate);
@@ -178,6 +164,18 @@ const Afiliados = () => {
 
   const exportToCSV = () => {
     if (affiliates.length === 0) return;
+    
+    const translateStatus = (status: string): string => {
+      const map: Record<string, string> = {
+        active: "Aprovado",
+        pending: "Pendente",
+        rejected: "Recusado",
+        blocked: "Bloqueado",
+        cancelled: "Cancelado",
+      };
+      return map[status] || status;
+    };
+
     const headers = ["Nome", "Email", "Produto", "Status", "Comissão", "Vendas", "Receita", "Código", "Data"];
     const rows = affiliates.map(aff => [
       aff.affiliate_name,
@@ -202,30 +200,9 @@ const Afiliados = () => {
     toast.success("Relatório baixado!");
   };
 
-  const translateStatus = (status: string): string => {
-    const map: Record<string, string> = {
-      active: "Aprovado",
-      pending: "Pendente",
-      rejected: "Recusado",
-      blocked: "Bloqueado",
-      cancelled: "Cancelado",
-    };
-    return map[status] || status;
-  };
-
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case "active": return "default";
-      case "pending": return "secondary";
-      case "rejected": return "outline";
-      case "blocked": return "destructive";
-      case "cancelled": return "destructive";
-      default: return "outline";
-    }
-  };
-
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Gerenciar Afiliados</h1>
@@ -235,22 +212,12 @@ const Afiliados = () => {
         </div>
       </div>
 
-      {/* Cards de Métricas */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: "Total", value: affiliates.length, color: "text-primary" },
-          { label: "Aprovados", value: affiliates.filter(a => a.status === "active").length, color: "text-green-600" },
-          { label: "Pendentes", value: affiliates.filter(a => a.status === "pending").length, color: "text-amber-600" },
-          { label: "Recusados, Bloqueados e Cancelados", value: affiliates.filter(a => a.status === "rejected" || a.status === "blocked" || a.status === "cancelled").length, color: "text-red-600" },
-        ].map((stat, i) => (
-          <Card key={i} className="p-4 border-l-4 border-l-primary/10 hover:border-l-primary transition-colors">
-            <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
-            <p className={`text-2xl font-bold mt-1 ${stat.color}`}>{stat.value}</p>
-          </Card>
-        ))}
-      </div>
+      {/* Métricas */}
+      <AffiliatesMetrics affiliates={affiliates} />
 
+      {/* Tabela */}
       <Card className="p-6 shadow-sm border-muted">
+        {/* Filtros */}
         <div className="flex flex-col sm:flex-row gap-4 mb-6 justify-between items-start sm:items-center">
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto flex-1">
             <div className="relative flex-1 max-w-md">
@@ -289,155 +256,24 @@ const Afiliados = () => {
           </div>
         </div>
 
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/30">
-                <TableHead>Afiliado</TableHead>
-                <TableHead>Produto</TableHead>
-                <TableHead>Comissão</TableHead>
-                <TableHead>Vendas</TableHead>
-                <TableHead>Receita Gerada</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
-                    <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Carregando dados...
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : affiliates.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
-                    Nenhum afiliado encontrado.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                affiliates.map((affiliate) => (
-                  <TableRow key={affiliate.id} className="group hover:bg-muted/5 transition-colors">
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-medium text-foreground">{affiliate.affiliate_name}</span>
-                        <span className="text-xs text-muted-foreground">{affiliate.affiliate_email}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm">{affiliate.product_name}</TableCell>
-                    <TableCell>
-                      {(() => {
-                        const defaultRate = affiliate.product_settings?.defaultRate ?? 50;
-                        const effectiveRate = affiliate.commission_rate ?? defaultRate;
-                        const isCustom = affiliate.commission_rate !== null && affiliate.commission_rate !== defaultRate;
-                        
-                        return isCustom ? (
-                          <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200">
-                            {effectiveRate}% (Custom)
-                          </Badge>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">
-                            {effectiveRate}%
-                          </span>
-                        );
-                      })()}
-                    </TableCell>
-                    <TableCell className="font-medium">{affiliate.total_sales_count}</TableCell>
-                    <TableCell className="font-medium text-green-600">
-                      R$ {(affiliate.total_sales_amount / 100).toFixed(2)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusBadgeVariant(affiliate.status)}>
-                        {translateStatus(affiliate.status)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" disabled={!!actionLoading}>
-                            {actionLoading === affiliate.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <MoreVertical className="w-4 h-4" />
-                            )}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Gerenciar</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          
-                          <DropdownMenuItem onClick={() => handleEdit(affiliate)}>
-                             <Pencil className="w-4 h-4 mr-2" /> Editar Comissão
-                          </DropdownMenuItem>
-
-                          <DropdownMenuSeparator />
-
-                          {affiliate.status === "pending" && (
-                            <>
-                              <DropdownMenuItem onClick={() => handleAction(affiliate.id, "approve")}>
-                                <Check className="w-4 h-4 mr-2 text-green-600" /> Aprovar
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleAction(affiliate.id, "reject")}>
-                                <X className="w-4 h-4 mr-2 text-red-600" /> Recusar
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                          
-                          {affiliate.status === "active" && (
-                            <DropdownMenuItem onClick={() => handleAction(affiliate.id, "block")} className="text-red-600 focus:text-red-600">
-                              <Ban className="w-4 h-4 mr-2" /> Bloquear Acesso
-                            </DropdownMenuItem>
-                          )}
-                          
-                          {affiliate.status === "blocked" && (
-                            <DropdownMenuItem onClick={() => handleAction(affiliate.id, "unblock")}>
-                              <Check className="w-4 h-4 mr-2" /> Desbloquear
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+        <AffiliatesTable
+          affiliates={affiliates}
+          loading={loading}
+          actionLoading={actionLoading}
+          onEdit={handleEdit}
+          onAction={handleAction}
+        />
       </Card>
 
-      {/* Dialog de Edição de Comissão */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Editar Comissão do Afiliado</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Comissão Personalizada (%)</Label>
-              <Input
-                type="number"
-                min="0"
-                max="100"
-                value={customCommission}
-                onChange={(e) => setCustomCommission(e.target.value)}
-                placeholder={`Padrão: ${selectedAffiliate?.product_settings?.defaultRate || 50}%`}
-              />
-              <p className="text-sm text-muted-foreground">
-                Deixe vazio para usar a taxa padrão do produto ({selectedAffiliate?.product_settings?.defaultRate || 50}%)
-              </p>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSaveCustomCommission}>Salvar Alterações</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Dialog de Edição */}
+      <EditCommissionDialog
+        isOpen={isEditDialogOpen}
+        onClose={() => setIsEditDialogOpen(false)}
+        customCommission={customCommission}
+        onCommissionChange={setCustomCommission}
+        onSave={handleSaveCustomCommission}
+        defaultRate={selectedAffiliate?.product_settings?.defaultRate || 50}
+      />
     </div>
   );
 };
