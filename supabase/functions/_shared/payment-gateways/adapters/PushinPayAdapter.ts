@@ -16,13 +16,15 @@
  * - O valor DEVE ser enviado em CENTAVOS (não dividir por 100!)
  * - URL Sandbox: https://api-sandbox.pushinpay.com.br/api
  * - URL Produção: https://api.pushinpay.com.br/api
+ * - Circuit Breaker para resiliência
  * 
  * @author RiseCheckout Team
- * @version 2.0.0 - Refatorado conforme documentação oficial em 22/12/2024
+ * @version 2.1.0 - Adicionado Circuit Breaker em 11/01/2026
  */
 
 import { IPaymentGateway } from "../IPaymentGateway.ts";
 import { PaymentRequest, PaymentResponse } from "../types.ts";
+import { CircuitBreaker, CircuitOpenError, GATEWAY_CIRCUIT_CONFIGS } from "../../circuit-breaker.ts";
 
 // URLs corretas conforme documentação oficial
 const PUSHINPAY_API_URLS = {
@@ -36,6 +38,7 @@ export class PushinPayAdapter implements IPaymentGateway {
   private token: string;
   private environment: 'sandbox' | 'production';
   private baseUrl: string;
+  private circuitBreaker: CircuitBreaker;
 
   /**
    * Cria uma nova instância do adaptador PushinPay
@@ -52,6 +55,7 @@ export class PushinPayAdapter implements IPaymentGateway {
     
     // URLs corretas da API PushinPay conforme documentação
     this.baseUrl = PUSHINPAY_API_URLS[environment];
+    this.circuitBreaker = new CircuitBreaker(GATEWAY_CIRCUIT_CONFIGS.pushinpay);
   }
 
   /**
@@ -63,66 +67,82 @@ export class PushinPayAdapter implements IPaymentGateway {
    */
   async createPix(request: PaymentRequest): Promise<PaymentResponse> {
     try {
-      // Endpoint correto: /api/pix/cashIn
-      const apiUrl = `${this.baseUrl}/pix/cashIn`;
-      
-      // IMPORTANTE: value deve estar em CENTAVOS (não dividir por 100!)
-      // Conforme documentação oficial do PushinPay
-      const pushinPayload = {
-        value: request.amount_cents, // JÁ em centavos!
-        webhook_url: 'https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/pushinpay-webhook'
-      };
+      // Circuit Breaker: Proteger contra falhas em cascata
+      return await this.circuitBreaker.execute(async () => {
+        // Endpoint correto: /api/pix/cashIn
+        const apiUrl = `${this.baseUrl}/pix/cashIn`;
+        
+        // IMPORTANTE: value deve estar em CENTAVOS (não dividir por 100!)
+        // Conforme documentação oficial do PushinPay
+        const pushinPayload = {
+          value: request.amount_cents, // JÁ em centavos!
+          webhook_url: 'https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/pushinpay-webhook'
+        };
 
-      console.log(`[PushinPayAdapter] Criando PIX para pedido ${request.order_id}`);
-      console.log(`[PushinPayAdapter] URL: ${apiUrl}`);
-      console.log(`[PushinPayAdapter] Valor em centavos: ${request.amount_cents}`);
+        console.log(`[PushinPayAdapter] Criando PIX para pedido ${request.order_id}`);
+        console.log(`[PushinPayAdapter] URL: ${apiUrl}`);
+        console.log(`[PushinPayAdapter] Valor em centavos: ${request.amount_cents}`);
 
-      // Fazer requisição à API do PushinPay
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${this.token}`
-        },
-        body: JSON.stringify(pushinPayload)
+        // Fazer requisição à API do PushinPay
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${this.token}`
+          },
+          body: JSON.stringify(pushinPayload)
+        });
+
+        const responseText = await response.text();
+        console.log(`[PushinPayAdapter] Status: ${response.status}`);
+
+        // Verificar erros
+        if (!response.ok) {
+          console.error('[PushinPayAdapter] Erro na API:', responseText);
+          return {
+            success: false,
+            transaction_id: '',
+            status: 'error',
+            raw_response: responseText,
+            error_message: `PushinPay retornou erro: ${response.status} - ${responseText}`
+          };
+        }
+
+        const data = JSON.parse(responseText);
+
+        // Traduzir resposta para formato padronizado
+        return {
+          success: true,
+          transaction_id: data.id?.toString() || '',
+          qr_code: data.qr_code_base64 || data.qrcode_base64,
+          qr_code_text: data.qr_code || data.qrcode,
+          status: this.mapPushinPayStatus(data.status),
+          raw_response: data
+        };
       });
 
-      const responseText = await response.text();
-      console.log(`[PushinPayAdapter] Status: ${response.status}`);
-
-      // Verificar erros
-      if (!response.ok) {
-        console.error('[PushinPayAdapter] Erro na API:', responseText);
+    } catch (error: unknown) {
+      // Circuit Breaker aberto
+      if (error instanceof CircuitOpenError) {
+        console.warn(`[PushinPayAdapter] Circuit breaker OPEN: ${error.message}`);
         return {
           success: false,
           transaction_id: '',
           status: 'error',
-          raw_response: responseText,
-          error_message: `PushinPay retornou erro: ${response.status} - ${responseText}`
+          raw_response: { circuit_breaker: 'open' },
+          error_message: 'Gateway temporariamente indisponível. Tente novamente em alguns segundos.'
         };
       }
 
-      const data = JSON.parse(responseText);
-
-      // Traduzir resposta para formato padronizado
-      return {
-        success: true,
-        transaction_id: data.id?.toString() || '',
-        qr_code: data.qr_code_base64 || data.qrcode_base64,
-        qr_code_text: data.qr_code || data.qrcode,
-        status: this.mapPushinPayStatus(data.status),
-        raw_response: data
-      };
-
-    } catch (error: any) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       console.error('[PushinPayAdapter] Exception:', error);
       return {
         success: false,
         transaction_id: '',
         status: 'error',
         raw_response: error,
-        error_message: error.message || 'Erro desconhecido ao processar PIX'
+        error_message: errorMessage || 'Erro desconhecido ao processar PIX'
       };
     }
   }

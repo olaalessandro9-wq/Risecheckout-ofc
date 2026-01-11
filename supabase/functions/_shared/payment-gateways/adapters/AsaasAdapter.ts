@@ -9,6 +9,7 @@
  * - Pagamentos via Cartão de Crédito (com tokenização)
  * - Split de pagamentos nativo (N recebedores via walletId)
  * - Ambientes de sandbox e produção
+ * - Circuit Breaker para resiliência
  * 
  * Documentação Asaas:
  * - Split: https://docs.asaas.com/docs/split-de-pagamentos
@@ -25,10 +26,13 @@
  *   description: 'Pedido #123'
  * });
  * ```
+ * 
+ * @version 2.1.0 - Adicionado Circuit Breaker em 11/01/2026
  */
 
 import { IPaymentGateway } from "../IPaymentGateway.ts";
 import { PaymentRequest, PaymentResponse, PaymentSplitRule } from "../types.ts";
+import { CircuitBreaker, CircuitOpenError, GATEWAY_CIRCUIT_CONFIGS } from "../../circuit-breaker.ts";
 
 // ============================================
 // ASAAS SPECIFIC TYPES
@@ -92,6 +96,7 @@ export class AsaasAdapter implements IPaymentGateway {
   private apiKey: string;
   private environment: 'sandbox' | 'production';
   private baseUrl: string;
+  private circuitBreaker: CircuitBreaker;
 
   /**
    * Cria uma nova instância do adaptador Asaas
@@ -108,6 +113,7 @@ export class AsaasAdapter implements IPaymentGateway {
     this.baseUrl = environment === 'sandbox' 
       ? 'https://sandbox.asaas.com/api/v3'
       : 'https://api.asaas.com/v3';
+    this.circuitBreaker = new CircuitBreaker(GATEWAY_CIRCUIT_CONFIGS.asaas);
   }
 
   // ============================================
@@ -127,46 +133,61 @@ export class AsaasAdapter implements IPaymentGateway {
     try {
       console.log(`[AsaasAdapter] Criando PIX para pedido ${request.order_id}`);
 
-      // 1. Criar ou buscar customer
-      const customer = await this.findOrCreateCustomer(request.customer);
-      
-      if (!customer) {
-        return this.errorResponse('Erro ao criar/buscar cliente na Asaas');
-      }
+      // Circuit Breaker: Proteger contra falhas em cascata
+      return await this.circuitBreaker.execute(async () => {
+        // 1. Criar ou buscar customer
+        const customer = await this.findOrCreateCustomer(request.customer);
+        
+        if (!customer) {
+          return this.errorResponse('Erro ao criar/buscar cliente na Asaas');
+        }
 
-      // 2. Criar cobrança PIX com split
-      const payment = await this.createPayment({
-        customer: customer.id,
-        billingType: 'PIX',
-        value: request.amount_cents / 100,
-        dueDate: this.getDueDate(),
-        externalReference: request.order_id,
-        description: request.description,
-        split: this.buildSplitRules(request.split_rules)
+        // 2. Criar cobrança PIX com split
+        const payment = await this.createPayment({
+          customer: customer.id,
+          billingType: 'PIX',
+          value: request.amount_cents / 100,
+          dueDate: this.getDueDate(),
+          externalReference: request.order_id,
+          description: request.description,
+          split: this.buildSplitRules(request.split_rules)
+        });
+
+        if (!payment || payment.error) {
+          return this.errorResponse(payment?.error || 'Erro ao criar cobrança PIX');
+        }
+
+        // 3. Obter QR Code
+        const qrCode = await this.getPixQrCode(payment.id);
+        
+        if (!qrCode) {
+          return this.errorResponse('Erro ao obter QR Code PIX');
+        }
+
+        // 4. Retornar resposta padronizada
+        return {
+          success: true,
+          transaction_id: payment.id,
+          status: this.mapAsaasStatus(payment.status),
+          qr_code: qrCode.encodedImage,
+          qr_code_text: qrCode.payload,
+          raw_response: { payment, qrCode }
+        };
       });
 
-      if (!payment || payment.error) {
-        return this.errorResponse(payment?.error || 'Erro ao criar cobrança PIX');
-      }
-
-      // 3. Obter QR Code
-      const qrCode = await this.getPixQrCode(payment.id);
-      
-      if (!qrCode) {
-        return this.errorResponse('Erro ao obter QR Code PIX');
-      }
-
-      // 4. Retornar resposta padronizada
-      return {
-        success: true,
-        transaction_id: payment.id,
-        status: this.mapAsaasStatus(payment.status),
-        qr_code: qrCode.encodedImage,
-        qr_code_text: qrCode.payload,
-        raw_response: { payment, qrCode }
-      };
-
     } catch (error: unknown) {
+      // Circuit Breaker aberto
+      if (error instanceof CircuitOpenError) {
+        console.warn(`[AsaasAdapter] Circuit breaker OPEN: ${error.message}`);
+        return {
+          success: false,
+          transaction_id: '',
+          status: 'error',
+          raw_response: { circuit_breaker: 'open' },
+          error_message: 'Gateway temporariamente indisponível. Tente novamente em alguns segundos.'
+        };
+      }
+
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       console.error('[AsaasAdapter] Exception createPix:', error);
       return this.errorResponse(errorMessage);
@@ -189,52 +210,67 @@ export class AsaasAdapter implements IPaymentGateway {
         return this.errorResponse('Token do cartão é obrigatório');
       }
 
-      // 1. Criar ou buscar customer
-      const customer = await this.findOrCreateCustomer(request.customer);
-      
-      if (!customer) {
-        return this.errorResponse('Erro ao criar/buscar cliente na Asaas');
-      }
+      // Circuit Breaker: Proteger contra falhas em cascata
+      return await this.circuitBreaker.execute(async () => {
+        // 1. Criar ou buscar customer
+        const customer = await this.findOrCreateCustomer(request.customer);
+        
+        if (!customer) {
+          return this.errorResponse('Erro ao criar/buscar cliente na Asaas');
+        }
 
-      // 2. Parsear token do cartão (formato: token ou objeto serializado)
-      const cardData = this.parseCardToken(request.card_token);
+        // 2. Parsear token do cartão (formato: token ou objeto serializado)
+        const cardData = this.parseCardToken(request.card_token);
 
-      // 3. Criar cobrança com cartão e split
-      const payload: Record<string, unknown> = {
-        customer: customer.id,
-        billingType: 'CREDIT_CARD',
-        value: request.amount_cents / 100,
-        dueDate: this.getDueDate(),
-        externalReference: request.order_id,
-        description: request.description,
-        installmentCount: request.installments || 1,
-        split: this.buildSplitRules(request.split_rules)
-      };
+        // 3. Criar cobrança com cartão e split
+        const payload: Record<string, unknown> = {
+          customer: customer.id,
+          billingType: 'CREDIT_CARD',
+          value: request.amount_cents / 100,
+          dueDate: this.getDueDate(),
+          externalReference: request.order_id,
+          description: request.description,
+          installmentCount: request.installments || 1,
+          split: this.buildSplitRules(request.split_rules)
+        };
 
-      // Adicionar dados do cartão
-      if (cardData.creditCardToken) {
-        // Usando token previamente gerado
-        payload.creditCardToken = cardData.creditCardToken;
-      } else if (cardData.creditCard) {
-        // Usando dados do cartão diretamente (menos seguro)
-        payload.creditCard = cardData.creditCard;
-        payload.creditCardHolderInfo = cardData.creditCardHolderInfo;
-      }
+        // Adicionar dados do cartão
+        if (cardData.creditCardToken) {
+          // Usando token previamente gerado
+          payload.creditCardToken = cardData.creditCardToken;
+        } else if (cardData.creditCard) {
+          // Usando dados do cartão diretamente (menos seguro)
+          payload.creditCard = cardData.creditCard;
+          payload.creditCardHolderInfo = cardData.creditCardHolderInfo;
+        }
 
-      const payment = await this.createPayment(payload);
+        const payment = await this.createPayment(payload);
 
-      if (!payment || payment.error) {
-        return this.errorResponse(payment?.error || 'Erro ao criar cobrança com cartão');
-      }
+        if (!payment || payment.error) {
+          return this.errorResponse(payment?.error || 'Erro ao criar cobrança com cartão');
+        }
 
-      return {
-        success: true,
-        transaction_id: payment.id,
-        status: this.mapAsaasStatus(payment.status),
-        raw_response: payment
-      };
+        return {
+          success: true,
+          transaction_id: payment.id,
+          status: this.mapAsaasStatus(payment.status),
+          raw_response: payment
+        };
+      });
 
     } catch (error: unknown) {
+      // Circuit Breaker aberto
+      if (error instanceof CircuitOpenError) {
+        console.warn(`[AsaasAdapter] Circuit breaker OPEN: ${error.message}`);
+        return {
+          success: false,
+          transaction_id: '',
+          status: 'error',
+          raw_response: { circuit_breaker: 'open' },
+          error_message: 'Gateway temporariamente indisponível. Tente novamente em alguns segundos.'
+        };
+      }
+
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       console.error('[AsaasAdapter] Exception createCreditCard:', error);
       return this.errorResponse(errorMessage);
