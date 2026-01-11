@@ -3,9 +3,9 @@
  * PUSHINPAY-WEBHOOK EDGE FUNCTION
  * ============================================================================
  * 
- * Versão: 4 (REFATORADO)
+ * Versão: 5 (+ Dead Letter Queue)
  * Última Atualização: 2026-01-11
- * Status: ✅ Refatorado para usar helpers compartilhados
+ * Status: ✅ DLQ integrada para zero perda de webhooks
  * ============================================================================
  */
 
@@ -17,12 +17,13 @@ import {
   createErrorResponse, 
   createLogger,
   mapPushinPayStatus,
+  saveToDeadLetterQueue,
   CORS_HEADERS,
   ERROR_CODES
 } from '../_shared/webhook-helpers.ts';
 import { processPostPaymentActions } from '../_shared/webhook-post-payment.ts';
 
-const FUNCTION_VERSION = "4";
+const FUNCTION_VERSION = "5";
 const logger = createLogger('pushinpay-webhook', FUNCTION_VERSION);
 
 interface PushinPayWebhookBody {
@@ -37,6 +38,14 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS });
   }
+
+  // Inicializar Supabase fora do try para uso no DLQ
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  let body: PushinPayWebhookBody | null = null;
+  let order: Record<string, unknown> | null = null;
 
   try {
     logger.info('========== WEBHOOK RECEBIDO ==========');
@@ -58,7 +67,6 @@ serve(async (req) => {
     logger.info('✅ Token validado');
 
     // Parse Request
-    let body: PushinPayWebhookBody;
     const contentType = req.headers.get('content-type') || '';
     
     if (contentType.includes('application/x-www-form-urlencoded')) {
@@ -75,9 +83,9 @@ serve(async (req) => {
       body = await req.json();
     }
 
-    logger.info('Payload recebido', { id: body.id, status: body.status });
+    logger.info('Payload recebido', { id: body?.id, status: body?.status });
 
-    if (!body.id) {
+    if (!body?.id) {
       return createErrorResponse(ERROR_CODES.PAYMENT_ID_MISSING, 'Missing payment ID', 400);
     }
 
@@ -85,24 +93,21 @@ serve(async (req) => {
     const paymentId = body.id.toLowerCase();
     logger.info('ID normalizado', { original: body.id, normalizado: paymentId });
 
-    // Initialize Supabase
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
     // Find Order
-    const { data: order, error: orderError } = await supabase
+    const { data: orderData, error: orderError } = await supabase
       .from('orders')
       .select('*')
       .eq('pix_id', paymentId)
       .single();
 
-    if (orderError || !order) {
+    if (orderError || !orderData) {
       logger.error('Pedido não encontrado', { pix_id: paymentId });
       return createErrorResponse(ERROR_CODES.ORDER_NOT_FOUND, 'Order not found', 404);
     }
 
-    logger.info('✅ Pedido encontrado', { order_id: order.id, status_atual: order.status });
+    order = orderData;
+    const currentOrder = orderData;
+    logger.info('✅ Pedido encontrado', { order_id: currentOrder.id, status_atual: currentOrder.status });
 
     // Ignore 'created' events
     if (body.status === 'created') {
@@ -111,7 +116,7 @@ serve(async (req) => {
     }
 
     // Avoid reprocessing
-    if (body.status === 'paid' && order.status?.toUpperCase() === 'PAID') {
+    if (body.status === 'paid' && (currentOrder.status as string)?.toUpperCase() === 'PAID') {
       logger.warn('Pedido já está PAID - ignorando duplicata');
       return createSuccessResponse({ message: 'Already processed' });
     }
@@ -124,7 +129,7 @@ serve(async (req) => {
       return createSuccessResponse({ message: `Unknown status: ${body.status}` });
     }
 
-    logger.info('Atualizando pedido', { old_status: order.status, new_status: orderStatus });
+    logger.info('Atualizando pedido', { old_status: currentOrder.status, new_status: orderStatus });
 
     // Update Order
     const updateData: Record<string, unknown> = {
@@ -137,20 +142,30 @@ serve(async (req) => {
       updateData.paid_at = new Date().toISOString();
     }
 
-    if (body.payer_name && !order.customer_name) {
+    if (body.payer_name && !currentOrder.customer_name) {
       updateData.customer_name = body.payer_name;
     }
-    if (body.payer_national_registration && !order.customer_document) {
+    if (body.payer_national_registration && !currentOrder.customer_document) {
       updateData.customer_document = body.payer_national_registration;
     }
 
     const { error: updateError } = await supabase
       .from('orders')
       .update(updateData)
-      .eq('id', order.id);
+      .eq('id', currentOrder.id);
 
     if (updateError) {
       logger.error('Erro ao atualizar pedido', updateError);
+      
+      await saveToDeadLetterQueue(supabase, {
+        gateway: 'pushinpay',
+        eventType: body.status,
+        payload: body,
+        errorCode: ERROR_CODES.UPDATE_ERROR,
+        errorMessage: updateError.message,
+        orderId: currentOrder.id as string
+      });
+      
       return createErrorResponse(ERROR_CODES.UPDATE_ERROR, 'Failed to update order', 500);
     }
 
@@ -159,10 +174,10 @@ serve(async (req) => {
     // Security Log
     if (orderStatus === 'PAID') {
       await logSecurityEvent(supabase, {
-        userId: order.vendor_id,
+        userId: currentOrder.vendor_id as string,
         action: SecurityAction.PROCESS_PAYMENT,
         resource: "orders",
-        resourceId: order.id,
+        resourceId: currentOrder.id as string,
         success: true,
         metadata: { gateway: "pushinpay", payment_status: body.status, pix_id: paymentId }
       });
@@ -171,23 +186,23 @@ serve(async (req) => {
     // Post-Payment Actions
     if (orderStatus === 'PAID') {
       await processPostPaymentActions(supabase, {
-        orderId: order.id,
-        customerEmail: order.customer_email,
-        customerName: order.customer_name || body.payer_name || null,
-        productId: order.product_id,
-        productName: order.product_name,
-        amountCents: order.amount_cents,
-        offerId: order.offer_id,
+        orderId: currentOrder.id as string,
+        customerEmail: currentOrder.customer_email as string,
+        customerName: (currentOrder.customer_name as string) || body.payer_name || null,
+        productId: currentOrder.product_id as string,
+        productName: currentOrder.product_name as string,
+        amountCents: currentOrder.amount_cents as number,
+        offerId: currentOrder.offer_id as string,
         paymentMethod: 'PIX / PushinPay',
-        vendorId: order.vendor_id,
+        vendorId: currentOrder.vendor_id as string,
       }, eventType, logger);
     }
 
     // Log Event
     try {
       await supabase.from('order_events').insert({
-        order_id: order.id,
-        vendor_id: order.vendor_id,
+        order_id: currentOrder.id,
+        vendor_id: currentOrder.vendor_id,
         type: `pushinpay_${body.status}`,
         occurred_at: new Date().toISOString(),
         data: { status: body.status, payer_name: body.payer_name, version: FUNCTION_VERSION },
@@ -199,13 +214,26 @@ serve(async (req) => {
     logger.info('========== WEBHOOK PROCESSADO ==========');
 
     return createSuccessResponse({
-      order_id: order.id,
+      order_id: currentOrder.id,
       new_status: orderStatus,
     });
 
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Internal server error';
     logger.error('Erro geral', error);
+
+    // 🆕 Salvar na DLQ para erros críticos não tratados
+    if (supabase && body) {
+      await saveToDeadLetterQueue(supabase, {
+        gateway: 'pushinpay',
+        eventType: body?.status || 'unknown',
+        payload: body,
+        errorCode: ERROR_CODES.INTERNAL_ERROR,
+        errorMessage: msg,
+        orderId: order?.id as string | undefined
+      });
+    }
+
     return createErrorResponse(ERROR_CODES.INTERNAL_ERROR, msg, 500);
   }
 });

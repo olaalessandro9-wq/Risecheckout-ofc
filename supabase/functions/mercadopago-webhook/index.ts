@@ -3,9 +3,9 @@
  * MERCADOPAGO-WEBHOOK EDGE FUNCTION
  * ============================================================================
  * 
- * Versão: 146 (REFATORADO)
+ * Versão: 147 (+ Dead Letter Queue)
  * Última Atualização: 2026-01-11
- * Status: ✅ Refatorado para usar helpers compartilhados
+ * Status: ✅ DLQ integrada para zero perda de webhooks
  * ============================================================================
  */
 
@@ -19,13 +19,14 @@ import {
   createErrorResponse, 
   createLogger,
   mapMercadoPagoStatus,
+  saveToDeadLetterQueue,
   CORS_HEADERS,
   ERROR_CODES
 } from '../_shared/webhook-helpers.ts';
 import { validateMercadoPagoSignature } from '../_shared/mercadopago-signature.ts';
 import { processPostPaymentActions } from '../_shared/webhook-post-payment.ts';
 
-const FUNCTION_VERSION = "146";
+const FUNCTION_VERSION = "147";
 const logger = createLogger('mercadopago-webhook', FUNCTION_VERSION);
 
 interface WebhookBody {
@@ -37,6 +38,14 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS });
   }
+
+  // Inicializar Supabase fora do try para uso no DLQ
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+
+  let body: WebhookBody | null = null;
+  let order: Record<string, unknown> | null = null;
 
   try {
     logger.info(`🚀 Webhook recebido - Versão ${FUNCTION_VERSION}`);
@@ -54,16 +63,11 @@ serve(async (req) => {
       return rateLimitResponse;
     }
 
-    // Initialize Supabase
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    if (!supabaseUrl || !supabaseKey) {
+    if (!supabase) {
       throw new Error('Variáveis de ambiente não configuradas');
     }
-    const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Parse Webhook Body
-    let body: WebhookBody;
     try {
       body = await req.json();
       logger.info('Webhook payload', body);
@@ -71,8 +75,8 @@ serve(async (req) => {
       return createErrorResponse(ERROR_CODES.INTERNAL_ERROR, 'Corpo inválido', 400);
     }
 
-    if (body.type !== 'payment') {
-      logger.info('Tipo de notificação ignorado', { type: body.type });
+    if (body?.type !== 'payment') {
+      logger.info('Tipo de notificação ignorado', { type: body?.type });
       return createSuccessResponse({ message: 'Tipo ignorado' });
     }
 
@@ -89,23 +93,26 @@ serve(async (req) => {
     }
 
     // Find Order
-    const { data: order, error: orderError } = await supabase
+    const { data: orderData, error: orderError } = await supabase
       .from('orders')
       .select('*')
       .eq('gateway_payment_id', paymentId.toString())
       .maybeSingle();
 
-    if (orderError || !order) {
+    if (orderError || !orderData) {
       logger.warn('Pedido não encontrado', { paymentId });
       return createSuccessResponse({ message: 'Pedido não encontrado' });
     }
 
-    logger.info('Pedido encontrado', { orderId: order.id });
+    // Atribuir para uso fora do try (DLQ) e garantir tipo não-nulo
+    order = orderData;
+    const currentOrder = orderData;
+    logger.info('Pedido encontrado', { orderId: currentOrder.id });
 
     // Get Credentials
     let accessToken: string | undefined;
     try {
-      const credentialsResult = await getGatewayCredentials(supabase, order.vendor_id, 'mercadopago');
+      const credentialsResult = await getGatewayCredentials(supabase, currentOrder.vendor_id as string, 'mercadopago');
       const validation = validateCredentials('mercadopago', credentialsResult.credentials);
       if (!validation.valid) {
         return createSuccessResponse({ message: 'Credenciais incompletas' });
@@ -139,9 +146,9 @@ serve(async (req) => {
     const { orderStatus, eventType } = mapMercadoPagoStatus(payment.status);
 
     // Deduplication
-    if (order.status === orderStatus) {
+    if (currentOrder.status === orderStatus) {
       logger.info('Webhook duplicado ignorado');
-      return createSuccessResponse({ message: 'Duplicado', orderId: order.id });
+      return createSuccessResponse({ message: 'Duplicado', orderId: currentOrder.id });
     }
 
     // Update Order
@@ -156,22 +163,32 @@ serve(async (req) => {
     const { error: updateError } = await supabase
       .from('orders')
       .update(updateData)
-      .eq('id', order.id);
+      .eq('id', currentOrder.id);
 
     if (updateError) {
       logger.error('Erro ao atualizar pedido', updateError);
+      
+      await saveToDeadLetterQueue(supabase, {
+        gateway: 'mercadopago',
+        eventType: body?.type || 'payment',
+        payload: body,
+        errorCode: ERROR_CODES.UPDATE_ERROR,
+        errorMessage: updateError.message,
+        orderId: currentOrder.id as string
+      });
+      
       return createErrorResponse(ERROR_CODES.UPDATE_ERROR, 'Erro ao atualizar', 500);
     }
 
-    logger.info('✅ Pedido atualizado', { orderId: order.id, status: orderStatus });
+    logger.info('✅ Pedido atualizado', { orderId: currentOrder.id, status: orderStatus });
 
     // Security Log
     if (orderStatus === 'PAID') {
       await logSecurityEvent(supabase, {
-        userId: order.vendor_id,
+        userId: currentOrder.vendor_id as string,
         action: SecurityAction.PROCESS_PAYMENT,
         resource: "orders",
-        resourceId: order.id,
+        resourceId: currentOrder.id as string,
         success: true,
         metadata: { gateway: "mercadopago", payment_status: payment.status }
       });
@@ -180,20 +197,20 @@ serve(async (req) => {
     // Post-Payment Actions
     if (orderStatus === 'PAID') {
       await processPostPaymentActions(supabase, {
-        orderId: order.id,
-        customerEmail: order.customer_email,
-        customerName: order.customer_name,
-        productId: order.product_id,
-        productName: order.product_name,
-        amountCents: order.amount_cents,
-        offerId: order.offer_id,
+        orderId: currentOrder.id as string,
+        customerEmail: currentOrder.customer_email as string,
+        customerName: currentOrder.customer_name as string,
+        productId: currentOrder.product_id as string,
+        productName: currentOrder.product_name as string,
+        amountCents: currentOrder.amount_cents as number,
+        offerId: currentOrder.offer_id as string,
         paymentMethod: 'PIX / Mercado Pago',
-        vendorId: order.vendor_id,
+        vendorId: currentOrder.vendor_id as string,
       }, eventType, logger);
     }
 
     return createSuccessResponse({
-      orderId: order.id,
+      orderId: currentOrder.id,
       status: orderStatus,
       version: FUNCTION_VERSION
     });
@@ -201,6 +218,19 @@ serve(async (req) => {
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Erro';
     logger.error('Erro fatal', { message: msg });
+
+    // 🆕 Salvar na DLQ para erros críticos não tratados
+    if (supabase && body) {
+      await saveToDeadLetterQueue(supabase, {
+        gateway: 'mercadopago',
+        eventType: body?.type || 'unknown',
+        payload: body,
+        errorCode: ERROR_CODES.INTERNAL_ERROR,
+        errorMessage: msg,
+        orderId: order?.id as string | undefined
+      });
+    }
+
     return createErrorResponse(ERROR_CODES.INTERNAL_ERROR, 'Erro interno', 500);
   }
 });

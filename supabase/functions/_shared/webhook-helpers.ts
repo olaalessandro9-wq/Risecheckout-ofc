@@ -6,10 +6,12 @@
  * Funções utilitárias usadas por múltiplos webhooks de gateway.
  * Centraliza lógica comum para evitar duplicação de código.
  * 
- * Versão: 1.0
+ * Versão: 2.0 (+ Dead Letter Queue)
  * Data de Criação: 2026-01-11
  * ============================================================================
  */
+
+import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // ============================================================================
 // TYPES
@@ -23,6 +25,18 @@ export interface StatusMapping {
 export interface SignatureValidationResult {
   valid: boolean;
   error?: string;
+}
+
+export type GatewayType = 'mercadopago' | 'pushinpay' | 'asaas' | 'stripe';
+
+export interface DLQPayload {
+  gateway: GatewayType;
+  eventType: string;
+  payload: unknown;
+  headers?: Record<string, string>;
+  errorCode: string;
+  errorMessage: string;
+  orderId?: string;
 }
 
 // ============================================================================
@@ -48,9 +62,69 @@ export const ERROR_CODES = {
   SIGNATURE_MISMATCH: 'SIGNATURE_MISMATCH',
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   UNAUTHORIZED: 'UNAUTHORIZED',
+  CIRCUIT_OPEN: 'CIRCUIT_OPEN',
 };
 
 export const SIGNATURE_MAX_AGE = 300; // 5 minutos
+
+// ============================================================================
+// DEAD LETTER QUEUE
+// ============================================================================
+
+/**
+ * Salva um webhook falhado na Dead Letter Queue para reprocessamento
+ * 
+ * @param supabase - Cliente Supabase
+ * @param data - Dados do webhook falhado
+ */
+export async function saveToDeadLetterQueue(
+  supabase: SupabaseClient,
+  data: DLQPayload
+): Promise<void> {
+  try {
+    // Mascarar headers sensíveis
+    const maskedHeaders = data.headers ? maskSensitiveHeaders(data.headers) : null;
+
+    const { error } = await supabase.from('gateway_webhook_dlq').insert({
+      gateway: data.gateway,
+      event_type: data.eventType,
+      payload: data.payload,
+      headers: maskedHeaders,
+      error_code: data.errorCode,
+      error_message: data.errorMessage.substring(0, 1000), // Limitar tamanho
+      order_id: data.orderId || null,
+      status: 'pending'
+    });
+
+    if (error) {
+      console.error('[DLQ] Erro ao salvar na DLQ:', error);
+    } else {
+      console.log(`[DLQ] Webhook salvo na DLQ: ${data.gateway}/${data.eventType}`);
+    }
+  } catch (dlqError) {
+    // Log mas não falha - DLQ é best-effort
+    console.error('[DLQ] Exception ao salvar na DLQ:', dlqError);
+  }
+}
+
+/**
+ * Mascara headers sensíveis para armazenamento seguro
+ */
+function maskSensitiveHeaders(headers: Record<string, string>): Record<string, string> {
+  const sensitiveKeys = ['authorization', 'x-pushinpay-token', 'asaas-access-token', 'stripe-signature'];
+  const masked: Record<string, string> = {};
+
+  for (const [key, value] of Object.entries(headers)) {
+    const lowerKey = key.toLowerCase();
+    if (sensitiveKeys.includes(lowerKey)) {
+      masked[key] = value.length > 8 ? `${value.substring(0, 4)}...${value.substring(value.length - 4)}` : '***';
+    } else {
+      masked[key] = value;
+    }
+  }
+
+  return masked;
+}
 
 // ============================================================================
 // CRYPTO HELPERS
