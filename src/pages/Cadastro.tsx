@@ -18,7 +18,8 @@ import {
   ShoppingBag, 
   Package,
   CheckSquare,
-  ArrowLeft
+  ArrowLeft,
+  Users
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -30,6 +31,7 @@ export default function Cadastro() {
   const { register, isAuthenticated, isLoading: authLoading } = useProducerAuth();
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState<ViewType>("choose-profile");
+  const [registrationSource, setRegistrationSource] = useState<"producer" | "affiliate">("producer");
 
   // Check URL param for direct access to producer form
   useEffect(() => {
@@ -58,6 +60,12 @@ export default function Cadastro() {
   };
 
   const handleProducerChoice = () => {
+    setRegistrationSource("producer");
+    setView("producer-form");
+  };
+
+  const handleAffiliateChoice = () => {
+    setRegistrationSource("affiliate");
     setView("producer-form");
   };
 
@@ -84,6 +92,7 @@ export default function Cadastro() {
         name: nameField.value,
         phone: phoneField.getRawValue() || undefined,
         cpfCnpj: cpfCnpjField.getRawValue(),
+        registrationSource,
       });
 
       if (!result.success) {
@@ -245,6 +254,24 @@ export default function Cadastro() {
               <h3 className="font-semibold text-white text-lg">Sou produtor</h3>
               <p className="text-sm text-slate-400">
                 Tenho meu próprio produto digital e quero vender pela plataforma.
+              </p>
+            </div>
+          </div>
+        </button>
+
+        {/* Option: Affiliate */}
+        <button
+          onClick={handleAffiliateChoice}
+          className="w-full p-6 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-emerald-500/50 transition-all duration-300 text-left group"
+        >
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+              <Users className="w-6 h-6 text-white" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-semibold text-white text-lg">Quero ser afiliado</h3>
+              <p className="text-sm text-slate-400">
+                Quero promover produtos de outros produtores e ganhar comissões.
               </p>
             </div>
           </div>

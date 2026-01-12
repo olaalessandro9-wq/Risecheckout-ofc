@@ -98,6 +98,11 @@ serve(async (req) => {
       const name = sanitizeName(rawBody.name);
       const phone = sanitizePhone(rawBody.phone);
       const cpfCnpj = rawBody.cpf_cnpj;
+      const registrationSource = rawBody.registration_source || "producer";
+      
+      // Validate registration source
+      const validSources = ["producer", "affiliate"];
+      const finalSource = validSources.includes(registrationSource) ? registrationSource : "producer";
 
       if (!email || !password) {
         return errorResponse("Email e senha são obrigatórios", corsHeaders, 400);
@@ -161,13 +166,14 @@ serve(async (req) => {
         return errorResponse(signupError.message || "Erro ao criar conta", corsHeaders, 400);
       }
 
-      // Update profile with password hash
+      // Update profile with password hash and registration source
       const passwordHash = hashPassword(password);
       await supabase.from("profiles").update({
         email: email.toLowerCase(),
         password_hash: passwordHash,
         password_hash_version: CURRENT_HASH_VERSION,
         name: name || null,
+        registration_source: finalSource,
       }).eq("id", authData.user.id);
 
       // Create vendor_profiles if cpf_cnpj provided

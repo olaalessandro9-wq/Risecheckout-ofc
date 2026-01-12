@@ -57,6 +57,7 @@ interface UserWithRole {
   total_gmv: number;
   total_fees: number;
   orders_count: number;
+  registration_source?: string;
 }
 
 type SortField = "name" | "gmv" | "orders";
@@ -81,6 +82,18 @@ const ROLE_COLORS: Record<AppRole, string> = {
   admin: "bg-blue-500/10 text-blue-500 border-blue-500/20",
   user: "bg-green-500/10 text-green-500 border-green-500/20",
   seller: "bg-purple-500/10 text-purple-500 border-purple-500/20",
+};
+
+const SOURCE_LABELS: Record<string, string> = {
+  producer: "Produtor",
+  affiliate: "Afiliado",
+  buyer: "Comprador",
+};
+
+const SOURCE_COLORS: Record<string, string> = {
+  producer: "bg-purple-500/10 text-purple-500 border-purple-500/20",
+  affiliate: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+  buyer: "bg-blue-500/10 text-blue-500 border-blue-500/20",
 };
 
 export function AdminUsersTab() {
@@ -136,7 +149,7 @@ export function AdminUsersTab() {
       // Buscar profiles
       const { data: profilesData, error: profilesError } = await supabase
         .from("profiles")
-        .select("id, name");
+        .select("id, name, registration_source");
 
       if (profilesError) throw profilesError;
 
@@ -172,6 +185,7 @@ export function AdminUsersTab() {
           total_gmv: metrics.gmv,
           total_fees: metrics.fees,
           orders_count: metrics.count,
+          registration_source: profile?.registration_source || "producer",
         };
       });
 
@@ -364,6 +378,7 @@ export function AdminUsersTab() {
                   </Button>
                 </TableHead>
                 {isOwner && <TableHead>Email</TableHead>}
+                {isOwner && <TableHead>Origem</TableHead>}
                 <TableHead>Role</TableHead>
                 <TableHead>
                   <Button
@@ -395,13 +410,13 @@ export function AdminUsersTab() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={isOwner ? 8 : 6} className="text-center py-8">
+                  <TableCell colSpan={isOwner ? 9 : 6} className="text-center py-8">
                     Carregando...
                   </TableCell>
                 </TableRow>
               ) : filteredUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={isOwner ? 8 : 6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={isOwner ? 9 : 6} className="text-center py-8 text-muted-foreground">
                     Nenhum usuário encontrado
                   </TableCell>
                 </TableRow>
@@ -426,6 +441,13 @@ export function AdminUsersTab() {
                           <span className="text-sm text-muted-foreground">
                             {user.email || "-"}
                           </span>
+                        </TableCell>
+                      )}
+                      {isOwner && (
+                        <TableCell>
+                          <Badge variant="outline" className={SOURCE_COLORS[user.registration_source || "producer"]}>
+                            {SOURCE_LABELS[user.registration_source || "producer"]}
+                          </Badge>
                         </TableCell>
                       )}
                       <TableCell>

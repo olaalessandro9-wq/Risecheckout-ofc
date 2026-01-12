@@ -61,6 +61,7 @@ interface RegisterData {
   name: string;
   phone?: string;
   cpfCnpj?: string;
+  registrationSource?: "producer" | "affiliate";
 }
 
 
@@ -122,6 +123,7 @@ export function useProducerAuth(): UseProducerAuthReturn {
           name: data.name,
           phone: data.phone,
           cpfCnpj: data.cpfCnpj,
+          registration_source: data.registrationSource || "producer",
         }),
       });
 
