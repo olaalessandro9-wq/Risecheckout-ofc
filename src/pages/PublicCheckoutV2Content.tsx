@@ -16,6 +16,7 @@ import { usePaymentOrchestrator } from "@/hooks/checkout/payment/usePaymentOrche
 import { useTrackingService } from "@/hooks/checkout/useTrackingService";
 import { useAffiliateTracking } from "@/hooks/useAffiliateTracking";
 import { useTurnstileVerification } from "@/hooks/checkout/useTurnstileVerification";
+import { useCheckoutProductPixels } from "@/hooks/checkout/useCheckoutProductPixels";
 import { getSubmitSnapshot, requiredFieldsToArray, parseRequiredFields } from "@/features/checkout/personal-data";
 import * as Facebook from "@/integrations/tracking/facebook";
 import * as UTMify from "@/integrations/tracking/utmify";
@@ -35,14 +36,16 @@ interface ContentProps {
 
 export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, design, orderBumps }) => {
   const checkoutId = checkout.id;
-  // vendorId é o user_id do produto - usado para buscar configurações de tracking
   const vendorId = (checkout as any).vendorId as string | undefined;
+
+  // NEW: Fetch product pixels from product_pixels table
+  const { pixels: productPixels } = useCheckoutProductPixels(checkout.product.id);
 
   // Affiliate Tracking
   const affiliateSettings = checkout.product.affiliate_settings as { cookieDuration?: number; attributionModel?: 'last_click' | 'first_click' | 'linear' } | undefined;
   useAffiliateTracking({ cookieDuration: affiliateSettings?.cookieDuration || 30, attributionModel: affiliateSettings?.attributionModel || 'last_click', enabled: true });
 
-  // Tracking Configs - Usa vendorId para buscar configurações do vendedor
+  // Legacy Tracking Configs (fallback if no product_pixels)
   const { data: fbConfig } = Facebook.useFacebookConfig(vendorId);
   const { data: utmifyConfig } = UTMify.useUTMifyConfig(vendorId);
   const { data: googleAdsIntegration } = GoogleAds.useGoogleAdsConfig(vendorId);
@@ -70,7 +73,7 @@ export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, desi
   // Turnstile
   const { token: turnstileToken, onTokenReceived: handleTurnstileVerify, onWidgetError: handleTurnstileError, onTokenExpired: handleTurnstileExpire, verifyToken: verifyTurnstileToken } = useTurnstileVerification();
 
-  // Tracking Service - Usa vendorId correto para tracking server-side
+  // Tracking Service
   const { fireInitiateCheckout } = useTrackingService({
     vendorId: vendorId || null, productId: checkout.product.id, productName: checkout.product.name,
     trackingConfig: { fbConfig, utmifyConfig, googleAdsIntegration, tiktokIntegration, kwaiIntegration },
@@ -118,7 +121,15 @@ export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, desi
 
   return (
     <CheckoutProvider value={{ checkout: checkout as any, design, orderBumps, vendorId: vendorId || null }}>
-      <TrackingManager productId={checkout.product.id} fbConfig={fbConfig} utmifyConfig={utmifyConfig} googleAdsIntegration={googleAdsIntegration} tiktokIntegration={tiktokIntegration} kwaiIntegration={kwaiIntegration} />
+      <TrackingManager 
+        productId={checkout.product.id} 
+        productPixels={productPixels}
+        fbConfig={fbConfig} 
+        utmifyConfig={utmifyConfig} 
+        googleAdsIntegration={googleAdsIntegration} 
+        tiktokIntegration={tiktokIntegration} 
+        kwaiIntegration={kwaiIntegration} 
+      />
       <CheckoutMasterLayout mode="public" design={design} customization={customization as any} viewMode="public">
         <SharedCheckoutLayout productData={productData} orderBumps={orderBumps} design={design} selectedPayment={selectedPayment} onPaymentChange={setSelectedPayment}
           selectedBumps={selectedBumps} onToggleBump={toggleBump} mode="public" formData={formData} formErrors={formErrors} onFieldChange={updateField}

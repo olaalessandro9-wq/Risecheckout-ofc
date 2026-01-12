@@ -4,8 +4,7 @@
  * Responsabilidade Única: Renderizar todos os scripts de tracking (pixels)
  * de forma centralizada e isolada.
  * 
- * Este é um componente "invisível" que não renderiza nada visível na UI,
- * apenas injeta os scripts de tracking no DOM.
+ * ATUALIZADO: Agora suporta pixels vinculados ao produto via product_pixels.
  */
 
 import React from "react";
@@ -14,6 +13,7 @@ import * as UTMify from "@/integrations/tracking/utmify";
 import * as GoogleAds from "@/integrations/tracking/google-ads";
 import * as TikTok from "@/integrations/tracking/tiktok";
 import * as Kwai from "@/integrations/tracking/kwai";
+import type { CheckoutPixel } from "@/hooks/checkout/useCheckoutProductPixels";
 
 // ============================================================================
 // INTERFACE
@@ -21,11 +21,14 @@ import * as Kwai from "@/integrations/tracking/kwai";
 
 interface TrackingManagerProps {
   productId: string | null;
+  // Legacy configs (deprecated - para retrocompatibilidade)
   fbConfig?: any;
   utmifyConfig?: any;
   googleAdsIntegration?: any;
   tiktokIntegration?: any;
   kwaiIntegration?: any;
+  // New: Pixels vinculados ao produto
+  productPixels?: CheckoutPixel[];
 }
 
 // ============================================================================
@@ -35,23 +38,11 @@ interface TrackingManagerProps {
 /**
  * Gerenciador de scripts de tracking.
  * 
- * Renderiza os pixels de tracking apenas se estiverem configurados
- * e ativos para o produto atual.
- * 
- * ✅ SEGURANÇA: vendorId não é mais exposto ao cliente.
- * O backend resolve o vendor internamente quando necessário.
+ * Renderiza os pixels de tracking de duas formas:
+ * 1. Legacy: via vendor_integrations (deprecated)
+ * 2. New: via product_pixels (recomendado)
  * 
  * @param props - Configurações de tracking
- * 
- * @example
- * <TrackingManager
- *   productId="product-456"
- *   fbConfig={fbConfig}
- *   googleAdsIntegration={googleAdsIntegration}
- *   tiktokIntegration={tiktokIntegration}
- *   kwaiIntegration={kwaiIntegration}
- *   utmifyConfig={utmifyConfig}
- * />
  */
 export const TrackingManager: React.FC<TrackingManagerProps> = ({
   productId,
@@ -60,30 +51,109 @@ export const TrackingManager: React.FC<TrackingManagerProps> = ({
   googleAdsIntegration,
   tiktokIntegration,
   kwaiIntegration,
+  productPixels = [],
 }) => {
+  // Separar pixels por plataforma
+  const facebookPixels = productPixels.filter(p => p.platform === 'facebook' && p.is_active);
+  const tiktokPixels = productPixels.filter(p => p.platform === 'tiktok' && p.is_active);
+  const googleAdsPixels = productPixels.filter(p => p.platform === 'google_ads' && p.is_active);
+  const kwaiPixels = productPixels.filter(p => p.platform === 'kwai' && p.is_active);
+
+  // Flag para saber se usamos o novo sistema
+  const hasProductPixels = productPixels.length > 0;
+
   return (
     <>
-      {/* Facebook Pixel */}
-      {Facebook.shouldRunPixel(fbConfig, productId) && <Facebook.Pixel config={fbConfig.config} />}
+      {/* ============ NOVO SISTEMA: product_pixels ============ */}
+      
+      {/* Facebook Pixels (novo) */}
+      {facebookPixels.map((pixel) => (
+        <Facebook.Pixel 
+          key={`fb-product-${pixel.id}`}
+          config={{ 
+            pixel_id: pixel.pixel_id,
+            enabled: true,
+          }} 
+        />
+      ))}
 
-      {/* UTMify */}
+      {/* TikTok Pixels (novo) */}
+      {tiktokPixels.map((pixel) => (
+        <TikTok.Pixel 
+          key={`tt-product-${pixel.id}`}
+          config={{ 
+            id: pixel.id,
+            vendor_id: '',
+            active: true,
+            config: {
+              pixel_id: pixel.pixel_id,
+              enabled: true,
+            }
+          }} 
+        />
+      ))}
+
+      {/* Google Ads Pixels (novo) */}
+      {googleAdsPixels.map((pixel) => (
+        <GoogleAds.Tracker 
+          key={`gads-product-${pixel.id}`}
+          integration={{ 
+            id: pixel.id,
+            vendor_id: '',
+            active: true,
+            config: { 
+              conversion_id: pixel.pixel_id,
+              conversion_label: pixel.conversion_label || undefined,
+              enabled: true,
+            }
+          }} 
+        />
+      ))}
+
+      {/* Kwai Pixels (novo) */}
+      {kwaiPixels.map((pixel) => (
+        <Kwai.Pixel 
+          key={`kwai-product-${pixel.id}`}
+          config={{ 
+            id: pixel.id,
+            vendor_id: '',
+            active: true,
+            config: {
+              pixel_id: pixel.pixel_id,
+              enabled: true,
+            }
+          }} 
+        />
+      ))}
+
+      {/* ============ LEGACY: vendor_integrations (fallback) ============ */}
+      {/* Só renderiza legacy se NÃO houver product_pixels configurados */}
+      
+      {!hasProductPixels && (
+        <>
+          {/* Facebook Pixel (legacy) */}
+          {Facebook.shouldRunPixel(fbConfig, productId) && <Facebook.Pixel config={fbConfig.config} />}
+
+          {/* TikTok Pixel (legacy) */}
+          {TikTok.shouldRunTikTok(tiktokIntegration, productId) && (
+            <TikTok.Pixel config={tiktokIntegration.config} />
+          )}
+
+          {/* Google Ads (legacy) */}
+          {GoogleAds.shouldRunGoogleAds(googleAdsIntegration, productId) && (
+            <GoogleAds.Tracker integration={googleAdsIntegration} />
+          )}
+
+          {/* Kwai Pixel (legacy) */}
+          {Kwai.shouldRunKwai(kwaiIntegration, productId) && (
+            <Kwai.Pixel config={kwaiIntegration.config} />
+          )}
+        </>
+      )}
+
+      {/* UTMify sempre roda via legacy (não tem product_pixels) */}
       {UTMify.shouldRunUTMify(utmifyConfig, productId) && (
         <UTMify.Tracker integration={utmifyConfig} />
-      )}
-
-      {/* Google Ads */}
-      {GoogleAds.shouldRunGoogleAds(googleAdsIntegration, productId) && (
-        <GoogleAds.Tracker integration={googleAdsIntegration} />
-      )}
-
-      {/* TikTok Pixel */}
-      {TikTok.shouldRunTikTok(tiktokIntegration, productId) && (
-        <TikTok.Pixel config={tiktokIntegration.config} />
-      )}
-
-      {/* Kwai Pixel */}
-      {Kwai.shouldRunKwai(kwaiIntegration, productId) && (
-        <Kwai.Pixel config={kwaiIntegration.config} />
       )}
     </>
   );
