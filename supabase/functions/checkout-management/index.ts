@@ -977,6 +977,56 @@ serve(withSentry("checkout-management", async (req) => {
     }
 
     // ============================================
+    // TOGGLE PAYMENT LINK STATUS
+    // ============================================
+    if (!isOrderBump && action === "toggle-link-status" && (req.method === "PUT" || req.method === "POST")) {
+      const { linkId } = body;
+
+      if (!linkId || typeof linkId !== "string") {
+        return errorResponse("ID do link é obrigatório", corsHeaders, 400);
+      }
+
+      // Get link with ownership chain: payment_links → offers → products
+      const { data: link, error: linkError } = await supabase
+        .from("payment_links")
+        .select(`
+          id, 
+          status,
+          offers!inner(
+            id,
+            products!inner(user_id)
+          )
+        `)
+        .eq("id", linkId)
+        .single();
+
+      if (linkError || !link) {
+        return errorResponse("Link não encontrado", corsHeaders, 404);
+      }
+
+      const offer = link.offers as any;
+      if (offer?.products?.user_id !== producerId) {
+        return errorResponse("Você não tem permissão para editar este link", corsHeaders, 403);
+      }
+
+      // Toggle status
+      const newStatus = link.status === "active" ? "inactive" : "active";
+
+      const { error: updateError } = await supabase
+        .from("payment_links")
+        .update({ status: newStatus })
+        .eq("id", linkId);
+
+      if (updateError) {
+        console.error("[checkout-management] Toggle link status error:", updateError);
+        return errorResponse("Erro ao atualizar status do link", corsHeaders, 500);
+      }
+
+      console.log(`[checkout-management] Link ${linkId} toggled to ${newStatus} by ${producerId}`);
+      return jsonResponse({ success: true, newStatus }, corsHeaders);
+    }
+
+    // ============================================
     // UNKNOWN ACTION
     // ============================================
     return errorResponse(`Ação desconhecida: ${action}`, corsHeaders, 404);

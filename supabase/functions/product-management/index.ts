@@ -515,6 +515,228 @@ serve(withSentry("product-management", async (req) => {
       return jsonResponse({ success: true, deletedId: productId }, corsHeaders);
     }
 
+    // ============================================
+    // UPDATE SETTINGS
+    // ============================================
+    if (action === "update-settings" && (req.method === "PUT" || req.method === "POST")) {
+      const rateCheck = await checkProductRateLimit(supabase, producerId, "product_settings");
+      if (!rateCheck.allowed) {
+        return jsonResponse(
+          { success: false, error: "Muitas requisições. Tente novamente em alguns minutos.", retryAfter: rateCheck.retryAfter },
+          corsHeaders,
+          429
+        );
+      }
+
+      const { productId, settings } = body;
+
+      if (!productId || typeof productId !== "string") {
+        return errorResponse("ID do produto é obrigatório", corsHeaders, 400);
+      }
+
+      // Verify ownership
+      const { data: existingProduct, error: fetchError } = await supabase
+        .from("products")
+        .select("id, user_id")
+        .eq("id", productId)
+        .single();
+
+      if (fetchError || !existingProduct) {
+        return errorResponse("Produto não encontrado", corsHeaders, 404);
+      }
+
+      if (existingProduct.user_id !== producerId) {
+        console.warn(`[product-management] Unauthorized settings update: ${producerId} on product ${productId}`);
+        return errorResponse("Você não tem permissão para editar este produto", corsHeaders, 403);
+      }
+
+      // Build update object from settings
+      const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+
+      // Payment settings
+      if (settings.default_payment_method !== undefined) {
+        updates.default_payment_method = settings.default_payment_method;
+      }
+      if (settings.pix_gateway !== undefined) {
+        updates.pix_gateway = settings.pix_gateway;
+      }
+      if (settings.credit_card_gateway !== undefined) {
+        updates.credit_card_gateway = settings.credit_card_gateway;
+      }
+
+      // Required fields (checkout fields)
+      if (settings.required_fields !== undefined) {
+        updates.required_fields = {
+          name: true,
+          email: true,
+          phone: !!settings.required_fields.phone,
+          cpf: !!settings.required_fields.cpf,
+        };
+      }
+
+      // Upsell settings
+      if (settings.upsell_enabled !== undefined) {
+        updates.upsell_enabled = settings.upsell_enabled;
+      }
+      if (settings.upsell_product_id !== undefined) {
+        updates.upsell_product_id = settings.upsell_product_id || null;
+      }
+      if (settings.upsell_offer_id !== undefined) {
+        updates.upsell_offer_id = settings.upsell_offer_id || null;
+      }
+      if (settings.upsell_title !== undefined) {
+        updates.upsell_title = settings.upsell_title;
+      }
+      if (settings.upsell_description !== undefined) {
+        updates.upsell_description = settings.upsell_description;
+      }
+      if (settings.upsell_button_text !== undefined) {
+        updates.upsell_button_text = settings.upsell_button_text;
+      }
+      if (settings.upsell_decline_text !== undefined) {
+        updates.upsell_decline_text = settings.upsell_decline_text;
+      }
+      if (settings.upsell_timer_enabled !== undefined) {
+        updates.upsell_timer_enabled = settings.upsell_timer_enabled;
+      }
+      if (settings.upsell_timer_minutes !== undefined) {
+        updates.upsell_timer_minutes = settings.upsell_timer_minutes;
+      }
+
+      // Affiliate settings
+      if (settings.affiliate_commission !== undefined) {
+        updates.affiliate_commission = settings.affiliate_commission;
+      }
+      if (settings.marketplace_enabled !== undefined) {
+        updates.marketplace_enabled = settings.marketplace_enabled;
+        if (settings.marketplace_enabled) {
+          updates.marketplace_enabled_at = new Date().toISOString();
+        }
+      }
+      if (settings.marketplace_auto_approve !== undefined) {
+        updates.marketplace_auto_approve = settings.marketplace_auto_approve;
+      }
+
+      const { data: updatedProduct, error: updateError } = await supabase
+        .from("products")
+        .update(updates)
+        .eq("id", productId)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error("[product-management] Settings update error:", updateError);
+        await captureException(new Error(updateError.message), {
+          functionName: "product-management",
+          extra: { action: "update-settings", producerId, productId, settings },
+        });
+        return errorResponse("Erro ao atualizar configurações", corsHeaders, 500);
+      }
+
+      await recordRateLimitAttempt(supabase, producerId, "product_settings");
+
+      console.log(`[product-management] Settings updated for product: ${productId} by ${producerId}`);
+      return jsonResponse({ success: true, product: updatedProduct }, corsHeaders);
+    }
+
+    // ============================================
+    // SMART DELETE (soft/hard based on orders)
+    // ============================================
+    if (action === "smart-delete" && (req.method === "DELETE" || req.method === "POST")) {
+      const productId = body.productId;
+
+      if (!productId || typeof productId !== "string") {
+        return errorResponse("ID do produto é obrigatório", corsHeaders, 400);
+      }
+
+      // Verify ownership
+      const { data: existingProduct, error: fetchError } = await supabase
+        .from("products")
+        .select("id, user_id, name, image_url")
+        .eq("id", productId)
+        .single();
+
+      if (fetchError || !existingProduct) {
+        return errorResponse("Produto não encontrado", corsHeaders, 404);
+      }
+
+      if (existingProduct.user_id !== producerId) {
+        console.warn(`[product-management] Unauthorized smart-delete: ${producerId} on product ${productId}`);
+        return errorResponse("Você não tem permissão para excluir este produto", corsHeaders, 403);
+      }
+
+      // Check if product has orders
+      const { count: orderCount, error: countError } = await supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("product_id", productId);
+
+      if (countError) {
+        console.error("[product-management] Count orders error:", countError);
+        return errorResponse("Erro ao verificar pedidos", corsHeaders, 500);
+      }
+
+      const hasOrders = (orderCount || 0) > 0;
+
+      if (hasOrders) {
+        // SOFT DELETE: Mark as deleted but keep data
+        console.log(`[product-management] Soft deleting product ${productId} (has ${orderCount} orders)`);
+
+        // Update product status
+        const { error: softDeleteError } = await supabase
+          .from("products")
+          .update({ status: "deleted", updated_at: new Date().toISOString() })
+          .eq("id", productId);
+
+        if (softDeleteError) {
+          console.error("[product-management] Soft delete error:", softDeleteError);
+          return errorResponse("Erro ao excluir produto", corsHeaders, 500);
+        }
+
+        // Soft delete checkouts
+        await supabase
+          .from("checkouts")
+          .update({ status: "deleted" })
+          .eq("product_id", productId);
+
+        // Deactivate payment links via offers
+        const { data: offers } = await supabase
+          .from("offers")
+          .select("id")
+          .eq("product_id", productId);
+
+        if (offers && offers.length > 0) {
+          const offerIds = offers.map(o => o.id);
+          await supabase
+            .from("payment_links")
+            .update({ status: "inactive" })
+            .in("offer_id", offerIds);
+        }
+
+        console.log(`[product-management] Soft deleted: ${productId} (${existingProduct.name})`);
+        return jsonResponse({ success: true, type: "soft", deletedId: productId }, corsHeaders);
+      } else {
+        // HARD DELETE: Completely remove
+        console.log(`[product-management] Hard deleting product ${productId} (no orders)`);
+
+        // Delete product (cascade handles related records)
+        const { error: hardDeleteError } = await supabase
+          .from("products")
+          .delete()
+          .eq("id", productId);
+
+        if (hardDeleteError) {
+          console.error("[product-management] Hard delete error:", hardDeleteError);
+          return errorResponse("Erro ao excluir produto", corsHeaders, 500);
+        }
+
+        // TODO: Clean up storage images (would need storage bucket access)
+
+        console.log(`[product-management] Hard deleted: ${productId} (${existingProduct.name})`);
+        return jsonResponse({ success: true, type: "hard", deletedId: productId }, corsHeaders);
+      }
+    }
+
     // Unknown action
     return errorResponse(`Ação desconhecida: ${action}`, corsHeaders, 404);
 
