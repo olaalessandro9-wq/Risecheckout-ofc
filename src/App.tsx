@@ -98,7 +98,10 @@ function RootLayout() {
   const location = useLocation();
   const isCheckoutRoute = location.pathname.startsWith('/pay/');
   
+  // Lazy Tracking: modo 'capture' salva temporariamente em sessionStorage
+  // O checkout faz a persistência final com as configurações do produto
   useAffiliateTracking({ 
+    mode: 'capture',
     enabled: !isCheckoutRoute
   });
 
