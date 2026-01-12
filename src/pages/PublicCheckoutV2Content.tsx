@@ -41,9 +41,14 @@ export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, desi
   // NEW: Fetch product pixels from product_pixels table
   const { pixels: productPixels } = useCheckoutProductPixels(checkout.product.id);
 
-  // Affiliate Tracking
+  // Affiliate Tracking - modo 'persist' para persistência final com configs do produto
   const affiliateSettings = checkout.product.affiliate_settings as { cookieDuration?: number; attributionModel?: 'last_click' | 'first_click' } | undefined;
-  useAffiliateTracking({ cookieDuration: affiliateSettings?.cookieDuration || 30, attributionModel: affiliateSettings?.attributionModel || 'last_click', enabled: true });
+  useAffiliateTracking({ 
+    mode: 'persist',
+    cookieDuration: affiliateSettings?.cookieDuration || 30, 
+    attributionModel: affiliateSettings?.attributionModel || 'last_click', 
+    enabled: true 
+  });
 
   // Legacy Tracking Configs (fallback if no product_pixels)
   const { data: fbConfig } = Facebook.useFacebookConfig(vendorId);
