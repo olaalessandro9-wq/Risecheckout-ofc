@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/api-client";
 import { toast } from "sonner";
 
 import {
@@ -110,14 +111,16 @@ const Afiliados = () => {
     try {
       setActionLoading(affiliationId);
       
-      const { data, error } = await supabase.functions.invoke('manage-affiliation', {
-        body: { affiliation_id: affiliationId, action }
+      // Usar invokeEdgeFunction que inclui X-Producer-Session-Token automaticamente
+      const { data, error } = await invokeEdgeFunction<{ success: boolean; message?: string; error?: string }>('manage-affiliation', {
+        affiliation_id: affiliationId,
+        action
       });
 
-      if (error) throw error;
-      if (!data.success) throw new Error(data.error || "Erro ao processar ação");
+      if (error) throw new Error(error);
+      if (!data?.success) throw new Error(data?.error || "Erro ao processar ação");
 
-      toast.success(data.message);
+      toast.success(data.message || "Ação realizada com sucesso!");
       fetchAffiliates();
     } catch (error: any) {
       console.error("[handleAction] Erro:", error);
