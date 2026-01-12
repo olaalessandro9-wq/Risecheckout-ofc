@@ -1,12 +1,12 @@
 /**
  * BuyerCadastro - Student registration/profile choice page
- * Shows options: "Quero ver minhas compras" or "Sou produtor"
+ * Shows options: "Quero ver minhas compras", "Sou produtor", or "Quero ser afiliado"
  */
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ShoppingBag, Package, ArrowLeft, CheckCircle } from "lucide-react";
+import { ShoppingBag, Package, ArrowLeft, CheckCircle, Users } from "lucide-react";
 import { motion } from "framer-motion";
 
 type View = "choose-profile" | "already-has-account";
@@ -20,7 +20,11 @@ export default function BuyerCadastro() {
   };
 
   const handleProducerChoice = () => {
-    navigate("/cadastro");
+    navigate("/cadastro?perfil=produtor");
+  };
+
+  const handleAffiliateChoice = () => {
+    navigate("/cadastro?perfil=afiliado");
   };
 
   return (
@@ -102,17 +106,17 @@ export default function BuyerCadastro() {
                   {/* Buyer Option */}
                   <button
                     onClick={handleBuyerChoice}
-                    className="w-full p-6 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all text-left group"
+                    className="w-full p-6 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-blue-500/50 transition-all duration-300 text-left group"
                   >
                     <div className="flex items-start gap-4">
-                      <div className="p-3 rounded-lg bg-blue-500/10 text-blue-400 group-hover:bg-blue-500/20 transition-colors">
-                        <ShoppingBag className="h-6 w-6" />
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                        <ShoppingBag className="w-6 h-6 text-white" />
                       </div>
-                      <div className="flex-1">
+                      <div className="space-y-1">
                         <h3 className="font-semibold text-white text-lg">
                           Quero ver minhas compras
                         </h3>
-                        <p className="text-sm text-slate-400 mt-1">
+                        <p className="text-sm text-slate-400">
                           Sou cliente que comprou um produto e quero acessar meu conteúdo
                         </p>
                       </div>
@@ -122,18 +126,38 @@ export default function BuyerCadastro() {
                   {/* Producer Option */}
                   <button
                     onClick={handleProducerChoice}
-                    className="w-full p-6 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all text-left group"
+                    className="w-full p-6 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-purple-500/50 transition-all duration-300 text-left group"
                   >
                     <div className="flex items-start gap-4">
-                      <div className="p-3 rounded-lg bg-purple-500/10 text-purple-400 group-hover:bg-purple-500/20 transition-colors">
-                        <Package className="h-6 w-6" />
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                        <Package className="w-6 h-6 text-white" />
                       </div>
-                      <div className="flex-1">
+                      <div className="space-y-1">
                         <h3 className="font-semibold text-white text-lg">
                           Sou produtor
                         </h3>
-                        <p className="text-sm text-slate-400 mt-1">
+                        <p className="text-sm text-slate-400">
                           Tenho meu próprio produto e quero começar a vender
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* Affiliate Option */}
+                  <button
+                    onClick={handleAffiliateChoice}
+                    className="w-full p-6 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-emerald-500/50 transition-all duration-300 text-left group"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                        <Users className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="font-semibold text-white text-lg">
+                          Quero ser afiliado
+                        </h3>
+                        <p className="text-sm text-slate-400">
+                          Quero promover produtos de outros produtores e ganhar comissões
                         </p>
                       </div>
                     </div>
