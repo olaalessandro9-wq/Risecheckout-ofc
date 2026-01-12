@@ -2880,6 +2880,67 @@ export type Database = {
           },
         ]
       }
+      product_pixels: {
+        Row: {
+          created_at: string
+          custom_value_percent: number
+          fire_on_boleto: boolean
+          fire_on_card: boolean
+          fire_on_initiate_checkout: boolean
+          fire_on_pix: boolean
+          fire_on_purchase: boolean
+          id: string
+          pixel_id: string
+          product_id: string
+        }
+        Insert: {
+          created_at?: string
+          custom_value_percent?: number
+          fire_on_boleto?: boolean
+          fire_on_card?: boolean
+          fire_on_initiate_checkout?: boolean
+          fire_on_pix?: boolean
+          fire_on_purchase?: boolean
+          id?: string
+          pixel_id: string
+          product_id: string
+        }
+        Update: {
+          created_at?: string
+          custom_value_percent?: number
+          fire_on_boleto?: boolean
+          fire_on_card?: boolean
+          fire_on_initiate_checkout?: boolean
+          fire_on_pix?: boolean
+          fire_on_purchase?: boolean
+          id?: string
+          pixel_id?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_pixels_pixel_id_fkey"
+            columns: ["pixel_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_pixels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_pixels_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_pixels_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           affiliate_gateway_settings: Json | null
@@ -3564,6 +3625,48 @@ export type Database = {
           created_at?: string
           id?: string
           integration_type?: string
+          updated_at?: string
+          vendor_id?: string
+        }
+        Relationships: []
+      }
+      vendor_pixels: {
+        Row: {
+          access_token: string | null
+          conversion_label: string | null
+          created_at: string
+          domain: string | null
+          id: string
+          is_active: boolean
+          name: string
+          pixel_id: string
+          platform: string
+          updated_at: string
+          vendor_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          conversion_label?: string | null
+          created_at?: string
+          domain?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          pixel_id: string
+          platform: string
+          updated_at?: string
+          vendor_id: string
+        }
+        Update: {
+          access_token?: string | null
+          conversion_label?: string | null
+          created_at?: string
+          domain?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          pixel_id?: string
+          platform?: string
           updated_at?: string
           vendor_id?: string
         }
