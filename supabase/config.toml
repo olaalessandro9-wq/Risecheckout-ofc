@@ -121,7 +121,7 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.manage-affiliation]
-verify_jwt = true
+verify_jwt = false
 
 [functions.request-affiliation]
 verify_jwt = true
