@@ -3,9 +3,9 @@
  * ASAAS-WEBHOOK EDGE FUNCTION
  * ============================================================================
  * 
- * Versão: 3 (+ Dead Letter Queue)
- * Última Atualização: 2026-01-11
- * Status: ✅ DLQ integrada para zero perda de webhooks
+ * Versão: 4 (+ IP Whitelist)
+ * Última Atualização: 2026-01-12
+ * Status: ✅ DLQ + IP Whitelist para segurança máxima
  * ============================================================================
  */
 
@@ -22,13 +22,17 @@ import {
   ERROR_CODES
 } from '../_shared/webhook-helpers.ts';
 import { processPostPaymentActions } from '../_shared/webhook-post-payment.ts';
+import { validateAsaasIP } from '../_shared/ip-whitelist.ts';
 
-const FUNCTION_VERSION = "3";
+const FUNCTION_VERSION = "4";
 const logger = createLogger('asaas-webhook', FUNCTION_VERSION);
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const ASAAS_WEBHOOK_TOKEN = Deno.env.get('ASAAS_WEBHOOK_TOKEN') || '';
+
+// Se true, bloqueia IPs fora da whitelist. Se false, apenas loga warning.
+const ENFORCE_IP_WHITELIST = Deno.env.get('ASAAS_ENFORCE_IP_WHITELIST') === 'true';
 
 interface AsaasWebhookEvent {
   event: string;
@@ -59,6 +63,37 @@ serve(async (req) => {
   let orderId: string | undefined;
 
   try {
+    // 🆕 Validate IP Whitelist
+    const ipValidation = validateAsaasIP(req, ENFORCE_IP_WHITELIST);
+    
+    if (!ipValidation.isValid) {
+      logger.error('IP não autorizado', { 
+        ip: ipValidation.clientIP, 
+        reason: ipValidation.reason,
+        enforced: ENFORCE_IP_WHITELIST
+      });
+      
+      await logSecurityEvent(supabase, {
+        userId: '00000000-0000-0000-0000-000000000000',
+        action: SecurityAction.ACCESS_DENIED,
+        resource: 'asaas-webhook',
+        success: false,
+        request: req,
+        metadata: { 
+          reason: 'IP not in whitelist', 
+          ip: ipValidation.clientIP,
+          enforced: ENFORCE_IP_WHITELIST
+        }
+      });
+      
+      return createErrorResponse(ERROR_CODES.UNAUTHORIZED, 'IP não autorizado', 403);
+    }
+    
+    // Log IP para auditoria (mesmo quando válido)
+    if (ipValidation.clientIP) {
+      logger.info('IP validado', { ip: ipValidation.clientIP });
+    }
+
     // Validate Token
     const authHeader = req.headers.get('asaas-access-token') || '';
     
