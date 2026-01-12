@@ -10,8 +10,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 70 |
-| **No código local** | 48 |
+| **Total de Funções** | 72 |
+| **No código local** | 50 |
 | **Apenas deployadas** | 22 |
 | **Base URL** | `https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/` |
 
@@ -160,6 +160,8 @@
 | `offer-management` | `.../offer-management` | ✅ | NEW | 0 |
 | `checkout-management` | `.../checkout-management` | ✅ | NEW | 0 |
 | `product-duplicate` | `.../product-duplicate` | ✅ | NEW | 0 |
+| `coupon-management` | `.../coupon-management` | ✅ | NEW | 0 |
+| `integration-management` | `.../integration-management` | ✅ | NEW | 0 |
 
 ### Affiliates
 
@@ -260,8 +262,13 @@
 
 | Data | Alteração |
 |------|-----------|
-| 2026-01-12 | Expandida `checkout-management` com ações CREATE, UPDATE e SET-DEFAULT - migração completa de CheckoutConfigDialog |
-| 2026-01-12 | Adicionadas `offer-management`, `checkout-management`, `product-duplicate` para eliminar operações de escrita no frontend |
+| 2026-01-12 | Adicionadas `coupon-management` e `integration-management` - migração completa de CuponsTab e MercadoPagoConfig |
+| 2026-01-12 | Expandida `product-management` com ações `update-settings` e `smart-delete` |
+| 2026-01-12 | Expandida `checkout-management` com ação `toggle-link-status` |
+| 2026-01-12 | Expandida `members-area-students` com ação `assign_groups` |
+| 2026-01-12 | Migrados frontends: useProductSettings, deleteProduct, CuponsTab, LinksTab, StudentsTab |
+| 2026-01-12 | Expandida `checkout-management` com ações CREATE, UPDATE e SET-DEFAULT |
+| 2026-01-12 | Adicionadas `offer-management`, `checkout-management`, `product-duplicate` |
 | 2026-01-12 | Adicionada `product-management` para CRUD de produtos via backend |
 | 2026-01-12 | Criação inicial do documento com 66 funções |
 

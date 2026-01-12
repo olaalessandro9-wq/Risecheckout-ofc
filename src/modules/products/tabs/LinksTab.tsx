@@ -40,27 +40,19 @@ export function LinksTab() {
 
   const handleToggleStatus = async (linkId: string) => {
     try {
-      // Buscar status atual
-      const { data: link, error: fetchError } = await supabase
-        .from('payment_links')
-        .select('status')
-        .eq('id', linkId)
-        .single();
+      // Alternar status via Edge Function
+      const { data, error } = await supabase.functions.invoke('checkout-management', {
+        body: {
+          action: 'toggle-link-status',
+          linkId,
+        },
+      });
 
-      if (fetchError) throw fetchError;
-
-      // Alternar status
-      const newStatus = link.status === 'active' ? 'inactive' : 'active';
-
-      const { error: updateError } = await supabase
-        .from('payment_links')
-        .update({ status: newStatus })
-        .eq('id', linkId);
-
-      if (updateError) throw updateError;
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       toast.success(
-        newStatus === 'active' 
+        data?.newStatus === 'active' 
           ? 'Link ativado com sucesso' 
           : 'Link desativado com sucesso'
       );

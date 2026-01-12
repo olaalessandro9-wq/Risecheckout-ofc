@@ -6,6 +6,8 @@
  * - Checkout Fields
  * - Upsell Settings
  * - Affiliate Settings
+ * 
+ * MIGRADO: Todas operações de escrita via Edge Function product-management
  */
 
 import { useState, useCallback } from "react";
@@ -127,7 +129,7 @@ export function useProductSettings({
   );
 
   // ---------------------------------------------------------------------------
-  // SAVES
+  // SAVES VIA EDGE FUNCTION
   // ---------------------------------------------------------------------------
 
   const savePaymentSettings = useCallback(async () => {
@@ -137,37 +139,21 @@ export function useProductSettings({
     }
 
     try {
-      // Buscar checkouts do produto para atualizar configurações de pagamento
-      const { data: checkouts, error: fetchError } = await supabase
-        .from("checkouts")
-        .select("id")
-        .eq("product_id", productId);
+      const { data, error } = await supabase.functions.invoke('product-management', {
+        body: {
+          action: 'update-settings',
+          productId,
+          settingsType: 'payment',
+          settings: {
+            defaultPaymentMethod: paymentSettings.defaultPaymentMethod,
+            pixEnabled: paymentSettings.pixEnabled,
+            creditCardEnabled: paymentSettings.creditCardEnabled,
+          },
+        },
+      });
 
-      if (fetchError) throw fetchError;
-
-      if (checkouts?.length) {
-        // Atualizar configurações de pagamento em todos os checkouts
-        const { error } = await supabase
-          .from("checkouts")
-          .update({
-            // Mapear para campos do banco (se existirem)
-            // Por ora, salvamos via default_payment_method no products
-          })
-          .in("id", checkouts.map(c => c.id));
-
-        if (error) throw error;
-      }
-
-      // Atualizar default_payment_method no produto
-      const { error: productError } = await supabase
-        .from("products")
-        .update({
-          default_payment_method: paymentSettings.defaultPaymentMethod,
-        })
-        .eq("id", productId)
-        .eq("user_id", userId);
-
-      if (productError) throw productError;
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       onSaveComplete();
     } catch (error: any) {
@@ -183,21 +169,22 @@ export function useProductSettings({
     }
 
     try {
-      // Salvar required_fields no produto
-      const { error } = await supabase
-        .from("products")
-        .update({
-          required_fields: {
+      const { data, error } = await supabase.functions.invoke('product-management', {
+        body: {
+          action: 'update-settings',
+          productId,
+          settingsType: 'checkout_fields',
+          settings: {
             name: checkoutFields.fullName,
             email: checkoutFields.email,
             phone: checkoutFields.phone,
             cpf: checkoutFields.cpf,
           },
-        })
-        .eq("id", productId)
-        .eq("user_id", userId);
+        },
+      });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       onSaveComplete();
     } catch (error: any) {
@@ -218,15 +205,17 @@ export function useProductSettings({
       try {
         console.log("[useProductSettings] Salvando upsell_settings:", settings);
 
-        const { error } = await supabase
-          .from("products")
-          .update({
-            upsell_settings: settings as any,
-          })
-          .eq("id", productId)
-          .eq("user_id", userId);
+        const { data, error } = await supabase.functions.invoke('product-management', {
+          body: {
+            action: 'update-settings',
+            productId,
+            settingsType: 'upsell',
+            settings,
+          },
+        });
 
         if (error) throw error;
+        if (data?.error) throw new Error(data.error);
 
         console.log("[useProductSettings] upsell_settings salvo com sucesso!");
 
@@ -252,32 +241,18 @@ export function useProductSettings({
       try {
         console.log("[useProductSettings] Salvando affiliate_settings:", settings);
 
-        // Preparar update data
-        const updateData: any = {
-          affiliate_settings: settings as any,
-          // Campos diretos de marketplace
-          show_in_marketplace: settings?.showInMarketplace || false,
-          marketplace_description: settings?.marketplaceDescription || null,
-          marketplace_category: settings?.marketplaceCategory || null,
-        };
-
-        // Se estiver ativando marketplace pela primeira vez, definir marketplace_enabled_at
-        if (settings?.showInMarketplace && !affiliateSettings?.showInMarketplace) {
-          updateData.marketplace_enabled_at = new Date().toISOString();
-        }
-
-        // Se estiver desativando marketplace, limpar marketplace_enabled_at
-        if (!settings?.showInMarketplace && affiliateSettings?.showInMarketplace) {
-          updateData.marketplace_enabled_at = null;
-        }
-
-        const { error } = await supabase
-          .from("products")
-          .update(updateData)
-          .eq("id", productId)
-          .eq("user_id", userId);
+        const { data, error } = await supabase.functions.invoke('product-management', {
+          body: {
+            action: 'update-settings',
+            productId,
+            settingsType: 'affiliate',
+            settings,
+            previousShowInMarketplace: affiliateSettings?.showInMarketplace || false,
+          },
+        });
 
         if (error) throw error;
+        if (data?.error) throw new Error(data.error);
 
         console.log("[useProductSettings] affiliate_settings salvo com sucesso!");
 
