@@ -640,6 +640,128 @@ serve(withSentry("product-management", async (req) => {
     }
 
     // ============================================
+    // UPDATE GENERAL (full product update from GeneralTab)
+    // ============================================
+    if (action === "update-general" && (req.method === "PUT" || req.method === "POST")) {
+      const rateCheck = await checkProductRateLimit(supabase, producerId, "product_general");
+      if (!rateCheck.allowed) {
+        return jsonResponse(
+          { success: false, error: "Muitas requisições. Tente novamente em alguns minutos.", retryAfter: rateCheck.retryAfter },
+          corsHeaders,
+          429
+        );
+      }
+
+      const { productId, data } = body;
+
+      if (!productId || typeof productId !== "string") {
+        return errorResponse("ID do produto é obrigatório", corsHeaders, 400);
+      }
+
+      // Verify ownership
+      const { data: existingProduct, error: fetchError } = await supabase
+        .from("products")
+        .select("id, user_id")
+        .eq("id", productId)
+        .single();
+
+      if (fetchError || !existingProduct) {
+        return errorResponse("Produto não encontrado", corsHeaders, 404);
+      }
+
+      if (existingProduct.user_id !== producerId) {
+        console.warn(`[product-management] Unauthorized update-general: ${producerId} on product ${productId}`);
+        return errorResponse("Você não tem permissão para editar este produto", corsHeaders, 403);
+      }
+
+      // Validate required fields
+      if (!data || typeof data !== "object") {
+        return errorResponse("Dados do produto são obrigatórios", corsHeaders, 400);
+      }
+
+      // Build update object with validation
+      const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+
+      if (data.name !== undefined) {
+        if (typeof data.name !== "string" || data.name.trim().length < 1) {
+          return errorResponse("Nome do produto é obrigatório", corsHeaders, 400);
+        }
+        updates.name = data.name.trim();
+      }
+
+      if (data.description !== undefined) {
+        updates.description = typeof data.description === "string" ? data.description.trim() : "";
+      }
+
+      if (data.price !== undefined) {
+        if (typeof data.price !== "number" || data.price <= 0) {
+          return errorResponse("Preço deve ser maior que zero", corsHeaders, 400);
+        }
+        updates.price = data.price;
+      }
+
+      if (data.support_name !== undefined) {
+        updates.support_name = typeof data.support_name === "string" ? data.support_name.trim() : "";
+      }
+
+      if (data.support_email !== undefined) {
+        const email = typeof data.support_email === "string" ? data.support_email.trim().toLowerCase() : "";
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          return errorResponse("E-mail de suporte inválido", corsHeaders, 400);
+        }
+        updates.support_email = email;
+      }
+
+      if (data.delivery_url !== undefined) {
+        if (data.delivery_url !== null && typeof data.delivery_url === "string") {
+          const url = data.delivery_url.trim();
+          if (url && !url.startsWith("https://")) {
+            return errorResponse("Link de entrega deve começar com https://", corsHeaders, 400);
+          }
+          updates.delivery_url = url || null;
+        } else {
+          updates.delivery_url = null;
+        }
+      }
+
+      if (data.external_delivery !== undefined) {
+        updates.external_delivery = data.external_delivery === true;
+      }
+
+      if (data.image_url !== undefined) {
+        updates.image_url = data.image_url;
+      }
+
+      if (data.status !== undefined) {
+        if (!["active", "blocked", "deleted"].includes(data.status)) {
+          return errorResponse("Status inválido", corsHeaders, 400);
+        }
+        updates.status = data.status;
+      }
+
+      const { data: updatedProduct, error: updateError } = await supabase
+        .from("products")
+        .update(updates)
+        .eq("id", productId)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error("[product-management] Update-general error:", updateError);
+        await captureException(new Error(updateError.message), {
+          functionName: "product-management",
+          extra: { action: "update-general", producerId, productId, data },
+        });
+        return errorResponse("Erro ao atualizar produto", corsHeaders, 500);
+      }
+
+      await recordRateLimitAttempt(supabase, producerId, "product_general");
+
+      console.log(`[product-management] General update for product: ${productId} by ${producerId}`);
+      return jsonResponse({ success: true, product: updatedProduct }, corsHeaders);
+    }
+
+    // ============================================
     // SMART DELETE (soft/hard based on orders)
     // ============================================
     if (action === "smart-delete" && (req.method === "DELETE" || req.method === "POST")) {

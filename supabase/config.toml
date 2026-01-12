@@ -23,6 +23,12 @@ verify_jwt = false
 [functions.integration-management]
 verify_jwt = false
 
+[functions.members-area-modules]
+verify_jwt = false
+
+[functions.members-area-content]
+verify_jwt = false
+
 # verify_jwt = false → Função pública (não requer auth)
 # verify_jwt = true (ou omitido) → Requer autenticação
 # =====================================================
