@@ -5,7 +5,7 @@
  * Design inspirado no Kirvano - Clean e minimalista
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Sheet,
@@ -27,6 +27,7 @@ import {
   Users
 } from "lucide-react";
 import { useAffiliateRequest } from "@/hooks/useAffiliateRequest";
+import { useAffiliationStatusCache } from "@/hooks/useAffiliationStatusCache";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -59,15 +60,28 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
   const [isOwner, setIsOwner] = useState(false);
   const [checkingOwner, setCheckingOwner] = useState(true);
 
+  // Hook de request (para solicitar afiliação)
   const {
     requestAffiliate,
-    checkStatus,
     isLoading,
-    isCheckingStatus,
     error,
     success,
-    affiliationStatus,
   } = useAffiliateRequest();
+
+  // Cache de status de afiliação (lookup instantâneo)
+  const { getStatus, isLoaded: cacheLoaded, updateStatus } = useAffiliationStatusCache();
+
+  // Status de afiliação do produto atual (lookup O(1) do cache)
+  const affiliationStatus = useMemo(() => {
+    if (!product?.id || !cacheLoaded) return null;
+    const cached = getStatus(product.id);
+    if (!cached) return null;
+    return {
+      isAffiliate: cached.status === "active",
+      status: cached.status,
+      affiliationId: cached.affiliationId,
+    };
+  }, [product?.id, cacheLoaded, getStatus]);
 
   // Verificar se o usuário é o dono do produto
   useEffect(() => {
@@ -86,12 +100,7 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
     setCheckingOwner(false);
   }, [product?.id, product?.producer_id, open, user?.id]);
 
-  // Verificar status ao abrir (somente se não for o dono)
-  useEffect(() => {
-    if (product?.id && open && !isOwner && !checkingOwner) {
-      checkStatus(product.id);
-    }
-  }, [product?.id, open, isOwner, checkingOwner, checkStatus]);
+  // Não precisa mais verificar status ao abrir - já está no cache!
 
   // Mostrar toast de erro
   useEffect(() => {
@@ -174,11 +183,12 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
     }).format(price / 100);
   };
 
-  // Solicitar afiliação
+  // Solicitar afiliação e atualizar cache local
   const handleRequest = async () => {
     if (!product.id) return;
     await requestAffiliate(product.id);
-    await checkStatus(product.id);
+    // Após request, atualizar cache local com status "pending"
+    updateStatus(product.id, "pending");
   };
 
   const visibleOffers = showAllOffers ? offers : offers.slice(0, 2);
@@ -214,8 +224,8 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
 
   // Renderizar botão baseado no status (para não-donos)
   const renderCTAButton = () => {
-    // Loading - mostrar durante verificação inicial OU durante request
-    if (isCheckingStatus || (isLoading && !affiliationStatus)) {
+    // Loading apenas durante request ou se cache ainda não carregou
+    if (!cacheLoaded || (isLoading && !affiliationStatus)) {
       return (
         <Button disabled className="w-full h-12 text-base font-semibold">
           <Loader2 className="w-5 h-5 animate-spin" />
