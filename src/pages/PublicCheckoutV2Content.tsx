@@ -35,17 +35,19 @@ interface ContentProps {
 
 export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, design, orderBumps }) => {
   const checkoutId = checkout.id;
+  // vendorId é o user_id do produto - usado para buscar configurações de tracking
+  const vendorId = (checkout as any).vendorId as string | undefined;
 
   // Affiliate Tracking
   const affiliateSettings = checkout.product.affiliate_settings as { cookieDuration?: number; attributionModel?: 'last_click' | 'first_click' | 'linear' } | undefined;
   useAffiliateTracking({ cookieDuration: affiliateSettings?.cookieDuration || 30, attributionModel: affiliateSettings?.attributionModel || 'last_click', enabled: true });
 
-  // Tracking Configs
-  const { data: fbConfig } = Facebook.useFacebookConfig(checkoutId);
-  const { data: utmifyConfig } = UTMify.useUTMifyConfig(checkoutId);
-  const { data: googleAdsIntegration } = GoogleAds.useGoogleAdsConfig(checkoutId);
-  const { data: tiktokIntegration } = TikTok.useTikTokConfig(checkoutId);
-  const { data: kwaiIntegration } = Kwai.useKwaiConfig(checkoutId);
+  // Tracking Configs - Usa vendorId para buscar configurações do vendedor
+  const { data: fbConfig } = Facebook.useFacebookConfig(vendorId);
+  const { data: utmifyConfig } = UTMify.useUTMifyConfig(vendorId);
+  const { data: googleAdsIntegration } = GoogleAds.useGoogleAdsConfig(vendorId);
+  const { data: tiktokIntegration } = TikTok.useTikTokConfig(vendorId);
+  const { data: kwaiIntegration } = Kwai.useKwaiConfig(vendorId);
 
   // Form Manager
   const requiredFieldsConfig = parseRequiredFields(checkout.product.required_fields);
@@ -68,9 +70,9 @@ export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, desi
   // Turnstile
   const { token: turnstileToken, onTokenReceived: handleTurnstileVerify, onWidgetError: handleTurnstileError, onTokenExpired: handleTurnstileExpire, verifyToken: verifyTurnstileToken } = useTurnstileVerification();
 
-  // Tracking Service
+  // Tracking Service - Usa vendorId correto para tracking server-side
   const { fireInitiateCheckout } = useTrackingService({
-    vendorId: null, productId: checkout.product.id, productName: checkout.product.name,
+    vendorId: vendorId || null, productId: checkout.product.id, productName: checkout.product.name,
     trackingConfig: { fbConfig, utmifyConfig, googleAdsIntegration, tiktokIntegration, kwaiIntegration },
   });
 
@@ -115,7 +117,7 @@ export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, desi
   const cardPublicKey = creditCardGateway === 'stripe' ? checkout.stripe_public_key : checkout.mercadopago_public_key;
 
   return (
-    <CheckoutProvider value={{ checkout: checkout as any, design, orderBumps, vendorId: null }}>
+    <CheckoutProvider value={{ checkout: checkout as any, design, orderBumps, vendorId: vendorId || null }}>
       <TrackingManager productId={checkout.product.id} fbConfig={fbConfig} utmifyConfig={utmifyConfig} googleAdsIntegration={googleAdsIntegration} tiktokIntegration={tiktokIntegration} kwaiIntegration={kwaiIntegration} />
       <CheckoutMasterLayout mode="public" design={design} customization={customization as any} viewMode="public">
         <SharedCheckoutLayout productData={productData} orderBumps={orderBumps} design={design} selectedPayment={selectedPayment} onPaymentChange={setSelectedPayment}
