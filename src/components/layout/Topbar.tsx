@@ -1,16 +1,51 @@
 // src/components/layout/Topbar.tsx
-import { Bell, Menu } from "lucide-react";
+import { Bell, Menu, PanelLeft, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import clsx from "clsx";
 import ThemeToggle from "@/components/ThemeToggle";
 import { UserAvatar } from "@/components/layout/UserAvatar";
+import type { SidebarState } from "./sidebar/types";
 
 type TopbarProps = {
   scrolled?: boolean;
   onNotificationsClick?: () => void;
   onMenuClick?: () => void;
+  /** Estado atual do sidebar */
+  sidebarState?: SidebarState;
+  /** Callback para ciclar estado do sidebar */
+  onSidebarToggle?: () => void;
 };
 
-export function Topbar({ scrolled, onNotificationsClick, onMenuClick }: TopbarProps) {
+export function Topbar({ 
+  scrolled, 
+  onNotificationsClick, 
+  onMenuClick,
+  sidebarState = 'collapsed',
+  onSidebarToggle,
+}: TopbarProps) {
+  // Ícone do toggle baseado no estado
+  const getSidebarIcon = () => {
+    switch (sidebarState) {
+      case 'hidden':
+        return <PanelLeft className="h-5 w-5" />;
+      case 'collapsed':
+        return <PanelLeftClose className="h-5 w-5" />;
+      case 'expanded':
+        return <PanelLeftOpen className="h-5 w-5" />;
+    }
+  };
+
+  // Tooltip do toggle
+  const getSidebarTooltip = () => {
+    switch (sidebarState) {
+      case 'hidden':
+        return 'Mostrar sidebar';
+      case 'collapsed':
+        return 'Expandir sidebar';
+      case 'expanded':
+        return 'Ocultar sidebar';
+    }
+  };
+
   return (
     <header
       className={clsx(
@@ -33,8 +68,19 @@ export function Topbar({ scrolled, onNotificationsClick, onMenuClick }: TopbarPr
           <Menu className="h-5 w-5" />
         </button>
 
-        {/* Espaçador para centralizar os botões à direita em desktop */}
-        <div className="flex-1 md:flex-none" />
+        {/* Toggle do Sidebar (visível apenas em desktop) */}
+        <button
+          type="button"
+          aria-label={getSidebarTooltip()}
+          title={getSidebarTooltip()}
+          onClick={onSidebarToggle}
+          className="hidden md:inline-flex h-9 w-9 items-center justify-center rounded-md border border-transparent hover:bg-foreground/5 transition"
+        >
+          {getSidebarIcon()}
+        </button>
+
+        {/* Espaçador para centralizar os botões à direita */}
+        <div className="flex-1" />
 
         <div className="flex items-center gap-3">
           {/* Notificações */}

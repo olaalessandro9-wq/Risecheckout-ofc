@@ -38,7 +38,7 @@ export function NavItemGroup({
             title={!showLabels ? item.label : undefined}
           >
             <Icon className={cn(
-              "h-5 w-5 shrink-0 transition-all duration-300",
+              "h-6 w-6 shrink-0 transition-all duration-300",
               childActive ? "text-primary" : "text-muted-foreground group-hover/item:text-foreground"
             )} />
             {showLabels && (
@@ -85,7 +85,7 @@ export function NavItemGroup({
                     onClick={onNavigate}
                   >
                     <ChildIcon className={cn(
-                      "h-4 w-4 shrink-0 transition-all duration-300",
+                      "h-5 w-5 shrink-0 transition-all duration-300",
                       isChildActive ? "text-primary" : "text-muted-foreground group-hover/child:text-foreground"
                     )} />
                     {showLabels && (

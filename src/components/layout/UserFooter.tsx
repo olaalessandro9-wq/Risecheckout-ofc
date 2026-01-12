@@ -32,7 +32,7 @@ export function UserFooter({ isCollapsed }: UserFooterProps) {
         )}
         title={isCollapsed ? "Sair" : undefined}
       >
-        <LogOut className={isCollapsed ? "h-5 w-5 shrink-0" : "h-4 w-4"} />
+        <LogOut className={isCollapsed ? "h-6 w-6 shrink-0" : "h-5 w-5"} />
         {!isCollapsed && "Sair"}
       </button>
     </div>

@@ -36,7 +36,7 @@ export function NavContent({
           "flex items-center overflow-hidden transition-all duration-300",
           showLabels ? "gap-3" : "gap-0"
         )}>
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold shadow-sm">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-lg shadow-sm">
             R
           </div>
           {showLabels && (

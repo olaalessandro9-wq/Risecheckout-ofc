@@ -13,7 +13,7 @@ export function NavItem({ item, showLabels, isActive, onNavigate }: NavItemProps
   const linkContent = (
     <>
       <Icon className={cn(
-        "h-5 w-5 shrink-0 transition-all duration-300",
+        "h-6 w-6 shrink-0 transition-all duration-300",
         isActive ? "text-primary" : "text-muted-foreground group-hover/item:text-foreground",
         !isActive && "group-hover/item:scale-110"
       )} />
