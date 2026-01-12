@@ -7,6 +7,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { usePermissions } from "@/hooks/usePermissions";
 import { NavContent, buildNavItems, hasActiveChild } from "./sidebar";
 import type { NavItemType } from "./sidebar";
+import { 
+  type SidebarState, 
+  SIDEBAR_WIDTHS, 
+  SIDEBAR_STORAGE_KEY 
+} from "./sidebar/types";
 
 // ============================================================================
 // CONSTANTS
@@ -22,7 +27,10 @@ const MENU_CLOSE_DELAY = 250;
 interface SidebarProps {
   mobileOpen?: boolean;
   setMobileOpen?: (open: boolean) => void;
-  onExpandChange?: (expanded: boolean) => void;
+  /** Estado atual do sidebar (controlado pelo AppShell) */
+  sidebarState: SidebarState;
+  /** Callback para mudar estado do sidebar */
+  onStateChange: (state: SidebarState) => void;
 }
 
 // ============================================================================
@@ -32,14 +40,21 @@ interface SidebarProps {
 /**
  * Sidebar principal da aplicação.
  * 
- * - Desktop: Sidebar colapsável que expande no hover
+ * - Desktop: Sidebar com 3 estados (hidden/collapsed/expanded)
  * - Mobile: Sheet deslizante
  * - Animação em cascata: menus fecham antes do sidebar colapsar
+ * - Hover expande temporariamente quando colapsado
  * 
  * Refatorado para seguir RISE ARCHITECT PROTOCOL (< 300 linhas)
  */
-export function Sidebar({ mobileOpen = false, setMobileOpen, onExpandChange }: SidebarProps) {
-  const [isHovered, setIsHovered] = useState(false);
+export function Sidebar({ 
+  mobileOpen = false, 
+  setMobileOpen, 
+  sidebarState,
+  onStateChange,
+}: SidebarProps) {
+  // Hover temporário (apenas quando collapsed)
+  const [isHovering, setIsHovering] = useState(false);
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
   const initializedRef = useRef(false);
   const collapseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -52,6 +67,16 @@ export function Sidebar({ mobileOpen = false, setMobileOpen, onExpandChange }: S
     () => buildNavItems({ canAccessAdminPanel, isOwner, canHaveAffiliates }),
     [canAccessAdminPanel, isOwner, canHaveAffiliates]
   );
+
+  // Calcula se deve mostrar labels
+  const showLabels = sidebarState === 'expanded' || (sidebarState === 'collapsed' && isHovering);
+
+  // Calcula largura atual
+  const currentWidth = useMemo(() => {
+    if (sidebarState === 'hidden') return SIDEBAR_WIDTHS.hidden;
+    if (sidebarState === 'collapsed' && isHovering) return SIDEBAR_WIDTHS.expanded;
+    return SIDEBAR_WIDTHS[sidebarState];
+  }, [sidebarState, isHovering]);
 
   // Inicializa menus com filhos ativos na primeira renderização
   useEffect(() => {
@@ -84,36 +109,37 @@ export function Sidebar({ mobileOpen = false, setMobileOpen, onExpandChange }: S
     setOpenMenus({});
   }, []);
 
-  // Handler de entrada do mouse - cancela collapse pendente
+  // Handler de entrada do mouse - hover temporário
   const handleMouseEnter = useCallback(() => {
+    if (sidebarState !== 'collapsed') return;
+    
     if (collapseTimeoutRef.current) {
       clearTimeout(collapseTimeoutRef.current);
       collapseTimeoutRef.current = null;
     }
-    setIsHovered(true);
-    onExpandChange?.(true);
-  }, [onExpandChange]);
+    setIsHovering(true);
+  }, [sidebarState]);
 
   // Handler de saída do mouse - animação em cascata
   const handleMouseLeave = useCallback(() => {
+    if (sidebarState !== 'collapsed') return;
+    
     const hasOpenMenu = Object.values(openMenus).some(Boolean);
 
     if (hasOpenMenu) {
       // Primeiro fecha os menus (animação de 200ms no Collapsible)
       closeAllMenus();
 
-      // Depois colapsa o sidebar (aguarda menu fechar)
+      // Depois remove hover (aguarda menu fechar)
       collapseTimeoutRef.current = setTimeout(() => {
-        setIsHovered(false);
-        onExpandChange?.(false);
+        setIsHovering(false);
         collapseTimeoutRef.current = null;
       }, MENU_CLOSE_DELAY);
     } else {
-      // Sem menus abertos, colapsa imediatamente
-      setIsHovered(false);
-      onExpandChange?.(false);
+      // Sem menus abertos, remove hover imediatamente
+      setIsHovering(false);
     }
-  }, [openMenus, closeAllMenus, onExpandChange]);
+  }, [sidebarState, openMenus, closeAllMenus]);
 
   // Toggle de menu expansível
   const toggleMenu = (label: string) => {
@@ -136,8 +162,25 @@ export function Sidebar({ mobileOpen = false, setMobileOpen, onExpandChange }: S
     openMenus,
     toggleMenu,
     isMenuOpen,
-    isHovered,
+    isHovered: showLabels,
   };
+
+  // Não renderiza sidebar hidden no desktop
+  if (sidebarState === 'hidden') {
+    return (
+      <>
+        {/* Mobile Sidebar (Sheet) - sempre disponível */}
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetContent side="left" className="p-0 w-[280px] border-r border-border/40 bg-background/95 backdrop-blur-xl">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Menu de Navegação</SheetTitle>
+            </SheetHeader>
+            <NavContent {...navContentProps} fullWidth={true} onNavigate={handleMobileNavigate} />
+          </SheetContent>
+        </Sheet>
+      </>
+    );
+  }
 
   return (
     <>
@@ -151,7 +194,7 @@ export function Sidebar({ mobileOpen = false, setMobileOpen, onExpandChange }: S
           "transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] will-change-[width]"
         )}
         style={{
-          width: isHovered ? '260px' : '64px',
+          width: `${currentWidth}px`,
         }}
       >
         <NavContent {...navContentProps} fullWidth={false} />
