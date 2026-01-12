@@ -1,7 +1,10 @@
 import { useState } from "react";
-import { TrendingUp, Facebook, Webhook, TestTube2 } from "lucide-react";
+import { TrendingUp, Facebook, Webhook, TestTube2, Target, Video, Music } from "lucide-react";
 import { IntegrationCard } from "@/components/integrations/IntegrationCard";
 import { FacebookPixelConfig } from "@/components/integrations/FacebookPixelConfig";
+import { TikTokPixelConfig } from "@/components/integrations/TikTokPixelConfig";
+import { GoogleAdsConfig } from "@/components/integrations/GoogleAdsConfig";
+import { KwaiPixelConfig } from "@/components/integrations/KwaiPixelConfig";
 import { UTMifyConfig } from "@/components/integrations/UTMifyConfig";
 import { WebhooksConfig } from "@/components/webhooks/WebhooksConfig";
 import { TestModeConfig } from "@/components/integrations/TestModeConfig";
@@ -14,7 +17,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 
-type IntegrationType = "utmify" | "facebook" | "webhooks" | "testmode" | null;
+type IntegrationType = "utmify" | "facebook" | "tiktok" | "googleads" | "kwai" | "webhooks" | "testmode" | null;
 
 const Integracoes = () => {
   const [selectedIntegration, setSelectedIntegration] = useState<IntegrationType>(null);
@@ -33,6 +36,27 @@ const Integracoes = () => {
       icon: Facebook,
       iconColor: "#1877f2",
       description: "Rastreamento de eventos e conversões do Facebook",
+    },
+    {
+      id: "tiktok" as IntegrationType,
+      name: "TikTok Pixel",
+      icon: Music,
+      iconColor: "#000000",
+      description: "Rastreamento de eventos e conversões do TikTok",
+    },
+    {
+      id: "googleads" as IntegrationType,
+      name: "Google Ads",
+      icon: Target,
+      iconColor: "#4285F4",
+      description: "Rastreamento de conversões do Google Ads",
+    },
+    {
+      id: "kwai" as IntegrationType,
+      name: "Kwai Pixel",
+      icon: Video,
+      iconColor: "#FF6B00",
+      description: "Rastreamento de eventos e conversões do Kwai",
     },
     {
       id: "webhooks" as IntegrationType,
@@ -56,6 +80,12 @@ const Integracoes = () => {
         return <UTMifyConfig />;
       case "facebook":
         return <FacebookPixelConfig />;
+      case "tiktok":
+        return <TikTokPixelConfig />;
+      case "googleads":
+        return <GoogleAdsConfig />;
+      case "kwai":
+        return <KwaiPixelConfig />;
       case "webhooks":
         return <WebhooksConfig />;
       case "testmode":

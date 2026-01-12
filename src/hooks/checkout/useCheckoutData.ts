@@ -55,6 +55,7 @@ interface CheckoutProduct {
 
 interface Checkout {
   id: string;
+  vendorId: string; // ID do vendedor (user_id do produto)
   name: string;
   slug: string;
   visits_count: number;
@@ -139,6 +140,7 @@ export function useCheckoutData(): UseCheckoutDataReturn {
       // 6. Montar objeto Checkout
       const fullCheckout: Checkout = {
         id: checkoutData.id,
+        vendorId: productData.user_id, // ID do vendedor para tracking
         name: checkoutData.name,
         slug: checkoutData.slug,
         visits_count: checkoutData.visits_count,

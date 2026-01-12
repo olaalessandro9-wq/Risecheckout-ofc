@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface ProductRawData {
   id: string;
+  user_id: string; // ID do vendedor (vendor)
   name: string;
   description: string | null;
   price: number;
@@ -27,6 +28,7 @@ export async function fetchProductData(productId: string): Promise<ProductRawDat
     .from("products")
     .select(`
       id,
+      user_id,
       name,
       description,
       price,
