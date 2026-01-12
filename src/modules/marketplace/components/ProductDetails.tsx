@@ -63,6 +63,7 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
     requestAffiliate,
     checkStatus,
     isLoading,
+    isCheckingStatus,
     error,
     success,
     affiliationStatus,
@@ -213,8 +214,8 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
 
   // Renderizar botão baseado no status (para não-donos)
   const renderCTAButton = () => {
-    // Loading
-    if (isLoading && !affiliationStatus) {
+    // Loading - mostrar durante verificação inicial OU durante request
+    if (isCheckingStatus || (isLoading && !affiliationStatus)) {
       return (
         <Button disabled className="w-full h-12 text-base font-semibold">
           <Loader2 className="w-5 h-5 animate-spin" />
