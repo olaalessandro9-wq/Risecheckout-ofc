@@ -3,9 +3,9 @@
  * PUSHINPAY-WEBHOOK EDGE FUNCTION
  * ============================================================================
  * 
- * Versão: 5 (+ Dead Letter Queue)
- * Última Atualização: 2026-01-11
- * Status: ✅ DLQ integrada para zero perda de webhooks
+ * Versão: 6 (+ Rate Limiting)
+ * Última Atualização: 2026-01-12
+ * Status: ✅ Rate Limiting adicionado para proteção contra brute force
  * ============================================================================
  */
 
@@ -22,8 +22,13 @@ import {
   ERROR_CODES
 } from '../_shared/webhook-helpers.ts';
 import { processPostPaymentActions } from '../_shared/webhook-post-payment.ts';
+import { 
+  rateLimitMiddleware, 
+  RATE_LIMIT_CONFIGS, 
+  getClientIP 
+} from '../_shared/rate-limiter.ts';
 
-const FUNCTION_VERSION = "5";
+const FUNCTION_VERSION = "6";
 const logger = createLogger('pushinpay-webhook', FUNCTION_VERSION);
 
 interface PushinPayWebhookBody {
@@ -44,11 +49,27 @@ serve(async (req) => {
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(supabaseUrl, supabaseKey);
 
+  // ========== RATE LIMITING ==========
+  // Proteção contra brute force e abuso (100 req/min por IP)
+  const clientIP = getClientIP(req);
+  const rateLimitResult = await rateLimitMiddleware(
+    supabase,
+    req,
+    RATE_LIMIT_CONFIGS.WEBHOOK,
+    CORS_HEADERS
+  );
+
+  if (rateLimitResult) {
+    logger.warn(`[SECURITY] Rate limit excedido para IP: ${clientIP}`);
+    return rateLimitResult;
+  }
+
   let body: PushinPayWebhookBody | null = null;
   let order: Record<string, unknown> | null = null;
 
   try {
     logger.info('========== WEBHOOK RECEBIDO ==========');
+    logger.info(`[RATE-LIMIT] IP ${clientIP} passou na verificação`);
 
     // Validate Token
     const receivedToken = req.headers.get('x-pushinpay-token');
