@@ -41,25 +41,18 @@ export function useMembersAreaModules({
 
     setIsSaving(true);
     try {
-      const maxPosition = modules.length > 0 ? Math.max(...modules.map(m => m.position)) + 1 : 0;
-
-      const { data, error } = await supabase
-        .from("product_member_modules")
-        .insert({
-          product_id: productId,
-          title,
-          description: description || null,
-          cover_image_url: coverImageUrl || null,
-          position: maxPosition,
-        })
-        .select()
-        .single();
+      const sessionToken = localStorage.getItem('producer_session_token');
+      const { data, error } = await supabase.functions.invoke('members-area-modules', {
+        body: { action: 'create', productId, data: { title, description, cover_image_url: coverImageUrl } },
+        headers: { 'x-producer-session-token': sessionToken || '' },
+      });
 
       if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Falha ao criar módulo');
 
-      setModules(prev => [...prev, { ...data, contents: [] }]);
+      setModules(prev => [...prev, { ...data.module, contents: [] }]);
       toast.success("Módulo criado!");
-      return data;
+      return data.module;
     } catch (error) {
       log.error("Error adding module", error);
       toast.error("Erro ao criar módulo");
@@ -67,17 +60,19 @@ export function useMembersAreaModules({
     } finally {
       setIsSaving(false);
     }
-  }, [productId, modules, setModules, setIsSaving]);
+  }, [productId, setModules, setIsSaving]);
 
   const updateModule = useCallback(async (id: string, data: Partial<MemberModule>) => {
     setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from("product_member_modules")
-        .update(data)
-        .eq("id", id);
+      const sessionToken = localStorage.getItem('producer_session_token');
+      const { data: result, error } = await supabase.functions.invoke('members-area-modules', {
+        body: { action: 'update', moduleId: id, data },
+        headers: { 'x-producer-session-token': sessionToken || '' },
+      });
 
       if (error) throw error;
+      if (!result?.success) throw new Error(result?.error || 'Falha ao atualizar módulo');
 
       setModules(prev => prev.map(m => m.id === id ? { ...m, ...data } : m));
       toast.success("Módulo atualizado!");
@@ -92,12 +87,14 @@ export function useMembersAreaModules({
   const deleteModule = useCallback(async (id: string) => {
     setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from("product_member_modules")
-        .delete()
-        .eq("id", id);
+      const sessionToken = localStorage.getItem('producer_session_token');
+      const { data, error } = await supabase.functions.invoke('members-area-modules', {
+        body: { action: 'delete', moduleId: id },
+        headers: { 'x-producer-session-token': sessionToken || '' },
+      });
 
       if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Falha ao excluir módulo');
 
       setModules(prev => prev.filter(m => m.id !== id));
       toast.success("Módulo excluído!");
@@ -110,10 +107,8 @@ export function useMembersAreaModules({
   }, [setModules, setIsSaving]);
 
   const reorderModules = useCallback(async (orderedIds: string[]) => {
-    // 1. Salvar estado anterior para possível rollback
     let previousModules: MemberModuleWithContents[] = [];
 
-    // 2. Atualizar state IMEDIATAMENTE (otimista - elimina animação duplicada)
     setModules(prev => {
       previousModules = prev;
       const moduleMap = new Map(prev.map(m => [m.id, m]));
@@ -126,23 +121,21 @@ export function useMembersAreaModules({
         .filter((m): m is MemberModuleWithContents => m !== null);
     });
 
-    // 3. Persistir em background
     try {
-      const updates = orderedIds.map((id, index) => 
-        supabase
-          .from("product_member_modules")
-          .update({ position: index })
-          .eq("id", id)
-      );
+      const sessionToken = localStorage.getItem('producer_session_token');
+      const { data, error } = await supabase.functions.invoke('members-area-modules', {
+        body: { action: 'reorder', productId, orderedIds },
+        headers: { 'x-producer-session-token': sessionToken || '' },
+      });
 
-      await Promise.all(updates);
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Falha ao reordenar');
     } catch (error) {
-      // 4. Rollback em caso de erro
       log.error("Error reordering modules", error);
       toast.error("Erro ao reordenar módulos");
       setModules(previousModules);
     }
-  }, [setModules]);
+  }, [productId, setModules]);
 
   return {
     addModule,

@@ -296,23 +296,28 @@ export function useGeneralTab() {
         finalImageUrl = null;
       }
 
-      const { error } = await supabase
-        .from("products")
-        .update({
-          name: form.name,
-          description: form.description,
-          price: form.price,
-          support_name: form.support_name,
-          support_email: form.support_email,
-          delivery_url: form.external_delivery ? null : (form.delivery_url || null),
-          external_delivery: form.external_delivery,
-          status: "active",
-          image_url: finalImageUrl,
-        })
-        .eq("id", product.id)
-        .eq("user_id", user.id);
+      // Use Edge Function for product update
+      const sessionToken = localStorage.getItem('producer_session_token');
+      const { data, error } = await supabase.functions.invoke('product-management/update-general', {
+        body: {
+          productId: product.id,
+          data: {
+            name: form.name,
+            description: form.description,
+            price: form.price,
+            support_name: form.support_name,
+            support_email: form.support_email,
+            delivery_url: form.external_delivery ? null : (form.delivery_url || null),
+            external_delivery: form.external_delivery,
+            status: "active",
+            image_url: finalImageUrl,
+          },
+        },
+        headers: { 'x-producer-session-token': sessionToken || '' },
+      });
 
       if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Falha ao atualizar produto');
 
       await saveDeletedOffers();
       await saveOffers();
