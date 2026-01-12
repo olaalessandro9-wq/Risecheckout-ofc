@@ -86,7 +86,7 @@ serve(async (req) => {
       const { error: updateError } = await supabase
         .from("orders")
         .update({
-          status: "PAID",
+          status: "paid",
           paid_at: new Date().toISOString(),
           gateway_payment_id: paymentIntent.id,
           updated_at: new Date().toISOString(),
@@ -98,7 +98,7 @@ serve(async (req) => {
         throw new Error(`Failed to update order: ${updateError.message}`);
       }
 
-      logger.info("Order updated to PAID", { orderId });
+      logger.info("Order updated to paid", { orderId });
 
       // Post-Payment Actions
       if (order) {
@@ -130,9 +130,9 @@ serve(async (req) => {
       if (orderId) {
         await supabase
           .from("orders")
-          .update({ status: "FAILED", updated_at: new Date().toISOString() })
+          .update({ status: "failed", updated_at: new Date().toISOString() })
           .eq("id", orderId);
-        logger.info("Order updated to FAILED", { orderId });
+        logger.info("Order updated to failed", { orderId });
       }
     }
 
@@ -155,7 +155,7 @@ serve(async (req) => {
         await supabase
           .from("orders")
           .update({
-            status: isFullRefund ? "REFUNDED" : "PARTIALLY_REFUNDED",
+            status: isFullRefund ? "refunded" : "partially_refunded",
             updated_at: new Date().toISOString(),
           })
           .eq("id", order.id);

@@ -440,11 +440,11 @@ async function reconcileOrder(
 
   // Processar baseado no status
   if (paymentStatus === 'approved') {
-    // Atualizar pedido para PAID
+    // Atualizar pedido para paid
     const { error: updateError } = await supabase
       .from('orders')
       .update({
-        status: 'PAID',
+        status: 'paid',
         pix_status: 'approved',
         paid_at: dateApproved || new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -483,15 +483,15 @@ async function reconcileOrder(
     return {
       orderId,
       previousStatus: order.status,
-      newStatus: 'PAID',
+      newStatus: 'paid',
       action: 'updated',
       reason: 'Pagamento confirmado via reconciliação',
     };
 
   } else if (['rejected', 'cancelled', 'refunded', 'charged_back'].includes(paymentStatus)) {
-    const newStatus = paymentStatus === 'rejected' ? 'REJECTED' : 
-                      paymentStatus === 'cancelled' ? 'CANCELLED' : 
-                      paymentStatus === 'refunded' ? 'REFUNDED' : 'CHARGEBACK';
+    const newStatus = paymentStatus === 'rejected' ? 'rejected' : 
+                      paymentStatus === 'cancelled' ? 'cancelled' : 
+                      paymentStatus === 'refunded' ? 'refunded' : 'chargeback';
 
     await supabase
       .from('orders')
