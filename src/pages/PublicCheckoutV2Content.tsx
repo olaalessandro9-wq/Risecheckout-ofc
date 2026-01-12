@@ -63,7 +63,9 @@ export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, desi
 
   // Payment Gateway
   const { selectedPayment, setSelectedPayment, submitPayment } = usePaymentOrchestrator({
-    vendorId: null, checkoutId, productId: checkout.product.id, productName: checkout.product.name, productPrice: checkout.product.price,
+    vendorId: null, checkoutId, productId: checkout.product.id, 
+    offerId: (checkout as any).offerId || null, // ✅ Passa offerId para garantir preço correto
+    productName: checkout.product.name, productPrice: checkout.product.price,
     publicKey: checkout.mercadopago_public_key || null, amount: calculateTotal(), formData, selectedBumps, orderBumps, appliedCoupon,
     pixGateway: checkout.pix_gateway || 'pushinpay', creditCardGateway: checkout.credit_card_gateway || 'mercadopago',
   });
