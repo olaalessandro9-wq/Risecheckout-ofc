@@ -116,19 +116,19 @@ serve(withSentry('stripe-create-payment', async (req) => {
     const paymentIntent = await stripe.paymentIntents.create(intentParams);
     logStep("Payment Intent created", { id: paymentIntent.id, status: paymentIntent.status });
 
-    // 6. PREPARAR CAMPOS PARA ATUALIZAÇÃO
+    // 6. PREPARAR CAMPOS PARA ATUALIZAÇÃO - Normalizar para lowercase
     const updateFields: Record<string, unknown> = {
       gateway_payment_id: paymentIntent.id,
       gateway: "stripe",
-      payment_method: payment_method,
+      payment_method: payment_method.toLowerCase(),
       updated_at: new Date().toISOString(),
     };
 
-    // 7. SE APROVADO IMEDIATAMENTE
+    // 7. SE APROVADO IMEDIATAMENTE - status em lowercase
     if (paymentIntent.status === "succeeded") {
-      updateFields.status = "PAID";
+      updateFields.status = "paid";
       updateFields.paid_at = new Date().toISOString();
-      logStep("Payment succeeded immediately - updating order to PAID");
+      logStep("Payment succeeded immediately - updating order to paid");
 
       // Transferir comissão do afiliado
       await processAffiliateCommission(stripe, supabase, order, order_id, logStep);

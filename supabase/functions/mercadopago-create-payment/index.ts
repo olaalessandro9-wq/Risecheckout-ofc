@@ -295,12 +295,12 @@ serve(async (req) => {
 
     logInfo('Pagamento criado', { id: paymentResult.transactionId, status: paymentResult.status });
 
-    // 9. UPDATE ORDER
+    // 9. UPDATE ORDER - Normalizar status para lowercase
     const updateData: any = {
-      gateway: 'MERCADOPAGO',
+      gateway: 'mercadopago',
       gateway_payment_id: paymentResult.transactionId,
-      status: paymentResult.status === 'approved' ? 'PAID' : order.status,
-      payment_method: paymentMethod.toUpperCase(),
+      status: paymentResult.status === 'approved' ? 'paid' : order.status?.toLowerCase(),
+      payment_method: paymentMethod.toLowerCase(),
       updated_at: new Date().toISOString()
     };
 

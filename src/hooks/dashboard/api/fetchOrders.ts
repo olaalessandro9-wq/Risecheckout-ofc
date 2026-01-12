@@ -59,6 +59,10 @@ export async function fetchRecentOrders(
  * CORREÇÃO DE TIMEZONE:
  * Usa toUTCStartOfDay/toUTCEndOfDay para garantir que a conversão
  * de datas preserve o dia/mês/ano da timezone local do usuário.
+ * 
+ * CORREÇÃO CASE-INSENSITIVE:
+ * Não filtra status no SQL para suportar 'paid', 'PAID', 'Paid'.
+ * Filtramos no JS após a busca.
  */
 export async function fetchChartOrders(
   vendorId: string,
@@ -69,7 +73,7 @@ export async function fetchChartOrders(
     .from("orders")
     .select(ORDER_QUERY)
     .eq("vendor_id", vendorId)
-    .eq("status", "paid")
+    // Removido: .eq("status", "paid") - filtrar case-insensitive no JS
     .gte("created_at", toUTCStartOfDay(startDate))
     .lte("created_at", toUTCEndOfDay(endDate))
     .order("created_at", { ascending: true });
@@ -79,5 +83,8 @@ export async function fetchChartOrders(
     throw error;
   }
 
-  return (orders as unknown as Order[]) || [];
+  // Filtrar apenas status 'paid' (case-insensitive)
+  return (orders as unknown as Order[])?.filter(
+    order => order.status?.toLowerCase() === 'paid'
+  ) || [];
 }

@@ -151,12 +151,13 @@ serve(async (req) => {
       return createSuccessResponse({ message: 'Duplicado', orderId: currentOrder.id });
     }
 
-    // Update Order
+    // Update Order - Normalizar status para lowercase
+    const normalizedStatus = orderStatus.toLowerCase();
     const updateData: Record<string, unknown> = {
-      status: orderStatus,
+      status: normalizedStatus,
       updated_at: new Date().toISOString()
     };
-    if (orderStatus === 'PAID') {
+    if (normalizedStatus === 'paid') {
       updateData.paid_at = new Date().toISOString();
     }
 
@@ -180,10 +181,10 @@ serve(async (req) => {
       return createErrorResponse(ERROR_CODES.UPDATE_ERROR, 'Erro ao atualizar', 500);
     }
 
-    logger.info('✅ Pedido atualizado', { orderId: currentOrder.id, status: orderStatus });
+    logger.info('✅ Pedido atualizado', { orderId: currentOrder.id, status: normalizedStatus });
 
     // Security Log
-    if (orderStatus === 'PAID') {
+    if (normalizedStatus === 'paid') {
       await logSecurityEvent(supabase, {
         userId: currentOrder.vendor_id as string,
         action: SecurityAction.PROCESS_PAYMENT,
@@ -195,7 +196,7 @@ serve(async (req) => {
     }
 
     // Post-Payment Actions
-    if (orderStatus === 'PAID') {
+    if (normalizedStatus === 'paid') {
       await processPostPaymentActions(supabase, {
         orderId: currentOrder.id as string,
         customerEmail: currentOrder.customer_email as string,
