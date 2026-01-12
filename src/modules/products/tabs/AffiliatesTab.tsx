@@ -363,7 +363,6 @@ export function AffiliatesTab() {
                       <SelectContent>
                         <SelectItem value="last_click">Último Clique</SelectItem>
                         <SelectItem value="first_click">Primeiro Clique</SelectItem>
-                        <SelectItem value="linear">Linear</SelectItem>
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">

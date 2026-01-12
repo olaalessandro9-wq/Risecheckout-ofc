@@ -30,7 +30,7 @@ interface AffiliateTrackingOptions {
    * Modelo de atribuição
    * @default 'last_click'
    */
-  attributionModel?: 'last_click' | 'first_click' | 'linear';
+  attributionModel?: 'last_click' | 'first_click';
   
   /**
    * Habilita o tracking. Use false para aguardar dados carregarem.
@@ -67,7 +67,7 @@ export function useAffiliateTracking(options: AffiliateTrackingOptions = {}) {
         return;
       }
 
-      // Último clique (padrão) ou Linear: atualizar código
+      // Último clique (padrão): atualizar código
       // Salva no LocalStorage
       localStorage.setItem(STORAGE_KEY, refCode);
 
