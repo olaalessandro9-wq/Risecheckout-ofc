@@ -130,6 +130,9 @@ verify_jwt = false
 [functions.get-affiliation-status]
 verify_jwt = false
 
+[functions.get-all-affiliation-statuses]
+verify_jwt = false
+
 [functions.get-my-affiliations]
 verify_jwt = false
 

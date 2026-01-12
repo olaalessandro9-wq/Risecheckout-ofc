@@ -5,6 +5,7 @@ import {
   type MarketplaceFilters,
   type MarketplaceProductWithDetails,
 } from "@/services/marketplace";
+import { useAffiliationStatusCache } from "@/hooks/useAffiliationStatusCache";
 import type { Database } from "@/integrations/supabase/types";
 
 type MarketplaceCategory = Database["public"]["Tables"]["marketplace_categories"]["Row"];
@@ -43,6 +44,14 @@ export function useMarketplaceProducts(): UseMarketplaceProductsReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [hasMore, setHasMore] = useState(true);
+
+  // Hook de cache de status de afiliação
+  const { loadStatuses } = useAffiliationStatusCache();
+
+  // Carregar cache de afiliações ao montar (paralelo aos produtos)
+  useEffect(() => {
+    loadStatuses();
+  }, [loadStatuses]);
 
   // Buscar categorias (apenas uma vez)
   useEffect(() => {

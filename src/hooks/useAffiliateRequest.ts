@@ -3,6 +3,7 @@ import { checkAffiliationStatus } from "@/services/marketplace";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { getProducerSessionToken } from "@/hooks/useProducerAuth";
+import { useAffiliationStatusCache } from "@/hooks/useAffiliationStatusCache";
 
 interface UseAffiliateRequestReturn {
   requestAffiliate: (productId: string) => Promise<void>;
@@ -39,6 +40,9 @@ export function useAffiliateRequest(): UseAffiliateRequestReturn & { isCheckingS
     status?: "pending" | "active" | "rejected" | "blocked";
     affiliationId?: string;
   } | null>(null);
+
+  // Cache de status de afiliação (para atualizar após request)
+  const { updateStatus: updateCacheStatus } = useAffiliationStatusCache();
 
   /**
    * Solicita afiliação a um produto via Edge Function
@@ -101,7 +105,11 @@ export function useAffiliateRequest(): UseAffiliateRequestReturn & { isCheckingS
           setAffiliationStatus({
             isAffiliate: newStatus === "active",
             status: newStatus as "pending" | "active" | "rejected" | "blocked",
+            affiliationId: data.affiliationId,
           });
+          
+          // NOVO: Atualizar cache global imediatamente
+          updateCacheStatus(productId, newStatus, data.affiliationId);
           
           console.log("[useAffiliateRequest] Afiliação processada:", { 
             status: newStatus, 
