@@ -40,7 +40,7 @@ export function buildNavItems(params: BuildNavItemsParams): NavItem[] {
       : { label: "Financeiro", icon: Banknote, to: "/dashboard/financeiro" },
     // Menu expansível "Ferramentas"
     {
-      label: "Ferramentas",
+      label: "Configurações",
       icon: Settings2,
       children: [
         { label: "Pixels", icon: BarChart3, to: "/dashboard/pixels" },
