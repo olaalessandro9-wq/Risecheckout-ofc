@@ -1,85 +1,36 @@
+/**
+ * useCheckoutEditor - Hook para gerenciamento do editor de checkout
+ * 
+ * Responsabilidades:
+ * - Estado de UI (viewMode, preview, tabs)
+ * - Estado de seleção de componentes
+ * - Estado de customização (design + components)
+ * - Ações de CRUD de componentes
+ * - Drag and Drop
+ * 
+ * Linha: ~230 (compliance RISE ARCHITECT PROTOCOL)
+ */
+
 import { useState, useCallback } from "react";
 import { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 
-// --- TIPOS ---
+// Tipos extraídos para módulo
+import type { 
+  ViewMode, 
+  CheckoutComponent, 
+  CheckoutDesign, 
+  CheckoutCustomization 
+} from "@/types/checkoutEditor";
 
-export type ViewMode = "desktop" | "mobile" | "public";
+// Re-export types for backward compatibility
+export type { ViewMode, CheckoutComponent, CheckoutDesign, CheckoutCustomization };
 
-export interface CheckoutComponent {
-  id: string;
-  type: "text" | "image" | "advantage" | "seal" | "timer" | "testimonial" | "video";
-  content?: any;
-}
+// Estado inicial extraído para módulo
+import { DEFAULT_CHECKOUT_DESIGN } from "./checkout/defaultCheckoutDesign";
 
-export interface CheckoutDesign {
-  theme: string;
-  font: string;
-  colors: {
-    background: string;
-    primaryText: string;
-    secondaryText: string;
-    active: string;
-    icon: string;
-    formBackground: string;
-    border: string;
-    unselectedButton: { text: string; background: string; icon: string };
-    selectedButton: { text: string; background: string; icon: string };
-    box: { headerBg: string; headerPrimaryText: string; headerSecondaryText: string; bg: string; primaryText: string; secondaryText: string };
-    unselectedBox: { headerBg: string; headerPrimaryText: string; headerSecondaryText: string; bg: string; primaryText: string; secondaryText: string };
-    selectedBox: { headerBg: string; headerPrimaryText: string; headerSecondaryText: string; bg: string; primaryText: string; secondaryText: string };
-    button: { background: string; text: string };
-    orderSummary?: { background: string; titleText: string; productName: string; priceText: string; labelText: string; borderColor: string };
-    footer?: { background: string; primaryText: string; secondaryText: string; border: string };
-    securePurchase?: { headerBackground: string; headerText: string; cardBackground: string; primaryText: string; secondaryText: string; linkText: string };
-    orderBump: { headerBackground: string; headerText: string; footerBackground: string; footerText: string; contentBackground: string; titleText: string; descriptionText: string; priceText: string; selectedHeaderBackground?: string; selectedHeaderText?: string; selectedFooterBackground?: string; selectedFooterText?: string };
-    creditCardFields?: { textColor?: string; placeholderColor?: string; borderColor?: string; backgroundColor?: string; focusBorderColor?: string; focusTextColor?: string };
-    personalDataFields?: { textColor?: string; placeholderColor?: string; borderColor?: string; backgroundColor?: string; focusBorderColor?: string; focusTextColor?: string };
-    infoBox?: { background: string; border: string; text: string };
-    inputBackground?: string;
-    placeholder?: string;
-    productPrice?: string;
-  };
-  backgroundImage?: { url?: string; fixed?: boolean; repeat?: boolean; expand?: boolean };
-}
-
-export interface CheckoutCustomization {
-  design: CheckoutDesign;
-  topComponents: CheckoutComponent[];
-  bottomComponents: CheckoutComponent[];
-}
-
-// --- ESTADO INICIAL ---
-
-const DEFAULT_DESIGN: CheckoutCustomization = {
-    design: {
-      theme: "custom",
-      font: "Inter",
-      colors: {
-        background: "#FFFFFF",
-        primaryText: "#000000",
-        secondaryText: "#6B7280",
-        active: "#10B981",
-        icon: "#000000",
-        formBackground: "#F9FAFB",
-        border: "#E5E7EB",
-        unselectedButton: { text: "#000000", background: "#FFFFFF", icon: "#000000" },
-        selectedButton: { text: "#FFFFFF", background: "#10B981", icon: "#FFFFFF" },
-        box: { headerBg: "#1A1A1A", headerPrimaryText: "#FFFFFF", headerSecondaryText: "#CCCCCC", bg: "#0A0A0A", primaryText: "#FFFFFF", secondaryText: "#CCCCCC" },
-        unselectedBox: { headerBg: "#1A1A1A", headerPrimaryText: "#FFFFFF", headerSecondaryText: "#CCCCCC", bg: "#0A0A0A", primaryText: "#FFFFFF", secondaryText: "#CCCCCC" },
-        selectedBox: { headerBg: "#10B981", headerPrimaryText: "#FFFFFF", headerSecondaryText: "#CCCCCC", bg: "#0A0A0A", primaryText: "#FFFFFF", secondaryText: "#CCCCCC" },
-        button: { background: "#10B981", text: "#FFFFFF" },
-        orderBump: {
-          headerBackground: 'rgba(0,0,0,0.15)', headerText: '#10B981', footerBackground: 'rgba(0,0,0,0.15)', footerText: '#000000',
-          contentBackground: '#F9FAFB', titleText: '#000000', descriptionText: '#6B7280', priceText: '#10B981',
-        },
-        creditCardFields: { textColor: '#000000', placeholderColor: '#999999', borderColor: '#E5E7EB', backgroundColor: '#F9FAFB', focusBorderColor: '#10B981', focusTextColor: '#000000' },
-      },
-    },
-    topComponents: [],
-    bottomComponents: [],
-};
-
-// --- HOOK ---
+// ============================================================================
+// HOOK
+// ============================================================================
 
 export const useCheckoutEditor = () => {
   // Estados de UI
@@ -92,7 +43,7 @@ export const useCheckoutEditor = () => {
   const [selectedComponent, setSelectedComponent] = useState<string | null>(null);
 
   // Estado Principal
-  const [customization, setCustomization] = useState<CheckoutCustomization>(DEFAULT_DESIGN);
+  const [customization, setCustomization] = useState<CheckoutCustomization>(DEFAULT_CHECKOUT_DESIGN);
   
   // Controle de Alterações
   const [isDirty, setIsDirty] = useState(false);
@@ -116,7 +67,7 @@ export const useCheckoutEditor = () => {
   // --- AÇÕES ---
 
   const handleUpdateDesign = useCallback((design: CheckoutDesign) => {
-    console.log('🎨 [useCheckoutEditor] Updating design');
+    if (import.meta.env.DEV) console.log('🎨 [useCheckoutEditor] Updating design');
     setCustomization((prev) => ({ ...prev, design }));
     touch();
   }, [touch]);
@@ -142,64 +93,54 @@ export const useCheckoutEditor = () => {
   const handleRemoveComponent = useCallback((componentId: string) => {
     setCustomization((prev) => {
       const filter = (list: CheckoutComponent[]) => list.filter(c => c.id !== componentId);
-      return {
-        ...prev,
-        topComponents: filter(prev.topComponents),
-        bottomComponents: filter(prev.bottomComponents),
-      };
+      return { ...prev, topComponents: filter(prev.topComponents), bottomComponents: filter(prev.bottomComponents) };
     });
     if (selectedComponent === componentId) setSelectedComponent(null);
     touch();
   }, [selectedComponent, touch]);
 
   const handleDuplicateComponent = useCallback((componentId: string) => {
-     setCustomization((prev) => {
-        const clone = (c: CheckoutComponent) => ({ 
-            ...c, 
-            id: `component-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` 
-        });
-        
-        // Check Top
-        const topIdx = prev.topComponents.findIndex(c => c.id === componentId);
-        if (topIdx >= 0) {
-            const newArr = [...prev.topComponents];
-            newArr.splice(topIdx + 1, 0, clone(prev.topComponents[topIdx]));
-            return { ...prev, topComponents: newArr };
-        }
+    setCustomization((prev) => {
+      const clone = (c: CheckoutComponent) => ({ 
+        ...c, 
+        id: `component-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` 
+      });
+      
+      const topIdx = prev.topComponents.findIndex(c => c.id === componentId);
+      if (topIdx >= 0) {
+        const newArr = [...prev.topComponents];
+        newArr.splice(topIdx + 1, 0, clone(prev.topComponents[topIdx]));
+        return { ...prev, topComponents: newArr };
+      }
 
-        // Check Bottom
-        const botIdx = prev.bottomComponents.findIndex(c => c.id === componentId);
-        if (botIdx >= 0) {
-            const newArr = [...prev.bottomComponents];
-            newArr.splice(botIdx + 1, 0, clone(prev.bottomComponents[botIdx]));
-            return { ...prev, bottomComponents: newArr };
-        }
+      const botIdx = prev.bottomComponents.findIndex(c => c.id === componentId);
+      if (botIdx >= 0) {
+        const newArr = [...prev.bottomComponents];
+        newArr.splice(botIdx + 1, 0, clone(prev.bottomComponents[botIdx]));
+        return { ...prev, bottomComponents: newArr };
+      }
 
-        return prev;
-     });
-     touch();
+      return prev;
+    });
+    touch();
   }, [touch]);
 
   const handleMoveComponent = useCallback((componentId: string, direction: 'up' | 'down') => {
-      setCustomization(prev => {
-          const move = (list: CheckoutComponent[]) => {
-              const idx = list.findIndex(c => c.id === componentId);
-              if (idx === -1) return list;
-              const newArr = [...list];
-              const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
-              if (swapIdx >= 0 && swapIdx < newArr.length) {
-                  [newArr[idx], newArr[swapIdx]] = [newArr[swapIdx], newArr[idx]];
-              }
-              return newArr;
-          };
+    setCustomization(prev => {
+      const move = (list: CheckoutComponent[]) => {
+        const idx = list.findIndex(c => c.id === componentId);
+        if (idx === -1) return list;
+        const newArr = [...list];
+        const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+        if (swapIdx >= 0 && swapIdx < newArr.length) {
+          [newArr[idx], newArr[swapIdx]] = [newArr[swapIdx], newArr[idx]];
+        }
+        return newArr;
+      };
 
-          return {
-              ...prev,
-              topComponents: move(prev.topComponents),
-              bottomComponents: move(prev.bottomComponents),
-          };
-      });
-      touch();
+      return { ...prev, topComponents: move(prev.topComponents), bottomComponents: move(prev.bottomComponents) };
+    });
+    touch();
   }, [touch]);
 
   // --- DRAG AND DROP ---
@@ -240,29 +181,27 @@ export const useCheckoutEditor = () => {
 
       // 1. Remover da origem se for componente existente
       if (isExisting) {
-         // Remove Top
-         const topIdx = prev.topComponents.findIndex(c => c.id === activeIdStr);
-         if (topIdx >= 0) {
-             componentToMove = prev.topComponents[topIdx];
-             newState.topComponents = prev.topComponents.filter(c => c.id !== activeIdStr);
-         }
-         // Remove Bottom
-         if (!componentToMove) {
-             const botIdx = prev.bottomComponents.findIndex(c => c.id === activeIdStr);
-             if (botIdx >= 0) {
-                 componentToMove = prev.bottomComponents[botIdx];
-                 newState.bottomComponents = prev.bottomComponents.filter(c => c.id !== activeIdStr);
-             }
-         }
+        const topIdx = prev.topComponents.findIndex(c => c.id === activeIdStr);
+        if (topIdx >= 0) {
+          componentToMove = prev.topComponents[topIdx];
+          newState.topComponents = prev.topComponents.filter(c => c.id !== activeIdStr);
+        }
+        if (!componentToMove) {
+          const botIdx = prev.bottomComponents.findIndex(c => c.id === activeIdStr);
+          if (botIdx >= 0) {
+            componentToMove = prev.bottomComponents[botIdx];
+            newState.bottomComponents = prev.bottomComponents.filter(c => c.id !== activeIdStr);
+          }
+        }
       }
 
       if (!componentToMove) return prev;
 
       // 2. Adicionar ao destino
       if (dropZone === "top-drop-zone") {
-          newState.topComponents = [...newState.topComponents, componentToMove];
+        newState.topComponents = [...newState.topComponents, componentToMove];
       } else if (dropZone === "bottom-drop-zone") {
-          newState.bottomComponents = [...newState.bottomComponents, componentToMove];
+        newState.bottomComponents = [...newState.bottomComponents, componentToMove];
       }
       
       return newState;
@@ -310,4 +249,4 @@ export const useCheckoutEditor = () => {
     // Utils
     touch
   };
-}
+};
