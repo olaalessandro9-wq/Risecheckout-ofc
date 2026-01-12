@@ -3066,6 +3066,7 @@ export type Database = {
           password_hash: string | null
           password_hash_version: number | null
           phone: string | null
+          registration_source: string | null
           reset_token: string | null
           reset_token_expires_at: string | null
           status: string | null
@@ -3095,6 +3096,7 @@ export type Database = {
           password_hash?: string | null
           password_hash_version?: number | null
           phone?: string | null
+          registration_source?: string | null
           reset_token?: string | null
           reset_token_expires_at?: string | null
           status?: string | null
@@ -3124,6 +3126,7 @@ export type Database = {
           password_hash?: string | null
           password_hash_version?: number | null
           phone?: string | null
+          registration_source?: string | null
           reset_token?: string | null
           reset_token_expires_at?: string | null
           status?: string | null
