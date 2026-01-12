@@ -45,13 +45,16 @@ export default function AppShell() {
     console.log("Notificações clicadas");
   };
 
-  // Largura efetiva do sidebar (considera hover temporário)
+  // Detectar se é mobile para remover padding (sem usar !important)
+  const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
+
+  // Largura efetiva do sidebar (considera hover temporário e mobile)
   const effectiveWidth = useMemo(() => {
+    if (isMobile) return 0; // Mobile: sem padding, sidebar é overlay
     if (sidebarState === 'hidden') return 0;
     if (sidebarState === 'collapsed' && isHovering) return SIDEBAR_WIDTHS.expanded;
     return SIDEBAR_WIDTHS[sidebarState];
-  }, [sidebarState, isHovering]);
-
+  }, [sidebarState, isHovering, isMobile]);
   return (
     <div className="flex min-h-screen w-full bg-background text-foreground">
       <Sidebar 
@@ -85,17 +88,8 @@ export default function AppShell() {
           <div className="px-4 pb-8 pt-4 md:px-6 lg:px-8">
             <Outlet />
           </div>
-        </main>
-      </div>
-
-      {/* Overlay em mobile quando sidebar está aberta */}
-      <style>{`
-        @media (max-width: 767px) {
-          .flex.min-w-0 {
-            padding-left: 0 !important;
-          }
-        }
-      `}</style>
+      </main>
     </div>
+  </div>
   );
 }
