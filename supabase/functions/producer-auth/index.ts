@@ -277,6 +277,33 @@ serve(async (req) => {
         .eq("user_id", producer.id)
         .single();
 
+      // ============================================
+      // SYNC WITH SUPABASE AUTH (for RLS compatibility)
+      // ============================================
+      // This ensures auth.uid() works in RLS policies when frontend
+      // makes direct supabase.from() calls
+      let supabaseSession = null;
+      try {
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email: email.toLowerCase(),
+          password,
+        });
+        
+        if (!authError && authData.session) {
+          supabaseSession = {
+            access_token: authData.session.access_token,
+            refresh_token: authData.session.refresh_token,
+            expires_at: authData.session.expires_at,
+          };
+          console.log(`[producer-auth] Supabase Auth session synced for: ${email}`);
+        } else if (authError) {
+          console.warn(`[producer-auth] Could not sync Supabase Auth session: ${authError.message}`);
+        }
+      } catch (syncError) {
+        // Non-blocking - login still works via producer_sessions
+        console.warn("[producer-auth] Supabase Auth sync failed (non-blocking):", syncError);
+      }
+
       console.log(`[producer-auth] Login successful: ${email}, role: ${roleData?.role || "user"}`);
       return jsonResponse({
         success: true,
@@ -288,6 +315,7 @@ serve(async (req) => {
           name: producer.name,
           role: roleData?.role || "user",
         },
+        supabaseSession, // NEW: Supabase Auth session for frontend sync
       }, corsHeaders);
     }
 

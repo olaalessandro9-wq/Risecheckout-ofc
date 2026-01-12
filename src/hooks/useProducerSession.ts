@@ -3,10 +3,16 @@
  * 
  * Uses React Query for caching and automatic revalidation.
  * Provides a consistent way to check producer session across components.
+ * 
+ * DUAL-SESSION VALIDATION:
+ * - Validates producer_session (custom token)
+ * - ALSO verifies Supabase Auth session exists (for RLS compatibility)
+ * - If Supabase session expired, forces re-login to re-sync
  */
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SUPABASE_URL } from "@/config/supabase";
+import { supabase } from "@/integrations/supabase/client";
 
 const SESSION_KEY = "producer_session_token";
 
@@ -35,6 +41,20 @@ async function validateProducerSession(): Promise<SessionData> {
   }
 
   try {
+    // ============================================
+    // VERIFY SUPABASE AUTH SESSION EXISTS
+    // ============================================
+    // If no Supabase session, force re-login to re-sync
+    // This prevents 401 errors on direct supabase.from() calls
+    const { data: { session: supabaseSession } } = await supabase.auth.getSession();
+    
+    if (!supabaseSession) {
+      console.warn("[ProducerSession] Supabase Auth session expired - requiring re-login to sync");
+      localStorage.removeItem(SESSION_KEY);
+      return { valid: false, producer: null };
+    }
+
+    // Validate producer_session (custom system)
     const response = await fetch(`${SUPABASE_URL}/functions/v1/producer-auth/validate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
