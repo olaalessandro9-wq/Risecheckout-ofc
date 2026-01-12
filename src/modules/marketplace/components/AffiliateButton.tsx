@@ -21,6 +21,7 @@ export function AffiliateButton({ productId, onSuccess, className }: AffiliateBu
     requestAffiliate,
     checkStatus,
     isLoading,
+    isCheckingStatus,
     error,
     success,
     affiliationStatus,
@@ -54,8 +55,8 @@ export function AffiliateButton({ productId, onSuccess, className }: AffiliateBu
     await checkStatus(productId);
   };
 
-  // Loading
-  if (isLoading && !affiliationStatus) {
+  // Loading - mostrar durante verificação inicial OU durante request
+  if (isCheckingStatus || (isLoading && !affiliationStatus)) {
     return (
       <Button disabled size="sm" variant="outline" className={className}>
         <Loader2 className="w-4 h-4 animate-spin" />

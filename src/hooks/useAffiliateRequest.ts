@@ -28,9 +28,10 @@ interface UseAffiliateRequestReturn {
  * 
  * @see supabase/functions/request-affiliation/index.ts
  */
-export function useAffiliateRequest(): UseAffiliateRequestReturn {
+export function useAffiliateRequest(): UseAffiliateRequestReturn & { isCheckingStatus: boolean } {
   const { user, session } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [affiliationStatus, setAffiliationStatus] = useState<{
@@ -136,8 +137,12 @@ export function useAffiliateRequest(): UseAffiliateRequestReturn {
    */
   const checkStatus = useCallback(
     async (productId: string) => {
+      // Indicar que está verificando status
+      setIsCheckingStatus(true);
+      
       if (!user) {
         setAffiliationStatus({ isAffiliate: false });
+        setIsCheckingStatus(false);
         return;
       }
 
@@ -147,6 +152,8 @@ export function useAffiliateRequest(): UseAffiliateRequestReturn {
       } catch (err) {
         console.error("[useAffiliateRequest] Erro ao verificar status:", err);
         setAffiliationStatus({ isAffiliate: false });
+      } finally {
+        setIsCheckingStatus(false);
       }
     },
     [user]
@@ -156,6 +163,7 @@ export function useAffiliateRequest(): UseAffiliateRequestReturn {
     requestAffiliate,
     checkStatus,
     isLoading,
+    isCheckingStatus,
     error,
     success,
     affiliationStatus,
