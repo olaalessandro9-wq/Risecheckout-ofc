@@ -24,15 +24,6 @@ if (!MERCADOPAGO_REDIRECT_URI) {
   console.error('[MercadoPago Config] VITE_MERCADOPAGO_REDIRECT_URI não configurado!');
 }
 
-/**
- * ✅ P0-2 FIX: Gerar nonce criptograficamente seguro
- */
-function generateSecureNonce(): string {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-}
-
 type ConnectionMode = 'none' | 'production' | 'sandbox';
 
 export function MercadoPagoConfig({ onOpen, onConnectionChange }: { onOpen?: boolean; onConnectionChange?: () => void }) {
@@ -108,25 +99,28 @@ export function MercadoPagoConfig({ onOpen, onConnectionChange }: { onOpen?: boo
         return;
       }
 
-      // Buscar integração diretamente
-      const { data, error } = await supabase
-        .from('vendor_integrations')
-        .select('*')
-        .eq('vendor_id', user.id)
-        .eq('integration_type', 'MERCADOPAGO')
-        .maybeSingle();
+      // Usar Edge Function para buscar status
+      const { data: response, error } = await supabase.functions.invoke('integration-management', {
+        body: {
+          action: 'status',
+          integration_type: 'MERCADOPAGO',
+        },
+      });
 
       if (error) throw error;
 
-      if (data) {
-        const config = data.config as any;
+      const integrations = response?.integrations || [];
+      const mpIntegration = integrations.find((i: any) => i.integration_type === 'MERCADOPAGO');
+
+      if (mpIntegration) {
+        const config = mpIntegration.config as any;
         const isTest = config?.is_test ?? false;
         
         // Determinar modo baseado em is_test
         const mode: ConnectionMode = isTest ? 'sandbox' : 'production';
         
         setCurrentMode(mode);
-        setIntegration(data);
+        setIntegration(mpIntegration);
       } else {
         setCurrentMode('none');
         setIntegration(null);
@@ -155,23 +149,22 @@ export function MercadoPagoConfig({ onOpen, onConnectionChange }: { onOpen?: boo
     setConnectingOAuth(true);
 
     try {
-      // Gerar nonce seguro
-      const nonce = generateSecureNonce();
-      
-      // Salvar nonce no banco (usando type assertion para tabela oauth_states)
-      const { error: insertError } = await (supabase as any)
-        .from('oauth_states')
-        .insert({
-          state: nonce,
-          vendor_id: user.id
-        });
+      // Usar Edge Function para iniciar OAuth (cria state seguro no backend)
+      const { data: response, error } = await supabase.functions.invoke('integration-management', {
+        body: {
+          action: 'init-oauth',
+          integration_type: 'MERCADOPAGO',
+        },
+      });
 
-      if (insertError) {
-        console.error('[MercadoPago OAuth] Erro ao salvar state:', insertError);
+      if (error || !response?.state) {
+        console.error('[MercadoPago OAuth] Erro ao iniciar OAuth:', error || response?.error);
         toast.error('Erro ao iniciar autenticação. Tente novamente.');
         setConnectingOAuth(false);
         return;
       }
+
+      const nonce = response.state;
 
       // Construir URL de autorização
       const authUrl = new URL('https://auth.mercadopago.com.br/authorization');
@@ -228,45 +221,21 @@ export function MercadoPagoConfig({ onOpen, onConnectionChange }: { onOpen?: boo
     try {
       if (!user?.id) throw new Error("Usuário não autenticado");
 
-      const config = {
-        access_token: accessToken,
-        public_key: publicKey,
-        is_test: true, // Sempre true para sandbox
-      };
+      // Usar Edge Function para salvar credenciais
+      const { data: response, error } = await supabase.functions.invoke('integration-management', {
+        body: {
+          action: 'save-credentials',
+          integration_type: 'MERCADOPAGO',
+          credentials: {
+            access_token: accessToken,
+            public_key: publicKey,
+            is_test: true, // Sempre true para sandbox
+          },
+        },
+      });
 
-      // Verificar se já existe
-      const { data: existing } = await supabase
-        .from('vendor_integrations')
-        .select('id')
-        .eq('vendor_id', user.id)
-        .eq('integration_type', 'MERCADOPAGO')
-        .maybeSingle();
-
-      if (existing) {
-        // Atualizar
-        const { error } = await supabase
-          .from('vendor_integrations')
-          .update({
-            config,
-            active: true,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', existing.id);
-
-        if (error) throw error;
-      } else {
-        // Inserir
-        const { error } = await supabase
-          .from('vendor_integrations')
-          .insert({
-            vendor_id: user.id,
-            integration_type: 'MERCADOPAGO',
-            config,
-            active: true,
-          });
-
-        if (error) throw error;
-      }
+      if (error) throw error;
+      if (!response?.success) throw new Error(response?.error || 'Erro ao salvar credenciais');
 
       setMessage({ type: "success", text: "Credenciais de Sandbox salvas com sucesso!" });
       toast.success("Credenciais de Sandbox salvas!");
@@ -291,12 +260,16 @@ export function MercadoPagoConfig({ onOpen, onConnectionChange }: { onOpen?: boo
     try {
       if (!integration?.id) return;
 
-      const { error } = await supabase
-        .from('vendor_integrations')
-        .delete()
-        .eq('id', integration.id);
+      // Usar Edge Function para desconectar
+      const { data: response, error } = await supabase.functions.invoke('integration-management', {
+        body: {
+          action: 'disconnect',
+          integration_type: 'MERCADOPAGO',
+        },
+      });
 
       if (error) throw error;
+      if (!response?.success) throw new Error(response?.error || 'Erro ao desconectar');
 
       toast.success('Integração desconectada');
       setCurrentMode('none');
