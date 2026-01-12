@@ -29,6 +29,7 @@ export interface AffiliationOffer {
   price: number;
   status: string;
   is_default: boolean | null;
+  payment_link_slug: string | null; // Link único por oferta
 }
 
 export interface AffiliationCheckout {
