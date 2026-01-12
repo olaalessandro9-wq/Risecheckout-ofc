@@ -2,27 +2,30 @@
  * useAffiliations - Hook para gerenciar afiliações do usuário
  * 
  * Responsabilidades:
- * - Fetch das afiliações do usuário logado
+ * - Fetch das afiliações do usuário logado via Edge Function
  * - Cancelamento de afiliação
  * - Gerenciamento de estados de loading/error
  * 
- * MIGRATED: Uses useAuth() instead of supabase.auth.getUser()
+ * MIGRATED: Usa Edge Function para bypass de RLS
+ * (sistema usa autenticação customizada via producer_sessions)
  */
 
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 
 export interface Affiliation {
   id: string;
   commission_rate: number;
   status: string;
   created_at: string;
+  affiliate_code?: string;
   product: {
     id: string;
     name: string;
-  };
+  } | null;
 }
 
 interface UseAffiliationsResult {
@@ -40,7 +43,9 @@ export function useAffiliations(): UseAffiliationsResult {
   const [error, setError] = useState<string | null>(null);
 
   const fetchAffiliations = useCallback(async () => {
-    if (!user?.id) {
+    const sessionToken = getProducerSessionToken();
+
+    if (!sessionToken || !user?.id) {
       setAffiliations([]);
       setIsLoading(false);
       return;
@@ -50,24 +55,31 @@ export function useAffiliations(): UseAffiliationsResult {
       setIsLoading(true);
       setError(null);
 
-      const { data, error: fetchError } = await supabase
-        .from("affiliates")
-        .select(`
-          id,
-          commission_rate,
-          status,
-          created_at,
-          product:products (
-            id,
-            name
-          )
-        `)
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+      console.log("[useAffiliations] Buscando afiliações via Edge Function...");
 
-      if (fetchError) throw fetchError;
+      const { data, error: invokeError } = await supabase.functions.invoke(
+        "get-my-affiliations",
+        {
+          headers: {
+            "x-producer-session-token": sessionToken,
+          },
+        }
+      );
 
-      setAffiliations(data as Affiliation[]);
+      if (invokeError) {
+        console.error("[useAffiliations] Erro na Edge Function:", invokeError);
+        throw invokeError;
+      }
+
+      if (data?.error) {
+        console.error("[useAffiliations] Erro retornado:", data.error);
+        throw new Error(data.error);
+      }
+
+      const fetchedAffiliations = data?.affiliations || [];
+      console.log(`[useAffiliations] ${fetchedAffiliations.length} afiliações encontradas`);
+
+      setAffiliations(fetchedAffiliations);
     } catch (err) {
       console.error("Erro ao buscar afiliações:", err);
       setError("Erro ao carregar suas afiliações.");
