@@ -114,10 +114,17 @@ Este sistema segue 100% o protocolo:
 
 ## 📖 Documentação Relacionada
 
+### Arquitetura de Componentes
+- [Sistema de Pixels](./PIXEL_SYSTEM.md) - Tracking multi-plataforma
+- [Arquitetura do Sidebar](./SIDEBAR_ARCHITECTURE.md) - Navegação responsiva
+
+### Autenticação e Segurança
 - [Sistema de Autenticação Completo](./AUTHENTICATION_SYSTEM.md)
+- [Segurança de Rotas Admin](./ADMIN_ROUTES_SECURITY.md)
 - [Módulos Compartilhados](../supabase/functions/_shared/README.md)
 - [Módulo unified-auth.ts](../supabase/functions/_shared/README.md#8-unified-authts)
-- [Segurança de Rotas Admin](./ADMIN_ROUTES_SECURITY.md)
+
+### Edge Functions
 - [Asaas Create Payment](../supabase/functions/asaas-create-payment/README.md)
 - [Asaas Webhook](../supabase/functions/asaas-webhook/README.md)
 - [Stripe Create Payment](../supabase/functions/stripe-create-payment/README.md)
