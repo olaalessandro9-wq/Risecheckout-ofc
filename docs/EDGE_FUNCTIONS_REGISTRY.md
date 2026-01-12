@@ -260,6 +260,7 @@
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-12 | Expandida `checkout-management` com ações CREATE, UPDATE e SET-DEFAULT - migração completa de CheckoutConfigDialog |
 | 2026-01-12 | Adicionadas `offer-management`, `checkout-management`, `product-duplicate` para eliminar operações de escrita no frontend |
 | 2026-01-12 | Adicionada `product-management` para CRUD de produtos via backend |
 | 2026-01-12 | Criação inicial do documento com 66 funções |

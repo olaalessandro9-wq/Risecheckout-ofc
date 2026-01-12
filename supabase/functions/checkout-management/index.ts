@@ -14,6 +14,9 @@
  * - Atomic transactions for cascading deletes
  * 
  * Endpoints:
+ * - POST /create - Create checkout with payment link
+ * - POST /update - Update checkout (name, default, offer)
+ * - POST /set-default - Set checkout as default
  * - DELETE /delete - Delete checkout atomically (cascade to links)
  * - POST /order-bump/create - Create order bump
  * - PUT /order-bump/update - Update order bump
@@ -207,6 +210,169 @@ async function verifyOrderBumpOwnership(
   return { valid: true, orderBump: data };
 }
 
+async function verifyProductOwnership(
+  supabase: any,
+  productId: string,
+  producerId: string
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("products")
+    .select("id, user_id")
+    .eq("id", productId)
+    .single();
+
+  if (error || !data) {
+    return false;
+  }
+
+  return data.user_id === producerId;
+}
+
+// ============================================
+// PAYMENT LINK MANAGEMENT
+// ============================================
+
+function generateSlug(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let slug = '';
+  for (let i = 0; i < 8; i++) {
+    slug += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return slug;
+}
+
+async function managePaymentLink(
+  supabase: any,
+  checkoutId: string,
+  offerId: string,
+  baseUrl: string
+): Promise<{ success: boolean; linkId?: string; error?: string }> {
+  try {
+    // 1. Check if checkout already has a link
+    const { data: currentLink } = await supabase
+      .from("checkout_links")
+      .select(`
+        link_id,
+        payment_links!inner (
+          id,
+          offer_id
+        )
+      `)
+      .eq("checkout_id", checkoutId)
+      .maybeSingle();
+
+    // 2. If checkout already has link for this offer → keep it
+    if (currentLink && currentLink.payment_links?.offer_id === offerId) {
+      console.log("[checkout-management] Checkout already has link for this offer, keeping...");
+      return { success: true, linkId: currentLink.link_id };
+    }
+
+    // 3. Check if offer is already used by another checkout
+    const { data: offerInUse } = await supabase
+      .from("checkout_links")
+      .select(`
+        id,
+        payment_links!inner (
+          offer_id
+        )
+      `)
+      .eq("payment_links.offer_id", offerId)
+      .neq("checkout_id", checkoutId)
+      .maybeSingle();
+
+    let linkId: string;
+
+    if (offerInUse) {
+      // 4a. Offer in use → create new payment_link (duplicate)
+      console.log("[checkout-management] Offer in use, creating new link...");
+      const slug = generateSlug();
+
+      const { data: newLink, error: createLinkError } = await supabase
+        .from("payment_links")
+        .insert({
+          offer_id: offerId,
+          slug: slug,
+          url: `${baseUrl}/c/${slug}`,
+          status: "active",
+          is_original: false,
+        })
+        .select("id")
+        .single();
+
+      if (createLinkError) {
+        return { success: false, error: `Failed to create payment link: ${createLinkError.message}` };
+      }
+      linkId = newLink.id;
+    } else {
+      // 4b. Offer not in use → find available link (orphan) or create new
+      const { data: availableLink } = await supabase
+        .from("payment_links")
+        .select("id")
+        .eq("offer_id", offerId)
+        .eq("status", "active")
+        .maybeSingle();
+
+      if (availableLink) {
+        console.log("[checkout-management] Reusing existing link...");
+        linkId = availableLink.id;
+      } else {
+        // Create new link (original)
+        console.log("[checkout-management] Creating new original link...");
+        const slug = generateSlug();
+
+        const { data: newLink, error: createLinkError } = await supabase
+          .from("payment_links")
+          .insert({
+            offer_id: offerId,
+            slug: slug,
+            url: `${baseUrl}/c/${slug}`,
+            status: "active",
+            is_original: true,
+          })
+          .select("id")
+          .single();
+
+        if (createLinkError) {
+          return { success: false, error: `Failed to create payment link: ${createLinkError.message}` };
+        }
+        linkId = newLink.id;
+      }
+    }
+
+    // 5. Associate link to checkout
+    if (currentLink) {
+      // Update existing association
+      console.log("[checkout-management] Updating checkout → link association...");
+      const { error: updateError } = await supabase
+        .from("checkout_links")
+        .update({ link_id: linkId })
+        .eq("checkout_id", checkoutId);
+
+      if (updateError) {
+        return { success: false, error: `Failed to update link association: ${updateError.message}` };
+      }
+    } else {
+      // Create new association
+      console.log("[checkout-management] Creating checkout → link association...");
+      const { error: insertError } = await supabase
+        .from("checkout_links")
+        .insert({
+          checkout_id: checkoutId,
+          link_id: linkId,
+        });
+
+      if (insertError) {
+        return { success: false, error: `Failed to create link association: ${insertError.message}` };
+      }
+    }
+
+    return { success: true, linkId };
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    return { success: false, error: err.message };
+  }
+}
+
 async function verifyCheckoutForOrderBump(
   supabase: any,
   checkoutId: string,
@@ -275,6 +441,251 @@ serve(withSentry("checkout-management", async (req) => {
 
     const producerId = sessionValidation.producerId!;
     console.log(`[checkout-management] Authenticated producer: ${producerId}`);
+
+    // Get base URL for payment links
+    const baseUrl = req.headers.get("origin") || "https://risecheckout.com";
+
+    // ============================================
+    // CREATE CHECKOUT
+    // ============================================
+    if (!isOrderBump && action === "create" && req.method === "POST") {
+      const rateCheck = await checkRateLimit(supabase, producerId, "checkout_create");
+      if (!rateCheck.allowed) {
+        return jsonResponse(
+          { success: false, error: "Muitas requisições. Tente novamente em alguns minutos.", retryAfter: rateCheck.retryAfter },
+          corsHeaders,
+          429
+        );
+      }
+
+      const { productId, name, isDefault, offerId } = body;
+
+      // Validate required fields
+      if (!productId || typeof productId !== "string") {
+        return errorResponse("ID do produto é obrigatório", corsHeaders, 400);
+      }
+      if (!name || typeof name !== "string" || name.trim().length === 0) {
+        return errorResponse("Nome do checkout é obrigatório", corsHeaders, 400);
+      }
+      if (!offerId || typeof offerId !== "string") {
+        return errorResponse("ID da oferta é obrigatório", corsHeaders, 400);
+      }
+
+      // Verify product ownership
+      const isOwner = await verifyProductOwnership(supabase, productId, producerId);
+      if (!isOwner) {
+        return errorResponse("Você não tem permissão para criar checkouts neste produto", corsHeaders, 403);
+      }
+
+      console.log(`[checkout-management] Creating checkout for product ${productId} by ${producerId}`);
+
+      try {
+        // 1. Create checkout
+        const { data: newCheckout, error: createError } = await supabase
+          .from("checkouts")
+          .insert({
+            product_id: productId,
+            name: name.trim(),
+            is_default: !!isDefault,
+          })
+          .select("id, name, is_default, product_id")
+          .single();
+
+        if (createError) {
+          console.error("[checkout-management] Create checkout error:", createError);
+          throw new Error(`Falha ao criar checkout: ${createError.message}`);
+        }
+
+        // 2. If marked as default, unmark others
+        if (isDefault) {
+          await supabase
+            .from("checkouts")
+            .update({ is_default: false })
+            .eq("product_id", productId)
+            .neq("id", newCheckout.id);
+        }
+
+        // 3. Manage payment link
+        const linkResult = await managePaymentLink(supabase, newCheckout.id, offerId, baseUrl);
+        if (!linkResult.success) {
+          // Rollback: delete the checkout we just created
+          await supabase.from("checkouts").delete().eq("id", newCheckout.id);
+          throw new Error(linkResult.error || "Falha ao criar link de pagamento");
+        }
+
+        await recordRateLimitAttempt(supabase, producerId, "checkout_create");
+
+        console.log(`[checkout-management] Checkout created: ${newCheckout.id}`);
+        return jsonResponse({
+          success: true,
+          data: {
+            checkout: {
+              id: newCheckout.id,
+              name: newCheckout.name,
+              isDefault: newCheckout.is_default,
+              linkId: linkResult.linkId,
+            },
+          },
+        }, corsHeaders);
+
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        console.error("[checkout-management] Create checkout failed:", err.message);
+        await captureException(err, {
+          functionName: "checkout-management",
+          extra: { action: "create", producerId, productId, name },
+        });
+        return errorResponse(`Erro ao criar checkout: ${err.message}`, corsHeaders, 500);
+      }
+    }
+
+    // ============================================
+    // UPDATE CHECKOUT
+    // ============================================
+    if (!isOrderBump && action === "update" && (req.method === "PUT" || req.method === "POST")) {
+      const rateCheck = await checkRateLimit(supabase, producerId, "checkout_update");
+      if (!rateCheck.allowed) {
+        return jsonResponse(
+          { success: false, error: "Muitas requisições. Tente novamente em alguns minutos.", retryAfter: rateCheck.retryAfter },
+          corsHeaders,
+          429
+        );
+      }
+
+      const { checkoutId, name, isDefault, offerId } = body;
+
+      if (!checkoutId || typeof checkoutId !== "string") {
+        return errorResponse("ID do checkout é obrigatório", corsHeaders, 400);
+      }
+
+      // Verify ownership
+      const ownershipCheck = await verifyCheckoutOwnership(supabase, checkoutId, producerId);
+      if (!ownershipCheck.valid) {
+        return errorResponse("Você não tem permissão para editar este checkout", corsHeaders, 403);
+      }
+
+      console.log(`[checkout-management] Updating checkout ${checkoutId} by ${producerId}`);
+
+      try {
+        const updates: any = { updated_at: new Date().toISOString() };
+
+        if (name !== undefined && typeof name === "string" && name.trim().length > 0) {
+          updates.name = name.trim();
+        }
+        if (isDefault !== undefined) {
+          updates.is_default = !!isDefault;
+        }
+
+        // 1. Update checkout
+        const { data: updatedCheckout, error: updateError } = await supabase
+          .from("checkouts")
+          .update(updates)
+          .eq("id", checkoutId)
+          .select("id, name, is_default, product_id")
+          .single();
+
+        if (updateError) {
+          console.error("[checkout-management] Update checkout error:", updateError);
+          throw new Error(`Falha ao atualizar checkout: ${updateError.message}`);
+        }
+
+        // 2. If marked as default, unmark others
+        if (isDefault) {
+          await supabase
+            .from("checkouts")
+            .update({ is_default: false })
+            .eq("product_id", updatedCheckout.product_id)
+            .neq("id", checkoutId);
+        }
+
+        // 3. If offer changed, manage payment link
+        let linkId: string | undefined;
+        if (offerId && typeof offerId === "string") {
+          const linkResult = await managePaymentLink(supabase, checkoutId, offerId, baseUrl);
+          if (!linkResult.success) {
+            console.warn("[checkout-management] Failed to update payment link:", linkResult.error);
+            // Don't fail the operation, just log
+          } else {
+            linkId = linkResult.linkId;
+          }
+        }
+
+        await recordRateLimitAttempt(supabase, producerId, "checkout_update");
+
+        console.log(`[checkout-management] Checkout updated: ${checkoutId}`);
+        return jsonResponse({
+          success: true,
+          data: {
+            checkout: {
+              id: updatedCheckout.id,
+              name: updatedCheckout.name,
+              isDefault: updatedCheckout.is_default,
+              linkId,
+            },
+          },
+        }, corsHeaders);
+
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        console.error("[checkout-management] Update checkout failed:", err.message);
+        await captureException(err, {
+          functionName: "checkout-management",
+          extra: { action: "update", producerId, checkoutId },
+        });
+        return errorResponse(`Erro ao atualizar checkout: ${err.message}`, corsHeaders, 500);
+      }
+    }
+
+    // ============================================
+    // SET DEFAULT CHECKOUT
+    // ============================================
+    if (!isOrderBump && action === "set-default" && req.method === "POST") {
+      const { checkoutId } = body;
+
+      if (!checkoutId || typeof checkoutId !== "string") {
+        return errorResponse("ID do checkout é obrigatório", corsHeaders, 400);
+      }
+
+      // Verify ownership
+      const ownershipCheck = await verifyCheckoutOwnership(supabase, checkoutId, producerId);
+      if (!ownershipCheck.valid) {
+        return errorResponse("Você não tem permissão para alterar este checkout", corsHeaders, 403);
+      }
+
+      const productId = ownershipCheck.checkout?.product_id;
+
+      console.log(`[checkout-management] Setting checkout ${checkoutId} as default`);
+
+      try {
+        // 1. Unmark all others in the same product
+        await supabase
+          .from("checkouts")
+          .update({ is_default: false })
+          .eq("product_id", productId);
+
+        // 2. Mark this one as default
+        const { error: updateError } = await supabase
+          .from("checkouts")
+          .update({ is_default: true })
+          .eq("id", checkoutId);
+
+        if (updateError) {
+          throw new Error(`Falha ao definir checkout padrão: ${updateError.message}`);
+        }
+
+        console.log(`[checkout-management] Checkout ${checkoutId} set as default`);
+        return jsonResponse({ success: true }, corsHeaders);
+
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        console.error("[checkout-management] Set default failed:", err.message);
+        await captureException(err, {
+          functionName: "checkout-management",
+          extra: { action: "set-default", producerId, checkoutId },
+        });
+        return errorResponse(`Erro ao definir checkout padrão: ${err.message}`, corsHeaders, 500);
+      }
+    }
 
     // ============================================
     // DELETE CHECKOUT (atomic cascade)
