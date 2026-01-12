@@ -1,19 +1,16 @@
 /**
  * Cadastro - Unified registration page with profile quiz
  * Shows quiz first, then routes to appropriate flow
+ * 
+ * Refactored: Form logic extracted to ProducerRegistrationForm component
+ * to prevent state loss when AnimatePresence triggers re-mounts.
  */
 
 import { useState, useEffect } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
-import { useFormValidation } from "@/hooks/useFormValidation";
 import { useProducerAuth } from "@/hooks/useProducerAuth";
+import { Button } from "@/components/ui/button";
 import { 
-  AlertCircle, 
-  CheckCircle2, 
   Loader2, 
   ShoppingBag, 
   Package,
@@ -22,21 +19,25 @@ import {
   Users
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ProducerRegistrationForm } from "@/components/auth/ProducerRegistrationForm";
 
 type ViewType = "choose-profile" | "already-has-account" | "producer-form";
 
 export default function Cadastro() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { register, isAuthenticated, isLoading: authLoading } = useProducerAuth();
-  const [loading, setLoading] = useState(false);
+  const { isAuthenticated, isLoading: authLoading } = useProducerAuth();
   const [view, setView] = useState<ViewType>("choose-profile");
   const [registrationSource, setRegistrationSource] = useState<"producer" | "affiliate">("producer");
 
-  // Check URL param for direct access to producer form
+  // Check URL param for direct access to producer/affiliate form
   useEffect(() => {
     const perfil = searchParams.get("perfil");
     if (perfil === "produtor") {
+      setRegistrationSource("producer");
+      setView("producer-form");
+    } else if (perfil === "afiliado") {
+      setRegistrationSource("affiliate");
       setView("producer-form");
     }
   }, [searchParams]);
@@ -47,13 +48,6 @@ export default function Cadastro() {
       navigate("/dashboard");
     }
   }, [authLoading, isAuthenticated, navigate]);
-
-  // Signup fields
-  const nameField = useFormValidation('name', true);
-  const cpfCnpjField = useFormValidation('document', true);
-  const phoneField = useFormValidation('phone', true);
-  const emailField = useFormValidation('email', true);
-  const passwordField = useFormValidation('password', true);
 
   const handleBuyerChoice = () => {
     setView("already-has-account");
@@ -69,49 +63,8 @@ export default function Cadastro() {
     setView("producer-form");
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const isNameValid = nameField.validate();
-      const isCpfCnpjValid = cpfCnpjField.validate();
-      const isPhoneValid = phoneField.validate();
-      const isEmailValid = emailField.validate();
-      const isPasswordValid = passwordField.validate();
-
-      if (!isNameValid || !isCpfCnpjValid || !isPhoneValid || !isEmailValid || !isPasswordValid) {
-        toast.error("Corrija os erros no formulário antes de continuar");
-        setLoading(false);
-        return;
-      }
-
-      const result = await register({
-        email: emailField.value,
-        password: passwordField.value,
-        name: nameField.value,
-        phone: phoneField.getRawValue() || undefined,
-        cpfCnpj: cpfCnpjField.getRawValue(),
-        registrationSource,
-      });
-
-      if (!result.success) {
-        if (result.passwordValidation) {
-          toast.error(result.passwordValidation.errors.join(", "));
-        } else {
-          toast.error(result.error || "Erro ao criar conta");
-        }
-        setLoading(false);
-        return;
-      }
-
-      toast.success("Cadastro realizado! Faça login para continuar.");
-      navigate("/auth");
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao criar conta");
-    } finally {
-      setLoading(false);
-    }
+  const handleBackToQuiz = () => {
+    setView("choose-profile");
   };
 
   // Show loading while checking auth
@@ -155,12 +108,21 @@ export default function Cadastro() {
             >
               <h2 className="text-4xl font-bold text-white leading-tight">
                 {view === "producer-form" ? (
-                  <>
-                    Comece a vender <br />
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
-                      em menos de 5 minutos
-                    </span>
-                  </>
+                  registrationSource === "affiliate" ? (
+                    <>
+                      Ganhe comissões <br />
+                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400">
+                        promovendo produtos
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      Comece a vender <br />
+                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+                        em menos de 5 minutos
+                      </span>
+                    </>
+                  )
                 ) : (
                   <>
                     Bem-vindo ao <br />
@@ -172,7 +134,9 @@ export default function Cadastro() {
               </h2>
               <p className="text-lg text-slate-400 leading-relaxed">
                 {view === "producer-form" 
-                  ? "Crie sua conta gratuitamente e junte-se a milhares de empreendedores que estão escalando suas vendas."
+                  ? registrationSource === "affiliate"
+                    ? "Cadastre-se gratuitamente e comece a promover produtos de sucesso."
+                    : "Crie sua conta gratuitamente e junte-se a milhares de empreendedores que estão escalando suas vendas."
                   : "A plataforma completa para produtores e compradores de produtos digitais."
                 }
               </p>
@@ -332,7 +296,7 @@ export default function Cadastro() {
 
         <div className="text-center">
           <button
-            onClick={() => setView("choose-profile")}
+            onClick={handleBackToQuiz}
             className="text-sm text-slate-400 hover:text-white transition-colors inline-flex items-center gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -343,159 +307,18 @@ export default function Cadastro() {
     </motion.div>
   );
 
-  // View: Producer Registration Form
-  const ProducerFormView = () => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      className="space-y-8"
-    >
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold text-white tracking-tight">
-          Crie sua conta
-        </h1>
-        <p className="text-slate-400">
-          Comece a vender em menos de 5 minutos
-        </p>
-      </div>
-
-      <form onSubmit={handleSignup} className="space-y-4">
-        <div className="space-y-2">
-          <Label className="text-slate-300">Nome Completo</Label>
-          <div className="relative">
-            <Input
-              type="text"
-              placeholder="Seu nome"
-              value={nameField.value}
-              onChange={nameField.onChange}
-              onBlur={nameField.onBlur}
-              className={`bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:ring-blue-500/20 ${nameField.isTouched ? (nameField.isValid ? "border-green-500/50" : "border-red-500/50") : ""
-                }`}
-              required
-            />
-            {nameField.isTouched && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                {nameField.isValid ?
-                  <CheckCircle2 className="h-4 w-4 text-green-500" /> :
-                  <AlertCircle className="h-4 w-4 text-red-500" />
-                }
-              </div>
-            )}
-          </div>
-          {nameField.error && nameField.isTouched && (
-            <p className="text-xs text-red-400 pl-1">{nameField.error}</p>
-          )}
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label className="text-slate-300">CPF ou CNPJ</Label>
-            <div className="relative">
-              <Input
-                placeholder="000.000.000-00"
-                value={cpfCnpjField.value}
-                onChange={cpfCnpjField.onChange}
-                onBlur={cpfCnpjField.onBlur}
-                maxLength={cpfCnpjField.maxLength}
-                className={`bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:ring-blue-500/20 ${cpfCnpjField.isTouched ? (cpfCnpjField.isValid ? "border-green-500/50" : "border-red-500/50") : ""
-                  }`}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-slate-300">Telefone</Label>
-            <div className="relative">
-              <Input
-                placeholder="(00) 00000-0000"
-                value={phoneField.value}
-                onChange={phoneField.onChange}
-                onBlur={phoneField.onBlur}
-                maxLength={phoneField.maxLength}
-                className={`bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:ring-blue-500/20 ${phoneField.isTouched ? (phoneField.isValid ? "border-green-500/50" : "border-red-500/50") : ""
-                  }`}
-                required
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-slate-300">Email</Label>
-          <div className="relative">
-            <Input
-              type="email"
-              placeholder="seu@email.com"
-              value={emailField.value}
-              onChange={emailField.onChange}
-              onBlur={emailField.onBlur}
-              className={`bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:ring-blue-500/20 ${emailField.isTouched ? (emailField.isValid ? "border-green-500/50" : "border-red-500/50") : ""
-                }`}
-              required
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-slate-300">Senha</Label>
-          <div className="relative">
-            <Input
-              type="password"
-              placeholder="No mínimo 8 caracteres"
-              value={passwordField.value}
-              onChange={passwordField.onChange}
-              onBlur={passwordField.onBlur}
-              className={`bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:ring-blue-500/20 ${passwordField.isTouched ? (passwordField.isValid ? "border-green-500/50" : "border-red-500/50") : ""
-                }`}
-              required
-            />
-          </div>
-        </div>
-
-        <Button
-          type="submit"
-          className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90 transition-opacity text-white font-semibold rounded-xl text-base"
-          disabled={loading}
-        >
-          {loading ? (
-            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Criando conta...</>
-          ) : (
-            "Criar conta gratuita"
-          )}
-        </Button>
-
-        <p className="text-xs text-center text-slate-500">
-          Ao se registrar, você concorda com nossos <a href="/termos-de-uso" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">Termos de Uso</a> e <a href="/politica-de-privacidade" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">Política de Privacidade</a>.
-        </p>
-      </form>
-
-      {/* Link below form */}
-      <div className="text-center space-y-3">
-        <p className="text-sm text-slate-400">
-          Já tem uma conta?{" "}
-          <Link to="/auth" className="text-blue-400 hover:text-blue-300 font-medium">
-            Faça login
-          </Link>
-        </p>
-        <button
-          onClick={() => setView("choose-profile")}
-          className="text-sm text-slate-400 hover:text-white transition-colors inline-flex items-center gap-2"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Voltar ao quiz
-        </button>
-      </div>
-    </motion.div>
-  );
-
   return (
     <PageLayout>
       <AnimatePresence mode="wait">
         {view === "choose-profile" && <ChooseProfileView key="choose" />}
         {view === "already-has-account" && <AlreadyHasAccountView key="already" />}
-        {view === "producer-form" && <ProducerFormView key="form" />}
+        {view === "producer-form" && (
+          <ProducerRegistrationForm
+            key="form"
+            registrationSource={registrationSource}
+            onBack={handleBackToQuiz}
+          />
+        )}
       </AnimatePresence>
     </PageLayout>
   );
