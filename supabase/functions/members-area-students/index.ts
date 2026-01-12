@@ -363,7 +363,7 @@ Deno.serve(async (req) => {
         );
       }
 
-      if (order.status !== "PAID") {
+      if (order.status?.toLowerCase() !== "paid") {
         return new Response(
           JSON.stringify({ error: "Pedido ainda não foi pago" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
