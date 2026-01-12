@@ -67,6 +67,7 @@ import AffiliationDetails from "./pages/AffiliationDetails";
 import Marketplace from "./pages/Marketplace";
 import Financeiro from "./pages/Financeiro";
 import Integracoes from "./pages/Integracoes";
+import Pixels from "./pages/Pixels";
 import Ajuda from "./pages/Ajuda";
 import Perfil from "./pages/Perfil";
 
@@ -247,6 +248,7 @@ const router = createBrowserRouter([
             ),
           },
           { path: "integracoes", element: <Integracoes /> },
+          { path: "pixels", element: <Pixels /> },
           { path: "ajuda", element: <Ajuda /> },
           { path: "perfil", element: <Perfil /> },
           { path: "config", element: <Navigate to="admin" replace /> },
