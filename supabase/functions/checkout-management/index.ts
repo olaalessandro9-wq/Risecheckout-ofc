@@ -333,7 +333,7 @@ serve(withSentry("checkout-management", async (req) => {
         }
 
         // 3. Delete duplicated payment_link (if not original)
-        if (checkoutLink && checkoutLink.payment_links?.is_original === false) {
+        if (checkoutLink && isOriginal === false) {
           console.log(`[checkout-management] Deleting duplicated payment_link: ${checkoutLink.link_id}`);
           const { error: paymentLinkError } = await supabase
             .from("payment_links")

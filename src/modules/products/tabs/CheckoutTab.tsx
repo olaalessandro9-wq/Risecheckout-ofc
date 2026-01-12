@@ -102,57 +102,23 @@ export function CheckoutTab() {
         resourceType: "Checkout",
         resourceName: name,
         onConfirm: async () => {
-          console.log("[CHECKOUT DEBUG] Deletando checkout:", id);
+          console.log("[CHECKOUT DEBUG] Deletando checkout via Edge Function:", id);
           
-          // 1. Buscar payment_link associado ao checkout
-          const { data: checkoutLink } = await supabase
-            .from("checkout_links")
-            .select(`
-              link_id,
-              payment_links!inner (
-                id,
-                is_original
-              )
-            `)
-            .eq("checkout_id", id)
-            .maybeSingle();
-
-          // 2. Deletar associação checkout_links
-          const { error: linkError } = await supabase
-            .from("checkout_links")
-            .delete()
-            .eq("checkout_id", id);
-
-          if (linkError) {
-            console.error("[CHECKOUT DEBUG] Erro ao deletar links:", linkError);
-            throw linkError;
-          }
-
-          // 3. Se payment_link é duplicado (is_original = false), deletar
-          if (checkoutLink && checkoutLink.payment_links.is_original === false) {
-            console.log("[CHECKOUT DEBUG] Deletando payment_link duplicado:", checkoutLink.link_id);
-            const { error: paymentLinkError } = await supabase
-              .from("payment_links")
-              .delete()
-              .eq("id", checkoutLink.link_id);
-
-            if (paymentLinkError) {
-              console.error("[CHECKOUT DEBUG] Erro ao deletar payment_link:", paymentLinkError);
-              // Não falhar se não conseguir deletar o link
-            }
-          } else {
-            console.log("[CHECKOUT DEBUG] Payment_link é original, mantendo...");
-          }
-
-          // 4. Deletar checkout
-          const { error } = await supabase
-            .from("checkouts")
-            .delete()
-            .eq("id", id);
-
+          const sessionToken = localStorage.getItem('producer_session_token');
+          
+          const { data, error } = await supabase.functions.invoke('checkout-management', {
+            body: { action: 'delete', checkoutId: id },
+            headers: { 'x-producer-session-token': sessionToken || '' }
+          });
+          
           if (error) {
-            console.error("[CHECKOUT DEBUG] Erro ao deletar checkout:", error);
+            console.error("[CHECKOUT DEBUG] Edge Function error:", error);
             throw error;
+          }
+          
+          if (!data?.success) {
+            console.error("[CHECKOUT DEBUG] Delete failed:", data?.error);
+            throw new Error(data?.error || 'Falha ao deletar checkout');
           }
 
           await refreshCheckouts();
