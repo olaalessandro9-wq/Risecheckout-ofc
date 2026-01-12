@@ -10,12 +10,14 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
 import {
   useProductSettings,
   RequiredFieldsSection,
   PaymentMethodSection,
   GatewaySection,
+  PixelsSection,
 } from "./settings";
 
 interface Props {
@@ -55,6 +57,11 @@ export default function ProductSettingsPanelV2({ productId, onModifiedChange }: 
         <RequiredFieldsSection form={form} setForm={setForm} />
         <PaymentMethodSection form={form} setForm={setForm} />
         <GatewaySection form={form} setForm={setForm} credentials={credentials} />
+
+        <Separator />
+
+        {/* Seção de Pixels */}
+        <PixelsSection productId={productId} />
 
         <div className="flex justify-end">
           <Button onClick={handleSave} disabled={saving}>
