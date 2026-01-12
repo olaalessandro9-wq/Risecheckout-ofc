@@ -66,8 +66,21 @@ export function useAffiliateRequest(): UseAffiliateRequestReturn {
         });
 
         if (fnError) {
+          const errorMessage = fnError.message || "Erro ao solicitar afiliação. Tente novamente.";
           console.error("[useAffiliateRequest] Erro na Edge Function:", fnError);
-          setError(fnError.message || "Erro ao solicitar afiliação. Tente novamente.");
+          
+          // Se o erro indica que já existe solicitação pendente, atualizar status ao invés de mostrar erro
+          if (errorMessage.toLowerCase().includes("pendente") || errorMessage.toLowerCase().includes("pending")) {
+            setAffiliationStatus({
+              isAffiliate: false,
+              status: "pending",
+            });
+            setSuccess("Você já possui uma solicitação pendente para este produto.");
+            console.log("[useAffiliateRequest] Solicitação já pendente detectada via erro");
+            return;
+          }
+          
+          setError(errorMessage);
           return;
         }
 
@@ -87,7 +100,19 @@ export function useAffiliateRequest(): UseAffiliateRequestReturn {
             hasCode: !!data.affiliate_code 
           });
         } else {
-          setError(data?.message || "Erro desconhecido ao solicitar afiliação.");
+          // Verificar se a mensagem de erro indica status pendente
+          const errorMessage = data?.message || "";
+          if (errorMessage.toLowerCase().includes("pendente") || errorMessage.toLowerCase().includes("pending")) {
+            setAffiliationStatus({
+              isAffiliate: false,
+              status: "pending",
+            });
+            setSuccess("Você já possui uma solicitação pendente para este produto.");
+            console.log("[useAffiliateRequest] Solicitação já pendente detectada via resposta");
+            return;
+          }
+          
+          setError(errorMessage || "Erro desconhecido ao solicitar afiliação.");
         }
       } catch (err: any) {
         console.error("[useAffiliateRequest] Erro ao solicitar afiliação:", err);
