@@ -142,8 +142,8 @@ const Afiliados = () => {
     try {
       const newRate = customCommission === '' ? null : parseInt(customCommission);
       
-      if (newRate !== null && (newRate < 0 || newRate > 100)) {
-        toast.error("A comissão deve ser entre 0% e 100%");
+      if (newRate !== null && (newRate < 0 || newRate > 90)) {
+        toast.error("A comissão deve ser entre 0% e 90%");
         return;
       }
 

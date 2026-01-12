@@ -45,13 +45,13 @@ export function EditCommissionDialog({
             <Input
               type="number"
               min="0"
-              max="100"
+              max="90"
               value={customCommission}
               onChange={(e) => onCommissionChange(e.target.value)}
               placeholder={`Padrão: ${defaultRate}%`}
             />
             <p className="text-sm text-muted-foreground">
-              Deixe vazio para usar a taxa padrão do produto ({defaultRate}%)
+              Máximo: 90%. Deixe vazio para usar a taxa padrão do produto ({defaultRate}%).
             </p>
           </div>
         </div>

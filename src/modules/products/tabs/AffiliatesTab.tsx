@@ -113,8 +113,8 @@ export function AffiliatesTab() {
   const handleSave = async () => {
     try {
       // Validações
-      if (localSettings.defaultRate < 1 || localSettings.defaultRate > 100) {
-        toast.error("A comissão deve estar entre 1% e 100%");
+      if (localSettings.defaultRate < 1 || localSettings.defaultRate > 90) {
+        toast.error("A comissão deve estar entre 1% e 90%");
         return;
       }
 
@@ -305,13 +305,13 @@ export function AffiliatesTab() {
                       id="defaultRate"
                       type="number"
                       min="1"
-                      max="100"
+                      max="90"
                       step="1"
                       value={localSettings.defaultRate}
                       onChange={(e) => {
                         const value = parseFloat(e.target.value);
                         if (!isNaN(value)) {
-                          handleChange('defaultRate', Math.min(100, Math.max(1, value)));
+                          handleChange('defaultRate', Math.min(90, Math.max(1, value)));
                         }
                       }}
                       className="pr-8"
