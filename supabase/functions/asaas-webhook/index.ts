@@ -150,14 +150,15 @@ serve(async (req) => {
 
     const vendorId = orderData?.vendor_id || '00000000-0000-0000-0000-000000000000';
 
-    // Update Order
+    // Update Order - Normalizar status para lowercase
+    const normalizedStatus = orderStatus.toLowerCase();
     const updateData: Record<string, unknown> = {
-      status: orderStatus,
+      status: normalizedStatus,
       gateway_payment_id: payment.id,
       updated_at: new Date().toISOString()
     };
 
-    if (orderStatus === 'PAID') {
+    if (normalizedStatus === 'paid') {
       updateData.paid_at = payment.confirmedDate || payment.paymentDate || new Date().toISOString();
     }
 
@@ -183,7 +184,7 @@ serve(async (req) => {
     }
 
     // Post-Payment Actions
-    if (orderStatus === 'PAID' && orderData) {
+    if (normalizedStatus === 'paid' && orderData) {
       await processPostPaymentActions(supabase, {
         orderId,
         customerEmail: orderData.customer_email,
