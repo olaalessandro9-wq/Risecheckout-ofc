@@ -16,6 +16,7 @@ interface StudentRequest {
     | "get" 
     | "add-to-group" 
     | "remove-from-group" 
+    | "assign-groups"
     | "revoke-access" 
     | "grant-access"
     | "invite"
@@ -1037,6 +1038,47 @@ Deno.serve(async (req) => {
 
         return new Response(
           JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      case "assign-groups": {
+        // Replace all groups for a buyer (used by StudentsTab)
+        if (!buyer_id || !group_ids) {
+          return new Response(
+            JSON.stringify({ error: "buyer_id and group_ids required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Delete all existing groups for this buyer
+        const { error: deleteError } = await supabase
+          .from("buyer_groups")
+          .delete()
+          .eq("buyer_id", buyer_id);
+
+        if (deleteError) throw deleteError;
+
+        // Insert new groups if any
+        if (group_ids.length > 0) {
+          const groupInserts = group_ids.map((gid: string) => ({
+            buyer_id,
+            group_id: gid,
+            is_active: true,
+            granted_at: new Date().toISOString(),
+          }));
+
+          const { error: insertError } = await supabase
+            .from("buyer_groups")
+            .insert(groupInserts);
+
+          if (insertError) throw insertError;
+        }
+
+        console.log(`[members-area-students] Assigned ${group_ids.length} groups to buyer ${buyer_id}`);
+
+        return new Response(
+          JSON.stringify({ success: true, groups_count: group_ids.length }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
