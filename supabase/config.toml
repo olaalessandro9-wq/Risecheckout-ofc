@@ -133,6 +133,9 @@ verify_jwt = false
 [functions.get-my-affiliations]
 verify_jwt = false
 
+[functions.get-affiliation-details]
+verify_jwt = false
+
 [functions.migrate-credentials-to-vault]
 verify_jwt = true
 
