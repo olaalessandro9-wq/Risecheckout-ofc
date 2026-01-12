@@ -142,10 +142,21 @@ Deno.serve(async (req) => {
       require_gateway_connection: gatewaySettings.require_gateway_connection ?? true,
     };
 
-    // Fetch offers for this product
+    // Fetch offers for this product with payment_links
     const { data: offersData } = await supabase
       .from("offers")
-      .select("id, name, price, status, is_default")
+      .select(`
+        id, 
+        name, 
+        price, 
+        status, 
+        is_default,
+        payment_links (
+          id,
+          slug,
+          status
+        )
+      `)
       .eq("product_id", productId)
       .eq("status", "active");
 
@@ -232,10 +243,21 @@ Deno.serve(async (req) => {
         user_id: productData.user_id,
         affiliate_settings: (productData as any).affiliate_settings,
       } : null,
-      offers: (offersData || []).map((o: any) => ({
-        ...o,
-        price: o.price / 100, // Convert cents to reais
-      })),
+      offers: (offersData || []).map((o: any) => {
+        // Priorizar payment_link ativo, fallback para primeiro disponível
+        const activeLink = o.payment_links?.find((l: any) => l.status === 'active');
+        const firstLink = o.payment_links?.[0];
+        const paymentLink = activeLink || firstLink;
+        
+        return {
+          id: o.id,
+          name: o.name,
+          price: o.price / 100, // Convert cents to reais
+          status: o.status,
+          is_default: o.is_default,
+          payment_link_slug: paymentLink?.slug || null, // Link específico da oferta
+        };
+      }),
       checkouts: checkoutsWithPaymentSlug,
       producer,
       pixels: pixelsData || [],

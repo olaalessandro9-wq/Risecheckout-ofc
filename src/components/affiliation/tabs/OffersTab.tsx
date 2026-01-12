@@ -246,8 +246,9 @@ export function OffersTab({ affiliation }: OffersTabProps) {
           <TableBody>
             {offers.map((offer) => {
               const commission = (offer.price * commission_rate) / 100;
-              const checkout = checkouts.find(c => c.is_default) || checkouts[0];
-              const link = getAffiliateLink(checkout?.payment_link_slug || null);
+              // Usar link específico da oferta, fallback para checkout padrão
+              const fallbackSlug = (checkouts.find(c => c.is_default) || checkouts[0])?.payment_link_slug;
+              const link = getAffiliateLink(offer.payment_link_slug || fallbackSlug || null);
 
               return (
                 <TableRow key={offer.id}>
