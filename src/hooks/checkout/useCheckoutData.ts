@@ -74,6 +74,7 @@ interface Checkout {
   theme?: string;
   affiliate_pix_gateway?: string | null;
   affiliate_credit_card_gateway?: string | null;
+  offerId?: string; // ID da oferta específica do link de pagamento
 }
 
 interface UseCheckoutDataReturn {
@@ -151,6 +152,7 @@ export function useCheckoutData(): UseCheckoutDataReturn {
         stripe_public_key: affiliateInfo.stripePublicKey || checkoutData.stripe_public_key,
         affiliate_pix_gateway: affiliateInfo.pixGateway,
         affiliate_credit_card_gateway: affiliateInfo.creditCardGateway,
+        offerId: offerData.offerId, // ✅ ID da oferta específica do link
         product: {
           id: productData.id,
           name: productData.name,

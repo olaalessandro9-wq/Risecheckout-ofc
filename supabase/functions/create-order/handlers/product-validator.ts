@@ -73,17 +73,41 @@ export async function validateProduct(
   let offerName: string | null = null;
   let validatedOfferId: string | null = null;
 
-  if (offer_id && offer_id !== product_id) {
+  // FALLBACK: Se offer_id não foi fornecido mas checkout_id existe,
+  // derivar offer_id do checkout via checkout_links → payment_links
+  let derivedOfferId = offer_id;
+
+  if (!derivedOfferId && validatedCheckoutId) {
+    console.log("[product-validator] offer_id não fornecido, tentando derivar do checkout...");
+    
+    const { data: checkoutLink } = await supabase
+      .from("checkout_links")
+      .select(`
+        payment_links!inner (
+          offer_id
+        )
+      `)
+      .eq("checkout_id", validatedCheckoutId)
+      .maybeSingle();
+
+    if (checkoutLink?.payment_links) {
+      const paymentLinks = checkoutLink.payment_links as { offer_id: string };
+      derivedOfferId = paymentLinks.offer_id;
+      console.log("[product-validator] ✅ offer_id derivado do checkout:", derivedOfferId);
+    }
+  }
+
+  if (derivedOfferId && derivedOfferId !== product_id) {
     const { data: offer, error: offerError } = await supabase
       .from("offers")
       .select("id, product_id, price, name, status")
-      .eq("id", offer_id)
+      .eq("id", derivedOfferId) // ✅ Usa derivedOfferId
       .eq("product_id", product.id)
       .eq("status", "active")
       .maybeSingle();
 
     if (offerError || !offer) {
-      console.error("[product-validator] Oferta inválida:", { offer_id, product_id: product.id });
+      console.error("[product-validator] Oferta inválida:", { derivedOfferId, product_id: product.id });
       return new Response(
         JSON.stringify({
           error: "Invalid or inactive offer",
@@ -96,7 +120,7 @@ export async function validateProduct(
       );
     }
 
-    console.log("[product-validator] Usando oferta:", {
+    console.log("[product-validator] ✅ Usando oferta:", {
       offer_id: offer.id,
       name: offer.name,
       price: offer.price
