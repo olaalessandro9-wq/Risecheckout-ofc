@@ -90,7 +90,7 @@ export function ProductPixelsSelector({ productId }: ProductPixelsSelectorProps)
           Você ainda não tem pixels cadastrados.
         </p>
         <Button variant="outline" size="sm" asChild>
-          <Link to="/integracoes">
+          <Link to="/dashboard/pixels">
             <Plus className="h-4 w-4 mr-2" />
             Cadastrar Pixels
             <ExternalLink className="h-3 w-3 ml-2" />
@@ -107,7 +107,7 @@ export function ProductPixelsSelector({ productId }: ProductPixelsSelectorProps)
           Selecione os pixels que devem disparar eventos para este produto.
         </p>
         <Button variant="ghost" size="sm" asChild>
-          <Link to="/integracoes">
+          <Link to="/dashboard/pixels">
             <Settings2 className="h-4 w-4 mr-1" />
             Gerenciar
           </Link>

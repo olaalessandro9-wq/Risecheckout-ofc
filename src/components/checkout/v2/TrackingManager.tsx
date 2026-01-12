@@ -126,11 +126,30 @@ export const TrackingManager: React.FC<TrackingManagerProps> = ({
         />
       ))}
 
-      {/* ============ LEGACY: vendor_integrations (fallback) ============ */}
-      {/* Só renderiza legacy se NÃO houver product_pixels configurados */}
+      {/* ========================================================================
+       * LEGACY FALLBACK - SCHEDULED FOR REMOVAL
+       * ========================================================================
+       * 
+       * Este bloco mantém retrocompatibilidade com o sistema antigo (vendor_integrations).
+       * 
+       * PLANO DE DEPRECIAÇÃO:
+       * 1. Migration script executado em 2025-01 para converter dados existentes
+       * 2. Prazo de observação: 30 dias após deploy (monitorar via logs)
+       * 3. Data de remoção planejada: 2025-02-15
+       * 
+       * CRITÉRIOS PARA REMOÇÃO:
+       * - [ ] Confirmar que todos os vendors migraram para product_pixels
+       * - [ ] Zero uso do fallback em produção (verificar via console.warn abaixo)
+       * - [ ] Remover props legacy: fbConfig, googleAdsIntegration, tiktokIntegration, kwaiIntegration
+       * 
+       * @deprecated Usar apenas productPixels via product_pixels table
+       * ======================================================================== */}
       
-      {!hasProductPixels && (
+      {!hasProductPixels && (fbConfig || tiktokIntegration || googleAdsIntegration || kwaiIntegration) && (
         <>
+          {/* Log para monitorar uso do fallback legacy */}
+          {console.warn('[TrackingManager] DEPRECATED: Using legacy vendor_integrations fallback. Migrate to product_pixels.')}
+          
           {/* Facebook Pixel (legacy) */}
           {Facebook.shouldRunPixel(fbConfig, productId) && <Facebook.Pixel config={fbConfig.config} />}
 
