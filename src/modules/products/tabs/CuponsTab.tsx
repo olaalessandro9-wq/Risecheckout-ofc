@@ -1,6 +1,8 @@
 /**
  * CuponsTab - Aba de Gerenciamento de Cupons de Desconto
  * 
+ * MIGRADO: Todas operações via Edge Function coupon-management
+ * 
  * Esta aba gerencia:
  * - Listagem de cupons do produto
  * - Adicionar novo cupom
@@ -10,8 +12,6 @@
  */
 
 import { useState, useEffect } from "react";
-import { Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { CouponsTable } from "@/components/products/CouponsTable";
 import { CouponDialog, type CouponFormData, type CouponSaveResult } from "@/components/products/CouponDialog";
 import { useProductContext } from "../context/ProductContext";
@@ -53,47 +53,28 @@ export function CuponsTab() {
     try {
       setLoading(true);
 
-      // Buscar cupons vinculados a este produto
-      const { data: couponProducts, error: cpError } = await supabase
-        .from("coupon_products")
-        .select(`
-          coupon_id,
-          coupons (
-            id,
-            name,
-            code,
-            description,
-            discount_type,
-            discount_value,
-            start_date,
-            expires_at,
-            max_uses,
-            max_uses_per_customer,
-            uses_count,
-            apply_to_order_bumps,
-            active
-          )
-        `)
-        .eq("product_id", product.id);
+      // Buscar cupons via Edge Function
+      const { data, error } = await supabase.functions.invoke('coupon-management', {
+        body: {
+          action: 'list',
+          productId: product.id,
+        },
+      });
 
-      if (cpError) throw cpError;
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       // Transformar dados para o formato da tabela
-      const transformedCoupons: Coupon[] = (couponProducts || [])
-        .filter(cp => cp.coupons)
-        .map(cp => {
-          const c = cp.coupons as any;
-          return {
-            id: c.id,
-            code: c.code || "",
-            discount: c.discount_value || 0,
-            discountType: (c.discount_type as "percentage" | "fixed") || "percentage",
-            startDate: c.start_date ? new Date(c.start_date) : new Date(),
-            endDate: c.expires_at ? new Date(c.expires_at) : new Date(),
-            applyToOrderBumps: c.apply_to_order_bumps ?? true,
-            usageCount: c.uses_count || 0,
-          };
-        });
+      const transformedCoupons: Coupon[] = (data?.coupons || []).map((c: any) => ({
+        id: c.id,
+        code: c.code || "",
+        discount: c.discount_value || 0,
+        discountType: (c.discount_type as "percentage" | "fixed") || "percentage",
+        startDate: c.start_date ? new Date(c.start_date) : new Date(),
+        endDate: c.expires_at ? new Date(c.expires_at) : new Date(),
+        applyToOrderBumps: c.apply_to_order_bumps ?? true,
+        usageCount: c.uses_count || 0,
+      }));
 
       setCoupons(transformedCoupons);
     } catch (error) {
@@ -110,7 +91,7 @@ export function CuponsTab() {
   };
 
   const handleEditCoupon = async (coupon: Coupon) => {
-    // Buscar dados completos do cupom
+    // Buscar dados completos do cupom via supabase (apenas leitura)
     try {
       const { data, error } = await supabase
         .from("coupons")
@@ -148,76 +129,36 @@ export function CuponsTab() {
     if (!product?.id) return { success: false, error: "Produto não encontrado" };
 
     try {
-      const normalizedCode = couponData.code.trim().toUpperCase();
-
-      // Buscar cupons existentes neste produto
-      const { data: existingCouponProducts, error: checkError } = await supabase
-        .from("coupon_products")
-        .select(`
-          coupon_id,
-          coupons!inner (id, code)
-        `)
-        .eq("product_id", product.id);
-
-      if (checkError) throw checkError;
-
-      // Verificar duplicação de código
-      const duplicateExists = existingCouponProducts?.some(cp => {
-        const coupon = cp.coupons as { id: string; code: string };
-        // Ignora o próprio cupom em caso de edição
-        if (couponData.id && coupon.id === couponData.id) return false;
-        return coupon.code.toUpperCase() === normalizedCode;
+      const action = couponData.id ? 'update' : 'create';
+      
+      const { data, error } = await supabase.functions.invoke('coupon-management', {
+        body: {
+          action,
+          productId: product.id,
+          couponId: couponData.id,
+          coupon: {
+            name: couponData.name,
+            code: couponData.code,
+            description: couponData.description,
+            discountType: couponData.discountType,
+            discountValue: couponData.discountValue,
+            startDate: couponData.startDate?.toISOString(),
+            endDate: couponData.hasExpiration && couponData.endDate ? couponData.endDate.toISOString() : null,
+            maxUses: couponData.maxUses || null,
+            maxUsesPerCustomer: couponData.maxUsesPerCustomer || null,
+            applyToOrderBumps: couponData.applyToOrderBumps,
+          },
+        },
       });
 
-      if (duplicateExists) {
+      if (error) throw error;
+      
+      if (data?.error) {
         return { 
           success: false, 
-          error: `Já existe um cupom com o código "${couponData.code}" neste produto`,
-          field: "code"
+          error: data.error,
+          field: data.field || undefined,
         };
-      }
-
-      const couponPayload = {
-        name: couponData.name,
-        code: couponData.code,
-        description: couponData.description,
-        discount_type: couponData.discountType,
-        discount_value: couponData.discountValue,
-        start_date: couponData.startDate?.toISOString(),
-        expires_at: couponData.hasExpiration && couponData.endDate ? couponData.endDate.toISOString() : null,
-        max_uses: couponData.maxUses || null,
-        max_uses_per_customer: couponData.maxUsesPerCustomer || null,
-        apply_to_order_bumps: couponData.applyToOrderBumps,
-        active: true,
-      };
-
-      if (couponData.id) {
-        // Atualizar cupom existente
-        const { error } = await supabase
-          .from("coupons")
-          .update(couponPayload)
-          .eq("id", couponData.id);
-
-        if (error) throw error;
-      } else {
-        // Criar novo cupom
-        const { data: newCoupon, error: couponError } = await supabase
-          .from("coupons")
-          .insert(couponPayload)
-          .select()
-          .single();
-
-        if (couponError) throw couponError;
-
-        // Vincular cupom ao produto
-        const { error: linkError } = await supabase
-          .from("coupon_products")
-          .insert({
-            coupon_id: newCoupon.id,
-            product_id: product.id,
-          });
-
-        if (linkError) throw linkError;
       }
 
       // Recarregar lista
@@ -234,22 +175,16 @@ export function CuponsTab() {
       resourceName: coupons.find(c => c.id === id)?.code || "",
       onConfirm: async () => {
         try {
-          // Deletar vínculo produto-cupom
-          const { error: linkError } = await supabase
-            .from("coupon_products")
-            .delete()
-            .eq("coupon_id", id)
-            .eq("product_id", product?.id);
+          const { data, error } = await supabase.functions.invoke('coupon-management', {
+            body: {
+              action: 'delete',
+              productId: product?.id,
+              couponId: id,
+            },
+          });
 
-          if (linkError) throw linkError;
-
-          // Deletar cupom
-          const { error: couponError } = await supabase
-            .from("coupons")
-            .delete()
-            .eq("id", id);
-
-          if (couponError) throw couponError;
+          if (error) throw error;
+          if (data?.error) throw new Error(data.error);
 
           await loadCoupons();
         } catch (error: any) {

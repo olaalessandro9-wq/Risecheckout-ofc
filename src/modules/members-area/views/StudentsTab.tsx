@@ -219,20 +219,16 @@ export function StudentsTab({ productId }: StudentsTabProps) {
   };
 
   const handleAssignGroups = async (buyerId: string, groupIds: string[]) => {
+    if (!productId) return;
+    
     try {
-      await supabase
-        .from('buyer_groups')
-        .delete()
-        .eq('buyer_id', buyerId);
+      // Usar Edge Function via studentsService
+      const { error } = await studentsService.assignGroups({
+        buyer_id: buyerId,
+        group_ids: groupIds,
+      });
 
-      if (groupIds.length > 0) {
-        const inserts = groupIds.map(groupId => ({
-          buyer_id: buyerId,
-          group_id: groupId,
-          is_active: true,
-        }));
-        await supabase.from('buyer_groups').insert(inserts);
-      }
+      if (error) throw new Error(error);
 
       toast.success('Grupos atualizados');
       fetchStudents();
@@ -246,11 +242,10 @@ export function StudentsTab({ productId }: StudentsTabProps) {
     if (!productId) return;
     
     try {
-      await supabase
-        .from('buyer_product_access')
-        .update({ is_active: false })
-        .eq('buyer_id', buyerId)
-        .eq('product_id', productId);
+      // Usar Edge Function via studentsService
+      const { error } = await studentsService.revokeAccess(buyerId, productId);
+
+      if (error) throw new Error(error);
 
       toast.success('Acesso revogado');
       fetchStudents();
