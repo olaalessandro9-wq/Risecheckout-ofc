@@ -224,47 +224,55 @@ export function useGeneralTab() {
     }
   }, [image.imageFile, user, product?.id, product?.image_url]);
 
-  // Salvar ofertas deletadas
+  // Salvar ofertas deletadas via Edge Function
   const saveDeletedOffers = useCallback(async () => {
     if (deletedOfferIds.length === 0) return;
 
+    const sessionToken = localStorage.getItem('producer_session_token');
+    
     for (const offerId of deletedOfferIds) {
-      await supabase
-        .from("payment_links")
-        .update({ status: "inactive" })
-        .eq("offer_id", offerId);
-
-      await supabase
-        .from("offers")
-        .update({ status: "deleted" })
-        .eq("id", offerId);
+      const { data, error } = await supabase.functions.invoke('offer-management', {
+        body: { action: 'delete', offerId },
+        headers: { 'x-producer-session-token': sessionToken || '' }
+      });
+      
+      if (error) {
+        console.error('[useGeneralTab] Error deleting offer:', error);
+        throw error;
+      }
+      if (!data?.success) {
+        throw new Error(data?.error || 'Falha ao deletar oferta');
+      }
     }
   }, [deletedOfferIds]);
 
-  // Salvar ofertas modificadas
+  // Salvar ofertas modificadas via Edge Function
   const saveOffers = useCallback(async () => {
     if (!offersModified || !product?.id) return;
 
-    for (const offer of localOffers) {
-      if (offer.id.startsWith("temp-")) {
-        await supabase.from("offers").insert({
-          product_id: product.id,
-          name: offer.name,
-          price: offer.price,
-          is_default: false,
-          status: "active",
-          member_group_id: offer.member_group_id || null,
-        });
-      } else {
-        await supabase
-          .from("offers")
-          .update({ 
-            name: offer.name, 
-            price: offer.price,
-            member_group_id: offer.member_group_id || null,
-          })
-          .eq("id", offer.id);
-      }
+    const sessionToken = localStorage.getItem('producer_session_token');
+    
+    // Preparar dados para bulk save
+    const offersToSave = localOffers.map(offer => ({
+      id: offer.id.startsWith("temp-") ? undefined : offer.id,
+      productId: product.id,
+      name: offer.name,
+      price: offer.price,
+      isDefault: offer.is_default || false,
+      memberGroupId: offer.member_group_id || null,
+    }));
+    
+    const { data, error } = await supabase.functions.invoke('offer-management', {
+      body: { action: 'bulk-save', productId: product.id, offers: offersToSave },
+      headers: { 'x-producer-session-token': sessionToken || '' }
+    });
+    
+    if (error) {
+      console.error('[useGeneralTab] Error saving offers:', error);
+      throw error;
+    }
+    if (!data?.success) {
+      throw new Error(data?.error || 'Falha ao salvar ofertas');
     }
   }, [offersModified, localOffers, product?.id]);
 

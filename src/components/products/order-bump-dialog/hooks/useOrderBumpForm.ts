@@ -179,7 +179,10 @@ export function useOrderBumpForm({
 
     try {
       setLoading(true);
-
+      
+      const sessionToken = localStorage.getItem('producer_session_token');
+      
+      // Buscar checkout_id do produto principal
       const { data: checkouts, error: checkoutsError } = await supabase
         .from("checkouts")
         .select("id")
@@ -193,31 +196,47 @@ export function useOrderBumpForm({
         return;
       }
 
-      const orderBump = {
-        checkout_id: checkouts[0].id,
-        product_id: selectedProductId,
-        offer_id: selectedOfferId,
+      const orderBumpData = {
+        checkoutId: checkouts[0].id,
+        productId: selectedProductId,
+        offerId: selectedOfferId,
         active: true,
-        discount_enabled: !!formData.discountEnabled,
-        discount_price: formData.discountEnabled ? parseBRLInput(formData.discountPrice) : null,
-        call_to_action: formData.callToAction?.trim() || null,
-        custom_title: formData.customTitle?.trim() || null,
-        custom_description: formData.customDescription?.trim() || null,
-        show_image: !!formData.showImage,
+        discountEnabled: !!formData.discountEnabled,
+        discountPrice: formData.discountEnabled ? parseBRLInput(formData.discountPrice) : null,
+        callToAction: formData.callToAction?.trim() || null,
+        customTitle: formData.customTitle?.trim() || null,
+        customDescription: formData.customDescription?.trim() || null,
+        showImage: !!formData.showImage,
       };
 
       if (editOrderBump) {
-        const { error: updateError } = await supabase
-          .from("order_bumps")
-          .update(orderBump)
-          .eq("id", editOrderBump.id);
+        // Update via Edge Function
+        const { data, error } = await supabase.functions.invoke('checkout-management', {
+          body: { 
+            action: 'order-bump/update', 
+            orderBumpId: editOrderBump.id,
+            ...orderBumpData 
+          },
+          headers: { 'x-producer-session-token': sessionToken || '' }
+        });
 
-        if (updateError) throw updateError;
+        if (error) throw error;
+        if (!data?.success) throw new Error(data?.error || 'Falha ao atualizar order bump');
+        
         toast.success("Order bump atualizado com sucesso");
       } else {
-        const { error: insertError } = await supabase.from("order_bumps").insert([orderBump]);
+        // Create via Edge Function
+        const { data, error } = await supabase.functions.invoke('checkout-management', {
+          body: { 
+            action: 'order-bump/create', 
+            ...orderBumpData 
+          },
+          headers: { 'x-producer-session-token': sessionToken || '' }
+        });
 
-        if (insertError) throw insertError;
+        if (error) throw error;
+        if (!data?.success) throw new Error(data?.error || 'Falha ao criar order bump');
+        
         toast.success("Order bump adicionado com sucesso");
       }
 
@@ -227,7 +246,7 @@ export function useOrderBumpForm({
     } catch (error: any) {
       console.error("Erro ao salvar order_bumps:", error);
 
-      if (error.code === "23505") {
+      if (error.code === "23505" || error.message?.includes("já está configurado")) {
         toast.error("Este produto já está configurado como order bump");
       } else {
         toast.error(`Não foi possível salvar: ${error?.message ?? "erro desconhecido"}`);

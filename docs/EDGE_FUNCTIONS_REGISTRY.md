@@ -10,8 +10,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 67 |
-| **No código local** | 45 |
+| **Total de Funções** | 70 |
+| **No código local** | 48 |
 | **Apenas deployadas** | 22 |
 | **Base URL** | `https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/` |
 
@@ -157,6 +157,9 @@
 | `manage-user-status` | `.../manage-user-status` | ✅ | 7 min ago | 165 |
 | `producer-auth` | `.../producer-auth` | ✅ | 7 min ago | 29 |
 | `product-management` | `.../product-management` | ✅ | NEW | 0 |
+| `offer-management` | `.../offer-management` | ✅ | NEW | 0 |
+| `checkout-management` | `.../checkout-management` | ✅ | NEW | 0 |
+| `product-duplicate` | `.../product-duplicate` | ✅ | NEW | 0 |
 
 ### Affiliates
 
@@ -257,6 +260,7 @@
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-12 | Adicionadas `offer-management`, `checkout-management`, `product-duplicate` para eliminar operações de escrita no frontend |
 | 2026-01-12 | Adicionada `product-management` para CRUD de produtos via backend |
 | 2026-01-12 | Criação inicial do documento com 66 funções |
 
