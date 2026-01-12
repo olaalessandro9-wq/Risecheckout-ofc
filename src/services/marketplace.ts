@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 
 // Types
 type MarketplaceProduct = Database["public"]["Views"]["marketplace_products"]["Row"];
@@ -213,36 +214,43 @@ export async function trackProductClick(productId: string): Promise<void> {
 
 /**
  * Verifica se o usuário já é afiliado de um produto
+ * 
+ * MIGRATED: Usa Edge Function para bypass de RLS
+ * (sistema usa autenticação customizada via producer_sessions)
  */
 export async function checkAffiliationStatus(
   productId: string,
-  userId: string
+  _userId: string // Mantido para compatibilidade, mas não usado
 ): Promise<{
   isAffiliate: boolean;
   status?: "pending" | "active" | "rejected" | "blocked";
   affiliationId?: string;
 }> {
   try {
-    const { data, error } = await supabase
-      .from("affiliates")
-      .select("id, status")
-      .eq("product_id", productId)
-      .eq("user_id", userId)
-      .maybeSingle();
+    const sessionToken = getProducerSessionToken();
+
+    if (!sessionToken) {
+      console.log("[Marketplace] Sem token de sessão - usuário não logado");
+      return { isAffiliate: false };
+    }
+
+    const { data, error } = await supabase.functions.invoke("get-affiliation-status", {
+      body: { product_id: productId },
+      headers: {
+        "x-producer-session-token": sessionToken,
+      },
+    });
 
     if (error) {
       console.error("[Marketplace] Erro ao verificar status de afiliação:", error);
       return { isAffiliate: false };
     }
 
-    if (!data) {
-      return { isAffiliate: false };
-    }
-
+    // Edge Function retorna { isAffiliate, status?, affiliationId? }
     return {
-      isAffiliate: data.status === "active",
-      status: data.status as "pending" | "active" | "rejected" | "blocked",
-      affiliationId: data.id,
+      isAffiliate: data?.isAffiliate || false,
+      status: data?.status,
+      affiliationId: data?.affiliationId,
     };
   } catch (error) {
     console.error("[Marketplace] Erro ao verificar status de afiliação:", error);

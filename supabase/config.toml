@@ -126,6 +126,13 @@ verify_jwt = false
 [functions.request-affiliation]
 verify_jwt = false
 
+# ✅ PÚBLICAS (Afiliações - Usam producer_sessions token)
+[functions.get-affiliation-status]
+verify_jwt = false
+
+[functions.get-my-affiliations]
+verify_jwt = false
+
 [functions.migrate-credentials-to-vault]
 verify_jwt = true
 
@@ -168,4 +175,3 @@ verify_jwt = false
 
 [functions.gdpr-forget]
 verify_jwt = false
-
