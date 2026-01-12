@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { TrendingUp, Webhook, TestTube2 } from "lucide-react";
+import { TrendingUp, Webhook } from "lucide-react";
 import { IntegrationCard } from "@/components/integrations/IntegrationCard";
 import { UTMifyConfig } from "@/components/integrations/UTMifyConfig";
 import { WebhooksConfig } from "@/components/webhooks/WebhooksConfig";
-import { TestModeConfig } from "@/components/integrations/TestModeConfig";
 
 import {
   Sheet,
@@ -13,7 +12,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 
-type IntegrationType = "utmify" | "webhooks" | "testmode" | null;
+type IntegrationType = "utmify" | "webhooks" | null;
 
 const Integracoes = () => {
   const [selectedIntegration, setSelectedIntegration] = useState<IntegrationType>(null);
@@ -33,13 +32,6 @@ const Integracoes = () => {
       iconColor: "#8b5cf6",
       description: "Configure as integrações com os seus apps",
     },
-    {
-      id: "testmode" as IntegrationType,
-      name: "Modo Teste",
-      icon: TestTube2,
-      iconColor: "#f59e0b",
-      description: "Use credenciais de teste do Mercado Pago para desenvolvimento",
-    },
   ];
 
   const renderIntegrationContent = () => {
@@ -48,8 +40,6 @@ const Integracoes = () => {
         return <UTMifyConfig />;
       case "webhooks":
         return <WebhooksConfig />;
-      case "testmode":
-        return <TestModeConfig />;
       default:
         return null;
     }
