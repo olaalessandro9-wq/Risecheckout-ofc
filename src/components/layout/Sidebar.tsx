@@ -13,11 +13,10 @@ import {
   Settings2,
   BarChart3,
   ChevronDown,
-  ChevronRight,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { UserFooter } from "./UserFooter";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { HELP_CENTER_URL, SUPPORT_WHATSAPP_URL } from "@/lib/links";
@@ -100,6 +99,7 @@ interface SidebarProps {
 export function Sidebar({ mobileOpen = false, setMobileOpen, onExpandChange }: SidebarProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
+  const initializedRef = useRef(false);
   const location = useLocation();
   const { canAccessAdminPanel, role, canHaveAffiliates } = usePermissions();
   const isOwner = role === "owner";
@@ -108,6 +108,23 @@ export function Sidebar({ mobileOpen = false, setMobileOpen, onExpandChange }: S
     () => buildNavItems({ canAccessAdminPanel, isOwner, canHaveAffiliates }),
     [canAccessAdminPanel, isOwner, canHaveAffiliates]
   );
+
+  // Inicializa menus com filhos ativos na primeira renderização
+  useEffect(() => {
+    if (initializedRef.current) return;
+    
+    const initialOpenMenus: Record<string, boolean> = {};
+    navItems.forEach((item) => {
+      if (item.children && hasActiveChild(location.pathname, item.children)) {
+        initialOpenMenus[item.label] = true;
+      }
+    });
+    
+    if (Object.keys(initialOpenMenus).length > 0) {
+      setOpenMenus(initialOpenMenus);
+    }
+    initializedRef.current = true;
+  }, [navItems, location.pathname]);
 
   // Notificar AppShell quando hover mudar
   const handleMouseEnter = () => {
@@ -124,10 +141,8 @@ export function Sidebar({ mobileOpen = false, setMobileOpen, onExpandChange }: S
     setOpenMenus((prev) => ({ ...prev, [label]: !prev[label] }));
   };
 
+  // Respeita sempre o toggle do usuário
   const isMenuOpen = (item: NavItem): boolean => {
-    // Se tem filho ativo, mantém aberto
-    if (hasActiveChild(location.pathname, item.children)) return true;
-    // Caso contrário, usa o estado
     return openMenus[item.label] ?? false;
   };
 
@@ -189,16 +204,17 @@ export function Sidebar({ mobileOpen = false, setMobileOpen, onExpandChange }: S
                           {showLabels && (
                             <>
                               <span className={cn(
-                                "flex-1 text-left font-medium whitespace-nowrap overflow-hidden text-ellipsis transition-all duration-300 animate-in fade-in slide-in-from-left-1",
+                                "flex-1 text-left font-medium whitespace-nowrap overflow-hidden text-ellipsis",
                                 childActive ? "text-foreground" : "text-muted-foreground group-hover/item:text-foreground"
                               )}>
                                 {item.label}
                               </span>
-                              {isOpen ? (
-                                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform duration-200" />
-                              )}
+                              <ChevronDown 
+                                className={cn(
+                                  "h-4 w-4 text-muted-foreground transition-transform duration-200 ease-out",
+                                  isOpen ? "rotate-0" : "-rotate-90"
+                                )} 
+                              />
                             </>
                           )}
 
@@ -209,7 +225,7 @@ export function Sidebar({ mobileOpen = false, setMobileOpen, onExpandChange }: S
                         </button>
                       </CollapsibleTrigger>
 
-                      <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+                      <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
                         <ul className={cn("mt-1 flex flex-col gap-1", showLabels ? "pl-4" : "pl-0")}>
                           {item.children!.map((child) => {
                             const ChildIcon = child.icon;
@@ -263,7 +279,7 @@ export function Sidebar({ mobileOpen = false, setMobileOpen, onExpandChange }: S
                   )} />
                   {showLabels && (
                     <span className={cn(
-                      "font-medium whitespace-nowrap overflow-hidden text-ellipsis transition-all duration-300 animate-in fade-in slide-in-from-left-1",
+                      "font-medium whitespace-nowrap overflow-hidden text-ellipsis",
                       isActive ? "text-foreground" : "text-muted-foreground group-hover/item:text-foreground"
                     )}>
                       {item.label}
