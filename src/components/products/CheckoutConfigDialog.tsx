@@ -82,53 +82,44 @@ export const CheckoutConfigDialog = ({
 
     setSaving(true);
     try {
-      let finalCheckoutId = checkout?.id;
+      const sessionToken = localStorage.getItem('producer_session_token');
+      
+      const action = checkout?.id ? 'update' : 'create';
+      const payload: any = {
+        action,
+        name,
+        isDefault,
+        offerId: selectedOfferId,
+      };
 
-      // Se é novo checkout, criar
-      if (!checkout?.id) {
-        const { data: newCheckout, error: createError } = await supabase
-          .from('checkouts')
-          .insert({
-            product_id: productId,
-            name: name,
-            is_default: isDefault
-          })
-          .select('id')
-          .single();
-
-        if (createError) throw createError;
-        finalCheckoutId = newCheckout.id;
+      if (checkout?.id) {
+        payload.checkoutId = checkout.id;
       } else {
-        // Atualizar checkout existente
-        const { error: updateError } = await supabase
-          .from('checkouts')
-          .update({
-            name: name,
-            is_default: isDefault
-          })
-          .eq('id', checkout.id);
-
-        if (updateError) throw updateError;
+        payload.productId = productId;
       }
 
-      // Se marcou como padrão, desmarcar outros
-      if (isDefault) {
-        await supabase
-          .from('checkouts')
-          .update({ is_default: false })
-          .eq('product_id', productId)
-          .neq('id', finalCheckoutId);
+      const { data, error } = await supabase.functions.invoke('checkout-management', {
+        body: payload,
+        headers: {
+          'x-producer-session-token': sessionToken || '',
+        },
+      });
+
+      if (error) {
+        console.error('[CHECKOUT] Edge function error:', error);
+        throw new Error(error.message || 'Erro ao salvar checkout');
       }
 
-      // Gerenciar link de pagamento
-      await managePaymentLink(finalCheckoutId!, selectedOfferId);
+      if (!data?.success) {
+        throw new Error(data?.error || 'Erro ao salvar checkout');
+      }
 
       // Callback de sucesso
       const updatedCheckout: Checkout = {
-        id: finalCheckoutId!,
+        id: data.data?.checkout?.id || checkout?.id || '',
         name,
         isDefault,
-        linkId: "",
+        linkId: data.data?.checkout?.linkId || "",
         price: availableOffers.find(o => o.id === selectedOfferId)?.price || 0,
         offer: availableOffers.find(o => o.id === selectedOfferId)?.name || "",
         visits: checkout?.visits || 0,
@@ -139,133 +130,10 @@ export const CheckoutConfigDialog = ({
       onOpenChange(false);
     } catch (error) {
       console.error('Erro ao salvar checkout:', error);
-      toast.error('Não foi possível salvar o checkout');
+      const message = error instanceof Error ? error.message : 'Não foi possível salvar o checkout';
+      toast.error(message);
     } finally {
       setSaving(false);
-    }
-  };
-
-  const managePaymentLink = async (checkoutId: string, offerId: string) => {
-    // 1. Verificar se checkout já tem link associado
-    const { data: currentLink } = await supabase
-      .from('checkout_links')
-      .select(`
-        link_id,
-        payment_links!inner (
-          id,
-          offer_id
-        )
-      `)
-      .eq('checkout_id', checkoutId)
-      .maybeSingle();
-
-    // 2. Se checkout já tem link da oferta selecionada → MANTER (não fazer nada)
-    if (currentLink && currentLink.payment_links.offer_id === offerId) {
-      console.log('[CHECKOUT] Checkout já tem link da oferta selecionada, mantendo...');
-      return;
-    }
-
-    // 3. Verificar se a oferta já está sendo usada em outro checkout
-    const { data: offerInUse } = await supabase
-      .from('checkout_links')
-      .select(`
-        id,
-        payment_links!inner (
-          offer_id
-        )
-      `)
-      .eq('payment_links.offer_id', offerId)
-      .neq('checkout_id', checkoutId)
-      .maybeSingle();
-
-    let linkId: string;
-
-    if (offerInUse) {
-      // 4a. Oferta já está em uso → criar novo payment_link
-      console.log('[CHECKOUT] Oferta em uso, criando novo link...');
-      const { generateUniqueSlug } = await import('@/lib/utils/generateSlug');
-      const slug = generateUniqueSlug();
-
-      const { data: newLink, error: createLinkError } = await supabase
-        .from('payment_links')
-        .insert({
-          offer_id: offerId,
-          slug: slug,
-          url: `${window.location.origin}/c/${slug}`,
-          status: 'active',
-          is_original: false  // Link duplicado (filho)
-        })
-        .select('id')
-        .single();
-
-      if (createLinkError) throw createLinkError;
-      linkId = newLink.id;
-    } else {
-      // 4b. Oferta não está em uso → buscar link disponível (órfão)
-      const { data: availableLink } = await supabase
-        .from('payment_links')
-        .select('id')
-        .eq('offer_id', offerId)
-        .eq('status', 'active')
-        .is('checkout_links.checkout_id', null)
-        .maybeSingle();
-
-      if (availableLink) {
-        console.log('[CHECKOUT] Reutilizando link órfão...');
-        linkId = availableLink.id;
-      } else {
-        // Buscar qualquer link da oferta (mesmo que em uso)
-        const { data: anyLink } = await supabase
-          .from('payment_links')
-          .select('id')
-          .eq('offer_id', offerId)
-          .eq('status', 'active')
-          .maybeSingle();
-
-        if (anyLink) {
-          console.log('[CHECKOUT] Reutilizando link existente...');
-          linkId = anyLink.id;
-        } else {
-          // Criar novo link
-          console.log('[CHECKOUT] Criando novo link...');
-          const { generateUniqueSlug } = await import('@/lib/utils/generateSlug');
-          const slug = generateUniqueSlug();
-
-          const { data: newLink, error: createLinkError } = await supabase
-            .from('payment_links')
-            .insert({
-              offer_id: offerId,
-              slug: slug,
-              url: `${window.location.origin}/c/${slug}`,
-              status: 'active',
-              is_original: true  // Link original (mãe)
-            })
-            .select('id')
-            .single();
-
-          if (createLinkError) throw createLinkError;
-          linkId = newLink.id;
-        }
-      }
-    }
-
-    // 5. Associar link ao checkout
-    if (currentLink) {
-      // Atualizar associação existente
-      console.log('[CHECKOUT] Atualizando associação checkout → link...');
-      await supabase
-        .from('checkout_links')
-        .update({ link_id: linkId })
-        .eq('checkout_id', checkoutId);
-    } else {
-      // Criar nova associação
-      console.log('[CHECKOUT] Criando nova associação checkout → link...');
-      await supabase
-        .from('checkout_links')
-        .insert({
-          checkout_id: checkoutId,
-          link_id: linkId
-        });
     }
   };
 
