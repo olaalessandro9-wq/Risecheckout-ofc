@@ -42,10 +42,14 @@ export function CustomerTableRow({ customer, displayPhone, onViewDetails }: Cust
       </TableCell>
       <TableCell>
         <Badge
-          variant={customer.status === "Pago" ? "default" : "secondary"}
+          variant="outline"
           className={`
-            ${customer.status === "Pago"
+            ${customer.status === "Pago" 
               ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-emerald-500/20"
+              : customer.status === "Pendente"
+              ? "bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border-amber-500/20"
+              : customer.status === "Reembolso" || customer.status === "Chargeback"
+              ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 border-red-500/20"
               : "bg-secondary text-secondary-foreground hover:bg-secondary/80"}
             transition-all
           `}
