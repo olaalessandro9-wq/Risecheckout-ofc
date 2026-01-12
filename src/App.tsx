@@ -38,6 +38,7 @@ import SolicitarAfiliacao from "./pages/SolicitarAfiliacao";
 import TermosDeUso from "./pages/TermosDeUso";
 import GdprRequest from "./pages/lgpd/GdprRequest";
 import GdprConfirm from "./pages/lgpd/GdprConfirm";
+import PoliticaDePrivacidade from "./pages/PoliticaDePrivacidade";
 
 // ============================================================================
 // ÁREA DE MEMBROS (BUYER)
@@ -152,10 +153,11 @@ const router = createBrowserRouter([
       { path: "/termos-de-uso", element: <TermosDeUso /> },
 
       // ============================================================
-      // LGPD - Direito ao Esquecimento
+      // LGPD - Direito ao Esquecimento e Privacidade
       // ============================================================
       { path: "/lgpd/esquecimento", element: <GdprRequest /> },
       { path: "/lgpd/confirmar", element: <GdprConfirm /> },
+      { path: "/politica-de-privacidade", element: <PoliticaDePrivacidade /> },
 
       // ============================================================
       // ÁREA DE MEMBROS (BUYER) - Rotas Públicas

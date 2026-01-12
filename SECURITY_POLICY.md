@@ -233,12 +233,40 @@ Em caso de exposição de secrets:
 - [ ] Verificar comentários com informações sensíveis
 - [ ] Verificar URLs com tokens query params
 
-## 9. Atualizações desta Política
+## 9. Compliance LGPD
+
+O RiseCheckout implementa o **Direito ao Esquecimento** conforme Art. 18, VI da LGPD.
+
+### 9.1 Sistema de Anonimização
+
+- **Endpoint público:** `/lgpd/esquecimento` para solicitações
+- **Verificação:** Token via email com validade de 24h
+- **Anonimização:** Dados pessoais são anonimizados (não deletados)
+- **Auditoria:** Todas as ações são registradas em `gdpr_audit_log`
+
+### 9.2 Dados Pessoais Tratados
+
+| Tabela | Campos Sensíveis | Tratamento |
+|--------|------------------|------------|
+| `orders` | email, nome, telefone, documento, IP | Anonimização |
+| `buyer_profiles` | email, nome, telefone, documento | Anonimização |
+| `checkout_sessions` | - | Deleção |
+
+### 9.3 Retenção Legal
+
+Dados fiscais são mantidos por **5 anos** conforme Art. 173 do CTN:
+- `order.id`, `order.amount_cents`, `order.status`, `order.paid_at`
+
+### 9.4 Documentação
+
+Consulte `docs/LGPD_IMPLEMENTATION.md` para detalhes técnicos completos.
+
+## 10. Atualizações desta Política
 
 Esta política deve ser revisada:
 - A cada 6 meses
 - Após qualquer incidente de segurança
 - Quando novas integrações forem adicionadas
 
-**Última atualização:** Dezembro 2025
-**Versão:** 2.0
+**Última atualização:** Janeiro 2026
+**Versão:** 3.0
