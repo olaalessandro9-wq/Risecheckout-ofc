@@ -13,7 +13,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useAuth } from "@/hooks/useAuth";
 import { z } from "zod";
 import { ArrowLeft, ArrowRight, Package, Link as LinkIcon, Mail, Webhook } from "lucide-react";
 
@@ -36,7 +35,6 @@ interface AddProductDialogProps {
 
 export function AddProductDialog({ open, onOpenChange, onProductAdded }: AddProductDialogProps) {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
   const [deliveryUrlError, setDeliveryUrlError] = useState("");
@@ -94,32 +92,41 @@ export function AddProductDialog({ open, onOpenChange, onProductAdded }: AddProd
   };
 
   const handleSubmit = async () => {
-    if (!user) return;
-    
     // Validar URL somente se entrega interna
     if (!externalDelivery && !validateDeliveryUrl(formData.delivery_url)) {
       return;
     }
     
+    // Get session token from localStorage
+    const sessionToken = localStorage.getItem("rise_producer_token");
+    if (!sessionToken) {
+      toast.error("Você precisa estar autenticado. Faça login novamente.");
+      return;
+    }
+    
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("products")
-        .insert({
-          name: formData.name.trim(),
-          description: formData.description.trim() || "",
-          price: formData.price,
-          user_id: user.id,
-          status: "active",
-          support_name: "",
-          support_email: "",
-          delivery_url: externalDelivery ? null : (formData.delivery_url.trim() || null),
-          external_delivery: externalDelivery,
-        })
-        .select()
-        .single();
+      const { data, error } = await supabase.functions.invoke("product-management/create", {
+        body: {
+          sessionToken,
+          product: {
+            name: formData.name.trim(),
+            description: formData.description.trim() || "",
+            price: formData.price,
+            delivery_url: externalDelivery ? null : (formData.delivery_url.trim() || null),
+            external_delivery: externalDelivery,
+          },
+        },
+      });
 
-      if (error) throw error;
+      if (error) {
+        console.error("[AddProductDialog] Edge function error:", error);
+        throw new Error(error.message || "Erro ao criar produto");
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.error || "Erro ao criar produto");
+      }
 
       toast.success("Produto criado com sucesso!");
       onOpenChange(false);
@@ -129,10 +136,10 @@ export function AddProductDialog({ open, onOpenChange, onProductAdded }: AddProd
       
       if (onProductAdded) onProductAdded();
       
-      navigate(`/dashboard/produtos/editar?id=${data.id}`);
+      navigate(`/dashboard/produtos/editar?id=${data.product.id}`);
     } catch (error: any) {
-      toast.error("Erro ao criar produto");
-      console.error(error);
+      toast.error(error.message || "Erro ao criar produto");
+      console.error("[AddProductDialog] Error:", error);
     } finally {
       setLoading(false);
     }
