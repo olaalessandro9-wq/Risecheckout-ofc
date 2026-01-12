@@ -124,7 +124,7 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.request-affiliation]
-verify_jwt = true
+verify_jwt = false
 
 [functions.migrate-credentials-to-vault]
 verify_jwt = true
