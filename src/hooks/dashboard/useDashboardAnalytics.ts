@@ -19,7 +19,7 @@ import { useAuth } from "@/hooks/useAuth";
 import type { DashboardData } from "./types";
 import { fetchAggregatedMetrics } from "./api/fetchMetrics";
 import { fetchRecentOrders, fetchChartOrders } from "./api/fetchOrders";
-import { calculateMetricsFromRpc, calculateChartData } from "./utils/calculations";
+import { calculateMetricsFromRpc, calculateChartData, calculateHourlyChartData } from "./utils/calculations";
 import { formatRecentCustomers } from "./utils/formatters";
 
 /**
@@ -61,8 +61,13 @@ export function useDashboardAnalytics(startDate: Date, endDate: Date) {
       // Calcular métricas usando dados agregados do banco
       const metrics = calculateMetricsFromRpc(currentMetrics, previousMetrics);
 
-      // Calcular dados dos gráficos
-      const chartData = calculateChartData(chartOrders, startDate, endDate);
+      // Detectar se é período de 1 dia para usar granularidade por hora
+      const isSingleDay = daysDiff <= 1;
+
+      // Calcular dados dos gráficos (por hora se 1 dia, por dia se mais)
+      const chartData = isSingleDay
+        ? calculateHourlyChartData(chartOrders, startDate)
+        : calculateChartData(chartOrders, startDate, endDate);
 
       // Formatar clientes recentes
       const recentCustomers = formatRecentCustomers(recentOrders);
