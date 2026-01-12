@@ -1,12 +1,19 @@
 // src/components/layout/Sidebar.tsx
 
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { usePermissions } from "@/hooks/usePermissions";
 import { NavContent, buildNavItems, hasActiveChild } from "./sidebar";
 import type { NavItemType } from "./sidebar";
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+/** Tempo para o menu fechar antes do sidebar colapsar (ms) */
+const MENU_CLOSE_DELAY = 250;
 
 // ============================================================================
 // INTERFACE
@@ -27,6 +34,7 @@ interface SidebarProps {
  * 
  * - Desktop: Sidebar colapsável que expande no hover
  * - Mobile: Sheet deslizante
+ * - Animação em cascata: menus fecham antes do sidebar colapsar
  * 
  * Refatorado para seguir RISE ARCHITECT PROTOCOL (< 300 linhas)
  */
@@ -34,6 +42,7 @@ export function Sidebar({ mobileOpen = false, setMobileOpen, onExpandChange }: S
   const [isHovered, setIsHovered] = useState(false);
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
   const initializedRef = useRef(false);
+  const collapseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const location = useLocation();
   const { canAccessAdminPanel, role, canHaveAffiliates } = usePermissions();
   const isOwner = role === "owner";
@@ -61,16 +70,50 @@ export function Sidebar({ mobileOpen = false, setMobileOpen, onExpandChange }: S
     initializedRef.current = true;
   }, [navItems, location.pathname]);
 
-  // Handlers de hover
-  const handleMouseEnter = () => {
+  // Cleanup do timeout no unmount
+  useEffect(() => {
+    return () => {
+      if (collapseTimeoutRef.current) {
+        clearTimeout(collapseTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Fecha todos os menus abertos
+  const closeAllMenus = useCallback(() => {
+    setOpenMenus({});
+  }, []);
+
+  // Handler de entrada do mouse - cancela collapse pendente
+  const handleMouseEnter = useCallback(() => {
+    if (collapseTimeoutRef.current) {
+      clearTimeout(collapseTimeoutRef.current);
+      collapseTimeoutRef.current = null;
+    }
     setIsHovered(true);
     onExpandChange?.(true);
-  };
+  }, [onExpandChange]);
 
-  const handleMouseLeave = () => {
-    setIsHovered(false);
-    onExpandChange?.(false);
-  };
+  // Handler de saída do mouse - animação em cascata
+  const handleMouseLeave = useCallback(() => {
+    const hasOpenMenu = Object.values(openMenus).some(Boolean);
+
+    if (hasOpenMenu) {
+      // Primeiro fecha os menus (animação de 200ms no Collapsible)
+      closeAllMenus();
+
+      // Depois colapsa o sidebar (aguarda menu fechar)
+      collapseTimeoutRef.current = setTimeout(() => {
+        setIsHovered(false);
+        onExpandChange?.(false);
+        collapseTimeoutRef.current = null;
+      }, MENU_CLOSE_DELAY);
+    } else {
+      // Sem menus abertos, colapsa imediatamente
+      setIsHovered(false);
+      onExpandChange?.(false);
+    }
+  }, [openMenus, closeAllMenus, onExpandChange]);
 
   // Toggle de menu expansível
   const toggleMenu = (label: string) => {
