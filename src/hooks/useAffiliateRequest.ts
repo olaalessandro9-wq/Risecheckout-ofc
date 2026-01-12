@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { checkAffiliationStatus } from "@/services/marketplace";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 
 interface UseAffiliateRequestReturn {
   requestAffiliate: (productId: string) => Promise<void>;
@@ -49,7 +50,10 @@ export function useAffiliateRequest(): UseAffiliateRequestReturn {
    */
   const requestAffiliate = useCallback(
     async (productId: string) => {
-      if (!user || !session) {
+      // Validar autenticação via token de sessão customizado
+      const sessionToken = getProducerSessionToken();
+      
+      if (!sessionToken) {
         setError("Você precisa estar logado para solicitar afiliação");
         return;
       }
@@ -63,6 +67,9 @@ export function useAffiliateRequest(): UseAffiliateRequestReturn {
         
         const { data, error: fnError } = await supabase.functions.invoke("request-affiliation", {
           body: { product_id: productId },
+          headers: {
+            Authorization: `Bearer ${sessionToken}`,
+          },
         });
 
         if (fnError) {

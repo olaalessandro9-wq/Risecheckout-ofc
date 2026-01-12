@@ -44,18 +44,47 @@ serve(async (req) => {
       throw new Error("product_id é obrigatório");
     }
 
-    // Get authenticated user
+    // ==========================================
+    // AUTENTICAÇÃO VIA PRODUCER SESSION (token customizado)
+    // ==========================================
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       throw new Error("Usuário não autenticado");
     }
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+    const sessionToken = authHeader.replace("Bearer ", "");
 
-    if (authError || !user) {
-      throw new Error("Usuário não autenticado");
+    // Validar token customizado na tabela producer_sessions
+    const { data: sessionData, error: sessionError } = await supabaseClient
+      .from("producer_sessions")
+      .select(`
+        user_id,
+        expires_at,
+        profiles:user_id (
+          id,
+          email,
+          asaas_wallet_id,
+          mercadopago_collector_id,
+          stripe_account_id
+        )
+      `)
+      .eq("session_token", sessionToken)
+      .gt("expires_at", new Date().toISOString())
+      .maybeSingle();
+
+    if (sessionError || !sessionData || !sessionData.profiles) {
+      console.error(`🚨 [request-affiliation] Sessão inválida ou expirada`);
+      throw new Error("Sessão inválida ou expirada. Faça login novamente.");
     }
+
+    // Extrair dados do usuário e profile
+    const user = {
+      id: sessionData.user_id,
+      email: (sessionData.profiles as any).email,
+    };
+
+    // userProfile já obtido na validação da sessão
+    const userProfile = sessionData.profiles as any;
 
     console.log(`📝 [request-affiliation] Solicitação de ${maskEmail(user.email || '')} para produto ${product_id}`);
 
@@ -81,19 +110,8 @@ serve(async (req) => {
     await recordRateLimitAttempt(supabaseClient, user.id);
 
     // ==========================================
-    // 1. VALIDAR PERFIL DO USUÁRIO (já não exige Asaas obrigatório)
+    // 1. VALIDAR GATEWAYS DO USUÁRIO (userProfile já obtido na autenticação)
     // ==========================================
-    const { data: userProfile, error: profileError } = await supabaseClient
-      .from("profiles")
-      .select("asaas_wallet_id, mercadopago_collector_id, stripe_account_id")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (profileError) {
-      console.error(`🚨 [request-affiliation] Erro ao buscar perfil:`, profileError);
-      throw new Error("Erro ao verificar seu perfil");
-    }
-
     // Verificar se tem pelo menos uma conexão de gateway
     const hasAnyGateway = !!(
       userProfile?.asaas_wallet_id || 
