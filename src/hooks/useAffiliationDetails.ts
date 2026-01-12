@@ -117,142 +117,55 @@ export function useAffiliationDetails(affiliationId: string | undefined): UseAff
     setError(null);
 
     try {
-      // Buscar afiliação com produto
-      const { data: affiliationData, error: affiliationError } = await supabase
-        .from("affiliates")
-        .select(`
-          id,
-          affiliate_code,
-          commission_rate,
-          status,
-          total_sales_count,
-          total_sales_amount,
-          created_at,
-          product_id,
-          pix_gateway,
-          credit_card_gateway,
-          gateway_credentials,
-          product:products (
-            id,
-            name,
-            description,
-            image_url,
-            price,
-            marketplace_description,
-            marketplace_rules,
-            marketplace_category,
-            user_id,
-            affiliate_settings,
-            affiliate_gateway_settings
-          )
-        `)
-        .eq("id", affiliationId)
-        .single();
-
-      if (affiliationError) throw affiliationError;
-      if (!affiliationData) throw new Error("Afiliação não encontrada");
-
-      const product = affiliationData.product as unknown as (AffiliationProduct & { affiliate_gateway_settings?: any });
-      const productId = affiliationData.product_id;
-
-      // Extrair configurações de gateway permitidas pelo owner
-      const gatewaySettings = product?.affiliate_gateway_settings || {};
-      const allowedGateways = {
-        pix_allowed: gatewaySettings.pix_allowed || ["asaas"],
-        credit_card_allowed: gatewaySettings.credit_card_allowed || ["mercadopago", "stripe"],
-        require_gateway_connection: gatewaySettings.require_gateway_connection ?? true,
-      };
-
-      // Buscar ofertas do produto
-      const { data: offersData } = await supabase
-        .from("offers")
-        .select("id, name, price, status, is_default")
-        .eq("product_id", productId)
-        .eq("status", "active");
-
-      // Buscar checkouts do produto COM payment_link_slug
-      const { data: checkoutsData } = await supabase
-        .from("checkouts")
-        .select(`
-          id, 
-          slug, 
-          is_default, 
-          status,
-          checkout_links (
-            payment_links (
-              slug
-            )
-          )
-        `)
-        .eq("product_id", productId)
-        .eq("status", "active");
-
-      // Mapear checkouts para incluir payment_link_slug
-      const checkoutsWithPaymentSlug: AffiliationCheckout[] = (checkoutsData || []).map((c: any) => ({
-        id: c.id,
-        slug: c.slug,
-        payment_link_slug: c.checkout_links?.[0]?.payment_links?.slug || null,
-        is_default: c.is_default,
-        status: c.status,
-      }));
-
-      // Buscar perfil do produtor
-      let producer: ProducerProfile | null = null;
-      if (product?.user_id) {
-        const { data: producerData } = await supabase
-          .from("profiles")
-          .select("id, name")
-          .eq("id", product.user_id)
-          .single();
-        
-        producer = producerData;
+      // Get session token for authentication
+      const sessionToken = localStorage.getItem("producer_session_token");
+      
+      if (!sessionToken) {
+        throw new Error("Sessão não encontrada. Faça login novamente.");
       }
 
-      // Buscar pixels do afiliado
-      const { data: pixelsData } = await supabase
-        .from("affiliate_pixels")
-        .select("*")
-        .eq("affiliate_id", affiliationId);
-
-      // Buscar outros produtos do mesmo produtor
-      if (product?.user_id) {
-        const { data: otherProductsData } = await supabase
-          .from("marketplace_products")
-          .select("id, name, image_url, price, commission_percentage")
-          .eq("producer_id", product.user_id)
-          .neq("id", productId)
-          .limit(6);
-
-        setOtherProducts(otherProductsData || []);
-      }
-
-      // Usar commission_rate do afiliado, ou defaultRate do produto como fallback
-      const effectiveCommissionRate = 
-        affiliationData.commission_rate ?? 
-        (product?.affiliate_settings?.defaultRate || 0);
-
-      setAffiliation({
-        id: affiliationData.id,
-        affiliate_code: affiliationData.affiliate_code,
-        commission_rate: effectiveCommissionRate,
-        status: affiliationData.status,
-        total_sales_count: affiliationData.total_sales_count || 0,
-        total_sales_amount: affiliationData.total_sales_amount || 0,
-        created_at: affiliationData.created_at,
-        product: product as AffiliationProduct,
-        offers: (offersData || []).map(o => ({
-          ...o,
-          price: o.price / 100 // Converter de centavos para reais
-        })),
-        checkouts: checkoutsWithPaymentSlug,
-        producer,
-        pixels: (pixelsData || []) as AffiliatePixel[],
-        // Novos campos de gateway
-        pix_gateway: affiliationData.pix_gateway || null,
-        credit_card_gateway: affiliationData.credit_card_gateway || null,
-        gateway_credentials: (affiliationData.gateway_credentials as Record<string, string>) || {},
-        allowed_gateways: allowedGateways,
+      // Call Edge Function to get affiliation details (bypasses RLS)
+      const { data, error: invokeError } = await supabase.functions.invoke("get-affiliation-details", {
+        body: { affiliation_id: affiliationId },
+        headers: { "x-producer-session-token": sessionToken },
       });
+
+      if (invokeError) {
+        console.error("Erro ao invocar get-affiliation-details:", invokeError);
+        throw new Error(invokeError.message || "Erro ao buscar detalhes da afiliação");
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      if (!data?.affiliation) {
+        throw new Error("Afiliação não encontrada");
+      }
+
+      // Set affiliation data from Edge Function response
+      setAffiliation({
+        id: data.affiliation.id,
+        affiliate_code: data.affiliation.affiliate_code,
+        commission_rate: data.affiliation.commission_rate,
+        status: data.affiliation.status,
+        total_sales_count: data.affiliation.total_sales_count || 0,
+        total_sales_amount: data.affiliation.total_sales_amount || 0,
+        created_at: data.affiliation.created_at,
+        product: data.affiliation.product as AffiliationProduct,
+        offers: data.affiliation.offers as AffiliationOffer[],
+        checkouts: data.affiliation.checkouts as AffiliationCheckout[],
+        producer: data.affiliation.producer as ProducerProfile | null,
+        pixels: data.affiliation.pixels as AffiliatePixel[],
+        pix_gateway: data.affiliation.pix_gateway,
+        credit_card_gateway: data.affiliation.credit_card_gateway,
+        gateway_credentials: data.affiliation.gateway_credentials || {},
+        allowed_gateways: data.affiliation.allowed_gateways,
+      });
+
+      // Set other products from same producer
+      setOtherProducts(data.otherProducts || []);
+
     } catch (err: any) {
       console.error("Erro ao buscar detalhes da afiliação:", err);
       setError(err.message || "Erro ao carregar detalhes");
