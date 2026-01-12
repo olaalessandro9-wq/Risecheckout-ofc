@@ -58,9 +58,10 @@ serve(async (req) => {
     const { data: sessionData, error: sessionError } = await supabaseClient
       .from("producer_sessions")
       .select(`
-        user_id,
+        producer_id,
         expires_at,
-        profiles:user_id (
+        is_valid,
+        profiles:producer_id (
           id,
           email,
           asaas_wallet_id,
@@ -69,17 +70,18 @@ serve(async (req) => {
         )
       `)
       .eq("session_token", sessionToken)
+      .eq("is_valid", true)
       .gt("expires_at", new Date().toISOString())
       .maybeSingle();
 
     if (sessionError || !sessionData || !sessionData.profiles) {
-      console.error(`🚨 [request-affiliation] Sessão inválida ou expirada`);
+      console.error(`🚨 [request-affiliation] Sessão inválida ou expirada. Error: ${sessionError?.message || 'No session data'}`);
       throw new Error("Sessão inválida ou expirada. Faça login novamente.");
     }
 
     // Extrair dados do usuário e profile
     const user = {
-      id: sessionData.user_id,
+      id: sessionData.producer_id,
       email: (sessionData.profiles as any).email,
     };
 
