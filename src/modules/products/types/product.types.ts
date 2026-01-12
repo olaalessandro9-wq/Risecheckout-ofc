@@ -150,7 +150,7 @@ export interface AffiliateSettings {
   supportEmail?: string;            // E-mail de suporte para afiliados
   publicDescription?: string;       // Descrição/regras para afiliados
   
-  attributionModel: "last_click" | "first_click" | "linear";
+  attributionModel: "last_click" | "first_click";
   cookieDuration: number; // Duração do cookie em dias (1-365)
   
   // ✅ Campos de Marketplace

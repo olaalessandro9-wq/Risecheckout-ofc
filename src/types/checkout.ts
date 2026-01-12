@@ -89,7 +89,7 @@ export interface AffiliateSettings {
   enabled?: boolean;
   commissionPercentage?: number;
   cookieDuration?: number;
-  attributionModel?: 'last_click' | 'first_click' | 'linear';
+  attributionModel?: 'last_click' | 'first_click';
 }
 
 export interface Checkout {

@@ -11,12 +11,11 @@ interface AffiliationDetailsTabProps {
 export function AffiliationDetailsTab({ settings }: AffiliationDetailsTabProps) {
   const getAttributionLabel = (model: string) => {
     switch (model) {
-      case "last_click":
-        return "Último clique";
       case "first_click":
         return "Primeiro clique";
+      case "last_click":
       default:
-        return "Linear";
+        return "Último clique";
     }
   };
 

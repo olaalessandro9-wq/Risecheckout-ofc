@@ -42,7 +42,7 @@ export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, desi
   const { pixels: productPixels } = useCheckoutProductPixels(checkout.product.id);
 
   // Affiliate Tracking
-  const affiliateSettings = checkout.product.affiliate_settings as { cookieDuration?: number; attributionModel?: 'last_click' | 'first_click' | 'linear' } | undefined;
+  const affiliateSettings = checkout.product.affiliate_settings as { cookieDuration?: number; attributionModel?: 'last_click' | 'first_click' } | undefined;
   useAffiliateTracking({ cookieDuration: affiliateSettings?.cookieDuration || 30, attributionModel: affiliateSettings?.attributionModel || 'last_click', enabled: true });
 
   // Legacy Tracking Configs (fallback if no product_pixels)
