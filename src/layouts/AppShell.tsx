@@ -3,7 +3,7 @@ import { Outlet } from "react-router-dom";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 import { useScrollShadow } from "@/hooks/useScrollShadow";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { 
   type SidebarState, 
@@ -14,6 +14,7 @@ import {
 export default function AppShell() {
   const { sentinelRef, scrolled } = useScrollShadow();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
   
   // Estado do sidebar com persistência localStorage
   const [sidebarState, setSidebarState] = useState<SidebarState>(() => {
@@ -44,8 +45,12 @@ export default function AppShell() {
     console.log("Notificações clicadas");
   };
 
-  // Largura do sidebar baseada no estado
-  const sidebarWidth = SIDEBAR_WIDTHS[sidebarState];
+  // Largura efetiva do sidebar (considera hover temporário)
+  const effectiveWidth = useMemo(() => {
+    if (sidebarState === 'hidden') return 0;
+    if (sidebarState === 'collapsed' && isHovering) return SIDEBAR_WIDTHS.expanded;
+    return SIDEBAR_WIDTHS[sidebarState];
+  }, [sidebarState, isHovering]);
 
   return (
     <div className="flex min-h-screen w-full bg-background text-foreground">
@@ -53,6 +58,7 @@ export default function AppShell() {
         mobileOpen={mobileOpen} 
         setMobileOpen={setMobileOpen}
         sidebarState={sidebarState}
+        onHoverChange={setIsHovering}
         onStateChange={setSidebarState}
       />
       
@@ -63,7 +69,7 @@ export default function AppShell() {
           "transition-[padding-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
         )}
         style={{
-          paddingLeft: `${sidebarWidth}px`,
+          paddingLeft: `${effectiveWidth}px`,
         }}
       >
         <Topbar 

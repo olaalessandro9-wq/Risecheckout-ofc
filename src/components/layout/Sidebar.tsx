@@ -31,6 +31,8 @@ interface SidebarProps {
   sidebarState: SidebarState;
   /** Callback para mudar estado do sidebar */
   onStateChange: (state: SidebarState) => void;
+  /** Callback para notificar mudanças de hover */
+  onHoverChange?: (isHovering: boolean) => void;
 }
 
 // ============================================================================
@@ -52,6 +54,7 @@ export function Sidebar({
   setMobileOpen, 
   sidebarState,
   onStateChange,
+  onHoverChange,
 }: SidebarProps) {
   // Hover temporário (apenas quando collapsed)
   const [isHovering, setIsHovering] = useState(false);
@@ -118,7 +121,8 @@ export function Sidebar({
       collapseTimeoutRef.current = null;
     }
     setIsHovering(true);
-  }, [sidebarState]);
+    onHoverChange?.(true);
+  }, [sidebarState, onHoverChange]);
 
   // Handler de saída do mouse - animação em cascata
   const handleMouseLeave = useCallback(() => {
@@ -133,13 +137,15 @@ export function Sidebar({
       // Depois remove hover (aguarda menu fechar)
       collapseTimeoutRef.current = setTimeout(() => {
         setIsHovering(false);
+        onHoverChange?.(false);
         collapseTimeoutRef.current = null;
       }, MENU_CLOSE_DELAY);
     } else {
       // Sem menus abertos, remove hover imediatamente
       setIsHovering(false);
+      onHoverChange?.(false);
     }
-  }, [sidebarState, openMenus, closeAllMenus]);
+  }, [sidebarState, openMenus, closeAllMenus, onHoverChange]);
 
   // Toggle de menu expansível
   const toggleMenu = (label: string) => {
