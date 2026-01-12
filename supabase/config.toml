@@ -3,6 +3,10 @@ project_id = "wivbtmtgpsxupfjwwovf"
 # =====================================================
 # EDGE FUNCTIONS - CONFIGURAÇÃO DE AUTENTICAÇÃO
 # =====================================================
+
+# ✅ PRODUCT MANAGEMENT (usa producer_sessions, não JWT)
+[functions.product-management]
+verify_jwt = false
 # verify_jwt = false → Função pública (não requer auth)
 # verify_jwt = true (ou omitido) → Requer autenticação
 # =====================================================
