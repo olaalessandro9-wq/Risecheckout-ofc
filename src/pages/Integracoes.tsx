@@ -1,13 +1,10 @@
 import { useState } from "react";
-import { TrendingUp, Facebook, Webhook, TestTube2, Target, Video, Music } from "lucide-react";
+import { TrendingUp, Webhook, TestTube2, BarChart3 } from "lucide-react";
 import { IntegrationCard } from "@/components/integrations/IntegrationCard";
-import { FacebookPixelConfig } from "@/components/integrations/FacebookPixelConfig";
-import { TikTokPixelConfig } from "@/components/integrations/TikTokPixelConfig";
-import { GoogleAdsConfig } from "@/components/integrations/GoogleAdsConfig";
-import { KwaiPixelConfig } from "@/components/integrations/KwaiPixelConfig";
 import { UTMifyConfig } from "@/components/integrations/UTMifyConfig";
 import { WebhooksConfig } from "@/components/webhooks/WebhooksConfig";
 import { TestModeConfig } from "@/components/integrations/TestModeConfig";
+import { PixelLibrary } from "@/components/pixels";
 
 import {
   Sheet,
@@ -17,10 +14,18 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 
-type IntegrationType = "utmify" | "facebook" | "tiktok" | "googleads" | "kwai" | "webhooks" | "testmode" | null;
+type IntegrationType = "pixels" | "utmify" | "webhooks" | "testmode" | null;
 
 const Integracoes = () => {
   const [selectedIntegration, setSelectedIntegration] = useState<IntegrationType>(null);
+
+  const pixelSection = {
+    id: "pixels" as IntegrationType,
+    name: "Gerenciar Pixels",
+    icon: BarChart3,
+    iconColor: "#10b981",
+    description: "Cadastre e gerencie seus pixels de rastreamento (Facebook, TikTok, Google Ads, Kwai)",
+  };
 
   const integrations = [
     {
@@ -29,34 +34,6 @@ const Integracoes = () => {
       icon: TrendingUp,
       iconColor: "#3b82f6",
       description: "Rastreamento de conversões com parâmetros UTM",
-    },
-    {
-      id: "facebook" as IntegrationType,
-      name: "Facebook Pixel",
-      icon: Facebook,
-      iconColor: "#1877f2",
-      description: "Rastreamento de eventos e conversões do Facebook",
-    },
-    {
-      id: "tiktok" as IntegrationType,
-      name: "TikTok Pixel",
-      icon: Music,
-      iconColor: "#000000",
-      description: "Rastreamento de eventos e conversões do TikTok",
-    },
-    {
-      id: "googleads" as IntegrationType,
-      name: "Google Ads",
-      icon: Target,
-      iconColor: "#4285F4",
-      description: "Rastreamento de conversões do Google Ads",
-    },
-    {
-      id: "kwai" as IntegrationType,
-      name: "Kwai Pixel",
-      icon: Video,
-      iconColor: "#FF6B00",
-      description: "Rastreamento de eventos e conversões do Kwai",
     },
     {
       id: "webhooks" as IntegrationType,
@@ -76,16 +53,10 @@ const Integracoes = () => {
 
   const renderIntegrationContent = () => {
     switch (selectedIntegration) {
+      case "pixels":
+        return <PixelLibrary />;
       case "utmify":
         return <UTMifyConfig />;
-      case "facebook":
-        return <FacebookPixelConfig />;
-      case "tiktok":
-        return <TikTokPixelConfig />;
-      case "googleads":
-        return <GoogleAdsConfig />;
-      case "kwai":
-        return <KwaiPixelConfig />;
       case "webhooks":
         return <WebhooksConfig />;
       case "testmode":
@@ -96,11 +67,13 @@ const Integracoes = () => {
   };
 
   const getIntegrationTitle = () => {
+    if (selectedIntegration === "pixels") return pixelSection.name;
     const integration = integrations.find(i => i.id === selectedIntegration);
     return integration?.name || "";
   };
 
   const getIntegrationDescription = () => {
+    if (selectedIntegration === "pixels") return pixelSection.description;
     const integration = integrations.find(i => i.id === selectedIntegration);
     return integration?.description || "";
   };
@@ -116,17 +89,35 @@ const Integracoes = () => {
         </p>
       </div>
 
-      {/* Lista de cards de integrações */}
-      <div className="max-w-2xl space-y-3">
-        {integrations.map((integration) => (
+      <div className="max-w-2xl space-y-6">
+        {/* Seção: Pixels de Rastreamento */}
+        <div className="space-y-3">
+          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+            📊 Pixels de Rastreamento
+          </h2>
           <IntegrationCard
-            key={integration.id}
-            name={integration.name}
-            icon={integration.icon}
-            iconColor={integration.iconColor}
-            onClick={() => setSelectedIntegration(integration.id)}
+            name={pixelSection.name}
+            icon={pixelSection.icon}
+            iconColor={pixelSection.iconColor}
+            onClick={() => setSelectedIntegration(pixelSection.id)}
           />
-        ))}
+        </div>
+
+        {/* Seção: Outras Integrações */}
+        <div className="space-y-3">
+          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+            🔗 Outras Integrações
+          </h2>
+          {integrations.map((integration) => (
+            <IntegrationCard
+              key={integration.id}
+              name={integration.name}
+              icon={integration.icon}
+              iconColor={integration.iconColor}
+              onClick={() => setSelectedIntegration(integration.id)}
+            />
+          ))}
+        </div>
       </div>
 
       {/* Sheet lateral para configuração */}
@@ -134,7 +125,7 @@ const Integracoes = () => {
         open={selectedIntegration !== null} 
         onOpenChange={(open) => !open && setSelectedIntegration(null)}
       >
-        <SheetContent className="sm:max-w-[600px] overflow-y-auto">
+        <SheetContent className={selectedIntegration === "pixels" ? "sm:max-w-[700px] overflow-y-auto" : "sm:max-w-[600px] overflow-y-auto"}>
           <SheetHeader>
             <SheetTitle>{getIntegrationTitle()}</SheetTitle>
             <SheetDescription>
