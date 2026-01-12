@@ -6,6 +6,8 @@
  * - Rich text editor
  * - Multiple attachments with real upload
  * - Release settings with after_content support
+ * 
+ * Uses members-area-content Edge Function for atomic save
  */
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -21,8 +23,6 @@ import {
   ReleaseSection,
   ContentEditorHeader,
 } from "../components/editor";
-import { useDripSettings } from "../hooks/useDripSettings";
-import { useAttachmentUpload } from "../hooks/useAttachmentUpload";
 import type { ReleaseFormData, ContentAttachment, MemberContent } from "../types";
 
 interface ContentEditorViewProps {
@@ -52,8 +52,6 @@ const DEFAULT_RELEASE: ReleaseFormData = {
 
 export function ContentEditorView({ productId, onBack, onSave }: ContentEditorViewProps) {
   const [searchParams] = useSearchParams();
-  const { fetchDripSettings, saveDripSettings, isLoading: isDripLoading } = useDripSettings();
-  const { isUploading, uploadProgress, uploadAttachments } = useAttachmentUpload();
 
   // Get params from URL
   const mode = searchParams.get("mode");
@@ -125,7 +123,12 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
         }
 
         // Fetch release settings
-        const releaseData = await fetchDripSettings(contentId);
+        const { data: releaseData } = await supabase
+          .from("content_release_settings")
+          .select("*")
+          .eq("content_id", contentId)
+          .maybeSingle();
+
         if (releaseData) {
           setRelease({
             release_type: releaseData.release_type as ReleaseFormData["release_type"],
@@ -143,7 +146,7 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
     }
 
     loadData();
-  }, [isNew, contentId, moduleId, fetchDripSettings, onBack]);
+  }, [isNew, contentId, moduleId, onBack]);
 
   // Validate form
   const canSave = useMemo(() => {
@@ -158,80 +161,57 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
     return true;
   }, [content, release, moduleId]);
 
-  // Handle save
+  // Handle save via Edge Function (atomic operation)
   const handleSave = useCallback(async () => {
-    if (!canSave || !moduleId) return;
+    if (!canSave || !moduleId || !productId) return;
 
     setIsSaving(true);
     try {
-      let savedContentId = contentId;
+      // Prepare attachments for Edge Function
+      // For temp attachments, we need to convert blob URLs to base64
+      const preparedAttachments = await Promise.all(
+        attachments.map(async (att) => {
+          if (att.id.startsWith("temp-") && att.file_url.startsWith("blob:")) {
+            // Convert blob to base64 for upload
+            const response = await fetch(att.file_url);
+            const blob = await response.blob();
+            const base64 = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.readAsDataURL(blob);
+            });
+            
+            // Revoke blob URL
+            URL.revokeObjectURL(att.file_url);
+            
+            return {
+              ...att,
+              file_data: base64,
+              is_temp: true,
+            };
+          }
+          return { ...att, is_temp: false };
+        })
+      );
 
-      if (isNew) {
-        // Create new content
-        const { data: newContent, error: createError } = await supabase
-          .from("product_member_content")
-          .insert({
-            module_id: moduleId,
+      const { data: result, error } = await supabase.functions.invoke("members-area-content", {
+        body: {
+          action: "save-full",
+          productId,
+          moduleId,
+          contentId: isNew ? null : contentId,
+          content: {
             title: content.title,
-            content_type: "mixed", // New type for Kiwify-style content
-            content_url: content.video_url,
+            video_url: content.video_url,
             body: content.body,
-            is_active: true,
-          })
-          .select("id")
-          .single();
+          },
+          attachments: preparedAttachments,
+          release,
+        },
+      });
 
-        if (createError) {
-          console.error("[ContentEditorView] Create error:", createError);
-          toast.error("Erro ao criar conteúdo");
-          return;
-        }
-
-        savedContentId = newContent.id;
-      } else if (contentId) {
-        // Update existing content
-        const { error: updateError } = await supabase
-          .from("product_member_content")
-          .update({
-            title: content.title,
-            content_url: content.video_url,
-            body: content.body,
-          })
-          .eq("id", contentId);
-
-        if (updateError) {
-          console.error("[ContentEditorView] Update error:", updateError);
-          toast.error("Erro ao atualizar conteúdo");
-          return;
-        }
-      }
-
-      // Upload attachments to Supabase Storage
-      if (savedContentId && productId) {
-        // Delete removed attachments from DB (orphans)
-        const currentIds = attachments.filter(a => !a.id.startsWith("temp-")).map(a => a.id);
-        await supabase
-          .from("content_attachments")
-          .delete()
-          .eq("content_id", savedContentId)
-          .not("id", "in", `(${currentIds.join(",") || "''"})`);
-
-        // Upload new attachments
-        await uploadAttachments(productId, savedContentId, attachments);
-
-        // Save release settings
-        const dripData: ReleaseFormData = {
-          release_type: release.release_type,
-          days_after_purchase: release.days_after_purchase,
-          fixed_date: release.fixed_date,
-          after_content_id: release.after_content_id,
-        };
-        
-        const dripSaved = await saveDripSettings(savedContentId, dripData);
-        if (!dripSaved) {
-          toast.error("Erro ao salvar configurações de liberação");
-        }
-      }
+      if (error) throw error;
+      if (!result?.success) throw new Error(result?.error || "Failed to save content");
 
       toast.success(isNew ? "Conteúdo criado com sucesso!" : "Conteúdo atualizado com sucesso!");
       onSave();
@@ -241,7 +221,7 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
     } finally {
       setIsSaving(false);
     }
-  }, [canSave, isNew, moduleId, contentId, content, release, attachments, saveDripSettings, onSave, productId, uploadAttachments]);
+  }, [canSave, isNew, moduleId, contentId, content, release, attachments, onSave, productId]);
 
   // Handlers
   const handleTitleChange = (value: string) => {
@@ -276,7 +256,7 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
     <div className="min-h-screen bg-background">
       <ContentEditorHeader
         isNew={isNew}
-        isSaving={isSaving || isDripLoading || isUploading}
+        isSaving={isSaving}
         canSave={canSave}
         onBack={onBack}
         onCancel={onBack}
@@ -318,8 +298,8 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
         <AttachmentsSection
           attachments={attachments}
           onAttachmentsChange={handleAttachmentsChange}
-          isLoading={isSaving || isUploading}
-          uploadProgress={uploadProgress}
+          isLoading={isSaving}
+          uploadProgress={0}
         />
 
         {/* Release Settings */}

@@ -1,6 +1,6 @@
 /**
  * Members Area Contents Hook
- * Handles CRUD operations for content items within modules
+ * Handles CRUD operations for content items within modules via Edge Function
  */
 
 import { useCallback } from "react";
@@ -40,21 +40,18 @@ export function useMembersAreaContents({
   ): Promise<MemberContent | null> => {
     setIsSaving(true);
     try {
-      const moduleContents = modules.find(m => m.id === moduleId)?.contents || [];
-      const maxPosition = moduleContents.length > 0 ? Math.max(...moduleContents.map(c => c.position)) + 1 : 0;
-
-      const { data: newContent, error } = await supabase
-        .from("product_member_content")
-        .insert({
-          module_id: moduleId,
-          position: maxPosition,
-          ...data,
-        })
-        .select()
-        .single();
+      const { data: result, error } = await supabase.functions.invoke("members-area-content", {
+        body: {
+          action: "create",
+          moduleId,
+          data,
+        },
+      });
 
       if (error) throw error;
+      if (!result?.success) throw new Error(result?.error || "Failed to create content");
 
+      const newContent = result.data;
       const normalizedContent = {
         ...newContent,
         content_type: normalizeContentType(newContent.content_type),
@@ -74,17 +71,21 @@ export function useMembersAreaContents({
     } finally {
       setIsSaving(false);
     }
-  }, [modules, setModules, setIsSaving]);
+  }, [setModules, setIsSaving]);
 
   const updateContent = useCallback(async (id: string, data: Partial<MemberContent>) => {
     setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from("product_member_content")
-        .update(data)
-        .eq("id", id);
+      const { data: result, error } = await supabase.functions.invoke("members-area-content", {
+        body: {
+          action: "update",
+          contentId: id,
+          data,
+        },
+      });
 
       if (error) throw error;
+      if (!result?.success) throw new Error(result?.error || "Failed to update content");
 
       setModules(prev => prev.map(m => ({
         ...m,
@@ -102,12 +103,15 @@ export function useMembersAreaContents({
   const deleteContent = useCallback(async (id: string) => {
     setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from("product_member_content")
-        .delete()
-        .eq("id", id);
+      const { data: result, error } = await supabase.functions.invoke("members-area-content", {
+        body: {
+          action: "delete",
+          contentId: id,
+        },
+      });
 
       if (error) throw error;
+      if (!result?.success) throw new Error(result?.error || "Failed to delete content");
 
       setModules(prev => prev.map(m => ({
         ...m,
@@ -145,16 +149,18 @@ export function useMembersAreaContents({
       });
     });
 
-    // 3. Persistir em background
+    // 3. Persistir em background via Edge Function
     try {
-      const updates = orderedIds.map((id, index) => 
-        supabase
-          .from("product_member_content")
-          .update({ position: index })
-          .eq("id", id)
-      );
+      const { data: result, error } = await supabase.functions.invoke("members-area-content", {
+        body: {
+          action: "reorder",
+          moduleId,
+          orderedIds,
+        },
+      });
 
-      await Promise.all(updates);
+      if (error) throw error;
+      if (!result?.success) throw new Error(result?.error || "Failed to reorder contents");
     } catch (error) {
       // 4. Rollback em caso de erro
       log.error("Error reordering contents", error);

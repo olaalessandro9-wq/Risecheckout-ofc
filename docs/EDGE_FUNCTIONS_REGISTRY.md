@@ -10,8 +10,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 72 |
-| **No código local** | 50 |
+| **Total de Funções** | 74 |
+| **No código local** | 52 |
 | **Apenas deployadas** | 22 |
 | **Base URL** | `https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/` |
 
@@ -125,8 +125,10 @@
 | Nome | URL | No Repo? | Última Atividade | Invocações |
 |------|-----|----------|------------------|------------|
 | `members-area-certificates` | `.../members-area-certificates` | ✅ | 7 min ago | 71 |
+| `members-area-content` | `.../members-area-content` | ✅ | NEW | 0 |
 | `members-area-drip` | `.../members-area-drip` | ✅ | 7 min ago | 72 |
 | `members-area-groups` | `.../members-area-groups` | ✅ | 7 min ago | 75 |
+| `members-area-modules` | `.../members-area-modules` | ✅ | NEW | 0 |
 | `members-area-progress` | `.../members-area-progress` | ✅ | 7 min ago | 70 |
 | `members-area-quizzes` | `.../members-area-quizzes` | ✅ | 7 min ago | 71 |
 | `members-area-students` | `.../members-area-students` | ✅ | 7 min ago | 78 |
@@ -262,6 +264,9 @@
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-12 | Adicionadas `members-area-modules` e `members-area-content` - migração completa da Members Area |
+| 2026-01-12 | Expandida `product-management` com ação `update-general` |
+| 2026-01-12 | Removidos hooks `useDripSettings` e `useAttachmentUpload` - lógica integrada em `members-area-content` |
 | 2026-01-12 | Adicionadas `coupon-management` e `integration-management` - migração completa de CuponsTab e MercadoPagoConfig |
 | 2026-01-12 | Expandida `product-management` com ações `update-settings` e `smart-delete` |
 | 2026-01-12 | Expandida `checkout-management` com ação `toggle-link-status` |
