@@ -1861,6 +1861,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_secure"
+            referencedColumns: ["id"]
+          },
         ]
       }
       oauth_states: {
@@ -1891,6 +1898,13 @@ export type Database = {
             columns: ["vendor_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oauth_states_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_secure"
             referencedColumns: ["id"]
           },
         ]
@@ -2580,6 +2594,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "producer_audit_log_producer_id_fkey"
+            columns: ["producer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_secure"
+            referencedColumns: ["id"]
+          },
         ]
       }
       producer_sessions: {
@@ -2622,6 +2643,13 @@ export type Database = {
             columns: ["producer_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "producer_sessions_producer_id_fkey"
+            columns: ["producer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_secure"
             referencedColumns: ["id"]
           },
         ]
@@ -3839,6 +3867,84 @@ export type Database = {
           producer_name: string | null
           requires_manual_approval: boolean | null
           total_affiliates: number | null
+        }
+        Relationships: []
+      }
+      profiles_secure: {
+        Row: {
+          asaas_wallet_id: string | null
+          cpf_cnpj: string | null
+          created_at: string | null
+          custom_fee_percent: number | null
+          email: string | null
+          id: string | null
+          is_active: boolean | null
+          last_login_at: string | null
+          mercadopago_collector_id: string | null
+          mercadopago_connected_at: string | null
+          mercadopago_email: string | null
+          name: string | null
+          phone: string | null
+          registration_source: string | null
+          status: string | null
+          status_changed_at: string | null
+          status_changed_by: string | null
+          status_reason: string | null
+          stripe_account_id: string | null
+          stripe_connected_at: string | null
+          test_mode_enabled: boolean | null
+          test_public_key: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          asaas_wallet_id?: string | null
+          cpf_cnpj?: string | null
+          created_at?: string | null
+          custom_fee_percent?: number | null
+          email?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          last_login_at?: string | null
+          mercadopago_collector_id?: string | null
+          mercadopago_connected_at?: string | null
+          mercadopago_email?: string | null
+          name?: string | null
+          phone?: string | null
+          registration_source?: string | null
+          status?: string | null
+          status_changed_at?: string | null
+          status_changed_by?: string | null
+          status_reason?: string | null
+          stripe_account_id?: string | null
+          stripe_connected_at?: string | null
+          test_mode_enabled?: boolean | null
+          test_public_key?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          asaas_wallet_id?: string | null
+          cpf_cnpj?: string | null
+          created_at?: string | null
+          custom_fee_percent?: number | null
+          email?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          last_login_at?: string | null
+          mercadopago_collector_id?: string | null
+          mercadopago_connected_at?: string | null
+          mercadopago_email?: string | null
+          name?: string | null
+          phone?: string | null
+          registration_source?: string | null
+          status?: string | null
+          status_changed_at?: string | null
+          status_changed_by?: string | null
+          status_reason?: string | null
+          stripe_account_id?: string | null
+          stripe_connected_at?: string | null
+          test_mode_enabled?: boolean | null
+          test_public_key?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
