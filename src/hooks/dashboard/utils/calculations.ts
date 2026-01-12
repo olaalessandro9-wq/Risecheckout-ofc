@@ -113,6 +113,44 @@ export function calculateMetricsFromRpc(
 // ============================================================================
 
 /**
+ * Agrupa dados por HORA para gráficos de período de 1 dia
+ * Gera 24 pontos (00:00h - 23:00h)
+ */
+export function calculateHourlyChartData(
+  orders: Order[],
+  targetDate: Date
+): ChartDataPoint[] {
+  // Criar 24 pontos (um para cada hora do dia)
+  const hourlyData: ChartDataPoint[] = [];
+  
+  for (let hour = 0; hour < 24; hour++) {
+    hourlyData.push({
+      date: `${hour.toString().padStart(2, '0')}:00`,
+      revenue: 0,
+      fees: 0,
+      emails: 0
+    });
+  }
+  
+  // Agrupar pedidos por hora
+  orders.forEach(order => {
+    const orderDate = new Date(order.created_at);
+    const hour = orderDate.getHours();
+    
+    if (order.status?.toLowerCase() === "paid") {
+      hourlyData[hour].revenue += (order.amount_cents || 0) / 100;
+      hourlyData[hour].fees += calculateGatewayFee(order.amount_cents || 0) / 100;
+    }
+    
+    if (order.customer_email) {
+      hourlyData[hour].emails += 1;
+    }
+  });
+  
+  return hourlyData;
+}
+
+/**
  * Agrupa dados por dia para os gráficos
  */
 export function calculateChartData(
