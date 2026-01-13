@@ -85,9 +85,8 @@ export default function SetupAccess() {
   const validateTokenAndCheckSession = async () => {
     try {
       // 1. Validate token first
-      const { data, error } = await supabase.functions.invoke("members-area-students", {
+      const { data, error } = await supabase.functions.invoke("students-invite/validate-invite-token", {
         body: {
-          action: "validate-invite-token",
           token,
         },
       });
@@ -177,9 +176,8 @@ export default function SetupAccess() {
     setIsGrantingAccess(true);
     try {
       // Use the token to grant access (without password since user already has one)
-      const { data, error } = await supabase.functions.invoke("members-area-students", {
+      const { data, error } = await supabase.functions.invoke("students-invite/use-invite-token", {
         body: {
-          action: "use-invite-token",
           token,
         },
       });
@@ -251,9 +249,8 @@ export default function SetupAccess() {
     setIsSubmitting(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("members-area-students", {
+      const { data, error } = await supabase.functions.invoke("students-invite/use-invite-token", {
         body: {
-          action: "use-invite-token",
           token,
           password,
         },

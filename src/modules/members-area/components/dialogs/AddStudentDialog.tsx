@@ -57,9 +57,8 @@ export function AddStudentDialog({
     setIsSubmitting(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("members-area-students", {
+      const { data, error } = await supabase.functions.invoke("students-invite/invite", {
         body: {
-          action: "invite",
           product_id: productId,
           email: email.trim(),
           name: name.trim() || undefined,

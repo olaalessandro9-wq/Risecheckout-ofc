@@ -155,8 +155,17 @@ verify_jwt = false
 [functions.members-area-groups]
 verify_jwt = false
 
-# ✅ PÚBLICAS (Área de Membros - Students tem ações públicas para tokens)
-[functions.members-area-students]
+# ✅ PÚBLICAS (Área de Membros - Students refatorada em 4 funções)
+[functions.students-invite]
+verify_jwt = false
+
+[functions.students-access]
+verify_jwt = false
+
+[functions.students-groups]
+verify_jwt = false
+
+[functions.students-list]
 verify_jwt = false
 
 # ✅ AUTENTICADAS (Requerem login do vendedor)
