@@ -3,11 +3,21 @@
  * 
  * Extracted handlers for members-area-modules edge function.
  * 
- * RISE Protocol Compliant
+ * RISE Protocol Compliant - Zero `any`
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { 
+  SupabaseClient,
+  ProductModule 
+} from "./supabase-types.ts";
 import { captureException } from "./sentry.ts";
+import {
+  jsonResponse,
+  errorResponse,
+  validateProducerSession as validateSession,
+  verifyProductOwnership as verifyOwnership,
+  verifyModuleOwnership as verifyModule,
+} from "./edge-helpers.ts";
 
 // ============================================
 // TYPES
@@ -24,116 +34,71 @@ export interface ModuleRequest {
   };
   orderedIds?: string[];
   sessionToken?: string;
-  sections?: any[];
+  sections?: MemberSection[];
   deletedIds?: string[];
-  settings?: Record<string, any>;
+  settings?: Record<string, unknown>;
+}
+
+export interface MemberSection {
+  id: string;
+  type: string;
+  title?: string | null;
+  position: number;
+  settings?: Record<string, unknown>;
+  is_active?: boolean;
 }
 
 // ============================================
-// HELPERS
+// RE-EXPORT HELPERS FROM EDGE-HELPERS
 // ============================================
 
-export function jsonResponse(data: any, corsHeaders: Record<string, string>, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
-
-export function errorResponse(message: string, corsHeaders: Record<string, string>, status = 400): Response {
-  return jsonResponse({ success: false, error: message }, corsHeaders, status);
-}
+export { jsonResponse, errorResponse } from "./edge-helpers.ts";
 
 // ============================================
-// SESSION VALIDATION
+// SESSION VALIDATION (wrapper for backwards compatibility)
 // ============================================
 
 export async function validateProducerSession(
-  supabase: any,
+  supabase: SupabaseClient,
   sessionToken: string
 ): Promise<{ valid: boolean; producerId?: string; error?: string }> {
-  if (!sessionToken) {
-    return { valid: false, error: "Token de sessão não fornecido" };
-  }
-
-  const { data: session, error } = await supabase
-    .from("producer_sessions")
-    .select("producer_id, expires_at, is_valid")
-    .eq("session_token", sessionToken)
-    .single();
-
-  if (error || !session) {
-    return { valid: false, error: "Sessão inválida" };
-  }
-
-  if (!session.is_valid) {
-    return { valid: false, error: "Sessão expirada ou invalidada" };
-  }
-
-  if (new Date(session.expires_at) < new Date()) {
-    await supabase.from("producer_sessions").update({ is_valid: false }).eq("session_token", sessionToken);
-    return { valid: false, error: "Sessão expirada" };
-  }
-
-  await supabase.from("producer_sessions").update({ last_activity_at: new Date().toISOString() }).eq("session_token", sessionToken);
-
-  return { valid: true, producerId: session.producer_id };
+  return validateSession(supabase, sessionToken);
 }
 
 // ============================================
-// OWNERSHIP VERIFICATION
+// OWNERSHIP VERIFICATION (wrapper for backwards compatibility)
 // ============================================
 
 export async function verifyProductOwnership(
-  supabase: any,
+  supabase: SupabaseClient,
   productId: string,
   producerId: string
 ): Promise<{ valid: boolean; error?: string }> {
-  const { data: product, error } = await supabase
-    .from("products")
-    .select("id, user_id, members_area_enabled")
-    .eq("id", productId)
-    .single();
-
-  if (error || !product) {
-    return { valid: false, error: "Produto não encontrado" };
-  }
-
-  if (product.user_id !== producerId) {
-    return { valid: false, error: "Você não tem permissão para acessar este produto" };
-  }
-
-  return { valid: true };
+  return verifyOwnership(supabase, productId, producerId);
 }
 
 export async function verifyModuleOwnership(
-  supabase: any,
+  supabase: SupabaseClient,
   moduleId: string,
   producerId: string
 ): Promise<{ valid: boolean; productId?: string; error?: string }> {
-  const { data: module, error } = await supabase
-    .from("product_member_modules")
-    .select(`id, product_id, products!inner(user_id)`)
-    .eq("id", moduleId)
-    .single();
-
-  if (error || !module) {
-    return { valid: false, error: "Módulo não encontrado" };
-  }
-
-  if (module.products.user_id !== producerId) {
-    return { valid: false, error: "Você não tem permissão para acessar este módulo" };
-  }
-
-  return { valid: true, productId: module.product_id };
+  return verifyModule(supabase, moduleId, producerId);
 }
 
 // ============================================
 // LIST MODULES
 // ============================================
 
+interface ModuleWithContents extends ProductModule {
+  contents: Array<{
+    id: string;
+    position: number;
+    [key: string]: unknown;
+  }>;
+}
+
 export async function handleListModules(
-  supabase: any,
+  supabase: SupabaseClient,
   productId: string,
   producerId: string,
   corsHeaders: Record<string, string>
@@ -154,9 +119,9 @@ export async function handleListModules(
     return errorResponse("Erro ao listar módulos", corsHeaders, 500);
   }
 
-  const sortedModules = modules.map((m: any) => ({
+  const sortedModules = (modules as ModuleWithContents[]).map((m) => ({
     ...m,
-    contents: m.contents.sort((a: any, b: any) => a.position - b.position),
+    contents: m.contents.sort((a, b) => a.position - b.position),
   }));
 
   return jsonResponse({ success: true, modules: sortedModules }, corsHeaders);
@@ -167,7 +132,7 @@ export async function handleListModules(
 // ============================================
 
 export async function handleCreateModule(
-  supabase: any,
+  supabase: SupabaseClient,
   productId: string,
   data: { title?: string; description?: string; cover_image_url?: string | null },
   producerId: string,
@@ -189,7 +154,8 @@ export async function handleCreateModule(
     .order("position", { ascending: false })
     .limit(1);
 
-  const nextPosition = existing && existing.length > 0 ? existing[0].position + 1 : 0;
+  const existingArray = existing as Array<{ position: number }> | null;
+  const nextPosition = existingArray && existingArray.length > 0 ? existingArray[0].position + 1 : 0;
 
   const { data: newModule, error: insertError } = await supabase
     .from("product_member_modules")
@@ -221,7 +187,7 @@ export async function handleCreateModule(
 // ============================================
 
 export async function handleUpdateModule(
-  supabase: any,
+  supabase: SupabaseClient,
   moduleId: string,
   data: { title?: string; description?: string; cover_image_url?: string | null },
   producerId: string,
@@ -232,7 +198,7 @@ export async function handleUpdateModule(
     return errorResponse(ownership.error!, corsHeaders, 403);
   }
 
-  const updates: Record<string, any> = {};
+  const updates: Record<string, unknown> = {};
 
   if (data?.title !== undefined) {
     if (typeof data.title !== "string" || !data.title.trim()) {
@@ -274,7 +240,7 @@ export async function handleUpdateModule(
 // ============================================
 
 export async function handleDeleteModule(
-  supabase: any,
+  supabase: SupabaseClient,
   moduleId: string,
   producerId: string,
   corsHeaders: Record<string, string>
@@ -303,7 +269,7 @@ export async function handleDeleteModule(
 // ============================================
 
 export async function handleReorderModules(
-  supabase: any,
+  supabase: SupabaseClient,
   productId: string,
   orderedIds: string[],
   producerId: string,

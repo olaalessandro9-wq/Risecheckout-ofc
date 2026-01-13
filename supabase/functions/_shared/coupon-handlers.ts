@@ -3,11 +3,19 @@
  * 
  * Extracted handlers for coupon-management edge function.
  * 
- * RISE Protocol Compliant
+ * RISE Protocol Compliant - Zero `any`
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SupabaseClient, Coupon } from "./supabase-types.ts";
 import { captureException } from "./sentry.ts";
+import {
+  jsonResponse,
+  errorResponse,
+  checkRateLimit,
+  recordRateLimitAttempt,
+  validateProducerSession,
+  DEFAULT_RATE_LIMIT,
+} from "./edge-helpers.ts";
 
 // ============================================
 // TYPES
@@ -27,106 +35,29 @@ export interface CouponPayload {
   apply_to_order_bumps?: boolean;
 }
 
-// ============================================
-// HELPERS
-// ============================================
-
-export function jsonResponse(data: any, corsHeaders: Record<string, string>, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
-
-export function errorResponse(message: string, corsHeaders: Record<string, string>, status = 400): Response {
-  return jsonResponse({ success: false, error: message }, corsHeaders, status);
+interface CouponProductJoin {
+  coupon_id?: string;
+  coupons?: { code?: string } | null;
 }
 
 // ============================================
-// RATE LIMITING
+// RE-EXPORT HELPERS FROM EDGE-HELPERS
 // ============================================
 
-export async function checkRateLimit(
-  supabase: any,
-  producerId: string,
-  action: string
-): Promise<{ allowed: boolean; retryAfter?: number }> {
-  const MAX_ATTEMPTS = 30;
-  const WINDOW_MS = 5 * 60 * 1000;
-  const windowStart = new Date(Date.now() - WINDOW_MS);
-
-  const { data: attempts, error } = await supabase
-    .from("rate_limit_attempts")
-    .select("id")
-    .eq("identifier", `producer:${producerId}`)
-    .eq("action", action)
-    .gte("created_at", windowStart.toISOString());
-
-  if (error) {
-    console.error("[coupon-management] Rate limit check error:", error);
-    return { allowed: true };
-  }
-
-  return attempts?.length >= MAX_ATTEMPTS 
-    ? { allowed: false, retryAfter: 300 } 
-    : { allowed: true };
-}
-
-export async function recordRateLimitAttempt(
-  supabase: any,
-  producerId: string,
-  action: string
-): Promise<void> {
-  await supabase.from("rate_limit_attempts").insert({
-    identifier: `producer:${producerId}`,
-    action,
-    success: true,
-    created_at: new Date().toISOString(),
-  });
-}
-
-// ============================================
-// SESSION VALIDATION
-// ============================================
-
-export async function validateProducerSession(
-  supabase: any,
-  sessionToken: string
-): Promise<{ valid: boolean; producerId?: string; error?: string }> {
-  if (!sessionToken) {
-    return { valid: false, error: "Token de sessão não fornecido" };
-  }
-
-  const { data: session, error } = await supabase
-    .from("producer_sessions")
-    .select("producer_id, expires_at, is_valid")
-    .eq("session_token", sessionToken)
-    .single();
-
-  if (error || !session) {
-    return { valid: false, error: "Sessão inválida" };
-  }
-
-  if (!session.is_valid) {
-    return { valid: false, error: "Sessão expirada ou invalidada" };
-  }
-
-  if (new Date(session.expires_at) < new Date()) {
-    await supabase.from("producer_sessions").update({ is_valid: false }).eq("session_token", sessionToken);
-    return { valid: false, error: "Sessão expirada" };
-  }
-
-  await supabase.from("producer_sessions").update({ last_activity_at: new Date().toISOString() }).eq("session_token", sessionToken);
-
-  return { valid: true, producerId: session.producer_id };
-}
+export { 
+  jsonResponse, 
+  errorResponse, 
+  checkRateLimit, 
+  recordRateLimitAttempt, 
+  validateProducerSession 
+} from "./edge-helpers.ts";
 
 // ============================================
 // OWNERSHIP VERIFICATION
 // ============================================
 
 export async function verifyProductOwnership(
-  supabase: any,
+  supabase: SupabaseClient,
   productId: string,
   producerId: string
 ): Promise<boolean> {
@@ -136,32 +67,34 @@ export async function verifyProductOwnership(
     .eq("id", productId)
     .single();
 
-  return !error && data?.user_id === producerId;
+  return !error && (data as { user_id: string } | null)?.user_id === producerId;
 }
 
 // ============================================
 // VALIDATION
 // ============================================
 
-export function validateCouponPayload(data: any): { valid: boolean; error?: string; sanitized?: CouponPayload } {
-  if (!data.code || typeof data.code !== "string") {
+export function validateCouponPayload(data: unknown): { valid: boolean; error?: string; sanitized?: CouponPayload } {
+  const payload = data as Record<string, unknown>;
+  
+  if (!payload.code || typeof payload.code !== "string") {
     return { valid: false, error: "Código do cupom é obrigatório" };
   }
 
-  const code = data.code.trim().toUpperCase();
+  const code = (payload.code as string).trim().toUpperCase();
   if (code.length < 3 || code.length > 50) {
     return { valid: false, error: "Código deve ter entre 3 e 50 caracteres" };
   }
 
-  if (!["percentage", "fixed"].includes(data.discount_type)) {
+  if (!["percentage", "fixed"].includes(payload.discount_type as string)) {
     return { valid: false, error: "Tipo de desconto deve ser 'percentage' ou 'fixed'" };
   }
 
-  if (typeof data.discount_value !== "number" || data.discount_value <= 0) {
+  if (typeof payload.discount_value !== "number" || payload.discount_value <= 0) {
     return { valid: false, error: "Valor do desconto deve ser positivo" };
   }
 
-  if (data.discount_type === "percentage" && data.discount_value > 100) {
+  if (payload.discount_type === "percentage" && (payload.discount_value as number) > 100) {
     return { valid: false, error: "Percentual de desconto não pode exceder 100%" };
   }
 
@@ -169,16 +102,16 @@ export function validateCouponPayload(data: any): { valid: boolean; error?: stri
     valid: true,
     sanitized: {
       code,
-      name: data.name?.trim() || null,
-      description: data.description?.trim() || null,
-      discount_type: data.discount_type,
-      discount_value: data.discount_value,
-      max_uses: data.max_uses || null,
-      max_uses_per_customer: data.max_uses_per_customer || null,
-      expires_at: data.expires_at || null,
-      start_date: data.start_date || null,
-      active: data.active !== false,
-      apply_to_order_bumps: data.apply_to_order_bumps || false,
+      name: (payload.name as string)?.trim() || undefined,
+      description: (payload.description as string)?.trim() || undefined,
+      discount_type: payload.discount_type as "percentage" | "fixed",
+      discount_value: payload.discount_value as number,
+      max_uses: (payload.max_uses as number) || null,
+      max_uses_per_customer: (payload.max_uses_per_customer as number) || null,
+      expires_at: (payload.expires_at as string) || null,
+      start_date: (payload.start_date as string) || null,
+      active: payload.active !== false,
+      apply_to_order_bumps: Boolean(payload.apply_to_order_bumps),
     },
   };
 }
@@ -188,13 +121,16 @@ export function validateCouponPayload(data: any): { valid: boolean; error?: stri
 // ============================================
 
 export async function handleCreateCoupon(
-  supabase: any,
+  supabase: SupabaseClient,
   productId: string,
-  coupon: any,
+  coupon: unknown,
   producerId: string,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  const rateCheck = await checkRateLimit(supabase, producerId, "coupon_create");
+  const rateCheck = await checkRateLimit(supabase, producerId, { 
+    ...DEFAULT_RATE_LIMIT, 
+    action: "coupon_create" 
+  });
   if (!rateCheck.allowed) {
     return jsonResponse(
       { success: false, error: "Muitas requisições.", retryAfter: rateCheck.retryAfter },
@@ -221,7 +157,8 @@ export async function handleCreateCoupon(
     .select(`coupons!inner(code)`)
     .eq("product_id", productId);
 
-  const existingCodes = existingCoupons?.map((cp: any) => cp.coupons?.code?.toUpperCase()) || [];
+  const existingCodes = (existingCoupons as CouponProductJoin[] | null)
+    ?.map((cp) => cp.coupons?.code?.toUpperCase()) || [];
   if (existingCodes.includes(couponData.code)) {
     return errorResponse("Já existe um cupom com este código neste produto", corsHeaders, 400);
   }
@@ -257,16 +194,16 @@ export async function handleCreateCoupon(
   // Link to product
   const { error: linkError } = await supabase
     .from("coupon_products")
-    .insert({ coupon_id: newCoupon.id, product_id: productId });
+    .insert({ coupon_id: (newCoupon as Coupon).id, product_id: productId });
 
   if (linkError) {
-    await supabase.from("coupons").delete().eq("id", newCoupon.id);
+    await supabase.from("coupons").delete().eq("id", (newCoupon as Coupon).id);
     return errorResponse("Erro ao vincular cupom ao produto", corsHeaders, 500);
   }
 
   await recordRateLimitAttempt(supabase, producerId, "coupon_create");
 
-  console.log(`[coupon-management] Coupon created: ${newCoupon.id} for product ${productId}`);
+  console.log(`[coupon-management] Coupon created: ${(newCoupon as Coupon).id} for product ${productId}`);
   return jsonResponse({ success: true, coupon: newCoupon }, corsHeaders);
 }
 
@@ -275,10 +212,10 @@ export async function handleCreateCoupon(
 // ============================================
 
 export async function handleUpdateCoupon(
-  supabase: any,
+  supabase: SupabaseClient,
   couponId: string,
   productId: string | undefined,
-  coupon: any,
+  coupon: unknown,
   producerId: string,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
@@ -304,7 +241,8 @@ export async function handleUpdateCoupon(
       .eq("product_id", productId)
       .neq("coupon_id", couponId);
 
-    const existingCodes = existingCoupons?.map((cp: any) => cp.coupons?.code?.toUpperCase()) || [];
+    const existingCodes = (existingCoupons as CouponProductJoin[] | null)
+      ?.map((cp) => cp.coupons?.code?.toUpperCase()) || [];
     if (existingCodes.includes(couponData.code)) {
       return errorResponse("Já existe outro cupom com este código neste produto", corsHeaders, 400);
     }
@@ -343,7 +281,7 @@ export async function handleUpdateCoupon(
 // ============================================
 
 export async function handleDeleteCoupon(
-  supabase: any,
+  supabase: SupabaseClient,
   couponId: string,
   productId: string,
   producerId: string,
@@ -384,7 +322,7 @@ export async function handleDeleteCoupon(
 // ============================================
 
 export async function handleListCoupons(
-  supabase: any,
+  supabase: SupabaseClient,
   productId: string,
   producerId: string,
   corsHeaders: Record<string, string>
@@ -404,10 +342,12 @@ export async function handleListCoupons(
     return errorResponse("Erro ao listar cupons", corsHeaders, 500);
   }
 
-  const coupons = couponProducts
-    ?.map((cp: any) => cp.coupons)
-    .filter(Boolean)
-    .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  // Extract coupons from join result - Supabase returns nested structure
+  const rawProducts = couponProducts as unknown as Array<{ coupons: Coupon | null }> | null;
+  const coupons = rawProducts
+    ?.map((cp) => cp.coupons)
+    .filter((c): c is Coupon => c !== null)
+    .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
 
   return jsonResponse({ success: true, coupons: coupons || [] }, corsHeaders);
 }

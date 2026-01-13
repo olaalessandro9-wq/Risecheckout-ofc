@@ -3,20 +3,37 @@
  * 
  * Section and builder settings handlers for members-area-modules.
  * 
- * RISE Protocol Compliant
+ * RISE Protocol Compliant - Zero `any`
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { jsonResponse, errorResponse, verifyProductOwnership } from "./members-area-handlers.ts";
+import { SupabaseClient } from "./supabase-types.ts";
+import { 
+  jsonResponse, 
+  errorResponse, 
+  verifyProductOwnership 
+} from "./edge-helpers.ts";
+
+// ============================================
+// TYPES
+// ============================================
+
+interface MemberSection {
+  id: string;
+  type: string;
+  title?: string | null;
+  position: number;
+  settings?: Record<string, unknown>;
+  is_active?: boolean;
+}
 
 // ============================================
 // SAVE SECTIONS
 // ============================================
 
 export async function handleSaveSections(
-  supabase: any,
+  supabase: SupabaseClient,
   productId: string,
-  sections: any[],
+  sections: MemberSection[],
   deletedIds: string[] | undefined,
   producerId: string,
   corsHeaders: Record<string, string>
@@ -70,7 +87,7 @@ export async function handleSaveSections(
     }
 
     if (inserted) {
-      insertedIdMap[section.id] = inserted.id;
+      insertedIdMap[section.id] = (inserted as { id: string }).id;
     }
   }
 
@@ -103,9 +120,9 @@ export async function handleSaveSections(
 // ============================================
 
 export async function handleSaveBuilderSettings(
-  supabase: any,
+  supabase: SupabaseClient,
   productId: string,
-  settings: Record<string, any>,
+  settings: Record<string, unknown>,
   producerId: string,
   corsHeaders: Record<string, string>
 ): Promise<Response> {

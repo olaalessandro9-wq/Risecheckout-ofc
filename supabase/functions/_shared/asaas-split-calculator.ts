@@ -11,10 +11,17 @@
  * - Owner + Afiliado: Afiliado recebe X% * 0.96, Owner recebe resto
  * - Vendedor comum: 96% vendedor, 4% plataforma
  * 
+ * RISE Protocol Compliant - Zero `any`
+ * 
  * @module _shared/asaas-split-calculator
  */
 
+import { SupabaseClient } from "./supabase-types.ts";
 import { isVendorOwner } from "./platform-config.ts";
+
+// ============================================
+// TYPES
+// ============================================
 
 /**
  * Dados de split calculados
@@ -29,6 +36,30 @@ export interface CalculatedSplitData {
   vendorWalletId: string | null;
 }
 
+interface OrderData {
+  affiliate_id: string | null;
+}
+
+interface AffiliateData {
+  user_id: string;
+  commission_rate: number | null;
+  product_id: string;
+}
+
+interface ProductAffiliateSettings {
+  affiliate_settings?: {
+    defaultRate?: number;
+  } | null;
+}
+
+interface ProfileData {
+  asaas_wallet_id: string | null;
+}
+
+// ============================================
+// MAIN FUNCTION
+// ============================================
+
 /**
  * Calcula os dados de split para uma ordem no modelo Marketplace.
  * 
@@ -38,7 +69,7 @@ export interface CalculatedSplitData {
  * @returns Dados calculados para split
  */
 export async function calculateMarketplaceSplitData(
-  supabase: any,
+  supabase: SupabaseClient,
   orderId: string,
   vendorId: string
 ): Promise<CalculatedSplitData> {
@@ -70,34 +101,39 @@ export async function calculateMarketplaceSplitData(
     return result;
   }
 
+  const order = orderData as OrderData | null;
+
   // 3. Se tem afiliado, buscar dados
-  if (orderData?.affiliate_id) {
+  if (order?.affiliate_id) {
     result.hasAffiliate = true;
-    result.affiliateId = orderData.affiliate_id;
+    result.affiliateId = order.affiliate_id;
     
     const { data: affiliateData } = await supabase
       .from('affiliates')
       .select('user_id, commission_rate, product_id')
-      .eq('id', orderData.affiliate_id)
+      .eq('id', order.affiliate_id)
       .single();
     
-    if (affiliateData) {
-      result.affiliateUserId = affiliateData.user_id;
+    const affiliate = affiliateData as AffiliateData | null;
+    
+    if (affiliate) {
+      result.affiliateUserId = affiliate.user_id;
       
       // ========================================
       // FIX: Se commission_rate é null, usar defaultRate do produto
       // ========================================
-      let commissionRate = affiliateData.commission_rate;
+      let commissionRate = affiliate.commission_rate;
       
       if (commissionRate === null || commissionRate === undefined) {
         // Buscar defaultRate das configurações do produto
         const { data: productData } = await supabase
           .from('products')
           .select('affiliate_settings')
-          .eq('id', affiliateData.product_id)
+          .eq('id', affiliate.product_id)
           .single();
         
-        const defaultRate = productData?.affiliate_settings?.defaultRate;
+        const product = productData as ProductAffiliateSettings | null;
+        const defaultRate = product?.affiliate_settings?.defaultRate;
         commissionRate = defaultRate ?? 0;
         
         console.log('[split-calculator] commission_rate NULL, usando defaultRate do produto:', commissionRate);
@@ -106,15 +142,16 @@ export async function calculateMarketplaceSplitData(
       result.affiliateCommissionPercent = commissionRate;
       
       // Wallet do afiliado: buscar em profiles (fonte única de verdade)
-      if (affiliateData.user_id) {
+      if (affiliate.user_id) {
         const { data: profileData } = await supabase
           .from('profiles')
           .select('asaas_wallet_id')
-          .eq('id', affiliateData.user_id)
+          .eq('id', affiliate.user_id)
           .single();
         
-        if (profileData?.asaas_wallet_id) {
-          result.affiliateWalletId = profileData.asaas_wallet_id;
+        const profile = profileData as ProfileData | null;
+        if (profile?.asaas_wallet_id) {
+          result.affiliateWalletId = profile.asaas_wallet_id;
         }
       }
       
@@ -135,7 +172,8 @@ export async function calculateMarketplaceSplitData(
       .eq('id', vendorId)
       .single();
     
-    result.vendorWalletId = vendorProfile?.asaas_wallet_id || null;
+    const vendor = vendorProfile as ProfileData | null;
+    result.vendorWalletId = vendor?.asaas_wallet_id || null;
     console.log('[split-calculator] Vendor wallet:', result.vendorWalletId);
   }
 

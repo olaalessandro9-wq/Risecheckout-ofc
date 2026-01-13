@@ -108,6 +108,9 @@ export interface Product {
   price: number;
   status?: string;
   members_area_enabled?: boolean;
+  affiliate_settings?: {
+    defaultRate?: number;
+  } | null;
 }
 
 export interface ProductModule {
@@ -137,6 +140,7 @@ export interface Coupon {
   uses_count?: number | null;
   max_uses_per_customer?: number | null;
   apply_to_order_bumps?: boolean;
+  created_at?: string | null;
 }
 
 export interface CouponProduct {
