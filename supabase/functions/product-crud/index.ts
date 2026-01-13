@@ -94,9 +94,10 @@ serve(withSentry("product-crud", async (req) => {
 
     return errorResponse(`Ação desconhecida: ${action}`, corsHeaders, 404);
 
-  } catch (error) {
-    console.error("[product-crud] Unexpected error:", error);
-    await captureException(error instanceof Error ? error : new Error(String(error)), { functionName: "product-crud" });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[product-crud] Unexpected error:", errorMessage);
+    await captureException(error instanceof Error ? error : new Error(errorMessage), { functionName: "product-crud" });
     return errorResponse("Erro interno do servidor", corsHeaders, 500);
   }
 }));

@@ -130,8 +130,9 @@ serve(withSentry("members-area-modules", async (req) => {
       default:
         return errorResponse(`Ação não encontrada: ${action}`, corsHeaders, 404);
     }
-  } catch (error) {
-    console.error("[members-area-modules] Unexpected error:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[members-area-modules] Unexpected error:", errorMessage);
     return errorResponse("Erro interno do servidor", corsHeaders, 500);
   }
 }));

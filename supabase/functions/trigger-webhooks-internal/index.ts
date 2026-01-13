@@ -124,8 +124,9 @@ serve(async (req) => {
         } else {
           failCount++;
         }
-      } catch (error) {
-        console.error(`[trigger-webhooks-internal] Error sending to ${config.url}:`, error);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`[trigger-webhooks-internal] Error sending to ${config.url}:`, errorMessage);
         failCount++;
       }
     }
@@ -142,8 +143,9 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error) {
-    console.error('[trigger-webhooks-internal] Error:', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[trigger-webhooks-internal] Error:', errorMessage);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

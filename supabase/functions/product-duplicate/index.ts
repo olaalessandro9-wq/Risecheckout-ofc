@@ -111,10 +111,10 @@ serve(withSentry("product-duplicate", async (req) => {
       editUrl: `/dashboard/produtos/editar?id=${result.newProductId}`,
     }, corsHeaders);
 
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error));
-    console.error("[product-duplicate] Unexpected error:", err.message);
-    await captureException(err, { functionName: "product-duplicate" });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[product-duplicate] Unexpected error:", errorMessage);
+    await captureException(error instanceof Error ? error : new Error(errorMessage), { functionName: "product-duplicate" });
     return errorResponse("Erro interno do servidor", corsHeaders, 500);
   }
 }));

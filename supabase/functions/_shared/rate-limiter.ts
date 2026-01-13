@@ -205,8 +205,9 @@ export async function checkIPBlocklist(
     }
     
     return { blocked: false, reason: null, expires_at: null };
-  } catch (error) {
-    console.error("[rate-limiter] Erro inesperado ao verificar blocklist:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[rate-limiter] Erro inesperado ao verificar blocklist:", errorMessage);
     return { blocked: false, reason: null, expires_at: null };
   }
 }
@@ -374,8 +375,9 @@ export async function checkRateLimit(
     
     return { allowed: true, remaining: config.maxAttempts - newAttempts };
     
-  } catch (error) {
-    console.error("[rate-limiter] Erro inesperado:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[rate-limiter] Erro inesperado:", errorMessage);
     // Fail open - permite a requisição em caso de erro
     return { allowed: true, remaining: config.maxAttempts };
   }

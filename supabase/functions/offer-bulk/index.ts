@@ -269,10 +269,10 @@ serve(withSentry("offer-bulk", async (req) => {
 
     return errorResponse(`Ação desconhecida: ${action}`, corsHeaders, 404);
 
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error));
-    console.error("[offer-bulk] Unexpected error:", err.message);
-    await captureException(err, { functionName: "offer-bulk", url: req.url, method: req.method });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[offer-bulk] Unexpected error:", errorMessage);
+    await captureException(error instanceof Error ? error : new Error(errorMessage), { functionName: "offer-bulk", url: req.url, method: req.method });
     return errorResponse("Erro interno do servidor", corsHeaders, 500);
   }
 }));
