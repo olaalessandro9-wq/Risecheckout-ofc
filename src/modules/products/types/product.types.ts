@@ -189,7 +189,7 @@ export interface ProductContextState {
   updateUpsellModified: (modified: boolean) => void;
   
   // Funções de atualização do produto
-  updateProduct: (field: keyof ProductData, value: any) => void;
+  updateProduct: (field: keyof ProductData, value: ProductData[keyof ProductData]) => void;
   updateProductBulk: (data: Partial<ProductData>) => void;
   
   // Funções de atualização de configurações

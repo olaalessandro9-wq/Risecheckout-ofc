@@ -13,16 +13,22 @@ import {
 import { Eye, Users, LayoutGrid, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import type { TooltipProps } from 'recharts';
+import type { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent';
 
 interface AdminTrafficTabProps {
   period: PeriodFilter;
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+/**
+ * Custom tooltip for chart display
+ * Uses recharts TooltipProps with proper typing
+ */
+const CustomTooltip = ({ active, payload, label }: TooltipProps<ValueType, NameType>) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-card/95 backdrop-blur-xl border border-border rounded-xl p-4 shadow-xl">
-        <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider">{label}</p>
+        <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider">{String(label)}</p>
         <p className="text-xl font-bold text-card-foreground tracking-tight flex items-center gap-1">
           <span className="w-2 h-2 rounded-full animate-pulse bg-primary" />
           {payload[0].value} visitas
@@ -33,11 +39,11 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-const SourceTooltip = ({ active, payload, label }: any) => {
+const SourceTooltip = ({ active, payload, label }: TooltipProps<ValueType, NameType>) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-card/95 backdrop-blur-xl border border-border rounded-xl p-4 shadow-xl">
-        <p className="text-xs font-semibold text-muted-foreground mb-1">{label}</p>
+        <p className="text-xs font-semibold text-muted-foreground mb-1">{String(label)}</p>
         <p className="text-xl font-bold text-card-foreground">{payload[0].value} visitas</p>
       </div>
     );

@@ -33,7 +33,7 @@ interface UseProductCoreReturn {
   product: ProductData | null;
   setProduct: React.Dispatch<React.SetStateAction<ProductData | null>>;
   refreshProduct: () => Promise<void>;
-  updateProduct: (field: keyof ProductData, value: any) => void;
+  updateProduct: (field: keyof ProductData, value: ProductData[keyof ProductData]) => void;
   updateProductBulk: (data: Partial<ProductData>) => void;
   saveProduct: () => Promise<void>;
   deleteProduct: () => Promise<boolean>;
@@ -84,7 +84,11 @@ export function useProductCore({
 
       // Extrair e notificar upsell_settings
       if (onUpsellSettingsLoaded && data.upsell_settings) {
-        const upsell = data.upsell_settings as Record<string, any>;
+        const upsell = data.upsell_settings as {
+          hasCustomThankYouPage?: boolean;
+          customPageUrl?: string;
+          redirectIgnoringOrderBumpFailures?: boolean;
+        };
         onUpsellSettingsLoaded({
           hasCustomThankYouPage: upsell.hasCustomThankYouPage || false,
           customPageUrl: upsell.customPageUrl || "",
@@ -94,7 +98,19 @@ export function useProductCore({
 
       // Extrair e notificar affiliate_settings
       if (onAffiliateSettingsLoaded) {
-        const affiliate = (data.affiliate_settings as Record<string, any>) || {};
+        const affiliate = (data.affiliate_settings as {
+          enabled?: boolean;
+          defaultRate?: number;
+          commission?: number;
+          requireApproval?: boolean;
+          commissionOnOrderBump?: boolean;
+          commissionOnUpsell?: boolean;
+          allowUpsells?: boolean;
+          supportEmail?: string;
+          publicDescription?: string;
+          attributionModel?: "last_click" | "first_click";
+          cookieDuration?: number;
+        }) || {};
         onAffiliateSettingsLoaded({
           enabled: affiliate.enabled || false,
           defaultRate: affiliate.defaultRate || affiliate.commission || 50,
@@ -122,7 +138,7 @@ export function useProductCore({
   // ---------------------------------------------------------------------------
 
   const updateProduct = useCallback(
-    (field: keyof ProductData, value: any) => {
+    (field: keyof ProductData, value: ProductData[keyof ProductData]) => {
       setProduct((prev) => {
         if (!prev) return prev;
         return { ...prev, [field]: value };

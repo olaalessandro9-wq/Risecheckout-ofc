@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Smart Delete: Soft delete se houver pedidos vinculados, hard delete caso contrário
@@ -9,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
  * @param rawProductId - ID do produto (string ou number)
  * @throws Error se o produto não puder ser excluído
  */
-export async function deleteProductCascade(_supabaseClient: any, rawProductId: string | number): Promise<void> {
+export async function deleteProductCascade(_supabaseClient: SupabaseClient, rawProductId: string | number): Promise<void> {
   // Garantir que productId é uma string UUID válida
   const productId = String(rawProductId).trim();
   

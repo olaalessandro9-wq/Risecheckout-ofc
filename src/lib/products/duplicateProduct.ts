@@ -9,9 +9,10 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export async function duplicateProductDeep(
-  _supabaseClient: any,  // Mantido para compatibilidade, mas não usado
+  _supabaseClient: SupabaseClient,  // Mantido para compatibilidade, mas não usado
   rawProductId: string | number
 ): Promise<{ newProductId: string }> {
   // Garantir que productId é uma string UUID válida

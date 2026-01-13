@@ -29,7 +29,7 @@ export const SettingsManager = ({ customization, onUpdate }: SettingsManagerProp
    * 
    * REFATORAÇÃO (Gemini): Usa lodash.set para manipulação segura de paths
    */
-  const handleUpdate = (path: string, value: any) => {
+  const handleUpdate = (path: string, value: unknown) => {
     // Se está mudando o tema
     if (path === 'design.theme') {
       if (value === 'custom') {

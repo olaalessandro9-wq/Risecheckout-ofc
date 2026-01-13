@@ -1,7 +1,17 @@
 import { Lock } from "lucide-react";
 
+/**
+ * Design type for SecurityBadges - minimal props needed
+ */
+interface SecurityBadgesDesign {
+  colors: {
+    active?: string;
+    secondaryText?: string;
+  };
+}
+
 interface SecurityBadgesProps {
-  design: any;
+  design: SecurityBadgesDesign;
 }
 
 export function SecurityBadges({ design }: SecurityBadgesProps) {

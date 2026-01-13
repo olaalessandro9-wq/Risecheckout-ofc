@@ -1,8 +1,9 @@
 import { ReactNode } from "react";
+import type { ThemePreset } from "@/lib/checkout/themePresets";
 
 interface RightColumnEditorProps {
   isPreviewMode: boolean;
-  design: any;
+  design: ThemePreset;
   children?: ReactNode;
 }
 

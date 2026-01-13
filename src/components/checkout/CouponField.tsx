@@ -5,9 +5,41 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+/**
+ * Design colors interface para CouponField
+ * Usa tipos específicos para garantir type safety enquanto permite
+ * propriedades opcionais que podem vir do design dinâmico
+ */
+interface CouponDesignColors {
+  orderSummary?: {
+    borderColor?: string;
+    labelText?: string;
+  };
+  input?: {
+    background?: string;
+    border?: string;
+    text?: string;
+  };
+  button?: {
+    background?: string;
+    text?: string;
+  };
+  success?: {
+    background?: string;
+    border?: string;
+    icon?: string;
+    text?: string;
+    subtext?: string;
+  };
+}
+
+interface CouponFieldDesign {
+  colors: CouponDesignColors;
+}
+
 interface CouponFieldProps {
   productId: string;
-  design: any;
+  design: CouponFieldDesign;
   onCouponApplied: (coupon: AppliedCoupon | null) => void;
 }
 
