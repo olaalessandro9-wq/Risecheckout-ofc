@@ -158,84 +158,60 @@ export function useSecurityAlerts() {
     }
   }, []);
 
-  // Reconhecer um alerta
+  // Reconhecer um alerta - via Edge Function
   const acknowledgeAlert = useCallback(async (alertId: string) => {
-    if (!user?.id) {
-      toast.error("Usuário não autenticado");
-      return;
-    }
-
     try {
-      const { error } = await supabase
-        .from("security_alerts")
-        .update({
-          acknowledged: true,
-          acknowledged_at: new Date().toISOString(),
-          acknowledged_by: user.id,
-        })
-        .eq("id", alertId);
+      const { data, error } = await supabase.functions.invoke("security-management", {
+        body: { action: "acknowledge-alert", alertId },
+      });
 
       if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Erro desconhecido");
 
       toast.success("Alerta reconhecido");
       await fetchAlerts();
       await fetchStats();
     } catch (err: any) {
       console.error("[useSecurityAlerts] Erro ao reconhecer alerta:", err);
-      toast.error("Erro ao reconhecer alerta");
+      toast.error(err.message || "Erro ao reconhecer alerta");
     }
-  }, [user?.id, fetchAlerts, fetchStats]);
+  }, [fetchAlerts, fetchStats]);
 
-  // Bloquear um IP manualmente
+  // Bloquear um IP manualmente - via Edge Function
   const blockIP = useCallback(async (ipAddress: string, reason: string, expiresInDays?: number) => {
-    if (!user?.id) {
-      toast.error("Usuário não autenticado");
-      return;
-    }
-
     try {
-      const expiresAt = expiresInDays 
-        ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString()
-        : null;
-
-      const { error } = await supabase
-        .from("ip_blocklist")
-        .upsert({
-          ip_address: ipAddress,
-          reason,
-          expires_at: expiresAt,
-          is_active: true,
-          created_by: user.id,
-          metadata: { manual_block: true },
-        }, { onConflict: "ip_address" });
+      const { data, error } = await supabase.functions.invoke("security-management", {
+        body: { action: "block-ip", ipAddress, reason, expiresInDays },
+      });
 
       if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Erro desconhecido");
 
       toast.success(`IP ${ipAddress} bloqueado`);
       await fetchBlockedIPs();
       await fetchStats();
     } catch (err: any) {
       console.error("[useSecurityAlerts] Erro ao bloquear IP:", err);
-      toast.error("Erro ao bloquear IP");
+      toast.error(err.message || "Erro ao bloquear IP");
     }
-  }, [user?.id, fetchBlockedIPs, fetchStats]);
+  }, [fetchBlockedIPs, fetchStats]);
 
-  // Desbloquear um IP
+  // Desbloquear um IP - via Edge Function
   const unblockIP = useCallback(async (ipAddress: string) => {
     try {
-      const { error } = await supabase
-        .from("ip_blocklist")
-        .update({ is_active: false, updated_at: new Date().toISOString() })
-        .eq("ip_address", ipAddress);
+      const { data, error } = await supabase.functions.invoke("security-management", {
+        body: { action: "unblock-ip", ipAddress },
+      });
 
       if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Erro desconhecido");
 
       toast.success(`IP ${ipAddress} desbloqueado`);
       await fetchBlockedIPs();
       await fetchStats();
     } catch (err: any) {
       console.error("[useSecurityAlerts] Erro ao desbloquear IP:", err);
-      toast.error("Erro ao desbloquear IP");
+      toast.error(err.message || "Erro ao desbloquear IP");
     }
   }, [fetchBlockedIPs, fetchStats]);
 
