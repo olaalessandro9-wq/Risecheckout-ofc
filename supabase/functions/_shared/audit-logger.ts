@@ -2,16 +2,14 @@
  * Audit Logger - Helper para registrar eventos de segurança
  * 
  * @rise-protocol-compliant true
- * @version 2.0.0 - Zero `any` compliance
+ * @version 2.1.0 - Zero `any` compliance - Using real SDK types
  */
+
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // ============================================
 // TYPES
 // ============================================
-
-// Interface genérica para compatibilidade com diferentes versões do Supabase
-// deno-lint-ignore no-explicit-any
-type SupabaseClientGeneric = { rpc: (fn: string, params: Record<string, unknown>) => Promise<{ error: { message: string } | null }> };
 
 // Ações de segurança padronizadas
 export const SecurityAction = {
@@ -62,7 +60,7 @@ interface LogSecurityEventParams {
  * Registra um evento de segurança no banco de dados
  */
 export async function logSecurityEvent(
-  supabase: SupabaseClientGeneric,
+  supabase: SupabaseClient,
   params: LogSecurityEventParams
 ): Promise<void> {
   const {
@@ -109,7 +107,7 @@ export async function logSecurityEvent(
  * Helper para log de acesso negado
  */
 export async function logAccessDenied(
-  supabase: SupabaseClientGeneric,
+  supabase: SupabaseClient,
   userId: string,
   resource: string,
   request?: Request,
@@ -129,7 +127,7 @@ export async function logAccessDenied(
  * Helper para log de permissão negada (role insuficiente)
  */
 export async function logPermissionDenied(
-  supabase: SupabaseClientGeneric,
+  supabase: SupabaseClient,
   userId: string,
   userRole: string,
   requiredRole: string,

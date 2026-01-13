@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { requireCanHaveAffiliates } from "../_shared/role-validator.ts";
 import { logSecurityEvent, SecurityAction } from "../_shared/audit-logger.ts";
 import { handleCors } from "../_shared/cors.ts";
