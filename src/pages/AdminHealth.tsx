@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertCircle, CheckCircle, XCircle, TrendingUp } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { toast } from "sonner";
 import type { SystemMetric, UnresolvedError, WebhookStats } from "@/types/admin-health.types";
 
 export default function AdminHealth() {
@@ -12,6 +13,7 @@ export default function AdminHealth() {
   const [errors, setErrors] = useState<UnresolvedError[]>([]);
   const [webhookStats, setWebhookStats] = useState<WebhookStats | null>(null);
   const [refreshInterval, setRefreshInterval] = useState(30000);
+  const [resolvingIds, setResolvingIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadData();
@@ -58,15 +60,38 @@ export default function AdminHealth() {
   }
 
   async function markErrorResolved(errorId: string) {
-    await supabase
-      .from("edge_function_errors")
-      .update({ 
-        resolved: true, 
-        resolved_at: new Date().toISOString() 
-      })
-      .eq("id", errorId);
+    // Prevent double-clicks
+    if (resolvingIds.has(errorId)) return;
     
-    loadData();
+    setResolvingIds(prev => new Set(prev).add(errorId));
+    
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "admin-health/resolve-error",
+        {
+          body: { errorId },
+        }
+      );
+
+      if (error) throw error;
+
+      const result = data as { success: boolean; error?: string };
+      if (!result.success) {
+        throw new Error(result.error || "Erro ao resolver");
+      }
+
+      toast.success("Erro marcado como resolvido");
+      loadData();
+    } catch (error) {
+      console.error("Erro ao resolver:", error);
+      toast.error("Erro ao marcar como resolvido");
+    } finally {
+      setResolvingIds(prev => {
+        const next = new Set(prev);
+        next.delete(errorId);
+        return next;
+      });
+    }
   }
 
   if (loading) {
@@ -219,9 +244,14 @@ export default function AdminHealth() {
                     </div>
                     <button
                       onClick={() => markErrorResolved(error.id)}
-                      className="ml-4 text-xs px-2 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90"
+                      disabled={resolvingIds.has(error.id)}
+                      className="ml-4 text-xs px-2 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50"
                     >
-                      Resolver
+                      {resolvingIds.has(error.id) ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        "Resolver"
+                      )}
                     </button>
                   </div>
                 </Alert>

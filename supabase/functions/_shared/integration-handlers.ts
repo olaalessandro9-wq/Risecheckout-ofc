@@ -262,4 +262,5 @@ export {
   handleGetStatus,
   handleSaveProfileWallet, 
   handleClearProfileWallet,
+  handleUpdateProfile,
 } from "./integration-profile-handlers.ts";

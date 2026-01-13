@@ -1,6 +1,8 @@
 /**
  * API de configurações do Owner
- * Gerencia ambientes de gateway (sandbox/production) via platform_settings
+ * Gerencia ambientes de gateway (sandbox/production) via Edge Function owner-settings
+ * 
+ * RISE Protocol V2 Compliant - Todas as operações via Edge Functions
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -24,56 +26,65 @@ const DEFAULT_ENVIRONMENTS: OwnerGatewayEnvironments = {
 
 /**
  * Busca os ambientes configurados para todos os gateways do Owner
+ * Usa Edge Function para maior segurança
  */
 export async function getOwnerGatewayEnvironments(): Promise<OwnerGatewayEnvironments> {
-  const keys = [
-    'gateway_environment_asaas',
-    'gateway_environment_mercadopago',
-    'gateway_environment_pushinpay',
-    'gateway_environment_stripe',
-  ];
+  try {
+    const { data, error } = await supabase.functions.invoke(
+      "owner-settings/get-gateway-environments",
+      { body: {} }
+    );
 
-  const { data, error } = await supabase
-    .from('platform_settings')
-    .select('key, value')
-    .in('key', keys);
+    if (error) {
+      console.error('[owner/settings] Erro ao buscar ambientes via Edge Function:', error);
+      return DEFAULT_ENVIRONMENTS;
+    }
 
-  if (error) {
-    console.error('[owner/settings] Erro ao buscar ambientes:', error);
+    const result = data as { success: boolean; environments?: OwnerGatewayEnvironments; error?: string };
+    
+    if (!result.success || !result.environments) {
+      console.error('[owner/settings] Resposta inválida:', result.error);
+      return DEFAULT_ENVIRONMENTS;
+    }
+
+    return result.environments;
+  } catch (error) {
+    console.error('[owner/settings] Erro inesperado:', error);
     return DEFAULT_ENVIRONMENTS;
   }
-
-  const environments = { ...DEFAULT_ENVIRONMENTS };
-
-  data?.forEach((row) => {
-    const gateway = row.key.replace('gateway_environment_', '') as GatewayType;
-    if (gateway in environments) {
-      environments[gateway] = row.value === 'sandbox' ? 'sandbox' : 'production';
-    }
-  });
-
-  return environments;
 }
 
 /**
  * Atualiza o ambiente de um gateway específico
+ * Usa Edge Function para garantir validação de role Owner
  */
 export async function setOwnerGatewayEnvironment(
   gateway: GatewayType,
   environment: GatewayEnvironment
 ): Promise<{ ok: boolean; error?: string }> {
-  const key = `gateway_environment_${gateway}`;
+  try {
+    const { data, error } = await supabase.functions.invoke(
+      "owner-settings/set-gateway-environment",
+      {
+        body: { gateway, environment },
+      }
+    );
 
-  const { error } = await supabase
-    .from('platform_settings')
-    .update({ value: environment, updated_at: new Date().toISOString() })
-    .eq('key', key);
+    if (error) {
+      console.error('[owner/settings] Erro ao atualizar ambiente:', error);
+      return { ok: false, error: error.message };
+    }
 
-  if (error) {
-    console.error('[owner/settings] Erro ao atualizar ambiente:', error);
-    return { ok: false, error: error.message };
+    const result = data as { success: boolean; error?: string };
+    
+    if (!result.success) {
+      return { ok: false, error: result.error || "Erro ao atualizar ambiente" };
+    }
+
+    console.log(`[owner/settings] Gateway ${gateway} alterado para ${environment}`);
+    return { ok: true };
+  } catch (error) {
+    console.error('[owner/settings] Erro inesperado:', error);
+    return { ok: false, error: String(error) };
   }
-
-  console.log(`[owner/settings] Gateway ${gateway} alterado para ${environment}`);
-  return { ok: true };
 }

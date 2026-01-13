@@ -5,11 +5,12 @@
  * Este arquivo contém todas as funções para interagir com a API da PushinPay
  * via Edge Functions do Supabase.
  * 
+ * RISE Protocol V2 Compliant - Todas as operações de escrita via Edge Functions
+ * 
  * Migrado de: src/services/pushinpay.ts
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import type { PaymentGatewaySettings } from "@/integrations/supabase/types-payment-gateway";
 import type {
   PushinPaySettings,
   PushinPayEnvironment,
@@ -77,6 +78,7 @@ export async function fetchPushinPayAccountInfo(
 
 /**
  * Salva ou atualiza as configurações da PushinPay para o usuário especificado
+ * Usa Edge Function vault-save para segurança
  * 
  * @param userId - ID do usuário autenticado
  * @param settings - Configurações da PushinPay (token e ambiente)
@@ -101,35 +103,33 @@ export async function savePushinPaySettings(
   }
 
   try {
-    // Interface para dados de upsert
-    interface PushinPayUpsertData {
-      user_id: string;
-      pushinpay_token: string;
-      environment: PushinPayEnvironment;
-      pushinpay_account_id?: string | null;
-    }
-
-    const updateData: PushinPayUpsertData = {
-      user_id: userId,
-      pushinpay_token: settings.pushinpay_token,
-      environment: settings.environment,
-    };
-    
-    // Incluir account_id se fornecido
-    if (settings.pushinpay_account_id !== undefined) {
-      updateData.pushinpay_account_id = settings.pushinpay_account_id || null;
-    }
-
-    const { error } = await supabase
-      .from("payment_gateway_settings")
-      .upsert(updateData);
+    // Usar Edge Function vault-save para salvar credenciais de forma segura
+    const { data, error } = await supabase.functions.invoke("save-vendor-credentials", {
+      body: {
+        vendor_id: userId,
+        integration_type: "PUSHINPAY",
+        credentials: {
+          api_token: settings.pushinpay_token,
+          environment: settings.environment,
+          user_id: settings.pushinpay_account_id || null,
+        },
+        active: true,
+      },
+    });
 
     if (error) {
+      console.error("[PushinPay] Erro ao salvar via Edge Function:", error);
       return { ok: false, error: error.message };
+    }
+
+    const result = data as { success?: boolean; error?: string };
+    if (!result.success) {
+      return { ok: false, error: result.error || "Erro ao salvar configurações" };
     }
     
     return { ok: true };
   } catch (e) {
+    console.error("[PushinPay] Erro inesperado:", e);
     return { ok: false, error: String(e) };
   }
 }
