@@ -2,17 +2,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ComponentData } from "../../types";
+import type { VideoContent } from "@/types/checkout-components.types";
+import type { CheckoutDesign } from "@/types/checkoutEditor";
 
 interface VideoEditorProps {
   component: ComponentData;
-  onChange: (newContent: any) => void;
-  design?: any;
+  onChange: (newContent: Partial<VideoContent>) => void;
+  design?: CheckoutDesign;
 }
 
 export const VideoEditor = ({ component, onChange }: VideoEditorProps) => {
-  const content = component.content || {};
+  // Type assertion segura - o componente só recebe content do tipo correto via registry
+  const content = (component.content || {}) as VideoContent;
 
-  const handleChange = (field: string, value: any) => {
+  const handleChange = <K extends keyof VideoContent>(field: K, value: VideoContent[K]) => {
     onChange({
       ...content,
       [field]: value,
@@ -26,7 +29,7 @@ export const VideoEditor = ({ component, onChange }: VideoEditorProps) => {
         <Label>Tipo de Vídeo</Label>
         <Select
           value={content.videoType || "youtube"}
-          onValueChange={(value) => handleChange("videoType", value)}
+          onValueChange={(value) => handleChange("videoType", value as VideoContent["videoType"])}
         >
           <SelectTrigger>
             <SelectValue />

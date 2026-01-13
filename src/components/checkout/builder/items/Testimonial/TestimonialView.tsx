@@ -1,13 +1,16 @@
 import { ComponentData } from "../../types";
 import { Testimonial } from "@/features/checkout-builder/components";
+import type { TestimonialContent } from "@/types/checkout-components.types";
+import type { CheckoutDesign } from "@/types/checkoutEditor";
 
 interface TestimonialViewProps {
   component: ComponentData;
-  design?: any;
+  design?: CheckoutDesign;
 }
 
 export const TestimonialView = ({ component, design }: TestimonialViewProps) => {
-  const { content } = component;
+  // Type assertion segura - o componente só recebe content do tipo correto via registry
+  const content = component.content as TestimonialContent | undefined;
 
   return (
     <Testimonial

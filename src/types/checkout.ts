@@ -226,26 +226,14 @@ export interface PaymentState {
 // TIPOS DO CHECKOUT BUILDER
 // ============================================================================
 
-export type CheckoutComponentType = 
-  | "text" 
-  | "image" 
-  | "advantage" 
-  | "seal" 
-  | "timer" 
-  | "testimonial" 
-  | "video";
+// Re-exportar tipos centralizados do builder (RISE Protocol V2: Zero any)
+export type { 
+  CheckoutComponentType, 
+  CheckoutComponentContent 
+} from "./checkout-components.types";
 
-export interface CheckoutComponentContent {
-  title?: string;
-  description?: string;
-  imageUrl?: string;
-  layout?: 'list' | 'grid';
-  highlightColor?: string;
-  backgroundColor?: string;
-  showImages?: boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [key: string]: any; // Necessário para suportar conteúdo dinâmico de componentes
-}
+// Importar para uso local
+import type { CheckoutComponentType, CheckoutComponentContent } from "./checkout-components.types";
 
 export interface CheckoutComponent {
   id: string;

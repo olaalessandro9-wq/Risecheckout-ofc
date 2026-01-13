@@ -1,13 +1,16 @@
 import { ComponentData } from "../../types";
 import { TextBlock } from "@/features/checkout-builder/components";
+import type { TextContent } from "@/types/checkout-components.types";
+import type { CheckoutDesign } from "@/types/checkoutEditor";
 
 interface TextViewProps {
   component: ComponentData;
-  design?: any;
+  design?: CheckoutDesign;
 }
 
 export const TextView = ({ component, design }: TextViewProps) => {
-  const { content } = component;
+  // Type assertion segura - o componente só recebe content do tipo correto via registry
+  const content = component.content as TextContent | undefined;
 
   return (
     <TextBlock

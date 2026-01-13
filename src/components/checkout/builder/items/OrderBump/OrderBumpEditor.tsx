@@ -3,17 +3,20 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ComponentData } from "../../types";
+import type { OrderBumpContent } from "@/types/checkout-components.types";
+import type { CheckoutDesign } from "@/types/checkoutEditor";
 
 interface OrderBumpEditorProps {
   component: ComponentData;
-  onChange: (newContent: any) => void;
-  design?: any;
+  onChange: (newContent: Partial<OrderBumpContent>) => void;
+  design?: CheckoutDesign;
 }
 
 export const OrderBumpEditor = ({ component, onChange }: OrderBumpEditorProps) => {
-  const content = component.content || {};
+  // Type assertion segura - o componente só recebe content do tipo correto via registry
+  const content = (component.content || {}) as OrderBumpContent;
 
-  const handleChange = (field: string, value: any) => {
+  const handleChange = <K extends keyof OrderBumpContent>(field: K, value: OrderBumpContent[K]) => {
     onChange({
       ...content,
       [field]: value,
@@ -46,7 +49,7 @@ export const OrderBumpEditor = ({ component, onChange }: OrderBumpEditorProps) =
         <Label>Layout</Label>
         <Select
           value={content.layout || "list"}
-          onValueChange={(value) => handleChange("layout", value)}
+          onValueChange={(value) => handleChange("layout", value as "list" | "grid")}
         >
           <SelectTrigger>
             <SelectValue />
