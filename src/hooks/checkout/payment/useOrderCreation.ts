@@ -15,7 +15,7 @@ import type {
   PaymentConfig, 
   AppliedCoupon 
 } from "./types";
-import type { PaymentMethod } from "@/types/checkout";
+import type { PaymentMethod, OrderBump } from "@/types/checkout";
 
 /**
  * Override de dados pessoais para blindar contra state desatualizado.
@@ -37,7 +37,7 @@ interface UseOrderCreationReturn {
     paymentMethod: PaymentMethod,
     gateway: string,
     selectedBumps: Set<string>,
-    orderBumps: any[],
+    orderBumps: OrderBump[],
     appliedCoupon: AppliedCoupon | null,
     personalDataOverride?: PersonalDataOverride
   ) => Promise<CreateOrderResult>;
@@ -53,7 +53,7 @@ export function useOrderCreation({ config }: UseOrderCreationProps): UseOrderCre
     paymentMethod: PaymentMethod,
     gateway: string,
     selectedBumps: Set<string>,
-    orderBumps: any[],
+    orderBumps: OrderBump[],
     appliedCoupon: AppliedCoupon | null,
     personalDataOverride?: PersonalDataOverride
   ): Promise<CreateOrderResult> => {

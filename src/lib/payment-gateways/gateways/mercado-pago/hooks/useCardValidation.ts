@@ -16,6 +16,19 @@ export interface ValidationErrors {
   submit?: string;
 }
 
+/**
+ * Tipo para erros retornados pelo SDK do MercadoPago
+ */
+interface MercadoPagoErrorCause {
+  field?: string;
+  code?: string;
+}
+
+interface MercadoPagoError {
+  cause?: MercadoPagoErrorCause | MercadoPagoErrorCause[];
+  message?: string;
+}
+
 export interface CardValidationReturn {
   errors: ValidationErrors;
   hasAttemptedSubmit: boolean;
@@ -26,7 +39,7 @@ export interface CardValidationReturn {
   clearExpirationDateError: () => void;
   clearSecurityCodeError: () => void;
   validateLocalFields: (name: string, cpf: string) => ValidationErrors;
-  mapMPErrorsToFields: (error: any) => ValidationErrors;
+  mapMPErrorsToFields: (error: MercadoPagoError) => ValidationErrors;
 }
 
 export function useCardValidation(): CardValidationReturn {
@@ -66,13 +79,13 @@ export function useCardValidation(): CardValidationReturn {
   }, []);
 
   // Mapear erros do SDK MP para campos
-  const mapMPErrorsToFields = useCallback((error: any): ValidationErrors => {
+  const mapMPErrorsToFields = useCallback((error: MercadoPagoError): ValidationErrors => {
     const mpErrors: ValidationErrors = {};
 
     if (error.cause) {
       const causes = Array.isArray(error.cause) ? error.cause : [error.cause];
       
-      causes.forEach((c: any) => {
+      causes.forEach((c: MercadoPagoErrorCause) => {
         const field = c.field;
         const code = c.code;
         
