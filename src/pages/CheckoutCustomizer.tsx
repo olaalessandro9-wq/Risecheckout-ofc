@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { useCheckoutEditor, CheckoutCustomization } from "@/hooks/useCheckoutEditor";
 import { UnsavedChangesGuard } from "@/providers/UnsavedChangesGuard";
+import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 
 const CheckoutCustomizer = () => {
   const navigate = useNavigate();
@@ -41,84 +42,75 @@ const CheckoutCustomizer = () => {
   const loadCheckoutData = async (id: string) => {
     setLoading(true);
     try {
-      const { data: checkout, error: checkoutError } = await supabase
-        .from("checkouts")
-        .select(`
-          *,
-          products (*),
-          checkout_links (
-            payment_links (
-              offers (
-                id,
-                name,
-                price
-              )
-            )
-          )
-        `)
-        .eq("id", id)
-        .single();
-
-      if (checkoutError) throw checkoutError;
-
-      if (checkout) {
-        console.log('Checkout carregado:', checkout);
-        
-        // ✅ BUSCAR PREÇO DA OFERTA ASSOCIADA
-        const checkoutLink = (checkout as any)?.checkout_links?.[0];
-        const paymentLink = checkoutLink?.payment_links;
-        const offer = paymentLink?.offers;
-        const offerPrice = offer?.price || checkout.products?.price || 0;
-        
-        // ✅ Usar utilitário normalizeDesign existente
-        const themePreset = normalizeDesign(checkout);
-        
-        // Converter ThemePreset para CheckoutDesign adicionando theme e font
-        const designWithFallbacks = {
-          theme: checkout.theme || 'light',
-          font: checkout.font || 'Inter',
-          colors: themePreset.colors,
-          backgroundImage: parseJsonSafely(checkout.design, {})?.backgroundImage,
-        };
-        
-        const loadedCustomization: CheckoutCustomization = {
-           design: designWithFallbacks,
-           topComponents: parseJsonSafely(checkout.top_components, []),
-           bottomComponents: parseJsonSafely(checkout.bottom_components, []),
-        };
-
-        editor.setCustomization(loadedCustomization);
-        
-        // ✅ USAR PREÇO DA OFERTA NO PRODUCT DATA
-        setProductData({
-          ...checkout.products,
-          price: offerPrice,
-        });
-
-        // Load auxiliary data
-        if (checkout.product_id) {
-            const { data: offers } = await supabase.from("offers").select("*").eq("product_id", checkout.product_id);
-            if (offers) setProductOffers(offers);
-        }
+      const sessionToken = getProducerSessionToken();
+      if (!sessionToken) {
+        toast({ title: "Sessão expirada", description: "Faça login novamente", variant: "destructive" });
+        navigate("/login");
+        return;
       }
 
-      // Load Order Bumps
-      const { data: bumps } = await supabase.from("order_bumps")
-        .select(`*, products!order_bumps_product_id_fkey(*), offers(*)`)
-        .eq("checkout_id", id).eq("active", true).order("position");
+      // Use Edge Function to load all data in one call
+      const { data: response, error } = await supabase.functions.invoke('checkout-management', {
+        body: { action: 'get-editor-data', checkoutId: id },
+        headers: { 'x-producer-session-token': sessionToken }
+      });
 
-      if (bumps) {
-          const mappedBumps = bumps.map((bump: any) => ({
-            id: bump.id,
-            name: bump.custom_title || bump.products?.name || "Produto",
-            price: bump.offers?.price || bump.products?.price || 0,
-            image_url: bump.show_image ? bump.products?.image_url : null,
-            description: bump.custom_description
-          }));
-          setOrderBumps(mappedBumps);
+      if (error) throw error;
+      if (!response.success) throw new Error(response.error || 'Erro ao carregar dados');
+
+      const { checkout, product, offers, orderBumps } = response.data;
+      console.log('Checkout carregado via Edge Function:', checkout);
+
+      // Extract offer price from checkout_links
+      const checkoutLink = checkout?.checkout_links?.[0];
+      const paymentLink = checkoutLink?.payment_links;
+      const offer = paymentLink?.offers;
+      const offerPrice = offer?.price || product?.price || 0;
+      
+      // Use normalizeDesign utility
+      const themePreset = normalizeDesign(checkout);
+      
+      // Convert ThemePreset to CheckoutDesign
+      const designWithFallbacks = {
+        theme: checkout.theme || 'light',
+        font: checkout.font || 'Inter',
+        colors: themePreset.colors,
+        backgroundImage: parseJsonSafely(checkout.design, {})?.backgroundImage,
+      };
+      
+      const loadedCustomization: CheckoutCustomization = {
+         design: designWithFallbacks,
+         topComponents: parseJsonSafely(checkout.top_components, []),
+         bottomComponents: parseJsonSafely(checkout.bottom_components, []),
+      };
+
+      editor.setCustomization(loadedCustomization);
+      
+      // Set product data with offer price
+      setProductData({
+        ...product,
+        price: offerPrice,
+      });
+
+      // Set offers
+      if (offers) setProductOffers(offers);
+
+      // Map order bumps
+      if (orderBumps && orderBumps.length > 0) {
+        const mappedBumps = orderBumps.map((bump: any) => ({
+          id: bump.id,
+          name: bump.custom_title || bump.products?.name || "Produto",
+          price: bump.offers?.price || bump.products?.price || 0,
+          image_url: bump.show_image ? bump.products?.image_url : null,
+          description: bump.custom_description
+        }));
+        setOrderBumps(mappedBumps);
+      } else {
+        setOrderBumps([]);
       }
 
     } catch (error: any) {
+      console.error('[CheckoutCustomizer] Load error:', error);
       toast({ title: "Erro ao carregar", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
@@ -130,7 +122,15 @@ const CheckoutCustomizer = () => {
     setIsSaving(true);
     toast({ title: "Salvando..." });
 
-    // Verifica uploads
+    // Verify session
+    const sessionToken = getProducerSessionToken();
+    if (!sessionToken) {
+      toast({ title: "Sessão expirada", description: "Faça login novamente", variant: "destructive" });
+      setIsSaving(false);
+      return;
+    }
+
+    // Check pending uploads
     if (hasPendingUploads(editor.customization)) {
        try {
            await waitForUploadsToFinish(() => editor.customization, 45000);
@@ -142,37 +142,28 @@ const CheckoutCustomizer = () => {
     }
 
     try {
-        // Coletar lixo (imagens deletadas)
+        // Collect old paths for cleanup
         let oldPaths: string[] = [];
         getAllComponentsFromCustomization(editor.customization).forEach(c => {
             if (c.content?._old_storage_path) oldPaths.push(c.content._old_storage_path);
         });
 
-        // Salva no banco
-        const { error } = await supabase
-            .from("checkouts")
-            .update({
-                theme: editor.customization.design.theme,
-                font: editor.customization.design.font,
-                background_color: editor.customization.design.colors.background,
-                primary_text_color: editor.customization.design.colors.primaryText,
-                secondary_text_color: editor.customization.design.colors.secondaryText,
-                active_text_color: editor.customization.design.colors.active,
-                icon_color: editor.customization.design.colors.icon,
-                form_background_color: editor.customization.design.colors.formBackground,
-                payment_button_bg_color: editor.customization.design.colors.button.background,
-                payment_button_text_color: editor.customization.design.colors.button.text,
-                
-                design: JSON.parse(JSON.stringify(editor.customization.design)),
-                components: [],
-                top_components: JSON.parse(JSON.stringify(editor.customization.topComponents)),
-                bottom_components: JSON.parse(JSON.stringify(editor.customization.bottomComponents)),
-            })
-            .eq("id", checkoutId);
+        // Save via Edge Function
+        const { data: response, error } = await supabase.functions.invoke('checkout-management', {
+          body: {
+            action: 'update-design',
+            checkoutId,
+            design: editor.customization.design,
+            topComponents: editor.customization.topComponents,
+            bottomComponents: editor.customization.bottomComponents,
+          },
+          headers: { 'x-producer-session-token': sessionToken }
+        });
 
         if (error) throw error;
+        if (!response.success) throw new Error(response.error || 'Erro ao salvar');
 
-        // Limpa storage
+        // Cleanup old storage paths
         if (oldPaths.length > 0) {
             fetch("/api/storage/remove", { 
                 method: "POST", 
@@ -184,6 +175,7 @@ const CheckoutCustomizer = () => {
         toast({ title: "Sucesso!", description: "Checkout salvo." });
 
     } catch (error: any) {
+        console.error('[CheckoutCustomizer] Save error:', error);
         toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
     } finally {
         setIsSaving(false);

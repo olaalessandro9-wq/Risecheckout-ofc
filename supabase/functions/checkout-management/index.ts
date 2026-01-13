@@ -1027,6 +1027,251 @@ serve(withSentry("checkout-management", async (req) => {
     }
 
     // ============================================
+    // GET EDITOR DATA (consolidated read for CheckoutCustomizer)
+    // ============================================
+    if (!isOrderBump && action === "get-editor-data" && (req.method === "POST" || req.method === "GET")) {
+      const { checkoutId } = body;
+
+      if (!checkoutId || typeof checkoutId !== "string") {
+        return errorResponse("ID do checkout é obrigatório", corsHeaders, 400);
+      }
+
+      // Verify ownership
+      const ownershipCheck = await verifyCheckoutOwnership(supabase, checkoutId, producerId);
+      if (!ownershipCheck.valid) {
+        return errorResponse("Você não tem permissão para acessar este checkout", corsHeaders, 403);
+      }
+
+      console.log(`[checkout-management] Loading editor data for checkout ${checkoutId}`);
+
+      try {
+        // 1. Get checkout with product and links
+        const { data: checkout, error: checkoutError } = await supabase
+          .from("checkouts")
+          .select(`
+            *,
+            products (*),
+            checkout_links (
+              payment_links (
+                offers (
+                  id,
+                  name,
+                  price
+                )
+              )
+            )
+          `)
+          .eq("id", checkoutId)
+          .single();
+
+        if (checkoutError) {
+          throw new Error(`Falha ao carregar checkout: ${checkoutError.message}`);
+        }
+
+        // 2. Get product offers
+        let offers: any[] = [];
+        if (checkout.product_id) {
+          const { data: offersData } = await supabase
+            .from("offers")
+            .select("*")
+            .eq("product_id", checkout.product_id);
+          offers = offersData || [];
+        }
+
+        // 3. Get active order bumps
+        const { data: orderBumps } = await supabase
+          .from("order_bumps")
+          .select(`
+            *,
+            products!order_bumps_product_id_fkey(*),
+            offers(*)
+          `)
+          .eq("checkout_id", checkoutId)
+          .eq("active", true)
+          .order("position");
+
+        console.log(`[checkout-management] Editor data loaded: checkout=${checkoutId}, offers=${offers.length}, bumps=${orderBumps?.length || 0}`);
+
+        return jsonResponse({
+          success: true,
+          data: {
+            checkout,
+            product: checkout.products,
+            offers,
+            orderBumps: orderBumps || [],
+          },
+        }, corsHeaders);
+
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        console.error("[checkout-management] Get editor data failed:", err.message);
+        await captureException(err, {
+          functionName: "checkout-management",
+          extra: { action: "get-editor-data", producerId, checkoutId },
+        });
+        return errorResponse(`Erro ao carregar dados: ${err.message}`, corsHeaders, 500);
+      }
+    }
+
+    // ============================================
+    // UPDATE DESIGN (save checkout customization)
+    // ============================================
+    if (!isOrderBump && action === "update-design" && (req.method === "POST" || req.method === "PUT")) {
+      const rateCheck = await checkRateLimit(supabase, producerId, "checkout_update_design");
+      if (!rateCheck.allowed) {
+        return jsonResponse(
+          { success: false, error: "Muitas requisições. Tente novamente em alguns minutos.", retryAfter: rateCheck.retryAfter },
+          corsHeaders,
+          429
+        );
+      }
+
+      const { checkoutId, design, topComponents, bottomComponents } = body;
+
+      if (!checkoutId || typeof checkoutId !== "string") {
+        return errorResponse("ID do checkout é obrigatório", corsHeaders, 400);
+      }
+
+      // Verify ownership
+      const ownershipCheck = await verifyCheckoutOwnership(supabase, checkoutId, producerId);
+      if (!ownershipCheck.valid) {
+        return errorResponse("Você não tem permissão para editar este checkout", corsHeaders, 403);
+      }
+
+      console.log(`[checkout-management] Updating design for checkout ${checkoutId}`);
+
+      try {
+        // Build update object with all design fields
+        const updates: any = {
+          updated_at: new Date().toISOString(),
+        };
+
+        // Theme and font
+        if (design?.theme !== undefined) updates.theme = design.theme;
+        if (design?.font !== undefined) updates.font = design.font;
+
+        // Colors
+        if (design?.colors) {
+          const colors = design.colors;
+          if (colors.background !== undefined) updates.background_color = colors.background;
+          if (colors.primaryText !== undefined) updates.primary_text_color = colors.primaryText;
+          if (colors.secondaryText !== undefined) updates.secondary_text_color = colors.secondaryText;
+          if (colors.active !== undefined) updates.active_text_color = colors.active;
+          if (colors.icon !== undefined) updates.icon_color = colors.icon;
+          if (colors.formBackground !== undefined) updates.form_background_color = colors.formBackground;
+          
+          if (colors.button) {
+            if (colors.button.background !== undefined) updates.payment_button_bg_color = colors.button.background;
+            if (colors.button.text !== undefined) updates.payment_button_text_color = colors.button.text;
+          }
+
+          // Credit card fields
+          if (colors.creditCardFields) {
+            const ccFields = colors.creditCardFields;
+            if (ccFields.background !== undefined) updates.cc_field_background_color = ccFields.background;
+            if (ccFields.text !== undefined) updates.cc_field_text_color = ccFields.text;
+            if (ccFields.border !== undefined) updates.cc_field_border_color = ccFields.border;
+            if (ccFields.focusBorder !== undefined) updates.cc_field_focus_border_color = ccFields.focusBorder;
+            if (ccFields.focusText !== undefined) updates.cc_field_focus_text_color = ccFields.focusText;
+            if (ccFields.placeholder !== undefined) updates.cc_field_placeholder_color = ccFields.placeholder;
+          }
+
+          // Box colors (selected/unselected states)
+          if (colors.selectedBox) {
+            const sb = colors.selectedBox;
+            if (sb.background !== undefined) updates.selected_box_bg_color = sb.background;
+            if (sb.headerBackground !== undefined) updates.selected_box_header_bg_color = sb.headerBackground;
+            if (sb.headerPrimaryText !== undefined) updates.selected_box_header_primary_text_color = sb.headerPrimaryText;
+            if (sb.headerSecondaryText !== undefined) updates.selected_box_header_secondary_text_color = sb.headerSecondaryText;
+            if (sb.primaryText !== undefined) updates.selected_box_primary_text_color = sb.primaryText;
+            if (sb.secondaryText !== undefined) updates.selected_box_secondary_text_color = sb.secondaryText;
+          }
+          
+          if (colors.unselectedBox) {
+            const ub = colors.unselectedBox;
+            if (ub.background !== undefined) updates.unselected_box_bg_color = ub.background;
+            if (ub.headerBackground !== undefined) updates.unselected_box_header_bg_color = ub.headerBackground;
+            if (ub.headerPrimaryText !== undefined) updates.unselected_box_header_primary_text_color = ub.headerPrimaryText;
+            if (ub.headerSecondaryText !== undefined) updates.unselected_box_header_secondary_text_color = ub.headerSecondaryText;
+            if (ub.primaryText !== undefined) updates.unselected_box_primary_text_color = ub.primaryText;
+            if (ub.secondaryText !== undefined) updates.unselected_box_secondary_text_color = ub.secondaryText;
+          }
+
+          // Button colors (selected/unselected states)
+          if (colors.selectedButton) {
+            const sb = colors.selectedButton;
+            if (sb.background !== undefined) updates.selected_button_bg_color = sb.background;
+            if (sb.text !== undefined) updates.selected_button_text_color = sb.text;
+            if (sb.icon !== undefined) updates.selected_button_icon_color = sb.icon;
+          }
+
+          if (colors.unselectedButton) {
+            const ub = colors.unselectedButton;
+            if (ub.background !== undefined) updates.unselected_button_bg_color = ub.background;
+            if (ub.text !== undefined) updates.unselected_button_text_color = ub.text;
+            if (ub.icon !== undefined) updates.unselected_button_icon_color = ub.icon;
+          }
+        }
+
+        // Background image
+        if (design?.backgroundImage !== undefined) {
+          // Store background image config in design JSON
+          updates.design = { backgroundImage: design.backgroundImage };
+          
+          // Also update flat columns for backward compatibility
+          if (design.backgroundImage) {
+            updates.background_image_url = design.backgroundImage.url || null;
+            updates.background_image_expand = design.backgroundImage.expand ?? true;
+            updates.background_image_fixed = design.backgroundImage.fixed ?? true;
+            updates.background_image_repeat = design.backgroundImage.repeat ?? false;
+          } else {
+            updates.background_image_url = null;
+            updates.background_image_expand = null;
+            updates.background_image_fixed = null;
+            updates.background_image_repeat = null;
+          }
+        } else if (design !== undefined) {
+          // Store full design object
+          updates.design = design;
+        }
+
+        // Components
+        if (topComponents !== undefined) {
+          updates.top_components = topComponents;
+        }
+        if (bottomComponents !== undefined) {
+          updates.bottom_components = bottomComponents;
+        }
+
+        // Clear legacy components field
+        updates.components = [];
+
+        const { error: updateError } = await supabase
+          .from("checkouts")
+          .update(updates)
+          .eq("id", checkoutId);
+
+        if (updateError) {
+          throw new Error(`Falha ao salvar design: ${updateError.message}`);
+        }
+
+        await recordRateLimitAttempt(supabase, producerId, "checkout_update_design");
+
+        console.log(`[checkout-management] Design updated for checkout ${checkoutId}`);
+        return jsonResponse({ success: true }, corsHeaders);
+
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        console.error("[checkout-management] Update design failed:", err.message);
+        await captureException(err, {
+          functionName: "checkout-management",
+          extra: { action: "update-design", producerId, checkoutId },
+        });
+        return errorResponse(`Erro ao salvar design: ${err.message}`, corsHeaders, 500);
+      }
+    }
+
+    // ============================================
     // UNKNOWN ACTION
     // ============================================
     return errorResponse(`Ação desconhecida: ${action}`, corsHeaders, 404);

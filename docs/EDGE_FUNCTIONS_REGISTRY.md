@@ -264,6 +264,8 @@
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-13 | Expandida `checkout-management` com ações `get-editor-data` e `update-design` |
+| 2026-01-13 | Migrado `CheckoutCustomizer.tsx` - zero operações diretas ao banco |
 | 2026-01-12 | Adicionadas `members-area-modules` e `members-area-content` - migração completa da Members Area |
 | 2026-01-12 | Expandida `product-management` com ação `update-general` |
 | 2026-01-12 | Removidos hooks `useDripSettings` e `useAttachmentUpload` - lógica integrada em `members-area-content` |
