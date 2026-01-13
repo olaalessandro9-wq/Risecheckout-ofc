@@ -10,9 +10,9 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 86 |
+| **Total de Funções** | 80 |
 | **No código local** | 64 |
-| **Apenas deployadas** | 22 |
+| **Apenas deployadas** | 16 |
 | **Base URL** | `https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/` |
 
 ---
@@ -59,7 +59,7 @@
 | `pushinpay-webhook` | `.../pushinpay-webhook` | ✅ | 7 min ago | 386 |
 | `pushinpay-stats` | `.../pushinpay-stats` | ❌ | 2 months ago | 98 |
 | `test-pushinpay-connection` | `.../test-pushinpay-connection` | ❌ | 2 months ago | 98 |
-| `webhook-pushingpay` | `.../webhook-pushingpay` | ❌ | 2 months ago | 244 |
+
 
 ### Payments - MercadoPago
 
@@ -82,9 +82,9 @@
 | Nome | URL | No Repo? | Última Atividade | Invocações |
 |------|-----|----------|------------------|------------|
 | `utmify-conversion` | `.../utmify-conversion` | ❌ | 2 months ago | 115 |
-| `forward-to-utmify` | `.../forward-to-utmify` | ❌ | 2 months ago | 246 |
+
 | `facebook-conversion-api` | `.../facebook-conversion-api` | ❌ | 2 months ago | 117 |
-| `facebook-conversions-api` | `.../facebook-conversions-api` | ❌ | 2 months ago | 50 |
+
 | `dashboard-analytics` | `.../dashboard-analytics` | ❌ | 2 months ago | 136 |
 | `checkout-heartbeat` | `.../checkout-heartbeat` | ❌ | 2 months ago | 244 |
 | `detect-abandoned-checkouts` | `.../detect-abandoned-checkouts` | ❌ | 2 months ago | 244 |
@@ -205,8 +205,6 @@
 |------|-----|----------|------------------|------------|
 | `vault-save` | `.../vault-save` | ✅ | 7 min ago | 102 |
 | `vault-migration` | `.../vault-migration` | ✅ | 7 min ago | 103 |
-| `save-vendor-credentials` | `.../save-vendor-credentials` | ❌ | 18 days ago | 216 |
-| `migrate-credentials-to-vault` | `.../migrate-credentials-to-vault` | ❌ | 18 days ago | 216 |
 | `check-secrets` | `.../check-secrets` | ❌ | 19 days ago | 14 |
 
 ### Health & Diagnostics
@@ -221,11 +219,11 @@
 
 | Nome | URL | No Repo? | Última Atividade | Invocações |
 |------|-----|----------|------------------|------------|
-| `fix-inactive-products` | `.../fix-inactive-products` | ❌ | 2 months ago | 108 |
+
 
 ---
 
-## Funções NÃO Presentes no Código Local (22)
+## Funções NÃO Presentes no Código Local (16)
 
 > ⚠️ **Atenção**: Estas funções estão deployadas no Supabase mas NÃO existem no repositório local.
 > Isso representa dívida técnica e risco de inconsistência.
@@ -235,11 +233,8 @@
 | `asaas-validate-credentials` | Payments | Criar no repo |
 | `pushinpay-stats` | Payments | Criar no repo |
 | `test-pushinpay-connection` | Payments | Criar no repo |
-| `webhook-pushingpay` | Payments | **Legacy - Deprecar** |
 | `utmify-conversion` | Tracking | Criar no repo |
-| `forward-to-utmify` | Tracking | **Legacy - Deprecar** |
 | `facebook-conversion-api` | Tracking | Criar no repo |
-| `facebook-conversions-api` | Tracking | **Duplicate - Deprecar** |
 | `dashboard-analytics` | Tracking | Criar no repo |
 | `checkout-heartbeat` | Tracking | Criar no repo |
 | `detect-abandoned-checkouts` | Tracking | Criar no repo |
@@ -255,10 +250,7 @@
 | `send-confirmation-email` | Email | Criar no repo |
 | `send-pix-email` | Email | Criar no repo |
 | `encrypt-token` | Security | Criar no repo |
-| `save-vendor-credentials` | Vault | **Legacy - Usar vault-save** |
-| `migrate-credentials-to-vault` | Vault | **One-time - Pode remover** |
 | `check-secrets` | Vault | Criar no repo |
-| `fix-inactive-products` | Utilities | **One-time - Pode remover** |
 
 ---
 
@@ -283,6 +275,7 @@
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-13 | **FASE 2**: Deletadas 6 funções legado: `webhook-pushingpay`, `forward-to-utmify`, `facebook-conversions-api`, `save-vendor-credentials`, `migrate-credentials-to-vault`, `fix-inactive-products` |
 | 2026-01-13 | **REFATORAÇÃO FASE 1.4**: `members-area-students` (1155 linhas) dividida em 4 Edge Functions especializadas |
 | 2026-01-13 | Criada `students-invite` (~280 linhas) - Convites: invite, auto-invite |
 | 2026-01-13 | Criada `students-access` (~100 linhas) - Acesso: grant-access, revoke-access |
