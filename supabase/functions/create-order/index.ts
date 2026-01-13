@@ -101,8 +101,9 @@ serve(withSentry('create-order', async (req) => {
       const text = await req.text();
       console.log("[create-order] Request recebida");
       body = JSON.parse(text);
-    } catch (e) {
-      console.error("[create-order] JSON inválido:", e);
+    } catch (parseError: unknown) {
+      const parseMessage = parseError instanceof Error ? parseError.message : String(parseError);
+      console.error("[create-order] JSON inválido:", parseMessage);
       return new Response(
         JSON.stringify({ success: false, error: "Payload inválido: O corpo da requisição não é um JSON válido." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }

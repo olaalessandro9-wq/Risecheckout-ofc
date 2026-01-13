@@ -270,7 +270,8 @@ async function updateAffiliateStats(
     } else {
       console.log("[order-creator] Contadores atualizados via RPC");
     }
-  } catch (err) {
-    console.error("[order-creator] Erro inesperado:", err);
+  } catch (err: unknown) {
+    const errMessage = err instanceof Error ? err.message : String(err);
+    console.error("[order-creator] Erro inesperado:", errMessage);
   }
 }

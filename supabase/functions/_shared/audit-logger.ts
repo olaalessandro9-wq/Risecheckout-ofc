@@ -97,9 +97,10 @@ export async function logSecurityEvent(
     } else {
       console.log(`[AuditLogger] Evento registrado: ${action} (success: ${success})`);
     }
-  } catch (err) {
+  } catch (err: unknown) {
     // Não falhar a operação principal se o log falhar
-    console.error(`[AuditLogger] Exceção ao registrar evento: ${action}`, err);
+    const errMessage = err instanceof Error ? err.message : String(err);
+    console.error(`[AuditLogger] Exceção ao registrar evento: ${action}`, errMessage);
   }
 }
 

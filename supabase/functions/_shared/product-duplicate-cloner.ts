@@ -36,6 +36,10 @@ export interface CheckoutLink {
   slug: string;
 }
 
+interface NewRowRecord {
+  id: string;
+}
+
 // ============================================
 // CLONE CHECKOUT LINKS
 // ============================================
@@ -63,8 +67,9 @@ export async function cloneCheckoutLinks(
       }
       return;
     }
-  } catch (e) {
-    console.log("[product-duplicate] No checkout_links found, trying payment_links");
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.log("[product-duplicate] No checkout_links found, trying payment_links:", errorMessage);
   }
 
   try {
@@ -83,8 +88,9 @@ export async function cloneCheckoutLinks(
         await supabase.from("payment_links").insert(insert);
       }
     }
-  } catch (e) {
-    console.log("[product-duplicate] No payment_links found");
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.log("[product-duplicate] No payment_links found:", errorMessage);
   }
 }
 
@@ -121,7 +127,7 @@ export async function cloneCheckoutDeep(
       continue;
     }
 
-    const newRowData = newRow as { id: string };
+    const newRowData = newRow as NewRowRecord;
 
     const { data: srcComponents } = await supabase
       .from("checkout_components")

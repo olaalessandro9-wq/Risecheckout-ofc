@@ -54,8 +54,9 @@ serve(async (req) => {
       try {
         event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
         logger.info("Webhook signature verified");
-      } catch (err) {
-        logger.error("Webhook signature verification failed", err);
+      } catch (err: unknown) {
+        const errMessage = err instanceof Error ? err.message : String(err);
+        logger.error("Webhook signature verification failed", errMessage);
         return createErrorResponse(ERROR_CODES.SIGNATURE_MISMATCH, "Invalid signature", 400);
       }
     } else {
