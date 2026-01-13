@@ -22,8 +22,8 @@ import type {
   CheckoutCustomization 
 } from "@/types/checkoutEditor";
 import type { CheckoutComponentContent } from "@/types/checkout-components.types";
-
-// Re-export types for backward compatibility
+import { isValidComponentType } from "@/types/checkout-components.types";
+import type { CheckoutComponentType } from "@/types/checkout-components.types";
 export type { ViewMode, CheckoutComponent, CheckoutDesign, CheckoutCustomization };
 
 // Estado inicial extraído para módulo
@@ -166,9 +166,15 @@ export const useCheckoutEditor = () => {
 
     if (!isExisting) {
       newComponentId = `component-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Use type guard for valid component types
+      const componentType: CheckoutComponentType = isValidComponentType(activeIdStr) 
+        ? activeIdStr 
+        : 'timer';
+      
       newComponent = {
         id: newComponentId,
-        type: activeIdStr as any,
+        type: componentType,
         content: activeIdStr === 'timer' ? { 
           minutes: 15, seconds: 0, timerColor: "#EF4444", textColor: "#FFFFFF", 
           activeText: "Oferta por tempo limitado", finishedText: "Oferta finalizada", fixedTop: false 

@@ -63,8 +63,21 @@ export function useProductPixels(productId: string): UseProductPixelsReturn {
         return;
       }
 
+      // Interface for raw pixel data from API
+      interface RawVendorPixel {
+        id: string;
+        platform: string;
+        pixel_id: string;
+        access_token?: string;
+        is_active: boolean;
+      }
+
+      interface RawLinkedPixel extends RawVendorPixel {
+        link?: ProductPixel;
+      }
+
       // Map vendor pixels with proper typing
-      const pixelsTyped: VendorPixel[] = (data.vendorPixels || []).map((p: any) => ({
+      const pixelsTyped: VendorPixel[] = (data.vendorPixels || []).map((p: RawVendorPixel) => ({
         ...p,
         platform: p.platform as PixelPlatform,
       }));
@@ -72,7 +85,7 @@ export function useProductPixels(productId: string): UseProductPixelsReturn {
       setVendorPixels(pixelsTyped);
 
       // Map linked pixels with link data
-      const linked: LinkedPixel[] = (data.linkedPixels || []).map((item: any) => ({
+      const linked: LinkedPixel[] = (data.linkedPixels || []).map((item: RawLinkedPixel) => ({
         ...item,
         platform: item.platform as PixelPlatform,
         link: item.link as ProductPixel,

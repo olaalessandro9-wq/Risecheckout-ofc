@@ -44,10 +44,15 @@ export function AffiliatesTab() {
   // Sincronizar com Context quando mudar e atualizar snapshot
   useEffect(() => {
     if (affiliateSettings) {
+      // Interface para campos legados que podem existir no banco
+      interface LegacyAffiliateSettings extends AffiliateSettings {
+        allowUpsells?: boolean;
+      }
+      const legacy = affiliateSettings as LegacyAffiliateSettings;
       const normalized = {
         ...affiliateSettings,
-        commissionOnOrderBump: affiliateSettings.commissionOnOrderBump ?? (affiliateSettings as any).allowUpsells ?? false,
-        commissionOnUpsell: affiliateSettings.commissionOnUpsell ?? (affiliateSettings as any).allowUpsells ?? false,
+        commissionOnOrderBump: affiliateSettings.commissionOnOrderBump ?? legacy.allowUpsells ?? false,
+        commissionOnUpsell: affiliateSettings.commissionOnUpsell ?? legacy.allowUpsells ?? false,
         supportEmail: affiliateSettings.supportEmail || "",
         publicDescription: affiliateSettings.publicDescription || "",
         // Campos de marketplace

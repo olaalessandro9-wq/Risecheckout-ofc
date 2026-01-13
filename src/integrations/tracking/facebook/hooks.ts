@@ -59,8 +59,14 @@ export function useFacebookConfig(vendorId?: string) {
           return null;
         }
 
-        // Extrair config
-        const config = data.config as any;
+        // Extrair config (tipo parcial do Facebook Pixel)
+        interface RawFacebookConfig {
+          pixel_id?: string;
+          access_token?: string;
+          selected_products?: string[];
+          fire_purchase_on_pix?: boolean;
+        }
+        const config = data.config as RawFacebookConfig | null;
 
         // Validação: pixel_id obrigatório
         if (!config?.pixel_id) {

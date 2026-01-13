@@ -51,8 +51,9 @@ export function CheckoutOfferSelector({
           ? `Link novo criado para "${offerName}" (slug: ${result.slug})`
           : `Link da oferta associado (slug: ${result.slug})`
       );
-    } catch (e: any) {
-      console.error("[CheckoutOfferSelector] Erro ao associar oferta:", e);
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : "Erro desconhecido";
+      console.error("[CheckoutOfferSelector] Erro ao associar oferta:", errorMessage);
       toast.error("Falha ao associar oferta ao checkout");
     } finally {
       setProcessingOfferId(null);
