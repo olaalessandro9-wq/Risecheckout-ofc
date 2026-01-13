@@ -29,7 +29,7 @@ export const SAFE_HTML_CONFIG = {
  * Mantém tags seguras definidas em SAFE_HTML_CONFIG.
  * Protege contra ataques XSS (Cross-Site Scripting).
  */
-export const sanitize = (input: any): string => {
+export const sanitize = (input: unknown): string => {
   if (typeof input !== 'string') return '';
   return DOMPurify.sanitize(input.trim(), SAFE_HTML_CONFIG);
 };
@@ -38,7 +38,7 @@ export const sanitize = (input: any): string => {
  * Sanitiza HTML permitindo tags seguras.
  * Alias para sanitize() - use quando o contexto deixar claro que é HTML.
  */
-export const sanitizeHtml = (html: any): string => {
+export const sanitizeHtml = (html: unknown): string => {
   return sanitize(html);
 };
 
@@ -46,7 +46,7 @@ export const sanitizeHtml = (html: any): string => {
  * Remove TODAS as tags HTML - retorna apenas texto puro.
  * Use para campos que não devem ter nenhuma formatação.
  */
-export const sanitizeText = (input: any): string => {
+export const sanitizeText = (input: unknown): string => {
   if (typeof input !== 'string') return '';
   return DOMPurify.sanitize(input.trim(), { ALLOWED_TAGS: [] });
 };
@@ -55,7 +55,7 @@ export const sanitizeText = (input: any): string => {
  * Sanitiza URLs - bloqueia protocolos perigosos (javascript:, data:, vbscript:)
  * Retorna string vazia se a URL for maliciosa.
  */
-export const sanitizeUrl = (url: any): string => {
+export const sanitizeUrl = (url: unknown): string => {
   if (typeof url !== 'string') return '';
   const cleaned = url.trim();
   
@@ -72,7 +72,7 @@ export const sanitizeUrl = (url: any): string => {
  * Sanitiza cores hex - aceita apenas formato #RGB ou #RRGGBB
  * Retorna cor default se o formato for inválido.
  */
-export const sanitizeColor = (color: any, defaultColor: string = '#000000'): string => {
+export const sanitizeColor = (color: unknown, defaultColor: string = '#000000'): string => {
   if (typeof color !== 'string') return defaultColor;
   const cleaned = color.trim();
   
@@ -85,10 +85,15 @@ export const sanitizeColor = (color: any, defaultColor: string = '#000000'): str
 };
 
 /**
+ * Tipo para valores aceitos em formulários
+ */
+type FormValue = string | number | boolean | null | undefined;
+
+/**
  * Limpa todos os campos de texto de um objeto de formulário.
  * Aplica sanitização apropriada baseada no tipo de campo.
  */
-export const sanitizeFormObject = <T extends Record<string, any>>(data: T): T => {
+export const sanitizeFormObject = <T extends Record<string, FormValue>>(data: T): T => {
   const cleanData = { ...data };
   
   Object.keys(cleanData).forEach((key) => {
@@ -96,15 +101,15 @@ export const sanitizeFormObject = <T extends Record<string, any>>(data: T): T =>
     if (typeof value === 'string') {
       // Campos de URL
       if (key.toLowerCase().includes('url') || key.toLowerCase().includes('link')) {
-        (cleanData as any)[key] = sanitizeUrl(value);
+        (cleanData as Record<string, FormValue>)[key] = sanitizeUrl(value);
       }
       // Campos de cor
       else if (key.toLowerCase().includes('color')) {
-        (cleanData as any)[key] = sanitizeColor(value);
+        (cleanData as Record<string, FormValue>)[key] = sanitizeColor(value);
       }
       // Outros campos de texto
       else {
-        (cleanData as any)[key] = sanitize(value);
+        (cleanData as Record<string, FormValue>)[key] = sanitize(value);
       }
     }
   });

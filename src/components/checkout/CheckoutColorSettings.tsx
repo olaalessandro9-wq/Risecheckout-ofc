@@ -3,10 +3,11 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { THEME_PRESETS, FONT_OPTIONS } from "@/lib/checkout/themePresets";
 import { Label } from "@/components/ui/label";
+import type { CheckoutCustomization, CheckoutDesign } from "@/types/checkoutEditor";
 
 interface CheckoutColorSettingsProps {
-  customization: any;
-  onUpdate: (field: string, value: any) => void;
+  customization: CheckoutCustomization;
+  onUpdate: (field: string, value: CheckoutDesign | string) => void;
 }
 
 export const CheckoutColorSettings = ({ customization, onUpdate }: CheckoutColorSettingsProps) => {

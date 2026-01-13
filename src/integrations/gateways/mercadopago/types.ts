@@ -7,6 +7,12 @@
  */
 
 /**
+ * Tipo para propriedades dinâmicas de gateway
+ * Mais específico que `any`
+ */
+export type GatewayPropertyValue = string | number | boolean | null | undefined;
+
+/**
  * Configuração do Mercado Pago
  * Armazenada em vendor_integrations.config
  */
@@ -21,7 +27,7 @@ export interface MercadoPagoConfig {
   enabled: boolean;
 
   /** Propriedades customizadas adicionais */
-  [key: string]: any;
+  [key: string]: GatewayPropertyValue;
 }
 
 /**
@@ -80,6 +86,15 @@ export interface MercadoPagoItem {
 }
 
 /**
+ * Configuração de métodos de pagamento
+ */
+export interface MercadoPagoPaymentMethodsConfig {
+  excluded_payment_methods?: Array<{ id: string }>;
+  excluded_payment_types?: Array<{ id: string }>;
+  installments?: number;
+}
+
+/**
  * Dados de preferência/pagamento para Mercado Pago
  */
 export interface MercadoPagoPreference {
@@ -114,14 +129,10 @@ export interface MercadoPagoPreference {
   notification_url?: string;
 
   /** Método de pagamento (credit_card, debit_card, pix, etc) */
-  payment_methods?: {
-    excluded_payment_methods?: Array<{ id: string }>;
-    excluded_payment_types?: Array<{ id: string }>;
-    installments?: number;
-  };
+  payment_methods?: MercadoPagoPaymentMethodsConfig;
 
   /** Metadados adicionais */
-  metadata?: Record<string, any>;
+  metadata?: Record<string, GatewayPropertyValue>;
 }
 
 /**
@@ -138,7 +149,7 @@ export interface MercadoPagoPreferenceResponse {
   status: string;
 
   /** Dados adicionais */
-  [key: string]: any;
+  [key: string]: GatewayPropertyValue;
 }
 
 /**
@@ -158,7 +169,7 @@ export interface MercadoPagoBrickPayment {
   payer_email?: string;
 
   /** Dados adicionais do Brick */
-  [key: string]: any;
+  [key: string]: GatewayPropertyValue;
 }
 
 /**
@@ -184,7 +195,7 @@ export interface MercadoPagoPaymentResponse {
   external_reference?: string;
 
   /** Dados adicionais */
-  [key: string]: any;
+  [key: string]: GatewayPropertyValue;
 }
 
 /**
@@ -211,6 +222,15 @@ export interface MercadoPagoIntegration {
 }
 
 /**
+ * Erro de resposta do Mercado Pago
+ */
+export interface MercadoPagoError {
+  code: string;
+  message: string;
+  details?: unknown;
+}
+
+/**
  * Resposta da integração Mercado Pago
  */
 export interface MercadoPagoResponse {
@@ -221,14 +241,10 @@ export interface MercadoPagoResponse {
   message?: string;
 
   /** Dados da resposta */
-  data?: any;
+  data?: unknown;
 
   /** Erro (se houver) */
-  error?: {
-    code: string;
-    message: string;
-    details?: any;
-  };
+  error?: MercadoPagoError;
 }
 
 /**
@@ -239,7 +255,31 @@ export interface MercadoPagoGlobalParams {
   publicKey?: string;
 
   /** Configurações adicionais */
-  [key: string]: any;
+  [key: string]: GatewayPropertyValue;
+}
+
+/**
+ * Callbacks do Brick
+ */
+export interface BrickCallbacks {
+  onReady?: () => void;
+  onSubmit?: (data: MercadoPagoBrickPayment) => void;
+  onError?: (error: MercadoPagoError) => void;
+  onFieldChange?: (field: { field: string; error?: string }) => void;
+}
+
+/**
+ * Customizações do Brick
+ */
+export interface BrickCustomizations {
+  visual?: {
+    hideFormTitle?: boolean;
+    hidePaymentButton?: boolean;
+  };
+  paymentMethods?: {
+    maxInstallments?: number;
+    excluded?: string[];
+  };
 }
 
 /**
@@ -262,22 +302,8 @@ export interface BrickConfig {
   };
 
   /** Callbacks */
-  callbacks?: {
-    onReady?: () => void;
-    onSubmit?: (data: any) => void;
-    onError?: (error: any) => void;
-    onFieldChange?: (field: any) => void;
-  };
+  callbacks?: BrickCallbacks;
 
   /** Customizações */
-  customizations?: {
-    visual?: {
-      hideFormTitle?: boolean;
-      hidePaymentButton?: boolean;
-    };
-    paymentMethods?: {
-      maxInstallments?: number;
-      excluded?: string[];
-    };
-  };
+  customizations?: BrickCustomizations;
 }

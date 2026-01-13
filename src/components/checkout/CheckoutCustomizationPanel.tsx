@@ -3,7 +3,8 @@ import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { CheckoutComponent, CheckoutDesign } from "@/hooks/useCheckoutEditor";
+import { CheckoutComponent, CheckoutDesign, CheckoutCustomization } from "@/types/checkoutEditor";
+import type { CheckoutComponentContent } from "@/types/checkout-components.types";
 import { ArrowLeft, Trash2, Columns, Columns2, Columns3, LayoutGrid, Copy, MoveUp, MoveDown } from "lucide-react";
 import { SettingsManager } from "@/features/checkout-builder/settings";
 import { TypeIcon, ImageIcon, CheckCircleIcon, AwardIcon, TimerIcon, QuoteIcon, VideoIcon } from "@/components/icons";
@@ -13,9 +14,9 @@ import { LegacyComponentEditor } from "./editors/LegacyComponentEditor"; // ✅ 
 
 // --- Interfaces ---
 interface CheckoutCustomizationPanelProps {
-  customization: any;
+  customization: CheckoutCustomization;
   selectedComponent: CheckoutComponent | null;
-  onUpdateComponent: (componentId: string, content: any) => void;
+  onUpdateComponent: (componentId: string, content: Partial<CheckoutComponentContent>) => void;
   onRemoveComponent: (componentId: string) => void;
   onDuplicateComponent?: (componentId: string) => void;
   onMoveComponentUp?: (componentId: string) => void;
@@ -97,10 +98,10 @@ export const CheckoutCustomizationPanel = ({
 }: CheckoutCustomizationPanelProps) => {
 
   // Lógica de atualização de design (Simplificada e usando lodash-style path se necessário)
-  const handleDesignUpdate = useCallback((field: string, value: any) => {
+  const handleDesignUpdate = useCallback((field: string, value: unknown) => {
     // 1. Atualização completa do objeto design
     if (field === 'design') {
-      onUpdateDesign(value);
+      onUpdateDesign(value as CheckoutDesign);
       return;
     }
 
@@ -108,19 +109,19 @@ export const CheckoutCustomizationPanel = ({
 
     // 2. Atalhos para propriedades raiz
     if (field === 'design.theme') {
-      newDesign.theme = value;
+      newDesign.theme = value as string;
     } else if (field === 'design.font') {
-      newDesign.font = value;
+      newDesign.font = value as string;
     } 
     // 3. Atualização profunda de cores (Nested Objects)
     else if (field.startsWith('design.colors.')) {
       // Ex: design.colors.button.background
       const path = field.replace('design.', '').split('.');
-      let current: any = newDesign;
+      let current: Record<string, unknown> = newDesign as unknown as Record<string, unknown>;
       
       for (let i = 0; i < path.length - 1; i++) {
         if (!current[path[i]]) current[path[i]] = {};
-        current = current[path[i]];
+        current = current[path[i]] as Record<string, unknown>;
       }
       current[path[path.length - 1]] = value;
       
@@ -153,7 +154,7 @@ export const CheckoutCustomizationPanel = ({
             // ✅ Editor Moderno (Registry)
             <registryConfig.editor 
               component={selectedComponent}
-              onChange={(newContent: any) => onUpdateComponent(selectedComponent.id, newContent)}
+              onChange={(newContent: Partial<CheckoutComponentContent>) => onUpdateComponent(selectedComponent.id, newContent)}
               design={customization.design}
             />
           ) : (
@@ -193,7 +194,7 @@ export const CheckoutCustomizationPanel = ({
   // --- Renderização Principal (Abas) ---
   return (
     <div className="h-full flex flex-col bg-card">
-      <Tabs value={activeTab} onValueChange={onActiveTabChange as any} className="h-full flex flex-col">
+      <Tabs value={activeTab} onValueChange={(v) => onActiveTabChange(v as "components" | "rows" | "settings")} className="h-full flex flex-col">
         {/* Header das Abas */}
         <div className="flex-none border-b bg-background z-10">
           <TabsList className="w-full grid grid-cols-2 rounded-none h-12 p-0 bg-transparent">

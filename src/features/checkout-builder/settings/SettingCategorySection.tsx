@@ -2,16 +2,17 @@ import { Separator } from "@/components/ui/separator";
 import { SettingCategory } from "./settings.config";
 import { ColorField } from "./ColorField";
 import { SelectField } from "./SelectField";
+import type { CheckoutCustomization, CheckoutDesign } from "@/types/checkoutEditor";
 
 // Função helper para acessar propriedades aninhadas (substitui lodash.get)
-const get = (obj: any, path: string): any => {
-  return path.split('.').reduce((current, key) => current?.[key], obj);
+const get = (obj: Record<string, unknown>, path: string): unknown => {
+  return path.split('.').reduce((current, key) => (current as Record<string, unknown>)?.[key], obj as unknown);
 };
 
 interface SettingCategorySectionProps {
   category: SettingCategory;
-  customization: any;
-  onUpdate: (path: string, value: any) => void;
+  customization: CheckoutCustomization;
+  onUpdate: (path: string, value: unknown) => void;
 }
 
 export const SettingCategorySection = ({
@@ -32,7 +33,7 @@ export const SettingCategorySection = ({
         </div>
 
         {category.fields.map((field) => {
-          const value = get(customization, field.path);
+          const value = get(customization as unknown as Record<string, unknown>, field.path) as string | undefined;
 
           if (field.type === 'color') {
             return (
