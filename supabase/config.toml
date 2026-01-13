@@ -49,6 +49,9 @@ verify_jwt = false
 [functions.pixel-management]
 verify_jwt = false
 
+[functions.affiliate-pixel-management]
+verify_jwt = false
+
 # verify_jwt = false → Função pública (não requer auth)
 # verify_jwt = true (ou omitido) → Requer autenticação
 # =====================================================

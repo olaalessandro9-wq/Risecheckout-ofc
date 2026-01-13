@@ -1,3 +1,10 @@
+/**
+ * PixelsTab - Gerenciamento de Pixels de Rastreamento do Afiliado
+ * 
+ * Migrado para usar Edge Function affiliate-pixel-management
+ * @see RISE ARCHITECT PROTOCOL
+ */
+
 import { useState } from "react";
 import { Plus, Trash2, Save, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -111,26 +118,36 @@ export function PixelsTab({ affiliationId, initialPixels, onRefetch }: PixelsTab
   };
 
   const handleSave = async () => {
+    const sessionToken = localStorage.getItem('producer_session_token');
+    if (!sessionToken) {
+      toast.error("Sessão expirada. Faça login novamente.");
+      return;
+    }
+
     setIsSaving(true);
 
     try {
-      // Deletar todos os pixels existentes deste afiliado
-      await supabase
-        .from("affiliate_pixels")
-        .delete()
-        .eq("affiliate_id", affiliationId);
-
-      // Inserir todos os pixels atuais
-      const allPixels: any[] = [];
+      // Construir array de todos os pixels
+      const allPixels: Array<{
+        pixel_id: string;
+        platform: string;
+        domain: string | null;
+        fire_on_pix: boolean;
+        fire_on_boleto: boolean;
+        fire_on_card: boolean;
+        custom_value_pix: number;
+        custom_value_boleto: number;
+        custom_value_card: number;
+        enabled: boolean;
+      }> = [];
 
       for (const platform of platforms) {
         const pixels = pixelsByPlatform[platform.id];
         for (const pixel of pixels) {
           if (pixel.pixel_id.trim()) {
             allPixels.push({
-              affiliate_id: affiliationId,
-              platform: platform.id,
               pixel_id: pixel.pixel_id.trim(),
+              platform: platform.id,
               domain: pixel.domain.trim() || null,
               fire_on_pix: pixel.fire_on_pix,
               fire_on_boleto: pixel.fire_on_boleto,
@@ -144,19 +161,24 @@ export function PixelsTab({ affiliationId, initialPixels, onRefetch }: PixelsTab
         }
       }
 
-      if (allPixels.length > 0) {
-        const { error } = await supabase
-          .from("affiliate_pixels")
-          .insert(allPixels);
+      // Chamar Edge Function
+      const { data, error } = await supabase.functions.invoke("affiliate-pixel-management", {
+        headers: { "x-producer-token": sessionToken },
+        body: {
+          action: "save-all",
+          affiliate_id: affiliationId,
+          pixels: allPixels,
+        },
+      });
 
-        if (error) throw error;
-      }
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       toast.success("Pixels salvos com sucesso!");
       await onRefetch();
     } catch (err: any) {
       console.error("Erro ao salvar pixels:", err);
-      toast.error("Erro ao salvar pixels");
+      toast.error(err.message || "Erro ao salvar pixels");
     } finally {
       setIsSaving(false);
     }
@@ -212,109 +234,14 @@ export function PixelsTab({ affiliationId, initialPixels, onRefetch }: PixelsTab
               ) : (
                 <>
                   {pixelsByPlatform[platform.id].map((pixel, index) => (
-                    <div key={index} className="border rounded-lg p-4 space-y-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 grid grid-cols-2 gap-4">
-                          <div>
-                            <Label>Pixel ID</Label>
-                            <Input
-                              placeholder="Ex: 1234567890"
-                              value={pixel.pixel_id}
-                              onChange={(e) => updatePixel(index, "pixel_id", e.target.value)}
-                            />
-                          </div>
-                          {platform.id === "facebook" && (
-                            <div>
-                              <Label>Domínio (opcional)</Label>
-                              <Input
-                                placeholder="Ex: seusite.com.br"
-                                value={pixel.domain}
-                                onChange={(e) => updatePixel(index, "domain", e.target.value)}
-                              />
-                            </div>
-                          )}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => removePixel(index)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-4 pt-4 border-t">
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <Label className="text-sm">Disparar no PIX</Label>
-                            <Switch
-                              checked={pixel.fire_on_pix}
-                              onCheckedChange={(v) => updatePixel(index, "fire_on_pix", v)}
-                            />
-                          </div>
-                          {pixel.fire_on_pix && (
-                            <div>
-                              <Label className="text-xs text-muted-foreground">Valor de conversão (%)</Label>
-                              <Input
-                                type="number"
-                                min={0}
-                                max={100}
-                                value={pixel.custom_value_pix}
-                                onChange={(e) => updatePixel(index, "custom_value_pix", parseInt(e.target.value) || 0)}
-                                className="h-8"
-                              />
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <Label className="text-sm">Disparar no Boleto</Label>
-                            <Switch
-                              checked={pixel.fire_on_boleto}
-                              onCheckedChange={(v) => updatePixel(index, "fire_on_boleto", v)}
-                            />
-                          </div>
-                          {pixel.fire_on_boleto && (
-                            <div>
-                              <Label className="text-xs text-muted-foreground">Valor de conversão (%)</Label>
-                              <Input
-                                type="number"
-                                min={0}
-                                max={100}
-                                value={pixel.custom_value_boleto}
-                                onChange={(e) => updatePixel(index, "custom_value_boleto", parseInt(e.target.value) || 0)}
-                                className="h-8"
-                              />
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <Label className="text-sm">Disparar no Cartão</Label>
-                            <Switch
-                              checked={pixel.fire_on_card}
-                              onCheckedChange={(v) => updatePixel(index, "fire_on_card", v)}
-                            />
-                          </div>
-                          {pixel.fire_on_card && (
-                            <div>
-                              <Label className="text-xs text-muted-foreground">Valor de conversão (%)</Label>
-                              <Input
-                                type="number"
-                                min={0}
-                                max={100}
-                                value={pixel.custom_value_card}
-                                onChange={(e) => updatePixel(index, "custom_value_card", parseInt(e.target.value) || 0)}
-                                className="h-8"
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                    <PixelCard
+                      key={index}
+                      pixel={pixel}
+                      index={index}
+                      platformId={platform.id}
+                      updatePixel={updatePixel}
+                      removePixel={removePixel}
+                    />
                   ))}
 
                   <Button onClick={addPixel} variant="outline" className="gap-2 w-full">
@@ -330,6 +257,126 @@ export function PixelsTab({ affiliationId, initialPixels, onRefetch }: PixelsTab
           ))}
         </Tabs>
       </div>
+    </div>
+  );
+}
+
+// =====================================================
+// SUBCOMPONENT: PixelCard
+// =====================================================
+
+interface PixelCardProps {
+  pixel: PixelForm;
+  index: number;
+  platformId: Platform;
+  updatePixel: (index: number, field: keyof PixelForm, value: any) => void;
+  removePixel: (index: number) => void;
+}
+
+function PixelCard({ pixel, index, platformId, updatePixel, removePixel }: PixelCardProps) {
+  return (
+    <div className="border rounded-lg p-4 space-y-4">
+      <div className="flex items-start justify-between">
+        <div className="flex-1 grid grid-cols-2 gap-4">
+          <div>
+            <Label>Pixel ID</Label>
+            <Input
+              placeholder="Ex: 1234567890"
+              value={pixel.pixel_id}
+              onChange={(e) => updatePixel(index, "pixel_id", e.target.value)}
+            />
+          </div>
+          {platformId === "facebook" && (
+            <div>
+              <Label>Domínio (opcional)</Label>
+              <Input
+                placeholder="Ex: seusite.com.br"
+                value={pixel.domain}
+                onChange={(e) => updatePixel(index, "domain", e.target.value)}
+              />
+            </div>
+          )}
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-destructive hover:text-destructive"
+          onClick={() => removePixel(index)}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+        <PixelTriggerConfig
+          label="Disparar no PIX"
+          enabled={pixel.fire_on_pix}
+          value={pixel.custom_value_pix}
+          onEnabledChange={(v) => updatePixel(index, "fire_on_pix", v)}
+          onValueChange={(v) => updatePixel(index, "custom_value_pix", v)}
+        />
+
+        <PixelTriggerConfig
+          label="Disparar no Boleto"
+          enabled={pixel.fire_on_boleto}
+          value={pixel.custom_value_boleto}
+          onEnabledChange={(v) => updatePixel(index, "fire_on_boleto", v)}
+          onValueChange={(v) => updatePixel(index, "custom_value_boleto", v)}
+        />
+
+        <PixelTriggerConfig
+          label="Disparar no Cartão"
+          enabled={pixel.fire_on_card}
+          value={pixel.custom_value_card}
+          onEnabledChange={(v) => updatePixel(index, "fire_on_card", v)}
+          onValueChange={(v) => updatePixel(index, "custom_value_card", v)}
+        />
+      </div>
+    </div>
+  );
+}
+
+// =====================================================
+// SUBCOMPONENT: PixelTriggerConfig
+// =====================================================
+
+interface PixelTriggerConfigProps {
+  label: string;
+  enabled: boolean;
+  value: number;
+  onEnabledChange: (enabled: boolean) => void;
+  onValueChange: (value: number) => void;
+}
+
+function PixelTriggerConfig({ 
+  label, 
+  enabled, 
+  value, 
+  onEnabledChange, 
+  onValueChange 
+}: PixelTriggerConfigProps) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <Label className="text-sm">{label}</Label>
+        <Switch
+          checked={enabled}
+          onCheckedChange={onEnabledChange}
+        />
+      </div>
+      {enabled && (
+        <div>
+          <Label className="text-xs text-muted-foreground">Valor de conversão (%)</Label>
+          <Input
+            type="number"
+            min={0}
+            max={100}
+            value={value}
+            onChange={(e) => onValueChange(parseInt(e.target.value) || 0)}
+            className="h-8"
+          />
+        </div>
+      )}
     </div>
   );
 }
