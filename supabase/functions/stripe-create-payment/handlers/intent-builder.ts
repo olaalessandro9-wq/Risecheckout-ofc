@@ -1,9 +1,10 @@
 /**
  * intent-builder.ts - Monta parâmetros do PaymentIntent Stripe
+ * @version 2.0.0 - Zero `any` compliance (RISE Protocol V2)
  */
 
 import Stripe from "https://esm.sh/stripe@14.14.0";
-import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { 
   PLATFORM_FEE_PERCENT, 
   calculatePlatformFeeCents,
