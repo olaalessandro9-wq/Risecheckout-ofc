@@ -1,7 +1,7 @@
 # Rise Checkout - Edge Functions Registry
 
 > **🔴 FONTE DA VERDADE MÁXIMA** - Este documento lista TODAS as Edge Functions deployadas no Supabase.  
-> Última atualização: 2026-01-12  
+> Última atualização: 2026-01-13  
 > Mantenedor: AI Assistant + User
 
 ---
@@ -10,8 +10,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 74 |
-| **No código local** | 52 |
+| **Total de Funções** | 79 |
+| **No código local** | 57 |
 | **Apenas deployadas** | 22 |
 | **Base URL** | `https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/` |
 
@@ -32,10 +32,11 @@
 11. [Security & Crypto](#security--crypto)
 12. [User Management](#user-management)
 13. [Affiliates](#affiliates)
-14. [LGPD/GDPR](#lgpdgdpr)
-15. [Vault & Credentials](#vault--credentials)
-16. [Health & Diagnostics](#health--diagnostics)
-17. [Utilities](#utilities)
+14. [Pixels](#pixels)
+15. [LGPD/GDPR](#lgpdgdpr)
+16. [Vault & Credentials](#vault--credentials)
+17. [Health & Diagnostics](#health--diagnostics)
+18. [Utilities](#utilities)
 
 ---
 
@@ -172,6 +173,16 @@
 | `manage-affiliation` | `.../manage-affiliation` | ✅ | 7 min ago | 298 |
 | `request-affiliation` | `.../request-affiliation` | ✅ | 7 min ago | 301 |
 | `update-affiliate-settings` | `.../update-affiliate-settings` | ✅ | 7 min ago | 103 |
+| `get-affiliation-details` | `.../get-affiliation-details` | ✅ | NEW | 0 |
+| `get-affiliation-status` | `.../get-affiliation-status` | ✅ | NEW | 0 |
+| `get-all-affiliation-statuses` | `.../get-all-affiliation-statuses` | ✅ | NEW | 0 |
+| `get-my-affiliations` | `.../get-my-affiliations` | ✅ | NEW | 0 |
+
+### Pixels
+
+| Nome | URL | No Repo? | Última Atividade | Invocações |
+|------|-----|----------|------------------|------------|
+| `pixel-management` | `.../pixel-management` | ✅ | NEW | 0 |
 
 ### LGPD/GDPR
 
@@ -264,6 +275,8 @@
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-13 | Criada `pixel-management` Edge Function - migração completa de `useVendorPixels.ts` |
+| 2026-01-13 | Adicionadas 4 funções de afiliação ao Registry: `get-affiliation-details`, `get-affiliation-status`, `get-all-affiliation-statuses`, `get-my-affiliations` |
 | 2026-01-13 | Adicionado rate limiting em `members-area-modules` e `members-area-content` |
 | 2026-01-13 | Adicionada ação `update-price` em `product-management` - atualização atômica de preço |
 | 2026-01-13 | Adicionada ação `order-bump/reorder` em `checkout-management` - reordenação via Edge Function |
