@@ -7,6 +7,12 @@
  */
 
 /**
+ * Tipo para propriedades dinâmicas de tracking
+ * Mais específico que `any`
+ */
+export type TrackingPropertyValue = string | number | boolean | null | undefined;
+
+/**
  * Configuração do Kwai Pixel
  * Armazenada em vendor_integrations.config
  */
@@ -21,7 +27,7 @@ export interface KwaiConfig {
   enabled: boolean;
 
   /** Propriedades customizadas adicionais */
-  [key: string]: any;
+  [key: string]: TrackingPropertyValue | string[];
 }
 
 /**
@@ -116,7 +122,7 @@ export interface KwaiResponse {
   message?: string;
 
   /** Dados adicionais */
-  data?: any;
+  data?: unknown;
 }
 
 /**
@@ -150,5 +156,5 @@ export interface KwaiGlobalParams {
   track?: boolean;
 
   /** Configurações de privacidade */
-  [key: string]: any;
+  [key: string]: TrackingPropertyValue;
 }

@@ -7,6 +7,12 @@
  */
 
 /**
+ * Tipo para propriedades dinâmicas de tracking
+ * Mais específico que `any`
+ */
+export type TrackingPropertyValue = string | number | boolean | null | undefined;
+
+/**
  * Configuração do UTMify
  * Armazenada em vendor_integrations.config
  */
@@ -24,7 +30,7 @@ export interface UTMifyConfig {
   enabled: boolean;
 
   /** Propriedades customizadas adicionais */
-  [key: string]: any;
+  [key: string]: TrackingPropertyValue | string[];
 }
 
 /**
@@ -168,7 +174,7 @@ export interface UTMifyResponse {
   message?: string;
 
   /** Dados adicionais */
-  data?: any;
+  data?: unknown;
 }
 
 /**

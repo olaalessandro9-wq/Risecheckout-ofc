@@ -7,6 +7,12 @@
  */
 
 /**
+ * Tipo para propriedades dinâmicas de tracking
+ * Mais específico que `any`
+ */
+export type TrackingPropertyValue = string | number | boolean | null | undefined;
+
+/**
  * Configuração do Facebook Pixel
  * Armazenada em vendor_integrations.config
  */
@@ -54,7 +60,7 @@ export interface FacebookEventParams {
   transaction_id?: string;
 
   /** Propriedades customizadas adicionais */
-  [key: string]: any;
+  [key: string]: TrackingPropertyValue | string[];
 }
 
 /**

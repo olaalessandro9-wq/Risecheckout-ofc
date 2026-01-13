@@ -1,24 +1,25 @@
 import { SETTINGS_CATEGORIES } from "./settings.config";
 import { SettingCategorySection } from "./SettingCategorySection";
 import { THEME_PRESETS } from "@/lib/checkout/themePresets";
+import type { CheckoutCustomization, CheckoutDesign } from "@/types/checkoutEditor";
 
 // Função helper para clonar objetos profundamente (substitui lodash.cloneDeep)
 const cloneDeep = <T,>(obj: T): T => JSON.parse(JSON.stringify(obj));
 
 // Função helper para definir valores em paths aninhados (substitui lodash.set)
-const set = (obj: any, path: string, value: any): void => {
+const set = (obj: Record<string, unknown>, path: string, value: unknown): void => {
   const keys = path.split('.');
   const lastKey = keys.pop()!;
   const target = keys.reduce((current, key) => {
     if (!current[key]) current[key] = {};
-    return current[key];
+    return current[key] as Record<string, unknown>;
   }, obj);
   target[lastKey] = value;
 };
 
 interface SettingsManagerProps {
-  customization: any;
-  onUpdate: (field: string, value: any) => void;
+  customization: CheckoutCustomization;
+  onUpdate: (field: string, value: unknown) => void;
 }
 
 export const SettingsManager = ({ customization, onUpdate }: SettingsManagerProps) => {
@@ -48,15 +49,15 @@ export const SettingsManager = ({ customization, onUpdate }: SettingsManagerProp
     else if (path.startsWith('design.colors.')) {
       // Marca como custom (usuário customizou uma cor)
       // Usa cloneDeep para evitar mutação do objeto original
-      const newDesign = cloneDeep(customization.design);
+      const newDesign = cloneDeep(customization.design) as unknown as Record<string, unknown>;
       
-      // Usa lodash.set para atualizar o valor de forma segura
+      // Usa set para atualizar o valor de forma segura
       // Remove 'design.' do path pois já estamos trabalhando com newDesign
       const designPath = path.replace('design.', '');
       set(newDesign, designPath, value);
       
       // Marca como custom
-      newDesign.theme = 'custom';
+      (newDesign as CheckoutDesign).theme = 'custom';
       
       onUpdate('design', newDesign);
     }
