@@ -2,13 +2,13 @@
  * Integration OAuth Handlers
  * 
  * Extracted OAuth-specific handlers for integration-management.
- * RISE Protocol Compliant - < 300 lines
+ * RISE Protocol V2 Compliant - Zero `any`
  * 
  * @created 2026-01-13 - Extracted from integration-handlers.ts
+ * @version 2.0.0
  */
 
-// deno-lint-ignore-file no-explicit-any
-type SupabaseClientAny = any;
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { 
   jsonResponse, 
@@ -23,7 +23,7 @@ import {
 // ============================================================================
 
 export async function handleInitOAuth(
-  supabase: SupabaseClientAny,
+  supabase: SupabaseClient,
   producerId: string,
   body: { integrationType?: string },
   corsHeaders: Record<string, string>

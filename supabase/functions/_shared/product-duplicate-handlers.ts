@@ -3,12 +3,11 @@
  * 
  * Extracted handlers for product-duplicate edge function.
  * 
- * RISE Protocol Compliant - Zero `any` (except SupabaseClientAny documented)
+ * RISE Protocol V2 Compliant - Zero `any`
+ * @version 2.0.0
  */
 
-// deno-lint-ignore no-explicit-any
-type SupabaseClientAny = any;
-
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { ensureUniqueSlug, toSlug } from "./edge-helpers.ts";
 import { cloneCheckoutDeep, cloneCheckoutLinks } from "./product-duplicate-cloner.ts";
 
@@ -56,7 +55,7 @@ export interface Offer {
 // ============================================
 
 export async function verifyProductOwnership(
-  supabase: SupabaseClientAny,
+  supabase: SupabaseClient,
   productId: string,
   producerId: string
 ): Promise<{ valid: boolean; product?: ProductBase }> {
@@ -80,11 +79,11 @@ export async function verifyProductOwnership(
 // ============================================
 
 export async function duplicateProduct(
-  supabase: SupabaseClientAny,
+  supabase: SupabaseClient,
   productId: string,
   srcProduct: ProductBase,
   producerId: string,
-  ensureUniqueName: (supabase: SupabaseClientAny, baseName: string) => Promise<string>
+  ensureUniqueName: (supabase: SupabaseClient, baseName: string) => Promise<string>
 ): Promise<{ success: boolean; newProductId?: string; error?: string }> {
   try {
     const baseName = `${srcProduct.name} (Cópia)`;

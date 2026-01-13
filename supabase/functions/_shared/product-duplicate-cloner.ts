@@ -4,12 +4,11 @@
  * Clone functions for checkout rows, components, and links.
  * Extracted from product-duplicate-handlers.ts to keep files < 300 lines.
  * 
- * RISE Protocol Compliant - Zero `any` (except SupabaseClientAny documented)
+ * RISE Protocol V2 Compliant - Zero `any`
+ * @version 2.0.0
  */
 
-// deno-lint-ignore no-explicit-any
-type SupabaseClientAny = any;
-
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { ensureUniqueSlug } from "./edge-helpers.ts";
 
 // ============================================
@@ -42,7 +41,7 @@ export interface CheckoutLink {
 // ============================================
 
 export async function cloneCheckoutLinks(
-  supabase: SupabaseClientAny,
+  supabase: SupabaseClient,
   srcCheckoutId: string,
   newCheckoutId: string,
   suggestedSlug: string
@@ -94,7 +93,7 @@ export async function cloneCheckoutLinks(
 // ============================================
 
 export async function cloneCheckoutDeep(
-  supabase: SupabaseClientAny,
+  supabase: SupabaseClient,
   srcCheckoutId: string,
   destCheckoutId: string
 ): Promise<void> {
