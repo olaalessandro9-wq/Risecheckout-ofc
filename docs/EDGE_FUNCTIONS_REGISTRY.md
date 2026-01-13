@@ -10,8 +10,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 87 |
-| **No código local** | 87 |
+| **Total de Funções** | 89 |
+| **No código local** | 89 |
 | **Apenas deployadas** | 0 |
 | **Operações Diretas Frontend** | 0 ✅ |
 | **Base URL** | `https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/` |
@@ -212,9 +212,16 @@
 
 | Nome | URL | No Repo? | Última Atividade | Invocações |
 |------|-----|----------|------------------|------------|
+| `admin-health` | `.../admin-health` | ✅ | 2026-01-13 | 0 |
 | `health` | `.../health` | ✅ | 10 min ago | 290 |
 | `smoke-test` | `.../smoke-test` | ✅ | 10 min ago | 89 |
 | `test-deploy` | `.../test-deploy` | ✅ | 10 min ago | 175 |
+
+### Owner
+
+| Nome | URL | No Repo? | Última Atividade | Invocações |
+|------|-----|----------|------------------|------------|
+| `owner-settings` | `.../owner-settings` | ✅ | 2026-01-13 | 0 |
 
 ### Utilities
 
