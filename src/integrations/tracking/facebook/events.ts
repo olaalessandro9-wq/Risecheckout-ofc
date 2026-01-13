@@ -7,6 +7,7 @@
  */
 
 import { FacebookEventParams } from "./types";
+import type { TrackableProduct, TrackableBump } from "@/types/tracking.types";
 
 /**
  * Verifica se o objeto fbq está disponível no window
@@ -84,7 +85,7 @@ export const trackCustomEvent = (eventName: string, params?: FacebookEventParams
  * 
  * @param product - Objeto do produto com id, name, price
  */
-export const trackViewContent = (product: any): void => {
+export const trackViewContent = (product: TrackableProduct): void => {
   if (!product) {
     console.warn("[Facebook] Produto inválido para trackViewContent");
     return;
@@ -108,7 +109,7 @@ export const trackViewContent = (product: any): void => {
  * @param itemsCount - Quantidade total de itens (produto + bumps)
  */
 export const trackInitiateCheckout = (
-  product: any,
+  product: TrackableProduct,
   totalValue: number,
   itemsCount: number
 ): void => {
@@ -138,7 +139,7 @@ export const trackInitiateCheckout = (
 export const trackPurchase = (
   orderId: string,
   valueInCents: number,
-  product: any,
+  product: TrackableProduct,
   additionalParams?: FacebookEventParams
 ): void => {
   if (!orderId || !product) {
@@ -166,7 +167,7 @@ export const trackPurchase = (
  * @param bump - Objeto do bump/produto adicional
  * @param cartValue - Valor total do carrinho após adicionar
  */
-export const trackAddToCart = (bump: any, cartValue: number): void => {
+export const trackAddToCart = (bump: TrackableBump, cartValue: number): void => {
   if (!bump) {
     console.warn("[Facebook] Bump inválido para trackAddToCart");
     return;

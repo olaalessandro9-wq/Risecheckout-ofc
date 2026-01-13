@@ -15,25 +15,29 @@ import {
 import { TurnstileWidget } from '@/components/checkout/TurnstileWidget';
 import { useCheckoutSubmit } from '@/hooks/checkout/useCheckoutSubmit';
 
+import type { CheckoutProductData, CheckoutFormErrors, RequiredFieldsConfig, AppliedCoupon } from "@/types/checkout-shared.types";
+import type { OrderBump, CheckoutFormData } from "@/types/checkout";
+import type { ThemePreset } from "@/lib/checkout/themePresets";
+
 interface SharedCheckoutLayoutProps {
-  productData: any;
-  orderBumps: any[];
-  design: any;
+  productData: CheckoutProductData;
+  orderBumps: OrderBump[];
+  design: ThemePreset;
   selectedPayment: 'pix' | 'credit_card';
   onPaymentChange: (payment: 'pix' | 'credit_card') => void;
   selectedBumps: Set<string>;
   onToggleBump: (bumpId: string) => void;
   mode: 'editor' | 'preview' | 'public';
-  formData?: any;
-  formErrors?: any;
+  formData?: CheckoutFormData;
+  formErrors?: CheckoutFormErrors;
   onFieldChange?: (field: string, value: string) => void;
-  requiredFields?: any;
+  requiredFields?: RequiredFieldsConfig | Record<string, boolean>;
   isProcessing?: boolean;
   publicKey?: string | null;
   creditCardGateway?: string;
   amount?: number;
   onSubmitPayment?: (token: string, installments: number, paymentMethodId: string, issuerId: string, holderDocument?: string) => Promise<void>;
-  onTotalChange?: (total: number, appliedCoupon: any) => void;
+  onTotalChange?: (total: number, appliedCoupon: AppliedCoupon | null) => void;
   additionalContent?: React.ReactNode;
   formWrapper?: (children: React.ReactNode, formRef: React.RefObject<HTMLFormElement>) => React.ReactNode;
   turnstileToken?: string | null;

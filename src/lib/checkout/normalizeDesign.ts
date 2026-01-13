@@ -1,4 +1,5 @@
 import { THEME_PRESETS, ThemePreset } from './themePresets';
+import type { CheckoutDesignInput } from '@/types/checkout-shared.types';
 
 /**
  * Normaliza o design do checkout mesclando:
@@ -9,40 +10,41 @@ import { THEME_PRESETS, ThemePreset } from './themePresets';
  * Garante que todas as propriedades de cores necessárias existam,
  * sem usar "cores mágicas" hardcoded.
  */
-export function normalizeDesign(checkout: any): ThemePreset {
+export function normalizeDesign(checkout: CheckoutDesignInput): ThemePreset {
   // 1. Base: preset do tema
-  const theme = checkout.theme || checkout.design?.theme || 'light';
+  const theme = checkout.theme || (checkout.design as Record<string, unknown>)?.theme || 'light';
   const basePreset = THEME_PRESETS[theme as 'light' | 'dark'] || THEME_PRESETS.light;
   
   // 2. Deep clone do preset para não mutar o original
   const normalized: ThemePreset = JSON.parse(JSON.stringify(basePreset));
   
   // 3. Merge com design JSON salvo (se existir)
-  if (checkout.design?.colors) {
-    deepMerge(normalized.colors, checkout.design.colors);
+  const designColors = (checkout.design as Record<string, unknown>)?.colors as Record<string, unknown> | undefined;
+  if (designColors) {
+    deepMerge(normalized.colors, designColors);
   }
   
   // 4. Merge com colunas legadas APENAS como fallback (não sobrescrever design salvo)
-  const hasDesignColors = checkout.design?.colors && Object.keys(checkout.design.colors).length > 0;
+  const hasDesignColors = designColors && Object.keys(designColors).length > 0;
   
   // Só usar legado se não houver valor no design JSON
   if (checkout.background_color && !hasDesignColors) {
     normalized.colors.background = checkout.background_color;
   }
-  if (checkout.text_color && !checkout.design?.colors?.primaryText) {
+  if (checkout.text_color && !designColors?.primaryText) {
     normalized.colors.primaryText = checkout.text_color;
   }
-  if (checkout.primary_color && !checkout.design?.colors?.active) {
+  if (checkout.primary_color && !designColors?.active) {
     normalized.colors.active = checkout.primary_color;
     // Se não tiver cores de botões selecionados, usar a cor primária
-    if (!checkout.design?.colors?.selectedButton?.background) {
+    if (!(designColors?.selectedButton as Record<string, unknown>)?.background) {
       normalized.colors.selectedButton.background = checkout.primary_color;
     }
   }
-  if (checkout.button_color && !checkout.design?.colors?.button?.background) {
+  if (checkout.button_color && !(designColors?.button as Record<string, unknown>)?.background) {
     normalized.colors.button.background = checkout.button_color;
   }
-  if (checkout.button_text_color && !checkout.design?.colors?.button?.text) {
+  if (checkout.button_text_color && !(designColors?.button as Record<string, unknown>)?.text) {
     normalized.colors.button.text = checkout.button_text_color;
   }
   
@@ -61,7 +63,6 @@ export function normalizeDesign(checkout: any): ThemePreset {
   
   // Info box para PIX (usar cores derivadas do active se não existir)
   if (!normalized.colors.infoBox) {
-    const activeColor = normalized.colors.active;
     normalized.colors.infoBox = {
       background: theme === 'dark' ? 'rgba(16,185,129,0.1)' : '#ECFDF5',
       border: theme === 'dark' ? 'rgba(16,185,129,0.3)' : '#A7F3D0',
@@ -101,13 +102,14 @@ export function normalizeDesign(checkout: any): ThemePreset {
 /**
  * Deep merge de objetos
  */
-function deepMerge(target: any, source: any): any {
+function deepMerge<T extends Record<string, unknown>>(target: T, source: Record<string, unknown>): T {
   for (const key in source) {
-    if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-      if (!target[key]) target[key] = {};
-      deepMerge(target[key], source[key]);
+    const sourceValue = source[key];
+    if (sourceValue && typeof sourceValue === 'object' && !Array.isArray(sourceValue)) {
+      if (!target[key]) (target as Record<string, unknown>)[key] = {};
+      deepMerge(target[key] as Record<string, unknown>, sourceValue as Record<string, unknown>);
     } else {
-      target[key] = source[key];
+      (target as Record<string, unknown>)[key] = sourceValue;
     }
   }
   return target;
