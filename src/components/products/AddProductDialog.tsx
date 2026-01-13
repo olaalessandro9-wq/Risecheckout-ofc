@@ -106,8 +106,9 @@ export function AddProductDialog({ open, onOpenChange, onProductAdded }: AddProd
     
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("product-management/create", {
+      const { data, error } = await supabase.functions.invoke("product-crud", {
         body: {
+          action: 'create',
           sessionToken,
           product: {
             name: formData.name.trim(),

@@ -139,7 +139,7 @@ export function useProductSettings({
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke('product-management', {
+      const { data, error } = await supabase.functions.invoke('product-settings', {
         body: {
           action: 'update-settings',
           productId,
@@ -169,7 +169,7 @@ export function useProductSettings({
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke('product-management', {
+      const { data, error } = await supabase.functions.invoke('product-settings', {
         body: {
           action: 'update-settings',
           productId,
@@ -205,7 +205,7 @@ export function useProductSettings({
       try {
         console.log("[useProductSettings] Salvando upsell_settings:", settings);
 
-        const { data, error } = await supabase.functions.invoke('product-management', {
+        const { data, error } = await supabase.functions.invoke('product-settings', {
           body: {
             action: 'update-settings',
             productId,
@@ -241,7 +241,7 @@ export function useProductSettings({
       try {
         console.log("[useProductSettings] Salvando affiliate_settings:", settings);
 
-        const { data, error } = await supabase.functions.invoke('product-management', {
+        const { data, error } = await supabase.functions.invoke('product-settings', {
           body: {
             action: 'update-settings',
             productId,

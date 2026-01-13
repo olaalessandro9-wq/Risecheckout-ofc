@@ -129,8 +129,9 @@ export const useProduct = () => {
 
       if (productId) {
         // Update via Edge Function
-        const { data, error } = await supabase.functions.invoke("product-management/update", {
+        const { data, error } = await supabase.functions.invoke("product-crud", {
           body: {
+            action: 'update',
             sessionToken,
             product: {
               productId,
@@ -158,8 +159,9 @@ export const useProduct = () => {
         await loadProduct(false);
       } else {
         // Create via Edge Function
-        const { data, error } = await supabase.functions.invoke("product-management/create", {
+        const { data, error } = await supabase.functions.invoke("product-crud", {
           body: {
+            action: 'create',
             sessionToken,
             product: {
               name: productData.name.trim(),
@@ -223,9 +225,9 @@ export const useProduct = () => {
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke("product-management/delete", {
+      const { data, error } = await supabase.functions.invoke("product-crud", {
         body: {
-          sessionToken,
+          action: 'delete',
           productId,
         },
       });

@@ -58,8 +58,8 @@ export function EditPriceDialog({
       console.log("[EditPriceDialog] Atualizando preço do produto:", productId, "para:", price);
 
       // Atualizar preço via Edge Function (atomicamente atualiza produto + oferta padrão)
-      const { data: response, error } = await supabase.functions.invoke("product-management/update-price", {
-        body: { productId, price },
+      const { data: response, error } = await supabase.functions.invoke("product-settings", {
+        body: { action: 'update-price', productId, price },
         headers: { "x-producer-session-token": sessionToken },
       });
 
