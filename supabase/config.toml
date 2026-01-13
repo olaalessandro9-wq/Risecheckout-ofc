@@ -40,7 +40,10 @@ verify_jwt = false
 [functions.members-area-modules]
 verify_jwt = false
 
-[functions.members-area-content]
+[functions.content-crud]
+verify_jwt = false
+
+[functions.content-save]
 verify_jwt = false
 
 [functions.pixel-management]
