@@ -10,8 +10,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 81 |
-| **No código local** | 59 |
+| **Total de Funções** | 82 |
+| **No código local** | 60 |
 | **Apenas deployadas** | 22 |
 | **Base URL** | `https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/` |
 
@@ -161,7 +161,8 @@
 | `producer-auth` | `.../producer-auth` | ✅ | 7 min ago | 29 |
 | `product-crud` | `.../product-crud` | ✅ | NEW | 0 |
 | `product-settings` | `.../product-settings` | ✅ | NEW | 0 |
-| `offer-management` | `.../offer-management` | ✅ | NEW | 0 |
+| `offer-crud` | `.../offer-crud` | ✅ | NEW | 0 |
+| `offer-bulk` | `.../offer-bulk` | ✅ | NEW | 0 |
 | `checkout-crud` | `.../checkout-crud` | ✅ | NEW | 0 |
 | `checkout-editor` | `.../checkout-editor` | ✅ | NEW | 0 |
 | `order-bump-crud` | `.../order-bump-crud` | ✅ | NEW | 0 |
@@ -278,6 +279,11 @@
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-13 | **REFATORAÇÃO FASE 1.3**: `offer-management` (603 linhas) dividida em 2 Edge Functions especializadas |
+| 2026-01-13 | Criada `offer-crud` (~280 linhas) - CRUD individual: create, update, delete |
+| 2026-01-13 | Criada `offer-bulk` (~220 linhas) - Bulk operations: bulk-save |
+| 2026-01-13 | Migrado `useGeneralTab.ts` para usar novas Edge Functions de oferta |
+| 2026-01-13 | Deletada `offer-management` (substituída pelas 2 novas funções) |
 | 2026-01-13 | **REFATORAÇÃO FASE 1.2**: `product-management` (954 linhas) dividida em 2 Edge Functions especializadas |
 | 2026-01-13 | Criada `product-crud` (~280 linhas) - CRUD básico: create, update, delete |
 | 2026-01-13 | Criada `product-settings` (~300 linhas) - Settings: update-settings, update-general, smart-delete, update-price |
