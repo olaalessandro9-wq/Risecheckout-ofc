@@ -55,19 +55,35 @@ function isSectionType(type: string): type is SectionType {
   return VALID_SECTION_TYPES.includes(type as SectionType);
 }
 
+/** Raw section row from database */
+interface RawSectionRow {
+  id: string;
+  product_id: string;
+  type: string;
+  title: string | null;
+  position: number;
+  settings: Record<string, unknown> | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 // Helper to safely parse database data
 function parseSections(data: unknown[]): Section[] {
-  return (data || []).map((item: any) => ({
-    id: item.id,
-    product_id: item.product_id,
-    type: isSectionType(item.type) ? item.type : 'text',
-    title: item.title,
-    position: item.position,
-    settings: (item.settings || {}) as SectionSettings,
-    is_active: item.is_active,
-    created_at: item.created_at,
-    updated_at: item.updated_at,
-  }));
+  return (data || []).map((item) => {
+    const row = item as RawSectionRow;
+    return {
+      id: row.id,
+      product_id: row.product_id,
+      type: isSectionType(row.type) ? row.type : 'text',
+      title: row.title,
+      position: row.position,
+      settings: (row.settings || {}) as unknown as SectionSettings,
+      is_active: row.is_active,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    };
+  });
 }
 
 function parseSettings(data: unknown): MembersAreaBuilderSettings {

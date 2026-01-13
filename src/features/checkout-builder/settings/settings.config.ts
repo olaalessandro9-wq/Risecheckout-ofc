@@ -14,13 +14,16 @@ export interface SettingCategory {
   fields: SettingField[];
 }
 
+/** Valid default value types for settings */
+type SettingDefaultValue = string | number | boolean | string[];
+
 export interface SettingField {
   id: string;
   type: 'color' | 'select' | 'number' | 'text' | 'toggle';
   label: string;
   description?: string;
   path: string; // dot notation path, e.g., 'design.colors.background'
-  defaultValue: any;
+  defaultValue: SettingDefaultValue;
   options?: Array<{ value: string; label: string }>; // para type='select'
   min?: number; // para type='number'
   max?: number; // para type='number'

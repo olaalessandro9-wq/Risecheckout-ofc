@@ -36,6 +36,16 @@ interface Offer {
   is_default: boolean;
 }
 
+/** Payload for checkout-crud edge function */
+interface CheckoutCrudPayload {
+  action: 'create' | 'update';
+  name: string;
+  isDefault: boolean;
+  offerId: string;
+  checkoutId?: string;
+  productId?: string;
+}
+
 interface CheckoutConfigDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -85,7 +95,7 @@ export const CheckoutConfigDialog = ({
       const sessionToken = localStorage.getItem('producer_session_token');
       
       const action = checkout?.id ? 'update' : 'create';
-      const payload: any = {
+      const payload: CheckoutCrudPayload = {
         action,
         name,
         isDefault,

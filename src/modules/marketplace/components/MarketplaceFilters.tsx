@@ -333,8 +333,8 @@ export function MarketplaceFilters({ categories, filters, onFiltersChange }: Mar
         </Label>
         <Select
           value={filters.sortBy || "recent"}
-          onValueChange={(value: any) =>
-            onFiltersChange({ ...filters, sortBy: value })
+          onValueChange={(value: string) =>
+            onFiltersChange({ ...filters, sortBy: value as "recent" | "popular" | "commission" })
           }
         >
           <SelectTrigger id="sortBy" className="h-9 text-sm">

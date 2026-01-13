@@ -9,11 +9,14 @@ interface SelectFieldProps {
 }
 
 export const SelectField = ({ field, value, onChange }: SelectFieldProps) => {
+  // defaultValue is guaranteed to be a string for select fields
+  const defaultSelectValue = typeof field.defaultValue === 'string' ? field.defaultValue : '';
+  
   return (
     <div className="space-y-2">
       <Label className="text-sm font-medium">{field.label}</Label>
       <Select
-        value={value || field.defaultValue}
+        value={value || defaultSelectValue}
         onValueChange={onChange}
       >
         <SelectTrigger className="will-change-auto">

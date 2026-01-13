@@ -12,7 +12,7 @@ import { Loader2, CheckCircle2, AlertCircle, ChevronDown, Eye, EyeOff, Info, Use
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { toast } from "@/components/ui/sonner";
 import { savePushinPaySettings, getPushinPaySettings, fetchPushinPayAccountInfo } from "../api";
-import type { PushinPayEnvironment, PushinPayAccountInfo } from "../types";
+import type { PushinPayEnvironment, PushinPaySettings, PushinPayAccountInfo } from "../types";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -131,15 +131,12 @@ export function ConfigForm() {
         console.log("[PushinPay] Conta validada:", fetchedAccountInfo.name, "ID:", fetchedAccountInfo.id);
       }
 
-      const settingsToSave: any = {
+      // Build settings object conditionally
+      const settingsToSave: PushinPaySettings = {
         environment,
-        pushinpay_account_id: accountIdToSave,
+        pushinpay_account_id: accountIdToSave ?? undefined,
+        pushinpay_token: tokenToSave ?? '',
       };
-      
-      // Só inclui token se foi fornecido um novo
-      if (tokenToSave) {
-        settingsToSave.pushinpay_token = tokenToSave;
-      }
 
       const result = await savePushinPaySettings(user!.id, settingsToSave);
 

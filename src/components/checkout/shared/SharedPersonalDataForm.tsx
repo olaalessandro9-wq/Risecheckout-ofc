@@ -10,6 +10,7 @@ import React, { useCallback } from 'react';
 import { UserCircle } from 'lucide-react';
 import { PersonalDataField } from './fields';
 import { maskName, maskDocument, maskPhone, validateName, validateDocument, validatePhone, validateEmail, ERROR_MESSAGES } from '@/lib/validation';
+import type { RequiredFieldsConfig } from '@/types/checkout-shared.types';
 
 interface SharedPersonalDataFormProps {
   design: {
@@ -29,7 +30,7 @@ interface SharedPersonalDataFormProps {
   mode?: 'editor' | 'preview' | 'public';
   formData?: { name?: string; email?: string; cpf?: string; phone?: string };
   formErrors?: { name?: string; email?: string; cpf?: string; phone?: string };
-  requiredFields?: any;
+  requiredFields?: RequiredFieldsConfig;
   onFieldChange?: (field: string, value: string) => void;
   disabled?: boolean;
 }
