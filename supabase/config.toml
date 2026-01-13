@@ -14,6 +14,15 @@ verify_jwt = false
 [functions.checkout-management]
 verify_jwt = false
 
+[functions.checkout-crud]
+verify_jwt = false
+
+[functions.order-bump-crud]
+verify_jwt = false
+
+[functions.checkout-editor]
+verify_jwt = false
+
 [functions.product-duplicate]
 verify_jwt = false
 
