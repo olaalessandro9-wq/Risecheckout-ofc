@@ -40,7 +40,7 @@ export function useMembersAreaContents({
   ): Promise<MemberContent | null> => {
     setIsSaving(true);
     try {
-      const { data: result, error } = await supabase.functions.invoke("members-area-content", {
+      const { data: result, error } = await supabase.functions.invoke("content-crud", {
         body: {
           action: "create",
           moduleId,
@@ -76,7 +76,7 @@ export function useMembersAreaContents({
   const updateContent = useCallback(async (id: string, data: Partial<MemberContent>) => {
     setIsSaving(true);
     try {
-      const { data: result, error } = await supabase.functions.invoke("members-area-content", {
+      const { data: result, error } = await supabase.functions.invoke("content-crud", {
         body: {
           action: "update",
           contentId: id,
@@ -103,7 +103,7 @@ export function useMembersAreaContents({
   const deleteContent = useCallback(async (id: string) => {
     setIsSaving(true);
     try {
-      const { data: result, error } = await supabase.functions.invoke("members-area-content", {
+      const { data: result, error } = await supabase.functions.invoke("content-crud", {
         body: {
           action: "delete",
           contentId: id,
@@ -151,7 +151,7 @@ export function useMembersAreaContents({
 
     // 3. Persistir em background via Edge Function
     try {
-      const { data: result, error } = await supabase.functions.invoke("members-area-content", {
+      const { data: result, error } = await supabase.functions.invoke("content-crud", {
         body: {
           action: "reorder",
           moduleId,

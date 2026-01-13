@@ -194,7 +194,7 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
         })
       );
 
-      const { data: result, error } = await supabase.functions.invoke("members-area-content", {
+      const { data: result, error } = await supabase.functions.invoke("content-save", {
         body: {
           action: "save-full",
           productId,

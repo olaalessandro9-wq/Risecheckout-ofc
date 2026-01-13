@@ -10,8 +10,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 82 |
-| **No código local** | 60 |
+| **Total de Funções** | 86 |
+| **No código local** | 64 |
 | **Apenas deployadas** | 22 |
 | **Base URL** | `https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/` |
 
@@ -126,13 +126,17 @@
 | Nome | URL | No Repo? | Última Atividade | Invocações |
 |------|-----|----------|------------------|------------|
 | `members-area-certificates` | `.../members-area-certificates` | ✅ | 7 min ago | 71 |
-| `members-area-content` | `.../members-area-content` | ✅ | NEW | 0 |
 | `members-area-drip` | `.../members-area-drip` | ✅ | 7 min ago | 72 |
 | `members-area-groups` | `.../members-area-groups` | ✅ | 7 min ago | 75 |
 | `members-area-modules` | `.../members-area-modules` | ✅ | NEW | 0 |
 | `members-area-progress` | `.../members-area-progress` | ✅ | 7 min ago | 70 |
 | `members-area-quizzes` | `.../members-area-quizzes` | ✅ | 7 min ago | 71 |
-| `members-area-students` | `.../members-area-students` | ✅ | 7 min ago | 78 |
+| `content-crud` | `.../content-crud` | ✅ | NEW | 0 |
+| `content-save` | `.../content-save` | ✅ | NEW | 0 |
+| `students-invite` | `.../students-invite` | ✅ | NEW | 0 |
+| `students-access` | `.../students-access` | ✅ | NEW | 0 |
+| `students-groups` | `.../students-groups` | ✅ | NEW | 0 |
+| `students-list` | `.../students-list` | ✅ | NEW | 0 |
 
 ### Email
 
@@ -279,6 +283,18 @@
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-13 | **REFATORAÇÃO FASE 1.4**: `members-area-students` (1155 linhas) dividida em 4 Edge Functions especializadas |
+| 2026-01-13 | Criada `students-invite` (~280 linhas) - Convites: invite, auto-invite |
+| 2026-01-13 | Criada `students-access` (~100 linhas) - Acesso: grant-access, revoke-access |
+| 2026-01-13 | Criada `students-groups` (~140 linhas) - Grupos: assign-groups |
+| 2026-01-13 | Criada `students-list` (~250 linhas) - Listagem: list |
+| 2026-01-13 | Migrados 4 arquivos frontend para usar novas Edge Functions de students |
+| 2026-01-13 | Deletada `members-area-students` (substituída pelas 4 novas funções) |
+| 2026-01-13 | **REFATORAÇÃO FASE 1.4**: `members-area-content` (584 linhas) dividida em 2 Edge Functions especializadas |
+| 2026-01-13 | Criada `content-crud` (~260 linhas) - CRUD: create, update, delete, reorder |
+| 2026-01-13 | Criada `content-save` (~230 linhas) - Save: save-full (atomic) |
+| 2026-01-13 | Migrados 2 arquivos frontend para usar novas Edge Functions de content |
+| 2026-01-13 | Deletada `members-area-content` (substituída pelas 2 novas funções) |
 | 2026-01-13 | **REFATORAÇÃO FASE 1.3**: `offer-management` (603 linhas) dividida em 2 Edge Functions especializadas |
 | 2026-01-13 | Criada `offer-crud` (~280 linhas) - CRUD individual: create, update, delete |
 | 2026-01-13 | Criada `offer-bulk` (~220 linhas) - Bulk operations: bulk-save |
