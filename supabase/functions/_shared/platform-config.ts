@@ -394,8 +394,9 @@ export async function getVendorFeePercent(
     }
 
     return PLATFORM_FEE_PERCENT;
-  } catch (err) {
-    console.error("[platform-config] Erro ao buscar taxa:", err);
+  } catch (err: unknown) {
+    const errMessage = err instanceof Error ? err.message : String(err);
+    console.error("[platform-config] Erro ao buscar taxa:", errMessage);
     return PLATFORM_FEE_PERCENT;
   }
 }
@@ -433,8 +434,9 @@ export async function isVendorOwner(
       console.log(`[platform-config] 🏠 OWNER detectado via user_roles`);
     }
     return isOwner;
-  } catch (err) {
-    console.error("[platform-config] Erro ao verificar owner:", err);
+  } catch (err: unknown) {
+    const errMessage = err instanceof Error ? err.message : String(err);
+    console.error("[platform-config] Erro ao verificar owner:", errMessage);
     return false;
   }
 }
@@ -564,8 +566,9 @@ async function getOwnerCredentials(
     } else {
       console.log(`[platform-config] 🚀 Owner usando PRODUÇÃO para ${gatewayType}`);
     }
-  } catch (err) {
-    console.warn(`[platform-config] Erro ao buscar ambiente, usando produção:`, err);
+  } catch (err: unknown) {
+    const errMessage = err instanceof Error ? err.message : String(err);
+    console.warn(`[platform-config] Erro ao buscar ambiente, usando produção:`, errMessage);
   }
   
   const credentials: GatewayCredentials = { environment };
