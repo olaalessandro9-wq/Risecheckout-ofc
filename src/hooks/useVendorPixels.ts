@@ -1,11 +1,15 @@
 /**
  * Hook: useVendorPixels
  * Gerencia CRUD de pixels do vendedor (biblioteca)
+ * 
+ * @version 2.0.0 - Migrado para Edge Function pixel-management
+ * @security Todas as operações via backend com validação de ownership
  */
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 import type { VendorPixel, PixelFormData, PixelPlatform } from "@/components/pixels/types";
 
 interface UseVendorPixelsReturn {
@@ -30,45 +34,24 @@ export function useVendorPixels(): UseVendorPixelsReturn {
       setIsLoading(true);
       setError(null);
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const sessionToken = getProducerSessionToken();
+      if (!sessionToken) {
         setError("Usuário não autenticado");
         return;
       }
 
-      // Buscar pixels do vendedor
-      const { data: pixelsData, error: pixelsError } = await supabase
-        .from("vendor_pixels")
-        .select("*")
-        .eq("vendor_id", user.id)
-        .order("platform", { ascending: true })
-        .order("name", { ascending: true });
+      const { data, error: fnError } = await supabase.functions.invoke("pixel-management", {
+        body: { action: "list" },
+        headers: { "x-producer-session-token": sessionToken },
+      });
 
-      if (pixelsError) throw pixelsError;
+      if (fnError) throw fnError;
+      if (data?.error) throw new Error(data.error);
 
-      // Buscar contagem de produtos vinculados para cada pixel
-      const pixelIds = pixelsData?.map(p => p.id) || [];
-      
-      let linkedCounts: Record<string, number> = {};
-      if (pixelIds.length > 0) {
-        const { data: linksData, error: linksError } = await supabase
-          .from("product_pixels")
-          .select("pixel_id")
-          .in("pixel_id", pixelIds);
-
-        if (!linksError && linksData) {
-          linkedCounts = linksData.reduce((acc, link) => {
-            acc[link.pixel_id] = (acc[link.pixel_id] || 0) + 1;
-            return acc;
-          }, {} as Record<string, number>);
-        }
-      }
-
-      // Adicionar contagem aos pixels
-      const enrichedPixels: VendorPixel[] = (pixelsData || []).map(pixel => ({
+      // Cast para tipagem correta
+      const enrichedPixels: VendorPixel[] = (data.pixels || []).map((pixel: VendorPixel) => ({
         ...pixel,
         platform: pixel.platform as PixelPlatform,
-        linked_products_count: linkedCounts[pixel.id] || 0,
       }));
 
       setPixels(enrichedPixels);
@@ -89,31 +72,31 @@ export function useVendorPixels(): UseVendorPixelsReturn {
     try {
       setIsSaving(true);
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const sessionToken = getProducerSessionToken();
+      if (!sessionToken) {
         toast.error("Usuário não autenticado");
         return false;
       }
 
-      const { error } = await supabase
-        .from("vendor_pixels")
-        .insert({
-          vendor_id: user.id,
-          platform: data.platform,
-          name: data.name,
-          pixel_id: data.pixel_id,
-          access_token: data.access_token || null,
-          conversion_label: data.conversion_label || null,
-          domain: data.domain || null,
-          is_active: data.is_active,
-        });
+      const { data: result, error: fnError } = await supabase.functions.invoke("pixel-management", {
+        body: {
+          action: "create",
+          data: {
+            platform: data.platform,
+            name: data.name,
+            pixel_id: data.pixel_id,
+            access_token: data.access_token || null,
+            conversion_label: data.conversion_label || null,
+            domain: data.domain || null,
+            is_active: data.is_active,
+          },
+        },
+        headers: { "x-producer-session-token": sessionToken },
+      });
 
-      if (error) {
-        if (error.code === "23505") {
-          toast.error("Este Pixel ID já está cadastrado para esta plataforma");
-        } else {
-          throw error;
-        }
+      if (fnError) throw fnError;
+      if (result?.error) {
+        toast.error(result.error);
         return false;
       }
 
@@ -133,19 +116,33 @@ export function useVendorPixels(): UseVendorPixelsReturn {
     try {
       setIsSaving(true);
 
-      const { error } = await supabase
-        .from("vendor_pixels")
-        .update({
-          name: data.name,
-          pixel_id: data.pixel_id,
-          access_token: data.access_token || null,
-          conversion_label: data.conversion_label || null,
-          domain: data.domain || null,
-          is_active: data.is_active,
-        })
-        .eq("id", id);
+      const sessionToken = getProducerSessionToken();
+      if (!sessionToken) {
+        toast.error("Usuário não autenticado");
+        return false;
+      }
 
-      if (error) throw error;
+      const { data: result, error: fnError } = await supabase.functions.invoke("pixel-management", {
+        body: {
+          action: "update",
+          pixelId: id,
+          data: {
+            name: data.name,
+            pixel_id: data.pixel_id,
+            access_token: data.access_token || null,
+            conversion_label: data.conversion_label || null,
+            domain: data.domain || null,
+            is_active: data.is_active,
+          },
+        },
+        headers: { "x-producer-session-token": sessionToken },
+      });
+
+      if (fnError) throw fnError;
+      if (result?.error) {
+        toast.error(result.error);
+        return false;
+      }
 
       toast.success("Pixel atualizado com sucesso!");
       await fetchPixels();
@@ -163,12 +160,25 @@ export function useVendorPixels(): UseVendorPixelsReturn {
     try {
       setIsSaving(true);
 
-      const { error } = await supabase
-        .from("vendor_pixels")
-        .delete()
-        .eq("id", id);
+      const sessionToken = getProducerSessionToken();
+      if (!sessionToken) {
+        toast.error("Usuário não autenticado");
+        return false;
+      }
 
-      if (error) throw error;
+      const { data: result, error: fnError } = await supabase.functions.invoke("pixel-management", {
+        body: {
+          action: "delete",
+          pixelId: id,
+        },
+        headers: { "x-producer-session-token": sessionToken },
+      });
+
+      if (fnError) throw fnError;
+      if (result?.error) {
+        toast.error(result.error);
+        return false;
+      }
 
       toast.success("Pixel excluído com sucesso!");
       await fetchPixels();
