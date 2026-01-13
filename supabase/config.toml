@@ -11,7 +11,10 @@ verify_jwt = false
 [functions.product-settings]
 verify_jwt = false
 
-[functions.offer-management]
+[functions.offer-crud]
+verify_jwt = false
+
+[functions.offer-bulk]
 verify_jwt = false
 
 # ✅ (REMOVIDA: checkout-management foi dividida em 3 funções abaixo)

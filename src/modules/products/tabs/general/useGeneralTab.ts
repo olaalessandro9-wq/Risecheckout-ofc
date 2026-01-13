@@ -231,8 +231,8 @@ export function useGeneralTab() {
     const sessionToken = localStorage.getItem('producer_session_token');
     
     for (const offerId of deletedOfferIds) {
-      const { data, error } = await supabase.functions.invoke('offer-management', {
-        body: { action: 'delete', offerId },
+      const { data, error } = await supabase.functions.invoke('offer-crud/delete', {
+        body: { offerId },
         headers: { 'x-producer-session-token': sessionToken || '' }
       });
       
@@ -262,8 +262,8 @@ export function useGeneralTab() {
       memberGroupId: offer.member_group_id || null,
     }));
     
-    const { data, error } = await supabase.functions.invoke('offer-management', {
-      body: { action: 'bulk-save', productId: product.id, offers: offersToSave },
+    const { data, error } = await supabase.functions.invoke('offer-bulk/bulk-save', {
+      body: { productId: product.id, offers: offersToSave },
       headers: { 'x-producer-session-token': sessionToken || '' }
     });
     
