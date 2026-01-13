@@ -225,7 +225,7 @@ export class CircuitBreaker {
 /**
  * Configurações pré-definidas para gateways de pagamento
  */
-export const GATEWAY_CIRCUIT_CONFIGS: Record<string, Partial<CircuitBreakerConfig>> = {
+export const GATEWAY_CIRCUIT_CONFIGS: Record<string, Partial<CircuitBreakerConfig> & { name: string }> = {
   mercadopago: {
     name: 'mercadopago-api',
     failureThreshold: 5,

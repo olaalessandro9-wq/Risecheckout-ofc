@@ -99,7 +99,7 @@ serve(async (req) => {
           
           <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <h3 style="margin-top: 0;">Detalhes do Pedido</h3>
-            <p><strong>Produto:</strong> ${(order.product as { name: string })?.name || 'N/A'}</p>
+            <p><strong>Produto:</strong> ${((order.product as unknown as { name: string }[]) || [])[0]?.name || 'N/A'}</p>
             <p><strong>Valor:</strong> R$ ${(order.amount_cents / 100).toFixed(2)}</p>
             <p><strong>Expira em:</strong> ${expirationDate}</p>
           </div>
