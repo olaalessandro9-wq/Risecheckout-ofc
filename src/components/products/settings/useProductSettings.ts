@@ -1,5 +1,7 @@
 /**
  * Hook para gerenciar carregamento e salvamento de configurações do produto
+ * 
+ * MIGRADO para Edge Function: product-settings (action: update-settings)
  */
 
 import { useEffect, useState, useCallback } from "react";
@@ -95,8 +97,7 @@ export function useProductSettings(
     }
   }, [isOwner]);
 
-  // Carregar configurações do produto
-  // ✅ CORREÇÃO: Gateways agora vêm do PRODUTO, não do checkout
+  // Carregar configurações do produto (READ ainda é direto - apenas escrita via Edge Function)
   const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
@@ -139,8 +140,7 @@ export function useProductSettings(
     }
   }, [productId, loadCredentials]);
 
-  // Salvar configurações
-  // ✅ CORREÇÃO: Gateways agora são salvos no PRODUTO, não no checkout
+  // Salvar configurações via Edge Function
   const handleSave = useCallback(async () => {
     const pixGateway = getGatewayById(form.pix_gateway);
     const ccGateway = getGatewayById(form.credit_card_gateway);
@@ -157,24 +157,36 @@ export function useProductSettings(
 
     setSaving(true);
     try {
-      const { error: productError } = await supabase
-        .from("products")
-        .update({
-          required_fields: {
-            name: true,
-            email: true,
-            phone: form.required_fields.phone,
-            cpf: form.required_fields.cpf,
+      const sessionToken = localStorage.getItem('producer_session_token');
+      
+      const { data, error } = await supabase.functions.invoke('product-settings', {
+        body: {
+          action: 'update-settings',
+          productId,
+          sessionToken,
+          settings: {
+            required_fields: {
+              name: true,
+              email: true,
+              phone: form.required_fields.phone,
+              cpf: form.required_fields.cpf,
+            },
+            default_payment_method: form.default_payment_method,
+            pix_gateway: form.pix_gateway,
+            credit_card_gateway: form.credit_card_gateway,
           },
-          default_payment_method: form.default_payment_method,
-          pix_gateway: form.pix_gateway,
-          credit_card_gateway: form.credit_card_gateway,
-        })
-        .eq("id", productId);
+        },
+      });
 
-      if (productError) {
-        console.error("Error saving product:", productError);
-        toast.error("Erro ao salvar configurações do produto.");
+      if (error) {
+        console.error("Error saving via Edge Function:", error);
+        toast.error("Erro ao salvar configurações.");
+        return;
+      }
+
+      if (!data?.success) {
+        console.error("API error:", data?.error);
+        toast.error(data?.error || "Erro ao salvar configurações.");
         return;
       }
 
@@ -195,6 +207,7 @@ export function useProductSettings(
       loadSettings();
     }
   }, [loadSettings, permissionsLoading, productId]);
+  
   // Loading combinado: aguarda permissões E configurações
   const isFullyLoading = loading || permissionsLoading;
 

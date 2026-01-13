@@ -1,6 +1,9 @@
 /**
  * Hook: useProductPixels
  * Gerencia pixels vinculados a um produto específico
+ * 
+ * MIGRADO para Edge Function: pixel-management
+ * Ações: list-product-links, link-to-product, unlink-from-product, update-product-link
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -34,45 +37,46 @@ export function useProductPixels(productId: string): UseProductPixelsReturn {
     try {
       setIsLoading(true);
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const sessionToken = localStorage.getItem('producer_session_token');
+      if (!sessionToken) {
+        console.error("[useProductPixels] No session token");
+        return;
+      }
 
-      // Buscar todos os pixels do vendedor
-      const { data: pixels, error: pixelsError } = await supabase
-        .from("vendor_pixels")
-        .select("*")
-        .eq("vendor_id", user.id)
-        .order("platform", { ascending: true })
-        .order("name", { ascending: true });
+      const { data, error } = await supabase.functions.invoke('pixel-management', {
+        body: {
+          action: 'list-product-links',
+          productId,
+        },
+        headers: {
+          'x-producer-session-token': sessionToken,
+        },
+      });
 
-      if (pixelsError) throw pixelsError;
+      if (error) {
+        console.error("[useProductPixels] Fetch error:", error);
+        return;
+      }
 
-      // Buscar vínculos do produto
-      const { data: links, error: linksError } = await supabase
-        .from("product_pixels")
-        .select("*")
-        .eq("product_id", productId);
+      if (!data.success) {
+        console.error("[useProductPixels] API error:", data.error);
+        return;
+      }
 
-      if (linksError) throw linksError;
-
-      const pixelsTyped: VendorPixel[] = (pixels || []).map(p => ({
+      // Map vendor pixels with proper typing
+      const pixelsTyped: VendorPixel[] = (data.vendorPixels || []).map((p: any) => ({
         ...p,
         platform: p.platform as PixelPlatform,
       }));
 
       setVendorPixels(pixelsTyped);
 
-      // Criar lista de pixels vinculados com dados do link
-      const linked: LinkedPixel[] = [];
-      for (const link of links || []) {
-        const pixel = pixelsTyped.find(p => p.id === link.pixel_id);
-        if (pixel) {
-          linked.push({
-            ...pixel,
-            link: link as ProductPixel,
-          });
-        }
-      }
+      // Map linked pixels with link data
+      const linked: LinkedPixel[] = (data.linkedPixels || []).map((item: any) => ({
+        ...item,
+        platform: item.platform as PixelPlatform,
+        link: item.link as ProductPixel,
+      }));
 
       setLinkedPixels(linked);
     } catch (err) {
@@ -90,20 +94,40 @@ export function useProductPixels(productId: string): UseProductPixelsReturn {
     try {
       setIsSaving(true);
 
-      const { error } = await supabase
-        .from("product_pixels")
-        .insert({
-          product_id: productId,
-          pixel_id: data.pixel_id,
-          fire_on_initiate_checkout: data.fire_on_initiate_checkout,
-          fire_on_purchase: data.fire_on_purchase,
-          fire_on_pix: data.fire_on_pix,
-          fire_on_card: data.fire_on_card,
-          fire_on_boleto: data.fire_on_boleto,
-          custom_value_percent: data.custom_value_percent,
-        });
+      const sessionToken = localStorage.getItem('producer_session_token');
+      if (!sessionToken) {
+        console.error("[useProductPixels] No session token");
+        return false;
+      }
 
-      if (error) throw error;
+      const { data: result, error } = await supabase.functions.invoke('pixel-management', {
+        body: {
+          action: 'link-to-product',
+          productId,
+          pixelId: data.pixel_id,
+          data: {
+            fire_on_initiate_checkout: data.fire_on_initiate_checkout,
+            fire_on_purchase: data.fire_on_purchase,
+            fire_on_pix: data.fire_on_pix,
+            fire_on_card: data.fire_on_card,
+            fire_on_boleto: data.fire_on_boleto,
+            custom_value_percent: data.custom_value_percent,
+          },
+        },
+        headers: {
+          'x-producer-session-token': sessionToken,
+        },
+      });
+
+      if (error) {
+        console.error("[useProductPixels] Link error:", error);
+        return false;
+      }
+
+      if (!result.success) {
+        console.error("[useProductPixels] API error:", result.error);
+        return false;
+      }
 
       await fetchData();
       return true;
@@ -119,13 +143,32 @@ export function useProductPixels(productId: string): UseProductPixelsReturn {
     try {
       setIsSaving(true);
 
-      const { error } = await supabase
-        .from("product_pixels")
-        .delete()
-        .eq("product_id", productId)
-        .eq("pixel_id", pixelId);
+      const sessionToken = localStorage.getItem('producer_session_token');
+      if (!sessionToken) {
+        console.error("[useProductPixels] No session token");
+        return false;
+      }
 
-      if (error) throw error;
+      const { data: result, error } = await supabase.functions.invoke('pixel-management', {
+        body: {
+          action: 'unlink-from-product',
+          productId,
+          pixelId,
+        },
+        headers: {
+          'x-producer-session-token': sessionToken,
+        },
+      });
+
+      if (error) {
+        console.error("[useProductPixels] Unlink error:", error);
+        return false;
+      }
+
+      if (!result.success) {
+        console.error("[useProductPixels] API error:", result.error);
+        return false;
+      }
 
       await fetchData();
       return true;
@@ -141,13 +184,40 @@ export function useProductPixels(productId: string): UseProductPixelsReturn {
     try {
       setIsSaving(true);
 
-      const { error } = await supabase
-        .from("product_pixels")
-        .update(data)
-        .eq("product_id", productId)
-        .eq("pixel_id", pixelId);
+      const sessionToken = localStorage.getItem('producer_session_token');
+      if (!sessionToken) {
+        console.error("[useProductPixels] No session token");
+        return false;
+      }
 
-      if (error) throw error;
+      const { data: result, error } = await supabase.functions.invoke('pixel-management', {
+        body: {
+          action: 'update-product-link',
+          productId,
+          pixelId,
+          data: {
+            fire_on_initiate_checkout: data.fire_on_initiate_checkout,
+            fire_on_purchase: data.fire_on_purchase,
+            fire_on_pix: data.fire_on_pix,
+            fire_on_card: data.fire_on_card,
+            fire_on_boleto: data.fire_on_boleto,
+            custom_value_percent: data.custom_value_percent,
+          },
+        },
+        headers: {
+          'x-producer-session-token': sessionToken,
+        },
+      });
+
+      if (error) {
+        console.error("[useProductPixels] Update link error:", error);
+        return false;
+      }
+
+      if (!result.success) {
+        console.error("[useProductPixels] API error:", result.error);
+        return false;
+      }
 
       await fetchData();
       return true;

@@ -1,3 +1,9 @@
+/**
+ * ProductCheckoutSettings - Configurações de Checkout do Produto
+ * 
+ * MIGRADO para Edge Function: product-settings (action: update-settings)
+ */
+
 import { useEffect, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -13,12 +19,6 @@ type RequiredFields = {
   cpf: boolean;
 };
 
-type ProductRow = {
-  id: string;
-  required_fields: RequiredFields | null;
-  default_payment_method: "pix" | "credit_card" | null;
-};
-
 export function ProductCheckoutSettings({ productId }: { productId: string }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -30,7 +30,7 @@ export function ProductCheckoutSettings({ productId }: { productId: string }) {
   });
   const [defaultMethod, setDefaultMethod] = useState<"pix" | "credit_card">("pix");
 
-  // carrega do supabase
+  // carrega do supabase (READ direto - ok)
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -63,20 +63,33 @@ export function ProductCheckoutSettings({ productId }: { productId: string }) {
     setRequiredFields((prev) => ({ ...prev, [key]: !!checked }));
   };
 
+  // Salvar via Edge Function
   const handleSave = async () => {
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from("products")
-        .update({
-          required_fields: requiredFields,
-          default_payment_method: defaultMethod
-        })
-        .eq("id", productId);
+      const sessionToken = localStorage.getItem('producer_session_token');
+      
+      const { data, error } = await supabase.functions.invoke('product-settings', {
+        body: {
+          action: 'update-settings',
+          productId,
+          sessionToken,
+          settings: {
+            required_fields: requiredFields,
+            default_payment_method: defaultMethod,
+          },
+        },
+      });
 
       if (error) {
-        console.error("Error saving product settings:", error);
+        console.error("Error saving via Edge Function:", error);
         toast.error("Erro ao salvar configurações.");
+        return;
+      }
+
+      if (!data?.success) {
+        console.error("API error:", data?.error);
+        toast.error(data?.error || "Erro ao salvar configurações.");
         return;
       }
 
