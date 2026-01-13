@@ -220,7 +220,7 @@ export class AsaasAdapter implements IPaymentGateway {
         }
 
         // 2. Parsear token do cartão (formato: token ou objeto serializado)
-        const cardData = this.parseCardToken(request.card_token);
+        const cardData = this.parseCardToken(request.card_token || '');
 
         // 3. Criar cobrança com cartão e split
         const payload: Record<string, unknown> = {

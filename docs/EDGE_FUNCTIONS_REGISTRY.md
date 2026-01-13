@@ -10,9 +10,9 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 80 |
-| **No código local** | 64 |
-| **Apenas deployadas** | 16 |
+| **Total de Funções** | 85 |
+| **No código local** | 85 |
+| **Apenas deployadas** | 0 |
 | **Base URL** | `https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/` |
 
 ---
@@ -223,34 +223,13 @@
 
 ---
 
-## Funções NÃO Presentes no Código Local (16)
+## Funções NÃO Presentes no Código Local (0)
 
-> ⚠️ **Atenção**: Estas funções estão deployadas no Supabase mas NÃO existem no repositório local.
-> Isso representa dívida técnica e risco de inconsistência.
+> ✅ **Todas as funções estão sincronizadas!** Não há mais dívida técnica de funções deployed-only.
 
 | Função | Categoria | Ação Recomendada |
 |--------|-----------|------------------|
-| `asaas-validate-credentials` | Payments | Criar no repo |
-| `pushinpay-stats` | Payments | Criar no repo |
-| `test-pushinpay-connection` | Payments | Criar no repo |
-| `utmify-conversion` | Tracking | Criar no repo |
-| `facebook-conversion-api` | Tracking | Criar no repo |
-| `dashboard-analytics` | Tracking | Criar no repo |
-| `checkout-heartbeat` | Tracking | Criar no repo |
-| `detect-abandoned-checkouts` | Tracking | Criar no repo |
-| `get-order-for-pix` | Orders | Criar no repo |
-| `dispatch-webhook` | Webhooks | Criar no repo |
-| `send-webhook` | Webhooks | Criar no repo |
-| `retry-webhooks` | Webhooks | Criar no repo |
-| `get-webhook-logs` | Webhooks | Criar no repo |
-| `test-webhook-dispatch` | Webhooks | Criar no repo |
-| `trigger-webhooks-internal` | Webhooks | Criar no repo |
-| `buyer-profile` | Buyer | Criar no repo |
-| `buyer-session` | Buyer | Criar no repo |
-| `send-confirmation-email` | Email | Criar no repo |
-| `send-pix-email` | Email | Criar no repo |
-| `encrypt-token` | Security | Criar no repo |
-| `check-secrets` | Vault | Criar no repo |
+| - | - | Nenhuma ação necessária |
 
 ---
 
@@ -275,6 +254,7 @@
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-13 | **FASE 3**: Criados 21 stubs para funções deployed-only - DÍVIDA TÉCNICA ZERO! |
 | 2026-01-13 | **FASE 2**: Deletadas 6 funções legado: `webhook-pushingpay`, `forward-to-utmify`, `facebook-conversions-api`, `save-vendor-credentials`, `migrate-credentials-to-vault`, `fix-inactive-products` |
 | 2026-01-13 | **REFATORAÇÃO FASE 1.4**: `members-area-students` (1155 linhas) dividida em 4 Edge Functions especializadas |
 | 2026-01-13 | Criada `students-invite` (~280 linhas) - Convites: invite, auto-invite |

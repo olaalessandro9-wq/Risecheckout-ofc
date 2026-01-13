@@ -236,3 +236,77 @@ verify_jwt = false
 
 [functions.gdpr-forget]
 verify_jwt = false
+
+# =====================================================
+# FASE 3: STUBS MIGRADOS DO DEPLOY (21 funções)
+# =====================================================
+
+# ✅ AUTENTICADAS (Payments - Validação de Credenciais)
+[functions.asaas-validate-credentials]
+verify_jwt = false
+
+[functions.pushinpay-stats]
+verify_jwt = false
+
+[functions.test-pushinpay-connection]
+verify_jwt = false
+
+# ✅ PÚBLICAS (Tracking - Conversões e Analytics)
+[functions.utmify-conversion]
+verify_jwt = false
+
+[functions.facebook-conversion-api]
+verify_jwt = false
+
+[functions.dashboard-analytics]
+verify_jwt = false
+
+[functions.checkout-heartbeat]
+verify_jwt = false
+
+[functions.detect-abandoned-checkouts]
+verify_jwt = false
+
+# ✅ PÚBLICAS (Orders)
+[functions.get-order-for-pix]
+verify_jwt = false
+
+# ✅ PÚBLICAS (Webhooks)
+[functions.dispatch-webhook]
+verify_jwt = false
+
+[functions.send-webhook]
+verify_jwt = false
+
+[functions.retry-webhooks]
+verify_jwt = false
+
+[functions.get-webhook-logs]
+verify_jwt = false
+
+[functions.test-webhook-dispatch]
+verify_jwt = false
+
+[functions.trigger-webhooks-internal]
+verify_jwt = false
+
+# ✅ PÚBLICAS (Buyer - Autenticação própria via x-buyer-token)
+[functions.buyer-profile]
+verify_jwt = false
+
+[functions.buyer-session]
+verify_jwt = false
+
+# ✅ PÚBLICAS (Email - Chamadas internas)
+[functions.send-confirmation-email]
+verify_jwt = false
+
+[functions.send-pix-email]
+verify_jwt = false
+
+# ✅ AUTENTICADAS (Security)
+[functions.encrypt-token]
+verify_jwt = false
+
+[functions.check-secrets]
+verify_jwt = false

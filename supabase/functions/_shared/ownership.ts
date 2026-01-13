@@ -44,7 +44,9 @@ export async function verifyCheckoutOwnership(
     return { valid: false };
   }
 
-  const product = data.products as { user_id: string } | null;
+  // deno-lint-ignore no-explicit-any
+  const productsData = data.products as any;
+  const product = Array.isArray(productsData) ? productsData[0] : productsData;
   if (product?.user_id !== producerId) {
     return { valid: false };
   }
@@ -70,7 +72,9 @@ export async function verifyOfferOwnership(
     return { valid: false };
   }
 
-  const product = data.products as { user_id: string } | null;
+  // deno-lint-ignore no-explicit-any
+  const productsData = data.products as any;
+  const product = Array.isArray(productsData) ? productsData[0] : productsData;
   if (product?.user_id !== producerId) {
     return { valid: false };
   }
@@ -103,8 +107,12 @@ export async function verifyOrderBumpOwnership(
     return { valid: false };
   }
 
-  const checkout = data.checkouts as { products: { user_id: string } } | null;
-  if (checkout?.products?.user_id !== producerId) {
+  // deno-lint-ignore no-explicit-any
+  const checkoutsData = data.checkouts as any;
+  const checkoutData = Array.isArray(checkoutsData) ? checkoutsData[0] : checkoutsData;
+  const productsData = checkoutData?.products;
+  const productData = Array.isArray(productsData) ? productsData[0] : productsData;
+  if (productData?.user_id !== producerId) {
     return { valid: false };
   }
 
