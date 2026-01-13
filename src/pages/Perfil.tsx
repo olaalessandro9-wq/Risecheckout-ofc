@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Loader2, User } from "lucide-react";
-import { useProducerSessionToken } from "@/hooks/useProducerSessionToken";
+const SESSION_KEY = "producer_session_token";
 
 // Máscaras
 function maskCPF(value: string): string {
@@ -44,7 +44,7 @@ function getInitials(name: string | null | undefined): string {
 
 export default function Perfil() {
   const { user } = useAuth();
-  const sessionToken = useProducerSessionToken();
+  const sessionToken = localStorage.getItem(SESSION_KEY);
   const queryClient = useQueryClient();
   
   const [nome, setNome] = useState("");
