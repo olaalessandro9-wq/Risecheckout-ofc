@@ -1,4 +1,10 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+/**
+ * members-area-groups - Gerenciamento de grupos de membros
+ * 
+ * @version 2.0.0 - RISE Protocol V2 Compliance (Zero any)
+ */
+
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
 import { 
   rateLimitMiddleware, 
@@ -10,18 +16,65 @@ import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/u
 // Use public CORS for members area
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
+// === INTERFACES (Zero any) ===
+
+interface PermissionInput {
+  module_id: string;
+  can_access: boolean;
+}
+
+interface GroupData {
+  name?: string;
+  description?: string;
+  is_default?: boolean;
+  permissions?: PermissionInput[];
+  offer_ids?: string[];
+}
+
 interface GroupRequest {
   action: "list" | "get" | "create" | "update" | "delete" | "permissions" | "list_offers" | "link_offers";
   product_id?: string;
   group_id?: string;
-  data?: {
-    name?: string;
-    description?: string;
-    is_default?: boolean;
-    permissions?: { module_id: string; can_access: boolean }[];
-    offer_ids?: string[]; // IDs das ofertas a vincular ao grupo
-  };
+  data?: GroupData;
 }
+
+interface ProductRecord {
+  id: string;
+  user_id: string;
+}
+
+interface GroupRecord {
+  id: string;
+  product_id: string;
+  name: string;
+  description: string | null;
+  is_default: boolean;
+  created_at: string;
+}
+
+interface GroupWithPermissions extends GroupRecord {
+  permissions: Array<{
+    module_id: string;
+    has_access: boolean;
+  }>;
+}
+
+interface OfferRecord {
+  id: string;
+  name: string;
+  price: number;
+  is_default: boolean | null;
+  member_group_id: string | null;
+  status: string;
+}
+
+interface PermissionToInsert {
+  group_id: string;
+  module_id: string;
+  has_access: boolean;
+}
+
+// === MAIN HANDLER ===
 
 Deno.serve(async (req) => {
   // CORS preflight
@@ -32,11 +85,11 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase: SupabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
     // Rate limiting
     const rateLimitResult = await rateLimitMiddleware(
-      supabase as any,
+      supabase,
       req,
       RATE_LIMIT_CONFIGS.MEMBERS_AREA
     );
@@ -64,7 +117,7 @@ Deno.serve(async (req) => {
         .from("products")
         .select("id, user_id")
         .eq("id", product_id)
-        .single();
+        .single() as { data: ProductRecord | null; error: Error | null };
 
       if (productError || !product || product.user_id !== producer.id) {
         return new Response(
@@ -87,7 +140,7 @@ Deno.serve(async (req) => {
           .from("product_member_groups")
           .select("*")
           .eq("product_id", product_id)
-          .order("created_at", { ascending: true });
+          .order("created_at", { ascending: true }) as { data: GroupRecord[] | null; error: Error | null };
 
         if (error) throw error;
 
@@ -115,7 +168,7 @@ Deno.serve(async (req) => {
           )
           `)
           .eq("id", group_id)
-          .single();
+          .single() as { data: GroupWithPermissions | null; error: Error | null };
 
         if (error) throw error;
 
@@ -150,11 +203,11 @@ Deno.serve(async (req) => {
             is_default: data.is_default || false,
           })
           .select()
-          .single();
+          .single() as { data: GroupRecord | null; error: Error | null };
 
         if (error) throw error;
 
-        console.log(`[members-area-groups] Created group: ${group.id}`);
+        console.log(`[members-area-groups] Created group: ${group?.id}`);
 
         return new Response(
           JSON.stringify({ success: true, group }),
@@ -177,7 +230,7 @@ Deno.serve(async (req) => {
             .from("product_member_groups")
             .select("product_id")
             .eq("id", group_id)
-            .single();
+            .single() as { data: { product_id: string } | null };
 
           if (currentGroup?.product_id) {
             // Desativar is_default de todos os outros grupos do produto
@@ -199,7 +252,7 @@ Deno.serve(async (req) => {
           .update(updateData)
           .eq("id", group_id)
           .select()
-          .single();
+          .single() as { data: GroupRecord | null; error: Error | null };
 
         if (error) throw error;
 
@@ -222,7 +275,7 @@ Deno.serve(async (req) => {
         .from("product_member_groups")
         .select("is_default, product_id")
         .eq("id", group_id)
-        .single();
+        .single() as { data: { is_default: boolean; product_id: string } | null; error: Error | null };
 
       if (fetchError) {
         return new Response(
@@ -242,7 +295,7 @@ Deno.serve(async (req) => {
       const { count, error: countError } = await supabase
         .from("product_member_groups")
         .select("id", { count: 'exact', head: true })
-        .eq("product_id", group.product_id);
+        .eq("product_id", group!.product_id);
 
       if (countError) {
         return new Response(
@@ -286,7 +339,7 @@ Deno.serve(async (req) => {
           .eq("group_id", group_id);
 
         // Inserir novas permissões
-        const permissionsToInsert = data.permissions.map((p) => ({
+        const permissionsToInsert: PermissionToInsert[] = data.permissions.map((p) => ({
           group_id,
           module_id: p.module_id,
           has_access: p.can_access,
@@ -318,7 +371,7 @@ Deno.serve(async (req) => {
           .eq("product_id", product_id)
           .eq("status", "active")
           .order("is_default", { ascending: false })
-          .order("created_at", { ascending: true });
+          .order("created_at", { ascending: true }) as { data: OfferRecord[] | null; error: Error | null };
 
         if (error) throw error;
 
@@ -343,7 +396,7 @@ Deno.serve(async (req) => {
           .from("product_member_groups")
           .select("product_id")
           .eq("id", group_id)
-          .single();
+          .single() as { data: { product_id: string } | null; error: Error | null };
 
         if (groupError || !groupData) {
           return new Response(

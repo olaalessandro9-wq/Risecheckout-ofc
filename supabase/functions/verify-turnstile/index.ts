@@ -5,15 +5,19 @@
  * Usada antes de processar pagamentos no checkout
  * 
  * SECURITY: Rate limiting implementado
+ * 
+ * @version 2.0.0 - RISE Protocol V2 Compliance (Zero any)
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors, PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
 import { 
   rateLimitMiddleware, 
   RATE_LIMIT_CONFIGS,
   getClientIP 
 } from "../_shared/rate-limiter.ts";
+
+// === INTERFACES (Zero any) ===
 
 interface TurnstileVerifyRequest {
   token: string;
@@ -31,6 +35,8 @@ interface TurnstileVerifyResponse {
 // Use public CORS for Turnstile as it's called from checkout pages
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
+// === MAIN HANDLER ===
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -40,11 +46,11 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase: SupabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
     // Rate limiting
     const rateLimitResult = await rateLimitMiddleware(
-      supabase as any,
+      supabase,
       req,
       RATE_LIMIT_CONFIGS.TURNSTILE_VERIFY
     );
@@ -154,8 +160,9 @@ Deno.serve(async (req) => {
         }
       );
     }
-  } catch (error) {
-    console.error('[verify-turnstile] Erro:', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[verify-turnstile] Erro:', errorMessage);
     return new Response(
       JSON.stringify({ 
         success: false, 

@@ -7,19 +7,52 @@
  * - Acesso via clique para o OWNER da plataforma
  * - Afiliados NÃO têm acesso (403)
  * - Log de auditoria para cada acesso com tipo (vendor/admin)
+ * 
+ * @version 2.0.0 - RISE Protocol V2 Compliance (Zero any)
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared/rate-limiter.ts";
 
+// === INTERFACES (Zero any) ===
+
 type UserRole = "owner" | "admin" | "user" | "seller";
+
+interface RequestBody {
+  order_id: string;
+}
+
+interface ProductRecord {
+  id: string;
+  user_id: string;
+}
+
+interface OrderRecord {
+  id: string;
+  vendor_id: string;
+  customer_phone: string | null;
+  customer_document: string | null;
+  product: ProductRecord | ProductRecord[] | null;
+}
+
+interface SecurityAuditEntry {
+  user_id: string;
+  action: string;
+  resource: string;
+  resource_id: string;
+  success: boolean;
+  ip_address: string | null;
+  metadata: Record<string, unknown>;
+}
+
+// === HELPER FUNCTIONS ===
 
 /**
  * Obtém o role do usuário usando service role client
  */
-async function getUserRole(supabaseAdmin: any, userId: string): Promise<UserRole> {
+async function getUserRole(supabaseAdmin: SupabaseClient, userId: string): Promise<UserRole> {
   const { data, error } = await supabaseAdmin.rpc("get_user_role", {
     p_user_id: userId,
   });
@@ -73,6 +106,8 @@ async function decryptValue(encrypted: string, key: CryptoKey): Promise<string |
   }
 }
 
+// === MAIN HANDLER ===
+
 serve(async (req) => {
   // SECURITY: Validar CORS no início
   const corsResult = handleCors(req);
@@ -91,7 +126,7 @@ serve(async (req) => {
 
     // SECURITY: Rate limiting para dados sensíveis
     const rateLimitResult = await rateLimitMiddleware(
-      supabaseAdmin as any,
+      supabaseAdmin,
       req,
       RATE_LIMIT_CONFIGS.DECRYPT_DATA
     );
@@ -130,7 +165,9 @@ serve(async (req) => {
       );
     }
 
-    const { order_id } = await req.json();
+    const body: RequestBody = await req.json();
+    const { order_id } = body;
+    
     if (!order_id) {
       console.error("[decrypt-customer-data] Missing order_id");
       return new Response(
@@ -155,7 +192,7 @@ serve(async (req) => {
         )
       `)
       .eq("id", order_id)
-      .single();
+      .single() as { data: OrderRecord | null; error: Error | null };
 
     if (orderError || !order) {
       console.error("[decrypt-customer-data] Order not found:", order_id, orderError?.message);
@@ -181,7 +218,7 @@ serve(async (req) => {
       console.log(`[decrypt-customer-data] ACCESS DENIED: user=${user.id}, productOwner=${productOwnerId}, role=${userRole}`);
       
       // Log de tentativa de acesso negado
-      await supabaseAdmin.from("security_audit_log").insert({
+      const auditEntry: SecurityAuditEntry = {
         user_id: user.id,
         action: "DECRYPT_CUSTOMER_DATA_DENIED",
         resource: "orders",
@@ -193,7 +230,8 @@ serve(async (req) => {
           user_role: userRole,
           product_owner_id: productOwnerId
         }
-      });
+      };
+      await supabaseAdmin.from("security_audit_log").insert(auditEntry);
 
       return new Response(
         JSON.stringify({ error: "Access denied: you don't have permission to view this data" }),
@@ -203,14 +241,14 @@ serve(async (req) => {
 
     // Descriptografar
     const key = await deriveKey(encryptionKey);
-    const decryptedPhone = await decryptValue(order.customer_phone, key);
-    const decryptedCpf = await decryptValue(order.customer_document, key);
+    const decryptedPhone = await decryptValue(order.customer_phone || '', key);
+    const decryptedCpf = await decryptValue(order.customer_document || '', key);
 
     // Determinar tipo de acesso para auditoria
     const accessType = isProductOwner ? "vendor" : "admin";
 
     // Log de auditoria
-    await supabaseAdmin.from("security_audit_log").insert({
+    const successAudit: SecurityAuditEntry = {
       user_id: user.id,
       action: "DECRYPT_CUSTOMER_DATA",
       resource: "orders",
@@ -222,7 +260,8 @@ serve(async (req) => {
         access_type: accessType,
         product_owner_id: productOwnerId
       }
-    });
+    };
+    await supabaseAdmin.from("security_audit_log").insert(successAudit);
 
     console.log(`[decrypt-customer-data] User ${user.id} (${accessType}) accessed order ${order_id}`);
 
@@ -238,10 +277,11 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
-  } catch (error: any) {
-    console.error("[decrypt-customer-data] Error:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[decrypt-customer-data] Error:", errorMessage);
     return new Response(
-      JSON.stringify({ error: error.message || "Internal error" }),
+      JSON.stringify({ error: errorMessage || "Internal error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

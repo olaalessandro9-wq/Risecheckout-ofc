@@ -7,15 +7,19 @@
  * 1. Taxa da plataforma é descontada do TOTAL primeiro
  * 2. Comissão do afiliado é calculada sobre o valor LÍQUIDO
  * 3. Produtor recebe o restante do líquido
+ * 
+ * @version 2.0.0 - RISE Protocol V2 Compliance (Zero any)
  */
 
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { 
-  PLATFORM_FEE_PERCENT, 
   calculatePlatformFeeCents, 
   getVendorFeePercent,
   isVendorOwner
 } from "../../_shared/platform-config.ts";
 import type { OrderItem } from "./bump-processor.ts";
+
+// === INTERFACES (Zero any) ===
 
 export interface SplitData {
   platformFeeCents: number;
@@ -32,11 +36,22 @@ export interface AffiliateResult {
   splitData: SplitData;
 }
 
+interface AffiliateSettings {
+  enabled?: boolean;
+  defaultRate?: number;
+  requireApproval?: boolean;
+  commissionOnOrderBump?: boolean;
+  commissionOnUpsell?: boolean;
+  allowUpsells?: boolean;
+}
+
+interface ProductInput {
+  user_id: string;
+  affiliate_settings: AffiliateSettings | Record<string, unknown>;
+}
+
 export interface AffiliateInput {
-  product: {
-    user_id: string;
-    affiliate_settings: Record<string, any>;
-  };
+  product: ProductInput;
   product_id: string;
   affiliate_code?: string;
   customer_email: string;
@@ -44,6 +59,29 @@ export interface AffiliateInput {
   discountAmount: number;
   totalAmount: number;
   allOrderItems: OrderItem[];
+}
+
+interface AffiliateProfile {
+  asaas_wallet_id: string | null;
+  mercadopago_collector_id: string | null;
+  stripe_account_id: string | null;
+}
+
+interface AffiliateRecord {
+  id: string;
+  user_id: string;
+  commission_rate: number | null;
+  status: string;
+  pix_gateway: string | null;
+  credit_card_gateway: string | null;
+  gateway_credentials: Record<string, string> | null;
+  profiles: AffiliateProfile | null;
+}
+
+interface AffiliateUserData {
+  user?: {
+    email?: string;
+  };
 }
 
 // Máximo de comissão permitido (segurança)
@@ -63,7 +101,7 @@ function maskEmail(email: string): string {
  * Processa lógica de afiliados e calcula split
  */
 export async function processAffiliate(
-  supabase: any,
+  supabase: SupabaseClient,
   input: AffiliateInput
 ): Promise<AffiliateResult> {
   const {
@@ -85,7 +123,7 @@ export async function processAffiliate(
   const isOwner = await isVendorOwner(supabase, product.user_id);
 
   // Verificar programa de afiliados
-  const affiliateSettings = product.affiliate_settings || {};
+  const affiliateSettings = (product.affiliate_settings || {}) as AffiliateSettings;
   const affiliateProgramEnabled = affiliateSettings.enabled || false;
   const hasActiveAffiliate = !!affiliate_code && affiliateProgramEnabled;
 
@@ -152,7 +190,7 @@ export async function processAffiliate(
       `)
       .eq("affiliate_code", affiliate_code)
       .eq("product_id", product_id)
-      .maybeSingle();
+      .maybeSingle() as { data: AffiliateRecord | null };
 
     // Extrair wallet IDs do profile já carregado via JOIN
     let affiliateWalletFromProfile: string | null = null;
@@ -161,18 +199,14 @@ export async function processAffiliate(
     
     if (affiliate) {
       // Profile já vem no JOIN - sem query adicional
-      const affiliateProfile = affiliate.profiles as { 
-        asaas_wallet_id: string | null; 
-        mercadopago_collector_id: string | null; 
-        stripe_account_id: string | null 
-      } | null;
+      const affiliateProfile = affiliate.profiles;
       
       affiliateWalletFromProfile = affiliateProfile?.asaas_wallet_id || null;
       affiliateMpCollectorId = affiliateProfile?.mercadopago_collector_id || null;
       affiliateStripeAccountId = affiliateProfile?.stripe_account_id || null;
       
       // Override com gateway_credentials do affiliate se existir
-      const credentials = (affiliate.gateway_credentials as Record<string, string>) || {};
+      const credentials = affiliate.gateway_credentials || {};
       if (credentials.asaas_wallet_id) affiliateWalletFromProfile = credentials.asaas_wallet_id;
       if (credentials.mercadopago_collector_id) affiliateMpCollectorId = credentials.mercadopago_collector_id;
       if (credentials.stripe_account_id) affiliateStripeAccountId = credentials.stripe_account_id;
@@ -203,7 +237,7 @@ export async function processAffiliate(
         }
 
         // Anti-Self-Referral
-        const { data: affiliateUserData } = await supabase.auth.admin.getUserById(affiliate.user_id);
+        const { data: affiliateUserData } = await supabase.auth.admin.getUserById(affiliate.user_id) as { data: AffiliateUserData | null };
         const affiliateEmail = affiliateUserData?.user?.email?.toLowerCase();
         const isSelfReferral = affiliateEmail === customer_email.toLowerCase();
 

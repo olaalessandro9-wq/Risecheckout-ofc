@@ -10,10 +10,10 @@
  * - Limite de 50% respeitado em todos os cenários
  * 
  * @author RiseCheckout Team
- * @version 4.0.0 - Modular handlers
+ * @version 4.1.0 - RISE Protocol V2 Compliance (Zero any)
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
 import { 
@@ -28,11 +28,52 @@ import { updateOrderWithPixData, triggerPixGeneratedWebhook, logManualPaymentIfN
 // Use public CORS for checkout/payment endpoints
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
+// === INTERFACES (Zero any) ===
+
 interface CreatePixRequest {
   orderId: string;
   valueInCents: number;
   webhookUrl?: string;
 }
+
+interface OrderRecord {
+  id: string;
+  vendor_id: string;
+  amount_cents: number;
+  customer_name: string | null;
+  customer_email: string | null;
+  customer_document: string | null;
+  commission_cents: number | null;
+  affiliate_id: string | null;
+  platform_fee_cents: number | null;
+}
+
+interface SecurityEventEntry {
+  event_type: string;
+  resource: string;
+  identifier: string;
+  metadata: Record<string, unknown>;
+  success: boolean;
+}
+
+interface PixResponseData {
+  ok: true;
+  pix: {
+    id: string;
+    pix_id: string;
+    qr_code: string;
+    qr_code_base64: string;
+    status: string;
+    value: number;
+  };
+  smartSplit: {
+    pixCreatedBy: string;
+    adjustedSplit: boolean;
+    manualPaymentNeeded: number;
+  };
+}
+
+// === MAIN HANDLER ===
 
 Deno.serve(withSentry('pushinpay-create-pix', async (req) => {
   // CORS preflight
@@ -47,11 +88,11 @@ Deno.serve(withSentry('pushinpay-create-pix', async (req) => {
     // 1. Criar cliente Supabase
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase: SupabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
     // Rate limiting
     const rateLimitResult = await rateLimitMiddleware(
-      supabase as any,
+      supabase,
       req,
       RATE_LIMIT_CONFIGS.CREATE_PIX
     );
@@ -75,7 +116,7 @@ Deno.serve(withSentry('pushinpay-create-pix', async (req) => {
       .from('orders')
       .select('id, vendor_id, amount_cents, customer_name, customer_email, customer_document, commission_cents, affiliate_id, platform_fee_cents')
       .eq('id', orderId)
-      .single();
+      .single() as { data: OrderRecord | null; error: Error | null };
 
     if (orderError || !order) {
       console.error(`[${functionName}] Pedido não encontrado:`, orderError);
@@ -88,7 +129,7 @@ Deno.serve(withSentry('pushinpay-create-pix', async (req) => {
     if (valueInCents !== order.amount_cents) {
       console.error(`[${functionName}] ⛔ ALERTA DE SEGURANÇA: Valor divergente! Frontend=${valueInCents}, Banco=${order.amount_cents}`);
       
-      await supabase.from('security_events').insert({
+      const securityEvent: SecurityEventEntry = {
         event_type: 'value_mismatch',
         resource: functionName,
         identifier: orderId,
@@ -99,7 +140,8 @@ Deno.serve(withSentry('pushinpay-create-pix', async (req) => {
           difference_cents: Math.abs(valueInCents - order.amount_cents)
         },
         success: false
-      });
+      };
+      await supabase.from('security_events').insert(securityEvent);
       
       throw new Error(`Valor inválido: esperado ${order.amount_cents} centavos, recebido ${valueInCents}. Possível tentativa de manipulação.`);
     }
@@ -123,7 +165,7 @@ Deno.serve(withSentry('pushinpay-create-pix', async (req) => {
       splitRules: smartSplit.splitRules
     });
 
-    const pixData = await callPushinPayApi({
+    const pixData: PushinPayResponse = await callPushinPayApi({
       environment: smartSplit.pixCreatorEnvironment,
       token: smartSplit.pixCreatorToken,
       payload,
@@ -142,7 +184,7 @@ Deno.serve(withSentry('pushinpay-create-pix', async (req) => {
     await logManualPaymentIfNeeded({ supabase, orderId, smartSplit, logPrefix: functionName });
 
     // 11. Retornar resposta
-    return new Response(JSON.stringify({
+    const responseData: PixResponseData = {
       ok: true,
       pix: {
         id: pixData.id,
@@ -157,13 +199,16 @@ Deno.serve(withSentry('pushinpay-create-pix', async (req) => {
         adjustedSplit: smartSplit.adjustedSplit,
         manualPaymentNeeded: smartSplit.manualPaymentNeeded
       }
-    }), {
+    };
+
+    return new Response(JSON.stringify(responseData), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
-  } catch (error: any) {
-    console.error(`[pushinpay-create-pix] Erro:`, error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`[pushinpay-create-pix] Erro:`, errorMessage);
     
     await captureException(error instanceof Error ? error : new Error(String(error)), {
       functionName: 'pushinpay-create-pix',
@@ -173,7 +218,7 @@ Deno.serve(withSentry('pushinpay-create-pix', async (req) => {
     
     return new Response(JSON.stringify({
       ok: false,
-      error: error.message
+      error: errorMessage
     }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

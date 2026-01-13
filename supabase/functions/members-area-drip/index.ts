@@ -1,4 +1,10 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+/**
+ * members-area-drip - Gerenciamento de liberação de conteúdo (drip)
+ * 
+ * @version 2.0.0 - RISE Protocol V2 Compliance (Zero any)
+ */
+
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
 import { 
   rateLimitMiddleware, 
@@ -10,24 +16,70 @@ import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 // Use public CORS for members area
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
+// === INTERFACES (Zero any) ===
+
 /**
  * Canonical release types - aligned with DB and frontend
  * NEVER use "after_completion" - always use "after_content"
  */
 type ReleaseType = "immediate" | "days_after_purchase" | "fixed_date" | "after_content";
 
+interface DripSettings {
+  release_type: ReleaseType;
+  days_after_purchase?: number;
+  fixed_date?: string;
+  after_content_id?: string;
+}
+
 interface DripRequest {
   action: "get-settings" | "update-settings" | "check-access" | "unlock-content";
   content_id?: string;
   product_id?: string;
   buyer_id?: string;
-  settings?: {
-    release_type: ReleaseType;
-    days_after_purchase?: number;
-    fixed_date?: string;
-    after_content_id?: string;
-  };
+  settings?: DripSettings;
 }
+
+interface ProducerAuth {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+}
+
+interface ContentRecord {
+  id: string;
+  module_id: string;
+}
+
+interface ModuleData {
+  product_id: string;
+}
+
+interface ProductData {
+  user_id: string;
+}
+
+interface DripSettingsRecord {
+  release_type: ReleaseType;
+  days_after_purchase: number | null;
+  fixed_date: string | null;
+  after_content_id: string | null;
+}
+
+interface ContentAccessRecord {
+  is_active: boolean;
+  expires_at: string | null;
+}
+
+interface ProductAccessRecord {
+  granted_at: string;
+}
+
+interface ProgressRecord {
+  completed_at: string | null;
+}
+
+// === MAIN HANDLER ===
 
 Deno.serve(async (req) => {
   // CORS preflight
@@ -38,11 +90,11 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase: SupabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
     // Rate limiting
     const rateLimitResult = await rateLimitMiddleware(
-      supabase as any,
+      supabase,
       req,
       RATE_LIMIT_CONFIGS.MEMBERS_AREA
     );
@@ -57,7 +109,7 @@ Deno.serve(async (req) => {
     console.log(`[members-area-drip] Action: ${action}`);
 
     // Para ações de vendedor, verificar autenticação via unified-auth
-    let producer: { id: string; email: string; name: string | null; role: string } | null = null;
+    let producer: ProducerAuth | null = null;
     if (action === "get-settings" || action === "update-settings") {
       try {
         producer = await requireAuthenticatedProducer(supabase, req);
@@ -74,21 +126,21 @@ Deno.serve(async (req) => {
           .from("product_member_content")
           .select("id, module_id")
           .eq("id", content_id)
-          .single();
+          .single() as { data: ContentRecord | null };
 
         if (content) {
           const { data: moduleData } = await supabase
             .from("product_member_modules")
             .select("product_id")
             .eq("id", content.module_id)
-            .single();
+            .single() as { data: ModuleData | null };
 
           if (moduleData) {
             const { data: product } = await supabase
               .from("products")
               .select("user_id")
               .eq("id", moduleData.product_id)
-              .single();
+              .single() as { data: ProductData | null };
 
             if (!product || product.user_id !== producer?.id) {
               return new Response(
@@ -114,7 +166,7 @@ Deno.serve(async (req) => {
           .from("content_release_settings")
           .select("*")
           .eq("content_id", content_id)
-          .single();
+          .single() as { data: DripSettingsRecord | null; error: { code?: string } | null };
 
         // Se não existe, retornar padrão (imediato)
         if (error && error.code === "PGRST116") {
@@ -193,7 +245,7 @@ Deno.serve(async (req) => {
           .from("content_release_settings")
           .select("*")
           .eq("content_id", content_id)
-          .single();
+          .single() as { data: DripSettingsRecord | null };
 
         // Se não tem configuração, acesso imediato
         if (!dripSettings || dripSettings.release_type === "immediate") {
@@ -210,7 +262,7 @@ Deno.serve(async (req) => {
           .eq("content_id", content_id)
           .eq("buyer_id", buyer_id)
           .eq("is_active", true)
-          .single();
+          .single() as { data: ContentAccessRecord | null };
 
         if (contentAccess) {
           // Verificar se não expirou
@@ -230,7 +282,7 @@ Deno.serve(async (req) => {
           .eq("is_active", true)
           .order("granted_at", { ascending: true })
           .limit(1)
-          .single();
+          .single() as { data: ProductAccessRecord | null };
 
         if (!productAccess) {
           return new Response(
@@ -294,7 +346,7 @@ Deno.serve(async (req) => {
               .select("completed_at")
               .eq("content_id", dripSettings.after_content_id!)
               .eq("buyer_id", buyer_id)
-              .single();
+              .single() as { data: ProgressRecord | null };
 
             if (progress?.completed_at) {
               return new Response(

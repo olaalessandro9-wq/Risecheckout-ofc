@@ -1,3 +1,9 @@
+/**
+ * members-area-quizzes - Gerenciamento de quizzes
+ * 
+ * @version 2.0.0 - RISE Protocol V2 Compliance (Zero any)
+ */
+
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
 import { 
@@ -10,51 +16,110 @@ import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/u
 // Use public CORS for members area
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
+// === INTERFACES (Zero any) ===
+
+interface AnswerInput {
+  id?: string;
+  answer_text: string;
+  is_correct: boolean;
+  position: number;
+}
+
+interface QuestionInput {
+  id?: string;
+  question_text: string;
+  question_type: string;
+  points: number;
+  position: number;
+  answers: AnswerInput[];
+}
+
+interface QuizRequestData {
+  title?: string;
+  description?: string;
+  passing_score?: number;
+  max_attempts?: number;
+  time_limit_seconds?: number;
+  questions?: QuestionInput[];
+  answers?: Record<string, string>;
+}
+
 interface QuizRequest {
   action: "list" | "get" | "create" | "update" | "delete" | "submit" | "get-attempts";
   content_id?: string;
   quiz_id?: string;
   buyer_token?: string;
-  data?: {
-    title?: string;
-    description?: string;
-    passing_score?: number;
-    max_attempts?: number;
-    time_limit_seconds?: number;
-    questions?: {
-      id?: string;
-      question_text: string;
-      question_type: string;
-      points: number;
-      position: number;
-      answers: {
-        id?: string;
-        answer_text: string;
-        is_correct: boolean;
-        position: number;
-      }[];
-    }[];
-    answers?: Record<string, string>; // question_id -> answer_id
-  };
+  data?: QuizRequestData;
+}
+
+interface AnswerRecord {
+  id: string;
+  is_correct: boolean;
+}
+
+interface QuestionRecord {
+  id: string;
+  points: number;
+  answers: AnswerRecord[];
 }
 
 interface QuizData {
   id: string;
   passing_score: number | null;
   max_attempts: number | null;
-  questions: {
-    id: string;
-    points: number;
-    answers: { id: string; is_correct: boolean }[];
-  }[];
+  questions: QuestionRecord[];
 }
+
+interface QuizAttempt {
+  id: string;
+  quiz_id: string;
+  buyer_id: string;
+  answers: Record<string, string>;
+  score: number;
+  total_points: number;
+  passed: boolean;
+  started_at: string;
+  completed_at: string;
+}
+
+interface BuyerSession {
+  buyer_id: string;
+  expires_at: string;
+  is_valid: boolean;
+}
+
+interface QuizRecord {
+  id: string;
+  content_id: string;
+  title: string;
+  description: string | null;
+  passing_score: number;
+  max_attempts: number | null;
+  time_limit_seconds: number | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+interface QuizWithQuestions extends QuizRecord {
+  questions: Array<{
+    id: string;
+    position: number;
+    answers: Array<{ position: number }>;
+  }>;
+}
+
+interface QuestionCreated {
+  id: string;
+}
+
+// === HELPER FUNCTIONS ===
 
 async function handleQuizSubmit(
   supabase: SupabaseClient,
   quiz_id: string,
   buyer_id: string,
   answers: Record<string, string>
-) {
+): Promise<Response> {
   // Buscar quiz com questions e answers corretas
   const { data: quizData, error: quizError } = await supabase
     .from("quizzes")
@@ -69,7 +134,7 @@ async function handleQuizSubmit(
       )
     `)
     .eq("id", quiz_id)
-    .single();
+    .single() as { data: QuizData | null; error: Error | null };
 
   if (quizError || !quizData) {
     return new Response(
@@ -78,7 +143,7 @@ async function handleQuizSubmit(
     );
   }
 
-  const quiz = quizData as QuizData;
+  const quiz = quizData;
 
   // Verificar limite de tentativas
   if (quiz.max_attempts) {
@@ -129,7 +194,7 @@ async function handleQuizSubmit(
       completed_at: new Date().toISOString(),
     })
     .select()
-    .single();
+    .single() as { data: QuizAttempt | null; error: Error | null };
 
   if (attemptError) throw attemptError;
 
@@ -143,7 +208,7 @@ async function handleQuizSubmit(
         passed,
         earned_points: earnedPoints,
         total_points: totalPoints,
-        attempt_id: attempt.id,
+        attempt_id: attempt?.id,
       }
     }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -154,13 +219,13 @@ async function handleGetAttempts(
   supabase: SupabaseClient,
   quiz_id: string,
   buyer_id: string
-) {
+): Promise<Response> {
   const { data: attempts, error } = await supabase
     .from("buyer_quiz_attempts")
     .select("*")
     .eq("quiz_id", quiz_id)
     .eq("buyer_id", buyer_id)
-    .order("completed_at", { ascending: false });
+    .order("completed_at", { ascending: false }) as { data: QuizAttempt[] | null; error: Error | null };
 
   if (error) throw error;
 
@@ -169,6 +234,8 @@ async function handleGetAttempts(
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 }
+
+// === MAIN HANDLER ===
 
 Deno.serve(async (req) => {
   // CORS preflight
@@ -179,11 +246,11 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase: SupabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
     // Rate limiting
     const rateLimitResult = await rateLimitMiddleware(
-      supabase as any,
+      supabase,
       req,
       RATE_LIMIT_CONFIGS.MEMBERS_AREA
     );
@@ -210,7 +277,7 @@ Deno.serve(async (req) => {
         .from("buyer_sessions")
         .select("buyer_id, expires_at, is_valid")
         .eq("session_token", buyer_token)
-        .single();
+        .single() as { data: BuyerSession | null };
 
       if (!session || !session.is_valid || new Date(session.expires_at) < new Date()) {
         return new Response(
@@ -251,7 +318,7 @@ Deno.serve(async (req) => {
           .from("quizzes")
           .select("*")
           .eq("content_id", content_id)
-          .order("created_at", { ascending: true });
+          .order("created_at", { ascending: true }) as { data: QuizRecord[] | null; error: Error | null };
 
         if (error) throw error;
 
@@ -279,16 +346,16 @@ Deno.serve(async (req) => {
             )
           `)
           .eq("id", quiz_id)
-          .single();
+          .single() as { data: QuizWithQuestions | null; error: Error | null };
 
         if (error) throw error;
 
         // Ordenar questions e answers
         if (quiz?.questions) {
-          quiz.questions.sort((a: { position: number }, b: { position: number }) => a.position - b.position);
-          quiz.questions.forEach((q: { answers: { position: number }[] }) => {
+          quiz.questions.sort((a, b) => a.position - b.position);
+          quiz.questions.forEach((q) => {
             if (q.answers) {
-              q.answers.sort((a: { position: number }, b: { position: number }) => a.position - b.position);
+              q.answers.sort((a, b) => a.position - b.position);
             }
           });
         }
@@ -320,12 +387,12 @@ Deno.serve(async (req) => {
             is_active: true,
           })
           .select()
-          .single();
+          .single() as { data: QuizRecord | null; error: Error | null };
 
         if (quizError) throw quizError;
 
         // Criar questions e answers se fornecidos
-        if (data.questions?.length) {
+        if (data.questions?.length && quiz) {
           for (const q of data.questions) {
             const { data: question, error: questionError } = await supabase
               .from("quiz_questions")
@@ -337,11 +404,11 @@ Deno.serve(async (req) => {
                 position: q.position,
               })
               .select()
-              .single();
+              .single() as { data: QuestionCreated | null; error: Error | null };
 
             if (questionError) throw questionError;
 
-            if (q.answers?.length) {
+            if (q.answers?.length && question) {
               const answersToInsert = q.answers.map(a => ({
                 question_id: question.id,
                 answer_text: a.answer_text,
@@ -358,7 +425,7 @@ Deno.serve(async (req) => {
           }
         }
 
-        console.log(`[members-area-quizzes] Created quiz: ${quiz.id}`);
+        console.log(`[members-area-quizzes] Created quiz: ${quiz?.id}`);
 
         return new Response(
           JSON.stringify({ success: true, quiz }),
@@ -405,11 +472,11 @@ Deno.serve(async (req) => {
                 position: q.position,
               })
               .select()
-              .single();
+              .single() as { data: QuestionCreated | null; error: Error | null };
 
             if (questionError) throw questionError;
 
-            if (q.answers?.length) {
+            if (q.answers?.length && question) {
               const answersToInsert = q.answers.map(a => ({
                 question_id: question.id,
                 answer_text: a.answer_text,

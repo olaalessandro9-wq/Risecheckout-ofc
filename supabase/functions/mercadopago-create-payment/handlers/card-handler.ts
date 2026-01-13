@@ -1,9 +1,13 @@
 /**
  * Handler para pagamentos com Cartão de Crédito no Mercado Pago
  * Recebe parâmetros validados e retorna resultado padronizado
+ * 
+ * @version 2.0.0 - RISE Protocol V2 Compliance (Zero any)
  */
 
 import { logInfo, logError } from '../utils/logger.ts';
+
+// === INTERFACES (Zero any) ===
 
 export interface CardPaymentParams {
   orderId: string;
@@ -17,7 +21,6 @@ export interface CardPaymentParams {
   issuerId?: string;
   effectiveAccessToken: string;
   applicationFeeCents: number;
-  // Campos para qualidade MP
   productId?: string;
   productName?: string;
   items?: Array<{
@@ -33,6 +36,51 @@ export interface CardPaymentResult {
   transactionId: string;
   status: string;
 }
+
+interface AdditionalInfoItem {
+  id: string;
+  title: string;
+  description: string;
+  category_id: string;
+  quantity: number;
+  unit_price: number;
+}
+
+interface PayerIdentification {
+  type: string;
+  number: string;
+}
+
+interface CardPayload {
+  transaction_amount: number;
+  token: string;
+  description: string;
+  installments: number;
+  payment_method_id: string;
+  external_reference: string;
+  notification_url: string;
+  statement_descriptor: string;
+  additional_info: {
+    items: AdditionalInfoItem[];
+  };
+  payer: {
+    email: string;
+    first_name: string;
+    last_name: string;
+    identification?: PayerIdentification;
+  };
+  issuer_id?: number;
+  application_fee?: number;
+}
+
+interface MercadoPagoCardResponse {
+  id: number;
+  status: string;
+  message?: string;
+  cause?: unknown;
+}
+
+// === MAIN HANDLER ===
 
 export async function handleCardPayment(params: CardPaymentParams): Promise<CardPaymentResult> {
   const { 
@@ -62,7 +110,7 @@ export async function handleCardPayment(params: CardPaymentParams): Promise<Card
   }
 
   // ✅ Montar additional_info.items para qualidade MP
-  const additionalInfoItems = items && items.length > 0 
+  const additionalInfoItems: AdditionalInfoItem[] = items && items.length > 0 
     ? items.map(item => ({
         id: item.product_id.slice(0, 50),
         title: (item.product_name || 'Produto').slice(0, 256),
@@ -83,7 +131,7 @@ export async function handleCardPayment(params: CardPaymentParams): Promise<Card
   // ✅ URL do webhook para notificações
   const notificationUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/mercadopago-webhook`;
 
-  const cardPayload: any = {
+  const cardPayload: CardPayload = {
     transaction_amount: calculatedTotalCents / 100,
     token: token,
     description: `Pedido #${orderId.slice(0, 8)}`,
@@ -145,7 +193,7 @@ export async function handleCardPayment(params: CardPaymentParams): Promise<Card
     body: JSON.stringify(cardPayload)
   });
 
-  const cardData = await cardResponse.json();
+  const cardData: MercadoPagoCardResponse = await cardResponse.json();
 
   if (!cardResponse.ok) {
     logError('Erro na API do Mercado Pago (Cartão)', {

@@ -1,4 +1,10 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+/**
+ * members-area-progress - Gerenciamento de progresso de conteúdo
+ * 
+ * @version 2.0.0 - RISE Protocol V2 Compliance (Zero any)
+ */
+
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
 import { 
   rateLimitMiddleware, 
@@ -9,18 +15,65 @@ import {
 // Use public CORS for members area
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
+// === INTERFACES (Zero any) ===
+
+interface ProgressData {
+  progress_percent?: number;
+  last_position_seconds?: number;
+  watch_time_seconds?: number;
+}
+
 interface ProgressRequest {
   action: "get" | "update" | "complete" | "get-module-progress" | "get-product-progress";
   content_id?: string;
   module_id?: string;
   product_id?: string;
   buyer_token?: string;
-  data?: {
-    progress_percent?: number;
-    last_position_seconds?: number;
-    watch_time_seconds?: number;
-  };
+  data?: ProgressData;
 }
+
+interface BuyerSession {
+  buyer_id: string;
+  expires_at: string;
+  is_valid: boolean;
+}
+
+interface ProgressRecord {
+  progress_percent: number;
+  last_position_seconds: number;
+  watch_time_seconds: number;
+  completed_at: string | null;
+}
+
+interface ExistingProgress {
+  id: string;
+  started_at: string | null;
+}
+
+interface ContentRecord {
+  id: string;
+}
+
+interface ModuleRecord {
+  id: string;
+}
+
+interface ContentWithModule {
+  id: string;
+  module_id: string;
+}
+
+interface ProgressWithCompletion {
+  content_id: string;
+  completed_at: string | null;
+}
+
+interface ModuleProgress {
+  total: number;
+  completed: number;
+}
+
+// === MAIN HANDLER ===
 
 Deno.serve(async (req) => {
   // CORS preflight
@@ -31,11 +84,11 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase: SupabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
     // Rate limiting
     const rateLimitResult = await rateLimitMiddleware(
-      supabase as any,
+      supabase,
       req,
       RATE_LIMIT_CONFIGS.MEMBERS_AREA
     );
@@ -62,7 +115,7 @@ Deno.serve(async (req) => {
       .from("buyer_sessions")
       .select("buyer_id, expires_at, is_valid")
       .eq("session_token", buyer_token)
-      .single();
+      .single() as { data: BuyerSession | null; error: Error | null };
 
     if (sessionError || !session || !session.is_valid) {
       return new Response(
@@ -94,7 +147,7 @@ Deno.serve(async (req) => {
           .select("*")
           .eq("content_id", content_id)
           .eq("buyer_id", buyer_id)
-          .single();
+          .single() as { data: ProgressRecord | null };
 
         return new Response(
           JSON.stringify({ 
@@ -140,7 +193,7 @@ Deno.serve(async (req) => {
           .select("id, started_at")
           .eq("content_id", content_id)
           .eq("buyer_id", buyer_id)
-          .single();
+          .single() as { data: ExistingProgress | null };
 
         if (!existing) {
           updateData.started_at = new Date().toISOString();
@@ -203,7 +256,7 @@ Deno.serve(async (req) => {
           .from("product_member_content")
           .select("id")
           .eq("module_id", module_id)
-          .eq("is_active", true);
+          .eq("is_active", true) as { data: ContentRecord[] | null };
 
         if (!contents || contents.length === 0) {
           return new Response(
@@ -222,7 +275,7 @@ Deno.serve(async (req) => {
           .from("buyer_content_progress")
           .select("content_id, completed_at")
           .eq("buyer_id", buyer_id)
-          .in("content_id", contentIds);
+          .in("content_id", contentIds) as { data: ProgressWithCompletion[] | null };
 
         const completedCount = progressData?.filter(p => p.completed_at).length || 0;
         const percent = Math.round((completedCount / contents.length) * 100);
@@ -253,7 +306,7 @@ Deno.serve(async (req) => {
           .from("product_member_modules")
           .select("id")
           .eq("product_id", product_id)
-          .eq("is_active", true);
+          .eq("is_active", true) as { data: ModuleRecord[] | null };
 
         if (!modules || modules.length === 0) {
           return new Response(
@@ -271,7 +324,7 @@ Deno.serve(async (req) => {
           .from("product_member_content")
           .select("id, module_id")
           .in("module_id", moduleIds)
-          .eq("is_active", true);
+          .eq("is_active", true) as { data: ContentWithModule[] | null };
 
         if (!contents || contents.length === 0) {
           return new Response(
@@ -290,14 +343,14 @@ Deno.serve(async (req) => {
           .from("buyer_content_progress")
           .select("content_id, completed_at")
           .eq("buyer_id", buyer_id)
-          .in("content_id", contentIds);
+          .in("content_id", contentIds) as { data: ProgressWithCompletion[] | null };
 
         const completedSet = new Set(
           progressData?.filter(p => p.completed_at).map(p => p.content_id) || []
         );
 
         // Calcular por módulo
-        const moduleProgress: Record<string, { total: number; completed: number }> = {};
+        const moduleProgress: Record<string, ModuleProgress> = {};
         for (const content of contents) {
           if (!moduleProgress[content.module_id]) {
             moduleProgress[content.module_id] = { total: 0, completed: 0 };
