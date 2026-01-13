@@ -16,23 +16,28 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Import handlers
+// Import handlers - Core (register, login, logout)
 import {
   handleRegister,
   handleLogin,
   handleLogout,
-  handleValidate,
-  handleCheckEmail,
 } from "../_shared/buyer-auth-handlers.ts";
 
+// Import handlers - Extended (validate, check-email, password reset)
 import {
+  handleValidate,
+  handleCheckEmail,
   handleRequestPasswordReset,
   handleVerifyResetToken,
   handleResetPassword,
+} from "../_shared/buyer-auth-handlers-extended.ts";
+
+// Import handlers - Producer (check-producer-buyer, ensure-producer-access, producer-login)
+import {
   handleCheckProducerBuyer,
   handleEnsureProducerAccess,
   handleProducerLogin,
-} from "../_shared/buyer-auth-handlers-extended.ts";
+} from "../_shared/buyer-auth-producer-handlers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
