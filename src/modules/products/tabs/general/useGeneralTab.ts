@@ -101,12 +101,18 @@ export function useGeneralTab() {
       // Buscar grupos via edge function
       const fetchGroups = async () => {
         try {
+          interface MemberGroupFromAPI {
+            id: string;
+            name: string;
+            is_default?: boolean;
+          }
+          
           const { data, error } = await supabase.functions.invoke('members-area-groups', {
             body: { action: 'list', product_id: product.id }
           });
           
           if (!error && data?.groups) {
-            setMemberGroups(data.groups.map((g: any) => ({
+            setMemberGroups(data.groups.map((g: MemberGroupFromAPI) => ({
               id: g.id,
               name: g.name,
               is_default: g.is_default,

@@ -132,7 +132,15 @@ const CreditCardFormComponent = forwardRef<CreditCardFormRef, CreditCardFormProp
       }
     };
     
-    const handleInstallmentsReceived = (data: any[]) => {
+    /** Installment data structure from MercadoPago API */
+    interface MercadoPagoPayerCost {
+      installments: number;
+      installment_amount: number;
+      total_amount: number;
+      installment_rate: number;
+    }
+    
+    const handleInstallmentsReceived = (data: MercadoPagoPayerCost[]) => {
       // Converte formato do Mercado Pago para formato padrão
       const formattedInstallments: Installment[] = data.map(item => ({
         value: item.installments,

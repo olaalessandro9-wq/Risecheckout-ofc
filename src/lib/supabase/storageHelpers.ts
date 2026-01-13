@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { toSlug } from "@/lib/utils/slug";
 
 const PUBLIC_RE = /\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/;
@@ -22,7 +23,7 @@ export function buildNewObjectPath(productId: number | string, originalPath: str
 }
 
 export async function copyPublicObjectToNewPath(
-  supabase: any,
+  supabase: SupabaseClient,
   originalUrl: string,
   productId: number | string,
   baseName: string
@@ -53,7 +54,7 @@ export async function copyPublicObjectToNewPath(
   return pub.publicUrl;
 }
 
-export async function removeAllUnderPrefix(supabase: any, bucket: string, prefix: string) {
+export async function removeAllUnderPrefix(supabase: SupabaseClient, bucket: string, prefix: string) {
   const toDelete: string[] = [];
   let page = 0;
   while (true) {

@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useCallback } from "react";
-import { loadStripe, Stripe } from "@stripe/stripe-js";
+import { loadStripe, Stripe, StripeCardNumberElementChangeEvent, StripeCardExpiryElementChangeEvent, StripeCardCvcElementChangeEvent } from "@stripe/stripe-js";
 import { useState } from "react";
 import {
   Elements,
@@ -90,10 +90,12 @@ function StripeCardFormInner({ amount, onSubmit, onError, onReady, onMount, colo
     color: textColor,
   };
 
-  const handleCardChange = (field: keyof typeof cardComplete) => (event: any) => {
+  type StripeElementChangeEvent = StripeCardNumberElementChangeEvent | StripeCardExpiryElementChangeEvent | StripeCardCvcElementChangeEvent;
+  
+  const handleCardChange = (field: keyof typeof cardComplete) => (event: StripeElementChangeEvent) => {
     setCardComplete(prev => ({ ...prev, [field]: event.complete }));
     if (event.complete) clearError(field);
-    if (event.error) setErrors(prev => ({ ...prev, [field]: event.error.message }));
+    if (event.error) setErrors(prev => ({ ...prev, [field]: event.error?.message }));
   };
 
   return (

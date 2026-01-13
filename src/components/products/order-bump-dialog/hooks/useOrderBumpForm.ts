@@ -3,12 +3,12 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { parseBRLInput } from "@/lib/money";
 import { NormalizedOffer } from "@/services/offers";
-import { OrderBumpFormData, OrderBumpProduct, DEFAULT_FORM_VALUES } from "../types";
+import { OrderBumpFormData, OrderBumpProduct, DEFAULT_FORM_VALUES, EditOrderBump } from "../types";
 
 interface UseOrderBumpFormProps {
   open: boolean;
   productId: string;
-  editOrderBump?: any;
+  editOrderBump?: EditOrderBump;
   products: OrderBumpProduct[];
   offers: NormalizedOffer[];
   selectedProductId: string;

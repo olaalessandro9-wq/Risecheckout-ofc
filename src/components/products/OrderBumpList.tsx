@@ -208,19 +208,43 @@ export function OrderBumpList({ productId, onAdd, onEdit, maxOrderBumps = 5 }: O
 
       if (error) throw error;
 
-      const mappedBumps: OrderBump[] = (data || []).map((bump: any) => ({
-        id: bump.id,
-        checkout_id: bump.checkout_id,
-        product_id: bump.product_id,
-        offer_id: bump.offer_id,
-        position: bump.position,
-        active: bump.active,
-        product_name: bump.products?.name || "Produto não encontrado",
-        product_price: bump.products?.price || 0,
-        product_image: bump.products?.image_url,
-        offer_name: bump.offers?.name,
-        offer_price: bump.offers?.price,
-      }));
+      /** Raw order bump data from database with joined tables */
+      interface RawOrderBumpRow {
+        id: string;
+        checkout_id: string;
+        product_id: string;
+        offer_id: string | null;
+        position: number;
+        active: boolean;
+        products?: {
+          id: string;
+          name: string;
+          price: number;
+          image_url?: string | null;
+        } | null;
+        offers?: {
+          id: string;
+          name: string;
+          price: number;
+        } | null;
+      }
+
+      const mappedBumps: OrderBump[] = (data || []).map((bump) => {
+        const row = bump as RawOrderBumpRow;
+        return {
+          id: row.id,
+          checkout_id: row.checkout_id,
+          product_id: row.product_id,
+          offer_id: row.offer_id,
+          position: row.position,
+          active: row.active,
+          product_name: row.products?.name || "Produto não encontrado",
+          product_price: row.products?.price || 0,
+          product_image: row.products?.image_url ?? undefined,
+          offer_name: row.offers?.name,
+          offer_price: row.offers?.price,
+        };
+      });
 
       setOrderBumps(mappedBumps);
     } catch (error) {

@@ -12,9 +12,13 @@ import { MercadoPagoIntegration, BrickConfig } from "./types";
 interface BrickProps {
   integration: MercadoPagoIntegration | null;
   onPaymentReady?: () => void;
-  onPaymentError?: (error: any) => void;
-  onPaymentSubmit?: (data: any) => void;
+  onPaymentError?: (error: unknown) => void;
+  onPaymentSubmit?: (data: Record<string, unknown>) => void;
   customConfig?: Partial<BrickConfig>;
+}
+
+interface BrickInstance {
+  unmount: () => void;
 }
 
 export const Brick = ({
@@ -25,7 +29,7 @@ export const Brick = ({
   customConfig,
 }: BrickProps) => {
   const brickContainerId = "mercadopago-brick-container";
-  const brickInstanceRef = useRef<any>(null);
+  const brickInstanceRef = useRef<BrickInstance | null>(null);
 
   useEffect(() => {
     if (!integration || !integration.active || !integration.config?.public_key) {
@@ -63,7 +67,7 @@ export const Brick = ({
             },
             onSubmit: (data: unknown) => {
               console.log("[MercadoPago] Pagamento submetido", data);
-              onPaymentSubmit?.(data);
+              onPaymentSubmit?.(data as Record<string, unknown>);
             },
             onError: (error: unknown) => {
               console.error("[MercadoPago] Erro no Brick", error);
@@ -89,9 +93,9 @@ export const Brick = ({
         // Renderizar Brick
         const mpWithBricks = mp as unknown as { bricks: () => { create: (name: string, config: unknown) => Promise<unknown> } };
         const brickBuilder = mpWithBricks.bricks();
-        await brickBuilder.create("payment", brickConfig);
+        const brickInstance = await brickBuilder.create("payment", brickConfig);
 
-        brickInstanceRef.current = brickBuilder;
+        brickInstanceRef.current = brickInstance as BrickInstance;
 
         console.log(
           "[MercadoPago] ✅ Brick renderizado com sucesso",
