@@ -52,6 +52,53 @@ interface ReleaseData {
 }
 
 // ============================================
+// RATE LIMITING
+// ============================================
+
+async function checkRateLimit(
+  supabase: any,
+  producerId: string,
+  action: string
+): Promise<{ allowed: boolean; retryAfter?: number }> {
+  const MAX_ATTEMPTS = 30;
+  const WINDOW_MS = 5 * 60 * 1000;
+
+  const windowStart = new Date(Date.now() - WINDOW_MS);
+
+  const { data: attempts, error } = await supabase
+    .from("rate_limit_attempts")
+    .select("id")
+    .eq("identifier", `producer:${producerId}`)
+    .eq("action", action)
+    .gte("created_at", windowStart.toISOString());
+
+  if (error) {
+    console.error("[members-area-content] Rate limit check error:", error);
+    return { allowed: true };
+  }
+
+  const count = attempts?.length || 0;
+  if (count >= MAX_ATTEMPTS) {
+    return { allowed: false, retryAfter: 300 };
+  }
+
+  return { allowed: true };
+}
+
+async function recordRateLimitAttempt(
+  supabase: any,
+  producerId: string,
+  action: string
+): Promise<void> {
+  await supabase.from("rate_limit_attempts").insert({
+    identifier: `producer:${producerId}`,
+    action,
+    success: true,
+    created_at: new Date().toISOString(),
+  });
+}
+
+// ============================================
 // HELPERS
 // ============================================
 

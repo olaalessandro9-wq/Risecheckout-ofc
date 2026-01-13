@@ -13,6 +13,7 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 
 interface EditPriceDialogProps {
   open: boolean;
@@ -45,32 +46,30 @@ export function EditPriceDialog({
       return;
     }
 
+    const sessionToken = getProducerSessionToken();
+    if (!sessionToken) {
+      toast.error("Sessão expirada. Por favor, faça login novamente.");
+      return;
+    }
+
     setIsSaving(true);
 
     try {
       console.log("[EditPriceDialog] Atualizando preço do produto:", productId, "para:", price);
 
-      // 1. Atualizar preço do produto
-      const { error: productError } = await supabase
-        .from("products")
-        .update({ price })
-        .eq("id", productId);
+      // Atualizar preço via Edge Function (atomicamente atualiza produto + oferta padrão)
+      const { data: response, error } = await supabase.functions.invoke("product-management/update-price", {
+        body: { productId, price },
+        headers: { "x-producer-session-token": sessionToken },
+      });
 
-      if (productError) {
-        console.error("[EditPriceDialog] Erro ao atualizar produto:", productError);
-        throw productError;
+      if (error) {
+        console.error("[EditPriceDialog] Erro na Edge Function:", error);
+        throw new Error(error.message || "Erro ao atualizar preço");
       }
 
-      // 2. Atualizar preço da oferta padrão
-      const { error: offerError } = await supabase
-        .from("offers")
-        .update({ price })
-        .eq("product_id", productId)
-        .eq("is_default", true);
-
-      if (offerError) {
-        console.error("[EditPriceDialog] Erro ao atualizar oferta:", offerError);
-        throw offerError;
+      if (!response?.success) {
+        throw new Error(response?.error || "Erro ao atualizar preço");
       }
 
       console.log("[EditPriceDialog] Preço atualizado com sucesso!");

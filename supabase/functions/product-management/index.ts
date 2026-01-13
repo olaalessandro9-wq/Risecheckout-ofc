@@ -854,8 +854,88 @@ serve(withSentry("product-management", async (req) => {
 
         // TODO: Clean up storage images (would need storage bucket access)
 
-        console.log(`[product-management] Hard deleted: ${productId} (${existingProduct.name})`);
+      console.log(`[product-management] Hard deleted: ${productId} (${existingProduct.name})`);
         return jsonResponse({ success: true, type: "hard", deletedId: productId }, corsHeaders);
+      }
+    }
+
+    // ============================================
+    // UPDATE PRICE (atomic: product + default offer)
+    // ============================================
+    if (action === "update-price" && (req.method === "PUT" || req.method === "POST")) {
+      const rateCheck = await checkProductRateLimit(supabase, producerId, "product_price");
+      if (!rateCheck.allowed) {
+        return jsonResponse(
+          { success: false, error: "Muitas requisições. Tente novamente em alguns minutos.", retryAfter: rateCheck.retryAfter },
+          corsHeaders,
+          429
+        );
+      }
+
+      const { productId, price } = body;
+
+      if (!productId || typeof productId !== "string") {
+        return errorResponse("ID do produto é obrigatório", corsHeaders, 400);
+      }
+
+      if (typeof price !== "number" || !Number.isInteger(price) || price <= 0) {
+        return errorResponse("Preço deve ser um valor inteiro positivo em centavos", corsHeaders, 400);
+      }
+
+      // Verify ownership
+      const { data: existingProduct, error: fetchError } = await supabase
+        .from("products")
+        .select("id, user_id")
+        .eq("id", productId)
+        .single();
+
+      if (fetchError || !existingProduct) {
+        return errorResponse("Produto não encontrado", corsHeaders, 404);
+      }
+
+      if (existingProduct.user_id !== producerId) {
+        console.warn(`[product-management] Unauthorized price update: ${producerId} on product ${productId}`);
+        return errorResponse("Você não tem permissão para editar este produto", corsHeaders, 403);
+      }
+
+      console.log(`[product-management] Updating price for product ${productId} to ${price}`);
+
+      try {
+        // 1. Update product price
+        const { error: productError } = await supabase
+          .from("products")
+          .update({ price, updated_at: new Date().toISOString() })
+          .eq("id", productId);
+
+        if (productError) {
+          throw new Error(`Falha ao atualizar produto: ${productError.message}`);
+        }
+
+        // 2. Update default offer price
+        const { error: offerError } = await supabase
+          .from("offers")
+          .update({ price, updated_at: new Date().toISOString() })
+          .eq("product_id", productId)
+          .eq("is_default", true);
+
+        if (offerError) {
+          console.warn(`[product-management] Failed to update default offer: ${offerError.message}`);
+          // Don't fail the operation, product was updated
+        }
+
+        await recordRateLimitAttempt(supabase, producerId, "product_price");
+
+        console.log(`[product-management] Price updated for product: ${productId} by ${producerId}`);
+        return jsonResponse({ success: true, price }, corsHeaders);
+
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        console.error("[product-management] Update price failed:", err.message);
+        await captureException(err, {
+          functionName: "product-management",
+          extra: { action: "update-price", producerId, productId, price },
+        });
+        return errorResponse(`Erro ao atualizar preço: ${err.message}`, corsHeaders, 500);
       }
     }
 
