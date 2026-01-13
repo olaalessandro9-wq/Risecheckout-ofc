@@ -323,7 +323,12 @@ export function initializeMercadoPago(publicKey: string): boolean {
 
     // Inicializar MercadoPago
     if (typeof window !== "undefined" && window.MercadoPago) {
-      window.MercadoPago.setPublishableKey?.(publicKey);
+      // MercadoPago SDK v2 usa new para inicializar
+      // setPublishableKey é para versão legada
+      const mpConstructor = window.MercadoPago as unknown as { setPublishableKey?: (key: string) => void };
+      if (typeof mpConstructor.setPublishableKey === 'function') {
+        mpConstructor.setPublishableKey(publicKey);
+      }
       console.log("[MercadoPago] ✅ MercadoPago inicializado com sucesso");
       return true;
     }

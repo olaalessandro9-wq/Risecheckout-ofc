@@ -4,6 +4,8 @@
  * Interfaces e tipos para o sistema de customização de checkouts.
  */
 
+import type { CheckoutComponentContent, CheckoutComponentType } from "./checkout";
+
 // ============================================================================
 // VIEW MODE
 // ============================================================================
@@ -16,8 +18,8 @@ export type ViewMode = "desktop" | "mobile" | "public";
 
 export interface CheckoutComponent {
   id: string;
-  type: "text" | "image" | "advantage" | "seal" | "timer" | "testimonial" | "video";
-  content?: any;
+  type: CheckoutComponentType;
+  content?: CheckoutComponentContent;
 }
 
 // ============================================================================

@@ -147,7 +147,9 @@ export function useMercadoPagoBrick({
                 bin: '520000', 
                 locale: 'pt-BR'
             });
-            if (data?.[0]?.payer_costs) setInstallments(data[0].payer_costs);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const installmentData = data as any;
+            if (installmentData?.[0]?.payer_costs) setInstallments(installmentData[0].payer_costs);
         } catch (e) {
             console.warn("[Installments] Erro simul:", e);
         }

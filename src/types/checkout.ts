@@ -42,12 +42,12 @@ export interface CheckoutDesign {
       icon: string;
     };
     creditCardFields?: {
-      textColor: string;
-      placeholderColor: string;
-      borderColor: string;
-      backgroundColor: string;
-      focusBorderColor: string;
-      focusTextColor: string;
+      textColor?: string;
+      placeholderColor?: string;
+      borderColor?: string;
+      backgroundColor?: string;
+      focusBorderColor?: string;
+      focusTextColor?: string;
     };
   };
   typography?: {
@@ -243,7 +243,8 @@ export interface CheckoutComponentContent {
   highlightColor?: string;
   backgroundColor?: string;
   showImages?: boolean;
-  [key: string]: unknown;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any; // Necessário para suportar conteúdo dinâmico de componentes
 }
 
 export interface CheckoutComponent {
