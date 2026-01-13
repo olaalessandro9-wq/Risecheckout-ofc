@@ -3,9 +3,11 @@ import { User } from "lucide-react";
 import { ThemePreset } from "@/types/theme";
 import { ProductHeader } from "@/components/checkout/ui";
 
+import type { ProductData } from "@/types/checkout";
+
 interface EditorProductFormProps {
   design: ThemePreset;
-  productData?: any;
+  productData?: ProductData;
 }
 
 export const EditorProductForm = ({ design, productData }: EditorProductFormProps) => {

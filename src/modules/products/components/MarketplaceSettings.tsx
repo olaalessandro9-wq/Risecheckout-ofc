@@ -30,7 +30,7 @@ interface MarketplaceSettingsProps {
   marketplaceDescription: string;
   marketplaceCategory: string;
   // Callbacks
-  onChange: (field: string, value: any) => void;
+  onChange: (field: string, value: string | boolean) => void;
 }
 
 export function MarketplaceSettings({

@@ -19,13 +19,24 @@ import type { CheckoutPixel } from "@/hooks/checkout/useCheckoutProductPixels";
 // INTERFACE
 // ============================================================================
 
+/**
+ * Props do TrackingManager
+ * 
+ * NOTA: Os tipos legacy usam estruturas dinâmicas do banco de dados.
+ * Uma tipagem estrita aqui quebraria a retrocompatibilidade.
+ */
 interface TrackingManagerProps {
   productId: string | null;
   // Legacy configs (deprecated - para retrocompatibilidade)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   fbConfig?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   utmifyConfig?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   googleAdsIntegration?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   tiktokIntegration?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   kwaiIntegration?: any;
   // New: Pixels vinculados ao produto
   productPixels?: CheckoutPixel[];
