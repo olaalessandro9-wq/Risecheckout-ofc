@@ -22,8 +22,9 @@ import { handleCors } from "../_shared/cors.ts";
 // ============================================================================
 
 interface RequestBody {
-  action: "list" | "create" | "update" | "delete";
+  action: "list" | "create" | "update" | "delete" | "link-to-product" | "unlink-from-product" | "update-product-link" | "list-product-links";
   pixelId?: string;
+  productId?: string;
   data?: {
     platform?: string;
     name?: string;
@@ -32,6 +33,13 @@ interface RequestBody {
     conversion_label?: string | null;
     domain?: string | null;
     is_active?: boolean;
+    // Link settings
+    fire_on_initiate_checkout?: boolean;
+    fire_on_purchase?: boolean;
+    fire_on_pix?: boolean;
+    fire_on_card?: boolean;
+    fire_on_boleto?: boolean;
+    custom_value_percent?: number | null;
   };
 }
 
@@ -64,7 +72,16 @@ interface PixelRecord {
 }
 
 interface ProductPixelLink {
+  id: string;
+  product_id: string;
   pixel_id: string;
+  fire_on_initiate_checkout: boolean;
+  fire_on_purchase: boolean;
+  fire_on_pix: boolean;
+  fire_on_card: boolean;
+  fire_on_boleto: boolean;
+  custom_value_percent: number | null;
+  created_at: string;
 }
 
 // ============================================================================
@@ -400,6 +417,248 @@ async function handleDelete(
 }
 
 // ============================================================================
+// Product Pixel Link Handlers
+// ============================================================================
+
+async function verifyProductOwnership(
+  supabase: SupabaseClient,
+  productId: string,
+  producerId: string
+): Promise<{ valid: boolean; error?: string }> {
+  const { data: product, error } = await supabase
+    .from("products")
+    .select("id, user_id")
+    .eq("id", productId)
+    .single();
+
+  if (error || !product) {
+    return { valid: false, error: "Produto não encontrado" };
+  }
+
+  if (product.user_id !== producerId) {
+    return { valid: false, error: "Acesso negado ao produto" };
+  }
+
+  return { valid: true };
+}
+
+async function handleListProductLinks(
+  supabase: SupabaseClient,
+  producerId: string,
+  productId: string
+): Promise<Response> {
+  console.log("[pixel-management] Listing product pixel links:", productId);
+
+  // Verify product ownership
+  const ownership = await verifyProductOwnership(supabase, productId, producerId);
+  if (!ownership.valid) {
+    return new Response(
+      JSON.stringify({ error: ownership.error }),
+      { status: 403, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  // Buscar pixels do vendedor
+  const { data: vendorPixels, error: pixelsError } = await supabase
+    .from("vendor_pixels")
+    .select("*")
+    .eq("vendor_id", producerId)
+    .order("platform", { ascending: true })
+    .order("name", { ascending: true });
+
+  if (pixelsError) {
+    console.error("[pixel-management] Error listing vendor pixels:", pixelsError);
+    throw new Error("Erro ao listar pixels");
+  }
+
+  // Buscar vínculos do produto
+  const { data: links, error: linksError } = await supabase
+    .from("product_pixels")
+    .select("*")
+    .eq("product_id", productId);
+
+  if (linksError) {
+    console.error("[pixel-management] Error listing product links:", linksError);
+    throw new Error("Erro ao listar vínculos");
+  }
+
+  const pixels = (vendorPixels || []) as PixelRecord[];
+  const productLinks = (links || []) as ProductPixelLink[];
+
+  // Create map of linked pixels with link data
+  const linkedPixels = pixels
+    .filter((p) => productLinks.some((l) => l.pixel_id === p.id))
+    .map((pixel) => ({
+      ...pixel,
+      link: productLinks.find((l) => l.pixel_id === pixel.id),
+    }));
+
+  return new Response(
+    JSON.stringify({ success: true, vendorPixels: pixels, linkedPixels, links: productLinks }),
+    { status: 200, headers: { "Content-Type": "application/json" } }
+  );
+}
+
+async function handleLinkToProduct(
+  supabase: SupabaseClient,
+  producerId: string,
+  productId: string,
+  pixelId: string,
+  data: RequestBody["data"]
+): Promise<Response> {
+  console.log("[pixel-management] Linking pixel to product:", { pixelId, productId });
+
+  // Verify product ownership
+  const ownership = await verifyProductOwnership(supabase, productId, producerId);
+  if (!ownership.valid) {
+    return new Response(
+      JSON.stringify({ error: ownership.error }),
+      { status: 403, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  // Verify pixel ownership
+  const { data: pixel, error: pixelError } = await supabase
+    .from("vendor_pixels")
+    .select("id, vendor_id")
+    .eq("id", pixelId)
+    .single();
+
+  if (pixelError || !pixel) {
+    return new Response(
+      JSON.stringify({ error: "Pixel não encontrado" }),
+      { status: 404, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  if (pixel.vendor_id !== producerId) {
+    return new Response(
+      JSON.stringify({ error: "Acesso negado ao pixel" }),
+      { status: 403, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  // Create link
+  const { data: newLink, error: insertError } = await supabase
+    .from("product_pixels")
+    .insert({
+      product_id: productId,
+      pixel_id: pixelId,
+      fire_on_initiate_checkout: data?.fire_on_initiate_checkout ?? true,
+      fire_on_purchase: data?.fire_on_purchase ?? true,
+      fire_on_pix: data?.fire_on_pix ?? true,
+      fire_on_card: data?.fire_on_card ?? true,
+      fire_on_boleto: data?.fire_on_boleto ?? true,
+      custom_value_percent: data?.custom_value_percent ?? null,
+    })
+    .select()
+    .single();
+
+  if (insertError) {
+    if (insertError.code === "23505") {
+      return new Response(
+        JSON.stringify({ error: "Este pixel já está vinculado ao produto" }),
+        { status: 409, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    console.error("[pixel-management] Error linking pixel:", insertError);
+    throw new Error("Erro ao vincular pixel");
+  }
+
+  console.log("[pixel-management] ✅ Pixel linked:", newLink.id);
+
+  return new Response(
+    JSON.stringify({ success: true, link: newLink }),
+    { status: 201, headers: { "Content-Type": "application/json" } }
+  );
+}
+
+async function handleUnlinkFromProduct(
+  supabase: SupabaseClient,
+  producerId: string,
+  productId: string,
+  pixelId: string
+): Promise<Response> {
+  console.log("[pixel-management] Unlinking pixel from product:", { pixelId, productId });
+
+  // Verify product ownership
+  const ownership = await verifyProductOwnership(supabase, productId, producerId);
+  if (!ownership.valid) {
+    return new Response(
+      JSON.stringify({ error: ownership.error }),
+      { status: 403, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  // Delete link
+  const { error } = await supabase
+    .from("product_pixels")
+    .delete()
+    .eq("product_id", productId)
+    .eq("pixel_id", pixelId);
+
+  if (error) {
+    console.error("[pixel-management] Error unlinking pixel:", error);
+    throw new Error("Erro ao desvincular pixel");
+  }
+
+  console.log("[pixel-management] ✅ Pixel unlinked");
+
+  return new Response(
+    JSON.stringify({ success: true }),
+    { status: 200, headers: { "Content-Type": "application/json" } }
+  );
+}
+
+async function handleUpdateProductLink(
+  supabase: SupabaseClient,
+  producerId: string,
+  productId: string,
+  pixelId: string,
+  data: RequestBody["data"]
+): Promise<Response> {
+  console.log("[pixel-management] Updating product pixel link:", { pixelId, productId });
+
+  // Verify product ownership
+  const ownership = await verifyProductOwnership(supabase, productId, producerId);
+  if (!ownership.valid) {
+    return new Response(
+      JSON.stringify({ error: ownership.error }),
+      { status: 403, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  // Build update data
+  const updateData: Record<string, unknown> = {};
+  if (data?.fire_on_initiate_checkout !== undefined) updateData.fire_on_initiate_checkout = data.fire_on_initiate_checkout;
+  if (data?.fire_on_purchase !== undefined) updateData.fire_on_purchase = data.fire_on_purchase;
+  if (data?.fire_on_pix !== undefined) updateData.fire_on_pix = data.fire_on_pix;
+  if (data?.fire_on_card !== undefined) updateData.fire_on_card = data.fire_on_card;
+  if (data?.fire_on_boleto !== undefined) updateData.fire_on_boleto = data.fire_on_boleto;
+  if (data?.custom_value_percent !== undefined) updateData.custom_value_percent = data.custom_value_percent;
+
+  const { data: updatedLink, error } = await supabase
+    .from("product_pixels")
+    .update(updateData)
+    .eq("product_id", productId)
+    .eq("pixel_id", pixelId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("[pixel-management] Error updating link:", error);
+    throw new Error("Erro ao atualizar vínculo");
+  }
+
+  console.log("[pixel-management] ✅ Link updated");
+
+  return new Response(
+    JSON.stringify({ success: true, link: updatedLink }),
+    { status: 200, headers: { "Content-Type": "application/json" } }
+  );
+}
+
+// ============================================================================
 // Main Handler
 // ============================================================================
 
@@ -455,6 +714,9 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Parse body
+    const { productId } = body;
+
     // Router
     let response: Response;
     switch (action) {
@@ -482,6 +744,45 @@ Deno.serve(async (req) => {
         }
         response = await handleDelete(supabase, producerId, pixelId);
         break;
+
+      // Product Pixel Link actions
+      case "list-product-links":
+        if (!productId) {
+          return new Response(
+            JSON.stringify({ error: "productId é obrigatório" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        response = await handleListProductLinks(supabase, producerId, productId);
+        break;
+      case "link-to-product":
+        if (!productId || !pixelId) {
+          return new Response(
+            JSON.stringify({ error: "productId e pixelId são obrigatórios" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        response = await handleLinkToProduct(supabase, producerId, productId, pixelId, data);
+        break;
+      case "unlink-from-product":
+        if (!productId || !pixelId) {
+          return new Response(
+            JSON.stringify({ error: "productId e pixelId são obrigatórios" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        response = await handleUnlinkFromProduct(supabase, producerId, productId, pixelId);
+        break;
+      case "update-product-link":
+        if (!productId || !pixelId) {
+          return new Response(
+            JSON.stringify({ error: "productId e pixelId são obrigatórios" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        response = await handleUpdateProductLink(supabase, producerId, productId, pixelId, data);
+        break;
+
       default:
         return new Response(
           JSON.stringify({ error: `Ação desconhecida: ${action}` }),
