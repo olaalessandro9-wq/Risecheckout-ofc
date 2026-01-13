@@ -60,7 +60,9 @@ export function UpsellTab() {
     updateUpsellModified(hasChanges);
   }, [localSettings, updateUpsellModified]);
 
-  const handleChange = (field: keyof typeof upsellSettings, value: any) => {
+  type UpsellSettingValue = string | boolean;
+  
+  const handleChange = (field: keyof typeof upsellSettings, value: UpsellSettingValue) => {
     const newSettings = { ...localSettings, [field]: value };
     setLocalSettings(newSettings);
     if (field === 'customPageUrl') {

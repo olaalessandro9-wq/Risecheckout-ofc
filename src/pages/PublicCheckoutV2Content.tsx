@@ -25,18 +25,24 @@ import * as TikTok from "@/integrations/tracking/tiktok";
 import * as Kwai from "@/integrations/tracking/kwai";
 import type { OrderBump } from "@/types/checkout";
 import type { useCheckoutData } from "@/hooks/checkout/useCheckoutData";
+import type { ThemePreset } from "@/lib/checkout/themePresets";
+
+/** Checkout type inferred from useCheckoutData */
+type CheckoutFromHook = NonNullable<ReturnType<typeof useCheckoutData>["checkout"]>;
 
 interface ContentProps {
-  checkout: NonNullable<ReturnType<typeof useCheckoutData>["checkout"]> & { 
-    product: NonNullable<NonNullable<ReturnType<typeof useCheckoutData>["checkout"]>["product"]> 
+  checkout: CheckoutFromHook & { 
+    product: NonNullable<CheckoutFromHook["product"]>;
+    vendorId?: string;
+    offerId?: string;
   };
-  design: NonNullable<ReturnType<typeof useCheckoutData>["design"]>;
+  design: ThemePreset;
   orderBumps: OrderBump[];
 }
 
 export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, design, orderBumps }) => {
   const checkoutId = checkout.id;
-  const vendorId = (checkout as any).vendorId as string | undefined;
+  const vendorId = checkout.vendorId;
 
   // NEW: Fetch product pixels from product_pixels table
   const { pixels: productPixels } = useCheckoutProductPixels(checkout.product.id);
@@ -69,7 +75,7 @@ export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, desi
   // Payment Gateway
   const { selectedPayment, setSelectedPayment, submitPayment } = usePaymentOrchestrator({
     vendorId: null, checkoutId, productId: checkout.product.id, 
-    offerId: (checkout as any).offerId || null, // ✅ Passa offerId para garantir preço correto
+    offerId: checkout.offerId || null, // ✅ Passa offerId para garantir preço correto
     productName: checkout.product.name, productPrice: checkout.product.price,
     publicKey: checkout.mercadopago_public_key || null, amount: calculateTotal(), formData, selectedBumps, orderBumps, appliedCoupon,
     pixGateway: checkout.pix_gateway || 'pushinpay', creditCardGateway: checkout.credit_card_gateway || 'mercadopago',
@@ -122,12 +128,11 @@ export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, desi
 
   // Render
   const productData = { id: checkout.product.id, name: checkout.product.name, description: checkout.product.description, price: checkout.product.price, image_url: checkout.product.image_url };
-  const customization = { topComponents: checkout.top_components || [], bottomComponents: checkout.bottom_components || [] };
   const creditCardGateway = checkout.credit_card_gateway || 'mercadopago';
   const cardPublicKey = creditCardGateway === 'stripe' ? checkout.stripe_public_key : checkout.mercadopago_public_key;
 
   return (
-    <CheckoutProvider value={{ checkout: checkout as any, design, orderBumps, vendorId: vendorId || null }}>
+    <CheckoutProvider value={{ checkout: null, design, orderBumps, vendorId: vendorId || null, productData }}>
       <TrackingManager 
         productId={checkout.product.id} 
         productPixels={productPixels}
@@ -137,7 +142,7 @@ export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, desi
         tiktokIntegration={tiktokIntegration} 
         kwaiIntegration={kwaiIntegration} 
       />
-      <CheckoutMasterLayout mode="public" design={design} customization={customization as any} viewMode="public">
+      <CheckoutMasterLayout mode="public" design={design} viewMode="public">
         <SharedCheckoutLayout productData={productData} orderBumps={orderBumps} design={design} selectedPayment={selectedPayment} onPaymentChange={setSelectedPayment}
           selectedBumps={selectedBumps} onToggleBump={toggleBump} mode="public" formData={formData} formErrors={formErrors} onFieldChange={updateField}
           requiredFields={checkout.product.required_fields} isProcessing={isProcessing} publicKey={cardPublicKey} creditCardGateway={creditCardGateway}

@@ -1,9 +1,11 @@
 import { Zap } from "lucide-react";
+import type { OrderBump } from "@/types/checkout";
+import type { ThemePreset } from "@/lib/checkout/themePresets";
 
 interface OrderBumpListProps {
-  orderBumps: any[];
+  orderBumps: OrderBump[];
   selectedBumps: Set<string>;
-  design: any;
+  design: ThemePreset;
   onToggleBump: (bumpId: string) => void;
 }
 

@@ -29,6 +29,15 @@ import * as GoogleAds from "@/integrations/tracking/google-ads";
 import * as TikTok from "@/integrations/tracking/tiktok";
 import * as Kwai from "@/integrations/tracking/kwai";
 import * as MercadoPago from "@/integrations/gateways/mercadopago";
+import type { CouponData } from "@/types/checkout";
+
+/** Required fields config from product */
+interface RequiredFieldsConfig {
+  name?: boolean;
+  email?: boolean;
+  phone?: boolean;
+  cpf?: boolean;
+}
 
 export const useCheckoutPageControllerV2 = () => {
   // ============================================================================
@@ -63,9 +72,9 @@ export const useCheckoutPageControllerV2 = () => {
   
   const [selectedPayment, setSelectedPayment] = useState<'pix' | 'credit_card'>('pix');
   const [finalTotalWithDiscount, setFinalTotalWithDiscount] = useState<number | null>(null);
-  const [appliedCouponData, setAppliedCouponData] = useState<any>(null);
+  const [appliedCouponData, setAppliedCouponData] = useState<CouponData | null>(null);
   
-  const paymentSectionRef = useRef<any>(null);
+  const paymentSectionRef = useRef<HTMLDivElement | null>(null);
   
   // ============================================================================
   // 4. HOOKS DE SERVIÇO (só inicializam se checkout estiver disponível)
@@ -81,7 +90,7 @@ export const useCheckoutPageControllerV2 = () => {
   });
 
 // Helper para converter required_fields para array de strings
-function getRequiredFieldsArray(requiredFields: any): string[] {
+function getRequiredFieldsArray(requiredFields: RequiredFieldsConfig | string[] | null | undefined): string[] {
   if (!requiredFields) return ['name', 'email'];
   if (Array.isArray(requiredFields)) return requiredFields;
   

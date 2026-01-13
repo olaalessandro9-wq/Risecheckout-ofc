@@ -101,7 +101,9 @@ export function AffiliatesTab() {
     updateSettingsModified(hasSettingsChanges || hasGatewayChanges);
   }, [localSettings, gatewaySettings, updateSettingsModified]);
 
-  const handleChange = (field: keyof AffiliateSettings, value: any) => {
+  type AffiliateSettingValue = string | number | boolean;
+  
+  const handleChange = (field: keyof AffiliateSettings, value: AffiliateSettingValue) => {
     const newSettings = { ...localSettings, [field]: value } as AffiliateSettings;
     setLocalSettings(newSettings);
   };

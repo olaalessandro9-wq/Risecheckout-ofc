@@ -13,6 +13,37 @@ import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from "@
 import { useCheckoutEditor, CheckoutCustomization } from "@/hooks/useCheckoutEditor";
 import { UnsavedChangesGuard } from "@/providers/UnsavedChangesGuard";
 import { getProducerSessionToken } from "@/hooks/useProducerAuth";
+import type { ProductData, OrderBump } from "@/types/checkout";
+
+/** Product offer from database */
+interface ProductOffer {
+  id: string;
+  name: string;
+  price: number;
+  status: string;
+}
+
+/** Payment link data */
+interface PaymentLinkData {
+  id: string;
+  offer_id?: string;
+}
+
+/** Order bump from API response */
+interface OrderBumpApiResponse {
+  id: string;
+  custom_title?: string;
+  custom_description?: string;
+  show_image?: boolean;
+  products?: {
+    name?: string;
+    price?: number;
+    image_url?: string;
+  };
+  offers?: {
+    price?: number;
+  };
+}
 
 const CheckoutCustomizer = () => {
   const navigate = useNavigate();
@@ -23,10 +54,10 @@ const CheckoutCustomizer = () => {
   const [isSaving, setIsSaving] = useState(false);
   
   // Estados de dados externos (Produtos/Ofertas)
-  const [productData, setProductData] = useState<any>(null);
-  const [orderBumps, setOrderBumps] = useState<any[]>([]);
-  const [productOffers, setProductOffers] = useState<any[]>([]);
-  const [currentLinks, setCurrentLinks] = useState<any[]>([]);
+  const [productData, setProductData] = useState<ProductData | null>(null);
+  const [orderBumps, setOrderBumps] = useState<OrderBump[]>([]);
+  const [productOffers, setProductOffers] = useState<ProductOffer[]>([]);
+  const [currentLinks, setCurrentLinks] = useState<PaymentLinkData[]>([]);
 
   // 🚀 HOOK DO EDITOR: Centraliza toda a lógica complexa
   const editor = useCheckoutEditor();
@@ -97,11 +128,11 @@ const CheckoutCustomizer = () => {
 
       // Map order bumps
       if (orderBumps && orderBumps.length > 0) {
-        const mappedBumps = orderBumps.map((bump: any) => ({
+        const mappedBumps = orderBumps.map((bump: OrderBumpApiResponse): OrderBump => ({
           id: bump.id,
           name: bump.custom_title || bump.products?.name || "Produto",
           price: bump.offers?.price || bump.products?.price || 0,
-          image_url: bump.show_image ? bump.products?.image_url : null,
+          image_url: bump.show_image ? bump.products?.image_url : undefined,
           description: bump.custom_description
         }));
         setOrderBumps(mappedBumps);

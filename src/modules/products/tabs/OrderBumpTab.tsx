@@ -16,11 +16,12 @@ import { OrderBumpList } from "@/components/products/OrderBumpList";
 import { OrderBumpDialog } from "@/components/products/order-bump-dialog";
 import { useProductContext } from "../context/ProductContext";
 import { supabase } from "@/integrations/supabase/client";
+import type { EditOrderBump } from "@/components/products/order-bump-dialog/types";
 
 export function OrderBumpTab() {
   const { product } = useProductContext();
   const [orderBumpDialogOpen, setOrderBumpDialogOpen] = useState(false);
-  const [editingOrderBump, setEditingOrderBump] = useState<any>(null);
+  const [editingOrderBump, setEditingOrderBump] = useState<EditOrderBump | null>(null);
   const [orderBumpKey, setOrderBumpKey] = useState(0);
 
   const handleAddOrderBump = () => {
@@ -28,7 +29,7 @@ export function OrderBumpTab() {
     setOrderBumpDialogOpen(true);
   };
 
-  const handleEditOrderBump = async (orderBump: any) => {
+  const handleEditOrderBump = async (orderBump: EditOrderBump) => {
     // Buscar dados atualizados do banco para garantir que custom_title e custom_description estejam corretos
     try {
       const { data, error } = await supabase
@@ -38,7 +39,7 @@ export function OrderBumpTab() {
         .single();
       
       if (error) throw error;
-      setEditingOrderBump(data || orderBump);  // Usar dados do banco ou fallback para o objeto original
+      setEditingOrderBump((data as EditOrderBump) || orderBump);  // Usar dados do banco ou fallback para o objeto original
     } catch (error) {
       console.error('Erro ao buscar order bump:', error);
       setEditingOrderBump(orderBump);  // Fallback para o objeto original em caso de erro
