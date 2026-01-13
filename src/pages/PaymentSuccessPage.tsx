@@ -116,9 +116,8 @@ export const PaymentSuccessPage = () => {
     
     try {
       // Chamar edge function para gerar token de acesso
-      const { data, error } = await supabase.functions.invoke('members-area-students', {
+      const { data, error } = await supabase.functions.invoke('students-invite/generate-purchase-access', {
         body: {
-          action: 'generate-purchase-access',
           order_id: orderId,
           customer_email: orderDetails.customer_email,
           product_id: orderDetails.product_id,

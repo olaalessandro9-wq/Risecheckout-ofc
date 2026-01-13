@@ -1,6 +1,6 @@
 /**
  * Students Service
- * Communicates with members-area-students Edge Function
+ * Communicates with students-* Edge Functions (refactored from members-area-students)
  * 
  * MIGRATED: Uses getProducerSessionToken() instead of supabase.auth.getSession()
  */
@@ -11,8 +11,6 @@ import type {
   BuyerWithGroups,
   AssignBuyerGroupsInput,
 } from '../types';
-
-const FUNCTION_NAME = 'members-area-students';
 
 interface ServiceResponse<T> {
   data: T | null;
@@ -27,9 +25,10 @@ interface StudentListResponse {
 }
 
 /**
- * Invoke the students edge function with authentication
+ * Invoke students edge function with authentication
  */
 async function invokeStudentsFunction<T>(
+  functionName: string,
   action: string,
   payload: object
 ): Promise<ServiceResponse<T>> {
@@ -40,7 +39,7 @@ async function invokeStudentsFunction<T>(
       return { data: null, error: 'Not authenticated' };
     }
 
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/${FUNCTION_NAME}`, {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/${functionName}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -76,7 +75,7 @@ export async function listStudents(
     group_id?: string;
   }
 ): Promise<ServiceResponse<StudentListResponse>> {
-  return invokeStudentsFunction<StudentListResponse>('list', {
+  return invokeStudentsFunction<StudentListResponse>('students-list', 'list', {
     product_id: productId,
     ...options,
   });
@@ -89,7 +88,7 @@ export async function getStudent(
   buyerId: string,
   productId: string
 ): Promise<ServiceResponse<BuyerWithGroups>> {
-  return invokeStudentsFunction<BuyerWithGroups>('get', {
+  return invokeStudentsFunction<BuyerWithGroups>('students-list', 'get', {
     buyer_id: buyerId,
     product_id: productId,
   });
@@ -101,7 +100,7 @@ export async function getStudent(
 export async function assignGroups(
   input: AssignBuyerGroupsInput
 ): Promise<ServiceResponse<{ success: boolean }>> {
-  return invokeStudentsFunction<{ success: boolean }>('assign_groups', input);
+  return invokeStudentsFunction<{ success: boolean }>('students-groups', 'assign-groups', input);
 }
 
 /**
@@ -111,7 +110,7 @@ export async function removeFromGroup(
   buyerId: string,
   groupId: string
 ): Promise<ServiceResponse<{ success: boolean }>> {
-  return invokeStudentsFunction<{ success: boolean }>('remove_from_group', {
+  return invokeStudentsFunction<{ success: boolean }>('students-groups', 'remove-from-group', {
     buyer_id: buyerId,
     group_id: groupId,
   });
@@ -124,7 +123,7 @@ export async function revokeAccess(
   buyerId: string,
   productId: string
 ): Promise<ServiceResponse<{ success: boolean }>> {
-  return invokeStudentsFunction<{ success: boolean }>('revoke_access', {
+  return invokeStudentsFunction<{ success: boolean }>('students-access', 'revoke-access', {
     buyer_id: buyerId,
     product_id: productId,
   });
