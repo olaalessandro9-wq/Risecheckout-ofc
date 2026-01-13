@@ -395,8 +395,9 @@ export class AsaasAdapter implements IPaymentGateway {
 
       if (!response.ok) {
         console.error('[AsaasAdapter] Erro ao criar cobrança:', data);
-        const errorMessage = data.errors?.[0]?.description || data.message || 'Erro desconhecido';
-        return { error: errorMessage } as any;
+        const asaasError = data as { errors?: Array<{ description?: string }>; message?: string };
+        const errorMessage = asaasError.errors?.[0]?.description || asaasError.message || 'Erro desconhecido';
+        return { error: errorMessage } as AsaasPayment & { error: string };
       }
 
       console.log(`[AsaasAdapter] Cobrança criada: ${data.id}`);

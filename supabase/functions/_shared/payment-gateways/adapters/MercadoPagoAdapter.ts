@@ -11,21 +11,59 @@
  * - Ambientes de teste (sandbox) e produção
  * - Circuit Breaker para resiliência
  * 
- * @example
- * ```typescript
- * const adapter = new MercadoPagoAdapter(accessToken, 'production');
- * const result = await adapter.createPix({
- *   amount_cents: 10000,
- *   orderId: 'abc123',
- *   customer: { name: 'João', email: 'joao@example.com', document: '12345678900' },
- *   description: 'Pedido #123'
- * });
- * ```
+ * @version 2.1.0 - Zero `any` compliance
  */
 
 import { IPaymentGateway } from "../IPaymentGateway.ts";
 import { PaymentRequest, PaymentResponse, PaymentSplitRule } from "../types.ts";
 import { CircuitBreaker, CircuitOpenError, GATEWAY_CIRCUIT_CONFIGS } from "../../circuit-breaker.ts";
+
+// ============================================
+// MERCADOPAGO SPECIFIC TYPES
+// ============================================
+
+interface MercadoPagoPayload {
+  transaction_amount: number;
+  description?: string;
+  payment_method_id?: string;
+  token?: string;
+  installments?: number;
+  statement_descriptor?: string;
+  payer: {
+    email: string;
+    first_name: string;
+    last_name: string;
+    identification: {
+      type: string;
+      number: string;
+    };
+  };
+  external_reference?: string;
+  notification_url?: string;
+  disbursements?: MercadoPagoDisbursement[];
+}
+
+interface MercadoPagoDisbursement {
+  amount: number;
+  external_reference: string;
+  collector_id: string;
+}
+
+interface MercadoPagoResponse {
+  id?: number | string;
+  status?: string;
+  message?: string;
+  point_of_interaction?: {
+    transaction_data?: {
+      qr_code_base64?: string;
+      qr_code?: string;
+    };
+  };
+}
+
+// ============================================
+// ADAPTER IMPLEMENTATION
+// ============================================
 
 export class MercadoPagoAdapter implements IPaymentGateway {
   readonly providerName = "mercadopago";
@@ -63,7 +101,7 @@ export class MercadoPagoAdapter implements IPaymentGateway {
         const document = request.customer.document || '';
         
         // 1. Traduzir: RiseCheckout → Mercado Pago
-        const mpPayload = {
+        const mpPayload: MercadoPagoPayload = {
           transaction_amount: request.amount_cents / 100, // Centavos → Reais
           description: request.description,
           payment_method_id: 'pix',
@@ -80,11 +118,11 @@ export class MercadoPagoAdapter implements IPaymentGateway {
           notification_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/mercadopago-webhook`
         };
 
-        // ✅ NOVO: Adicionar split se houver regras válidas
+        // ✅ Adicionar split se houver regras válidas
         const disbursements = this.buildDisbursements(request.split_rules);
         
         if (disbursements && disbursements.length > 0) {
-          (mpPayload as any).disbursements = disbursements;
+          mpPayload.disbursements = disbursements;
           console.log(`[MercadoPagoAdapter] Split ativo com ${disbursements.length} destinatário(s)`);
         } else if (request.split_rules && request.split_rules.length > 0) {
           console.warn('[MercadoPagoAdapter] Split solicitado mas nenhum destinatário tem collector_id. Dinheiro vai todo pro produtor.');
@@ -103,7 +141,7 @@ export class MercadoPagoAdapter implements IPaymentGateway {
           body: JSON.stringify(mpPayload)
         });
 
-        const data = await response.json();
+        const data = await response.json() as MercadoPagoResponse;
 
         // 3. Verificar erros (não contabilizar como falha do circuit breaker para erros de negócio)
         if (!response.ok) {
@@ -125,7 +163,7 @@ export class MercadoPagoAdapter implements IPaymentGateway {
           transaction_id: data.id?.toString() || '',
           qr_code: qrCodeData?.qr_code_base64,
           qr_code_text: qrCodeData?.qr_code,
-          status: this.mapMercadoPagoStatus(data.status),
+          status: this.mapMercadoPagoStatus(data.status || ''),
           raw_response: data
         };
       });
@@ -149,7 +187,7 @@ export class MercadoPagoAdapter implements IPaymentGateway {
         success: false,
         transaction_id: '',
         status: 'error',
-        raw_response: error,
+        raw_response: { error: errorMessage },
         error_message: errorMessage || 'Erro desconhecido ao processar PIX'
       };
     }
@@ -172,7 +210,7 @@ export class MercadoPagoAdapter implements IPaymentGateway {
         const document = request.customer.document || '';
 
         // 1. Traduzir: RiseCheckout → Mercado Pago
-        const mpPayload = {
+        const mpPayload: MercadoPagoPayload = {
           transaction_amount: request.amount_cents / 100,
           description: request.description,
           token: request.card_token,
@@ -191,11 +229,11 @@ export class MercadoPagoAdapter implements IPaymentGateway {
           notification_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/mercadopago-webhook`
         };
 
-        // ✅ NOVO: Adicionar split se houver regras válidas
+        // ✅ Adicionar split se houver regras válidas
         const disbursements = this.buildDisbursements(request.split_rules);
         
         if (disbursements && disbursements.length > 0) {
-          (mpPayload as any).disbursements = disbursements;
+          mpPayload.disbursements = disbursements;
           console.log(`[MercadoPagoAdapter] Split ativo com ${disbursements.length} destinatário(s)`);
         } else if (request.split_rules && request.split_rules.length > 0) {
           console.warn('[MercadoPagoAdapter] Split solicitado mas nenhum destinatário tem collector_id. Dinheiro vai todo pro produtor.');
@@ -214,7 +252,7 @@ export class MercadoPagoAdapter implements IPaymentGateway {
           body: JSON.stringify(mpPayload)
         });
 
-        const data = await response.json();
+        const data = await response.json() as MercadoPagoResponse;
 
         // 3. Verificar erros
         if (!response.ok) {
@@ -232,7 +270,7 @@ export class MercadoPagoAdapter implements IPaymentGateway {
         return {
           success: true,
           transaction_id: data.id?.toString() || '',
-          status: this.mapMercadoPagoStatus(data.status),
+          status: this.mapMercadoPagoStatus(data.status || ''),
           raw_response: data
         };
       });
@@ -256,7 +294,7 @@ export class MercadoPagoAdapter implements IPaymentGateway {
         success: false,
         transaction_id: '',
         status: 'error',
-        raw_response: error,
+        raw_response: { error: errorMessage },
         error_message: errorMessage || 'Erro desconhecido ao processar cartão'
       };
     }
@@ -270,16 +308,16 @@ export class MercadoPagoAdapter implements IPaymentGateway {
    * 
    * @private
    */
-  private buildDisbursements(rules?: PaymentSplitRule[]) {
+  private buildDisbursements(rules?: PaymentSplitRule[]): MercadoPagoDisbursement[] | undefined {
     if (!rules || rules.length === 0) return undefined;
 
     // Filtra apenas quem NÃO é o produtor e tem collector_id
-    const disbursements = rules
+    const disbursements: MercadoPagoDisbursement[] = rules
       .filter(r => r.role !== 'producer' && r.recipient_id)
       .map(r => ({
         amount: r.amount_cents / 100, // Centavos → Reais
         external_reference: r.role,   // 'affiliate' ou 'platform'
-        collector_id: r.recipient_id  // ID numérico do MP
+        collector_id: r.recipient_id! // ID numérico do MP (já filtrado acima)
       }));
 
     return disbursements.length > 0 ? disbursements : undefined;
