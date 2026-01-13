@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/api-client";
 import { toast } from "sonner";
 import { DEFAULT_PIX_GATEWAYS, DEFAULT_CARD_GATEWAYS, GATEWAY_INFO } from "./gateway-constants";
 import type { AffiliationDetails } from "@/hooks/useAffiliationDetails";
@@ -151,18 +152,17 @@ export function useGatewayConnections({ affiliation, onRefetch }: UseGatewayConn
         credentials.stripe_account_id = profileData.stripe_account_id;
       }
 
-      // Atualizar afiliado
-      const { error } = await supabase
-        .from("affiliates")
-        .update({
-          pix_gateway: selectedPixGateway,
-          credit_card_gateway: selectedCardGateway,
-          gateway_credentials: credentials,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", affiliation.id);
+      // Atualizar afiliado via Edge Function (PROTOCOLO: Zero bypass direto)
+      const { data, error } = await invokeEdgeFunction<{ success: boolean; error?: string }>("update-affiliate-settings", {
+        action: "update_gateways",
+        affiliate_id: affiliation.id,
+        pix_gateway: selectedPixGateway,
+        credit_card_gateway: selectedCardGateway,
+        gateway_credentials: credentials,
+      });
 
-      if (error) throw error;
+      if (error) throw new Error(error);
+      if (!data?.success) throw new Error(data?.error || "Erro ao atualizar gateways");
 
       toast.success("Gateways configurados com sucesso!");
       await onRefetch();
