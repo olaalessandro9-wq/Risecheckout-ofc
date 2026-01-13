@@ -6,13 +6,12 @@
  * Envia emails individuais para cada item do pedido (produto principal + bumps).
  * Cada produto recebe seu próprio email com seu respectivo link de acesso.
  * 
- * Versão: 1.0
- * Data de Criação: 2025-12-26
+ * @rise-protocol-compliant true
+ * @version 2.0.0 - Zero `any` compliance
  * ============================================================================
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseClientAny = any;
+import { SupabaseClient } from "./supabase-types.ts";
 import { sendEmail } from './zeptomail.ts';
 import { 
   getPurchaseConfirmationTemplate, 
@@ -53,19 +52,25 @@ export interface SendOrderEmailsResult {
   }>;
 }
 
+interface ProductDeliveryInfo {
+  delivery_url: string | null;
+  support_email: string | null;
+  external_delivery: boolean | null;
+}
+
 // ============================================================================
 // LOGGING HELPERS
 // ============================================================================
 
-function logInfo(message: string, data?: any) {
+function logInfo(message: string, data?: Record<string, unknown>) {
   console.log(`[send-order-emails] [INFO] ${message}`, data ? JSON.stringify(data) : '');
 }
 
-function logWarn(message: string, data?: any) {
+function logWarn(message: string, data?: Record<string, unknown>) {
   console.warn(`[send-order-emails] [WARN] ${message}`, data ? JSON.stringify(data) : '');
 }
 
-function logError(message: string, error?: any) {
+function logError(message: string, error?: unknown) {
   console.error(`[send-order-emails] [ERROR] ${message}`, error);
 }
 
@@ -83,7 +88,7 @@ function logError(message: string, error?: any) {
  * @returns Resultado detalhado dos envios
  */
 export async function sendOrderConfirmationEmails(
-  supabase: SupabaseClientAny,
+  supabase: SupabaseClient,
   order: OrderData,
   paymentMethod: string
 ): Promise<SendOrderEmailsResult> {
@@ -114,7 +119,7 @@ export async function sendOrderConfirmationEmails(
     .from('order_items')
     .select('product_id, product_name, amount_cents, is_bump')
     .eq('order_id', order.id)
-    .order('is_bump', { ascending: true }); // Principal primeiro, depois bumps
+    .order('is_bump', { ascending: true }) as { data: OrderItemData[] | null; error: unknown };
 
   if (itemsError) {
     logError('Erro ao buscar order_items', itemsError);
@@ -128,7 +133,7 @@ export async function sendOrderConfirmationEmails(
 
   if (orderItems && orderItems.length > 0) {
     // Usar order_items se existirem
-    itemsToProcess = orderItems as OrderItemData[];
+    itemsToProcess = orderItems;
     logInfo('Usando order_items', { count: itemsToProcess.length });
   } else {
     // Fallback: usar dados do order (apenas produto principal)
@@ -161,7 +166,7 @@ export async function sendOrderConfirmationEmails(
         .from('products')
         .select('delivery_url, support_email, external_delivery')
         .eq('id', item.product_id)
-        .single();
+        .single() as { data: ProductDeliveryInfo | null; error: { message: string } | null };
 
       if (productError) {
         logWarn('Erro ao buscar produto', { productId: item.product_id, error: productError.message });
@@ -234,12 +239,13 @@ export async function sendOrderConfirmationEmails(
         result.emailsFailed++;
       }
 
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       logError('Exceção ao processar item', { 
         productId: item.product_id, 
-        error: error.message 
+        error: errorMessage 
       });
-      itemDetail.error = error.message;
+      itemDetail.error = errorMessage;
       result.emailsFailed++;
     }
 

@@ -1,12 +1,17 @@
 /**
  * Audit Logger - Helper para registrar eventos de segurança
  * 
- * RISE Protocol Compliant
+ * @rise-protocol-compliant true
+ * @version 2.0.0 - Zero `any` compliance
  */
 
-// Usando tipo genérico para compatibilidade com diferentes versões do Supabase
+// ============================================
+// TYPES
+// ============================================
+
+// Interface genérica para compatibilidade com diferentes versões do Supabase
 // deno-lint-ignore no-explicit-any
-type SupabaseClientGeneric = { from: (table: string) => any; rpc: (fn: string, params: any) => any };
+type SupabaseClientGeneric = { rpc: (fn: string, params: Record<string, unknown>) => Promise<{ error: { message: string } | null }> };
 
 // Ações de segurança padronizadas
 export const SecurityAction = {

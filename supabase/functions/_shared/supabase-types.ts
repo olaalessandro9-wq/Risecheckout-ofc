@@ -220,3 +220,146 @@ export interface BuyerAuditLog {
   failure_reason?: string | null;
   created_at?: string;
 }
+
+// ============================================
+// CHECKOUT TYPES
+// ============================================
+
+export interface Checkout {
+  id: string;
+  name: string;
+  is_default: boolean;
+  product_id: string | null;
+  theme?: string | null;
+  slug?: string | null;
+  status?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface CheckoutWithProduct extends Checkout {
+  products: { user_id: string; name?: string } | null;
+}
+
+// ============================================
+// PRODUCT SETTINGS TYPES
+// ============================================
+
+export interface RequiredFields {
+  name: boolean;
+  email: boolean;
+  phone: boolean;
+  cpf: boolean;
+}
+
+export interface ProductSettings {
+  required_fields?: RequiredFields;
+  default_payment_method?: string;
+  pix_gateway?: string;
+  credit_card_gateway?: string;
+  upsell_enabled?: boolean;
+  upsell_product_id?: string | null;
+  upsell_offer_id?: string | null;
+  upsell_title?: string;
+  upsell_description?: string;
+  upsell_button_text?: string;
+  upsell_decline_text?: string;
+  upsell_timer_enabled?: boolean;
+  upsell_timer_minutes?: number;
+  affiliate_commission?: number;
+  marketplace_enabled?: boolean;
+  marketplace_auto_approve?: boolean;
+}
+
+// ============================================
+// OFFER TYPES
+// ============================================
+
+export interface Offer {
+  id: string;
+  product_id: string;
+  name: string;
+  price: number;
+  original_price?: number;
+  type?: string;
+  is_default?: boolean;
+  status?: string;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+// ============================================
+// ORDER BUMP TYPES
+// ============================================
+
+export interface OrderBump {
+  id: string;
+  checkout_id: string;
+  bump_product_id: string;
+  bump_offer_id: string;
+  discount_price?: number | null;
+  call_to_action?: string;
+  custom_title?: string;
+  custom_description?: string;
+  show_image?: boolean;
+  position?: number;
+  is_active?: boolean;
+}
+
+// ============================================
+// SECURITY TYPES
+// ============================================
+
+export interface SecurityAlert {
+  id: string;
+  type: string;
+  severity: string;
+  message: string;
+  acknowledged: boolean;
+  acknowledged_at?: string | null;
+  acknowledged_by?: string | null;
+  ip_address?: string | null;
+  user_id?: string | null;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface IPBlocklistEntry {
+  id: string;
+  ip_address: string;
+  reason: string;
+  is_active: boolean;
+  expires_at?: string | null;
+  created_by?: string | null;
+  block_count?: number;
+  metadata?: Record<string, unknown>;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+// ============================================
+// GATEWAY SETTINGS TYPES
+// ============================================
+
+export interface AffiliateGatewaySettings {
+  pix_allowed: string[];
+  credit_card_allowed: string[];
+  require_gateway_connection: boolean;
+}
+
+// ============================================
+// MEMBERS AREA TYPES
+// ============================================
+
+export interface MembersAreaSettings {
+  welcome_message?: string;
+  custom_logo_url?: string;
+  custom_theme?: string;
+  show_progress?: boolean;
+}
+
+// ============================================
+// JSON RESPONSE HELPERS
+// ============================================
+
+export type JsonResponseData = Record<string, unknown> | unknown[];
