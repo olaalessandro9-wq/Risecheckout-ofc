@@ -3,6 +3,8 @@
  * 
  * Verifica se o usuário logado já é afiliado de um produto e retorna o status.
  * Usa service_role para bypass de RLS (sistema usa autenticação customizada).
+ * 
+ * @version 2.0.0 - RISE Protocol V2 Compliant - Zero `any`
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -13,7 +15,42 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// Mascarar email para logs
+// ============================================
+// INTERFACES
+// ============================================
+
+interface RequestBody {
+  product_id: string;
+}
+
+interface ProfileData {
+  id: string;
+  email: string;
+}
+
+interface SessionData {
+  producer_id: string;
+  expires_at: string;
+  is_valid: boolean;
+  profiles: ProfileData;
+}
+
+interface AffiliationData {
+  id: string;
+  status: "pending" | "active" | "rejected" | "blocked";
+}
+
+interface StatusResponse {
+  isAffiliate: boolean;
+  status?: "pending" | "active" | "rejected" | "blocked";
+  affiliationId?: string;
+  error?: string;
+}
+
+// ============================================
+// HELPERS
+// ============================================
+
 function maskEmail(email: string): string {
   if (!email) return "***";
   const [local, domain] = email.split("@");
@@ -21,6 +58,10 @@ function maskEmail(email: string): string {
   const maskedLocal = local.length > 2 ? local[0] + "***" + local[local.length - 1] : "***";
   return `${maskedLocal}@${domain}`;
 }
+
+// ============================================
+// MAIN HANDLER
+// ============================================
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
@@ -37,18 +78,18 @@ Deno.serve(async (req) => {
     if (!sessionToken) {
       console.error("🚨 [get-affiliation-status] Token de sessão não fornecido");
       return new Response(
-        JSON.stringify({ isAffiliate: false, error: "Token de sessão não fornecido" }),
+        JSON.stringify({ isAffiliate: false, error: "Token de sessão não fornecido" } as StatusResponse),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     // Parse body
-    const body = await req.json();
+    const body = await req.json() as RequestBody;
     const { product_id } = body;
 
     if (!product_id) {
       return new Response(
-        JSON.stringify({ isAffiliate: false, error: "product_id é obrigatório" }),
+        JSON.stringify({ isAffiliate: false, error: "product_id é obrigatório" } as StatusResponse),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -79,13 +120,14 @@ Deno.serve(async (req) => {
     if (sessionError || !sessionData || !sessionData.profiles) {
       console.error(`🚨 [get-affiliation-status] Sessão inválida: ${sessionError?.message || 'No session data'}`);
       return new Response(
-        JSON.stringify({ isAffiliate: false, error: "Sessão inválida" }),
+        JSON.stringify({ isAffiliate: false, error: "Sessão inválida" } as StatusResponse),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const userId = sessionData.producer_id;
-    const userEmail = (sessionData.profiles as any).email;
+    const typedSessionData = sessionData as unknown as SessionData;
+    const userId = typedSessionData.producer_id;
+    const userEmail = typedSessionData.profiles.email;
 
     console.log(`🔍 [get-affiliation-status] Verificando status para ${maskEmail(userEmail)} no produto ${product_id}`);
 
@@ -100,7 +142,7 @@ Deno.serve(async (req) => {
     if (affiliationError) {
       console.error(`🚨 [get-affiliation-status] Erro ao buscar afiliação: ${affiliationError.message}`);
       return new Response(
-        JSON.stringify({ isAffiliate: false, error: "Erro ao verificar afiliação" }),
+        JSON.stringify({ isAffiliate: false, error: "Erro ao verificar afiliação" } as StatusResponse),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -109,29 +151,32 @@ Deno.serve(async (req) => {
     if (!affiliationData) {
       console.log(`📋 [get-affiliation-status] Nenhuma afiliação encontrada`);
       return new Response(
-        JSON.stringify({ isAffiliate: false }),
+        JSON.stringify({ isAffiliate: false } as StatusResponse),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    const typedAffiliation = affiliationData as AffiliationData;
+
     // Retornar status da afiliação
-    const result = {
-      isAffiliate: affiliationData.status === "active",
-      status: affiliationData.status as "pending" | "active" | "rejected" | "blocked",
-      affiliationId: affiliationData.id,
+    const result: StatusResponse = {
+      isAffiliate: typedAffiliation.status === "active",
+      status: typedAffiliation.status,
+      affiliationId: typedAffiliation.id,
     };
 
-    console.log(`✅ [get-affiliation-status] Status: ${affiliationData.status}`);
+    console.log(`✅ [get-affiliation-status] Status: ${typedAffiliation.status}`);
 
     return new Response(
       JSON.stringify(result),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
-  } catch (error: any) {
-    console.error(`🚨 [get-affiliation-status] Erro não tratado: ${error.message}`);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error(`🚨 [get-affiliation-status] Erro não tratado: ${errorMessage}`);
     return new Response(
-      JSON.stringify({ isAffiliate: false, error: error.message }),
+      JSON.stringify({ isAffiliate: false, error: errorMessage } as StatusResponse),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

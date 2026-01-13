@@ -1,3 +1,11 @@
+/**
+ * get-affiliation-details Edge Function
+ * 
+ * Retorna detalhes completos de uma afiliação para o painel do afiliado.
+ * 
+ * @version 2.0.0 - RISE Protocol V2 Compliant - Zero `any`
+ */
+
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -5,11 +13,148 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-producer-session-token",
 };
 
+// ============================================
+// INTERFACES
+// ============================================
+
+interface RequestBody {
+  affiliation_id: string;
+}
+
+interface ProfileData {
+  id: string;
+  email: string;
+  name: string | null;
+}
+
+interface SessionData {
+  producer_id: string;
+  profiles: ProfileData;
+}
+
+interface AffiliationRecord {
+  id: string;
+  affiliate_code: string;
+  commission_rate: number | null;
+  status: string;
+  total_sales_count: number | null;
+  total_sales_amount: number | null;
+  created_at: string;
+  product_id: string;
+  user_id: string;
+  pix_gateway: string | null;
+  credit_card_gateway: string | null;
+  gateway_credentials: Record<string, unknown> | null;
+}
+
+interface AffiliateSettings {
+  defaultRate?: number;
+  [key: string]: unknown;
+}
+
+interface GatewaySettings {
+  pix_allowed?: string[];
+  credit_card_allowed?: string[];
+  require_gateway_connection?: boolean;
+}
+
+interface ProductRecord {
+  id: string;
+  name: string;
+  description: string | null;
+  image_url: string | null;
+  price: number;
+  marketplace_description: string | null;
+  marketplace_rules: string | null;
+  marketplace_category: string | null;
+  user_id: string;
+  affiliate_settings: AffiliateSettings | null;
+  affiliate_gateway_settings: GatewaySettings | null;
+}
+
+interface PaymentLinkRecord {
+  id: string;
+  slug: string;
+  status: string;
+}
+
+interface OfferRecord {
+  id: string;
+  name: string;
+  price: number;
+  status: string;
+  is_default: boolean;
+  payment_links: PaymentLinkRecord[] | null;
+}
+
+interface CheckoutLinkPaymentLink {
+  slug: string;
+}
+
+interface CheckoutLinkRecord {
+  payment_links: CheckoutLinkPaymentLink | CheckoutLinkPaymentLink[] | null;
+}
+
+interface CheckoutRecord {
+  id: string;
+  slug: string;
+  is_default: boolean;
+  status: string;
+  checkout_links: CheckoutLinkRecord[] | null;
+}
+
+interface ProducerRecord {
+  id: string;
+  name: string | null;
+}
+
+interface MarketplaceProduct {
+  id: string;
+  name: string;
+  image_url: string | null;
+  price: number;
+  commission_percentage: number | null;
+}
+
+interface AffiliatePixel {
+  id: string;
+  affiliate_id: string;
+  platform: string;
+  pixel_id: string;
+  enabled: boolean;
+  [key: string]: unknown;
+}
+
+interface CheckoutWithPaymentSlug {
+  id: string;
+  slug: string;
+  payment_link_slug: string | null;
+  is_default: boolean;
+  status: string;
+}
+
+interface OfferWithPaymentSlug {
+  id: string;
+  name: string;
+  price: number;
+  status: string;
+  is_default: boolean;
+  payment_link_slug: string | null;
+}
+
+// ============================================
+// HELPERS
+// ============================================
+
 function maskEmail(email: string): string {
   const [local, domain] = email.split("@");
   const masked = local.length > 2 ? local[0] + "***" + local[local.length - 1] : "***";
   return `${masked}@${domain}`;
 }
+
+// ============================================
+// MAIN HANDLER
+// ============================================
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
@@ -30,7 +175,7 @@ Deno.serve(async (req) => {
     }
 
     // Get affiliation_id from body
-    const body = await req.json();
+    const body = await req.json() as RequestBody;
     const { affiliation_id } = body;
 
     if (!affiliation_id) {
@@ -65,8 +210,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    const userId = sessionData.producer_id;
-    const profile = sessionData.profiles as any;
+    const typedSession = sessionData as unknown as SessionData;
+    const userId = typedSession.producer_id;
+    const profile = typedSession.profiles;
     console.log(`[get-affiliation-details] User authenticated: ${maskEmail(profile?.email || "")}`);
 
     // Fetch affiliation with product data
@@ -104,8 +250,10 @@ Deno.serve(async (req) => {
       );
     }
 
+    const typedAffiliation = affiliationData as AffiliationRecord;
+
     // Verify ownership - user must own this affiliation
-    if (affiliationData.user_id !== userId) {
+    if (typedAffiliation.user_id !== userId) {
       console.log(`[get-affiliation-details] User ${userId} does not own affiliation ${affiliation_id}`);
       return new Response(
         JSON.stringify({ error: "Você não tem permissão para acessar esta afiliação" }),
@@ -113,7 +261,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const productId = affiliationData.product_id;
+    const productId = typedAffiliation.product_id;
 
     // Fetch product data
     const { data: productData } = await supabase
@@ -134,8 +282,10 @@ Deno.serve(async (req) => {
       .eq("id", productId)
       .maybeSingle();
 
+    const typedProduct = productData as ProductRecord | null;
+
     // Extract gateway settings
-    const gatewaySettings = (productData as any)?.affiliate_gateway_settings || {};
+    const gatewaySettings: GatewaySettings = typedProduct?.affiliate_gateway_settings || {};
     const allowedGateways = {
       pix_allowed: gatewaySettings.pix_allowed || ["asaas"],
       credit_card_allowed: gatewaySettings.credit_card_allowed || ["mercadopago", "stripe"],
@@ -160,6 +310,8 @@ Deno.serve(async (req) => {
       .eq("product_id", productId)
       .eq("status", "active");
 
+    const typedOffers = (offersData || []) as OfferRecord[];
+
     // Fetch checkouts with payment links
     const { data: checkoutsData } = await supabase
       .from("checkouts")
@@ -178,24 +330,28 @@ Deno.serve(async (req) => {
       .eq("status", "active");
 
     // Map checkouts to include payment_link_slug
-    const checkoutsWithPaymentSlug = (checkoutsData || []).map((c: any) => ({
-      id: c.id,
-      slug: c.slug,
-      payment_link_slug: c.checkout_links?.[0]?.payment_links?.slug || null,
-      is_default: c.is_default,
-      status: c.status,
-    }));
+    const checkoutsWithPaymentSlug: CheckoutWithPaymentSlug[] = (checkoutsData || []).map((c: { id: string; slug: string; is_default: boolean; status: string; checkout_links?: Array<{ payment_links?: { slug: string } | Array<{ slug: string }> }> }) => {
+      const firstLink = c.checkout_links?.[0]?.payment_links;
+      const slug = Array.isArray(firstLink) ? firstLink[0]?.slug : firstLink?.slug;
+      return {
+        id: c.id,
+        slug: c.slug,
+        payment_link_slug: slug || null,
+        is_default: c.is_default,
+        status: c.status,
+      };
+    });
 
     // Fetch producer profile
-    let producer = null;
-    if (productData?.user_id) {
+    let producer: ProducerRecord | null = null;
+    if (typedProduct?.user_id) {
       const { data: producerData } = await supabase
         .from("profiles")
         .select("id, name")
-        .eq("id", productData.user_id)
+        .eq("id", typedProduct.user_id)
         .maybeSingle();
       
-      producer = producerData;
+      producer = producerData as ProducerRecord | null;
     }
 
     // Fetch affiliate pixels
@@ -204,66 +360,71 @@ Deno.serve(async (req) => {
       .select("*")
       .eq("affiliate_id", affiliation_id);
 
+    const typedPixels = (pixelsData || []) as AffiliatePixel[];
+
     // Fetch other products from the same producer
-    let otherProducts: any[] = [];
-    if (productData?.user_id) {
+    let otherProducts: MarketplaceProduct[] = [];
+    if (typedProduct?.user_id) {
       const { data: otherProductsData } = await supabase
         .from("marketplace_products")
         .select("id, name, image_url, price, commission_percentage")
-        .eq("producer_id", productData.user_id)
+        .eq("producer_id", typedProduct.user_id)
         .neq("id", productId)
         .limit(6);
 
-      otherProducts = otherProductsData || [];
+      otherProducts = (otherProductsData || []) as MarketplaceProduct[];
     }
 
     // Calculate effective commission rate
     const effectiveCommissionRate = 
-      affiliationData.commission_rate ?? 
-      ((productData as any)?.affiliate_settings?.defaultRate || 0);
+      typedAffiliation.commission_rate ?? 
+      (typedProduct?.affiliate_settings?.defaultRate || 0);
+
+    // Map offers with payment link slugs
+    const offersWithPaymentSlug: OfferWithPaymentSlug[] = typedOffers.map((o) => {
+      // Priorizar payment_link ativo, fallback para primeiro disponível
+      const activeLink = o.payment_links?.find((l) => l.status === 'active');
+      const firstLink = o.payment_links?.[0];
+      const paymentLink = activeLink || firstLink;
+      
+      return {
+        id: o.id,
+        name: o.name,
+        price: o.price / 100, // Convert cents to reais
+        status: o.status,
+        is_default: o.is_default,
+        payment_link_slug: paymentLink?.slug || null,
+      };
+    });
 
     // Build response
     const affiliation = {
-      id: affiliationData.id,
-      affiliate_code: affiliationData.affiliate_code,
+      id: typedAffiliation.id,
+      affiliate_code: typedAffiliation.affiliate_code,
       commission_rate: effectiveCommissionRate,
-      status: affiliationData.status,
-      total_sales_count: affiliationData.total_sales_count || 0,
-      total_sales_amount: affiliationData.total_sales_amount || 0,
-      created_at: affiliationData.created_at,
-      product: productData ? {
-        id: productData.id,
-        name: productData.name,
-        description: productData.description,
-        image_url: productData.image_url,
-        price: productData.price,
-        marketplace_description: productData.marketplace_description,
-        marketplace_rules: productData.marketplace_rules,
-        marketplace_category: productData.marketplace_category,
-        user_id: productData.user_id,
-        affiliate_settings: (productData as any).affiliate_settings,
+      status: typedAffiliation.status,
+      total_sales_count: typedAffiliation.total_sales_count || 0,
+      total_sales_amount: typedAffiliation.total_sales_amount || 0,
+      created_at: typedAffiliation.created_at,
+      product: typedProduct ? {
+        id: typedProduct.id,
+        name: typedProduct.name,
+        description: typedProduct.description,
+        image_url: typedProduct.image_url,
+        price: typedProduct.price,
+        marketplace_description: typedProduct.marketplace_description,
+        marketplace_rules: typedProduct.marketplace_rules,
+        marketplace_category: typedProduct.marketplace_category,
+        user_id: typedProduct.user_id,
+        affiliate_settings: typedProduct.affiliate_settings,
       } : null,
-      offers: (offersData || []).map((o: any) => {
-        // Priorizar payment_link ativo, fallback para primeiro disponível
-        const activeLink = o.payment_links?.find((l: any) => l.status === 'active');
-        const firstLink = o.payment_links?.[0];
-        const paymentLink = activeLink || firstLink;
-        
-        return {
-          id: o.id,
-          name: o.name,
-          price: o.price / 100, // Convert cents to reais
-          status: o.status,
-          is_default: o.is_default,
-          payment_link_slug: paymentLink?.slug || null, // Link específico da oferta
-        };
-      }),
+      offers: offersWithPaymentSlug,
       checkouts: checkoutsWithPaymentSlug,
       producer,
-      pixels: pixelsData || [],
-      pix_gateway: affiliationData.pix_gateway || null,
-      credit_card_gateway: affiliationData.credit_card_gateway || null,
-      gateway_credentials: affiliationData.gateway_credentials || {},
+      pixels: typedPixels,
+      pix_gateway: typedAffiliation.pix_gateway || null,
+      credit_card_gateway: typedAffiliation.credit_card_gateway || null,
+      gateway_credentials: typedAffiliation.gateway_credentials || {},
       allowed_gateways: allowedGateways,
     };
 
@@ -274,7 +435,7 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[get-affiliation-details] Unexpected error:", error);
     return new Response(
       JSON.stringify({ error: "Erro interno do servidor" }),
