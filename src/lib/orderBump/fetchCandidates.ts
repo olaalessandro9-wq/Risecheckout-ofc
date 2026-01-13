@@ -46,9 +46,12 @@ export async function fetchOrderBumpCandidates(
   }
 
   return (data ?? [])
-    .filter((p: any) => p && p.id && p.name)
-    .map((p: any) => ({
-      ...p,
-      price: Number(p.price)
-    })) as unknown as OrderBumpCandidate[];
+    .filter((p) => Boolean(p && p.id && p.name))
+    .map((p): OrderBumpCandidate => ({
+      id: p.id,
+      name: p.name,
+      price: Number(p.price),
+      image_url: p.image_url,
+      description: p.description,
+    }));
 }

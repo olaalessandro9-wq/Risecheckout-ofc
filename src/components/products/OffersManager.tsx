@@ -144,7 +144,7 @@ export const OffersManager = ({
     toast.success("Oferta removida");
   };
 
-  const handleUpdateOffer = (id: string, field: keyof Offer, value: any) => {
+  const handleUpdateOffer = (id: string, field: keyof Offer, value: Offer[keyof Offer]) => {
     const updatedOffers = offers.map(o => 
       o.id === id ? { ...o, [field]: value } : o
     );

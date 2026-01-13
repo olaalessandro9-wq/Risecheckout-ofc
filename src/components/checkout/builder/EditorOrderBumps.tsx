@@ -2,10 +2,11 @@
 import { Zap } from "lucide-react";
 import { formatCentsToBRL as formatBRL } from "@/lib/money";
 import { ThemePreset } from "@/types/theme";
+import type { OrderBump } from "@/types/checkout";
 
 interface EditorOrderBumpsProps {
   design: ThemePreset;
-  orderBumps: any[];
+  orderBumps: OrderBump[];
   selectedBumps: Set<string>;
   onToggleBump: (bumpId: string) => void;
 }

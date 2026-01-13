@@ -127,7 +127,8 @@ export function WebhookForm({ webhook, onSave, onCancel }: WebhookFormProps) {
         return;
       }
 
-      const productIds = data.map((item: any) => item.product_id);
+      interface WebhookProductItem { product_id: string; }
+      const productIds = data.map((item: WebhookProductItem) => item.product_id);
       console.log("🔍 Produtos do webhook carregados:", productIds);
       setSelectedProductIds(productIds);
     } catch (error) {

@@ -2,15 +2,16 @@ import { Wallet, Lock as LockIconLucide, CheckCircle, ImageIcon } from "lucide-r
 import { formatCentsToBRL as formatBRL } from "@/lib/money";
 import { ThemePreset } from "@/types/theme";
 import { PixIcon, CreditCardIcon } from "@/components/icons";
+import type { ProductData, OrderBump } from "@/types/checkout";
 
 interface EditorPaymentSectionProps {
   design: ThemePreset;
   selectedPayment: "pix" | "credit_card";
   onPaymentChange: (payment: "pix" | "credit_card") => void;
-  productData?: any;
+  productData?: ProductData;
   totalPrice: number;
   selectedBumps: Set<string>;
-  orderBumps: any[];
+  orderBumps: OrderBump[];
 }
 
 export const EditorPaymentSection = ({
