@@ -339,6 +339,31 @@ export function getPlatformFeePercentFormatted(feePercent?: number): string {
   return `${fee * 100}%`;
 }
 
+// ============================================
+// TYPES
+// ============================================
+
+// deno-lint-ignore no-explicit-any
+type SupabaseClientGeneric = { from: (table: string) => any };
+
+interface VendorFeeProfile {
+  custom_fee_percent: number | null;
+}
+
+interface UserRoleRecord {
+  role: string;
+}
+
+interface SplitConfigRecord {
+  split_type: string;
+  percentage_amount: number | null;
+  fixed_amount: number | null;
+}
+
+// ============================================
+// VENDOR FEE FUNCTIONS
+// ============================================
+
 /**
  * Busca a taxa personalizada de um vendedor no banco de dados
  * Se o vendedor não tiver taxa personalizada, retorna a taxa padrão
@@ -348,7 +373,7 @@ export function getPlatformFeePercentFormatted(feePercent?: number): string {
  * @returns Taxa em decimal (ex: 0.04 = 4%)
  */
 export async function getVendorFeePercent(
-  supabase: { from: (table: string) => any },
+  supabase: SupabaseClientGeneric,
   vendorId: string
 ): Promise<number> {
   try {

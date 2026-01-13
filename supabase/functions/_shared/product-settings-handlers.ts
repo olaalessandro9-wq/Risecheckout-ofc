@@ -1,23 +1,44 @@
 /**
  * Action handlers for product-settings Edge Function
  * Extracted for RISE Protocol compliance (< 300 lines per file)
+ * 
+ * @rise-protocol-compliant true
+ * @version 2.0.0 - Zero `any` compliance
  */
+
+import { 
+  SupabaseClient, 
+  ProductSettings, 
+  RequiredFields, 
+  AffiliateGatewaySettings,
+  JsonResponseData,
+  Product,
+  Offer
+} from "./supabase-types.ts";
 
 // ============================================
 // TYPES
 // ============================================
 
-interface HandlerResult {
-  response: Response;
-}
-
 type CorsHeaders = Record<string, string>;
+
+interface ProductUpdateData {
+  name?: string;
+  description?: string;
+  price?: number;
+  support_name?: string;
+  support_email?: string;
+  delivery_url?: string | null;
+  external_delivery?: boolean;
+  image_url?: string;
+  status?: string;
+}
 
 // ============================================
 // RESPONSE HELPERS
 // ============================================
 
-function jsonResponse(data: any, headers: CorsHeaders, status = 200): Response {
+function jsonResponse(data: JsonResponseData, headers: CorsHeaders, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...headers, "Content-Type": "application/json" },
@@ -33,12 +54,12 @@ function errorResponse(message: string, headers: CorsHeaders, status = 400): Res
 // ============================================
 
 export async function handleUpdateSettings(
-  supabase: any,
+  supabase: SupabaseClient,
   productId: string,
-  settings: any,
+  settings: ProductSettings,
   corsHeaders: CorsHeaders
 ): Promise<Response> {
-  const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+  const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
   // Payment settings
   if (settings.default_payment_method !== undefined) updates.default_payment_method = settings.default_payment_method;
@@ -47,11 +68,12 @@ export async function handleUpdateSettings(
 
   // Required fields
   if (settings.required_fields !== undefined) {
+    const reqFields = settings.required_fields as RequiredFields;
     updates.required_fields = {
       name: true,
       email: true,
-      phone: !!settings.required_fields.phone,
-      cpf: !!settings.required_fields.cpf,
+      phone: !!reqFields.phone,
+      cpf: !!reqFields.cpf,
     };
   }
 
@@ -79,7 +101,7 @@ export async function handleUpdateSettings(
     .update(updates)
     .eq("id", productId)
     .select()
-    .single();
+    .single() as { data: Product | null; error: { message: string } | null };
 
   if (updateError) {
     console.error("[product-settings] Update error:", updateError);
@@ -95,16 +117,16 @@ export async function handleUpdateSettings(
 // ============================================
 
 export async function handleUpdateGeneral(
-  supabase: any,
+  supabase: SupabaseClient,
   productId: string,
-  data: any,
+  data: ProductUpdateData,
   corsHeaders: CorsHeaders
 ): Promise<Response> {
   if (!data || typeof data !== "object") {
     return errorResponse("Dados do produto são obrigatórios", corsHeaders, 400);
   }
 
-  const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+  const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
   if (data.name !== undefined) {
     if (typeof data.name !== "string" || data.name.trim().length < 1) {
@@ -163,7 +185,7 @@ export async function handleUpdateGeneral(
     .update(updates)
     .eq("id", productId)
     .select()
-    .single();
+    .single() as { data: Product | null; error: { message: string } | null };
 
   if (updateError) {
     console.error("[product-settings] Update-general error:", updateError);
@@ -179,7 +201,7 @@ export async function handleUpdateGeneral(
 // ============================================
 
 export async function handleSmartDelete(
-  supabase: any,
+  supabase: SupabaseClient,
   productId: string,
   corsHeaders: CorsHeaders
 ): Promise<Response> {
@@ -187,7 +209,7 @@ export async function handleSmartDelete(
   const { count: orderCount } = await supabase
     .from("orders")
     .select("id", { count: "exact", head: true })
-    .eq("product_id", productId);
+    .eq("product_id", productId) as { count: number | null };
 
   const hasOrders = (orderCount || 0) > 0;
 
@@ -202,12 +224,16 @@ export async function handleSmartDelete(
 
     await supabase.from("checkouts").update({ status: "deleted" }).eq("product_id", productId);
 
-    const { data: offers } = await supabase.from("offers").select("id").eq("product_id", productId);
+    const { data: offers } = await supabase
+      .from("offers")
+      .select("id")
+      .eq("product_id", productId) as { data: Offer[] | null };
+    
     if (offers?.length) {
       await supabase
         .from("payment_links")
         .update({ status: "inactive" })
-        .in("offer_id", offers.map((o: any) => o.id));
+        .in("offer_id", offers.map((o: Offer) => o.id));
     }
 
     console.log(`[product-settings] Soft deleted: ${productId}`);
@@ -216,7 +242,7 @@ export async function handleSmartDelete(
     // HARD DELETE
     console.log(`[product-settings] Hard deleting ${productId} (no orders)`);
 
-    const { error: deleteError } = await supabase.from("products").delete().eq("id", productId);
+    const { error: deleteError } = await supabase.from("products").delete().eq("id", productId) as { error: { message: string } | null };
     if (deleteError) {
       console.error("[product-settings] Hard delete error:", deleteError);
       return errorResponse("Erro ao excluir produto", corsHeaders, 500);
@@ -232,7 +258,7 @@ export async function handleSmartDelete(
 // ============================================
 
 export async function handleUpdatePrice(
-  supabase: any,
+  supabase: SupabaseClient,
   productId: string,
   price: number,
   corsHeaders: CorsHeaders
@@ -243,7 +269,7 @@ export async function handleUpdatePrice(
   const { error: productError } = await supabase
     .from("products")
     .update({ price, updated_at: new Date().toISOString() })
-    .eq("id", productId);
+    .eq("id", productId) as { error: { message: string } | null };
 
   if (productError) {
     console.error("[product-settings] Product price error:", productError);
@@ -255,7 +281,7 @@ export async function handleUpdatePrice(
     .from("offers")
     .update({ price, updated_at: new Date().toISOString() })
     .eq("product_id", productId)
-    .eq("is_default", true);
+    .eq("is_default", true) as { error: { message: string } | null };
 
   if (offerError) {
     console.warn(`[product-settings] Failed to update default offer: ${offerError.message}`);
@@ -270,9 +296,9 @@ export async function handleUpdatePrice(
 // ============================================
 
 export async function handleUpdateAffiliateGatewaySettings(
-  supabase: any,
+  supabase: SupabaseClient,
   productId: string,
-  gatewaySettings: any,
+  gatewaySettings: AffiliateGatewaySettings,
   corsHeaders: CorsHeaders
 ): Promise<Response> {
   if (!gatewaySettings || typeof gatewaySettings !== "object") {
@@ -280,7 +306,7 @@ export async function handleUpdateAffiliateGatewaySettings(
   }
 
   // Sanitize structure
-  const sanitized = {
+  const sanitized: AffiliateGatewaySettings = {
     pix_allowed: Array.isArray(gatewaySettings.pix_allowed) ? gatewaySettings.pix_allowed : ["asaas"],
     credit_card_allowed: Array.isArray(gatewaySettings.credit_card_allowed)
       ? gatewaySettings.credit_card_allowed
@@ -294,7 +320,7 @@ export async function handleUpdateAffiliateGatewaySettings(
       affiliate_gateway_settings: sanitized,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", productId);
+    .eq("id", productId) as { error: { message: string } | null };
 
   if (updateError) {
     console.error("[product-settings] Update affiliate gateway settings error:", updateError);
