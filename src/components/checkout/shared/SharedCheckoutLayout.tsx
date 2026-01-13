@@ -15,12 +15,12 @@ import {
 import { TurnstileWidget } from '@/components/checkout/TurnstileWidget';
 import { useCheckoutSubmit } from '@/hooks/checkout/useCheckoutSubmit';
 
-import type { CheckoutProductData, CheckoutFormErrors, RequiredFieldsConfig, AppliedCoupon } from "@/types/checkout-shared.types";
-import type { OrderBump, CheckoutFormData } from "@/types/checkout";
+import type { RequiredFieldsConfig, AppliedCoupon } from "@/types/checkout-shared.types";
+import type { OrderBump, CheckoutFormData, CheckoutFormErrors, ProductData } from "@/types/checkout";
 import type { ThemePreset } from "@/lib/checkout/themePresets";
 
 interface SharedCheckoutLayoutProps {
-  productData: CheckoutProductData;
+  productData: ProductData;
   orderBumps: OrderBump[];
   design: ThemePreset;
   selectedPayment: 'pix' | 'credit_card';

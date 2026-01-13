@@ -21,6 +21,7 @@ import type {
   CheckoutDesign, 
   CheckoutCustomization 
 } from "@/types/checkoutEditor";
+import type { CheckoutComponentContent } from "@/types/checkout-components.types";
 
 // Re-export types for backward compatibility
 export type { ViewMode, CheckoutComponent, CheckoutDesign, CheckoutCustomization };
@@ -72,7 +73,7 @@ export const useCheckoutEditor = () => {
     touch();
   }, [touch]);
 
-  const handleUpdateComponent = useCallback((componentId: string, partialContent: any) => {
+  const handleUpdateComponent = useCallback((componentId: string, partialContent: Partial<CheckoutComponentContent>) => {
     setCustomization((prev) => {
       let found = false;
       const updateList = (list: CheckoutComponent[]) => list.map(c => {

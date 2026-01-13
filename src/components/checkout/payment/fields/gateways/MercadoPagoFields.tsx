@@ -218,7 +218,6 @@ const MercadoPagoFieldsComponent = forwardRef<MercadoPagoFieldsRef, MercadoPagoF
             if (installmentData?.[0]?.payer_costs) {
               onInstallmentsChange?.(installmentData[0].payer_costs);
             }
-            }
           } catch (e) {
             console.warn("[MercadoPagoFields] Erro ao buscar parcelas:", e);
           }

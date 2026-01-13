@@ -15,11 +15,11 @@
  */
 export interface CheckoutProductData {
   id?: string;
-  name: string;
+  name?: string;
   description?: string;
-  price: number;
+  price?: number;
   image_url?: string;
-  required_fields?: RequiredFieldsConfig;
+  required_fields?: RequiredFieldsConfig | Record<string, boolean>;
   vendor_id?: string;
 }
 
@@ -45,10 +45,20 @@ export interface CheckoutFormData {
 
 /**
  * Erros de validação do formulário
+ * Compatível com CheckoutFormErrors de checkout.ts
  */
-export interface CheckoutFormErrors {
+export type SharedCheckoutFormErrors = {
+  name?: string;
+  email?: string;
+  phone?: string;
+  document?: string;
+  cpf?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipcode?: string;
   [field: string]: string | undefined;
-}
+};
 
 /**
  * Configuração de campos obrigatórios
@@ -84,8 +94,9 @@ export interface AppliedCoupon {
 /**
  * Input para normalização de design
  * Aceita dados parciais vindos do banco de dados
+ * Usa Record para compatibilidade com tipos dinâmicos do Checkout
  */
-export interface CheckoutDesignInput {
+export type CheckoutDesignInput = Record<string, unknown> & {
   theme?: 'light' | 'dark' | string;
   design?: unknown;
   background_color?: string;
@@ -110,8 +121,7 @@ export interface CheckoutDesignInput {
   cc_field_focus_border_color?: string;
   cc_field_focus_text_color?: string;
   font?: string;
-  [key: string]: unknown;
-}
+};
 
 // ============================================================================
 // HANDLER VALUE TYPES

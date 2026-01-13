@@ -180,7 +180,7 @@ export function useCheckoutData(): UseCheckoutDataReturn {
       };
 
       setCheckout(fullCheckout);
-      setDesign(normalizeDesign(fullCheckout));
+      setDesign(normalizeDesign(fullCheckout as unknown as Parameters<typeof normalizeDesign>[0]));
       setOrderBumps(bumps);
 
       console.log('[useCheckoutData V3] ✅ Checkout carregado com sucesso');
