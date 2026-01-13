@@ -3,11 +3,16 @@
  * 
  * Responsabilidade ÚNICA: Validar e calcular preços dos order bumps
  * 
+ * RISE Protocol V2 Compliant - Zero `any`
+ * Version: 2.0.0
+ * 
  * OTIMIZADO em 2026-01-11:
  * - Eliminado N+1 query pattern (antes: N queries por bump)
  * - Agora usa batch queries com Maps para O(1) lookup
  * - Redução estimada: -50-150ms por transação com bumps
  */
+
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 export interface OrderItem {
   product_id: string;
@@ -57,7 +62,7 @@ interface BumpData {
  * OTIMIZAÇÃO: Usa batch queries + Maps ao invés de queries individuais no loop
  */
 export async function processBumps(
-  supabase: any,
+  supabase: SupabaseClient,
   input: BumpProcessingInput,
   corsHeaders: Record<string, string>
 ): Promise<BumpProcessingResult | Response> {
@@ -206,7 +211,7 @@ export async function processBumps(
         is_bump: true
       });
 
-    } catch (e) {
+    } catch (e: unknown) {
       console.error(`[bump-processor] Erro no bump ${bump.id}:`, e);
     }
   }

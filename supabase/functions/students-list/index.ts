@@ -5,22 +5,105 @@
  * - list: List students with pagination, search, filters
  * - get: Get detailed student info
  * 
- * RISE Protocol Compliant
+ * RISE Protocol V2 Compliant - Zero `any`
+ * Version: 2.0.0
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors, PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiter.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
-function jsonResponse(data: any, status = 200): Response {
+// ============================================
+// INTERFACES
+// ============================================
+
+interface JsonResponseData {
+  students?: StudentResponse[];
+  student?: StudentDetail;
+  total?: number;
+  page?: number;
+  limit?: number;
+  stats?: StudentStats;
+  success?: boolean;
+  error?: string;
+}
+
+interface StudentStats {
+  totalStudents: number;
+  averageProgress: number;
+  completionRate: number;
+}
+
+interface AccessRecord {
+  id: string;
+  buyer_id: string;
+  granted_at: string;
+  expires_at: string | null;
+  access_type: string;
+  order_id: string | null;
+  is_active: boolean;
+}
+
+interface BuyerRecord {
+  id: string;
+  name: string | null;
+  email: string;
+  last_login_at: string | null;
+  password_hash: string | null;
+}
+
+interface BuyerGroupRecord {
+  id: string;
+  buyer_id: string;
+  group_id: string;
+  is_active: boolean;
+  granted_at: string;
+  expires_at: string | null;
+}
+
+interface ProgressRecord {
+  buyer_id: string;
+  progress_percent: number | null;
+}
+
+interface StudentResponse {
+  buyer_id: string;
+  buyer_email: string;
+  buyer_name: string | null;
+  groups: BuyerGroupRecord[];
+  access_type: string;
+  last_access_at: string | null;
+  status: "pending" | "active";
+  invited_at: string;
+  progress_percent: number;
+}
+
+interface StudentDetail {
+  id: string;
+  email: string;
+  name: string | null;
+  access: unknown[];
+  groups: unknown[];
+  progress: unknown[];
+}
+
+// ============================================
+// HELPERS
+// ============================================
+
+function jsonResponse(data: JsonResponseData, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
+
+// ============================================
+// MAIN HANDLER
+// ============================================
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -32,7 +115,7 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const rateLimitResult = await rateLimitMiddleware(supabase as any, req, RATE_LIMIT_CONFIGS.MEMBERS_AREA);
+    const rateLimitResult = await rateLimitMiddleware(supabase, req, RATE_LIMIT_CONFIGS.MEMBERS_AREA);
     if (rateLimitResult) return rateLimitResult;
 
     const body = await req.json();
@@ -93,7 +176,7 @@ Deno.serve(async (req) => {
         return jsonResponse({ students: [], total: 0, page: pageNum, limit: limitNum });
       }
 
-      const buyerIds = [...new Set(accessData.map(a => a.buyer_id))];
+      const buyerIds = [...new Set((accessData as AccessRecord[]).map(a => a.buyer_id))];
 
       // Fetch buyer profiles
       const { data: buyers, error: buyersError } = await supabase
@@ -103,8 +186,8 @@ Deno.serve(async (req) => {
 
       if (buyersError) throw buyersError;
 
-      const buyersMap: Record<string, any> = {};
-      buyers?.forEach(b => { buyersMap[b.id] = b; });
+      const buyersMap: Record<string, BuyerRecord> = {};
+      (buyers as BuyerRecord[] || []).forEach(b => { buyersMap[b.id] = b; });
 
       // Fetch buyer groups
       const { data: buyerGroupsData } = await supabase
@@ -116,7 +199,9 @@ Deno.serve(async (req) => {
       // If filtering by group, only keep buyers in that group
       let filteredBuyerIds = buyerIds;
       if (filterGroupId) {
-        const buyersInGroup = buyerGroupsData?.filter(bg => bg.group_id === filterGroupId).map(bg => bg.buyer_id) || [];
+        const buyersInGroup = (buyerGroupsData as BuyerGroupRecord[] || [])
+          .filter(bg => bg.group_id === filterGroupId)
+          .map(bg => bg.buyer_id);
         filteredBuyerIds = buyerIds.filter(id => buyersInGroup.includes(id));
       }
 
@@ -127,7 +212,7 @@ Deno.serve(async (req) => {
         .eq("product_id", product_id)
         .eq("is_active", true);
 
-      const moduleIds = modules?.map(m => m.id) || [];
+      const moduleIds = (modules as { id: string }[] || []).map(m => m.id);
       let totalContents = 0;
       let contentIds: string[] = [];
 
@@ -138,11 +223,11 @@ Deno.serve(async (req) => {
           .in("module_id", moduleIds)
           .eq("is_active", true);
 
-        contentIds = contents?.map(c => c.id) || [];
+        contentIds = (contents as { id: string }[] || []).map(c => c.id);
         totalContents = contentIds.length;
       }
 
-      let progressMap: Record<string, number> = {};
+      const progressMap: Record<string, number> = {};
       if (contentIds.length > 0 && filteredBuyerIds.length > 0) {
         const { data: progressData } = await supabase
           .from("buyer_content_progress")
@@ -151,7 +236,7 @@ Deno.serve(async (req) => {
           .in("content_id", contentIds);
 
         const buyerProgressTotals: Record<string, { sum: number; count: number }> = {};
-        progressData?.forEach(p => {
+        (progressData as ProgressRecord[] || []).forEach(p => {
           if (!buyerProgressTotals[p.buyer_id]) {
             buyerProgressTotals[p.buyer_id] = { sum: 0, count: 0 };
           }
@@ -167,14 +252,14 @@ Deno.serve(async (req) => {
       }
 
       // Map to response format
-      let mappedStudents = accessData
+      let mappedStudents: StudentResponse[] = (accessData as AccessRecord[])
         .filter(a => filteredBuyerIds.includes(a.buyer_id))
         .map(access => {
           const buyer = buyersMap[access.buyer_id];
           if (!buyer) return null;
 
           const isPending = !buyer.password_hash || buyer.password_hash === "PENDING_PASSWORD_SETUP";
-          const groups = (buyerGroupsData || [])
+          const groups = (buyerGroupsData as BuyerGroupRecord[] || [])
             .filter(bg => bg.buyer_id === access.buyer_id)
             .map(bg => ({
               id: bg.id,
@@ -195,9 +280,9 @@ Deno.serve(async (req) => {
             status: isPending ? "pending" : "active",
             invited_at: access.granted_at,
             progress_percent: progressMap[access.buyer_id] || 0,
-          };
+          } as StudentResponse;
         })
-        .filter(Boolean) as any[];
+        .filter((s): s is StudentResponse => s !== null);
 
       // Apply search filter
       if (searchTerm) {
@@ -255,7 +340,7 @@ Deno.serve(async (req) => {
 
       if (error) throw error;
 
-      return jsonResponse({ success: true, student });
+      return jsonResponse({ success: true, student: student as StudentDetail });
     }
 
     return jsonResponse({ error: "Invalid action" }, 400);

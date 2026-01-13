@@ -7,16 +7,69 @@
  * - generate-purchase-access: Generate access URL after purchase (public)
  * - invite: Send invite to student (authenticated)
  * 
- * RISE Protocol Compliant
+ * RISE Protocol V2 Compliant - Zero `any`
+ * Version: 2.0.0
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors, PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared/rate-limiter.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 import { genSaltSync, hashSync, compareSync } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
+
+// ============================================
+// INTERFACES
+// ============================================
+
+interface JsonResponseData {
+  valid?: boolean;
+  reason?: string;
+  redirect?: string;
+  needsPasswordSetup?: boolean;
+  buyer_id?: string;
+  product_id?: string;
+  product_name?: string;
+  product_image?: string | null;
+  buyer_email?: string;
+  buyer_name?: string;
+  success?: boolean;
+  error?: string;
+  sessionToken?: string;
+  buyer?: { id: string; email: string; name: string | null };
+  accessUrl?: string;
+  is_new_buyer?: boolean;
+  email_sent?: boolean;
+}
+
+interface BuyerProfile {
+  id: string;
+  email: string;
+  name: string | null;
+  password_hash: string | null;
+}
+
+interface TokenData {
+  id: string;
+  buyer_id: string;
+  product_id: string;
+  is_used: boolean;
+  expires_at: string;
+  buyer: BuyerProfile | null;
+}
+
+interface ProductData {
+  id: string;
+  name: string;
+  image_url: string | null;
+  members_area_enabled?: boolean;
+  user_id?: string;
+}
+
+// ============================================
+// HELPERS
+// ============================================
 
 async function hashToken(token: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -41,12 +94,16 @@ function generateSessionToken(): string {
   return Array.from(array, b => b.toString(16).padStart(2, "0")).join("");
 }
 
-function jsonResponse(data: any, status = 200): Response {
+function jsonResponse(data: JsonResponseData, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
+
+// ============================================
+// MAIN HANDLER
+// ============================================
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -58,7 +115,7 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const rateLimitResult = await rateLimitMiddleware(supabase as any, req, RATE_LIMIT_CONFIGS.MEMBERS_AREA);
+    const rateLimitResult = await rateLimitMiddleware(supabase, req, RATE_LIMIT_CONFIGS.MEMBERS_AREA);
     if (rateLimitResult) return rateLimitResult;
 
     const body = await req.json();
@@ -90,22 +147,25 @@ Deno.serve(async (req) => {
         return jsonResponse({ valid: false, reason: "Este link expirou" });
       }
 
-      const buyer = tokenData.buyer as any;
+      const typedTokenData = tokenData as unknown as TokenData;
+      const buyer = typedTokenData.buyer;
       const needsPasswordSetup = !buyer?.password_hash || buyer.password_hash === "PENDING_PASSWORD_SETUP";
 
       const { data: product } = await supabase
         .from("products")
         .select("id, name, image_url")
-        .eq("id", tokenData.product_id)
+        .eq("id", typedTokenData.product_id)
         .single();
+
+      const typedProduct = product as ProductData | null;
 
       return jsonResponse({
         valid: true,
         needsPasswordSetup,
-        buyer_id: tokenData.buyer_id,
-        product_id: tokenData.product_id,
-        product_name: product?.name || "Produto",
-        product_image: product?.image_url || null,
+        buyer_id: typedTokenData.buyer_id,
+        product_id: typedTokenData.product_id,
+        product_name: typedProduct?.name || "Produto",
+        product_image: typedProduct?.image_url || null,
         buyer_email: buyer?.email || "",
         buyer_name: buyer?.name || "",
       });
@@ -135,7 +195,8 @@ Deno.serve(async (req) => {
 
       if (!buyer) return jsonResponse({ success: false, error: "Perfil não encontrado" }, 400);
 
-      const needsPasswordSetup = !buyer.password_hash || buyer.password_hash === "PENDING_PASSWORD_SETUP";
+      const typedBuyer = buyer as BuyerProfile;
+      const needsPasswordSetup = !typedBuyer.password_hash || typedBuyer.password_hash === "PENDING_PASSWORD_SETUP";
 
       if (needsPasswordSetup) {
         if (!password || password.length < 6) {
@@ -145,7 +206,7 @@ Deno.serve(async (req) => {
         await supabase
           .from("buyer_profiles")
           .update({ password_hash: passwordHash, password_hash_version: 1, updated_at: new Date().toISOString() })
-          .eq("id", buyer.id);
+          .eq("id", typedBuyer.id);
       }
 
       await supabase.from("student_invite_tokens").update({ is_used: true, used_at: new Date().toISOString() }).eq("id", tokenData.id);
@@ -154,10 +215,15 @@ Deno.serve(async (req) => {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 30);
 
-      await supabase.from("buyer_sessions").insert({ buyer_id: buyer.id, session_token: sessionToken, expires_at: expiresAt.toISOString(), is_valid: true });
-      await supabase.from("buyer_profiles").update({ last_login_at: new Date().toISOString() }).eq("id", buyer.id);
+      await supabase.from("buyer_sessions").insert({ buyer_id: typedBuyer.id, session_token: sessionToken, expires_at: expiresAt.toISOString(), is_valid: true });
+      await supabase.from("buyer_profiles").update({ last_login_at: new Date().toISOString() }).eq("id", typedBuyer.id);
 
-      return jsonResponse({ success: true, sessionToken, buyer: { id: buyer.id, email: buyer.email, name: buyer.name }, product_id: tokenData.product_id });
+      return jsonResponse({ 
+        success: true, 
+        sessionToken, 
+        buyer: { id: typedBuyer.id, email: typedBuyer.email, name: typedBuyer.name }, 
+        product_id: tokenData.product_id 
+      });
     }
 
     // ========== GENERATE-PURCHASE-ACCESS (public) ==========
@@ -180,9 +246,11 @@ Deno.serve(async (req) => {
       }
 
       const { data: product } = await supabase.from("products").select("id, name, members_area_enabled, user_id").eq("id", product_id).single();
-      if (!product?.members_area_enabled) return jsonResponse({ error: "Produto não tem área de membros" }, 400);
+      const typedProduct = product as ProductData | null;
+      if (!typedProduct?.members_area_enabled) return jsonResponse({ error: "Produto não tem área de membros" }, 400);
 
-      let { data: buyer } = await supabase.from("buyer_profiles").select("id, email, password_hash").eq("email", normalizedEmail).single();
+      let buyerResult = await supabase.from("buyer_profiles").select("id, email, password_hash").eq("email", normalizedEmail).single();
+      let buyer = buyerResult.data as BuyerProfile | null;
 
       if (!buyer) {
         const { data: newBuyer, error: createError } = await supabase
@@ -191,7 +259,7 @@ Deno.serve(async (req) => {
           .select("id, email, password_hash")
           .single();
         if (createError) return jsonResponse({ error: "Erro ao criar perfil" }, 500);
-        buyer = newBuyer;
+        buyer = newBuyer as BuyerProfile;
       }
 
       await supabase.from("buyer_product_access").upsert({
@@ -216,7 +284,7 @@ Deno.serve(async (req) => {
           token_hash: tokenHash,
           buyer_id: buyer.id,
           product_id,
-          invited_by: product.user_id,
+          invited_by: typedProduct.user_id,
           expires_at: expiresAt.toISOString(),
         });
 
@@ -239,12 +307,13 @@ Deno.serve(async (req) => {
       if (!product_id || !email) return jsonResponse({ error: "product_id and email required" }, 400);
 
       const { data: product, error: productError } = await supabase.from("products").select("id, user_id, name, image_url").eq("id", product_id).single();
-      if (productError || !product || product.user_id !== producer.id) {
+      const typedProduct = product as ProductData & { user_id: string } | null;
+      if (productError || !typedProduct || typedProduct.user_id !== producer.id) {
         return jsonResponse({ error: "Product not found or access denied" }, 403);
       }
 
       const normalizedEmail = email.toLowerCase().trim();
-      let { data: existingBuyer } = await supabase.from("buyer_profiles").select("id, email, name, password_hash").eq("email", normalizedEmail).single();
+      const { data: existingBuyer } = await supabase.from("buyer_profiles").select("id, email, name, password_hash").eq("email", normalizedEmail).single();
 
       let buyerId: string;
       let isNewBuyer = false;
@@ -256,11 +325,12 @@ Deno.serve(async (req) => {
           .select("id, email, name")
           .single();
         if (createError) return jsonResponse({ error: "Erro ao criar perfil do aluno" }, 500);
-        buyerId = newBuyer.id;
+        buyerId = (newBuyer as BuyerProfile).id;
         isNewBuyer = true;
       } else {
-        buyerId = existingBuyer.id;
-        if (name && !existingBuyer.name) {
+        const typedExistingBuyer = existingBuyer as BuyerProfile;
+        buyerId = typedExistingBuyer.id;
+        if (name && !typedExistingBuyer.name) {
           await supabase.from("buyer_profiles").update({ name }).eq("id", buyerId);
         }
       }
@@ -292,7 +362,7 @@ Deno.serve(async (req) => {
 
       const { data: producerProfile } = await supabase.from("profiles").select("name").eq("id", producer.id).single();
       const studentName = name || normalizedEmail.split("@")[0];
-      const producerName = producerProfile?.name || "Produtor";
+      const producerName = (producerProfile as { name: string } | null)?.name || "Produtor";
 
       // Send email
       try {
@@ -301,12 +371,12 @@ Deno.serve(async (req) => {
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
           body: JSON.stringify({
             to: { email: normalizedEmail, name: studentName },
-            subject: `${producerName} te enviou acesso ao produto "${product.name}"`,
-            htmlBody: `<p>Você recebeu acesso ao produto ${product.name}. Clique <a href="${accessLink}">aqui</a> para acessar.</p>`,
+            subject: `${producerName} te enviou acesso ao produto "${typedProduct.name}"`,
+            htmlBody: `<p>Você recebeu acesso ao produto ${typedProduct.name}. Clique <a href="${accessLink}">aqui</a> para acessar.</p>`,
             type: "transactional",
           }),
         });
-      } catch (emailErr) {
+      } catch (emailErr: unknown) {
         console.error("[students-invite] Email error:", emailErr);
       }
 

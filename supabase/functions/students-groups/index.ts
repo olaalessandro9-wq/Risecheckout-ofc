@@ -6,22 +6,46 @@
  * - remove-from-group: Remove buyer from a group
  * - assign-groups: Replace all groups for a buyer
  * 
- * RISE Protocol Compliant
+ * RISE Protocol V2 Compliant - Zero `any`
+ * Version: 2.0.0
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors, PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiter.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
-function jsonResponse(data: any, status = 200): Response {
+// ============================================
+// INTERFACES
+// ============================================
+
+interface JsonResponseData {
+  success?: boolean;
+  error?: string;
+  groups_count?: number;
+}
+
+interface ProductRecord {
+  id: string;
+  user_id: string;
+}
+
+// ============================================
+// HELPERS
+// ============================================
+
+function jsonResponse(data: JsonResponseData, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
+
+// ============================================
+// MAIN HANDLER
+// ============================================
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -33,7 +57,7 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const rateLimitResult = await rateLimitMiddleware(supabase as any, req, RATE_LIMIT_CONFIGS.MEMBERS_AREA);
+    const rateLimitResult = await rateLimitMiddleware(supabase, req, RATE_LIMIT_CONFIGS.MEMBERS_AREA);
     if (rateLimitResult) return rateLimitResult;
 
     const body = await req.json();
@@ -57,7 +81,9 @@ Deno.serve(async (req) => {
         .eq("id", product_id)
         .single();
 
-      if (productError || !product || product.user_id !== producer.id) {
+      const typedProduct = product as ProductRecord | null;
+
+      if (productError || !typedProduct || typedProduct.user_id !== producer.id) {
         return jsonResponse({ error: "Product not found or access denied" }, 403);
       }
     }

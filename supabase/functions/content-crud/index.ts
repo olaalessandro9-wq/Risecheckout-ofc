@@ -7,15 +7,20 @@
  * - delete: Delete content
  * - reorder: Reorder contents within a module
  * 
- * RISE Protocol Compliant
+ * RISE Protocol V2 Compliant - Zero `any`
+ * Version: 2.0.0
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors, PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiter.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
+
+// ============================================
+// INTERFACES
+// ============================================
 
 interface ContentData {
   title?: string;
@@ -26,7 +31,59 @@ interface ContentData {
   is_active?: boolean;
 }
 
-function jsonResponse(data: any, status = 200): Response {
+interface JsonResponseData {
+  success?: boolean;
+  error?: string;
+  data?: ContentRecord;
+  deletedId?: string;
+}
+
+interface ContentRecord {
+  id: string;
+  module_id: string;
+  title: string;
+  content_type: string;
+  content_url: string | null;
+  body: string | null;
+  description: string | null;
+  is_active: boolean;
+  position: number;
+}
+
+interface ModuleWithProduct {
+  id: string;
+  product_id: string;
+  products: { user_id: string };
+}
+
+interface ContentWithModule {
+  id: string;
+  module_id: string;
+  product_member_modules: {
+    id: string;
+    product_id: string;
+    products: { user_id: string };
+  };
+}
+
+interface ContentPosition {
+  position: number;
+}
+
+interface ContentUpdates {
+  title?: string;
+  content_type?: string;
+  content_url?: string | null;
+  body?: string | null;
+  description?: string | null;
+  is_active?: boolean;
+}
+
+// ============================================
+// HELPERS
+// ============================================
+
+function jsonResponse(data: JsonResponseData, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -34,7 +91,7 @@ function jsonResponse(data: any, status = 200): Response {
 }
 
 async function verifyModuleOwnership(
-  supabase: any,
+  supabase: SupabaseClient,
   moduleId: string,
   producerId: string
 ): Promise<{ valid: boolean; productId?: string; error?: string }> {
@@ -48,15 +105,17 @@ async function verifyModuleOwnership(
     return { valid: false, error: "Módulo não encontrado" };
   }
 
-  if (module.products.user_id !== producerId) {
+  const typedModule = module as unknown as ModuleWithProduct;
+
+  if (typedModule.products.user_id !== producerId) {
     return { valid: false, error: "Você não tem permissão para acessar este módulo" };
   }
 
-  return { valid: true, productId: module.product_id };
+  return { valid: true, productId: typedModule.product_id };
 }
 
 async function verifyContentOwnership(
-  supabase: any,
+  supabase: SupabaseClient,
   contentId: string,
   producerId: string
 ): Promise<{ valid: boolean; moduleId?: string; productId?: string; error?: string }> {
@@ -78,16 +137,22 @@ async function verifyContentOwnership(
     return { valid: false, error: "Conteúdo não encontrado" };
   }
 
-  if (content.product_member_modules.products.user_id !== producerId) {
+  const typedContent = content as unknown as ContentWithModule;
+
+  if (typedContent.product_member_modules.products.user_id !== producerId) {
     return { valid: false, error: "Você não tem permissão para acessar este conteúdo" };
   }
 
   return {
     valid: true,
-    moduleId: content.module_id,
-    productId: content.product_member_modules.product_id,
+    moduleId: typedContent.module_id,
+    productId: typedContent.product_member_modules.product_id,
   };
 }
+
+// ============================================
+// MAIN HANDLER
+// ============================================
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -99,7 +164,7 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const rateLimitResult = await rateLimitMiddleware(supabase as any, req, RATE_LIMIT_CONFIGS.MEMBERS_AREA);
+    const rateLimitResult = await rateLimitMiddleware(supabase, req, RATE_LIMIT_CONFIGS.MEMBERS_AREA);
     if (rateLimitResult) return rateLimitResult;
 
     const body = await req.json();
@@ -138,18 +203,21 @@ Deno.serve(async (req) => {
         .order("position", { ascending: false })
         .limit(1);
 
-      const nextPosition = existing && existing.length > 0 ? existing[0].position + 1 : 0;
+      const typedExisting = existing as ContentPosition[] | null;
+      const nextPosition = typedExisting && typedExisting.length > 0 ? typedExisting[0].position + 1 : 0;
+
+      const contentData = data as ContentData;
 
       const { data: newContent, error: insertError } = await supabase
         .from("product_member_content")
         .insert({
           module_id: moduleId,
-          title: (data as ContentData).title!.trim(),
-          content_type: (data as ContentData).content_type || "text",
-          content_url: (data as ContentData).content_url || null,
-          body: (data as ContentData).body || null,
-          description: (data as ContentData).description || null,
-          is_active: (data as ContentData).is_active !== false,
+          title: contentData.title!.trim(),
+          content_type: contentData.content_type || "text",
+          content_url: contentData.content_url || null,
+          body: contentData.body || null,
+          description: contentData.description || null,
+          is_active: contentData.is_active !== false,
           position: nextPosition,
         })
         .select()
@@ -160,8 +228,8 @@ Deno.serve(async (req) => {
         return jsonResponse({ success: false, error: "Erro ao criar conteúdo" }, 500);
       }
 
-      console.log(`[content-crud] Content created: ${newContent.id} by ${producer.id}`);
-      return jsonResponse({ success: true, data: newContent });
+      console.log(`[content-crud] Content created: ${(newContent as ContentRecord).id} by ${producer.id}`);
+      return jsonResponse({ success: true, data: newContent as ContentRecord });
     }
 
     // ========== UPDATE CONTENT ==========
@@ -175,7 +243,7 @@ Deno.serve(async (req) => {
         return jsonResponse({ success: false, error: ownership.error }, 403);
       }
 
-      const updates: Record<string, any> = {};
+      const updates: ContentUpdates = {};
       const contentData = data as ContentData;
 
       if (contentData?.title !== undefined) {
@@ -208,7 +276,7 @@ Deno.serve(async (req) => {
       }
 
       console.log(`[content-crud] Content updated: ${contentId} by ${producer.id}`);
-      return jsonResponse({ success: true, data: updatedContent });
+      return jsonResponse({ success: true, data: updatedContent as ContentRecord });
     }
 
     // ========== DELETE CONTENT ==========

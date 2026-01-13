@@ -1,9 +1,16 @@
 /**
  * Handler para pagamentos PIX no Mercado Pago
  * Recebe parâmetros validados e retorna resultado padronizado
+ * 
+ * RISE Protocol V2 Compliant - Zero `any`
+ * Version: 2.0.0
  */
 
 import { logInfo, logError } from '../utils/logger.ts';
+
+// ============================================
+// INTERFACES
+// ============================================
 
 export interface PixPaymentParams {
   orderId: string;
@@ -16,12 +23,14 @@ export interface PixPaymentParams {
   // Campos para qualidade MP
   productId?: string;
   productName?: string;
-  items?: Array<{
-    product_id: string;
-    product_name: string;
-    amount_cents: number;
-    quantity: number;
-  }>;
+  items?: OrderItem[];
+}
+
+interface OrderItem {
+  product_id: string;
+  product_name: string;
+  amount_cents: number;
+  quantity: number;
 }
 
 export interface PixPaymentResult {
@@ -31,6 +40,54 @@ export interface PixPaymentResult {
   qrCode?: string;
   qrCodeText?: string;
 }
+
+interface AdditionalInfoItem {
+  id: string;
+  title: string;
+  description: string;
+  category_id: string;
+  quantity: number;
+  unit_price: number;
+}
+
+interface PayerIdentification {
+  type: string;
+  number: string;
+}
+
+interface PixPayload {
+  transaction_amount: number;
+  description: string;
+  payment_method_id: string;
+  external_reference: string;
+  notification_url: string;
+  additional_info: {
+    items: AdditionalInfoItem[];
+  };
+  payer: {
+    email: string;
+    first_name: string;
+    last_name: string;
+    identification?: PayerIdentification;
+  };
+  application_fee?: number;
+}
+
+interface MercadoPagoPixResponse {
+  id: number;
+  status: string;
+  message?: string;
+  point_of_interaction?: {
+    transaction_data?: {
+      qr_code_base64?: string;
+      qr_code?: string;
+    };
+  };
+}
+
+// ============================================
+// MAIN HANDLER
+// ============================================
 
 export async function handlePixPayment(params: PixPaymentParams): Promise<PixPaymentResult> {
   const { 
@@ -47,7 +104,7 @@ export async function handlePixPayment(params: PixPaymentParams): Promise<PixPay
   } = params;
 
   // ✅ Montar additional_info.items para qualidade MP
-  const additionalInfoItems = items && items.length > 0 
+  const additionalInfoItems: AdditionalInfoItem[] = items && items.length > 0 
     ? items.map(item => ({
         id: item.product_id.slice(0, 50),
         title: (item.product_name || 'Produto').slice(0, 256),
@@ -68,7 +125,7 @@ export async function handlePixPayment(params: PixPaymentParams): Promise<PixPay
   // ✅ URL do webhook para notificações
   const notificationUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/mercadopago-webhook`;
 
-  const pixPayload: any = {
+  const pixPayload: PixPayload = {
     transaction_amount: calculatedTotalCents / 100,
     description: `Pedido #${orderId.slice(0, 8)}`,
     payment_method_id: 'pix',
@@ -118,7 +175,7 @@ export async function handlePixPayment(params: PixPaymentParams): Promise<PixPay
     body: JSON.stringify(pixPayload)
   });
 
-  const pixData = await pixResponse.json();
+  const pixData = await pixResponse.json() as MercadoPagoPixResponse;
 
   if (!pixResponse.ok) {
     logError('Erro na API do Mercado Pago (PIX)', pixData);
