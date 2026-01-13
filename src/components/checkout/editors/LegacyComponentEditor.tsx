@@ -1,15 +1,23 @@
 import React from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckoutComponent } from "@/hooks/useCheckoutEditor";
 import { supabase } from "@/integrations/supabase/client";
 import { sanitizeText, sanitizeUrl, sanitizeColor } from "@/lib/security";
+import type { CheckoutComponent } from "@/types/checkoutEditor";
+import type { 
+  TextContent, 
+  ImageContent, 
+  AdvantageContent, 
+  SealContent, 
+  TimerContent, 
+  TestimonialContent, 
+  VideoContent 
+} from "@/types/checkout-components.types";
 
 interface LegacyComponentEditorProps {
   component: CheckoutComponent;
-  onUpdate: (id: string, content: any) => void;
+  onUpdate: (id: string, content: Record<string, unknown>) => void;
 }
 
 // Campos que são URLs
@@ -29,8 +37,9 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
    * Handler genérico com sanitização XSS
    * Aplica sanitização apropriada baseada no tipo de campo
    */
-  const handleChange = (field: string, value: any) => {
+  const handleChange = (field: string, value: unknown) => {
     let sanitizedValue = value;
+    const rawContent = component.content as Record<string, unknown> | undefined;
     
     // Sanitiza baseado no tipo de campo
     if (typeof value === 'string') {
@@ -38,14 +47,14 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
         sanitizedValue = sanitizeUrl(value);
       } else if (COLOR_FIELDS.includes(field) || field.toLowerCase().includes('color')) {
         // Cores: valida formato hex, mantém o default do componente se inválido
-        const defaultColor = component.content?.[field] || '#000000';
+        const defaultColor = (rawContent?.[field] as string) || '#000000';
         sanitizedValue = sanitizeColor(value, defaultColor);
       } else if (TEXT_FIELDS.includes(field)) {
         sanitizedValue = sanitizeText(value);
       }
     }
     
-    onUpdate(component.id, { ...component.content, [field]: sanitizedValue });
+    onUpdate(component.id, { ...rawContent, [field]: sanitizedValue });
   };
 
   // Handler específico para upload de imagem
@@ -58,16 +67,17 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
       return;
     }
 
+    const imageContent = component.content as ImageContent | undefined;
     const previewUrl = URL.createObjectURL(file);
     
     // 1. Preview imediato
     onUpdate(component.id, {
-      ...component.content,
+      ...imageContent,
       imageUrl: previewUrl,
       _preview: true,
       _uploading: true,
       _fileName: file.name,
-      _old_storage_path: component.content?._storage_path,
+      _old_storage_path: imageContent?._storage_path,
     });
 
     try {
@@ -84,7 +94,7 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
 
       // 2. Sucesso
       onUpdate(component.id, {
-        ...component.content,
+        ...imageContent,
         imageUrl: data.publicUrl,
         url: data.publicUrl,
         _storage_path: fileName,
@@ -93,7 +103,7 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
       });
     } catch (err) {
       console.error(err);
-      onUpdate(component.id, { ...component.content, _uploading: false, _uploadError: true });
+      onUpdate(component.id, { ...imageContent, _uploading: false, _uploadError: true });
       alert("Erro ao enviar imagem");
     }
   };
@@ -101,12 +111,13 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
   // --- RENDERIZADORES POR TIPO ---
 
   if (component.type === "text") {
+    const content = component.content as TextContent | undefined;
     return (
       <div className="space-y-4">
         <div className="space-y-2">
           <Label>Texto</Label>
           <Input 
-            value={component.content?.text || ""} 
+            value={content?.text || ""} 
             onChange={(e) => handleChange("text", e.target.value)}
             placeholder="Digite o texto"
           />
@@ -116,7 +127,7 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
             <Label>Tamanho (px)</Label>
             <Input 
               type="number" 
-              value={component.content?.fontSize || 16} 
+              value={content?.fontSize || 16} 
               onChange={(e) => handleChange("fontSize", parseInt(e.target.value))}
               min={12}
               max={48}
@@ -128,11 +139,11 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
               <input 
                 type="color" 
                 className="w-12 h-10 rounded cursor-pointer" 
-                value={component.content?.color || "#000000"} 
+                value={content?.color || "#000000"} 
                 onChange={(e) => handleChange("color", e.target.value)} 
               />
               <Input 
-                value={component.content?.color || "#000000"} 
+                value={content?.color || "#000000"} 
                 onChange={(e) => handleChange("color", e.target.value)}
                 placeholder="#000000"
               />
@@ -145,11 +156,11 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
             <input 
               type="color" 
               className="w-12 h-10 rounded cursor-pointer" 
-              value={component.content?.backgroundColor || "#FFFFFF"} 
+              value={content?.backgroundColor || "#FFFFFF"} 
               onChange={(e) => handleChange("backgroundColor", e.target.value)} 
             />
             <Input 
-              value={component.content?.backgroundColor || "#FFFFFF"} 
+              value={content?.backgroundColor || "#FFFFFF"} 
               onChange={(e) => handleChange("backgroundColor", e.target.value)}
               placeholder="#FFFFFF"
             />
@@ -161,11 +172,11 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
             <input 
               type="color" 
               className="w-12 h-10 rounded cursor-pointer" 
-              value={component.content?.borderColor || "#E5E7EB"} 
+              value={content?.borderColor || "#E5E7EB"} 
               onChange={(e) => handleChange("borderColor", e.target.value)} 
             />
             <Input 
-              value={component.content?.borderColor || "#E5E7EB"} 
+              value={content?.borderColor || "#E5E7EB"} 
               onChange={(e) => handleChange("borderColor", e.target.value)}
               placeholder="#E5E7EB"
             />
@@ -174,8 +185,8 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
         <div className="space-y-2">
           <Label>Alinhamento</Label>
           <Select 
-            value={component.content?.align || "left"}
-            onValueChange={(value) => handleChange("align", value)}
+            value={content?.alignment || "left"}
+            onValueChange={(value) => handleChange("alignment", value)}
           >
             <SelectTrigger>
               <SelectValue />
@@ -192,6 +203,7 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
   }
 
   if (component.type === "image") {
+    const content = component.content as ImageContent | undefined;
     return (
       <div className="space-y-4">
         <div className="space-y-2">
@@ -200,19 +212,19 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
             type="file" 
             accept="image/*" 
             onChange={handleImageUpload} 
-            disabled={component.content?._uploading} 
+            disabled={content?._uploading} 
           />
-          {component.content?._uploading && (
+          {content?._uploading && (
             <p className="text-xs text-muted-foreground">Enviando...</p>
           )}
-          {component.content?._uploadError && (
+          {content?._uploadError && (
             <p className="text-xs text-destructive">Erro ao enviar imagem</p>
           )}
         </div>
         <div className="space-y-2">
           <Label>URL (Opcional)</Label>
           <Input 
-            value={component.content?.imageUrl || ""} 
+            value={content?.imageUrl || ""} 
             onChange={(e) => handleChange("imageUrl", e.target.value)} 
             placeholder="https://..."
           />
@@ -220,8 +232,8 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
         <div className="space-y-2">
           <Label>Alinhamento</Label>
           <Select 
-            value={component.content?.align || "center"}
-            onValueChange={(value) => handleChange("align", value)}
+            value={content?.alignment || "center"}
+            onValueChange={(value) => handleChange("alignment", value)}
           >
             <SelectTrigger>
               <SelectValue />
@@ -238,12 +250,13 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
   }
 
   if (component.type === "advantage") {
+    const content = component.content as AdvantageContent | undefined;
     return (
       <div className="space-y-4">
         <div className="space-y-2">
           <Label>Título</Label>
           <Input 
-            value={component.content?.title || ""} 
+            value={content?.title || ""} 
             onChange={(e) => handleChange("title", e.target.value)}
             placeholder="Título da vantagem"
           />
@@ -251,7 +264,7 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
         <div className="space-y-2">
           <Label>Descrição</Label>
           <Input 
-            value={component.content?.description || ""} 
+            value={content?.description || ""} 
             onChange={(e) => handleChange("description", e.target.value)}
             placeholder="Descrição da vantagem"
           />
@@ -259,7 +272,7 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
         <div className="space-y-2">
           <Label>Ícone</Label>
           <Select 
-            value={component.content?.icon || "check"}
+            value={content?.icon || "check"}
             onValueChange={(value) => handleChange("icon", value)}
           >
             <SelectTrigger>
@@ -274,17 +287,17 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
           </Select>
         </div>
         <div className="space-y-2">
-          <Label>Cor do Ícone</Label>
+          <Label>Cor Principal</Label>
           <div className="flex gap-2">
             <input 
               type="color" 
               className="w-12 h-10 rounded cursor-pointer" 
-              value={component.content?.iconColor || "#10B981"} 
-              onChange={(e) => handleChange("iconColor", e.target.value)} 
+              value={content?.primaryColor || "#10B981"} 
+              onChange={(e) => handleChange("primaryColor", e.target.value)} 
             />
             <Input 
-              value={component.content?.iconColor || "#10B981"} 
-              onChange={(e) => handleChange("iconColor", e.target.value)}
+              value={content?.primaryColor || "#10B981"} 
+              onChange={(e) => handleChange("primaryColor", e.target.value)}
               placeholder="#10B981"
             />
           </div>
@@ -294,45 +307,46 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
   }
 
   if (component.type === "seal") {
+    const content = component.content as SealContent | undefined;
     return (
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label>Texto do Selo</Label>
+          <Label>Texto Superior</Label>
           <Input 
-            value={component.content?.text || ""} 
-            onChange={(e) => handleChange("text", e.target.value)}
-            placeholder="Ex: Garantia de 7 dias"
+            value={content?.topText || ""} 
+            onChange={(e) => handleChange("topText", e.target.value)}
+            placeholder="Ex: Garantia"
           />
         </div>
         <div className="space-y-2">
-          <Label>Cor de Fundo</Label>
-          <div className="flex gap-2">
-            <input 
-              type="color" 
-              className="w-12 h-10 rounded cursor-pointer" 
-              value={component.content?.backgroundColor || "#EF4444"} 
-              onChange={(e) => handleChange("backgroundColor", e.target.value)} 
-            />
-            <Input 
-              value={component.content?.backgroundColor || "#EF4444"} 
-              onChange={(e) => handleChange("backgroundColor", e.target.value)}
-              placeholder="#EF4444"
-            />
-          </div>
+          <Label>Título</Label>
+          <Input 
+            value={content?.title || ""} 
+            onChange={(e) => handleChange("title", e.target.value)}
+            placeholder="Ex: 7 dias"
+          />
         </div>
         <div className="space-y-2">
-          <Label>Cor do Texto</Label>
+          <Label>Subtítulo</Label>
+          <Input 
+            value={content?.subtitle || ""} 
+            onChange={(e) => handleChange("subtitle", e.target.value)}
+            placeholder="Ex: Satisfação garantida"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Cor Principal</Label>
           <div className="flex gap-2">
             <input 
               type="color" 
               className="w-12 h-10 rounded cursor-pointer" 
-              value={component.content?.textColor || "#FFFFFF"} 
-              onChange={(e) => handleChange("textColor", e.target.value)} 
+              value={content?.primaryColor || "#10B981"} 
+              onChange={(e) => handleChange("primaryColor", e.target.value)} 
             />
             <Input 
-              value={component.content?.textColor || "#FFFFFF"} 
-              onChange={(e) => handleChange("textColor", e.target.value)}
-              placeholder="#FFFFFF"
+              value={content?.primaryColor || "#10B981"} 
+              onChange={(e) => handleChange("primaryColor", e.target.value)}
+              placeholder="#10B981"
             />
           </div>
         </div>
@@ -341,6 +355,7 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
   }
 
   if (component.type === "timer") {
+    const content = component.content as TimerContent | undefined;
     return (
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
@@ -348,7 +363,7 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
             <Label>Minutos</Label>
             <Input 
               type="number" 
-              value={component.content?.minutes || 15} 
+              value={content?.minutes || 15} 
               onChange={(e) => handleChange("minutes", parseInt(e.target.value))}
               min={0}
             />
@@ -357,7 +372,7 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
             <Label>Segundos</Label>
             <Input 
               type="number" 
-              value={component.content?.seconds || 0} 
+              value={content?.seconds || 0} 
               onChange={(e) => handleChange("seconds", parseInt(e.target.value))}
               min={0}
               max={59}
@@ -365,24 +380,31 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
           </div>
         </div>
         <div className="space-y-2">
-          <Label>Texto</Label>
+          <Label>Texto Ativo</Label>
           <Input 
-            value={component.content?.text || "Oferta por tempo limitado"} 
-            onChange={(e) => handleChange("text", e.target.value)}
+            value={content?.activeText || "Oferta por tempo limitado"} 
+            onChange={(e) => handleChange("activeText", e.target.value)}
           />
         </div>
         <div className="space-y-2">
-          <Label>Cor de Fundo</Label>
+          <Label>Texto Finalizado</Label>
+          <Input 
+            value={content?.finishedText || "Oferta encerrada"} 
+            onChange={(e) => handleChange("finishedText", e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Cor do Timer</Label>
           <div className="flex gap-2">
             <input 
               type="color" 
               className="w-12 h-10 rounded cursor-pointer" 
-              value={component.content?.backgroundColor || "#EF4444"} 
-              onChange={(e) => handleChange("backgroundColor", e.target.value)} 
+              value={content?.timerColor || "#EF4444"} 
+              onChange={(e) => handleChange("timerColor", e.target.value)} 
             />
             <Input 
-              value={component.content?.backgroundColor || "#EF4444"} 
-              onChange={(e) => handleChange("backgroundColor", e.target.value)}
+              value={content?.timerColor || "#EF4444"} 
+              onChange={(e) => handleChange("timerColor", e.target.value)}
               placeholder="#EF4444"
             />
           </div>
@@ -393,11 +415,11 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
             <input 
               type="color" 
               className="w-12 h-10 rounded cursor-pointer" 
-              value={component.content?.textColor || "#FFFFFF"} 
+              value={content?.textColor || "#FFFFFF"} 
               onChange={(e) => handleChange("textColor", e.target.value)} 
             />
             <Input 
-              value={component.content?.textColor || "#FFFFFF"} 
+              value={content?.textColor || "#FFFFFF"} 
               onChange={(e) => handleChange("textColor", e.target.value)}
               placeholder="#FFFFFF"
             />
@@ -408,39 +430,30 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
   }
 
   if (component.type === "testimonial") {
+    const content = component.content as TestimonialContent | undefined;
     return (
       <div className="space-y-4">
         <div className="space-y-2">
           <Label>Nome</Label>
           <Input 
-            value={component.content?.name || ""} 
-            onChange={(e) => handleChange("name", e.target.value)}
+            value={content?.authorName || ""} 
+            onChange={(e) => handleChange("authorName", e.target.value)}
             placeholder="Nome do cliente"
           />
         </div>
         <div className="space-y-2">
           <Label>Depoimento</Label>
           <Input 
-            value={component.content?.text || ""} 
-            onChange={(e) => handleChange("text", e.target.value)}
+            value={content?.testimonialText || ""} 
+            onChange={(e) => handleChange("testimonialText", e.target.value)}
             placeholder="Texto do depoimento"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>Avaliação (estrelas)</Label>
-          <Input 
-            type="number" 
-            value={component.content?.rating || 5} 
-            onChange={(e) => handleChange("rating", parseInt(e.target.value))}
-            min={1}
-            max={5}
           />
         </div>
         <div className="space-y-2">
           <Label>Foto (URL)</Label>
           <Input 
-            value={component.content?.imageUrl || ""} 
-            onChange={(e) => handleChange("imageUrl", e.target.value)}
+            value={content?.authorImage || ""} 
+            onChange={(e) => handleChange("authorImage", e.target.value)}
             placeholder="https://..."
           />
         </div>
@@ -449,31 +462,33 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
   }
 
   if (component.type === "video") {
+    const content = component.content as VideoContent | undefined;
     return (
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label>URL do Vídeo (YouTube/Vimeo)</Label>
-          <Input 
-            value={component.content?.videoUrl || ""} 
-            onChange={(e) => handleChange("videoUrl", e.target.value)}
-            placeholder="https://youtube.com/watch?v=..."
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>Proporção</Label>
+          <Label>Tipo de Vídeo</Label>
           <Select 
-            value={component.content?.aspectRatio || "16:9"}
-            onValueChange={(value) => handleChange("aspectRatio", value)}
+            value={content?.videoType || "youtube"}
+            onValueChange={(value) => handleChange("videoType", value)}
           >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="16:9">16:9 (Padrão)</SelectItem>
-              <SelectItem value="4:3">4:3</SelectItem>
-              <SelectItem value="1:1">1:1 (Quadrado)</SelectItem>
+              <SelectItem value="youtube">YouTube</SelectItem>
+              <SelectItem value="vimeo">Vimeo</SelectItem>
+              <SelectItem value="custom">Personalizado</SelectItem>
+              <SelectItem value="other">Outro</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>URL do Vídeo</Label>
+          <Input 
+            value={content?.videoUrl || ""} 
+            onChange={(e) => handleChange("videoUrl", e.target.value)}
+            placeholder="https://youtube.com/watch?v=..."
+          />
         </div>
       </div>
     );
