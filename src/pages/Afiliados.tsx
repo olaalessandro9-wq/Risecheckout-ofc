@@ -93,7 +93,7 @@ const Afiliados = () => {
       }
 
       setAffiliates(filteredData);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro ao buscar afiliados:", error);
       toast.error("Erro ao carregar lista de afiliados.");
     } finally {
@@ -122,9 +122,9 @@ const Afiliados = () => {
 
       toast.success(data.message || "Ação realizada com sucesso!");
       fetchAffiliates();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[handleAction] Erro:", error);
-      toast.error(error.message || "Erro ao processar ação");
+      toast.error(error instanceof Error ? error.message : "Erro ao processar ação");
     } finally {
       setActionLoading(null);
     }
@@ -160,8 +160,8 @@ const Afiliados = () => {
       toast.success(data.message || 'Comissão atualizada com sucesso!');
       setIsEditDialogOpen(false);
       fetchAffiliates();
-    } catch (error: any) {
-      toast.error("Erro ao salvar comissão: " + error.message);
+    } catch (error: unknown) {
+      toast.error("Erro ao salvar comissão: " + (error instanceof Error ? error.message : "Erro desconhecido"));
     }
   };
 

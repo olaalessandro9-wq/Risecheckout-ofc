@@ -75,7 +75,7 @@ const CheckoutCustomizer = () => {
         theme: checkout.theme || 'light',
         font: checkout.font || 'Inter',
         colors: themePreset.colors,
-        backgroundImage: parseJsonSafely(checkout.design, {})?.backgroundImage,
+        backgroundImage: (parseJsonSafely(checkout.design, {}) as { backgroundImage?: { url?: string; fixed?: boolean; repeat?: boolean; expand?: boolean } })?.backgroundImage,
       };
       
       const loadedCustomization: CheckoutCustomization = {
@@ -109,9 +109,9 @@ const CheckoutCustomizer = () => {
         setOrderBumps([]);
       }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[CheckoutCustomizer] Load error:', error);
-      toast({ title: "Erro ao carregar", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao carregar", description: error instanceof Error ? error.message : "Erro desconhecido", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -174,9 +174,9 @@ const CheckoutCustomizer = () => {
         editor.setIsDirty(false);
         toast({ title: "Sucesso!", description: "Checkout salvo." });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('[CheckoutCustomizer] Save error:', error);
-        toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+        toast({ title: "Erro ao salvar", description: error instanceof Error ? error.message : "Erro desconhecido", variant: "destructive" });
     } finally {
         setIsSaving(false);
     }

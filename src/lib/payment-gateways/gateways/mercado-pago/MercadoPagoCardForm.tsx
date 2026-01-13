@@ -161,7 +161,7 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
       } else {
         throw new Error('Token não foi gerado');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[MercadoPagoCardForm] Erro ao criar token:', error);
       
       const mpErrors = mapMPErrorsToFields(error);

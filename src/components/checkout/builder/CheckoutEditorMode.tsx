@@ -13,6 +13,7 @@
 
 import React from "react";
 import { CheckoutCustomization, ViewMode } from "@/hooks/useCheckoutEditor";
+import { OrderBump, ProductData } from "@/types/checkout";
 import { ThemePreset } from "@/types/theme";
 import { CheckoutProvider } from "@/contexts/CheckoutContext";
 import { CheckoutMasterLayout } from "@/components/checkout/unified";
@@ -24,8 +25,8 @@ interface CheckoutEditorModeProps {
   viewMode: ViewMode;
   selectedComponentId: string | null;
   onSelectComponent: (id: string | null) => void;
-  productData?: any;
-  orderBumps?: any[];
+  productData?: ProductData;
+  orderBumps?: OrderBump[];
   selectedPayment: "pix" | "credit_card";
   onPaymentChange: (payment: "pix" | "credit_card") => void;
   selectedBumps: Set<string>;
