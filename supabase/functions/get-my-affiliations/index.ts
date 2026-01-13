@@ -1,6 +1,8 @@
 /**
  * get-my-affiliations - Edge Function para listar afiliações do usuário
  * 
+ * @version 2.0.0 - RISE Protocol V2 Compliant - Zero `any`
+ * 
  * Lista todas as afiliações do usuário logado.
  * Usa service_role para bypass de RLS (sistema usa autenticação customizada).
  */
@@ -12,6 +14,41 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-producer-session-token",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+interface ProfileData {
+  id: string;
+  email: string;
+}
+
+interface SessionRecord {
+  producer_id: string;
+  expires_at: string;
+  is_valid: boolean;
+  profiles: ProfileData | ProfileData[] | null;
+}
+
+interface ProductData {
+  id: string;
+  name: string;
+}
+
+interface AffiliationRecord {
+  id: string;
+  commission_rate: number | null;
+  status: string;
+  created_at: string;
+  affiliate_code: string;
+  products: ProductData | ProductData[] | null;
+}
+
+interface FormattedAffiliation {
+  id: string;
+  commission_rate: number | null;
+  status: string;
+  created_at: string;
+  affiliate_code: string;
+  product: { id: string; name: string } | null;
+}
 
 // Mascarar email para logs
 function maskEmail(email: string): string {
@@ -73,8 +110,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    const userId = sessionData.producer_id;
-    const userEmail = (sessionData.profiles as any).email;
+    const session = sessionData as SessionRecord;
+    const userId = session.producer_id;
+    const profile = Array.isArray(session.profiles) ? session.profiles[0] : session.profiles;
+    const userEmail = profile?.email || "";
 
     console.log(`🔍 [get-my-affiliations] Buscando afiliações para ${maskEmail(userEmail)}`);
 
@@ -104,17 +143,20 @@ Deno.serve(async (req) => {
     }
 
     // Formatar resposta para o frontend
-    const affiliations = (affiliationsData || []).map((aff: any) => ({
-      id: aff.id,
-      commission_rate: aff.commission_rate,
-      status: aff.status,
-      created_at: aff.created_at,
-      affiliate_code: aff.affiliate_code,
-      product: aff.products ? {
-        id: aff.products.id,
-        name: aff.products.name,
-      } : null,
-    }));
+    const affiliations: FormattedAffiliation[] = ((affiliationsData || []) as AffiliationRecord[]).map((aff) => {
+      const product = Array.isArray(aff.products) ? aff.products[0] : aff.products;
+      return {
+        id: aff.id,
+        commission_rate: aff.commission_rate,
+        status: aff.status,
+        created_at: aff.created_at,
+        affiliate_code: aff.affiliate_code,
+        product: product ? {
+          id: product.id,
+          name: product.name,
+        } : null,
+      };
+    });
 
     console.log(`✅ [get-my-affiliations] Encontradas ${affiliations.length} afiliações`);
 
@@ -123,10 +165,11 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
-  } catch (error: any) {
-    console.error(`🚨 [get-my-affiliations] Erro não tratado: ${error.message}`);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Erro desconhecido";
+    console.error(`🚨 [get-my-affiliations] Erro não tratado: ${message}`);
     return new Response(
-      JSON.stringify({ affiliations: [], error: error.message }),
+      JSON.stringify({ affiliations: [], error: message }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

@@ -1,6 +1,8 @@
 /**
  * offer-bulk Edge Function
  * 
+ * @version 2.0.0 - RISE Protocol V2 Compliant - Zero `any`
+ * 
  * Handles bulk offer operations:
  * - POST /bulk-save - Bulk create/update/delete offers
  * 
@@ -12,7 +14,7 @@
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 
@@ -35,11 +37,43 @@ interface BulkSavePayload {
   deleted_offer_ids?: string[];
 }
 
+interface RequestBody {
+  sessionToken?: string;
+  product_id?: string;
+  productId?: string;
+  offers?: BulkSavePayload["offers"];
+  deleted_offer_ids?: string[];
+}
+
+interface JsonResponseData {
+  success: boolean;
+  error?: string;
+  results?: {
+    created: string[];
+    updated: string[];
+    deleted: string[];
+  };
+}
+
+interface SessionRecord {
+  producer_id: string;
+  expires_at: string;
+  is_valid: boolean;
+}
+
+interface ProductRecord {
+  id: string;
+}
+
+interface OfferRecord {
+  id: string;
+}
+
 // ============================================
 // HELPERS
 // ============================================
 
-function jsonResponse(data: any, corsHeaders: Record<string, string>, status = 200): Response {
+function jsonResponse(data: JsonResponseData, corsHeaders: Record<string, string>, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -51,7 +85,7 @@ function errorResponse(message: string, corsHeaders: Record<string, string>, sta
 }
 
 async function validateProducerSession(
-  supabase: any,
+  supabase: SupabaseClient,
   sessionToken: string
 ): Promise<{ valid: boolean; producerId?: string; error?: string }> {
   if (!sessionToken) {
@@ -68,11 +102,13 @@ async function validateProducerSession(
     return { valid: false, error: "Sessão inválida" };
   }
 
-  if (!session.is_valid) {
+  const sessionData = session as SessionRecord;
+
+  if (!sessionData.is_valid) {
     return { valid: false, error: "Sessão expirada ou invalidada" };
   }
 
-  if (new Date(session.expires_at) < new Date()) {
+  if (new Date(sessionData.expires_at) < new Date()) {
     await supabase
       .from("producer_sessions")
       .update({ is_valid: false })
@@ -85,10 +121,10 @@ async function validateProducerSession(
     .update({ last_activity_at: new Date().toISOString() })
     .eq("session_token", sessionToken);
 
-  return { valid: true, producerId: session.producer_id };
+  return { valid: true, producerId: sessionData.producer_id };
 }
 
-async function verifyProductOwnership(supabase: any, productId: string, producerId: string): Promise<boolean> {
+async function verifyProductOwnership(supabase: SupabaseClient, productId: string, producerId: string): Promise<boolean> {
   const { data, error } = await supabase
     .from("products")
     .select("id")
@@ -124,7 +160,7 @@ serve(withSentry("offer-bulk", async (req) => {
       return errorResponse("Método não permitido", corsHeaders, 405);
     }
 
-    let body: any = {};
+    let body: RequestBody = {};
     try {
       body = await req.json();
     } catch {
@@ -132,7 +168,7 @@ serve(withSentry("offer-bulk", async (req) => {
     }
 
     // Authentication
-    const sessionToken = body.sessionToken || req.headers.get("x-producer-session-token");
+    const sessionToken = body.sessionToken || req.headers.get("x-producer-session-token") || "";
     const sessionValidation = await validateProducerSession(supabase, sessionToken);
 
     if (!sessionValidation.valid) {
@@ -206,7 +242,8 @@ serve(withSentry("offer-bulk", async (req) => {
               .single();
 
             if (!error && newOffer) {
-              results.created.push(newOffer.id);
+              const offerData = newOffer as OfferRecord;
+              results.created.push(offerData.id);
             }
           } else {
             const { error } = await supabase

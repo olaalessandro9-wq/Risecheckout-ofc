@@ -1,6 +1,8 @@
 /**
  * Stripe Connect OAuth Edge Function
  * 
+ * @version 2.0.0 - RISE Protocol V2 Compliant - Zero `any`
+ * 
  * Gerencia o fluxo OAuth para conectar contas Stripe de vendedores.
  * Endpoints:
  * - POST /start → Inicia OAuth, retorna URL de autorização
@@ -16,6 +18,29 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+interface RequestBody {
+  action?: string;
+}
+
+interface StateRecord {
+  vendor_id: string;
+  expires_at: string;
+  used_at: string | null;
+}
+
+interface IntegrationConfig {
+  stripe_account_id?: string;
+  livemode?: boolean;
+  email?: string;
+  connected_at?: string;
+}
+
+interface IntegrationRecord {
+  active: boolean;
+  config: IntegrationConfig;
+  updated_at: string;
+}
 
 const logStep = (step: string, details?: unknown) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
@@ -46,7 +71,7 @@ serve(async (req) => {
     
     // Suporte para action via query param OU body
     let action = url.searchParams.get("action");
-    let bodyData: any = {};
+    let bodyData: RequestBody = {};
     
     if (req.method === "POST" || req.method === "GET") {
       try {
@@ -147,15 +172,17 @@ serve(async (req) => {
         throw new Error("Invalid OAuth state");
       }
 
-      if (stateData.used_at) {
+      const stateRecord = stateData as StateRecord;
+
+      if (stateRecord.used_at) {
         throw new Error("OAuth state already used");
       }
 
-      if (new Date(stateData.expires_at) < new Date()) {
+      if (new Date(stateRecord.expires_at) < new Date()) {
         throw new Error("OAuth state expired");
       }
 
-      const vendorId = stateData.vendor_id;
+      const vendorId = stateRecord.vendor_id;
       logStep("State validated", { vendorId });
 
       // Marcar state como usado
@@ -265,12 +292,14 @@ serve(async (req) => {
         .eq("integration_type", "STRIPE")
         .maybeSingle();
 
-      if (integration?.config?.stripe_account_id) {
+      const integrationData = integration as IntegrationRecord | null;
+
+      if (integrationData?.config?.stripe_account_id) {
         // Revogar acesso no Stripe
         try {
           await stripe.oauth.deauthorize({
             client_id: Deno.env.get("STRIPE_CLIENT_ID") || "",
-            stripe_user_id: integration.config.stripe_account_id,
+            stripe_user_id: integrationData.config.stripe_account_id,
           });
           logStep("Stripe access revoked");
         } catch (revokeError) {
@@ -317,15 +346,16 @@ serve(async (req) => {
         .eq("integration_type", "STRIPE")
         .maybeSingle();
 
-      const connected = integration?.active && integration?.config?.stripe_account_id;
+      const integrationData = integration as IntegrationRecord | null;
+      const connected = integrationData?.active && integrationData?.config?.stripe_account_id;
 
       return new Response(
         JSON.stringify({
           connected,
-          account_id: connected ? integration.config.stripe_account_id : null,
-          email: connected ? integration.config.email : null,
-          livemode: connected ? integration.config.livemode : null,
-          connected_at: connected ? integration.config.connected_at : null,
+          account_id: connected ? integrationData.config.stripe_account_id : null,
+          email: connected ? integrationData.config.email : null,
+          livemode: connected ? integrationData.config.livemode : null,
+          connected_at: connected ? integrationData.config.connected_at : null,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
