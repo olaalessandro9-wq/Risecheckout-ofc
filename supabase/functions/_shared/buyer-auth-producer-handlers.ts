@@ -125,8 +125,9 @@ export async function handleEnsureProducerAccess(
     console.log(`[buyer-auth] Producer ${email} has access via product ownership, no buyer_product_access needed`);
 
     return jsonResponse({ success: true, buyerId: buyer.id }, 200, corsHeaders);
-  } catch (error) {
-    console.error("[buyer-auth] Error ensuring producer access:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[buyer-auth] Error ensuring producer access:", errorMessage);
     return jsonResponse({ error: "Erro ao criar acesso do produtor" }, 500, corsHeaders);
   }
 }

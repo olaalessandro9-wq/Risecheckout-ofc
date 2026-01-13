@@ -155,12 +155,13 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
       messageId: responseData.data?.[0]?.message_id || responseData.request_id,
       details: responseData,
     };
-  } catch (error) {
-    console.error('[ZeptoMail] Network/unexpected error:', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[ZeptoMail] Network/unexpected error:', errorMessage);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      details: error,
+      error: errorMessage,
+      details: error instanceof Error ? { message: error.message, stack: error.stack } : String(error),
     };
   }
 }

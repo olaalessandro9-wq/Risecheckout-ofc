@@ -236,13 +236,14 @@ Deno.serve(async (req) => {
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
     }
-  } catch (error) {
-    console.error("[security-management] Error:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Erro interno";
+    console.error("[security-management] Error:", errorMessage);
     
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error instanceof Error ? error.message : "Erro interno" 
+        error: errorMessage 
       }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

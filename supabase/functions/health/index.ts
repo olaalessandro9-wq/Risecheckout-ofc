@@ -47,15 +47,15 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     const responseTime = Date.now() - startTime;
-    const err = error instanceof Error ? error : new Error(String(error));
+    const errorMessage = error instanceof Error ? error.message : String(error);
 
     return new Response(
       JSON.stringify({
         status: 'ERROR',
         timestamp: new Date().toISOString(),
-        error: err.message,
+        error: errorMessage,
         responseTime: `${responseTime}ms`,
       }),
       {

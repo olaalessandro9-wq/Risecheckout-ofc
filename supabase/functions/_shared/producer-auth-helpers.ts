@@ -85,8 +85,9 @@ export async function logAuditEvent(
       user_agent: userAgent,
       details,
     });
-  } catch (error) {
-    console.error("[producer-auth] Audit log error:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[producer-auth] Audit log error:", errorMessage);
   }
 }
 

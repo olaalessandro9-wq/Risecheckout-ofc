@@ -123,7 +123,7 @@ export async function validateMercadoPagoSignature(
     logger.info('✅ Assinatura validada com sucesso');
     return { valid: true };
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('🔴 Erro ao validar assinatura - REJEITANDO webhook', error);
     return { valid: false, error: ERROR_CODES.VALIDATION_ERROR };
   }

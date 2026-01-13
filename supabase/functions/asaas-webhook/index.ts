@@ -228,7 +228,7 @@ serve(async (req) => {
       asaasPaymentId: payment.id 
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Erro interno';
     logger.error('Exception', error);
 

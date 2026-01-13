@@ -117,8 +117,9 @@ async function validateProducerSessionToken(
       name: producer.name,
       role: roleData?.role || "user",
     };
-  } catch (error) {
-    console.error("[unified-auth] Error validating session token:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[unified-auth] Error validating session token:", errorMessage);
     return null;
   }
 }

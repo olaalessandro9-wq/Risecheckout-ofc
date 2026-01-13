@@ -50,8 +50,9 @@ export async function findOrCreateCustomer(
           return { id: searchData.data[0].id };
         }
       }
-    } catch (error) {
-      console.error('[asaas-customer] Erro ao buscar cliente:', error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('[asaas-customer] Erro ao buscar cliente:', errorMessage);
     }
   }
 
@@ -81,8 +82,9 @@ export async function findOrCreateCustomer(
     const newCustomer = await createResponse.json();
     console.log('[asaas-customer] Cliente criado:', newCustomer.id);
     return { id: newCustomer.id };
-  } catch (error) {
-    console.error('[asaas-customer] Exceção ao criar cliente:', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[asaas-customer] Exceção ao criar cliente:', errorMessage);
     return null;
   }
 }

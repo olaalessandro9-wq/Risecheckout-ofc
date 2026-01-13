@@ -73,8 +73,9 @@ serve(async (req) => {
         } else {
           failCount++;
         }
-      } catch (error) {
-        console.error(`[retry-webhooks] Error retrying webhook ${webhook.id}:`, error);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`[retry-webhooks] Error retrying webhook ${webhook.id}:`, errorMessage);
         failCount++;
         
         await supabase
@@ -99,8 +100,9 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error) {
-    console.error('[retry-webhooks] Error:', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[retry-webhooks] Error:', errorMessage);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

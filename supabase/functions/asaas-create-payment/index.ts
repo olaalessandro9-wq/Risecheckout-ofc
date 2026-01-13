@@ -457,12 +457,13 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error) {
-    console.error('[asaas-create-payment] Exception:', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Erro interno';
+    console.error('[asaas-create-payment] Exception:', errorMessage);
     await recordAttempt(supabase, { ...RATE_LIMIT_CONFIG, identifier }, false);
     
     return new Response(
-      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Erro interno' }),
+      JSON.stringify({ success: false, error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
