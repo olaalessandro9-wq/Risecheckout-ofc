@@ -264,8 +264,8 @@ export function OrderBumpList({ productId, onAdd, onEdit, maxOrderBumps = 5 }: O
 
       const orderedIds = newOrder.map(b => b.id);
 
-      const { data: response, error } = await supabase.functions.invoke("checkout-management/order-bump/reorder", {
-        body: { checkoutId, orderedIds },
+      const { data: response, error } = await supabase.functions.invoke("order-bump-crud", {
+        body: { action: 'reorder', checkoutId, orderedIds },
         headers: { "x-producer-session-token": sessionToken },
       });
 
@@ -296,8 +296,8 @@ export function OrderBumpList({ productId, onAdd, onEdit, maxOrderBumps = 5 }: O
         return;
       }
 
-      const { data: response, error } = await supabase.functions.invoke("checkout-management/order-bump/delete", {
-        body: { id },
+      const { data: response, error } = await supabase.functions.invoke("order-bump-crud", {
+        body: { action: 'delete', id },
         headers: { "x-producer-session-token": sessionToken },
       });
 

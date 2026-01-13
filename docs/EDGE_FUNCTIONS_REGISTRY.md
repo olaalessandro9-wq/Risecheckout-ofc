@@ -10,8 +10,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 79 |
-| **No código local** | 57 |
+| **Total de Funções** | 81 |
+| **No código local** | 59 |
 | **Apenas deployadas** | 22 |
 | **Base URL** | `https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/` |
 
@@ -161,7 +161,9 @@
 | `producer-auth` | `.../producer-auth` | ✅ | 7 min ago | 29 |
 | `product-management` | `.../product-management` | ✅ | NEW | 0 |
 | `offer-management` | `.../offer-management` | ✅ | NEW | 0 |
-| `checkout-management` | `.../checkout-management` | ✅ | NEW | 0 |
+| `checkout-crud` | `.../checkout-crud` | ✅ | NEW | 0 |
+| `checkout-editor` | `.../checkout-editor` | ✅ | NEW | 0 |
+| `order-bump-crud` | `.../order-bump-crud` | ✅ | NEW | 0 |
 | `product-duplicate` | `.../product-duplicate` | ✅ | NEW | 0 |
 | `coupon-management` | `.../coupon-management` | ✅ | NEW | 0 |
 | `integration-management` | `.../integration-management` | ✅ | NEW | 0 |
@@ -275,6 +277,12 @@
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-13 | **REFATORAÇÃO FASE 1.1**: `checkout-management` (1354 linhas) dividida em 3 Edge Functions especializadas |
+| 2026-01-13 | Criada `checkout-crud` (~296 linhas) - CRUD de checkouts: create, update, set-default, delete, toggle-link-status |
+| 2026-01-13 | Criada `checkout-editor` (~239 linhas) - Editor: get-editor-data, update-design |
+| 2026-01-13 | Criada `order-bump-crud` (~213 linhas) - CRUD de order bumps: create, update, delete, reorder |
+| 2026-01-13 | Migrados 6 arquivos frontend para usar novas Edge Functions especializadas |
+| 2026-01-13 | Deletada `checkout-management` (substituída pelas 3 novas funções) |
 | 2026-01-13 | Criados módulos compartilhados: `_shared/session.ts`, `_shared/response.ts`, `_shared/ownership.ts` |
 | 2026-01-13 | Criada `pixel-management` Edge Function - migração completa de `useVendorPixels.ts` |
 | 2026-01-13 | Adicionadas 4 funções de afiliação ao Registry: `get-affiliation-details`, `get-affiliation-status`, `get-all-affiliation-statuses`, `get-my-affiliations` |

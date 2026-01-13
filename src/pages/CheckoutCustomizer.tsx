@@ -50,7 +50,7 @@ const CheckoutCustomizer = () => {
       }
 
       // Use Edge Function to load all data in one call
-      const { data: response, error } = await supabase.functions.invoke('checkout-management', {
+      const { data: response, error } = await supabase.functions.invoke('checkout-editor', {
         body: { action: 'get-editor-data', checkoutId: id },
         headers: { 'x-producer-session-token': sessionToken }
       });
@@ -149,7 +149,7 @@ const CheckoutCustomizer = () => {
         });
 
         // Save via Edge Function
-        const { data: response, error } = await supabase.functions.invoke('checkout-management', {
+        const { data: response, error } = await supabase.functions.invoke('checkout-editor', {
           body: {
             action: 'update-design',
             checkoutId,

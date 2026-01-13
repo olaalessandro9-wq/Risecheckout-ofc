@@ -41,7 +41,7 @@ export function LinksTab() {
   const handleToggleStatus = async (linkId: string) => {
     try {
       // Alternar status via Edge Function
-      const { data, error } = await supabase.functions.invoke('checkout-management', {
+      const { data, error } = await supabase.functions.invoke('checkout-crud', {
         body: {
           action: 'toggle-link-status',
           linkId,

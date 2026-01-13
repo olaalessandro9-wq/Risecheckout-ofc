@@ -211,9 +211,9 @@ export function useOrderBumpForm({
 
       if (editOrderBump) {
         // Update via Edge Function
-        const { data, error } = await supabase.functions.invoke('checkout-management', {
+        const { data, error } = await supabase.functions.invoke('order-bump-crud', {
           body: { 
-            action: 'order-bump/update', 
+            action: 'update', 
             orderBumpId: editOrderBump.id,
             ...orderBumpData 
           },
@@ -226,9 +226,9 @@ export function useOrderBumpForm({
         toast.success("Order bump atualizado com sucesso");
       } else {
         // Create via Edge Function
-        const { data, error } = await supabase.functions.invoke('checkout-management', {
+        const { data, error } = await supabase.functions.invoke('order-bump-crud', {
           body: { 
-            action: 'order-bump/create', 
+            action: 'create', 
             ...orderBumpData 
           },
           headers: { 'x-producer-session-token': sessionToken || '' }
