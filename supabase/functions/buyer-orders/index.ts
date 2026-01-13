@@ -1,5 +1,18 @@
+/**
+ * buyer-orders Edge Function
+ * 
+ * Handles buyer order and access management:
+ * - orders: List buyer orders
+ * - access: List products with access
+ * - content: Get product content
+ * - profile: Get buyer profile
+ * 
+ * RISE Protocol V2 Compliant - Zero `any`
+ * Version: 2.0.0
+ */
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { 
   rateLimitMiddleware, 
@@ -7,8 +20,99 @@ import {
   getClientIP 
 } from "../_shared/rate-limiter.ts";
 
-// Validate buyer session and return buyer data
-async function validateSession(supabase: any, sessionToken: string | null) {
+// ============================================
+// INTERFACES
+// ============================================
+
+interface BuyerData {
+  id: string;
+  email: string;
+  name: string | null;
+  is_active: boolean;
+}
+
+interface BuyerSession {
+  id: string;
+  expires_at: string;
+  is_valid: boolean;
+  buyer: BuyerData | BuyerData[];
+}
+
+interface ContentItem {
+  id: string;
+  title: string;
+  description: string | null;
+  content_type: string;
+  content_url: string | null;
+  content_data: Record<string, unknown> | null;
+  position: number;
+  is_active: boolean;
+}
+
+interface ModuleWithContents {
+  id: string;
+  title: string;
+  description: string | null;
+  position: number;
+  is_active: boolean;
+  cover_image_url: string | null;
+  contents: ContentItem[];
+}
+
+interface Attachment {
+  id: string;
+  file_name: string;
+  file_url: string;
+  file_type: string;
+  file_size: number | null;
+}
+
+interface AttachmentRecord {
+  id: string;
+  content_id: string;
+  file_name: string;
+  file_url: string;
+  file_type: string;
+  file_size: number | null;
+  position: number | null;
+}
+
+interface ProductData {
+  id: string;
+  name: string;
+  description: string | null;
+  image_url: string | null;
+  members_area_enabled: boolean;
+  members_area_settings: Record<string, unknown> | null;
+}
+
+interface OwnProductRow {
+  id: string;
+  name: string;
+  description: string | null;
+  image_url: string | null;
+  members_area_enabled: boolean;
+  user_id: string;
+}
+
+interface AccessItem {
+  id: string;
+  product_id: string;
+  granted_at: string | null;
+  expires_at: string | null;
+  is_active: boolean;
+  access_type: string;
+  product: OwnProductRow;
+}
+
+// ============================================
+// SESSION VALIDATION
+// ============================================
+
+async function validateSession(
+  supabase: SupabaseClient, 
+  sessionToken: string | null
+): Promise<BuyerData | null> {
   if (!sessionToken) {
     return null;
   }
@@ -33,18 +137,23 @@ async function validateSession(supabase: any, sessionToken: string | null) {
     return null;
   }
 
-  const buyerData = Array.isArray(session.buyer) ? session.buyer[0] : session.buyer;
+  const typedSession = session as unknown as BuyerSession;
+  const buyerData = Array.isArray(typedSession.buyer) ? typedSession.buyer[0] : typedSession.buyer;
 
   if (!buyerData.is_active) {
     return null;
   }
 
-  if (new Date(session.expires_at) < new Date()) {
+  if (new Date(typedSession.expires_at) < new Date()) {
     return null;
   }
 
   return buyerData;
 }
+
+// ============================================
+// MAIN HANDLER
+// ============================================
 
 serve(async (req) => {
   // CORS handling
@@ -65,7 +174,7 @@ serve(async (req) => {
 
     // Rate limiting
     const rateLimitResult = await rateLimitMiddleware(
-      supabase as any,
+      supabase,
       req,
       RATE_LIMIT_CONFIGS.MEMBERS_AREA
     );
@@ -165,7 +274,6 @@ serve(async (req) => {
       }
 
       // 2. Buscar produtos onde o produtor (pelo email) é o dono
-      // Usar RPC para buscar user_id a partir do email (auth.users não é acessível diretamente)
       const { data: producerId, error: rpcError } = await supabase
         .rpc('get_user_id_by_email', { user_email: buyer.email });
 
@@ -173,7 +281,7 @@ serve(async (req) => {
         console.log(`[buyer-orders] RPC error getting producer id for ${buyer.email}:`, rpcError);
       }
 
-      let ownProducts: any[] = [];
+      let ownProducts: AccessItem[] = [];
       if (producerId) {
         console.log(`[buyer-orders] Found producer id ${producerId} for ${buyer.email}`);
         const { data: products, error: productsError } = await supabase
@@ -188,7 +296,7 @@ serve(async (req) => {
 
         if (products && products.length > 0) {
           console.log(`[buyer-orders] Found ${products.length} products owned by producer`);
-          ownProducts = products.map(p => ({
+          ownProducts = products.map((p: OwnProductRow) => ({
             id: `own_${p.id}`,
             product_id: p.id,
             granted_at: null,
@@ -203,7 +311,7 @@ serve(async (req) => {
       }
 
       // 3. Unificar e remover duplicatas (prioriza owner se existir)
-      const uniqueProducts = new Map();
+      const uniqueProducts = new Map<string, AccessItem>();
       
       // Primeiro adiciona os produtos próprios
       for (const item of ownProducts) {
@@ -211,7 +319,7 @@ serve(async (req) => {
       }
       
       // Depois adiciona os comprados (só se não existir)
-      for (const item of access || []) {
+      for (const item of (access || []) as unknown as AccessItem[]) {
         if (!uniqueProducts.has(item.product_id)) {
           uniqueProducts.set(item.product_id, item);
         }
@@ -288,7 +396,9 @@ serve(async (req) => {
         );
       }
 
-      if (!product.members_area_enabled) {
+      const typedProduct = product as ProductData;
+
+      if (!typedProduct.members_area_enabled) {
         return new Response(
           JSON.stringify({ error: "Área de membros não está habilitada para este produto" }),
           { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -341,17 +451,17 @@ serve(async (req) => {
       }
 
       // Sort contents by position and filter inactive
-      const sortedModules = (modules || []).map(module => ({
+      const sortedModules = ((modules || []) as ModuleWithContents[]).map(module => ({
         ...module,
         contents: (module.contents || [])
-          .filter((c: any) => c.is_active)
-          .sort((a: any, b: any) => a.position - b.position)
+          .filter((c: ContentItem) => c.is_active)
+          .sort((a: ContentItem, b: ContentItem) => a.position - b.position)
       }));
 
       // Fetch attachments for all contents
-      const allContentIds = sortedModules.flatMap(m => m.contents.map((c: any) => c.id));
+      const allContentIds = sortedModules.flatMap(m => m.contents.map((c: ContentItem) => c.id));
       
-      let attachmentsMap: Record<string, any[]> = {};
+      const attachmentsMap: Record<string, Attachment[]> = {};
       if (allContentIds.length > 0) {
         const { data: attachments } = await supabase
           .from("content_attachments")
@@ -361,7 +471,7 @@ serve(async (req) => {
 
         if (attachments && attachments.length > 0) {
           console.log(`[buyer-orders] Found ${attachments.length} attachments for ${allContentIds.length} contents`);
-          for (const att of attachments) {
+          for (const att of attachments as AttachmentRecord[]) {
             if (!attachmentsMap[att.content_id]) {
               attachmentsMap[att.content_id] = [];
             }
@@ -379,7 +489,7 @@ serve(async (req) => {
       // Add attachments to each content
       const modulesWithAttachments = sortedModules.map(module => ({
         ...module,
-        contents: module.contents.map((c: any) => ({
+        contents: module.contents.map((c: ContentItem) => ({
           ...c,
           attachments: attachmentsMap[c.id] || [],
         }))
@@ -388,11 +498,11 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           product: {
-            id: product.id,
-            name: product.name,
-            description: product.description,
-            imageUrl: product.image_url,
-            settings: product.members_area_settings,
+            id: typedProduct.id,
+            name: typedProduct.name,
+            description: typedProduct.description,
+            imageUrl: typedProduct.image_url,
+            settings: typedProduct.members_area_settings,
           },
           modules: modulesWithAttachments,
           sections: sections || [],
@@ -422,7 +532,7 @@ serve(async (req) => {
       { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[buyer-orders] Error:", error);
     return new Response(
       JSON.stringify({ error: "Erro interno do servidor" }),

@@ -6,22 +6,75 @@
  * - update: Update webhook and products
  * - delete: Delete webhook
  * 
- * RISE Protocol Compliant:
- * - Producer session authentication
- * - Ownership verification
- * - Rate limiting
+ * RISE Protocol V2 Compliant - Zero `any`
+ * Version: 2.0.0
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
+
+// ============================================
+// INTERFACES
+// ============================================
+
+interface JsonResponseData {
+  success?: boolean;
+  error?: string;
+  webhook?: WebhookRecord;
+  deletedId?: string;
+}
+
+interface WebhookRecord {
+  id: string;
+  vendor_id: string;
+  name: string;
+  url: string;
+  events: string[];
+  product_id: string | null;
+  secret: string;
+  active: boolean;
+}
+
+interface WebhookData {
+  name: string;
+  url: string;
+  events: string[];
+  product_ids?: string[];
+}
+
+interface RequestBody {
+  action: string;
+  webhookId?: string;
+  data?: WebhookData;
+  sessionToken?: string;
+}
+
+interface SessionRecord {
+  producer_id: string;
+  expires_at: string;
+  is_valid: boolean;
+}
+
+interface WebhookOwnership {
+  id: string;
+  vendor_id: string;
+}
+
+interface WebhookUpdates {
+  updated_at: string;
+  name?: string;
+  url?: string;
+  events?: string[];
+  product_id?: string | null;
+}
 
 // ============================================
 // HELPERS
 // ============================================
 
-function jsonResponse(data: any, corsHeaders: Record<string, string>, status = 200): Response {
+function jsonResponse(data: JsonResponseData, corsHeaders: Record<string, string>, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -37,7 +90,7 @@ function errorResponse(message: string, corsHeaders: Record<string, string>, sta
 // ============================================
 
 async function validateProducerSession(
-  supabase: any,
+  supabase: SupabaseClient,
   sessionToken: string
 ): Promise<{ valid: boolean; producerId?: string; error?: string }> {
   if (!sessionToken) {
@@ -54,11 +107,13 @@ async function validateProducerSession(
     return { valid: false, error: "Sessão inválida" };
   }
 
-  if (!session.is_valid) {
+  const typedSession = session as SessionRecord;
+
+  if (!typedSession.is_valid) {
     return { valid: false, error: "Sessão expirada ou invalidada" };
   }
 
-  if (new Date(session.expires_at) < new Date()) {
+  if (new Date(typedSession.expires_at) < new Date()) {
     await supabase
       .from("producer_sessions")
       .update({ is_valid: false })
@@ -71,7 +126,7 @@ async function validateProducerSession(
     .update({ last_activity_at: new Date().toISOString() })
     .eq("session_token", sessionToken);
 
-  return { valid: true, producerId: session.producer_id };
+  return { valid: true, producerId: typedSession.producer_id };
 }
 
 // ============================================
@@ -79,7 +134,7 @@ async function validateProducerSession(
 // ============================================
 
 async function verifyWebhookOwnership(
-  supabase: any,
+  supabase: SupabaseClient,
   webhookId: string,
   vendorId: string
 ): Promise<{ valid: boolean; error?: string }> {
@@ -93,7 +148,9 @@ async function verifyWebhookOwnership(
     return { valid: false, error: "Webhook não encontrado" };
   }
 
-  if (data.vendor_id !== vendorId) {
+  const typedData = data as WebhookOwnership;
+
+  if (typedData.vendor_id !== vendorId) {
     return { valid: false, error: "Você não tem permissão para editar este webhook" };
   }
 
@@ -116,7 +173,7 @@ serve(withSentry("webhook-crud", async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    let body: any;
+    let body: RequestBody;
     try {
       body = await req.json();
     } catch {
@@ -166,12 +223,12 @@ serve(withSentry("webhook-crud", async (req) => {
       }
 
       // Insert product associations
-      if (data.product_ids?.length > 0) {
+      if (data.product_ids && data.product_ids.length > 0) {
         const { error: linkError } = await supabase
           .from("webhook_products")
           .insert(
             data.product_ids.map((productId: string) => ({
-              webhook_id: newWebhook.id,
+              webhook_id: (newWebhook as WebhookRecord).id,
               product_id: productId,
             }))
           );
@@ -181,8 +238,8 @@ serve(withSentry("webhook-crud", async (req) => {
         }
       }
 
-      console.log(`[webhook-crud] Webhook created: ${newWebhook.id} by ${vendorId}`);
-      return jsonResponse({ success: true, webhook: newWebhook }, corsHeaders);
+      console.log(`[webhook-crud] Webhook created: ${(newWebhook as WebhookRecord).id} by ${vendorId}`);
+      return jsonResponse({ success: true, webhook: newWebhook as WebhookRecord }, corsHeaders);
     }
 
     // ============================================
@@ -198,7 +255,7 @@ serve(withSentry("webhook-crud", async (req) => {
         return errorResponse(ownership.error!, corsHeaders, 403);
       }
 
-      const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+      const updates: WebhookUpdates = { updated_at: new Date().toISOString() };
 
       if (data?.name) updates.name = data.name.trim();
       if (data?.url) updates.url = data.url.trim();
@@ -269,7 +326,7 @@ serve(withSentry("webhook-crud", async (req) => {
 
     return errorResponse(`Ação desconhecida: ${action}`, corsHeaders, 400);
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[webhook-crud] Unexpected error:", error);
     await captureException(error instanceof Error ? error : new Error(String(error)), {
       functionName: "webhook-crud",

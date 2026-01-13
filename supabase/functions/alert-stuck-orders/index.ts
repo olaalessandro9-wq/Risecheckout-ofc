@@ -3,8 +3,8 @@
  * ALERT-STUCK-ORDERS EDGE FUNCTION
  * ============================================================================
  * 
- * Versão: 1.0
- * Data: 2026-01-07
+ * RISE Protocol V2 Compliant - Zero `any`
+ * Version: 2.0.0
  * 
  * Alerta sobre pedidos presos há mais de 15 minutos.
  * Envia notificação via Telegram para o admin.
@@ -30,7 +30,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const FUNCTION_VERSION = "1.0";
+const FUNCTION_VERSION = "2.0.0";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -40,6 +40,30 @@ const CORS_HEADERS = {
 // Configurações
 const STUCK_THRESHOLD_MINUTES = 15;
 const MAX_ORDERS_IN_ALERT = 10;
+
+// ============================================================================
+// INTERFACES
+// ============================================================================
+
+interface StuckOrder {
+  id: string;
+  vendor_id: string;
+  customer_name: string | null;
+  customer_email: string | null;
+  amount_cents: number;
+  gateway: string | null;
+  created_at: string;
+  status: string;
+}
+
+interface AlertResponse {
+  success: boolean;
+  message: string;
+  stuck_count?: number;
+  stuck_order_ids?: string[];
+  duration_ms: number;
+  error?: string;
+}
 
 // ============================================================================
 // LOGGING
@@ -87,7 +111,7 @@ async function sendTelegramAlert(
 
     logInfo('Alerta enviado via Telegram');
     return true;
-  } catch (error) {
+  } catch (error: unknown) {
     logError('Erro ao enviar Telegram', error);
     return false;
   }
@@ -116,7 +140,7 @@ function formatDuration(createdAt: string): string {
   return `${hours}h ${minutes}min`;
 }
 
-function buildAlertMessage(orders: any[]): string {
+function buildAlertMessage(orders: StuckOrder[]): string {
   const lines: string[] = [
     '🚨 <b>ALERTA: Pedidos Presos</b>',
     '',
@@ -180,12 +204,13 @@ serve(async (req) => {
 
     if (!telegramBotToken || !telegramChatId) {
       logWarn('TELEGRAM_BOT_TOKEN ou TELEGRAM_CHAT_ID não configurados');
+      const response: AlertResponse = {
+        success: false,
+        message: 'Telegram não configurado',
+        duration_ms: Date.now() - startTime,
+      };
       return new Response(
-        JSON.stringify({
-          success: false,
-          message: 'Telegram não configurado',
-          duration_ms: Date.now() - startTime,
-        }),
+        JSON.stringify(response),
         { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
       );
     }
@@ -214,42 +239,48 @@ serve(async (req) => {
 
     if (!stuckOrders || stuckOrders.length === 0) {
       logInfo('Nenhum pedido preso encontrado');
+      const response: AlertResponse = {
+        success: true,
+        message: 'Nenhum pedido preso',
+        stuck_count: 0,
+        duration_ms: Date.now() - startTime,
+      };
       return new Response(
-        JSON.stringify({
-          success: true,
-          message: 'Nenhum pedido preso',
-          stuck_count: 0,
-          duration_ms: Date.now() - startTime,
-        }),
+        JSON.stringify(response),
         { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
       );
     }
 
-    logInfo(`Encontrados ${stuckOrders.length} pedidos presos`);
+    const typedOrders = stuckOrders as StuckOrder[];
+    logInfo(`Encontrados ${typedOrders.length} pedidos presos`);
 
     // Construir e enviar alerta
-    const alertMessage = buildAlertMessage(stuckOrders);
+    const alertMessage = buildAlertMessage(typedOrders);
     const sent = await sendTelegramAlert(telegramBotToken, telegramChatId, alertMessage);
 
+    const response: AlertResponse = {
+      success: sent,
+      message: sent ? 'Alerta enviado' : 'Falha ao enviar alerta',
+      stuck_count: typedOrders.length,
+      stuck_order_ids: typedOrders.map(o => o.id),
+      duration_ms: Date.now() - startTime,
+    };
+
     return new Response(
-      JSON.stringify({
-        success: sent,
-        message: sent ? 'Alerta enviado' : 'Falha ao enviar alerta',
-        stuck_count: stuckOrders.length,
-        stuck_order_ids: stuckOrders.map(o => o.id),
-        duration_ms: Date.now() - startTime,
-      }),
+      JSON.stringify(response),
       { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError('Erro fatal', error);
+    const response: AlertResponse = {
+      success: false,
+      message: 'Erro fatal',
+      error: error instanceof Error ? error.message : String(error),
+      duration_ms: Date.now() - startTime,
+    };
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message,
-        duration_ms: Date.now() - startTime,
-      }),
+      JSON.stringify(response),
       { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
     );
   }
