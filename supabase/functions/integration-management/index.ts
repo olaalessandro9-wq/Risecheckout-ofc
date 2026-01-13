@@ -371,6 +371,48 @@ serve(withSentry("integration-management", async (req) => {
       return jsonResponse({ success: true, integrations: sanitized }, corsHeaders);
     }
 
+    // ============================================
+    // SAVE PROFILE WALLET (update profiles.asaas_wallet_id)
+    // ============================================
+    if (action === "save-profile-wallet" && req.method === "POST") {
+      const { walletId } = body;
+
+      if (!walletId || typeof walletId !== "string") {
+        return errorResponse("walletId é obrigatório", corsHeaders, 400);
+      }
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({ asaas_wallet_id: walletId })
+        .eq("id", producerId);
+
+      if (error) {
+        console.error("[integration-management] Save profile wallet error:", error);
+        return errorResponse("Erro ao salvar wallet", corsHeaders, 500);
+      }
+
+      console.log(`[integration-management] Profile wallet saved for ${producerId}: ${walletId}`);
+      return jsonResponse({ success: true }, corsHeaders);
+    }
+
+    // ============================================
+    // CLEAR PROFILE WALLET (clear profiles.asaas_wallet_id)
+    // ============================================
+    if (action === "clear-profile-wallet" && req.method === "POST") {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ asaas_wallet_id: null })
+        .eq("id", producerId);
+
+      if (error) {
+        console.error("[integration-management] Clear profile wallet error:", error);
+        return errorResponse("Erro ao limpar wallet", corsHeaders, 500);
+      }
+
+      console.log(`[integration-management] Profile wallet cleared for ${producerId}`);
+      return jsonResponse({ success: true }, corsHeaders);
+    }
+
     // Unknown action
     return errorResponse(`Ação desconhecida: ${action}`, corsHeaders, 404);
 

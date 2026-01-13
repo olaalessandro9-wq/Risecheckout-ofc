@@ -185,63 +185,47 @@ export async function getAsaasSettings(
 }
 
 /**
- * Salva as configurações do Asaas para um vendor
+ * Salva as configurações do Asaas para um vendor via Edge Function
  */
 export async function saveAsaasSettings(
   vendorId: string,
   config: AsaasIntegrationConfig
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Check if exists first
-    const { data: existing } = await supabase
-      .from('vendor_integrations')
-      .select('id')
-      .eq('vendor_id', vendorId)
-      .eq('integration_type', INTEGRATION_TYPE)
-      .maybeSingle();
+    const { getProducerSessionToken } = await import("@/hooks/useProducerSession");
+    const sessionToken = await getProducerSessionToken();
 
-    if (existing) {
-      // Update
-      const { error } = await supabase
-        .from('vendor_integrations')
-        .update({
-          config: config as unknown as Json,
-          active: true,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', existing.id);
-
-      if (error) {
-        console.error('[Asaas] Update settings error:', error);
-        return { success: false, error: error.message };
+    // Salvar credenciais via integration-management
+    const { data: result, error } = await supabase.functions.invoke('integration-management/save-credentials', {
+      body: {
+        integrationType: INTEGRATION_TYPE,
+        config: {
+          api_key: config.api_key,
+          environment: config.environment,
+          wallet_id: config.wallet_id,
+          validated_at: config.validated_at,
+          account_name: config.account_name,
+        },
+        sessionToken,
       }
-    } else {
-      // Insert
-      const { error } = await supabase
-        .from('vendor_integrations')
-        .insert([{
-          vendor_id: vendorId,
-          integration_type: INTEGRATION_TYPE,
-          config: config as unknown as Json,
-          active: true,
-        }]);
+    });
 
-      if (error) {
-        console.error('[Asaas] Insert settings error:', error);
-        return { success: false, error: error.message };
-      }
+    if (error || !result?.success) {
+      console.error('[Asaas] Save settings error:', result?.error || error);
+      return { success: false, error: result?.error || error?.message || 'Erro ao salvar configurações' };
     }
 
-    // Salvar wallet_id APENAS em profiles (fonte única de verdade)
-    // O sistema de split usa fallback: busca em affiliates, se não encontrar usa profiles
+    // Salvar wallet_id no profile via Edge Function
     if (config.wallet_id) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ asaas_wallet_id: config.wallet_id })
-        .eq('id', vendorId);
-      
-      if (profileError) {
-        console.warn('[Asaas] Erro ao atualizar profiles.asaas_wallet_id:', profileError);
+      const { data: walletResult, error: walletError } = await supabase.functions.invoke('integration-management/save-profile-wallet', {
+        body: {
+          walletId: config.wallet_id,
+          sessionToken,
+        }
+      });
+
+      if (walletError) {
+        console.warn('[Asaas] Erro ao atualizar profiles.asaas_wallet_id:', walletError);
       } else {
         console.log('[Asaas] profiles.asaas_wallet_id atualizado:', config.wallet_id);
       }
@@ -258,34 +242,34 @@ export async function saveAsaasSettings(
 }
 
 /**
- * Desconecta o Asaas (desativa a integração)
+ * Desconecta o Asaas via Edge Function
  */
 export async function disconnectAsaas(
   vendorId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase
-      .from('vendor_integrations')
-      .update({ active: false, updated_at: new Date().toISOString() })
-      .eq('vendor_id', vendorId)
-      .eq('integration_type', INTEGRATION_TYPE);
+    const { getProducerSessionToken } = await import("@/hooks/useProducerSession");
+    const sessionToken = await getProducerSessionToken();
 
-    if (error) {
-      console.error('[Asaas] Disconnect error:', error);
-      return {
-        success: false,
-        error: error.message,
-      };
+    // Disconnect via Edge Function
+    const { data: result, error } = await supabase.functions.invoke('integration-management/disconnect', {
+      body: {
+        integrationType: INTEGRATION_TYPE,
+        sessionToken,
+      }
+    });
+
+    if (error || !result?.success) {
+      console.error('[Asaas] Disconnect error:', result?.error || error);
+      return { success: false, error: result?.error || error?.message };
     }
 
-    // Limpar wallet_id APENAS em profiles (fonte única de verdade)
-    await supabase
-      .from('profiles')
-      .update({ asaas_wallet_id: null })
-      .eq('id', vendorId);
+    // Limpar wallet_id no profile
+    await supabase.functions.invoke('integration-management/clear-profile-wallet', {
+      body: { sessionToken }
+    });
 
     console.log('[Asaas] Desconectado e wallet_id limpo para vendor:', vendorId);
-
     return { success: true };
   } catch (err) {
     console.error('[Asaas] Disconnect exception:', err);

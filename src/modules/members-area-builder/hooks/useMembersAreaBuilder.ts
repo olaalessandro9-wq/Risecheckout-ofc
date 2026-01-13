@@ -325,72 +325,46 @@ export function useMembersAreaBuilder(productId: string | undefined): UseMembers
     setState(prev => ({ ...prev, isSaving: true }));
     
     try {
-      // 1. Save settings
-      const { error: settingsError } = await supabase
-        .from('products')
-        .update({ members_area_settings: state.settings as unknown as Json })
-        .eq('id', productId);
+      const { getProducerSessionToken } = await import("@/hooks/useProducerSession");
+      const sessionToken = await getProducerSessionToken();
       
-      if (settingsError) throw settingsError;
-      
-      // 2. Get current DB section IDs
+      // 1. Get deleted section IDs (in original but not in current, excluding temp IDs)
       const originalIds = new Set(originalSectionsRef.current.map(s => s.id));
       const currentIds = new Set(state.sections.map(s => s.id));
+      const deletedIds = [...originalIds].filter(id => !currentIds.has(id));
       
-      // 3. Find sections to DELETE (in original but not in current, excluding temp IDs)
-      const toDelete = [...originalIds].filter(id => !currentIds.has(id));
-      
-      if (toDelete.length > 0) {
-        const { error: deleteError } = await supabase
-          .from('product_members_sections')
-          .delete()
-          .in('id', toDelete);
-        
-        if (deleteError) throw deleteError;
-      }
-      
-      // 4. INSERT new sections (temp IDs)
-      const toInsert = state.sections.filter(s => isTemporaryId(s.id));
-      const insertedIdMap = new Map<string, string>(); // temp_id -> real_id
-      
-      for (const section of toInsert) {
-        const { data, error: insertError } = await supabase
-          .from('product_members_sections')
-          .insert({
-            product_id: productId,
-            type: section.type,
-            title: section.title,
-            position: section.position,
-            settings: section.settings as unknown as Json,
-            is_active: section.is_active,
-          })
-          .select('id')
-          .single();
-        
-        if (insertError) throw insertError;
-        if (data) {
-          insertedIdMap.set(section.id, data.id);
+      // 2. Save sections via Edge Function
+      const { data: sectionsResult, error: sectionsError } = await supabase.functions.invoke('members-area-modules', {
+        body: {
+          action: 'save-sections',
+          productId,
+          sections: state.sections,
+          deletedIds,
+          sessionToken,
         }
+      });
+      
+      if (sectionsError || !sectionsResult?.success) {
+        throw new Error(sectionsResult?.error || sectionsError?.message || "Erro ao salvar seções");
       }
       
-      // 5. UPDATE existing sections (not temp, exists in original)
-      const toUpdate = state.sections.filter(s => !isTemporaryId(s.id) && originalIds.has(s.id));
+      const insertedIdMap: Map<string, string> = new Map(Object.entries(sectionsResult.insertedIdMap || {}));
       
-      for (const section of toUpdate) {
-        const { error: updateError } = await supabase
-          .from('product_members_sections')
-          .update({
-            title: section.title,
-            position: section.position,
-            settings: section.settings as unknown as Json,
-            is_active: section.is_active,
-          })
-          .eq('id', section.id);
-        
-        if (updateError) throw updateError;
+      // 3. Save settings via Edge Function
+      const { data: settingsResult, error: settingsError } = await supabase.functions.invoke('members-area-modules', {
+        body: {
+          action: 'save-builder-settings',
+          productId,
+          settings: state.settings,
+          sessionToken,
+        }
+      });
+      
+      if (settingsError || !settingsResult?.success) {
+        throw new Error(settingsResult?.error || settingsError?.message || "Erro ao salvar configurações");
       }
       
-      // 6. Update local state with real IDs and refresh originals
+      // 4. Update local state with real IDs and refresh originals
       setState(prev => {
         const updatedSections = prev.sections.map(s => {
           const realId = insertedIdMap.get(s.id);

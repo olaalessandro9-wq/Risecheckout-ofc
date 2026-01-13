@@ -297,6 +297,83 @@ serve(withSentry("product-settings", async (req) => {
       return jsonResponse({ success: true, price }, corsHeaders);
     }
 
+    // ============================================
+    // UPDATE AFFILIATE GATEWAY SETTINGS
+    // ============================================
+    if (action === "update-affiliate-gateway-settings") {
+      const rateCheck = await checkRateLimit(supabase, producerId, "affiliate_gateway_settings");
+      if (!rateCheck.allowed) return jsonResponse({ success: false, error: "Muitas requisições", retryAfter: rateCheck.retryAfter }, corsHeaders, 429);
+
+      const ownership = await verifyOwnership(supabase, productId, producerId);
+      if (!ownership.valid) return errorResponse(ownership.error!, corsHeaders, ownership.error === "Produto não encontrado" ? 404 : 403);
+
+      const { gatewaySettings } = body;
+      if (!gatewaySettings || typeof gatewaySettings !== "object") {
+        return errorResponse("gatewaySettings é obrigatório", corsHeaders, 400);
+      }
+
+      // Validar estrutura
+      const sanitized = {
+        pix_allowed: Array.isArray(gatewaySettings.pix_allowed) ? gatewaySettings.pix_allowed : ["asaas"],
+        credit_card_allowed: Array.isArray(gatewaySettings.credit_card_allowed) ? gatewaySettings.credit_card_allowed : ["mercadopago", "stripe"],
+        require_gateway_connection: gatewaySettings.require_gateway_connection !== false,
+      };
+
+      const { error: updateError } = await supabase
+        .from("products")
+        .update({ 
+          affiliate_gateway_settings: sanitized,
+          updated_at: new Date().toISOString() 
+        })
+        .eq("id", productId);
+
+      if (updateError) {
+        console.error("[product-settings] Update affiliate gateway settings error:", updateError);
+        return errorResponse("Erro ao atualizar configurações de gateway", corsHeaders, 500);
+      }
+
+      await recordAttempt(supabase, producerId, "affiliate_gateway_settings");
+      console.log(`[product-settings] Affiliate gateway settings updated for: ${productId}`);
+      return jsonResponse({ success: true }, corsHeaders);
+    }
+
+    // ============================================
+    // UPDATE MEMBERS AREA SETTINGS
+    // ============================================
+    if (action === "update-members-area-settings") {
+      const rateCheck = await checkRateLimit(supabase, producerId, "members_area_settings");
+      if (!rateCheck.allowed) return jsonResponse({ success: false, error: "Muitas requisições", retryAfter: rateCheck.retryAfter }, corsHeaders, 429);
+
+      const ownership = await verifyOwnership(supabase, productId, producerId);
+      if (!ownership.valid) return errorResponse(ownership.error!, corsHeaders, ownership.error === "Produto não encontrado" ? 404 : 403);
+
+      const { enabled, settings } = body;
+      
+      const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+      
+      if (enabled !== undefined) {
+        updates.members_area_enabled = !!enabled;
+      }
+      
+      if (settings !== undefined) {
+        updates.members_area_settings = settings;
+      }
+
+      const { error: updateError } = await supabase
+        .from("products")
+        .update(updates)
+        .eq("id", productId);
+
+      if (updateError) {
+        console.error("[product-settings] Update members area settings error:", updateError);
+        return errorResponse("Erro ao atualizar configurações da área de membros", corsHeaders, 500);
+      }
+
+      await recordAttempt(supabase, producerId, "members_area_settings");
+      console.log(`[product-settings] Members area settings updated for: ${productId}`);
+      return jsonResponse({ success: true, enabled, settings }, corsHeaders);
+    }
+
     return errorResponse(`Ação desconhecida: ${action}`, corsHeaders, 404);
 
   } catch (error) {
