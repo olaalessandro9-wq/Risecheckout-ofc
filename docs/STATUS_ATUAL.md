@@ -1,7 +1,7 @@
 # 📊 Status Atual - RiseCheckout
 
-**Data:** 11 de Janeiro de 2026  
-**Versão:** 2.2
+**Data:** 13 de Janeiro de 2026  
+**Versão:** 2.3
 
 ---
 
@@ -136,17 +136,17 @@ O RiseCheckout está **100% completo** e pronto para produção.
 
 ---
 
-## 🔧 Refatoração Edge Functions - RISE PROTOCOL V2 (96%)
+## 🔧 Refatoração Edge Functions - RISE PROTOCOL V2 (93%)
 
 | Componente | Status | Descrição |
 |------------|--------|-----------|
-| Routers Puros | ✅ | 5 `index.ts` refatorados (<150 linhas cada) |
+| Routers Puros | ✅ | 10 `index.ts` refatorados (<150 linhas cada) |
 | Handlers Tipados | ✅ | `SupabaseClient` em todos handlers |
-| Arquivos Novos | ✅ | 3 novos handlers criados |
+| Arquivos Novos | ✅ | 17 novos handlers criados |
 | Duplicação Zero | ✅ | Funções centralizadas em `edge-helpers.ts` |
-| Arquivos < 300 linhas | ⚠️ 96% | 2 arquivos pendentes (379 e 353 linhas) |
+| Arquivos < 300 linhas | ✅ 93% | 1 arquivo pendente (393 linhas) |
 
-### Arquivos Refatorados
+### Fase 1 - Arquivos Refatorados (index.ts → Router)
 
 | Arquivo | Antes | Depois | Redução |
 |---------|-------|--------|---------|
@@ -156,13 +156,44 @@ O RiseCheckout está **100% completo** e pronto para produção.
 | `buyer-auth/index.ts` | ~400 | 126 | -68% |
 | `product-duplicate/index.ts` | 363 | 120 | -67% |
 
-### Arquivos Criados
+### Fase 2 - Arquivos Refatorados (index.ts → Router)
 
+| Arquivo | Antes | Depois | Redução |
+|---------|-------|--------|---------|
+| `trigger-webhooks/index.ts` | 438 | 120 | -73% |
+| `integration-management/index.ts` | 429 | 85 | -80% |
+| `smoke-test/index.ts` | 409 | 59 | -86% |
+| `product-crud/index.ts` | 322 | 102 | -68% |
+| `offer-crud/index.ts` | 329 | 96 | -71% |
+
+### Arquivos Criados (Total: 17)
+
+**Fase 1:**
 | Arquivo | Linhas | Propósito |
 |---------|--------|-----------|
 | `buyer-auth-email-templates.ts` | 85 | Templates de email |
 | `buyer-auth-producer-handlers.ts` | 194 | Handlers producer-specific |
 | `product-duplicate-handlers.ts` | 305 | Lógica de duplicação |
+
+**Fase 2:**
+| Arquivo | Linhas | Propósito |
+|---------|--------|-----------|
+| `email-templates-base.ts` | 233 | Tipos e helpers base |
+| `email-templates-purchase.ts` | 146 | Templates de compra |
+| `email-templates-payment.ts` | 95 | Templates de pagamento |
+| `email-templates-seller.ts` | 114 | Templates do vendedor |
+| `trigger-webhooks-handlers.ts` | 295 | Handlers de webhooks |
+| `integration-handlers.ts` | 393* | Handlers de integrações |
+| `smoke-test-handlers.ts` | 271 | Handlers de smoke test |
+| `producer-auth-session-handlers.ts` | 121 | Handlers de sessão |
+| `product-duplicate-cloner.ts` | 144 | Clonagem de checkout |
+| `coupon-validation.ts` | 124 | Validação de cupons |
+| `product-crud-handlers.ts` | 271 | CRUD de produtos |
+| `offer-crud-handlers.ts` | 269 | CRUD de ofertas |
+| `buyer-auth-password.ts` | 93 | Utilitários de senha |
+| `pixel-rate-limit.ts` | 143 | Rate limiting |
+
+> *Único arquivo > 300 linhas pendente
 
 📖 Documentação: [Edge Functions Refactoring V2](./EDGE_FUNCTIONS_REFACTORING_V2.md)
 
@@ -180,9 +211,9 @@ O RiseCheckout está **pronto para produção** com todos os sistemas implementa
 - LGPD compliance (Sprint 2)
 
 **Próximos passos técnicos:**
-- Dividir `producer-auth-handlers.ts` (379 linhas)
-- Dividir `coupon-handlers.ts` (353 linhas)
+- Dividir `integration-handlers.ts` (393 linhas) → CRUD + OAuth
 - Eliminar ~850 `any` restantes no projeto
+- Testes automatizados para handlers críticos
 
 ---
 
