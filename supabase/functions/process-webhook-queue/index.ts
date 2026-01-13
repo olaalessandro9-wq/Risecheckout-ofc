@@ -10,20 +10,50 @@
  * 3. Busca URL/secret do webhook de outbound_webhooks
  * 4. Reenvia diretamente via fetch()
  * 5. Atualiza status/attempts em webhook_deliveries
+ * 
+ * @version 2.0.0 - Zero `any` compliance (RISE Protocol V2)
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { createHmac } from "https://deno.land/std@0.168.0/node/crypto.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey);
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// ============================================
+// TYPES
+// ============================================
+
+interface WebhookRecord {
+  id: string;
+  status: string;
+  attempts?: number;
+}
+
+interface WebhookPayload {
+  record: WebhookRecord | null;
+}
+
+interface WebhookDelivery {
+  id: string;
+  webhook_id: string;
+  event_type: string;
+  payload: unknown;
+  attempts: number;
+}
+
+interface OutboundWebhook {
+  url: string;
+  secret_encrypted: string;
+  active: boolean;
+}
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -50,7 +80,7 @@ serve(async (req) => {
   console.log("[process-webhook-queue] ✅ Autenticação validada");
 
   try {
-    const payload = await req.json();
+    const payload: WebhookPayload = await req.json();
     const record = payload.record;
 
     console.log("[process-webhook-queue] Iniciando processamento...", { 
@@ -108,11 +138,13 @@ serve(async (req) => {
       });
     }
 
+    const typedDelivery = delivery as WebhookDelivery;
+
     // Buscar dados do webhook de outbound_webhooks - usando secret_encrypted (seguro)
     const { data: webhook, error: webhookError } = await supabase
       .from('outbound_webhooks')
       .select('url, secret_encrypted, active')
-      .eq('id', delivery.webhook_id)
+      .eq('id', typedDelivery.webhook_id)
       .single();
 
     if (webhookError || !webhook) {
@@ -126,7 +158,7 @@ serve(async (req) => {
           response_body: 'Webhook configuration not found',
           last_attempt_at: new Date().toISOString()
         })
-        .eq('id', delivery.id);
+        .eq('id', typedDelivery.id);
 
       return new Response(JSON.stringify({ 
         error: "Webhook configuration not found" 
@@ -136,8 +168,10 @@ serve(async (req) => {
       });
     }
 
+    const typedWebhook = webhook as OutboundWebhook;
+
     // Verificar se webhook está ativo
-    if (!webhook.active) {
+    if (!typedWebhook.active) {
       console.log("[process-webhook-queue] Webhook inativo, ignorando");
       await supabase
         .from('webhook_deliveries')
@@ -146,7 +180,7 @@ serve(async (req) => {
           response_body: 'Webhook is inactive',
           last_attempt_at: new Date().toISOString()
         })
-        .eq('id', delivery.id);
+        .eq('id', typedDelivery.id);
 
       return new Response(JSON.stringify({ 
         processed: false, 
@@ -163,28 +197,28 @@ serve(async (req) => {
         status: 'processing', 
         last_attempt_at: new Date().toISOString() 
       })
-      .eq('id', delivery.id);
+      .eq('id', typedDelivery.id);
 
-    console.log(`[process-webhook-queue] 🔄 Reenviando webhook ${delivery.id} para ${webhook.url}`);
+    console.log(`[process-webhook-queue] 🔄 Reenviando webhook ${typedDelivery.id} para ${typedWebhook.url}`);
 
     // Gerar assinatura HMAC usando secret_encrypted (seguro)
     const timestamp = Math.floor(Date.now() / 1000).toString();
-    const payloadString = JSON.stringify(delivery.payload);
+    const payloadString = JSON.stringify(typedDelivery.payload);
     const signaturePayload = `${timestamp}.${payloadString}`;
-    const signature = createHmac('sha256', webhook.secret_encrypted)
+    const signature = createHmac('sha256', typedWebhook.secret_encrypted)
       .update(signaturePayload)
       .digest('hex');
 
     // Enviar webhook diretamente
     try {
-      const response = await fetch(webhook.url, {
+      const response = await fetch(typedWebhook.url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-Rise-Signature': signature,
           'X-Rise-Timestamp': timestamp,
-          'X-Rise-Event': delivery.event_type,
-          'X-Rise-Delivery-ID': delivery.id,
+          'X-Rise-Event': typedDelivery.event_type,
+          'X-Rise-Delivery-ID': typedDelivery.id,
           'User-Agent': 'RiseCheckout-Webhook/1.0'
         },
         body: payloadString
@@ -205,12 +239,12 @@ serve(async (req) => {
             response_body: responseText.slice(0, 1000),
             last_attempt_at: new Date().toISOString()
           })
-          .eq('id', delivery.id);
+          .eq('id', typedDelivery.id);
 
-        console.log(`[process-webhook-queue] ✅ Webhook ${delivery.id} entregue com sucesso`);
+        console.log(`[process-webhook-queue] ✅ Webhook ${typedDelivery.id} entregue com sucesso`);
       } else {
         // Falha - incrementar tentativas
-        const nextAttempts = (delivery.attempts || 0) + 1;
+        const nextAttempts = (typedDelivery.attempts || 0) + 1;
         const nextStatus = nextAttempts >= 5 ? 'failed' : 'pending';
 
         await supabase
@@ -222,23 +256,24 @@ serve(async (req) => {
             response_body: responseText.slice(0, 1000),
             last_attempt_at: new Date().toISOString()
           })
-          .eq('id', delivery.id);
+          .eq('id', typedDelivery.id);
 
-        console.log(`[process-webhook-queue] ❌ Webhook ${delivery.id} falhou (tentativa ${nextAttempts}/5)`);
+        console.log(`[process-webhook-queue] ❌ Webhook ${typedDelivery.id} falhou (tentativa ${nextAttempts}/5)`);
       }
 
       return new Response(JSON.stringify({ 
         success: isSuccess,
-        delivery_id: delivery.id,
+        delivery_id: typedDelivery.id,
         response_status: response.status
       }), { 
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
       });
 
-    } catch (fetchError: any) {
+    } catch (fetchError: unknown) {
+      const errorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError);
       console.error(`[process-webhook-queue] Erro de rede:`, fetchError);
       
-      const nextAttempts = (delivery.attempts || 0) + 1;
+      const nextAttempts = (typedDelivery.attempts || 0) + 1;
       const nextStatus = nextAttempts >= 5 ? 'failed' : 'pending';
 
       await supabase
@@ -246,24 +281,25 @@ serve(async (req) => {
         .update({ 
           status: nextStatus,
           attempts: nextAttempts,
-          response_body: `Network error: ${fetchError.message}`,
+          response_body: `Network error: ${errorMessage}`,
           last_attempt_at: new Date().toISOString()
         })
-        .eq('id', delivery.id);
+        .eq('id', typedDelivery.id);
 
       return new Response(JSON.stringify({ 
         success: false,
-        error: fetchError.message 
+        error: errorMessage 
       }), { 
         status: 500, 
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
       });
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("[process-webhook-queue] Erro fatal:", error);
     return new Response(JSON.stringify({ 
-      error: error.message 
+      error: errorMessage 
     }), { 
       status: 500, 
       headers: { ...corsHeaders, "Content-Type": "application/json" } 

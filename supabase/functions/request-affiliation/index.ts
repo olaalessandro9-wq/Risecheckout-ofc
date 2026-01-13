@@ -1,5 +1,11 @@
+/**
+ * request-affiliation Edge Function
+ * 
+ * @version 2.0.0 - Zero `any` compliance (RISE Protocol V2)
+ */
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ALLOWED_ORIGINS = [
   "http://localhost:5173",
@@ -14,6 +20,49 @@ const getCorsHeaders = (origin: string) => ({
   "Access-Control-Allow-Origin": ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 });
+
+// ==========================================
+// TYPES
+// ==========================================
+
+interface SessionProfile {
+  id: string;
+  email: string;
+  asaas_wallet_id: string | null;
+  mercadopago_collector_id: string | null;
+  stripe_account_id: string | null;
+}
+
+interface SessionData {
+  producer_id: string;
+  expires_at: string;
+  is_valid: boolean;
+  profiles: SessionProfile | SessionProfile[];
+}
+
+interface Product {
+  id: string;
+  name: string;
+  user_id: string;
+  affiliate_settings: AffiliateSettings | null;
+  affiliate_gateway_settings: GatewaySettings | null;
+}
+
+interface AffiliateSettings {
+  enabled?: boolean;
+  requireApproval?: boolean;
+  defaultRate?: number;
+}
+
+interface GatewaySettings {
+  pix_allowed?: string[];
+  credit_card_allowed?: string[];
+}
+
+interface Affiliation {
+  id: string;
+  status: string;
+}
 
 // ==========================================
 // RATE LIMITING CONFIG
@@ -32,7 +81,7 @@ serve(async (req) => {
 
   try {
     // Setup Supabase Client
-    const supabaseClient = createClient(
+    const supabaseClient: SupabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
@@ -79,14 +128,17 @@ serve(async (req) => {
       throw new Error("Sessão inválida ou expirada. Faça login novamente.");
     }
 
+    const typedSession = sessionData as unknown as SessionData;
+    
+    // Handle profiles that could be array or object
+    const profilesData = typedSession.profiles;
+    const userProfile: SessionProfile = Array.isArray(profilesData) ? profilesData[0] : profilesData;
+
     // Extrair dados do usuário e profile
     const user = {
-      id: sessionData.producer_id,
-      email: (sessionData.profiles as any).email,
+      id: typedSession.producer_id,
+      email: userProfile.email,
     };
-
-    // userProfile já obtido na validação da sessão
-    const userProfile = sessionData.profiles as any;
 
     console.log(`📝 [request-affiliation] Solicitação de ${maskEmail(user.email || '')} para produto ${product_id}`);
 
@@ -136,16 +188,18 @@ serve(async (req) => {
       throw new Error("Produto não encontrado");
     }
 
+    const typedProduct = product as Product;
+
     // ==========================================
     // 🔒 SEGURANÇA: BLOQUEAR AUTO-AFILIAÇÃO
     // ==========================================
-    if (product.user_id === user.id) {
+    if (typedProduct.user_id === user.id) {
       console.warn(`🚫 [request-affiliation] Tentativa de auto-afiliação bloqueada: ${maskEmail(user.email || '')}`);
       throw new Error("Você não pode se afiliar ao seu próprio produto");
     }
 
     // Verificar se o programa de afiliados está ativo
-    const affiliateSettings = (product.affiliate_settings as any) || {};
+    const affiliateSettings: AffiliateSettings = typedProduct.affiliate_settings || {};
     const programEnabled = affiliateSettings.enabled || false;
 
     if (!programEnabled) {
@@ -153,7 +207,7 @@ serve(async (req) => {
     }
 
     // Verificar configurações de gateway do produto
-    const gatewaySettings = (product.affiliate_gateway_settings as any) || {};
+    const gatewaySettings: GatewaySettings = typedProduct.affiliate_gateway_settings || {};
     const pixAllowed = gatewaySettings.pix_allowed || ["asaas"];
     const cardAllowed = gatewaySettings.credit_card_allowed || ["mercadopago", "stripe"];
 
@@ -173,7 +227,7 @@ serve(async (req) => {
     // O link de afiliado só será exibido quando o usuário configurar os gateways
     console.log(`ℹ️ [request-affiliation] Gateway status: PIX=${hasAllowedPixGateway}, Card=${hasAllowedCardGateway} (não bloqueia afiliação)`);
 
-    console.log(`✅ [request-affiliation] Programa ativo para produto: ${product.name}`);
+    console.log(`✅ [request-affiliation] Programa ativo para produto: ${typedProduct.name}`);
 
     // ==========================================
     // 3. VALIDAR SE JÁ É AFILIADO
@@ -185,14 +239,16 @@ serve(async (req) => {
       .eq("user_id", user.id)
       .maybeSingle();
 
-    if (existingAffiliation) {
-      if (existingAffiliation.status === "active") {
+    const typedAffiliation = existingAffiliation as Affiliation | null;
+
+    if (typedAffiliation) {
+      if (typedAffiliation.status === "active") {
         throw new Error("Você já é um afiliado ativo deste produto");
-      } else if (existingAffiliation.status === "pending") {
+      } else if (typedAffiliation.status === "pending") {
         throw new Error("Você já possui uma solicitação pendente para este produto");
-      } else if (existingAffiliation.status === "blocked") {
+      } else if (typedAffiliation.status === "blocked") {
         throw new Error("Você foi bloqueado e não pode se afiliar a este produto");
-      } else if (existingAffiliation.status === "rejected") {
+      } else if (typedAffiliation.status === "rejected") {
         // Permite reenviar se foi recusado anteriormente
         console.log(`🔄 [request-affiliation] Reenviando solicitação previamente recusada`);
       }
@@ -211,7 +267,7 @@ serve(async (req) => {
 
     let affiliation;
 
-    if (existingAffiliation && existingAffiliation.status === "rejected") {
+    if (typedAffiliation && typedAffiliation.status === "rejected") {
       // Atualizar registro existente
       const { data, error } = await supabaseClient
         .from("affiliates")
@@ -221,7 +277,7 @@ serve(async (req) => {
           commission_rate: null, // NULL = herda dinamicamente do produto
           updated_at: new Date().toISOString(),
         })
-        .eq("id", existingAffiliation.id)
+        .eq("id", typedAffiliation.id)
         .select()
         .single();
 
@@ -267,12 +323,13 @@ serve(async (req) => {
       }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("🚨 [request-affiliation] Erro:", error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || "Erro ao processar solicitação",
+        error: errorMessage || "Erro ao processar solicitação",
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -306,7 +363,7 @@ function maskEmail(email: string): string {
 // 🔒 RATE LIMITING: Verificar limite
 // ==========================================
 async function checkRateLimit(
-  supabase: any, 
+  supabase: SupabaseClient, 
   userId: string
 ): Promise<{ allowed: boolean; retryAfterSeconds?: number }> {
   const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
@@ -339,7 +396,7 @@ async function checkRateLimit(
 // ==========================================
 // 🔒 RATE LIMITING: Registrar tentativa
 // ==========================================
-async function recordRateLimitAttempt(supabase: any, userId: string): Promise<void> {
+async function recordRateLimitAttempt(supabase: SupabaseClient, userId: string): Promise<void> {
   await supabase
     .from("rate_limit_attempts")
     .insert({

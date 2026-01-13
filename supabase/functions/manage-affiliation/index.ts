@@ -1,10 +1,35 @@
+/**
+ * manage-affiliation Edge Function
+ * 
+ * @version 2.0.0 - Zero `any` compliance (RISE Protocol V2)
+ */
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { requireCanHaveAffiliates } from "../_shared/role-validator.ts";
 import { logSecurityEvent, SecurityAction } from "../_shared/audit-logger.ts";
 import { handleCors } from "../_shared/cors.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared/rate-limiter.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+
+// ==========================================
+// 🔒 TYPES
+// ==========================================
+
+interface AffiliationProduct {
+  id: string;
+  name: string;
+  user_id: string;
+}
+
+interface Affiliation {
+  id: string;
+  status: string;
+  user_id: string;
+  product_id: string;
+  affiliate_code: string | null;
+  products: AffiliationProduct | AffiliationProduct[];
+}
 
 // ==========================================
 // 🔒 CONSTANTES DE SEGURANÇA
@@ -21,14 +46,14 @@ serve(async (req) => {
 
   try {
     // Setup Supabase Client
-    const supabaseClient = createClient(
+    const supabaseClient: SupabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
     // SECURITY: Rate limiting para gerenciamento de afiliados
     const rateLimitResult = await rateLimitMiddleware(
-      supabaseClient as any,
+      supabaseClient,
       req,
       RATE_LIMIT_CONFIGS.AFFILIATION_MANAGE
     );
@@ -100,8 +125,13 @@ serve(async (req) => {
       throw new Error("Afiliação não encontrada");
     }
 
+    const typedAffiliation = affiliation as unknown as Affiliation;
+    
+    // Handle products that could be array or object
+    const productsData = typedAffiliation.products;
+    const product: AffiliationProduct = Array.isArray(productsData) ? productsData[0] : productsData;
+    
     // Verificar se o usuário autenticado é o dono do produto
-    const product = (affiliation as any).products;
     if (product.user_id !== producer.id) {
       throw new Error("Você não tem permissão para gerenciar este afiliado");
     }
@@ -112,7 +142,7 @@ serve(async (req) => {
     // 2. EXECUTAR AÇÃO
     // ==========================================
     let newStatus: string;
-    let affiliateCode: string | null = affiliation.affiliate_code;
+    let affiliateCode: string | null = typedAffiliation.affiliate_code;
     let newCommissionRate: number | null = null;
 
     switch (action) {
@@ -142,7 +172,7 @@ serve(async (req) => {
       
       case "update_commission":
         // Não muda status, apenas atualiza taxa
-        newStatus = affiliation.status;
+        newStatus = typedAffiliation.status;
         newCommissionRate = commission_rate;
         console.log(`💰 [manage-affiliation] Atualizando comissão para ${commission_rate}%`);
         break;
@@ -152,7 +182,7 @@ serve(async (req) => {
     }
 
     // Montar objeto de update
-    const updateData: Record<string, any> = {
+    const updateData: Record<string, string | number | null> = {
       status: newStatus,
       affiliate_code: affiliateCode,
       updated_at: new Date().toISOString(),
@@ -175,7 +205,7 @@ serve(async (req) => {
       throw updateError;
     }
 
-    console.log(`✅ [manage-affiliation] Status atualizado: ${affiliation.status} → ${newStatus}`);
+    console.log(`✅ [manage-affiliation] Status atualizado: ${typedAffiliation.status} → ${newStatus}`);
 
     // ==========================================
     // 3. REGISTRAR AUDIT LOG
@@ -185,16 +215,16 @@ serve(async (req) => {
         affiliate_id: affiliation_id,
         action: action,
         performed_by: producer.id,
-        previous_status: affiliation.status,
+        previous_status: typedAffiliation.status,
         new_status: newStatus,
         metadata: {
-          product_id: affiliation.product_id,
+          product_id: typedAffiliation.product_id,
           product_name: product.name
         },
         ip_address: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || null
       });
       console.log(`📝 [manage-affiliation] Audit log registrado: ${action}`);
-    } catch (auditError) {
+    } catch (auditError: unknown) {
       // Não falhar se audit log falhar - apenas logar
       console.error(`⚠️ [manage-affiliation] Erro ao registrar audit log:`, auditError);
     }
@@ -202,7 +232,7 @@ serve(async (req) => {
     // ==========================================
     // 4. RETORNAR RESPOSTA
     // ==========================================
-    const messages = {
+    const messages: Record<string, string> = {
       approve: "Afiliado aprovado com sucesso!",
       reject: "Afiliado recusado.",
       block: "Afiliado bloqueado.",
@@ -214,7 +244,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         affiliation: updated,
-        message: messages[action as keyof typeof messages],
+        message: messages[action],
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -222,12 +252,13 @@ serve(async (req) => {
       }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("🚨 [manage-affiliation] Erro:", error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || "Erro ao processar ação",
+        error: errorMessage || "Erro ao processar ação",
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

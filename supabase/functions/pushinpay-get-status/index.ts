@@ -7,10 +7,10 @@
  * Endpoint correto: GET /api/transactions/{id}
  * 
  * @author RiseCheckout Team
- * @version 2.0.0 - Refatorado conforme documentação oficial
+ * @version 2.1.0 - Zero `any` compliance (RISE Protocol V2)
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { 
   getGatewayCredentials,
   validateCredentials
@@ -60,11 +60,11 @@ Deno.serve(async (req) => {
     // 1. Criar cliente Supabase
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase: SupabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
     // Rate limiting
     const rateLimitResult = await rateLimitMiddleware(
-      supabase as any,
+      supabase,
       req,
       RATE_LIMIT_CONFIGS.MEMBERS_AREA // Using same config for status checks
     );
@@ -114,9 +114,10 @@ Deno.serve(async (req) => {
     let credentialsResult;
     try {
       credentialsResult = await getGatewayCredentials(supabase, order.vendor_id, 'pushinpay');
-    } catch (credError: any) {
-      console.error(`[${functionName}] Erro ao buscar credenciais:`, credError.message);
-      throw new Error(`Configurações do PushinPay não encontradas: ${credError.message}`);
+    } catch (credError: unknown) {
+      const errorMessage = credError instanceof Error ? credError.message : String(credError);
+      console.error(`[${functionName}] Erro ao buscar credenciais:`, errorMessage);
+      throw new Error(`Configurações do PushinPay não encontradas: ${errorMessage}`);
     }
 
     const { isOwner, credentials, source } = credentialsResult;
@@ -165,7 +166,7 @@ Deno.serve(async (req) => {
 
     // 8. Atualizar pedido se status mudou
     if (order.pix_status !== statusData.status) {
-      const updateData: Record<string, any> = {
+      const updateData: Record<string, string> = {
         pix_status: statusData.status
       };
 
@@ -201,12 +202,13 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
-  } catch (error: any) {
-    console.error(`[${functionName}] Erro:`, error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`[${functionName}] Erro:`, errorMessage);
     
     return new Response(JSON.stringify({
       success: false,
-      error: error.message
+      error: errorMessage
     }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

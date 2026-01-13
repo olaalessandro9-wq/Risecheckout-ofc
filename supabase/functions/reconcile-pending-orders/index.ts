@@ -3,8 +3,7 @@
  * RECONCILE-PENDING-ORDERS EDGE FUNCTION
  * ============================================================================
  * 
- * Versão: 1.0
- * Data: 2026-01-07
+ * @version 2.0.0 - Zero `any` compliance (RISE Protocol V2)
  * 
  * Função de reconciliação automática para pedidos presos.
  * Executa a cada 5 minutos via scheduler externo.
@@ -31,9 +30,9 @@
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const FUNCTION_VERSION = "1.0";
+const FUNCTION_VERSION = "2.0";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -44,6 +43,55 @@ const CORS_HEADERS = {
 const MAX_ORDERS_PER_RUN = 50;
 const MIN_AGE_MINUTES = 3;
 const MAX_AGE_HOURS = 24; // Não reconcilia pedidos com mais de 24h
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+interface PendingOrder {
+  id: string;
+  vendor_id: string;
+  product_id: string;
+  gateway: string | null;
+  gateway_payment_id: string | null;
+  pix_id: string | null;
+  status: string;
+  customer_email: string | null;
+  customer_name: string | null;
+  offer_id: string | null;
+}
+
+interface ReconcileResult {
+  orderId: string;
+  previousStatus: string;
+  newStatus: string;
+  action: 'updated' | 'skipped' | 'error';
+  reason: string;
+}
+
+interface MercadoPagoPaymentStatus {
+  status: 'approved' | 'pending' | 'rejected' | 'cancelled' | 'in_process' | 'refunded' | 'charged_back';
+  status_detail: string;
+  date_approved?: string;
+}
+
+interface AsaasPaymentStatus {
+  status: 'PENDING' | 'RECEIVED' | 'CONFIRMED' | 'OVERDUE' | 'REFUNDED' | 'RECEIVED_IN_CASH' | 'REFUND_REQUESTED' | 'CHARGEBACK_REQUESTED' | 'CHARGEBACK_DISPUTE' | 'AWAITING_CHARGEBACK_REVERSAL' | 'DUNNING_REQUESTED' | 'DUNNING_RECEIVED' | 'AWAITING_RISK_ANALYSIS';
+  confirmedDate?: string;
+}
+
+interface VaultCredentials {
+  access_token: string;
+  refresh_token?: string;
+  token_expires_at?: string;
+  mp_user_id?: string;
+  mp_public_key?: string;
+}
+
+interface VaultRpcResponse {
+  success: boolean;
+  credentials?: VaultCredentials;
+}
 
 // ============================================================================
 // LOGGING
@@ -64,12 +112,6 @@ function logError(message: string, error?: unknown) {
 // ============================================================================
 // MERCADOPAGO API
 // ============================================================================
-
-interface MercadoPagoPaymentStatus {
-  status: 'approved' | 'pending' | 'rejected' | 'cancelled' | 'in_process' | 'refunded' | 'charged_back';
-  status_detail: string;
-  date_approved?: string;
-}
 
 async function getMercadoPagoPaymentStatus(
   paymentId: string, 
@@ -94,7 +136,7 @@ async function getMercadoPagoPaymentStatus(
       status_detail: data.status_detail,
       date_approved: data.date_approved,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     logError('Erro ao consultar MercadoPago', error);
     return null;
   }
@@ -103,11 +145,6 @@ async function getMercadoPagoPaymentStatus(
 // ============================================================================
 // ASAAS API
 // ============================================================================
-
-interface AsaasPaymentStatus {
-  status: 'PENDING' | 'RECEIVED' | 'CONFIRMED' | 'OVERDUE' | 'REFUNDED' | 'RECEIVED_IN_CASH' | 'REFUND_REQUESTED' | 'CHARGEBACK_REQUESTED' | 'CHARGEBACK_DISPUTE' | 'AWAITING_CHARGEBACK_REVERSAL' | 'DUNNING_REQUESTED' | 'DUNNING_RECEIVED' | 'AWAITING_RISK_ANALYSIS';
-  confirmedDate?: string;
-}
 
 async function getAsaasPaymentStatus(
   paymentId: string,
@@ -133,7 +170,7 @@ async function getAsaasPaymentStatus(
       status: data.status,
       confirmedDate: data.confirmedDate,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     logError('Erro ao consultar Asaas', error);
     return null;
   }
@@ -143,16 +180,8 @@ async function getAsaasPaymentStatus(
 // VAULT CREDENTIALS
 // ============================================================================
 
-interface VaultCredentials {
-  access_token: string;
-  refresh_token?: string;
-  token_expires_at?: string;
-  mp_user_id?: string;
-  mp_public_key?: string;
-}
-
 async function getVaultCredentials(
-  supabase: any,
+  supabase: SupabaseClient,
   vendorId: string,
   gateway: string
 ): Promise<VaultCredentials | null> {
@@ -167,12 +196,13 @@ async function getVaultCredentials(
       return null;
     }
 
-    if (!data?.success || !data?.credentials) {
+    const rpcResult = data as VaultRpcResponse | null;
+    if (!rpcResult?.success || !rpcResult?.credentials) {
       return null;
     }
 
-    return data.credentials;
-  } catch (error) {
+    return rpcResult.credentials;
+  } catch (error: unknown) {
     logError('Erro ao acessar Vault', error);
     return null;
   }
@@ -183,8 +213,8 @@ async function getVaultCredentials(
 // ============================================================================
 
 async function grantMembersAccessForOrder(
-  supabase: any,
-  order: any
+  supabase: SupabaseClient,
+  order: PendingOrder
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Verificar se produto tem área de membros
@@ -199,10 +229,14 @@ async function grantMembersAccessForOrder(
       return { success: true };
     }
 
+    if (!order.customer_email) {
+      return { success: false, error: 'Email do cliente não disponível' };
+    }
+
     const normalizedEmail = order.customer_email.toLowerCase().trim();
 
     // Buscar ou criar buyer
-    let { data: buyer } = await supabase
+    const { data: buyer } = await supabase
       .from('buyer_profiles')
       .select('id')
       .eq('email', normalizedEmail)
@@ -267,9 +301,10 @@ async function grantMembersAccessForOrder(
 
     logInfo('Acesso à área de membros concedido', { orderId: order.id, buyerId });
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     logError('Erro ao conceder acesso', error);
-    return { success: false, error: error.message };
+    return { success: false, error: errorMessage };
   }
 }
 
@@ -278,7 +313,6 @@ async function grantMembersAccessForOrder(
 // ============================================================================
 
 async function triggerWebhooksForOrder(
-  supabase: any,
   orderId: string,
   eventType: string
 ): Promise<void> {
@@ -308,7 +342,7 @@ async function triggerWebhooksForOrder(
     } else {
       logInfo('Webhooks disparados', { orderId, eventType });
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logError('Erro ao chamar trigger-webhooks', error);
   }
 }
@@ -317,17 +351,9 @@ async function triggerWebhooksForOrder(
 // RECONCILIATION LOGIC
 // ============================================================================
 
-interface ReconcileResult {
-  orderId: string;
-  previousStatus: string;
-  newStatus: string;
-  action: 'updated' | 'skipped' | 'error';
-  reason: string;
-}
-
 async function reconcileOrder(
-  supabase: any,
-  order: any
+  supabase: SupabaseClient,
+  order: PendingOrder
 ): Promise<ReconcileResult> {
   const orderId = order.id;
   const gateway = order.gateway?.toLowerCase();
@@ -478,7 +504,7 @@ async function reconcileOrder(
     await grantMembersAccessForOrder(supabase, order);
 
     // Disparar webhooks
-    await triggerWebhooksForOrder(supabase, orderId, 'purchase_approved');
+    await triggerWebhooksForOrder(orderId, 'purchase_approved');
 
     return {
       orderId,
@@ -488,7 +514,7 @@ async function reconcileOrder(
       reason: 'Pagamento confirmado via reconciliação',
     };
 
-  } else if (['rejected', 'cancelled', 'refunded', 'charged_back'].includes(paymentStatus)) {
+  } else if (paymentStatus && ['rejected', 'cancelled', 'refunded', 'charged_back'].includes(paymentStatus)) {
     const newStatus = paymentStatus === 'rejected' ? 'rejected' : 
                       paymentStatus === 'cancelled' ? 'cancelled' : 
                       paymentStatus === 'refunded' ? 'refunded' : 'chargeback';
@@ -561,7 +587,7 @@ serve(async (req) => {
     // Setup Supabase
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    const supabase: SupabaseClient = createClient(supabaseUrl, serviceRoleKey);
 
     // Calcular janela de tempo
     const minAgeDate = new Date();
@@ -584,7 +610,9 @@ serve(async (req) => {
       throw new Error(`Erro ao buscar pedidos: ${queryError.message}`);
     }
 
-    if (!pendingOrders || pendingOrders.length === 0) {
+    const typedOrders = (pendingOrders || []) as PendingOrder[];
+
+    if (typedOrders.length === 0) {
       logInfo('Nenhum pedido pendente para reconciliar');
       return new Response(
         JSON.stringify({
@@ -597,12 +625,12 @@ serve(async (req) => {
       );
     }
 
-    logInfo(`Encontrados ${pendingOrders.length} pedidos para reconciliar`);
+    logInfo(`Encontrados ${typedOrders.length} pedidos para reconciliar`);
 
     // Processar cada pedido
     const results: ReconcileResult[] = [];
 
-    for (const order of pendingOrders) {
+    for (const order of typedOrders) {
       // Rate limiting básico: 100ms entre cada pedido
       if (results.length > 0) {
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -634,12 +662,13 @@ serve(async (req) => {
       { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     logError('Erro fatal', error);
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message,
+        error: errorMessage,
         duration_ms: Date.now() - startTime,
       }),
       { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
