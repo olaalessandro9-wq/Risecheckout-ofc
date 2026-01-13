@@ -1,13 +1,16 @@
 import { ComponentData } from "../../types";
 import { ImageBlock } from "@/features/checkout-builder/components";
+import type { ImageContent } from "@/types/checkout-components.types";
+import type { CheckoutDesign } from "@/types/checkoutEditor";
 
 interface ImageViewProps {
   component: ComponentData;
-  design?: any;
+  design?: CheckoutDesign;
 }
 
 export const ImageView = ({ component }: ImageViewProps) => {
-  const { content } = component;
+  // Type assertion segura - o componente só recebe content do tipo correto via registry
+  const content = component.content as ImageContent | undefined;
   
   // Ler src com fallback seguro (suporta imageUrl e url legado)
   const src = typeof content?.imageUrl === 'string'

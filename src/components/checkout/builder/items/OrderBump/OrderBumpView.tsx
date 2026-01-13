@@ -1,21 +1,34 @@
 import { ComponentData } from "../../types";
 import { useCheckoutContext } from "@/contexts/CheckoutContext";
 import { Zap } from "lucide-react";
+import type { OrderBumpContent } from "@/types/checkout-components.types";
+import type { CheckoutDesign } from "@/types/checkoutEditor";
 
 interface OrderBumpViewProps {
   component: ComponentData;
-  design?: any;
+  design?: CheckoutDesign;
   isPreviewMode?: boolean;
 }
 
+interface OrderBumpData {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  original_price?: number;
+  image_url?: string;
+  call_to_action?: string;
+}
+
 export const OrderBumpView = ({ component, design, isPreviewMode = false }: OrderBumpViewProps) => {
-  const { content } = component;
+  // Type assertion segura - o componente só recebe content do tipo correto via registry
+  const content = component.content as OrderBumpContent | undefined;
   
   // Tenta acessar os dados reais do Context (se disponível)
-  let orderBumps: any[] = [];
+  let orderBumps: OrderBumpData[] = [];
   try {
     const checkoutData = useCheckoutContext();
-    orderBumps = checkoutData.orderBumps || [];
+    orderBumps = (checkoutData.orderBumps || []) as OrderBumpData[];
   } catch {
     // Context não disponível (estamos no editor)
     orderBumps = [];
@@ -89,7 +102,7 @@ export const OrderBumpView = ({ component, design, isPreviewMode = false }: Orde
       </h3>
       
       <div className={content?.layout === "grid" ? "grid grid-cols-2 gap-3" : "space-y-3"}>
-        {orderBumps.map((bump: any) => (
+        {orderBumps.map((bump) => (
           <div
             key={bump.id}
             className="rounded-xl overflow-hidden border"

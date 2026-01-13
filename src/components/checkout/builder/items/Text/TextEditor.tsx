@@ -2,17 +2,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ComponentData } from "../../types";
+import type { TextContent } from "@/types/checkout-components.types";
+import type { CheckoutDesign } from "@/types/checkoutEditor";
 
 interface TextEditorProps {
   component: ComponentData;
-  onChange: (newContent: any) => void;
-  design?: any;
+  onChange: (newContent: Partial<TextContent>) => void;
+  design?: CheckoutDesign;
 }
 
 export const TextEditor = ({ component, onChange }: TextEditorProps) => {
-  const content = component.content || {};
+  // Type assertion segura - o componente só recebe content do tipo correto via registry
+  const content = (component.content || {}) as TextContent;
 
-  const handleChange = (field: string, value: any) => {
+  const handleChange = <K extends keyof TextContent>(field: K, value: TextContent[K]) => {
     onChange({
       ...content,
       [field]: value,

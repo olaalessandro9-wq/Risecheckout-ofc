@@ -1,17 +1,20 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ComponentData } from "../../types";
+import type { TestimonialContent } from "@/types/checkout-components.types";
+import type { CheckoutDesign } from "@/types/checkoutEditor";
 
 interface TestimonialEditorProps {
   component: ComponentData;
-  onChange: (newContent: any) => void;
-  design?: any;
+  onChange: (newContent: Partial<TestimonialContent>) => void;
+  design?: CheckoutDesign;
 }
 
 export const TestimonialEditor = ({ component, onChange }: TestimonialEditorProps) => {
-  const content = component.content || {};
+  // Type assertion segura - o componente só recebe content do tipo correto via registry
+  const content = (component.content || {}) as TestimonialContent;
 
-  const handleChange = (field: string, value: any) => {
+  const handleChange = <K extends keyof TestimonialContent>(field: K, value: TestimonialContent[K]) => {
     onChange({
       ...content,
       [field]: value,

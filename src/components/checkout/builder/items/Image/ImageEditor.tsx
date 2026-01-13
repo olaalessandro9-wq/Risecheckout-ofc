@@ -3,19 +3,22 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ComponentData } from "../../types";
 import { supabase } from "@/integrations/supabase/client";
+import type { ImageContent } from "@/types/checkout-components.types";
+import type { CheckoutDesign } from "@/types/checkoutEditor";
 
 interface ImageEditorProps {
   component: ComponentData;
-  onChange: (newContent: any) => void;
-  design?: any;
+  onChange: (newContent: Partial<ImageContent>) => void;
+  design?: CheckoutDesign;
 }
 
 export const ImageEditor = ({ component, onChange }: ImageEditorProps) => {
-  const content = component.content || {};
+  // Type assertion segura - o componente só recebe content do tipo correto via registry
+  const content = (component.content || {}) as ImageContent;
   const imageInputId = `image-upload-${component.id}`;
   const isUploading = content._uploading === true;
 
-  const handleChange = (field: string, value: any) => {
+  const handleChange = <K extends keyof ImageContent>(field: K, value: ImageContent[K]) => {
     onChange({
       ...content,
       [field]: value,
@@ -80,16 +83,16 @@ export const ImageEditor = ({ component, onChange }: ImageEditorProps) => {
 
       // 5. Revogar preview blob
       setTimeout(() => {
-        try { URL.revokeObjectURL(previewUrl); } catch (e) { /* ignore */ }
+        try { URL.revokeObjectURL(previewUrl); } catch { /* ignore */ }
       }, 2000);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Upload da imagem falhou:", err);
       onChange({
         ...content,
         _uploading: false,
         _uploadError: true,
-        _old_storage_path: null, // Não deletar o antigo
+        _old_storage_path: undefined, // Não deletar o antigo
       });
       alert("Falha ao enviar imagem. Tente novamente.");
     }

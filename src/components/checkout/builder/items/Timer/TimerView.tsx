@@ -1,13 +1,16 @@
 import { ComponentData } from "../../types";
 import { CountdownTimer } from "@/features/checkout-builder/components";
+import type { TimerContent } from "@/types/checkout-components.types";
+import type { CheckoutDesign } from "@/types/checkoutEditor";
 
 interface TimerViewProps {
   component: ComponentData;
-  design?: any;
+  design?: CheckoutDesign;
 }
 
 export const TimerView = ({ component, design }: TimerViewProps) => {
-  const { content } = component;
+  // Type assertion segura - o componente só recebe content do tipo correto via registry
+  const content = component.content as TimerContent | undefined;
 
   return (
     <CountdownTimer

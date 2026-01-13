@@ -1,13 +1,16 @@
 import { ComponentData } from "../../types";
 import { BadgeBlock } from "@/features/checkout-builder/components";
+import type { SealContent } from "@/types/checkout-components.types";
+import type { CheckoutDesign } from "@/types/checkoutEditor";
 
 interface SealViewProps {
   component: ComponentData;
-  design?: any;
+  design?: CheckoutDesign;
 }
 
-export const SealView = ({ component, design }: SealViewProps) => {
-  const { content } = component;
+export const SealView = ({ component }: SealViewProps) => {
+  // Type assertion segura - o componente só recebe content do tipo correto via registry
+  const content = component.content as SealContent | undefined;
 
   return (
     <BadgeBlock

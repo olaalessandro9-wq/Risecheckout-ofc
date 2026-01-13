@@ -1,13 +1,16 @@
 import { ComponentData } from "../../types";
 import { BenefitBlock } from "@/features/checkout-builder/components";
+import type { AdvantageContent } from "@/types/checkout-components.types";
+import type { CheckoutDesign } from "@/types/checkoutEditor";
 
 interface AdvantageViewProps {
   component: ComponentData;
-  design?: any;
+  design?: CheckoutDesign;
 }
 
 export const AdvantageView = ({ component, design }: AdvantageViewProps) => {
-  const { content } = component;
+  // Type assertion segura - o componente só recebe content do tipo correto via registry
+  const content = component.content as AdvantageContent | undefined;
 
   return (
     <BenefitBlock

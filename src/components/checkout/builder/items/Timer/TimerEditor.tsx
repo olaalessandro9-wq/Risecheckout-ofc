@@ -1,17 +1,20 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ComponentData } from "../../types";
+import type { TimerContent } from "@/types/checkout-components.types";
+import type { CheckoutDesign } from "@/types/checkoutEditor";
 
 interface TimerEditorProps {
   component: ComponentData;
-  onChange: (newContent: any) => void;
-  design?: any;
+  onChange: (newContent: Partial<TimerContent>) => void;
+  design?: CheckoutDesign;
 }
 
 export const TimerEditor = ({ component, onChange }: TimerEditorProps) => {
-  const content = component.content || {};
+  // Type assertion segura - o componente só recebe content do tipo correto via registry
+  const content = (component.content || {}) as TimerContent;
 
-  const handleChange = (field: string, value: any) => {
+  const handleChange = <K extends keyof TimerContent>(field: K, value: TimerContent[K]) => {
     onChange({
       ...content,
       [field]: value,
