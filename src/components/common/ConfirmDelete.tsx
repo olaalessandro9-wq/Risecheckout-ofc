@@ -51,9 +51,9 @@ export function ConfirmDeleteDialog(props: DeclarativeProps) {
       await onConfirm();
       setOpen(false);
       toast.success(`${resourceType} excluído com sucesso!`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error(`Falha ao excluir ${resourceType.toLowerCase()}`, {
-        description: err?.message ?? "Tente novamente.",
+        description: err instanceof Error ? err.message : "Tente novamente.",
       });
     } finally {
       setBusy(false);
@@ -230,9 +230,9 @@ export function useConfirmDelete() {
                 try {
                   await state.onConfirm();
                   toast.success(`${state.resourceType} excluído com sucesso!`);
-                } catch (err: any) {
+                } catch (err: unknown) {
                   toast.error(`Falha ao excluir ${state.resourceType.toLowerCase()}`, {
-                    description: err?.message ?? "Tente novamente.",
+                    description: err instanceof Error ? err.message : "Tente novamente.",
                   });
                 }
               }}

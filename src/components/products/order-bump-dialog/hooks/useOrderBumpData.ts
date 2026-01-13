@@ -76,10 +76,10 @@ export function useOrderBumpData({
         lastLoadedProductRef.current = selectedProductId;
         setOffers(offersList);
         onOffersLoaded(offersList);
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (!active) return;
         console.error("Error loading offers:", error);
-        toast.error(`Erro ao carregar ofertas: ${error?.message ?? "erro desconhecido"}`);
+        toast.error(`Erro ao carregar ofertas: ${error instanceof Error ? error.message : "erro desconhecido"}`);
       }
     };
 

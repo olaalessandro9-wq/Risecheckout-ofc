@@ -54,9 +54,9 @@ export function useDecryptCustomerData(
 
       setDecryptedData(data.data);
       setAccessType(data.access_type || null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[useDecryptCustomerData] Error:", err);
-      setError(err.message || "Erro ao acessar dados");
+      setError(err instanceof Error ? err.message : "Erro ao acessar dados");
     } finally {
       setIsLoading(false);
     }

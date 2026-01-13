@@ -243,13 +243,14 @@ export function useOrderBumpForm({
       resetForm();
       onSuccess();
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro ao salvar order_bumps:", error);
+      const errObj = error as { code?: string; message?: string };
 
-      if (error.code === "23505" || error.message?.includes("já está configurado")) {
+      if (errObj.code === "23505" || errObj.message?.includes("já está configurado")) {
         toast.error("Este produto já está configurado como order bump");
       } else {
-        toast.error(`Não foi possível salvar: ${error?.message ?? "erro desconhecido"}`);
+        toast.error(`Não foi possível salvar: ${errObj.message ?? "erro desconhecido"}`);
       }
     } finally {
       setLoading(false);

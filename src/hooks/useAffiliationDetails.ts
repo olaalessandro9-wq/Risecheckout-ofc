@@ -167,9 +167,9 @@ export function useAffiliationDetails(affiliationId: string | undefined): UseAff
       // Set other products from same producer
       setOtherProducts(data.otherProducts || []);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Erro ao buscar detalhes da afiliação:", err);
-      setError(err.message || "Erro ao carregar detalhes");
+      setError(err instanceof Error ? err.message : "Erro ao carregar detalhes");
     } finally {
       setIsLoading(false);
     }

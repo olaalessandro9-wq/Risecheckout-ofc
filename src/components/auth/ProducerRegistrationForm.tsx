@@ -88,8 +88,8 @@ export function ProducerRegistrationForm({
 
       toast.success("Cadastro realizado! Faça login para continuar.");
       navigate("/auth");
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao criar conta");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Erro ao criar conta");
     } finally {
       setLoading(false);
     }

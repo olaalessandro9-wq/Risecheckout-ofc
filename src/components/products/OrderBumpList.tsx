@@ -278,9 +278,9 @@ export function OrderBumpList({ productId, onAdd, onEdit, maxOrderBumps = 5 }: O
       }
       
       toast.success('Ordem atualizada com sucesso!');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao atualizar ordem:', error);
-      toast.error(error.message || 'Erro ao salvar nova ordem');
+      toast.error(error instanceof Error ? error.message : 'Erro ao salvar nova ordem');
       // Reverter estado local em caso de erro
       loadOrderBumps();
     } finally {
@@ -311,9 +311,9 @@ export function OrderBumpList({ productId, onAdd, onEdit, maxOrderBumps = 5 }: O
 
       toast.success("Order bump removido com sucesso");
       loadOrderBumps();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error removing order bump:", error);
-      toast.error(error.message || "Erro ao remover order bump");
+      toast.error(error instanceof Error ? error.message : "Erro ao remover order bump");
     }
   };
 

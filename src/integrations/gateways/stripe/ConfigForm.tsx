@@ -86,8 +86,8 @@ export function ConfigForm() {
       } else {
         throw new Error(data?.error || 'Erro ao iniciar conexão');
       }
-    } catch (error: any) {
-      toast.error(`Erro: ${error.message}`);
+    } catch (error: unknown) {
+      toast.error(`Erro: ${error instanceof Error ? error.message : "Erro desconhecido"}`);
       setConnecting(false);
     }
   };
@@ -112,8 +112,8 @@ export function ConfigForm() {
       } else {
         throw new Error(data?.error || 'Erro ao desconectar');
       }
-    } catch (error: any) {
-      toast.error(`Erro: ${error.message}`);
+    } catch (error: unknown) {
+      toast.error(`Erro: ${error instanceof Error ? error.message : "Erro desconhecido"}`);
     } finally {
       setDisconnecting(false);
     }

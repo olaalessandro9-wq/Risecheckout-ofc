@@ -225,7 +225,7 @@ const CreditCardFormComponent = forwardRef<CreditCardFormRef, CreditCardFormProp
           // Adicionar lógica para outros gateways aqui
           throw new Error(`Gateway ${gateway} não implementado`);
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('[CreditCardForm] Erro ao criar token:', error);
         toast.error('Verifique os dados do cartão');
         if (formContainerRef.current) {

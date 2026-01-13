@@ -130,9 +130,9 @@ export function useAffiliateRequest(): UseAffiliateRequestReturn & { isCheckingS
           
           setError(errorMessage || "Erro desconhecido ao solicitar afiliação.");
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("[useAffiliateRequest] Erro ao solicitar afiliação:", err);
-        setError(err.message || "Erro ao solicitar afiliação. Tente novamente.");
+        setError(err instanceof Error ? err.message : "Erro ao solicitar afiliação. Tente novamente.");
       } finally {
         setIsLoading(false);
       }

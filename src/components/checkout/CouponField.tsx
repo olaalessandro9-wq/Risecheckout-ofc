@@ -85,7 +85,7 @@ export function CouponField({ productId, design, onCouponApplied }: CouponFieldP
       onCouponApplied(appliedCouponData);
       toast.success(`Cupom "${result.code}" aplicado com sucesso!`);
       console.log("[CUPOM] Cupom aplicado:", appliedCouponData);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[CUPOM] Erro ao validar cupom:", error);
       toast.error("Erro ao validar cupom. Tente novamente.");
     } finally {

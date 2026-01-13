@@ -83,7 +83,7 @@ export function useProductCheckouts({
           };
         })
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[useProductCheckouts] Error loading checkouts:", error);
     }
   }, [productId]);
@@ -163,7 +163,7 @@ export function useProductCheckouts({
       );
 
       setPaymentLinks(linksWithCheckouts);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[useProductCheckouts] Error loading payment links:", error);
     }
   }, [productId]);

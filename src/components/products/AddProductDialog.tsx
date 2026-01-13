@@ -138,8 +138,8 @@ export function AddProductDialog({ open, onOpenChange, onProductAdded }: AddProd
       if (onProductAdded) onProductAdded();
       
       navigate(`/dashboard/produtos/editar?id=${data.product.id}`);
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao criar produto");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Erro ao criar produto");
       console.error("[AddProductDialog] Error:", error);
     } finally {
       setLoading(false);

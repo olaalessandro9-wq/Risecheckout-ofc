@@ -126,7 +126,7 @@ export function ProductsTable() {
 
       if (error) throw error;
       setProducts((data || []) as Product[]);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error("Erro ao carregar produtos");
       console.error(error);
     } finally {

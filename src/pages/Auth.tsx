@@ -50,8 +50,8 @@ const Auth = () => {
 
       toast.success("Login realizado com sucesso!");
       navigate("/dashboard");
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao fazer login");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Erro ao fazer login");
     } finally {
       setLoading(false);
     }

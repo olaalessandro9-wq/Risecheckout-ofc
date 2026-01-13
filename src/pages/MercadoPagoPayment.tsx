@@ -63,7 +63,7 @@ export const MercadoPagoPayment = () => {
       
       console.log("[MercadoPagoPayment] Pedido encontrado via RPC:", order);
       setOrderData(order);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[MercadoPagoPayment] Erro ao buscar pedido:", err);
       toast.error("Erro ao carregar dados do pedido");
     }
@@ -142,9 +142,9 @@ export const MercadoPagoPayment = () => {
       
       setLoading(false);
       toast.success("QR Code gerado com sucesso!");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[MercadoPagoPayment] Erro ao criar pagamento:", err);
-      toast.error(err.message || "Erro ao gerar QR Code");
+      toast.error(err instanceof Error ? err.message : "Erro ao gerar QR Code");
       setLoading(false);
     }
   }, [orderId, orderData]);
@@ -194,7 +194,7 @@ export const MercadoPagoPayment = () => {
       }
 
       return { paid: false };
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[MercadoPagoPayment] ❌ Erro ao verificar status:", err);
       return { paid: false };
     }
