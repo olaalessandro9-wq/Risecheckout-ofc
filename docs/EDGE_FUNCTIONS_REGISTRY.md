@@ -304,7 +304,7 @@
 | 2026-01-13 | Expandida `integration-management` com `save-profile-wallet`, `clear-profile-wallet` |
 | 2026-01-13 | Expandida `product-settings` com `update-affiliate-gateway-settings`, `update-members-area-settings` |
 | 2026-01-13 | Expandida `members-area-modules` com `save-sections`, `save-builder-settings` |
-| 2026-01-13 | **REFATORAÇÃO RISE PROTOCOL V2**: Transformados 5 `index.ts` em Routers puros |
+| 2026-01-13 | **REFATORAÇÃO RISE PROTOCOL V2 - FASE 1**: Transformados 5 `index.ts` em Routers puros |
 | 2026-01-13 | Criado `buyer-auth-email-templates.ts` (85 linhas) |
 | 2026-01-13 | Criado `buyer-auth-producer-handlers.ts` (194 linhas) |
 | 2026-01-13 | Criado `product-duplicate-handlers.ts` (305 linhas) |
@@ -314,6 +314,28 @@
 | 2026-01-13 | Reduzido `coupon-management/index.ts`: 522→113 linhas (-78%) |
 | 2026-01-13 | Reduzido `product-duplicate/index.ts`: 363→120 linhas (-67%) |
 | 2026-01-13 | Corrigido log functions em `trigger-webhooks/index.ts` (`any` → `unknown`) |
+| 2026-01-13 | **REFATORAÇÃO RISE PROTOCOL V2 - FASE 2**: Transformados mais 5 `index.ts` em Routers puros |
+| 2026-01-13 | Dividido `email-templates.ts` em 5 arquivos modulares (553→39 linhas barrel) |
+| 2026-01-13 | Criado `email-templates-base.ts` (233 linhas) - Tipos e helpers |
+| 2026-01-13 | Criado `email-templates-purchase.ts` (146 linhas) - Templates de compra |
+| 2026-01-13 | Criado `email-templates-payment.ts` (95 linhas) - Templates de pagamento |
+| 2026-01-13 | Criado `email-templates-seller.ts` (114 linhas) - Templates do vendedor |
+| 2026-01-13 | Criado `trigger-webhooks-handlers.ts` (295 linhas) - Handlers de webhooks |
+| 2026-01-13 | Criado `integration-handlers.ts` (393 linhas) - Handlers de integrações |
+| 2026-01-13 | Criado `smoke-test-handlers.ts` (271 linhas) - Handlers de smoke test |
+| 2026-01-13 | Reduzido `trigger-webhooks/index.ts`: 438→120 linhas (-73%) |
+| 2026-01-13 | Reduzido `integration-management/index.ts`: 429→85 linhas (-80%) |
+| 2026-01-13 | Reduzido `smoke-test/index.ts`: 409→59 linhas (-86%) |
+| 2026-01-13 | Reduzido `product-crud/index.ts`: 322→102 linhas (-68%) |
+| 2026-01-13 | Reduzido `offer-crud/index.ts`: 329→96 linhas (-71%) |
+| 2026-01-13 | Dividido `producer-auth-handlers.ts`: extraído `producer-auth-session-handlers.ts` (121 linhas) |
+| 2026-01-13 | Dividido `product-duplicate-handlers.ts`: extraído `product-duplicate-cloner.ts` (144 linhas) |
+| 2026-01-13 | Dividido `coupon-handlers.ts`: extraído `coupon-validation.ts` (124 linhas) |
+| 2026-01-13 | Criado `product-crud-handlers.ts` (271 linhas) - CRUD de produtos |
+| 2026-01-13 | Criado `offer-crud-handlers.ts` (269 linhas) - CRUD de ofertas |
+| 2026-01-13 | Dividido `buyer-auth-handlers.ts`: extraído `buyer-auth-password.ts` (93 linhas) |
+| 2026-01-13 | Dividido `pixel-handlers.ts`: extraído `pixel-rate-limit.ts` (143 linhas) |
+| 2026-01-13 | **FASE 2 COMPLETA**: 14 novos handlers, 10 routers puros, 93% conformidade RISE Protocol |
 | 2026-01-12 | Expandida `product-management` com ações `update-settings` e `smart-delete` |
 | 2026-01-12 | Expandida `checkout-management` com ação `toggle-link-status` |
 | 2026-01-12 | Expandida `members-area-students` com ação `assign_groups` |
