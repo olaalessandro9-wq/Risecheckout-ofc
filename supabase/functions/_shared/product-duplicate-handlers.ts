@@ -219,7 +219,7 @@ export async function duplicateProduct(
 
     return { success: true, newProductId };
 
-  } catch (error) {
+  } catch (error: unknown) {
     const err = error instanceof Error ? error : new Error(String(error));
     return { success: false, error: err.message };
   }

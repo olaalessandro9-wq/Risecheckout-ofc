@@ -151,7 +151,7 @@ export function withSentry(
   return async (req: Request): Promise<Response> => {
     try {
       return await handler(req);
-    } catch (error) {
+    } catch (error: unknown) {
       const err = error instanceof Error ? error : new Error(String(error));
       
       console.error(`[${functionName}] ❌ Erro capturado:`, err.message);

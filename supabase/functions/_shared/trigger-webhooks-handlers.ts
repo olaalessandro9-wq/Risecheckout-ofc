@@ -130,8 +130,9 @@ export function isUrlSafe(urlString: string): boolean {
     
     logInfo(`URL aprovada para envio`, { url: urlString });
     return true;
-  } catch (error) {
-    logError(`URL rejeitada: formato inválido`, { url: urlString, error });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logError(`URL rejeitada: formato inválido`, { url: urlString, error: errorMessage });
     return false;
   }
 }

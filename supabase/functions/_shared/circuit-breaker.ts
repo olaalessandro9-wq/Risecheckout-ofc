@@ -130,7 +130,7 @@ export class CircuitBreaker {
       const result = await operation();
       this.onSuccess(circuit, now);
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       this.onFailure(circuit, now);
       throw error;
     }

@@ -235,7 +235,7 @@ serve(async (req) => {
 
     return createSuccessResponse({ received: true });
 
-  } catch (error) {
+  } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("ERROR", { message: errorMessage });
     return createErrorResponse(ERROR_CODES.INTERNAL_ERROR, errorMessage, 500);

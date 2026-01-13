@@ -179,7 +179,9 @@ Deno.serve(async (req) => {
     let producer;
     try {
       producer = await requireAuthenticatedProducer(supabase, req);
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('[vault-migration] Auth error:', errorMessage);
       return new Response(
         JSON.stringify({ error: 'Não autenticado' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -339,8 +341,9 @@ Deno.serve(async (req) => {
           status: 'success'
         });
 
-      } catch (error) {
-        console.error(`[migrate-credentials-to-vault] ❌ Erro ao migrar ${integration_type} do vendor ${vendor_id}:`, error);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`[migrate-credentials-to-vault] ❌ Erro ao migrar ${integration_type} do vendor ${vendor_id}:`, errorMessage);
         results.push({
           vendor_id,
           integration_type,
@@ -348,7 +351,7 @@ Deno.serve(async (req) => {
           active,
           secrets_migrated: [],
           status: 'error',
-          error: error instanceof Error ? error.message : String(error)
+          error: errorMessage
         });
       }
     }
@@ -380,12 +383,13 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error) {
-    console.error('[migrate-credentials-to-vault] Erro não tratado:', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[migrate-credentials-to-vault] Erro não tratado:', errorMessage);
     return new Response(
       JSON.stringify({ 
         error: 'Erro interno do servidor', 
-        details: error instanceof Error ? error.message : String(error) 
+        details: errorMessage 
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

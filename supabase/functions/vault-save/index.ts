@@ -262,12 +262,13 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error) {
-    console.error('[save-vendor-credentials] Erro não tratado:', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[save-vendor-credentials] Erro não tratado:', errorMessage);
     return new Response(
       JSON.stringify({ 
         error: 'Erro interno do servidor', 
-        details: error instanceof Error ? error.message : String(error) 
+        details: errorMessage 
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
