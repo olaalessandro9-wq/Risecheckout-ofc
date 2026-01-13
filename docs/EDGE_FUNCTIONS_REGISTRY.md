@@ -304,6 +304,16 @@
 | 2026-01-13 | Expandida `integration-management` com `save-profile-wallet`, `clear-profile-wallet` |
 | 2026-01-13 | Expandida `product-settings` com `update-affiliate-gateway-settings`, `update-members-area-settings` |
 | 2026-01-13 | Expandida `members-area-modules` com `save-sections`, `save-builder-settings` |
+| 2026-01-13 | **REFATORAÇÃO RISE PROTOCOL V2**: Transformados 5 `index.ts` em Routers puros |
+| 2026-01-13 | Criado `buyer-auth-email-templates.ts` (85 linhas) |
+| 2026-01-13 | Criado `buyer-auth-producer-handlers.ts` (194 linhas) |
+| 2026-01-13 | Criado `product-duplicate-handlers.ts` (305 linhas) |
+| 2026-01-13 | Corrigido `any` → `SupabaseClient` em 23+ funções de handlers |
+| 2026-01-13 | Reduzido `producer-auth/index.ts`: 570→95 linhas (-83%) |
+| 2026-01-13 | Reduzido `members-area-modules/index.ts`: 568→137 linhas (-76%) |
+| 2026-01-13 | Reduzido `coupon-management/index.ts`: 522→113 linhas (-78%) |
+| 2026-01-13 | Reduzido `product-duplicate/index.ts`: 363→120 linhas (-67%) |
+| 2026-01-13 | Corrigido log functions em `trigger-webhooks/index.ts` (`any` → `unknown`) |
 | 2026-01-12 | Expandida `product-management` com ações `update-settings` e `smart-delete` |
 | 2026-01-12 | Expandida `checkout-management` com ação `toggle-link-status` |
 | 2026-01-12 | Expandida `members-area-students` com ação `assign_groups` |
@@ -317,14 +327,40 @@
 
 ## Módulos Compartilhados (`_shared/`)
 
-| Arquivo | Descrição |
-|---------|-----------|
-| `cors.ts` | CORS seguro com lista de origens permitidas |
-| `sentry.ts` | Integração com Sentry para tracking de erros |
-| `rate-limit.ts` | Rate limiting usando `rate_limit_attempts` |
-| `session.ts` | Validação de sessão do produtor |
-| `response.ts` | Helpers para respostas JSON padronizadas |
-| `ownership.ts` | Verificação de ownership (produto, checkout, offer, pixel) |
+### Tipos e Helpers Base
+
+| Arquivo | Linhas | Descrição |
+|---------|--------|-----------|
+| `supabase-types.ts` | 222 | Tipos centralizados (SupabaseClient, interfaces) |
+| `edge-helpers.ts` | 275 | Helpers: jsonResponse, errorResponse, validateSession |
+| `cors.ts` | ~50 | CORS seguro com lista de origens permitidas |
+| `sentry.ts` | ~80 | Integração com Sentry para tracking de erros |
+| `rate-limit.ts` | ~100 | Rate limiting usando `rate_limit_attempts` |
+| `session.ts` | ~60 | Validação de sessão do produtor |
+| `response.ts` | ~50 | Helpers para respostas JSON padronizadas |
+| `ownership.ts` | ~80 | Verificação de ownership (produto, checkout, offer, pixel) |
+
+### Handlers de Autenticação
+
+| Arquivo | Linhas | Descrição |
+|---------|--------|-----------|
+| `producer-auth-handlers.ts` | 379 | Register, Login, Logout, Validate |
+| `producer-auth-reset-handlers.ts` | ~150 | Password reset flow |
+| `producer-auth-helpers.ts` | ~100 | Helpers de autenticação |
+| `buyer-auth-handlers.ts` | 330 | Register, Login, Logout |
+| `buyer-auth-handlers-extended.ts` | 318 | Validate, CheckEmail, Password reset |
+| `buyer-auth-producer-handlers.ts` | 194 | Producer-specific buyer auth |
+| `buyer-auth-email-templates.ts` | 85 | Email templates |
+| `unified-auth.ts` | ~200 | Autenticação cross-system |
+
+### Handlers de Negócio
+
+| Arquivo | Linhas | Descrição |
+|---------|--------|-----------|
+| `members-area-handlers.ts` | 301 | CRUD de módulos |
+| `members-area-sections-handlers.ts` | ~150 | Sections e builder settings |
+| `coupon-handlers.ts` | 353 | CRUD de cupons |
+| `product-duplicate-handlers.ts` | 305 | Duplicação de produtos |
 
 ---
 
