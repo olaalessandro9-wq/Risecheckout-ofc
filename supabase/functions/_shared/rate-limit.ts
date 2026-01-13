@@ -6,12 +6,14 @@
  * 
  * Baseado em OWASP Top 10 - Authentication Failures (#7)
  * RISE Protocol Compliant
+ * @version 2.0.0 - Zero `any` compliance
  */
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// deno-lint-ignore no-explicit-any
-type SupabaseClientGeneric = { from: (table: string) => any };
+// ============================================
+// TYPES
+// ============================================
 
 interface RateLimitConfig {
   maxAttempts: number;
@@ -35,24 +37,36 @@ interface RateLimitAttempt {
   created_at: string;
 }
 
+interface PostgrestError {
+  message: string;
+  details?: string;
+  hint?: string;
+  code?: string;
+}
+
+// ============================================
+// RATE LIMIT FUNCTIONS
+// ============================================
+
 export async function checkRateLimit(
-  supabase: SupabaseClientGeneric,
+  supabase: SupabaseClient,
   config: RateLimitConfig
 ): Promise<RateLimitResult> {
   const { maxAttempts, windowMs, identifier, action } = config;
   const now = new Date();
   const windowStart = new Date(now.getTime() - windowMs);
 
-  const { data: attempts, error } = await (supabase as any)
+  const { data: attempts, error } = await supabase
     .from('rate_limit_attempts')
     .select('*')
     .eq('identifier', identifier)
     .eq('action', action)
     .gte('created_at', windowStart.toISOString())
-    .order('created_at', { ascending: false }) as { data: RateLimitAttempt[] | null; error: any };
+    .order('created_at', { ascending: false });
 
   if (error) {
-    console.error('Error checking rate limit:', error);
+    const pgError = error as PostgrestError;
+    console.error('Error checking rate limit:', pgError.message);
     return {
       allowed: true,
       remaining: maxAttempts,
@@ -60,15 +74,16 @@ export async function checkRateLimit(
     };
   }
 
-  const attemptCount = attempts?.length || 0;
+  const typedAttempts = (attempts || []) as RateLimitAttempt[];
+  const attemptCount = typedAttempts.length;
   const remaining = Math.max(0, maxAttempts - attemptCount);
   const allowed = attemptCount < maxAttempts;
 
   let resetAt = new Date(now.getTime() + windowMs);
   let retryAfter: number | undefined;
 
-  if (!allowed && attempts && attempts.length > 0) {
-    const oldestAttempt = new Date(attempts[attempts.length - 1].created_at);
+  if (!allowed && typedAttempts.length > 0) {
+    const oldestAttempt = new Date(typedAttempts[typedAttempts.length - 1].created_at);
     resetAt = new Date(oldestAttempt.getTime() + windowMs);
     retryAfter = Math.ceil((resetAt.getTime() - now.getTime()) / 1000);
   }
@@ -82,13 +97,13 @@ export async function checkRateLimit(
 }
 
 export async function recordAttempt(
-  supabase: SupabaseClientGeneric,
+  supabase: SupabaseClient,
   config: RateLimitConfig,
   success: boolean = false
 ): Promise<void> {
   const { identifier, action } = config;
 
-  const { error } = await (supabase as any)
+  const { error } = await supabase
     .from('rate_limit_attempts')
     .insert({
       identifier,
@@ -98,11 +113,12 @@ export async function recordAttempt(
     });
 
   if (error) {
-    console.error('Error recording attempt:', error);
+    const pgError = error as PostgrestError;
+    console.error('Error recording attempt:', pgError.message);
   }
 
   const cleanupDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  await (supabase as any)
+  await supabase
     .from('rate_limit_attempts')
     .delete()
     .lt('created_at', cleanupDate.toISOString());
@@ -147,9 +163,9 @@ export function getIdentifier(req: Request, preferUserId: boolean = false): stri
     if (authHeader) {
       try {
         const token = authHeader.replace('Bearer ', '');
-        const payload = JSON.parse(atob(token.split('.')[1]));
+        const payload = JSON.parse(atob(token.split('.')[1])) as { sub?: string };
         if (payload.sub) return `user:${payload.sub}`;
-      } catch (e) {
+      } catch {
         // Ignorar erros de parsing
       }
     }

@@ -19,7 +19,7 @@
  * - Circuit Breaker para resiliência
  * 
  * @author RiseCheckout Team
- * @version 2.1.0 - Adicionado Circuit Breaker em 11/01/2026
+ * @version 2.2.0 - Zero `any` compliance
  */
 
 import { IPaymentGateway } from "../IPaymentGateway.ts";
@@ -31,6 +31,29 @@ const PUSHINPAY_API_URLS = {
   sandbox: 'https://api-sandbox.pushinpay.com.br/api',
   production: 'https://api.pushinpay.com.br/api'
 } as const;
+
+// ============================================
+// PUSHINPAY SPECIFIC TYPES
+// ============================================
+
+interface PushinPayCreatePixResponse {
+  id?: string | number;
+  qr_code_base64?: string;
+  qrcode_base64?: string;
+  qr_code?: string;
+  qrcode?: string;
+  status?: string;
+}
+
+interface PushinPayStatusResponse {
+  id?: string | number;
+  status?: string;
+  paid_at?: string;
+}
+
+// ============================================
+// ADAPTER IMPLEMENTATION
+// ============================================
 
 export class PushinPayAdapter implements IPaymentGateway {
   readonly providerName = "pushinpay";
@@ -109,7 +132,7 @@ export class PushinPayAdapter implements IPaymentGateway {
           };
         }
 
-        const data = JSON.parse(responseText);
+        const data = JSON.parse(responseText) as PushinPayCreatePixResponse;
 
         // Traduzir resposta para formato padronizado
         return {
@@ -117,7 +140,7 @@ export class PushinPayAdapter implements IPaymentGateway {
           transaction_id: data.id?.toString() || '',
           qr_code: data.qr_code_base64 || data.qrcode_base64,
           qr_code_text: data.qr_code || data.qrcode,
-          status: this.mapPushinPayStatus(data.status),
+          status: this.mapPushinPayStatus(data.status || ''),
           raw_response: data
         };
       });
@@ -141,7 +164,7 @@ export class PushinPayAdapter implements IPaymentGateway {
         success: false,
         transaction_id: '',
         status: 'error',
-        raw_response: error,
+        raw_response: { error: errorMessage },
         error_message: errorMessage || 'Erro desconhecido ao processar PIX'
       };
     }
@@ -152,7 +175,7 @@ export class PushinPayAdapter implements IPaymentGateway {
    * 
    * Endpoint: GET /api/transactions/{id}
    */
-  async getPixStatus(pixId: string): Promise<{ status: string; paid_at?: string; raw_response: any }> {
+  async getPixStatus(pixId: string): Promise<{ status: string; paid_at?: string; raw_response: PushinPayStatusResponse }> {
     try {
       const apiUrl = `${this.baseUrl}/transactions/${pixId}`;
       
@@ -175,16 +198,17 @@ export class PushinPayAdapter implements IPaymentGateway {
         throw new Error(`Erro ao consultar PIX: ${response.status}`);
       }
 
-      const data = JSON.parse(responseText);
+      const data = JSON.parse(responseText) as PushinPayStatusResponse;
 
       return {
-        status: this.mapPushinPayStatus(data.status),
+        status: this.mapPushinPayStatus(data.status || ''),
         paid_at: data.paid_at,
         raw_response: data
       };
 
-    } catch (error: any) {
-      console.error('[PushinPayAdapter] Erro ao consultar status:', error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      console.error('[PushinPayAdapter] Erro ao consultar status:', errorMessage);
       throw error;
     }
   }

@@ -343,8 +343,7 @@ export function getPlatformFeePercentFormatted(feePercent?: number): string {
 // TYPES
 // ============================================
 
-// deno-lint-ignore no-explicit-any
-type SupabaseClientGeneric = { from: (table: string) => any };
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 interface VendorFeeProfile {
   custom_fee_percent: number | null;
@@ -373,7 +372,7 @@ interface SplitConfigRecord {
  * @returns Taxa em decimal (ex: 0.04 = 4%)
  */
 export async function getVendorFeePercent(
-  supabase: SupabaseClientGeneric,
+  supabase: SupabaseClient,
   vendorId: string
 ): Promise<number> {
   try {
@@ -412,7 +411,7 @@ export async function getVendorFeePercent(
  * @returns true se for Owner
  */
 export async function isVendorOwner(
-  supabase: { from: (table: string) => any },
+  supabase: SupabaseClient,
   vendorId: string
 ): Promise<boolean> {
   // Fast path: comparar com ID conhecido
@@ -529,7 +528,7 @@ const INTEGRATION_TYPE_MAP: Record<GatewayType, string> = {
  * - Se VENDEDOR → busca de vendor_integrations
  */
 export async function getGatewayCredentials(
-  supabase: { from: (table: string) => any },
+  supabase: SupabaseClient,
   vendorId: string,
   gatewayType: GatewayType
 ): Promise<GatewayCredentialsResult> {
@@ -546,7 +545,7 @@ export async function getGatewayCredentials(
 }
 
 async function getOwnerCredentials(
-  supabase: { from: (table: string) => any },
+  supabase: SupabaseClient,
   gatewayType: GatewayType
 ): Promise<GatewayCredentialsResult> {
   // Buscar ambiente dinâmico de platform_settings
@@ -600,7 +599,7 @@ async function getOwnerCredentials(
 }
 
 async function getVendorCredentials(
-  supabase: { from: (table: string) => any },
+  supabase: SupabaseClient,
   vendorId: string,
   gatewayType: GatewayType
 ): Promise<GatewayCredentialsResult> {
@@ -647,8 +646,9 @@ async function getVendorCredentials(
         },
         source: 'vault' as const
       };
-    } catch (vaultError: any) {
-      console.error(`[platform-config] ❌ Erro ao buscar do Vault:`, vaultError);
+    } catch (vaultError: unknown) {
+      const vaultErr = vaultError instanceof Error ? vaultError : new Error(String(vaultError));
+      console.error(`[platform-config] ❌ Erro ao buscar do Vault:`, vaultErr.message);
       // Fallback para config se o Vault falhar (segurança)
       if (config.access_token) {
         console.warn(`[platform-config] ⚠️ Usando fallback para config após falha do Vault`);
@@ -661,7 +661,7 @@ async function getVendorCredentials(
           source: 'vendor_integrations'
         };
       }
-      throw new Error(`Falha ao recuperar credenciais do Vault: ${vaultError.message}`);
+      throw new Error(`Falha ao recuperar credenciais do Vault: ${vaultErr.message}`);
     }
   }
 

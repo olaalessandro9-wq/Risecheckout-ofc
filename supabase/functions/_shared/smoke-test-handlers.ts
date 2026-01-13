@@ -4,10 +4,10 @@
  * Extracted handlers for smoke-test edge function.
  * 
  * RISE Protocol Compliant - < 300 linhas
+ * @version 2.0.0 - Zero `any` compliance
  */
 
-// deno-lint-ignore-file no-explicit-any
-type SupabaseClientAny = any;
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // ============================================================================
 // TYPES
@@ -29,6 +29,13 @@ export interface SmokeTestResponse {
   failed: number;
   duration_ms: number;
   tests: TestResult[];
+}
+
+interface PostgrestError {
+  message: string;
+  details?: string;
+  hint?: string;
+  code?: string;
 }
 
 // ============================================================================
@@ -97,7 +104,7 @@ export async function testSecrets(): Promise<TestResult[]> {
 // TEST: TABLES
 // ============================================================================
 
-export async function testTables(supabase: SupabaseClientAny): Promise<TestResult[]> {
+export async function testTables(supabase: SupabaseClient): Promise<TestResult[]> {
   const results: TestResult[] = [];
   
   const tables = [
@@ -119,14 +126,15 @@ export async function testTables(supabase: SupabaseClientAny): Promise<TestResul
         .limit(1);
 
       const passed = !error;
+      const pgError = error as PostgrestError | null;
       results.push({
         name: `Table: ${table}`,
         passed,
-        message: passed ? 'Acessível' : `Erro: ${error?.message}`,
+        message: passed ? 'Acessível' : `Erro: ${pgError?.message ?? 'Unknown error'}`,
         duration_ms: Date.now() - start,
       });
     } catch (e: unknown) {
-      const err = e as Error;
+      const err = e instanceof Error ? e : new Error(String(e));
       results.push({
         name: `Table: ${table}`,
         passed: false,
@@ -168,7 +176,7 @@ export async function testEdgeFunctions(): Promise<TestResult[]> {
         duration_ms: Date.now() - start,
       });
     } catch (e: unknown) {
-      const err = e as Error;
+      const err = e instanceof Error ? e : new Error(String(e));
       results.push({
         name: `EdgeFunction: ${endpoint.name}`,
         passed: false,
@@ -185,7 +193,11 @@ export async function testEdgeFunctions(): Promise<TestResult[]> {
 // TEST: VAULT & RPC FUNCTIONS
 // ============================================================================
 
-export async function testVaultAndRPC(supabase: SupabaseClientAny): Promise<TestResult[]> {
+interface RpcError {
+  message?: string;
+}
+
+export async function testVaultAndRPC(supabase: SupabaseClient): Promise<TestResult[]> {
   const results: TestResult[] = [];
 
   const rpcFunctions = [
@@ -198,7 +210,8 @@ export async function testVaultAndRPC(supabase: SupabaseClientAny): Promise<Test
     const start = Date.now();
     try {
       const { error } = await supabase.rpc(rpc.name, rpc.params);
-      const functionExists = !error?.message?.includes('does not exist');
+      const rpcError = error as RpcError | null;
+      const functionExists = !rpcError?.message?.includes('does not exist');
       
       results.push({
         name: `RPC: ${rpc.name}`,
@@ -207,7 +220,7 @@ export async function testVaultAndRPC(supabase: SupabaseClientAny): Promise<Test
         duration_ms: Date.now() - start,
       });
     } catch (e: unknown) {
-      const err = e as Error;
+      const err = e instanceof Error ? e : new Error(String(e));
       results.push({
         name: `RPC: ${rpc.name}`,
         passed: false,
@@ -224,7 +237,7 @@ export async function testVaultAndRPC(supabase: SupabaseClientAny): Promise<Test
 // RUN ALL TESTS
 // ============================================================================
 
-export async function runAllTests(supabase: SupabaseClientAny): Promise<TestResult[]> {
+export async function runAllTests(supabase: SupabaseClient): Promise<TestResult[]> {
   const allTests: TestResult[] = [];
 
   logInfo('Executando testes de secrets...');

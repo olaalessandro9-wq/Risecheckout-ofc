@@ -3,10 +3,47 @@
  * 
  * Centralizes ownership verification logic for products, checkouts, offers, etc.
  * 
- * @version 1.0.0
+ * @version 2.0.0 - Zero `any` compliance
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+// ============================================
+// TYPES FOR JOIN RESULTS
+// ============================================
+
+interface ProductOwner {
+  user_id: string;
+}
+
+interface CheckoutWithProduct {
+  id: string;
+  name: string;
+  is_default: boolean;
+  product_id: string;
+  products: ProductOwner | ProductOwner[];
+}
+
+interface OfferWithProduct {
+  id: string;
+  product_id: string;
+  products: ProductOwner | ProductOwner[];
+}
+
+interface CheckoutNestedProducts {
+  product_id: string;
+  products: ProductOwner | ProductOwner[];
+}
+
+interface OrderBumpWithCheckout {
+  id: string;
+  checkout_id: string;
+  checkouts: CheckoutNestedProducts | CheckoutNestedProducts[];
+}
+
+// ============================================
+// OWNERSHIP VERIFICATION FUNCTIONS
+// ============================================
 
 /**
  * Verifies that a producer owns a product
@@ -27,6 +64,16 @@ export async function verifyProductOwnership(
 }
 
 /**
+ * Extracts user_id from a possibly-array join result
+ */
+function extractProductOwner(productsData: ProductOwner | ProductOwner[]): ProductOwner | null {
+  if (Array.isArray(productsData)) {
+    return productsData[0] || null;
+  }
+  return productsData || null;
+}
+
+/**
  * Verifies that a producer owns a checkout (via product)
  */
 export async function verifyCheckoutOwnership(
@@ -44,9 +91,9 @@ export async function verifyCheckoutOwnership(
     return { valid: false };
   }
 
-  // deno-lint-ignore no-explicit-any
-  const productsData = data.products as any;
-  const product = Array.isArray(productsData) ? productsData[0] : productsData;
+  const typedData = data as unknown as CheckoutWithProduct;
+  const product = extractProductOwner(typedData.products);
+  
   if (product?.user_id !== producerId) {
     return { valid: false };
   }
@@ -72,14 +119,24 @@ export async function verifyOfferOwnership(
     return { valid: false };
   }
 
-  // deno-lint-ignore no-explicit-any
-  const productsData = data.products as any;
-  const product = Array.isArray(productsData) ? productsData[0] : productsData;
+  const typedData = data as unknown as OfferWithProduct;
+  const product = extractProductOwner(typedData.products);
+  
   if (product?.user_id !== producerId) {
     return { valid: false };
   }
 
-  return { valid: true, productId: data.product_id };
+  return { valid: true, productId: typedData.product_id };
+}
+
+/**
+ * Extracts nested checkout data from a possibly-array join result
+ */
+function extractCheckoutData(checkoutsData: CheckoutNestedProducts | CheckoutNestedProducts[]): CheckoutNestedProducts | null {
+  if (Array.isArray(checkoutsData)) {
+    return checkoutsData[0] || null;
+  }
+  return checkoutsData || null;
 }
 
 /**
@@ -107,11 +164,15 @@ export async function verifyOrderBumpOwnership(
     return { valid: false };
   }
 
-  // deno-lint-ignore no-explicit-any
-  const checkoutsData = data.checkouts as any;
-  const checkoutData = Array.isArray(checkoutsData) ? checkoutsData[0] : checkoutsData;
-  const productsData = checkoutData?.products;
-  const productData = Array.isArray(productsData) ? productsData[0] : productsData;
+  const typedData = data as unknown as OrderBumpWithCheckout;
+  const checkoutData = extractCheckoutData(typedData.checkouts);
+  
+  if (!checkoutData) {
+    return { valid: false };
+  }
+  
+  const productData = extractProductOwner(checkoutData.products);
+  
   if (productData?.user_id !== producerId) {
     return { valid: false };
   }
