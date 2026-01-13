@@ -8,8 +8,10 @@
  * - Senão → produtor cria PIX
  * 
  * @author RiseCheckout Team
+ * @version 2.0.0 - Zero `any` compliance (RISE Protocol V2)
  */
 
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { 
   calculatePlatformFeeCents, 
   PLATFORM_PUSHINPAY_ACCOUNT_ID, 
@@ -39,7 +41,7 @@ interface OrderData {
 }
 
 export async function determineSmartSplit(
-  supabase: { from: (table: string) => any },
+  supabase: SupabaseClient,
   order: OrderData,
   valueInCents: number,
   logPrefix: string
@@ -59,8 +61,9 @@ export async function determineSmartSplit(
   let producerCredentials;
   try {
     producerCredentials = await getGatewayCredentials(supabase, order.vendor_id, 'pushinpay');
-  } catch (err: any) {
-    throw new Error(`Credenciais PushinPay do produtor não configuradas: ${err.message}`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro desconhecido";
+    throw new Error(`Credenciais PushinPay do produtor não configuradas: ${message}`);
   }
   
   const validation = validateCredentials('pushinpay', producerCredentials.credentials);
@@ -99,7 +102,7 @@ export async function determineSmartSplit(
 }
 
 async function tryAffiliatePixCreation(
-  supabase: { from: (table: string) => any },
+  supabase: SupabaseClient,
   affiliateId: string,
   vendorNetCents: number,
   platformFeeCents: number,
@@ -168,7 +171,7 @@ async function tryAffiliatePixCreation(
 }
 
 async function createProducerSplit(
-  supabase: { from: (table: string) => any },
+  supabase: SupabaseClient,
   order: OrderData,
   platformFeeCents: number,
   affiliateCommissionCents: number,
@@ -217,7 +220,7 @@ async function createProducerSplit(
 }
 
 async function getAffiliateAccountId(
-  supabase: { from: (table: string) => any },
+  supabase: SupabaseClient,
   affiliateId: string,
   logPrefix: string
 ): Promise<string | null> {

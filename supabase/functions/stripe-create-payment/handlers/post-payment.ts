@@ -3,7 +3,7 @@
  */
 
 import Stripe from "https://esm.sh/stripe@14.14.0";
-import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import type { OrderData } from "./order-loader.ts";
 
 /**

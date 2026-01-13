@@ -18,15 +18,14 @@
  * ```
  */
 
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 export interface ProducerAuth {
   id: string;
   email: string;
   name: string | null;
   role: string;
 }
-
-// deno-lint-ignore no-explicit-any
-type SupabaseClientAny = any;
 
 /**
  * Attempts to authenticate a producer from the request.
@@ -37,7 +36,7 @@ type SupabaseClientAny = any;
  * @returns ProducerAuth object or null if not authenticated
  */
 export async function getAuthenticatedProducer(
-  supabase: SupabaseClientAny,
+  supabase: SupabaseClient,
   request: Request
 ): Promise<ProducerAuth | null> {
   const sessionToken = request.headers.get("X-Producer-Session-Token");
@@ -59,7 +58,7 @@ export async function getAuthenticatedProducer(
  * @throws Error if not authenticated
  */
 export async function requireAuthenticatedProducer(
-  supabase: SupabaseClientAny,
+  supabase: SupabaseClient,
   request: Request
 ): Promise<ProducerAuth> {
   const producer = await getAuthenticatedProducer(supabase, request);
@@ -75,7 +74,7 @@ export async function requireAuthenticatedProducer(
  * Validates a producer session token against the database.
  */
 async function validateProducerSessionToken(
-  supabase: SupabaseClientAny,
+  supabase: SupabaseClient,
   token: string
 ): Promise<ProducerAuth | null> {
   try {

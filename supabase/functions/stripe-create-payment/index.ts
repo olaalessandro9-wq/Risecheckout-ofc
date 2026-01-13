@@ -12,7 +12,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.14.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { rateLimitMiddleware, getIdentifier } from "../_shared/rate-limit.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { loadOrder, getVendorStripeConfig } from "./handlers/order-loader.ts";
