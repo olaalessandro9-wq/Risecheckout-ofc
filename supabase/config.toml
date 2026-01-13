@@ -319,3 +319,11 @@ verify_jwt = false
 
 [functions.security-management]
 verify_jwt = false
+
+# ✅ AUTENTICADAS (Admin Health)
+[functions.admin-health]
+verify_jwt = false
+
+# ✅ AUTENTICADAS (Owner Settings - Mais restritiva)
+[functions.owner-settings]
+verify_jwt = false

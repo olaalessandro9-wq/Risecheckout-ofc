@@ -118,3 +118,55 @@ export async function handleClearProfileWallet(
   console.log(`[integration-management] Profile wallet cleared for ${producerId}`);
   return jsonResponse({ success: true }, corsHeaders);
 }
+
+// ============================================================================
+// HANDLER: UPDATE PROFILE (Nome, CPF, Telefone)
+// ============================================================================
+
+interface UpdateProfilePayload {
+  name?: string;
+  cpf_cnpj?: string;
+  phone?: string;
+}
+
+export async function handleUpdateProfile(
+  supabase: SupabaseClient,
+  producerId: string,
+  body: UpdateProfilePayload,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const { name, cpf_cnpj, phone } = body;
+
+  // Validação: pelo menos um campo deve ser fornecido
+  if (!name && cpf_cnpj === undefined && phone === undefined) {
+    return errorResponse("Nenhum campo para atualizar", corsHeaders, 400);
+  }
+
+  // Monta objeto de update apenas com campos fornecidos
+  const updateData: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (name !== undefined) {
+    updateData.name = name.trim();
+  }
+  if (cpf_cnpj !== undefined) {
+    updateData.cpf_cnpj = cpf_cnpj || null;
+  }
+  if (phone !== undefined) {
+    updateData.phone = phone || null;
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update(updateData)
+    .eq("id", producerId);
+
+  if (error) {
+    console.error("[integration-management] Update profile error:", error);
+    return errorResponse("Erro ao atualizar perfil", corsHeaders, 500);
+  }
+
+  console.log(`[integration-management] Profile updated for ${producerId}`);
+  return jsonResponse({ success: true }, corsHeaders);
+}

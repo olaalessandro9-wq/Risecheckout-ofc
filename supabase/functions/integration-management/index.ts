@@ -17,6 +17,7 @@ import {
   handleGetStatus,
   handleSaveProfileWallet,
   handleClearProfileWallet,
+  handleUpdateProfile,
   errorResponse,
 } from "../_shared/integration-handlers.ts";
 
@@ -72,6 +73,10 @@ serve(withSentry("integration-management", async (req) => {
 
     if (action === "clear-profile-wallet" && req.method === "POST") {
       return handleClearProfileWallet(supabase, producerId, corsHeaders);
+    }
+
+    if (action === "update-profile" && req.method === "POST") {
+      return handleUpdateProfile(supabase, producerId, body as { name?: string; cpf_cnpj?: string; phone?: string }, corsHeaders);
     }
 
     return errorResponse(`Ação desconhecida: ${action}`, corsHeaders, 404);

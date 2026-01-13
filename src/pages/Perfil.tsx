@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Loader2, User } from "lucide-react";
+import { useProducerSessionToken } from "@/hooks/useProducerSessionToken";
 
 // Máscaras
 function maskCPF(value: string): string {
@@ -43,6 +44,7 @@ function getInitials(name: string | null | undefined): string {
 
 export default function Perfil() {
   const { user } = useAuth();
+  const sessionToken = useProducerSessionToken();
   const queryClient = useQueryClient();
   
   const [nome, setNome] = useState("");
@@ -85,22 +87,30 @@ export default function Perfil() {
   const updateMutation = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error("Usuário não autenticado");
+      if (!sessionToken) throw new Error("Sessão não encontrada");
       
       const fullName = `${nome.trim()} ${sobrenome.trim()}`.trim();
       const cleanCpf = cpf.replace(/\D/g, "");
       const cleanPhone = celular.replace(/\D/g, "");
       
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          name: fullName,
-          cpf_cnpj: cleanCpf || null,
-          phone: cleanPhone || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", user.id);
+      const { data, error } = await supabase.functions.invoke(
+        "integration-management/update-profile",
+        {
+          body: {
+            sessionToken,
+            name: fullName,
+            cpf_cnpj: cleanCpf || null,
+            phone: cleanPhone || null,
+          },
+        }
+      );
       
       if (error) throw error;
+      
+      const result = data as { success: boolean; error?: string };
+      if (!result.success) {
+        throw new Error(result.error || "Erro ao atualizar perfil");
+      }
     },
     onSuccess: () => {
       toast.success("Perfil atualizado com sucesso!");
