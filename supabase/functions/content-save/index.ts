@@ -4,15 +4,19 @@
  * Handles atomic save for members area content:
  * - save-full: Atomic save (content + attachments + drip settings)
  * 
- * RISE Protocol Compliant
+ * @version 2.0.0 - RISE Protocol V2 Compliant - Zero `any`
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors, PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiter.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
+
+// ============================================
+// INTERFACES
+// ============================================
 
 interface ContentData {
   title: string;
@@ -27,7 +31,57 @@ interface ReleaseData {
   after_content_id?: string | null;
 }
 
-function jsonResponse(data: any, status = 200): Response {
+interface AttachmentData {
+  id: string;
+  file_name?: string;
+  file_url?: string;
+}
+
+interface RequestBody {
+  action: string;
+  moduleId?: string;
+  contentId?: string;
+  content?: ContentData;
+  release?: ReleaseData;
+  attachments?: AttachmentData[];
+}
+
+interface JsonResponseData {
+  success?: boolean;
+  error?: string;
+  contentId?: string;
+  isNew?: boolean;
+}
+
+interface ModuleWithProduct {
+  id: string;
+  product_id: string;
+  products: {
+    user_id: string;
+  };
+}
+
+interface ContentWithModule {
+  id: string;
+  module_id: string;
+  product_member_modules: {
+    id: string;
+    product_id: string;
+    products: {
+      user_id: string;
+    };
+  };
+}
+
+interface ContentPosition {
+  position: number;
+}
+
+// ============================================
+// HELPERS
+// ============================================
+
+function jsonResponse(data: JsonResponseData, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -35,7 +89,7 @@ function jsonResponse(data: any, status = 200): Response {
 }
 
 async function verifyModuleOwnership(
-  supabase: any,
+  supabase: SupabaseClient,
   moduleId: string,
   producerId: string
 ): Promise<{ valid: boolean; productId?: string; error?: string }> {
@@ -49,15 +103,16 @@ async function verifyModuleOwnership(
     return { valid: false, error: "Módulo não encontrado" };
   }
 
-  if (module.products.user_id !== producerId) {
+  const moduleData = module as unknown as ModuleWithProduct;
+  if (moduleData.products.user_id !== producerId) {
     return { valid: false, error: "Você não tem permissão para acessar este módulo" };
   }
 
-  return { valid: true, productId: module.product_id };
+  return { valid: true, productId: moduleData.product_id };
 }
 
 async function verifyContentOwnership(
-  supabase: any,
+  supabase: SupabaseClient,
   contentId: string,
   producerId: string
 ): Promise<{ valid: boolean; moduleId?: string; productId?: string; error?: string }> {
@@ -79,19 +134,20 @@ async function verifyContentOwnership(
     return { valid: false, error: "Conteúdo não encontrado" };
   }
 
-  if (content.product_member_modules.products.user_id !== producerId) {
+  const contentData = content as unknown as ContentWithModule;
+  if (contentData.product_member_modules.products.user_id !== producerId) {
     return { valid: false, error: "Você não tem permissão para acessar este conteúdo" };
   }
 
   return {
     valid: true,
-    moduleId: content.module_id,
-    productId: content.product_member_modules.product_id,
+    moduleId: contentData.module_id,
+    productId: contentData.product_member_modules.product_id,
   };
 }
 
 async function saveDripSettings(
-  supabase: any,
+  supabase: SupabaseClient,
   contentId: string,
   release: ReleaseData
 ): Promise<boolean> {
@@ -118,6 +174,10 @@ async function saveDripSettings(
   return !error;
 }
 
+// ============================================
+// MAIN HANDLER
+// ============================================
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -128,10 +188,10 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const rateLimitResult = await rateLimitMiddleware(supabase as any, req, RATE_LIMIT_CONFIGS.MEMBERS_AREA);
+    const rateLimitResult = await rateLimitMiddleware(supabase, req, RATE_LIMIT_CONFIGS.MEMBERS_AREA);
     if (rateLimitResult) return rateLimitResult;
 
-    const body = await req.json();
+    const body = await req.json() as RequestBody;
     const { action, moduleId, contentId, content, release, attachments } = body;
 
     console.log(`[content-save] Action: ${action}`);
@@ -150,7 +210,7 @@ Deno.serve(async (req) => {
         return jsonResponse({ success: false, error: "moduleId é obrigatório" }, 400);
       }
 
-      const contentData = content as ContentData;
+      const contentData = content as ContentData | undefined;
       if (!contentData?.title || typeof contentData.title !== "string" || !contentData.title.trim()) {
         return jsonResponse({ success: false, error: "Título é obrigatório" }, 400);
       }
@@ -173,7 +233,8 @@ Deno.serve(async (req) => {
             .order("position", { ascending: false })
             .limit(1);
 
-          const nextPosition = existing && existing.length > 0 ? existing[0].position + 1 : 0;
+          const existingPositions = existing as ContentPosition[] | null;
+          const nextPosition = existingPositions && existingPositions.length > 0 ? existingPositions[0].position + 1 : 0;
 
           const { data: newContent, error: createError } = await supabase
             .from("product_member_content")
@@ -194,7 +255,8 @@ Deno.serve(async (req) => {
             return jsonResponse({ success: false, error: "Erro ao criar conteúdo" }, 500);
           }
 
-          savedContentId = newContent.id;
+          const newContentData = newContent as { id: string };
+          savedContentId = newContentData.id;
         } else {
           // Verify content ownership
           const contentOwnership = await verifyContentOwnership(supabase, contentId!, producer.id);
@@ -221,7 +283,7 @@ Deno.serve(async (req) => {
 
         // Handle orphan attachments cleanup
         if (savedContentId && attachments !== undefined) {
-          const attachmentIds = (attachments as any[])
+          const attachmentIds = (attachments as AttachmentData[])
             .map((a) => a.id)
             .filter((id: string) => !id.startsWith("temp-"));
           
@@ -249,7 +311,7 @@ Deno.serve(async (req) => {
 
         console.log(`[content-save] Content save-full: ${savedContentId} by ${producer.id}`);
         return jsonResponse({ success: true, contentId: savedContentId, isNew });
-      } catch (err) {
+      } catch (err: unknown) {
         console.error("[content-save] save-full exception:", err);
         return jsonResponse({ success: false, error: "Erro ao salvar conteúdo" }, 500);
       }

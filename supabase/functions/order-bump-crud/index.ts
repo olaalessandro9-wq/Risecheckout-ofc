@@ -7,19 +7,102 @@
  * - delete: Delete order bump
  * - reorder: Reorder order bumps
  * 
- * RISE Protocol Compliant - Refactored from checkout-management
+ * @version 2.0.0 - RISE Protocol V2 Compliant - Zero `any`
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
+
+// ============================================
+// INTERFACES
+// ============================================
+
+interface JsonResponseData {
+  success?: boolean;
+  error?: string;
+  orderBump?: OrderBumpRecord | null;
+  retryAfter?: number;
+}
+
+interface OrderBumpPayload {
+  id?: string;
+  order_bump_id?: string;
+  checkout_id?: string;
+  product_id?: string;
+  offer_id?: string;
+  active?: boolean;
+  discount_enabled?: boolean;
+  discount_price?: number;
+  call_to_action?: string;
+  custom_title?: string;
+  custom_description?: string;
+  show_image?: boolean;
+}
+
+interface OrderBumpRecord {
+  id: string;
+  checkout_id: string;
+  product_id: string;
+  offer_id: string;
+  active: boolean;
+  discount_enabled: boolean;
+  discount_price: number | null;
+  call_to_action: string | null;
+  custom_title: string | null;
+  custom_description: string | null;
+  show_image: boolean;
+  position?: number;
+  updated_at?: string;
+}
+
+interface OrderBumpUpdates {
+  updated_at: string;
+  product_id?: string;
+  offer_id?: string;
+  active?: boolean;
+  discount_enabled?: boolean;
+  discount_price?: number | null;
+  call_to_action?: string | null;
+  custom_title?: string | null;
+  custom_description?: string | null;
+  show_image?: boolean;
+}
+
+interface RequestBody {
+  sessionToken?: string;
+  orderBump?: OrderBumpPayload;
+  checkoutId?: string;
+  orderedIds?: string[];
+  id?: string;
+  order_bump_id?: string;
+  orderBumpId?: string;
+}
+
+interface CheckoutWithProduct {
+  id: string;
+  products: {
+    user_id: string;
+  };
+}
+
+interface OrderBumpWithCheckout {
+  id: string;
+  checkout_id: string;
+  checkouts: {
+    product_id: string;
+    products: {
+      user_id: string;
+    };
+  };
+}
 
 // ============================================
 // HELPERS
 // ============================================
 
-function jsonResponse(data: any, corsHeaders: Record<string, string>, status = 200): Response {
+function jsonResponse(data: JsonResponseData, corsHeaders: Record<string, string>, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -35,7 +118,7 @@ function errorResponse(message: string, corsHeaders: Record<string, string>, sta
 // ============================================
 
 async function checkRateLimit(
-  supabase: any,
+  supabase: SupabaseClient,
   producerId: string,
   action: string
 ): Promise<{ allowed: boolean; retryAfter?: number }> {
@@ -55,7 +138,7 @@ async function checkRateLimit(
   return { allowed: true };
 }
 
-async function recordRateLimitAttempt(supabase: any, producerId: string, action: string): Promise<void> {
+async function recordRateLimitAttempt(supabase: SupabaseClient, producerId: string, action: string): Promise<void> {
   await supabase.from("rate_limit_attempts").insert({
     identifier: `producer:${producerId}`,
     action,
@@ -69,7 +152,7 @@ async function recordRateLimitAttempt(supabase: any, producerId: string, action:
 // ============================================
 
 async function validateProducerSession(
-  supabase: any,
+  supabase: SupabaseClient,
   sessionToken: string
 ): Promise<{ valid: boolean; producerId?: string; error?: string }> {
   if (!sessionToken) return { valid: false, error: "Token de sessão não fornecido" };
@@ -96,7 +179,7 @@ async function validateProducerSession(
 // OWNERSHIP VERIFICATION
 // ============================================
 
-async function verifyCheckoutForOrderBump(supabase: any, checkoutId: string, producerId: string): Promise<boolean> {
+async function verifyCheckoutForOrderBump(supabase: SupabaseClient, checkoutId: string, producerId: string): Promise<boolean> {
   const { data, error } = await supabase
     .from("checkouts")
     .select("id, products!inner(user_id)")
@@ -104,14 +187,16 @@ async function verifyCheckoutForOrderBump(supabase: any, checkoutId: string, pro
     .single();
 
   if (error || !data) return false;
-  return (data.products as any)?.user_id === producerId;
+  
+  const checkoutData = data as unknown as CheckoutWithProduct;
+  return checkoutData.products?.user_id === producerId;
 }
 
 async function verifyOrderBumpOwnership(
-  supabase: any,
+  supabase: SupabaseClient,
   orderBumpId: string,
   producerId: string
-): Promise<{ valid: boolean; orderBump?: any }> {
+): Promise<{ valid: boolean; orderBump?: OrderBumpWithCheckout }> {
   const { data, error } = await supabase
     .from("order_bumps")
     .select(`id, checkout_id, checkouts!inner(product_id, products!inner(user_id))`)
@@ -119,9 +204,10 @@ async function verifyOrderBumpOwnership(
     .single();
 
   if (error || !data) return { valid: false };
-  const checkout = data.checkouts as any;
-  if (checkout?.products?.user_id !== producerId) return { valid: false };
-  return { valid: true, orderBump: data };
+  
+  const orderBumpData = data as unknown as OrderBumpWithCheckout;
+  if (orderBumpData.checkouts?.products?.user_id !== producerId) return { valid: false };
+  return { valid: true, orderBump: orderBumpData };
 }
 
 // ============================================
@@ -142,12 +228,16 @@ serve(withSentry("order-bump-crud", async (req) => {
     const pathParts = url.pathname.split("/").filter(Boolean);
     const action = pathParts[pathParts.length - 1];
 
-    let body: any = {};
+    let body: RequestBody = {};
     if (req.method !== "GET") {
-      try { body = await req.json(); } catch { return errorResponse("Corpo da requisição inválido", corsHeaders, 400); }
+      try { 
+        body = await req.json() as RequestBody; 
+      } catch { 
+        return errorResponse("Corpo da requisição inválido", corsHeaders, 400); 
+      }
     }
 
-    const sessionToken = body.sessionToken || req.headers.get("x-producer-session-token");
+    const sessionToken = body.sessionToken || req.headers.get("x-producer-session-token") || "";
     const sessionValidation = await validateProducerSession(supabase, sessionToken);
     if (!sessionValidation.valid) return errorResponse(sessionValidation.error || "Não autorizado", corsHeaders, 401);
 
@@ -159,7 +249,7 @@ serve(withSentry("order-bump-crud", async (req) => {
       const rateCheck = await checkRateLimit(supabase, producerId, "order_bump_create");
       if (!rateCheck.allowed) return jsonResponse({ success: false, error: "Muitas requisições.", retryAfter: rateCheck.retryAfter }, corsHeaders, 429);
 
-      const payload = body.orderBump || body;
+      const payload: OrderBumpPayload = body.orderBump || body;
       if (!payload.checkout_id) return errorResponse("ID do checkout é obrigatório", corsHeaders, 400);
       if (!payload.product_id) return errorResponse("ID do produto do bump é obrigatório", corsHeaders, 400);
       if (!payload.offer_id) return errorResponse("ID da oferta é obrigatório", corsHeaders, 400);
@@ -197,7 +287,7 @@ serve(withSentry("order-bump-crud", async (req) => {
       }
 
       await recordRateLimitAttempt(supabase, producerId, "order_bump_create");
-      return jsonResponse({ success: true, orderBump: newOrderBump }, corsHeaders);
+      return jsonResponse({ success: true, orderBump: newOrderBump as OrderBumpRecord }, corsHeaders);
     }
 
     // ========== UPDATE ==========
@@ -205,14 +295,14 @@ serve(withSentry("order-bump-crud", async (req) => {
       const rateCheck = await checkRateLimit(supabase, producerId, "order_bump_update");
       if (!rateCheck.allowed) return jsonResponse({ success: false, error: "Muitas requisições.", retryAfter: rateCheck.retryAfter }, corsHeaders, 429);
 
-      const payload = body.orderBump || body;
+      const payload: OrderBumpPayload = body.orderBump || body;
       const orderBumpId = payload.id || payload.order_bump_id;
       if (!orderBumpId) return errorResponse("ID do order bump é obrigatório", corsHeaders, 400);
 
       const ownershipCheck = await verifyOrderBumpOwnership(supabase, orderBumpId, producerId);
       if (!ownershipCheck.valid) return errorResponse("Você não tem permissão para editar este order bump", corsHeaders, 403);
 
-      const updates: any = { updated_at: new Date().toISOString() };
+      const updates: OrderBumpUpdates = { updated_at: new Date().toISOString() };
       if (payload.product_id !== undefined) updates.product_id = payload.product_id;
       if (payload.offer_id !== undefined) updates.offer_id = payload.offer_id;
       if (payload.active !== undefined) updates.active = payload.active;
@@ -238,7 +328,7 @@ serve(withSentry("order-bump-crud", async (req) => {
       }
 
       await recordRateLimitAttempt(supabase, producerId, "order_bump_update");
-      return jsonResponse({ success: true, orderBump: updatedOrderBump }, corsHeaders);
+      return jsonResponse({ success: true, orderBump: updatedOrderBump as OrderBumpRecord }, corsHeaders);
     }
 
     // ========== DELETE ==========
@@ -280,7 +370,7 @@ serve(withSentry("order-bump-crud", async (req) => {
 
         await recordRateLimitAttempt(supabase, producerId, "order_bump_reorder");
         return jsonResponse({ success: true }, corsHeaders);
-      } catch (error) {
+      } catch (error: unknown) {
         const err = error instanceof Error ? error : new Error(String(error));
         await captureException(err, { functionName: "order-bump-crud", extra: { action: "reorder", checkoutId } });
         return errorResponse(`Erro ao reordenar: ${err.message}`, corsHeaders, 500);
@@ -288,7 +378,7 @@ serve(withSentry("order-bump-crud", async (req) => {
     }
 
     return errorResponse(`Ação desconhecida: ${action}`, corsHeaders, 404);
-  } catch (error) {
+  } catch (error: unknown) {
     const err = error instanceof Error ? error : new Error(String(error));
     await captureException(err, { functionName: "order-bump-crud", url: req.url, method: req.method });
     return errorResponse("Erro interno do servidor", corsHeaders, 500);
