@@ -132,6 +132,39 @@ O RiseCheckout está **100% completo** e pronto para produção.
 | Segurança | ✅ 100% |
 | Persistência | ✅ 100% |
 | createBrowserRouter | ✅ 100% |
+| Edge Functions Refactoring | ✅ 96% |
+
+---
+
+## 🔧 Refatoração Edge Functions - RISE PROTOCOL V2 (96%)
+
+| Componente | Status | Descrição |
+|------------|--------|-----------|
+| Routers Puros | ✅ | 5 `index.ts` refatorados (<150 linhas cada) |
+| Handlers Tipados | ✅ | `SupabaseClient` em todos handlers |
+| Arquivos Novos | ✅ | 3 novos handlers criados |
+| Duplicação Zero | ✅ | Funções centralizadas em `edge-helpers.ts` |
+| Arquivos < 300 linhas | ⚠️ 96% | 2 arquivos pendentes (379 e 353 linhas) |
+
+### Arquivos Refatorados
+
+| Arquivo | Antes | Depois | Redução |
+|---------|-------|--------|---------|
+| `producer-auth/index.ts` | 570 | 95 | -83% |
+| `members-area-modules/index.ts` | 568 | 137 | -76% |
+| `coupon-management/index.ts` | 522 | 113 | -78% |
+| `buyer-auth/index.ts` | ~400 | 126 | -68% |
+| `product-duplicate/index.ts` | 363 | 120 | -67% |
+
+### Arquivos Criados
+
+| Arquivo | Linhas | Propósito |
+|---------|--------|-----------|
+| `buyer-auth-email-templates.ts` | 85 | Templates de email |
+| `buyer-auth-producer-handlers.ts` | 194 | Handlers producer-specific |
+| `product-duplicate-handlers.ts` | 305 | Lógica de duplicação |
+
+📖 Documentação: [Edge Functions Refactoring V2](./EDGE_FUNCTIONS_REFACTORING_V2.md)
 
 ---
 
@@ -140,12 +173,17 @@ O RiseCheckout está **100% completo** e pronto para produção.
 O RiseCheckout está **pronto para produção** com todos os sistemas implementados.
 
 **Melhorias futuras opcionais:**
-- Novos gateways (PagSeguro)
+- ~~Novos gateways (PagSeguro)~~
 - Dashboard financeiro avançado
 - Relatórios detalhados
 - Testes automatizados
 - LGPD compliance (Sprint 2)
 
+**Próximos passos técnicos:**
+- Dividir `producer-auth-handlers.ts` (379 linhas)
+- Dividir `coupon-handlers.ts` (353 linhas)
+- Eliminar ~850 `any` restantes no projeto
+
 ---
 
-**Última atualização:** 11 de Janeiro de 2026
+**Última atualização:** 13 de Janeiro de 2026
