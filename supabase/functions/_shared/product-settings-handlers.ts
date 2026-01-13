@@ -305,34 +305,5 @@ export async function handleUpdateAffiliateGatewaySettings(
   return jsonResponse({ success: true }, corsHeaders);
 }
 
-// ============================================
-// UPDATE MEMBERS AREA SETTINGS HANDLER
-// ============================================
-
-export async function handleUpdateMembersAreaSettings(
-  supabase: any,
-  productId: string,
-  enabled: boolean | undefined,
-  settings: any,
-  corsHeaders: CorsHeaders
-): Promise<Response> {
-  const updates: Record<string, any> = { updated_at: new Date().toISOString() };
-
-  if (enabled !== undefined) {
-    updates.members_area_enabled = !!enabled;
-  }
-
-  if (settings !== undefined) {
-    updates.members_area_settings = settings;
-  }
-
-  const { error: updateError } = await supabase.from("products").update(updates).eq("id", productId);
-
-  if (updateError) {
-    console.error("[product-settings] Update members area settings error:", updateError);
-    return errorResponse("Erro ao atualizar configurações da área de membros", corsHeaders, 500);
-  }
-
-  console.log(`[product-settings] Members area settings updated for: ${productId}`);
-  return jsonResponse({ success: true, enabled, settings }, corsHeaders);
-}
+// Members Area handler extracted to product-members-area-handlers.ts
+export { handleUpdateMembersAreaSettings } from "./product-members-area-handlers.ts";

@@ -37,8 +37,8 @@ import {
   SESSION_DURATION_DAYS,
 } from "./buyer-auth-types.ts";
 
-// Re-export from password module for backwards compatibility
-export {
+// Import and re-export from password module
+import {
   hashPassword,
   verifyPassword,
   generateSessionToken,
@@ -46,12 +46,7 @@ export {
   jsonResponse,
 } from "./buyer-auth-password.ts";
 
-import {
-  hashPassword,
-  verifyPassword,
-  generateSessionToken,
-  jsonResponse,
-} from "./buyer-auth-password.ts";
+export { hashPassword, verifyPassword, generateSessionToken, generateResetToken, jsonResponse };
 
 // ============================================
 // REGISTER HANDLER
