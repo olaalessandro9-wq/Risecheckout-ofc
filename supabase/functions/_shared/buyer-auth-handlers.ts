@@ -3,10 +3,11 @@
  * 
  * Handlers principais: register, login, logout
  * Separado para manter arquivos < 300 linhas
+ * 
+ * @refactored 2026-01-13 - Password utilities extraídas para buyer-auth-password.ts
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { genSaltSync, hashSync, compareSync } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 import { 
   rateLimitMiddleware, 
@@ -33,53 +34,24 @@ import {
 import {
   HASH_VERSION_SHA256,
   CURRENT_HASH_VERSION,
-  BCRYPT_COST,
   SESSION_DURATION_DAYS,
 } from "./buyer-auth-types.ts";
 
-// ============================================
-// PASSWORD UTILITIES
-// ============================================
-export function hashPassword(password: string): string {
-  const salt = genSaltSync(BCRYPT_COST);
-  return hashSync(password, salt);
-}
+// Re-export from password module for backwards compatibility
+export {
+  hashPassword,
+  verifyPassword,
+  generateSessionToken,
+  generateResetToken,
+  jsonResponse,
+} from "./buyer-auth-password.ts";
 
-async function hashPasswordLegacy(password: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const salt = Deno.env.get("BUYER_AUTH_SALT") || "rise_checkout_salt";
-  const data = encoder.encode(password + salt);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
-}
-
-export async function verifyPassword(password: string, hash: string, version: number): Promise<boolean> {
-  if (version === HASH_VERSION_SHA256) {
-    const legacyHash = await hashPasswordLegacy(password);
-    return legacyHash === hash;
-  }
-  return compareSync(password, hash);
-}
-
-export function generateSessionToken(): string {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  return Array.from(array, b => b.toString(16).padStart(2, "0")).join("");
-}
-
-export function generateResetToken(): string {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  return Array.from(array, b => b.toString(16).padStart(2, "0")).join("");
-}
-
-function jsonResponse(data: unknown, status = 200, corsHeaders: Record<string, string>): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" }
-  });
-}
+import {
+  hashPassword,
+  verifyPassword,
+  generateSessionToken,
+  jsonResponse,
+} from "./buyer-auth-password.ts";
 
 // ============================================
 // REGISTER HANDLER

@@ -3,6 +3,8 @@
  * 
  * Handlers para password reset e validação
  * Separado para manter arquivos < 300 linhas
+ * 
+ * @refactored 2026-01-13 - Usa buyer-auth-password.ts para password utilities
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -18,38 +20,12 @@ import {
   formatPasswordError 
 } from "./password-policy.ts";
 
-import { 
-  sanitizeEmail 
-} from "./sanitizer.ts";
-
-import { 
-  logSecurityEvent, 
-  SecurityAction 
-} from "./audit-logger.ts";
-
+import { sanitizeEmail } from "./sanitizer.ts";
+import { logSecurityEvent, SecurityAction } from "./audit-logger.ts";
 import { sendEmail } from "./zeptomail.ts";
-
-import {
-  CURRENT_HASH_VERSION,
-  RESET_TOKEN_EXPIRY_HOURS,
-} from "./buyer-auth-types.ts";
-
-import {
-  hashPassword,
-  generateResetToken,
-} from "./buyer-auth-handlers.ts";
-
-import {
-  generateResetEmailHtml,
-  generateResetEmailText,
-} from "./buyer-auth-email-templates.ts";
-
-function jsonResponse(data: unknown, status = 200, corsHeaders: Record<string, string>): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" }
-  });
-}
+import { CURRENT_HASH_VERSION, RESET_TOKEN_EXPIRY_HOURS } from "./buyer-auth-types.ts";
+import { hashPassword, generateResetToken, jsonResponse } from "./buyer-auth-password.ts";
+import { generateResetEmailHtml, generateResetEmailText } from "./buyer-auth-email-templates.ts";
 
 // ============================================
 // VALIDATE HANDLER
@@ -68,15 +44,8 @@ export async function handleValidate(
   const { data: session } = await supabase
     .from("buyer_sessions")
     .select(`
-      id,
-      expires_at,
-      is_valid,
-      buyer:buyer_id (
-        id,
-        email,
-        name,
-        is_active
-      )
+      id, expires_at, is_valid,
+      buyer:buyer_id (id, email, name, is_active)
     `)
     .eq("session_token", sessionToken)
     .single();
@@ -92,15 +61,11 @@ export async function handleValidate(
   }
 
   if (new Date(session.expires_at) < new Date()) {
-    await supabase
-      .from("buyer_sessions")
-      .update({ is_valid: false })
-      .eq("id", session.id);
+    await supabase.from("buyer_sessions").update({ is_valid: false }).eq("id", session.id);
     return jsonResponse({ valid: false }, 200, corsHeaders);
   }
 
-  await supabase
-    .from("buyer_sessions")
+  await supabase.from("buyer_sessions")
     .update({ last_activity_at: new Date().toISOString() })
     .eq("id", session.id);
 
@@ -184,10 +149,7 @@ export async function handleRequestPasswordReset(
 
   const { error: updateError } = await supabase
     .from("buyer_profiles")
-    .update({
-      reset_token: resetToken,
-      reset_token_expires_at: expiresAt.toISOString(),
-    })
+    .update({ reset_token: resetToken, reset_token_expires_at: expiresAt.toISOString() })
     .eq("id", buyer.id);
 
   if (updateError) {
