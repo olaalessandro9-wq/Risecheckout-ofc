@@ -6,13 +6,13 @@
  * Concede acesso à área de membros automaticamente após compra aprovada.
  * Usado pelos webhooks de pagamento (MercadoPago, Asaas, Stripe).
  * 
- * Versão: 1.0
+ * RISE Protocol V2 Compliant - Zero `any`
+ * @version 2.0.0
  * Data de Criação: 2026-01-06
  * ============================================================================
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseClientAny = any;
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // ============================================================================
 // TYPES
@@ -95,7 +95,7 @@ function generateToken(): string {
  * @returns Resultado da operação
  */
 export async function grantMembersAccess(
-  supabase: SupabaseClientAny,
+  supabase: SupabaseClient,
   input: GrantAccessInput
 ): Promise<GrantAccessResult> {
   

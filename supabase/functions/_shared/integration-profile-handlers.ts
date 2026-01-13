@@ -2,13 +2,13 @@
  * Integration Profile & Status Handlers
  * 
  * Extracted profile wallet and status handlers for integration-management.
- * RISE Protocol Compliant - < 300 lines
+ * RISE Protocol V2 Compliant - Zero `any`
  * 
  * @created 2026-01-13 - Extracted from integration-handlers.ts
+ * @version 2.0.0
  */
 
-// deno-lint-ignore-file no-explicit-any
-type SupabaseClientAny = any;
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { 
   jsonResponse, 
@@ -33,7 +33,7 @@ interface IntegrationRecord {
 // ============================================================================
 
 export async function handleGetStatus(
-  supabase: SupabaseClientAny,
+  supabase: SupabaseClient,
   producerId: string,
   integrationType: string | null,
   corsHeaders: Record<string, string>
@@ -73,7 +73,7 @@ export async function handleGetStatus(
 // ============================================================================
 
 export async function handleSaveProfileWallet(
-  supabase: SupabaseClientAny,
+  supabase: SupabaseClient,
   producerId: string,
   walletId: string,
   corsHeaders: Record<string, string>
@@ -101,7 +101,7 @@ export async function handleSaveProfileWallet(
 // ============================================================================
 
 export async function handleClearProfileWallet(
-  supabase: SupabaseClientAny,
+  supabase: SupabaseClient,
   producerId: string,
   corsHeaders: Record<string, string>
 ): Promise<Response> {

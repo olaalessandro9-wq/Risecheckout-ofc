@@ -3,11 +3,11 @@
  * 
  * Extracted handlers for integration-management edge function.
  * 
- * RISE Protocol Compliant - < 300 linhas
+ * RISE Protocol V2 Compliant - Zero `any`
+ * @version 2.0.0
  */
 
-// deno-lint-ignore-file no-explicit-any
-type SupabaseClientAny = any;
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // ============================================================================
 // TYPES
@@ -31,7 +31,7 @@ interface SessionRecord {
 // ============================================================================
 
 export async function checkRateLimit(
-  supabase: SupabaseClientAny,
+  supabase: SupabaseClient,
   producerId: string,
   action: string
 ): Promise<{ allowed: boolean; retryAfter?: number }> {
@@ -60,7 +60,7 @@ export async function checkRateLimit(
 }
 
 export async function recordRateLimitAttempt(
-  supabase: SupabaseClientAny,
+  supabase: SupabaseClient,
   producerId: string,
   action: string
 ): Promise<void> {
@@ -92,7 +92,7 @@ export function errorResponse(message: string, corsHeaders: Record<string, strin
 // ============================================================================
 
 export async function validateProducerSession(
-  supabase: SupabaseClientAny,
+  supabase: SupabaseClient,
   sessionToken: string
 ): Promise<{ valid: boolean; producerId?: string; error?: string }> {
   if (!sessionToken) {
@@ -146,7 +146,7 @@ export function generateSecureNonce(): string {
 // ============================================================================
 
 export async function handleSaveCredentials(
-  supabase: SupabaseClientAny,
+  supabase: SupabaseClient,
   producerId: string,
   body: { integrationType?: IntegrationType; config?: Record<string, unknown> },
   corsHeaders: Record<string, string>
@@ -218,7 +218,7 @@ export async function handleSaveCredentials(
 // ============================================================================
 
 export async function handleDisconnect(
-  supabase: SupabaseClientAny,
+  supabase: SupabaseClient,
   producerId: string,
   body: { integrationType?: string; integrationId?: string },
   corsHeaders: Record<string, string>

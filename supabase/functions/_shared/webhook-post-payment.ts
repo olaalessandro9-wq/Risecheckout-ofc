@@ -13,12 +13,10 @@
  * ============================================================================
  */
 
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendOrderConfirmationEmails, type OrderData } from './send-order-emails.ts';
 import { grantMembersAccess, type GrantAccessInput } from './grant-members-access.ts';
 import { type Logger } from './webhook-helpers.ts';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseClientAny = any;
 
 // ============================================================================
 // TYPES
@@ -51,7 +49,7 @@ export interface PostPaymentResult {
  * Executa todas as ações pós-pagamento aprovado
  */
 export async function processPostPaymentActions(
-  supabase: SupabaseClientAny,
+  supabase: SupabaseClient,
   input: PostPaymentInput,
   eventType: string | null,
   logger: Logger
