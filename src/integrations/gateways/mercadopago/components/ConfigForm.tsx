@@ -163,8 +163,8 @@ export function ConfigForm({ onConnectionChange }: { onConnectionChange?: () => 
       const nonce = generateSecureNonce();
       
       // Salvar nonce no banco via Edge Function (integration-management/init-oauth)
-      const { getProducerSessionToken } = await import("@/hooks/useProducerSession");
-      const sessionToken = await getProducerSessionToken();
+      const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
+      const sessionToken = getProducerSessionToken();
       
       const { data: oauthResult, error: oauthError } = await supabase.functions.invoke('integration-management/init-oauth', {
         body: {
@@ -292,8 +292,8 @@ export function ConfigForm({ onConnectionChange }: { onConnectionChange?: () => 
     try {
       if (!integration?.id) return;
 
-      const { getProducerSessionToken } = await import("@/hooks/useProducerSession");
-      const sessionToken = await getProducerSessionToken();
+      const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
+      const sessionToken = getProducerSessionToken();
 
       const { data: result, error } = await supabase.functions.invoke('integration-management/disconnect', {
         body: {

@@ -287,6 +287,9 @@ verify_jwt = false
 [functions.get-webhook-logs]
 verify_jwt = false
 
+[functions.webhook-crud]
+verify_jwt = false
+
 [functions.test-webhook-dispatch]
 verify_jwt = false
 

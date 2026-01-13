@@ -325,8 +325,8 @@ export function useMembersAreaBuilder(productId: string | undefined): UseMembers
     setState(prev => ({ ...prev, isSaving: true }));
     
     try {
-      const { getProducerSessionToken } = await import("@/hooks/useProducerSession");
-      const sessionToken = await getProducerSessionToken();
+      const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
+      const sessionToken = getProducerSessionToken();
       
       // 1. Get deleted section IDs (in original but not in current, excluding temp IDs)
       const originalIds = new Set(originalSectionsRef.current.map(s => s.id));
