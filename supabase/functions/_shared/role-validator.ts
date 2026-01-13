@@ -14,7 +14,7 @@
  * await requireRole(supabase, userId, "admin", "manage affiliates");
  */
 
-import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logPermissionDenied } from "./audit-logger.ts";
 
 // Tipos de role
