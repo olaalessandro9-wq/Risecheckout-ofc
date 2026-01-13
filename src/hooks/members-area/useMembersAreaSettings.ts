@@ -120,22 +120,27 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
   // Usar sempre localModules (agora sincronizado com React Query)
   const modules = localModules;
 
-  // Mutation para atualizar settings
+  // Mutation para atualizar settings via Edge Function
   const updateMutation = useMutation({
     mutationFn: async ({ enabled, newSettings }: { enabled: boolean; newSettings?: Json }) => {
       if (!productId) throw new Error("Product ID required");
 
-      const currentSettings = settingsQuery.data?.settings;
+      const { getProducerSessionToken } = await import("@/hooks/useProducerSession");
+      const sessionToken = await getProducerSessionToken();
       
-      const { error } = await supabase
-        .from("products")
-        .update({
-          members_area_enabled: enabled,
-          members_area_settings: newSettings || currentSettings,
-        })
-        .eq("id", productId);
-
-      if (error) throw error;
+      const { data: result, error } = await supabase.functions.invoke('product-settings', {
+        body: {
+          action: 'update-members-area-settings',
+          productId,
+          enabled,
+          settings: newSettings,
+          sessionToken,
+        }
+      });
+      
+      if (error || !result?.success) {
+        throw new Error(result?.error || error?.message || "Erro ao atualizar configurações");
+      }
 
       // Configurações adicionais quando habilitado
       if (enabled && user?.email) {

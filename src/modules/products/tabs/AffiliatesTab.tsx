@@ -155,14 +155,23 @@ export function AffiliatesTab() {
         }
       }
 
-      // Salvar gateway settings
+      // Salvar gateway settings via Edge Function
       const { supabase } = await import("@/integrations/supabase/client");
-      await supabase
-        .from("products")
-        .update({ 
-          affiliate_gateway_settings: JSON.parse(JSON.stringify(gatewaySettings)) 
-        })
-        .eq("id", product.id);
+      const { getProducerSessionToken } = await import("@/hooks/useProducerSession");
+      const sessionToken = await getProducerSessionToken();
+      
+      const { data: result, error: gatewayError } = await supabase.functions.invoke('product-settings', {
+        body: { 
+          action: 'update-affiliate-gateway-settings',
+          productId: product.id,
+          gatewaySettings,
+          sessionToken,
+        }
+      });
+      
+      if (gatewayError || !result?.success) {
+        throw new Error(result?.error || gatewayError?.message || "Erro ao salvar gateway settings");
+      }
 
       await saveAffiliateSettings(localSettings);
       

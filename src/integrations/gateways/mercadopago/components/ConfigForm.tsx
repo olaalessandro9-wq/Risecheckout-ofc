@@ -162,27 +162,32 @@ export function ConfigForm({ onConnectionChange }: { onConnectionChange?: () => 
       // Gerar nonce seguro
       const nonce = generateSecureNonce();
       
-      // Salvar nonce no banco (usando type assertion para tabela oauth_states)
-      const { error: insertError } = await (supabase as any)
-        .from('oauth_states')
-        .insert({
-          state: nonce,
-          vendor_id: user.id
-        });
+      // Salvar nonce no banco via Edge Function (integration-management/init-oauth)
+      const { getProducerSessionToken } = await import("@/hooks/useProducerSession");
+      const sessionToken = await getProducerSessionToken();
+      
+      const { data: oauthResult, error: oauthError } = await supabase.functions.invoke('integration-management/init-oauth', {
+        body: {
+          integrationType: 'MERCADOPAGO',
+          sessionToken,
+        }
+      });
 
-      if (insertError) {
-        console.error('[ConfigForm] Erro ao salvar state:', insertError);
+      if (oauthError || !oauthResult?.success) {
+        console.error('[ConfigForm] Erro ao salvar state:', oauthResult?.error || oauthError);
         toast.error('Erro ao iniciar autenticação. Tente novamente.');
         setConnectingOAuth(false);
         return;
       }
+      
+      const stateNonce = oauthResult.state || nonce;
 
       // Construir URL de autorização
       const authUrl = new URL('https://auth.mercadopago.com.br/authorization');
       authUrl.searchParams.set('client_id', MERCADOPAGO_CLIENT_ID);
       authUrl.searchParams.set('response_type', 'code');
       authUrl.searchParams.set('platform_id', 'mp');
-      authUrl.searchParams.set('state', nonce);
+      authUrl.searchParams.set('state', stateNonce);
       authUrl.searchParams.set('redirect_uri', MERCADOPAGO_REDIRECT_URI);
 
       // Abrir popup
@@ -287,12 +292,19 @@ export function ConfigForm({ onConnectionChange }: { onConnectionChange?: () => 
     try {
       if (!integration?.id) return;
 
-      const { error } = await supabase
-        .from('vendor_integrations')
-        .delete()
-        .eq('id', integration.id);
+      const { getProducerSessionToken } = await import("@/hooks/useProducerSession");
+      const sessionToken = await getProducerSessionToken();
 
-      if (error) throw error;
+      const { data: result, error } = await supabase.functions.invoke('integration-management/disconnect', {
+        body: {
+          integrationId: integration.id,
+          sessionToken,
+        }
+      });
+
+      if (error || !result?.success) {
+        throw new Error(result?.error || error?.message || "Erro ao desconectar");
+      }
 
       toast.success('Integração desconectada');
       setCurrentMode('none');

@@ -24,7 +24,7 @@ import { withSentry, captureException } from "../_shared/sentry.ts";
 // ============================================
 
 interface ModuleRequest {
-  action: "create" | "update" | "delete" | "reorder" | "list";
+  action: "create" | "update" | "delete" | "reorder" | "list" | "save-sections" | "save-builder-settings";
   productId?: string;
   moduleId?: string;
   data?: {
@@ -34,6 +34,11 @@ interface ModuleRequest {
   };
   orderedIds?: string[];
   sessionToken?: string;
+  // For save-sections action
+  sections?: any[];
+  deletedIds?: string[];
+  // For save-builder-settings action
+  settings?: Record<string, any>;
 }
 
 // ============================================
@@ -428,6 +433,125 @@ serve(withSentry("members-area-modules", async (req) => {
       }
 
       console.log(`[members-area-modules] Modules reordered by ${producerId}`);
+      return jsonResponse({ success: true }, corsHeaders);
+    }
+
+    // ============================================
+    // SAVE BUILDER SECTIONS (batch save for builder)
+    // ============================================
+    if (action === "save-sections") {
+      if (!productId) {
+        return errorResponse("productId é obrigatório", corsHeaders, 400);
+      }
+
+      const { sections, deletedIds } = body;
+
+      if (!Array.isArray(sections)) {
+        return errorResponse("sections deve ser um array", corsHeaders, 400);
+      }
+
+      const ownership = await verifyProductOwnership(supabase, productId, producerId);
+      if (!ownership.valid) {
+        return errorResponse(ownership.error!, corsHeaders, 403);
+      }
+
+      // 1. Delete removed sections
+      if (deletedIds && deletedIds.length > 0) {
+        const { error: deleteError } = await supabase
+          .from("product_members_sections")
+          .delete()
+          .in("id", deletedIds)
+          .eq("product_id", productId);
+
+        if (deleteError) {
+          console.error("[members-area-modules] Delete sections error:", deleteError);
+          return errorResponse("Erro ao excluir seções", corsHeaders, 500);
+        }
+      }
+
+      // 2. Separate new (temp_) from existing sections
+      const newSections = sections.filter(s => s.id?.startsWith("temp_"));
+      const existingSections = sections.filter(s => !s.id?.startsWith("temp_"));
+      const insertedIdMap: Record<string, string> = {};
+
+      // 3. Insert new sections
+      for (const section of newSections) {
+        const { data: inserted, error: insertError } = await supabase
+          .from("product_members_sections")
+          .insert({
+            product_id: productId,
+            type: section.type,
+            title: section.title || null,
+            position: section.position,
+            settings: section.settings || {},
+            is_active: section.is_active ?? true,
+          })
+          .select("id")
+          .single();
+
+        if (insertError) {
+          console.error("[members-area-modules] Insert section error:", insertError);
+          return errorResponse("Erro ao criar seção", corsHeaders, 500);
+        }
+
+        if (inserted) {
+          insertedIdMap[section.id] = inserted.id;
+        }
+      }
+
+      // 4. Update existing sections
+      for (const section of existingSections) {
+        const { error: updateError } = await supabase
+          .from("product_members_sections")
+          .update({
+            title: section.title || null,
+            position: section.position,
+            settings: section.settings || {},
+            is_active: section.is_active ?? true,
+          })
+          .eq("id", section.id)
+          .eq("product_id", productId);
+
+        if (updateError) {
+          console.error("[members-area-modules] Update section error:", updateError);
+          // Continue, don't fail all
+        }
+      }
+
+      console.log(`[members-area-modules] Sections saved by ${producerId}: ${sections.length} sections, ${deletedIds?.length || 0} deleted`);
+      return jsonResponse({ success: true, insertedIdMap }, corsHeaders);
+    }
+
+    // ============================================
+    // SAVE BUILDER SETTINGS (product.members_area_settings)
+    // ============================================
+    if (action === "save-builder-settings") {
+      if (!productId) {
+        return errorResponse("productId é obrigatório", corsHeaders, 400);
+      }
+
+      const settings = body.settings;
+
+      if (!settings || typeof settings !== "object") {
+        return errorResponse("settings é obrigatório", corsHeaders, 400);
+      }
+
+      const ownership = await verifyProductOwnership(supabase, productId, producerId);
+      if (!ownership.valid) {
+        return errorResponse(ownership.error!, corsHeaders, 403);
+      }
+
+      const { error: updateError } = await supabase
+        .from("products")
+        .update({ members_area_settings: settings })
+        .eq("id", productId);
+
+      if (updateError) {
+        console.error("[members-area-modules] Save builder settings error:", updateError);
+        return errorResponse("Erro ao salvar configurações", corsHeaders, 500);
+      }
+
+      console.log(`[members-area-modules] Builder settings saved for ${productId} by ${producerId}`);
       return jsonResponse({ success: true }, corsHeaders);
     }
 

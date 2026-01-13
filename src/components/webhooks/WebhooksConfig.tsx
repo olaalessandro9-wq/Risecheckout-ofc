@@ -110,78 +110,47 @@ export function WebhooksConfig() {
     product_ids: string[];
   }) => {
     try {
-      // Gerar secret automaticamente (não será exibido ao usuário)
-      const secret = `whsec_${crypto.randomUUID().replace(/-/g, "")}`;
+      const { getProducerSessionToken } = await import("@/hooks/useProducerSession");
+      const sessionToken = await getProducerSessionToken();
 
       if (editingWebhook) {
-        // Atualizar webhook existente
-        const { error: updateError } = await supabase
-          .from("outbound_webhooks")
-          .update({
-            name: data.name,
-            url: data.url,
-            events: data.events,
-            product_id: data.product_ids[0] || null, // Manter compatibilidade
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", editingWebhook.id);
+        // Atualizar webhook existente via Edge Function
+        const { data: result, error } = await supabase.functions.invoke('webhook-crud', {
+          body: {
+            action: 'update',
+            webhookId: editingWebhook.id,
+            data: {
+              name: data.name,
+              url: data.url,
+              events: data.events,
+              product_ids: data.product_ids,
+            },
+            sessionToken,
+          }
+        });
 
-        if (updateError) throw updateError;
-
-        // Atualizar produtos na tabela webhook_products
-        // 1. Remover produtos antigos
-        const { error: deleteError } = await supabase
-          .from("webhook_products")
-          .delete()
-          .eq("webhook_id", editingWebhook.id);
-
-        if (deleteError) throw deleteError;
-
-        // 2. Inserir novos produtos
-        if (data.product_ids.length > 0) {
-          const { error: insertError } = await supabase
-            .from("webhook_products")
-            .insert(
-              data.product_ids.map((productId) => ({
-                webhook_id: editingWebhook.id,
-                product_id: productId,
-              }))
-            );
-
-          if (insertError) throw insertError;
+        if (error || !result?.success) {
+          throw new Error(result?.error || error?.message || "Erro ao atualizar webhook");
         }
 
         toast.success("Webhook atualizado com sucesso!");
       } else {
-        // Criar novo webhook
-        const { data: newWebhook, error: webhookError } = await supabase
-          .from("outbound_webhooks")
-          .insert({
-            vendor_id: user?.id,
-            name: data.name,
-            url: data.url,
-            events: data.events,
-            product_id: data.product_ids[0] || null, // Manter compatibilidade
-            secret: secret,
-            active: true,
-          })
-          .select()
-          .single();
+        // Criar novo webhook via Edge Function
+        const { data: result, error } = await supabase.functions.invoke('webhook-crud', {
+          body: {
+            action: 'create',
+            data: {
+              name: data.name,
+              url: data.url,
+              events: data.events,
+              product_ids: data.product_ids,
+            },
+            sessionToken,
+          }
+        });
 
-        if (webhookError) throw webhookError;
-
-        // Inserir produtos na tabela webhook_products
-        if (data.product_ids.length > 0 && newWebhook) {
-          const { error: insertError } = await supabase
-            .from("webhook_products")
-            .insert(
-              data.product_ids.map((productId) => ({
-                webhook_id: newWebhook.id,
-                product_id: productId,
-              }))
-            );
-
-          if (insertError) throw insertError;
+        if (error || !result?.success) {
+          throw new Error(result?.error || error?.message || "Erro ao criar webhook");
         }
 
         toast.success("Webhook criado com sucesso!");
@@ -203,12 +172,20 @@ export function WebhooksConfig() {
 
   const handleDelete = async (webhookId: string) => {
     try {
-      const { error } = await supabase
-        .from("outbound_webhooks")
-        .delete()
-        .eq("id", webhookId);
+      const { getProducerSessionToken } = await import("@/hooks/useProducerSession");
+      const sessionToken = await getProducerSessionToken();
 
-      if (error) throw error;
+      const { data: result, error } = await supabase.functions.invoke('webhook-crud', {
+        body: {
+          action: 'delete',
+          webhookId,
+          sessionToken,
+        }
+      });
+
+      if (error || !result?.success) {
+        throw new Error(result?.error || error?.message || "Erro ao excluir webhook");
+      }
 
       toast.success("Webhook excluído com sucesso!");
       loadData();
