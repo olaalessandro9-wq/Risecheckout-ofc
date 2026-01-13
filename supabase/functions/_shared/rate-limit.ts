@@ -5,9 +5,13 @@
  * Usa Supabase como armazenamento de tentativas
  * 
  * Baseado em OWASP Top 10 - Authentication Failures (#7)
+ * RISE Protocol Compliant
  */
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+// deno-lint-ignore no-explicit-any
+type SupabaseClientGeneric = { from: (table: string) => any };
 
 interface RateLimitConfig {
   maxAttempts: number;
@@ -32,7 +36,7 @@ interface RateLimitAttempt {
 }
 
 export async function checkRateLimit(
-  supabase: any,
+  supabase: SupabaseClientGeneric,
   config: RateLimitConfig
 ): Promise<RateLimitResult> {
   const { maxAttempts, windowMs, identifier, action } = config;
@@ -78,7 +82,7 @@ export async function checkRateLimit(
 }
 
 export async function recordAttempt(
-  supabase: any,
+  supabase: SupabaseClientGeneric,
   config: RateLimitConfig,
   success: boolean = false
 ): Promise<void> {

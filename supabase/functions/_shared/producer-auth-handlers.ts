@@ -4,10 +4,10 @@
  * Extracted handlers for producer-auth edge function.
  * Keeps index.ts as a clean router (~150 lines).
  * 
- * RISE Protocol Compliant
+ * RISE Protocol Compliant - Zero `any` (exceto SupabaseClient internals)
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "./rate-limiter.ts";
 import { validatePassword, formatPasswordError } from "./password-policy.ts";
 import { sanitizeEmail, sanitizeName, sanitizePhone } from "./sanitizer.ts";
@@ -17,20 +17,40 @@ import {
   hashPassword,
   verifyPassword,
   generateSessionToken,
-  generateResetToken,
   logAuditEvent,
-  getPasswordResetEmailHtml,
-  getPasswordResetEmailText,
   jsonResponse,
   errorResponse,
 } from "./producer-auth-helpers.ts";
+
+import type { ProducerProfile, UserRole } from "./supabase-types.ts";
+
+// ============================================
+// INTERNAL TYPES
+// ============================================
+
+interface ExistingProfileResult {
+  id: string;
+  email: string;
+  password_hash: string | null;
+}
+
+interface SessionQueryResult {
+  producer_id: string;
+}
+
+interface SessionWithProducerResult {
+  id: string;
+  expires_at: string;
+  is_valid: boolean;
+  producer: ProducerProfile | ProducerProfile[];
+}
 
 // ============================================
 // REGISTER HANDLER
 // ============================================
 
 export async function handleRegister(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   req: Request,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
@@ -68,12 +88,12 @@ export async function handleRegister(
     }, corsHeaders, 400);
   }
 
-  // Check existing profile
+  // Check existing profile with explicit type
   const { data: existingProfile } = await supabase
     .from("profiles")
     .select("id, email, password_hash")
     .eq("email", email.toLowerCase())
-    .single();
+    .single() as { data: ExistingProfileResult | null; error: unknown };
 
   if (existingProfile) {
     if (existingProfile.password_hash && existingProfile.password_hash !== "PENDING_MIGRATION") {
@@ -145,7 +165,7 @@ export async function handleRegister(
 // ============================================
 
 export async function handleLogin(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   req: Request,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
@@ -168,7 +188,7 @@ export async function handleLogin(
     .from("profiles")
     .select("id, email, name, password_hash, password_hash_version, is_active")
     .eq("email", email.toLowerCase())
-    .single();
+    .single() as { data: ProducerProfile | null; error: unknown };
 
   if (findError || !producer) {
     console.log(`[producer-auth] Login failed - producer not found: ${email}`);
@@ -232,7 +252,7 @@ export async function handleLogin(
     .from("user_roles")
     .select("role")
     .eq("user_id", producer.id)
-    .single();
+    .single() as { data: UserRole | null; error: unknown };
 
   // Sync with Supabase Auth for RLS compatibility
   let supabaseSession = null;
@@ -274,7 +294,7 @@ export async function handleLogin(
 // ============================================
 
 export async function handleLogout(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   req: Request,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
@@ -290,7 +310,7 @@ export async function handleLogout(
     .from("producer_sessions")
     .select("producer_id")
     .eq("session_token", sessionToken)
-    .single();
+    .single() as { data: SessionQueryResult | null; error: unknown };
 
   await supabase.from("producer_sessions").update({ is_valid: false }).eq("session_token", sessionToken);
 
@@ -307,7 +327,7 @@ export async function handleLogout(
 // ============================================
 
 export async function handleValidate(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   req: Request,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
@@ -321,7 +341,7 @@ export async function handleValidate(
     .from("producer_sessions")
     .select(`id, expires_at, is_valid, producer:producer_id (id, email, name, is_active)`)
     .eq("session_token", sessionToken)
-    .single();
+    .single() as { data: SessionWithProducerResult | null; error: unknown };
 
   if (!session || !session.is_valid || !session.producer) {
     return jsonResponse({ valid: false }, corsHeaders);
@@ -345,7 +365,7 @@ export async function handleValidate(
     .from("user_roles")
     .select("role")
     .eq("user_id", producerData.id)
-    .single();
+    .single() as { data: UserRole | null; error: unknown };
 
   return jsonResponse({
     valid: true,

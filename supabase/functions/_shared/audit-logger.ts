@@ -1,21 +1,12 @@
 /**
  * Audit Logger - Helper para registrar eventos de segurança
  * 
- * Uso:
- * import { logSecurityEvent, SecurityAction } from "../_shared/audit-logger.ts";
- * 
- * await logSecurityEvent(supabaseClient, {
- *   userId: user.id,
- *   action: SecurityAction.MANAGE_AFFILIATION,
- *   resource: "affiliates",
- *   resourceId: affiliationId,
- *   success: true,
- *   request: req,
- *   metadata: { oldStatus, newStatus }
- * });
+ * RISE Protocol Compliant
  */
 
-// Usando any para evitar conflitos de versão de SupabaseClient
+// Usando tipo genérico para compatibilidade com diferentes versões do Supabase
+// deno-lint-ignore no-explicit-any
+type SupabaseClientGeneric = { from: (table: string) => any; rpc: (fn: string, params: any) => any };
 
 // Ações de segurança padronizadas
 export const SecurityAction = {
@@ -66,7 +57,7 @@ interface LogSecurityEventParams {
  * Registra um evento de segurança no banco de dados
  */
 export async function logSecurityEvent(
-  supabase: any,
+  supabase: SupabaseClientGeneric,
   params: LogSecurityEventParams
 ): Promise<void> {
   const {
@@ -113,7 +104,7 @@ export async function logSecurityEvent(
  * Helper para log de acesso negado
  */
 export async function logAccessDenied(
-  supabase: any,
+  supabase: SupabaseClientGeneric,
   userId: string,
   resource: string,
   request?: Request,
@@ -133,7 +124,7 @@ export async function logAccessDenied(
  * Helper para log de permissão negada (role insuficiente)
  */
 export async function logPermissionDenied(
-  supabase: any,
+  supabase: SupabaseClientGeneric,
   userId: string,
   userRole: string,
   requiredRole: string,
