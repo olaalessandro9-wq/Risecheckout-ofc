@@ -176,9 +176,9 @@ export function PixelsTab({ affiliationId, initialPixels, onRefetch }: PixelsTab
 
       toast.success("Pixels salvos com sucesso!");
       await onRefetch();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Erro ao salvar pixels:", err);
-      toast.error(err.message || "Erro ao salvar pixels");
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar pixels");
     } finally {
       setIsSaving(false);
     }

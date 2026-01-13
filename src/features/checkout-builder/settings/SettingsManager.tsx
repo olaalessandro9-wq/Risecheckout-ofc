@@ -49,15 +49,15 @@ export const SettingsManager = ({ customization, onUpdate }: SettingsManagerProp
     else if (path.startsWith('design.colors.')) {
       // Marca como custom (usuário customizou uma cor)
       // Usa cloneDeep para evitar mutação do objeto original
-      const newDesign = cloneDeep(customization.design) as unknown as Record<string, unknown>;
+      const newDesign: CheckoutDesign = cloneDeep(customization.design);
       
       // Usa set para atualizar o valor de forma segura
       // Remove 'design.' do path pois já estamos trabalhando com newDesign
       const designPath = path.replace('design.', '');
-      set(newDesign, designPath, value);
+      set(newDesign as unknown as Record<string, unknown>, designPath, value);
       
       // Marca como custom
-      (newDesign as CheckoutDesign).theme = 'custom';
+      newDesign.theme = 'custom';
       
       onUpdate('design', newDesign);
     }

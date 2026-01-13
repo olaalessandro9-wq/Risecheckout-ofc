@@ -111,7 +111,7 @@ export function useProductCore({
           marketplaceCategory: data.marketplace_category || "",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[useProductCore] Error loading product:", error);
       toast.error("Erro ao carregar produto");
     }
@@ -186,7 +186,7 @@ export function useProductCore({
 
       toast.success("Produto salvo com sucesso");
       await refreshProduct();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[useProductCore] Error saving product:", error);
       throw error;
     }
@@ -225,9 +225,9 @@ export function useProductCore({
       const deleteType = data.type === 'soft' ? 'arquivado' : 'excluído';
       toast.success(`Produto ${deleteType} com sucesso`);
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[useProductCore] Error deleting product:", error);
-      toast.error(error.message || "Erro ao excluir produto");
+      toast.error(error instanceof Error ? error.message : "Erro ao excluir produto");
       return false;
     }
   }, [productId, userId]);

@@ -107,17 +107,19 @@ const MercadoPagoFieldsComponent = forwardRef<MercadoPagoFieldsRef, MercadoPagoF
             issuerId: issuerSelect?.value || '',
             installments: installmentsSelect?.value || '1',
           };
-        } catch (error: any) {
+        } catch (error: unknown) {
           // Mapeia erros do SDK para campos específicos
-          const rawList = Array.isArray(error) ? error : (error.cause || [error]);
+          const errorObj = error as { cause?: unknown[] } | unknown[];
+          const rawList = Array.isArray(error) ? error : ((errorObj as { cause?: unknown[] })?.cause || [error]);
           const errorList = Array.isArray(rawList) ? rawList : [rawList];
           
           const mappedErrors: FieldErrors = {};
           
-          errorList.forEach((e: any) => {
-            const code = String(e.code || '');
-            const msg = String(e.message || '').toLowerCase();
-            const desc = String(e.description || '').toLowerCase();
+          errorList.forEach((e: unknown) => {
+            const errorItem = e as { code?: string | number; message?: string; description?: string };
+            const code = String(errorItem.code || '');
+            const msg = String(errorItem.message || '').toLowerCase();
+            const desc = String(errorItem.description || '').toLowerCase();
             
             if (
               ['205', 'E301', '3034'].includes(code) || 

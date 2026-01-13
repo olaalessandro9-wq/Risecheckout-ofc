@@ -278,9 +278,9 @@ export function usePaymentOrchestrator({
           personalDataOverride // ✅ Passa override para processCardPayment
         );
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[PaymentOrchestrator] Erro:", error);
-      toast.error(error.message || "Não foi possível processar seu pagamento.");
+      toast.error(error instanceof Error ? error.message : "Não foi possível processar seu pagamento.");
     } finally {
       setIsProcessing(false);
     }

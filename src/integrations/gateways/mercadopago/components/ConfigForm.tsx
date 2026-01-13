@@ -278,9 +278,10 @@ export function ConfigForm({ onConnectionChange }: { onConnectionChange?: () => 
       if (onConnectionChange) {
         onConnectionChange();
       }
-    } catch (error: any) {
-      setMessage({ type: "error", text: `Erro: ${error.message}` });
-      toast.error(`Erro: ${error.message}`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Erro desconhecido";
+      setMessage({ type: "error", text: `Erro: ${message}` });
+      toast.error(`Erro: ${message}`);
     } finally {
       setSavingSandbox(false);
     }

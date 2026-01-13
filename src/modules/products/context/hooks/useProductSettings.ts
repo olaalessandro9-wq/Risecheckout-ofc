@@ -156,7 +156,7 @@ export function useProductSettings({
       if (data?.error) throw new Error(data.error);
 
       onSaveComplete();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[useProductSettings] Error saving payment settings:", error);
       throw error;
     }
@@ -187,7 +187,7 @@ export function useProductSettings({
       if (data?.error) throw new Error(data.error);
 
       onSaveComplete();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[useProductSettings] Error saving checkout fields:", error);
       throw error;
     }
@@ -221,7 +221,7 @@ export function useProductSettings({
 
         setUpsellSettings(settings);
         onSaveComplete();
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error("[useProductSettings] Error saving upsell settings:", error);
         throw error;
       }
@@ -258,7 +258,7 @@ export function useProductSettings({
 
         setAffiliateSettings(settings);
         onSaveComplete();
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error("[useProductSettings] Error saving affiliate settings:", error);
         throw error;
       }

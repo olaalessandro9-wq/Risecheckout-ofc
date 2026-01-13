@@ -132,7 +132,7 @@ export async function POST(request: Request) {
       }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[storage/remove] Exception:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),

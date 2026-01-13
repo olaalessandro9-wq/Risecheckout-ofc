@@ -77,9 +77,9 @@ export function EditPriceDialog({
       toast.success("Preço atualizado com sucesso!");
       onPriceUpdated(price);
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[EditPriceDialog] Erro:", error);
-      toast.error(`Erro ao atualizar preço: ${error.message}`);
+      toast.error(`Erro ao atualizar preço: ${error instanceof Error ? error.message : "Erro desconhecido"}`);
     } finally {
       setIsSaving(false);
     }

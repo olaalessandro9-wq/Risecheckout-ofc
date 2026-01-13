@@ -116,8 +116,8 @@ export function useOrderCreation({ config }: UseOrderCreationProps): UseOrderCre
         order_id: data.order_id,
         access_token: data.access_token
       };
-    } catch (err: any) {
-      const errorMessage = err?.message || "Erro ao criar pedido";
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Erro ao criar pedido";
       console.error("[useOrderCreation] ❌ Erro:", errorMessage);
       setError(errorMessage);
       return {

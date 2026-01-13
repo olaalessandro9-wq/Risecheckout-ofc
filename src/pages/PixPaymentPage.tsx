@@ -71,7 +71,7 @@ export const PixPaymentPage = () => {
       
       console.log("[PixPaymentPage] Pedido encontrado via RPC:", order);
       setOrderData(order);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[PixPaymentPage] Erro ao buscar pedido:", err);
       toast.error("Erro ao carregar dados do pedido");
     }
@@ -179,9 +179,9 @@ export const PixPaymentPage = () => {
       
       setLoading(false);
       toast.success("QR Code gerado com sucesso!");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[PixPaymentPage] Erro ao criar PIX:", err);
-      toast.error(err.message || "Erro ao gerar QR Code");
+      toast.error(err instanceof Error ? err.message : "Erro ao gerar QR Code");
       setLoading(false);
     }
   }, [orderId, orderData, qrCode]);
@@ -370,7 +370,7 @@ export const PixPaymentPage = () => {
       }
       
       return { paid: false };
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[PixPaymentPage] ❌ Erro capturado ao verificar status:", err);
       // Não mostrar toast aqui, deixar para o botão lidar com isso
       throw err; // Re-lançar para o botão capturar e mostrar toast
@@ -622,9 +622,9 @@ export const PixPaymentPage = () => {
                         { duration: 4000 }
                       );
                     }
-                  } catch (err: any) {
+                  } catch (err: unknown) {
                     console.error("[PixPaymentPage] ❌ Erro ao verificar pagamento:", err);
-                    const errorMsg = err?.message || "Erro ao verificar pagamento. Tente novamente.";
+                    const errorMsg = err instanceof Error ? err.message : "Erro ao verificar pagamento. Tente novamente.";
                     toast.error(errorMsg, { duration: 5000 });
                   } finally {
                     setCheckingPayment(false);

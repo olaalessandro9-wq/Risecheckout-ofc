@@ -51,7 +51,7 @@ export function useProductEntities({
 
       if (error) throw error;
       setOffers(data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[useProductEntities] Error loading offers:", error);
     }
   }, [productId]);
@@ -88,7 +88,7 @@ export function useProductEntities({
 
       // Type assertion: order_bumps schema differs from OrderBump interface
       setOrderBumps((data || []) as any);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[useProductEntities] Error loading order bumps:", error);
     }
   }, [productId]);
@@ -128,7 +128,7 @@ export function useProductEntities({
           expires_at: coupon.expires_at,
         }))
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[useProductEntities] Error loading coupons:", error);
     }
   }, []);
