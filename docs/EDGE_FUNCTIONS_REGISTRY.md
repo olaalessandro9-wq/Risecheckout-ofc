@@ -10,8 +10,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 86 |
-| **No código local** | 86 |
+| **Total de Funções** | 87 |
+| **No código local** | 87 |
 | **Apenas deployadas** | 0 |
 | **Operações Diretas Frontend** | 0 ✅ |
 | **Base URL** | `https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/` |
@@ -152,6 +152,7 @@
 | `decrypt-customer-data` | `.../decrypt-customer-data` | ✅ | 10 min ago | 82 |
 | `decrypt-customer-data-batch` | `.../decrypt-customer-data-batch` | ✅ | 10 min ago | 77 |
 | `encrypt-token` | `.../encrypt-token` | ✅ | 10 min ago | 197 |
+| `security-management` | `.../security-management` | ✅ | 2026-01-13 | 0 |
 | `verify-turnstile` | `.../verify-turnstile` | ✅ | 10 min ago | 81 |
 
 ### User Management
