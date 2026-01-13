@@ -5,14 +5,16 @@ project_id = "wivbtmtgpsxupfjwwovf"
 # =====================================================
 
 # ✅ PRODUCT MANAGEMENT (usa producer_sessions, não JWT)
-[functions.product-management]
+[functions.product-crud]
+verify_jwt = false
+
+[functions.product-settings]
 verify_jwt = false
 
 [functions.offer-management]
 verify_jwt = false
 
-[functions.checkout-management]
-verify_jwt = false
+# ✅ (REMOVIDA: checkout-management foi dividida em 3 funções abaixo)
 
 [functions.checkout-crud]
 verify_jwt = false

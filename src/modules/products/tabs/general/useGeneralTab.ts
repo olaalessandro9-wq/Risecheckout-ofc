@@ -298,8 +298,9 @@ export function useGeneralTab() {
 
       // Use Edge Function for product update
       const sessionToken = localStorage.getItem('producer_session_token');
-      const { data, error } = await supabase.functions.invoke('product-management/update-general', {
+      const { data, error } = await supabase.functions.invoke('product-settings', {
         body: {
+          action: 'update-general',
           productId: product.id,
           data: {
             name: form.name,

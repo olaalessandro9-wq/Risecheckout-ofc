@@ -159,7 +159,8 @@
 | `manage-user-role` | `.../manage-user-role` | ✅ | 7 min ago | 167 |
 | `manage-user-status` | `.../manage-user-status` | ✅ | 7 min ago | 165 |
 | `producer-auth` | `.../producer-auth` | ✅ | 7 min ago | 29 |
-| `product-management` | `.../product-management` | ✅ | NEW | 0 |
+| `product-crud` | `.../product-crud` | ✅ | NEW | 0 |
+| `product-settings` | `.../product-settings` | ✅ | NEW | 0 |
 | `offer-management` | `.../offer-management` | ✅ | NEW | 0 |
 | `checkout-crud` | `.../checkout-crud` | ✅ | NEW | 0 |
 | `checkout-editor` | `.../checkout-editor` | ✅ | NEW | 0 |
@@ -277,6 +278,11 @@
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-13 | **REFATORAÇÃO FASE 1.2**: `product-management` (954 linhas) dividida em 2 Edge Functions especializadas |
+| 2026-01-13 | Criada `product-crud` (~280 linhas) - CRUD básico: create, update, delete |
+| 2026-01-13 | Criada `product-settings` (~300 linhas) - Settings: update-settings, update-general, smart-delete, update-price |
+| 2026-01-13 | Migrados 6 arquivos frontend para usar novas Edge Functions de produto |
+| 2026-01-13 | Deletada `product-management` (substituída pelas 2 novas funções) |
 | 2026-01-13 | **REFATORAÇÃO FASE 1.1**: `checkout-management` (1354 linhas) dividida em 3 Edge Functions especializadas |
 | 2026-01-13 | Criada `checkout-crud` (~296 linhas) - CRUD de checkouts: create, update, set-default, delete, toggle-link-status |
 | 2026-01-13 | Criada `checkout-editor` (~239 linhas) - Editor: get-editor-data, update-design |

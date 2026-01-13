@@ -21,7 +21,7 @@ export async function deleteProductCascade(_supabaseClient: any, rawProductId: s
   console.log('[deleteProductCascade] Starting smart deletion via Edge Function for product:', productId);
 
   // Chamar Edge Function para deleção segura
-  const { data, error } = await supabase.functions.invoke('product-management', {
+  const { data, error } = await supabase.functions.invoke('product-settings', {
     body: {
       action: 'smart-delete',
       productId,
