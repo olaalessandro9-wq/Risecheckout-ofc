@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import {
   Dialog,
   DialogContent,
@@ -28,7 +29,7 @@ interface WebhookDelivery {
   attempts: number;
   last_attempt_at: string | null;
   created_at: string;
-  payload: Record<string, unknown> | string | null;
+  payload: Json;
   order_id: string | null;
   webhook_url?: string;
 }
@@ -189,7 +190,9 @@ export function WebhookLogsDialog({
                         URL de destino:
                       </p>
                       <p className="text-sm font-mono bg-accent px-3 py-2 rounded break-all" style={{ color: "var(--text)" }}>
-                        {selectedLog.payload?.webhook_url || "N/A"}
+                        {typeof selectedLog.payload === 'object' && selectedLog.payload !== null && 'webhook_url' in selectedLog.payload
+                          ? String((selectedLog.payload as Record<string, unknown>).webhook_url)
+                          : "N/A"}
                       </p>
                     </div>
 

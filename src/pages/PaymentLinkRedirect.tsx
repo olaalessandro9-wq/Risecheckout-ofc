@@ -16,6 +16,22 @@ import { Loader2, AlertCircle } from "lucide-react";
  * 4. Verifica se o produto está ativo
  * 5. Redireciona para /pay/:slug (usando o slug do payment_link)
  */
+// Interface para tipagem do linkData retornado pelo Supabase
+interface PaymentLinkWithOffers {
+  id: string;
+  slug: string;
+  status: string | null;
+  offers?: {
+    id: string;
+    product_id: string;
+    products?: {
+      id: string;
+      status: string | null;
+      support_email: string | null;
+    } | null;
+  } | null;
+}
+
 const PaymentLinkRedirect = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
@@ -49,7 +65,7 @@ const PaymentLinkRedirect = () => {
             )
           `)
           .eq("slug", slug)
-          .maybeSingle(); // Tolerante a 0 linhas
+          .maybeSingle();
 
         if (linkError) {
           console.error("Erro ao buscar link:", linkError);
@@ -66,9 +82,12 @@ const PaymentLinkRedirect = () => {
         }
 
         console.log("[PaymentLinkRedirect] Link encontrado:", linkData);
+        
+        // Cast tipado para acessar nested properties
+        const typedLinkData = linkData as PaymentLinkWithOffers;
 
         // 2. Verificar se o link está ativo
-        if (linkData.status === "inactive") {
+        if (typedLinkData.status === "inactive") {
           console.log("[PaymentLinkRedirect] Link desativado");
           setIsInactive(true);
           setError("Produto não disponível, inativo ou bloqueado. Contate o suporte para mais informações.");
@@ -76,7 +95,7 @@ const PaymentLinkRedirect = () => {
         }
 
         // 3. Verificar se o produto está ativo
-        const product = (linkData as any).offers?.products;
+        const product = typedLinkData.offers?.products;
         if (product && product.status === "blocked") {
           console.log("[PaymentLinkRedirect] Produto bloqueado");
           setIsInactive(true);
@@ -86,7 +105,7 @@ const PaymentLinkRedirect = () => {
 
         // 4. Redirecionar para /pay/:slug (usando o slug do payment_link)
         // O checkout público agora busca pelo slug do payment_link, não do checkout
-        navigate(`/pay/${linkData.slug}?build=v2_7`, { replace: true });
+        navigate(`/pay/${typedLinkData.slug}?build=v2_7`, { replace: true });
       } catch (err) {
         console.error("Erro ao processar link:", err);
         // Fallback: redirecionar direto para /pay/:slug

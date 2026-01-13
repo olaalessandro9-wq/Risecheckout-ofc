@@ -7,6 +7,9 @@ import { toast } from "sonner";
 import * as PushinPay from "@/integrations/gateways/pushinpay";
 import { sendUTMifyConversion, formatDateForUTMify } from "@/lib/utmify-helper";
 
+// Tipo union para gateways suportados
+type GatewayType = 'mercadopago' | 'pushinpay' | 'asaas' | 'stripe';
+
 // Interface para os dados que vêm do usePaymentGateway via navigation state
 interface PixNavigationState {
   qrCode?: string;
@@ -14,7 +17,28 @@ interface PixNavigationState {
   qrCodeText?: string; // Asaas usa qrCodeText para o código PIX copia e cola
   amount?: number;
   accessToken?: string;
-  gateway?: 'mercadopago' | 'pushinpay' | 'asaas' | 'stripe';
+  gateway?: GatewayType;
+}
+
+// Interface para dados do pedido retornados pela RPC
+interface OrderDataFromRpc {
+  id: string;
+  amount_cents: number;
+  vendor_id: string;
+  product_id?: string;
+  product?: {
+    id: string;
+    name: string;
+  } | null;
+  customer_name?: string | null;
+  customer_email?: string | null;
+  customer_phone?: string | null;
+  customer_document?: string | null;
+  created_at?: string;
+  tracking_parameters?: Record<string, unknown> | null;
+  status?: string;
+  pix_qr_code?: string | null;
+  pix_status?: string | null;
 }
 
 export const PixPaymentPage = () => {
@@ -32,9 +56,9 @@ export const PixPaymentPage = () => {
   const [paymentStatus, setPaymentStatus] = useState<"waiting" | "paid" | "expired">("waiting");
   const [copied, setCopied] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<number>(900); // 15 minutos = 900 segundos
-  const [orderData, setOrderData] = useState<any>(null);
+  const [orderData, setOrderData] = useState<OrderDataFromRpc | null>(null);
   const [checkingPayment, setCheckingPayment] = useState(false);
-  const [gateway, setGateway] = useState<'mercadopago' | 'pushinpay' | 'asaas' | 'stripe' | null>(null);
+  const [gateway, setGateway] = useState<GatewayType | null>(null);
   
   const hasShownExpiredToast = useRef(false);
   const expiresAt = useRef<number>(0);
@@ -70,7 +94,7 @@ export const PixPaymentPage = () => {
       }
       
       console.log("[PixPaymentPage] Pedido encontrado via RPC:", order);
-      setOrderData(order);
+      setOrderData(order as OrderDataFromRpc);
     } catch (err: unknown) {
       console.error("[PixPaymentPage] Erro ao buscar pedido:", err);
       toast.error("Erro ao carregar dados do pedido");
@@ -104,7 +128,7 @@ export const PixPaymentPage = () => {
         setQrCode(navState.qrCode || navState.qrCodeText || '');
       }
       
-      setGateway(gatewayType as any);
+      setGateway(gatewayType);
       setLoading(false);
       
       // Definir expiração em 15 minutos
