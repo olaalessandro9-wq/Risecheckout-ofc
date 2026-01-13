@@ -5,6 +5,7 @@
  * Mantém compatibilidade com o design system e props legadas
  * 
  * SEGURANÇA: Usa configuração centralizada de sanitização XSS de @/lib/security
+ * RISE Protocol V2: Zero any - usa PartialComponentContent type-safe
  */
 
 import { 
@@ -16,25 +17,47 @@ import {
   BenefitBlock, 
   BadgeBlock 
 } from "@/features/checkout-builder/components";
-import { sanitize, sanitizeText, sanitizeUrl, SAFE_HTML_CONFIG } from "@/lib/security";
+import { sanitizeText, sanitizeUrl, SAFE_HTML_CONFIG } from "@/lib/security";
 import DOMPurify from 'dompurify';
 import type { ThemePreset } from "@/lib/checkout/themePresets";
+import type {
+  VideoContent,
+  TextContent,
+  ImageContent,
+  TimerContent,
+  SealContent,
+  AdvantageContent,
+  TestimonialContent,
+} from "@/types/checkout-components.types";
 
 /**
- * Conteúdo dinâmico do componente de checkout
+ * Conteúdo parcial de componente - suporta todas as variantes com campos opcionais.
  * 
- * NOTA ARQUITETURAL: Este tipo usa Record<string, unknown> com casting
- * porque os componentes têm estruturas muito variadas e dinâmicas.
- * Uma tipagem estrita aqui causaria mais complexidade do que benefício.
+ * RISE Protocol V2: Substitui Record<string, any> por tipagem forte.
+ * Usa Partial para suportar dados incompletos vindos do banco/editor.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type DynamicContent = Record<string, any>;
+type PartialComponentContent = Partial<
+  VideoContent &
+  TextContent &
+  ImageContent &
+  TimerContent &
+  SealContent &
+  AdvantageContent &
+  TestimonialContent & {
+    // Campos legados que ainda podem existir em dados antigos
+    url?: string;
+    text?: string;
+    avatar?: string;
+    name?: string;
+    size?: string;
+  }
+>;
 
 interface CheckoutComponentRendererProps {
   component: {
     id?: string;
     type: string;
-    content?: DynamicContent;
+    content?: PartialComponentContent;
   };
   design?: ThemePreset;
   isPreviewMode?: boolean;

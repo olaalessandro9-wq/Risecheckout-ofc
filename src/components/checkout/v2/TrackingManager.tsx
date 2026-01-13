@@ -5,6 +5,8 @@
  * de forma centralizada e isolada.
  * 
  * ATUALIZADO: Agora suporta pixels vinculados ao produto via product_pixels.
+ * 
+ * RISE Protocol V2: Zero any - todos os tipos legacy agora têm tipagem forte.
  */
 
 import React from "react";
@@ -14,6 +16,13 @@ import * as GoogleAds from "@/integrations/tracking/google-ads";
 import * as TikTok from "@/integrations/tracking/tiktok";
 import * as Kwai from "@/integrations/tracking/kwai";
 import type { CheckoutPixel } from "@/hooks/checkout/useCheckoutProductPixels";
+import type {
+  LegacyFacebookConfig,
+  LegacyTikTokIntegration,
+  LegacyGoogleAdsIntegration,
+  LegacyKwaiIntegration,
+  LegacyUTMifyIntegration,
+} from "./TrackingManager.types";
 
 // ============================================================================
 // INTERFACE
@@ -22,23 +31,26 @@ import type { CheckoutPixel } from "@/hooks/checkout/useCheckoutProductPixels";
 /**
  * Props do TrackingManager
  * 
- * NOTA: Os tipos legacy usam estruturas dinâmicas do banco de dados.
- * Uma tipagem estrita aqui quebraria a retrocompatibilidade.
+ * Legacy configs são mantidos para retrocompatibilidade com vendor_integrations.
+ * Todos agora têm tipagem forte via TrackingManager.types.ts
+ * 
+ * NOTA: Os hooks retornam tipos diferentes:
+ * - Facebook: retorna apenas FacebookPixelConfig (config direta)
+ * - TikTok, GoogleAds, Kwai, UTMify: retornam a integração completa
  */
 interface TrackingManagerProps {
   productId: string | null;
-  // Legacy configs (deprecated - para retrocompatibilidade)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  fbConfig?: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  utmifyConfig?: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  googleAdsIntegration?: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tiktokIntegration?: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  kwaiIntegration?: any;
-  // New: Pixels vinculados ao produto
+  /** @deprecated Use productPixels instead - retorna apenas a config */
+  fbConfig?: LegacyFacebookConfig | null;
+  /** UTMify ainda não migrou para product_pixels */
+  utmifyConfig?: LegacyUTMifyIntegration | null;
+  /** @deprecated Use productPixels instead */
+  googleAdsIntegration?: LegacyGoogleAdsIntegration | null;
+  /** @deprecated Use productPixels instead */
+  tiktokIntegration?: LegacyTikTokIntegration | null;
+  /** @deprecated Use productPixels instead */
+  kwaiIntegration?: LegacyKwaiIntegration | null;
+  /** Pixels vinculados ao produto (sistema novo - recomendado) */
   productPixels?: CheckoutPixel[];
 }
 
@@ -161,12 +173,12 @@ export const TrackingManager: React.FC<TrackingManagerProps> = ({
           {/* Log para monitorar uso do fallback legacy */}
           {console.warn('[TrackingManager] DEPRECATED: Using legacy vendor_integrations fallback. Migrate to product_pixels.')}
           
-          {/* Facebook Pixel (legacy) */}
-          {Facebook.shouldRunPixel(fbConfig, productId) && <Facebook.Pixel config={fbConfig.config} />}
+          {/* Facebook Pixel (legacy) - fbConfig já É a config, não precisa de .config */}
+          {Facebook.shouldRunPixel(fbConfig, productId) && <Facebook.Pixel config={fbConfig} />}
 
-          {/* TikTok Pixel (legacy) */}
+          {/* TikTok Pixel (legacy) - passa a integração completa */}
           {TikTok.shouldRunTikTok(tiktokIntegration, productId) && (
-            <TikTok.Pixel config={tiktokIntegration.config} />
+            <TikTok.Pixel config={tiktokIntegration} />
           )}
 
           {/* Google Ads (legacy) */}
@@ -174,9 +186,9 @@ export const TrackingManager: React.FC<TrackingManagerProps> = ({
             <GoogleAds.Tracker integration={googleAdsIntegration} />
           )}
 
-          {/* Kwai Pixel (legacy) */}
+          {/* Kwai Pixel (legacy) - passa a integração completa */}
           {Kwai.shouldRunKwai(kwaiIntegration, productId) && (
-            <Kwai.Pixel config={kwaiIntegration.config} />
+            <Kwai.Pixel config={kwaiIntegration} />
           )}
         </>
       )}
