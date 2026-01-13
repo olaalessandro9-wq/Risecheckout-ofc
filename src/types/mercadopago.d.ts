@@ -37,7 +37,7 @@ interface MercadoPagoCardFormCallbacks {
   onFormUnmounted?: (error?: Error) => void;
   onIdentificationTypesReceived?: (error?: Error, data?: unknown[]) => void;
   onPaymentMethodsReceived?: (error?: Error, data?: unknown[]) => void;
-  onInstallmentsReceived?: (error?: Error, data?: unknown) => void;
+  onInstallmentsReceived?: (error?: Error, data?: MercadoPagoInstallmentResult) => void;
   onCardTokenReceived?: (error?: Error, token?: string) => void;
   onSubmit?: (event: Event) => void;
   onFetching?: (resource: string) => () => void;
@@ -101,7 +101,8 @@ interface MercadoPagoInstance {
 
 interface MercadoPagoConstructor {
   new (publicKey: string, options?: { locale?: string }): MercadoPagoInstance;
-  setPublishableKey?: (publicKey: string) => void;
+  (publicKey: string, options?: { locale?: string }): MercadoPagoInstance;
+  setPublishableKey: (publicKey: string) => void;
 }
 
 declare global {

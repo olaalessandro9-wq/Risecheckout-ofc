@@ -178,8 +178,8 @@ export function useGatewayManager({
       setIsReady(true);
       setError(null);
       console.log(`[GatewayManager] ✅ Gateway ${gateway} pronto`);
-    } catch (err: any) {
-      const errorMessage = err?.message || 'Erro ao carregar gateway';
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao carregar gateway';
       console.error(`[GatewayManager] ❌ Erro ao carregar ${gateway}:`, err);
       setError(errorMessage);
       setIsReady(false);
@@ -203,15 +203,4 @@ export function useGatewayManager({
     gateway: config?.gateway || null,
     reload,
   };
-}
-
-// ============================================
-// TYPE DECLARATIONS
-// ============================================
-
-declare global {
-  interface Window {
-    MercadoPago: any;
-    PagSeguro: any;
-  }
 }

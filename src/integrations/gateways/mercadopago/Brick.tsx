@@ -87,7 +87,8 @@ export const Brick = ({
         };
 
         // Renderizar Brick
-        const brickBuilder = mp.bricks();
+        const mpWithBricks = mp as unknown as { bricks: () => { create: (name: string, config: unknown) => Promise<unknown> } };
+        const brickBuilder = mpWithBricks.bricks();
         await brickBuilder.create("payment", brickConfig);
 
         brickInstanceRef.current = brickBuilder;

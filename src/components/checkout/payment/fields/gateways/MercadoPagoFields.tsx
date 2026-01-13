@@ -211,8 +211,9 @@ const MercadoPagoFieldsComponent = forwardRef<MercadoPagoFieldsRef, MercadoPagoF
               bin: '520000',
               locale: 'pt-BR'
             });
-            if (data?.[0]?.payer_costs) {
-              onInstallmentsChange?.(data[0].payer_costs);
+            const installmentData = data as Array<{ payer_costs?: unknown[] }>;
+            if (installmentData?.[0]?.payer_costs) {
+              onInstallmentsChange?.(installmentData[0].payer_costs);
             }
           } catch (e) {
             console.warn("[MercadoPagoFields] Erro ao buscar parcelas:", e);
