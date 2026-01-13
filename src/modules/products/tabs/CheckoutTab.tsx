@@ -106,7 +106,7 @@ export function CheckoutTab() {
           
           const sessionToken = localStorage.getItem('producer_session_token');
           
-          const { data, error } = await supabase.functions.invoke('checkout-management', {
+          const { data, error } = await supabase.functions.invoke('checkout-crud', {
             body: { action: 'delete', checkoutId: id },
             headers: { 'x-producer-session-token': sessionToken || '' }
           });
