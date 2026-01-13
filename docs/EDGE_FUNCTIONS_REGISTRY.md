@@ -275,6 +275,7 @@
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-13 | Criados módulos compartilhados: `_shared/session.ts`, `_shared/response.ts`, `_shared/ownership.ts` |
 | 2026-01-13 | Criada `pixel-management` Edge Function - migração completa de `useVendorPixels.ts` |
 | 2026-01-13 | Adicionadas 4 funções de afiliação ao Registry: `get-affiliation-details`, `get-affiliation-status`, `get-all-affiliation-statuses`, `get-my-affiliations` |
 | 2026-01-13 | Adicionado rate limiting em `members-area-modules` e `members-area-content` |
@@ -296,6 +297,19 @@
 | 2026-01-12 | Adicionadas `offer-management`, `checkout-management`, `product-duplicate` |
 | 2026-01-12 | Adicionada `product-management` para CRUD de produtos via backend |
 | 2026-01-12 | Criação inicial do documento com 66 funções |
+
+---
+
+## Módulos Compartilhados (`_shared/`)
+
+| Arquivo | Descrição |
+|---------|-----------|
+| `cors.ts` | CORS seguro com lista de origens permitidas |
+| `sentry.ts` | Integração com Sentry para tracking de erros |
+| `rate-limit.ts` | Rate limiting usando `rate_limit_attempts` |
+| `session.ts` | Validação de sessão do produtor |
+| `response.ts` | Helpers para respostas JSON padronizadas |
+| `ownership.ts` | Verificação de ownership (produto, checkout, offer, pixel) |
 
 ---
 
