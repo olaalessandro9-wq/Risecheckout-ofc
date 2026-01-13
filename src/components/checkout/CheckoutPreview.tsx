@@ -4,6 +4,7 @@ import { normalizeDesign } from "@/lib/checkout/normalizeDesign";
 import { CheckoutPreviewLayout } from "@/components/checkout/preview/CheckoutPreviewLayout";
 import { CheckoutEditorMode } from "@/components/checkout/builder/CheckoutEditorMode";
 import { useCheckoutState } from "@/hooks/useCheckoutState";
+import type { ProductData, OrderBump } from "@/types/checkout";
 
 interface CheckoutPreviewProps {
   customization: CheckoutCustomization;
@@ -11,8 +12,8 @@ interface CheckoutPreviewProps {
   selectedComponentId: string | null;
   onSelectComponent: (id: string | null) => void;
   isPreviewMode?: boolean;
-  productData?: any;
-  orderBumps?: any[];
+  productData?: ProductData;
+  orderBumps?: OrderBump[];
 }
 
 const CheckoutPreviewComponent = ({

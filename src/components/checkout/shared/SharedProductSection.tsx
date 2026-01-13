@@ -13,17 +13,18 @@ import { ImageIcon } from '@/components/icons/ImageIcon';
 
 interface SharedProductSectionProps {
   productData: {
-    name: string;
+    name?: string;
     description?: string;
-    price: number;
+    price?: number;
     image_url?: string;
   };
   design: {
     colors: {
       primaryText: string;
       secondaryText: string;
-      productPrice: string;
+      productPrice?: string;
       formBackground: string;
+      active?: string;
     };
   };
   mode?: 'editor' | 'preview' | 'public';
@@ -42,7 +43,7 @@ export const SharedProductSection: React.FC<SharedProductSectionProps> = ({
         {productData.image_url ? (
           <img
             src={productData.image_url}
-            alt={productData.name}
+            alt={productData.name || 'Produto'}
             className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
           />
         ) : (
@@ -58,7 +59,7 @@ export const SharedProductSection: React.FC<SharedProductSectionProps> = ({
             className="text-xl font-bold mb-1 line-clamp-2 leading-tight"
             style={{ color: design.colors.primaryText }}
           >
-            {productData.name}
+            {productData.name || 'Produto'}
           </h1>
 
           {/* Preço */}
@@ -66,9 +67,9 @@ export const SharedProductSection: React.FC<SharedProductSectionProps> = ({
             <span 
               // Reduzido de text-2xl para text-lg para ficar mais discreto
               className="text-lg font-bold"
-              style={{ color: design.colors.productPrice }}
+              style={{ color: design.colors.productPrice || design.colors.active || design.colors.primaryText }}
             >
-              R$ {(Number(productData.price) / 100).toFixed(2).replace('.', ',')}
+              R$ {(Number(productData.price || 0) / 100).toFixed(2).replace('.', ',')}
             </span>
             <span 
               className="text-sm"

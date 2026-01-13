@@ -68,7 +68,7 @@ export function ProductsTable() {
       await loadProducts();
       await qc.invalidateQueries({ queryKey: ["products:list"] });
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       console.error(err);
       toast.error(`Falha ao duplicar: ${err?.message ?? "erro desconhecido"}`);
     },
@@ -83,7 +83,7 @@ export function ProductsTable() {
       await loadProducts();
       await qc.invalidateQueries({ queryKey: ["products:list"] });
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       console.error('[deleteMutation] Error:', err);
       
       // Mensagens de erro mais amigáveis

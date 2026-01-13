@@ -26,8 +26,8 @@ interface OrderBump {
 
 interface SharedOrderSummaryProps {
   productData: {
-    name: string;
-    price: number;
+    name?: string;
+    price?: number;
     image_url?: string;
     id?: string;
   };
@@ -121,7 +121,7 @@ export const SharedOrderSummary: React.FC<SharedOrderSummaryProps> = ({
               className="font-semibold text-lg mb-1 leading-tight"
               style={{ color: design.colors.primaryText }}
             >
-              {productData.name}
+              {productData.name || 'Produto'}
             </p>
             <p 
               className="font-bold text-sm"

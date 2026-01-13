@@ -1,5 +1,19 @@
 import { THEME_PRESETS, ThemePreset } from './themePresets';
-import type { CheckoutDesignInput } from '@/types/checkout-shared.types';
+
+/**
+ * Input aceito pela função normalizeDesign
+ * Compatível com qualquer objeto que tenha as propriedades de design
+ */
+type DesignInputObject = {
+  theme?: string;
+  design?: unknown;
+  background_color?: string;
+  text_color?: string;
+  primary_color?: string;
+  button_color?: string;
+  button_text_color?: string;
+  [key: string]: unknown;
+};
 
 /**
  * Normaliza o design do checkout mesclando:
@@ -10,7 +24,7 @@ import type { CheckoutDesignInput } from '@/types/checkout-shared.types';
  * Garante que todas as propriedades de cores necessárias existam,
  * sem usar "cores mágicas" hardcoded.
  */
-export function normalizeDesign(checkout: CheckoutDesignInput): ThemePreset {
+export function normalizeDesign(checkout: DesignInputObject): ThemePreset {
   // 1. Base: preset do tema
   const theme = checkout.theme || (checkout.design as Record<string, unknown>)?.theme || 'light';
   const basePreset = THEME_PRESETS[theme as 'light' | 'dark'] || THEME_PRESETS.light;
