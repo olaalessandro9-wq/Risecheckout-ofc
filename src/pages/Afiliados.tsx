@@ -142,22 +142,22 @@ const Afiliados = () => {
     try {
       const newRate = customCommission === '' ? null : parseInt(customCommission);
       
-      if (newRate !== null && (newRate < 0 || newRate > 90)) {
-        toast.error("A comissão deve ser entre 0% e 90%");
+      if (newRate !== null && (newRate < 1 || newRate > 90)) {
+        toast.error("A comissão deve ser entre 1% e 90%");
         return;
       }
 
-      const { error } = await supabase
-        .from('affiliates')
-        .update({ 
-          commission_rate: newRate,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', selectedAffiliate.id);
+      // Usar Edge Function existente (PROTOCOLO: Zero bypass direto)
+      const { data, error } = await invokeEdgeFunction<{ success: boolean; error?: string; message?: string }>("manage-affiliation", {
+        affiliation_id: selectedAffiliate.id,
+        action: "update_commission",
+        commission_rate: newRate,
+      });
 
-      if (error) throw error;
+      if (error) throw new Error(error);
+      if (!data?.success) throw new Error(data?.error || "Erro ao atualizar comissão");
 
-      toast.success('Comissão atualizada com sucesso!');
+      toast.success(data.message || 'Comissão atualizada com sucesso!');
       setIsEditDialogOpen(false);
       fetchAffiliates();
     } catch (error: any) {

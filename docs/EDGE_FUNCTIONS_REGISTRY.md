@@ -46,174 +46,172 @@
 
 | Nome | URL | No Repo? | Última Atividade | Invocações |
 |------|-----|----------|------------------|------------|
-| `asaas-create-payment` | `.../asaas-create-payment` | ✅ | 7 min ago | 154 |
-| `asaas-webhook` | `.../asaas-webhook` | ✅ | 7 min ago | 160 |
-| `asaas-validate-credentials` | `.../asaas-validate-credentials` | ❌ | 18 days ago | 19 |
+| `asaas-create-payment` | `.../asaas-create-payment` | ✅ | 10 min ago | 188 |
+| `asaas-webhook` | `.../asaas-webhook` | ✅ | 10 min ago | 194 |
+| `asaas-validate-credentials` | `.../asaas-validate-credentials` | ✅ | 20 days ago | 19 |
 
 ### Payments - PushinPay
 
 | Nome | URL | No Repo? | Última Atividade | Invocações |
 |------|-----|----------|------------------|------------|
-| `pushinpay-create-pix` | `.../pushinpay-create-pix` | ✅ | 7 min ago | 404 |
-| `pushinpay-get-status` | `.../pushinpay-get-status` | ✅ | 7 min ago | 364 |
-| `pushinpay-webhook` | `.../pushinpay-webhook` | ✅ | 7 min ago | 386 |
-| `pushinpay-stats` | `.../pushinpay-stats` | ❌ | 2 months ago | 98 |
-| `test-pushinpay-connection` | `.../test-pushinpay-connection` | ❌ | 2 months ago | 98 |
-
+| `pushinpay-create-pix` | `.../pushinpay-create-pix` | ✅ | 10 min ago | 438 |
+| `pushinpay-get-status` | `.../pushinpay-get-status` | ✅ | 10 min ago | 398 |
+| `pushinpay-webhook` | `.../pushinpay-webhook` | ✅ | 10 min ago | 420 |
+| `pushinpay-stats` | `.../pushinpay-stats` | ✅ | 10 min ago | 103 |
+| `test-pushinpay-connection` | `.../test-pushinpay-connection` | ✅ | 10 min ago | 103 |
 
 ### Payments - MercadoPago
 
 | Nome | URL | No Repo? | Última Atividade | Invocações |
 |------|-----|----------|------------------|------------|
-| `mercadopago-create-payment` | `.../mercadopago-create-payment` | ✅ | 7 min ago | 880 |
-| `mercadopago-webhook` | `.../mercadopago-webhook` | ✅ | 7 min ago | 485 |
-| `mercadopago-oauth-callback` | `.../mercadopago-oauth-callback` | ✅ | 7 min ago | 434 |
+| `mercadopago-create-payment` | `.../mercadopago-create-payment` | ✅ | 10 min ago | 915 |
+| `mercadopago-webhook` | `.../mercadopago-webhook` | ✅ | 10 min ago | 519 |
+| `mercadopago-oauth-callback` | `.../mercadopago-oauth-callback` | ✅ | 10 min ago | 468 |
 
 ### Payments - Stripe
 
 | Nome | URL | No Repo? | Última Atividade | Invocações |
 |------|-----|----------|------------------|------------|
-| `stripe-create-payment` | `.../stripe-create-payment` | ✅ | 7 min ago | 217 |
-| `stripe-webhook` | `.../stripe-webhook` | ✅ | 7 min ago | 217 |
-| `stripe-connect-oauth` | `.../stripe-connect-oauth` | ✅ | 7 min ago | 217 |
+| `stripe-create-payment` | `.../stripe-create-payment` | ✅ | 10 min ago | 251 |
+| `stripe-webhook` | `.../stripe-webhook` | ✅ | 10 min ago | 252 |
+| `stripe-connect-oauth` | `.../stripe-connect-oauth` | ✅ | 10 min ago | 251 |
 
 ### Tracking & Analytics
 
 | Nome | URL | No Repo? | Última Atividade | Invocações |
 |------|-----|----------|------------------|------------|
-| `utmify-conversion` | `.../utmify-conversion` | ❌ | 2 months ago | 115 |
-
-| `facebook-conversion-api` | `.../facebook-conversion-api` | ❌ | 2 months ago | 117 |
-
-| `dashboard-analytics` | `.../dashboard-analytics` | ❌ | 2 months ago | 136 |
-| `checkout-heartbeat` | `.../checkout-heartbeat` | ❌ | 2 months ago | 244 |
-| `detect-abandoned-checkouts` | `.../detect-abandoned-checkouts` | ❌ | 2 months ago | 244 |
+| `utmify-conversion` | `.../utmify-conversion` | ✅ | 10 min ago | 120 |
+| `facebook-conversion-api` | `.../facebook-conversion-api` | ✅ | 10 min ago | 122 |
+| `dashboard-analytics` | `.../dashboard-analytics` | ✅ | 10 min ago | 141 |
+| `checkout-heartbeat` | `.../checkout-heartbeat` | ✅ | 10 min ago | 249 |
+| `detect-abandoned-checkouts` | `.../detect-abandoned-checkouts` | ✅ | 10 min ago | 249 |
 
 ### Orders
 
 | Nome | URL | No Repo? | Última Atividade | Invocações |
 |------|-----|----------|------------------|------------|
-| `create-order` | `.../create-order` | ✅ | 7 min ago | 901 |
-| `get-order-for-pix` | `.../get-order-for-pix` | ❌ | 2 months ago | 145 |
-| `alert-stuck-orders` | `.../alert-stuck-orders` | ✅ | 7 min ago | 53 |
-| `reconcile-pending-orders` | `.../reconcile-pending-orders` | ✅ | 7 min ago | 55 |
+| `create-order` | `.../create-order` | ✅ | 10 min ago | 935 |
+| `get-order-for-pix` | `.../get-order-for-pix` | ✅ | 10 min ago | 150 |
+| `alert-stuck-orders` | `.../alert-stuck-orders` | ✅ | 10 min ago | 87 |
+| `reconcile-pending-orders` | `.../reconcile-pending-orders` | ✅ | 10 min ago | 90 |
 
 ### Webhooks
 
 | Nome | URL | No Repo? | Última Atividade | Invocações |
 |------|-----|----------|------------------|------------|
-| `trigger-webhooks` | `.../trigger-webhooks` | ✅ | 7 min ago | 809 |
-| `process-webhook-queue` | `.../process-webhook-queue` | ✅ | 7 min ago | 703 |
-| `dispatch-webhook` | `.../dispatch-webhook` | ❌ | a month ago | 180 |
-| `send-webhook` | `.../send-webhook` | ❌ | 2 months ago | 89 |
-| `retry-webhooks` | `.../retry-webhooks` | ❌ | 2 months ago | 270 |
-| `send-webhook-test` | `.../send-webhook-test` | ✅ | 7 min ago | 90 |
-| `get-webhook-logs` | `.../get-webhook-logs` | ❌ | 2 months ago | 52 |
-| `test-webhook-dispatch` | `.../test-webhook-dispatch` | ❌ | 2 months ago | 45 |
-| `trigger-webhooks-internal` | `.../trigger-webhooks-internal` | ❌ | 2 months ago | 62 |
+| `trigger-webhooks` | `.../trigger-webhooks` | ✅ | 10 min ago | 843 |
+| `process-webhook-queue` | `.../process-webhook-queue` | ✅ | 10 min ago | 737 |
+| `dispatch-webhook` | `.../dispatch-webhook` | ✅ | 10 min ago | 185 |
+| `send-webhook` | `.../send-webhook` | ✅ | 10 min ago | 94 |
+| `retry-webhooks` | `.../retry-webhooks` | ✅ | 10 min ago | 275 |
+| `send-webhook-test` | `.../send-webhook-test` | ✅ | 10 min ago | 124 |
+| `get-webhook-logs` | `.../get-webhook-logs` | ✅ | 10 min ago | 57 |
+| `test-webhook-dispatch` | `.../test-webhook-dispatch` | ✅ | 10 min ago | 50 |
+| `trigger-webhooks-internal` | `.../trigger-webhooks-internal` | ✅ | 10 min ago | 67 |
 
 ### Buyer Portal
 
 | Nome | URL | No Repo? | Última Atividade | Invocações |
 |------|-----|----------|------------------|------------|
-| `buyer-auth` | `.../buyer-auth` | ✅ | 7 min ago | 85 |
-| `buyer-orders` | `.../buyer-orders` | ✅ | 7 min ago | 81 |
-| `buyer-profile` | `.../buyer-profile` | ❌ | 12 days ago | 6 |
-| `buyer-session` | `.../buyer-session` | ❌ | 12 days ago | 6 |
+| `buyer-auth` | `.../buyer-auth` | ✅ | 10 min ago | 119 |
+| `buyer-orders` | `.../buyer-orders` | ✅ | 10 min ago | 115 |
+| `buyer-profile` | `.../buyer-profile` | ✅ | 10 min ago | 11 |
+| `buyer-session` | `.../buyer-session` | ✅ | 10 min ago | 11 |
 
 ### Members Area
 
 | Nome | URL | No Repo? | Última Atividade | Invocações |
 |------|-----|----------|------------------|------------|
-| `members-area-certificates` | `.../members-area-certificates` | ✅ | 7 min ago | 71 |
-| `members-area-drip` | `.../members-area-drip` | ✅ | 7 min ago | 72 |
-| `members-area-groups` | `.../members-area-groups` | ✅ | 7 min ago | 75 |
-| `members-area-modules` | `.../members-area-modules` | ✅ | NEW | 0 |
-| `members-area-progress` | `.../members-area-progress` | ✅ | 7 min ago | 70 |
-| `members-area-quizzes` | `.../members-area-quizzes` | ✅ | 7 min ago | 71 |
-| `content-crud` | `.../content-crud` | ✅ | NEW | 0 |
-| `content-save` | `.../content-save` | ✅ | NEW | 0 |
-| `students-invite` | `.../students-invite` | ✅ | NEW | 0 |
-| `students-access` | `.../students-access` | ✅ | NEW | 0 |
-| `students-groups` | `.../students-groups` | ✅ | NEW | 0 |
-| `students-list` | `.../students-list` | ✅ | NEW | 0 |
+| `members-area-certificates` | `.../members-area-certificates` | ✅ | 10 min ago | 105 |
+| `members-area-drip` | `.../members-area-drip` | ✅ | 10 min ago | 106 |
+| `members-area-groups` | `.../members-area-groups` | ✅ | 10 min ago | 109 |
+| `members-area-modules` | `.../members-area-modules` | ✅ | 10 min ago | 15 |
+| `members-area-progress` | `.../members-area-progress` | ✅ | 10 min ago | 104 |
+| `members-area-quizzes` | `.../members-area-quizzes` | ✅ | 10 min ago | 105 |
+| `content-crud` | `.../content-crud` | ✅ | 10 min ago | 6 |
+| `content-save` | `.../content-save` | ✅ | 10 min ago | 6 |
+| `students-invite` | `.../students-invite` | ✅ | 10 min ago | 8 |
+| `students-access` | `.../students-access` | ✅ | 10 min ago | 8 |
+| `students-groups` | `.../students-groups` | ✅ | 10 min ago | 8 |
+| `students-list` | `.../students-list` | ✅ | 10 min ago | 8 |
 
 ### Email
 
 | Nome | URL | No Repo? | Última Atividade | Invocações |
 |------|-----|----------|------------------|------------|
-| `send-email` | `.../send-email` | ✅ | 7 min ago | 127 |
-| `send-confirmation-email` | `.../send-confirmation-email` | ❌ | 2 months ago | 53 |
-| `send-pix-email` | `.../send-pix-email` | ❌ | 2 months ago | 53 |
+| `send-email` | `.../send-email` | ✅ | 10 min ago | 161 |
+| `send-confirmation-email` | `.../send-confirmation-email` | ✅ | 10 min ago | 58 |
+| `send-pix-email` | `.../send-pix-email` | ✅ | 10 min ago | 58 |
 
 ### Security & Crypto
 
 | Nome | URL | No Repo? | Última Atividade | Invocações |
 |------|-----|----------|------------------|------------|
-| `decrypt-customer-data` | `.../decrypt-customer-data` | ✅ | 7 min ago | 48 |
-| `decrypt-customer-data-batch` | `.../decrypt-customer-data-batch` | ✅ | 7 min ago | 43 |
-| `encrypt-token` | `.../encrypt-token` | ❌ | 2 months ago | 192 |
-| `verify-turnstile` | `.../verify-turnstile` | ✅ | 7 min ago | 47 |
+| `decrypt-customer-data` | `.../decrypt-customer-data` | ✅ | 10 min ago | 82 |
+| `decrypt-customer-data-batch` | `.../decrypt-customer-data-batch` | ✅ | 10 min ago | 77 |
+| `encrypt-token` | `.../encrypt-token` | ✅ | 10 min ago | 197 |
+| `verify-turnstile` | `.../verify-turnstile` | ✅ | 10 min ago | 81 |
 
 ### User Management
 
 | Nome | URL | No Repo? | Última Atividade | Invocações |
 |------|-----|----------|------------------|------------|
-| `get-users-with-emails` | `.../get-users-with-emails` | ✅ | 7 min ago | 165 |
-| `manage-user-role` | `.../manage-user-role` | ✅ | 7 min ago | 167 |
-| `manage-user-status` | `.../manage-user-status` | ✅ | 7 min ago | 165 |
-| `producer-auth` | `.../producer-auth` | ✅ | 7 min ago | 29 |
-| `product-crud` | `.../product-crud` | ✅ | NEW | 0 |
-| `product-settings` | `.../product-settings` | ✅ | NEW | 0 |
-| `offer-crud` | `.../offer-crud` | ✅ | NEW | 0 |
-| `offer-bulk` | `.../offer-bulk` | ✅ | NEW | 0 |
-| `checkout-crud` | `.../checkout-crud` | ✅ | NEW | 0 |
-| `checkout-editor` | `.../checkout-editor` | ✅ | NEW | 0 |
-| `order-bump-crud` | `.../order-bump-crud` | ✅ | NEW | 0 |
-| `product-duplicate` | `.../product-duplicate` | ✅ | NEW | 0 |
-| `coupon-management` | `.../coupon-management` | ✅ | NEW | 0 |
-| `integration-management` | `.../integration-management` | ✅ | NEW | 0 |
+| `get-users-with-emails` | `.../get-users-with-emails` | ✅ | 10 min ago | 199 |
+| `manage-user-role` | `.../manage-user-role` | ✅ | 10 min ago | 201 |
+| `manage-user-status` | `.../manage-user-status` | ✅ | 10 min ago | 199 |
+| `producer-auth` | `.../producer-auth` | ✅ | 10 min ago | 65 |
+| `product-crud` | `.../product-crud` | ✅ | 10 min ago | 9 |
+| `product-settings` | `.../product-settings` | ✅ | 10 min ago | 9 |
+| `offer-crud` | `.../offer-crud` | ✅ | 10 min ago | 8 |
+| `offer-bulk` | `.../offer-bulk` | ✅ | 10 min ago | 8 |
+| `checkout-crud` | `.../checkout-crud` | ✅ | 10 min ago | 10 |
+| `checkout-editor` | `.../checkout-editor` | ✅ | 10 min ago | 10 |
+| `order-bump-crud` | `.../order-bump-crud` | ✅ | 10 min ago | 10 |
+| `product-duplicate` | `.../product-duplicate` | ✅ | 10 min ago | 20 |
+| `coupon-management` | `.../coupon-management` | ✅ | 10 min ago | 17 |
+| `integration-management` | `.../integration-management` | ✅ | 10 min ago | 17 |
 
 ### Affiliates
 
 | Nome | URL | No Repo? | Última Atividade | Invocações |
 |------|-----|----------|------------------|------------|
-| `manage-affiliation` | `.../manage-affiliation` | ✅ | 7 min ago | 298 |
-| `request-affiliation` | `.../request-affiliation` | ✅ | 7 min ago | 301 |
-| `update-affiliate-settings` | `.../update-affiliate-settings` | ✅ | 7 min ago | 103 |
-| `get-affiliation-details` | `.../get-affiliation-details` | ✅ | NEW | 0 |
-| `get-affiliation-status` | `.../get-affiliation-status` | ✅ | NEW | 0 |
-| `get-all-affiliation-statuses` | `.../get-all-affiliation-statuses` | ✅ | NEW | 0 |
-| `get-my-affiliations` | `.../get-my-affiliations` | ✅ | NEW | 0 |
+| `manage-affiliation` | `.../manage-affiliation` | ✅ | 10 min ago | 332 |
+| `request-affiliation` | `.../request-affiliation` | ✅ | 10 min ago | 337 |
+| `update-affiliate-settings` | `.../update-affiliate-settings` | ✅ | 10 min ago | 137 |
+| `get-affiliation-details` | `.../get-affiliation-details` | ✅ | 10 min ago | 27 |
+| `get-affiliation-status` | `.../get-affiliation-status` | ✅ | 10 min ago | 27 |
+| `get-all-affiliation-statuses` | `.../get-all-affiliation-statuses` | ✅ | 10 min ago | 25 |
+| `get-my-affiliations` | `.../get-my-affiliations` | ✅ | 10 min ago | 27 |
+| `affiliate-pixel-management` | `.../affiliate-pixel-management` | ✅ | 10 min ago | 1 |
 
 ### Pixels
 
 | Nome | URL | No Repo? | Última Atividade | Invocações |
 |------|-----|----------|------------------|------------|
-| `pixel-management` | `.../pixel-management` | ✅ | NEW | 0 |
+| `pixel-management` | `.../pixel-management` | ✅ | 10 min ago | 13 |
 
 ### LGPD/GDPR
 
 | Nome | URL | No Repo? | Última Atividade | Invocações |
 |------|-----|----------|------------------|------------|
-| `gdpr-forget` | `.../gdpr-forget` | ✅ | 7 min ago | 6 |
-| `gdpr-request` | `.../gdpr-request` | ✅ | 7 min ago | 6 |
+| `gdpr-forget` | `.../gdpr-forget` | ✅ | 10 min ago | 40 |
+| `gdpr-request` | `.../gdpr-request` | ✅ | 10 min ago | 40 |
 
 ### Vault & Credentials
 
 | Nome | URL | No Repo? | Última Atividade | Invocações |
 |------|-----|----------|------------------|------------|
-| `vault-save` | `.../vault-save` | ✅ | 7 min ago | 102 |
-| `vault-migration` | `.../vault-migration` | ✅ | 7 min ago | 103 |
-| `check-secrets` | `.../check-secrets` | ❌ | 19 days ago | 14 |
+| `vault-save` | `.../vault-save` | ✅ | 10 min ago | 136 |
+| `vault-migration` | `.../vault-migration` | ✅ | 10 min ago | 137 |
+| `check-secrets` | `.../check-secrets` | ✅ | 21 days ago | 14 |
 
 ### Health & Diagnostics
 
 | Nome | URL | No Repo? | Última Atividade | Invocações |
 |------|-----|----------|------------------|------------|
-| `health` | `.../health` | ✅ | 7 min ago | 256 |
-| `smoke-test` | `.../smoke-test` | ✅ | 7 min ago | 55 |
-| `test-deploy` | `.../test-deploy` | ✅ | 7 min ago | 141 |
+| `health` | `.../health` | ✅ | 10 min ago | 290 |
+| `smoke-test` | `.../smoke-test` | ✅ | 10 min ago | 89 |
+| `test-deploy` | `.../test-deploy` | ✅ | 10 min ago | 175 |
 
 ### Utilities
 
