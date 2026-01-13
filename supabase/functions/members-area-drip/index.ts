@@ -113,7 +113,9 @@ Deno.serve(async (req) => {
     if (action === "get-settings" || action === "update-settings") {
       try {
         producer = await requireAuthenticatedProducer(supabase, req);
-      } catch (error) {
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error("[members-area-drip] Auth error:", errorMessage);
         return new Response(
           JSON.stringify({ error: "Authorization required" }),
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }

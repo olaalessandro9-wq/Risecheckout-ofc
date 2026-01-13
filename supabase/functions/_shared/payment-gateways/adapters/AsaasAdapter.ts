@@ -368,8 +368,9 @@ export class AsaasAdapter implements IPaymentGateway {
       const customer = await response.json();
       console.log(`[AsaasAdapter] Customer criado: ${customer.id}`);
       return customer;
-    } catch (error) {
-      console.error('[AsaasAdapter] Exception createCustomer:', error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('[AsaasAdapter] Exception createCustomer:', errorMessage);
       return null;
     }
   }
@@ -402,8 +403,9 @@ export class AsaasAdapter implements IPaymentGateway {
 
       console.log(`[AsaasAdapter] Cobrança criada: ${data.id}`);
       return data;
-    } catch (error) {
-      console.error('[AsaasAdapter] Exception createPayment:', error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('[AsaasAdapter] Exception createPayment:', errorMessage);
       return null;
     }
   }
@@ -424,8 +426,9 @@ export class AsaasAdapter implements IPaymentGateway {
       }
 
       return await response.json();
-    } catch (error) {
-      console.error('[AsaasAdapter] Exception getPixQrCode:', error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('[AsaasAdapter] Exception getPixQrCode:', errorMessage);
       return null;
     }
   }

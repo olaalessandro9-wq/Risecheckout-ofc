@@ -167,10 +167,11 @@ Deno.serve(async (req) => {
       headers: responseHeaders,
     });
 
-  } catch (error) {
-    console.error("[pixel-management] ❌ Unhandled error:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Erro interno";
+    console.error("[pixel-management] ❌ Unhandled error:", errorMessage);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Erro interno" }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

@@ -102,8 +102,9 @@ serve(async (req) => {
     let producer;
     try {
       producer = await requireAuthenticatedProducer(supabaseAdmin, req);
-    } catch (error) {
-      console.error("[update-affiliate-settings] Erro de autenticação:", error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("[update-affiliate-settings] Erro de autenticação:", errorMessage);
       return new Response(
         JSON.stringify({ error: "Usuário não autenticado" }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

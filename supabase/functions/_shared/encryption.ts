@@ -64,8 +64,9 @@ export async function encryptValue(plaintext: string | null | undefined): Promis
     
     // Converter para base64
     return btoa(String.fromCharCode(...combined));
-  } catch (error) {
-    console.error("[encryption] Erro ao criptografar:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[encryption] Erro ao criptografar:", errorMessage);
     throw new Error("Encryption failed");
   }
 }
@@ -104,8 +105,9 @@ export async function decryptValue(encrypted: string | null | undefined): Promis
     
     const decoder = new TextDecoder();
     return decoder.decode(decrypted);
-  } catch (error) {
-    console.error("[encryption] Erro ao descriptografar:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[encryption] Erro ao descriptografar:", errorMessage);
     // Pode ser dado não criptografado (legado) - retornar null
     return null;
   }

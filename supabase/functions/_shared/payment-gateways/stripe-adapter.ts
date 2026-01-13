@@ -94,7 +94,7 @@ export class StripeAdapter implements IPaymentGateway {
           currency: paymentIntent.currency,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(`[StripeAdapter] Error creating card payment:`, error);
       return {
         success: false,
@@ -164,7 +164,7 @@ export class StripeAdapter implements IPaymentGateway {
           hosted_instructions_url: pixAction.hosted_instructions_url,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(`[StripeAdapter] Error creating PIX payment:`, error);
       return {
         success: false,
@@ -195,7 +195,7 @@ export class StripeAdapter implements IPaymentGateway {
         status: this.mapStripeStatus(paymentIntent.status),
         raw_response: paymentIntent,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(`[StripeAdapter] Error confirming payment:`, error);
       return {
         success: false,
@@ -219,7 +219,7 @@ export class StripeAdapter implements IPaymentGateway {
         status: this.mapStripeStatus(paymentIntent.status),
         raw_response: paymentIntent,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         success: false,
         transaction_id: paymentIntentId,
@@ -258,7 +258,7 @@ export class StripeAdapter implements IPaymentGateway {
         success: refund.status === "succeeded",
         refund_id: refund.id,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(`[StripeAdapter] Error creating refund:`, error);
       return {
         success: false,

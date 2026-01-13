@@ -76,7 +76,7 @@ serve(withSentry("integration-management", async (req) => {
 
     return errorResponse(`Ação desconhecida: ${action}`, corsHeaders, 404);
 
-  } catch (error) {
+  } catch (error: unknown) {
     const err = error instanceof Error ? error : new Error(String(error));
     console.error("[integration-management] Unexpected error:", err.message);
     await captureException(err, { functionName: "integration-management", url: req.url, method: req.method });
