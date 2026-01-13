@@ -10,7 +10,7 @@
 export interface VideoEmbedProps {
   // Conteúdo
   videoUrl: string;
-  videoType: 'youtube' | 'vimeo' | 'other';
+  videoType: 'youtube' | 'vimeo' | 'custom' | 'other';
   
   // Configurações visuais
   backgroundColor: string;
