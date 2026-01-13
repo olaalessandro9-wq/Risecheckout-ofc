@@ -157,8 +157,8 @@ export function AffiliatesTab() {
 
       // Salvar gateway settings via Edge Function
       const { supabase } = await import("@/integrations/supabase/client");
-      const { getProducerSessionToken } = await import("@/hooks/useProducerSession");
-      const sessionToken = await getProducerSessionToken();
+      const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
+      const sessionToken = getProducerSessionToken();
       
       const { data: result, error: gatewayError } = await supabase.functions.invoke('product-settings', {
         body: { 

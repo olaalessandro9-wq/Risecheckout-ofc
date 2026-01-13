@@ -108,6 +108,7 @@
 | `get-webhook-logs` | `.../get-webhook-logs` | ✅ | 10 min ago | 57 |
 | `test-webhook-dispatch` | `.../test-webhook-dispatch` | ✅ | 10 min ago | 50 |
 | `trigger-webhooks-internal` | `.../trigger-webhooks-internal` | ✅ | 10 min ago | 67 |
+| `webhook-crud` | `.../webhook-crud` | ✅ | 2026-01-13 | 0 |
 
 ### Buyer Portal
 

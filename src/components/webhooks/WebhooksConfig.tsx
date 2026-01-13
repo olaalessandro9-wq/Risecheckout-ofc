@@ -110,8 +110,8 @@ export function WebhooksConfig() {
     product_ids: string[];
   }) => {
     try {
-      const { getProducerSessionToken } = await import("@/hooks/useProducerSession");
-      const sessionToken = await getProducerSessionToken();
+      const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
+      const sessionToken = getProducerSessionToken();
 
       if (editingWebhook) {
         // Atualizar webhook existente via Edge Function
@@ -172,8 +172,8 @@ export function WebhooksConfig() {
 
   const handleDelete = async (webhookId: string) => {
     try {
-      const { getProducerSessionToken } = await import("@/hooks/useProducerSession");
-      const sessionToken = await getProducerSessionToken();
+      const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
+      const sessionToken = getProducerSessionToken();
 
       const { data: result, error } = await supabase.functions.invoke('webhook-crud', {
         body: {

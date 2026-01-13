@@ -192,8 +192,8 @@ export async function saveAsaasSettings(
   config: AsaasIntegrationConfig
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { getProducerSessionToken } = await import("@/hooks/useProducerSession");
-    const sessionToken = await getProducerSessionToken();
+    const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
+    const sessionToken = getProducerSessionToken();
 
     // Salvar credenciais via integration-management
     const { data: result, error } = await supabase.functions.invoke('integration-management/save-credentials', {
@@ -248,8 +248,8 @@ export async function disconnectAsaas(
   vendorId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { getProducerSessionToken } = await import("@/hooks/useProducerSession");
-    const sessionToken = await getProducerSessionToken();
+    const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
+    const sessionToken = getProducerSessionToken();
 
     // Disconnect via Edge Function
     const { data: result, error } = await supabase.functions.invoke('integration-management/disconnect', {

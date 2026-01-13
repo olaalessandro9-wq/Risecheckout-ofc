@@ -125,8 +125,8 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
     mutationFn: async ({ enabled, newSettings }: { enabled: boolean; newSettings?: Json }) => {
       if (!productId) throw new Error("Product ID required");
 
-      const { getProducerSessionToken } = await import("@/hooks/useProducerSession");
-      const sessionToken = await getProducerSessionToken();
+      const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
+      const sessionToken = getProducerSessionToken();
       
       const { data: result, error } = await supabase.functions.invoke('product-settings', {
         body: {
@@ -187,7 +187,7 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
         }
       }
 
-      return { enabled, settings: newSettings || currentSettings };
+      return { enabled, settings: newSettings || settingsQuery.data?.settings };
     },
     onSuccess: (data) => {
       // Atualizar cache
