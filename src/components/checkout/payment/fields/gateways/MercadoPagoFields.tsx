@@ -12,6 +12,7 @@
 
 import { memo, useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import { INPUT_BASE_CLASS, INPUT_ERROR_CLASS } from '../../core/constants';
+import type { MercadoPagoInstallment, MercadoPagoCallbackError, MercadoPagoPaymentMethod, MercadoPagoInstallmentsResponse } from '@/types/mercadopago-sdk.types';
 
 export interface MercadoPagoFieldsProps {
   publicKey: string;
@@ -20,7 +21,7 @@ export interface MercadoPagoFieldsProps {
   onReady?: () => void;
   onError?: (error: string) => void;
   onBinChange?: (bin: string) => void;
-  onInstallmentsChange?: (installments: any[]) => void;
+  onInstallmentsChange?: (installments: MercadoPagoInstallment[]) => void;
 }
 
 export interface MercadoPagoFieldsRef {
@@ -213,9 +214,10 @@ const MercadoPagoFieldsComponent = forwardRef<MercadoPagoFieldsRef, MercadoPagoF
               bin: '520000',
               locale: 'pt-BR'
             });
-            const installmentData = data as Array<{ payer_costs?: unknown[] }>;
+            const installmentData = data as MercadoPagoInstallmentsResponse[];
             if (installmentData?.[0]?.payer_costs) {
               onInstallmentsChange?.(installmentData[0].payer_costs);
+            }
             }
           } catch (e) {
             console.warn("[MercadoPagoFields] Erro ao buscar parcelas:", e);
@@ -249,7 +251,7 @@ const MercadoPagoFieldsComponent = forwardRef<MercadoPagoFieldsRef, MercadoPagoF
               cardholderEmail: { id: "form-checkout__cardholderEmail" },
             },
             callbacks: {
-              onFormMounted: (error: any) => {
+              onFormMounted: (error: MercadoPagoCallbackError) => {
                 if (error) {
                   console.warn("[MercadoPagoFields] Erro ao montar:", error);
                   isMountingRef.current = false;
@@ -264,14 +266,14 @@ const MercadoPagoFieldsComponent = forwardRef<MercadoPagoFieldsRef, MercadoPagoF
                 clearFieldError('cardNumber');
                 onBinChange?.(bin);
               },
-              onPaymentMethodsReceived: (error: any, methods: any) => {
+              onPaymentMethodsReceived: (error: MercadoPagoCallbackError, methods: MercadoPagoPaymentMethod[]) => {
                 if (!error && methods?.[0]) {
                   paymentMethodRef.current = methods[0].id;
                   const input = document.getElementById('paymentMethodId') as HTMLInputElement;
                   if (input) input.value = methods[0].id;
                 }
               },
-              onInstallmentsReceived: (error: any, data: any) => {
+              onInstallmentsReceived: (error: MercadoPagoCallbackError, data: MercadoPagoInstallmentsResponse[]) => {
                 if (!error && data?.[0]?.payer_costs) {
                   onInstallmentsChange?.(data[0].payer_costs);
                 }
@@ -319,7 +321,7 @@ const MercadoPagoFieldsComponent = forwardRef<MercadoPagoFieldsRef, MercadoPagoF
             amount: amount.toString(),
             bin: '520000',
             locale: 'pt-BR'
-          }).then((data: any) => {
+          }).then((data: MercadoPagoInstallmentsResponse[]) => {
             if (data?.[0]?.payer_costs) {
               onInstallmentsChange?.(data[0].payer_costs);
             }
