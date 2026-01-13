@@ -1,8 +1,18 @@
 /**
  * product-validator.ts - Validação de Produto, Oferta e Checkout
  * 
+ * @version 2.0.0 - RISE Protocol V2 Compliant - Zero `any`
+ * 
  * Responsabilidade ÚNICA: Validar ownership e buscar dados do produto
  */
+
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+interface AffiliateSettings {
+  enabled?: boolean;
+  commission_percent?: number;
+  [key: string]: unknown;
+}
 
 export interface ProductValidationResult {
   product: {
@@ -10,7 +20,7 @@ export interface ProductValidationResult {
     price: number;
     name: string;
     user_id: string;
-    affiliate_settings: Record<string, any>;
+    affiliate_settings: AffiliateSettings;
     pix_gateway: string;
     credit_card_gateway: string;
   };
@@ -26,12 +36,39 @@ export interface ProductValidationInput {
   checkout_id?: string;
 }
 
+interface ProductRecord {
+  id: string;
+  price: number;
+  name: string;
+  user_id: string;
+  affiliate_settings: AffiliateSettings | null;
+  pix_gateway: string | null;
+  credit_card_gateway: string | null;
+}
+
+interface CheckoutRecord {
+  id: string;
+  product_id: string;
+}
+
+interface CheckoutLinkRecord {
+  payment_links: { offer_id: string } | { offer_id: string }[] | null;
+}
+
+interface OfferRecord {
+  id: string;
+  product_id: string;
+  price: number;
+  name: string;
+  status: string;
+}
+
 /**
  * Valida produto, oferta e checkout
  * Retorna dados validados ou lança erro
  */
 export async function validateProduct(
-  supabase: any,
+  supabase: SupabaseClient,
   input: ProductValidationInput,
   corsHeaders: Record<string, string>
 ): Promise<ProductValidationResult | Response> {
@@ -48,6 +85,8 @@ export async function validateProduct(
     console.error("[product-validator] Produto não encontrado:", product_id);
     throw new Error("Produto principal não encontrado.");
   }
+
+  const productData = product as ProductRecord;
 
   // 2. Validar checkout_id (ownership graceful)
   let validatedCheckoutId: string | null = checkout_id || null;
@@ -69,7 +108,7 @@ export async function validateProduct(
   }
 
   // 3. Validar offer_id (ownership + status)
-  let finalPrice = Number(product.price);
+  let finalPrice = Number(productData.price);
   let offerName: string | null = null;
   let validatedOfferId: string | null = null;
 
@@ -90,10 +129,15 @@ export async function validateProduct(
       .eq("checkout_id", validatedCheckoutId)
       .maybeSingle();
 
-    if (checkoutLink?.payment_links) {
-      const paymentLinks = checkoutLink.payment_links as { offer_id: string };
-      derivedOfferId = paymentLinks.offer_id;
-      console.log("[product-validator] ✅ offer_id derivado do checkout:", derivedOfferId);
+    if (checkoutLink) {
+      const linkData = checkoutLink as CheckoutLinkRecord;
+      const paymentLinks = Array.isArray(linkData.payment_links) 
+        ? linkData.payment_links[0] 
+        : linkData.payment_links;
+      if (paymentLinks) {
+        derivedOfferId = paymentLinks.offer_id;
+        console.log("[product-validator] ✅ offer_id derivado do checkout:", derivedOfferId);
+      }
     }
   }
 
@@ -101,13 +145,13 @@ export async function validateProduct(
     const { data: offer, error: offerError } = await supabase
       .from("offers")
       .select("id, product_id, price, name, status")
-      .eq("id", derivedOfferId) // ✅ Usa derivedOfferId
-      .eq("product_id", product.id)
+      .eq("id", derivedOfferId)
+      .eq("product_id", productData.id)
       .eq("status", "active")
       .maybeSingle();
 
     if (offerError || !offer) {
-      console.error("[product-validator] Oferta inválida:", { derivedOfferId, product_id: product.id });
+      console.error("[product-validator] Oferta inválida:", { derivedOfferId, product_id: productData.id });
       return new Response(
         JSON.stringify({
           error: "Invalid or inactive offer",
@@ -120,26 +164,28 @@ export async function validateProduct(
       );
     }
 
+    const offerData = offer as OfferRecord;
+
     console.log("[product-validator] ✅ Usando oferta:", {
-      offer_id: offer.id,
-      name: offer.name,
-      price: offer.price
+      offer_id: offerData.id,
+      name: offerData.name,
+      price: offerData.price
     });
 
-    finalPrice = Number(offer.price);
-    offerName = offer.name;
-    validatedOfferId = offer.id;
+    finalPrice = Number(offerData.price);
+    offerName = offerData.name;
+    validatedOfferId = offerData.id;
   }
 
   return {
     product: {
-      id: product.id,
-      price: product.price,
-      name: product.name,
-      user_id: product.user_id,
-      affiliate_settings: product.affiliate_settings || {},
-      pix_gateway: product.pix_gateway || 'mercadopago',
-      credit_card_gateway: product.credit_card_gateway || 'mercadopago',
+      id: productData.id,
+      price: productData.price,
+      name: productData.name,
+      user_id: productData.user_id,
+      affiliate_settings: productData.affiliate_settings || {},
+      pix_gateway: productData.pix_gateway || 'mercadopago',
+      credit_card_gateway: productData.credit_card_gateway || 'mercadopago',
     },
     validatedOfferId,
     validatedCheckoutId,

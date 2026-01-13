@@ -1,6 +1,8 @@
 /**
  * decrypt-customer-data-batch - Descriptografa telefones em lote para listagem
  * 
+ * @version 2.0.0 - RISE Protocol V2 Compliant - Zero `any`
+ * 
  * SECURITY:
  * - Requer autenticação (JWT)
  * - SOMENTE para PRODUTOR do produto (product.user_id)
@@ -10,11 +12,18 @@
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
-import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared/rate-limiter.ts";
+import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP, RateLimitConfig } from "../_shared/rate-limiter.ts";
 
 const MAX_ORDER_IDS = 20;
+
+interface OrderWithProduct {
+  id: string;
+  customer_phone: string | null;
+  customer_document: string | null;
+  product: { id: string; user_id: string } | { id: string; user_id: string }[] | null;
+}
 
 /**
  * Deriva uma chave AES-256 a partir da BUYER_ENCRYPTION_KEY
@@ -74,10 +83,11 @@ serve(async (req) => {
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
     // SECURITY: Rate limiting para dados sensíveis
+    const rateLimitConfig: RateLimitConfig = RATE_LIMIT_CONFIGS.DECRYPT_DATA;
     const rateLimitResult = await rateLimitMiddleware(
-      supabaseAdmin as any,
+      supabaseAdmin as SupabaseClient,
       req,
-      RATE_LIMIT_CONFIGS.DECRYPT_DATA
+      rateLimitConfig
     );
     if (rateLimitResult) {
       console.warn(`[decrypt-customer-data-batch] Rate limit exceeded for IP: ${getClientIP(req)}`);
@@ -158,7 +168,7 @@ serve(async (req) => {
     const ipAddress = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip");
 
     // Processar cada pedido
-    for (const order of orders || []) {
+    for (const order of (orders || []) as OrderWithProduct[]) {
       const product = Array.isArray(order.product) ? order.product[0] : order.product;
       const productOwnerId = product?.user_id;
       
@@ -214,10 +224,11 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[decrypt-batch] Error:", error);
+    const message = error instanceof Error ? error.message : "Internal error";
     return new Response(
-      JSON.stringify({ error: error.message || "Internal error" }),
+      JSON.stringify({ error: message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

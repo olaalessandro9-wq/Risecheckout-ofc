@@ -1,12 +1,15 @@
 /**
  * order-creator.ts - Criação e Persistência do Pedido
  * 
+ * @version 2.0.0 - RISE Protocol V2 Compliant - Zero `any`
+ * 
  * Responsabilidade ÚNICA: Criar pedido no banco de dados
  * 
  * SECURITY UPDATE:
  * - CPF e telefone são criptografados com AES-256-GCM antes de salvar (LGPD)
  */
 
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { recordAttempt } from "../../_shared/rate-limit.ts";
 import { encryptValue } from "../../_shared/encryption.ts";
 import type { OrderItem } from "./bump-processor.ts";
@@ -57,11 +60,26 @@ export interface OrderCreationInput {
   identifier: string;
 }
 
+interface ExistingOrder {
+  id: string;
+  status: string;
+  created_at: string;
+}
+
+interface CreatedOrder {
+  id: string;
+}
+
+interface AffiliateStats {
+  total_sales_count: number | null;
+  total_sales_amount: number | null;
+}
+
 /**
  * Cria pedido no banco com verificação de idempotência
  */
 export async function createOrder(
-  supabase: any,
+  supabase: SupabaseClient,
   input: OrderCreationInput,
   corsHeaders: Record<string, string>
 ): Promise<OrderCreationResult | Response> {
@@ -101,7 +119,7 @@ export async function createOrder(
     .limit(1);
 
   if (existingOrders && existingOrders.length > 0) {
-    const existing = existingOrders[0];
+    const existing = existingOrders[0] as ExistingOrder;
     console.log(`[order-creator] Pedido duplicado: ${existing.id}`);
 
     // Registrar tentativa falhada
@@ -182,12 +200,13 @@ export async function createOrder(
     throw orderError;
   }
 
-  console.log(`[order-creator] Pedido criado: ${order.id}`);
+  const createdOrder = order as CreatedOrder;
+  console.log(`[order-creator] Pedido criado: ${createdOrder.id}`);
 
   // Inserir itens
   const itemsToInsert = allOrderItems.map(item => ({
     ...item,
-    order_id: order.id
+    order_id: createdOrder.id
   }));
 
   await supabase.from("order_items").insert(itemsToInsert);
@@ -199,7 +218,7 @@ export async function createOrder(
   }
 
   return {
-    order_id: order.id,
+    order_id: createdOrder.id,
     access_token: accessToken
   };
 }
@@ -208,7 +227,7 @@ export async function createOrder(
  * Atualiza contadores de vendas do afiliado (atômico)
  */
 async function updateAffiliateStats(
-  supabase: any,
+  supabase: SupabaseClient,
   affiliateId: string,
   amountInCents: number
 ): Promise<void> {
@@ -232,11 +251,12 @@ async function updateAffiliateStats(
         .single();
 
       if (current) {
+        const stats = current as AffiliateStats;
         const { error: updateError } = await supabase
           .from("affiliates")
           .update({
-            total_sales_count: (current.total_sales_count || 0) + 1,
-            total_sales_amount: (current.total_sales_amount || 0) + amountInCents,
+            total_sales_count: (stats.total_sales_count || 0) + 1,
+            total_sales_amount: (stats.total_sales_amount || 0) + amountInCents,
             updated_at: new Date().toISOString()
           })
           .eq("id", affiliateId);

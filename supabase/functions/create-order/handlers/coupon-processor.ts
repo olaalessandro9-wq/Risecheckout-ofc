@@ -1,8 +1,12 @@
 /**
  * coupon-processor.ts - Validação e Aplicação de Cupom
  * 
+ * @version 2.0.0 - RISE Protocol V2 Compliant - Zero `any`
+ * 
  * Responsabilidade ÚNICA: Validar cupom e calcular desconto
  */
+
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 export interface CouponResult {
   discountAmount: number;
@@ -16,12 +20,35 @@ export interface CouponInput {
   finalPrice: number;
 }
 
+interface CouponRecord {
+  id: string;
+  code: string;
+  active: boolean;
+  discount_type: string;
+  discount_value: number;
+  start_date: string | null;
+  expires_at: string | null;
+  uses_count: number | null;
+  max_uses: number | null;
+  apply_to_order_bumps: boolean | null;
+}
+
+interface CouponProductRecord {
+  coupon_id: string;
+  product_id: string;
+}
+
+interface UpdatedCouponRecord {
+  id: string;
+  code: string;
+}
+
 /**
  * Valida e aplica cupom de desconto
  * Retorna valor do desconto e código aplicado
  */
 export async function processCoupon(
-  supabase: any,
+  supabase: SupabaseClient,
   input: CouponInput
 ): Promise<CouponResult> {
   const { coupon_id, product_id, totalAmount, finalPrice } = input;
@@ -48,11 +75,13 @@ export async function processCoupon(
     return { discountAmount, couponCode };
   }
 
+  const couponData = coupon as CouponRecord;
+
   // Verificar vínculo com produto
   const { data: couponProduct } = await supabase
     .from("coupon_products")
     .select("*")
-    .eq("coupon_id", coupon.id)
+    .eq("coupon_id", couponData.id)
     .eq("product_id", product_id)
     .maybeSingle();
 
@@ -64,8 +93,8 @@ export async function processCoupon(
   // Verificar datas
   const now = new Date();
   const validDate = 
-    (!coupon.start_date || new Date(coupon.start_date) < now) &&
-    (!coupon.expires_at || new Date(coupon.expires_at) > now);
+    (!couponData.start_date || new Date(couponData.start_date) < now) &&
+    (!couponData.expires_at || new Date(couponData.expires_at) > now);
 
   if (!validDate) {
     console.warn("[coupon-processor] Cupom fora do período válido");
@@ -76,12 +105,12 @@ export async function processCoupon(
   const { data: updatedCoupon, error: updateError } = await supabase
     .from("coupons")
     .update({
-      uses_count: (coupon.uses_count || 0) + 1,
+      uses_count: (couponData.uses_count || 0) + 1,
       updated_at: new Date().toISOString()
     })
-    .eq("id", coupon.id)
+    .eq("id", couponData.id)
     .eq("active", true)
-    .or(`max_uses.is.null,uses_count.lt.${coupon.max_uses || 999999}`)
+    .or(`max_uses.is.null,uses_count.lt.${couponData.max_uses || 999999}`)
     .select("id, code")
     .maybeSingle();
 
@@ -90,20 +119,22 @@ export async function processCoupon(
     return { discountAmount, couponCode };
   }
 
-  // Calcular desconto
-  const discountBase = coupon.apply_to_order_bumps ? totalAmount : finalPrice;
+  const updated = updatedCoupon as UpdatedCouponRecord;
 
-  if (coupon.discount_type === "percentage") {
-    discountAmount = (discountBase * Number(coupon.discount_value)) / 100;
+  // Calcular desconto
+  const discountBase = couponData.apply_to_order_bumps ? totalAmount : finalPrice;
+
+  if (couponData.discount_type === "percentage") {
+    discountAmount = (discountBase * Number(couponData.discount_value)) / 100;
   } else {
-    discountAmount = Number(coupon.discount_value);
+    discountAmount = Number(couponData.discount_value);
   }
 
   discountAmount = Math.min(discountAmount, totalAmount);
-  couponCode = coupon.code;
+  couponCode = couponData.code;
 
   console.log("[coupon-processor] Cupom aplicado:", {
-    code: coupon.code,
+    code: couponData.code,
     discount_amount: discountAmount
   });
 

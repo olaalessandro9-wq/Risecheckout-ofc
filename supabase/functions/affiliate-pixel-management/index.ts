@@ -4,10 +4,10 @@
  * Gerencia pixels de tracking para afiliados.
  * Ações: save-all (atômico: delete + insert)
  * 
- * @see RISE ARCHITECT PROTOCOL
+ * @version 2.0.0 - RISE Protocol V2 Compliant - Zero `any`
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -42,7 +42,7 @@ interface SessionData {
 }
 
 async function validateProducerSession(
-  supabaseClient: any,
+  supabaseClient: SupabaseClient,
   token: string
 ): Promise<{ userId: string } | null> {
   const { data, error } = await supabaseClient
@@ -70,7 +70,7 @@ interface AffiliateData {
 }
 
 async function validateAffiliateOwnership(
-  supabaseClient: any,
+  supabaseClient: SupabaseClient,
   affiliateId: string,
   userId: string
 ): Promise<boolean> {
@@ -91,7 +91,7 @@ async function validateAffiliateOwnership(
 // =====================================================
 
 async function handleSaveAll(
-  supabaseClient: any,
+  supabaseClient: SupabaseClient,
   payload: SaveAllPayload,
   userId: string
 ): Promise<Response> {
@@ -167,10 +167,11 @@ async function handleSaveAll(
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[affiliate-pixel-management] Save error:", error);
+    const message = error instanceof Error ? error.message : "Erro ao salvar pixels";
     return new Response(
-      JSON.stringify({ error: error.message || "Erro ao salvar pixels" }),
+      JSON.stringify({ error: message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
@@ -225,10 +226,11 @@ Deno.serve(async (req) => {
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[affiliate-pixel-management] Unhandled error:", error);
+    const message = error instanceof Error ? error.message : "Erro interno";
     return new Response(
-      JSON.stringify({ error: error.message || "Erro interno" }),
+      JSON.stringify({ error: message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

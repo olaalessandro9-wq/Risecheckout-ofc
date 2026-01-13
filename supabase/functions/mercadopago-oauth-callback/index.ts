@@ -1,6 +1,8 @@
 /**
  * Edge Function: mercadopago-oauth-callback
  * 
+ * @version 3.3.0 - RISE Protocol V2 Compliant - Zero `any`
+ * 
  * Responsabilidade: Processar callback OAuth do Mercado Pago e salvar credenciais
  * 
  * Fluxo:
@@ -19,8 +21,6 @@
  * - State expira em 10 minutos
  * - State só pode ser usado uma vez
  * - Logs detalhados para auditoria
- * 
- * @version 3.2.0 - Corrigido Content-Type e charset em todas as respostas HTML
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -39,6 +39,28 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+interface OAuthStateRecord {
+  state: string;
+  vendor_id: string;
+  used_at: string | null;
+  expires_at: string;
+}
+
+interface TokenResponse {
+  access_token: string;
+  refresh_token: string;
+  public_key: string;
+  user_id: number;
+}
+
+interface UserInfoResponse {
+  email: string;
+}
+
+interface IntegrationRecord {
+  id: string;
+}
 
 /**
  * HTML de sucesso que fecha o popup e notifica a janela pai
@@ -216,7 +238,8 @@ serve(async (req) => {
       });
     }
 
-    const vendorId = oauthState.vendor_id;
+    const stateRecord = oauthState as OAuthStateRecord;
+    const vendorId = stateRecord.vendor_id;
     console.log('[OAuth Callback] State validado! Vendor ID:', vendorId);
 
     // ✅ P0-2 FIX: Marcar state como usado IMEDIATAMENTE (previne replay attack)
@@ -263,7 +286,7 @@ serve(async (req) => {
       });
     }
 
-    const tokenData = await tokenResponse.json();
+    const tokenData = await tokenResponse.json() as TokenResponse;
     const accessToken = tokenData.access_token;
     const refreshToken = tokenData.refresh_token;
     const publicKey = tokenData.public_key;
@@ -294,9 +317,9 @@ serve(async (req) => {
       }
     });
 
-    let mercadopagoEmail = null;
+    let mercadopagoEmail: string | null = null;
     if (userInfoResponse.ok) {
-      const userInfo = await userInfoResponse.json();
+      const userInfo = await userInfoResponse.json() as UserInfoResponse;
       mercadopagoEmail = userInfo.email;
       console.log('[OAuth Callback] Email MP:', maskEmail(mercadopagoEmail || ''));
     } else {
@@ -368,6 +391,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (existingIntegration) {
+      const integration = existingIntegration as IntegrationRecord;
       // Atualizar existente
       const { error: updateError } = await supabase
         .from('vendor_integrations')
@@ -376,7 +400,7 @@ serve(async (req) => {
           active: true,
           updated_at: new Date().toISOString()
         })
-        .eq('id', existingIntegration.id);
+        .eq('id', integration.id);
 
       if (updateError) {
         console.error('[OAuth Callback] Erro ao atualizar integração:', updateError);
@@ -424,9 +448,10 @@ serve(async (req) => {
       status: 302
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[OAuth Callback] 🔥 Erro fatal:', error);
-    return new Response(errorHTML(`Erro interno: ${error.message}`), {
+    const message = error instanceof Error ? error.message : "Erro desconhecido";
+    return new Response(errorHTML(`Erro interno: ${message}`), {
       headers: { 
         'Content-Type': 'text/html; charset=utf-8',
         ...corsHeaders
