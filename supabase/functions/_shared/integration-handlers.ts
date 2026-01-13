@@ -26,15 +26,6 @@ interface SessionRecord {
   is_valid: boolean;
 }
 
-interface IntegrationRecord {
-  id: string;
-  integration_type: string;
-  active: boolean;
-  config: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
-}
-
 // ============================================================================
 // RATE LIMITING
 // ============================================================================
@@ -258,136 +249,17 @@ export async function handleDisconnect(
 }
 
 // ============================================================================
-// HANDLER: INIT OAUTH
+// RE-EXPORT OAUTH HANDLERS
 // ============================================================================
 
-export async function handleInitOAuth(
-  supabase: SupabaseClientAny,
-  producerId: string,
-  body: { integrationType?: string },
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  const rateCheck = await checkRateLimit(supabase, producerId, "oauth_init");
-  if (!rateCheck.allowed) {
-    return jsonResponse(
-      { success: false, error: "Muitas requisições.", retryAfter: rateCheck.retryAfter },
-      corsHeaders,
-      429
-    );
-  }
-
-  const { integrationType } = body;
-
-  if (!integrationType) {
-    return errorResponse("Tipo de integração é obrigatório", corsHeaders, 400);
-  }
-
-  const nonce = generateSecureNonce();
-  const expiresAt = new Date();
-  expiresAt.setMinutes(expiresAt.getMinutes() + 10);
-
-  const { error } = await supabase
-    .from("oauth_states")
-    .insert({
-      state: nonce,
-      vendor_id: producerId,
-      expires_at: expiresAt.toISOString(),
-    });
-
-  if (error) {
-    console.error("[integration-management] OAuth state insert error:", error);
-    return errorResponse("Erro ao iniciar autenticação", corsHeaders, 500);
-  }
-
-  await recordRateLimitAttempt(supabase, producerId, "oauth_init");
-
-  console.log(`[integration-management] OAuth state created for ${integrationType} by ${producerId}`);
-  return jsonResponse({ success: true, state: nonce }, corsHeaders);
-}
+export { handleInitOAuth } from "./integration-oauth-handlers.ts";
 
 // ============================================================================
-// HANDLER: GET STATUS
+// RE-EXPORT PROFILE & STATUS HANDLERS
 // ============================================================================
 
-export async function handleGetStatus(
-  supabase: SupabaseClientAny,
-  producerId: string,
-  integrationType: string | null,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  let query = supabase
-    .from("vendor_integrations")
-    .select("id, integration_type, active, config, created_at, updated_at")
-    .eq("vendor_id", producerId);
-
-  if (integrationType) {
-    query = query.eq("integration_type", integrationType);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    console.error("[integration-management] Status error:", error);
-    return errorResponse("Erro ao buscar status", corsHeaders, 500);
-  }
-
-  const integrations = (data as IntegrationRecord[] | null) || [];
-  const sanitized = integrations.map((int) => ({
-    id: int.id,
-    type: int.integration_type,
-    active: int.active,
-    isTest: (int.config as { is_test?: boolean })?.is_test || false,
-    email: (int.config as { email?: string })?.email || null,
-    connectedAt: int.created_at,
-    updatedAt: int.updated_at,
-  }));
-
-  return jsonResponse({ success: true, integrations: sanitized }, corsHeaders);
-}
-
-// ============================================================================
-// HANDLER: SAVE/CLEAR PROFILE WALLET
-// ============================================================================
-
-export async function handleSaveProfileWallet(
-  supabase: SupabaseClientAny,
-  producerId: string,
-  walletId: string,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  if (!walletId || typeof walletId !== "string") {
-    return errorResponse("walletId é obrigatório", corsHeaders, 400);
-  }
-
-  const { error } = await supabase
-    .from("profiles")
-    .update({ asaas_wallet_id: walletId })
-    .eq("id", producerId);
-
-  if (error) {
-    console.error("[integration-management] Save profile wallet error:", error);
-    return errorResponse("Erro ao salvar wallet", corsHeaders, 500);
-  }
-
-  console.log(`[integration-management] Profile wallet saved for ${producerId}: ${walletId}`);
-  return jsonResponse({ success: true }, corsHeaders);
-}
-
-export async function handleClearProfileWallet(
-  supabase: SupabaseClientAny,
-  producerId: string,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  const { error } = await supabase
-    .from("profiles")
-    .update({ asaas_wallet_id: null })
-    .eq("id", producerId);
-
-  if (error) {
-    console.error("[integration-management] Clear profile wallet error:", error);
-    return errorResponse("Erro ao limpar wallet", corsHeaders, 500);
-  }
-
-  console.log(`[integration-management] Profile wallet cleared for ${producerId}`);
-  return jsonResponse({ success: true }, corsHeaders);
-}
+export { 
+  handleGetStatus,
+  handleSaveProfileWallet, 
+  handleClearProfileWallet,
+} from "./integration-profile-handlers.ts";
