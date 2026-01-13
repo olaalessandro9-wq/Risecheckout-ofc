@@ -92,11 +92,11 @@ const DISPATCH_TIMEOUT = 30000;
 // HELPER FUNCTIONS
 // ========================================================================
 
-function logInfo(message: string, data?: any) {
+function logInfo(message: string, data?: unknown) {
   console.log(`[trigger-webhooks] [INFO] ${message}`, data ? JSON.stringify(data) : '');
 }
 
-function logError(message: string, error?: any) {
+function logError(message: string, error?: unknown) {
   console.error(`[trigger-webhooks] [ERROR] ${message}`, error);
 }
 
