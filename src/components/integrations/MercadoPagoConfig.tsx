@@ -29,9 +29,19 @@ type ConnectionMode = 'none' | 'production' | 'sandbox';
 export function MercadoPagoConfig({ onOpen, onConnectionChange }: { onOpen?: boolean; onConnectionChange?: () => void }) {
   const { user } = useAuth();
   
+  // Interface para integração do MercadoPago
+  interface MercadoPagoIntegration {
+    id: string;
+    integration_type: string;
+    config?: {
+      is_test?: boolean;
+      email?: string;
+    };
+  }
+
   // Estado da conexão
   const [currentMode, setCurrentMode] = useState<ConnectionMode>('none');
-  const [integration, setIntegration] = useState<any>(null);
+  const [integration, setIntegration] = useState<MercadoPagoIntegration | null>(null);
   const [loading, setLoading] = useState(true);
   
   // Estado do formulário Sandbox
@@ -110,11 +120,10 @@ export function MercadoPagoConfig({ onOpen, onConnectionChange }: { onOpen?: boo
       if (error) throw error;
 
       const integrations = response?.integrations || [];
-      const mpIntegration = integrations.find((i: any) => i.integration_type === 'MERCADOPAGO');
+      const mpIntegration = integrations.find((i: MercadoPagoIntegration) => i.integration_type === 'MERCADOPAGO') as MercadoPagoIntegration | undefined;
 
       if (mpIntegration) {
-        const config = mpIntegration.config as any;
-        const isTest = config?.is_test ?? false;
+        const isTest = mpIntegration.config?.is_test ?? false;
         
         // Determinar modo baseado em is_test
         const mode: ConnectionMode = isTest ? 'sandbox' : 'production';

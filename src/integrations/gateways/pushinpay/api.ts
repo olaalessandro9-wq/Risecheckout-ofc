@@ -101,7 +101,15 @@ export async function savePushinPaySettings(
   }
 
   try {
-    const updateData: Record<string, any> = {
+    // Interface para dados de upsert
+    interface PushinPayUpsertData {
+      user_id: string;
+      pushinpay_token: string;
+      environment: PushinPayEnvironment;
+      pushinpay_account_id?: string | null;
+    }
+
+    const updateData: PushinPayUpsertData = {
       user_id: userId,
       pushinpay_token: settings.pushinpay_token,
       environment: settings.environment,
@@ -114,7 +122,7 @@ export async function savePushinPaySettings(
 
     const { error } = await supabase
       .from("payment_gateway_settings")
-      .upsert(updateData as any);
+      .upsert(updateData);
 
     if (error) {
       return { ok: false, error: error.message };
@@ -145,21 +153,30 @@ export async function getPushinPaySettings(userId: string): Promise<PushinPaySet
     return null;
   }
 
+  // Interface para resposta do Supabase
+  interface PushinPaySettingsRow {
+    environment: string;
+    pushinpay_account_id: string | null;
+    pushinpay_token: string | null;
+  }
+
   const { data, error } = await supabase
     .from("payment_gateway_settings")
     .select("environment, pushinpay_account_id, pushinpay_token")
     .eq("user_id", userId)
-    .single() as any;
+    .single();
 
   if (error || !data) {
     return null;
   }
   
+  const row = data as PushinPaySettingsRow;
+  
   // Retorna com token vazio (mascarado) - o token real nunca é exposto ao cliente
   return {
-    pushinpay_token: data.pushinpay_token ? "••••••••" : "",
-    pushinpay_account_id: data.pushinpay_account_id || "",
-    environment: (data as PaymentGatewaySettings).environment,
+    pushinpay_token: row.pushinpay_token ? "••••••••" : "",
+    pushinpay_account_id: row.pushinpay_account_id || "",
+    environment: row.environment as PushinPayEnvironment,
   } as PushinPaySettings;
 }
 

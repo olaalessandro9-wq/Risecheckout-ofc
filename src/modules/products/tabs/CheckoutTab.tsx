@@ -40,7 +40,15 @@ export function CheckoutTab() {
   const [checkoutConfigDialogOpen, setCheckoutConfigDialogOpen] = useState(false);
   const [editingCheckout, setEditingCheckout] = useState<Checkout | null>(null);
   const [currentOfferId, setCurrentOfferId] = useState<string>("");
-  const [availableOffers, setAvailableOffers] = useState<any[]>([]);
+  // Interface para ofertas disponíveis
+  interface AvailableOffer {
+    id: string;
+    name: string;
+    price: number;
+    is_default: boolean | null;
+  }
+
+  const [availableOffers, setAvailableOffers] = useState<AvailableOffer[]>([]);
 
   // Carregar ofertas do produto
   useEffect(() => {
@@ -151,11 +159,20 @@ export function CheckoutTab() {
         .limit(1)
         .maybeSingle();
       
+      // Interface para resposta do checkout_links
+      interface CheckoutLinkWithPaymentLink {
+        link_id: string;
+        payment_links?: {
+          offer_id: string;
+        } | null;
+      }
+
       if (error) {
         console.error("Error loading checkout offer:", error);
         setCurrentOfferId("");
       } else {
-        const offerId = (data as any)?.payment_links?.offer_id || "";
+        const linkData = data as CheckoutLinkWithPaymentLink | null;
+        const offerId = linkData?.payment_links?.offer_id || "";
         setCurrentOfferId(offerId);
       }
     } catch (error) {

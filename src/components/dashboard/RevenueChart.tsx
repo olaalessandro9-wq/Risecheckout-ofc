@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import type { TooltipProps } from 'recharts';
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 
@@ -9,7 +10,10 @@ interface RevenueChartProps {
   isLoading?: boolean;
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+// Tipagem correta para o Tooltip do Recharts
+type CustomTooltipProps = TooltipProps<number, string>;
+
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-card/95 backdrop-blur-xl border border-border rounded-xl p-4 shadow-xl">
@@ -19,7 +23,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
           {new Intl.NumberFormat('pt-BR', {
             style: 'currency',
             currency: 'BRL'
-          }).format(payload[0].value)}
+          }).format(payload[0].value ?? 0)}
         </p>
       </div>
     );

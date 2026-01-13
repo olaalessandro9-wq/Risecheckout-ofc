@@ -116,9 +116,17 @@ export function StudentsTab({ productId }: StudentsTabProps) {
         return;
       }
 
-      const studentsList = data?.students || [];
-      const backendTotal = data?.total || 0;
-      const backendStats = (data as any)?.stats;
+      // Interface para resposta do serviço de alunos
+      interface StudentsServiceResponse {
+        students: BuyerWithGroups[];
+        total: number;
+        stats?: StudentStats;
+      }
+
+      const response = data as StudentsServiceResponse | null;
+      const studentsList = response?.students || [];
+      const backendTotal = response?.total || 0;
+      const backendStats = response?.stats;
 
       // Combine producer + students
       let allStudents: BuyerWithGroups[] = [];

@@ -140,9 +140,16 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
       }
 
       if (token?.id) {
-        const tokenAny = token as any;
-        const resolvedPaymentMethodId = paymentMethodIdRef.current || tokenAny.payment_method?.id || '';
-        const resolvedIssuerId = issuerIdRef.current || tokenAny.issuer?.id?.toString() || '';
+        // Interface para resposta do token do Mercado Pago
+        interface MercadoPagoTokenExtended {
+          id: string;
+          payment_method?: { id: string };
+          issuer?: { id: number | string };
+        }
+        
+        const tokenExt = token as MercadoPagoTokenExtended;
+        const resolvedPaymentMethodId = paymentMethodIdRef.current || tokenExt.payment_method?.id || '';
+        const resolvedIssuerId = issuerIdRef.current || tokenExt.issuer?.id?.toString() || '';
         
         if (!resolvedPaymentMethodId) {
           setErrors({ cardNumber: 'Não foi possível identificar a bandeira do cartão.' });

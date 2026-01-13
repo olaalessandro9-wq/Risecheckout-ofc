@@ -134,9 +134,17 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
 
         if (error) throw error;
 
+        // Interface para oferta do Supabase
+        interface OfferRow {
+          id: string;
+          name: string | null;
+          price: number;
+          is_default: boolean | null;
+        }
+
         if (offersData && offersData.length > 0) {
           // Mapear ofertas
-          const mappedOffers: Offer[] = offersData.map((offer: any) => {
+          const mappedOffers: Offer[] = offersData.map((offer: OfferRow) => {
             const commission = (offer.price * (product.commission_percentage || 0)) / 100;
             return {
               id: offer.id,

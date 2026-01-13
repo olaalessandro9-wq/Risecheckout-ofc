@@ -72,7 +72,7 @@ export async function sendKwaiEvent(
     }
 
     // Preparar dados para kwaiq
-    const eventParams: any = {
+    const eventParams: Record<string, unknown> = {
       event_id: eventData.event_id || `${Date.now()}_${Math.random()}`,
       timestamp: eventData.timestamp || Date.now(),
       value: eventData.value,
@@ -102,8 +102,8 @@ export async function sendKwaiEvent(
     // Kwai pode usar diferentes métodos, então tentamos o padrão
     if (typeof window.kwaiq === "function") {
       window.kwaiq(eventName, eventParams);
-    } else if (window.kwaiq && typeof (window.kwaiq as any).track === "function") {
-      (window.kwaiq as any).track(eventName, eventParams);
+    } else if (window.kwaiq && typeof (window.kwaiq as { track?: (name: string, params: Record<string, unknown>) => void }).track === "function") {
+      (window.kwaiq as { track: (name: string, params: Record<string, unknown>) => void }).track(eventName, eventParams);
     } else {
       console.warn("[Kwai] Método de rastreamento não encontrado");
       return {

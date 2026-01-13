@@ -1,5 +1,7 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 export async function ensureUniqueCheckoutName(
-  supabase: any,
+  supabase: SupabaseClient,
   productId: string,
   base: string
 ): Promise<string> {
