@@ -64,8 +64,20 @@ export function CuponsTab() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
+      // Tipo para dados retornados pela Edge Function
+      interface CouponResponse {
+        id: string;
+        code?: string;
+        discount_value?: number;
+        discount_type?: string;
+        start_date?: string;
+        expires_at?: string;
+        apply_to_order_bumps?: boolean;
+        uses_count?: number;
+      }
+
       // Transformar dados para o formato da tabela
-      const transformedCoupons: Coupon[] = (data?.coupons || []).map((c: any) => ({
+      const transformedCoupons: Coupon[] = (data?.coupons || []).map((c: CouponResponse) => ({
         id: c.id,
         code: c.code || "",
         discount: c.discount_value || 0,

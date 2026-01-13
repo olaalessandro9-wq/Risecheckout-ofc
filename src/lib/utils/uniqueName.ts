@@ -1,5 +1,7 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 export async function ensureUniqueName(
-  supabase: any,
+  supabase: SupabaseClient,
   base: string,
 ): Promise<string> {
   let candidate = base;

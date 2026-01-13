@@ -17,7 +17,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import { createCardToken } from '@mercadopago/sdk-react';
-import type { PaymentMethod } from "@/types/checkout";
+import type { PaymentMethod, OrderBump, CheckoutFormData } from "@/types/checkout";
 import { useOrderCreation, type PersonalDataOverride } from "./useOrderCreation";
 import { usePixPayment } from "./usePixPayment";
 import { useCardPayment } from "./useCardPayment";
@@ -28,6 +28,15 @@ import type {
   AppliedCoupon,
   CardPaymentData 
 } from "./types";
+
+/**
+ * Tipo para erros de validação do SDK MercadoPago
+ */
+interface MercadoPagoValidationError {
+  field?: string;
+  code?: string;
+  message?: string;
+}
 
 // Re-export para uso externo
 export type { PersonalDataOverride };
@@ -45,9 +54,9 @@ interface UsePaymentOrchestratorProps {
   productPrice: number;
   publicKey: string | null;
   amount: number;
-  formData: any;
+  formData: CheckoutFormData;
   selectedBumps: Set<string>;
-  orderBumps: any[];
+  orderBumps: OrderBump[];
   appliedCoupon?: AppliedCoupon | null;
   pixGateway?: PixGateway;
   creditCardGateway?: CreditCardGateway;
@@ -55,7 +64,7 @@ interface UsePaymentOrchestratorProps {
 
 interface ValidationResult {
   isValid: boolean;
-  errors: any[];
+  errors: MercadoPagoValidationError[];
 }
 
 interface UsePaymentOrchestratorReturn {
@@ -186,8 +195,9 @@ export function usePaymentOrchestrator({
           identificationNumber: '',
         });
         return { isValid: true, errors: [] };
-      } catch (e: any) {
-        return { isValid: false, errors: e.cause || [] };
+      } catch (e: unknown) {
+        const mpError = e as { cause?: MercadoPagoValidationError[] };
+        return { isValid: false, errors: mpError.cause || [] };
       }
     }
     return { isValid: true, errors: [] };

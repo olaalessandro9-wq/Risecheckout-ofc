@@ -9,7 +9,7 @@
 
 import { useCallback } from "react";
 import { toReais } from "@/lib/money";
-import type { PurchaseData, TrackingConfig } from "@/types/checkout";
+import type { PurchaseData, TrackingConfig, OrderBump } from "@/types/checkout";
 
 // Tracking Modules
 import * as Facebook from "@/integrations/tracking/facebook";
@@ -30,7 +30,7 @@ interface UseTrackingServiceProps {
 }
 
 interface UseTrackingServiceReturn {
-  fireInitiateCheckout: (selectedBumps: Set<string>, orderBumps: any[]) => void;
+  fireInitiateCheckout: (selectedBumps: Set<string>, orderBumps: OrderBump[]) => void;
   firePurchase: (purchaseData: PurchaseData) => void;
 }
 
@@ -68,7 +68,7 @@ export function useTrackingService({
 
   // Disparar evento de início de checkout
   const fireInitiateCheckout = useCallback(
-    (selectedBumps: Set<string>, orderBumps: any[]) => {
+    (selectedBumps: Set<string>, orderBumps: OrderBump[]) => {
       if (!productId || !productName) return;
 
       // Facebook Pixel - trackInitiateCheckout espera (product, totalValue, itemsCount)
