@@ -4,9 +4,10 @@
  * Funções utilitárias extraídas do producer-auth para manter o arquivo principal
  * abaixo do limite de 300 linhas (RISE Protocol).
  * 
- * @version 1.0.0
+ * RISE Protocol Compliant - Zero `any` (exceto auditLog para flexibilidade)
  */
 
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { genSaltSync, hashSync, compareSync } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 // ============================================
@@ -67,13 +68,13 @@ export function generateResetToken(): string {
  * Log audit event to producer_audit_log table
  */
 export async function logAuditEvent(
-  supabase: any,
+  supabase: SupabaseClient,
   producerId: string | null,
   action: string,
   success: boolean,
   ipAddress: string | null,
   userAgent: string | null,
-  details?: any
+  details?: Record<string, unknown>
 ): Promise<void> {
   try {
     await supabase.from("producer_audit_log").insert({

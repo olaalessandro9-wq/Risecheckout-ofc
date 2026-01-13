@@ -3,10 +3,10 @@
  * 
  * Password reset handlers for producer-auth edge function.
  * 
- * RISE Protocol Compliant
+ * RISE Protocol Compliant - Zero `any`
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { rateLimitMiddleware, getClientIP } from "./rate-limiter.ts";
 import { validatePassword, formatPasswordError } from "./password-policy.ts";
 import { sanitizeEmail } from "./sanitizer.ts";
@@ -22,6 +22,22 @@ import {
   errorResponse,
 } from "./producer-auth-helpers.ts";
 
+// ============================================
+// INTERNAL TYPES
+// ============================================
+
+interface ProducerForReset {
+  id: string;
+  email: string;
+  name: string | null;
+}
+
+interface ProducerWithToken {
+  id: string;
+  email: string;
+  reset_token_expires_at: string | null;
+}
+
 // Rate limit config for password reset
 const PASSWORD_RESET_RATE_LIMIT = {
   action: "producer_password_reset",
@@ -35,7 +51,7 @@ const PASSWORD_RESET_RATE_LIMIT = {
 // ============================================
 
 export async function handleRequestPasswordReset(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   req: Request,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
@@ -58,7 +74,7 @@ export async function handleRequestPasswordReset(
     .from("profiles")
     .select("id, email, name")
     .eq("email", email.toLowerCase())
-    .single();
+    .single() as { data: ProducerForReset | null; error: unknown };
 
   if (findError || !producer) {
     console.log(`[producer-auth] Password reset for unknown email: ${email}`);
@@ -106,7 +122,7 @@ export async function handleRequestPasswordReset(
 // ============================================
 
 export async function handleVerifyResetToken(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   req: Request,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
@@ -120,7 +136,7 @@ export async function handleVerifyResetToken(
     .from("profiles")
     .select("id, email, reset_token_expires_at")
     .eq("reset_token", token)
-    .single();
+    .single() as { data: ProducerWithToken | null; error: unknown };
 
   if (findError || !producer) {
     return jsonResponse({ valid: false, error: "Token inválido" }, corsHeaders);
@@ -138,7 +154,7 @@ export async function handleVerifyResetToken(
 // ============================================
 
 export async function handleResetPassword(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   req: Request,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
@@ -167,7 +183,7 @@ export async function handleResetPassword(
     .from("profiles")
     .select("id, email, reset_token_expires_at")
     .eq("reset_token", token)
-    .single();
+    .single() as { data: ProducerWithToken | null; error: unknown };
 
   if (findError || !producer) {
     return errorResponse("Token inválido", corsHeaders, 400);
