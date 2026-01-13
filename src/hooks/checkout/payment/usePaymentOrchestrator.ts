@@ -161,7 +161,7 @@ export function usePaymentOrchestrator({
     const needsMercadoPagoSDK = creditCardGateway === 'mercadopago' || pixGateway === 'mercadopago';
     if (!needsMercadoPagoSDK || !publicKey) return;
 
-    if ((window as any).MercadoPago) {
+    if (window.MercadoPago) {
       setIsSDKLoaded(true);
       return;
     }
@@ -170,7 +170,7 @@ export function usePaymentOrchestrator({
     script.src = "https://sdk.mercadopago.com/js/v2";
     script.async = true;
     script.onload = () => {
-      if ((window as any).MercadoPago) {
+      if (window.MercadoPago) {
         console.log("[PaymentOrchestrator] ✅ SDK carregada");
         setIsSDKLoaded(true);
       }

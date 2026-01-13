@@ -116,7 +116,14 @@ export function ConfigForm({ onConnectionChange }: { onConnectionChange?: () => 
       if (error) throw error;
 
       if (data) {
-        const config = data.config as any;
+        interface MercadoPagoConfig {
+          is_test?: boolean;
+          email?: string;
+          user_id?: string;
+          public_key?: string;
+          access_token?: string;
+        }
+        const config = data.config as MercadoPagoConfig | null;
         const isTest = config?.is_test ?? false;
         
         // Determinar modo baseado em is_test

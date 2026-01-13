@@ -14,9 +14,9 @@ export async function duplicateCheckout(checkoutId: string) {
   });
 
   // Chama a RPC que cria o checkout e retorna o ID
-  const { data: newId, error } = await (supabase.rpc as any)("duplicate_checkout_shallow", {
+  const { data: newId, error } = await supabase.rpc("duplicate_checkout_shallow", {
     p_source_checkout_id: srcId,
-  });
+  }) as { data: string | null; error: Error | null };
 
   if (error) {
     console.error('[duplicateCheckout] RPC failed:', error);

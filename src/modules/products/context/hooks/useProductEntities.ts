@@ -86,8 +86,10 @@ export function useProductEntities({
 
       if (error) throw error;
 
-      // Type assertion: order_bumps schema differs from OrderBump interface
-      setOrderBumps((data || []) as any);
+      // Note: Raw order_bumps data from DB has different shape than OrderBump interface
+      // OrderBump interface expects: id, name, description, price, image_url, bump_product_id
+      // But DB returns checkout-specific fields. We store raw data and let consumers handle mapping
+      setOrderBumps((data || []) as unknown as OrderBump[]);
     } catch (error: unknown) {
       console.error("[useProductEntities] Error loading order bumps:", error);
     }

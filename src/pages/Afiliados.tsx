@@ -73,9 +73,9 @@ const Afiliados = () => {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase.rpc('get_producer_affiliates' as any, {
+      const { data, error } = await supabase.rpc('get_producer_affiliates', {
         search_term: debouncedSearchTerm
-      });
+      }) as { data: AffiliateData[] | null; error: Error | null };
 
       if (error) throw error;
 
