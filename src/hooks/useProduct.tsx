@@ -57,7 +57,7 @@ export const useProduct = () => {
         support_email: data.support_email || "",
         status: data.status as "active" | "blocked",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error("Erro ao carregar produto");
       console.error("Error loading product:", error);
     } finally {
@@ -85,7 +85,7 @@ export const useProduct = () => {
         .getPublicUrl(fileName);
 
       return data.publicUrl;
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error("Erro ao fazer upload da imagem");
       console.error("Error uploading image:", error);
       return null;
@@ -200,14 +200,15 @@ export const useProduct = () => {
         // Redirecionar para a página de edição do produto criado
         navigate(`/dashboard/produtos/editar?id=${data.product.id}`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
       // Melhorar mensagens de erro
-      if (error.message?.includes("401") || error.message?.includes("Não autorizado")) {
+      if (errorMessage.includes("401") || errorMessage.includes("Não autorizado")) {
         toast.error("Sessão expirada. Faça login novamente.");
-      } else if (error.message?.includes("403")) {
+      } else if (errorMessage.includes("403")) {
         toast.error("Você não tem permissão para editar este produto.");
       } else {
-        toast.error(`Erro ao salvar produto: ${error.message || "Erro desconhecido"}`);
+        toast.error(`Erro ao salvar produto: ${errorMessage}`);
       }
       console.error("Error saving product:", error);
       throw error;
@@ -245,8 +246,8 @@ export const useProduct = () => {
 
       toast.success("Produto excluído com sucesso");
       return true;
-    } catch (error: any) {
-      toast.error(`Erro ao excluir produto: ${error.message || "Erro desconhecido"}`);
+    } catch (error: unknown) {
+      toast.error(`Erro ao excluir produto: ${error instanceof Error ? error.message : "Erro desconhecido"}`);
       return false;
     }
   };

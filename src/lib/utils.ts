@@ -6,11 +6,18 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 
-// Função auxiliar para parsear JSON com segurança, evitando erros fatais de tela preta.
-export function parseJsonSafely(jsonString: any, defaultValue: any): any {
+/**
+ * Função auxiliar para parsear JSON com segurança, evitando erros fatais de tela preta.
+ * Usa generics para inferência de tipo.
+ * 
+ * @param jsonString - String JSON ou objeto já parseado
+ * @param defaultValue - Valor padrão a retornar em caso de erro
+ * @returns Objeto parseado ou valor padrão
+ */
+export function parseJsonSafely<T>(jsonString: unknown, defaultValue: T): T {
   if (typeof jsonString === 'object' && jsonString !== null) {
     // Se já for um objeto (Supabase retornou JSONB parseado automaticamente)
-    return jsonString;
+    return jsonString as T;
   }
   
   if (typeof jsonString === 'string') {
@@ -19,7 +26,7 @@ export function parseJsonSafely(jsonString: any, defaultValue: any): any {
       const parsed = JSON.parse(jsonString);
       // Se for um array ou objeto válido, retorna
       if (typeof parsed === 'object' && parsed !== null) {
-        return parsed;
+        return parsed as T;
       }
     } catch (e) {
       // Se o parse falhar, loga o erro e retorna o valor padrão

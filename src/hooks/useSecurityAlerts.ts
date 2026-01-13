@@ -85,9 +85,9 @@ export function useSecurityAlerts() {
 
       if (error) throw error;
       setAlerts((data || []) as SecurityAlert[]);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[useSecurityAlerts] Erro ao buscar alertas:", err);
-      setError(err.message);
+      setError(err instanceof Error ? err.message : "Erro desconhecido");
     }
   }, []);
 
@@ -102,7 +102,7 @@ export function useSecurityAlerts() {
 
       if (error) throw error;
       setBlockedIPs((data || []) as BlockedIP[]);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[useSecurityAlerts] Erro ao buscar IPs bloqueados:", err);
     }
   }, []);
@@ -153,7 +153,7 @@ export function useSecurityAlerts() {
         rateLimitExceeded: rateLimitCount || 0,
         unacknowledgedAlerts: unacknowledgedCount || 0,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[useSecurityAlerts] Erro ao calcular estatísticas:", err);
     }
   }, []);
@@ -171,9 +171,9 @@ export function useSecurityAlerts() {
       toast.success("Alerta reconhecido");
       await fetchAlerts();
       await fetchStats();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[useSecurityAlerts] Erro ao reconhecer alerta:", err);
-      toast.error(err.message || "Erro ao reconhecer alerta");
+      toast.error(err instanceof Error ? err.message : "Erro ao reconhecer alerta");
     }
   }, [fetchAlerts, fetchStats]);
 
@@ -190,9 +190,9 @@ export function useSecurityAlerts() {
       toast.success(`IP ${ipAddress} bloqueado`);
       await fetchBlockedIPs();
       await fetchStats();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[useSecurityAlerts] Erro ao bloquear IP:", err);
-      toast.error(err.message || "Erro ao bloquear IP");
+      toast.error(err instanceof Error ? err.message : "Erro ao bloquear IP");
     }
   }, [fetchBlockedIPs, fetchStats]);
 
@@ -209,9 +209,9 @@ export function useSecurityAlerts() {
       toast.success(`IP ${ipAddress} desbloqueado`);
       await fetchBlockedIPs();
       await fetchStats();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[useSecurityAlerts] Erro ao desbloquear IP:", err);
-      toast.error(err.message || "Erro ao desbloquear IP");
+      toast.error(err instanceof Error ? err.message : "Erro ao desbloquear IP");
     }
   }, [fetchBlockedIPs, fetchStats]);
 

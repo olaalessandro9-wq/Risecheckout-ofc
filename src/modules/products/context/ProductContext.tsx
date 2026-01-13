@@ -206,7 +206,7 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
       ]);
       toast.success("Todas as alterações foram salvas");
       setDirtySources({ general: false, settings: false, core: false, upsell: false });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[ProductContext] Error saving all:", error);
       toast.error("Erro ao salvar alterações");
     } finally {

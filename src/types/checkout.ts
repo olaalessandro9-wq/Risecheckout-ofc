@@ -78,6 +78,21 @@ export interface OrderBump {
   };
 }
 
+export interface ProductData {
+  id?: string;
+  name?: string;
+  price?: number;
+  image_url?: string;
+  description?: string;
+  required_fields?: {
+    name?: boolean;
+    email?: boolean;
+    phone?: boolean;
+    cpf?: boolean;
+    document?: boolean;
+  };
+}
+
 export interface UpsellSettings {
   enabled: boolean;
   redirectUrl?: string;

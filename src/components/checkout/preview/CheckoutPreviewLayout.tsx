@@ -12,7 +12,7 @@
  */
 
 import React from "react";
-import { CheckoutCustomization } from "@/types/checkout";
+import { CheckoutCustomization, OrderBump, ProductData } from "@/types/checkout";
 import { ThemePreset } from "@/types/theme";
 import { CheckoutMasterLayout } from "@/components/checkout/unified";
 import { SharedCheckoutLayout } from "@/components/checkout/shared";
@@ -20,8 +20,8 @@ import { SharedCheckoutLayout } from "@/components/checkout/shared";
 interface CheckoutPreviewLayoutProps {
   design: ThemePreset;
   customization: CheckoutCustomization;
-  productData?: any;
-  orderBumps?: any[];
+  productData?: ProductData;
+  orderBumps?: OrderBump[];
   viewMode: "desktop" | "mobile" | "public";
   selectedPayment: "pix" | "credit_card";
   onPaymentChange: (payment: "pix" | "credit_card") => void;
