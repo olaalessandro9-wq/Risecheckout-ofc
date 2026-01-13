@@ -26,7 +26,7 @@ export interface ProducerAuth {
 }
 
 // deno-lint-ignore no-explicit-any
-type AnySupabaseClient = any;
+type SupabaseClientAny = any;
 
 /**
  * Attempts to authenticate a producer from the request.
@@ -37,7 +37,7 @@ type AnySupabaseClient = any;
  * @returns ProducerAuth object or null if not authenticated
  */
 export async function getAuthenticatedProducer(
-  supabase: AnySupabaseClient,
+  supabase: SupabaseClientAny,
   request: Request
 ): Promise<ProducerAuth | null> {
   const sessionToken = request.headers.get("X-Producer-Session-Token");
@@ -59,7 +59,7 @@ export async function getAuthenticatedProducer(
  * @throws Error if not authenticated
  */
 export async function requireAuthenticatedProducer(
-  supabase: AnySupabaseClient,
+  supabase: SupabaseClientAny,
   request: Request
 ): Promise<ProducerAuth> {
   const producer = await getAuthenticatedProducer(supabase, request);
@@ -75,7 +75,7 @@ export async function requireAuthenticatedProducer(
  * Validates a producer session token against the database.
  */
 async function validateProducerSessionToken(
-  supabase: AnySupabaseClient,
+  supabase: SupabaseClientAny,
   token: string
 ): Promise<ProducerAuth | null> {
   try {
