@@ -8,11 +8,11 @@
  * - delete: Delete checkout atomically (cascade)
  * - toggle-link-status: Toggle payment link status
  * 
- * RISE Protocol Compliant - Refactored for < 300 lines
+ * @version 2.0.0 - Zero `any` compliance (RISE Protocol V2)
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import {
@@ -26,13 +26,44 @@ import {
 } from "../_shared/checkout-crud-helpers.ts";
 import { managePaymentLink } from "../_shared/checkout-link-handlers.ts";
 
+// ==========================================
+// TYPES
+// ==========================================
+
+interface RequestBody {
+  sessionToken?: string;
+  productId?: string;
+  checkoutId?: string;
+  checkout_id?: string;
+  name?: string;
+  isDefault?: boolean;
+  offerId?: string;
+  linkId?: string;
+}
+
+interface PaymentLinkOffer {
+  id: string;
+  products?: { user_id: string } | { user_id: string }[];
+}
+
+interface PaymentLink {
+  id: string;
+  status: string;
+  offers: PaymentLinkOffer | PaymentLinkOffer[];
+}
+
+interface CheckoutLinkData {
+  link_id: string;
+  payment_links: { id: string; is_original?: boolean } | { id: string; is_original?: boolean }[] | null;
+}
+
 serve(withSentry("checkout-crud", async (req) => {
   const corsResult = handleCors(req);
   if (corsResult instanceof Response) return corsResult;
   const corsHeaders = corsResult.headers;
 
   try {
-    const supabase = createClient(
+    const supabase: SupabaseClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
@@ -41,13 +72,13 @@ serve(withSentry("checkout-crud", async (req) => {
     const pathParts = url.pathname.split("/").filter(Boolean);
     const action = pathParts[pathParts.length - 1];
 
-    let body: any = {};
+    let body: RequestBody = {};
     if (req.method !== "GET") {
       try { body = await req.json(); } catch { return errorResponse("Corpo da requisição inválido", corsHeaders, 400); }
     }
 
     const sessionToken = body.sessionToken || req.headers.get("x-producer-session-token");
-    const sessionValidation = await validateProducerSession(supabase, sessionToken);
+    const sessionValidation = await validateProducerSession(supabase, sessionToken || '');
     if (!sessionValidation.valid) return errorResponse(sessionValidation.error || "Não autorizado", corsHeaders, 401);
 
     const producerId = sessionValidation.producerId!;
@@ -102,7 +133,7 @@ serve(withSentry("checkout-crud", async (req) => {
       const ownershipCheck = await verifyCheckoutOwnership(supabase, checkoutId, producerId);
       if (!ownershipCheck.valid) return errorResponse("Você não tem permissão para editar este checkout", corsHeaders, 403);
 
-      const updates: any = { updated_at: new Date().toISOString() };
+      const updates: Record<string, string | boolean> = { updated_at: new Date().toISOString() };
       if (name?.trim()) updates.name = name.trim();
       if (isDefault !== undefined) updates.is_default = !!isDefault;
 
@@ -160,12 +191,21 @@ serve(withSentry("checkout-crud", async (req) => {
         .eq("checkout_id", checkoutId)
         .maybeSingle();
 
-      const paymentLinkData = checkoutLink?.payment_links as any;
-      const isOriginal = Array.isArray(paymentLinkData) ? paymentLinkData[0]?.is_original : paymentLinkData?.is_original;
+      const typedCheckoutLink = checkoutLink as CheckoutLinkData | null;
+      let isOriginal = false;
+      
+      if (typedCheckoutLink?.payment_links) {
+        const paymentLinkData = typedCheckoutLink.payment_links;
+        if (Array.isArray(paymentLinkData)) {
+          isOriginal = paymentLinkData[0]?.is_original ?? false;
+        } else {
+          isOriginal = paymentLinkData.is_original ?? false;
+        }
+      }
 
       await supabase.from("checkout_links").delete().eq("checkout_id", checkoutId);
-      if (checkoutLink && isOriginal === false) {
-        await supabase.from("payment_links").delete().eq("id", checkoutLink.link_id);
+      if (typedCheckoutLink && isOriginal === false) {
+        await supabase.from("payment_links").delete().eq("id", typedCheckoutLink.link_id);
       }
       await supabase.from("order_bumps").delete().eq("checkout_id", checkoutId);
       await supabase.from("checkout_rows").delete().eq("checkout_id", checkoutId);
@@ -189,10 +229,23 @@ serve(withSentry("checkout-crud", async (req) => {
 
       if (linkError || !link) return errorResponse("Link não encontrado", corsHeaders, 404);
 
-      const offer = link.offers as any;
-      if (offer?.products?.user_id !== producerId) return errorResponse("Você não tem permissão para editar este link", corsHeaders, 403);
+      const typedLink = link as unknown as PaymentLink;
+      const offersData = typedLink.offers;
+      const offer: PaymentLinkOffer = Array.isArray(offersData) ? offersData[0] : offersData;
+      
+      const productsData = offer?.products;
+      let offerUserId: string | undefined;
+      if (productsData) {
+        if (Array.isArray(productsData)) {
+          offerUserId = productsData[0]?.user_id;
+        } else {
+          offerUserId = productsData.user_id;
+        }
+      }
 
-      const newStatus = link.status === "active" ? "inactive" : "active";
+      if (offerUserId !== producerId) return errorResponse("Você não tem permissão para editar este link", corsHeaders, 403);
+
+      const newStatus = typedLink.status === "active" ? "inactive" : "active";
       const { error: updateError } = await supabase.from("payment_links").update({ status: newStatus }).eq("id", linkId);
       if (updateError) return errorResponse("Erro ao atualizar status do link", corsHeaders, 500);
 
@@ -200,7 +253,7 @@ serve(withSentry("checkout-crud", async (req) => {
     }
 
     return errorResponse(`Ação desconhecida: ${action}`, corsHeaders, 404);
-  } catch (error) {
+  } catch (error: unknown) {
     const err = error instanceof Error ? error : new Error(String(error));
     await captureException(err, { functionName: "checkout-crud", url: req.url, method: req.method });
     return errorResponse("Erro interno do servidor", corsHeaders, 500);

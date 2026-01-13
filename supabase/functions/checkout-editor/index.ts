@@ -5,19 +5,90 @@
  * - get-editor-data: Load all data for CheckoutCustomizer
  * - update-design: Save checkout customization
  * 
- * RISE Protocol Compliant - Refactored from checkout-management
+ * @version 2.0.0 - Zero `any` compliance (RISE Protocol V2)
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
+
+// ============================================
+// TYPES
+// ============================================
+
+interface RequestBody {
+  sessionToken?: string;
+  checkoutId?: string;
+  design?: DesignSettings;
+  topComponents?: unknown[];
+  bottomComponents?: unknown[];
+}
+
+interface DesignSettings {
+  theme?: string;
+  font?: string;
+  colors?: ColorSettings;
+  backgroundImage?: BackgroundImageSettings | null;
+}
+
+interface ColorSettings {
+  background?: string;
+  primaryText?: string;
+  secondaryText?: string;
+  active?: string;
+  icon?: string;
+  formBackground?: string;
+  button?: { background?: string; text?: string };
+  creditCardFields?: {
+    background?: string;
+    text?: string;
+    border?: string;
+    focusBorder?: string;
+    focusText?: string;
+    placeholder?: string;
+  };
+  selectedBox?: BoxColors;
+  unselectedBox?: BoxColors;
+  selectedButton?: ButtonColors;
+  unselectedButton?: ButtonColors;
+}
+
+interface BoxColors {
+  background?: string;
+  headerBackground?: string;
+  headerPrimaryText?: string;
+  headerSecondaryText?: string;
+  primaryText?: string;
+  secondaryText?: string;
+}
+
+interface ButtonColors {
+  background?: string;
+  text?: string;
+  icon?: string;
+}
+
+interface BackgroundImageSettings {
+  url?: string | null;
+  expand?: boolean;
+  fixed?: boolean;
+  repeat?: boolean;
+}
+
+interface CheckoutWithProduct {
+  id: string;
+  name: string;
+  is_default: boolean;
+  product_id: string | null;
+  products: { user_id: string } | { user_id: string }[] | null;
+}
 
 // ============================================
 // HELPERS
 // ============================================
 
-function jsonResponse(data: any, corsHeaders: Record<string, string>, status = 200): Response {
+function jsonResponse(data: unknown, corsHeaders: Record<string, string>, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -33,7 +104,7 @@ function errorResponse(message: string, corsHeaders: Record<string, string>, sta
 // ============================================
 
 async function checkRateLimit(
-  supabase: any,
+  supabase: SupabaseClient,
   producerId: string,
   action: string
 ): Promise<{ allowed: boolean; retryAfter?: number }> {
@@ -53,7 +124,7 @@ async function checkRateLimit(
   return { allowed: true };
 }
 
-async function recordRateLimitAttempt(supabase: any, producerId: string, action: string): Promise<void> {
+async function recordRateLimitAttempt(supabase: SupabaseClient, producerId: string, action: string): Promise<void> {
   await supabase.from("rate_limit_attempts").insert({
     identifier: `producer:${producerId}`,
     action,
@@ -67,7 +138,7 @@ async function recordRateLimitAttempt(supabase: any, producerId: string, action:
 // ============================================
 
 async function validateProducerSession(
-  supabase: any,
+  supabase: SupabaseClient,
   sessionToken: string
 ): Promise<{ valid: boolean; producerId?: string; error?: string }> {
   if (!sessionToken) return { valid: false, error: "Token de sessão não fornecido" };
@@ -95,10 +166,10 @@ async function validateProducerSession(
 // ============================================
 
 async function verifyCheckoutOwnership(
-  supabase: any,
+  supabase: SupabaseClient,
   checkoutId: string,
   producerId: string
-): Promise<{ valid: boolean; checkout?: any }> {
+): Promise<{ valid: boolean; checkout?: CheckoutWithProduct }> {
   const { data, error } = await supabase
     .from("checkouts")
     .select("id, name, is_default, product_id, products!inner(user_id)")
@@ -106,9 +177,21 @@ async function verifyCheckoutOwnership(
     .single();
 
   if (error || !data) return { valid: false };
-  const product = data.products as any;
-  if (product?.user_id !== producerId) return { valid: false };
-  return { valid: true, checkout: data };
+  
+  const checkout = data as unknown as CheckoutWithProduct;
+  const productsData = checkout.products;
+  
+  let userId: string | undefined;
+  if (productsData) {
+    if (Array.isArray(productsData)) {
+      userId = productsData[0]?.user_id;
+    } else {
+      userId = productsData.user_id;
+    }
+  }
+  
+  if (userId !== producerId) return { valid: false };
+  return { valid: true, checkout };
 }
 
 // ============================================
@@ -123,19 +206,19 @@ serve(withSentry("checkout-editor", async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey);
 
     const url = new URL(req.url);
     const pathParts = url.pathname.split("/").filter(Boolean);
     const action = pathParts[pathParts.length - 1];
 
-    let body: any = {};
+    let body: RequestBody = {};
     if (req.method !== "GET") {
       try { body = await req.json(); } catch { return errorResponse("Corpo da requisição inválido", corsHeaders, 400); }
     }
 
     const sessionToken = body.sessionToken || req.headers.get("x-producer-session-token");
-    const sessionValidation = await validateProducerSession(supabase, sessionToken);
+    const sessionValidation = await validateProducerSession(supabase, sessionToken || '');
     if (!sessionValidation.valid) return errorResponse(sessionValidation.error || "Não autorizado", corsHeaders, 401);
 
     const producerId = sessionValidation.producerId!;
@@ -158,7 +241,7 @@ serve(withSentry("checkout-editor", async (req) => {
 
         if (checkoutError) throw new Error(`Falha ao carregar checkout: ${checkoutError.message}`);
 
-        let offers: any[] = [];
+        let offers: unknown[] = [];
         if (checkout.product_id) {
           const { data: offersData } = await supabase.from("offers").select("*").eq("product_id", checkout.product_id);
           offers = offersData || [];
@@ -175,7 +258,7 @@ serve(withSentry("checkout-editor", async (req) => {
           success: true,
           data: { checkout, product: checkout.products, offers, orderBumps: orderBumps || [] },
         }, corsHeaders);
-      } catch (error) {
+      } catch (error: unknown) {
         const err = error instanceof Error ? error : new Error(String(error));
         await captureException(err, { functionName: "checkout-editor", extra: { action: "get-editor-data", checkoutId } });
         return errorResponse(`Erro ao carregar dados: ${err.message}`, corsHeaders, 500);
@@ -194,7 +277,7 @@ serve(withSentry("checkout-editor", async (req) => {
       if (!ownershipCheck.valid) return errorResponse("Você não tem permissão para editar este checkout", corsHeaders, 403);
 
       try {
-        const updates: any = { updated_at: new Date().toISOString() };
+        const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
         if (design?.theme !== undefined) updates.theme = design.theme;
         if (design?.font !== undefined) updates.font = design.font;
@@ -284,7 +367,7 @@ serve(withSentry("checkout-editor", async (req) => {
 
         await recordRateLimitAttempt(supabase, producerId, "checkout_update_design");
         return jsonResponse({ success: true }, corsHeaders);
-      } catch (error) {
+      } catch (error: unknown) {
         const err = error instanceof Error ? error : new Error(String(error));
         await captureException(err, { functionName: "checkout-editor", extra: { action: "update-design", checkoutId } });
         return errorResponse(`Erro ao salvar design: ${err.message}`, corsHeaders, 500);
@@ -292,7 +375,7 @@ serve(withSentry("checkout-editor", async (req) => {
     }
 
     return errorResponse(`Ação desconhecida: ${action}`, corsHeaders, 404);
-  } catch (error) {
+  } catch (error: unknown) {
     const err = error instanceof Error ? error : new Error(String(error));
     await captureException(err, { functionName: "checkout-editor", url: req.url, method: req.method });
     return errorResponse("Erro interno do servidor", corsHeaders, 500);
