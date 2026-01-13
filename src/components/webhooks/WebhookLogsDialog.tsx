@@ -28,8 +28,9 @@ interface WebhookDelivery {
   attempts: number;
   last_attempt_at: string | null;
   created_at: string;
-  payload: any;
+  payload: Record<string, unknown> | string | null;
   order_id: string | null;
+  webhook_url?: string;
 }
 
 const EVENT_LABELS: Record<string, string> = {

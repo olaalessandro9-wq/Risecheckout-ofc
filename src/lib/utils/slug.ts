@@ -1,3 +1,5 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 // Gera slugs "kebab-case" e garante unicidade consultando o banco
 export function toSlug(input: string): string {
   return (input ?? "")
@@ -10,7 +12,7 @@ export function toSlug(input: string): string {
 }
 
 export async function ensureUniqueSlug(
-  supabase: any,
+  supabase: SupabaseClient,
   table: string,
   column: string,
   baseSlug: string

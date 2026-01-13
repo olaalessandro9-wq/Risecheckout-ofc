@@ -65,7 +65,22 @@ export function useProductCheckouts({
 
       setCheckouts(
         (data || []).map((checkout) => {
-          const checkoutLink = (checkout as any)?.checkout_links?.[0];
+          // Assertion para acessar propriedades do Supabase
+          const raw = checkout as typeof checkout & {
+            visits_count?: number;
+            is_default?: boolean;
+            checkout_links?: Array<{
+              link_id?: string;
+              payment_links?: {
+                offers?: {
+                  name?: string;
+                  price?: number;
+                } | null;
+              } | null;
+            }>;
+          };
+          
+          const checkoutLink = raw.checkout_links?.[0];
           const paymentLink = checkoutLink?.payment_links;
           const offer = paymentLink?.offers;
 
@@ -73,9 +88,9 @@ export function useProductCheckouts({
             id: checkout.id,
             name: checkout.name,
             price: offer?.price || checkout.products?.price || 0,
-            visits: (checkout as any).visits_count || 0,
+            visits: raw.visits_count || 0,
             offer: offer?.name || checkout.products?.name || "",
-            isDefault: (checkout as any).is_default || false,
+            isDefault: raw.is_default || false,
             linkId: checkoutLink?.link_id || "",
             product_id: checkout.product_id,
             status: checkout.status,
@@ -134,20 +149,22 @@ export function useProductCheckouts({
       if (linksError) throw linksError;
 
       // Para cada link, buscar checkouts associados
-      const linksWithCheckouts = await Promise.all(
-        (linksData || []).map(async (link: any) => {
+      const linksWithCheckouts: PaymentLink[] = await Promise.all(
+        (linksData || []).map(async (link) => {
           const { data: checkoutLinksData } = await supabase
             .from("checkout_links")
             .select("checkout_id")
             .eq("link_id", link.id);
 
           const checkoutIds = (checkoutLinksData || []).map(
-            (cl: any) => cl.checkout_id
+            (cl) => cl.checkout_id
           );
           const { data: checkoutsData } = await supabase
             .from("checkouts")
             .select("id, name")
             .in("id", checkoutIds);
+
+          const statusValue = link.status === "inactive" ? "inactive" : "active";
 
           return {
             id: link.id,
@@ -156,7 +173,7 @@ export function useProductCheckouts({
             offer_name: link.offers?.name || "",
             offer_price: Number(link.offers?.price || 0),
             is_default: link.offers?.is_default || false,
-            status: link.status || "active",
+            status: statusValue as "active" | "inactive",
             checkouts: checkoutsData || [],
           };
         })

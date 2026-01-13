@@ -104,8 +104,29 @@ export async function sendGoogleAdsConversion(
       };
     }
 
+    // Interface para parâmetros de conversão Google Ads
+    interface GoogleAdsConversionParams {
+      value: number;
+      currency: string;
+      transaction_id?: string;
+      email?: string;
+      phone_number?: string;
+      address?: string;
+      city?: string;
+      state?: string;
+      postal_code?: string;
+      country?: string;
+      items?: Array<{
+        id: string;
+        name: string;
+        category?: string;
+        quantity?: number;
+        price?: number;
+      }>;
+    }
+
     // Preparar dados para gtag
-    const conversionParams: any = {
+    const conversionParams: GoogleAdsConversionParams = {
       value: conversionData.conversionValue,
       currency: conversionData.currencyCode,
       transaction_id: conversionData.orderId,

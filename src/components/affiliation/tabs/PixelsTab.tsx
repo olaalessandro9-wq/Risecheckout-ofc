@@ -101,7 +101,7 @@ export function PixelsTab({ affiliationId, initialPixels, onRefetch }: PixelsTab
     }));
   };
 
-  const updatePixel = (index: number, field: keyof PixelForm, value: any) => {
+  const updatePixel = (index: number, field: keyof PixelForm, value: string | Platform | boolean | number) => {
     setPixelsByPlatform(prev => ({
       ...prev,
       [activePlatform]: prev[activePlatform].map((p, i) => 
@@ -269,7 +269,7 @@ interface PixelCardProps {
   pixel: PixelForm;
   index: number;
   platformId: Platform;
-  updatePixel: (index: number, field: keyof PixelForm, value: any) => void;
+  updatePixel: (index: number, field: keyof PixelForm, value: string | Platform | boolean | number) => void;
   removePixel: (index: number) => void;
 }
 

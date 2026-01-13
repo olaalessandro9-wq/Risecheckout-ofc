@@ -79,9 +79,19 @@ export function WebhooksConfig() {
 
       if (webhooksError) throw webhooksError;
       
+      // Interface para webhook raw do Supabase
+      interface RawWebhookData {
+        id: string;
+        name: string;
+        url: string;
+        events: string[];
+        product_id: string | null;
+        created_at: string;
+      }
+
       // Mapear para incluir nomes de produtos
       const webhooksWithProducts = await Promise.all(
-        (webhooksData || []).map(async (webhook: any) => {
+        (webhooksData || []).map(async (webhook: RawWebhookData) => {
           if (webhook.product_id) {
             const { data: product } = await supabase
               .from("products")

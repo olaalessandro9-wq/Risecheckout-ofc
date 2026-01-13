@@ -33,9 +33,9 @@ export function getActiveFlags(): string[] {
     .map(([key]) => key);
 }
 
-export function debugLog(message: string, data?: any): void {
+export function debugLog(message: string, data?: unknown): void {
   if (FEATURE_FLAGS.DEBUG_MODE) {
-    console.log(`[DEBUG] ${message}`, data || '');
+    console.log(`[DEBUG] ${message}`, data ?? '');
   }
 }
 

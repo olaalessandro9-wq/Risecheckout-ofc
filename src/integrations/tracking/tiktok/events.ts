@@ -70,7 +70,7 @@ export async function sendTikTokEvent(
     }
 
     // Preparar dados para ttq
-    const eventParams: any = {
+    const eventParams: Record<string, unknown> = {
       event_id: eventData.event_id || `${Date.now()}_${Math.random()}`,
       timestamp: eventData.timestamp || Date.now(),
       value: eventData.value,
