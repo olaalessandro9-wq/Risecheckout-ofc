@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Trash2, GripVertical, Gift, MoreVertical, Pencil } from "lucide-react";
 import {
@@ -10,6 +10,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatCentsToBRL as formatBRL } from "@/lib/money";
+import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 import {
   DndContext,
   closestCenter,
@@ -159,7 +160,7 @@ export function OrderBumpList({ productId, onAdd, onEdit, maxOrderBumps = 5 }: O
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8, // Evita cliques acidentais
+        distance: 8,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -167,11 +168,7 @@ export function OrderBumpList({ productId, onAdd, onEdit, maxOrderBumps = 5 }: O
     })
   );
 
-  useEffect(() => {
-    loadOrderBumps();
-  }, [productId]);
-
-  const loadOrderBumps = async () => {
+  const loadOrderBumps = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -232,7 +229,11 @@ export function OrderBumpList({ productId, onAdd, onEdit, maxOrderBumps = 5 }: O
     } finally {
       setLoading(false);
     }
-  };
+  }, [productId]);
+
+  useEffect(() => {
+    loadOrderBumps();
+  }, [loadOrderBumps]);
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -246,23 +247,40 @@ export function OrderBumpList({ productId, onAdd, onEdit, maxOrderBumps = 5 }: O
     const newOrder = arrayMove(orderBumps, oldIndex, newIndex);
     setOrderBumps(newOrder);
     
-    // 2. Salvar automaticamente no banco de dados
+    // Get checkout_id from first bump (they should all be from same checkout in the list)
+    const checkoutId = newOrder[0]?.checkout_id;
+    if (!checkoutId) {
+      toast.error("Erro: checkout não encontrado");
+      return;
+    }
+    
+    // 2. Salvar via Edge Function
     setIsSaving(true);
     try {
-      // Atualizar a posição de todos os order bumps
-      const updates = newOrder.map((bump, index) => 
-        supabase
-          .from('order_bumps')
-          .update({ position: index })
-          .eq('id', bump.id)
-      );
-      
-      await Promise.all(updates);
+      const sessionToken = getProducerSessionToken();
+      if (!sessionToken) {
+        throw new Error("Sessão expirada");
+      }
+
+      const orderedIds = newOrder.map(b => b.id);
+
+      const { data: response, error } = await supabase.functions.invoke("checkout-management/order-bump/reorder", {
+        body: { checkoutId, orderedIds },
+        headers: { "x-producer-session-token": sessionToken },
+      });
+
+      if (error) {
+        throw new Error(error.message || "Erro ao reordenar");
+      }
+
+      if (!response?.success) {
+        throw new Error(response?.error || "Erro ao reordenar");
+      }
       
       toast.success('Ordem atualizada com sucesso!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao atualizar ordem:', error);
-      toast.error('Erro ao salvar nova ordem');
+      toast.error(error.message || 'Erro ao salvar nova ordem');
       // Reverter estado local em caso de erro
       loadOrderBumps();
     } finally {
@@ -272,18 +290,30 @@ export function OrderBumpList({ productId, onAdd, onEdit, maxOrderBumps = 5 }: O
 
   const handleRemove = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from("order_bumps")
-        .delete()
-        .eq("id", id);
+      const sessionToken = getProducerSessionToken();
+      if (!sessionToken) {
+        toast.error("Sessão expirada. Por favor, faça login novamente.");
+        return;
+      }
 
-      if (error) throw error;
+      const { data: response, error } = await supabase.functions.invoke("checkout-management/order-bump/delete", {
+        body: { id },
+        headers: { "x-producer-session-token": sessionToken },
+      });
+
+      if (error) {
+        throw new Error(error.message || "Erro ao remover");
+      }
+
+      if (!response?.success) {
+        throw new Error(response?.error || "Erro ao remover");
+      }
 
       toast.success("Order bump removido com sucesso");
       loadOrderBumps();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error removing order bump:", error);
-      toast.error("Erro ao remover order bump");
+      toast.error(error.message || "Erro ao remover order bump");
     }
   };
 

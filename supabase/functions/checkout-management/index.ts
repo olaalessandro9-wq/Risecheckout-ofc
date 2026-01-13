@@ -977,6 +977,71 @@ serve(withSentry("checkout-management", async (req) => {
     }
 
     // ============================================
+    // ORDER BUMP: REORDER
+    // ============================================
+    if (isOrderBump && action === "reorder" && (req.method === "PUT" || req.method === "POST")) {
+      const rateCheck = await checkRateLimit(supabase, producerId, "order_bump_reorder");
+      if (!rateCheck.allowed) {
+        return jsonResponse(
+          { success: false, error: "Muitas requisições. Tente novamente em alguns minutos.", retryAfter: rateCheck.retryAfter },
+          corsHeaders,
+          429
+        );
+      }
+
+      const { checkoutId, orderedIds } = body;
+
+      if (!checkoutId || typeof checkoutId !== "string") {
+        return errorResponse("ID do checkout é obrigatório", corsHeaders, 400);
+      }
+
+      if (!orderedIds || !Array.isArray(orderedIds) || orderedIds.length === 0) {
+        return errorResponse("orderedIds é obrigatório", corsHeaders, 400);
+      }
+
+      // Verify checkout ownership
+      const isOwner = await verifyCheckoutForOrderBump(supabase, checkoutId, producerId);
+      if (!isOwner) {
+        return errorResponse("Você não tem permissão para reordenar order bumps deste checkout", corsHeaders, 403);
+      }
+
+      console.log(`[checkout-management] Reordering ${orderedIds.length} order bumps for checkout ${checkoutId}`);
+
+      try {
+        // Update positions for all order bumps
+        const updates = orderedIds.map((id, index) =>
+          supabase
+            .from("order_bumps")
+            .update({ position: index })
+            .eq("id", id)
+            .eq("checkout_id", checkoutId)
+        );
+
+        const results = await Promise.all(updates);
+        const hasError = results.some((r) => r.error);
+
+        if (hasError) {
+          console.error("[checkout-management] Order bump reorder error");
+          return errorResponse("Erro ao reordenar order bumps", corsHeaders, 500);
+        }
+
+        await recordRateLimitAttempt(supabase, producerId, "order_bump_reorder");
+
+        console.log(`[checkout-management] Order bumps reordered for checkout ${checkoutId} by ${producerId}`);
+        return jsonResponse({ success: true }, corsHeaders);
+
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        console.error("[checkout-management] Order bump reorder failed:", err.message);
+        await captureException(err, {
+          functionName: "checkout-management",
+          extra: { action: "order-bump/reorder", producerId, checkoutId, orderedIds },
+        });
+        return errorResponse(`Erro ao reordenar: ${err.message}`, corsHeaders, 500);
+      }
+    }
+
+    // ============================================
     // TOGGLE PAYMENT LINK STATUS
     // ============================================
     if (!isOrderBump && action === "toggle-link-status" && (req.method === "PUT" || req.method === "POST")) {

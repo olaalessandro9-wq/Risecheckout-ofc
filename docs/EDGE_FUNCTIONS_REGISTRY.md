@@ -264,6 +264,11 @@
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-13 | Adicionado rate limiting em `members-area-modules` e `members-area-content` |
+| 2026-01-13 | Adicionada ação `update-price` em `product-management` - atualização atômica de preço |
+| 2026-01-13 | Adicionada ação `order-bump/reorder` em `checkout-management` - reordenação via Edge Function |
+| 2026-01-13 | Migrado `EditPriceDialog.tsx` - zero operações diretas ao banco |
+| 2026-01-13 | Migrado `OrderBumpList.tsx` - zero operações diretas ao banco (reorder e delete) |
 | 2026-01-13 | Expandida `checkout-management` com ações `get-editor-data` e `update-design` |
 | 2026-01-13 | Migrado `CheckoutCustomizer.tsx` - zero operações diretas ao banco |
 | 2026-01-12 | Adicionadas `members-area-modules` e `members-area-content` - migração completa da Members Area |
