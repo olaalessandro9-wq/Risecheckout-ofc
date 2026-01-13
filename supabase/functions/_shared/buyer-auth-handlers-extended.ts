@@ -1,7 +1,7 @@
 /**
  * Buyer Auth Handlers - Extended
  * 
- * Handlers adicionais para password reset e producer login
+ * Handlers para password reset e validação
  * Separado para manter arquivos < 300 linhas
  */
 
@@ -31,21 +31,111 @@ import { sendEmail } from "./zeptomail.ts";
 
 import {
   CURRENT_HASH_VERSION,
-  SESSION_DURATION_DAYS,
   RESET_TOKEN_EXPIRY_HOURS,
 } from "./buyer-auth-types.ts";
 
 import {
   hashPassword,
-  generateSessionToken,
   generateResetToken,
 } from "./buyer-auth-handlers.ts";
+
+import {
+  generateResetEmailHtml,
+  generateResetEmailText,
+} from "./buyer-auth-email-templates.ts";
 
 function jsonResponse(data: unknown, status = 200, corsHeaders: Record<string, string>): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" }
   });
+}
+
+// ============================================
+// VALIDATE HANDLER
+// ============================================
+export async function handleValidate(
+  supabase: SupabaseClient,
+  req: Request,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const { sessionToken } = await req.json();
+
+  if (!sessionToken) {
+    return jsonResponse({ valid: false }, 200, corsHeaders);
+  }
+
+  const { data: session } = await supabase
+    .from("buyer_sessions")
+    .select(`
+      id,
+      expires_at,
+      is_valid,
+      buyer:buyer_id (
+        id,
+        email,
+        name,
+        is_active
+      )
+    `)
+    .eq("session_token", sessionToken)
+    .single();
+
+  if (!session || !session.is_valid || !session.buyer) {
+    return jsonResponse({ valid: false }, 200, corsHeaders);
+  }
+
+  const buyerData = Array.isArray(session.buyer) ? session.buyer[0] : session.buyer;
+
+  if (!buyerData.is_active) {
+    return jsonResponse({ valid: false }, 200, corsHeaders);
+  }
+
+  if (new Date(session.expires_at) < new Date()) {
+    await supabase
+      .from("buyer_sessions")
+      .update({ is_valid: false })
+      .eq("id", session.id);
+    return jsonResponse({ valid: false }, 200, corsHeaders);
+  }
+
+  await supabase
+    .from("buyer_sessions")
+    .update({ last_activity_at: new Date().toISOString() })
+    .eq("id", session.id);
+
+  return jsonResponse({
+    valid: true,
+    buyer: { id: buyerData.id, email: buyerData.email, name: buyerData.name },
+  }, 200, corsHeaders);
+}
+
+// ============================================
+// CHECK-EMAIL HANDLER
+// ============================================
+export async function handleCheckEmail(
+  supabase: SupabaseClient,
+  req: Request,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const { email } = await req.json();
+
+  if (!email) {
+    return jsonResponse({ error: "Email é obrigatório" }, 400, corsHeaders);
+  }
+
+  const { data: buyer } = await supabase
+    .from("buyer_profiles")
+    .select("id, password_hash")
+    .eq("email", email.toLowerCase())
+    .single();
+
+  if (!buyer) {
+    return jsonResponse({ exists: false, needsPasswordSetup: false }, 200, corsHeaders);
+  }
+
+  const needsPasswordSetup = buyer.password_hash === "PENDING_PASSWORD_SETUP";
+  return jsonResponse({ exists: true, needsPasswordSetup, buyerId: buyer.id }, 200, corsHeaders);
 }
 
 // ============================================
@@ -56,7 +146,6 @@ export async function handleRequestPasswordReset(
   req: Request,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  // Usar BUYER_AUTH_REGISTER para password reset (similar rate limit)
   const rateLimitResult = await rateLimitMiddleware(
     supabase, req, RATE_LIMIT_CONFIGS.BUYER_AUTH_REGISTER, corsHeaders
   );
@@ -78,7 +167,6 @@ export async function handleRequestPasswordReset(
     .eq("email", email.toLowerCase())
     .single();
 
-  // Retornar sucesso mesmo se não encontrar (segurança)
   if (findError || !buyer) {
     console.log(`[buyer-auth] Password reset requested for non-existent email: ${email}`);
     return jsonResponse({ success: true, message: "Se o email existir, você receberá instruções" }, 200, corsHeaders);
@@ -107,10 +195,8 @@ export async function handleRequestPasswordReset(
     return jsonResponse({ error: "Erro ao processar solicitação" }, 500, corsHeaders);
   }
 
-  // Construir URL de reset
   const resetLink = `${Deno.env.get("APP_URL") || "https://risecheckout.lovable.app"}/buyer/reset-password?token=${resetToken}`;
 
-  // Enviar email
   const emailResult = await sendEmail({
     to: buyer.email,
     subject: "Redefinição de Senha - RiseCheckout",
@@ -229,259 +315,4 @@ export async function handleResetPassword(
 
   console.log(`[buyer-auth] Password reset successful for: ${buyer.email}`);
   return jsonResponse({ success: true, message: "Senha redefinida com sucesso" }, 200, corsHeaders);
-}
-
-// ============================================
-// CHECK-PRODUCER-BUYER HANDLER
-// ============================================
-export async function handleCheckProducerBuyer(
-  supabase: SupabaseClient,
-  req: Request,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  const { email, producerUserId } = await req.json();
-
-  if (!email) {
-    return jsonResponse({ error: "Email é obrigatório" }, 400, corsHeaders);
-  }
-
-  let hasOwnProducts = false;
-  if (producerUserId) {
-    const { data: ownProducts } = await supabase
-      .from("products")
-      .select("id")
-      .eq("user_id", producerUserId)
-      .eq("members_area_enabled", true)
-      .limit(1);
-    hasOwnProducts = !!(ownProducts && ownProducts.length > 0);
-  }
-
-  const { data: buyer } = await supabase
-    .from("buyer_profiles")
-    .select("id")
-    .eq("email", email.toLowerCase())
-    .single();
-
-  if (!buyer && !hasOwnProducts) {
-    console.log(`[buyer-auth] No buyer profile or own products for producer: ${email}`);
-    return jsonResponse({ hasBuyerProfile: false, hasOwnProducts: false }, 200, corsHeaders);
-  }
-
-  let hasActiveAccess = false;
-  if (buyer) {
-    const { data: access } = await supabase
-      .from("buyer_product_access")
-      .select("id")
-      .eq("buyer_id", buyer.id)
-      .eq("is_active", true)
-      .limit(1);
-    hasActiveAccess = !!(access && access.length > 0);
-  }
-
-  const shouldShowStudentPanel = hasActiveAccess || hasOwnProducts;
-
-  console.log(`[buyer-auth] Producer buyer check: ${email}, hasAccess: ${hasActiveAccess}, hasOwnProducts: ${hasOwnProducts}`);
-  return jsonResponse({
-    hasBuyerProfile: shouldShowStudentPanel,
-    hasOwnProducts,
-    buyerId: buyer?.id || null,
-  }, 200, corsHeaders);
-}
-
-// ============================================
-// ENSURE-PRODUCER-ACCESS HANDLER
-// ============================================
-export async function handleEnsureProducerAccess(
-  supabase: SupabaseClient,
-  req: Request,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  const { email, productId, producerUserId } = await req.json();
-
-  if (!email || !productId) {
-    return jsonResponse({ error: "Email e productId são obrigatórios" }, 400, corsHeaders);
-  }
-
-  try {
-    let { data: buyer } = await supabase
-      .from("buyer_profiles")
-      .select("id")
-      .eq("email", email.toLowerCase())
-      .single();
-
-    if (!buyer) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("name")
-        .eq("id", producerUserId)
-        .single();
-
-      const { data: newBuyer, error: createError } = await supabase
-        .from("buyer_profiles")
-        .insert({
-          email: email.toLowerCase(),
-          password_hash: "OWNER_NO_PASSWORD",
-          password_hash_version: 2,
-          name: profile?.name || null,
-          is_active: true,
-        })
-        .select("id")
-        .single();
-
-      if (createError) {
-        console.error("[buyer-auth] Error creating producer buyer profile:", createError);
-        throw createError;
-      }
-      buyer = newBuyer;
-      console.log(`[buyer-auth] Created buyer profile for producer: ${email}`);
-    }
-
-    console.log(`[buyer-auth] Producer ${email} has access via product ownership, no buyer_product_access needed`);
-
-    return jsonResponse({ success: true, buyerId: buyer.id }, 200, corsHeaders);
-  } catch (error) {
-    console.error("[buyer-auth] Error ensuring producer access:", error);
-    return jsonResponse({ error: "Erro ao criar acesso do produtor" }, 500, corsHeaders);
-  }
-}
-
-// ============================================
-// PRODUCER-LOGIN HANDLER
-// ============================================
-export async function handleProducerLogin(
-  supabase: SupabaseClient,
-  req: Request,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  const { email } = await req.json();
-
-  if (!email) {
-    return jsonResponse({ error: "Email é obrigatório" }, 400, corsHeaders);
-  }
-
-  const { data: buyer, error: findError } = await supabase
-    .from("buyer_profiles")
-    .select("id, email, name, is_active")
-    .eq("email", email.toLowerCase())
-    .single();
-
-  if (findError || !buyer) {
-    console.log(`[buyer-auth] Producer login failed - buyer not found: ${email}`);
-    return jsonResponse({ error: "Perfil de comprador não encontrado" }, 404, corsHeaders);
-  }
-
-  if (!buyer.is_active) {
-    return jsonResponse({ error: "Conta desativada" }, 403, corsHeaders);
-  }
-
-  const sessionToken = generateSessionToken();
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + SESSION_DURATION_DAYS);
-
-  const { error: sessionError } = await supabase
-    .from("buyer_sessions")
-    .insert({
-      buyer_id: buyer.id,
-      session_token: sessionToken,
-      expires_at: expiresAt.toISOString(),
-      ip_address: req.headers.get("x-forwarded-for") || null,
-      user_agent: req.headers.get("user-agent") || null,
-    });
-
-  if (sessionError) {
-    console.error("[buyer-auth] Error creating producer session:", sessionError);
-    return jsonResponse({ error: "Erro ao criar sessão" }, 500, corsHeaders);
-  }
-
-  await supabase
-    .from("buyer_profiles")
-    .update({ last_login_at: new Date().toISOString() })
-    .eq("id", buyer.id);
-
-  console.log(`[buyer-auth] Producer login successful: ${email}`);
-  return jsonResponse({
-    success: true,
-    sessionToken,
-    expiresAt: expiresAt.toISOString(),
-    buyer: { id: buyer.id, email: buyer.email, name: buyer.name },
-  }, 200, corsHeaders);
-}
-
-// ============================================
-// EMAIL TEMPLATES
-// ============================================
-function generateResetEmailHtml(name: string | null, resetLink: string): string {
-  return `
-    <!DOCTYPE html>
-    <html lang="pt-BR">
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body style="margin: 0; padding: 0; background-color: #0a0a0b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0a0a0b; padding: 40px 20px;">
-        <tr>
-          <td align="center">
-            <table width="600" cellpadding="0" cellspacing="0" style="background-color: #141416; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
-              <tr>
-                <td style="padding: 40px 40px 20px 40px; text-align: center;">
-                  <div style="display: inline-block; background: linear-gradient(135deg, #3b82f6, #8b5cf6); width: 50px; height: 50px; border-radius: 12px; line-height: 50px; color: white; font-weight: bold; font-size: 24px;">R</div>
-                  <h1 style="color: white; margin: 20px 0 0 0; font-size: 24px; font-weight: 600;">RiseCheckout</h1>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding: 20px 40px;">
-                  <h2 style="color: white; margin: 0 0 20px 0; font-size: 20px;">Olá${name ? `, ${name}` : ''}!</h2>
-                  <p style="color: #94a3b8; margin: 0 0 20px 0; font-size: 16px; line-height: 1.6;">
-                    Recebemos uma solicitação para redefinir sua senha. Clique no botão abaixo para criar uma nova senha:
-                  </p>
-                  <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
-                    <tr>
-                      <td align="center">
-                        <a href="${resetLink}" style="display: inline-block; background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
-                          Redefinir Senha
-                        </a>
-                      </td>
-                    </tr>
-                  </table>
-                  <p style="color: #64748b; margin: 20px 0; font-size: 14px;">
-                    Este link expira em <strong style="color: #94a3b8;">1 hora</strong>.
-                  </p>
-                  <p style="color: #64748b; margin: 20px 0 0 0; font-size: 14px;">
-                    Se você não solicitou esta alteração, ignore este email. Sua senha permanecerá a mesma.
-                  </p>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding: 20px 40px 40px 40px; border-top: 1px solid rgba(255,255,255,0.1);">
-                  <p style="color: #64748b; margin: 0; font-size: 12px; text-align: center;">
-                    © 2025 RiseCheckout Inc. Todos os direitos reservados.
-                  </p>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-      </table>
-    </body>
-    </html>
-  `;
-}
-
-function generateResetEmailText(name: string | null, resetLink: string): string {
-  return `
-Olá${name ? `, ${name}` : ''}!
-
-Recebemos uma solicitação para redefinir sua senha.
-
-Clique no link abaixo para criar uma nova senha:
-${resetLink}
-
-Este link expira em 1 hora.
-
-Se você não solicitou esta alteração, ignore este email.
-
-Atenciosamente,
-Equipe RiseCheckout
-  `;
 }

@@ -1,8 +1,8 @@
 /**
- * Buyer Auth Handlers
+ * Buyer Auth Handlers - Core
  * 
- * Handlers extraídos do index.ts para manter arquivos < 300 linhas
- * Cada handler é uma função pura que recebe request e retorna Response
+ * Handlers principais: register, login, logout
+ * Separado para manter arquivos < 300 linhas
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -30,15 +30,11 @@ import {
   SecurityAction 
 } from "./audit-logger.ts";
 
-import { sendEmail } from "./zeptomail.ts";
-
 import {
   HASH_VERSION_SHA256,
-  HASH_VERSION_BCRYPT,
   CURRENT_HASH_VERSION,
   BCRYPT_COST,
   SESSION_DURATION_DAYS,
-  RESET_TOKEN_EXPIRY_HOURS,
 } from "./buyer-auth-types.ts";
 
 // ============================================
@@ -331,91 +327,4 @@ export async function handleLogout(
 
   console.log("[buyer-auth] Logout successful");
   return jsonResponse({ success: true }, 200, corsHeaders);
-}
-
-// ============================================
-// VALIDATE HANDLER
-// ============================================
-export async function handleValidate(
-  supabase: SupabaseClient,
-  req: Request,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  const { sessionToken } = await req.json();
-
-  if (!sessionToken) {
-    return jsonResponse({ valid: false }, 200, corsHeaders);
-  }
-
-  const { data: session } = await supabase
-    .from("buyer_sessions")
-    .select(`
-      id,
-      expires_at,
-      is_valid,
-      buyer:buyer_id (
-        id,
-        email,
-        name,
-        is_active
-      )
-    `)
-    .eq("session_token", sessionToken)
-    .single();
-
-  if (!session || !session.is_valid || !session.buyer) {
-    return jsonResponse({ valid: false }, 200, corsHeaders);
-  }
-
-  const buyerData = Array.isArray(session.buyer) ? session.buyer[0] : session.buyer;
-
-  if (!buyerData.is_active) {
-    return jsonResponse({ valid: false }, 200, corsHeaders);
-  }
-
-  if (new Date(session.expires_at) < new Date()) {
-    await supabase
-      .from("buyer_sessions")
-      .update({ is_valid: false })
-      .eq("id", session.id);
-    return jsonResponse({ valid: false }, 200, corsHeaders);
-  }
-
-  await supabase
-    .from("buyer_sessions")
-    .update({ last_activity_at: new Date().toISOString() })
-    .eq("id", session.id);
-
-  return jsonResponse({
-    valid: true,
-    buyer: { id: buyerData.id, email: buyerData.email, name: buyerData.name },
-  }, 200, corsHeaders);
-}
-
-// ============================================
-// CHECK-EMAIL HANDLER
-// ============================================
-export async function handleCheckEmail(
-  supabase: SupabaseClient,
-  req: Request,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  const { email } = await req.json();
-
-  if (!email) {
-    return jsonResponse({ error: "Email é obrigatório" }, 400, corsHeaders);
-  }
-
-  const { data: buyer } = await supabase
-    .from("buyer_profiles")
-    .select("id, password_hash")
-    .eq("email", email.toLowerCase())
-    .single();
-
-  if (!buyer) {
-    return jsonResponse({ exists: false, needsPasswordSetup: false }, 200, corsHeaders);
-  }
-
-  const needsPasswordSetup = buyer.password_hash === "PENDING_PASSWORD_SETUP";
-  return jsonResponse({ exists: true, needsPasswordSetup, buyerId: buyer.id }, 200, corsHeaders);
 }
