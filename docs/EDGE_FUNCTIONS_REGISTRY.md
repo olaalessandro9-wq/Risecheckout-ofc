@@ -10,9 +10,10 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 85 |
-| **No código local** | 85 |
+| **Total de Funções** | 86 |
+| **No código local** | 86 |
 | **Apenas deployadas** | 0 |
+| **Operações Diretas Frontend** | 0 ✅ |
 | **Base URL** | `https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/` |
 
 ---
@@ -297,6 +298,12 @@
 | 2026-01-12 | Expandida `product-management` com ação `update-general` |
 | 2026-01-12 | Removidos hooks `useDripSettings` e `useAttachmentUpload` - lógica integrada em `members-area-content` |
 | 2026-01-12 | Adicionadas `coupon-management` e `integration-management` - migração completa de CuponsTab e MercadoPagoConfig |
+| 2026-01-13 | ✅ **MIGRAÇÃO 100% COMPLETA** - Zero operações diretas no frontend |
+| 2026-01-13 | Adicionada `webhook-crud` para CRUD de webhooks via backend |
+| 2026-01-13 | Migrados: WebhooksConfig, AffiliatesTab, useMembersAreaSettings, useMembersAreaBuilder |
+| 2026-01-13 | Expandida `integration-management` com `save-profile-wallet`, `clear-profile-wallet` |
+| 2026-01-13 | Expandida `product-settings` com `update-affiliate-gateway-settings`, `update-members-area-settings` |
+| 2026-01-13 | Expandida `members-area-modules` com `save-sections`, `save-builder-settings` |
 | 2026-01-12 | Expandida `product-management` com ações `update-settings` e `smart-delete` |
 | 2026-01-12 | Expandida `checkout-management` com ação `toggle-link-status` |
 | 2026-01-12 | Expandida `members-area-students` com ação `assign_groups` |

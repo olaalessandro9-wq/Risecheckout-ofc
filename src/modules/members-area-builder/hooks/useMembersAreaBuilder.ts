@@ -434,18 +434,27 @@ export function useMembersAreaBuilder(productId: string | undefined): UseMembers
     }
   }, [productId]);
 
-  const updateModule = useCallback(async (id: string, data: Partial<MemberModule>) => {
+  const updateModule = useCallback(async (id: string, moduleData: Partial<MemberModule>) => {
     try {
-      const { error } = await supabase
-        .from('product_member_modules')
-        .update(data)
-        .eq('id', id);
+      const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
+      const sessionToken = getProducerSessionToken();
       
-      if (error) throw error;
+      const { data: result, error } = await supabase.functions.invoke('members-area-modules', {
+        body: {
+          action: 'update',
+          moduleId: id,
+          data: moduleData,
+          sessionToken,
+        }
+      });
+      
+      if (error || !result?.success) {
+        throw new Error(result?.error || error?.message || 'Falha ao atualizar módulo');
+      }
       
       setState(prev => ({
         ...prev,
-        modules: prev.modules.map(m => m.id === id ? { ...m, ...data } : m),
+        modules: prev.modules.map(m => m.id === id ? { ...m, ...moduleData } : m),
       }));
       
       toast.success('Módulo atualizado');
