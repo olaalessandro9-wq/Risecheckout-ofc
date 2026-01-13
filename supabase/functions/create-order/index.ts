@@ -14,10 +14,12 @@
  * - handlers/affiliate-processor.ts (~200 linhas)
  * - handlers/order-creator.ts (~180 linhas)
  * - index.ts (~170 linhas) ← VOCÊ ESTÁ AQUI
+ * 
+ * @version 2.0.0 - RISE Protocol V2 Compliance (Zero any)
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { rateLimitMiddleware, getIdentifier } from "../_shared/rate-limit.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { handleCors } from "../_shared/cors.ts";
@@ -29,6 +31,29 @@ import { processAffiliate } from "./handlers/affiliate-processor.ts";
 import { createOrder } from "./handlers/order-creator.ts";
 import { logSecurityEvent, SecurityAction } from "../_shared/audit-logger.ts";
 
+// === INTERFACES (Zero any) ===
+
+interface ValidatedOrderData {
+  product_id: string;
+  offer_id?: string;
+  checkout_id?: string;
+  customer_name: string;
+  customer_email: string;
+  customer_phone?: string;
+  customer_cpf?: string;
+  order_bump_ids?: string[];
+  gateway?: string;
+  payment_method?: string;
+  coupon_id?: string;
+  affiliate_code?: string;
+}
+
+interface ProductData {
+  user_id: string;
+  name: string | null;
+  affiliate_settings: Record<string, unknown>;
+}
+
 /**
  * Mascara email para logs (LGPD)
  */
@@ -38,6 +63,8 @@ function maskEmail(email: string): string {
   const maskedUser = user.length > 2 ? user.substring(0, 2) + "***" : "***";
   return `${maskedUser}@${domain}`;
 }
+
+// === MAIN HANDLER ===
 
 serve(withSentry('create-order', async (req) => {
   // 0. SECURITY: Validação CORS com bloqueio de origens inválidas
@@ -63,13 +90,13 @@ serve(withSentry('create-order', async (req) => {
 
   try {
     // 2. Setup Supabase
-    const supabase = createClient(
+    const supabase: SupabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
     // 3. Parse Body
-    let body;
+    let body: unknown;
     try {
       const text = await req.text();
       console.log("[create-order] Request recebida");
@@ -89,6 +116,7 @@ serve(withSentry('create-order', async (req) => {
       return createValidationErrorResponse(validation.errors || ["Dados inválidos"], corsHeaders);
     }
 
+    const validatedData = validation.data as ValidatedOrderData;
     const {
       product_id,
       offer_id,
@@ -102,7 +130,7 @@ serve(withSentry('create-order', async (req) => {
       payment_method,
       coupon_id,
       affiliate_code
-    } = validation.data!;
+    } = validatedData;
 
     console.log("[create-order] Processando:", {
       email: maskEmail(customer_email),
@@ -116,7 +144,8 @@ serve(withSentry('create-order', async (req) => {
     if (productResult instanceof Response) return productResult;
     
     const { product, validatedOfferId, validatedCheckoutId, finalPrice, offerName } = productResult as ProductValidationResult;
-    const productName = offerName || product.name || "Produto sem nome";
+    const productData = product as ProductData;
+    const productName = offerName || productData.name || "Produto sem nome";
 
     // 5. PROCESSAR ORDER BUMPS
     const bumpResult = await processBumps(
@@ -141,7 +170,10 @@ serve(withSentry('create-order', async (req) => {
 
     // 7. PROCESSAR AFILIADO/SPLIT
     const affiliateResult = await processAffiliate(supabase, {
-      product,
+      product: {
+        user_id: productData.user_id,
+        affiliate_settings: productData.affiliate_settings || {}
+      },
       product_id,
       affiliate_code,
       customer_email,
@@ -161,7 +193,7 @@ serve(withSentry('create-order', async (req) => {
         customer_cpf,
         product_id,
         product_name: productName,
-        vendor_id: product.user_id,
+        vendor_id: productData.user_id,
         validatedOfferId,
         validatedCheckoutId,
         amountInCents,
@@ -171,8 +203,8 @@ serve(withSentry('create-order', async (req) => {
         affiliateId: affiliateResult.affiliateId,
         commissionCents: affiliateResult.commissionCents,
         platformFeeCents: affiliateResult.platformFeeCents,
-        gateway,
-        payment_method,
+        gateway: gateway || 'pending',
+        payment_method: payment_method || 'pending',
         allOrderItems,
         identifier
       },
@@ -186,7 +218,7 @@ serve(withSentry('create-order', async (req) => {
     
     // SECURITY: Log payment processing
     await logSecurityEvent(supabase, {
-      userId: product.user_id,
+      userId: productData.user_id,
       action: SecurityAction.PROCESS_PAYMENT,
       resource: "orders",
       resourceId: orderResult.order_id,
@@ -216,8 +248,9 @@ serve(withSentry('create-order', async (req) => {
       }
     );
 
-  } catch (error: any) {
-    console.error("[create-order] Erro Fatal:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[create-order] Erro Fatal:", errorMessage);
     
     // Enviar para Sentry manualmente (erros tratados)
     await captureException(error instanceof Error ? error : new Error(String(error)), {
@@ -227,7 +260,7 @@ serve(withSentry('create-order', async (req) => {
     });
     
     return new Response(
-      JSON.stringify({ success: false, error: error.message || "Erro interno" }),
+      JSON.stringify({ success: false, error: errorMessage || "Erro interno" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

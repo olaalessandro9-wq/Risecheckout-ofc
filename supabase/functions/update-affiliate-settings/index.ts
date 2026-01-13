@@ -10,10 +10,12 @@
  * 
  * BLOQUEADO: Alteração de commission_rate, status (exceto cancelled), 
  *            total_sales_count, total_sales_amount, affiliate_code
+ * 
+ * @version 2.0.0 - RISE Protocol V2 Compliance (Zero any)
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 import { 
@@ -21,6 +23,8 @@ import {
   RATE_LIMIT_CONFIGS,
   getClientIP 
 } from "../_shared/rate-limiter.ts";
+
+// === INTERFACES (Zero any) ===
 
 // Ações permitidas para afiliados
 type AllowedAction = "update_gateways" | "cancel_affiliation";
@@ -40,9 +44,34 @@ interface CancelAffiliationPayload {
 
 type RequestPayload = UpdateGatewaysPayload | CancelAffiliationPayload;
 
+interface AffiliateRecord {
+  id: string;
+  user_id: string;
+  product_id: string;
+  status: string;
+}
+
+interface ProductRecord {
+  affiliate_gateway_settings: {
+    pix_allowed?: string[];
+    credit_card_allowed?: string[];
+  } | null;
+}
+
+interface AuditLogEntry {
+  affiliate_id: string;
+  action: string;
+  previous_status: string;
+  new_status: string;
+  performed_by: string;
+  metadata: Record<string, unknown>;
+}
+
 // Gateways válidos
 const VALID_PIX_GATEWAYS = ["asaas", "mercadopago", "pushinpay", null];
 const VALID_CC_GATEWAYS = ["mercadopago", "stripe", "asaas", null];
+
+// === MAIN HANDLER ===
 
 serve(async (req) => {
   // CORS handling
@@ -54,13 +83,13 @@ serve(async (req) => {
 
   try {
     // Rate limiting - criar cliente admin primeiro
-    const supabaseAdmin = createClient(
+    const supabaseAdmin: SupabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
     const rateLimitResult = await rateLimitMiddleware(
-      supabaseAdmin as any,
+      supabaseAdmin,
       req,
       RATE_LIMIT_CONFIGS.AFFILIATION_MANAGE
     );
@@ -85,7 +114,7 @@ serve(async (req) => {
     console.log(`[update-affiliate-settings] Usuário: ${userId.substring(0, 8)}...`);
 
     // 2. Criar cliente Supabase para queries com RLS
-    const supabase = createClient(
+    const supabase: SupabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
@@ -106,7 +135,7 @@ serve(async (req) => {
       .from("affiliates")
       .select("id, user_id, product_id, status")
       .eq("id", affiliate_id)
-      .single();
+      .single() as { data: AffiliateRecord | null; error: Error | null };
 
     if (fetchError || !affiliate) {
       console.error("[update-affiliate-settings] Afiliação não encontrada:", fetchError?.message);
@@ -151,12 +180,9 @@ serve(async (req) => {
           .from("products")
           .select("affiliate_gateway_settings")
           .eq("id", affiliate.product_id)
-          .single();
+          .single() as { data: ProductRecord | null };
 
-        const settings = product?.affiliate_gateway_settings as {
-          pix_allowed?: string[];
-          credit_card_allowed?: string[];
-        } | null;
+        const settings = product?.affiliate_gateway_settings;
 
         const pixAllowed = settings?.pix_allowed || ["asaas"];
         const ccAllowed = settings?.credit_card_allowed || ["mercadopago", "stripe"];
@@ -229,16 +255,15 @@ serve(async (req) => {
         }
 
         // Log de auditoria
-        await supabaseAdmin
-          .from("affiliate_audit_log")
-          .insert({
-            affiliate_id,
-            action: "SELF_CANCEL",
-            previous_status: affiliate.status,
-            new_status: "cancelled",
-            performed_by: userId,
-            metadata: { reason: "Cancelado pelo próprio afiliado" }
-          });
+        const auditEntry: AuditLogEntry = {
+          affiliate_id,
+          action: "SELF_CANCEL",
+          previous_status: affiliate.status,
+          new_status: "cancelled",
+          performed_by: userId,
+          metadata: { reason: "Cancelado pelo próprio afiliado" }
+        };
+        await supabaseAdmin.from("affiliate_audit_log").insert(auditEntry);
 
         console.log(`[update-affiliate-settings] Afiliação ${affiliate_id.substring(0, 8)} cancelada pelo usuário`);
         return new Response(
@@ -254,8 +279,9 @@ serve(async (req) => {
         );
     }
 
-  } catch (error) {
-    console.error("[update-affiliate-settings] Erro não tratado:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[update-affiliate-settings] Erro não tratado:", errorMessage);
     return new Response(
       JSON.stringify({ error: "Erro interno do servidor" }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

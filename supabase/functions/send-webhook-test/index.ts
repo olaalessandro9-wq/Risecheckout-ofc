@@ -1,10 +1,64 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+/**
+ * send-webhook-test - Envia webhook de teste
+ * 
+ * @version 2.0.0 - RISE Protocol V2 Compliance (Zero any)
+ */
+
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors, getCorsHeaders, PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
 import { 
   rateLimitMiddleware, 
   RATE_LIMIT_CONFIGS,
   getClientIP 
 } from "../_shared/rate-limiter.ts";
+
+// === INTERFACES (Zero any) ===
+
+interface RequestBody {
+  webhook_id?: string;
+  webhook_url: string;
+  event_type: string;
+  payload: Record<string, unknown>;
+}
+
+interface WebhookRecord {
+  secret_encrypted: string | null;
+}
+
+interface WebhookDeliveryEntry {
+  webhook_id: string;
+  order_id: string;
+  event_type: string;
+  payload: Record<string, unknown>;
+  status: string;
+  response_status: number;
+  response_body: string;
+  last_attempt_at: string;
+  attempts: number;
+}
+
+// === HELPER FUNCTIONS ===
+
+async function generateSignature(payload: string, secret: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(secret);
+  const messageData = encoder.encode(payload);
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    keyData,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+
+  const signature = await crypto.subtle.sign("HMAC", key, messageData);
+  return Array.from(new Uint8Array(signature))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+// === MAIN HANDLER ===
 
 Deno.serve(async (req) => {
   // CORS handling
@@ -19,14 +73,14 @@ Deno.serve(async (req) => {
   const corsHeaders = corsResult.headers;
 
   try {
-    const supabaseClient = createClient(
+    const supabaseClient: SupabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
     // Rate limiting
     const rateLimitResult = await rateLimitMiddleware(
-      supabaseClient as any,
+      supabaseClient,
       req,
       RATE_LIMIT_CONFIGS.WEBHOOK_TEST
     );
@@ -35,7 +89,8 @@ Deno.serve(async (req) => {
       return rateLimitResult;
     }
 
-    const { webhook_id, webhook_url, event_type, payload } = await req.json();
+    const body: RequestBody = await req.json();
+    const { webhook_id, webhook_url, event_type, payload } = body;
 
     if (!webhook_url || !event_type || !payload) {
       throw new Error("webhook_url, event_type and payload are required");
@@ -54,7 +109,7 @@ Deno.serve(async (req) => {
         .from("outbound_webhooks")
         .select("secret_encrypted")
         .eq("id", webhook_id)
-        .single();
+        .single() as { data: WebhookRecord | null; error: Error | null };
 
       if (webhookError) {
         console.error("[send-webhook-test] Error fetching webhook:", webhookError);
@@ -92,9 +147,9 @@ Deno.serve(async (req) => {
 
     // Registrar entrega para histórico
     if (webhook_id) {
-      await supabaseClient.from("webhook_deliveries").insert({
+      const deliveryEntry: WebhookDeliveryEntry = {
         webhook_id: webhook_id,
-        order_id: payload.id || crypto.randomUUID(),
+        order_id: (payload.id as string) || crypto.randomUUID(),
         event_type: event_type,
         payload: payload,
         status: response.ok ? "success" : "failed",
@@ -102,7 +157,8 @@ Deno.serve(async (req) => {
         response_body: responseText.substring(0, 1000),
         last_attempt_at: new Date().toISOString(),
         attempts: 1,
-      });
+      };
+      await supabaseClient.from("webhook_deliveries").insert(deliveryEntry);
     }
 
     return new Response(
@@ -113,30 +169,12 @@ Deno.serve(async (req) => {
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error) {
-    console.error("[send-webhook-test] Error:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[send-webhook-test] Error:", errorMessage);
     return new Response(
-      JSON.stringify({ success: false, error: (error as Error).message }),
+      JSON.stringify({ success: false, error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
-
-async function generateSignature(payload: string, secret: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const keyData = encoder.encode(secret);
-  const messageData = encoder.encode(payload);
-
-  const key = await crypto.subtle.importKey(
-    "raw",
-    keyData,
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-
-  const signature = await crypto.subtle.sign("HMAC", key, messageData);
-  return Array.from(new Uint8Array(signature))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
