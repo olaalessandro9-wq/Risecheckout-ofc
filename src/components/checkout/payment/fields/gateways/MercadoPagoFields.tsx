@@ -14,6 +14,15 @@ import { memo, useEffect, useRef, useState, forwardRef, useImperativeHandle } fr
 import { INPUT_BASE_CLASS, INPUT_ERROR_CLASS } from '../../core/constants';
 import type { MercadoPagoInstallment, MercadoPagoCallbackError, MercadoPagoPaymentMethod, MercadoPagoInstallmentsResponse } from '@/types/mercadopago-sdk.types';
 
+/**
+ * Interface para instância do CardForm do Mercado Pago SDK
+ * Baseada na documentação oficial do SDK
+ */
+interface MercadoPagoCardFormInstance {
+  createCardToken: (options: { cardholderEmail: string }) => Promise<{ id?: string; token?: string }>;
+  unmount: () => void;
+}
+
 export interface MercadoPagoFieldsProps {
   publicKey: string;
   amount: number;
@@ -60,7 +69,7 @@ const MercadoPagoFieldsComponent = forwardRef<MercadoPagoFieldsRef, MercadoPagoF
     const [isReady, setIsReady] = useState(false);
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
     
-    const cardFormRef = useRef<any>(null);
+    const cardFormRef = useRef<MercadoPagoCardFormInstance | null>(null);
     const isMountingRef = useRef(false);
     const paymentMethodRef = useRef<string>("");
     const amountRef = useRef(amount);

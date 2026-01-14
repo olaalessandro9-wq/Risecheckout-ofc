@@ -11,6 +11,27 @@ interface PaymentNavigationState {
   accessToken?: string;
 }
 
+/**
+ * Interface para dados do pedido retornados pela RPC
+ */
+interface MercadoPagoOrderData {
+  id: string;
+  status: string;
+  amount_cents: number;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string | null;
+  customer_document: string | null;
+  product_name?: string | null;
+  product_id?: string;
+  payment_method?: string | null;
+  pix_qr_code?: string | null;
+  pix_status?: string | null;
+  vendor_id?: string;
+  created_at?: string;
+  tracking_parameters?: unknown;
+}
+
 export const MercadoPagoPayment = () => {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
@@ -26,7 +47,7 @@ export const MercadoPagoPayment = () => {
   const [paymentStatus, setPaymentStatus] = useState<"waiting" | "paid" | "expired">("waiting");
   const [copied, setCopied] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<number>(900); // 15 minutos = 900 segundos
-  const [orderData, setOrderData] = useState<any>(null);
+  const [orderData, setOrderData] = useState<MercadoPagoOrderData | null>(null);
   const [checkingPayment, setCheckingPayment] = useState(false);
   
   const hasShownExpiredToast = useRef(false);
