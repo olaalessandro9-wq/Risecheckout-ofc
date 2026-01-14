@@ -1,4 +1,10 @@
-import { supabase } from "@/integrations/supabase/client";
+/**
+ * Associa uma oferta a um checkout de forma inteligente via RPC Proxy
+ * 
+ * @see RISE Protocol V2 - Zero direct RPC calls from frontend
+ */
+
+import { invokeRpc } from "@/lib/rpc/rpcProxy";
 import type { AttachOfferToCheckoutSmartResult } from "@/integrations/supabase/types-extended";
 
 export type AttachOfferResult = AttachOfferToCheckoutSmartResult;
@@ -13,10 +19,11 @@ export async function attachOfferToCheckoutSmart(
   checkoutId: string,
   offerId: string
 ): Promise<AttachOfferResult> {
-  const { data, error } = await supabase.rpc("attach_offer_to_checkout_smart", {
-    p_checkout_id: checkoutId,
-    p_offer_id: offerId,
-  }) as { data: AttachOfferResult | null; error: Error | null };
+  const { data, error } = await invokeRpc<AttachOfferResult>(
+    "attach_offer_to_checkout_smart",
+    { p_checkout_id: checkoutId, p_offer_id: offerId },
+    "producer"
+  );
 
   if (error) {
     console.error("[attachOfferToCheckoutSmart] RPC failed:", error);
@@ -27,5 +34,5 @@ export async function attachOfferToCheckoutSmart(
     throw new Error("RPC não retornou dados");
   }
 
-  return data as AttachOfferResult;
+  return data;
 }

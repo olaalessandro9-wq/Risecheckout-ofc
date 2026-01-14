@@ -1,4 +1,10 @@
-import { supabase } from "@/integrations/supabase/client";
+/**
+ * Duplica um checkout usando a RPC duplicate_checkout_shallow via RPC Proxy
+ * 
+ * @see RISE Protocol V2 - Zero direct RPC calls from frontend
+ */
+
+import { duplicateCheckoutShallowRpc } from "@/lib/rpc/rpcProxy";
 
 /**
  * Duplica um checkout de um produto usando a RPC duplicate_checkout_shallow.
@@ -9,14 +15,11 @@ export async function duplicateCheckout(checkoutId: string) {
   // Sanitiza caso venha "checkout-<id>" de algum lugar
   const srcId = checkoutId.replace(/^checkout-/, "");
 
-  console.log('[duplicateCheckout] Calling RPC duplicate_checkout_shallow:', {
+  console.log('[duplicateCheckout] Calling RPC duplicate_checkout_shallow via proxy:', {
     p_source_checkout_id: srcId,
   });
 
-  // Chama a RPC que cria o checkout e retorna o ID
-  const { data: newId, error } = await supabase.rpc("duplicate_checkout_shallow", {
-    p_source_checkout_id: srcId,
-  }) as { data: string | null; error: Error | null };
+  const { data: newId, error } = await duplicateCheckoutShallowRpc(srcId);
 
   if (error) {
     console.error('[duplicateCheckout] RPC failed:', error);

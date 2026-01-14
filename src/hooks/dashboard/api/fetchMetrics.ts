@@ -1,13 +1,15 @@
 /**
- * API para buscar métricas agregadas do dashboard
+ * API para buscar métricas agregadas do dashboard via RPC Proxy
+ * 
+ * @see RISE Protocol V2 - Zero direct RPC calls from frontend
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { getDashboardMetricsRpc } from "@/lib/rpc/rpcProxy";
 import { toUTCStartOfDay, toUTCEndOfDay } from "@/lib/date-utils";
 import type { RpcDashboardMetrics } from "../types";
 
 /**
- * Busca métricas agregadas do banco via RPC
+ * Busca métricas agregadas do banco via RPC Proxy
  * 
  * VANTAGENS:
  * - Não tem limite de 1000 registros (agregação no banco)
@@ -23,11 +25,11 @@ export async function fetchAggregatedMetrics(
   startDate: Date,
   endDate: Date
 ): Promise<RpcDashboardMetrics> {
-  const { data, error } = await supabase.rpc('get_dashboard_metrics', {
-    p_vendor_id: vendorId,
-    p_start_date: toUTCStartOfDay(startDate),
-    p_end_date: toUTCEndOfDay(endDate)
-  });
+  const { data, error } = await getDashboardMetricsRpc(
+    vendorId,
+    toUTCStartOfDay(startDate),
+    toUTCEndOfDay(endDate)
+  );
 
   if (error) {
     console.error("[fetchAggregatedMetrics] Erro ao buscar métricas:", error);

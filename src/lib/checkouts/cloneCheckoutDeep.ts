@@ -1,27 +1,31 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+/**
+ * Clona o layout completo de um checkout para outro via RPC Proxy
+ * 
+ * @see RISE Protocol V2 - Zero direct RPC calls from frontend
+ */
+
+import { cloneCheckoutLayoutRpc } from "@/lib/rpc/rpcProxy";
 
 /**
  * Clona o layout completo de um checkout para outro usando a RPC clone_checkout_layout.
  * 
- * @param supabase - Cliente Supabase
+ * @param _supabase - (Deprecated) Cliente Supabase não mais necessário
  * @param srcCheckoutId - ID do checkout origem
  * @param dstCheckoutId - ID do checkout destino (já deve estar criado)
  * @throws Error se a RPC falhar
  */
 export async function cloneCheckoutDeep(
-  supabase: SupabaseClient,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _supabase: unknown,
   srcCheckoutId: string,
   dstCheckoutId: string
 ): Promise<void> {
-  console.log('[cloneCheckoutDeep] Calling RPC clone_checkout_layout:', {
+  console.log('[cloneCheckoutDeep] Calling RPC clone_checkout_layout via proxy:', {
     p_source_checkout_id: srcCheckoutId,
     p_target_checkout_id: dstCheckoutId,
   });
 
-  const { error } = await supabase.rpc("clone_checkout_layout", {
-    p_source_checkout_id: srcCheckoutId,
-    p_target_checkout_id: dstCheckoutId,
-  });
+  const { error } = await cloneCheckoutLayoutRpc(srcCheckoutId, dstCheckoutId);
 
   if (error) {
     console.error("[cloneCheckoutDeep] RPC failed:", error);
