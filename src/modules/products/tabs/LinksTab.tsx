@@ -40,12 +40,16 @@ export function LinksTab() {
 
   const handleToggleStatus = async (linkId: string) => {
     try {
+      // Obter token de sessão para autenticação
+      const sessionToken = localStorage.getItem('producer_session_token');
+      
       // Alternar status via Edge Function
       const { data, error } = await supabase.functions.invoke('checkout-crud', {
         body: {
           action: 'toggle-link-status',
           linkId,
         },
+        headers: { 'x-producer-session-token': sessionToken || '' },
       });
 
       if (error) throw error;
