@@ -1,5 +1,13 @@
+/**
+ * Storage Helpers
+ * 
+ * Utilities for storage path parsing and operations
+ * All storage operations delegated to storageProxy for RISE Protocol V2 compliance
+ */
+
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { toSlug } from "@/lib/utils/slug";
+import { copyViaEdge, uploadViaEdge, listViaEdge, removeViaEdge } from "@/lib/storage/storageProxy";
 
 const PUBLIC_RE = /\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/;
 
@@ -23,7 +31,7 @@ export function buildNewObjectPath(productId: number | string, originalPath: str
 }
 
 export async function copyPublicObjectToNewPath(
-  supabase: SupabaseClient,
+  _supabase: SupabaseClient,
   originalUrl: string,
   productId: number | string,
   baseName: string
@@ -34,52 +42,59 @@ export async function copyPublicObjectToNewPath(
   const { bucket, path } = parsed;
   const newPath = buildNewObjectPath(productId, path, baseName);
 
-  // Tenta copiar no storage (server-side op suportada pelo Supabase)
-  const copyRes = await supabase.storage.from(bucket).copy(path, newPath);
-  if (!copyRes.error) {
-    const { data: pub } = supabase.storage.from(bucket).getPublicUrl(newPath);
-    return pub.publicUrl;
+  // Try to copy via Edge Function
+  const copyResult = await copyViaEdge(bucket, path, newPath);
+  if (!copyResult.error && copyResult.publicUrl) {
+    return copyResult.publicUrl;
   }
 
-  // Fallback: baixar e reenviar (client-side)
-  const resp = await fetch(originalUrl);
-  if (!resp.ok) return originalUrl;
-  const blob = await resp.blob();
-  const uploadRes = await supabase.storage.from(bucket).upload(newPath, blob, {
-    upsert: false,
-    contentType: blob.type || "application/octet-stream",
-  });
-  if (uploadRes.error) return originalUrl;
-  const { data: pub } = supabase.storage.from(bucket).getPublicUrl(newPath);
-  return pub.publicUrl;
+  // Fallback: download and re-upload via Edge Function
+  try {
+    const resp = await fetch(originalUrl);
+    if (!resp.ok) return originalUrl;
+    const blob = await resp.blob();
+    
+    const uploadResult = await uploadViaEdge(bucket, newPath, blob, {
+      upsert: false,
+      contentType: blob.type || "application/octet-stream",
+    });
+    
+    if (uploadResult.error || !uploadResult.publicUrl) return originalUrl;
+    return uploadResult.publicUrl;
+  } catch {
+    return originalUrl;
+  }
 }
 
-export async function removeAllUnderPrefix(supabase: SupabaseClient, bucket: string, prefix: string) {
+export async function removeAllUnderPrefix(_supabase: SupabaseClient, bucket: string, prefix: string) {
   const toDelete: string[] = [];
   let page = 0;
+  
   while (true) {
-    const { data, error } = await supabase.storage.from(bucket).list(prefix, {
+    const { files, error } = await listViaEdge(bucket, prefix, {
       limit: 1000,
       offset: page * 1000,
-      sortBy: { column: "name", order: "asc" },
     });
-    if (error || !data?.length) break;
+    
+    if (error || !files?.length) break;
 
-    for (const entry of data) {
+    for (const entry of files) {
       if (entry?.name) {
-        if (entry?.metadata?.size >= 0) {
+        const metadata = entry.metadata as { size?: number } | undefined;
+        if (metadata?.size !== undefined && metadata.size >= 0) {
           toDelete.push(`${prefix}/${entry.name}`);
         } else {
-          await removeAllUnderPrefix(supabase, bucket, `${prefix}/${entry.name}`);
+          await removeAllUnderPrefix(_supabase, bucket, `${prefix}/${entry.name}`);
         }
       }
     }
-    if (data.length < 1000) break;
+    if (files.length < 1000) break;
     page++;
   }
+  
   if (toDelete.length) {
     for (let i = 0; i < toDelete.length; i += 1000) {
-      await supabase.storage.from(bucket).remove(toDelete.slice(i, i + 1000));
+      await removeViaEdge(bucket, toDelete.slice(i, i + 1000));
     }
   }
 }

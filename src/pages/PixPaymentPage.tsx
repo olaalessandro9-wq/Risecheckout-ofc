@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import * as PushinPay from "@/integrations/gateways/pushinpay";
 import { sendUTMifyConversion, formatDateForUTMify } from "@/lib/utmify-helper";
+import { getOrderForPaymentRpc } from "@/lib/rpc/rpcProxy";
 
 // Tipo union para gateways suportados
 type GatewayType = 'mercadopago' | 'pushinpay' | 'asaas' | 'stripe';
@@ -77,12 +78,7 @@ export const PixPaymentPage = () => {
     try {
       console.log(`[PixPaymentPage] Buscando pedido via RPC (tentativa ${retryCount + 1}):`, orderId);
       
-      const { data: order, error } = await supabase
-        .rpc("get_order_for_payment", { 
-          p_order_id: orderId,
-          p_access_token: accessToken 
-        })
-        .single();
+      const { data: order, error } = await getOrderForPaymentRpc(orderId!, accessToken);
 
       if (error || !order) {
         if (retryCount < 3) {
@@ -94,7 +90,7 @@ export const PixPaymentPage = () => {
       }
       
       console.log("[PixPaymentPage] Pedido encontrado via RPC:", order);
-      setOrderData(order as OrderDataFromRpc);
+      setOrderData(order as unknown as OrderDataFromRpc);
     } catch (err: unknown) {
       console.error("[PixPaymentPage] Erro ao buscar pedido:", err);
       toast.error("Erro ao carregar dados do pedido");
@@ -227,15 +223,10 @@ export const PixPaymentPage = () => {
     try {
       console.log("[PixPaymentPage] 🔍 Verificando status do pagamento:", { gateway, orderId });
       
-      // Para Mercado Pago: usar RPC com validação de access_token
+      // Para Mercado Pago: usar RPC proxy com validação de access_token
       if (gateway === 'mercadopago') {
         const accessToken = navState?.accessToken || '';
-        const { data: order, error } = await supabase
-          .rpc("get_order_for_payment", { 
-            p_order_id: orderId,
-            p_access_token: accessToken 
-          })
-          .single();
+        const { data: order, error } = await getOrderForPaymentRpc(orderId!, accessToken);
 
         if (error) {
           console.error("[PixPaymentPage] ❌ Erro ao consultar status:", error);
@@ -244,7 +235,8 @@ export const PixPaymentPage = () => {
 
         console.log("[PixPaymentPage] 📡 Status do pedido (Mercado Pago):", order);
 
-        const status = order?.status?.toUpperCase();
+        const orderRecord = order as Record<string, unknown> | null;
+        const status = (orderRecord?.status as string)?.toUpperCase();
         if (status === "PAID" || status === "APPROVED") {
           setPaymentStatus("paid");
           toast.success("Pagamento confirmado!");
@@ -262,15 +254,10 @@ export const PixPaymentPage = () => {
       
       // Para PushinPay: usar Edge Function
       
-      // Para Asaas e Stripe: usar RPC com validação de access_token (mesmo fluxo do Mercado Pago)
+      // Para Asaas e Stripe: usar RPC proxy com validação de access_token (mesmo fluxo do Mercado Pago)
       if (gateway === 'asaas' || gateway === 'stripe') {
         const accessToken = navState?.accessToken || '';
-        const { data: order, error } = await supabase
-          .rpc("get_order_for_payment", { 
-            p_order_id: orderId,
-            p_access_token: accessToken 
-          })
-          .single();
+        const { data: order, error } = await getOrderForPaymentRpc(orderId!, accessToken);
 
         if (error) {
           console.error(`[PixPaymentPage] ❌ Erro ao consultar status (${gateway}):`, error);
@@ -279,7 +266,8 @@ export const PixPaymentPage = () => {
 
         console.log(`[PixPaymentPage] 📡 Status do pedido (${gateway}):`, order);
 
-        const status = order?.status?.toUpperCase();
+        const orderRecord = order as Record<string, unknown> | null;
+        const status = (orderRecord?.status as string)?.toUpperCase();
         if (status === "PAID" || status === "APPROVED") {
           setPaymentStatus("paid");
           toast.success("Pagamento confirmado!");

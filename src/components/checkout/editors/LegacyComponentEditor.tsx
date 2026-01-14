@@ -2,7 +2,7 @@ import React from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
+import { uploadViaEdge } from "@/lib/storage/storageProxy";
 import { sanitizeText, sanitizeUrl, sanitizeColor } from "@/lib/security";
 import type { CheckoutComponent } from "@/types/checkoutEditor";
 import type { 
@@ -84,19 +84,20 @@ export const LegacyComponentEditor: React.FC<LegacyComponentEditorProps> = ({
       const fileExt = file.name.split(".").pop();
       const fileName = `checkout-components/${component.id}-${Date.now()}.${fileExt}`;
 
-      const { error } = await supabase.storage
-        .from("product-images")
-        .upload(fileName, file, { upsert: true });
+      const { publicUrl, error } = await uploadViaEdge(
+        "product-images",
+        fileName,
+        file,
+        { upsert: true }
+      );
 
       if (error) throw error;
-
-      const { data } = supabase.storage.from("product-images").getPublicUrl(fileName);
 
       // 2. Sucesso
       onUpdate(component.id, {
         ...imageContent,
-        imageUrl: data.publicUrl,
-        url: data.publicUrl,
+        imageUrl: publicUrl,
+        url: publicUrl,
         _storage_path: fileName,
         _uploading: false,
         _preview: false,
