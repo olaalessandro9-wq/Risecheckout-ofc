@@ -39,6 +39,7 @@ export function useMembersAreaContents({
     data: Omit<MemberContent, "id" | "module_id" | "position" | "created_at" | "updated_at">
   ): Promise<MemberContent | null> => {
     setIsSaving(true);
+    const sessionToken = localStorage.getItem('producer_session_token');
     try {
       const { data: result, error } = await supabase.functions.invoke("content-crud", {
         body: {
@@ -46,6 +47,7 @@ export function useMembersAreaContents({
           moduleId,
           data,
         },
+        headers: { 'x-producer-session-token': sessionToken || '' },
       });
 
       if (error) throw error;
@@ -75,6 +77,7 @@ export function useMembersAreaContents({
 
   const updateContent = useCallback(async (id: string, data: Partial<MemberContent>) => {
     setIsSaving(true);
+    const sessionToken = localStorage.getItem('producer_session_token');
     try {
       const { data: result, error } = await supabase.functions.invoke("content-crud", {
         body: {
@@ -82,6 +85,7 @@ export function useMembersAreaContents({
           contentId: id,
           data,
         },
+        headers: { 'x-producer-session-token': sessionToken || '' },
       });
 
       if (error) throw error;
@@ -102,12 +106,14 @@ export function useMembersAreaContents({
 
   const deleteContent = useCallback(async (id: string) => {
     setIsSaving(true);
+    const sessionToken = localStorage.getItem('producer_session_token');
     try {
       const { data: result, error } = await supabase.functions.invoke("content-crud", {
         body: {
           action: "delete",
           contentId: id,
         },
+        headers: { 'x-producer-session-token': sessionToken || '' },
       });
 
       if (error) throw error;
@@ -150,6 +156,7 @@ export function useMembersAreaContents({
     });
 
     // 3. Persistir em background via Edge Function
+    const sessionToken = localStorage.getItem('producer_session_token');
     try {
       const { data: result, error } = await supabase.functions.invoke("content-crud", {
         body: {
@@ -157,6 +164,7 @@ export function useMembersAreaContents({
           moduleId,
           orderedIds,
         },
+        headers: { 'x-producer-session-token': sessionToken || '' },
       });
 
       if (error) throw error;

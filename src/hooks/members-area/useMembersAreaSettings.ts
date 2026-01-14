@@ -164,7 +164,8 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
           }
 
           const { data: existingGroups } = await supabase.functions.invoke('members-area-groups', {
-            body: { action: 'list', product_id: productId }
+            body: { action: 'list', product_id: productId },
+            headers: { 'x-producer-session-token': sessionToken || '' },
           });
 
           const groupsList = existingGroups?.groups || existingGroups?.data || [];
@@ -179,7 +180,8 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
                   description: 'Grupo padrão para todos os alunos', 
                   is_default: true 
                 }
-              }
+              },
+              headers: { 'x-producer-session-token': sessionToken || '' },
             });
           }
         } catch (accessError) {

@@ -357,7 +357,8 @@ export function useMembersAreaBuilder(productId: string | undefined): UseMembers
           sections: state.sections,
           deletedIds,
           sessionToken,
-        }
+        },
+        headers: { 'x-producer-session-token': sessionToken || '' },
       });
       
       if (sectionsError || !sectionsResult?.success) {
@@ -373,7 +374,8 @@ export function useMembersAreaBuilder(productId: string | undefined): UseMembers
           productId,
           settings: state.settings,
           sessionToken,
-        }
+        },
+        headers: { 'x-producer-session-token': sessionToken || '' },
       });
       
       if (settingsError || !settingsResult?.success) {
@@ -461,7 +463,8 @@ export function useMembersAreaBuilder(productId: string | undefined): UseMembers
           moduleId: id,
           data: moduleData,
           sessionToken,
-        }
+        },
+        headers: { 'x-producer-session-token': sessionToken || '' },
       });
       
       if (error || !result?.success) {
