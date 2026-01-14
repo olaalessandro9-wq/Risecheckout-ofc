@@ -185,6 +185,13 @@ export const CouponDialog = ({
         </SheetHeader>
 
         <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-8 py-6">
+          {/* Banner de erro geral (quando não é erro de campo específico) */}
+          {serverError && serverError.field !== "code" && (
+            <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-lg">
+              <p className="text-sm text-destructive font-medium">{serverError.message}</p>
+            </div>
+          )}
+
           {/* SEÇÃO: BÁSICO */}
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-foreground">Básico</h3>
