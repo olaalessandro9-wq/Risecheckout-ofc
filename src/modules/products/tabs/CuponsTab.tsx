@@ -54,10 +54,16 @@ export function CuponsTab() {
       setLoading(true);
 
       // Buscar cupons via Edge Function
+      const sessionToken = localStorage.getItem('producer_session_token');
+      
       const { data, error } = await supabase.functions.invoke('coupon-management', {
         body: {
           action: 'list',
           productId: product.id,
+          sessionToken,
+        },
+        headers: {
+          'x-producer-session-token': sessionToken || '',
         },
       });
 
@@ -142,12 +148,14 @@ export function CuponsTab() {
 
     try {
       const action = couponData.id ? 'update' : 'create';
+      const sessionToken = localStorage.getItem('producer_session_token');
       
       const { data, error } = await supabase.functions.invoke('coupon-management', {
         body: {
           action,
           productId: product.id,
           couponId: couponData.id,
+          sessionToken,
           coupon: {
             name: couponData.name,
             code: couponData.code,
@@ -160,6 +168,9 @@ export function CuponsTab() {
             maxUsesPerCustomer: couponData.maxUsesPerCustomer || null,
             applyToOrderBumps: couponData.applyToOrderBumps,
           },
+        },
+        headers: {
+          'x-producer-session-token': sessionToken || '',
         },
       });
 
@@ -187,11 +198,17 @@ export function CuponsTab() {
       resourceName: coupons.find(c => c.id === id)?.code || "",
       onConfirm: async () => {
         try {
+          const sessionToken = localStorage.getItem('producer_session_token');
+          
           const { data, error } = await supabase.functions.invoke('coupon-management', {
             body: {
               action: 'delete',
               productId: product?.id,
               couponId: id,
+              sessionToken,
+            },
+            headers: {
+              'x-producer-session-token': sessionToken || '',
             },
           });
 
