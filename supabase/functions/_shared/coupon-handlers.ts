@@ -34,6 +34,19 @@ export {
 export { validateCouponPayload, verifyProductOwnership } from "./coupon-validation.ts";
 export type { CouponPayload } from "./coupon-validation.ts";
 
+// Helper para erros de validação com campo específico
+function validationErrorResponse(
+  message: string,
+  field: string,
+  corsHeaders: Record<string, string>
+): Response {
+  return jsonResponse(
+    { success: false, error: message, field },
+    corsHeaders,
+    400
+  );
+}
+
 // ============================================
 // CREATE COUPON
 // ============================================
@@ -64,7 +77,11 @@ export async function handleCreateCoupon(
 
   const validation = validateCouponPayload(coupon);
   if (!validation.valid) {
-    return errorResponse(validation.error!, corsHeaders, 400);
+    // Determinar campo com erro baseado na mensagem
+    const field = validation.error?.includes("Código") ? "code" :
+                  validation.error?.includes("desconto") ? "discountValue" :
+                  "general";
+    return validationErrorResponse(validation.error!, field, corsHeaders);
   }
 
   const couponData = validation.sanitized!;
@@ -72,7 +89,11 @@ export async function handleCreateCoupon(
   // Check for duplicate code
   const isDuplicate = await checkDuplicateCouponCode(supabase, productId, couponData.code);
   if (isDuplicate) {
-    return errorResponse("Já existe um cupom com este código neste produto", corsHeaders, 400);
+    return validationErrorResponse(
+      "Já existe um cupom com este código neste produto",
+      "code",
+      corsHeaders
+    );
   }
 
   // Create coupon
@@ -140,7 +161,10 @@ export async function handleUpdateCoupon(
 
   const validation = validateCouponPayload(coupon);
   if (!validation.valid) {
-    return errorResponse(validation.error!, corsHeaders, 400);
+    const field = validation.error?.includes("Código") ? "code" :
+                  validation.error?.includes("desconto") ? "discountValue" :
+                  "general";
+    return validationErrorResponse(validation.error!, field, corsHeaders);
   }
 
   const couponData = validation.sanitized!;
@@ -149,7 +173,11 @@ export async function handleUpdateCoupon(
   if (productId) {
     const isDuplicate = await checkDuplicateCouponCode(supabase, productId, couponData.code, couponId);
     if (isDuplicate) {
-      return errorResponse("Já existe outro cupom com este código neste produto", corsHeaders, 400);
+      return validationErrorResponse(
+        "Já existe outro cupom com este código neste produto",
+        "code",
+        corsHeaders
+      );
     }
   }
 
@@ -232,8 +260,11 @@ export async function handleListCoupons(
   producerId: string,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
+  console.log(`[handleListCoupons] productId: ${productId}, producerId: ${producerId}`);
+  
   const isOwner = await verifyProductOwnership(supabase, productId, producerId);
   if (!isOwner) {
+    console.warn(`[handleListCoupons] Ownership verification failed for producer ${producerId} on product ${productId}`);
     return errorResponse("Você não tem permissão para ver cupons deste produto", corsHeaders, 403);
   }
 
@@ -243,7 +274,7 @@ export async function handleListCoupons(
     .eq("product_id", productId);
 
   if (listError) {
-    console.error("[coupon-management] List error:", listError);
+    console.error("[handleListCoupons] Database error:", listError);
     return errorResponse("Erro ao listar cupons", corsHeaders, 500);
   }
 
@@ -254,5 +285,6 @@ export async function handleListCoupons(
     .filter((c): c is Coupon => c !== null)
     .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
 
+  console.log(`[handleListCoupons] Found ${coupons?.length || 0} coupons for product ${productId}`);
   return jsonResponse({ success: true, coupons: coupons || [] }, corsHeaders);
 }
