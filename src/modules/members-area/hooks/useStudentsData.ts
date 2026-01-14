@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { MemberGroup, BuyerWithGroups, StudentStats, StudentFilters } from "@/modules/members-area/types";
 import { studentsService } from "../services/students.service";
-import { getUserEmailRpc } from "@/lib/rpc/rpcProxy";
+import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 
 interface UseStudentsDataProps {
   productId?: string;
@@ -64,18 +64,18 @@ export function useStudentsData({
   const fetchGroups = useCallback(async () => {
     if (!productId) return;
     
-    const { data, error } = await supabase
-      .from('product_member_groups')
-      .select('*')
-      .eq('product_id', productId)
-      .order('position', { ascending: true });
+    const token = getProducerSessionToken();
+    const { data, error } = await supabase.functions.invoke('students-groups', {
+      body: { action: 'list-groups', product_id: productId },
+      headers: { 'X-Producer-Session-Token': token || '' }
+    });
 
     if (error) {
       console.error('Error fetching groups:', error);
       return;
     }
 
-    setGroups(data || []);
+    setGroups(data?.groups || []);
   }, [productId]);
 
   const fetchStudents = useCallback(async (search = searchQuery) => {
@@ -83,39 +83,8 @@ export function useStudentsData({
     setIsLoading(true);
     
     try {
-      // Get producer info for local display
-      const { data: productData } = await supabase
-        .from('products')
-        .select('user_id')
-        .eq('id', productId)
-        .single();
-
-      const producerId = productData?.user_id;
-      let producerStudent: BuyerWithGroups | null = null;
-
-      if (producerId) {
-        const { data: producerProfile } = await supabase
-          .from('profiles')
-          .select('id, name')
-          .eq('id', producerId)
-          .single();
-
-        const { data: producerEmail } = await getUserEmailRpc(producerId);
-
-        producerStudent = {
-          buyer_id: producerId,
-          buyer_email: producerEmail || '',
-          buyer_name: producerProfile?.name || null,
-          groups: [],
-          access_type: 'producer',
-          last_access_at: null,
-          progress_percent: 0,
-          status: 'active',
-        };
-      }
-
-      // Fetch students via Edge Function (bypasses RLS)
-      const { data, error } = await studentsService.list(productId, {
+      // Fetch students via Edge Function
+      const { data: studentsData, error: studentsError } = await studentsService.list(productId, {
         page,
         limit,
         search: search || undefined,
@@ -124,17 +93,40 @@ export function useStudentsData({
         group_id: filters.groupId || undefined,
       });
 
-      if (error) {
-        console.error('Error fetching students from service:', error);
+      if (studentsError) {
+        console.error('Error fetching students from service:', studentsError);
         toast.error('Erro ao carregar alunos');
         setIsLoading(false);
         return;
       }
 
-      const response = data as StudentsServiceResponse | null;
+      const response = studentsData as StudentsServiceResponse | null;
       const studentsList = response?.students || [];
       const backendTotal = response?.total || 0;
       const backendStats = response?.stats;
+
+      // Get producer info via Edge Function
+      const token = getProducerSessionToken();
+      const { data: producerData } = await supabase.functions.invoke('students-list', {
+        body: { action: 'get-producer-info', product_id: productId },
+        headers: { 'X-Producer-Session-Token': token || '' }
+      });
+
+      const producerInfo = producerData?.producer_info;
+      let producerStudent: BuyerWithGroups | null = null;
+
+      if (producerInfo) {
+        producerStudent = {
+          buyer_id: producerInfo.id,
+          buyer_email: producerInfo.email || '',
+          buyer_name: producerInfo.name || null,
+          groups: [],
+          access_type: 'producer',
+          last_access_at: null,
+          progress_percent: 0,
+          status: 'active',
+        };
+      }
 
       // Combine producer + students
       let allStudents: BuyerWithGroups[] = [];
@@ -174,8 +166,8 @@ export function useStudentsData({
       setStudents(allStudents);
       const displayTotal = shouldIncludeProducer && !filters.groupId && producerMatchesSearch ? backendTotal + 1 : backendTotal;
       setTotal(displayTotal);
-    } catch (error) {
-      console.error('Error fetching students:', error);
+    } catch (fetchError) {
+      console.error('Error fetching students:', fetchError);
       toast.error('Erro ao carregar alunos');
     } finally {
       setIsLoading(false);

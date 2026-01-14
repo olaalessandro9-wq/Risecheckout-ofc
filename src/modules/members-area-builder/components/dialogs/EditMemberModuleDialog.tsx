@@ -9,8 +9,8 @@
  */
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { uploadViaEdge } from '@/lib/storage/storageProxy';
 import {
   Dialog,
   DialogContent,
@@ -188,20 +188,16 @@ export function EditMemberModuleDialog({
         const fileName = `module-cover-${module.id}-${Date.now()}.${fileExt}`;
         const filePath = `modules/${fileName}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from('product-images')
-          .upload(filePath, pendingFile, {
-            cacheControl: '3600',
-            upsert: true,
-          });
+        const { publicUrl, error: uploadError } = await uploadViaEdge(
+          'product-images',
+          filePath,
+          pendingFile,
+          { upsert: true, contentType: pendingFile.type }
+        );
 
         if (uploadError) throw uploadError;
 
-        const { data: urlData } = supabase.storage
-          .from('product-images')
-          .getPublicUrl(filePath);
-
-        finalCoverUrl = urlData.publicUrl;
+        finalCoverUrl = publicUrl;
 
         // Revoke blob URL
         if (localPreviewUrl?.startsWith('blob:')) {
