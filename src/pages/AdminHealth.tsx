@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getSystemHealthSummaryRpc, getUnresolvedErrorsRpc } from "@/lib/rpc/rpcProxy";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertCircle, CheckCircle, XCircle, TrendingUp } from "lucide-react";
@@ -29,17 +30,17 @@ export default function AdminHealth() {
         .select("*")
         .limit(0) as unknown as { data: null }; // Placeholder - views handled below
       
-      // Fetch from actual views using RPC or raw query workaround
-      const { data: metricsRaw } = await supabase.rpc('get_system_health_summary' as never) as unknown as { data: SystemMetric[] | null };
-      const { data: errorsRaw } = await supabase.rpc('get_unresolved_errors' as never) as unknown as { data: UnresolvedError[] | null };
+      // Fetch from actual views using RPC proxy
+      const { data: metricsRaw } = await getSystemHealthSummaryRpc();
+      const { data: errorsRaw } = await getUnresolvedErrorsRpc();
 
       const { data: webhookData } = await supabase
         .from("webhook_deliveries")
         .select("status, attempts")
         .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
 
-      setMetrics(metricsRaw || []);
-      setErrors(errorsRaw || []);
+      setMetrics((metricsRaw as unknown as SystemMetric[]) || []);
+      setErrors((errorsRaw as unknown as UnresolvedError[]) || []);
       
       if (webhookData) {
         const stats: WebhookStats = {

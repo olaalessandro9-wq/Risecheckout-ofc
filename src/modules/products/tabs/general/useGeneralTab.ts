@@ -12,6 +12,7 @@ import { useState, useEffect, useMemo, useLayoutEffect, useCallback } from "reac
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { uploadViaEdge } from "@/lib/storage/storageProxy";
 import { useAuth } from "@/hooks/useAuth";
 import { useProductContext } from "../../context/ProductContext";
 import type { Offer, MemberGroupOption } from "@/components/products/OffersManager";
@@ -206,7 +207,7 @@ export function useGeneralTab() {
     return valid;
   }, [form]);
 
-  // Upload de imagem
+  // Upload de imagem via Edge Function
   const uploadImage = useCallback(async (): Promise<string | null | undefined> => {
     if (!image.imageFile || !user || !product?.id) return product?.image_url;
 
@@ -214,17 +215,16 @@ export function useGeneralTab() {
       const fileExt = image.imageFile.name.split(".").pop();
       const fileName = `${user.id}/${product.id}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from("product-images")
-        .upload(fileName, image.imageFile, { upsert: true });
+      const { publicUrl, error: uploadError } = await uploadViaEdge(
+        "product-images",
+        fileName,
+        image.imageFile,
+        { upsert: true }
+      );
 
       if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage
-        .from("product-images")
-        .getPublicUrl(fileName);
-
-      return data.publicUrl;
+      return publicUrl;
     } catch (error) {
       console.error("Erro ao fazer upload da imagem:", error);
       toast.error("Não foi possível fazer upload da imagem");

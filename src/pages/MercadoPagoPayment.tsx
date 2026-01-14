@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { getOrderForPaymentRpc } from "@/lib/rpc/rpcProxy";
 import { Copy, CheckCircle2, ArrowLeft, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -66,12 +67,7 @@ export const MercadoPagoPayment = () => {
     try {
       console.log(`[MercadoPagoPayment] Buscando pedido via RPC (tentativa ${retryCount + 1}):`, orderId);
       
-      const { data: order, error } = await supabase
-        .rpc("get_order_for_payment", { 
-          p_order_id: orderId,
-          p_access_token: accessToken 
-        })
-        .single();
+      const { data: order, error } = await getOrderForPaymentRpc(orderId!, accessToken);
 
       if (error || !order) {
         if (retryCount < 3) {
@@ -83,7 +79,7 @@ export const MercadoPagoPayment = () => {
       }
       
       console.log("[MercadoPagoPayment] Pedido encontrado via RPC:", order);
-      setOrderData(order);
+      setOrderData(order as unknown as MercadoPagoOrderData);
     } catch (err: unknown) {
       console.error("[MercadoPagoPayment] Erro ao buscar pedido:", err);
       toast.error("Erro ao carregar dados do pedido");
@@ -192,14 +188,9 @@ export const MercadoPagoPayment = () => {
     try {
       console.log("[MercadoPagoPayment] 🔍 Verificando status do pagamento:", { orderId });
       
-      // Usar RPC com validação de access_token
+      // Usar RPC proxy com validação de access_token
       const accessToken = navState?.accessToken || '';
-      const { data: order, error } = await supabase
-        .rpc("get_order_for_payment", { 
-          p_order_id: orderId,
-          p_access_token: accessToken 
-        })
-        .single();
+      const { data: order, error } = await getOrderForPaymentRpc(orderId!, accessToken);
       
       console.log("[MercadoPagoPayment] 📡 Status do pedido:", { order, error });
 

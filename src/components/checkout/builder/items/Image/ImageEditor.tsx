@@ -2,7 +2,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ComponentData } from "../../types";
-import { supabase } from "@/integrations/supabase/client";
+import { uploadViaEdge } from "@/lib/storage/storageProxy";
 import type { ImageContent } from "@/types/checkout-components.types";
 import type { CheckoutDesign } from "@/types/checkoutEditor";
 
@@ -51,24 +51,20 @@ export const ImageEditor = ({ component, onChange }: ImageEditorProps) => {
       _old_storage_path: content._storage_path, // Guarda o path antigo para deletar depois do save
     });
 
-    // 3. Upload para Supabase em background
+    // 3. Upload via Edge Function em background
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `checkout-components/${component.id}-${Date.now()}.${fileExt}`;
 
-      // Fazer upload ao bucket 'product-images'
-      const { error: uploadError } = await supabase.storage
-        .from('product-images')
-        .upload(fileName, file, { upsert: true });
+      // Fazer upload via storageProxy
+      const { publicUrl, error: uploadError } = await uploadViaEdge(
+        'product-images',
+        fileName,
+        file,
+        { upsert: true }
+      );
 
       if (uploadError) throw uploadError;
-
-      // Pegar URL pública
-      const { data } = supabase.storage
-        .from('product-images')
-        .getPublicUrl(fileName);
-
-      const publicUrl = data?.publicUrl || null;
       if (!publicUrl) throw new Error('Public URL não retornada');
 
       // 4. Atualizar componente com a URL pública e storage_path

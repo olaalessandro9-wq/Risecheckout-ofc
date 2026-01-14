@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { uploadViaEdge } from "@/lib/storage/storageProxy";
 import { ModulesList } from "@/modules/products/tabs/members-area/components";
 import { AddModuleDialogNetflix, EditModuleDialogNetflix } from "@/modules/members-area/components/dialogs";
 import type { UseMembersAreaReturn } from "@/hooks/members-area";
@@ -64,16 +64,16 @@ export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
         const fileName = `${crypto.randomUUID()}.${fileExt}`;
         const filePath = `${productId}/modules/${fileName}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from('product-images')
-          .upload(filePath, imageFile);
+        const { publicUrl, error: uploadError } = await uploadViaEdge(
+          'product-images',
+          filePath,
+          imageFile,
+          { upsert: true }
+        );
 
         if (uploadError) {
           console.error("[ContentTab] Upload error:", uploadError);
-        } else {
-          const { data: { publicUrl } } = supabase.storage
-            .from('product-images')
-            .getPublicUrl(filePath);
+        } else if (publicUrl) {
           coverImageUrl = publicUrl;
         }
       } catch (error) {
@@ -98,16 +98,16 @@ export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
         const fileName = `${crypto.randomUUID()}.${fileExt}`;
         const filePath = `${productId}/modules/${fileName}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from('product-images')
-          .upload(filePath, imageFile);
+        const { publicUrl, error: uploadError } = await uploadViaEdge(
+          'product-images',
+          filePath,
+          imageFile,
+          { upsert: true }
+        );
 
         if (uploadError) {
           console.error("[ContentTab] Upload error:", uploadError);
-        } else {
-          const { data: { publicUrl } } = supabase.storage
-            .from('product-images')
-            .getPublicUrl(filePath);
+        } else if (publicUrl) {
           coverImageUrl = publicUrl;
         }
       } catch (error) {

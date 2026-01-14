@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { MemberGroup, BuyerWithGroups, StudentStats, StudentFilters } from "@/modules/members-area/types";
 import { studentsService } from "../services/students.service";
+import { getUserEmailRpc } from "@/lib/rpc/rpcProxy";
 
 interface UseStudentsDataProps {
   productId?: string;
@@ -99,8 +100,7 @@ export function useStudentsData({
           .eq('id', producerId)
           .single();
 
-        const { data: producerEmail } = await supabase
-          .rpc('get_user_email', { user_id: producerId });
+        const { data: producerEmail } = await getUserEmailRpc(producerId);
 
         producerStudent = {
           buyer_id: producerId,
