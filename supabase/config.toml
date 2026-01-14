@@ -327,3 +327,15 @@ verify_jwt = false
 # ✅ AUTENTICADAS (Owner Settings - Mais restritiva)
 [functions.owner-settings]
 verify_jwt = false
+
+# =====================================================
+# RISE PROTOCOL V2 - COMPLIANCE (2 novas funções)
+# =====================================================
+
+# ✅ RPC Proxy (centraliza chamadas RPC do frontend)
+[functions.rpc-proxy]
+verify_jwt = false
+
+# ✅ Storage Management (centraliza operações de storage)
+[functions.storage-management]
+verify_jwt = false

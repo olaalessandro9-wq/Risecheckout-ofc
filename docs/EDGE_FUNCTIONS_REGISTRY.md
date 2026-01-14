@@ -10,11 +10,18 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 89 |
-| **No código local** | 89 |
+| **Total de Funções** | 91 |
+| **No código local** | 91 |
 | **Apenas deployadas** | 0 |
 | **Operações Diretas Frontend** | 0 ✅ |
 | **Base URL** | `https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/` |
+
+### RISE Protocol V2 Compliance Functions (NEW)
+
+| Nome | URL | No Repo? | Descrição |
+|------|-----|----------|-----------|
+| `rpc-proxy` | `.../rpc-proxy` | ✅ | Centraliza RPCs do frontend |
+| `storage-management` | `.../storage-management` | ✅ | Centraliza operações de storage |
 
 ---
 

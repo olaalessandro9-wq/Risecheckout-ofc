@@ -8,9 +8,11 @@
  * - Release settings with after_content support
  * 
  * Uses members-area-content Edge Function for atomic save
+ * 
+ * @see RISE ARCHITECT PROTOCOL - Refactored using useContentEditorData hook
  */
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -23,32 +25,14 @@ import {
   ReleaseSection,
   ContentEditorHeader,
 } from "../components/editor";
-import type { ReleaseFormData, ContentAttachment, MemberContent } from "../types";
+import { useContentEditorData } from "../hooks/useContentEditorData";
+import type { ReleaseFormData, ContentAttachment } from "../types";
 
 interface ContentEditorViewProps {
   productId?: string;
   onBack: () => void;
   onSave: () => void;
 }
-
-interface ContentState {
-  title: string;
-  video_url: string | null;
-  body: string | null;
-}
-
-const DEFAULT_CONTENT: ContentState = {
-  title: "",
-  video_url: null,
-  body: null,
-};
-
-const DEFAULT_RELEASE: ReleaseFormData = {
-  release_type: "immediate",
-  days_after_purchase: null,
-  fixed_date: null,
-  after_content_id: null,
-};
 
 export function ContentEditorView({ productId, onBack, onSave }: ContentEditorViewProps) {
   const [searchParams] = useSearchParams();
@@ -59,94 +43,17 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
   const moduleId = searchParams.get("moduleId");
   const isNew = mode === "new";
 
-  // State
-  const [isLoading, setIsLoading] = useState(!isNew);
-  const [isSaving, setIsSaving] = useState(false);
-  const [content, setContent] = useState<ContentState>(DEFAULT_CONTENT);
-  const [release, setRelease] = useState<ReleaseFormData>(DEFAULT_RELEASE);
-  const [attachments, setAttachments] = useState<ContentAttachment[]>([]);
-  const [moduleContents, setModuleContents] = useState<Pick<MemberContent, "id" | "title">[]>([]);
-
-  // Fetch existing content and module contents if editing
-  useEffect(() => {
-    async function loadData() {
-      setIsLoading(true);
-      try {
-        // Always fetch module contents for after_content selection
-        if (moduleId) {
-          const { data: contentsData } = await supabase
-            .from("product_member_content")
-            .select("id, title")
-            .eq("module_id", moduleId)
-            .eq("is_active", true)
-            .order("position", { ascending: true });
-
-          if (contentsData) {
-            setModuleContents(contentsData);
-          }
-        }
-
-        if (isNew || !contentId) {
-          setIsLoading(false);
-          return;
-        }
-
-        // Fetch content data
-        const { data: contentData, error: contentError } = await supabase
-          .from("product_member_content")
-          .select("*")
-          .eq("id", contentId)
-          .single();
-
-        if (contentError) {
-          console.error("[ContentEditorView] Error loading content:", contentError);
-          toast.error("Erro ao carregar conteúdo");
-          onBack();
-          return;
-        }
-
-        setContent({
-          title: contentData.title,
-          video_url: contentData.content_url,
-          body: contentData.body,
-        });
-
-        // Fetch attachments
-        const { data: attachmentsData } = await supabase
-          .from("content_attachments")
-          .select("*")
-          .eq("content_id", contentId)
-          .order("position", { ascending: true });
-
-        if (attachmentsData) {
-          setAttachments(attachmentsData as ContentAttachment[]);
-        }
-
-        // Fetch release settings
-        const { data: releaseData } = await supabase
-          .from("content_release_settings")
-          .select("*")
-          .eq("content_id", contentId)
-          .maybeSingle();
-
-        if (releaseData) {
-          setRelease({
-            release_type: releaseData.release_type as ReleaseFormData["release_type"],
-            days_after_purchase: releaseData.days_after_purchase,
-            fixed_date: releaseData.fixed_date,
-            after_content_id: releaseData.after_content_id,
-          });
-        }
-      } catch (err) {
-        console.error("[ContentEditorView] Exception:", err);
-        toast.error("Erro ao carregar conteúdo");
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    loadData();
-  }, [isNew, contentId, moduleId, onBack]);
+  // Use extracted data hook
+  const {
+    isLoading,
+    content,
+    setContent,
+    release,
+    setRelease,
+    attachments,
+    setAttachments,
+    moduleContents,
+  } = useContentEditorData({ isNew, contentId, moduleId, onBack });
 
   // Validate form
   const canSave = useMemo(() => {
@@ -165,7 +72,6 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
   const handleSave = useCallback(async () => {
     if (!canSave || !moduleId || !productId) return;
 
-    setIsSaving(true);
     try {
       // Prepare attachments for Edge Function
       // For temp attachments, we need to convert blob URLs to base64
@@ -220,8 +126,6 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
     } catch (err) {
       console.error("[ContentEditorView] Save exception:", err);
       toast.error("Erro ao salvar conteúdo");
-    } finally {
-      setIsSaving(false);
     }
   }, [canSave, isNew, moduleId, contentId, content, release, attachments, onSave, productId]);
 
@@ -258,7 +162,7 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
     <div className="min-h-screen bg-background">
       <ContentEditorHeader
         isNew={isNew}
-        isSaving={isSaving}
+        isSaving={false}
         canSave={canSave}
         onBack={onBack}
         onCancel={onBack}
@@ -300,7 +204,7 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
         <AttachmentsSection
           attachments={attachments}
           onAttachmentsChange={handleAttachmentsChange}
-          isLoading={isSaving}
+          isLoading={false}
           uploadProgress={0}
         />
 
