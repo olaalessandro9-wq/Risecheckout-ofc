@@ -3,6 +3,8 @@
  * 
  * Componente de conteúdo do checkout público.
  * Separado do Loader para respeitar o limite de 300 linhas.
+ * 
+ * RISE Protocol V2: Código legacy de tracking removido.
  */
 
 import React from "react";
@@ -18,11 +20,7 @@ import { useAffiliateTracking } from "@/hooks/useAffiliateTracking";
 import { useTurnstileVerification } from "@/hooks/checkout/useTurnstileVerification";
 import { useCheckoutProductPixels } from "@/hooks/checkout/useCheckoutProductPixels";
 import { getSubmitSnapshot, requiredFieldsToArray, parseRequiredFields } from "@/features/checkout/personal-data";
-import * as Facebook from "@/integrations/tracking/facebook";
 import * as UTMify from "@/integrations/tracking/utmify";
-import * as GoogleAds from "@/integrations/tracking/google-ads";
-import * as TikTok from "@/integrations/tracking/tiktok";
-import * as Kwai from "@/integrations/tracking/kwai";
 import type { OrderBump } from "@/types/checkout";
 import type { useCheckoutData } from "@/hooks/checkout/useCheckoutData";
 import type { ThemePreset } from "@/lib/checkout/themePresets";
@@ -44,7 +42,7 @@ export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, desi
   const checkoutId = checkout.id;
   const vendorId = checkout.vendorId;
 
-  // NEW: Fetch product pixels from product_pixels table
+  // Fetch product pixels from product_pixels table
   const { pixels: productPixels } = useCheckoutProductPixels(checkout.product.id);
 
   // Affiliate Tracking - modo 'persist' para persistência final com configs do produto
@@ -56,12 +54,8 @@ export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, desi
     enabled: true 
   });
 
-  // Legacy Tracking Configs (fallback if no product_pixels)
-  const { data: fbConfig } = Facebook.useFacebookConfig(vendorId);
+  // UTMify (único tracking que ainda não migrou para product_pixels)
   const { data: utmifyConfig } = UTMify.useUTMifyConfig(vendorId);
-  const { data: googleAdsIntegration } = GoogleAds.useGoogleAdsConfig(vendorId);
-  const { data: tiktokIntegration } = TikTok.useTikTokConfig(vendorId);
-  const { data: kwaiIntegration } = Kwai.useKwaiConfig(vendorId);
 
   // Form Manager
   const requiredFieldsConfig = parseRequiredFields(checkout.product.required_fields);
@@ -75,7 +69,7 @@ export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, desi
   // Payment Gateway
   const { selectedPayment, setSelectedPayment, submitPayment } = usePaymentOrchestrator({
     vendorId: null, checkoutId, productId: checkout.product.id, 
-    offerId: checkout.offerId || null, // ✅ Passa offerId para garantir preço correto
+    offerId: checkout.offerId || null,
     productName: checkout.product.name, productPrice: checkout.product.price,
     publicKey: checkout.mercadopago_public_key || null, amount: calculateTotal(), formData, selectedBumps, orderBumps, appliedCoupon,
     pixGateway: checkout.pix_gateway || 'pushinpay', creditCardGateway: checkout.credit_card_gateway || 'mercadopago',
@@ -86,10 +80,10 @@ export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, desi
   // Turnstile
   const { token: turnstileToken, onTokenReceived: handleTurnstileVerify, onWidgetError: handleTurnstileError, onTokenExpired: handleTurnstileExpire, verifyToken: verifyTurnstileToken } = useTurnstileVerification();
 
-  // Tracking Service
+  // Tracking Service (apenas UTMify)
   const { fireInitiateCheckout } = useTrackingService({
     vendorId: vendorId || null, productId: checkout.product.id, productName: checkout.product.name,
-    trackingConfig: { fbConfig, utmifyConfig, googleAdsIntegration, tiktokIntegration, kwaiIntegration },
+    trackingConfig: { utmifyConfig },
   });
 
   // Handlers
@@ -136,11 +130,7 @@ export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, desi
       <TrackingManager 
         productId={checkout.product.id} 
         productPixels={productPixels}
-        fbConfig={fbConfig} 
-        utmifyConfig={utmifyConfig} 
-        googleAdsIntegration={googleAdsIntegration} 
-        tiktokIntegration={tiktokIntegration} 
-        kwaiIntegration={kwaiIntegration} 
+        utmifyConfig={utmifyConfig}
       />
       <CheckoutMasterLayout mode="public" design={design} viewMode="public">
         <SharedCheckoutLayout productData={productData} orderBumps={orderBumps} design={design} selectedPayment={selectedPayment} onPaymentChange={setSelectedPayment}

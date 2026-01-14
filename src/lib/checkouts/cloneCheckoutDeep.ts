@@ -9,14 +9,11 @@ import { cloneCheckoutLayoutRpc } from "@/lib/rpc/rpcProxy";
 /**
  * Clona o layout completo de um checkout para outro usando a RPC clone_checkout_layout.
  * 
- * @param _supabase - (Deprecated) Cliente Supabase não mais necessário
  * @param srcCheckoutId - ID do checkout origem
  * @param dstCheckoutId - ID do checkout destino (já deve estar criado)
  * @throws Error se a RPC falhar
  */
 export async function cloneCheckoutDeep(
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _supabase: unknown,
   srcCheckoutId: string,
   dstCheckoutId: string
 ): Promise<void> {

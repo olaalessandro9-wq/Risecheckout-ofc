@@ -4,9 +4,7 @@
  * Responsabilidade Única: Renderizar todos os scripts de tracking (pixels)
  * de forma centralizada e isolada.
  * 
- * ATUALIZADO: Agora suporta pixels vinculados ao produto via product_pixels.
- * 
- * RISE Protocol V2: Zero any - todos os tipos legacy agora têm tipagem forte.
+ * RISE Protocol V2: Código legacy removido. Usa apenas productPixels.
  */
 
 import React from "react";
@@ -16,42 +14,18 @@ import * as GoogleAds from "@/integrations/tracking/google-ads";
 import * as TikTok from "@/integrations/tracking/tiktok";
 import * as Kwai from "@/integrations/tracking/kwai";
 import type { CheckoutPixel } from "@/hooks/checkout/useCheckoutProductPixels";
-import type {
-  LegacyFacebookConfig,
-  LegacyTikTokIntegration,
-  LegacyGoogleAdsIntegration,
-  LegacyKwaiIntegration,
-  LegacyUTMifyIntegration,
-} from "./TrackingManager.types";
+import type { UTMifyIntegration } from "@/integrations/tracking/utmify/types";
 
 // ============================================================================
 // INTERFACE
 // ============================================================================
 
-/**
- * Props do TrackingManager
- * 
- * Legacy configs são mantidos para retrocompatibilidade com vendor_integrations.
- * Todos agora têm tipagem forte via TrackingManager.types.ts
- * 
- * NOTA: Os hooks retornam tipos diferentes:
- * - Facebook: retorna apenas FacebookPixelConfig (config direta)
- * - TikTok, GoogleAds, Kwai, UTMify: retornam a integração completa
- */
 interface TrackingManagerProps {
   productId: string | null;
-  /** @deprecated Use productPixels instead - retorna apenas a config */
-  fbConfig?: LegacyFacebookConfig | null;
-  /** UTMify ainda não migrou para product_pixels */
-  utmifyConfig?: LegacyUTMifyIntegration | null;
-  /** @deprecated Use productPixels instead */
-  googleAdsIntegration?: LegacyGoogleAdsIntegration | null;
-  /** @deprecated Use productPixels instead */
-  tiktokIntegration?: LegacyTikTokIntegration | null;
-  /** @deprecated Use productPixels instead */
-  kwaiIntegration?: LegacyKwaiIntegration | null;
   /** Pixels vinculados ao produto (sistema novo - recomendado) */
   productPixels?: CheckoutPixel[];
+  /** UTMify ainda não migrou para product_pixels */
+  utmifyConfig?: UTMifyIntegration | null;
 }
 
 // ============================================================================
@@ -61,19 +35,12 @@ interface TrackingManagerProps {
 /**
  * Gerenciador de scripts de tracking.
  * 
- * Renderiza os pixels de tracking de duas formas:
- * 1. Legacy: via vendor_integrations (deprecated)
- * 2. New: via product_pixels (recomendado)
- * 
- * @param props - Configurações de tracking
+ * Renderiza os pixels de tracking via product_pixels.
+ * UTMify ainda usa o sistema legacy pois não migrou.
  */
 export const TrackingManager: React.FC<TrackingManagerProps> = ({
   productId,
-  fbConfig,
   utmifyConfig,
-  googleAdsIntegration,
-  tiktokIntegration,
-  kwaiIntegration,
   productPixels = [],
 }) => {
   // Separar pixels por plataforma
@@ -82,14 +49,9 @@ export const TrackingManager: React.FC<TrackingManagerProps> = ({
   const googleAdsPixels = productPixels.filter(p => p.platform === 'google_ads' && p.is_active);
   const kwaiPixels = productPixels.filter(p => p.platform === 'kwai' && p.is_active);
 
-  // Flag para saber se usamos o novo sistema
-  const hasProductPixels = productPixels.length > 0;
-
   return (
     <>
-      {/* ============ NOVO SISTEMA: product_pixels ============ */}
-      
-      {/* Facebook Pixels (novo) */}
+      {/* Facebook Pixels */}
       {facebookPixels.map((pixel) => (
         <Facebook.Pixel 
           key={`fb-product-${pixel.id}`}
@@ -100,7 +62,7 @@ export const TrackingManager: React.FC<TrackingManagerProps> = ({
         />
       ))}
 
-      {/* TikTok Pixels (novo) */}
+      {/* TikTok Pixels */}
       {tiktokPixels.map((pixel) => (
         <TikTok.Pixel 
           key={`tt-product-${pixel.id}`}
@@ -116,7 +78,7 @@ export const TrackingManager: React.FC<TrackingManagerProps> = ({
         />
       ))}
 
-      {/* Google Ads Pixels (novo) */}
+      {/* Google Ads Pixels */}
       {googleAdsPixels.map((pixel) => (
         <GoogleAds.Tracker 
           key={`gads-product-${pixel.id}`}
@@ -133,7 +95,7 @@ export const TrackingManager: React.FC<TrackingManagerProps> = ({
         />
       ))}
 
-      {/* Kwai Pixels (novo) */}
+      {/* Kwai Pixels */}
       {kwaiPixels.map((pixel) => (
         <Kwai.Pixel 
           key={`kwai-product-${pixel.id}`}
@@ -148,50 +110,6 @@ export const TrackingManager: React.FC<TrackingManagerProps> = ({
           }} 
         />
       ))}
-
-      {/* ========================================================================
-       * LEGACY FALLBACK - SCHEDULED FOR REMOVAL
-       * ========================================================================
-       * 
-       * Este bloco mantém retrocompatibilidade com o sistema antigo (vendor_integrations).
-       * 
-       * PLANO DE DEPRECIAÇÃO:
-       * 1. Migration script executado em 2025-01 para converter dados existentes
-       * 2. Prazo de observação: 30 dias após deploy (monitorar via logs)
-       * 3. Data de remoção planejada: 2025-02-15
-       * 
-       * CRITÉRIOS PARA REMOÇÃO:
-       * - [ ] Confirmar que todos os vendors migraram para product_pixels
-       * - [ ] Zero uso do fallback em produção (verificar via console.warn abaixo)
-       * - [ ] Remover props legacy: fbConfig, googleAdsIntegration, tiktokIntegration, kwaiIntegration
-       * 
-       * @deprecated Usar apenas productPixels via product_pixels table
-       * ======================================================================== */}
-      
-      {!hasProductPixels && (fbConfig || tiktokIntegration || googleAdsIntegration || kwaiIntegration) && (
-        <>
-          {/* Log para monitorar uso do fallback legacy */}
-          {console.warn('[TrackingManager] DEPRECATED: Using legacy vendor_integrations fallback. Migrate to product_pixels.')}
-          
-          {/* Facebook Pixel (legacy) - fbConfig já É a config, não precisa de .config */}
-          {Facebook.shouldRunPixel(fbConfig, productId) && <Facebook.Pixel config={fbConfig} />}
-
-          {/* TikTok Pixel (legacy) - passa a integração completa */}
-          {TikTok.shouldRunTikTok(tiktokIntegration, productId) && (
-            <TikTok.Pixel config={tiktokIntegration} />
-          )}
-
-          {/* Google Ads (legacy) */}
-          {GoogleAds.shouldRunGoogleAds(googleAdsIntegration, productId) && (
-            <GoogleAds.Tracker integration={googleAdsIntegration} />
-          )}
-
-          {/* Kwai Pixel (legacy) - passa a integração completa */}
-          {Kwai.shouldRunKwai(kwaiIntegration, productId) && (
-            <Kwai.Pixel config={kwaiIntegration} />
-          )}
-        </>
-      )}
 
       {/* UTMify sempre roda via legacy (não tem product_pixels) */}
       {UTMify.shouldRunUTMify(utmifyConfig, productId) && (

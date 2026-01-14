@@ -2,15 +2,9 @@
  * Hook Controller V2 (Cérebro) do Checkout Público
  * 
  * Orquestra todos os hooks V2 da nova arquitetura "Service-Oriented Hook".
- * Segue o padrão Container/Presenter para separar lógica de apresentação.
  * 
- * Arquitetura:
- * - useCheckoutData: Busca dados do checkout
- * - useFormManager: Gerencia formulário e validações
- * - usePaymentGateway: Gerencia SDK e pagamentos
- * - useTrackingService: Gerencia pixels de tracking
- * 
- * @returns {Object} Estado, hooks e ações para o componente de apresentação
+ * RISE Protocol V2: Código legacy de tracking removido.
+ * Apenas UTMify permanece pois não migrou para product_pixels.
  */
 
 import { useRef, useState, useMemo } from "react";
@@ -22,12 +16,8 @@ import { useFormManager } from "@/hooks/checkout/useFormManager";
 import { usePaymentOrchestrator } from "@/hooks/checkout/payment/usePaymentOrchestrator";
 import { useTrackingService } from "@/hooks/checkout/useTrackingService";
 
-// Integrações de Tracking
-import * as Facebook from "@/integrations/tracking/facebook";
+// Integrações de Tracking (apenas UTMify)
 import * as UTMify from "@/integrations/tracking/utmify";
-import * as GoogleAds from "@/integrations/tracking/google-ads";
-import * as TikTok from "@/integrations/tracking/tiktok";
-import * as Kwai from "@/integrations/tracking/kwai";
 import * as MercadoPago from "@/integrations/gateways/mercadopago";
 import type { CouponData } from "@/types/checkout";
 
@@ -50,16 +40,10 @@ export const useCheckoutPageControllerV2 = () => {
   // 2. CONFIGURAÇÕES DE INTEGRAÇÕES
   // ============================================================================
   
-  // ✅ SEGURANÇA: Tracking configs agora são buscadas via checkout.id
-  // O backend resolve vendor_id internamente - cliente não precisa ver
   const checkoutId = checkout?.id || undefined;
   
-  // Tracking - configurações ficam associadas ao checkout, não ao vendor diretamente
-  const { data: fbConfig } = Facebook.useFacebookConfig(checkoutId);
+  // UTMify (único tracking que ainda não migrou para product_pixels)
   const { data: utmifyConfig } = UTMify.useUTMifyConfig(checkoutId);
-  const { data: googleAdsIntegration } = GoogleAds.useGoogleAdsConfig(checkoutId);
-  const { data: tiktokIntegration } = TikTok.useTikTokConfig(checkoutId);
-  const { data: kwaiIntegration } = Kwai.useKwaiConfig(checkoutId);
   
   // Mercado Pago
   const { data: mpIntegration } = MercadoPago.useMercadoPagoConfig(checkoutId);
@@ -122,13 +106,12 @@ function getRequiredFieldsArray(requiredFields: RequiredFieldsConfig | string[] 
   }), [design]);
   
   // PaymentOrchestrator - Gerencia SDK e pagamentos
-  // ✅ SEGURANÇA: Não passa mais vendorId - backend resolve internamente
   const paymentGateway = usePaymentOrchestrator({
-    vendorId: null, // Backend resolve via checkout_id
+    vendorId: null,
     checkoutId: checkout?.id || null,
     productId: checkout?.product?.id || null,
     productName: checkout?.product?.name || null,
-    productPrice: checkout?.product?.price ? checkout.product.price * 100 : 0, // converter para centavos
+    productPrice: checkout?.product?.price ? checkout.product.price * 100 : 0,
     publicKey: mercadoPagoPublicKey || null,
     amount: totalAmount,
     formData: formManager.formData,
@@ -136,18 +119,13 @@ function getRequiredFieldsArray(requiredFields: RequiredFieldsConfig | string[] 
     orderBumps: orderBumps || [],
   });
   
-  // TrackingService - Gerencia pixels
-  // ✅ SEGURANÇA: Usa checkoutId ao invés de vendorId
+  // TrackingService (apenas UTMify)
   const trackingService = useTrackingService({
-    vendorId: null, // Backend resolve via checkout_id se necessário
+    vendorId: null,
     productId: checkout?.product?.id || null,
     productName: checkout?.product?.name || null,
     trackingConfig: {
-      fbConfig,
       utmifyConfig,
-      googleAdsIntegration,
-      tiktokIntegration,
-      kwaiIntegration,
     },
   });
   
@@ -236,13 +214,9 @@ function getRequiredFieldsArray(requiredFields: RequiredFieldsConfig | string[] 
       tracking: trackingService,
     },
     
-    // Configurações de Tracking (para TrackingManager)
+    // Configurações de Tracking (apenas UTMify para TrackingManager)
     tracking: {
-      fbConfig,
       utmifyConfig,
-      googleAdsIntegration,
-      tiktokIntegration,
-      kwaiIntegration,
     },
     
     // Ações

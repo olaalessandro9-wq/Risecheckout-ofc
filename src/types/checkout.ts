@@ -3,6 +3,8 @@
  * 
  * Este arquivo centraliza todas as definições de tipos para garantir
  * Type Safety em todo o sistema de checkout.
+ * 
+ * RISE Protocol V2: Código legacy removido.
  */
 
 // ============================================================================
@@ -181,21 +183,14 @@ export interface CardData {
 // TIPOS DE TRACKING
 // ============================================================================
 
-import type { FacebookPixelConfig } from "@/integrations/tracking/facebook/types";
-import type { GoogleAdsIntegration } from "@/integrations/tracking/google-ads/types";
-import type { TikTokIntegration } from "@/integrations/tracking/tiktok/types";
-import type { KwaiIntegration } from "@/integrations/tracking/kwai/types";
 import type { UTMifyIntegration } from "@/integrations/tracking/utmify/types";
 
 /**
- * TrackingConfig tipado com interfaces dos módulos de tracking
+ * TrackingConfig simplificado - apenas UTMify (não migrou para product_pixels)
+ * Outros pixels (Facebook, Google Ads, TikTok, Kwai) agora usam product_pixels.
  */
 export interface TrackingConfig {
-  fbConfig?: FacebookPixelConfig | null;
   utmifyConfig?: UTMifyIntegration | null;
-  googleAdsIntegration?: GoogleAdsIntegration | null;
-  tiktokIntegration?: TikTokIntegration | null;
-  kwaiIntegration?: KwaiIntegration | null;
 }
 
 export interface PurchaseData {

@@ -174,14 +174,6 @@ export function formatCentsToBRL(
   return options.symbol ? `R$ ${formatted}` : formatted;
 }
 
-/**
- * Alias para compatibilidade com código existente.
- * @deprecated Use formatCentsToBRL() diretamente
- */
-export function formatPriceFromCents(cents: number | null | undefined): string {
-  return formatCentsToBRL(cents, { symbol: false });
-}
-
 // ============================================================================
 // SEÇÃO 3: OPERAÇÕES MATEMÁTICAS (Sempre em Centavos)
 // ============================================================================
