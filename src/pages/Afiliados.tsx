@@ -24,6 +24,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/api-client";
 import { toast } from "sonner";
+import { getProducerAffiliatesRpc } from "@/lib/rpc/rpcProxy";
 
 import {
   AffiliatesMetrics,
@@ -73,11 +74,11 @@ const Afiliados = () => {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase.rpc('get_producer_affiliates', {
-        search_term: debouncedSearchTerm
-      }) as { data: AffiliateData[] | null; error: Error | null };
-
-      if (error) throw error;
+      const result = await getProducerAffiliatesRpc(debouncedSearchTerm);
+      
+      if (result.error) throw result.error;
+      
+      const data = result.data as unknown as AffiliateData[] | null;
 
       let filteredData = (data as AffiliateData[] | null) || [];
       

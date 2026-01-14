@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { getProducerSessionToken } from "@/hooks/useProducerAuth";
+import { incrementMarketplaceViewRpc, incrementMarketplaceClickRpc } from "@/lib/rpc/rpcProxy";
 
 // Types
 type MarketplaceProduct = Database["public"]["Views"]["marketplace_products"]["Row"];
@@ -179,9 +180,7 @@ export async function fetchMarketplaceCategories(): Promise<MarketplaceCategory[
  */
 export async function trackProductView(productId: string): Promise<void> {
   try {
-    const { error } = await supabase.rpc("increment_marketplace_view", {
-      p_product_id: productId,
-    });
+    const { error } = await incrementMarketplaceViewRpc(productId);
 
     if (error) {
       console.error("[Marketplace] Erro ao rastrear visualização:", error);
@@ -198,9 +197,7 @@ export async function trackProductView(productId: string): Promise<void> {
  */
 export async function trackProductClick(productId: string): Promise<void> {
   try {
-    const { error } = await supabase.rpc("increment_marketplace_click", {
-      p_product_id: productId,
-    });
+    const { error } = await incrementMarketplaceClickRpc(productId);
 
     if (error) {
       console.error("[Marketplace] Erro ao rastrear clique:", error);

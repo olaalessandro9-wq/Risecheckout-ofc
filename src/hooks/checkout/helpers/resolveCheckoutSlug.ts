@@ -1,10 +1,12 @@
 /**
  * Helper: resolveCheckoutSlug
  * 
- * Resolve slug de checkout para checkout_id e product_id via RPC
+ * Resolve slug de checkout para checkout_id e product_id via RPC Proxy
+ * 
+ * @see RISE Protocol V2 - Zero direct RPC calls from frontend
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { getCheckoutBySlugRpc } from "@/lib/rpc/rpcProxy";
 
 export interface SlugResolution {
   checkoutId: string;
@@ -12,9 +14,7 @@ export interface SlugResolution {
 }
 
 export async function resolveCheckoutSlug(slug: string): Promise<SlugResolution> {
-  const { data, error } = await supabase.rpc('get_checkout_by_payment_slug', { 
-    p_slug: slug 
-  });
+  const { data, error } = await getCheckoutBySlugRpc(slug);
 
   if (error || !data || data.length === 0 || !data[0]?.checkout_id) {
     console.error('[resolveCheckoutSlug] Erro:', error);

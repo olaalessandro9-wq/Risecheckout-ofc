@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Check, Tag, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
+import { validateCouponRpc } from "@/lib/rpc/rpcProxy";
 import { toast } from "sonner";
 
 /**
@@ -78,13 +78,10 @@ export function CouponField({ productId, design, onCouponApplied }: CouponFieldP
     setIsValidating(true);
 
     try {
-      console.log("[CUPOM] Validando código via RPC:", couponCode);
+      console.log("[CUPOM] Validando código via RPC Proxy:", couponCode);
 
-      // Use secure RPC function instead of direct query
-      const { data, error } = await supabase.rpc("validate_coupon", {
-        p_code: couponCode.trim(),
-        p_product_id: productId,
-      });
+      // Use rpc-proxy Edge Function for secure RPC calls
+      const { data, error } = await validateCouponRpc(couponCode.trim(), productId);
 
       if (error) {
         console.error("[CUPOM] Erro na RPC:", error);

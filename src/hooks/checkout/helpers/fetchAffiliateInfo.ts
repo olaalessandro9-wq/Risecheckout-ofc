@@ -1,10 +1,12 @@
 /**
  * Helper: fetchAffiliateInfo
  * 
- * Busca informações do afiliado via RPC SECURITY DEFINER
+ * Busca informações do afiliado via RPC Proxy
+ * 
+ * @see RISE Protocol V2 - Zero direct RPC calls from frontend
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { getAffiliateCheckoutInfoRpc } from "@/lib/rpc/rpcProxy";
 
 export interface AffiliateInfo {
   pixGateway: string | null;
@@ -22,7 +24,7 @@ export function getAffiliateCode(): string | null {
 }
 
 /**
- * Busca info do afiliado via RPC
+ * Busca info do afiliado via RPC Proxy
  */
 export async function fetchAffiliateInfo(
   affiliateCode: string,
@@ -41,11 +43,7 @@ export async function fetchAffiliateInfo(
 
   console.log('[fetchAffiliateInfo] Buscando info para:', affiliateCode);
 
-  const { data, error } = await supabase
-    .rpc('get_affiliate_checkout_info', {
-      p_affiliate_code: affiliateCode,
-      p_product_id: productId
-    });
+  const { data, error } = await getAffiliateCheckoutInfoRpc(affiliateCode, productId);
 
   if (error) {
     console.warn('[fetchAffiliateInfo] Erro:', error.message);
