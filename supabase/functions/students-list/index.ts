@@ -29,6 +29,13 @@ interface JsonResponseData {
   stats?: StudentStats;
   success?: boolean;
   error?: string;
+  producer_info?: ProducerInfo;
+}
+
+interface ProducerInfo {
+  id: string;
+  name: string | null;
+  email: string | null;
 }
 
 interface StudentStats {
@@ -341,6 +348,43 @@ Deno.serve(async (req) => {
       if (error) throw error;
 
       return jsonResponse({ success: true, student: student as StudentDetail });
+    }
+
+    // ========== GET-PRODUCER-INFO ==========
+    if (action === "get-producer-info") {
+      if (!product_id) {
+        return jsonResponse({ error: "product_id required" }, 400);
+      }
+
+      // Get product owner
+      const { data: product, error: productError } = await supabase
+        .from("products")
+        .select("user_id")
+        .eq("id", product_id)
+        .single();
+
+      if (productError || !product) {
+        return jsonResponse({ error: "Product not found" }, 404);
+      }
+
+      // Get profile info
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, name")
+        .eq("id", product.user_id)
+        .single();
+
+      // Get email via RPC
+      const { data: emailData } = await supabase.rpc("get_user_email", { user_id: product.user_id });
+
+      return jsonResponse({
+        success: true,
+        producer_info: {
+          id: product.user_id,
+          name: profile?.name || null,
+          email: emailData || null,
+        }
+      });
     }
 
     return jsonResponse({ error: "Invalid action" }, 400);

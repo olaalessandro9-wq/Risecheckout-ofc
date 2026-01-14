@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
+import { uploadViaEdge } from "@/lib/storage/storageProxy";
 
 export interface ProductData {
   id?: string;
@@ -74,17 +75,16 @@ export const useProduct = () => {
       const fileExt = imageFile.name.split(".").pop();
       const fileName = `${user.id}/${productId}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from("product-images")
-        .upload(fileName, imageFile, { upsert: true });
+      const { publicUrl, error: uploadError } = await uploadViaEdge(
+        "product-images",
+        fileName,
+        imageFile,
+        { upsert: true }
+      );
 
       if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage
-        .from("product-images")
-        .getPublicUrl(fileName);
-
-      return data.publicUrl;
+      return publicUrl;
     } catch (error: unknown) {
       toast.error("Erro ao fazer upload da imagem");
       console.error("Error uploading image:", error);

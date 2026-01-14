@@ -25,6 +25,18 @@ interface JsonResponseData {
   success?: boolean;
   error?: string;
   groups_count?: number;
+  groups?: ProductMemberGroup[];
+}
+
+interface ProductMemberGroup {
+  id: string;
+  product_id: string;
+  name: string;
+  description: string | null;
+  is_default: boolean;
+  position: number;
+  created_at: string;
+  updated_at: string;
 }
 
 interface ProductRecord {
@@ -161,6 +173,24 @@ Deno.serve(async (req) => {
 
       console.log(`[students-groups] Assigned ${group_ids.length} groups to buyer ${buyer_id}`);
       return jsonResponse({ success: true, groups_count: group_ids.length });
+    }
+
+    // ========== LIST-GROUPS ==========
+    if (action === "list-groups") {
+      if (!product_id) {
+        return jsonResponse({ error: "product_id required" }, 400);
+      }
+
+      const { data: groups, error } = await supabase
+        .from("product_member_groups")
+        .select("*")
+        .eq("product_id", product_id)
+        .order("position", { ascending: true });
+
+      if (error) throw error;
+
+      console.log(`[students-groups] Listed ${groups?.length || 0} groups for product ${product_id}`);
+      return jsonResponse({ success: true, groups: groups as ProductMemberGroup[] });
     }
 
     return jsonResponse({ error: "Invalid action" }, 400);

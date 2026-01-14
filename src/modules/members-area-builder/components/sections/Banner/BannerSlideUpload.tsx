@@ -8,8 +8,8 @@ import React, { useRef, useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Upload, X, ImageIcon, Loader2, Crop } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { uploadViaEdge } from '@/lib/storage/storageProxy';
 import { BannerImageCropDialog } from '../../dialogs/BannerImageCropDialog';
 
 interface BannerSlideUploadProps {
@@ -35,23 +35,21 @@ export function BannerSlideUpload({ imageUrl, onImageChange }: BannerSlideUpload
       const fileName = `banner-${Date.now()}-${crypto.randomUUID()}.${fileExt}`;
       const filePath = `banners/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('product-images')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false,
-        });
+      const { publicUrl, error: uploadError } = await uploadViaEdge(
+        'product-images',
+        filePath,
+        file,
+        { upsert: false, contentType: file.type }
+      );
 
       if (uploadError) {
         throw uploadError;
       }
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('product-images')
-        .getPublicUrl(filePath);
-
-      onImageChange(publicUrl);
-      toast.success('Imagem enviada com sucesso!');
+      if (publicUrl) {
+        onImageChange(publicUrl);
+        toast.success('Imagem enviada com sucesso!');
+      }
     } catch (error) {
       console.error('Upload error:', error);
       toast.error('Erro ao enviar imagem. Tente novamente.');
