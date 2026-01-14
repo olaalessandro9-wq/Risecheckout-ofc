@@ -1,10 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-// Public Supabase configuration
-// Note: anon key is public by design - security is enforced by RLS policies
-const SUPABASE_URL = "https://wivbtmtgpsxupfjwwovf.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpdmJ0bXRncHN4dXBmand3b3ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3Mjg2NzIsImV4cCI6MjA4MTA4ODY3Mn0.h8HDRdHaVTZpZLqBxj7bODaUPCox2h6HF_3U1xfbSXY";
+/**
+ * Supabase Client - RISE Protocol V2 Compliant
+ * 
+ * Security: Uses environment variables instead of hardcoded keys.
+ * Note: anon key is public by design - security is enforced by RLS policies.
+ */
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  throw new Error(
+    "[Supabase] Environment variables not configured. " +
+    "Please set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in .env"
+  );
+}
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
