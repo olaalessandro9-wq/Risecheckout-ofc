@@ -107,8 +107,10 @@ export function useGeneralTab() {
             is_default?: boolean;
           }
           
+          const sessionToken = localStorage.getItem('producer_session_token');
           const { data, error } = await supabase.functions.invoke('members-area-groups', {
-            body: { action: 'list', product_id: product.id }
+            body: { action: 'list', product_id: product.id },
+            headers: { 'x-producer-session-token': sessionToken || '' },
           });
           
           if (!error && data?.groups) {

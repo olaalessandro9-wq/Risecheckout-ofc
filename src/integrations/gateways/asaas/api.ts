@@ -196,8 +196,9 @@ export async function saveAsaasSettings(
     const sessionToken = getProducerSessionToken();
 
     // Salvar credenciais via integration-management
-    const { data: result, error } = await supabase.functions.invoke('integration-management/save-credentials', {
+    const { data: result, error } = await supabase.functions.invoke('integration-management', {
       body: {
+        action: 'save-credentials',
         integrationType: INTEGRATION_TYPE,
         config: {
           api_key: config.api_key,
@@ -206,8 +207,8 @@ export async function saveAsaasSettings(
           validated_at: config.validated_at,
           account_name: config.account_name,
         },
-        sessionToken,
-      }
+      },
+      headers: { 'x-producer-session-token': sessionToken || '' },
     });
 
     if (error || !result?.success) {
@@ -217,11 +218,12 @@ export async function saveAsaasSettings(
 
     // Salvar wallet_id no profile via Edge Function
     if (config.wallet_id) {
-      const { data: walletResult, error: walletError } = await supabase.functions.invoke('integration-management/save-profile-wallet', {
+      const { data: walletResult, error: walletError } = await supabase.functions.invoke('integration-management', {
         body: {
+          action: 'save-profile-wallet',
           walletId: config.wallet_id,
-          sessionToken,
-        }
+        },
+        headers: { 'x-producer-session-token': sessionToken || '' },
       });
 
       if (walletError) {
@@ -252,11 +254,12 @@ export async function disconnectAsaas(
     const sessionToken = getProducerSessionToken();
 
     // Disconnect via Edge Function
-    const { data: result, error } = await supabase.functions.invoke('integration-management/disconnect', {
+    const { data: result, error } = await supabase.functions.invoke('integration-management', {
       body: {
+        action: 'disconnect',
         integrationType: INTEGRATION_TYPE,
-        sessionToken,
-      }
+      },
+      headers: { 'x-producer-session-token': sessionToken || '' },
     });
 
     if (error || !result?.success) {
@@ -265,8 +268,9 @@ export async function disconnectAsaas(
     }
 
     // Limpar wallet_id no profile
-    await supabase.functions.invoke('integration-management/clear-profile-wallet', {
-      body: { sessionToken }
+    await supabase.functions.invoke('integration-management', {
+      body: { action: 'clear-profile-wallet' },
+      headers: { 'x-producer-session-token': sessionToken || '' },
     });
 
     console.log('[Asaas] Desconectado e wallet_id limpo para vendor:', vendorId);

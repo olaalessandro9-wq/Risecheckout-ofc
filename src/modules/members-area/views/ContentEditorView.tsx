@@ -194,6 +194,7 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
         })
       );
 
+      const sessionToken = localStorage.getItem('producer_session_token');
       const { data: result, error } = await supabase.functions.invoke("content-save", {
         body: {
           action: "save-full",
@@ -208,6 +209,7 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
           attachments: preparedAttachments,
           release,
         },
+        headers: { 'x-producer-session-token': sessionToken || '' },
       });
 
       if (error) throw error;

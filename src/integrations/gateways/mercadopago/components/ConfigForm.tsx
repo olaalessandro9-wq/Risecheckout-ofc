@@ -173,11 +173,12 @@ export function ConfigForm({ onConnectionChange }: { onConnectionChange?: () => 
       const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
       const sessionToken = getProducerSessionToken();
       
-      const { data: oauthResult, error: oauthError } = await supabase.functions.invoke('integration-management/init-oauth', {
+      const { data: oauthResult, error: oauthError } = await supabase.functions.invoke('integration-management', {
         body: {
+          action: 'init-oauth',
           integrationType: 'MERCADOPAGO',
-          sessionToken,
-        }
+        },
+        headers: { 'x-producer-session-token': sessionToken || '' },
       });
 
       if (oauthError || !oauthResult?.success) {
@@ -303,11 +304,12 @@ export function ConfigForm({ onConnectionChange }: { onConnectionChange?: () => 
       const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
       const sessionToken = getProducerSessionToken();
 
-      const { data: result, error } = await supabase.functions.invoke('integration-management/disconnect', {
+      const { data: result, error } = await supabase.functions.invoke('integration-management', {
         body: {
+          action: 'disconnect',
           integrationId: integration.id,
-          sessionToken,
-        }
+        },
+        headers: { 'x-producer-session-token': sessionToken || '' },
       });
 
       if (error || !result?.success) {
