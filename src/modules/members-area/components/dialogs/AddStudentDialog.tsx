@@ -57,13 +57,18 @@ export function AddStudentDialog({
     setIsSubmitting(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("students-invite/invite", {
+      // Obter token de sessão para autenticação
+      const sessionToken = localStorage.getItem('producer_session_token');
+      
+      const { data, error } = await supabase.functions.invoke("students-invite", {
         body: {
+          action: "invite", // Action no body, não no path
           product_id: productId,
           email: email.trim(),
           name: name.trim() || undefined,
           group_ids: selectedGroups.length > 0 ? selectedGroups : undefined,
         },
+        headers: { 'x-producer-session-token': sessionToken || '' },
       });
 
       if (error) throw error;
