@@ -366,9 +366,11 @@ export function useGeneralTab() {
     setIsDeleting(true);
     try {
       const success = await deleteProduct();
-      if (success) {
-        navigate("/dashboard/produtos");
+      if (!success) {
+        // Lançar exceção para que ConfirmDeleteDialog capture o erro
+        throw new Error("Falha ao excluir produto");
       }
+      navigate("/dashboard/produtos");
     } finally {
       setIsDeleting(false);
     }

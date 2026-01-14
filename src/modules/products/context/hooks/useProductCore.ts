@@ -228,18 +228,18 @@ export function useProductCore({
 
       if (error) {
         console.error("[useProductCore] Edge Function error:", error);
-        toast.error("Erro ao excluir produto");
+        // Sem toast - ConfirmDeleteDialog gerencia as mensagens
         return false;
       }
 
       if (!data?.success) {
         console.error("[useProductCore] API error:", data?.error);
-        toast.error(data?.error || "Erro ao excluir produto");
+        // Sem toast - ConfirmDeleteDialog gerencia as mensagens
         return false;
       }
 
-      const deleteType = data.type === 'soft' ? 'arquivado' : 'excluído';
-      toast.success(`Produto ${deleteType} com sucesso`);
+      console.log(`[useProductCore] Product deleted successfully: ${data.type}`);
+      // Sem toast - ConfirmDeleteDialog gerencia as mensagens
       return true;
     } catch (error: unknown) {
       console.error("[useProductCore] Error deleting product:", error);
