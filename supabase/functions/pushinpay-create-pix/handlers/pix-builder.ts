@@ -45,12 +45,14 @@ export function buildPixPayload(params: PixPayloadParams): Record<string, unknow
   return payload;
 }
 
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 interface CallPushinPayParams {
   environment: 'sandbox' | 'production';
   token: string;
   payload: Record<string, unknown>;
   orderId: string;
-  supabase: { from: (table: string) => any };
+  supabase: SupabaseClient;
   logPrefix: string;
 }
 
