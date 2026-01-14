@@ -208,9 +208,8 @@ export const CouponDialog = ({
 
             {/* Código */}
             <div className="space-y-2" ref={codeFieldRef}>
-              <Label htmlFor="code" className="text-foreground flex items-center justify-between">
+              <Label htmlFor="code" className="text-foreground">
                 Código do Cupom
-                <span className="text-xs text-muted-foreground">(opcional)</span>
               </Label>
               <Controller
                 name="code"
@@ -226,7 +225,7 @@ export const CouponDialog = ({
                         setServerError(null);
                       }
                     }}
-                    placeholder="Ex: BF10 ou BLACK-FRIDAY"
+                    placeholder="Ex: VERAO25 ou BLACK-FRIDAY (mín. 3 caracteres)"
                     className={cn(
                       "bg-background border-border uppercase",
                       (errors.code || serverError?.field === "code") && "border-destructive"

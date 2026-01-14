@@ -5,8 +5,8 @@ export const couponSchema = z.object({
   name: z.string().min(1, "Nome do cupom é obrigatório").max(100, "Nome muito longo"),
   code: z
     .string()
-    .min(1, "Código do cupom é obrigatório")
-    .max(30, "Código muito longo")
+    .min(3, "Código deve ter pelo menos 3 caracteres")
+    .max(50, "Código muito longo (máximo 50)")
     .transform((val) => val.toUpperCase().replace(/\s+/g, '-').replace(/[^A-Z0-9-]/g, '')),
   description: z.string().max(500, "Descrição muito longa").optional(),
   discountType: z.enum(["percentage", "fixed"]),
