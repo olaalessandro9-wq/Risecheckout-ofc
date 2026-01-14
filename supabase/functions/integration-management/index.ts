@@ -30,14 +30,23 @@ serve(withSentry("integration-management", async (req) => {
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     const url = new URL(req.url);
-    const action = url.pathname.split("/").pop();
+    const urlAction = url.pathname.split("/").pop();
 
-    console.log(`[integration-management] Action: ${action}, Method: ${req.method}`);
-
+    // Parse body first (needed for action detection)
     let body: Record<string, unknown> = {};
     if (req.method !== "GET") {
       try { body = await req.json(); } catch { return errorResponse("Corpo da requisição inválido", corsHeaders, 400); }
     }
+
+    // Prioridade: body.action > URL path (exceto nome da função)
+    const bodyAction = typeof body.action === "string" ? body.action : null;
+    const action = bodyAction ?? (urlAction && urlAction !== "integration-management" ? urlAction : null);
+
+    if (!action) {
+      return errorResponse("Ação não informada (use body.action ou path)", corsHeaders, 400);
+    }
+
+    console.log(`[integration-management] Action: ${action} (from ${bodyAction ? "body" : "url"}), Method: ${req.method}`);
 
     const sessionToken = (body.sessionToken as string) || req.headers.get("x-producer-session-token") || "";
     const sessionValidation = await validateProducerSession(supabase, sessionToken);
