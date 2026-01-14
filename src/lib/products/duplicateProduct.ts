@@ -46,7 +46,11 @@ export async function duplicateProductDeep(
     throw new Error(data?.error || 'Falha ao duplicar produto');
   }
 
-  console.log('[duplicateProductDeep] Duplication completed successfully, new product:', data.data.newProductId);
+  if (!data?.newProductId) {
+    throw new Error('Resposta inválida: newProductId não encontrado');
+  }
+
+  console.log('[duplicateProductDeep] Duplication completed successfully, new product:', data.newProductId);
   
-  return { newProductId: data.data.newProductId };
+  return { newProductId: data.newProductId };
 }
