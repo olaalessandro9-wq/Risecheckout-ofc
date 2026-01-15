@@ -53,7 +53,7 @@ export default function AdminHealth() {
         setWebhookStats(stats);
       }
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Erro ao carregar dados:", error);
     } finally {
       setLoading(false);
@@ -83,7 +83,7 @@ export default function AdminHealth() {
 
       toast.success("Erro marcado como resolvido");
       loadData();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Erro ao resolver:", error);
       toast.error("Erro ao marcar como resolvido");
     } finally {

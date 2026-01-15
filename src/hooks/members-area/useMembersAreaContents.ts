@@ -66,7 +66,7 @@ export function useMembersAreaContents({
       ));
       toast.success("Conteúdo adicionado!");
       return normalizedContent;
-    } catch (error) {
+    } catch (error: unknown) {
       log.error("Error adding content", error);
       toast.error("Erro ao adicionar conteúdo");
       return null;
@@ -96,7 +96,7 @@ export function useMembersAreaContents({
         contents: m.contents.map(c => c.id === id ? { ...c, ...data } : c),
       })));
       toast.success("Conteúdo atualizado!");
-    } catch (error) {
+    } catch (error: unknown) {
       log.error("Error updating content", error);
       toast.error("Erro ao atualizar conteúdo");
     } finally {
@@ -124,7 +124,7 @@ export function useMembersAreaContents({
         contents: m.contents.filter(c => c.id !== id),
       })));
       toast.success("Conteúdo excluído!");
-    } catch (error) {
+    } catch (error: unknown) {
       log.error("Error deleting content", error);
       toast.error("Erro ao excluir conteúdo");
     } finally {
@@ -169,7 +169,7 @@ export function useMembersAreaContents({
 
       if (error) throw error;
       if (!result?.success) throw new Error(result?.error || "Failed to reorder contents");
-    } catch (error) {
+    } catch (error: unknown) {
       // 4. Rollback em caso de erro
       log.error("Error reordering contents", error);
       toast.error("Erro ao reordenar conteúdos");

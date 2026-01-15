@@ -91,13 +91,15 @@ Deno.serve(async (req) => {
       }
 
       // Validate session token
+      // FIX: producer_sessions uses "producer_id", NOT "user_id"
       const { data: session, error: sessionError } = await supabase
         .from("producer_sessions")
-        .select("user_id, expires_at, is_valid")
+        .select("producer_id, expires_at, is_valid")
         .eq("session_token", sessionToken)
         .single();
 
       if (sessionError || !session || !session.is_valid) {
+        console.error("[rpc-proxy] Invalid session:", sessionError?.message || "no session found");
         return new Response(
           JSON.stringify({ error: "Invalid session" }),
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -106,6 +108,7 @@ Deno.serve(async (req) => {
 
       // Check expiration
       if (new Date(session.expires_at) < new Date()) {
+        console.warn("[rpc-proxy] Session expired for producer:", session.producer_id);
         return new Response(
           JSON.stringify({ error: "Session expired" }),
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -113,11 +116,12 @@ Deno.serve(async (req) => {
       }
 
       // For admin RPCs, verify admin role
+      // FIX: use producer_id (which maps to profiles.id / user_roles.user_id)
       if (isAdmin) {
         const { data: role } = await supabase
           .from("user_roles")
           .select("role")
-          .eq("user_id", session.user_id)
+          .eq("user_id", session.producer_id)
           .single();
 
         if (!role || (role.role !== "admin" && role.role !== "owner")) {

@@ -129,7 +129,7 @@ export function useProducerAuth(): UseProducerAuthReturn {
       queryClient.setQueryData(producerSessionQueryKey, { valid: true, producer: data.producer });
 
       return { success: true };
-    } catch (error) {
+    } catch (error: unknown) {
       log.error("Login error", error);
       return { success: false, error: "Erro de conexão" };
     }
@@ -161,7 +161,7 @@ export function useProducerAuth(): UseProducerAuthReturn {
       }
 
       return { success: true };
-    } catch (error) {
+    } catch (error: unknown) {
       log.error("Register error", error);
       return { success: false, error: "Erro de conexão" };
     }
@@ -178,7 +178,7 @@ export function useProducerAuth(): UseProducerAuthReturn {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ sessionToken: token }),
         });
-      } catch (error) {
+      } catch (error: unknown) {
         log.error("Producer session logout error", error);
       }
     }
@@ -190,7 +190,7 @@ export function useProducerAuth(): UseProducerAuthReturn {
     try {
       await supabase.auth.signOut();
       log.info("Supabase Auth session cleared");
-    } catch (error) {
+    } catch (error: unknown) {
       log.warn("Failed to clear Supabase Auth session (non-blocking)", error);
     }
     
@@ -220,7 +220,7 @@ export function useProducerAuth(): UseProducerAuthReturn {
       }
 
       return { success: true };
-    } catch (error) {
+    } catch (error: unknown) {
       log.error("Request password reset error", error);
       return { success: false, error: "Erro de conexão" };
     }

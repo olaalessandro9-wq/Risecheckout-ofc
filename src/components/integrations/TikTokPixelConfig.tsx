@@ -53,7 +53,7 @@ export function TikTokPixelConfig() {
         setActive(data.active || false);
         setAccessToken("");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error loading TikTok config:", error);
       toast.error("Erro ao carregar configuração do TikTok");
     } finally {
@@ -105,7 +105,7 @@ export function TikTokPixelConfig() {
       }
 
       toast.success("Configuração do TikTok salva com sucesso!");
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error saving TikTok config:", error);
       const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
       toast.error("Erro ao salvar configuração: " + errorMessage);

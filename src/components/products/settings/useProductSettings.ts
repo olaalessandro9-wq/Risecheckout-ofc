@@ -92,7 +92,7 @@ export function useProductSettings(
         stripe: { configured: !!stripeResult.data },
         asaas: { configured: !!asaasResult.data },
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error loading credentials:", error);
     }
   }, [isOwner]);
@@ -132,7 +132,7 @@ export function useProductSettings(
 
       setInitial(loadedSettings);
       setForm(loadedSettings);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Unexpected error:", error);
       toast.error("Erro inesperado ao carregar configurações.");
     } finally {
@@ -193,7 +193,7 @@ export function useProductSettings(
       toast.success("Configurações salvas com sucesso.");
       setInitial(form);
       onModifiedChange?.(false);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Unexpected error:", error);
       toast.error("Erro inesperado ao salvar.");
     } finally {

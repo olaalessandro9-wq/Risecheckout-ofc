@@ -139,7 +139,7 @@ export function EditMemberModuleDialog({
         const file = new File([blob], 'cover-image.jpg', { type: blob.type || 'image/jpeg' });
         setFileToCrop(file);
         setCropDialogOpen(true);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('[EditMemberModuleDialog] Error fetching image for crop:', error);
         toast.error('Não foi possível carregar a imagem para recorte');
       }
@@ -217,7 +217,7 @@ export function EditMemberModuleDialog({
       
       toast.success('Módulo atualizado');
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[EditMemberModuleDialog] Save error:', error);
       toast.error('Erro ao salvar módulo');
     } finally {

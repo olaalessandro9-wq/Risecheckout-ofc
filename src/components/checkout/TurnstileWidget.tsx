@@ -90,7 +90,7 @@ export const TurnstileWidget: React.FC<TurnstileWidgetProps> = ({
       });
 
       console.log('[TurnstileWidget] Widget renderizado:', widgetIdRef.current);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[TurnstileWidget] Erro ao renderizar:', error);
       onError?.('Erro ao carregar captcha');
     }

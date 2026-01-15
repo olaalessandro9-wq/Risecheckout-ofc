@@ -50,7 +50,7 @@ export function BannerSlideUpload({ imageUrl, onImageChange }: BannerSlideUpload
         onImageChange(publicUrl);
         toast.success('Imagem enviada com sucesso!');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Upload error:', error);
       toast.error('Erro ao enviar imagem. Tente novamente.');
     } finally {
@@ -121,7 +121,7 @@ export function BannerSlideUpload({ imageUrl, onImageChange }: BannerSlideUpload
       const file = new File([blob], 'banner-recrop.jpg', { type: blob.type || 'image/jpeg' });
       setFileToCrop(file);
       setCropDialogOpen(true);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading image for re-crop:', error);
       toast.error('Erro ao carregar imagem para recorte.');
     }
