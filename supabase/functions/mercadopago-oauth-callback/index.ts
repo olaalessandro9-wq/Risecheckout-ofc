@@ -437,15 +437,16 @@ serve(async (req) => {
       console.log('[OAuth Callback] ✅ Integração criada');
     }
 
-    // 10. Redirecionar para página de sucesso
-    console.log('[OAuth Callback] 🎉 OAuth concluído com sucesso! Redirecionando...');
+    // 10. ✅ FIX: Retornar HTML diretamente (não redirecionar) para garantir postMessage
+    console.log('[OAuth Callback] 🎉 OAuth concluído com sucesso! Enviando HTML de sucesso...');
     
-    return new Response(null, {
+    // Retornar HTML com postMessage diretamente (evita problemas de redirect bloqueado)
+    return new Response(successHTML, {
       headers: { 
-        'Location': 'https://risecheckout.com/oauth-success.html',
+        'Content-Type': 'text/html; charset=utf-8',
         ...corsHeaders
       },
-      status: 302
+      status: 200
     });
 
   } catch (error: unknown) {
