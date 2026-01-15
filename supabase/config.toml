@@ -174,9 +174,9 @@ verify_jwt = false
 [functions.students-list]
 verify_jwt = false
 
-# ✅ AUTENTICADAS (Requerem login do vendedor)
-[functions.save-vendor-credentials]
-verify_jwt = true
+# ✅ AUTENTICADAS (Vault - usa producer_sessions)
+[functions.vault-save]
+verify_jwt = false
 
 [functions.manage-affiliation]
 verify_jwt = false

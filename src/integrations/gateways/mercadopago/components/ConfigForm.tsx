@@ -255,6 +255,10 @@ export function ConfigForm({ onConnectionChange }: { onConnectionChange?: () => 
     try {
       if (!user?.id) throw new Error("Usuário não autenticado");
 
+      // Obter token de sessão do produtor
+      const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
+      const sessionToken = getProducerSessionToken();
+
       // ✅ SECURITY: Usar vault-save para armazenar credenciais sensíveis no Vault
       const { data: vaultResponse, error: vaultError } = await supabase.functions.invoke('vault-save', {
         body: {
@@ -267,6 +271,7 @@ export function ConfigForm({ onConnectionChange }: { onConnectionChange?: () => 
             environment: 'sandbox',
           },
         },
+        headers: { 'x-producer-session-token': sessionToken || '' },
       });
 
       if (vaultError) {

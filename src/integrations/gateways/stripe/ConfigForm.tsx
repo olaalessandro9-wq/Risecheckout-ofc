@@ -51,9 +51,14 @@ export function ConfigForm() {
     try {
       setLoading(true);
       
+      // Obter token de sessão do produtor
+      const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
+      const sessionToken = getProducerSessionToken();
+      
       // Usar supabase.functions.invoke com query param via body
       const { data: statusData, error } = await supabase.functions.invoke('stripe-connect-oauth', {
         body: { action: 'status' },
+        headers: { 'x-producer-session-token': sessionToken || '' },
       });
 
       if (error) {
@@ -73,8 +78,13 @@ export function ConfigForm() {
     try {
       setConnecting(true);
       
+      // Obter token de sessão do produtor
+      const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
+      const sessionToken = getProducerSessionToken();
+      
       const { data, error } = await supabase.functions.invoke('stripe-connect-oauth', {
         body: { action: 'start' },
+        headers: { 'x-producer-session-token': sessionToken || '' },
       });
       
       if (error) {
@@ -98,8 +108,13 @@ export function ConfigForm() {
     try {
       setDisconnecting(true);
       
+      // Obter token de sessão do produtor
+      const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
+      const sessionToken = getProducerSessionToken();
+      
       const { data, error } = await supabase.functions.invoke('stripe-connect-oauth', {
         body: { action: 'disconnect' },
+        headers: { 'x-producer-session-token': sessionToken || '' },
       });
       
       if (error) {

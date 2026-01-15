@@ -103,8 +103,12 @@ export async function savePushinPaySettings(
   }
 
   try {
+    // Obter token de sessão do produtor para autenticação
+    const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
+    const sessionToken = getProducerSessionToken();
+
     // Usar Edge Function vault-save para salvar credenciais de forma segura
-    const { data, error } = await supabase.functions.invoke("save-vendor-credentials", {
+    const { data, error } = await supabase.functions.invoke("vault-save", {
       body: {
         vendor_id: userId,
         integration_type: "PUSHINPAY",
@@ -115,6 +119,7 @@ export async function savePushinPaySettings(
         },
         active: true,
       },
+      headers: { 'x-producer-session-token': sessionToken || '' },
     });
 
     if (error) {

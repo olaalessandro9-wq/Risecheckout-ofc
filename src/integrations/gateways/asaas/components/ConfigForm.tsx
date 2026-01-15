@@ -128,10 +128,14 @@ export function ConfigForm({ onConnectionChange }: ConfigFormProps) {
       return;
     }
 
+    // IMPORTANTE: Priorizar o walletId digitado manualmente sobre o retornado pela validação
+    // O walletId manual tem precedência porque a API do Asaas nem sempre retorna o walletId
+    const walletIdToSave = walletId?.trim() || lastResult?.walletId;
+
     const result = await save({
       api_key: apiKey,
       environment,
-      wallet_id: walletId || lastResult?.walletId,
+      wallet_id: walletIdToSave,
       validated_at: new Date().toISOString(),
       account_name: lastResult?.accountName,
     });
@@ -139,7 +143,9 @@ export function ConfigForm({ onConnectionChange }: ConfigFormProps) {
     if (result.success) {
       toast({
         title: 'Configuração salva',
-        description: 'Asaas configurado com sucesso',
+        description: walletIdToSave 
+          ? `Asaas configurado com Wallet ID: ${walletIdToSave}`
+          : 'Asaas configurado com sucesso',
       });
       setHasChanges(false);
       onConnectionChange?.();
