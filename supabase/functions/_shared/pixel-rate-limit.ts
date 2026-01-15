@@ -22,7 +22,7 @@ interface RateLimitRecord {
 }
 
 interface SessionRecord {
-  user_id: string;
+  producer_id: string;
   expires_at: string;
   is_valid: boolean;
 }
@@ -120,7 +120,7 @@ export async function validateProducerSession(
 
   const { data: session, error } = await supabase
     .from("producer_sessions")
-    .select("user_id, expires_at, is_valid")
+    .select("producer_id, expires_at, is_valid")
     .eq("session_token", sessionToken)
     .single();
 
@@ -139,5 +139,5 @@ export async function validateProducerSession(
     return { valid: false, error: "Sessão expirada" };
   }
 
-  return { valid: true, producerId: sessionRecord.user_id };
+  return { valid: true, producerId: sessionRecord.producer_id };
 }

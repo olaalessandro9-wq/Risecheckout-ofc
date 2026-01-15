@@ -196,17 +196,18 @@ export function useOrderBumpForm({
         return;
       }
 
+      // Payload normalizado para snake_case (padrão da Edge Function)
       const orderBumpData = {
-        checkoutId: checkouts[0].id,
-        productId: selectedProductId,
-        offerId: selectedOfferId,
+        checkout_id: checkouts[0].id,
+        product_id: selectedProductId,
+        offer_id: selectedOfferId,
         active: true,
-        discountEnabled: !!formData.discountEnabled,
-        discountPrice: formData.discountEnabled ? parseBRLInput(formData.discountPrice) : null,
-        callToAction: formData.callToAction?.trim() || null,
-        customTitle: formData.customTitle?.trim() || null,
-        customDescription: formData.customDescription?.trim() || null,
-        showImage: !!formData.showImage,
+        discount_enabled: !!formData.discountEnabled,
+        discount_price: formData.discountEnabled ? parseBRLInput(formData.discountPrice) : null,
+        call_to_action: formData.callToAction?.trim() || null,
+        custom_title: formData.customTitle?.trim() || null,
+        custom_description: formData.customDescription?.trim() || null,
+        show_image: !!formData.showImage,
       };
 
       if (editOrderBump) {
@@ -214,7 +215,7 @@ export function useOrderBumpForm({
         const { data, error } = await supabase.functions.invoke('order-bump-crud', {
           body: { 
             action: 'update', 
-            orderBumpId: editOrderBump.id,
+            order_bump_id: editOrderBump.id,
             ...orderBumpData 
           },
           headers: { 'x-producer-session-token': sessionToken || '' }
