@@ -1,46 +1,11 @@
 /**
- * Tipos e Interfaces para Mercado Pago Gateway
- * Módulo: src/integrations/gateways/mercadopago
+ * Tipos de Pagamento - Mercado Pago Gateway
  * 
- * Este arquivo define todas as interfaces e tipos utilizados
- * pela integração do Mercado Pago no RiseCheckout.
+ * Módulo: src/integrations/gateways/mercadopago/types/payment.ts
+ * RISE ARCHITECT PROTOCOL V2 - Single Responsibility
  */
 
-// ========== Connection Types ==========
-
-export type ConnectionMode = 'none' | 'production' | 'sandbox';
-
-export interface IntegrationData {
-  id: string;
-  mode: ConnectionMode;
-  isTest: boolean;
-  email?: string;
-  userId?: string;
-}
-
-/**
- * Tipo para propriedades dinâmicas de gateway
- * Mais específico que `any`
- */
-export type GatewayPropertyValue = string | number | boolean | null | undefined;
-
-/**
- * Configuração do Mercado Pago
- * Armazenada em vendor_integrations.config
- */
-export interface MercadoPagoConfig {
-  /** Public Key do Mercado Pago (ex: "APP_USR-1234567890...") */
-  public_key: string;
-
-  /** Access Token do Mercado Pago (backend only) */
-  access_token?: string;
-
-  /** Se o gateway está ativado */
-  enabled: boolean;
-
-  /** Propriedades customizadas adicionais */
-  [key: string]: GatewayPropertyValue;
-}
+import { GatewayPropertyValue } from './connection';
 
 /**
  * Dados do cliente para pagamento
@@ -165,26 +130,6 @@ export interface MercadoPagoPreferenceResponse {
 }
 
 /**
- * Dados de pagamento via Brick (Cartão)
- */
-export interface MercadoPagoBrickPayment {
-  /** Token do cartão gerado pelo Brick */
-  token: string;
-
-  /** ID do método de pagamento */
-  payment_method_id: string;
-
-  /** Número de parcelas */
-  installments: number;
-
-  /** CPF do titular (se disponível) */
-  payer_email?: string;
-
-  /** Dados adicionais do Brick */
-  [key: string]: GatewayPropertyValue;
-}
-
-/**
  * Resposta de pagamento
  */
 export interface MercadoPagoPaymentResponse {
@@ -211,29 +156,6 @@ export interface MercadoPagoPaymentResponse {
 }
 
 /**
- * Integração Mercado Pago do vendedor
- */
-export interface MercadoPagoIntegration {
-  /** ID da integração */
-  id: string;
-
-  /** ID do vendedor */
-  vendor_id: string;
-
-  /** Configuração da integração */
-  config: MercadoPagoConfig;
-
-  /** Se a integração está ativa */
-  active: boolean;
-
-  /** Data de criação */
-  created_at?: string;
-
-  /** Data de última atualização */
-  updated_at?: string;
-}
-
-/**
  * Erro de resposta do Mercado Pago
  */
 export interface MercadoPagoError {
@@ -257,65 +179,4 @@ export interface MercadoPagoResponse {
 
   /** Erro (se houver) */
   error?: MercadoPagoError;
-}
-
-/**
- * Parâmetros globais do Mercado Pago (window.MercadoPago)
- */
-export interface MercadoPagoGlobalParams {
-  /** Public Key */
-  publicKey?: string;
-
-  /** Configurações adicionais */
-  [key: string]: GatewayPropertyValue;
-}
-
-/**
- * Callbacks do Brick
- */
-export interface BrickCallbacks {
-  onReady?: () => void;
-  onSubmit?: (data: MercadoPagoBrickPayment) => void;
-  onError?: (error: MercadoPagoError) => void;
-  onFieldChange?: (field: { field: string; error?: string }) => void;
-}
-
-/**
- * Customizações do Brick
- */
-export interface BrickCustomizations {
-  visual?: {
-    hideFormTitle?: boolean;
-    hidePaymentButton?: boolean;
-  };
-  paymentMethods?: {
-    maxInstallments?: number;
-    excluded?: string[];
-  };
-}
-
-/**
- * Configuração do Brick (Cartão)
- */
-export interface BrickConfig {
-  /** Public Key do Mercado Pago */
-  publicKey: string;
-
-  /** Locale (pt-BR, es-AR, etc) */
-  locale?: string;
-
-  /** Tema (default, dark, custom) */
-  theme?: {
-    colors?: {
-      primary?: string;
-      secondary?: string;
-      error?: string;
-    };
-  };
-
-  /** Callbacks */
-  callbacks?: BrickCallbacks;
-
-  /** Customizações */
-  customizations?: BrickCustomizations;
 }
