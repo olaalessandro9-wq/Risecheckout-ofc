@@ -269,6 +269,8 @@
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-15 | **VAULT UNIFICADO**: `vault-save` atualizado para usar convenção `gateway_{type}_{vendor_id}` via RPC `save_gateway_credentials` |
+| 2026-01-15 | Correção: Arquitetura Vault unificada - todas as integrações agora usam mesma convenção que OAuth callbacks |
 | 2026-01-15 | Sincronização: `asaas-validate-credentials` e `check-secrets` adicionadas ao código local (eram deployed-only) |
 | 2026-01-15 | Correção: `user_id` → `producer_id` em `pixel-rate-limit.ts`, `affiliate-pixel-management`, `storage-management` |
 | 2026-01-15 | Correção: Normalização snake_case no payload de Order Bumps (`useOrderBumpForm.ts`) |
