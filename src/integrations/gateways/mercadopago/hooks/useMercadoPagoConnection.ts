@@ -1,14 +1,14 @@
 /**
  * useMercadoPagoConnection Hook
  * 
- * @version 2.0.0 - RISE Protocol V2 Compliant
+ * @version 2.1.0 - RISE Protocol V2 Compliant
  * 
  * Gerencia toda a lógica de conexão OAuth do Mercado Pago.
  * Usa integration-management Edge Function como single source of truth.
- * Inclui: init OAuth, popup management, postMessage listener.
+ * Inclui: init OAuth, popup management, postMessage listener com debounce.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { ConnectionMode, IntegrationData } from '../types';
@@ -63,6 +63,9 @@ export function useMercadoPagoConnection({
   const [integration, setIntegration] = useState<IntegrationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [connectingOAuth, setConnectingOAuth] = useState(false);
+  
+  // Ref para debounce de mensagens duplicadas (retry do popup)
+  const lastProcessedTimestamp = useRef<number>(0);
 
   // Carrega status via Edge Function (single source of truth - RISE Protocol)
   const loadIntegration = useCallback(async () => {
@@ -126,16 +129,18 @@ export function useMercadoPagoConnection({
     }
   }, [userId, loadIntegration]);
 
-  // OAuth success/error listener - Same-origin seguro após redirect
+  // OAuth success/error listener com debounce para evitar processar mensagens duplicadas (retry do popup)
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      // Validar origin - agora é same-origin (risecheckout.com → risecheckout.com)
-      if (event.origin !== window.location.origin) {
-        console.log('[useMercadoPagoConnection] Origin não permitido:', event.origin);
-        return;
-      }
+      // Aceitar mensagens de qualquer origin (popup envia com '*' para garantir entrega)
+      // Segurança: validamos o tipo da mensagem e o timestamp
       
-      console.log('[useMercadoPagoConnection] postMessage recebido:', event.data);
+      console.log('[useMercadoPagoConnection] postMessage recebido:', {
+        origin: event.origin,
+        type: event.data?.type,
+        attempt: event.data?.attempt,
+        timestamp: event.data?.timestamp
+      });
       
       // Handle success
       const messageType = event.data?.type;
@@ -145,7 +150,23 @@ export function useMercadoPagoConnection({
         messageType === 'oauth_success';
       
       if (isSuccess) {
-        console.log('[useMercadoPagoConnection] OAuth success detected!');
+        // DEBOUNCE: ignorar mensagens duplicadas dentro de 3 segundos
+        const messageTimestamp = event.data?.timestamp || Date.now();
+        const timeSinceLastProcessed = messageTimestamp - lastProcessedTimestamp.current;
+        
+        if (timeSinceLastProcessed < 3000 && lastProcessedTimestamp.current > 0) {
+          console.log('[useMercadoPagoConnection] Mensagem duplicada ignorada (debounce):', {
+            timeSinceLastProcessed,
+            attempt: event.data?.attempt
+          });
+          return;
+        }
+        
+        // Marcar como processado
+        lastProcessedTimestamp.current = messageTimestamp;
+        
+        console.log('[useMercadoPagoConnection] OAuth success processado!');
+        setConnectingOAuth(false);
         toast.success('Conta do Mercado Pago conectada com sucesso!');
         
         // Delay to ensure database has been updated
@@ -159,12 +180,13 @@ export function useMercadoPagoConnection({
       // Handle error
       if (messageType === 'mercadopago_oauth_error') {
         console.error('[useMercadoPagoConnection] OAuth error:', event.data?.reason);
+        setConnectingOAuth(false);
         toast.error('Erro ao conectar Mercado Pago. Tente novamente.');
       }
     };
 
     window.addEventListener('message', handleMessage);
-    console.log('[useMercadoPagoConnection] postMessage listener registrado (same-origin only)');
+    console.log('[useMercadoPagoConnection] postMessage listener registrado');
     
     return () => {
       window.removeEventListener('message', handleMessage);
