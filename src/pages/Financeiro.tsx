@@ -51,18 +51,8 @@ export default function Financeiro() {
     }
   }, [user?.id]);
 
-  // Listener para OAuth success
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'mercadopago_oauth_success') {
-        console.log('[Financeiro] Mercado Pago conectado com sucesso');
-        loadAllIntegrations();
-      }
-    };
-
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  // REMOVIDO: Listener duplicado de postMessage para OAuth
+  // O hook useMercadoPagoConnection já gerencia isso centralmente
 
   const loadAllIntegrations = async () => {
     if (!user?.id) return;
