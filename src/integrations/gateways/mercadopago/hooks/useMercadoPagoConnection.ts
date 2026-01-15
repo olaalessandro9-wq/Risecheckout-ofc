@@ -11,7 +11,9 @@ import { supabase } from '@/integrations/supabase/client';
 import type { ConnectionMode, IntegrationData } from '../types';
 
 const MERCADOPAGO_CLIENT_ID = import.meta.env.VITE_MERCADOPAGO_CLIENT_ID || '2354396684039370';
-const MERCADOPAGO_REDIRECT_URI = import.meta.env.VITE_MERCADOPAGO_REDIRECT_URI || '';
+const MERCADOPAGO_REDIRECT_URI = 
+  import.meta.env.VITE_MERCADOPAGO_REDIRECT_URI || 
+  'https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/mercadopago-oauth-callback';
 
 function generateSecureNonce(): string {
   const array = new Uint8Array(32);
@@ -95,9 +97,20 @@ export function useMercadoPagoConnection({
     }
   }, [userId, loadIntegration]);
 
-  // OAuth success listener - Enhanced with multiple message formats
+  // OAuth success listener - Enhanced with origin validation and multiple message formats
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
+      // Validar origin para segurança
+      const allowedOrigins = [
+        window.location.origin,
+        'https://wivbtmtgpsxupfjwwovf.supabase.co'
+      ];
+      
+      if (!allowedOrigins.includes(event.origin)) {
+        console.log('[useMercadoPagoConnection] Origin não permitido:', event.origin);
+        return;
+      }
+      
       console.log('[useMercadoPagoConnection] postMessage recebido:', event.data);
       
       // Accept multiple message formats for compatibility
