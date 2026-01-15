@@ -150,11 +150,11 @@ export function useMercadoPagoConnection({
         messageType === 'oauth_success';
       
       if (isSuccess) {
-        // DEBOUNCE: ignorar mensagens duplicadas dentro de 3 segundos
-        const messageTimestamp = event.data?.timestamp || Date.now();
-        const timeSinceLastProcessed = messageTimestamp - lastProcessedTimestamp.current;
+        // DEBOUNCE: usar Date.now() local para consistência (ignora timestamp do evento)
+        const now = Date.now();
+        const timeSinceLastProcessed = now - lastProcessedTimestamp.current;
         
-        if (timeSinceLastProcessed < 3000 && lastProcessedTimestamp.current > 0) {
+        if (timeSinceLastProcessed < 5000 && lastProcessedTimestamp.current > 0) {
           console.log('[useMercadoPagoConnection] Mensagem duplicada ignorada (debounce):', {
             timeSinceLastProcessed,
             attempt: event.data?.attempt
@@ -163,7 +163,7 @@ export function useMercadoPagoConnection({
         }
         
         // Marcar como processado
-        lastProcessedTimestamp.current = messageTimestamp;
+        lastProcessedTimestamp.current = now;
         
         console.log('[useMercadoPagoConnection] OAuth success processado!');
         setConnectingOAuth(false);

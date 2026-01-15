@@ -5,7 +5,7 @@
  * O Owner tem sua própria página: OwnerGateways.tsx
  */
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Loader2, Wallet, CreditCard } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
@@ -51,6 +51,9 @@ export default function Financeiro() {
     }
   }, [user?.id]);
 
+  // Ref para debounce global - evita processar mensagens duplicadas do retry do popup
+  const lastOAuthProcessed = useRef<number>(0);
+
   // Listener GLOBAL para OAuth success (independente do Sheet estar aberto)
   // Isso garante que mesmo se o Sheet estiver fechado, a UI será atualizada
   useEffect(() => {
@@ -65,6 +68,17 @@ export default function Financeiro() {
         messageType === 'oauth_success';
       
       if (isOAuthSuccess) {
+        // DEBOUNCE: ignorar mensagens duplicadas dentro de 5 segundos
+        const now = Date.now();
+        if (now - lastOAuthProcessed.current < 5000) {
+          console.log('[Financeiro] Mensagem duplicada ignorada (debounce):', {
+            type: messageType,
+            timeSinceLastProcessed: now - lastOAuthProcessed.current
+          });
+          return;
+        }
+        lastOAuthProcessed.current = now;
+        
         console.log('[Financeiro] OAuth success recebido via postMessage:', {
           type: messageType,
           origin: event.origin,
