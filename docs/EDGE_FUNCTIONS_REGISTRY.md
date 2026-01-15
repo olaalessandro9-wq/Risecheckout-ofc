@@ -1,7 +1,7 @@
 # Rise Checkout - Edge Functions Registry
 
 > **🔴 FONTE DA VERDADE MÁXIMA** - Este documento lista TODAS as Edge Functions deployadas no Supabase.  
-> Última atualização: 2026-01-13  
+> Última atualização: 2026-01-15  
 > Mantenedor: AI Assistant + User
 
 ---
@@ -10,8 +10,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 91 |
-| **No código local** | 91 |
+| **Total de Funções** | 92 |
+| **No código local** | 92 |
 | **Apenas deployadas** | 0 |
 | **Operações Diretas Frontend** | 0 ✅ |
 | **Base URL** | `https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/` |
@@ -269,6 +269,9 @@
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-15 | Sincronização: `asaas-validate-credentials` e `check-secrets` adicionadas ao código local (eram deployed-only) |
+| 2026-01-15 | Correção: `user_id` → `producer_id` em `pixel-rate-limit.ts`, `affiliate-pixel-management`, `storage-management` |
+| 2026-01-15 | Correção: Normalização snake_case no payload de Order Bumps (`useOrderBumpForm.ts`) |
 | 2026-01-13 | **FASE 3**: Criados 21 stubs para funções deployed-only - DÍVIDA TÉCNICA ZERO! |
 | 2026-01-13 | **FASE 2**: Deletadas 6 funções legado: `webhook-pushingpay`, `forward-to-utmify`, `facebook-conversions-api`, `save-vendor-credentials`, `migrate-credentials-to-vault`, `fix-inactive-products` |
 | 2026-01-13 | **REFATORAÇÃO FASE 1.4**: `members-area-students` (1155 linhas) dividida em 4 Edge Functions especializadas |

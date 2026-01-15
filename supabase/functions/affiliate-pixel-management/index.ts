@@ -37,7 +37,7 @@ interface SaveAllPayload {
 // =====================================================
 
 interface SessionData {
-  user_id: string;
+  producer_id: string;
   expires_at: string;
 }
 
@@ -47,7 +47,7 @@ async function validateProducerSession(
 ): Promise<{ userId: string } | null> {
   const { data, error } = await supabaseClient
     .from("producer_sessions")
-    .select("user_id, expires_at")
+    .select("producer_id, expires_at")
     .eq("session_token", token)
     .eq("is_valid", true)
     .single();
@@ -57,7 +57,7 @@ async function validateProducerSession(
   const sessionData = data as SessionData;
   if (new Date(sessionData.expires_at) < new Date()) return null;
 
-  return { userId: sessionData.user_id };
+  return { userId: sessionData.producer_id };
 }
 
 // =====================================================

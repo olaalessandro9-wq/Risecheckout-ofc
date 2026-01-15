@@ -66,7 +66,7 @@ async function getAuthenticatedProducer(
 
   const { data: session } = await supabase
     .from("producer_sessions")
-    .select("user_id, expires_at, is_valid")
+    .select("producer_id, expires_at, is_valid")
     .eq("session_token", sessionToken)
     .single();
 
@@ -76,17 +76,17 @@ async function getAuthenticatedProducer(
   const { data: profile } = await supabase
     .from("profiles")
     .select("id, name")
-    .eq("id", session.user_id)
+    .eq("id", session.producer_id)
     .single();
 
   const { data: roleData } = await supabase
     .from("user_roles")
     .select("role")
-    .eq("user_id", session.user_id)
+    .eq("user_id", session.producer_id)
     .single();
 
   return {
-    id: session.user_id,
+    id: session.producer_id,
     email: "",
     name: profile?.name || null,
     role: roleData?.role || "producer",
