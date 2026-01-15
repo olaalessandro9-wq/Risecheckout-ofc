@@ -1,9 +1,9 @@
 /**
  * Edge Function: mercadopago-oauth-callback
  * 
- * @version 4.0.0 - RISE Protocol V2 Compliant - Refatorado
+ * @version 5.0.0 - RISE Protocol V2 Compliant - Redirect Flow
  * 
- * Responsabilidade: Processar callback OAuth do Mercado Pago e salvar credenciais
+ * Responsabilidade: Processar callback OAuth do Mercado Pago e redirecionar
  * 
  * Fluxo:
  * 1. Recebe code e state (nonce) do Mercado Pago
@@ -12,7 +12,7 @@
  * 4. Busca user_id (collector_id) na API do MP
  * 5. Salva collector_id, email e data em profiles
  * 6. Salva access_token em vendor_integrations via Vault
- * 7. Retorna HTML que fecha popup e notifica sucesso
+ * 7. Redireciona para página de sucesso/erro no domínio principal
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -24,18 +24,58 @@ import { validateOAuthState } from "./handlers/state-validator.ts";
 import { fetchMercadoPagoUserInfo } from "./handlers/user-info-fetcher.ts";
 import { saveOAuthIntegration } from "./handlers/integration-saver.ts";
 
-// Templates
-import { successHTML, errorHTML } from "./templates/html-responses.ts";
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// URLs permitidas para redirect (anti open-redirect)
+const ALLOWED_REDIRECT_DOMAINS = [
+  'risecheckout.com',
+  'www.risecheckout.com',
+  'lovable.app',
+];
+
+function getAppBaseUrl(): string {
+  // Preferência: variável de ambiente, fallback para produção
+  const envUrl = Deno.env.get('APP_BASE_URL');
+  if (envUrl) return envUrl;
+  return 'https://risecheckout.com';
+}
+
+function isAllowedRedirectDomain(url: string): boolean {
+  try {
+    const parsedUrl = new URL(url);
+    return ALLOWED_REDIRECT_DOMAINS.some(domain => 
+      parsedUrl.hostname === domain || parsedUrl.hostname.endsWith(`.${domain}`)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function redirectResponse(url: string): Response {
+  return new Response(null, {
+    status: 302,
+    headers: {
+      'Location': url,
+      ...corsHeaders,
+    },
+  });
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
+  }
+
+  const baseUrl = getAppBaseUrl();
+  
+  // Validar que baseUrl é seguro
+  if (!isAllowedRedirectDomain(baseUrl)) {
+    console.error('[OAuth Callback] Base URL inválida:', baseUrl);
+    return new Response('Configuration error', { status: 500, headers: corsHeaders });
   }
 
   try {
@@ -57,38 +97,28 @@ serve(async (req) => {
     // 3. Verificar se houve erro no OAuth
     if (error) {
       console.error('[OAuth Callback] Erro do Mercado Pago:', error);
-      return new Response(errorHTML('Autorização negada pelo Mercado Pago.'), {
-        headers: { 'Content-Type': 'text/html; charset=utf-8', ...corsHeaders },
-        status: 400
-      });
+      return redirectResponse(`${baseUrl}/oauth-error.html?reason=authorization_denied`);
     }
 
     // 4. Validar parâmetros obrigatórios
     if (!code || !state) {
       console.error('[OAuth Callback] Parâmetros faltando:', { code: !!code, state: !!state });
-      return new Response(errorHTML('Parâmetros inválidos na URL.'), {
-        headers: { 'Content-Type': 'text/html; charset=utf-8', ...corsHeaders },
-        status: 400
-      });
+      return redirectResponse(`${baseUrl}/oauth-error.html?reason=invalid_params`);
     }
 
     // 5. Validar state (CSRF protection)
     const stateValidation = await validateOAuthState(supabase, state);
     if (!stateValidation.valid || !stateValidation.vendorId) {
-      return new Response(errorHTML(stateValidation.error || 'Sessão inválida.'), {
-        headers: { 'Content-Type': 'text/html; charset=utf-8', ...corsHeaders },
-        status: 400
-      });
+      console.error('[OAuth Callback] State inválido');
+      return redirectResponse(`${baseUrl}/oauth-error.html?reason=session_expired`);
     }
     const vendorId = stateValidation.vendorId;
 
     // 6. Trocar code por access_token
     const tokenResult = await exchangeCodeForToken(code);
     if (!tokenResult.success || !tokenResult.data) {
-      return new Response(errorHTML(tokenResult.error || 'Erro ao obter token.'), {
-        headers: { 'Content-Type': 'text/html; charset=utf-8', ...corsHeaders },
-        status: 500
-      });
+      console.error('[OAuth Callback] Erro ao trocar token:', tokenResult.error);
+      return redirectResponse(`${baseUrl}/oauth-error.html?reason=token_exchange_failed`);
     }
 
     const { access_token, refresh_token, public_key, user_id } = tokenResult.data;
@@ -108,26 +138,16 @@ serve(async (req) => {
     });
 
     if (!saveResult.success) {
-      return new Response(errorHTML(saveResult.error || 'Erro ao salvar integração.'), {
-        headers: { 'Content-Type': 'text/html; charset=utf-8', ...corsHeaders },
-        status: 500
-      });
+      console.error('[OAuth Callback] Erro ao salvar:', saveResult.error);
+      return redirectResponse(`${baseUrl}/oauth-error.html?reason=save_failed`);
     }
 
-    // 9. Retornar HTML de sucesso
-    console.log('[OAuth Callback] 🎉 OAuth concluído com sucesso!');
-    
-    return new Response(successHTML, {
-      headers: { 'Content-Type': 'text/html; charset=utf-8', ...corsHeaders },
-      status: 200
-    });
+    // 9. Sucesso! Redirecionar para página de sucesso
+    console.log('[OAuth Callback] 🎉 OAuth concluído com sucesso! Redirecionando...');
+    return redirectResponse(`${baseUrl}/oauth-success.html`);
 
   } catch (error: unknown) {
     console.error('[OAuth Callback] 🔥 Erro fatal:', error);
-    const message = error instanceof Error ? error.message : "Erro desconhecido";
-    return new Response(errorHTML(`Erro interno: ${message}`), {
-      headers: { 'Content-Type': 'text/html; charset=utf-8', ...corsHeaders },
-      status: 500
-    });
+    return redirectResponse(`${baseUrl}/oauth-error.html?reason=internal_error`);
   }
 });

@@ -57,7 +57,7 @@ export default function Financeiro() {
   const loadAllIntegrations = async () => {
     if (!user?.id) return;
     try {
-      // Carregar PushinPay
+      // Carregar PushinPay (ainda via settings direto - será migrado depois)
       const settings = await getPushinPaySettings(user.id);
       if (settings) {
         if (settings.pushinpay_token === "••••••••") {
@@ -69,40 +69,52 @@ export default function Financeiro() {
         setEnvironment(settings.environment ?? "sandbox");
       }
 
-      if (!user?.id) {
-        console.warn('[Financeiro] User ID ainda não disponível');
-        setMercadoPagoConnected(false);
+      // Carregar todos os gateways via Edge Function (RISE Protocol - single source of truth)
+      const { getProducerSessionToken } = await import('@/hooks/useProducerAuth');
+      const sessionToken = getProducerSessionToken();
+
+      interface IntegrationStatusResponse {
+        success: boolean;
+        integrations?: Array<{
+          integration_type: string;
+          active: boolean;
+        }>;
+        error?: string;
+      }
+
+      const { data: result, error } = await supabase.functions.invoke<IntegrationStatusResponse>('integration-management', {
+        body: {
+          action: 'status',
+          // Sem integrationType = retorna todas
+        },
+        headers: { 'x-producer-session-token': sessionToken || '' },
+      });
+
+      if (error) {
+        console.error('[Financeiro] Erro ao buscar status de integrações:', error);
+        // Fallback: manter estados anteriores
         return;
       }
 
-      // Carregar Mercado Pago, Stripe e Asaas em paralelo
-      const [mpResult, stripeResult, asaasResult] = await Promise.all([
-        supabase
-          .from('vendor_integrations')
-          .select('*')
-          .eq('vendor_id', user.id)
-          .eq('integration_type', 'MERCADOPAGO')
-          .eq('active', true)
-          .maybeSingle(),
-        supabase
-          .from('vendor_integrations')
-          .select('*')
-          .eq('vendor_id', user.id)
-          .eq('integration_type', 'STRIPE')
-          .eq('active', true)
-          .maybeSingle(),
-        supabase
-          .from('vendor_integrations')
-          .select('*')
-          .eq('vendor_id', user.id)
-          .eq('integration_type', 'ASAAS')
-          .eq('active', true)
-          .maybeSingle(),
-      ]);
-
-      setMercadoPagoConnected(!!mpResult.data);
-      setStripeConnected(!!stripeResult.data);
-      setAsaasConnected(!!asaasResult.data);
+      if (result?.success && result.integrations) {
+        // Mapear integrações para flags de conexão
+        const integrations = result.integrations;
+        
+        setMercadoPagoConnected(integrations.some(i => i.integration_type === 'MERCADOPAGO' && i.active));
+        setStripeConnected(integrations.some(i => i.integration_type === 'STRIPE' && i.active));
+        setAsaasConnected(integrations.some(i => i.integration_type === 'ASAAS' && i.active));
+        
+        console.log('[Financeiro] Status de integrações carregado via Edge Function:', {
+          mercadoPago: integrations.some(i => i.integration_type === 'MERCADOPAGO' && i.active),
+          stripe: integrations.some(i => i.integration_type === 'STRIPE' && i.active),
+          asaas: integrations.some(i => i.integration_type === 'ASAAS' && i.active),
+        });
+      } else {
+        // Nenhuma integração encontrada
+        setMercadoPagoConnected(false);
+        setStripeConnected(false);
+        setAsaasConnected(false);
+      }
     } catch (error: unknown) {
       console.error("Erro ao carregar dados:", error);
     } finally {

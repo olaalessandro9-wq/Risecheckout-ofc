@@ -58,8 +58,10 @@ export async function handleGetStatus(
   const sanitized = integrations.map((int) => ({
     id: int.id,
     type: int.integration_type,
+    integration_type: int.integration_type, // Alias para compatibilidade
     active: int.active,
     isTest: (int.config as { is_test?: boolean })?.is_test || false,
+    config: int.config, // Incluir config completo para frontend
     email: (int.config as { email?: string })?.email || null,
     connectedAt: int.created_at,
     updatedAt: int.updated_at,
