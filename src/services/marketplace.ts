@@ -121,7 +121,7 @@ export async function fetchMarketplaceProducts(
     }
 
     return data || [];
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[Marketplace] Erro ao buscar produtos:", error);
     throw error;
   }
@@ -146,7 +146,7 @@ export async function fetchProductDetails(
     }
 
     return data;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[Marketplace] Erro ao buscar detalhes do produto:", error);
     throw error;
   }
@@ -169,7 +169,7 @@ export async function fetchMarketplaceCategories(): Promise<MarketplaceCategory[
     }
 
     return data || [];
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[Marketplace] Erro ao buscar categorias:", error);
     throw error;
   }
@@ -186,7 +186,7 @@ export async function trackProductView(productId: string): Promise<void> {
       console.error("[Marketplace] Erro ao rastrear visualização:", error);
       // Não lançar erro para não bloquear a UI
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[Marketplace] Erro ao rastrear visualização:", error);
     // Não lançar erro para não bloquear a UI
   }
@@ -203,7 +203,7 @@ export async function trackProductClick(productId: string): Promise<void> {
       console.error("[Marketplace] Erro ao rastrear clique:", error);
       // Não lançar erro para não bloquear a UI
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[Marketplace] Erro ao rastrear clique:", error);
     // Não lançar erro para não bloquear a UI
   }
@@ -249,7 +249,7 @@ export async function checkAffiliationStatus(
       status: data?.status,
       affiliationId: data?.affiliationId,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[Marketplace] Erro ao verificar status de afiliação:", error);
     return { isAffiliate: false };
   }

@@ -92,7 +92,7 @@ export function AffiliatesTab() {
         setGatewaySettings(settings);
         gatewaySnapshotRef.current = JSON.stringify(settings);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Erro ao carregar gateway settings:", error);
     }
   };
@@ -188,7 +188,7 @@ export function AffiliatesTab() {
       updateSettingsModified(false);
       
       toast.success("Configurações de afiliados salvas com sucesso");
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Erro ao salvar afiliados:", error);
       toast.error("Não foi possível salvar as configurações");
     }

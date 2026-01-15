@@ -57,7 +57,7 @@ export default function BuyerRecuperarSenha() {
       }
 
       setViewState("success");
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error requesting password reset:", error);
       setErrorMessage("Erro de conexão. Tente novamente.");
       setViewState("form");

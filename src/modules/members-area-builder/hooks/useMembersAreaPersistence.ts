@@ -82,7 +82,7 @@ export function useMembersAreaPersistence({
         isLoading: false,
         isDirty: false,
       }));
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[useMembersAreaBuilder] Load error:', error);
       toast.error('Erro ao carregar configurações');
       setState(prev => ({ ...prev, isLoading: false }));
@@ -161,7 +161,7 @@ export function useMembersAreaPersistence({
       
       toast.success('Alterações salvas');
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[useMembersAreaBuilder] Save error:', error);
       toast.error('Erro ao salvar');
       setState(prev => ({ ...prev, isSaving: false }));
@@ -197,7 +197,7 @@ export function useMembersAreaPersistence({
         ...prev,
         modules: (data || []) as MemberModule[],
       }));
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[useMembersAreaBuilder] Load modules error:', error);
     }
   }, [productId, setState]);

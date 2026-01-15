@@ -59,7 +59,7 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
           clearSessionToken();
           queryClient.setQueryData(buyerSessionQueryKey, { valid: false, buyer: null });
         }
-      } catch (error) {
+      } catch (error: unknown) {
         log.error("Error validating session", error);
         clearSessionToken();
       } finally {
@@ -96,7 +96,7 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
       queryClient.invalidateQueries({ queryKey: buyerQueryKeys.all });
       
       return { success: true };
-    } catch (error) {
+    } catch (error: unknown) {
       log.error("Login error", error);
       return { success: false, error: "Erro de conexão" };
     }
@@ -117,7 +117,7 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
       }
 
       return { success: true };
-    } catch (error) {
+    } catch (error: unknown) {
       log.error("Register error", error);
       return { success: false, error: "Erro de conexão" };
     }
@@ -132,7 +132,7 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ sessionToken: token }),
         });
-      } catch (error) {
+      } catch (error: unknown) {
         log.error("Logout error", error);
       }
     }
@@ -157,7 +157,7 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
         exists: data.exists || false,
         needsPasswordSetup: data.needsPasswordSetup || false,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       log.error("Check email error", error);
       return { exists: false, needsPasswordSetup: false };
     }

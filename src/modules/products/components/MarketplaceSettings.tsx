@@ -62,7 +62,7 @@ export function MarketplaceSettings({
 
         if (error) throw error;
         setCategories(data || []);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[MarketplaceSettings] Erro ao carregar categorias:", error);
         toast.error("Erro ao carregar categorias");
       } finally {
@@ -92,7 +92,7 @@ export function MarketplaceSettings({
             enabledAt: data.marketplace_enabled_at,
           });
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[MarketplaceSettings] Erro ao carregar estatísticas:", error);
       }
     };

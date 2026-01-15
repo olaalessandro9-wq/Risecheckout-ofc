@@ -68,7 +68,7 @@ export function useUTMifyConfig(vendorId?: string) {
         console.log("[UTMify] Configuração carregada com sucesso para vendor:", vendorId);
 
         return data as unknown as UTMifyIntegration;
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[UTMify] Erro inesperado ao carregar config:", error);
         return null;
       }

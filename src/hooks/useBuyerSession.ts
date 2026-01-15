@@ -62,7 +62,7 @@ async function validateBuyerSession(): Promise<SessionValidation> {
     // Token inválido - limpar
     clearBuyerSessionToken();
     return { valid: false, buyer: null };
-  } catch (error) {
+  } catch (error: unknown) {
     log.error("Error validating session", error);
     return { valid: false, buyer: null };
   }

@@ -37,7 +37,7 @@ export function OffersList({ offers, productName }: OffersListProps) {
         description: `Link da oferta "${offer.name}" copiado para a área de transferência`,
       });
       setTimeout(() => setCopiedId(null), 2000);
-    } catch (error) {
+    } catch (error: unknown) {
       toast.error("Erro ao copiar link");
     }
   };

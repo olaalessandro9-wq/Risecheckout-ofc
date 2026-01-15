@@ -170,7 +170,7 @@ export function ImageCropDialog({
 
       onCropComplete(croppedFile);
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error cropping image:", error);
     } finally {
       setIsSaving(false);

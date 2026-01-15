@@ -290,7 +290,7 @@ const MercadoPagoFieldsComponent = forwardRef<MercadoPagoFieldsRef, MercadoPagoF
           });
 
           cardFormRef.current = cardForm;
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('[MercadoPagoFields] Erro fatal:', error);
           onError?.('Falha ao inicializar sistema de pagamento');
           setIsReady(false);

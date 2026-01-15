@@ -138,7 +138,7 @@ export const CheckoutConfigDialog = ({
       onSave(updatedCheckout, selectedOfferId);
       toast.success('Checkout configurado com sucesso!');
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Erro ao salvar checkout:', error);
       const message = error instanceof Error ? error.message : 'Não foi possível salvar o checkout';
       toast.error(message);
