@@ -51,8 +51,20 @@ export default function Financeiro() {
     }
   }, [user?.id]);
 
-  // Ref para debounce global - evita processar mensagens duplicadas do retry do popup
+  // Refs para debounce - evita processar mensagens duplicadas e múltiplas chamadas
   const lastOAuthProcessed = useRef<number>(0);
+  const lastLoadAllIntegrations = useRef<number>(0);
+
+  // Versão debounced de loadAllIntegrations - evita múltiplas chamadas em sequência
+  const loadAllIntegrationsDebounced = useCallback(async () => {
+    const now = Date.now();
+    if (now - lastLoadAllIntegrations.current < 2000) {
+      console.log('[Financeiro] loadAllIntegrations ignorado (debounce 2s)');
+      return;
+    }
+    lastLoadAllIntegrations.current = now;
+    await loadAllIntegrations();
+  }, [user?.id]);
 
   // Listener GLOBAL para OAuth success (independente do Sheet estar aberto)
   // Isso garante que mesmo se o Sheet estiver fechado, a UI será atualizada
@@ -87,8 +99,8 @@ export default function Financeiro() {
         
         // Delay para garantir que o banco foi atualizado antes de recarregar
         setTimeout(() => {
-          console.log('[Financeiro] Recarregando integrações...');
-          loadAllIntegrations();
+          console.log('[Financeiro] Recarregando integrações (debounced)...');
+          loadAllIntegrationsDebounced();
         }, 800);
       }
     };
@@ -100,7 +112,7 @@ export default function Financeiro() {
       window.removeEventListener('message', handleOAuthMessage);
       console.log('[Financeiro] Listener global de OAuth removido');
     };
-  }, []);
+  }, [loadAllIntegrationsDebounced]);
 
   const loadAllIntegrations = async () => {
     if (!user?.id) return;
@@ -272,16 +284,13 @@ export default function Financeiro() {
   const renderGatewayContent = () => {
     switch (selectedGateway) {
       case "asaas":
-        return <Asaas.ConfigForm onConnectionChange={() => loadAllIntegrations()} />;
+        return <Asaas.ConfigForm onConnectionChange={loadAllIntegrationsDebounced} />;
       case "pushinpay":
         return <PushinPay.ConfigForm />;
       case "mercadopago":
         return (
           <MercadoPago.ConfigForm 
-            onConnectionChange={() => {
-              console.log('[Financeiro] MP status mudou, recarregando...');
-              loadAllIntegrations();
-            }}
+            onConnectionChange={loadAllIntegrationsDebounced}
           />
         );
       case "stripe":
