@@ -112,7 +112,7 @@ export const useProduct = () => {
     }
 
     // Get session token
-    const sessionToken = localStorage.getItem("rise_producer_token");
+    const sessionToken = localStorage.getItem("producer_session_token");
     if (!sessionToken) {
       toast.error("Sessão expirada. Faça login novamente.");
       return;
@@ -219,7 +219,7 @@ export const useProduct = () => {
     if (!productId || !user) return false;
 
     // Get session token
-    const sessionToken = localStorage.getItem("rise_producer_token");
+    const sessionToken = localStorage.getItem("producer_session_token");
     if (!sessionToken) {
       toast.error("Sessão expirada. Faça login novamente.");
       return false;
