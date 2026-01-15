@@ -1,23 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/config/supabase';
 
 /**
  * Supabase Client - RISE Protocol V2 Compliant
  * 
- * Security: Uses environment variables instead of hardcoded keys.
  * Note: anon key is public by design - security is enforced by RLS policies.
+ * Secret keys (service_role) are stored in Supabase Secrets for edge functions.
  */
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-  throw new Error(
-    "[Supabase] Environment variables not configured. " +
-    "Please set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in .env"
-  );
-}
-
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     storage: localStorage,
     persistSession: true,
