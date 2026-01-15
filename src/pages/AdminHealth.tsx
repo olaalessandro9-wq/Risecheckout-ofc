@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getSystemHealthSummaryRpc, getUnresolvedErrorsRpc } from "@/lib/rpc/rpcProxy";
+import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertCircle, CheckCircle, XCircle, TrendingUp } from "lucide-react";
@@ -67,10 +68,12 @@ export default function AdminHealth() {
     setResolvingIds(prev => new Set(prev).add(errorId));
     
     try {
+      const sessionToken = getProducerSessionToken();
       const { data, error } = await supabase.functions.invoke(
-        "admin-health/resolve-error",
+        "admin-health",
         {
-          body: { errorId },
+          body: { action: "resolve-error", errorId },
+          headers: { "x-producer-session-token": sessionToken || "" },
         }
       );
 

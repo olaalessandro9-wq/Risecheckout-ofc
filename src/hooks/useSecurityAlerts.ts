@@ -14,6 +14,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 
 export interface SecurityAlert {
   id: string;
@@ -161,8 +162,10 @@ export function useSecurityAlerts() {
   // Reconhecer um alerta - via Edge Function
   const acknowledgeAlert = useCallback(async (alertId: string) => {
     try {
+      const sessionToken = getProducerSessionToken();
       const { data, error } = await supabase.functions.invoke("security-management", {
         body: { action: "acknowledge-alert", alertId },
+        headers: { "x-producer-session-token": sessionToken || "" },
       });
 
       if (error) throw error;
@@ -180,8 +183,10 @@ export function useSecurityAlerts() {
   // Bloquear um IP manualmente - via Edge Function
   const blockIP = useCallback(async (ipAddress: string, reason: string, expiresInDays?: number) => {
     try {
+      const sessionToken = getProducerSessionToken();
       const { data, error } = await supabase.functions.invoke("security-management", {
         body: { action: "block-ip", ipAddress, reason, expiresInDays },
+        headers: { "x-producer-session-token": sessionToken || "" },
       });
 
       if (error) throw error;
@@ -199,8 +204,10 @@ export function useSecurityAlerts() {
   // Desbloquear um IP - via Edge Function
   const unblockIP = useCallback(async (ipAddress: string) => {
     try {
+      const sessionToken = getProducerSessionToken();
       const { data, error } = await supabase.functions.invoke("security-management", {
         body: { action: "unblock-ip", ipAddress },
+        headers: { "x-producer-session-token": sessionToken || "" },
       });
 
       if (error) throw error;
