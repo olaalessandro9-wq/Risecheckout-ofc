@@ -68,7 +68,7 @@ export function useGoogleAdsConfig(vendorId?: string) {
         console.log("[Google Ads] Configuração carregada com sucesso para vendor:", vendorId);
 
         return data as unknown as GoogleAdsIntegration;
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[Google Ads] Erro inesperado ao carregar config:", error);
         return null;
       }

@@ -86,7 +86,7 @@ export const Pixel = ({ config }: PixelProps) => {
             selected_products: config.config.selected_products?.length || "todos",
           }
         );
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[TikTok] Erro ao carregar pixel:", error);
       }
     };

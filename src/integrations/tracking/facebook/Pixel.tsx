@@ -96,7 +96,7 @@ export const Pixel = ({ config }: PixelProps) => {
             selected_products: config.selected_products?.length || "todos",
           }
         );
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[Facebook] Erro ao carregar pixel:", error);
       }
     };

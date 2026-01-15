@@ -40,7 +40,7 @@ export function extractUTMParameters(url?: string): UTMParameters {
       utm_content: params.get("utm_content"),
       utm_term: params.get("utm_term"),
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.warn("[UTMify] Erro ao extrair parâmetros UTM:", error);
     return {
       src: null,
@@ -161,7 +161,7 @@ export async function sendUTMifyConversion(
       message: "Conversão enviada com sucesso",
       data,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[UTMify] Erro ao enviar conversão:", error);
     return {
       success: false,

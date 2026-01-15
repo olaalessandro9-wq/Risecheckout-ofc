@@ -75,7 +75,7 @@ export async function sendUTMifyConversion(
     } else {
       console.log("[UTMify Helper] Conversão enviada com sucesso");
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[UTMify Helper] Erro ao enviar conversão:", error);
     // Não propagar o erro para não interromper o fluxo de checkout
   }

@@ -90,7 +90,7 @@ export function useFacebookConfig(vendorId?: string) {
         });
 
         return facebookConfig;
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[Facebook] Erro inesperado ao carregar config:", error);
         return null;
       }

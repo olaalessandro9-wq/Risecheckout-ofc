@@ -169,7 +169,7 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
           const maxComm = ((product.price || 0) * (product.commission_percentage || 0)) / 100;
           setMaxCommission(maxComm);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Erro ao buscar ofertas:", error);
         toast.error("Erro ao carregar ofertas do produto");
       } finally {

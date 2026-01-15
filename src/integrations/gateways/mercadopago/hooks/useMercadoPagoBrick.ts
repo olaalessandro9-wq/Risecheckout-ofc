@@ -217,7 +217,7 @@ export function useMercadoPagoBrick({
 
         cardFormRef.current = cardForm;
 
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('[useMercadoPagoBrick] Erro fatal:', error);
         onFormError?.('Falha ao inicializar sistema de pagamento');
         setIsReady(false);

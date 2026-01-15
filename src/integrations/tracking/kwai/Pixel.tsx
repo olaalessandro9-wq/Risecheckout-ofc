@@ -80,7 +80,7 @@ export const Pixel = ({ config }: PixelProps) => {
             selected_products: config.config.selected_products?.length || "todos",
           }
         );
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[Kwai] Erro ao carregar pixel:", error);
       }
     };

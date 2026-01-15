@@ -101,7 +101,7 @@ export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, desi
     try {
       fireInitiateCheckout(selectedBumps, orderBumps);
       if (selectedPayment === 'pix') await submitPayment(undefined, undefined, undefined, undefined, undefined, snapshot);
-    } catch (error) { console.error("[PublicCheckoutV2] Erro:", error); }
+    } catch (error: unknown) { console.error("[PublicCheckoutV2] Erro:", error); }
     finally { setProcessing(false); }
   }, [formData, validateForm, updateMultipleFields, setProcessing, fireInitiateCheckout, selectedBumps, orderBumps, selectedPayment, submitPayment, verifyTurnstileToken]);
 
@@ -116,7 +116,7 @@ export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, desi
     try {
       fireInitiateCheckout(selectedBumps, orderBumps);
       await submitPayment(token, installments, paymentMethodId, issuerId, holderDocument, snapshot);
-    } catch (error) { console.error("[PublicCheckoutV2] Erro cartão:", error); }
+    } catch (error: unknown) { console.error("[PublicCheckoutV2] Erro cartão:", error); }
     finally { setProcessing(false); }
   }, [formData, validateForm, updateMultipleFields, setProcessing, fireInitiateCheckout, selectedBumps, orderBumps, submitPayment, verifyTurnstileToken]);
 

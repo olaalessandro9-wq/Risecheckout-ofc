@@ -68,7 +68,7 @@ export function useTikTokConfig(vendorId?: string) {
         console.log("[TikTok] Configuração carregada com sucesso para vendor:", vendorId);
 
         return data as unknown as TikTokIntegration;
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[TikTok] Erro inesperado ao carregar config:", error);
         return null;
       }

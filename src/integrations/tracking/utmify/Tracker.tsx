@@ -43,7 +43,7 @@ export const Tracker = ({ integration }: TrackerProps) => {
       // Aqui você pode adicionar lógica adicional de rastreamento
       // Por exemplo: rastrear PageView automaticamente
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("[UTMify] Erro ao inicializar tracker:", error);
     }
   }, [integration?.id, integration?.active]);

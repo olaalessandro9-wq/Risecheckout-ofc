@@ -99,7 +99,7 @@ export function UpsellTab() {
       updateUpsellModified(false);
       
       toast.success("Configurações de upsell salvas com sucesso");
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Erro ao salvar upsell:", error);
       toast.error("Não foi possível salvar as configurações");
     }
