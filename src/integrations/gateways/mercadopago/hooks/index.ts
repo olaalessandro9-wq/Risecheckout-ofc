@@ -10,6 +10,8 @@ export { useMercadoPagoConfig } from './useMercadoPagoConfig';
 export { useMercadoPagoInit } from './useMercadoPagoInit';
 export { useMercadoPagoAvailable } from './useMercadoPagoAvailable';
 export { useMercadoPagoBrick } from './useMercadoPagoBrick';
+export { useMercadoPagoConnection } from './useMercadoPagoConnection';
+export { useMercadoPagoSandbox } from './useMercadoPagoSandbox';
 
 // Re-exports dos tipos
 export type { 

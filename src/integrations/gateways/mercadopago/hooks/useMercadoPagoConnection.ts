@@ -1,0 +1,230 @@
+/**
+ * useMercadoPagoConnection Hook
+ * 
+ * Gerencia toda a lógica de conexão OAuth do Mercado Pago.
+ * Inclui: init OAuth, popup management, postMessage listener.
+ */
+
+import { useState, useEffect, useCallback } from 'react';
+import { toast } from '@/components/ui/sonner';
+import { supabase } from '@/integrations/supabase/client';
+import type { ConnectionMode, IntegrationData } from '../types';
+
+const MERCADOPAGO_CLIENT_ID = import.meta.env.VITE_MERCADOPAGO_CLIENT_ID || '2354396684039370';
+const MERCADOPAGO_REDIRECT_URI = import.meta.env.VITE_MERCADOPAGO_REDIRECT_URI || '';
+
+function generateSecureNonce(): string {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+interface UseMercadoPagoConnectionProps {
+  userId: string | undefined;
+  onConnectionChange?: () => void;
+}
+
+interface UseMercadoPagoConnectionReturn {
+  currentMode: ConnectionMode;
+  integration: IntegrationData | null;
+  loading: boolean;
+  connectingOAuth: boolean;
+  loadIntegration: () => Promise<void>;
+  handleConnectOAuth: () => Promise<void>;
+  handleDisconnect: () => Promise<void>;
+}
+
+export function useMercadoPagoConnection({
+  userId,
+  onConnectionChange,
+}: UseMercadoPagoConnectionProps): UseMercadoPagoConnectionReturn {
+  const [currentMode, setCurrentMode] = useState<ConnectionMode>('none');
+  const [integration, setIntegration] = useState<IntegrationData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [connectingOAuth, setConnectingOAuth] = useState(false);
+
+  const loadIntegration = useCallback(async () => {
+    try {
+      setLoading(true);
+      if (!userId) return;
+
+      const { data, error } = await supabase
+        .from('vendor_integrations')
+        .select('*')
+        .eq('vendor_id', userId)
+        .eq('integration_type', 'MERCADOPAGO')
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        interface MercadoPagoConfig {
+          is_test?: boolean;
+          email?: string;
+          user_id?: string;
+        }
+        const config = data.config as MercadoPagoConfig | null;
+        const isTest = config?.is_test ?? false;
+        const mode: ConnectionMode = isTest ? 'sandbox' : 'production';
+
+        setCurrentMode(mode);
+        setIntegration({
+          id: data.id,
+          mode,
+          isTest,
+          email: config?.email,
+          userId: config?.user_id,
+        });
+      } else {
+        setCurrentMode('none');
+        setIntegration(null);
+      }
+
+      onConnectionChange?.();
+    } catch (error) {
+      console.error('[useMercadoPagoConnection] Erro ao carregar:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [userId, onConnectionChange]);
+
+  // Load on mount
+  useEffect(() => {
+    if (userId) {
+      loadIntegration();
+    }
+  }, [userId, loadIntegration]);
+
+  // OAuth success listener
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'mercadopago_oauth_success') {
+        console.log('[useMercadoPagoConnection] OAuth success received');
+        toast.success('Conta do Mercado Pago conectada com sucesso!');
+        loadIntegration();
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [loadIntegration]);
+
+  const handleConnectOAuth = useCallback(async () => {
+    if (!userId) {
+      toast.error('Usuário não autenticado');
+      return;
+    }
+
+    setConnectingOAuth(true);
+
+    try {
+      const nonce = generateSecureNonce();
+      const { getProducerSessionToken } = await import('@/hooks/useProducerAuth');
+      const sessionToken = getProducerSessionToken();
+
+      const { data: oauthResult, error: oauthError } = await supabase.functions.invoke('integration-management', {
+        body: {
+          action: 'init-oauth',
+          integrationType: 'MERCADOPAGO',
+        },
+        headers: { 'x-producer-session-token': sessionToken || '' },
+      });
+
+      if (oauthError || !oauthResult?.success) {
+        console.error('[useMercadoPagoConnection] Erro ao salvar state:', oauthResult?.error || oauthError);
+        toast.error('Erro ao iniciar autenticação. Tente novamente.');
+        setConnectingOAuth(false);
+        return;
+      }
+
+      const stateNonce = oauthResult.state || nonce;
+
+      const authUrl = new URL('https://auth.mercadopago.com.br/authorization');
+      authUrl.searchParams.set('client_id', MERCADOPAGO_CLIENT_ID);
+      authUrl.searchParams.set('response_type', 'code');
+      authUrl.searchParams.set('platform_id', 'mp');
+      authUrl.searchParams.set('state', stateNonce);
+      authUrl.searchParams.set('redirect_uri', MERCADOPAGO_REDIRECT_URI);
+
+      const width = 600;
+      const height = 700;
+      const left = window.screen.width / 2 - width / 2;
+      const top = window.screen.height / 2 - height / 2;
+
+      const popup = window.open(
+        authUrl.toString(),
+        'MercadoPago OAuth',
+        `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes`
+      );
+
+      if (!popup) {
+        toast.error('Popup bloqueado! Permita popups para este site.');
+        setConnectingOAuth(false);
+        return;
+      }
+
+      let popupCheckCount = 0;
+      const maxChecks = 120;
+
+      const checkPopup = setInterval(() => {
+        popupCheckCount++;
+
+        if (popup.closed) {
+          clearInterval(checkPopup);
+          setConnectingOAuth(false);
+          setTimeout(() => {
+            console.log('[useMercadoPagoConnection] Popup fechado, recarregando...');
+            loadIntegration();
+          }, 500);
+        } else if (popupCheckCount >= maxChecks) {
+          clearInterval(checkPopup);
+          setConnectingOAuth(false);
+          toast.info('Se você completou o OAuth, clique em "Atualizar Status"');
+        }
+      }, 500);
+    } catch (error) {
+      console.error('[useMercadoPagoConnection] Erro OAuth:', error);
+      toast.error('Erro ao iniciar autenticação');
+      setConnectingOAuth(false);
+    }
+  }, [userId, loadIntegration]);
+
+  const handleDisconnect = useCallback(async () => {
+    try {
+      if (!integration?.id) return;
+
+      const { getProducerSessionToken } = await import('@/hooks/useProducerAuth');
+      const sessionToken = getProducerSessionToken();
+
+      const { data: result, error } = await supabase.functions.invoke('integration-management', {
+        body: {
+          action: 'disconnect',
+          integrationId: integration.id,
+        },
+        headers: { 'x-producer-session-token': sessionToken || '' },
+      });
+
+      if (error || !result?.success) {
+        throw new Error(result?.error || error?.message || 'Erro ao desconectar');
+      }
+
+      toast.success('Integração desconectada');
+      setCurrentMode('none');
+      setIntegration(null);
+      onConnectionChange?.();
+    } catch (error) {
+      console.error('[useMercadoPagoConnection] Erro ao desconectar:', error);
+      toast.error('Erro ao desconectar');
+    }
+  }, [integration, onConnectionChange]);
+
+  return {
+    currentMode,
+    integration,
+    loading,
+    connectingOAuth,
+    loadIntegration,
+    handleConnectOAuth,
+    handleDisconnect,
+  };
+}
