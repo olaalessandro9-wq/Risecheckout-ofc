@@ -152,7 +152,7 @@ async function getAsaasPaymentStatus(
   sandbox: boolean = false
 ): Promise<AsaasPaymentStatus | null> {
   try {
-    const baseUrl = sandbox ? 'https://sandbox.asaas.com/api/v3' : 'https://api.asaas.com/api/v3';
+    const baseUrl = sandbox ? 'https://sandbox.asaas.com/api/v3' : 'https://api.asaas.com/v3';
     const response = await fetch(`${baseUrl}/payments/${paymentId}`, {
       headers: {
         'access_token': apiKey,

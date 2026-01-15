@@ -244,12 +244,10 @@ verify_jwt = false
 verify_jwt = false
 
 # =====================================================
-# FASE 3: STUBS MIGRADOS DO DEPLOY (21 funções)
+# FASE 3: STUBS MIGRADOS DO DEPLOY
 # =====================================================
 
-# ✅ AUTENTICADAS (Payments - Validação de Credenciais)
-[functions.asaas-validate-credentials]
-verify_jwt = false
+# ✅ PÚBLICAS (PushinPay Stats)
 
 [functions.pushinpay-stats]
 verify_jwt = false
