@@ -25,7 +25,6 @@ export * from "./api";
 export * from "./hooks";
 
 // Componentes
-export { PixPayment } from "./components/PixPayment";
 export { QRCanvas } from "./components/QRCanvas";
 export { Legal } from "./components/Legal";
 export { ConfigForm } from "./components/ConfigForm";

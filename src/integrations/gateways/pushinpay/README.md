@@ -11,7 +11,6 @@ src/integrations/gateways/pushinpay/
 ├── types.ts            # Interfaces TypeScript
 ├── index.ts            # Barrel export
 ├── components/
-│   ├── PixPayment.tsx  # Componente principal de pagamento PIX
 │   ├── QRCanvas.tsx    # Canvas para renderizar QR Code
 │   ├── Legal.tsx       # Aviso legal da PushinPay
 │   └── ConfigForm.tsx  # Formulário de configuração (painel admin)
@@ -24,18 +23,6 @@ src/integrations/gateways/pushinpay/
 
 ```typescript
 import * as PushinPay from "@/integrations/gateways/pushinpay";
-```
-
-### Componente de Pagamento PIX
-
-```typescript
-// No checkout público
-<PushinPay.PixPayment
-  orderId={orderId}
-  amount={amount}
-  onSuccess={() => console.log("Pagamento aprovado")}
-  onError={(error) => console.error(error)}
-/>
 ```
 
 ### Formulário de Configuração (Admin)
@@ -155,6 +142,10 @@ Ambiente: `"sandbox"` ou `"production"`.
 - Teste no ambiente sandbox primeiro
 
 ## 📝 Changelog
+
+### v2.1.0 (2025)
+- ✅ Remoção de `PixPayment.tsx` (código morto)
+- ✅ UI de pagamento PIX migrada para `src/pages/pix-payment/`
 
 ### v2.0.0 (2024)
 - ✅ Migração para arquitetura modular
