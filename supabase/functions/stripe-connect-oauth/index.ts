@@ -114,8 +114,10 @@ serve(async (req) => {
       });
 
       // Construir URL de autorização Stripe Connect
-      const baseUrl = Deno.env.get("SUPABASE_URL") || "";
-      const redirectUri = `${baseUrl}/functions/v1/stripe-connect-oauth?action=callback`;
+      // Usar STRIPE_REDIRECT_URL se configurado (para produção),
+      // senão fallback para SUPABASE_URL (desenvolvimento)
+      const redirectUri = Deno.env.get("STRIPE_REDIRECT_URL") 
+        || `${Deno.env.get("SUPABASE_URL")}/functions/v1/stripe-connect-oauth?action=callback`;
 
       // Stripe Connect OAuth URL
       const stripeConnectUrl = new URL("https://connect.stripe.com/oauth/authorize");
