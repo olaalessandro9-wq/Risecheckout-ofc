@@ -76,7 +76,7 @@ export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
         } else if (publicUrl) {
           coverImageUrl = publicUrl;
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[ContentTab] Error uploading image:", error);
       } finally {
         setIsUploading(false);
@@ -110,7 +110,7 @@ export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
         } else if (publicUrl) {
           coverImageUrl = publicUrl;
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[ContentTab] Error uploading image:", error);
       } finally {
         setIsUploading(false);

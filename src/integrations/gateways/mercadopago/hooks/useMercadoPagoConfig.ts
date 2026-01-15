@@ -67,7 +67,7 @@ export function useMercadoPagoConfig(vendorId?: string) {
         console.log("[MercadoPago] Configuração carregada com sucesso para vendor:", vendorId);
 
         return data as unknown as MercadoPagoIntegration;
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[MercadoPago] Erro inesperado ao carregar config:", error);
         return null;
       }

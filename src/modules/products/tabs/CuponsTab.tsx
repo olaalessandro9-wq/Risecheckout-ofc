@@ -95,7 +95,7 @@ export function CuponsTab() {
       }));
 
       setCoupons(transformedCoupons);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error loading coupons:", error);
       toast.error("Não foi possível carregar os cupons");
     } finally {
@@ -137,7 +137,7 @@ export function CuponsTab() {
 
       setEditingCoupon(formData);
       setDialogOpen(true);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error loading coupon details:", error);
       toast.error("Não foi possível carregar os detalhes do cupom");
     }

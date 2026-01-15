@@ -105,7 +105,7 @@ export function WebhooksConfig() {
       );
       
       setWebhooks(webhooksWithProducts);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error loading data:", error);
       toast.error("Erro ao carregar dados");
     } finally {
@@ -169,7 +169,7 @@ export function WebhooksConfig() {
       setSheetOpen(false);
       setEditingWebhook(null);
       loadData();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error saving webhook:", error);
       throw error;
     }
@@ -199,7 +199,7 @@ export function WebhooksConfig() {
 
       toast.success("Webhook excluído com sucesso!");
       loadData();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error deleting webhook:", error);
       toast.error("Erro ao excluir webhook");
       throw error;

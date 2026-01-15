@@ -57,7 +57,7 @@ export function useBinResolution(): BinResolutionReturn {
       } else {
         console.warn('[useBinResolution] ⚠️ Nenhum paymentMethod encontrado para BIN:', bin);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[useBinResolution] Erro ao resolver paymentMethodId:', error);
     }
   }, []);

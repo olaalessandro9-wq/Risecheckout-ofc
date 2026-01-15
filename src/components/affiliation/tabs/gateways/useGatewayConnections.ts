@@ -86,7 +86,7 @@ export function useGatewayConnections({ affiliation, onRefetch }: UseGatewayConn
         setSelectedCardGateway(affiliation.credit_card_gateway);
       }
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Erro ao carregar dados de gateway:", error);
       toast.error("Erro ao carregar configurações de gateway");
     } finally {
@@ -167,7 +167,7 @@ export function useGatewayConnections({ affiliation, onRefetch }: UseGatewayConn
       toast.success("Gateways configurados com sucesso!");
       await onRefetch();
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Erro ao salvar gateways:", error);
       toast.error("Erro ao salvar configuração de gateways");
     } finally {

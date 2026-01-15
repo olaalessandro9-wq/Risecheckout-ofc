@@ -114,7 +114,7 @@ export const UTMifyConfig = () => {
         setHasExistingToken(config?.has_token || false);
         setUtmifyToken("");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error loading UTMify config:", error);
       toast.error("Erro ao carregar configuração da UTMify");
     } finally {
@@ -181,7 +181,7 @@ export const UTMifyConfig = () => {
       setUtmifyToken("");
       
       toast.success("Integração UTMify salva com sucesso!");
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error saving UTMify integration:", error);
       const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
       toast.error("Erro ao salvar integração UTMify: " + errorMessage);

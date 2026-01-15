@@ -207,7 +207,7 @@ export function TestWebhookDialog({
       } else {
         toast.error(`Erro ao enviar: ${result?.error || 'Erro desconhecido'}`);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error sending test event:", error);
       toast.error("Erro ao enviar evento de teste");
     } finally {

@@ -103,7 +103,7 @@ export const Brick = ({
             public_key: integration.config.public_key,
           }
         );
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[MercadoPago] Erro ao renderizar Brick:", error);
         onPaymentError?.(error);
       }

@@ -68,7 +68,7 @@ export function usePushinPayConfig(vendorId?: string) {
         console.log("[PushinPay] Configuração carregada com sucesso para vendor:", vendorId);
 
         return data as PushinPayIntegration;
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[PushinPay] Erro inesperado ao carregar config:", error);
         return null;
       }

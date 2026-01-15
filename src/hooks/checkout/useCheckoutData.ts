@@ -185,7 +185,7 @@ export function useCheckoutData(): UseCheckoutDataReturn {
 
       console.log('[useCheckoutData V3] ✅ Checkout carregado com sucesso');
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[useCheckoutData V3] Erro ao carregar checkout:', error);
       setIsError(true);
     } finally {

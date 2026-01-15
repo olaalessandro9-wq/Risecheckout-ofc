@@ -52,7 +52,7 @@ export function useMarketplaceTracking(): UseMarketplaceTrackingReturn {
         if (import.meta.env.DEV) {
           console.log(`[Marketplace] Visualização rastreada: ${productId}`);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[Marketplace] Erro ao rastrear visualização:", error);
         // Remover do set para permitir retry
         trackedViews.current.delete(productId);
@@ -71,7 +71,7 @@ export function useMarketplaceTracking(): UseMarketplaceTrackingReturn {
       if (import.meta.env.DEV) {
         console.log(`[Marketplace] Clique rastreado: ${productId}`);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("[Marketplace] Erro ao rastrear clique:", error);
       // Não lançar erro para não bloquear a UI
     }

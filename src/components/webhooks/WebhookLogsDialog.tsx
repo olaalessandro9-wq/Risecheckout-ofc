@@ -81,7 +81,7 @@ export function WebhookLogsDialog({
       if (data && data.length > 0) {
         setSelectedLog(data[0]);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error loading logs:", error);
       toast.error("Erro ao carregar logs");
     } finally {

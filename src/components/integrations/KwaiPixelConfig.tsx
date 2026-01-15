@@ -48,7 +48,7 @@ export function KwaiPixelConfig() {
         setPixelId(config?.pixel_id || "");
         setActive(data.active || false);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error loading Kwai config:", error);
       toast.error("Erro ao carregar configuração do Kwai");
     } finally {
@@ -88,7 +88,7 @@ export function KwaiPixelConfig() {
       }
 
       toast.success("Configuração do Kwai salva com sucesso!");
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error saving Kwai config:", error);
       const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
       toast.error("Erro ao salvar configuração: " + errorMessage);

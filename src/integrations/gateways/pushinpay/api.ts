@@ -70,7 +70,7 @@ export async function fetchPushinPayAccountInfo(
       name: data.name,
       email: data.email,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[PushinPay] Erro ao buscar conta:", error);
     return null;
   }

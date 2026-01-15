@@ -79,7 +79,7 @@ async function loadMercadoPagoSDK(publicKey: string): Promise<boolean> {
           new window.MercadoPago(publicKey, { locale: 'pt-BR' });
           console.log('[GatewayManager] ✅ Mercado Pago SDK carregado e inicializado');
           resolve(true);
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('[GatewayManager] Erro ao inicializar Mercado Pago:', error);
           reject(new Error('Erro ao inicializar Mercado Pago'));
         }

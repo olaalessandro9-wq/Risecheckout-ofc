@@ -40,7 +40,7 @@ export function OrderBumpTab() {
       
       if (error) throw error;
       setEditingOrderBump((data as EditOrderBump) || orderBump);  // Usar dados do banco ou fallback para o objeto original
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Erro ao buscar order bump:', error);
       setEditingOrderBump(orderBump);  // Fallback para o objeto original em caso de erro
     }

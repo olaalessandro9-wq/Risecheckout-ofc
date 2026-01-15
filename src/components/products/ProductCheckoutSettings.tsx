@@ -94,7 +94,7 @@ export function ProductCheckoutSettings({ productId }: { productId: string }) {
       }
 
       toast.success("Configurações salvas com sucesso!");
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Unexpected error saving product settings:", error);
       toast.error("Erro inesperado ao salvar configurações.");
     } finally {

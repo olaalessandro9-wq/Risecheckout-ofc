@@ -48,7 +48,7 @@ export async function getOwnerGatewayEnvironments(): Promise<OwnerGatewayEnviron
     }
 
     return result.environments;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[owner/settings] Erro inesperado:', error);
     return DEFAULT_ENVIRONMENTS;
   }
@@ -83,7 +83,7 @@ export async function setOwnerGatewayEnvironment(
 
     console.log(`[owner/settings] Gateway ${gateway} alterado para ${environment}`);
     return { ok: true };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[owner/settings] Erro inesperado:', error);
     return { ok: false, error: String(error) };
   }
