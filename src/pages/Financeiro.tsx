@@ -5,7 +5,7 @@
  * O Owner tem sua própria página: OwnerGateways.tsx
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Loader2, Wallet, CreditCard } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
@@ -51,8 +51,42 @@ export default function Financeiro() {
     }
   }, [user?.id]);
 
-  // REMOVIDO: Listener duplicado de postMessage para OAuth
-  // O hook useMercadoPagoConnection já gerencia isso centralmente
+  // Listener GLOBAL para OAuth success (independente do Sheet estar aberto)
+  // Isso garante que mesmo se o Sheet estiver fechado, a UI será atualizada
+  useEffect(() => {
+    const handleOAuthMessage = (event: MessageEvent) => {
+      const messageType = event.data?.type;
+      
+      // Aceitar mensagens de OAuth success de qualquer gateway
+      const isOAuthSuccess = 
+        messageType === 'mercadopago_oauth_success' ||
+        messageType === 'stripe_oauth_success' ||
+        messageType === 'asaas_oauth_success' ||
+        messageType === 'oauth_success';
+      
+      if (isOAuthSuccess) {
+        console.log('[Financeiro] OAuth success recebido via postMessage:', {
+          type: messageType,
+          origin: event.origin,
+          attempt: event.data?.attempt
+        });
+        
+        // Delay para garantir que o banco foi atualizado antes de recarregar
+        setTimeout(() => {
+          console.log('[Financeiro] Recarregando integrações...');
+          loadAllIntegrations();
+        }, 800);
+      }
+    };
+
+    window.addEventListener('message', handleOAuthMessage);
+    console.log('[Financeiro] Listener global de OAuth registrado');
+    
+    return () => {
+      window.removeEventListener('message', handleOAuthMessage);
+      console.log('[Financeiro] Listener global de OAuth removido');
+    };
+  }, []);
 
   const loadAllIntegrations = async () => {
     if (!user?.id) return;

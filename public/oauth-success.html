@@ -324,20 +324,32 @@
     const urlParams = new URLSearchParams(window.location.search);
     const closeTime = parseInt(urlParams.get('close') || '3', 10);
     
-    // Notificar janela pai sobre sucesso (mesmo domínio = targetOrigin seguro)
-    if (window.opener) {
-      try {
-        // Usar window.location.origin para targetOrigin seguro (same-origin)
-        window.opener.postMessage({ 
-          type: 'mercadopago_oauth_success',
-          source: 'oauth-callback',
-          timestamp: Date.now()
-        }, window.location.origin);
-        console.log('[OAuth Success] ✅ Mensagem enviada para janela pai (origin:', window.location.origin, ')');
-      } catch (error) {
-        console.error('[OAuth Success] ❌ Erro ao notificar janela pai:', error);
+    // Notificar janela pai com RETRY para garantir que a mensagem seja recebida
+    let notifyCount = 0;
+    function notifyParent() {
+      if (window.opener && !window.opener.closed) {
+        try {
+          const message = {
+            type: 'mercadopago_oauth_success',
+            source: 'oauth-callback',
+            timestamp: Date.now(),
+            attempt: ++notifyCount
+          };
+          // Usar '*' para garantir entrega - ambos são same-origin de qualquer forma
+          window.opener.postMessage(message, '*');
+          console.log('[OAuth Success] ✅ Mensagem enviada, tentativa:', notifyCount);
+        } catch (error) {
+          console.error('[OAuth Success] ❌ Erro ao notificar janela pai:', error);
+        }
+      } else {
+        console.log('[OAuth Success] ⚠️ Janela pai não disponível');
       }
     }
+    
+    // Enviar imediatamente + retry após 500ms e 1500ms
+    notifyParent();
+    setTimeout(notifyParent, 500);
+    setTimeout(notifyParent, 1500);
     
     // Countdown e fechar janela
     let seconds = closeTime;
