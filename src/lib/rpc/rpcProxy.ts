@@ -256,3 +256,16 @@ export async function getUnresolvedErrorsRpc() {
     "admin"
   );
 }
+
+/**
+ * Gets webhook stats for last 24h (admin only)
+ */
+export async function getWebhookStats24hRpc() {
+  return invokeRpc<{
+    total: number;
+    delivered: number;
+    failed: number;
+    pending: number;
+    avg_attempts: number;
+  }>("get_webhook_stats_24h", {}, "admin");
+}

@@ -4160,7 +4160,7 @@ export type Database = {
         }[]
       }
       get_system_health_summary: {
-        Args: { time_range?: unknown }
+        Args: never
         Returns: {
           avg_value: number
           error_count: number
@@ -4192,6 +4192,16 @@ export type Database = {
         Returns: {
           public_key: string
           test_mode_enabled: boolean
+        }[]
+      }
+      get_webhook_stats_24h: {
+        Args: never
+        Returns: {
+          avg_attempts: number
+          delivered: number
+          failed: number
+          pending: number
+          total: number
         }[]
       }
       has_active_payment_link_for_checkout: {
