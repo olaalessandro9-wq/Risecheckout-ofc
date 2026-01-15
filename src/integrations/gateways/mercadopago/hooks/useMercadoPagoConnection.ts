@@ -110,8 +110,8 @@ export function useMercadoPagoConnection({
         setIntegration(null);
         console.log('[useMercadoPagoConnection] Nenhuma integração encontrada');
       }
-
-      onConnectionChange?.();
+      // NOTA: Removido onConnectionChange?.() aqui para evitar chamadas duplicadas
+      // O Financeiro.tsx já tem listener global que chama loadAllIntegrations()
     } catch (error) {
       console.error('[useMercadoPagoConnection] Erro ao carregar:', error);
       // Em caso de erro, resetar para estado seguro
