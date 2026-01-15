@@ -35,16 +35,15 @@ export default function AdminHealth() {
       setMetrics((metricsResult.data as unknown as SystemMetric[]) || []);
       setErrors((errorsResult.data as unknown as UnresolvedError[]) || []);
       
-      if (webhookResult.data) {
-        const stats: WebhookStats = {
-          total: webhookResult.data.total,
-          delivered: webhookResult.data.delivered,
-          failed: webhookResult.data.failed,
-          pending: webhookResult.data.pending,
-          avgAttempts: webhookResult.data.avg_attempts,
-        };
-        setWebhookStats(stats);
-      }
+      // Always set webhook stats with default values to prevent undefined errors
+      const stats: WebhookStats = {
+        total: webhookResult.data?.total ?? 0,
+        delivered: webhookResult.data?.delivered ?? 0,
+        failed: webhookResult.data?.failed ?? 0,
+        pending: webhookResult.data?.pending ?? 0,
+        avgAttempts: webhookResult.data?.avg_attempts ?? 1,
+      };
+      setWebhookStats(stats);
 
     } catch (error: unknown) {
       console.error("Erro ao carregar dados:", error);
@@ -173,7 +172,7 @@ export default function AdminHealth() {
               {webhookStats?.failed || 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              Média tentativas: {webhookStats?.avgAttempts.toFixed(1) || 0}
+              Média tentativas: {(webhookStats?.avgAttempts ?? 1).toFixed(1)}
             </p>
           </CardContent>
         </Card>
