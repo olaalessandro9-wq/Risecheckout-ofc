@@ -71,6 +71,7 @@ interface OrderBumpUpdates {
 }
 
 interface RequestBody {
+  action?: string;
   sessionToken?: string;
   orderBump?: OrderBumpPayload;
   checkoutId?: string;
@@ -224,10 +225,7 @@ serve(withSentry("order-bump-crud", async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const url = new URL(req.url);
-    const pathParts = url.pathname.split("/").filter(Boolean);
-    const action = pathParts[pathParts.length - 1];
-
+    // Parse body first to get action
     let body: RequestBody = {};
     if (req.method !== "GET") {
       try { 
@@ -235,6 +233,16 @@ serve(withSentry("order-bump-crud", async (req) => {
       } catch { 
         return errorResponse("Corpo da requisição inválido", corsHeaders, 400); 
       }
+    }
+
+    // Prioritize action from body, fallback to path
+    const url = new URL(req.url);
+    const pathParts = url.pathname.split("/").filter(Boolean);
+    const pathAction = pathParts[pathParts.length - 1];
+    const action = body.action || (pathAction !== "order-bump-crud" ? pathAction : null);
+
+    if (!action) {
+      return errorResponse("Ação não especificada", corsHeaders, 400);
     }
 
     const sessionToken = body.sessionToken || req.headers.get("x-producer-session-token") || "";

@@ -98,7 +98,7 @@ export function AddProductDialog({ open, onOpenChange, onProductAdded }: AddProd
     }
     
     // Get session token from localStorage
-    const sessionToken = localStorage.getItem("rise_producer_token");
+    const sessionToken = localStorage.getItem("producer_session_token");
     if (!sessionToken) {
       toast.error("Você precisa estar autenticado. Faça login novamente.");
       return;
