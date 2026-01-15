@@ -55,7 +55,7 @@ export function useMembersAreaModulesEdit({
       }));
       
       toast.success('Módulo atualizado');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[useMembersAreaBuilder] Update module error:', error);
       toast.error('Erro ao atualizar módulo');
     }

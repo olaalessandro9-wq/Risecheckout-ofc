@@ -9,7 +9,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
   try {
     const ctx = useTheme();
     theme = ctx?.theme || "light";
-  } catch (error) {
+  } catch (error: unknown) {
     console.warn('[Sonner] ThemeProvider não disponível, usando tema light');
   }
 

@@ -46,7 +46,7 @@ export function FacebookPixelConfig() {
         setActive(data.active || false);
         setAccessToken("");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error loading config:", error);
       toast.error("Erro ao carregar configuração");
     } finally {
@@ -99,7 +99,7 @@ export function FacebookPixelConfig() {
       }
 
       toast.success("Configuração salva com sucesso!");
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error saving config:", error);
       const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
       toast.error("Erro ao salvar configuração: " + errorMessage);

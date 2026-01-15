@@ -80,7 +80,7 @@ export async function invokeEdgeFunction<T = unknown>(
     }
 
     return { data: data as T, error: null };
-  } catch (error) {
+  } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro de conexão";
     return { data: null, error: message };
   }

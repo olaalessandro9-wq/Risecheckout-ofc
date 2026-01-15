@@ -70,7 +70,7 @@ export function CheckoutTab() {
       
       if (error) throw error;
       setAvailableOffers(data || []);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Erro ao carregar ofertas:', error);
     }
   };
@@ -98,7 +98,7 @@ export function CheckoutTab() {
         },
         "Duplicando checkout..."
       );
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error duplicating checkout:", error);
       toast.error("Não foi possível duplicar o checkout");
     }
@@ -133,7 +133,7 @@ export function CheckoutTab() {
           // Toast de sucesso é exibido pelo Bridge do useConfirmDelete
         },
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error deleting checkout:", error);
       // Não mostrar erro se o usuário cancelou
       if (error instanceof Error && error.message !== "User cancelled") {
@@ -175,7 +175,7 @@ export function CheckoutTab() {
         const offerId = linkData?.payment_links?.offer_id || "";
         setCurrentOfferId(offerId);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error loading checkout offer:", error);
       setCurrentOfferId("");
     }

@@ -178,7 +178,7 @@ function getRequiredFieldsArray(requiredFields: RequiredFieldsConfig | string[] 
     
     try {
       await paymentGateway.submitPayment();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[ControllerV2] Erro no submit:', error);
       formManager.setProcessing(false);
     }

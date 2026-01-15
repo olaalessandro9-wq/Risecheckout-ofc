@@ -139,7 +139,7 @@ export function MercadoPagoConfig({ onOpen, onConnectionChange }: { onOpen?: boo
       if (onConnectionChange) {
         onConnectionChange();
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[MercadoPago Config] Erro ao carregar integração:', error);
       toast.error('Erro ao carregar configuração');
     } finally {
@@ -209,7 +209,7 @@ export function MercadoPagoConfig({ onOpen, onConnectionChange }: { onOpen?: boo
           setTimeout(() => loadIntegration(), 1000);
         }
       }, 500);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[MercadoPago OAuth] Erro:', error);
       toast.error('Erro ao iniciar autenticação');
       setConnectingOAuth(false);
@@ -291,7 +291,7 @@ export function MercadoPagoConfig({ onOpen, onConnectionChange }: { onOpen?: boo
       if (onConnectionChange) {
         onConnectionChange();
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[MercadoPago Config] Erro ao desconectar:', error);
       toast.error('Erro ao desconectar conta');
     }

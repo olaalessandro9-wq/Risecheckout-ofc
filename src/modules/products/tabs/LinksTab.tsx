@@ -63,7 +63,7 @@ export function LinksTab() {
 
       // Atualizar links via contexto
       await refreshPaymentLinks();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Erro ao alterar status:', error);
       toast.error('Não foi possível alterar o status do link');
     }

@@ -60,7 +60,7 @@ export function useMercadoPagoInit(publicKey?: string): boolean {
           console.log("[MercadoPago] SDK já estava carregada");
           setIsInitialized(true);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[MercadoPago] Erro ao inicializar:", error);
         setIsInitialized(false);
       }
