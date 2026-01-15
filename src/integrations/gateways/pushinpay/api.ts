@@ -158,31 +158,32 @@ export async function getPushinPaySettings(userId: string): Promise<PushinPaySet
     return null;
   }
 
-  // Interface para resposta do Supabase
-  interface PushinPaySettingsRow {
-    environment: string;
-    pushinpay_account_id: string | null;
-    pushinpay_token: string | null;
-  }
-
+  // Buscar de vendor_integrations (onde vault-save salva os dados)
   const { data, error } = await supabase
-    .from("payment_gateway_settings")
-    .select("environment, pushinpay_account_id, pushinpay_token")
-    .eq("user_id", userId)
+    .from("vendor_integrations")
+    .select("config, active")
+    .eq("vendor_id", userId)
+    .eq("integration_type", "PUSHINPAY")
+    .eq("active", true)
     .maybeSingle();
 
   if (error || !data) {
     return null;
   }
   
-  const row = data as PushinPaySettingsRow;
+  const config = data.config as Record<string, unknown> | null;
   
-  // Retorna com token vazio (mascarado) - o token real nunca é exposto ao cliente
+  // Se não há config, não há dados salvos
+  if (!config) {
+    return null;
+  }
+  
+  // Retorna com token mascarado (o token real está no Vault)
   return {
-    pushinpay_token: row.pushinpay_token ? "••••••••" : "",
-    pushinpay_account_id: row.pushinpay_account_id || "",
-    environment: row.environment as PushinPayEnvironment,
-  } as PushinPaySettings;
+    pushinpay_token: config.credentials_in_vault ? "••••••••" : "",
+    pushinpay_account_id: (config.user_id as string) || "",
+    environment: (config.environment as PushinPayEnvironment) || "production",
+  };
 }
 
 /**
