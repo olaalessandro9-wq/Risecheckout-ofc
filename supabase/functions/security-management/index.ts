@@ -58,22 +58,22 @@ Deno.serve(async (req) => {
       return unauthorizedResponse(corsHeaders);
     }
 
-    // Validate admin/owner role
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
+    // Validate admin/owner role - busca de user_roles (não profiles)
+    const { data: userRole, error: roleError } = await supabase
+      .from("user_roles")
       .select("role")
-      .eq("id", producer.id)
+      .eq("user_id", producer.id)
       .single();
 
-    if (profileError || !profile) {
-      console.error("[security-management] Erro ao buscar role:", profileError);
+    if (roleError || !userRole) {
+      console.error("[security-management] Role não encontrada:", roleError);
       return new Response(
-        JSON.stringify({ success: false, error: "Perfil não encontrado" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: "Permissão não encontrada" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const role = profile.role as string;
+    const role = userRole.role as string;
     if (role !== "admin" && role !== "owner") {
       console.warn(`[security-management] Acesso negado para role: ${role}`);
       return new Response(
