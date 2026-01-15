@@ -17,8 +17,8 @@ import { handleCors, getCorsHeaders } from "../_shared/cors.ts";
 
 // PushinPay API URLs por ambiente
 const PUSHINPAY_API_URLS = {
-  production: "https://api.pushinpay.com.br/api/pix/cashIn/accounts/find",
-  sandbox: "https://api-sandbox.pushinpay.com.br/api/pix/cashIn/accounts/find",
+  production: "https://api.pushinpay.com.br/api/accounts/find",
+  sandbox: "https://api-sandbox.pushinpay.com.br/api/accounts/find",
 } as const;
 
 type PushinPayEnvironment = "production" | "sandbox";
