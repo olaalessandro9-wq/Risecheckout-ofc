@@ -257,10 +257,16 @@ export function useMercadoPagoConnection({
         if (popup.closed) {
           clearInterval(checkPopup);
           setConnectingOAuth(false);
-          setTimeout(() => {
-            console.log('[useMercadoPagoConnection] Popup fechado, recarregando...');
-            loadIntegration();
-          }, 500);
+          
+          // CORREÇÃO: Só recarrega se NÃO processamos sucesso via postMessage recentemente
+          // Isso evita a "piscada extra" ~3s depois da conexão
+          const timeSinceLastSuccess = Date.now() - lastProcessedTimestamp.current;
+          if (timeSinceLastSuccess > 5000 || lastProcessedTimestamp.current === 0) {
+            console.log('[useMercadoPagoConnection] Popup fechado sem sucesso detectado, recarregando...');
+            setTimeout(() => loadIntegration(), 500);
+          } else {
+            console.log('[useMercadoPagoConnection] Popup fechado, mas sucesso já processado via postMessage - ignorando reload');
+          }
         } else if (popupCheckCount >= maxChecks) {
           clearInterval(checkPopup);
           setConnectingOAuth(false);
