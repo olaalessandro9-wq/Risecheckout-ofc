@@ -7,27 +7,28 @@
  * - resolve-error: Marca um erro como resolvido
  * 
  * Segurança:
- * - Requer autenticação JWT
- * - Valida role Admin
+ * - Usa unified-auth (producer_sessions)
+ * - Valida role Admin/Owner
  * 
- * @version 1.0.0
+ * @version 2.0.0
  */
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
+import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-producer-session-token',
 };
 
 interface ResolveErrorPayload {
+  action: string;
   errorId: string;
   notes?: string;
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Handle CORS preflight
   const corsResult = handleCors(req);
   if (corsResult instanceof Response) return corsResult;
@@ -37,44 +38,31 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Validate JWT and get user
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Token não fornecido" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Token inválido" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // Authenticate using unified-auth (producer_sessions)
+    let producer;
+    try {
+      producer = await requireAuthenticatedProducer(supabase, req);
+    } catch {
+      console.warn("[admin-health] Autenticação falhou");
+      return unauthorizedResponse(corsHeaders);
     }
 
     // Check if user is admin
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
-      .eq("id", user.id)
+      .eq("id", producer.id)
       .single();
 
     if (!profile || (profile.role !== "admin" && profile.role !== "owner")) {
-      console.warn(`[admin-health] Acesso negado para user ${user.id} com role ${profile?.role}`);
+      console.warn(`[admin-health] Acesso negado para producer ${producer.id} com role ${profile?.role}`);
       return new Response(
         JSON.stringify({ success: false, error: "Acesso restrito a administradores" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Parse request
-    const url = new URL(req.url);
-    const action = url.pathname.split("/").pop();
-
+    // Parse request body
     let body: Record<string, unknown> = {};
     if (req.method === "POST") {
       try {
@@ -87,12 +75,12 @@ serve(async (req) => {
       }
     }
 
-    console.log(`[admin-health] Action: ${action}, User: ${user.id}`);
+    const { action, errorId, notes } = body as unknown as ResolveErrorPayload;
+
+    console.log(`[admin-health] Action: ${action}, Producer: ${producer.id}`);
 
     // Handle actions
     if (action === "resolve-error" && req.method === "POST") {
-      const { errorId, notes } = body as unknown as ResolveErrorPayload;
-
       if (!errorId) {
         return new Response(
           JSON.stringify({ success: false, error: "errorId é obrigatório" }),
@@ -103,7 +91,7 @@ serve(async (req) => {
       const updateData: Record<string, unknown> = {
         resolved: true,
         resolved_at: new Date().toISOString(),
-        resolved_by: user.id,
+        resolved_by: producer.id,
       };
 
       if (notes) {
@@ -123,7 +111,7 @@ serve(async (req) => {
         );
       }
 
-      console.log(`[admin-health] Error ${errorId} resolved by ${user.id}`);
+      console.log(`[admin-health] Error ${errorId} resolved by ${producer.id}`);
       return new Response(
         JSON.stringify({ success: true }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -131,7 +119,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: false, error: `Ação desconhecida: ${action}` }),
+      JSON.stringify({ success: false, error: `Ação desconhecida: ${action || 'não especificada'}` }),
       { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
