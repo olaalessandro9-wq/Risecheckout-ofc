@@ -53,7 +53,7 @@ export function useMembersAreaModules({
       setModules(prev => [...prev, { ...data.module, contents: [] }]);
       toast.success("Módulo criado!");
       return data.module;
-    } catch (error) {
+    } catch (error: unknown) {
       log.error("Error adding module", error);
       toast.error("Erro ao criar módulo");
       return null;
@@ -76,7 +76,7 @@ export function useMembersAreaModules({
 
       setModules(prev => prev.map(m => m.id === id ? { ...m, ...data } : m));
       toast.success("Módulo atualizado!");
-    } catch (error) {
+    } catch (error: unknown) {
       log.error("Error updating module", error);
       toast.error("Erro ao atualizar módulo");
     } finally {
@@ -98,7 +98,7 @@ export function useMembersAreaModules({
 
       setModules(prev => prev.filter(m => m.id !== id));
       toast.success("Módulo excluído!");
-    } catch (error) {
+    } catch (error: unknown) {
       log.error("Error deleting module", error);
       toast.error("Erro ao excluir módulo");
     } finally {
@@ -130,7 +130,7 @@ export function useMembersAreaModules({
 
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || 'Falha ao reordenar');
-    } catch (error) {
+    } catch (error: unknown) {
       log.error("Error reordering modules", error);
       toast.error("Erro ao reordenar módulos");
       setModules(previousModules);

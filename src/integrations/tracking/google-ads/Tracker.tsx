@@ -83,7 +83,7 @@ export const Tracker = ({ integration }: TrackerProps) => {
             event_labels: integration.config.event_labels?.length || 0,
           }
         );
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[Google Ads] Erro ao carregar tracker:", error);
       }
     };

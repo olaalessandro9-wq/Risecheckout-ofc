@@ -247,7 +247,7 @@ export function OrderBumpList({ productId, onAdd, onEdit, maxOrderBumps = 5 }: O
       });
 
       setOrderBumps(mappedBumps);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error loading order bumps:", error);
       toast.error("Erro ao carregar order bumps");
     } finally {

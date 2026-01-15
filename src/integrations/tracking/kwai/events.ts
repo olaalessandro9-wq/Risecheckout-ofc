@@ -125,7 +125,7 @@ export async function sendKwaiEvent(
       success: true,
       message: `Evento ${eventName} enviado com sucesso`,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[Kwai] Erro ao enviar evento:", error);
     return {
       success: false,

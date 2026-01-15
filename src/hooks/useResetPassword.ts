@@ -54,7 +54,7 @@ export function useResetPassword(config: ResetPasswordConfig): UseResetPasswordR
 
         setEmail(data.email || "");
         setViewState("form");
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Error validating token:", error);
         setErrorMessage("Erro ao validar link. Tente novamente.");
         setViewState("invalid");
@@ -101,7 +101,7 @@ export function useResetPassword(config: ResetPasswordConfig): UseResetPasswordR
       }
 
       setViewState("success");
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error resetting password:", error);
       setErrorMessage("Erro de conexão. Tente novamente.");
       setViewState("form");

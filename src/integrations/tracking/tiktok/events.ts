@@ -112,7 +112,7 @@ export async function sendTikTokEvent(
       success: true,
       message: `Evento ${eventName} enviado com sucesso`,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[TikTok] Erro ao enviar evento:", error);
     return {
       success: false,

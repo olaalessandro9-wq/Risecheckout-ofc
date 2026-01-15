@@ -87,7 +87,7 @@ export async function createPreference(
       message: "Preferência criada com sucesso",
       data,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[MercadoPago] Erro ao criar preferência:", error);
     return {
       success: false,
@@ -193,7 +193,7 @@ export async function processPayment(
       message: `Pagamento ${data.status}`,
       data,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[MercadoPago] Erro ao processar pagamento:", error);
     return {
       success: false,
@@ -257,7 +257,7 @@ export async function getPayment(
       message: "Pagamento obtido com sucesso",
       data,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[MercadoPago] Erro ao obter pagamento:", error);
     return {
       success: false,
@@ -335,7 +335,7 @@ export function initializeMercadoPago(publicKey: string): boolean {
 
     console.warn("[MercadoPago] MercadoPago SDK não carregado");
     return false;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[MercadoPago] Erro ao inicializar:", error);
     return false;
   }

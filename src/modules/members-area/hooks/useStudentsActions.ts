@@ -48,7 +48,7 @@ export function useStudentsActions({
 
       toast.success('Grupos atualizados');
       onRefresh();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error assigning groups:', error);
       toast.error('Erro ao atualizar grupos');
     }
@@ -64,7 +64,7 @@ export function useStudentsActions({
 
       toast.success('Acesso revogado');
       onRefresh();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error revoking access:', error);
       toast.error('Erro ao revogar acesso');
     }

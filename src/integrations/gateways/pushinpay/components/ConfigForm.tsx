@@ -83,7 +83,7 @@ export function ConfigForm() {
         const configEnv = settings.environment ?? "production";
         setEnvironment(isAdmin ? configEnv : "production");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("[PushinPay ConfigForm] Erro ao carregar configurações:", error);
     } finally {
       setLoadingData(false);

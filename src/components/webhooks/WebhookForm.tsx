@@ -94,7 +94,7 @@ export function WebhookForm({ webhook, onSave, onCancel }: WebhookFormProps) {
       }
       
       setProducts(data || []);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error loading products:", error);
     } finally {
       setLoading(false);
@@ -131,7 +131,7 @@ export function WebhookForm({ webhook, onSave, onCancel }: WebhookFormProps) {
       const productIds = data.map((item: WebhookProductItem) => item.product_id);
       console.log("🔍 Produtos do webhook carregados:", productIds);
       setSelectedProductIds(productIds);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error loading webhook products:", error);
       setSelectedProductIds([]);
     }
@@ -195,7 +195,7 @@ export function WebhookForm({ webhook, onSave, onCancel }: WebhookFormProps) {
         events: selectedEvents,
         product_ids: selectedProductIds,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Erro ao salvar webhook:", error);
       toast.error("Erro ao salvar webhook");
     } finally {

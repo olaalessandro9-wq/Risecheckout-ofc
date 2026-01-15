@@ -51,7 +51,7 @@ export function GoogleAdsConfig() {
         setConversionLabel(config?.conversion_label || "");
         setActive(data.active || false);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error loading Google Ads config:", error);
       toast.error("Erro ao carregar configuração do Google Ads");
     } finally {
@@ -92,7 +92,7 @@ export function GoogleAdsConfig() {
       }
 
       toast.success("Configuração do Google Ads salva com sucesso!");
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error saving Google Ads config:", error);
       const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
       toast.error("Erro ao salvar configuração: " + errorMessage);

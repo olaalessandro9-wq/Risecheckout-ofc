@@ -148,7 +148,7 @@ export function ConfigForm({ onConnectionChange }: { onConnectionChange?: () => 
       if (onConnectionChange) {
         onConnectionChange();
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[ConfigForm] Erro ao carregar:', error);
     } finally {
       setLoading(false);
@@ -224,7 +224,7 @@ export function ConfigForm({ onConnectionChange }: { onConnectionChange?: () => 
           setTimeout(() => loadIntegration(), 1000);
         }
       }, 500);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[ConfigForm] Erro OAuth:', error);
       toast.error('Erro ao iniciar autenticação');
       setConnectingOAuth(false);
@@ -323,7 +323,7 @@ export function ConfigForm({ onConnectionChange }: { onConnectionChange?: () => 
       if (onConnectionChange) {
         onConnectionChange();
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[ConfigForm] Erro ao desconectar:', error);
       toast.error('Erro ao desconectar');
     }

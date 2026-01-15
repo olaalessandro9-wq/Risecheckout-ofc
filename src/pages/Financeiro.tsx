@@ -113,7 +113,7 @@ export default function Financeiro() {
       setMercadoPagoConnected(!!mpResult.data);
       setStripeConnected(!!stripeResult.data);
       setAsaasConnected(!!asaasResult.data);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Erro ao carregar dados:", error);
     } finally {
       setLoadingData(false);

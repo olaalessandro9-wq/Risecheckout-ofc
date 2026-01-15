@@ -175,7 +175,7 @@ export async function sendGoogleAdsConversion(
       success: true,
       message: "Conversão enviada com sucesso",
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[Google Ads] Erro ao enviar conversão:", error);
     return {
       success: false,
@@ -299,7 +299,7 @@ export async function trackPageView(
       success: true,
       message: "PageView rastreado com sucesso",
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[Google Ads] Erro ao rastrear PageView:", error);
     return {
       success: false,
@@ -351,7 +351,7 @@ export async function trackAddToCart(
       success: true,
       message: "AddToCart rastreado com sucesso",
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[Google Ads] Erro ao rastrear AddToCart:", error);
     return {
       success: false,
@@ -401,7 +401,7 @@ export async function trackViewItem(
       success: true,
       message: "ViewItem rastreado com sucesso",
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[Google Ads] Erro ao rastrear ViewItem:", error);
     return {
       success: false,

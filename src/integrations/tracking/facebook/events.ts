@@ -51,7 +51,7 @@ export const trackEvent = (eventName: string, params?: FacebookEventParams): voi
   try {
     console.log(`[Facebook] 📡 Disparando evento: ${eventName}`, params);
     window.fbq!("track", eventName, params);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(`[Facebook] Erro ao disparar evento ${eventName}:`, error);
   }
 };
@@ -74,7 +74,7 @@ export const trackCustomEvent = (eventName: string, params?: FacebookEventParams
   try {
     console.log(`[Facebook] 📡 Disparando evento customizado: ${eventName}`, params);
     window.fbq!("trackCustom", eventName, params);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(`[Facebook] Erro ao disparar evento customizado ${eventName}:`, error);
   }
 };

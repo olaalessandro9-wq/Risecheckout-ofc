@@ -68,7 +68,7 @@ export function useKwaiConfig(vendorId?: string) {
         console.log("[Kwai] Configuração carregada com sucesso para vendor:", vendorId);
 
         return data as unknown as KwaiIntegration;
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[Kwai] Erro inesperado ao carregar config:", error);
         return null;
       }

@@ -62,7 +62,7 @@ export function ConfigForm() {
       }
 
       setStatus(statusData);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[StripeConfig] Error checking status:', error);
     } finally {
       setLoading(false);
