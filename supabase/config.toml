@@ -339,3 +339,7 @@ verify_jwt = false
 # ✅ Storage Management (centraliza operações de storage)
 [functions.storage-management]
 verify_jwt = false
+
+# ✅ PÚBLICAS (Tracking de Visitas)
+[functions.track-visit]
+verify_jwt = false

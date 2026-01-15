@@ -19,6 +19,7 @@ import { useTrackingService } from "@/hooks/checkout/useTrackingService";
 import { useAffiliateTracking } from "@/hooks/useAffiliateTracking";
 import { useTurnstileVerification } from "@/hooks/checkout/useTurnstileVerification";
 import { useCheckoutProductPixels } from "@/hooks/checkout/useCheckoutProductPixels";
+import { useVisitTracker } from "@/hooks/checkout/useVisitTracker";
 import { getSubmitSnapshot, requiredFieldsToArray, parseRequiredFields } from "@/features/checkout/personal-data";
 import * as UTMify from "@/integrations/tracking/utmify";
 import type { OrderBump } from "@/types/checkout";
@@ -41,6 +42,9 @@ interface ContentProps {
 export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, design, orderBumps }) => {
   const checkoutId = checkout.id;
   const vendorId = checkout.vendorId;
+
+  // Track visit on page load (once per session)
+  useVisitTracker(checkoutId);
 
   // Fetch product pixels from product_pixels table
   const { pixels: productPixels } = useCheckoutProductPixels(checkout.product.id);
