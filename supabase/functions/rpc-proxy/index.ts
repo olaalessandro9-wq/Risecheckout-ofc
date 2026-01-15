@@ -39,6 +39,7 @@ const PRODUCER_RPCS = [
 const ADMIN_RPCS = [
   "get_system_health_summary",
   "get_unresolved_errors",
+  "get_webhook_stats_24h",
 ];
 
 interface RpcRequest {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { getSystemHealthSummaryRpc, getUnresolvedErrorsRpc } from "@/lib/rpc/rpcProxy";
+import { getSystemHealthSummaryRpc, getUnresolvedErrorsRpc, getWebhookStats24hRpc } from "@/lib/rpc/rpcProxy";
 import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -25,31 +25,23 @@ export default function AdminHealth() {
 
   async function loadData() {
     try {
-      // Views não tipadas no Supabase - usar cast seguro
-      const { data: metricsData } = await supabase
-        .from("order_events" as "order_events") // Fallback table for type inference
-        .select("*")
-        .limit(0) as unknown as { data: null }; // Placeholder - views handled below
-      
-      // Fetch from actual views using RPC proxy
-      const { data: metricsRaw } = await getSystemHealthSummaryRpc();
-      const { data: errorsRaw } = await getUnresolvedErrorsRpc();
+      // Fetch all data via RPC proxy (bypasses RLS issues)
+      const [metricsResult, errorsResult, webhookResult] = await Promise.all([
+        getSystemHealthSummaryRpc(),
+        getUnresolvedErrorsRpc(),
+        getWebhookStats24hRpc(),
+      ]);
 
-      const { data: webhookData } = await supabase
-        .from("webhook_deliveries")
-        .select("status, attempts")
-        .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
-
-      setMetrics((metricsRaw as unknown as SystemMetric[]) || []);
-      setErrors((errorsRaw as unknown as UnresolvedError[]) || []);
+      setMetrics((metricsResult.data as unknown as SystemMetric[]) || []);
+      setErrors((errorsResult.data as unknown as UnresolvedError[]) || []);
       
-      if (webhookData) {
+      if (webhookResult.data) {
         const stats: WebhookStats = {
-          total: webhookData.length,
-          delivered: webhookData.filter(w => w.status === 'delivered').length,
-          failed: webhookData.filter(w => w.status === 'failed').length,
-          pending: webhookData.filter(w => w.status === 'pending_retry').length,
-          avgAttempts: webhookData.reduce((sum, w) => sum + w.attempts, 0) / (webhookData.length || 1)
+          total: webhookResult.data.total,
+          delivered: webhookResult.data.delivered,
+          failed: webhookResult.data.failed,
+          pending: webhookResult.data.pending,
+          avgAttempts: webhookResult.data.avg_attempts,
         };
         setWebhookStats(stats);
       }
