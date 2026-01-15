@@ -52,7 +52,7 @@ export function useGeneralTabImage({ userId, productId, currentImageUrl }: UseGe
       if (uploadError) throw uploadError;
 
       return publicUrl;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Erro ao fazer upload da imagem:", error);
       toast.error("Não foi possível fazer upload da imagem");
       throw error;

@@ -102,7 +102,7 @@ export function useGeneralTabSave({
       await refreshProduct();
       await refreshOffers();
       await refreshPaymentLinks();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Erro ao salvar:", error);
       toast.error("Não foi possível salvar o produto");
     } finally {

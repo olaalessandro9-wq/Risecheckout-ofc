@@ -33,6 +33,21 @@ interface SessionData {
   producer: ProducerProfile | null;
 }
 
+/**
+ * Ensures Supabase Auth is synced (non-blocking).
+ * The producer_session is the source of truth, so this is informational only.
+ */
+async function ensureSupabaseAuthSync(): Promise<void> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      console.info("[ProducerSession] Supabase Auth not yet synced - will sync on next login");
+    }
+  } catch {
+    // Non-blocking - producer_session is the source of truth
+  }
+}
+
 async function validateProducerSession(): Promise<SessionData> {
   const token = localStorage.getItem(SESSION_KEY);
   
@@ -42,19 +57,10 @@ async function validateProducerSession(): Promise<SessionData> {
 
   try {
     // ============================================
-    // VERIFY SUPABASE AUTH SESSION EXISTS
+    // VALIDATE PRODUCER SESSION (SOURCE OF TRUTH)
     // ============================================
-    // If no Supabase session, force re-login to re-sync
-    // This prevents 401 errors on direct supabase.from() calls
-    const { data: { session: supabaseSession } } = await supabase.auth.getSession();
-    
-    if (!supabaseSession) {
-      console.warn("[ProducerSession] Supabase Auth session expired - requiring re-login to sync");
-      localStorage.removeItem(SESSION_KEY);
-      return { valid: false, producer: null };
-    }
-
-    // Validate producer_session (custom system)
+    // The producer_session_token is the primary auth mechanism.
+    // Supabase Auth sync is handled separately (non-blocking).
     const response = await fetch(`${SUPABASE_URL}/functions/v1/producer-auth/validate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -64,13 +70,15 @@ async function validateProducerSession(): Promise<SessionData> {
     const data = await response.json();
 
     if (data.valid && data.producer) {
+      // Session is valid - attempt Supabase Auth sync (non-blocking)
+      ensureSupabaseAuthSync();
       return { valid: true, producer: data.producer };
     }
 
     // Invalid session - clear token
     localStorage.removeItem(SESSION_KEY);
     return { valid: false, producer: null };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error validating producer session:", error);
     return { valid: false, producer: null };
   }
