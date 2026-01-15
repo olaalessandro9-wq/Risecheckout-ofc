@@ -47,15 +47,15 @@ Deno.serve(async (req) => {
       return unauthorizedResponse(corsHeaders);
     }
 
-    // Check if user is admin
-    const { data: profile } = await supabase
-      .from("profiles")
+    // Check if user is admin - busca de user_roles (não profiles)
+    const { data: userRole, error: roleError } = await supabase
+      .from("user_roles")
       .select("role")
-      .eq("id", producer.id)
+      .eq("user_id", producer.id)
       .single();
 
-    if (!profile || (profile.role !== "admin" && profile.role !== "owner")) {
-      console.warn(`[admin-health] Acesso negado para producer ${producer.id} com role ${profile?.role}`);
+    if (roleError || !userRole || (userRole.role !== "admin" && userRole.role !== "owner")) {
+      console.warn(`[admin-health] Acesso negado para producer ${producer.id} com role ${userRole?.role || 'não encontrada'}`);
       return new Response(
         JSON.stringify({ success: false, error: "Acesso restrito a administradores" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }

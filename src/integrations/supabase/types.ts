@@ -4159,6 +4159,30 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_system_health_summary: {
+        Args: { time_range?: unknown }
+        Returns: {
+          avg_value: number
+          error_count: number
+          event_count: number
+          hour: string
+          metric_type: string
+        }[]
+      }
+      get_unresolved_errors: {
+        Args: { limit_count?: number; offset_count?: number }
+        Returns: {
+          error_message: string
+          error_stack: string
+          error_timestamp: string
+          function_name: string
+          id: string
+          notes: string
+          order_id: string
+          request_payload: Json
+          user_id: string
+        }[]
+      }
       get_user_email: { Args: { user_id: string }; Returns: string }
       get_user_id_by_email: { Args: { user_email: string }; Returns: string }
       get_user_role: { Args: { p_user_id: string }; Returns: string }
