@@ -193,25 +193,48 @@ export default function AdminHealth() {
         </Card>
       </div>
 
-      {pixCreatedData.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Criação de PIX - Últimas 24h</CardTitle>
-          </CardHeader>
-          <CardContent>
+      <Card>
+        <CardHeader>
+          <CardTitle>Criação de PIX - Últimas 24h</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {pixCreatedData.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={pixCreatedData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="hour" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="count" fill="hsl(var(--primary))" name="PIX criados" />
-                <Bar dataKey="errors" fill="hsl(var(--destructive))" name="Erros" />
+              <BarChart data={pixCreatedData} barCategoryGap="20%">
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="hour" className="text-xs" />
+                <YAxis allowDecimals={false} className="text-xs" />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '6px'
+                  }} 
+                />
+                <Bar 
+                  dataKey="count" 
+                  fill="hsl(var(--chart-1, 142 76% 36%))" 
+                  name="PIX criados" 
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={50}
+                />
+                <Bar 
+                  dataKey="errors" 
+                  fill="hsl(var(--destructive))" 
+                  name="Erros" 
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={50}
+                />
               </BarChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
+          ) : (
+            <div className="flex flex-col items-center justify-center h-[250px] text-muted-foreground">
+              <TrendingUp className="h-12 w-12 mb-2 opacity-50" />
+              <p className="text-sm">Nenhum PIX criado nas últimas 24h</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {errors.length > 0 && (
         <Card>

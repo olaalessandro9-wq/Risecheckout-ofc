@@ -20,7 +20,8 @@ export function useVisitTracker(checkoutId: string | undefined): void {
   useEffect(() => {
     if (!checkoutId || hasTracked.current) return;
 
-    const sessionKey = `visit_tracked_${checkoutId}`;
+    // v2: Nova chave para garantir tracking após reset de dados
+    const sessionKey = `visit_tracked_v2_${checkoutId}`;
     
     // Prevent duplicate tracking in same session
     if (sessionStorage.getItem(sessionKey)) {

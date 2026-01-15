@@ -4162,7 +4162,6 @@ export type Database = {
       get_system_health_summary: {
         Args: never
         Returns: {
-          avg_value: number
           error_count: number
           event_count: number
           hour: string
@@ -4194,16 +4193,7 @@ export type Database = {
           test_mode_enabled: boolean
         }[]
       }
-      get_webhook_stats_24h: {
-        Args: never
-        Returns: {
-          avg_attempts: number
-          delivered: number
-          failed: number
-          pending: number
-          total: number
-        }[]
-      }
+      get_webhook_stats_24h: { Args: never; Returns: Json }
       has_active_payment_link_for_checkout: {
         Args: { p_checkout_id: string }
         Returns: boolean
