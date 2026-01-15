@@ -95,18 +95,37 @@ export function useMercadoPagoConnection({
     }
   }, [userId, loadIntegration]);
 
-  // OAuth success listener
+  // OAuth success listener - Enhanced with multiple message formats
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'mercadopago_oauth_success') {
-        console.log('[useMercadoPagoConnection] OAuth success received');
+      console.log('[useMercadoPagoConnection] postMessage recebido:', event.data);
+      
+      // Accept multiple message formats for compatibility
+      const messageType = event.data?.type;
+      const isSuccess = 
+        messageType === 'mercadopago_oauth_success' ||
+        messageType === 'mercadopago-connected' ||
+        messageType === 'oauth_success';
+      
+      if (isSuccess) {
+        console.log('[useMercadoPagoConnection] OAuth success detected!');
         toast.success('Conta do Mercado Pago conectada com sucesso!');
-        loadIntegration();
+        
+        // Delay to ensure database has been updated
+        setTimeout(() => {
+          console.log('[useMercadoPagoConnection] Recarregando integração...');
+          loadIntegration();
+        }, 800);
       }
     };
 
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+    console.log('[useMercadoPagoConnection] postMessage listener registrado');
+    
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      console.log('[useMercadoPagoConnection] postMessage listener removido');
+    };
   }, [loadIntegration]);
 
   const handleConnectOAuth = useCallback(async () => {
