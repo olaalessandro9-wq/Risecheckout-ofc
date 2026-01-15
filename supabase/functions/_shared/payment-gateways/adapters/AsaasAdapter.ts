@@ -34,8 +34,8 @@ import { IPaymentGateway } from "../IPaymentGateway.ts";
 import { PaymentRequest, PaymentResponse } from "../types.ts";
 import { CircuitBreaker, CircuitOpenError, GATEWAY_CIRCUIT_CONFIGS } from "../../circuit-breaker.ts";
 
-// Importar helpers modulares
-import { findOrCreateCustomer, type AsaasCustomer } from "./asaas-customer-helper.ts";
+// Importar helpers modulares - UNIFICADO para RISE Protocol V2
+import { findOrCreateCustomer, type AsaasCustomer } from "../../asaas-customer.ts";
 import { 
   createPayment, 
   getPixQrCode, 
