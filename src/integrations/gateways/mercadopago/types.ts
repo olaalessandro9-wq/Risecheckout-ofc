@@ -6,6 +6,18 @@
  * pela integração do Mercado Pago no RiseCheckout.
  */
 
+// ========== Connection Types ==========
+
+export type ConnectionMode = 'none' | 'production' | 'sandbox';
+
+export interface IntegrationData {
+  id: string;
+  mode: ConnectionMode;
+  isTest: boolean;
+  email?: string;
+  userId?: string;
+}
+
 /**
  * Tipo para propriedades dinâmicas de gateway
  * Mais específico que `any`
