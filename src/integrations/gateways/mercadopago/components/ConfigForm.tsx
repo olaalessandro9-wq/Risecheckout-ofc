@@ -14,7 +14,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { Loader2, Check, AlertCircle, Eye, EyeOff, CheckCircle2, CreditCard, Info, ExternalLink, XCircle, FlaskConical, Rocket } from "lucide-react";
+import { Loader2, AlertCircle, Eye, EyeOff, CheckCircle2, CreditCard, Info, ExternalLink, FlaskConical, Rocket, RefreshCw } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -216,12 +216,26 @@ export function ConfigForm({ onConnectionChange }: { onConnectionChange?: () => 
         return;
       }
 
-      // Monitorar popup
+      // Monitorar popup com fallback robusto
+      let popupCheckCount = 0;
+      const maxChecks = 120; // 60 segundos máximo
+      
       const checkPopup = setInterval(() => {
+        popupCheckCount++;
+        
         if (popup.closed) {
           clearInterval(checkPopup);
           setConnectingOAuth(false);
-          setTimeout(() => loadIntegration(), 1000);
+          // Dar tempo para o postMessage chegar antes de recarregar
+          setTimeout(() => {
+            console.log('[ConfigForm] Popup fechado, recarregando integração...');
+            loadIntegration();
+          }, 500);
+        } else if (popupCheckCount >= maxChecks) {
+          // Timeout - popup ainda aberto após 60s
+          clearInterval(checkPopup);
+          setConnectingOAuth(false);
+          toast.info('Se você completou o OAuth, clique em "Atualizar Status"');
         }
       }, 500);
     } catch (error: unknown) {
@@ -363,22 +377,35 @@ export function ConfigForm({ onConnectionChange }: { onConnectionChange?: () => 
                 </p>
               </div>
             </div>
-            {currentMode !== 'none' && (
-              <div className={`flex items-center gap-2 px-4 py-2 rounded-full border ${
-                currentMode === 'production' 
-                  ? 'bg-green-500/20 border-green-500/30' 
-                  : 'bg-yellow-500/20 border-yellow-500/30'
-              }`}>
-                <CheckCircle2 className={`h-4 w-4 ${
-                  currentMode === 'production' ? 'text-green-500' : 'text-yellow-500'
-                }`} />
-                <span className={`text-sm font-semibold ${
-                  currentMode === 'production' ? 'text-green-500' : 'text-yellow-500'
+            <div className="flex items-center gap-3">
+              {/* Botão de refresh manual */}
+              <button
+                onClick={() => {
+                  toast.info('Atualizando status...');
+                  loadIntegration();
+                }}
+                className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                title="Atualizar status"
+              >
+                <RefreshCw className="h-5 w-5 text-muted-foreground" />
+              </button>
+              {currentMode !== 'none' && (
+                <div className={`flex items-center gap-2 px-4 py-2 rounded-full border ${
+                  currentMode === 'production' 
+                    ? 'bg-green-500/20 border-green-500/30' 
+                    : 'bg-yellow-500/20 border-yellow-500/30'
                 }`}>
-                  {currentMode === 'production' ? 'PRODUÇÃO' : 'SANDBOX'}
-                </span>
-              </div>
-            )}
+                  <CheckCircle2 className={`h-4 w-4 ${
+                    currentMode === 'production' ? 'text-green-500' : 'text-yellow-500'
+                  }`} />
+                  <span className={`text-sm font-semibold ${
+                    currentMode === 'production' ? 'text-green-500' : 'text-yellow-500'
+                  }`}>
+                    {currentMode === 'production' ? 'PRODUÇÃO' : 'SANDBOX'}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

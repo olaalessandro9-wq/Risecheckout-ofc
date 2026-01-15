@@ -103,6 +103,38 @@ serve(async (req) => {
       const vendorId = producer.id;
       logStep("Starting OAuth for vendor", { vendorId });
 
+      // ✅ VALIDAÇÃO OBRIGATÓRIA: Verificar STRIPE_CLIENT_ID antes de prosseguir
+      const stripeClientId = Deno.env.get("STRIPE_CLIENT_ID");
+      if (!stripeClientId || stripeClientId.trim() === "" || stripeClientId.includes("PLACEHOLDER")) {
+        logStep("ERROR: STRIPE_CLIENT_ID not configured or invalid", { clientId: stripeClientId ? "***" : "empty" });
+        return new Response(
+          JSON.stringify({ 
+            error: "Stripe não está configurado corretamente. STRIPE_CLIENT_ID ausente ou inválido.",
+            code: "STRIPE_CONFIG_ERROR"
+          }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 500 
+          }
+        );
+      }
+
+      // Validar STRIPE_REDIRECT_URL
+      const redirectUri = Deno.env.get("STRIPE_REDIRECT_URL");
+      if (!redirectUri || redirectUri.trim() === "" || redirectUri.includes("PLACEHOLDER")) {
+        logStep("ERROR: STRIPE_REDIRECT_URL not configured", { redirectUri: redirectUri ? "***" : "empty" });
+        return new Response(
+          JSON.stringify({ 
+            error: "Stripe não está configurado corretamente. STRIPE_REDIRECT_URL ausente.",
+            code: "STRIPE_CONFIG_ERROR"
+          }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 500 
+          }
+        );
+      }
+
       // Gerar state único para CSRF protection
       const state = crypto.randomUUID();
       
@@ -113,22 +145,19 @@ serve(async (req) => {
         expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(), // 10 min
       });
 
-      // Construir URL de autorização Stripe Connect
-      // Usar STRIPE_REDIRECT_URL se configurado (para produção),
-      // senão fallback para SUPABASE_URL (desenvolvimento)
-      const redirectUri = Deno.env.get("STRIPE_REDIRECT_URL") 
-        || `${Deno.env.get("SUPABASE_URL")}/functions/v1/stripe-connect-oauth?action=callback`;
-
       // Stripe Connect OAuth URL
       const stripeConnectUrl = new URL("https://connect.stripe.com/oauth/authorize");
       stripeConnectUrl.searchParams.set("response_type", "code");
-      stripeConnectUrl.searchParams.set("client_id", Deno.env.get("STRIPE_CLIENT_ID") || "");
+      stripeConnectUrl.searchParams.set("client_id", stripeClientId);
       stripeConnectUrl.searchParams.set("scope", "read_write");
       stripeConnectUrl.searchParams.set("redirect_uri", redirectUri);
       stripeConnectUrl.searchParams.set("state", state);
       stripeConnectUrl.searchParams.set("stripe_user[country]", "BR");
 
-      logStep("OAuth URL generated", { url: stripeConnectUrl.toString() });
+      logStep("OAuth URL generated", { 
+        clientIdPrefix: stripeClientId.substring(0, 6) + "...",
+        redirectUri 
+      });
 
       return new Response(
         JSON.stringify({ 
@@ -155,7 +184,7 @@ serve(async (req) => {
         logStep("OAuth error", { error, errorDescription });
         const frontendUrl = Deno.env.get("FRONTEND_URL") || "https://risecheckout.com";
         return Response.redirect(
-          `${frontendUrl}/financeiro?stripe_error=${encodeURIComponent(errorDescription || error)}`,
+          `${frontendUrl}/dashboard/financeiro?stripe_error=${encodeURIComponent(errorDescription || error)}`,
           302
         );
       }
@@ -268,7 +297,7 @@ serve(async (req) => {
       // Redirecionar para frontend com sucesso
       const frontendUrl = Deno.env.get("FRONTEND_URL") || "https://risecheckout.com";
       return Response.redirect(
-        `${frontendUrl}/financeiro?stripe_success=true&account=${stripeAccountId}`,
+        `${frontendUrl}/dashboard/financeiro?stripe_success=true&account=${stripeAccountId}`,
         302
       );
     }
