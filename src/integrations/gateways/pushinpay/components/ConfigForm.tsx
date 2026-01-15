@@ -11,7 +11,8 @@ import { useState, useEffect } from "react";
 import { Loader2, CheckCircle2, AlertCircle, ChevronDown, Eye, EyeOff, Info, User } from "lucide-react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { toast } from "@/components/ui/sonner";
-import { savePushinPaySettings, getPushinPaySettings, fetchPushinPayAccountInfo } from "../api";
+import { savePushinPaySettings, getPushinPaySettings } from "../api";
+import { supabase } from "@/integrations/supabase/client";
 import type { PushinPayEnvironment, PushinPaySettings, PushinPayAccountInfo } from "../types";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/hooks/useAuth";
@@ -115,20 +116,27 @@ export function ConfigForm() {
         setValidatingToken(true);
         setMessage({ type: "info", text: "Verificando token com a PushinPay..." });
         
-        const fetchedAccountInfo = await fetchPushinPayAccountInfo(tokenToSave, environment);
+        // ✅ Usar Edge Function em vez de fetch direto (CSP + Segurança)
+        const { data: validationResult, error: validationError } = await supabase.functions.invoke(
+          'pushinpay-validate-token',
+          { body: { api_token: tokenToSave, environment } }
+        );
+        
         setValidatingToken(false);
         
-        if (!fetchedAccountInfo) {
-          setMessage({ type: "error", text: "Token inválido ou sem permissão. Verifique se o token está correto e se possui acesso à API." });
+        if (validationError || !validationResult?.valid) {
+          const errorMsg = validationResult?.error || validationError?.message || "Token inválido ou sem permissão";
+          setMessage({ type: "error", text: errorMsg });
           setLoading(false);
           return;
         }
         
         // Usar account_id retornado pela API
-        accountIdToSave = fetchedAccountInfo.id;
+        const fetchedAccountInfo = validationResult.account;
+        accountIdToSave = fetchedAccountInfo?.id || null;
         setAccountInfo(fetchedAccountInfo);
         
-        console.log("[PushinPay] Conta validada:", fetchedAccountInfo.name, "ID:", fetchedAccountInfo.id);
+        console.log("[PushinPay] Conta validada:", fetchedAccountInfo?.name, "ID:", fetchedAccountInfo?.id);
       }
 
       // Build settings object conditionally

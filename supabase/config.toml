@@ -123,6 +123,9 @@ verify_jwt = false
 [functions.pushinpay-get-status]
 verify_jwt = false
 
+[functions.pushinpay-validate-token]
+verify_jwt = false
+
 # ✅ PÚBLICAS (Diagnóstico e Health Check)
 [functions.check-secrets]
 verify_jwt = false

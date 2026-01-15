@@ -99,7 +99,11 @@ export function ConfigForm({ onConnectionChange }: ConfigFormProps) {
 
     if (result.valid) {
       setIsValidated(true);
-      setWalletId(result.walletId);
+      // ✅ Só atualizar walletId se a API retornar um valor válido
+      // NÃO sobrescrever o walletId manual digitado pelo usuário
+      if (result.walletId) {
+        setWalletId(result.walletId);
+      }
       toast({
         title: 'Credenciais válidas',
         description: result.accountName
@@ -108,7 +112,8 @@ export function ConfigForm({ onConnectionChange }: ConfigFormProps) {
       });
     } else {
       setIsValidated(false);
-      setWalletId(undefined);
+      // ✅ NÃO apagar o walletId manual - apenas marcar como inválido
+      // O usuário pode ter digitado um walletId válido mesmo com API key inválida
       toast({
         title: 'Credenciais inválidas',
         description: result.message || 'Verifique sua API Key e tente novamente',

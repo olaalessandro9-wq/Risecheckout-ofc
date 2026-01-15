@@ -169,7 +169,7 @@ export async function getPushinPaySettings(userId: string): Promise<PushinPaySet
     .from("payment_gateway_settings")
     .select("environment, pushinpay_account_id, pushinpay_token")
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
 
   if (error || !data) {
     return null;

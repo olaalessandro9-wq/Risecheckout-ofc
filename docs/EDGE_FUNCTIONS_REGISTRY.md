@@ -10,8 +10,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 92 |
-| **No código local** | 92 |
+| **Total de Funções** | 93 |
+| **No código local** | 93 |
 | **Apenas deployadas** | 0 |
 | **Operações Diretas Frontend** | 0 ✅ |
 | **Base URL** | `https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/` |
@@ -67,6 +67,7 @@
 | `pushinpay-webhook` | `.../pushinpay-webhook` | ✅ | 10 min ago | 420 |
 | `pushinpay-stats` | `.../pushinpay-stats` | ✅ | 10 min ago | 103 |
 | `test-pushinpay-connection` | `.../test-pushinpay-connection` | ✅ | 10 min ago | 103 |
+| `pushinpay-validate-token` | `.../pushinpay-validate-token` | ✅ | NEW | 0 |
 
 ### Payments - MercadoPago
 
@@ -269,6 +270,10 @@
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-15 | **FIX GATEWAYS**: Criada `pushinpay-validate-token` - validação de token via backend (elimina CSP + segurança) |
+| 2026-01-15 | **FIX GATEWAYS**: Corrigido CORS em `stripe-connect-oauth` - adicionado `x-producer-session-token` aos headers |
+| 2026-01-15 | **FIX GATEWAYS**: Corrigido 406 em PushinPay API - `.single()` → `.maybeSingle()` |
+| 2026-01-15 | **FIX GATEWAYS**: Corrigido walletId persistente em Asaas ConfigForm - não apaga mais valor manual |
 | 2026-01-15 | **VAULT UNIFICADO**: `vault-save` atualizado para usar convenção `gateway_{type}_{vendor_id}` via RPC `save_gateway_credentials` |
 | 2026-01-15 | Correção: Arquitetura Vault unificada - todas as integrações agora usam mesma convenção que OAuth callbacks |
 | 2026-01-15 | Sincronização: `asaas-validate-credentials` e `check-secrets` adicionadas ao código local (eram deployed-only) |
