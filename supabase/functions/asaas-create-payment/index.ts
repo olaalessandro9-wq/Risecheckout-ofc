@@ -19,48 +19,26 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // Módulos compartilhados
-import { 
-  calculatePlatformFeeCents,
-  PLATFORM_FEE_PERCENT,
-  getGatewayCredentials,
-  validateCredentials
-} from "../_shared/platform-config.ts";
-import { findOrCreateCustomer, CustomerData } from "../_shared/asaas-customer.ts";
+import { getGatewayCredentials, validateCredentials } from "../_shared/platform-config.ts";
+import { findOrCreateCustomer } from "../_shared/asaas-customer.ts";
 import { calculateMarketplaceSplitData } from "../_shared/asaas-split-calculator.ts";
-import { checkRateLimit, recordAttempt, getIdentifier } from "../_shared/rate-limit.ts";
+import { getIdentifier } from "../_shared/rate-limit.ts";
 import { logSecurityEvent, SecurityAction } from "../_shared/audit-logger.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Handlers locais
+import { 
+  PaymentRequest,
+  checkPaymentRateLimit, 
+  recordPaymentAttempt,
+  validatePaymentPayload,
+  resolveVendorId
+} from "./handlers/validation.ts";
+import { buildSplitRules } from "./handlers/split-builder.ts";
+import { buildChargePayload, createAsaasCharge, getPixQrCode, triggerPixGeneratedWebhook } from "./handlers/charge-creator.ts";
+import { corsHeaders, createSuccessResponse, createErrorResponse, createRateLimitResponse } from "./handlers/response-builder.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-
-// Configuração de rate limiting
-const RATE_LIMIT_CONFIG = {
-  maxAttempts: 10,
-  windowMs: 60 * 1000, // 1 minuto
-  action: 'asaas_create_payment'
-};
-
-interface AsaasSplitRule {
-  walletId: string;
-  fixedValue?: number;
-  percentualValue?: number;
-}
-
-interface PaymentRequest {
-  vendorId?: string; // Agora opcional - será buscado da order se não fornecido
-  orderId: string;
-  amountCents: number;
-  paymentMethod: 'pix' | 'credit_card';
-  customer: CustomerData;
-  description?: string;
-  cardToken?: string;
-  installments?: number;
-}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -68,35 +46,13 @@ serve(async (req) => {
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-  // ==========================================
-  // RATE LIMITING
-  // ==========================================
   const identifier = getIdentifier(req);
-  const rateLimitResult = await checkRateLimit(supabase, {
-    ...RATE_LIMIT_CONFIG,
-    identifier
-  });
 
+  // Rate Limiting
+  const rateLimitResult = await checkPaymentRateLimit(supabase, identifier);
   if (!rateLimitResult.allowed) {
     console.warn('[asaas-create-payment] Rate limit exceeded:', identifier);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: 'Too many requests',
-        message: `Rate limit exceeded. Try again in ${rateLimitResult.retryAfter} seconds.`,
-        retryAfter: rateLimitResult.retryAfter
-      }),
-      {
-        status: 429,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json',
-          'Retry-After': rateLimitResult.retryAfter?.toString() || '60',
-          'X-RateLimit-Remaining': '0'
-        }
-      }
-    );
+    return createRateLimitResponse(rateLimitResult.retryAfter);
   }
 
   try {
@@ -104,7 +60,6 @@ serve(async (req) => {
     
     console.log('[asaas-create-payment] ========================================');
     console.log('[asaas-create-payment] 🏪 MODELO MARKETPLACE ASAAS');
-    console.log('[asaas-create-payment] ========================================');
     console.log('[asaas-create-payment] Payload:', JSON.stringify({
       orderId: payload.orderId,
       vendorId: payload.vendorId,
@@ -113,358 +68,136 @@ serve(async (req) => {
       hasCardToken: !!payload.cardToken
     }, null, 2));
 
-    const { orderId, amountCents, paymentMethod, customer, description, cardToken, installments } = payload;
-    let { vendorId } = payload; // vendorId agora é opcional
-
-    // Validações básicas (sem vendorId - será buscado da order)
-    if (!orderId || !amountCents || !customer) {
-      await recordAttempt(supabase, { ...RATE_LIMIT_CONFIG, identifier }, false);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Campos obrigatórios: orderId, amountCents, customer' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (paymentMethod === 'credit_card' && !cardToken) {
-      await recordAttempt(supabase, { ...RATE_LIMIT_CONFIG, identifier }, false);
-      return new Response(
-        JSON.stringify({ success: false, error: 'cardToken é obrigatório para pagamento com cartão' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // ==========================================
-    // BUSCAR VENDOR_ID DA ORDER (se não fornecido)
-    // ==========================================
-    if (!vendorId) {
-      console.log('[asaas-create-payment] vendorId não fornecido, buscando da order...');
-      
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .select('vendor_id')
-        .eq('id', orderId)
-        .maybeSingle();
-
-      if (orderError || !orderData) {
-        console.error('[asaas-create-payment] Erro ao buscar order:', orderError);
-        await recordAttempt(supabase, { ...RATE_LIMIT_CONFIG, identifier }, false);
-        return new Response(
-          JSON.stringify({ success: false, error: 'Pedido não encontrado' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      vendorId = orderData.vendor_id;
-      console.log('[asaas-create-payment] ✅ vendorId obtido da order:', vendorId);
-    }
-
-    // Garantir que vendorId existe neste ponto
-    const resolvedVendorId: string = vendorId!;
-
-    // ==========================================
-    // 1. BUSCAR CREDENCIAIS DINAMICAMENTE
-    // ==========================================
-    const { credentials, isOwner: isCredentialsOwner } = await getGatewayCredentials(supabase, resolvedVendorId, 'asaas');
-
-    const validation = validateCredentials('asaas', credentials);
+    // Validação do payload
+    const validation = validatePaymentPayload(payload);
     if (!validation.valid) {
-      console.error('[asaas-create-payment] ❌ Credenciais inválidas:', validation.missingFields);
-      await recordAttempt(supabase, { ...RATE_LIMIT_CONFIG, identifier }, false);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: `Credenciais Asaas faltando: ${validation.missingFields.join(', ')}` 
-        }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      await recordPaymentAttempt(supabase, identifier, false);
+      return createErrorResponse(validation.error!, validation.statusCode);
+    }
+
+    // Resolver vendorId
+    const vendorResult = await resolveVendorId(supabase, payload.orderId, payload.vendorId);
+    if (vendorResult.error) {
+      await recordPaymentAttempt(supabase, identifier, false);
+      return createErrorResponse(vendorResult.error, 404);
+    }
+    const vendorId = vendorResult.vendorId!;
+
+    // Buscar credenciais
+    const { credentials, isOwner } = await getGatewayCredentials(supabase, vendorId, 'asaas');
+    const credValidation = validateCredentials('asaas', credentials);
+    if (!credValidation.valid) {
+      console.error('[asaas-create-payment] ❌ Credenciais inválidas:', credValidation.missingFields);
+      await recordPaymentAttempt(supabase, identifier, false);
+      return createErrorResponse(`Credenciais Asaas faltando: ${credValidation.missingFields.join(', ')}`, 500);
     }
 
     const baseUrl = credentials.environment === 'sandbox'
       ? 'https://sandbox.asaas.com/api/v3'
       : 'https://api.asaas.com/v3';
+    const apiKey = credentials.apiKey!;
 
-    const PLATFORM_API_KEY = credentials.apiKey!;
-
-    console.log(`[asaas-create-payment] 🔑 Credenciais: ${isCredentialsOwner ? 'Owner' : 'Vendor'}`);
+    console.log(`[asaas-create-payment] 🔑 Credenciais: ${isOwner ? 'Owner' : 'Vendor'}`);
     console.log(`[asaas-create-payment] 🌐 Ambiente: ${credentials.environment.toUpperCase()}`);
 
-    // ==========================================
-    // 2. CALCULAR SPLIT (módulo externo)
-    // ==========================================
-    const splitData = await calculateMarketplaceSplitData(supabase, orderId, resolvedVendorId);
-    
-    console.log('[asaas-create-payment] ========================================');
-    console.log('[asaas-create-payment] SPLIT CALCULADO:');
-    console.log(`[asaas-create-payment] - É Owner: ${splitData.isOwner}`);
-    console.log(`[asaas-create-payment] - Tem Afiliado: ${splitData.hasAffiliate}`);
-    console.log(`[asaas-create-payment] - Affiliate Wallet: ${splitData.affiliateWalletId || 'N/A'}`);
-    console.log(`[asaas-create-payment] - Affiliate %: ${splitData.affiliateCommissionPercent}%`);
-    console.log('[asaas-create-payment] ========================================');
+    // Calcular split
+    const splitData = await calculateMarketplaceSplitData(supabase, payload.orderId, vendorId);
+    console.log('[asaas-create-payment] SPLIT:', JSON.stringify(splitData));
 
-    // ==========================================
-    // 3. CRIAR CUSTOMER (módulo externo)
-    // ==========================================
-    const asaasCustomer = await findOrCreateCustomer(baseUrl, PLATFORM_API_KEY, customer);
+    // Criar customer
+    const asaasCustomer = await findOrCreateCustomer(baseUrl, apiKey, payload.customer);
     if (!asaasCustomer) {
-      await recordAttempt(supabase, { ...RATE_LIMIT_CONFIG, identifier }, false);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Erro ao criar/buscar cliente no Asaas' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      await recordPaymentAttempt(supabase, identifier, false);
+      return createErrorResponse('Erro ao criar/buscar cliente no Asaas', 500);
     }
 
-    // ==========================================
-    // 4. MONTAR SPLIT RULES
-    // ==========================================
-    const splitRules: AsaasSplitRule[] = [];
-    let platformFeeCents = 0;
-    let affiliateCommissionCents = 0;
-    let vendorNetCents = amountCents;
-    
-    if (splitData.isOwner) {
-      if (splitData.hasAffiliate && splitData.affiliateWalletId && splitData.affiliateCommissionPercent > 0) {
-        const adjustedAffiliatePercent = splitData.affiliateCommissionPercent * (1 - PLATFORM_FEE_PERCENT);
-        
-        splitRules.push({
-          walletId: splitData.affiliateWalletId,
-          percentualValue: adjustedAffiliatePercent
-        });
-        
-        platformFeeCents = calculatePlatformFeeCents(amountCents);
-        const netAfterFee = amountCents - platformFeeCents;
-        affiliateCommissionCents = Math.floor(netAfterFee * (splitData.affiliateCommissionPercent / 100));
-        vendorNetCents = netAfterFee - affiliateCommissionCents;
-        
-        console.log(`[asaas-create-payment] 🏠 OWNER + AFILIADO: Split ${adjustedAffiliatePercent.toFixed(2)}%`);
-        
-      } else if (splitData.hasAffiliate && !splitData.affiliateWalletId) {
-        console.warn(`[asaas-create-payment] ⚠️ Afiliado sem wallet! Venda sem split.`);
-      } else {
-        console.log(`[asaas-create-payment] 🏠 OWNER DIRETO: 100% RiseCheckout`);
-      }
-      
-    } else {
-      if (!splitData.vendorWalletId) {
-        console.error(`[asaas-create-payment] ❌ Vendedor sem asaas_wallet_id!`);
-        await recordAttempt(supabase, { ...RATE_LIMIT_CONFIG, identifier }, false);
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: 'Configure seu Wallet ID Asaas em Configurações > Financeiro' 
-          }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      splitRules.push({
-        walletId: splitData.vendorWalletId,
-        percentualValue: 96
-      });
-      
-      platformFeeCents = calculatePlatformFeeCents(amountCents);
-      vendorNetCents = amountCents - platformFeeCents;
-      
-      console.log(`[asaas-create-payment] 👤 VENDEDOR: 96% → ${splitData.vendorWalletId.substring(0, 15)}...`);
+    // Montar split rules
+    const splitResult = buildSplitRules(splitData, payload.amountCents);
+    if (splitResult.error) {
+      await recordPaymentAttempt(supabase, identifier, false);
+      return createErrorResponse(splitResult.error, 400);
     }
 
-    // ==========================================
-    // 5. CRIAR COBRANÇA
-    // ==========================================
-    const billingType = paymentMethod === 'pix' ? 'PIX' : 'CREDIT_CARD';
-    const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + 1);
-
-    const chargePayload: Record<string, unknown> = {
-      customer: asaasCustomer.id,
-      billingType,
-      value: amountCents / 100,
-      dueDate: dueDate.toISOString().split('T')[0],
-      externalReference: orderId,
-      description: description || `Pedido ${orderId}`
-    };
-
-    if (splitRules.length > 0) {
-      chargePayload.split = splitRules;
-      console.log(`[asaas-create-payment] 📦 Split: ${JSON.stringify(splitRules)}`);
-    }
-
-    if (paymentMethod === 'credit_card') {
-      chargePayload.installmentCount = installments || 1;
-      try {
-        const cardData = JSON.parse(cardToken!);
-        if (cardData.creditCardToken) {
-          chargePayload.creditCardToken = cardData.creditCardToken;
-        } else {
-          chargePayload.creditCard = cardData.creditCard;
-          chargePayload.creditCardHolderInfo = cardData.creditCardHolderInfo;
-        }
-      } catch {
-        chargePayload.creditCardToken = cardToken;
-      }
-    }
-
-    console.log('[asaas-create-payment] Criando cobrança...');
-
-    const chargeResponse = await fetch(`${baseUrl}/payments`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'access_token': PLATFORM_API_KEY
-      },
-      body: JSON.stringify(chargePayload)
+    // Criar cobrança
+    const chargePayload = buildChargePayload({
+      customerId: asaasCustomer.id,
+      orderId: payload.orderId,
+      amountCents: payload.amountCents,
+      paymentMethod: payload.paymentMethod,
+      description: payload.description,
+      splitRules: splitResult.splitRules,
+      cardToken: payload.cardToken,
+      installments: payload.installments
     });
 
-    const chargeData = await chargeResponse.json();
-
-    if (!chargeResponse.ok) {
-      console.error('[asaas-create-payment] Erro:', chargeData);
-      await recordAttempt(supabase, { ...RATE_LIMIT_CONFIG, identifier }, false);
-      
-      const errorMsg = chargeData.errors?.[0]?.description || chargeData.message || 'Erro ao criar cobrança';
-      return new Response(
-        JSON.stringify({ success: false, error: errorMsg }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    const chargeResult = await createAsaasCharge(baseUrl, apiKey, chargePayload);
+    if (!chargeResult.success) {
+      await recordPaymentAttempt(supabase, identifier, false);
+      return createErrorResponse(chargeResult.error!, 400);
     }
 
-    console.log('[asaas-create-payment] ✅ Cobrança criada:', chargeData.id);
+    const chargeData = chargeResult.chargeData!;
 
-    // ==========================================
-    // 6. ATUALIZAR ORDEM
-    // ==========================================
+    // Atualizar ordem
     await supabase
       .from('orders')
       .update({
-        platform_fee_cents: platformFeeCents,
-        commission_cents: affiliateCommissionCents,
+        platform_fee_cents: splitResult.platformFeeCents,
+        commission_cents: splitResult.affiliateCommissionCents,
         gateway_payment_id: chargeData.id
       })
-      .eq('id', orderId);
+      .eq('id', payload.orderId);
 
-    // ==========================================
-    // 7. SE PIX, OBTER QR CODE
-    // ==========================================
+    // Se PIX, obter QR Code e disparar webhook
     let qrCode: string | undefined;
     let qrCodeText: string | undefined;
 
-    if (paymentMethod === 'pix') {
-      const qrResponse = await fetch(`${baseUrl}/payments/${chargeData.id}/pixQrCode`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'access_token': PLATFORM_API_KEY
-        }
-      });
+    if (payload.paymentMethod === 'pix') {
+      const qrResult = await getPixQrCode(baseUrl, apiKey, chargeData.id as string);
+      qrCode = qrResult.qrCode;
+      qrCodeText = qrResult.qrCodeText;
 
-      if (qrResponse.ok) {
-        const qrData = await qrResponse.json();
-        qrCode = qrData.encodedImage;
-        qrCodeText = qrData.payload;
-        console.log('[asaas-create-payment] QR Code obtido');
-      }
-      
-      // ==========================================
-      // 7.1 DISPARAR WEBHOOK pix_generated
-      // ==========================================
-      try {
-        const internalSecret = Deno.env.get('INTERNAL_WEBHOOK_SECRET') || 'default-internal-secret';
-        
-        console.log('[asaas-create-payment] Disparando webhook pix_generated...');
-        
-        const webhookResponse = await fetch(
-          `${SUPABASE_URL}/functions/v1/trigger-webhooks`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-              'X-Internal-Secret': internalSecret
-            },
-            body: JSON.stringify({
-              order_id: orderId,
-              event_type: 'pix_generated'
-            })
-          }
-        );
-
-        if (webhookResponse.ok) {
-          console.log('[asaas-create-payment] ✅ Webhook pix_generated disparado');
-        } else {
-          const errorText = await webhookResponse.text();
-          console.warn('[asaas-create-payment] ⚠️ Webhook pix_generated falhou:', errorText);
-        }
-      } catch (webhookError) {
-        console.warn('[asaas-create-payment] ⚠️ Erro ao disparar webhook:', webhookError);
-        // Não bloquear o fluxo principal
-      }
+      await triggerPixGeneratedWebhook(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, payload.orderId);
     }
 
-    // ==========================================
-    // 8. REGISTRAR SUCESSO E AUDIT LOG
-    // ==========================================
-    await recordAttempt(supabase, { ...RATE_LIMIT_CONFIG, identifier }, true);
+    // Registrar sucesso
+    await recordPaymentAttempt(supabase, identifier, true);
     
-    // Audit log para rastreabilidade
     await logSecurityEvent(supabase, {
-      userId: resolvedVendorId,
+      userId: vendorId,
       action: SecurityAction.PROCESS_PAYMENT,
       resource: 'orders',
-      resourceId: orderId,
+      resourceId: payload.orderId,
       success: true,
       request: req,
       metadata: {
         gateway: 'asaas',
-        paymentMethod,
-        amountCents,
+        paymentMethod: payload.paymentMethod,
+        amountCents: payload.amountCents,
         paymentId: chargeData.id,
         hasAffiliate: splitData.hasAffiliate,
-        platformFeeCents,
-        affiliateCommissionCents
+        platformFeeCents: splitResult.platformFeeCents,
+        affiliateCommissionCents: splitResult.affiliateCommissionCents
       }
     });
 
-    // ==========================================
-    // 9. RESPOSTA
-    // ==========================================
-    const statusMap: Record<string, string> = {
-      'PENDING': 'pending',
-      'RECEIVED': 'approved',
-      'CONFIRMED': 'approved',
-      'OVERDUE': 'expired',
-      'REFUNDED': 'refunded',
-      'RECEIVED_IN_CASH': 'approved'
-    };
-
-    const response = {
-      success: true,
-      transactionId: chargeData.id,
-      status: statusMap[chargeData.status] || 'pending',
+    return createSuccessResponse({
+      chargeId: chargeData.id as string,
+      status: chargeData.status as string,
       qrCode,
       qrCodeText,
-      splitApplied: splitRules.length > 0,
-      splitDetails: {
-        platformFeeCents,
-        affiliateCommissionCents,
-        vendorNetCents,
-        hasAffiliate: splitData.hasAffiliate
-      },
+      splitApplied: splitResult.splitRules.length > 0,
+      platformFeeCents: splitResult.platformFeeCents,
+      affiliateCommissionCents: splitResult.affiliateCommissionCents,
+      vendorNetCents: splitResult.vendorNetCents,
+      hasAffiliate: splitData.hasAffiliate,
       rawResponse: chargeData
-    };
-
-    console.log('[asaas-create-payment] ✅ Sucesso');
-
-    return new Response(
-      JSON.stringify(response),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    });
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Erro interno';
     console.error('[asaas-create-payment] Exception:', errorMessage);
-    await recordAttempt(supabase, { ...RATE_LIMIT_CONFIG, identifier }, false);
-    
-    return new Response(
-      JSON.stringify({ success: false, error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    await recordPaymentAttempt(supabase, identifier, false);
+    return createErrorResponse(errorMessage, 500);
   }
 });
