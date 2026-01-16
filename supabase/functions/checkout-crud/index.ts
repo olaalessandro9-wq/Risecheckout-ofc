@@ -31,6 +31,7 @@ import { managePaymentLink } from "../_shared/checkout-link-handlers.ts";
 // ==========================================
 
 interface RequestBody {
+  action?: string;
   sessionToken?: string;
   productId?: string;
   checkoutId?: string;
@@ -68,13 +69,19 @@ serve(withSentry("checkout-crud", async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const url = new URL(req.url);
-    const pathParts = url.pathname.split("/").filter(Boolean);
-    const action = pathParts[pathParts.length - 1];
-
     let body: RequestBody = {};
     if (req.method !== "GET") {
       try { body = await req.json(); } catch { return errorResponse("Corpo da requisição inválido", corsHeaders, 400); }
+    }
+
+    // Prioriza action do body (padrão do frontend), fallback para path
+    const url = new URL(req.url);
+    const pathParts = url.pathname.split("/").filter(Boolean);
+    const pathAction = pathParts[pathParts.length - 1];
+    const action = body.action || (pathAction !== "checkout-crud" ? pathAction : undefined);
+
+    if (!action) {
+      return errorResponse("Ação não especificada", corsHeaders, 400);
     }
 
     const sessionToken = body.sessionToken || req.headers.get("x-producer-session-token");
