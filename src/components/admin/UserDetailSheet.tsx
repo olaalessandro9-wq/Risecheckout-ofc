@@ -134,14 +134,14 @@ export function UserDetailSheet({
   const { data: profile } = useQuery({
     queryKey: ["admin-user-profile", userId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("status, custom_fee_percent, status_reason, status_changed_at, created_at")
-        .eq("id", userId)
-        .single();
+      const { data, error } = await supabase.functions.invoke("admin-data", {
+        body: { action: "user-profile", userId },
+      });
 
       if (error) throw error;
-      return data;
+      if (data?.error) throw new Error(data.error);
+
+      return data?.profile;
     },
     enabled: open,
   });
@@ -150,43 +150,14 @@ export function UserDetailSheet({
   const { data: products, isLoading: productsLoading } = useQuery({
     queryKey: ["admin-user-products", userId],
     queryFn: async () => {
-      // Buscar produtos do usuário
-      const { data: productsData, error: productsError } = await supabase
-        .from("products")
-        .select("id, name, status, price")
-        .eq("user_id", userId);
-
-      if (productsError) throw productsError;
-
-      // Buscar métricas de pedidos
-      const productIds = productsData.map((p) => p.id);
-      const { data: ordersData, error: ordersError } = await supabase
-        .from("orders")
-        .select("product_id, amount_cents, status")
-        .in("product_id", productIds);
-
-      if (ordersError) throw ordersError;
-
-      // Agregar métricas por produto
-      const metricsMap = new Map<string, { gmv: number; count: number }>();
-      ordersData?.forEach((order) => {
-        if (order.status === "paid") {
-          const current = metricsMap.get(order.product_id) || { gmv: 0, count: 0 };
-          metricsMap.set(order.product_id, {
-            gmv: current.gmv + (order.amount_cents || 0),
-            count: current.count + 1,
-          });
-        }
+      const { data, error } = await supabase.functions.invoke("admin-data", {
+        body: { action: "user-products", userId },
       });
 
-      return productsData.map((product) => {
-        const metrics = metricsMap.get(product.id) || { gmv: 0, count: 0 };
-        return {
-          ...product,
-          total_gmv: metrics.gmv,
-          orders_count: metrics.count,
-        } as UserProduct;
-      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      return data?.products as UserProduct[] || [];
     },
     enabled: open,
   });

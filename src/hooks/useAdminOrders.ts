@@ -67,61 +67,42 @@ export function useAdminOrders(period: PeriodFilter) {
   return useQuery({
     queryKey: ["admin-orders", period],
     queryFn: async (): Promise<AdminOrder[]> => {
-      const { start, end } = getDateRange(period);
-      
-      const { data: orders, error } = await supabase
-        .from("orders")
-        .select(`
-          id,
-          customer_name,
-          customer_email,
-          customer_phone,
-          customer_document,
-          amount_cents,
-          status,
-          payment_method,
-          vendor_id,
-          created_at,
-          product:product_id (
-            id,
-            name,
-            image_url,
-            user_id
-          )
-        `)
-        .gte("created_at", start.toISOString())
-        .lte("created_at", end.toISOString())
-        .order("created_at", { ascending: false })
-        .limit(500);
+      const { data, error } = await supabase.functions.invoke("admin-data", {
+        body: { action: "admin-orders", period },
+      });
 
       if (error) {
         console.error("[useAdminOrders] Erro ao buscar pedidos:", error);
         throw error;
       }
 
-      return (orders || []).map(order => {
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      return (data?.orders || []).map((order: Record<string, unknown>) => {
         const product = Array.isArray(order.product) ? order.product[0] : order.product;
         
         return {
-          id: order.id.substring(0, 8),
-          orderId: order.id,
-          customerName: order.customer_name || "N/A",
-          customerEmail: order.customer_email || "N/A",
-          customerPhone: order.customer_phone || "N/A",
-          customerDocument: order.customer_document || "N/A",
+          id: (order.id as string).substring(0, 8),
+          orderId: order.id as string,
+          customerName: (order.customer_name as string) || "N/A",
+          customerEmail: (order.customer_email as string) || "N/A",
+          customerPhone: (order.customer_phone as string) || "N/A",
+          customerDocument: (order.customer_document as string) || "N/A",
           productName: product?.name || "Produto não encontrado",
           productImageUrl: product?.image_url || "",
           productOwnerId: product?.user_id || "",
-          vendorId: order.vendor_id,
-          amount: formatCentsToBRL(order.amount_cents || 0),
-          amountCents: order.amount_cents || 0,
-          status: translateStatus(order.status),
-          paymentMethod: order.payment_method,
-          createdAt: formatDate(order.created_at),
-          fullCreatedAt: order.created_at,
+          vendorId: order.vendor_id as string,
+          amount: formatCentsToBRL((order.amount_cents as number) || 0),
+          amountCents: (order.amount_cents as number) || 0,
+          status: translateStatus(order.status as string),
+          paymentMethod: order.payment_method as string | null,
+          createdAt: formatDate(order.created_at as string),
+          fullCreatedAt: order.created_at as string,
         };
       });
     },
-    staleTime: 1000 * 60 * 2, // 2 minutos
+    staleTime: 1000 * 60 * 2,
   });
 }

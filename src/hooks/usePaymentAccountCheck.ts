@@ -35,20 +35,16 @@ export function usePaymentAccountCheck(): PaymentAccountStatus {
       }
 
       try {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("mercadopago_collector_id, stripe_account_id")
-          .eq("id", user.id)
-          .maybeSingle();
+        const { data, error } = await supabase.functions.invoke("admin-data", {
+          body: { action: "user-gateway-status" },
+        });
 
-        // Type-safe: campos existem no profiles após migração
-        const hasMercadoPago = !!profile?.mercadopago_collector_id;
-        const hasStripe = !!profile?.stripe_account_id;
+        if (error) throw error;
 
         setStatus({
-          hasPaymentAccount: hasMercadoPago || hasStripe,
-          hasMercadoPago,
-          hasStripe,
+          hasPaymentAccount: data?.hasPaymentAccount || false,
+          hasMercadoPago: data?.hasMercadoPago || false,
+          hasStripe: data?.hasStripe || false,
           isLoading: false,
         });
       } catch (err) {

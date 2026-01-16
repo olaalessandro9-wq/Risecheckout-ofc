@@ -48,37 +48,19 @@ export const PaymentSuccessPage = () => {
       }
 
       try {
-        // Buscar pedido com validação do token de acesso
-        const { data, error } = await supabase
-          .from('orders')
-          .select(`
-            id,
-            product_id,
-            product_name,
-            amount_cents,
-            customer_email,
-            customer_name,
-            coupon_code,
-            discount_amount_cents,
-            order_items (
-              id,
-              product_name,
-              amount_cents,
-              is_bump,
-              quantity
-            ),
-            product:products!orders_product_id_fkey (
-              members_area_enabled
-            )
-          `)
-          .eq('id', orderId)
-          .eq('access_token', token)
-          .single();
+        // Buscar pedido via Edge Function
+        const { data: result, error } = await supabase.functions.invoke('checkout-public-data', {
+          body: {
+            action: 'order-by-token',
+            orderId,
+            token,
+          },
+        });
 
-        if (error) {
-          console.error('[PaymentSuccessPage] Erro ao buscar pedido:', error);
-        } else {
-          setOrderDetails(data as unknown as OrderDetails);
+        if (error || result?.error) {
+          console.error('[PaymentSuccessPage] Erro ao buscar pedido:', error || result?.error);
+        } else if (result?.data) {
+          setOrderDetails(result.data as OrderDetails);
         }
       } catch (err) {
         console.error('[PaymentSuccessPage] Erro:', err);

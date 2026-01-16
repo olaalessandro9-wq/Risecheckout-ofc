@@ -32,42 +32,32 @@ export function useKwaiConfig(vendorId?: string) {
   return useQuery({
     queryKey: ["kwai-config", vendorId],
     queryFn: async (): Promise<KwaiIntegration | null> => {
-      // Validação: se não tem vendorId, retorna null
       if (!vendorId) {
         console.warn("[Kwai] vendorId não fornecido para useKwaiConfig");
         return null;
       }
 
       try {
-        // Query ao banco de dados
-        const { data, error } = await supabase
-          .from("vendor_integrations")
-          .select("*")
-          .eq("vendor_id", vendorId)
-          .eq("integration_type", "KWAI_PIXEL")
-          .eq("active", true)
-          .maybeSingle();
+        const { data, error } = await supabase.functions.invoke("vendor-integrations", {
+          body: {
+            action: "get",
+            vendorId,
+            integrationType: "KWAI_PIXEL",
+          },
+        });
 
-        // Tratamento de erro
         if (error) {
-          // PGRST116 = nenhuma linha encontrada (não é erro crítico)
-          if (error.code === "PGRST116") {
-            console.log("[Kwai] Integração não encontrada para vendor:", vendorId);
-            return null;
-          }
           console.error("[Kwai] Erro ao carregar configuração:", error);
           return null;
         }
 
-        // Validação: dados vazios ou integração inativa
-        if (!data || !data.active) {
+        if (!data?.integration || !data.integration.active) {
           console.log("[Kwai] Integração não encontrada ou desativada para vendor:", vendorId);
           return null;
         }
 
         console.log("[Kwai] Configuração carregada com sucesso para vendor:", vendorId);
-
-        return data as unknown as KwaiIntegration;
+        return data.integration as KwaiIntegration;
       } catch (error: unknown) {
         console.error("[Kwai] Erro inesperado ao carregar config:", error);
         return null;

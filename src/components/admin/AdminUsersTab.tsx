@@ -139,57 +139,14 @@ export function AdminUsersTab() {
   const { data: users, isLoading } = useQuery({
     queryKey: ["admin-users-with-metrics"],
     queryFn: async () => {
-      // Buscar roles
-      const { data: rolesData, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("user_id, role");
-
-      if (rolesError) throw rolesError;
-
-      // Buscar profiles
-      const { data: profilesData, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, name, registration_source");
-
-      if (profilesError) throw profilesError;
-
-      // Buscar métricas financeiras agregadas por vendor_id
-      const { data: ordersData, error: ordersError } = await supabase
-        .from("orders")
-        .select("vendor_id, amount_cents, platform_fee_cents, status");
-
-      if (ordersError) throw ordersError;
-
-      // Agregar métricas por usuário
-      const metricsMap = new Map<string, { gmv: number; fees: number; count: number }>();
-      
-      ordersData?.forEach((order) => {
-        if (order.status === "paid") {
-          const current = metricsMap.get(order.vendor_id) || { gmv: 0, fees: 0, count: 0 };
-          metricsMap.set(order.vendor_id, {
-            gmv: current.gmv + (order.amount_cents || 0),
-            fees: current.fees + (order.platform_fee_cents || 0),
-            count: current.count + 1,
-          });
-        }
+      const { data, error } = await supabase.functions.invoke("admin-data", {
+        body: { action: "users-with-metrics" },
       });
 
-      // Combinar dados
-      const usersWithRoles: UserWithRole[] = rolesData.map((roleRow) => {
-        const profile = profilesData.find((p) => p.id === roleRow.user_id);
-        const metrics = metricsMap.get(roleRow.user_id) || { gmv: 0, fees: 0, count: 0 };
-        return {
-          user_id: roleRow.user_id,
-          role: roleRow.role as AppRole,
-          profile: profile ? { name: profile.name || "Sem nome" } : null,
-          total_gmv: metrics.gmv,
-          total_fees: metrics.fees,
-          orders_count: metrics.count,
-          registration_source: profile?.registration_source || "producer",
-        };
-      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      return usersWithRoles;
+      return data?.users || [];
     },
   });
 

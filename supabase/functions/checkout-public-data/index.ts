@@ -23,11 +23,13 @@ const corsHeaders = {
 };
 
 interface RequestBody {
-  action: "product" | "offer" | "order-bumps" | "affiliate" | "all" | "validate-coupon" | "get-checkout-offer" | "checkout" | "product-pixels";
+  action: "product" | "offer" | "order-bumps" | "affiliate" | "all" | "validate-coupon" | "get-checkout-offer" | "checkout" | "product-pixels" | "order-by-token";
   productId?: string;
   checkoutId?: string;
   affiliateCode?: string;
   couponCode?: string;
+  orderId?: string;
+  token?: string;
 }
 
 serve(async (req) => {
@@ -502,6 +504,49 @@ serve(async (req) => {
       }
 
       return jsonResponse({ success: true, data: combined });
+    }
+
+    // ===== ACTION: order-by-token (fetch order for success page) =====
+    if (action === "order-by-token") {
+      const orderId = body.orderId;
+      const token = body.token;
+      
+      if (!orderId || !token) {
+        return jsonResponse({ error: "orderId and token required" }, 400);
+      }
+
+      const { data, error } = await supabase
+        .from("orders")
+        .select(`
+          id,
+          product_id,
+          product_name,
+          amount_cents,
+          customer_email,
+          customer_name,
+          coupon_code,
+          discount_amount_cents,
+          order_items (
+            id,
+            product_name,
+            amount_cents,
+            is_bump,
+            quantity
+          ),
+          product:products!orders_product_id_fkey (
+            members_area_enabled
+          )
+        `)
+        .eq("id", orderId)
+        .eq("access_token", token)
+        .single();
+
+      if (error || !data) {
+        console.error("[checkout-public-data] Order not found:", error);
+        return jsonResponse({ error: "Pedido não encontrado" }, 404);
+      }
+
+      return jsonResponse({ success: true, data });
     }
 
     return jsonResponse({ error: "Ação desconhecida" }, 400);
