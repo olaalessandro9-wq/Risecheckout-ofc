@@ -60,6 +60,15 @@ verify_jwt = false
 [functions.reconcile-pending-orders]
 verify_jwt = false
 
+[functions.reconcile-mercadopago]
+verify_jwt = false
+
+[functions.reconcile-asaas]
+verify_jwt = false
+
+[functions.grant-member-access]
+verify_jwt = false
+
 [functions.smoke-test]
 verify_jwt = false
 
