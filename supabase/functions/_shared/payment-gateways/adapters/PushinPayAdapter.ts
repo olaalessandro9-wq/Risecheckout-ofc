@@ -99,7 +99,7 @@ export class PushinPayAdapter implements IPaymentGateway {
         // Conforme documentação oficial do PushinPay
         const pushinPayload = {
           value: request.amount_cents, // JÁ em centavos!
-          webhook_url: 'https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/pushinpay-webhook'
+          webhook_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/pushinpay-webhook`
         };
 
         console.log(`[PushinPayAdapter] Criando PIX para pedido ${request.order_id}`);
