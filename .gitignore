@@ -45,5 +45,10 @@ KEYS_SUPABASE.md
 *OAUTH*GUIDE*
 *SERVICE_ROLE*
 
+# EXCEÇÕES: Arquivos de código legítimos (não contêm valores sensíveis)
+!supabase/functions/_shared/platform-secrets.ts
+!supabase/functions/_shared/gateway-credentials.ts
+!supabase/functions/asaas-validate-credentials/
+
 # Security incident evidence
 .security/
