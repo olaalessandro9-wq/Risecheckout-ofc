@@ -10,8 +10,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 95 |
-| **No código local** | 95 |
+| **Total de Funções** | 101 |
+| **No código local** | 101 |
 | **Apenas deployadas** | 0 |
 | **Operações Diretas Frontend** | 0 ✅ |
 | **Arquivos API obsoletos removidos** | 1 (src/api/storage/remove.ts) |
