@@ -6,8 +6,21 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { toSlug } from "@/lib/utils/slug";
 import { copyViaEdge, uploadViaEdge, listViaEdge, removeViaEdge } from "@/lib/storage/storageProxy";
+
+/**
+ * Generate a slug from a string
+ * Simplified version for local use - full version in Edge Functions
+ */
+function toSlug(input: string): string {
+  return (input ?? "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64);
+}
 
 const PUBLIC_RE = /\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/;
 

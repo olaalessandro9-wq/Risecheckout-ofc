@@ -1,7 +1,7 @@
 # Rise Checkout - Edge Functions Registry
 
 > **🔴 FONTE DA VERDADE MÁXIMA** - Este documento lista TODAS as Edge Functions deployadas no Supabase.  
-> Última atualização: 2026-01-16  
+> Última atualização: 2026-01-16 (Auditoria Final)  
 > Mantenedor: AI Assistant + User
 
 ---
@@ -14,6 +14,7 @@
 | **No código local** | 95 |
 | **Apenas deployadas** | 0 |
 | **Operações Diretas Frontend** | 0 ✅ |
+| **Arquivos API obsoletos removidos** | 1 (src/api/storage/remove.ts) |
 | **Base URL** | `https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/` |
 
 ### RISE Protocol V2 Compliance Functions (NEW)
@@ -284,6 +285,20 @@
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-16 | **AUDITORIA FINAL - MIGRAÇÃO 100% COMPLETA** ✅ |
+| 2026-01-16 | Deletado `src/api/storage/remove.ts` - substituído por `storage-management` Edge Function |
+| 2026-01-16 | **MIGRAÇÃO FRONTEND → EDGE FUNCTIONS** (10 arquivos): |
+| 2026-01-16 | - `WebhooksConfig.tsx` → `webhook-crud` (listWebhooksWithProducts, listUserProducts) |
+| 2026-01-16 | - `WebhookForm.tsx` → `webhook-crud` (getWebhookProducts) |
+| 2026-01-16 | - `AffiliatesTab.tsx` → `admin-data` (affiliate-gateway-settings) |
+| 2026-01-16 | - `MarketplaceSettings.tsx` → `admin-data` (marketplace-categories) |
+| 2026-01-16 | - `useMembersAreaSettings.ts` → `admin-data` (members-area-settings, members-area-modules-with-contents) |
+| 2026-01-16 | - `MenuPreview.tsx` → `admin-data` (user-profile-name) |
+| 2026-01-16 | - `StripePix.tsx` → `checkout-public-data` (check-order-payment-status) |
+| 2026-01-16 | - `uniqueCheckoutName.ts` → `admin-data` (check-unique-checkout-name) |
+| 2026-01-16 | Expandida `admin-data` com 7 novas actions: marketplace-categories, marketplace-stats, user-profile-name, check-unique-checkout-name, user-products-simple, members-area-settings, members-area-modules-with-contents |
+| 2026-01-16 | Expandida `webhook-crud` com 3 novas actions: listWebhooksWithProducts, listUserProducts, getWebhookProducts |
+| 2026-01-16 | Expandida `checkout-public-data` com action: check-order-payment-status |
 | 2026-01-16 | **RISE V2 REFACTOR**: `reconcile-pending-orders` (475 linhas) dividida em 4 Edge Functions especializadas |
 | 2026-01-16 | Criada `reconcile-mercadopago` (~115 linhas) - Reconciliação MercadoPago |
 | 2026-01-16 | Criada `reconcile-asaas` (~115 linhas) - Reconciliação Asaas |
