@@ -8,8 +8,10 @@
  * - get: Retorna um produto específico
  * - get-settings: Retorna configurações de um produto
  * - check-credentials: Verifica credenciais de gateway configuradas
+ * - get-coupon: Retorna um cupom específico para edição
+ * - get-checkouts: Retorna checkouts de um produto
  * 
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
@@ -21,11 +23,12 @@ import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/u
 // TYPES
 // ==========================================
 
-type Action = "list" | "get" | "get-settings" | "check-credentials";
+type Action = "list" | "get" | "get-settings" | "check-credentials" | "get-coupon" | "get-checkouts";
 
 interface RequestBody {
   action: Action;
   productId?: string;
+  couponId?: string;
   excludeDeleted?: boolean;
 }
 
@@ -183,6 +186,85 @@ async function checkCredentials(
   }
 }
 
+async function getCoupon(
+  supabase: SupabaseClient,
+  couponId: string,
+  producerId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  // First get the coupon
+  const { data: coupon, error } = await supabase
+    .from("coupons")
+    .select("*")
+    .eq("id", couponId)
+    .single();
+
+  if (error) {
+    console.error("[products-crud] Get coupon error:", error);
+    return errorResponse("Cupom não encontrado", "NOT_FOUND", corsHeaders, 404);
+  }
+
+  // Get the products associated with this coupon to verify ownership
+  const { data: couponProducts } = await supabase
+    .from("coupon_products")
+    .select("product_id")
+    .eq("coupon_id", couponId);
+
+  if (couponProducts && couponProducts.length > 0) {
+    // Verify that the producer owns at least one of the products
+    const { data: products } = await supabase
+      .from("products")
+      .select("id")
+      .eq("user_id", producerId)
+      .in("id", couponProducts.map(cp => cp.product_id));
+
+    if (!products || products.length === 0) {
+      console.warn(`[products-crud] Producer ${producerId} tried to access coupon ${couponId}`);
+      return errorResponse("Acesso negado", "FORBIDDEN", corsHeaders, 403);
+    }
+  }
+
+  return jsonResponse({ coupon }, corsHeaders);
+}
+
+async function getCheckouts(
+  supabase: SupabaseClient,
+  productId: string,
+  producerId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  // First verify product ownership
+  const { data: product, error: productError } = await supabase
+    .from("products")
+    .select("user_id")
+    .eq("id", productId)
+    .single();
+
+  if (productError || !product) {
+    console.error("[products-crud] Get checkouts - product error:", productError);
+    return errorResponse("Produto não encontrado", "NOT_FOUND", corsHeaders, 404);
+  }
+
+  if (product.user_id !== producerId) {
+    console.warn(`[products-crud] Producer ${producerId} tried to access checkouts for product ${productId}`);
+    return errorResponse("Acesso negado", "FORBIDDEN", corsHeaders, 403);
+  }
+
+  // Get checkouts for this product
+  const { data: checkouts, error } = await supabase
+    .from("checkouts")
+    .select("id, name, slug, is_default, status, created_at")
+    .eq("product_id", productId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("[products-crud] Get checkouts error:", error);
+    return errorResponse("Erro ao buscar checkouts", "DB_ERROR", corsHeaders, 500);
+  }
+
+  return jsonResponse({ checkouts: checkouts || [] }, corsHeaders);
+}
+
 // ==========================================
 // MAIN HANDLER
 // ==========================================
@@ -207,7 +289,7 @@ serve(async (req) => {
     }
 
     const body = await req.json() as RequestBody;
-    const { action, productId, excludeDeleted = true } = body;
+    const { action, productId, couponId, excludeDeleted = true } = body;
 
     console.log(`[products-crud] Action: ${action}, Producer: ${producer.id}`);
 
@@ -229,6 +311,18 @@ serve(async (req) => {
 
       case "check-credentials":
         return checkCredentials(supabase, producer.id, corsHeaders);
+
+      case "get-coupon":
+        if (!couponId) {
+          return errorResponse("couponId é obrigatório", "VALIDATION_ERROR", corsHeaders, 400);
+        }
+        return getCoupon(supabase, couponId, producer.id, corsHeaders);
+
+      case "get-checkouts":
+        if (!productId) {
+          return errorResponse("productId é obrigatório", "VALIDATION_ERROR", corsHeaders, 400);
+        }
+        return getCheckouts(supabase, productId, producer.id, corsHeaders);
 
       default:
         return errorResponse(`Ação desconhecida: ${action}`, "INVALID_ACTION", corsHeaders, 400);

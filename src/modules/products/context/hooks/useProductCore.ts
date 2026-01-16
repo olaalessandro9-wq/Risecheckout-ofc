@@ -49,21 +49,31 @@ export function useProductCore({
   const [product, setProduct] = useState<ProductData | null>(null);
 
   // ---------------------------------------------------------------------------
-  // REFRESH - Carregar do banco + Extrair Settings (READ direto - ok)
+  // REFRESH - Carregar via Edge Function + Extrair Settings
+  // MIGRADO: Uses supabase.functions.invoke instead of supabase.from()
   // ---------------------------------------------------------------------------
 
   const refreshProduct = useCallback(async (): Promise<void> => {
     if (!productId || !userId) return;
 
     try {
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .eq("id", productId)
-        .eq("user_id", userId)
-        .single();
+      const sessionToken = localStorage.getItem('producer_session_token');
+      
+      const { data: response, error } = await supabase.functions.invoke('products-crud', {
+        body: {
+          action: 'get',
+          productId,
+        },
+        headers: {
+          'x-producer-session-token': sessionToken || '',
+        },
+      });
 
       if (error) throw error;
+      if (response?.error) throw new Error(response.error);
+      
+      const data = response?.product;
+      if (!data) throw new Error("Produto não encontrado");
 
       // Atualizar produto
       setProduct({

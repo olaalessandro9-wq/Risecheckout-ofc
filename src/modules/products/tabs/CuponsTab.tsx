@@ -109,30 +109,40 @@ export function CuponsTab() {
   };
 
   const handleEditCoupon = async (coupon: Coupon) => {
-    // Buscar dados completos do cupom via supabase (apenas leitura)
+    // Buscar dados completos do cupom via Edge Function
     try {
-      const { data, error } = await supabase
-        .from("coupons")
-        .select("*")
-        .eq("id", coupon.id)
-        .single();
+      const sessionToken = localStorage.getItem('producer_session_token');
+      
+      const { data, error } = await supabase.functions.invoke('products-crud', {
+        body: {
+          action: 'get-coupon',
+          couponId: coupon.id,
+        },
+        headers: {
+          'x-producer-session-token': sessionToken || '',
+        },
+      });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      
+      const couponData = data?.coupon;
+      if (!couponData) throw new Error("Cupom não encontrado");
 
       const formData: CouponFormData = {
-        id: data.id,
-        name: data.name || data.code,
-        code: data.code,
-        description: data.description,
-        discountType: data.discount_type as "percentage" | "fixed",
-        discountValue: data.discount_value,
-        hasExpiration: !!data.expires_at,
-        startDate: data.start_date ? new Date(data.start_date) : undefined,
-        endDate: data.expires_at ? new Date(data.expires_at) : undefined,
-        maxUses: data.max_uses || 0,
-        maxUsesPerCustomer: data.max_uses_per_customer || 0,
-        applyToOrderBumps: data.apply_to_order_bumps ?? true,
-        usageCount: data.uses_count || 0,
+        id: couponData.id,
+        name: couponData.name || couponData.code,
+        code: couponData.code,
+        description: couponData.description,
+        discountType: couponData.discount_type as "percentage" | "fixed",
+        discountValue: couponData.discount_value,
+        hasExpiration: !!couponData.expires_at,
+        startDate: couponData.start_date ? new Date(couponData.start_date) : undefined,
+        endDate: couponData.expires_at ? new Date(couponData.expires_at) : undefined,
+        maxUses: couponData.max_uses || 0,
+        maxUsesPerCustomer: couponData.max_uses_per_customer || 0,
+        applyToOrderBumps: couponData.apply_to_order_bumps ?? true,
+        usageCount: couponData.uses_count || 0,
       };
 
       setEditingCoupon(formData);

@@ -28,6 +28,14 @@ import { GoogleAdsConfig, GoogleAdsIntegration } from "./types";
  * 
  * return <div>Google Ads ativado</div>;
  */
+/**
+ * Hook para carregar a configuração do Google Ads de um vendedor
+ * 
+ * MIGRATED: Uses vendor-integrations Edge Function
+ * 
+ * @param vendorId - ID do vendedor (opcional)
+ * @returns Query result com os dados da integração
+ */
 export function useGoogleAdsConfig(vendorId?: string) {
   return useQuery({
     queryKey: ["google-ads-config", vendorId],
@@ -39,35 +47,30 @@ export function useGoogleAdsConfig(vendorId?: string) {
       }
 
       try {
-        // Query ao banco de dados
-        const { data, error } = await supabase
-          .from("vendor_integrations")
-          .select("*")
-          .eq("vendor_id", vendorId)
-          .eq("integration_type", "GOOGLE_ADS")
-          .eq("active", true)
-          .maybeSingle();
+        // Query via Edge Function (public)
+        const { data, error } = await supabase.functions.invoke("vendor-integrations", {
+          body: {
+            action: "get",
+            vendorId,
+            integrationType: "GOOGLE_ADS",
+          },
+        });
 
         // Tratamento de erro
         if (error) {
-          // PGRST116 = nenhuma linha encontrada (não é erro crítico)
-          if (error.code === "PGRST116") {
-            console.log("[Google Ads] Integração não encontrada para vendor:", vendorId);
-            return null;
-          }
           console.error("[Google Ads] Erro ao carregar configuração:", error);
           return null;
         }
 
         // Validação: dados vazios ou integração inativa
-        if (!data || !data.active) {
+        if (!data?.integration || !data.integration.active) {
           console.log("[Google Ads] Integração não encontrada ou desativada para vendor:", vendorId);
           return null;
         }
 
         console.log("[Google Ads] Configuração carregada com sucesso para vendor:", vendorId);
 
-        return data as unknown as GoogleAdsIntegration;
+        return data.integration as GoogleAdsIntegration;
       } catch (error: unknown) {
         console.error("[Google Ads] Erro inesperado ao carregar config:", error);
         return null;

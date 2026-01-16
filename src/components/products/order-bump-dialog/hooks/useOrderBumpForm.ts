@@ -182,15 +182,21 @@ export function useOrderBumpForm({
       
       const sessionToken = localStorage.getItem('producer_session_token');
       
-      // Buscar checkout_id do produto principal
-      const { data: checkouts, error: checkoutsError } = await supabase
-        .from("checkouts")
-        .select("id")
-        .eq("product_id", productId)
-        .limit(1);
+      // Buscar checkout_id do produto principal via Edge Function
+      const { data: checkoutResponse, error: checkoutsError } = await supabase.functions.invoke('products-crud', {
+        body: {
+          action: 'get-checkouts',
+          productId,
+        },
+        headers: {
+          'x-producer-session-token': sessionToken || '',
+        },
+      });
 
       if (checkoutsError) throw checkoutsError;
+      if (checkoutResponse?.error) throw new Error(checkoutResponse.error);
 
+      const checkouts = checkoutResponse?.checkouts || [];
       if (!checkouts || checkouts.length === 0) {
         toast.error("Nenhum checkout encontrado para este produto");
         return;

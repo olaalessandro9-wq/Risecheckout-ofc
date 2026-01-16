@@ -30,28 +30,46 @@ export function ProductCheckoutSettings({ productId }: { productId: string }) {
   });
   const [defaultMethod, setDefaultMethod] = useState<"pix" | "credit_card">("pix");
 
-  // carrega do supabase (READ direto - ok)
+  /**
+   * Carrega configurações via Edge Function
+   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   */
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("products")
-        .select("required_fields, default_payment_method")
-        .eq("id", productId)
-        .maybeSingle();
-
-      if (error) {
-        console.error(error);
-        toast.error("Não foi possível carregar as configurações.");
-      } else if (data) {
-        const requiredFieldsData = data.required_fields as Record<string, boolean> | null;
-        setRequiredFields({
-          name: requiredFieldsData?.name ?? true,
-          email: requiredFieldsData?.email ?? true,
-          phone: requiredFieldsData?.phone ?? false,
-          cpf:   requiredFieldsData?.cpf   ?? false,
+      try {
+        const sessionToken = localStorage.getItem('producer_session_token');
+        
+        const { data: response, error } = await supabase.functions.invoke('products-crud', {
+          body: {
+            action: 'get-settings',
+            productId,
+          },
+          headers: {
+            'x-producer-session-token': sessionToken || '',
+          },
         });
-        setDefaultMethod((data.default_payment_method ?? "pix") as "pix" | "credit_card");
+
+        if (error) {
+          console.error("[ProductCheckoutSettings] Edge function error:", error);
+          toast.error("Não foi possível carregar as configurações.");
+        } else if (response?.settings) {
+          const data = response.settings;
+          const requiredFieldsData = data.required_fields as Record<string, boolean> | null;
+          setRequiredFields({
+            name: requiredFieldsData?.name ?? true,
+            email: requiredFieldsData?.email ?? true,
+            phone: requiredFieldsData?.phone ?? false,
+            cpf:   requiredFieldsData?.cpf   ?? false,
+          });
+          setDefaultMethod((data.default_payment_method ?? "pix") as "pix" | "credit_card");
+        } else if (response?.error) {
+          console.error("[ProductCheckoutSettings] API error:", response.error);
+          toast.error("Não foi possível carregar as configurações.");
+        }
+      } catch (err) {
+        console.error("[ProductCheckoutSettings] Unexpected error:", err);
+        toast.error("Não foi possível carregar as configurações.");
       }
       setLoading(false);
     })();
