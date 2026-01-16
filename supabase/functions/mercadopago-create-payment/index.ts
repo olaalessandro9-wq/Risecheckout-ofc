@@ -1,263 +1,37 @@
 /**
  * Mercado Pago Create Payment - Edge Function
  * 
- * @version 2.2.0 - RISE Protocol V2 Compliance (Legibilidade)
+ * @version 3.0.0 - RISE Protocol V2 Compliance (Modular Architecture)
  */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { rateLimitMiddleware, getIdentifier } from '../_shared/rate-limit.ts';
-import { getGatewayCredentials } from '../_shared/platform-config.ts';
+
+// Handlers
 import { handlePixPayment, PixPaymentResult } from './handlers/pix-handler.ts';
 import { handleCardPayment, CardPaymentResult } from './handlers/card-handler.ts';
-import { logError, logWarn } from './utils/logger.ts';
-import { sendOrderConfirmationEmails, type OrderData } from '../_shared/send-order-emails.ts';
 
-// === TYPES ===
-interface OrderRecord {
-  id: string;
-  vendor_id: string;
-  customer_name: string | null;
-  customer_email: string | null;
-  product_id: string | null;
-  product_name: string | null;
-  status: string | null;
-  affiliate_id: string | null;
-  commission_cents: number;
-  platform_fee_cents: number | null;
-  affiliate?: {
-    id: string;
-    user_id: string;
-    commission_rate: number | null;
-  } | null;
-}
+// Helpers (same level)
+import { getCorsHeaders, createSuccessResponse, createErrorResponse } from './cors.ts';
+import { fetchCredentials } from './credentials.ts';
+import { fetchAffiliateCollectorId, calculateSplit } from './split.ts';
+import { handlePostPaymentActions } from './post-payment.ts';
 
-interface OrderItem {
-  product_id: string;
-  product_name: string;
-  amount_cents: number;
-  quantity: number;
-}
+// Utils
+import { logError } from './utils/logger.ts';
 
-interface CredentialsResult {
-  accessToken: string;
-  environment: 'production' | 'sandbox';
-  isOwner: boolean;
-}
-
-interface VaultCredentials {
-  access_token?: string;
-}
-
-interface ProfileRecord {
-  mercadopago_collector_id: string | null;
-}
-
-interface RequestBody {
-  orderId?: string;
-  payerEmail?: string;
-  payerName?: string;
-  payerDocument?: string;
-  paymentMethod?: string;
-  token?: string;
-  installments?: number;
-  paymentMethodId?: string;
-  issuerId?: string;
-}
-
-interface SuccessResponseData {
-  paymentId: string;
-  status: string;
-  pix?: {
-    qrCode: string;
-    qrCodeBase64: string;
-  };
-}
-
-interface OrderUpdateData {
-  gateway: string;
-  gateway_payment_id: string;
-  status: string;
-  payment_method: string;
-  updated_at: string;
-  paid_at?: string;
-  pix_qr_code?: string;
-  pix_id?: string;
-  pix_status?: string;
-  pix_created_at?: string;
-}
-
-interface GatewayError {
-  code: string;
-  message: string;
-  details?: unknown;
-}
-
-// === CONSTANTS ===
-const ALLOWED_ORIGINS = [
-  "http://localhost:5173",
-  "http://localhost:3000",
-  "https://risecheckout.com",
-  "https://www.risecheckout.com",
-  "https://risecheckout-84776.lovable.app",
-  "https://prime-checkout-hub.lovable.app"
-];
-
-const ERROR_CODES = {
-  ORDER_NOT_FOUND: 'ORDER_NOT_FOUND',
-  PRODUCTS_NOT_FOUND: 'PRODUCTS_NOT_FOUND',
-  GATEWAY_NOT_CONFIGURED: 'GATEWAY_NOT_CONFIGURED',
-  TOKEN_REQUIRED: 'TOKEN_REQUIRED',
-  GATEWAY_API_ERROR: 'GATEWAY_API_ERROR',
-  INVALID_REQUEST: 'INVALID_REQUEST',
-  INTERNAL_ERROR: 'INTERNAL_ERROR'
-};
-
-// === HELPERS ===
-function getCorsHeaders(origin: string): Record<string, string> {
-  return {
-    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
-  };
-}
-
-function createSuccessResponse(
-  data: SuccessResponseData,
-  corsHeaders: Record<string, string>
-): Response {
-  return new Response(
-    JSON.stringify({ success: true, data }),
-    {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200
-    }
-  );
-}
-
-function createErrorResponse(
-  code: string,
-  message: string,
-  status: number,
-  corsHeaders: Record<string, string>,
-  details?: unknown
-): Response {
-  const error: { success: false; error: string; data?: { code: string; details: unknown } } = {
-    success: false,
-    error: message
-  };
-  
-  if (details) {
-    error.data = { code, details };
-  }
-  
-  return new Response(
-    JSON.stringify(error),
-    {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status
-    }
-  );
-}
-
-async function fetchCredentials(
-  supabase: SupabaseClient,
-  vendorId: string
-): Promise<CredentialsResult> {
-  let isOwner = false;
-  let accessToken: string | undefined;
-  let environment: 'production' | 'sandbox' = 'production';
-
-  // Tentar buscar via getGatewayCredentials
-  try {
-    const credResult = await getGatewayCredentials(supabase, vendorId, 'mercadopago');
-    isOwner = credResult.isOwner;
-    
-    if (credResult.success && credResult.credentials) {
-      accessToken = credResult.credentials.accessToken || credResult.credentials.access_token;
-      environment = credResult.credentials.environment;
-    }
-  } catch (credError: unknown) {
-    const errorMessage = credError instanceof Error ? credError.message : String(credError);
-    logWarn('getGatewayCredentials falhou, tentando Vault...', { error: errorMessage, vendorId });
-  }
-
-  // Fallback para Vault se não tiver accessToken
-  if (!accessToken) {
-    try {
-      const { getVendorCredentials } = await import('../_shared/vault-credentials.ts');
-      const { credentials: vaultCreds } = await getVendorCredentials(
-        supabase,
-        vendorId,
-        'MERCADOPAGO'
-      ) as { credentials: VaultCredentials | null; source: string };
-      
-      if (vaultCreds?.access_token) {
-        accessToken = vaultCreds.access_token;
-      }
-    } catch {
-      // silent - vault não disponível
-    }
-  }
-
-  if (!accessToken) {
-    throw { code: 'GATEWAY_NOT_CONFIGURED', message: 'Mercado Pago não configurado' } as GatewayError;
-  }
-  
-  return { accessToken, environment, isOwner };
-}
-
-async function calculateSplit(
-  supabase: SupabaseClient,
-  order: OrderRecord,
-  isOwner: boolean,
-  calculatedTotalCents: number,
-  gatewayToken: string,
-  affiliateCollectorId: string | null
-): Promise<{ effectiveAccessToken: string; applicationFeeCents: number }> {
-  let effectiveAccessToken = gatewayToken;
-  let applicationFeeCents = 0;
-
-  // Cenário: Owner com afiliado ativo
-  if (isOwner && order.affiliate_id && order.commission_cents > 0 && affiliateCollectorId) {
-    try {
-      const { getVendorCredentials } = await import('../_shared/vault-credentials.ts');
-      const { credentials: affCreds } = await getVendorCredentials(
-        supabase,
-        order.affiliate!.user_id,
-        'MERCADOPAGO'
-      ) as { credentials: VaultCredentials | null };
-
-      if (affCreds?.access_token) {
-        effectiveAccessToken = affCreds.access_token;
-        applicationFeeCents = calculatedTotalCents - order.commission_cents;
-      }
-    } catch {
-      // silent - mantém token original
-    }
-  } else if (!isOwner) {
-    // Cenário: Vendor não-owner (afiliado vendendo)
-    applicationFeeCents = order.platform_fee_cents || 0;
-  }
-
-  return { effectiveAccessToken, applicationFeeCents };
-}
-
-async function fetchAffiliateCollectorId(
-  supabase: SupabaseClient,
-  order: OrderRecord
-): Promise<string | null> {
-  if (!order.affiliate_id || !order.affiliate) {
-    return null;
-  }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('mercadopago_collector_id')
-    .eq('id', order.affiliate.user_id)
-    .maybeSingle() as { data: ProfileRecord | null };
-
-  return profile?.mercadopago_collector_id || null;
-}
+// Types & Constants
+import { ERROR_CODES } from './constants.ts';
+import type { 
+  OrderRecord, 
+  OrderItem, 
+  RequestBody,
+  SuccessResponseData,
+  OrderUpdateData,
+  GatewayError,
+  CredentialsResult
+} from './types.ts';
 
 // === MAIN HANDLER ===
 serve(async (req) => {
@@ -292,7 +66,17 @@ serve(async (req) => {
       return createErrorResponse(ERROR_CODES.INVALID_REQUEST, 'JSON inválido', 400, corsHeaders);
     }
 
-    const { orderId, payerEmail, payerName, payerDocument, paymentMethod, token, installments, paymentMethodId, issuerId } = body;
+    const { 
+      orderId, 
+      payerEmail, 
+      payerName, 
+      payerDocument, 
+      paymentMethod, 
+      token, 
+      installments, 
+      paymentMethodId, 
+      issuerId 
+    } = body;
 
     // Validação de campos obrigatórios
     if (!orderId || !payerEmail || !paymentMethod) {
@@ -417,49 +201,15 @@ serve(async (req) => {
     // Atualizar order
     await supabase.from('orders').update(updateData).eq('id', orderId);
 
-    // Se aprovado, enviar emails e webhooks
-    if (paymentResult.status === 'approved' && order.customer_email) {
-      const orderData: OrderData = {
-        id: orderId,
-        customer_name: order.customer_name || '',
-        customer_email: order.customer_email,
-        amount_cents: calculatedTotalCents,
-        product_id: order.product_id || '',
-        product_name: order.product_name || ''
-      };
-
-      // Emails
-      try {
-        await sendOrderConfirmationEmails(supabase, orderData, 'Cartão de Crédito / Mercado Pago');
-      } catch { /* silent */ }
-
-      // Order event
-      try {
-        await supabase.from('order_events').insert({
-          order_id: orderId,
-          vendor_id: order.vendor_id,
-          type: 'purchase_approved',
-          occurred_at: new Date().toISOString(),
-          data: {
-            gateway: 'MERCADOPAGO',
-            payment_id: paymentResult.transactionId,
-            payment_method: 'CREDIT_CARD',
-            source: 'instant_approval'
-          }
-        });
-      } catch { /* silent */ }
-
-      // Trigger webhooks
-      try {
-        await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/trigger-webhooks`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Internal-Secret': Deno.env.get('INTERNAL_WEBHOOK_SECRET') || ''
-          },
-          body: JSON.stringify({ order_id: orderId, event_type: 'purchase_approved' })
-        });
-      } catch { /* silent */ }
+    // Se aprovado, executar ações pós-pagamento
+    if (paymentResult.status === 'approved') {
+      await handlePostPaymentActions({
+        supabase,
+        order,
+        orderId,
+        transactionId: paymentResult.transactionId,
+        calculatedTotalCents
+      });
     }
 
     // Montar resposta de sucesso
