@@ -5,6 +5,8 @@
  * Keeps index.ts as a clean router (~100 lines).
  * 
  * RISE Protocol Compliant - Zero `any` (uses typed interfaces)
+ * 
+ * @version 2.0.0 - Added LIST and GET handlers
  */
 
 import { SupabaseClient } from "./supabase-types.ts";
@@ -35,6 +37,21 @@ interface OfferWithProductRecord {
   id: string;
   product_id: string;
   products: ProductOwnerRecord | ProductOwnerRecord[];
+}
+
+export interface OfferListParams {
+  productId?: string;
+  page?: number;
+  pageSize?: number;
+  status?: string;
+}
+
+export interface OfferListResult {
+  items: unknown[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
 }
 
 // ============================================
@@ -147,7 +164,134 @@ export async function verifyOfferOwnership(
 }
 
 // ============================================
-// HANDLERS
+// LIST HANDLER
+// ============================================
+
+export async function handleListOffers(
+  supabase: SupabaseClient,
+  producerId: string,
+  params: OfferListParams,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const page = Math.max(1, params.page || 1);
+  const pageSize = Math.min(100, Math.max(1, params.pageSize || 20));
+  const offset = (page - 1) * pageSize;
+
+  try {
+    // Build query - offers must belong to producer's products
+    let query = supabase
+      .from("offers")
+      .select(`
+        id, name, price, is_default, status, member_group_id, created_at, updated_at,
+        products!inner(id, name, user_id)
+      `, { count: "exact" })
+      .eq("products.user_id", producerId);
+
+    // Filter by product if specified
+    if (params.productId) {
+      query = query.eq("product_id", params.productId);
+    }
+
+    // Filter by status
+    if (params.status && ["active", "deleted"].includes(params.status)) {
+      query = query.eq("status", params.status);
+    } else {
+      // Default: exclude deleted
+      query = query.neq("status", "deleted");
+    }
+
+    // Apply pagination
+    query = query.order("created_at", { ascending: false }).range(offset, offset + pageSize - 1);
+
+    const { data: offers, error, count } = await query;
+
+    if (error) {
+      console.error("[offer-crud] List error:", error);
+      return new Response(JSON.stringify({ success: false, error: "Erro ao listar ofertas" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    const total = count || 0;
+    const result: OfferListResult = {
+      items: offers || [],
+      total,
+      page,
+      pageSize,
+      hasMore: offset + pageSize < total,
+    };
+
+    console.log(`[offer-crud] Listed ${offers?.length || 0} offers for producer ${producerId}`);
+
+    return new Response(JSON.stringify({ success: true, data: result }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[offer-crud] List error:", errorMessage);
+    return new Response(JSON.stringify({ success: false, error: "Erro ao listar ofertas" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+  }
+}
+
+// ============================================
+// GET HANDLER
+// ============================================
+
+export async function handleGetOffer(
+  supabase: SupabaseClient,
+  producerId: string,
+  offerId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  try {
+    const { data: offer, error } = await supabase
+      .from("offers")
+      .select(`
+        id, name, price, is_default, status, member_group_id, created_at, updated_at,
+        products!inner(id, name, user_id)
+      `)
+      .eq("id", offerId)
+      .eq("products.user_id", producerId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("[offer-crud] Get error:", error);
+      return new Response(JSON.stringify({ success: false, error: "Erro ao buscar oferta" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    if (!offer) {
+      return new Response(JSON.stringify({ success: false, error: "Oferta não encontrada" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    console.log(`[offer-crud] Got offer ${offerId} for producer ${producerId}`);
+
+    return new Response(JSON.stringify({ success: true, data: offer }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[offer-crud] Get error:", errorMessage);
+    return new Response(JSON.stringify({ success: false, error: "Erro ao buscar oferta" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+  }
+}
+
+// ============================================
+// CREATE HANDLER
 // ============================================
 
 export async function handleCreateOffer(
@@ -193,6 +337,10 @@ export async function handleCreateOffer(
   });
 }
 
+// ============================================
+// UPDATE HANDLER
+// ============================================
+
 export async function handleUpdateOffer(
   supabase: SupabaseClient,
   producerId: string,
@@ -230,6 +378,10 @@ export async function handleUpdateOffer(
     headers: { ...corsHeaders, "Content-Type": "application/json" }
   });
 }
+
+// ============================================
+// DELETE HANDLER
+// ============================================
 
 export async function handleDeleteOffer(
   supabase: SupabaseClient,
