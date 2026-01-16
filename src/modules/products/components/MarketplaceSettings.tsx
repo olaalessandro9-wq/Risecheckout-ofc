@@ -3,10 +3,11 @@
  * 
  * Componente CONTROLADO para gerenciar a exibição do produto no marketplace público
  * Estado é gerenciado pelo componente pai (AffiliatesTab)
+ * 
+ * MIGRATED: Uses Edge Function instead of supabase.from()
  */
 
 import { useState, useEffect } from "react";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -14,10 +15,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
 import { Store, Eye, MousePointerClick, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 import type { Database } from "@/integrations/supabase/types";
 
 type MarketplaceCategory = Database["public"]["Tables"]["marketplace_categories"]["Row"];
@@ -49,19 +50,25 @@ export function MarketplaceSettings({
     enabledAt: null as string | null,
   });
 
-  // Carregar categorias
+  /**
+   * Load categories via Edge Function
+   * MIGRATED: Uses admin-data instead of supabase.from()
+   */
   useEffect(() => {
     const loadCategories = async () => {
       try {
         setIsLoadingCategories(true);
-        const { data, error } = await supabase
-          .from("marketplace_categories")
-          .select("*")
-          .eq("active", true)
-          .order("display_order", { ascending: true });
+        const sessionToken = getProducerSessionToken();
+        
+        const { data, error } = await supabase.functions.invoke('admin-data', {
+          body: { action: 'marketplace-categories' },
+          headers: { 'x-producer-session-token': sessionToken || '' },
+        });
 
         if (error) throw error;
-        setCategories(data || []);
+        if (!data?.success) throw new Error(data?.error || 'Erro ao carregar categorias');
+        
+        setCategories(data.data || []);
       } catch (error: unknown) {
         console.error("[MarketplaceSettings] Erro ao carregar categorias:", error);
         toast.error("Erro ao carregar categorias");
@@ -73,23 +80,31 @@ export function MarketplaceSettings({
     loadCategories();
   }, []);
 
-  // Carregar estatísticas (views, clicks, enabledAt)
+  /**
+   * Load stats via Edge Function
+   * MIGRATED: Uses admin-data instead of supabase.from()
+   */
   useEffect(() => {
     const loadStats = async () => {
       try {
-        const { data, error } = await supabase
-          .from("products")
-          .select("marketplace_views, marketplace_clicks, marketplace_enabled_at")
-          .eq("id", productId)
-          .single();
+        const sessionToken = getProducerSessionToken();
+        
+        const { data, error } = await supabase.functions.invoke('admin-data', {
+          body: { 
+            action: 'marketplace-stats',
+            productId,
+          },
+          headers: { 'x-producer-session-token': sessionToken || '' },
+        });
 
         if (error) throw error;
+        if (!data?.success) throw new Error(data?.error || 'Erro ao carregar estatísticas');
 
-        if (data) {
+        if (data.data) {
           setStats({
-            views: data.marketplace_views || 0,
-            clicks: data.marketplace_clicks || 0,
-            enabledAt: data.marketplace_enabled_at,
+            views: data.data.marketplace_views || 0,
+            clicks: data.data.marketplace_clicks || 0,
+            enabledAt: data.data.marketplace_enabled_at,
           });
         }
       } catch (error: unknown) {

@@ -3,7 +3,7 @@
  * Handles fetching and updating product members area settings
  * OTIMIZADO: Usa React Query para cache inteligente
  * 
- * MIGRATED: Uses useAuth() instead of supabase.auth.getUser()
+ * MIGRATED: Uses Edge Function instead of supabase.from()
  */
 
 import { useState, useCallback, useEffect } from "react";
@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SUPABASE_URL } from "@/config/supabase";
 import { useAuth } from "@/hooks/useAuth";
+import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 import type { Json } from "@/integrations/supabase/types";
 import type { MembersAreaSettings, MemberModuleWithContents, MemberContent } from "./types";
 import { normalizeContentType } from "@/modules/members-area/utils";
@@ -30,36 +31,49 @@ export const membersAreaQueryKeys = {
   modules: (productId: string) => [...membersAreaQueryKeys.all, "modules", productId] as const,
 };
 
-// Função para buscar settings
+/**
+ * Fetch settings via Edge Function
+ * MIGRATED: Uses admin-data instead of supabase.from()
+ */
 async function fetchMembersAreaSettings(productId: string): Promise<MembersAreaSettings> {
-  const { data: product, error } = await supabase
-    .from("products")
-    .select("members_area_enabled, members_area_settings")
-    .eq("id", productId)
-    .single();
+  const sessionToken = getProducerSessionToken();
+  
+  const { data, error } = await supabase.functions.invoke('admin-data', {
+    body: { 
+      action: 'members-area-settings',
+      productId,
+    },
+    headers: { 'x-producer-session-token': sessionToken || '' },
+  });
 
   if (error) throw error;
+  if (!data?.success) throw new Error(data?.error || 'Erro ao carregar settings');
 
   return {
-    enabled: product.members_area_enabled || false,
-    settings: product.members_area_settings || null,
+    enabled: data.data?.enabled || false,
+    settings: data.data?.settings || null,
   };
 }
 
-// Função para buscar módulos
+/**
+ * Fetch modules via Edge Function
+ * MIGRATED: Uses admin-data instead of supabase.from()
+ */
 async function fetchMembersAreaModules(productId: string): Promise<MemberModuleWithContents[]> {
-  const { data: modulesData, error } = await supabase
-    .from("product_member_modules")
-    .select(`
-      *,
-      contents:product_member_content (*)
-    `)
-    .eq("product_id", productId)
-    .order("position", { ascending: true });
+  const sessionToken = getProducerSessionToken();
+  
+  const { data, error } = await supabase.functions.invoke('admin-data', {
+    body: { 
+      action: 'members-area-modules-with-contents',
+      productId,
+    },
+    headers: { 'x-producer-session-token': sessionToken || '' },
+  });
 
   if (error) throw error;
+  if (!data?.success) throw new Error(data?.error || 'Erro ao carregar modules');
 
-  return (modulesData || []).map((module) => ({
+  return (data.data || []).map((module: MemberModuleWithContents) => ({
     ...module,
     contents: (module.contents || [])
       .sort((a, b) => a.position - b.position)
@@ -125,7 +139,6 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
     mutationFn: async ({ enabled, newSettings }: { enabled: boolean; newSettings?: Json }) => {
       if (!productId) throw new Error("Product ID required");
 
-      const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
       const sessionToken = getProducerSessionToken();
       
       const { data: result, error } = await supabase.functions.invoke('product-settings', {
@@ -145,20 +158,24 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
       // Configurações adicionais quando habilitado
       if (enabled && user?.email) {
         try {
-          const { data: product } = await supabase
-            .from("products")
-            .select("user_id")
-            .eq("id", productId)
-            .single();
+          const { data: productData } = await supabase.functions.invoke('admin-data', {
+            body: { 
+              action: 'user-products-simple',
+              productId,
+            },
+            headers: { 'x-producer-session-token': sessionToken || '' },
+          });
 
-          if (product?.user_id) {
+          const userId = productData?.data?.user_id;
+
+          if (userId) {
             await fetch(`${SUPABASE_URL}/functions/v1/buyer-auth/ensure-producer-access`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 email: user.email,
                 productId: productId,
-                producerUserId: product.user_id,
+                producerUserId: userId,
               }),
             });
           }

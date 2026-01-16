@@ -1,3 +1,9 @@
+/**
+ * WebhooksConfig - Configuração de Webhooks
+ * 
+ * MIGRATED: Uses Edge Function instead of supabase.from()
+ */
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, Plus, Search } from "lucide-react";
@@ -21,6 +27,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 
 interface WebhookData {
   id: string;
@@ -55,56 +62,28 @@ export function WebhooksConfig() {
     }
   }, [user]);
 
+  /**
+   * Load data via Edge Function
+   * MIGRATED: Uses webhook-crud instead of supabase.from()
+   */
   const loadData = async () => {
     try {
       setLoading(true);
+      const sessionToken = getProducerSessionToken();
       
-      // Carregar produtos
-      const { data: productsData, error: productsError } = await supabase
-        .from("products")
-        .select("id, name")
-        .eq("user_id", user?.id)
-        .eq("status", "active")
-        .order("name");
+      // Carregar produtos e webhooks via Edge Function
+      const { data, error } = await supabase.functions.invoke('webhook-crud', {
+        body: {
+          action: 'list-with-products',
+          sessionToken,
+        }
+      });
 
-      if (productsError) throw productsError;
-      setProducts(productsData || []);
-
-      // Carregar webhooks
-      const { data: webhooksData, error: webhooksError } = await supabase
-        .from("outbound_webhooks")
-        .select("*")
-        .eq("vendor_id", user?.id)
-        .order("created_at", { ascending: false });
-
-      if (webhooksError) throw webhooksError;
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Erro ao carregar dados");
       
-      // Interface para webhook raw do Supabase
-      interface RawWebhookData {
-        id: string;
-        name: string;
-        url: string;
-        events: string[];
-        product_id: string | null;
-        created_at: string;
-      }
-
-      // Mapear para incluir nomes de produtos
-      const webhooksWithProducts = await Promise.all(
-        (webhooksData || []).map(async (webhook: RawWebhookData) => {
-          if (webhook.product_id) {
-            const { data: product } = await supabase
-              .from("products")
-              .select("name")
-              .eq("id", webhook.product_id)
-              .single();
-            return { ...webhook, product } as WebhookData;
-          }
-          return webhook as WebhookData;
-        })
-      );
-      
-      setWebhooks(webhooksWithProducts);
+      setProducts(data.products || []);
+      setWebhooks(data.webhooks || []);
     } catch (error: unknown) {
       console.error("Error loading data:", error);
       toast.error("Erro ao carregar dados");
@@ -120,7 +99,6 @@ export function WebhooksConfig() {
     product_ids: string[];
   }) => {
     try {
-      const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
       const sessionToken = getProducerSessionToken();
 
       if (editingWebhook) {
@@ -182,7 +160,6 @@ export function WebhooksConfig() {
 
   const handleDelete = async (webhookId: string) => {
     try {
-      const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
       const sessionToken = getProducerSessionToken();
 
       const { data: result, error } = await supabase.functions.invoke('webhook-crud', {

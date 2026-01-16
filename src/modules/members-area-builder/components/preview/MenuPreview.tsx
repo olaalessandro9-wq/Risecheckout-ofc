@@ -3,6 +3,7 @@
  * Full height, collapsible
  * Suporta modo click (botão) e hover (mouse) para desktop
  * 
+ * MIGRATED: Uses Edge Function instead of supabase.from()
  * @see RISE ARCHITECT PROTOCOL
  */
 
@@ -14,6 +15,7 @@ import { ChevronLeft, ChevronRight, Plus, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { getProducerSessionToken } from '@/hooks/useProducerAuth';
 import type { MembersAreaBuilderSettings } from '../../types/builder.types';
 
 interface MenuPreviewProps {
@@ -54,23 +56,36 @@ export function MenuPreview({
   // Internal hover state for hover mode
   const [isHovered, setIsHovered] = useState(false);
   
+  /**
+   * Fetch profile via Edge Function
+   * MIGRATED: Uses admin-data instead of supabase.from()
+   */
   const { data: profile } = useQuery({
     queryKey: ["user-profile-builder", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
       
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("name")
-        .eq("id", user.id)
-        .single();
+      const sessionToken = getProducerSessionToken();
+      
+      const { data, error } = await supabase.functions.invoke('admin-data', {
+        body: { 
+          action: 'user-profile-name',
+          userId: user.id,
+        },
+        headers: { 'x-producer-session-token': sessionToken || '' },
+      });
       
       if (error) {
         console.error("Error fetching profile:", error);
         return null;
       }
       
-      return data;
+      if (!data?.success) {
+        console.error("Error fetching profile:", data?.error);
+        return null;
+      }
+      
+      return data.data;
     },
     enabled: !!user?.id,
   });
