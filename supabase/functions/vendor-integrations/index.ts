@@ -22,7 +22,7 @@ const corsHeaders = {
 interface RequestBody {
   action: "get-config" | "get-all";
   vendorId: string;
-  integrationType?: "MERCADOPAGO" | "PUSHINPAY" | "STRIPE" | "ASAAS";
+  integrationType?: "MERCADOPAGO" | "PUSHINPAY" | "STRIPE" | "ASAAS" | "TIKTOK_PIXEL" | "FACEBOOK_PIXEL" | "GOOGLE_ADS" | "UTMIFY";
 }
 
 serve(async (req) => {
@@ -135,30 +135,44 @@ function sanitizeConfig(config: Record<string, unknown> | unknown, integrationTy
   
   switch (integrationType) {
     case "MERCADOPAGO":
-      // Only expose public key, hide access_token
       return {
         public_key: cfg.public_key,
         sandbox_mode: cfg.sandbox_mode,
-        // Hide: access_token, refresh_token
       };
     case "STRIPE":
-      // Only expose publishable key
       return {
         publishable_key: cfg.publishable_key,
-        // Hide: secret_key
       };
     case "PUSHINPAY":
-      // Don't expose token, just indicate it's configured
       return {
         has_token: !!cfg.pushinpay_token,
-        // Hide: pushinpay_token
       };
     case "ASAAS":
-      // Only indicate if configured
       return {
         sandbox_mode: cfg.sandbox_mode,
+        environment: cfg.environment,
         has_api_key: !!cfg.api_key,
-        // Hide: api_key
+      };
+    case "TIKTOK_PIXEL":
+      return {
+        pixel_id: cfg.pixel_id,
+        selected_products: cfg.selected_products,
+      };
+    case "FACEBOOK_PIXEL":
+      return {
+        pixel_id: cfg.pixel_id,
+        selected_products: cfg.selected_products,
+      };
+    case "GOOGLE_ADS":
+      return {
+        conversion_id: cfg.conversion_id,
+        conversion_label: cfg.conversion_label,
+        selected_products: cfg.selected_products,
+      };
+    case "UTMIFY":
+      return {
+        api_token: cfg.api_token ? "configured" : null,
+        selected_products: cfg.selected_products,
       };
     default:
       return {};

@@ -1,11 +1,11 @@
 /**
  * Asaas Gateway API
  * 
- * Funções para comunicação com as Edge Functions do Asaas.
+ * MIGRATED: Uses Edge Functions for all operations
+ * @see RISE Protocol V2 - Zero database access from frontend
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import type { Json } from "@/integrations/supabase/types";
 import type {
   AsaasEnvironment,
   AsaasPaymentRequest,
@@ -144,40 +144,43 @@ export async function createAsaasCreditCardPayment(
 }
 
 // ============================================
-// SETTINGS (vendor_integrations)
+// SETTINGS (via Edge Functions)
 // ============================================
 
 /**
- * Busca as configurações do Asaas para um vendor
+ * Busca as configurações do Asaas para um vendor via Edge Function
  */
 export async function getAsaasSettings(
   vendorId: string
 ): Promise<AsaasIntegrationConfig | null> {
   try {
-    const { data, error } = await supabase
-      .from('vendor_integrations')
-      .select('config, active')
-      .eq('vendor_id', vendorId)
-      .eq('integration_type', INTEGRATION_TYPE)
-      .maybeSingle();
+    const { data, error } = await supabase.functions.invoke('vendor-integrations', {
+      body: {
+        action: 'get-config',
+        vendorId,
+        integrationType: INTEGRATION_TYPE,
+      },
+    });
 
     if (error) {
       console.error('[Asaas] Get settings error:', error);
       return null;
     }
 
-    if (!data || !data.active) {
+    if (!data?.success || !data?.data) {
       return null;
     }
 
-    const config = data.config as Record<string, unknown>;
+    const config = data.data.config as Record<string, unknown>;
     return {
-      api_key: (config?.api_key as string) || '',
+      api_key: '', // Not exposed via public endpoint
       environment: (config?.environment as AsaasEnvironment) || 'sandbox',
-      wallet_id: config?.wallet_id as string | undefined,
-      validated_at: config?.validated_at as string | undefined,
-      account_name: config?.account_name as string | undefined,
-    };
+      wallet_id: undefined, // Not exposed
+      validated_at: undefined,
+      account_name: undefined,
+      // For checking if connected, use has_api_key
+      _has_api_key: config?.has_api_key as boolean,
+    } as AsaasIntegrationConfig;
   } catch (err) {
     console.error('[Asaas] Get settings exception:', err);
     return null;
@@ -218,7 +221,7 @@ export async function saveAsaasSettings(
 
     // Salvar wallet_id no profile via Edge Function
     if (config.wallet_id) {
-      const { data: walletResult, error: walletError } = await supabase.functions.invoke('integration-management', {
+      const { error: walletError } = await supabase.functions.invoke('integration-management', {
         body: {
           action: 'save-profile-wallet',
           walletId: config.wallet_id,
@@ -289,5 +292,6 @@ export async function disconnectAsaas(
  */
 export async function isAsaasConnected(vendorId: string): Promise<boolean> {
   const settings = await getAsaasSettings(vendorId);
-  return settings !== null && !!settings.api_key;
+  // Check the internal flag since api_key is not exposed
+  return settings !== null && !!(settings as AsaasIntegrationConfig & { _has_api_key?: boolean })._has_api_key;
 }
