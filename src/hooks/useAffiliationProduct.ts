@@ -1,3 +1,10 @@
+/**
+ * Hook para carregar dados do produto e ofertas para página de afiliação
+ * 
+ * MIGRATED: Uses affiliation-public Edge Function
+ * @see RISE Protocol V2 - Zero database access from frontend
+ */
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -34,9 +41,6 @@ interface UseAffiliationProductResult {
   error: string | null;
 }
 
-/**
- * Hook para carregar dados do produto e ofertas para página de afiliação
- */
 export function useAffiliationProduct(productId: string | undefined): UseAffiliationProductResult {
   const [product, setProduct] = useState<AffiliationProduct | null>(null);
   const [offers, setOffers] = useState<Offer[]>([]);
@@ -52,43 +56,27 @@ export function useAffiliationProduct(productId: string | undefined): UseAffilia
 
     const loadData = async () => {
       try {
-        // Carregar produto
-        const { data: productData, error: productError } = await supabase
-          .from("products")
-          .select("id, name, image_url, affiliate_settings")
-          .eq("id", productId)
-          .single();
+        const { data, error: invokeError } = await supabase.functions.invoke("affiliation-public", {
+          body: {
+            action: "all",
+            productId,
+          },
+        });
 
-        if (productError) throw productError;
-
-        const settings = productData.affiliate_settings as unknown as AffiliateSettings | null;
-        if (!settings?.enabled) {
-          setError("Este produto não possui programa de afiliados ativo.");
-          setIsLoading(false);
-          return;
+        if (invokeError) {
+          throw invokeError;
         }
 
-        setProduct({ ...productData, affiliate_settings: settings });
+        if (!data?.success) {
+          throw new Error(data?.error || "Erro ao carregar dados");
+        }
 
-        // Carregar ofertas
-        const { data: offersData, error: offersError } = await supabase
-          .from("offers")
-          .select("id, name, price")
-          .eq("product_id", productId)
-          .eq("status", "active");
-
-        if (offersError) throw offersError;
-
-        // Converter price de centavos para reais
-        const parsedOffers = (offersData || []).map(offer => ({
-          ...offer,
-          price: (parseFloat(String(offer.price)) || 0) / 100,
-        }));
-
-        setOffers(parsedOffers);
+        setProduct(data.data.product);
+        setOffers(data.data.offers || []);
       } catch (err) {
         console.error("Erro ao carregar produto:", err);
-        setError("Produto não encontrado ou programa de afiliados desativado.");
+        const message = err instanceof Error ? err.message : "Produto não encontrado ou programa de afiliados desativado.";
+        setError(message);
       } finally {
         setIsLoading(false);
       }

@@ -1,0 +1,173 @@
+/**
+ * vendor-integrations Edge Function
+ * 
+ * PUBLIC endpoint - fetches vendor integration configs
+ * Used by checkout pages to determine available payment gateways
+ * 
+ * Actions:
+ * - get-config: Get integration config by vendor ID and type
+ * - get-all: Get all active integrations for a vendor
+ * 
+ * @see RISE Protocol V2 - Zero database access from frontend
+ */
+
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+interface RequestBody {
+  action: "get-config" | "get-all";
+  vendorId: string;
+  integrationType?: "MERCADOPAGO" | "PUSHINPAY" | "STRIPE" | "ASAAS";
+}
+
+serve(async (req) => {
+  // CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    const body: RequestBody = await req.json();
+    const { action, vendorId, integrationType } = body;
+
+    if (!vendorId) {
+      return jsonResponse({ error: "vendorId required" }, 400);
+    }
+
+    console.log(`[vendor-integrations] Action: ${action}, Vendor: ${vendorId}, Type: ${integrationType || "all"}`);
+
+    // ===== ACTION: get-config =====
+    if (action === "get-config") {
+      if (!integrationType) {
+        return jsonResponse({ error: "integrationType required" }, 400);
+      }
+
+      const { data, error } = await supabase
+        .from("vendor_integrations")
+        .select("*")
+        .eq("vendor_id", vendorId)
+        .eq("integration_type", integrationType)
+        .eq("active", true)
+        .maybeSingle();
+
+      if (error) {
+        // PGRST116 = row not found (not critical)
+        if (error.code === "PGRST116") {
+          return jsonResponse({ success: true, data: null });
+        }
+        console.error("[vendor-integrations] Error:", error);
+        return jsonResponse({ error: "Erro ao buscar integração" }, 500);
+      }
+
+      if (!data || !data.active) {
+        return jsonResponse({ success: true, data: null });
+      }
+
+      // Remove sensitive data for public response
+      const safeConfig = sanitizeConfig(data.config, integrationType);
+
+      return jsonResponse({
+        success: true,
+        data: {
+          id: data.id,
+          vendor_id: data.vendor_id,
+          integration_type: data.integration_type,
+          active: data.active,
+          config: safeConfig,
+          created_at: data.created_at,
+          updated_at: data.updated_at,
+        },
+      });
+    }
+
+    // ===== ACTION: get-all =====
+    if (action === "get-all") {
+      const { data, error } = await supabase
+        .from("vendor_integrations")
+        .select("*")
+        .eq("vendor_id", vendorId)
+        .eq("active", true);
+
+      if (error) {
+        console.error("[vendor-integrations] Error:", error);
+        return jsonResponse({ error: "Erro ao buscar integrações" }, 500);
+      }
+
+      const integrations = (data || []).map((item: Record<string, unknown>) => ({
+        id: item.id,
+        vendor_id: item.vendor_id,
+        integration_type: item.integration_type,
+        active: item.active,
+        config: sanitizeConfig(item.config as Record<string, unknown>, item.integration_type as string),
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+      }));
+
+      return jsonResponse({ success: true, data: integrations });
+    }
+
+    return jsonResponse({ error: "Ação desconhecida" }, 400);
+
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.error("[vendor-integrations] Error:", err.message);
+    return jsonResponse({ error: "Erro interno" }, 500);
+  }
+});
+
+/**
+ * Remove sensitive data from config based on integration type
+ */
+function sanitizeConfig(config: Record<string, unknown> | unknown, integrationType: string): Record<string, unknown> {
+  if (!config || typeof config !== "object") return {};
+  
+  const cfg = config as Record<string, unknown>;
+  
+  switch (integrationType) {
+    case "MERCADOPAGO":
+      // Only expose public key, hide access_token
+      return {
+        public_key: cfg.public_key,
+        sandbox_mode: cfg.sandbox_mode,
+        // Hide: access_token, refresh_token
+      };
+    case "STRIPE":
+      // Only expose publishable key
+      return {
+        publishable_key: cfg.publishable_key,
+        // Hide: secret_key
+      };
+    case "PUSHINPAY":
+      // Don't expose token, just indicate it's configured
+      return {
+        has_token: !!cfg.pushinpay_token,
+        // Hide: pushinpay_token
+      };
+    case "ASAAS":
+      // Only indicate if configured
+      return {
+        sandbox_mode: cfg.sandbox_mode,
+        has_api_key: !!cfg.api_key,
+        // Hide: api_key
+      };
+    default:
+      return {};
+  }
+}
+
+function jsonResponse(data: unknown, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
