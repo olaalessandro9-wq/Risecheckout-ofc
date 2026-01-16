@@ -6,6 +6,34 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
+## [3.1.0] - 2026-01-16
+
+### 🔒 Migração Frontend → Edge Functions (RISE Protocol V2)
+
+#### Adicionado
+- **10 novas actions** em Edge Functions existentes:
+  - `admin-data`: 7 actions (marketplace-categories, marketplace-stats, user-profile-name, check-unique-checkout-name, user-products-simple, members-area-settings, members-area-modules-with-contents)
+  - `webhook-crud`: 3 actions (listWebhooksWithProducts, listUserProducts, getWebhookProducts)
+  - `checkout-public-data`: 1 action (check-order-payment-status)
+
+#### Migrado
+- **10 arquivos frontend** para usar Edge Functions (Zero Database Access):
+  - `WebhooksConfig.tsx`, `WebhookForm.tsx` → `webhook-crud`
+  - `AffiliatesTab.tsx`, `MarketplaceSettings.tsx` → `admin-data`
+  - `useMembersAreaSettings.ts`, `MenuPreview.tsx` → `admin-data`
+  - `StripePix.tsx` → `checkout-public-data`
+  - `uniqueCheckoutName.ts`, `useAdminAnalytics.ts` → `admin-data`
+
+#### Removido
+- `src/api/storage/remove.ts` - Substituído por `storage-management` Edge Function
+- `src/lib/utils/slug.ts` - Código morto no frontend (movido para Edge Functions)
+
+#### Conformidade
+- **Zero chamadas `supabase.from()`** no frontend
+- **RISE Protocol V2 Compliance: 100%**
+
+---
+
 ## [3.0.0] - 2026-01-15
 
 ### 🎉 Marco: Produção 100% Completa
