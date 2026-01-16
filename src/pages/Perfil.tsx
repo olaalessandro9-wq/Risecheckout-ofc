@@ -1,3 +1,10 @@
+/**
+ * Perfil Page
+ * 
+ * MIGRATED: Uses Edge Function instead of direct database access
+ * @see RISE Protocol V2 - Zero direct database access from frontend
+ */
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -52,25 +59,32 @@ export default function Perfil() {
   const [cpf, setCpf] = useState("");
   const [celular, setCelular] = useState("");
   
+  /**
+   * Load profile via Edge Function
+   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   */
   const { data: profile, isLoading } = useQuery({
     queryKey: ["user-profile-full", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
       
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("name, cpf_cnpj, phone")
-        .eq("id", user.id)
-        .single();
+      const { data, error } = await supabase.functions.invoke("products-crud", {
+        body: {
+          action: "get-profile",
+        },
+        headers: {
+          "x-producer-session-token": sessionToken || "",
+        },
+      });
       
       if (error) {
         console.error("Error fetching profile:", error);
         return null;
       }
       
-      return data;
+      return data?.profile || null;
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && !!sessionToken,
   });
   
   // Preencher formulário quando os dados chegarem

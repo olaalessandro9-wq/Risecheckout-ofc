@@ -2,31 +2,20 @@
  * Hooks para o UTMify
  * Módulo: src/integrations/tracking/utmify
  * 
- * Este arquivo contém hooks React para carregar e gerenciar
- * a configuração do UTMify do banco de dados.
+ * MIGRATED: Uses Edge Function instead of direct database access
+ * @see RISE Protocol V2 - Zero direct database access from frontend
  */
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { UTMifyConfig, UTMifyIntegration } from "./types";
+import { UTMifyIntegration } from "./types";
 
 /**
  * Hook para carregar a configuração do UTMify de um vendedor
- * 
- * Busca no banco de dados (vendor_integrations) a configuração do UTMify
- * específica para o vendedor. Inclui cache de 5 minutos.
+ * MIGRATED: Uses Edge Function (vendor-integrations)
  * 
  * @param vendorId - ID do vendedor (opcional)
  * @returns Query result com os dados da integração
- * 
- * @example
- * const { data: utmifyIntegration, isLoading, error } = useUTMifyConfig(vendorId);
- * 
- * if (isLoading) return <div>Carregando...</div>;
- * if (error) return <div>Erro ao carregar config</div>;
- * if (!utmifyIntegration) return null;
- * 
- * return <div>UTMify ativado</div>;
  */
 export function useUTMifyConfig(vendorId?: string) {
   return useQuery({
@@ -39,35 +28,30 @@ export function useUTMifyConfig(vendorId?: string) {
       }
 
       try {
-        // Query ao banco de dados
-        const { data, error } = await supabase
-          .from("vendor_integrations")
-          .select("*")
-          .eq("vendor_id", vendorId)
-          .eq("integration_type", "UTMIFY")
-          .eq("active", true)
-          .maybeSingle();
+        // Query via Edge Function
+        const { data, error } = await supabase.functions.invoke("vendor-integrations", {
+          body: {
+            action: "get",
+            vendorId,
+            integrationType: "UTMIFY",
+          },
+        });
 
         // Tratamento de erro
         if (error) {
-          // PGRST116 = nenhuma linha encontrada (não é erro crítico)
-          if (error.code === "PGRST116") {
-            console.log("[UTMify] Integração não encontrada para vendor:", vendorId);
-            return null;
-          }
           console.error("[UTMify] Erro ao carregar configuração:", error);
           return null;
         }
 
         // Validação: dados vazios ou integração inativa
-        if (!data || !data.active) {
+        if (!data?.integration || !data.integration.active) {
           console.log("[UTMify] Integração não encontrada ou desativada para vendor:", vendorId);
           return null;
         }
 
         console.log("[UTMify] Configuração carregada com sucesso para vendor:", vendorId);
 
-        return data as unknown as UTMifyIntegration;
+        return data.integration as UTMifyIntegration;
       } catch (error: unknown) {
         console.error("[UTMify] Erro inesperado ao carregar config:", error);
         return null;
@@ -91,14 +75,6 @@ export function useUTMifyConfig(vendorId?: string) {
  * @param integration - Integração do UTMify
  * @param productId - ID do produto (obrigatório)
  * @returns true se o UTMify deve rodar, false caso contrário
- * 
- * @example
- * const { data: utmifyIntegration } = useUTMifyConfig(vendorId);
- * const shouldRun = shouldRunUTMify(utmifyIntegration, productId);
- * 
- * if (shouldRun) {
- *   // Enviar conversão ao UTMify
- * }
  */
 export function shouldRunUTMify(
   integration: UTMifyIntegration | null | undefined,
@@ -140,13 +116,6 @@ export function shouldRunUTMify(
  * @param vendorId - ID do vendedor
  * @param productId - ID do produto
  * @returns true se o UTMify deve rodar
- * 
- * @example
- * const shouldRunUTMify = useUTMifyForProduct(vendorId, productId);
- * 
- * if (shouldRunUTMify) {
- *   // Enviar conversão ao UTMify
- * }
  */
 export function useUTMifyForProduct(vendorId?: string, productId?: string): boolean {
   const { data: utmifyIntegration } = useUTMifyConfig(vendorId);
@@ -159,9 +128,6 @@ export function useUTMifyForProduct(vendorId?: string, productId?: string): bool
  * @param integration - Integração do UTMify
  * @param eventType - Tipo de evento (ex: "purchase", "pageview")
  * @returns true se o evento está habilitado
- * 
- * @example
- * const isEventEnabled = isEventEnabledForUTMify(utmifyIntegration, "purchase");
  */
 export function isEventEnabledForUTMify(
   integration: UTMifyIntegration | null | undefined,

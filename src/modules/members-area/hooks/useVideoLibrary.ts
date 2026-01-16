@@ -1,6 +1,9 @@
 /**
  * useVideoLibrary - Hook para buscar vídeos já usados no produto
  * 
+ * MIGRATED: Uses Edge Function instead of direct database access
+ * @see RISE Protocol V2 - Zero direct database access from frontend
+ * 
  * Implementa as funcionalidades:
  * - Biblioteca: Lista de vídeos únicos usados no produto
  * - Reutilizar: Lista de conteúdos que possuem vídeo
@@ -8,6 +11,7 @@
 
 import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 
 interface VideoItem {
   id: string;
@@ -50,63 +54,43 @@ export function useVideoLibrary(): UseVideoLibraryReturn {
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  /**
+   * Fetch videos via Edge Function
+   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   */
   const fetchVideos = useCallback(async (productId: string, excludeContentId?: string) => {
     if (!productId) return;
 
     setIsLoading(true);
     try {
-      // Buscar todos os conteúdos com vídeo do produto
-      const { data, error } = await supabase
-        .from("product_member_content")
-        .select(`
-          id,
-          title,
-          content_url,
-          module:module_id (
-            id,
-            title,
-            product_id
-          )
-        `)
-        .not("content_url", "is", null)
-        .eq("is_active", true);
+      const sessionToken = getProducerSessionToken();
+      const { data, error } = await supabase.functions.invoke("products-crud", {
+        body: {
+          action: "get-video-library",
+          productId,
+          excludeContentId,
+        },
+        headers: {
+          "x-producer-session-token": sessionToken || "",
+        },
+      });
 
       if (error) {
         console.error("[useVideoLibrary] Error fetching videos:", error);
         return;
       }
 
-      // Filtrar por product_id e mapear
-      const videoItems: VideoItem[] = [];
-      const seenUrls = new Set<string>();
-
-      for (const item of data || []) {
-        const module = item.module as { id: string; title: string; product_id: string } | null;
-        
-        // Filtrar pelo produto
-        if (!module || module.product_id !== productId) continue;
-        
-        // Excluir conteúdo atual (se estiver editando)
-        if (excludeContentId && item.id === excludeContentId) continue;
-        
-        // Verificar se é URL do YouTube
-        if (!item.content_url) continue;
-        
-        const youtubeId = extractYouTubeId(item.content_url);
-        if (!youtubeId) continue;
-
-        // Evitar duplicatas de URL
-        if (seenUrls.has(item.content_url)) continue;
-        seenUrls.add(item.content_url);
-
-        videoItems.push({
+      // Map videos with thumbnails
+      const videoItems: VideoItem[] = (data?.videos || []).map((item: { id: string; url: string; title: string; moduleTitle: string }) => {
+        const youtubeId = extractYouTubeId(item.url);
+        return {
           id: item.id,
-          url: item.content_url,
-          thumbnail: getYouTubeThumbnail(youtubeId),
+          url: item.url,
+          thumbnail: youtubeId ? getYouTubeThumbnail(youtubeId) : null,
           title: item.title,
-          moduleTitle: module.title,
-        });
-      }
+          moduleTitle: item.moduleTitle,
+        };
+      });
 
       setVideos(videoItems);
     } catch (err) {
