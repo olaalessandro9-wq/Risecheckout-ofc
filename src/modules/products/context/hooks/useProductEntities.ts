@@ -1,17 +1,18 @@
 /**
  * useProductEntities - Gerenciamento de Entidades do Produto
  * 
+ * MIGRATED: Usa API Layer via Edge Function
+ * 
  * Responsável por:
  * - Ofertas (offers)
  * - Order Bumps (orderBumps)
  * - Cupons (coupons)
  * 
- * Nota: Apenas leitura/refresh neste contexto.
- * Operações CRUD são feitas por componentes específicos.
+ * @see RISE Protocol V2 - Zero direct database access
  */
 
 import { useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import type { Offer, OrderBump, Coupon } from "../../types/product.types";
 
 interface UseProductEntitiesOptions {
@@ -25,6 +26,39 @@ interface UseProductEntitiesReturn {
   refreshOffers: () => Promise<void>;
   refreshOrderBumps: () => Promise<void>;
   refreshCoupons: () => Promise<void>;
+}
+
+interface OfferRecord {
+  id: string;
+  product_id: string;
+  name: string;
+  price: number;
+  status: string;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface OrderBumpRecord {
+  id: string;
+  checkout_id: string;
+  name: string;
+  description: string;
+  price: number;
+  image_url: string | null;
+  bump_product_id: string | null;
+}
+
+interface CouponRecord {
+  id: string;
+  code: string;
+  discount_value: number;
+  discount_type: string;
+  created_at: string;
+  expires_at: string | null;
+  uses_count: number | null;
+  max_uses: number | null;
+  coupon_products: Array<{ product_id: string }>;
 }
 
 export function useProductEntities({
@@ -42,15 +76,13 @@ export function useProductEntities({
     if (!productId) return;
 
     try {
-      const { data, error } = await supabase
-        .from("offers")
-        .select("*")
-        .eq("product_id", productId)
-        .eq("status", "active")
-        .order("created_at", { ascending: false });
+      const { data, error } = await api.call<{ offers: OfferRecord[] }>("product-entities", {
+        action: "offers",
+        productId,
+      });
 
-      if (error) throw error;
-      setOffers(data || []);
+      if (error) throw new Error(error.message);
+      setOffers((data?.offers || []) as unknown as Offer[]);
     } catch (error: unknown) {
       console.error("[useProductEntities] Error loading offers:", error);
     }
@@ -64,32 +96,13 @@ export function useProductEntities({
     if (!productId) return;
 
     try {
-      // Buscar order_bumps via checkouts do produto
-      const { data: checkoutsData, error: checkoutsError } = await supabase
-        .from("checkouts")
-        .select("id")
-        .eq("product_id", productId);
+      const { data, error } = await api.call<{ orderBumps: OrderBumpRecord[] }>("product-entities", {
+        action: "order-bumps",
+        productId,
+      });
 
-      if (checkoutsError) throw checkoutsError;
-
-      const checkoutIds = (checkoutsData || []).map((c) => c.id);
-
-      if (checkoutIds.length === 0) {
-        setOrderBumps([]);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("order_bumps")
-        .select("*")
-        .in("checkout_id", checkoutIds);
-
-      if (error) throw error;
-
-      // Note: Raw order_bumps data from DB has different shape than OrderBump interface
-      // OrderBump interface expects: id, name, description, price, image_url, bump_product_id
-      // But DB returns checkout-specific fields. We store raw data and let consumers handle mapping
-      setOrderBumps((data || []) as unknown as OrderBump[]);
+      if (error) throw new Error(error.message);
+      setOrderBumps((data?.orderBumps || []) as unknown as OrderBump[]);
     } catch (error: unknown) {
       console.error("[useProductEntities] Error loading order bumps:", error);
     }
@@ -100,23 +113,18 @@ export function useProductEntities({
   // ---------------------------------------------------------------------------
 
   const refreshCoupons = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from("coupons")
-        .select(
-          `
-          *,
-          coupon_products (
-            product_id
-          )
-        `
-        )
-        .order("created_at", { ascending: false });
+    if (!productId) return;
 
-      if (error) throw error;
+    try {
+      const { data, error } = await api.call<{ coupons: CouponRecord[] }>("product-entities", {
+        action: "coupons",
+        productId,
+      });
+
+      if (error) throw new Error(error.message);
 
       setCoupons(
-        (data || []).map((coupon) => ({
+        (data?.coupons || []).map((coupon) => ({
           id: coupon.id,
           code: coupon.code,
           discount: Number(coupon.discount_value),
@@ -133,7 +141,7 @@ export function useProductEntities({
     } catch (error: unknown) {
       console.error("[useProductEntities] Error loading coupons:", error);
     }
-  }, []);
+  }, [productId]);
 
   return {
     offers,

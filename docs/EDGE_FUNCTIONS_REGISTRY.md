@@ -91,6 +91,7 @@
 | `utmify-conversion` | `.../utmify-conversion` | ✅ | 10 min ago | 120 |
 | `facebook-conversion-api` | `.../facebook-conversion-api` | ✅ | 10 min ago | 122 |
 | `dashboard-analytics` | `.../dashboard-analytics` | ✅ | 10 min ago | 141 |
+| `dashboard-orders` | `.../dashboard-orders` | ✅ | NEW | 0 |
 | `checkout-heartbeat` | `.../checkout-heartbeat` | ✅ | 10 min ago | 249 |
 | `detect-abandoned-checkouts` | `.../detect-abandoned-checkouts` | ✅ | 10 min ago | 249 |
 | `track-visit` | `.../track-visit` | ✅ | 10 min ago | 0 |
