@@ -1,3 +1,9 @@
+/**
+ * UTMifyConfig
+ * 
+ * MIGRATED: Uses Edge Function instead of supabase.from()
+ */
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -68,19 +74,24 @@ export const UTMifyConfig = () => {
     }
   }, [user]);
 
+  /**
+   * Load products via Edge Function
+   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   */
   const loadProducts = async () => {
     try {
       setLoadingProducts(true);
+      const sessionToken = getProducerSessionToken();
       
-      const { data, error } = await supabase
-        .from("products")
-        .select("id, name")
-        .eq("user_id", user?.id)
-        .neq("status", "deleted")
-        .order("name");
+      const { data, error } = await supabase.functions.invoke("products-crud", {
+        body: { action: "list" },
+        headers: { "x-producer-session-token": sessionToken || "" },
+      });
 
       if (error) throw error;
-      setProducts(data || []);
+      
+      const productsList = (data?.products || []).filter((p: { status?: string }) => p.status !== "deleted");
+      setProducts(productsList);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
       toast.error("Erro ao carregar produtos: " + errorMessage);
@@ -89,26 +100,34 @@ export const UTMifyConfig = () => {
     }
   };
 
+  /**
+   * Load UTMify config via Edge Function
+   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   */
   const loadUTMifyConfig = async () => {
     try {
       setLoadingConfig(true);
-      const { data, error } = await supabase
-        .from("vendor_integrations")
-        .select("*")
-        .eq("vendor_id", user?.id)
-        .eq("integration_type", "UTMIFY")
-        .maybeSingle();
+      const sessionToken = getProducerSessionToken();
+      
+      const { data, error } = await supabase.functions.invoke("admin-data", {
+        body: {
+          action: "vendor-integration",
+          integrationType: "UTMIFY",
+        },
+        headers: { "x-producer-session-token": sessionToken || "" },
+      });
 
       if (error) throw error;
 
-      if (data) {
-        const config = data.config as { 
+      const integration = data?.integration;
+      if (integration) {
+        const config = integration.config as { 
           selected_products?: string[]; 
           selected_events?: string[];
           has_token?: boolean;
         } | null;
         
-        setUtmifyActive(data.active || false);
+        setUtmifyActive(integration.active || false);
         setSelectedProducts(config?.selected_products || []);
         setSelectedEvents(config?.selected_events || []);
         setHasExistingToken(config?.has_token || false);

@@ -43,7 +43,16 @@ type Action =
   | "gateway-connections"
   | "product-offers"
   | "order-bumps"
-  | "content-editor-data";
+  | "content-editor-data"
+  | "admin-products"
+  | "admin-analytics-financial"
+  | "admin-analytics-traffic"
+  | "admin-analytics-top-sellers"
+  | "vendor-integration"
+  | "payment-link-info"
+  | "content-drip-settings"
+  | "content-access-check"
+  | "order-bump-detail";
 
 interface RequestBody {
   action: Action;
@@ -56,6 +65,11 @@ interface RequestBody {
   contentId?: string;
   moduleId?: string;
   isNew?: boolean;
+  integrationType?: string;
+  slug?: string;
+  buyerId?: string;
+  purchaseDate?: string;
+  orderBumpId?: string;
   filters?: {
     type?: string;
     severity?: string;
@@ -809,6 +823,385 @@ async function getContentEditorData(
   result.release = releaseData;
 
   return jsonResponse(result, corsHeaders);
+}
+
+// Admin products list with metrics
+async function getAdminProducts(
+  supabase: SupabaseClient,
+  producerId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const { data: role } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", producerId)
+    .maybeSingle();
+
+  if (role?.role !== "owner") {
+    return errorResponse("Acesso negado", "FORBIDDEN", corsHeaders, 403);
+  }
+
+  const [productsResult, profilesResult, ordersResult] = await Promise.all([
+    supabase.from("products").select("id, name, price, status, created_at, user_id"),
+    supabase.from("profiles").select("id, name"),
+    supabase.from("orders").select("product_id, amount_cents, status"),
+  ]);
+
+  if (productsResult.error) throw productsResult.error;
+  if (profilesResult.error) throw profilesResult.error;
+  if (ordersResult.error) throw ordersResult.error;
+
+  const metricsMap = new Map<string, { gmv: number; count: number }>();
+  ordersResult.data?.forEach((order) => {
+    if (order.status === "paid") {
+      const current = metricsMap.get(order.product_id) || { gmv: 0, count: 0 };
+      metricsMap.set(order.product_id, {
+        gmv: current.gmv + (order.amount_cents || 0),
+        count: current.count + 1,
+      });
+    }
+  });
+
+  const products = productsResult.data.map((product) => {
+    const vendor = profilesResult.data.find((p) => p.id === product.user_id);
+    const metrics = metricsMap.get(product.id) || { gmv: 0, count: 0 };
+    return {
+      ...product,
+      vendor_name: vendor?.name || "Desconhecido",
+      total_gmv: metrics.gmv,
+      orders_count: metrics.count,
+    };
+  });
+
+  return jsonResponse({ products }, corsHeaders);
+}
+
+// Admin product detail
+async function getAdminProductDetail(
+  supabase: SupabaseClient,
+  productId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const { data: product, error: productError } = await supabase
+    .from("products")
+    .select("id, name, description, price, image_url, status, support_name, support_email, created_at, user_id")
+    .eq("id", productId)
+    .single();
+
+  if (productError || !product) {
+    return errorResponse("Produto não encontrado", "NOT_FOUND", corsHeaders, 404);
+  }
+
+  const [vendorResult, offersResult] = await Promise.all([
+    supabase.from("profiles").select("name").eq("id", product.user_id).single(),
+    supabase.from("offers").select("id, name, price, status, is_default").eq("product_id", productId).eq("status", "active").order("is_default", { ascending: false }),
+  ]);
+
+  return jsonResponse({
+    product,
+    vendor: vendorResult.data,
+    offers: offersResult.data || [],
+  }, corsHeaders);
+}
+
+// Admin financial analytics
+async function getAdminAnalyticsFinancial(
+  supabase: SupabaseClient,
+  producerId: string,
+  period: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const { data: role } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", producerId)
+    .maybeSingle();
+
+  if (role?.role !== "owner" && role?.role !== "admin") {
+    return errorResponse("Acesso negado", "FORBIDDEN", corsHeaders, 403);
+  }
+
+  const { start, end } = getDateRange(period);
+
+  const { data: orders, error } = await supabase
+    .from("orders")
+    .select("amount_cents, platform_fee_cents, vendor_id, status, paid_at")
+    .eq("status", "paid")
+    .gte("paid_at", start.toISOString())
+    .lte("paid_at", end.toISOString());
+
+  if (error) throw error;
+
+  const data = orders || [];
+  const totalPlatformFees = data.reduce((sum, o) => sum + (o.platform_fee_cents || 0), 0);
+  const totalGMV = data.reduce((sum, o) => sum + (o.amount_cents || 0), 0);
+  const totalPaidOrders = data.length;
+  const averageTicket = totalPaidOrders > 0 ? totalGMV / totalPaidOrders : 0;
+  const uniqueVendors = new Set(data.map((o) => o.vendor_id));
+
+  return jsonResponse({
+    totalPlatformFees,
+    totalGMV,
+    totalPaidOrders,
+    averageTicket,
+    activeSellers: uniqueVendors.size,
+    orders: data,
+  }, corsHeaders);
+}
+
+// Admin traffic analytics
+async function getAdminAnalyticsTraffic(
+  supabase: SupabaseClient,
+  producerId: string,
+  period: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const { data: role } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", producerId)
+    .maybeSingle();
+
+  if (role?.role !== "owner" && role?.role !== "admin") {
+    return errorResponse("Acesso negado", "FORBIDDEN", corsHeaders, 403);
+  }
+
+  const { start, end } = getDateRange(period);
+
+  const [visitsResult, ordersResult] = await Promise.all([
+    supabase.from("checkout_visits").select("id, ip_address, checkout_id, visited_at, utm_source").gte("visited_at", start.toISOString()).lte("visited_at", end.toISOString()),
+    supabase.from("orders").select("id").eq("status", "paid").gte("paid_at", start.toISOString()).lte("paid_at", end.toISOString()),
+  ]);
+
+  if (visitsResult.error) throw visitsResult.error;
+
+  const visits = visitsResult.data || [];
+  const uniqueIPs = new Set(visits.map((v) => v.ip_address).filter(Boolean));
+  const uniqueCheckouts = new Set(visits.map((v) => v.checkout_id));
+  const paidOrders = (ordersResult.data || []).length;
+  const conversionRate = visits.length > 0 ? (paidOrders / visits.length) * 100 : 0;
+
+  return jsonResponse({
+    totalVisits: visits.length,
+    uniqueVisitors: uniqueIPs.size,
+    activeCheckouts: uniqueCheckouts.size,
+    globalConversionRate: Math.round(conversionRate * 100) / 100,
+    visits,
+  }, corsHeaders);
+}
+
+// Admin top sellers
+async function getAdminAnalyticsTopSellers(
+  supabase: SupabaseClient,
+  producerId: string,
+  period: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const { data: role } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", producerId)
+    .maybeSingle();
+
+  if (role?.role !== "owner" && role?.role !== "admin") {
+    return errorResponse("Acesso negado", "FORBIDDEN", corsHeaders, 403);
+  }
+
+  const { start, end } = getDateRange(period);
+
+  const { data: orders, error } = await supabase
+    .from("orders")
+    .select("vendor_id, amount_cents, platform_fee_cents")
+    .eq("status", "paid")
+    .gte("paid_at", start.toISOString())
+    .lte("paid_at", end.toISOString());
+
+  if (error) throw error;
+
+  const vendorMap = new Map<string, { gmv: number; fees: number; count: number }>();
+  (orders || []).forEach((order) => {
+    const current = vendorMap.get(order.vendor_id) || { gmv: 0, fees: 0, count: 0 };
+    vendorMap.set(order.vendor_id, {
+      gmv: current.gmv + (order.amount_cents || 0),
+      fees: current.fees + (order.platform_fee_cents || 0),
+      count: current.count + 1,
+    });
+  });
+
+  const vendorIds = Array.from(vendorMap.keys());
+  if (vendorIds.length === 0) {
+    return jsonResponse({ topSellers: [] }, corsHeaders);
+  }
+
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, name")
+    .in("id", vendorIds);
+
+  const profileMap = new Map((profiles || []).map((p) => [p.id, p.name || "Sem nome"]));
+
+  const topSellers = Array.from(vendorMap.entries())
+    .map(([vendorId, stats]) => ({
+      vendorId,
+      vendorName: profileMap.get(vendorId) || "Sem nome",
+      totalGMV: stats.gmv,
+      totalFees: stats.fees,
+      ordersCount: stats.count,
+    }))
+    .sort((a, b) => b.totalGMV - a.totalGMV)
+    .slice(0, 10);
+
+  return jsonResponse({ topSellers }, corsHeaders);
+}
+
+// Vendor integration config
+async function getVendorIntegration(
+  supabase: SupabaseClient,
+  producerId: string,
+  integrationType: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const { data, error } = await supabase
+    .from("vendor_integrations")
+    .select("*")
+    .eq("vendor_id", producerId)
+    .eq("integration_type", integrationType)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return jsonResponse({ integration: data }, corsHeaders);
+}
+
+// Content drip settings
+async function getContentDripSettings(
+  supabase: SupabaseClient,
+  productId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const { data: modules } = await supabase
+    .from("product_member_modules")
+    .select("id")
+    .eq("product_id", productId);
+
+  if (!modules?.length) {
+    return jsonResponse({ settings: [] }, corsHeaders);
+  }
+
+  const moduleIds = modules.map(m => m.id);
+
+  const { data: contents } = await supabase
+    .from("product_member_content")
+    .select("id")
+    .in("module_id", moduleIds);
+
+  if (!contents?.length) {
+    return jsonResponse({ settings: [] }, corsHeaders);
+  }
+
+  const contentIds = contents.map(c => c.id);
+
+  const { data: settings } = await supabase
+    .from("content_release_settings")
+    .select("*")
+    .in("content_id", contentIds);
+
+  return jsonResponse({ settings: settings || [] }, corsHeaders);
+}
+
+// Content access check
+async function checkContentAccess(
+  supabase: SupabaseClient,
+  contentId: string,
+  buyerId: string,
+  purchaseDate: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const { data: settings } = await supabase
+    .from("content_release_settings")
+    .select("*")
+    .eq("content_id", contentId)
+    .maybeSingle();
+
+  if (!settings) {
+    return jsonResponse({
+      content_id: contentId,
+      is_accessible: true,
+      unlock_date: null,
+      reason: "available",
+    }, corsHeaders);
+  }
+
+  const now = new Date();
+  const purchase = new Date(purchaseDate);
+
+  if (settings.release_type === "after_content" && settings.after_content_id) {
+    const { data: progress } = await supabase
+      .from("buyer_content_progress")
+      .select("completed_at")
+      .eq("buyer_id", buyerId)
+      .eq("content_id", settings.after_content_id)
+      .maybeSingle();
+
+    if (!progress?.completed_at) {
+      return jsonResponse({
+        content_id: contentId,
+        is_accessible: false,
+        unlock_date: null,
+        reason: "drip_locked",
+      }, corsHeaders);
+    }
+
+    return jsonResponse({
+      content_id: contentId,
+      is_accessible: true,
+      unlock_date: null,
+      reason: "available",
+    }, corsHeaders);
+  }
+
+  let unlockDate: Date | null = null;
+
+  if (settings.release_type === "days_after_purchase" && settings.days_after_purchase) {
+    unlockDate = new Date(purchase);
+    unlockDate.setDate(unlockDate.getDate() + settings.days_after_purchase);
+  } else if (settings.release_type === "fixed_date" && settings.fixed_date) {
+    unlockDate = new Date(settings.fixed_date);
+  }
+
+  if (!unlockDate || now >= unlockDate) {
+    return jsonResponse({
+      content_id: contentId,
+      is_accessible: true,
+      unlock_date: unlockDate?.toISOString() || null,
+      reason: "available",
+    }, corsHeaders);
+  }
+
+  return jsonResponse({
+    content_id: contentId,
+    is_accessible: false,
+    unlock_date: unlockDate.toISOString(),
+    reason: "drip_locked",
+  }, corsHeaders);
+}
+
+// Order bump detail
+async function getOrderBumpDetail(
+  supabase: SupabaseClient,
+  orderBumpId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const { data, error } = await supabase
+    .from("order_bumps")
+    .select("*")
+    .eq("id", orderBumpId)
+    .single();
+
+  if (error) throw error;
+
+  return jsonResponse({ orderBump: data }, corsHeaders);
+}
 
 // ==========================================
 // MAIN HANDLER
@@ -913,6 +1306,42 @@ serve(async (req) => {
 
       case "content-editor-data":
         return getContentEditorData(supabase, body.contentId, body.moduleId, body.isNew || false, producer.id, corsHeaders);
+
+      case "admin-products":
+        return getAdminProducts(supabase, producer.id, corsHeaders);
+
+      case "admin-analytics-financial":
+        return getAdminAnalyticsFinancial(supabase, producer.id, period, corsHeaders);
+
+      case "admin-analytics-traffic":
+        return getAdminAnalyticsTraffic(supabase, producer.id, period, corsHeaders);
+
+      case "admin-analytics-top-sellers":
+        return getAdminAnalyticsTopSellers(supabase, producer.id, period, corsHeaders);
+
+      case "vendor-integration":
+        if (!body.integrationType) {
+          return errorResponse("integrationType é obrigatório", "VALIDATION_ERROR", corsHeaders, 400);
+        }
+        return getVendorIntegration(supabase, producer.id, body.integrationType, corsHeaders);
+
+      case "content-drip-settings":
+        if (!productId) {
+          return errorResponse("productId é obrigatório", "VALIDATION_ERROR", corsHeaders, 400);
+        }
+        return getContentDripSettings(supabase, productId, corsHeaders);
+
+      case "content-access-check":
+        if (!body.contentId || !body.buyerId || !body.purchaseDate) {
+          return errorResponse("contentId, buyerId e purchaseDate são obrigatórios", "VALIDATION_ERROR", corsHeaders, 400);
+        }
+        return checkContentAccess(supabase, body.contentId, body.buyerId, body.purchaseDate, corsHeaders);
+
+      case "order-bump-detail":
+        if (!body.orderBumpId) {
+          return errorResponse("orderBumpId é obrigatório", "VALIDATION_ERROR", corsHeaders, 400);
+        }
+        return getOrderBumpDetail(supabase, body.orderBumpId, corsHeaders);
 
       default:
         return errorResponse(`Ação desconhecida: ${action}`, "INVALID_ACTION", corsHeaders, 400);

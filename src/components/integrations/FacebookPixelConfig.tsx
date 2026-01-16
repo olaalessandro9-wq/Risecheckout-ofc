@@ -1,3 +1,9 @@
+/**
+ * FacebookPixelConfig
+ * 
+ * MIGRATED: Uses Edge Function instead of supabase.from()
+ */
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +13,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 
 export function FacebookPixelConfig() {
   const { user } = useAuth();
@@ -23,27 +30,35 @@ export function FacebookPixelConfig() {
     }
   }, [user]);
 
+  /**
+   * Load config via Edge Function
+   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   */
   const loadConfig = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("vendor_integrations")
-        .select("*")
-        .eq("vendor_id", user?.id)
-        .eq("integration_type", "FACEBOOK_PIXEL")
-        .maybeSingle();
+      const sessionToken = getProducerSessionToken();
+      
+      const { data, error } = await supabase.functions.invoke("admin-data", {
+        body: {
+          action: "vendor-integration",
+          integrationType: "FACEBOOK_PIXEL",
+        },
+        headers: { "x-producer-session-token": sessionToken || "" },
+      });
 
       if (error) throw error;
 
-      if (data) {
-        const config = data.config as { 
+      const integration = data?.integration;
+      if (integration) {
+        const config = integration.config as { 
           pixel_id?: string; 
           has_token?: boolean;
         } | null;
         
         setPixelId(config?.pixel_id || "");
         setHasExistingToken(config?.has_token || false);
-        setActive(data.active || false);
+        setActive(integration.active || false);
         setAccessToken("");
       }
     } catch (error: unknown) {
@@ -79,7 +94,6 @@ export function FacebookPixelConfig() {
         credentials.has_token = true;
       }
 
-      // Usar supabase.functions.invoke ao invés de fetch direto
       const { data: result, error } = await supabase.functions.invoke("vault-save", {
         body: {
           vendor_id: user.id,

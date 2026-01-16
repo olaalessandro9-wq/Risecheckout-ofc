@@ -1,12 +1,7 @@
 /**
  * OrderBumpTab - Aba de Order Bumps do Produto
  * 
- * Esta aba gerencia order bumps (produtos complementares) que aparecem
- * após a compra principal no checkout.
- * 
- * Componentes:
- * - OrderBumpList: Lista de order bumps com drag & drop
- * - OrderBumpDialog: Modal para adicionar/editar order bumps
+ * MIGRATED: Uses Edge Function instead of supabase.from()
  */
 
 import { useState } from "react";
@@ -16,6 +11,7 @@ import { OrderBumpList } from "@/components/products/OrderBumpList";
 import { OrderBumpDialog } from "@/components/products/order-bump-dialog";
 import { useProductContext } from "../context/ProductContext";
 import { supabase } from "@/integrations/supabase/client";
+import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 import type { EditOrderBump } from "@/components/products/order-bump-dialog/types";
 
 export function OrderBumpTab() {
@@ -29,26 +25,32 @@ export function OrderBumpTab() {
     setOrderBumpDialogOpen(true);
   };
 
+  /**
+   * Handle edit order bump via Edge Function
+   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   */
   const handleEditOrderBump = async (orderBump: EditOrderBump) => {
-    // Buscar dados atualizados do banco para garantir que custom_title e custom_description estejam corretos
     try {
-      const { data, error } = await supabase
-        .from('order_bumps')
-        .select('*')
-        .eq('id', orderBump.id)
-        .single();
+      const sessionToken = getProducerSessionToken();
+      
+      const { data, error } = await supabase.functions.invoke("admin-data", {
+        body: {
+          action: "order-bump-detail",
+          orderBumpId: orderBump.id,
+        },
+        headers: { "x-producer-session-token": sessionToken || "" },
+      });
       
       if (error) throw error;
-      setEditingOrderBump((data as EditOrderBump) || orderBump);  // Usar dados do banco ou fallback para o objeto original
+      setEditingOrderBump((data?.orderBump as EditOrderBump) || orderBump);
     } catch (error: unknown) {
       console.error('Erro ao buscar order bump:', error);
-      setEditingOrderBump(orderBump);  // Fallback para o objeto original em caso de erro
+      setEditingOrderBump(orderBump);
     }
     setOrderBumpDialogOpen(true);
   };
 
   const handleOrderBumpSuccess = () => {
-    // Refresh order bumps list
     setOrderBumpKey(prev => prev + 1);
     setEditingOrderBump(null);
   };
@@ -89,7 +91,7 @@ export function OrderBumpTab() {
         open={orderBumpDialogOpen}
         onOpenChange={(open) => {
           setOrderBumpDialogOpen(open);
-          if (!open) setEditingOrderBump(null); // Limpar ao fechar
+          if (!open) setEditingOrderBump(null);
         }}
         productId={product.id}
         onSuccess={handleOrderBumpSuccess}

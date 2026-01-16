@@ -1,10 +1,12 @@
 /**
  * useContentDrip Hook
- * Handles drip content release logic
+ * 
+ * MIGRATED: Uses Edge Function instead of supabase.from()
  */
 
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getProducerSessionToken } from '@/hooks/useProducerAuth';
 import type { ContentReleaseSettings, ContentAccessStatus, ReleaseType } from '../types';
 
 interface UseContentDripReturn {
@@ -18,7 +20,8 @@ export function useContentDrip(): UseContentDripReturn {
   const [isLoading, setIsLoading] = useState(false);
 
   /**
-   * Get all drip settings for a product's contents
+   * Get all drip settings for a product's contents via Edge Function
+   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
    */
   const getDripSettings = useCallback(async (
     productId: string
@@ -27,46 +30,32 @@ export function useContentDrip(): UseContentDripReturn {
 
     const settingsMap = new Map<string, ContentReleaseSettings>();
 
-    const { data: modules } = await supabase
-      .from('product_member_modules')
-      .select('id')
-      .eq('product_id', productId);
+    try {
+      const sessionToken = getProducerSessionToken();
+      
+      const { data, error } = await supabase.functions.invoke("admin-data", {
+        body: {
+          action: "content-drip-settings",
+          productId,
+        },
+        headers: { "x-producer-session-token": sessionToken || "" },
+      });
 
-    if (!modules?.length) {
-      setIsLoading(false);
-      return settingsMap;
-    }
+      if (error) throw error;
 
-    const moduleIds = modules.map(m => m.id);
-
-    const { data: contents } = await supabase
-      .from('product_member_content')
-      .select('id')
-      .in('module_id', moduleIds);
-
-    if (!contents?.length) {
-      setIsLoading(false);
-      return settingsMap;
-    }
-
-    const contentIds = contents.map(c => c.id);
-
-    const { data: settings } = await supabase
-      .from('content_release_settings')
-      .select('*')
-      .in('content_id', contentIds);
-
-    if (settings) {
-      settings.forEach(s => {
-        settingsMap.set(s.content_id, {
-          id: s.id,
-          content_id: s.content_id,
+      const settings = data?.settings || [];
+      settings.forEach((s: Record<string, unknown>) => {
+        settingsMap.set(s.content_id as string, {
+          id: s.id as string,
+          content_id: s.content_id as string,
           release_type: s.release_type as ReleaseType,
-          days_after_purchase: s.days_after_purchase,
-          fixed_date: s.fixed_date,
-          after_content_id: s.after_content_id,
+          days_after_purchase: s.days_after_purchase as number | undefined,
+          fixed_date: s.fixed_date as string | undefined,
+          after_content_id: s.after_content_id as string | undefined,
         });
       });
+    } catch (error) {
+      console.error("[useContentDrip] Error fetching settings:", error);
     }
 
     setIsLoading(false);
@@ -84,7 +73,7 @@ export function useContentDrip(): UseContentDripReturn {
 
     switch (settings.release_type) {
       case 'immediate':
-        return null; // Already available
+        return null;
 
       case 'days_after_purchase':
         if (settings.days_after_purchase) {
@@ -101,8 +90,6 @@ export function useContentDrip(): UseContentDripReturn {
         return null;
 
       case 'after_content':
-        // This requires checking if previous content is completed
-        // Handled separately in checkContentAccess
         return null;
 
       default:
@@ -111,22 +98,32 @@ export function useContentDrip(): UseContentDripReturn {
   }, []);
 
   /**
-   * Check if a specific content is accessible for a buyer
+   * Check if a specific content is accessible for a buyer via Edge Function
+   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
    */
   const checkContentAccess = useCallback(async (
     contentId: string,
     buyerId: string,
     purchaseDate: string
   ): Promise<ContentAccessStatus> => {
-    // Get release settings for this content
-    const { data: settings } = await supabase
-      .from('content_release_settings')
-      .select('*')
-      .eq('content_id', contentId)
-      .single();
+    try {
+      const sessionToken = getProducerSessionToken();
+      
+      const { data, error } = await supabase.functions.invoke("admin-data", {
+        body: {
+          action: "content-access-check",
+          contentId,
+          buyerId,
+          purchaseDate,
+        },
+        headers: { "x-producer-session-token": sessionToken || "" },
+      });
 
-    // No settings means immediate release
-    if (!settings) {
+      if (error) throw error;
+
+      return data as ContentAccessStatus;
+    } catch (error) {
+      console.error("[useContentDrip] Error checking access:", error);
       return {
         content_id: contentId,
         is_accessible: true,
@@ -134,72 +131,7 @@ export function useContentDrip(): UseContentDripReturn {
         reason: 'available',
       };
     }
-
-    const releaseSettings: ContentReleaseSettings = {
-      id: settings.id,
-      content_id: settings.content_id,
-      release_type: settings.release_type as ReleaseType,
-      days_after_purchase: settings.days_after_purchase,
-      fixed_date: settings.fixed_date,
-      after_content_id: settings.after_content_id,
-    };
-    
-    const now = new Date();
-
-    // Handle "after_content" type - check if prerequisite is completed
-    if (releaseSettings.release_type === 'after_content' && releaseSettings.after_content_id) {
-      const { data: progress } = await supabase
-        .from('buyer_content_progress')
-        .select('completed_at')
-        .eq('buyer_id', buyerId)
-        .eq('content_id', releaseSettings.after_content_id)
-        .single();
-
-      if (!progress?.completed_at) {
-        return {
-          content_id: contentId,
-          is_accessible: false,
-          unlock_date: null,
-          reason: 'drip_locked',
-        };
-      }
-
-      return {
-        content_id: contentId,
-        is_accessible: true,
-        unlock_date: null,
-        reason: 'available',
-      };
-    }
-
-    // Calculate unlock date for time-based releases
-    const unlockDate = calculateUnlockDate(releaseSettings, purchaseDate);
-
-    if (!unlockDate) {
-      return {
-        content_id: contentId,
-        is_accessible: true,
-        unlock_date: null,
-        reason: 'available',
-      };
-    }
-
-    if (now >= unlockDate) {
-      return {
-        content_id: contentId,
-        is_accessible: true,
-        unlock_date: unlockDate.toISOString(),
-        reason: 'available',
-      };
-    }
-
-    return {
-      content_id: contentId,
-      is_accessible: false,
-      unlock_date: unlockDate.toISOString(),
-      reason: 'drip_locked',
-    };
-  }, [calculateUnlockDate]);
+  }, []);
 
   return {
     isLoading,
