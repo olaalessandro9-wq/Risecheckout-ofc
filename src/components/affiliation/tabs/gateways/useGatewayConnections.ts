@@ -2,6 +2,8 @@
  * useGatewayConnections Hook
  * 
  * Gerencia o estado de conexões de gateway do usuário e configurações do produto.
+ * 
+ * MIGRATED: Uses Edge Function instead of supabase.from()
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -9,6 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/api-client";
 import { toast } from "sonner";
+import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 import { DEFAULT_PIX_GATEWAYS, DEFAULT_CARD_GATEWAYS, GATEWAY_INFO } from "./gateway-constants";
 import type { AffiliationDetails } from "@/hooks/useAffiliationDetails";
 
@@ -29,26 +32,33 @@ export function useGatewayConnections({ affiliation, onRefetch }: UseGatewayConn
   const [userConnections, setUserConnections] = useState<Record<string, boolean>>({});
   const [pixAllowed, setPixAllowed] = useState<string[]>([]);
   const [cardAllowed, setCardAllowed] = useState<string[]>([]);
+  const [credentials, setCredentials] = useState<Record<string, string>>({});
   
   // Seleções do usuário
   const [selectedPixGateway, setSelectedPixGateway] = useState<string>("");
   const [selectedCardGateway, setSelectedCardGateway] = useState<string>("");
 
+  /**
+   * Load gateway connections via Edge Function
+   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   */
   const loadData = useCallback(async () => {
     if (!user?.id) return;
     
     setLoading(true);
     try {
-      // 1. Buscar configurações de gateway do produto
-      const { data: productData, error: productError } = await supabase
-        .from("products")
-        .select("affiliate_gateway_settings")
-        .eq("id", affiliation.product?.id)
-        .single();
+      const sessionToken = getProducerSessionToken();
+      const { data, error } = await supabase.functions.invoke("admin-data", {
+        body: { 
+          action: "gateway-connections",
+          affiliationProductId: affiliation.product?.id,
+        },
+        headers: { "x-producer-session-token": sessionToken || "" },
+      });
 
-      if (productError) throw productError;
+      if (error) throw error;
 
-      const settings = productData?.affiliate_gateway_settings as AffiliateGatewaySettings | null;
+      const settings = data?.productSettings as AffiliateGatewaySettings | null;
       
       // Aplicar fallback se não configurado
       const pixGateways = settings?.pix_allowed?.length ? settings.pix_allowed : DEFAULT_PIX_GATEWAYS;
@@ -56,29 +66,10 @@ export function useGatewayConnections({ affiliation, onRefetch }: UseGatewayConn
       
       setPixAllowed(pixGateways);
       setCardAllowed(cardGateways);
+      setUserConnections(data?.connections || {});
+      setCredentials(data?.credentials || {});
 
-      // 2. Buscar conexões do usuário
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("asaas_wallet_id, mercadopago_collector_id, stripe_account_id")
-        .eq("id", user.id)
-        .single();
-
-      const { data: pushinpayData } = await supabase
-        .from("payment_gateway_settings")
-        .select("pushinpay_account_id, pushinpay_token")
-        .eq("user_id", user.id)
-        .single();
-
-      const connections: Record<string, boolean> = {
-        asaas: !!profileData?.asaas_wallet_id,
-        mercadopago: !!profileData?.mercadopago_collector_id,
-        stripe: !!profileData?.stripe_account_id,
-        pushinpay: !!(pushinpayData?.pushinpay_token && pushinpayData?.pushinpay_account_id),
-      };
-      setUserConnections(connections);
-
-      // 3. Carregar seleções atuais do afiliado
+      // Carregar seleções atuais do afiliado
       if (affiliation.pix_gateway) {
         setSelectedPixGateway(affiliation.pix_gateway);
       }
@@ -123,33 +114,20 @@ export function useGatewayConnections({ affiliation, onRefetch }: UseGatewayConn
 
     setSaving(true);
     try {
-      // Buscar credenciais
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("asaas_wallet_id, mercadopago_collector_id, stripe_account_id")
-        .eq("id", user.id)
-        .single();
-
-      const { data: pushinpayData } = await supabase
-        .from("payment_gateway_settings")
-        .select("pushinpay_account_id")
-        .eq("user_id", user.id)
-        .single();
-
-      // Montar credenciais
-      const credentials: Record<string, string> = {};
+      // Build credentials from cached data
+      const gatewayCredentials: Record<string, string> = {};
       
-      if (selectedPixGateway === "asaas" && profileData?.asaas_wallet_id) {
-        credentials.asaas_wallet_id = profileData.asaas_wallet_id;
+      if (selectedPixGateway === "asaas" && credentials.asaas_wallet_id) {
+        gatewayCredentials.asaas_wallet_id = credentials.asaas_wallet_id;
       }
-      if ((selectedPixGateway === "mercadopago" || selectedCardGateway === "mercadopago") && profileData?.mercadopago_collector_id) {
-        credentials.mercadopago_collector_id = profileData.mercadopago_collector_id;
+      if ((selectedPixGateway === "mercadopago" || selectedCardGateway === "mercadopago") && credentials.mercadopago_collector_id) {
+        gatewayCredentials.mercadopago_collector_id = credentials.mercadopago_collector_id;
       }
-      if (selectedPixGateway === "pushinpay" && pushinpayData?.pushinpay_account_id) {
-        credentials.pushinpay_account_id = pushinpayData.pushinpay_account_id;
+      if (selectedPixGateway === "pushinpay" && credentials.pushinpay_account_id) {
+        gatewayCredentials.pushinpay_account_id = credentials.pushinpay_account_id;
       }
-      if (selectedCardGateway === "stripe" && profileData?.stripe_account_id) {
-        credentials.stripe_account_id = profileData.stripe_account_id;
+      if (selectedCardGateway === "stripe" && credentials.stripe_account_id) {
+        gatewayCredentials.stripe_account_id = credentials.stripe_account_id;
       }
 
       // Atualizar afiliado via Edge Function (PROTOCOLO: Zero bypass direto)
@@ -158,7 +136,7 @@ export function useGatewayConnections({ affiliation, onRefetch }: UseGatewayConn
         affiliate_id: affiliation.id,
         pix_gateway: selectedPixGateway,
         credit_card_gateway: selectedCardGateway,
-        gateway_credentials: credentials,
+        gateway_credentials: gatewayCredentials,
       });
 
       if (error) throw new Error(error);

@@ -1,6 +1,8 @@
 /**
  * AdminDashboard - Painel de Administração Principal
  * 
+ * MIGRATED: Uses Edge Function instead of supabase.from()
+ * 
  * Hub central para administradores e owners gerenciarem:
  * - Visão geral do sistema
  * - Métricas financeiras da plataforma
@@ -18,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Users, Activity, Shield, TrendingUp, DollarSign, Eye, Package, ShieldAlert } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 import { AdminUsersTab } from "@/components/admin/AdminUsersTab";
 import { AdminLogsTab } from "@/components/admin/AdminLogsTab";
 import { AdminFinanceTab } from "@/components/admin/AdminFinanceTab";
@@ -46,27 +49,21 @@ export default function AdminDashboard() {
   const { canViewSecurityLogs, canManageUsers, role } = usePermissions();
   const [period, setPeriod] = useState<PeriodFilter>("7days");
 
-  // Buscar estatísticas de usuários por role
+  /**
+   * Fetch role stats via Edge Function
+   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   */
   const { data: roleStats, isLoading: statsLoading } = useQuery({
     queryKey: ["admin-role-stats"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("role");
+      const sessionToken = getProducerSessionToken();
+      const { data, error } = await supabase.functions.invoke("admin-data", {
+        body: { action: "role-stats" },
+        headers: { "x-producer-session-token": sessionToken || "" },
+      });
       
       if (error) throw error;
-
-      // Agrupar por role
-      const counts: Record<string, number> = {};
-      data?.forEach((row) => {
-        const r = row.role as string;
-        counts[r] = (counts[r] || 0) + 1;
-      });
-
-      return Object.entries(counts).map(([role, count]) => ({
-        role,
-        count,
-      })) as RoleStats[];
+      return data?.roleStats as RoleStats[];
     },
   });
 
