@@ -54,7 +54,14 @@ type Action =
   | "content-access-check"
   | "order-bump-detail"
   | "product-detail-admin"
-  | "admin-products-global";
+  | "admin-products-global"
+  | "marketplace-categories"
+  | "marketplace-stats"
+  | "user-profile-name"
+  | "check-unique-checkout-name"
+  | "user-products-simple"
+  | "members-area-settings"
+  | "members-area-modules-with-contents";
 
 interface RequestBody {
   action: Action;
@@ -62,6 +69,7 @@ interface RequestBody {
   userId?: string;
   limit?: number;
   productName?: string;
+  checkoutName?: string;
   period?: string;
   affiliationProductId?: string;
   contentId?: string;
@@ -1343,6 +1351,179 @@ async function getAdminProductsGlobal(
   return jsonResponse({ products: productsWithMetrics }, corsHeaders);
 }
 
+// Marketplace categories (public data)
+async function getMarketplaceCategories(
+  supabase: SupabaseClient,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const { data, error } = await supabase
+    .from("marketplace_categories")
+    .select("*")
+    .eq("active", true)
+    .order("display_order", { ascending: true });
+
+  if (error) {
+    console.error("[admin-data] Marketplace categories error:", error);
+    return errorResponse("Erro ao buscar categorias", "DB_ERROR", corsHeaders, 500);
+  }
+
+  return jsonResponse({ categories: data || [] }, corsHeaders);
+}
+
+// Marketplace stats for a product
+async function getMarketplaceStats(
+  supabase: SupabaseClient,
+  productId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const { data, error } = await supabase
+    .from("products")
+    .select("marketplace_views, marketplace_clicks, marketplace_enabled_at")
+    .eq("id", productId)
+    .single();
+
+  if (error) {
+    console.error("[admin-data] Marketplace stats error:", error);
+    return errorResponse("Erro ao buscar estatísticas", "DB_ERROR", corsHeaders, 500);
+  }
+
+  return jsonResponse({
+    stats: {
+      views: data?.marketplace_views || 0,
+      clicks: data?.marketplace_clicks || 0,
+      enabledAt: data?.marketplace_enabled_at,
+    }
+  }, corsHeaders);
+}
+
+// User profile name (for preview)
+async function getUserProfileName(
+  supabase: SupabaseClient,
+  producerId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const { data } = await supabase
+    .from("profiles")
+    .select("name")
+    .eq("id", producerId)
+    .single();
+
+  return jsonResponse({ name: data?.name || null }, corsHeaders);
+}
+
+// Check unique checkout name
+async function checkUniqueCheckoutName(
+  supabase: SupabaseClient,
+  productId: string,
+  baseName: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  let candidate = baseName;
+  let suffix = 2;
+  
+  while (true) {
+    const { data, error } = await supabase
+      .from("checkouts")
+      .select("id")
+      .eq("product_id", productId)
+      .eq("name", candidate)
+      .limit(1);
+    
+    if (error) {
+      console.error("[admin-data] Check unique checkout name error:", error);
+      return errorResponse("Erro ao verificar nome", "DB_ERROR", corsHeaders, 500);
+    }
+    
+    if (!data || data.length === 0) {
+      return jsonResponse({ uniqueName: candidate }, corsHeaders);
+    }
+    
+    candidate = baseName.includes('(Cópia)') 
+      ? `${baseName.replace(/\s*\(Cópia.*?\)/, '')} (Cópia ${suffix})` 
+      : `${baseName} (${suffix})`;
+    suffix++;
+  }
+}
+
+// Simple user products list
+async function getUserProductsSimple(
+  supabase: SupabaseClient,
+  producerId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const { data, error } = await supabase
+    .from("products")
+    .select("id, name")
+    .eq("user_id", producerId)
+    .eq("status", "active")
+    .order("name");
+
+  if (error) {
+    console.error("[admin-data] User products simple error:", error);
+    return errorResponse("Erro ao buscar produtos", "DB_ERROR", corsHeaders, 500);
+  }
+
+  return jsonResponse({ products: data || [] }, corsHeaders);
+}
+
+// Members area settings for a product
+async function getMembersAreaSettings(
+  supabase: SupabaseClient,
+  productId: string,
+  producerId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const { data: product, error } = await supabase
+    .from("products")
+    .select("user_id, members_area_enabled, members_area_settings")
+    .eq("id", productId)
+    .single();
+
+  if (error || !product) {
+    return errorResponse("Produto não encontrado", "NOT_FOUND", corsHeaders, 404);
+  }
+
+  if (product.user_id !== producerId) {
+    return errorResponse("Acesso negado", "FORBIDDEN", corsHeaders, 403);
+  }
+
+  return jsonResponse({
+    enabled: product.members_area_enabled || false,
+    settings: product.members_area_settings || null,
+  }, corsHeaders);
+}
+
+// Members area modules with contents
+async function getMembersAreaModulesWithContents(
+  supabase: SupabaseClient,
+  productId: string,
+  producerId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const { data: product } = await supabase
+    .from("products")
+    .select("user_id")
+    .eq("id", productId)
+    .single();
+
+  if (product?.user_id !== producerId) {
+    return errorResponse("Acesso negado", "FORBIDDEN", corsHeaders, 403);
+  }
+
+  const { data, error } = await supabase
+    .from("product_member_modules")
+    .select(`*, contents:product_member_content (*)`)
+    .eq("product_id", productId)
+    .order("position", { ascending: true });
+
+  if (error) {
+    console.error("[admin-data] Modules with contents error:", error);
+    return errorResponse("Erro ao buscar módulos", "DB_ERROR", corsHeaders, 500);
+  }
+
+  return jsonResponse({ modules: data || [] }, corsHeaders);
+}
+
 // ==========================================
 // MAIN HANDLER
 // ==========================================
@@ -1491,6 +1672,39 @@ serve(async (req) => {
 
       case "admin-products-global":
         return getAdminProductsGlobal(supabase, producer.id, corsHeaders);
+
+      case "marketplace-categories":
+        return getMarketplaceCategories(supabase, corsHeaders);
+
+      case "marketplace-stats":
+        if (!productId) {
+          return errorResponse("productId é obrigatório", "VALIDATION_ERROR", corsHeaders, 400);
+        }
+        return getMarketplaceStats(supabase, productId, corsHeaders);
+
+      case "user-profile-name":
+        return getUserProfileName(supabase, producer.id, corsHeaders);
+
+      case "check-unique-checkout-name":
+        if (!productId || !body.checkoutName) {
+          return errorResponse("productId e checkoutName são obrigatórios", "VALIDATION_ERROR", corsHeaders, 400);
+        }
+        return checkUniqueCheckoutName(supabase, productId, body.checkoutName, corsHeaders);
+
+      case "user-products-simple":
+        return getUserProductsSimple(supabase, producer.id, corsHeaders);
+
+      case "members-area-settings":
+        if (!productId) {
+          return errorResponse("productId é obrigatório", "VALIDATION_ERROR", corsHeaders, 400);
+        }
+        return getMembersAreaSettings(supabase, productId, producer.id, corsHeaders);
+
+      case "members-area-modules-with-contents":
+        if (!productId) {
+          return errorResponse("productId é obrigatório", "VALIDATION_ERROR", corsHeaders, 400);
+        }
+        return getMembersAreaModulesWithContents(supabase, productId, producer.id, corsHeaders);
 
       default:
         return errorResponse(`Ação desconhecida: ${action}`, "INVALID_ACTION", corsHeaders, 400);

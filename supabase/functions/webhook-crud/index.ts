@@ -23,7 +23,20 @@ interface JsonResponseData {
   success?: boolean;
   error?: string;
   webhook?: WebhookRecord;
+  webhooks?: WebhookWithProduct[];
+  products?: { id: string; name: string }[];
+  productIds?: string[];
   deletedId?: string;
+}
+
+interface WebhookWithProduct {
+  id: string;
+  name: string;
+  url: string;
+  events: string[];
+  product_id: string | null;
+  created_at: string;
+  product?: { name: string } | null;
 }
 
 interface WebhookRecord {
@@ -158,6 +171,107 @@ async function verifyWebhookOwnership(
 }
 
 // ============================================
+// LIST HANDLERS
+// ============================================
+
+async function listWebhooksWithProducts(
+  supabase: SupabaseClient,
+  vendorId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  // Fetch webhooks
+  const { data: webhooksData, error: webhooksError } = await supabase
+    .from("outbound_webhooks")
+    .select("id, name, url, events, product_id, created_at")
+    .eq("vendor_id", vendorId)
+    .order("created_at", { ascending: false });
+
+  if (webhooksError) {
+    console.error("[webhook-crud] List error:", webhooksError);
+    return errorResponse("Erro ao listar webhooks", corsHeaders, 500);
+  }
+
+  // Fetch products for mapping
+  const { data: productsData } = await supabase
+    .from("products")
+    .select("id, name")
+    .eq("user_id", vendorId)
+    .eq("status", "active");
+
+  const productMap = new Map((productsData || []).map((p: { id: string; name: string }) => [p.id, p.name]));
+
+  // Map webhooks with product names
+  const webhooksWithProducts: WebhookWithProduct[] = (webhooksData || []).map((webhook: {
+    id: string;
+    name: string;
+    url: string;
+    events: string[];
+    product_id: string | null;
+    created_at: string;
+  }) => ({
+    ...webhook,
+    product: webhook.product_id ? { name: productMap.get(webhook.product_id) || "Produto não encontrado" } : null,
+  }));
+
+  return jsonResponse({ success: true, webhooks: webhooksWithProducts }, corsHeaders);
+}
+
+async function listUserProducts(
+  supabase: SupabaseClient,
+  vendorId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const { data, error } = await supabase
+    .from("products")
+    .select("id, name")
+    .eq("user_id", vendorId)
+    .eq("status", "active")
+    .order("name");
+
+  if (error) {
+    console.error("[webhook-crud] Products error:", error);
+    return errorResponse("Erro ao listar produtos", corsHeaders, 500);
+  }
+
+  return jsonResponse({ success: true, products: data || [] }, corsHeaders);
+}
+
+async function getWebhookProducts(
+  supabase: SupabaseClient,
+  webhookId: string,
+  vendorId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  // Verify ownership first
+  const ownership = await verifyWebhookOwnership(supabase, webhookId, vendorId);
+  if (!ownership.valid) {
+    return errorResponse(ownership.error!, corsHeaders, 403);
+  }
+
+  // Fetch from webhook_products table
+  const { data, error } = await supabase
+    .from("webhook_products")
+    .select("product_id")
+    .eq("webhook_id", webhookId);
+
+  if (error) {
+    console.error("[webhook-crud] Get webhook products error:", error);
+    // Fallback: try product_id from webhook
+    const { data: webhookData } = await supabase
+      .from("outbound_webhooks")
+      .select("product_id")
+      .eq("id", webhookId)
+      .single();
+    
+    const productIds = webhookData?.product_id ? [webhookData.product_id] : [];
+    return jsonResponse({ success: true, productIds }, corsHeaders);
+  }
+
+  const productIds = (data || []).map((item: { product_id: string }) => item.product_id);
+  return jsonResponse({ success: true, productIds }, corsHeaders);
+}
+
+// ============================================
 // MAIN HANDLER
 // ============================================
 
@@ -191,6 +305,24 @@ serve(withSentry("webhook-crud", async (req) => {
       return errorResponse(sessionValidation.error || "Não autorizado", corsHeaders, 401);
     }
     const vendorId = sessionValidation.producerId!;
+
+    // ============================================
+    // LIST ACTIONS (no webhookId required)
+    // ============================================
+    if (action === "list") {
+      return listWebhooksWithProducts(supabase, vendorId, corsHeaders);
+    }
+
+    if (action === "list-products") {
+      return listUserProducts(supabase, vendorId, corsHeaders);
+    }
+
+    if (action === "get-webhook-products") {
+      if (!webhookId) {
+        return errorResponse("webhookId é obrigatório", corsHeaders, 400);
+      }
+      return getWebhookProducts(supabase, webhookId, vendorId, corsHeaders);
+    }
 
     // ============================================
     // CREATE WEBHOOK

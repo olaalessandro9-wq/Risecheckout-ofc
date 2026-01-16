@@ -589,6 +589,40 @@ serve(async (req) => {
       return jsonResponse({ success: true, data });
     }
 
+    // ===== ACTION: check-order-payment-status (for Stripe PIX polling) =====
+    if (action === "check-order-payment-status") {
+      const orderId = body.orderId;
+      if (!orderId) {
+        return jsonResponse({ error: "orderId required" }, 400);
+      }
+
+      const { data: order, error } = await supabase
+        .from("orders")
+        .select("status, pix_status")
+        .eq("id", orderId)
+        .maybeSingle();
+
+      if (error) {
+        console.error("[checkout-public-data] Order check error:", error);
+        return jsonResponse({ error: "Erro ao verificar pedido" }, 500);
+      }
+
+      if (!order) {
+        return jsonResponse({ error: "Pedido não encontrado" }, 404);
+      }
+
+      const isPaid = order.status === "PAID" || order.pix_status === "paid";
+
+      return jsonResponse({
+        success: true,
+        data: {
+          status: order.status,
+          pix_status: order.pix_status,
+          isPaid,
+        },
+      });
+    }
+
     return jsonResponse({ error: "Ação desconhecida" }, 400);
 
   } catch (error: unknown) {
