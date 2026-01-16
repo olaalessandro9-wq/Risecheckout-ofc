@@ -1,19 +1,21 @@
 /**
  * useProducerAuth - Custom authentication hook for producers
  * 
- * Mirrors useBuyerAuth architecture for consistency.
- * Uses producer-auth edge function for all auth operations.
+ * RISE ARCHITECT PROTOCOL - Zero Technical Debt
  * 
- * SYNC ARCHITECTURE:
- * - Uses producer_sessions for custom session management
- * - ALSO syncs with Supabase Auth for RLS compatibility (auth.uid())
- * - This dual-sync ensures both Edge Functions AND direct supabase.from() calls work
+ * ARCHITECTURE (REFACTORED):
+ * - Uses ONLY producer_sessions for authentication
+ * - All backend calls use X-Producer-Session-Token header
+ * - Edge Functions use service_role (bypass RLS)
+ * - NO Supabase Auth JWT sync (eliminated dual-auth problem)
+ * 
+ * IMPORTANT: After this refactor, the frontend should NOT use supabase.from()
+ * directly. All data operations must go through Edge Functions.
  */
 
 import { useState, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { SUPABASE_URL } from "@/config/supabase";
-import { supabase } from "@/integrations/supabase/client";
 import { createLogger } from "@/lib/logger";
 import { producerSessionQueryKey } from "./useProducerSession";
 
@@ -80,10 +82,8 @@ export function useProducerAuth(): UseProducerAuthReturn {
   const setSessionToken = (token: string) => localStorage.setItem(SESSION_KEY, token);
   const clearSessionToken = () => localStorage.removeItem(SESSION_KEY);
 
-  // REMOVED: Duplicate session validation - useProducerSession already handles this via React Query
-  // This eliminates duplicate /validate calls that were causing performance issues
+  // Set loading to false on mount - useProducerSession handles validation
   useEffect(() => {
-    // Just set loading to false - let useProducerSession handle validation
     setIsLoading(false);
   }, []);
 
@@ -105,29 +105,14 @@ export function useProducerAuth(): UseProducerAuthReturn {
         };
       }
 
+      // Store session token (ONLY auth mechanism)
       setSessionToken(data.sessionToken);
       setProducer(data.producer);
 
-      // ============================================
-      // SYNC SUPABASE AUTH SESSION (for RLS compatibility)
-      // ============================================
-      // This ensures auth.uid() works when frontend makes direct supabase.from() calls
-      if (data.supabaseSession) {
-        try {
-          await supabase.auth.setSession({
-            access_token: data.supabaseSession.access_token,
-            refresh_token: data.supabaseSession.refresh_token,
-          });
-          log.info("Supabase Auth session synced successfully");
-        } catch (syncError) {
-          // Non-blocking - producer_session still works for Edge Functions
-          log.warn("Failed to sync Supabase Auth session (non-blocking)", syncError);
-        }
-      }
-
-      // Update cache
+      // Update React Query cache
       queryClient.setQueryData(producerSessionQueryKey, { valid: true, producer: data.producer });
 
+      log.info("Login successful - using producer_session_token only");
       return { success: true };
     } catch (error: unknown) {
       log.error("Login error", error);
@@ -170,7 +155,7 @@ export function useProducerAuth(): UseProducerAuthReturn {
   const logout = useCallback(async () => {
     const token = getSessionToken();
     
-    // Logout from producer_sessions (custom system)
+    // Logout from producer_sessions
     if (token) {
       try {
         await fetch(`${SUPABASE_URL}/functions/v1/producer-auth/logout`, {
@@ -179,27 +164,19 @@ export function useProducerAuth(): UseProducerAuthReturn {
           body: JSON.stringify({ sessionToken: token }),
         });
       } catch (error: unknown) {
-        log.error("Producer session logout error", error);
+        log.error("Logout error", error);
       }
     }
     
-    // ============================================
-    // ALSO LOGOUT FROM SUPABASE AUTH
-    // ============================================
-    // This clears the JWT used for RLS policies
-    try {
-      await supabase.auth.signOut();
-      log.info("Supabase Auth session cleared");
-    } catch (error: unknown) {
-      log.warn("Failed to clear Supabase Auth session (non-blocking)", error);
-    }
-    
+    // Clear local state
     clearSessionToken();
     setProducer(null);
 
     // Clear all producer-related caches
     queryClient.setQueryData(producerSessionQueryKey, { valid: false, producer: null });
     queryClient.removeQueries({ queryKey: ["producer"] });
+    
+    log.info("Logout successful");
   }, [queryClient]);
 
   const requestPasswordReset = useCallback(async (email: string) => {
