@@ -33,6 +33,7 @@ export function useFinanceiro(): UseFinanceiroReturn {
   const [loadingData, setLoadingData] = useState(true);
   const [message, setMessage] = useState<FinanceiroState["message"]>(null);
   const [selectedGateway, setSelectedGateway] = useState<PaymentGateway>(null);
+  const [pushinPayConnected, setPushinPayConnected] = useState(false);
   const [mercadoPagoConnected, setMercadoPagoConnected] = useState(false);
   const [stripeConnected, setStripeConnected] = useState(false);
   const [asaasConnected, setAsaasConnected] = useState(false);
@@ -79,10 +80,13 @@ export function useFinanceiro(): UseFinanceiroReturn {
 
       if (result?.success && result.integrations) {
         const integrations = result.integrations;
+        // Fonte única de verdade para TODOS os gateways - via vendor_integrations
+        setPushinPayConnected(integrations.some(i => i.integration_type === 'PUSHINPAY' && i.active));
         setMercadoPagoConnected(integrations.some(i => i.integration_type === 'MERCADOPAGO' && i.active));
         setStripeConnected(integrations.some(i => i.integration_type === 'STRIPE' && i.active));
         setAsaasConnected(integrations.some(i => i.integration_type === 'ASAAS' && i.active));
       } else {
+        setPushinPayConnected(false);
         setMercadoPagoConnected(false);
         setStripeConnected(false);
         setAsaasConnected(false);
@@ -202,6 +206,7 @@ export function useFinanceiro(): UseFinanceiroReturn {
       loadingData,
       message,
       selectedGateway,
+      pushinPayConnected,
       mercadoPagoConnected,
       stripeConnected,
       asaasConnected,

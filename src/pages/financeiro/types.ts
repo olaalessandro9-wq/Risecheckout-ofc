@@ -25,6 +25,7 @@ export interface FinanceiroState {
   loadingData: boolean;
   message: { type: "success" | "error"; text: string } | null;
   selectedGateway: PaymentGateway;
+  pushinPayConnected: boolean;
   mercadoPagoConnected: boolean;
   stripeConnected: boolean;
   asaasConnected: boolean;

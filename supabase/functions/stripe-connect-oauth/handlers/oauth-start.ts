@@ -27,6 +27,8 @@ export async function startOAuthFlow(
 
   // Validar STRIPE_CLIENT_ID
   const stripeClientId = Deno.env.get("STRIPE_CLIENT_ID");
+  console.log('[OAuth Start] STRIPE_CLIENT_ID presente:', !!stripeClientId, 'valor:', stripeClientId?.substring(0, 10) + '...');
+  
   if (!stripeClientId || stripeClientId.trim() === "" || stripeClientId.includes("PLACEHOLDER")) {
     console.error('[OAuth Start] STRIPE_CLIENT_ID não configurado ou inválido');
     return {
@@ -38,6 +40,8 @@ export async function startOAuthFlow(
 
   // Validar STRIPE_REDIRECT_URL
   const redirectUri = Deno.env.get("STRIPE_REDIRECT_URL");
+  console.log('[OAuth Start] STRIPE_REDIRECT_URL:', redirectUri);
+  
   if (!redirectUri || redirectUri.trim() === "" || redirectUri.includes("PLACEHOLDER")) {
     console.error('[OAuth Start] STRIPE_REDIRECT_URL não configurado');
     return {

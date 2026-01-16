@@ -21,7 +21,11 @@ import { EnvironmentSelector } from "./EnvironmentSelector";
 import { FeedbackMessage } from "./FeedbackMessage";
 import { SaveButton } from "./SaveButton";
 
-export function ConfigForm() {
+interface ConfigFormProps {
+  onConnectionChange?: () => void;
+}
+
+export function ConfigForm({ onConnectionChange }: ConfigFormProps) {
   const { role } = usePermissions();
   const { user } = useAuth();
   const isAdmin = role === 'admin';
@@ -143,6 +147,8 @@ export function ConfigForm() {
           setExistingAccountId(accountIdToSave);
         }
         setIsUpdateSectionOpen(false);
+        // Notificar parent para atualizar sidebar
+        onConnectionChange?.();
       } else {
         setMessage({ type: "error", text: `Erro ao salvar: ${result.error}` });
         toast.error(`Erro ao salvar: ${result.error}`);
