@@ -46,30 +46,33 @@ export function useMembersAreaPersistence({
   originalSettingsRef,
 }: UseMembersAreaPersistenceProps): UseMembersAreaPersistenceReturn {
 
+  /**
+   * Load members area data via Edge Function
+   * MIGRATED: Uses admin-data Edge Function
+   */
   const load = useCallback(async () => {
     if (!productId) return;
     
     setState(prev => ({ ...prev, isLoading: true }));
     
     try {
-      const { data: sections, error: sectionsError } = await supabase
-        .from('product_members_sections')
-        .select('*')
-        .eq('product_id', productId)
-        .order('position', { ascending: true });
+      const sessionToken = localStorage.getItem('producer_session_token');
       
-      if (sectionsError) throw sectionsError;
+      const { data, error } = await supabase.functions.invoke('admin-data', {
+        body: {
+          action: 'members-area-data',
+          productId,
+        },
+        headers: {
+          'x-producer-session-token': sessionToken || '',
+        },
+      });
       
-      const { data: product, error: productError } = await supabase
-        .from('products')
-        .select('members_area_settings')
-        .eq('id', productId)
-        .single();
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       
-      if (productError) throw productError;
-      
-      const parsedSections = parseSections(sections || []);
-      const parsedSettings = parseSettings(product?.members_area_settings);
+      const parsedSections = parseSections(data?.sections || []);
+      const parsedSettings = parseSettings(data?.settings);
       
       // Store originals for comparison
       originalSectionsRef.current = parsedSections;
@@ -181,21 +184,32 @@ export function useMembersAreaPersistence({
     toast.info('Alterações descartadas');
   }, [setState, originalSectionsRef, originalSettingsRef]);
 
+  /**
+   * Load modules via Edge Function
+   * MIGRATED: Uses admin-data Edge Function
+   */
   const loadModules = useCallback(async () => {
     if (!productId) return;
     
     try {
-      const { data, error } = await supabase
-        .from('product_member_modules')
-        .select('*')
-        .eq('product_id', productId)
-        .order('position', { ascending: true });
+      const sessionToken = localStorage.getItem('producer_session_token');
+      
+      const { data, error } = await supabase.functions.invoke('admin-data', {
+        body: {
+          action: 'members-area-modules',
+          productId,
+        },
+        headers: {
+          'x-producer-session-token': sessionToken || '',
+        },
+      });
       
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       
       setState(prev => ({
         ...prev,
-        modules: (data || []) as MemberModule[],
+        modules: (data?.modules || []) as MemberModule[],
       }));
     } catch (error: unknown) {
       console.error('[useMembersAreaBuilder] Load modules error:', error);

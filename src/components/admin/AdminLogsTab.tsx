@@ -33,17 +33,29 @@ interface SecurityLog {
 }
 
 export function AdminLogsTab() {
+  /**
+   * Carrega logs via Edge Function
+   * MIGRATED: Uses admin-data Edge Function
+   */
   const { data: logs, isLoading } = useQuery({
     queryKey: ["admin-security-logs"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("security_audit_log")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(100);
+      const sessionToken = localStorage.getItem('producer_session_token');
+      
+      const { data, error } = await supabase.functions.invoke('admin-data', {
+        body: {
+          action: 'security-logs',
+          limit: 100,
+        },
+        headers: {
+          'x-producer-session-token': sessionToken || '',
+        },
+      });
 
       if (error) throw error;
-      return data as SecurityLog[];
+      if (data?.error) throw new Error(data.error);
+      
+      return (data?.logs || []) as SecurityLog[];
     },
   });
 

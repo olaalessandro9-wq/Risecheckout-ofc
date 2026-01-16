@@ -23,7 +23,7 @@ const corsHeaders = {
 };
 
 interface RequestBody {
-  action: "product" | "offer" | "order-bumps" | "affiliate" | "all" | "validate-coupon" | "get-checkout-offer";
+  action: "product" | "offer" | "order-bumps" | "affiliate" | "all" | "validate-coupon" | "get-checkout-offer" | "checkout" | "product-pixels";
   productId?: string;
   checkoutId?: string;
   affiliateCode?: string;
@@ -387,6 +387,121 @@ serve(async (req) => {
 
       const paymentLinks = data?.payment_links as { offer_id: string } | null;
       return jsonResponse({ offerId: paymentLinks?.offer_id || "" });
+    }
+
+    // ===== ACTION: checkout (fetch full checkout data) =====
+    if (action === "checkout") {
+      if (!checkoutId) {
+        return jsonResponse({ error: "checkoutId required" }, 400);
+      }
+
+      const { data, error } = await supabase
+        .from("checkouts")
+        .select(`
+          id,
+          name,
+          slug,
+          visits_count,
+          seller_name,
+          product_id,
+          font,
+          background_color,
+          text_color,
+          primary_color,
+          button_color,
+          button_text_color,
+          components,
+          top_components,
+          bottom_components,
+          status,
+          design,
+          theme,
+          pix_gateway,
+          credit_card_gateway,
+          mercadopago_public_key,
+          stripe_public_key
+        `)
+        .eq("id", checkoutId)
+        .maybeSingle();
+
+      if (error || !data) {
+        console.error("[checkout-public-data] Checkout not found:", error);
+        return jsonResponse({ error: "Checkout não encontrado" }, 404);
+      }
+
+      if (data.status === "deleted") {
+        return jsonResponse({ error: "Checkout não disponível" }, 404);
+      }
+
+      return jsonResponse({ success: true, data });
+    }
+
+    // ===== ACTION: product-pixels (fetch pixels for product) =====
+    if (action === "product-pixels") {
+      if (!productId) {
+        return jsonResponse({ error: "productId required" }, 400);
+      }
+
+      // Fetch pixel links for this product
+      const { data: links, error: linksError } = await supabase
+        .from("product_pixels")
+        .select(`
+          pixel_id,
+          fire_on_initiate_checkout,
+          fire_on_purchase,
+          fire_on_pix,
+          fire_on_card,
+          fire_on_boleto,
+          custom_value_percent
+        `)
+        .eq("product_id", productId);
+
+      if (linksError) {
+        console.error("[checkout-public-data] Product pixels links error:", linksError);
+        return jsonResponse({ success: true, data: [] });
+      }
+
+      if (!links || links.length === 0) {
+        return jsonResponse({ success: true, data: [] });
+      }
+
+      // Fetch actual pixel data
+      const pixelIds = links.map(l => l.pixel_id);
+      const { data: pixelsData, error: pixelsError } = await supabase
+        .from("vendor_pixels")
+        .select("id, platform, pixel_id, access_token, conversion_label, domain, is_active")
+        .in("id", pixelIds)
+        .eq("is_active", true);
+
+      if (pixelsError) {
+        console.error("[checkout-public-data] Pixels data error:", pixelsError);
+        return jsonResponse({ success: true, data: [] });
+      }
+
+      // Combine data
+      const combined = [];
+      for (const link of links) {
+        const pixel = pixelsData?.find(p => p.id === link.pixel_id);
+        if (pixel && pixel.is_active) {
+          combined.push({
+            id: pixel.id,
+            platform: pixel.platform,
+            pixel_id: pixel.pixel_id,
+            access_token: pixel.access_token,
+            conversion_label: pixel.conversion_label,
+            domain: pixel.domain,
+            is_active: pixel.is_active,
+            fire_on_initiate_checkout: link.fire_on_initiate_checkout,
+            fire_on_purchase: link.fire_on_purchase,
+            fire_on_pix: link.fire_on_pix,
+            fire_on_card: link.fire_on_card,
+            fire_on_boleto: link.fire_on_boleto,
+            custom_value_percent: link.custom_value_percent,
+          });
+        }
+      }
+
+      return jsonResponse({ success: true, data: combined });
     }
 
     return jsonResponse({ error: "Ação desconhecida" }, 400);
