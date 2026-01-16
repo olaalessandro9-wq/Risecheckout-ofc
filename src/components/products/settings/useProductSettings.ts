@@ -42,7 +42,10 @@ export function useProductSettings(
   const { role, isLoading: permissionsLoading } = usePermissions();
   const isOwner = role === "owner";
 
-  // Carregar credenciais do usuário
+  /**
+   * Load credentials via Edge Function
+   * MIGRATED: Uses products-crud Edge Function
+   */
   const loadCredentials = useCallback(async (userId: string) => {
     // Owner: todas as credenciais vêm das Secrets - sempre configuradas
     if (isOwner) {
@@ -55,63 +58,55 @@ export function useProductSettings(
       return;
     }
 
-    // Demais: buscar em vendor_integrations
+    // MIGRATED: Use products-crud Edge Function
     try {
-      const [mpResult, ppResult, stripeResult, asaasResult] = await Promise.all([
-        supabase
-          .from("vendor_integrations")
-          .select("id")
-          .eq("vendor_id", userId)
-          .eq("integration_type", "MERCADOPAGO")
-          .eq("active", true)
-          .maybeSingle(),
-        supabase
-          .from("payment_gateway_settings")
-          .select("user_id")
-          .eq("user_id", userId)
-          .maybeSingle(),
-        supabase
-          .from("vendor_integrations")
-          .select("id")
-          .eq("vendor_id", userId)
-          .eq("integration_type", "STRIPE")
-          .eq("active", true)
-          .maybeSingle(),
-        supabase
-          .from("vendor_integrations")
-          .select("id")
-          .eq("vendor_id", userId)
-          .eq("integration_type", "ASAAS")
-          .eq("active", true)
-          .maybeSingle(),
-      ]);
-
-      setCredentials({
-        mercadopago: { configured: !!mpResult.data },
-        pushinpay: { configured: !!ppResult.data },
-        stripe: { configured: !!stripeResult.data },
-        asaas: { configured: !!asaasResult.data },
+      const sessionToken = localStorage.getItem('producer_session_token');
+      
+      const { data, error } = await supabase.functions.invoke('products-crud', {
+        body: { action: 'check-credentials' },
+        headers: { 'x-producer-session-token': sessionToken || '' }
       });
+
+      if (error) {
+        console.error("Error checking credentials via Edge Function:", error);
+        return;
+      }
+
+      if (data?.credentials) {
+        setCredentials(data.credentials);
+      }
     } catch (error: unknown) {
       console.error("Error loading credentials:", error);
     }
   }, [isOwner]);
 
-  // Carregar configurações do produto (READ ainda é direto - apenas escrita via Edge Function)
+  /**
+   * Load product settings via Edge Function
+   * MIGRATED: Uses products-crud Edge Function
+   */
   const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: productResult, error: productError } = await supabase
-        .from("products")
-        .select("required_fields, default_payment_method, user_id, pix_gateway, credit_card_gateway")
-        .eq("id", productId)
-        .maybeSingle();
+      const sessionToken = localStorage.getItem('producer_session_token');
+      
+      const { data, error } = await supabase.functions.invoke('products-crud', {
+        body: { action: 'get-settings', productId },
+        headers: { 'x-producer-session-token': sessionToken || '' }
+      });
 
-      if (productError) {
-        console.error("Error loading settings:", productError);
+      if (error) {
+        console.error("Error loading settings via Edge Function:", error);
         toast.error("Erro ao carregar configurações.");
         return;
       }
+
+      if (data?.error) {
+        console.error("API error:", data.error);
+        toast.error("Erro ao carregar configurações.");
+        return;
+      }
+
+      const productResult = data?.settings;
 
       if (productResult?.user_id) {
         await loadCredentials(productResult.user_id);

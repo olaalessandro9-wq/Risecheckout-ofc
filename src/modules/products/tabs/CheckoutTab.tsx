@@ -1,6 +1,8 @@
 /**
  * CheckoutTab - Aba de Gerenciamento de Checkouts
  * 
+ * MIGRATED: Uses product-entities Edge Function for data fetching
+ * 
  * Esta aba gerencia:
  * - Listagem de checkouts do produto
  * - Adicionar novo checkout
@@ -57,19 +59,28 @@ export function CheckoutTab() {
     }
   }, [product?.id]);
 
+  /**
+   * Load offers via Edge Function
+   * MIGRATED: Uses product-entities Edge Function
+   */
   const loadOffers = async () => {
     if (!product?.id) return;
     
     try {
-      const { data, error } = await supabase
-        .from('offers')
-        .select('id, name, price, is_default')
-        .eq('product_id', product.id)
-        .eq('status', 'active') // Apenas ofertas ativas
-        .order('created_at', { ascending: true });
+      const sessionToken = localStorage.getItem('producer_session_token');
+      
+      const { data, error } = await supabase.functions.invoke('product-entities', {
+        body: { action: 'offers', productId: product.id },
+        headers: { 'x-producer-session-token': sessionToken || '' }
+      });
       
       if (error) throw error;
-      setAvailableOffers(data || []);
+      
+      // Filter only active offers
+      const activeOffers = (data?.offers || []).filter(
+        (o: { status?: string }) => o.status === 'active'
+      );
+      setAvailableOffers(activeOffers);
     } catch (error: unknown) {
       console.error('Erro ao carregar ofertas:', error);
     }
@@ -142,38 +153,27 @@ export function CheckoutTab() {
     }
   };
 
+  /**
+   * Configure checkout - load associated offer
+   * MIGRATED: Uses checkout-public-data Edge Function
+   */
   const handleConfigureCheckout = async (checkout: Checkout) => {
     setEditingCheckout(checkout);
     
-    // Carregar oferta associada a este checkout via checkout_links -> payment_links -> offers
     try {
-      const { data, error } = await supabase
-        .from("checkout_links")
-        .select(`
-          link_id,
-          payment_links (
-            offer_id
-          )
-        `)
-        .eq("checkout_id", checkout.id)
-        .limit(1)
-        .maybeSingle();
-      
-      // Interface para resposta do checkout_links
-      interface CheckoutLinkWithPaymentLink {
-        link_id: string;
-        payment_links?: {
-          offer_id: string;
-        } | null;
-      }
+      // Use the checkout-public-data Edge Function to get checkout with links
+      const { data, error } = await supabase.functions.invoke('checkout-public-data', {
+        body: { 
+          action: 'get-checkout-offer',
+          checkoutId: checkout.id
+        }
+      });
 
       if (error) {
         console.error("Error loading checkout offer:", error);
         setCurrentOfferId("");
       } else {
-        const linkData = data as CheckoutLinkWithPaymentLink | null;
-        const offerId = linkData?.payment_links?.offer_id || "";
-        setCurrentOfferId(offerId);
+        setCurrentOfferId(data?.offerId || "");
       }
     } catch (error: unknown) {
       console.error("Error loading checkout offer:", error);

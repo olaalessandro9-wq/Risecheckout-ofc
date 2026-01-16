@@ -1,3 +1,11 @@
+/**
+ * ProductsTable Component
+ * 
+ * MIGRATED: Uses Edge Function via API layer for product listing
+ * 
+ * @see RISE Protocol V2 - Zero direct database access from frontend
+ */
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, MoreVertical } from "lucide-react";
@@ -108,27 +116,32 @@ export function ProductsTable() {
     }
   }, [user?.id]);
 
+  /**
+   * Load products via Edge Function
+   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   */
   const loadProducts = async () => {
     if (!user) return;
     
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("products")
-        .select(`
-          *,
-          offers!inner(price, is_default)
-        `)
-        .eq("user_id", user.id)
-        .neq("status", "deleted") // 🔥 Filtrar produtos com soft delete
-        .eq("offers.is_default", true) // Apenas oferta principal
-        .order("created_at", { ascending: false });
+      const sessionToken = localStorage.getItem('producer_session_token');
+      
+      const { data, error } = await supabase.functions.invoke('products-crud', {
+        body: { action: 'list', excludeDeleted: true },
+        headers: { 'x-producer-session-token': sessionToken || '' }
+      });
 
       if (error) throw error;
-      setProducts((data || []) as Product[]);
+      
+      if (data?.products) {
+        setProducts(data.products as Product[]);
+      } else if (data?.error) {
+        throw new Error(data.error);
+      }
     } catch (error: unknown) {
       toast.error("Erro ao carregar produtos");
-      console.error(error);
+      console.error('[ProductsTable] Load error:', error);
     } finally {
       setLoading(false);
     }
