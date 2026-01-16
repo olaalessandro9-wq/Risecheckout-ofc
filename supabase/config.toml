@@ -315,9 +315,6 @@ verify_jwt = false
 [functions.encrypt-token]
 verify_jwt = false
 
-[functions.check-secrets]
-verify_jwt = false
-
 [functions.security-management]
 verify_jwt = false
 
