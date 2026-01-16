@@ -69,9 +69,10 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
   } = useAffiliateRequest();
 
   // Cache de status de afiliação (lookup instantâneo)
-  const { getStatus, isLoaded: cacheLoaded, updateStatus } = useAffiliationStatusCache();
+  const { getStatus, isLoaded: cacheLoaded, updateStatus, updateTrigger } = useAffiliationStatusCache();
 
   // Status de afiliação do produto atual (lookup O(1) do cache)
+  // updateTrigger força recálculo quando cache é atualizado
   const affiliationStatus = useMemo(() => {
     if (!product?.id || !cacheLoaded) return null;
     const cached = getStatus(product.id);
@@ -81,7 +82,7 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
       status: cached.status,
       affiliationId: cached.affiliationId,
     };
-  }, [product?.id, cacheLoaded, getStatus]);
+  }, [product?.id, cacheLoaded, getStatus, updateTrigger]);
 
   // Verificar se o usuário é o dono do produto
   useEffect(() => {
