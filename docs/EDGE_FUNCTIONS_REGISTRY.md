@@ -10,8 +10,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 92 |
-| **No código local** | 92 |
+| **Total de Funções** | 95 |
+| **No código local** | 95 |
 | **Apenas deployadas** | 0 |
 | **Operações Diretas Frontend** | 0 ✅ |
 | **Base URL** | `https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/` |
@@ -102,7 +102,15 @@
 | `create-order` | `.../create-order` | ✅ | 10 min ago | 935 |
 | `get-order-for-pix` | `.../get-order-for-pix` | ✅ | 10 min ago | 150 |
 | `alert-stuck-orders` | `.../alert-stuck-orders` | ✅ | 10 min ago | 87 |
-| `reconcile-pending-orders` | `.../reconcile-pending-orders` | ✅ | 10 min ago | 90 |
+
+### Reconciliation (RISE V2 Refactored)
+
+| Nome | URL | No Repo? | Última Atividade | Descrição |
+|------|-----|----------|------------------|-----------|
+| `reconcile-pending-orders` | `.../reconcile-pending-orders` | ✅ | 10 min ago | **Orquestrador** - busca pedidos pendentes e delega para gateways |
+| `reconcile-mercadopago` | `.../reconcile-mercadopago` | ✅ | NEW | Reconcilia pedidos MercadoPago |
+| `reconcile-asaas` | `.../reconcile-asaas` | ✅ | NEW | Reconcilia pedidos Asaas |
+| `grant-member-access` | `.../grant-member-access` | ✅ | NEW | Concede acesso à área de membros |
 
 ### Webhooks
 
@@ -270,6 +278,11 @@
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-16 | **RISE V2 REFACTOR**: `reconcile-pending-orders` (475 linhas) dividida em 4 Edge Functions especializadas |
+| 2026-01-16 | Criada `reconcile-mercadopago` (~115 linhas) - Reconciliação MercadoPago |
+| 2026-01-16 | Criada `reconcile-asaas` (~115 linhas) - Reconciliação Asaas |
+| 2026-01-16 | Criada `grant-member-access` (~95 linhas) - Concessão de acesso área de membros |
+| 2026-01-16 | `reconcile-pending-orders` refatorada para orquestrador (~105 linhas) |
 | 2026-01-16 | **DT-02 FINAL**: Removida `test-pushinpay-connection` do Registry (função legado deletada) |
 | 2026-01-16 | **DT-08 FIX**: URL hardcoded em `PushinPayAdapter.ts` → dinâmica via `Deno.env.get('SUPABASE_URL')` |
 | 2026-01-16 | **DT-06 FIX**: Criado `_shared/logger.ts` - Logger centralizado com níveis (debug/info/warn/error) |
