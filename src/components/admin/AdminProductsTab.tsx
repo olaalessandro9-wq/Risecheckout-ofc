@@ -1,6 +1,8 @@
 /**
  * AdminProductsTab - Aba global de produtos da plataforma
  * 
+ * MIGRATED: Uses Edge Function instead of supabase.from()
+ * 
  * Permite visualizar, filtrar e moderar todos os produtos
  * Ações: ativar, bloquear, remover (soft delete)
  */
@@ -102,62 +104,23 @@ export function AdminProductsTab() {
 
   const isOwner = callerRole === "owner";
 
-  // Buscar todos os produtos com métricas
+  /**
+   * Fetch products with metrics via Edge Function
+   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   */
   const { data: products, isLoading } = useQuery({
     queryKey: ["admin-products-global"],
     queryFn: async () => {
-      // Buscar produtos
-      const { data: productsData, error: productsError } = await supabase
-        .from("products")
-        .select("id, name, price, status, created_at, user_id");
-
-      if (productsError) throw productsError;
-
-      // Buscar profiles para nomes dos vendedores
-      const { data: profilesData, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, name");
-
-      if (profilesError) throw profilesError;
-
-      // Buscar métricas de pedidos
-      const { data: ordersData, error: ordersError } = await supabase
-        .from("orders")
-        .select("product_id, amount_cents, status");
-
-      if (ordersError) throw ordersError;
-
-      // Agregar métricas por produto
-      const metricsMap = new Map<string, { gmv: number; count: number }>();
-      ordersData?.forEach((order) => {
-        if (order.status === "paid") {
-          const current = metricsMap.get(order.product_id) || { gmv: 0, count: 0 };
-          metricsMap.set(order.product_id, {
-            gmv: current.gmv + (order.amount_cents || 0),
-            count: current.count + 1,
-          });
-        }
+      const { data, error } = await supabase.functions.invoke("admin-data", {
+        body: { action: "admin-products-global" },
       });
 
-      // Combinar dados
-      const productsWithMetrics: ProductWithMetrics[] = productsData.map((product) => {
-        const vendor = profilesData.find((p) => p.id === product.user_id);
-        const metrics = metricsMap.get(product.id) || { gmv: 0, count: 0 };
-        return {
-          id: product.id,
-          name: product.name,
-          price: product.price,
-          status: product.status || "active",
-          created_at: product.created_at,
-          user_id: product.user_id,
-          vendor_name: vendor?.name || "Desconhecido",
-          total_gmv: metrics.gmv,
-          orders_count: metrics.count,
-        };
-      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      return productsWithMetrics;
+      return (data.products || []) as ProductWithMetrics[];
     },
+    enabled: isOwner,
   });
 
   // Mutation para alterar status do produto
@@ -498,12 +461,18 @@ export function AdminProductsTab() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar ação</AlertDialogTitle>
+            <AlertDialogTitle>
+              Confirmar ação
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Você está prestes a {getActionLabel(actionDialog?.action || "")} o produto{" "}
-              <strong>{actionDialog?.productName}</strong>.
-              <br /><br />
-              Esta ação será registrada no log de segurança.
+              Você tem certeza que deseja {actionDialog && getActionLabel(actionDialog.action)} o produto{" "}
+              <strong>{actionDialog?.productName}</strong>?
+              {actionDialog?.action === "delete" && (
+                <>
+                  <br />
+                  <span className="text-destructive">Esta ação não pode ser desfeita.</span>
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -518,7 +487,7 @@ export function AdminProductsTab() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Sheet de Detalhes do Produto */}
+      {/* Sheet de Detalhes */}
       <ProductDetailSheet
         productId={selectedProductId}
         open={!!selectedProductId}

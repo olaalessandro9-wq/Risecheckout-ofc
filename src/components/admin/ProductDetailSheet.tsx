@@ -1,6 +1,8 @@
 /**
  * ProductDetailSheet - Painel de visualização read-only de produto
  * 
+ * MIGRATED: Uses Edge Function instead of supabase.from()
+ * 
  * Exibe detalhes completos do produto para owners verificarem conformidade
  * Modo somente leitura - nenhuma edição permitida
  */
@@ -66,62 +68,37 @@ const formatCentsToBRL = (cents: number): string => {
 };
 
 export function ProductDetailSheet({ productId, open, onOpenChange }: ProductDetailSheetProps) {
-  // Buscar detalhes do produto
-  const { data: product, isLoading: isLoadingProduct } = useQuery({
+  /**
+   * Fetch product details via Edge Function
+   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   */
+  const { data, isLoading } = useQuery({
     queryKey: ["admin-product-detail", productId],
     queryFn: async () => {
       if (!productId) return null;
       
-      const { data, error } = await supabase
-        .from("products")
-        .select("id, name, description, price, image_url, status, support_name, support_email, created_at, user_id")
-        .eq("id", productId)
-        .single();
+      const { data: response, error } = await supabase.functions.invoke("admin-data", {
+        body: {
+          action: "product-detail-admin",
+          productId,
+        },
+      });
 
       if (error) throw error;
-      return data as ProductDetails;
+      if (response?.error) throw new Error(response.error);
+      
+      return {
+        product: response.product as ProductDetails,
+        vendorName: response.vendorName as string,
+        offers: response.offers as Offer[],
+      };
     },
     enabled: !!productId && open,
   });
 
-  // Buscar nome do vendedor
-  const { data: vendor } = useQuery({
-    queryKey: ["admin-product-vendor", product?.user_id],
-    queryFn: async () => {
-      if (!product?.user_id) return null;
-
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("name")
-        .eq("id", product.user_id)
-        .single();
-
-      if (error) return null;
-      return data;
-    },
-    enabled: !!product?.user_id,
-  });
-
-  // Buscar ofertas do produto
-  const { data: offers, isLoading: isLoadingOffers } = useQuery({
-    queryKey: ["admin-product-offers", productId],
-    queryFn: async () => {
-      if (!productId) return [];
-
-      const { data, error } = await supabase
-        .from("offers")
-        .select("id, name, price, status, is_default")
-        .eq("product_id", productId)
-        .eq("status", "active")
-        .order("is_default", { ascending: false });
-
-      if (error) throw error;
-      return data as Offer[];
-    },
-    enabled: !!productId && open,
-  });
-
-  const isLoading = isLoadingProduct || isLoadingOffers;
+  const product = data?.product;
+  const vendorName = data?.vendorName || "Desconhecido";
+  const offers = data?.offers || [];
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -157,7 +134,7 @@ export function ProductDetailSheet({ productId, open, onOpenChange }: ProductDet
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Vendedor</span>
-                  <span className="text-sm font-medium">{vendor?.name || "Desconhecido"}</span>
+                  <span className="text-sm font-medium">{vendorName}</span>
                 </div>
               </div>
 
@@ -229,10 +206,10 @@ export function ProductDetailSheet({ productId, open, onOpenChange }: ProductDet
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
                   <Tag className="h-4 w-4" />
-                  Ofertas ({offers?.length || 0})
+                  Ofertas ({offers.length})
                 </h3>
                 
-                {offers && offers.length > 0 ? (
+                {offers.length > 0 ? (
                   <div className="space-y-2">
                     {offers.map((offer) => (
                       <div
