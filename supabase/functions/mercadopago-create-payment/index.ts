@@ -1,230 +1,242 @@
 /**
  * Mercado Pago Create Payment - Edge Function
  * 
- * @version 3.0.0 - RISE Protocol V2 Compliance (Modular Architecture)
+ * @version 3.1.0 - RISE Protocol V2 Compliance (< 300 lines)
  */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { rateLimitMiddleware, getIdentifier } from '../_shared/rate-limit.ts';
-
-// Handlers
+import { getVendorCredentials } from '../_shared/vault-credentials.ts';
+import { processPostPaymentActions } from '../_shared/webhook-post-payment.ts';
 import { handlePixPayment, PixPaymentResult } from './handlers/pix-handler.ts';
 import { handleCardPayment, CardPaymentResult } from './handlers/card-handler.ts';
+import { logInfo, logError } from './utils/logger.ts';
 
-// Helpers (same level)
-import { getCorsHeaders, createSuccessResponse, createErrorResponse } from './cors.ts';
-import { fetchCredentials } from './credentials.ts';
-import { fetchAffiliateCollectorId, calculateSplit } from './split.ts';
-import { handlePostPaymentActions } from './post-payment.ts';
+// === TYPES ===
+interface OrderRecord {
+  id: string;
+  vendor_id: string;
+  product_id: string;
+  product_name: string | null;
+  amount_cents: number;
+  status: string | null;
+  affiliate_id: string | null;
+  customer_email: string | null;
+  customer_name: string | null;
+  affiliate?: { id: string; user_id: string; commission_rate: number | null } | null;
+}
 
-// Utils
-import { logError } from './utils/logger.ts';
+interface OrderItem {
+  product_id: string;
+  product_name: string;
+  amount_cents: number;
+  quantity: number;
+}
 
-// Types & Constants
-import { ERROR_CODES } from './constants.ts';
-import type { 
-  OrderRecord, 
-  OrderItem, 
-  RequestBody,
-  SuccessResponseData,
-  OrderUpdateData,
-  GatewayError,
-  CredentialsResult
-} from './types.ts';
+interface RequestBody {
+  orderId: string;
+  payerEmail: string;
+  payerName?: string;
+  payerDocument?: string;
+  paymentMethod: 'pix' | 'credit_card';
+  token?: string;
+  installments?: number;
+  paymentMethodId?: string;
+  issuerId?: string;
+}
+
+// === CONSTANTS ===
+const ALLOWED_ORIGINS = [
+  "https://risecheckout.com", "https://www.risecheckout.com",
+  "https://risecheckout-84776.lovable.app", "https://prime-checkout-hub.lovable.app",
+  "http://localhost:5173", "http://localhost:3000"
+];
+
+const ERROR_CODES = {
+  INVALID_REQUEST: 'INVALID_REQUEST',
+  ORDER_NOT_FOUND: 'ORDER_NOT_FOUND',
+  PRODUCTS_NOT_FOUND: 'PRODUCTS_NOT_FOUND',
+  TOKEN_REQUIRED: 'TOKEN_REQUIRED',
+  GATEWAY_API_ERROR: 'GATEWAY_API_ERROR',
+  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  CREDENTIALS_NOT_FOUND: 'CREDENTIALS_NOT_FOUND'
+};
+
+// === HELPERS ===
+function getCorsHeaders(origin: string): Record<string, string> {
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
+  };
+}
+
+function createErrorResponse(
+  code: string, message: string, status: number, 
+  headers: Record<string, string>, details?: unknown
+): Response {
+  return new Response(JSON.stringify({ error: code, message, details }), {
+    status, headers: { ...headers, 'Content-Type': 'application/json' }
+  });
+}
+
+function createSuccessResponse(data: unknown, headers: Record<string, string>): Response {
+  return new Response(JSON.stringify({ success: true, data }), {
+    status: 200, headers: { ...headers, 'Content-Type': 'application/json' }
+  });
+}
+
+async function fetchCredentials(supabase: SupabaseClient, vendorId: string) {
+  // Tentar Vault primeiro
+  const vaultResult = await getVendorCredentials(supabase, vendorId, 'mercadopago');
+  if (vaultResult.success && vaultResult.credentials?.access_token) {
+    return { accessToken: vaultResult.credentials.access_token, isOwner: false };
+  }
+  // Fallback: Platform credentials
+  const platformToken = Deno.env.get('MERCADOPAGO_ACCESS_TOKEN');
+  if (platformToken) {
+    return { accessToken: platformToken, isOwner: true };
+  }
+  throw { code: ERROR_CODES.CREDENTIALS_NOT_FOUND, message: 'Credenciais não encontradas' };
+}
+
+async function calculateSplit(
+  supabase: SupabaseClient, order: OrderRecord, isOwner: boolean, 
+  totalCents: number, accessToken: string
+): Promise<{ effectiveAccessToken: string; applicationFeeCents: number }> {
+  if (isOwner) return { effectiveAccessToken: accessToken, applicationFeeCents: 0 };
+  
+  // Buscar config de split
+  const { data: splitConfig } = await supabase
+    .from('mercadopago_split_config')
+    .select('split_type, percentage_amount, fixed_amount')
+    .eq('vendor_id', order.vendor_id)
+    .maybeSingle();
+  
+  if (!splitConfig) return { effectiveAccessToken: accessToken, applicationFeeCents: 0 };
+  
+  let feeCents = 0;
+  if (splitConfig.split_type === 'percentage' && splitConfig.percentage_amount) {
+    feeCents = Math.round(totalCents * (splitConfig.percentage_amount / 100));
+  } else if (splitConfig.split_type === 'fixed' && splitConfig.fixed_amount) {
+    feeCents = splitConfig.fixed_amount;
+  }
+  
+  return { effectiveAccessToken: accessToken, applicationFeeCents: feeCents };
+}
 
 // === MAIN HANDLER ===
 serve(async (req) => {
   const origin = req.headers.get("origin") || "";
   const corsHeaders = getCorsHeaders(origin);
 
-  // CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    // Rate limit check
     const rateLimitResponse = await rateLimitMiddleware(req, {
-      maxAttempts: 10,
-      windowMs: 60000,
-      identifier: getIdentifier(req, false),
-      action: 'create_payment'
+      maxAttempts: 10, windowMs: 60000,
+      identifier: getIdentifier(req, false), action: 'create_payment'
     });
     if (rateLimitResponse) return rateLimitResponse;
 
-    // Supabase client
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // Parse body
     const body: RequestBody | null = await req.json().catch(() => null);
-    if (!body) {
-      return createErrorResponse(ERROR_CODES.INVALID_REQUEST, 'JSON inválido', 400, corsHeaders);
-    }
+    if (!body) return createErrorResponse(ERROR_CODES.INVALID_REQUEST, 'JSON inválido', 400, corsHeaders);
 
-    const { 
-      orderId, 
-      payerEmail, 
-      payerName, 
-      payerDocument, 
-      paymentMethod, 
-      token, 
-      installments, 
-      paymentMethodId, 
-      issuerId 
-    } = body;
-
-    // Validação de campos obrigatórios
+    const { orderId, payerEmail, payerName, payerDocument, paymentMethod, token, installments, paymentMethodId, issuerId } = body;
     if (!orderId || !payerEmail || !paymentMethod) {
       return createErrorResponse(ERROR_CODES.INVALID_REQUEST, 'Campos obrigatórios faltando', 400, corsHeaders);
     }
 
-    // Buscar order
-    const { data: order } = await supabase
-      .from('orders')
+    // Buscar order e items
+    const { data: order } = await supabase.from('orders')
       .select(`*, affiliate:affiliates(id, user_id, commission_rate)`)
-      .eq('id', orderId)
-      .maybeSingle() as { data: OrderRecord | null };
+      .eq('id', orderId).maybeSingle() as { data: OrderRecord | null };
+    if (!order) return createErrorResponse(ERROR_CODES.ORDER_NOT_FOUND, 'Pedido não encontrado', 404, corsHeaders);
 
-    if (!order) {
-      return createErrorResponse(ERROR_CODES.ORDER_NOT_FOUND, 'Pedido não encontrado', 404, corsHeaders);
-    }
-
-    // Buscar itens do pedido
-    const { data: items } = await supabase
-      .from('order_items')
+    const { data: items } = await supabase.from('order_items')
       .select('product_id, product_name, amount_cents, quantity')
       .eq('order_id', orderId) as { data: OrderItem[] | null };
-
-    if (!items?.length) {
-      return createErrorResponse(ERROR_CODES.PRODUCTS_NOT_FOUND, 'Pedido sem itens', 500, corsHeaders);
-    }
+    if (!items?.length) return createErrorResponse(ERROR_CODES.PRODUCTS_NOT_FOUND, 'Pedido sem itens', 500, corsHeaders);
 
     const calculatedTotalCents = items.reduce((sum, i) => sum + i.amount_cents * i.quantity, 0);
 
-    // Buscar credenciais
-    let credentials: CredentialsResult;
-    try {
-      credentials = await fetchCredentials(supabase, order.vendor_id);
-    } catch (e: unknown) {
-      const gatewayError = e as GatewayError;
-      return createErrorResponse(gatewayError.code, gatewayError.message, 400, corsHeaders);
+    // Credentials & Split
+    let credentials;
+    try { credentials = await fetchCredentials(supabase, order.vendor_id); }
+    catch (e: unknown) { 
+      const err = e as { code: string; message: string };
+      return createErrorResponse(err.code, err.message, 400, corsHeaders); 
     }
 
-    // Calcular split
-    const affiliateCollectorId = await fetchAffiliateCollectorId(supabase, order);
     const { effectiveAccessToken, applicationFeeCents } = await calculateSplit(
-      supabase,
-      order,
-      credentials.isOwner,
-      calculatedTotalCents,
-      credentials.accessToken,
-      affiliateCollectorId
+      supabase, order, credentials.isOwner, calculatedTotalCents, credentials.accessToken
     );
 
-    // Processar pagamento
+    // Process payment
     const firstItem = items[0];
     let paymentResult: PixPaymentResult | CardPaymentResult;
 
     try {
       if (paymentMethod === 'pix') {
         paymentResult = await handlePixPayment({
-          orderId,
-          calculatedTotalCents,
-          payerEmail,
-          payerName,
-          payerDocument,
-          effectiveAccessToken,
-          applicationFeeCents,
-          productId: firstItem.product_id,
-          productName: firstItem.product_name,
-          items
+          orderId, calculatedTotalCents, payerEmail, payerName, payerDocument,
+          effectiveAccessToken, applicationFeeCents,
+          productId: firstItem.product_id, productName: firstItem.product_name, items
         });
       } else if (paymentMethod === 'credit_card') {
-        if (!token) {
-          return createErrorResponse(ERROR_CODES.TOKEN_REQUIRED, 'Token obrigatório', 400, corsHeaders);
-        }
+        if (!token) return createErrorResponse(ERROR_CODES.TOKEN_REQUIRED, 'Token obrigatório', 400, corsHeaders);
         paymentResult = await handleCardPayment({
-          orderId,
-          calculatedTotalCents,
-          payerEmail,
-          payerName,
-          payerDocument,
-          token,
-          installments: installments || 1,
-          paymentMethodId: paymentMethodId || '',
-          issuerId,
-          effectiveAccessToken,
-          applicationFeeCents,
-          productId: firstItem.product_id,
-          productName: firstItem.product_name,
-          items
+          orderId, calculatedTotalCents, payerEmail, payerName, payerDocument,
+          token, installments: installments || 1, paymentMethodId: paymentMethodId || '', issuerId,
+          effectiveAccessToken, applicationFeeCents,
+          productId: firstItem.product_id, productName: firstItem.product_name, items
         });
       } else {
         return createErrorResponse(ERROR_CODES.INVALID_REQUEST, 'Método inválido', 400, corsHeaders);
       }
     } catch (e: unknown) {
-      const gatewayError = e as GatewayError;
-      return createErrorResponse(
-        gatewayError.code || ERROR_CODES.GATEWAY_API_ERROR,
-        gatewayError.message,
-        502,
-        corsHeaders,
-        gatewayError.details
-      );
+      const err = e as { code?: string; message: string; details?: unknown };
+      return createErrorResponse(err.code || ERROR_CODES.GATEWAY_API_ERROR, err.message, 502, corsHeaders, err.details);
     }
 
-    // Preparar dados de update
-    const updateData: OrderUpdateData = {
-      gateway: 'mercadopago',
-      gateway_payment_id: paymentResult.transactionId,
+    // Update order
+    const updateData: Record<string, unknown> = {
+      gateway: 'mercadopago', gateway_payment_id: paymentResult.transactionId,
       status: paymentResult.status === 'approved' ? 'paid' : (order.status?.toLowerCase() || 'pending'),
-      payment_method: paymentMethod.toLowerCase(),
-      updated_at: new Date().toISOString()
+      payment_method: paymentMethod.toLowerCase(), updated_at: new Date().toISOString()
     };
-
-    if (paymentResult.status === 'approved') {
-      updateData.paid_at = new Date().toISOString();
-    }
-
+    if (paymentResult.status === 'approved') updateData.paid_at = new Date().toISOString();
     if (paymentMethod === 'pix' && 'qrCodeText' in paymentResult && paymentResult.qrCodeText) {
       updateData.pix_qr_code = paymentResult.qrCodeText;
       updateData.pix_id = paymentResult.transactionId;
       updateData.pix_status = paymentResult.status;
       updateData.pix_created_at = new Date().toISOString();
     }
-
-    // Atualizar order
     await supabase.from('orders').update(updateData).eq('id', orderId);
 
-    // Se aprovado, executar ações pós-pagamento
+    // Post-payment actions (if approved)
     if (paymentResult.status === 'approved') {
-      await handlePostPaymentActions({
-        supabase,
-        order,
-        orderId,
-        transactionId: paymentResult.transactionId,
-        calculatedTotalCents
-      });
+      const logger = { info: logInfo, warn: logError, error: logError };
+      await processPostPaymentActions(supabase, {
+        orderId, customerEmail: order.customer_email, customerName: order.customer_name,
+        productId: order.product_id, productName: order.product_name,
+        amountCents: calculatedTotalCents, paymentMethod, vendorId: order.vendor_id
+      }, 'payment.approved', logger);
     }
 
-    // Montar resposta de sucesso
-    const responseData: SuccessResponseData = {
-      paymentId: paymentResult.transactionId,
-      status: paymentResult.status
-    };
-
+    // Success response
+    const responseData: Record<string, unknown> = { paymentId: paymentResult.transactionId, status: paymentResult.status };
     if (paymentMethod === 'pix' && 'qrCode' in paymentResult && paymentResult.qrCode) {
-      responseData.pix = {
-        qrCode: paymentResult.qrCodeText || '',
-        qrCodeBase64: paymentResult.qrCode
-      };
+      responseData.pix = { qrCode: paymentResult.qrCodeText || '', qrCodeBase64: paymentResult.qrCode };
     }
-
     return createSuccessResponse(responseData, corsHeaders);
 
   } catch (error: unknown) {
