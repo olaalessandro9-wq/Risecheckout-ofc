@@ -1,7 +1,8 @@
 /**
  * Helper: fetchProductData
  * 
- * Busca dados do produto por ID no Supabase
+ * MIGRATED: Uses checkout-public-data Edge Function
+ * @see RISE Protocol V2 - Zero database access from frontend
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -24,36 +25,22 @@ export interface ProductRawData {
 }
 
 export async function fetchProductData(productId: string): Promise<ProductRawData> {
-  const { data, error } = await supabase
-    .from("products")
-    .select(`
-      id,
-      user_id,
-      name,
-      description,
-      price,
-      image_url,
-      support_name,
-      required_fields,
-      default_payment_method,
-      upsell_settings,
-      affiliate_settings,
-      status,
-      pix_gateway,
-      credit_card_gateway
-    `)
-    .eq("id", productId)
-    .maybeSingle();
+  const { data, error } = await supabase.functions.invoke("checkout-public-data", {
+    body: {
+      action: "product",
+      productId,
+    },
+  });
 
-  if (error || !data) {
-    console.error('[fetchProductData] Erro:', error);
+  if (error) {
+    console.error('[fetchProductData] Edge function error:', error);
     throw new Error("Produto não encontrado");
   }
 
-  // Validar status
-  if (data.status === "deleted" || data.status === "blocked") {
-    throw new Error("Produto não disponível");
+  if (!data?.success || !data?.data) {
+    console.error('[fetchProductData] Invalid response:', data);
+    throw new Error(data?.error || "Produto não encontrado");
   }
 
-  return data;
+  return data.data;
 }

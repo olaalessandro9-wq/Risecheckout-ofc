@@ -1,7 +1,8 @@
 /**
  * Helper: fetchOrderBumps
  * 
- * Busca order bumps ativos para um checkout
+ * MIGRATED: Uses checkout-public-data Edge Function
+ * @see RISE Protocol V2 - Zero database access from frontend
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -43,48 +44,22 @@ export interface OrderBumpFormatted {
 }
 
 export async function fetchOrderBumps(checkoutId: string): Promise<OrderBumpFormatted[]> {
-  const { data, error } = await supabase
-    .from("order_bumps")
-    .select(`*, products(id, name, description, price, image_url), offers(id, name, price)`)
-    .eq("checkout_id", checkoutId)
-    .eq("active", true)
-    .order("position");
+  const { data, error } = await supabase.functions.invoke("checkout-public-data", {
+    body: {
+      action: "order-bumps",
+      checkoutId,
+    },
+  });
 
   if (error) {
-    console.error('[fetchOrderBumps] Erro:', error);
+    console.error('[fetchOrderBumps] Edge function error:', error);
     return [];
   }
 
-  if (!data) {
+  if (!data?.success) {
+    console.error('[fetchOrderBumps] Invalid response:', data);
     return [];
   }
 
-  // Normalizar order bumps
-  return data.map((bump: OrderBumpRaw) => {
-    const product = bump.products;
-    const offer = bump.offers;
-    
-    // Preços já vêm em CENTAVOS do banco
-    const priceInCents = offer?.price ? Number(offer.price) : (product?.price || 0);
-    let price = priceInCents;
-    let originalPrice: number | null = null;
-    
-    if (bump.discount_enabled && bump.discount_price) {
-      originalPrice = price;
-      price = Number(bump.discount_price);
-    }
-
-    return {
-      id: bump.id,
-      product_id: bump.product_id,
-      name: bump.custom_title || product?.name || "Oferta Especial",
-      description: bump.custom_description || product?.description || "",
-      price,
-      original_price: originalPrice,
-      image_url: bump.show_image ? product?.image_url : null,
-      call_to_action: bump.call_to_action,
-      product,
-      offer,
-    };
-  });
+  return data.data || [];
 }

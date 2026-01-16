@@ -1,7 +1,8 @@
 /**
  * Helper: fetchOfferData
  * 
- * Busca dados da oferta associada ao checkout via checkout_links → payment_links → offers
+ * MIGRATED: Uses checkout-public-data Edge Function
+ * @see RISE Protocol V2 - Zero database access from frontend
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -13,39 +14,22 @@ export interface OfferData {
 }
 
 export async function fetchOfferData(checkoutId: string): Promise<OfferData> {
-  const { data, error } = await supabase
-    .from("checkout_links")
-    .select(`
-      link_id,
-      payment_links!inner (
-        offer_id,
-        offers!inner (
-          id,
-          name,
-          price
-        )
-      )
-    `)
-    .eq("checkout_id", checkoutId)
-    .maybeSingle();
+  const { data, error } = await supabase.functions.invoke("checkout-public-data", {
+    body: {
+      action: "offer",
+      checkoutId,
+    },
+  });
 
-  if (error || !data) {
-    console.error('[fetchOfferData] Erro:', error);
+  if (error) {
+    console.error('[fetchOfferData] Edge function error:', error);
     throw new Error("Oferta não encontrada");
   }
 
-  const paymentLinks = data.payment_links as {
-    offer_id: string;
-    offers: {
-      id: string;
-      name: string;
-      price: number;
-    };
-  };
+  if (!data?.success || !data?.data) {
+    console.error('[fetchOfferData] Invalid response:', data);
+    throw new Error(data?.error || "Oferta não encontrada");
+  }
 
-  return {
-    offerId: paymentLinks.offer_id,
-    offerName: paymentLinks.offers.name,
-    offerPrice: paymentLinks.offers.price,
-  };
+  return data.data;
 }
