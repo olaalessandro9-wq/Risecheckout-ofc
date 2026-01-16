@@ -32,6 +32,10 @@ export const useProduct = () => {
     }
   }, [productId, user]);
 
+  /**
+   * Load product via Edge Function
+   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   */
   const loadProduct = async (showLoading = true) => {
     if (!productId || !user) return;
 
@@ -39,14 +43,23 @@ export const useProduct = () => {
       setLoading(true);
     }
     try {
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .eq("id", productId)
-        .eq("user_id", user.id)
-        .single();
+      const sessionToken = localStorage.getItem('producer_session_token');
+      
+      const { data: response, error } = await supabase.functions.invoke('products-crud', {
+        body: {
+          action: 'get',
+          productId,
+        },
+        headers: {
+          'x-producer-session-token': sessionToken || '',
+        },
+      });
 
       if (error) throw error;
+      if (response?.error) throw new Error(response.error);
+      
+      const data = response?.product;
+      if (!data) throw new Error("Produto não encontrado");
       
       setProduct({
         id: data.id,

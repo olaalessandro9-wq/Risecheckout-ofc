@@ -1,3 +1,10 @@
+/**
+ * ensureSingleCheckout - Aguarda checkout auto-criado pelo trigger
+ * 
+ * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+ * @see RISE Protocol V2 - Zero database access from frontend
+ */
+
 import { supabase } from "@/integrations/supabase/client";
 
 /**
@@ -14,38 +21,48 @@ export async function ensureSingleCheckout(
 
   console.log('[ensureSingleCheckout] Waiting for auto-created checkout for product:', id);
 
-  // ✅ REMOVIDA a checagem inicial imediata (linhas 17-26)
-  // Isso previne race conditions com o trigger
-  
+  const sessionToken = localStorage.getItem('producer_session_token');
+
   // Aguarda checkout auto-criado pelo trigger
   for (let i = 0; i < tries; i++) {
-    const { data, error } = await supabase
-      .from("checkouts")
-      .select("id")
-      .eq("product_id", id)
-      .order("created_at", { ascending: true });
+    const { data: response, error } = await supabase.functions.invoke('products-crud', {
+      body: {
+        action: 'get-checkouts',
+        productId: id,
+      },
+      headers: {
+        'x-producer-session-token': sessionToken || '',
+      },
+    });
     
     if (error) {
-      console.error('[ensureSingleCheckout] Query error:', error);
+      console.error('[ensureSingleCheckout] Edge function error:', error);
       throw error;
     }
+
+    if (response?.error) {
+      console.error('[ensureSingleCheckout] API error:', response.error);
+      throw new Error(response.error);
+    }
     
-    if (data?.length) {
+    const checkouts = response?.checkouts || [];
+    
+    if (checkouts.length > 0) {
       // ✅ AGUARDAR mais 2 iterações para garantir que o trigger terminou
       if (i < 3) {
-        console.log(`[ensureSingleCheckout] Found ${data.length} checkout(s), waiting to ensure trigger completed (attempt ${i+1}/3)...`);
+        console.log(`[ensureSingleCheckout] Found ${checkouts.length} checkout(s), waiting to ensure trigger completed (attempt ${i+1}/3)...`);
         await new Promise((r) => setTimeout(r, delayMs));
         continue;
       }
       
-      console.log(`[ensureSingleCheckout] Confirmed ${data.length} checkout(s) after stabilization`);
+      console.log(`[ensureSingleCheckout] Confirmed ${checkouts.length} checkout(s) after stabilization`);
       
       // ✅ Se houver mais de 1 checkout, algo deu errado
-      if (data.length > 1) {
-        console.error(`[ensureSingleCheckout] ERRO: ${data.length} checkouts encontrados para o produto ${id}. Esperado: 1`);
+      if (checkouts.length > 1) {
+        console.error(`[ensureSingleCheckout] ERRO: ${checkouts.length} checkouts encontrados para o produto ${id}. Esperado: 1`);
       }
       
-      return data[0];
+      return checkouts[0];
     }
     
     await new Promise((r) => setTimeout(r, delayMs));
