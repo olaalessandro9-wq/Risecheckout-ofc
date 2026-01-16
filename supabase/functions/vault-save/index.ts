@@ -39,6 +39,9 @@ import {
 } from '../_shared/rate-limiter.ts';
 import { handleCors } from '../_shared/cors.ts';
 import { requireAuthenticatedProducer, unauthorizedResponse } from '../_shared/unified-auth.ts';
+import { createLogger } from '../_shared/logger.ts';
+
+const log = createLogger('vault-save');
 
 type IntegrationType = 
   | 'MERCADOPAGO' 
@@ -134,7 +137,7 @@ Deno.serve(async (req) => {
       RATE_LIMIT_CONFIGS.VAULT_SAVE
     );
     if (rateLimitResult) {
-      console.warn(`[vault-save] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      log.warn(`Rate limit exceeded for IP: ${getClientIP(req)}`);
       return rateLimitResult;
     }
 
@@ -160,7 +163,7 @@ Deno.serve(async (req) => {
 
     // 5. Validar que o vendor_id corresponde ao usuário autenticado
     if (vendor_id !== producer.id) {
-      console.warn(`[vault-save] Tentativa de acesso não autorizado: user ${producer.id} tentou salvar para vendor ${vendor_id}`);
+      log.warn(`Tentativa de acesso não autorizado: user ${producer.id} tentou salvar para vendor ${vendor_id}`);
       return new Response(
         JSON.stringify({ error: 'Não autorizado a salvar credenciais de outro vendedor' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -169,13 +172,13 @@ Deno.serve(async (req) => {
 
     const normalizedType = integration_type.toUpperCase();
     const gatewayLower = normalizedType.toLowerCase();
-    console.log(`[vault-save] Salvando credenciais para vendor ${vendor_id}, tipo ${normalizedType}`);
+    log.info(`Salvando credenciais para vendor ${vendor_id}, tipo ${normalizedType}`);
 
     // 6. Separar credenciais sensíveis de dados públicos
     const { publicConfig, vaultCredentials } = separateCredentials(credentials);
 
-    console.log(`[vault-save] Dados públicos: ${Object.keys(publicConfig).join(', ')}`);
-    console.log(`[vault-save] Secrets a salvar: ${Object.keys(vaultCredentials).join(', ')}`);
+    log.info(`Dados públicos: ${Object.keys(publicConfig).join(', ')}`);
+    log.info(`Secrets a salvar: ${Object.keys(vaultCredentials).join(', ')}`);
 
     // 7. Marcar que credenciais estão no Vault (se houver secrets)
     if (Object.keys(vaultCredentials).length > 0) {
@@ -202,13 +205,13 @@ Deno.serve(async (req) => {
         .eq('id', existingIntegration.id);
 
       if (updateError) {
-        console.error('[vault-save] Erro ao atualizar dados públicos:', updateError);
+        log.error('Erro ao atualizar dados públicos:', updateError);
         return new Response(
           JSON.stringify({ error: 'Erro ao atualizar configuração', details: updateError.message }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      console.log('[vault-save] ✅ vendor_integrations atualizado');
+      log.info('✅ vendor_integrations atualizado');
     } else {
       const { error: insertError } = await supabase
         .from('vendor_integrations')
@@ -222,19 +225,19 @@ Deno.serve(async (req) => {
         });
 
       if (insertError) {
-        console.error('[vault-save] Erro ao inserir dados públicos:', insertError);
+        log.error('Erro ao inserir dados públicos:', insertError);
         return new Response(
           JSON.stringify({ error: 'Erro ao salvar configuração', details: insertError.message }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      console.log('[vault-save] ✅ vendor_integrations criado');
+      log.info('✅ vendor_integrations criado');
     }
 
     // 10. Salvar credenciais sensíveis no Vault usando convenção UNIFICADA
     // Convenção: gateway_{type}_{vendor_id} via RPC save_gateway_credentials
     if (Object.keys(vaultCredentials).length > 0) {
-      console.log(`[vault-save] Salvando no Vault com convenção unificada: gateway_${gatewayLower}_${vendor_id}`);
+      log.info(`Salvando no Vault com convenção unificada: gateway_${gatewayLower}_${vendor_id}`);
       
       const { data: rpcData, error: vaultError } = await supabase.rpc('save_gateway_credentials', {
         p_vendor_id: vendor_id,
@@ -243,14 +246,14 @@ Deno.serve(async (req) => {
       });
 
       if (vaultError) {
-        console.error('[vault-save] Erro ao salvar no Vault:', vaultError);
+        log.error('Erro ao salvar no Vault:', vaultError);
         return new Response(
           JSON.stringify({ error: 'Erro ao salvar credenciais no Vault', details: vaultError.message }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      console.log('[vault-save] ✅ Credenciais salvas no Vault:', rpcData);
+      log.info('✅ Credenciais salvas no Vault:', rpcData);
     }
 
     // 11. Retornar sucesso
@@ -268,7 +271,7 @@ Deno.serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[vault-save] Erro não tratado:', errorMessage);
+    log.error('Erro não tratado:', errorMessage);
     return new Response(
       JSON.stringify({ 
         error: 'Erro interno do servidor', 

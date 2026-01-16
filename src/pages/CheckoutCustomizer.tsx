@@ -1,234 +1,55 @@
-import { useState, useEffect } from "react";
-import { parseJsonSafely } from "@/lib/utils"; 
-import { hasPendingUploads, waitForUploadsToFinish, getAllComponentsFromCustomization } from "@/lib/uploadUtils";
-import { normalizeDesign } from "@/lib/checkout/normalizeDesign";
+/**
+ * Checkout Customizer Page
+ * 
+ * RISE Protocol V2 Compliant - Refactored from 324 → ~110 lines
+ * Persistence logic extracted to useCheckoutPersistence hook
+ */
+
+import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Monitor, Smartphone, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CheckoutPreview } from "@/components/checkout/CheckoutPreview";
 import { CheckoutCustomizationPanel } from "@/components/checkout/CheckoutCustomizationPanel";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
-import { useCheckoutEditor, CheckoutCustomization } from "@/hooks/useCheckoutEditor";
+import { useCheckoutEditor } from "@/hooks/useCheckoutEditor";
 import { UnsavedChangesGuard } from "@/providers/UnsavedChangesGuard";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
-import type { ProductData, OrderBump } from "@/types/checkout";
-
-/** Product offer from database */
-interface ProductOffer {
-  id: string;
-  name: string;
-  price: number;
-  status: string;
-}
-
-/** Payment link data */
-interface PaymentLinkData {
-  id: string;
-  offer_id?: string;
-}
-
-/** Order bump from API response */
-interface OrderBumpApiResponse {
-  id: string;
-  custom_title?: string;
-  custom_description?: string;
-  show_image?: boolean;
-  products?: {
-    name?: string;
-    price?: number;
-    image_url?: string;
-  };
-  offers?: {
-    price?: number;
-  };
-}
+import { useCheckoutPersistence } from "./checkout-customizer/hooks/useCheckoutPersistence";
 
 const CheckoutCustomizer = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const checkoutId = searchParams.get("id");
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  
-  // Estados de dados externos (Produtos/Ofertas)
-  const [productData, setProductData] = useState<ProductData | null>(null);
-  const [orderBumps, setOrderBumps] = useState<OrderBump[]>([]);
-  const [productOffers, setProductOffers] = useState<ProductOffer[]>([]);
-  const [currentLinks, setCurrentLinks] = useState<PaymentLinkData[]>([]);
 
-  // 🚀 HOOK DO EDITOR: Centraliza toda a lógica complexa
+  // Editor hook (UI state, drag-drop, component management)
   const editor = useCheckoutEditor();
 
+  // Persistence hook (load/save)
+  const { state: persistence, loadCheckoutData, handleSave } = useCheckoutPersistence({
+    checkoutId,
+    customization: editor.customization,
+    setCustomization: editor.setCustomization,
+    setIsDirty: editor.setIsDirty,
+  });
+
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
-    })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
-  // --- Persistence Logic (Load/Save) ---
-  
-  const loadCheckoutData = async (id: string) => {
-    setLoading(true);
-    try {
-      const sessionToken = getProducerSessionToken();
-      if (!sessionToken) {
-        toast({ title: "Sessão expirada", description: "Faça login novamente", variant: "destructive" });
-        navigate("/login");
-        return;
-      }
-
-      // Use Edge Function to load all data in one call
-      const { data: response, error } = await supabase.functions.invoke('checkout-editor', {
-        body: { action: 'get-editor-data', checkoutId: id },
-        headers: { 'x-producer-session-token': sessionToken }
-      });
-
-      if (error) throw error;
-      if (!response.success) throw new Error(response.error || 'Erro ao carregar dados');
-
-      const { checkout, product, offers, orderBumps } = response.data;
-      console.log('Checkout carregado via Edge Function:', checkout);
-
-      // Extract offer price from checkout_links
-      const checkoutLink = checkout?.checkout_links?.[0];
-      const paymentLink = checkoutLink?.payment_links;
-      const offer = paymentLink?.offers;
-      const offerPrice = offer?.price || product?.price || 0;
-      
-      // Use normalizeDesign utility
-      const themePreset = normalizeDesign(checkout);
-      
-      // Convert ThemePreset to CheckoutDesign
-      const designWithFallbacks = {
-        theme: checkout.theme || 'light',
-        font: checkout.font || 'Inter',
-        colors: themePreset.colors,
-        backgroundImage: (parseJsonSafely(checkout.design, {}) as { backgroundImage?: { url?: string; fixed?: boolean; repeat?: boolean; expand?: boolean } })?.backgroundImage,
-      };
-      
-      const loadedCustomization: CheckoutCustomization = {
-         design: designWithFallbacks,
-         topComponents: parseJsonSafely(checkout.top_components, []),
-         bottomComponents: parseJsonSafely(checkout.bottom_components, []),
-      };
-
-      editor.setCustomization(loadedCustomization);
-      
-      // Set product data with offer price
-      setProductData({
-        ...product,
-        price: offerPrice,
-      });
-
-      // Set offers
-      if (offers) setProductOffers(offers);
-
-      // Map order bumps
-      if (orderBumps && orderBumps.length > 0) {
-        const mappedBumps = orderBumps.map((bump: OrderBumpApiResponse): OrderBump => ({
-          id: bump.id,
-          name: bump.custom_title || bump.products?.name || "Produto",
-          price: bump.offers?.price || bump.products?.price || 0,
-          image_url: bump.show_image ? bump.products?.image_url : undefined,
-          description: bump.custom_description
-        }));
-        setOrderBumps(mappedBumps);
-      } else {
-        setOrderBumps([]);
-      }
-
-    } catch (error: unknown) {
-      console.error('[CheckoutCustomizer] Load error:', error);
-      toast({ title: "Erro ao carregar", description: error instanceof Error ? error.message : "Erro desconhecido", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSave = async () => {
-    if (!checkoutId) return;
-    setIsSaving(true);
-    toast({ title: "Salvando..." });
-
-    // Verify session
-    const sessionToken = getProducerSessionToken();
-    if (!sessionToken) {
-      toast({ title: "Sessão expirada", description: "Faça login novamente", variant: "destructive" });
-      setIsSaving(false);
-      return;
-    }
-
-    // Check pending uploads
-    if (hasPendingUploads(editor.customization)) {
-       try {
-           await waitForUploadsToFinish(() => editor.customization, 45000);
-       } catch (e) {
-           toast({ title: "Erro no upload", variant: "destructive" });
-           setIsSaving(false);
-           return;
-       }
-    }
-
-    try {
-        // Collect old paths for cleanup
-        let oldPaths: string[] = [];
-        getAllComponentsFromCustomization(editor.customization).forEach(c => {
-            if (c.content?._old_storage_path) oldPaths.push(c.content._old_storage_path);
-        });
-
-        // Save via Edge Function
-        const { data: response, error } = await supabase.functions.invoke('checkout-editor', {
-          body: {
-            action: 'update-design',
-            checkoutId,
-            design: editor.customization.design,
-            topComponents: editor.customization.topComponents,
-            bottomComponents: editor.customization.bottomComponents,
-          },
-          headers: { 'x-producer-session-token': sessionToken }
-        });
-
-        if (error) throw error;
-        if (!response.success) throw new Error(response.error || 'Erro ao salvar');
-
-        // Cleanup old storage paths
-        if (oldPaths.length > 0) {
-            fetch("/api/storage/remove", { 
-                method: "POST", 
-                body: JSON.stringify({ paths: oldPaths, bucket: "product-images" }) 
-            }).catch(console.error);
-        }
-
-        editor.setIsDirty(false);
-        toast({ title: "Sucesso!", description: "Checkout salvo." });
-
-    } catch (error: unknown) {
-        console.error('[CheckoutCustomizer] Save error:', error);
-        toast({ title: "Erro ao salvar", description: error instanceof Error ? error.message : "Erro desconhecido", variant: "destructive" });
-    } finally {
-        setIsSaving(false);
-    }
-  };
-
-  // Effects
+  // Initial load
   useEffect(() => {
     if (checkoutId) loadCheckoutData(checkoutId);
-  }, [checkoutId]);
+  }, [checkoutId, loadCheckoutData]);
 
+  // Reload on window focus (if not dirty)
   useEffect(() => {
-      const handleFocus = () => {
-          if (checkoutId && !editor.isDirty) loadCheckoutData(checkoutId);
-      };
-      window.addEventListener('focus', handleFocus);
-      return () => window.removeEventListener('focus', handleFocus);
-  }, [checkoutId, editor.isDirty]);
+    const handleFocus = () => {
+      if (checkoutId && !editor.isDirty) loadCheckoutData(checkoutId);
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [checkoutId, editor.isDirty, loadCheckoutData]);
 
-
-  // --- Render ---
-  
   return (
     <UnsavedChangesGuard isDirty={editor.isDirty}>
       <DndContext sensors={sensors} onDragStart={editor.handleDragStart} onDragEnd={editor.handleDragEnd}>
@@ -265,8 +86,8 @@ const CheckoutCustomizer = () => {
                   <Eye className="h-4 w-4 mr-2" /> Preview
                 </Button>
 
-                <Button onClick={handleSave} disabled={loading || isSaving}>
-                  {loading || isSaving ? "Salvando..." : "Salvar"}
+                <Button onClick={handleSave} disabled={persistence.loading || persistence.isSaving}>
+                  {persistence.loading || persistence.isSaving ? "Salvando..." : "Salvar"}
                 </Button>
               </div>
             </div>
@@ -274,7 +95,6 @@ const CheckoutCustomizer = () => {
 
           {/* Main Content */}
           <div className="flex-1 flex overflow-hidden">
-            {/* Preview Area */}
             <div className="flex-1 overflow-y-auto overflow-x-hidden bg-muted/30">
               <CheckoutPreview
                 customization={editor.customization}
@@ -282,12 +102,11 @@ const CheckoutCustomizer = () => {
                 selectedComponentId={editor.selectedComponent}
                 onSelectComponent={editor.setSelectedComponent}
                 isPreviewMode={editor.isPreviewMode}
-                productData={productData}
-                orderBumps={orderBumps}
+                productData={persistence.productData}
+                orderBumps={persistence.orderBumps}
               />
             </div>
 
-            {/* Editor Panel */}
             {!editor.isPreviewMode && (
               <aside className="flex-none w-96 border-l bg-card flex flex-col overflow-hidden">
                 <CheckoutCustomizationPanel
