@@ -33,6 +33,8 @@ interface UseAffiliationStatusCacheReturn {
   updateStatus: (productId: string, status: string, affiliationId?: string) => void;
   /** Invalida o cache (ao deslogar) */
   invalidate: () => void;
+  /** Contador de atualizações (usar como dependência de useMemo) */
+  updateTrigger: number;
 }
 
 // Cache global para evitar múltiplas chamadas
@@ -41,11 +43,13 @@ const globalCache = {
   isLoaded: false,
   isLoading: false,
   loadPromise: null as Promise<void> | null,
+  updateCounter: 0, // Contador para forçar re-render após atualizações
 };
 
 export function useAffiliationStatusCache(): UseAffiliationStatusCacheReturn {
   const [isLoading, setIsLoading] = useState(globalCache.isLoading);
   const [isLoaded, setIsLoaded] = useState(globalCache.isLoaded);
+  const [updateTrigger, setUpdateTrigger] = useState(globalCache.updateCounter);
   const mountedRef = useRef(true);
 
   // Sincronizar estado local com cache global
@@ -154,6 +158,9 @@ export function useAffiliationStatusCache(): UseAffiliationStatusCacheReturn {
       status: status as AffiliationStatus["status"],
       affiliationId: affiliationId || "",
     });
+    // Incrementar contador para forçar re-render dos componentes dependentes
+    globalCache.updateCounter++;
+    setUpdateTrigger(globalCache.updateCounter);
   }, []);
 
   /**
@@ -176,5 +183,6 @@ export function useAffiliationStatusCache(): UseAffiliationStatusCacheReturn {
     loadStatuses,
     updateStatus,
     invalidate,
+    updateTrigger, // Expor para dependência do useMemo
   };
 }
