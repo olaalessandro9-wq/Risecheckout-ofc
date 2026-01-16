@@ -94,6 +94,7 @@
 | `dashboard-analytics` | `.../dashboard-analytics` | ✅ | 10 min ago | 141 |
 | `checkout-heartbeat` | `.../checkout-heartbeat` | ✅ | 10 min ago | 249 |
 | `detect-abandoned-checkouts` | `.../detect-abandoned-checkouts` | ✅ | 10 min ago | 249 |
+| `track-visit` | `.../track-visit` | ✅ | 10 min ago | 0 |
 
 ### Orders
 

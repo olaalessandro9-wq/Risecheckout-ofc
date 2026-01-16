@@ -7,7 +7,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { rateLimitMiddleware, getIdentifier } from '../_shared/rate-limit.ts';
-import { getGatewayCredentials, validateCredentials } from '../_shared/platform-config.ts';
+import { getGatewayCredentials } from '../_shared/platform-config.ts';
 import { handlePixPayment, PixPaymentResult } from './handlers/pix-handler.ts';
 import { handleCardPayment, CardPaymentResult } from './handlers/card-handler.ts';
 import { logError, logWarn } from './utils/logger.ts';
