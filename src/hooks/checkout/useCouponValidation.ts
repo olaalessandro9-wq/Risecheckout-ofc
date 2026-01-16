@@ -1,8 +1,8 @@
 /**
  * Hook: useCouponValidation
  * 
- * Gerencia validação e aplicação de cupons de desconto
- * Extraído de SharedOrderSummary para manter < 300 linhas
+ * MIGRATED: Uses checkout-public-data Edge Function
+ * @see RISE Protocol V2 - Zero database access from frontend
  */
 
 import { useState, useCallback } from 'react';
@@ -55,75 +55,36 @@ export function useCouponValidation({ productId }: UseCouponValidationParams): U
         productId
       });
 
-      // 1. Buscar cupom pelo código (case-insensitive)
-      const { data: coupon, error: couponError } = await supabase
-        .from('coupons')
-        .select('*')
-        .ilike('code', couponCode.trim())
-        .single();
+      const { data, error } = await supabase.functions.invoke('checkout-public-data', {
+        body: {
+          action: 'validate-coupon',
+          couponCode: couponCode.trim(),
+          productId,
+        },
+      });
 
-      if (couponError || !coupon) {
-        toast.error('Cupom inválido ou não encontrado');
+      if (error) {
+        console.error('[useCouponValidation] Edge function error:', error);
+        toast.error('Erro ao validar cupom. Tente novamente.');
         return;
       }
 
-      // Verificar se está ativo
-      if (!coupon.active) {
-        toast.error('Este cupom está inativo');
+      if (!data?.success) {
+        toast.error(data?.error || 'Cupom inválido');
         return;
       }
 
-      // 2. Verificar se o cupom está vinculado a este produto
-      const { data: couponProduct, error: cpError } = await supabase
-        .from('coupon_products')
-        .select('*')
-        .eq('coupon_id', coupon.id)
-        .eq('product_id', productId)
-        .single();
-
-      if (cpError || !couponProduct) {
-        toast.error('Este cupom não é válido para este produto');
-        return;
-      }
-
-      // 3. Verificar data de início
-      if (coupon.start_date) {
-        const startDate = new Date(coupon.start_date);
-        if (new Date() < startDate) {
-          toast.error('Este cupom ainda não está ativo');
-          return;
-        }
-      }
-
-      // 4. Verificar data de expiração
-      if (coupon.expires_at) {
-        const expiresAt = new Date(coupon.expires_at);
-        if (new Date() > expiresAt) {
-          toast.error('Este cupom expirou');
-          return;
-        }
-      }
-
-      // 5. Verificar limite de usos
-      if (coupon.max_uses && coupon.max_uses > 0) {
-        if ((coupon.uses_count ?? 0) >= coupon.max_uses) {
-          toast.error('Este cupom atingiu o limite de usos');
-          return;
-        }
-      }
-
-      // Cupom válido! Aplicar
       const appliedCouponData: AppliedCoupon = {
-        id: coupon.id,
-        code: coupon.code,
-        name: coupon.name || coupon.code,
-        discount_type: coupon.discount_type as 'percentage' | 'fixed',
-        discount_value: Number(coupon.discount_value),
-        apply_to_order_bumps: coupon.apply_to_order_bumps || false,
+        id: data.data.id,
+        code: data.data.code,
+        name: data.data.name,
+        discount_type: data.data.discount_type as 'percentage' | 'fixed',
+        discount_value: data.data.discount_value,
+        apply_to_order_bumps: data.data.apply_to_order_bumps,
       };
 
       setAppliedCoupon(appliedCouponData);
-      toast.success(`Cupom "${coupon.code}" aplicado com sucesso!`);
+      toast.success(`Cupom "${data.data.code}" aplicado com sucesso!`);
     } catch (error: unknown) {
       console.error('[useCouponValidation] Erro ao validar cupom:', error);
       toast.error('Erro ao validar cupom. Tente novamente.');
