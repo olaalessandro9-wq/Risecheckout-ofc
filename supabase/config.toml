@@ -252,7 +252,7 @@ verify_jwt = false
 [functions.pushinpay-stats]
 verify_jwt = false
 
-[functions.test-pushinpay-connection]
+[functions.pushinpay-validate-credentials]
 verify_jwt = false
 
 # ✅ PÚBLICAS (Tracking - Conversões e Analytics)

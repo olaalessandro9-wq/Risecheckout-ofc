@@ -1,65 +1,13 @@
 /**
  * MercadoPagoAdapter - Adaptador para o gateway Mercado Pago
  * 
- * Este adaptador traduz as requisições padronizadas do RiseCheckout
- * para o formato específico da API do Mercado Pago e vice-versa.
- * 
- * Suporta:
- * - Pagamentos via PIX
- * - Pagamentos via Cartão de Crédito
- * - Split de pagamentos (disbursements)
- * - Ambientes de teste (sandbox) e produção
- * - Circuit Breaker para resiliência
- * 
- * @version 2.1.0 - Zero `any` compliance
+ * @version 2.2.0 - RISE Protocol V2 Compliance (< 300 lines)
  */
 
 import { IPaymentGateway } from "../IPaymentGateway.ts";
 import { PaymentRequest, PaymentResponse, PaymentSplitRule } from "../types.ts";
 import { CircuitBreaker, CircuitOpenError, GATEWAY_CIRCUIT_CONFIGS } from "../../circuit-breaker.ts";
-
-// ============================================
-// MERCADOPAGO SPECIFIC TYPES
-// ============================================
-
-interface MercadoPagoPayload {
-  transaction_amount: number;
-  description?: string;
-  payment_method_id?: string;
-  token?: string;
-  installments?: number;
-  statement_descriptor?: string;
-  payer: {
-    email: string;
-    first_name: string;
-    last_name: string;
-    identification: {
-      type: string;
-      number: string;
-    };
-  };
-  external_reference?: string;
-  notification_url?: string;
-  disbursements?: MercadoPagoDisbursement[];
-}
-
-interface MercadoPagoDisbursement {
-  amount: number;
-  external_reference: string;
-  collector_id: string;
-}
-
-interface MercadoPagoResponse {
-  id?: number | string;
-  status?: string;
-  message?: string;
-  point_of_interaction?: {
-    transaction_data?: {
-      qr_code_base64?: string;
-      qr_code?: string;
-    };
-  };
-}
+import type { MercadoPagoPayload, MercadoPagoDisbursement, MercadoPagoResponse } from "./mercadopago-types.ts";
 
 // ============================================
 // ADAPTER IMPLEMENTATION
