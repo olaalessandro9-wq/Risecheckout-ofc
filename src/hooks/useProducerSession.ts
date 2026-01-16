@@ -1,18 +1,19 @@
 /**
  * useProducerSession - Cached session validation hook
  * 
+ * RISE ARCHITECT PROTOCOL - Zero Technical Debt
+ * 
  * Uses React Query for caching and automatic revalidation.
  * Provides a consistent way to check producer session across components.
  * 
- * DUAL-SESSION VALIDATION:
- * - Validates producer_session (custom token)
- * - ALSO verifies Supabase Auth session exists (for RLS compatibility)
- * - If Supabase session expired, forces re-login to re-sync
+ * ARCHITECTURE (REFACTORED):
+ * - Validates ONLY producer_session_token (custom token)
+ * - NO Supabase Auth dependency (eliminated dual-auth)
+ * - All backend calls must use Edge Functions with X-Producer-Session-Token
  */
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SUPABASE_URL } from "@/config/supabase";
-import { supabase } from "@/integrations/supabase/client";
 
 const SESSION_KEY = "producer_session_token";
 
@@ -33,21 +34,6 @@ interface SessionData {
   producer: ProducerProfile | null;
 }
 
-/**
- * Ensures Supabase Auth is synced (non-blocking).
- * The producer_session is the source of truth, so this is informational only.
- */
-async function ensureSupabaseAuthSync(): Promise<void> {
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      console.info("[ProducerSession] Supabase Auth not yet synced - will sync on next login");
-    }
-  } catch {
-    // Non-blocking - producer_session is the source of truth
-  }
-}
-
 async function validateProducerSession(): Promise<SessionData> {
   const token = localStorage.getItem(SESSION_KEY);
   
@@ -56,11 +42,6 @@ async function validateProducerSession(): Promise<SessionData> {
   }
 
   try {
-    // ============================================
-    // VALIDATE PRODUCER SESSION (SOURCE OF TRUTH)
-    // ============================================
-    // The producer_session_token is the primary auth mechanism.
-    // Supabase Auth sync is handled separately (non-blocking).
     const response = await fetch(`${SUPABASE_URL}/functions/v1/producer-auth/validate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -70,8 +51,6 @@ async function validateProducerSession(): Promise<SessionData> {
     const data = await response.json();
 
     if (data.valid && data.producer) {
-      // Session is valid - attempt Supabase Auth sync (non-blocking)
-      ensureSupabaseAuthSync();
       return { valid: true, producer: data.producer };
     }
 
