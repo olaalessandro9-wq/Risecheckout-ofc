@@ -14,9 +14,9 @@
  * @version 2.0.0 - Zero `any` compliance (RISE Protocol V2)
  */
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { createHmac } from "https://deno.land/std@0.168.0/node/crypto.ts";
+import { encodeHex } from "https://deno.land/std@0.224.0/encoding/hex.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -201,13 +201,15 @@ serve(async (req) => {
 
     console.log(`[process-webhook-queue] 🔄 Reenviando webhook ${typedDelivery.id} para ${typedWebhook.url}`);
 
-    // Gerar assinatura HMAC usando secret_encrypted (seguro)
+    // Gerar assinatura HMAC usando Web Crypto API
     const timestamp = Math.floor(Date.now() / 1000).toString();
     const payloadString = JSON.stringify(typedDelivery.payload);
     const signaturePayload = `${timestamp}.${payloadString}`;
-    const signature = createHmac('sha256', typedWebhook.secret_encrypted)
-      .update(signaturePayload)
-      .digest('hex');
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(typedWebhook.secret_encrypted);
+    const key = await crypto.subtle.importKey("raw", keyData, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    const signatureBuffer = await crypto.subtle.sign("HMAC", key, encoder.encode(signaturePayload));
+    const signature = encodeHex(new Uint8Array(signatureBuffer));
 
     // Enviar webhook diretamente
     try {

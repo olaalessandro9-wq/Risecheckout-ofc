@@ -12,7 +12,7 @@
  * Output: { valid: boolean, account?: { id, name, email } }
  */
 
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { handleCors, getCorsHeaders } from "../_shared/cors.ts";
 
 // PushinPay API URLs por ambiente
