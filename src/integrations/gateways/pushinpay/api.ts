@@ -265,7 +265,7 @@ export async function getPixStatus(orderId: string): Promise<PixStatusResponse> 
  * }
  */
 export async function testPushinPayConnection(): Promise<PushinPayConnectionTestResponse> {
-  const { data, error } = await supabase.functions.invoke("pushinpay-validate-credentials");
+  const { data, error } = await supabase.functions.invoke("pushinpay-validate-token");
   
   if (error) {
     return { 
