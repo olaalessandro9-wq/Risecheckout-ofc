@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
       // RPCs that use auth.uid() in their SQL won't work because
       // we're using service_role which doesn't set auth.uid().
       // Instead, we inject the producer_id from the validated session.
-      const RPCS_NEED_USER_ID = ["get_producer_affiliates", "get_dashboard_metrics"];
+      const RPCS_NEED_USER_ID = ["get_producer_affiliates"];
       
       if (RPCS_NEED_USER_ID.includes(rpc)) {
         // Inject p_user_id into params
