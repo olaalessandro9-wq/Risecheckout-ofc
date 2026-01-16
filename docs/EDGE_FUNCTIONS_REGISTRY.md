@@ -1,7 +1,7 @@
 # Rise Checkout - Edge Functions Registry
 
 > **🔴 FONTE DA VERDADE MÁXIMA** - Este documento lista TODAS as Edge Functions deployadas no Supabase.  
-> Última atualização: 2026-01-15  
+> Última atualização: 2026-01-16  
 > Mantenedor: AI Assistant + User
 
 ---
@@ -10,8 +10,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 93 |
-| **No código local** | 93 |
+| **Total de Funções** | 92 |
+| **No código local** | 92 |
 | **Apenas deployadas** | 0 |
 | **Operações Diretas Frontend** | 0 ✅ |
 | **Base URL** | `https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/` |
@@ -66,7 +66,6 @@
 | `pushinpay-get-status` | `.../pushinpay-get-status` | ✅ | 10 min ago | 398 |
 | `pushinpay-webhook` | `.../pushinpay-webhook` | ✅ | 10 min ago | 420 |
 | `pushinpay-stats` | `.../pushinpay-stats` | ✅ | 10 min ago | 103 |
-| `test-pushinpay-connection` | `.../test-pushinpay-connection` | ✅ | 10 min ago | 103 |
 | `pushinpay-validate-token` | `.../pushinpay-validate-token` | ✅ | NEW | 0 |
 
 ### Payments - MercadoPago
@@ -271,6 +270,9 @@
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-16 | **DT-02 FINAL**: Removida `test-pushinpay-connection` do Registry (função legado deletada) |
+| 2026-01-16 | **DT-08 FIX**: URL hardcoded em `PushinPayAdapter.ts` → dinâmica via `Deno.env.get('SUPABASE_URL')` |
+| 2026-01-16 | **DT-06 FIX**: Criado `_shared/logger.ts` - Logger centralizado com níveis (debug/info/warn/error) |
 | 2026-01-15 | **FIX GATEWAYS**: Criada `pushinpay-validate-token` - validação de token via backend (elimina CSP + segurança) |
 | 2026-01-15 | **FIX GATEWAYS**: Corrigido CORS em `stripe-connect-oauth` - adicionado `x-producer-session-token` aos headers |
 | 2026-01-15 | **FIX GATEWAYS**: Corrigido 406 em PushinPay API - `.single()` → `.maybeSingle()` |
