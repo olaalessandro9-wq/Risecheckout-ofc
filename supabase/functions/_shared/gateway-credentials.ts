@@ -5,7 +5,7 @@
  * Extraído de platform-config.ts para RISE Protocol V2 (< 300 linhas).
  * 
  * @module _shared/gateway-credentials
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -21,24 +21,36 @@ import {
 
 /**
  * Credenciais de um gateway de pagamento
+ * Suporta tanto snake_case (interno) quanto camelCase (compatibilidade)
  */
 export interface GatewayCredentials {
-  /** API Key (Asaas) */
+  // Snake case (padrão interno)
   api_key?: string;
-  /** Access Token (Mercado Pago) */
   access_token?: string;
-  /** Token genérico (PushinPay) */
   token?: string;
-  /** Wallet ID para split (Asaas) */
   wallet_id?: string;
-  /** Collector ID para split (Mercado Pago) */
   collector_id?: string;
-  /** Account ID para split (PushinPay, Stripe) */
   account_id?: string;
+  
+  // CamelCase (aliases para compatibilidade)
+  apiKey?: string;
+  accessToken?: string;
+  walletId?: string;
+  collectorId?: string;
+  accountId?: string;
+  
   /** Ambiente (sandbox ou production) */
   environment: 'sandbox' | 'production';
   /** Origem das credenciais */
   source: 'owner_secrets' | 'vendor_integration';
+}
+
+/**
+ * Resultado da validação de credenciais
+ */
+export interface CredentialsValidationResult {
+  valid: boolean;
+  missingFields: string[];
 }
 
 /**
@@ -48,6 +60,8 @@ export interface GatewayCredentialsResult {
   success: boolean;
   credentials?: GatewayCredentials;
   error?: string;
+  isOwner: boolean;
+  source: 'owner_secrets' | 'vendor_integration' | 'error';
 }
 
 // ========================================================================
@@ -56,29 +70,6 @@ export interface GatewayCredentialsResult {
 
 /**
  * Busca credenciais de gateway com lógica Owner vs Vendedor
- * 
- * LÓGICA:
- * - Se vendorId === PLATFORM_OWNER_USER_ID:
- *   → Buscar de Deno.env (secrets globais via OWNER_GATEWAY_SECRETS)
- *   → source = 'owner_secrets'
- * 
- * - Senão:
- *   → Buscar de vendor_integrations no banco
- *   → Descriptografar se necessário
- *   → source = 'vendor_integration'
- * 
- * @param supabase - Cliente Supabase
- * @param vendorId - ID do vendedor
- * @param gateway - Gateway de pagamento
- * @returns Resultado com credenciais ou erro
- * 
- * @example
- * ```typescript
- * const result = await getGatewayCredentials(supabase, vendorId, 'asaas');
- * if (result.success) {
- *   console.log('API Key:', result.credentials.api_key);
- * }
- * ```
  */
 export async function getGatewayCredentials(
   supabase: SupabaseClient,
@@ -86,51 +77,78 @@ export async function getGatewayCredentials(
   gateway: GatewayType
 ): Promise<GatewayCredentialsResult> {
   try {
+    const isOwner = vendorId === PLATFORM_OWNER_USER_ID;
+
     // ========================================================================
     // CASO 1: OWNER - Buscar de Secrets Globais
     // ========================================================================
-    if (vendorId === PLATFORM_OWNER_USER_ID) {
+    if (isOwner) {
       console.log(`[gateway-credentials] Buscando credenciais do Owner para ${gateway}`);
       
-      const secretsMap = OWNER_GATEWAY_SECRETS[gateway];
       const credentials: GatewayCredentials = {
         environment: 'production',
         source: 'owner_secrets',
       };
 
-      // Buscar secrets específicos do gateway
+      // Buscar secrets específicos do gateway com type assertions
       switch (gateway) {
-        case 'asaas':
-          credentials.api_key = Deno.env.get(secretsMap.apiKey);
-          credentials.wallet_id = Deno.env.get(secretsMap.walletId);
+        case 'asaas': {
+          const secrets = OWNER_GATEWAY_SECRETS.asaas;
+          const apiKey = Deno.env.get(secrets.apiKey);
+          const walletId = Deno.env.get(secrets.walletId);
+          credentials.api_key = apiKey;
+          credentials.apiKey = apiKey;
+          credentials.wallet_id = walletId;
+          credentials.walletId = walletId;
           break;
+        }
 
-        case 'mercadopago':
-          credentials.access_token = Deno.env.get(secretsMap.accessToken);
-          credentials.collector_id = Deno.env.get(secretsMap.collectorId);
+        case 'mercadopago': {
+          const secrets = OWNER_GATEWAY_SECRETS.mercadopago;
+          const accessToken = Deno.env.get(secrets.accessToken);
+          const collectorId = Deno.env.get(secrets.collectorId);
+          credentials.access_token = accessToken;
+          credentials.accessToken = accessToken;
+          credentials.collector_id = collectorId;
+          credentials.collectorId = collectorId;
           break;
+        }
 
-        case 'pushinpay':
-          credentials.token = Deno.env.get(secretsMap.token);
-          credentials.account_id = Deno.env.get(secretsMap.accountId);
+        case 'pushinpay': {
+          const secrets = OWNER_GATEWAY_SECRETS.pushinpay;
+          const token = Deno.env.get(secrets.token);
+          const accountId = Deno.env.get(secrets.accountId);
+          credentials.token = token;
+          credentials.account_id = accountId;
+          credentials.accountId = accountId;
           break;
+        }
 
-        case 'stripe':
-          credentials.api_key = Deno.env.get(secretsMap.secretKey);
+        case 'stripe': {
+          const secrets = OWNER_GATEWAY_SECRETS.stripe;
+          const secretKey = Deno.env.get(secrets.secretKey);
+          credentials.api_key = secretKey;
+          credentials.apiKey = secretKey;
           break;
+        }
       }
 
       // Validar se as credenciais mínimas estão presentes
-      if (!validateCredentials(credentials, gateway)) {
+      const validation = validateCredentials(gateway, credentials);
+      if (!validation.valid) {
         return {
           success: false,
-          error: `Credenciais do Owner para ${gateway} não configuradas nos secrets`,
+          error: `Credenciais do Owner para ${gateway} não configuradas nos secrets. Faltando: ${validation.missingFields.join(', ')}`,
+          isOwner: true,
+          source: 'error',
         };
       }
 
       return {
         success: true,
         credentials,
+        isOwner: true,
+        source: 'owner_secrets',
       };
     }
 
@@ -139,7 +157,6 @@ export async function getGatewayCredentials(
     // ========================================================================
     console.log(`[gateway-credentials] Buscando credenciais do vendedor ${vendorId} para ${gateway}`);
 
-    // Mapear gateway para integration_type
     const integrationTypeMap: Record<GatewayType, string> = {
       asaas: 'ASAAS',
       mercadopago: 'MERCADOPAGO',
@@ -149,7 +166,6 @@ export async function getGatewayCredentials(
 
     const integrationType = integrationTypeMap[gateway];
 
-    // Buscar integração no banco
     const { data: integration, error: dbError } = await supabase
       .from('vendor_integrations')
       .select('config, active')
@@ -162,50 +178,75 @@ export async function getGatewayCredentials(
       return {
         success: false,
         error: `Vendedor ${vendorId} não possui integração ativa com ${gateway}`,
+        isOwner: false,
+        source: 'error',
       };
     }
 
-    // Extrair credenciais do config
     const config = integration.config as Record<string, unknown>;
     const credentials: GatewayCredentials = {
       environment: (config.environment as 'sandbox' | 'production') || 'production',
       source: 'vendor_integration',
     };
 
-    // Mapear campos do config para GatewayCredentials
+    // Mapear campos do config para GatewayCredentials (ambos os formatos)
     switch (gateway) {
-      case 'asaas':
-        credentials.api_key = config.api_key as string;
-        credentials.wallet_id = config.wallet_id as string;
+      case 'asaas': {
+        const apiKey = config.api_key as string;
+        const walletId = config.wallet_id as string;
+        credentials.api_key = apiKey;
+        credentials.apiKey = apiKey;
+        credentials.wallet_id = walletId;
+        credentials.walletId = walletId;
         break;
+      }
 
-      case 'mercadopago':
-        credentials.access_token = config.access_token as string;
-        credentials.collector_id = config.collector_id as string;
+      case 'mercadopago': {
+        const accessToken = config.access_token as string;
+        const collectorId = config.collector_id as string;
+        credentials.access_token = accessToken;
+        credentials.accessToken = accessToken;
+        credentials.collector_id = collectorId;
+        credentials.collectorId = collectorId;
         break;
+      }
 
-      case 'pushinpay':
-        credentials.token = config.token as string;
-        credentials.account_id = config.account_id as string;
+      case 'pushinpay': {
+        const token = config.token as string;
+        const accountId = config.account_id as string;
+        credentials.token = token;
+        credentials.account_id = accountId;
+        credentials.accountId = accountId;
         break;
+      }
 
-      case 'stripe':
-        credentials.api_key = config.secret_key as string;
-        credentials.account_id = config.account_id as string;
+      case 'stripe': {
+        const secretKey = config.secret_key as string;
+        const accountId = config.account_id as string;
+        credentials.api_key = secretKey;
+        credentials.apiKey = secretKey;
+        credentials.account_id = accountId;
+        credentials.accountId = accountId;
         break;
+      }
     }
 
     // Validar se as credenciais mínimas estão presentes
-    if (!validateCredentials(credentials, gateway)) {
+    const validation = validateCredentials(gateway, credentials);
+    if (!validation.valid) {
       return {
         success: false,
-        error: `Credenciais do vendedor ${vendorId} para ${gateway} estão incompletas`,
+        error: `Credenciais do vendedor ${vendorId} para ${gateway} estão incompletas. Faltando: ${validation.missingFields.join(', ')}`,
+        isOwner: false,
+        source: 'error',
       };
     }
 
     return {
       success: true,
       credentials,
+      isOwner: false,
+      source: 'vendor_integration',
     };
 
   } catch (error) {
@@ -213,6 +254,8 @@ export async function getGatewayCredentials(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro desconhecido',
+      isOwner: vendorId === PLATFORM_OWNER_USER_ID,
+      source: 'error',
     };
   }
 }
@@ -220,36 +263,51 @@ export async function getGatewayCredentials(
 /**
  * Valida se as credenciais mínimas estão presentes
  * 
- * @param credentials - Credenciais a validar
  * @param gateway - Gateway de pagamento
- * @returns true se válidas, false caso contrário
- * 
- * @example
- * ```typescript
- * const valid = validateCredentials(credentials, 'asaas');
- * if (!valid) {
- *   console.error('Credenciais inválidas');
- * }
- * ```
+ * @param credentials - Credenciais a validar (opcional)
+ * @returns Resultado da validação com campos faltantes
  */
 export function validateCredentials(
-  credentials: GatewayCredentials,
-  gateway: string
-): boolean {
+  gateway: string,
+  credentials?: GatewayCredentials
+): CredentialsValidationResult {
+  const missingFields: string[] = [];
+
+  if (!credentials) {
+    return { valid: false, missingFields: ['credentials'] };
+  }
+
   switch (gateway) {
     case 'asaas':
-      return !!credentials.api_key;
+      if (!credentials.api_key && !credentials.apiKey) {
+        missingFields.push('api_key');
+      }
+      break;
 
     case 'mercadopago':
-      return !!credentials.access_token;
+      if (!credentials.access_token && !credentials.accessToken) {
+        missingFields.push('access_token');
+      }
+      break;
 
     case 'pushinpay':
-      return !!credentials.token;
+      if (!credentials.token) {
+        missingFields.push('token');
+      }
+      break;
 
     case 'stripe':
-      return !!credentials.api_key;
+      if (!credentials.api_key && !credentials.apiKey) {
+        missingFields.push('api_key');
+      }
+      break;
 
     default:
-      return false;
+      missingFields.push('unknown_gateway');
   }
+
+  return {
+    valid: missingFields.length === 0,
+    missingFields,
+  };
 }

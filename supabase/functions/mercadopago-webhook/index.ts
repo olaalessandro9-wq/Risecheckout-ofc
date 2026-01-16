@@ -113,11 +113,15 @@ serve(async (req) => {
     let accessToken: string | undefined;
     try {
       const credentialsResult = await getGatewayCredentials(supabase, currentOrder.vendor_id as string, 'mercadopago');
+      if (!credentialsResult.success || !credentialsResult.credentials) {
+        logger.error('🔴 Credenciais não encontradas', { error: credentialsResult.error });
+        return createSuccessResponse({ message: 'Credenciais incompletas' });
+      }
       const validation = validateCredentials('mercadopago', credentialsResult.credentials);
       if (!validation.valid) {
         return createSuccessResponse({ message: 'Credenciais incompletas' });
       }
-      accessToken = credentialsResult.credentials.accessToken;
+      accessToken = credentialsResult.credentials.accessToken || credentialsResult.credentials.access_token;
       logger.info('✅ Credenciais obtidas', { source: credentialsResult.source });
     } catch (credError: unknown) {
       const msg = credError instanceof Error ? credError.message : 'Erro';

@@ -34,14 +34,36 @@ function createSuccessResponse(data: SuccessResponseData, corsHeaders: Record<st
 function createErrorResponse(code: string, message: string, status: number, corsHeaders: Record<string, string>, details?: unknown): Response { const error: { success: false; error: string; data?: { code: string; details: unknown } } = { success: false, error: message }; if (details) error.data = { code, details }; return new Response(JSON.stringify(error), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status }); }
 
 async function fetchCredentials(supabase: SupabaseClient, vendorId: string): Promise<CredentialsResult> {
-  let credentialsResult: { isOwner: boolean; credentials: { accessToken?: string; environment?: 'production' | 'sandbox' }; source?: string }; let isOwner = false;
-  try { credentialsResult = await getGatewayCredentials(supabase, vendorId, 'mercadopago'); isOwner = credentialsResult.isOwner; } 
-  catch (credError: unknown) { const errorMessage = credError instanceof Error ? credError.message : String(credError); logWarn('getGatewayCredentials falhou, tentando Vault...', { error: errorMessage, vendorId });
-    try { const { getVendorCredentials } = await import('../_shared/vault-credentials.ts'); const { credentials: vaultCreds, source } = await getVendorCredentials(supabase, vendorId, 'MERCADOPAGO') as { credentials: VaultCredentials | null; source: string }; if (!vaultCreds || !vaultCreds.access_token) { throw { code: 'GATEWAY_NOT_CONFIGURED', message: 'Mercado Pago não configurado' } as GatewayError; } credentialsResult = { isOwner: false, credentials: { accessToken: vaultCreds.access_token, environment: 'production' as const }, source }; } 
-    catch { throw { code: 'GATEWAY_NOT_CONFIGURED', message: 'Mercado Pago não configurado' } as GatewayError; } }
-  const { credentials } = credentialsResult; if (!credentials.accessToken || !credentials.environment) throw { code: 'GATEWAY_NOT_CONFIGURED', message: 'Credenciais incompletas' } as GatewayError;
-  const validation = validateCredentials('mercadopago', credentials as { accessToken: string; environment: 'production' | 'sandbox' }); if (!validation.valid) throw { code: 'GATEWAY_NOT_CONFIGURED', message: 'Credenciais incompletas' } as GatewayError;
-  return { accessToken: credentials.accessToken, environment: credentials.environment, isOwner };
+  let isOwner = false;
+  let accessToken: string | undefined;
+  let environment: 'production' | 'sandbox' = 'production';
+  
+  // Tentar buscar via getGatewayCredentials
+  try { 
+    const credResult = await getGatewayCredentials(supabase, vendorId, 'mercadopago'); 
+    isOwner = credResult.isOwner;
+    if (credResult.success && credResult.credentials) {
+      accessToken = credResult.credentials.accessToken || credResult.credentials.access_token;
+      environment = credResult.credentials.environment;
+    }
+  } catch (credError: unknown) { 
+    const errorMessage = credError instanceof Error ? credError.message : String(credError); 
+    logWarn('getGatewayCredentials falhou, tentando Vault...', { error: errorMessage, vendorId });
+  }
+  
+  // Fallback para Vault se não tiver accessToken
+  if (!accessToken) {
+    try { 
+      const { getVendorCredentials } = await import('../_shared/vault-credentials.ts'); 
+      const { credentials: vaultCreds } = await getVendorCredentials(supabase, vendorId, 'MERCADOPAGO') as { credentials: VaultCredentials | null; source: string }; 
+      if (vaultCreds?.access_token) { 
+        accessToken = vaultCreds.access_token; 
+      }
+    } catch { /* silent */ }
+  }
+  
+  if (!accessToken) throw { code: 'GATEWAY_NOT_CONFIGURED', message: 'Mercado Pago não configurado' } as GatewayError;
+  return { accessToken, environment, isOwner };
 }
 
 async function calculateSplit(supabase: SupabaseClient, order: OrderRecord, isOwner: boolean, calculatedTotalCents: number, gatewayToken: string, affiliateCollectorId: string | null): Promise<{ effectiveAccessToken: string; applicationFeeCents: number }> {
