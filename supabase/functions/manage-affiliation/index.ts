@@ -4,7 +4,7 @@
  * @version 2.0.0 - Zero `any` compliance (RISE Protocol V2)
  */
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { requireCanHaveAffiliates } from "../_shared/role-validator.ts";
 import { logSecurityEvent, SecurityAction } from "../_shared/audit-logger.ts";

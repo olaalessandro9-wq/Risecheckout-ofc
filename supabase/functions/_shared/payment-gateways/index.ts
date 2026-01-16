@@ -35,3 +35,4 @@ export type {
 // Exports de adaptadores (caso precise usar diretamente)
 export { MercadoPagoAdapter } from "./adapters/MercadoPagoAdapter.ts";
 export { PushinPayAdapter } from "./adapters/PushinPayAdapter.ts";
+export { StripeAdapter } from "./adapters/StripeAdapter.ts";

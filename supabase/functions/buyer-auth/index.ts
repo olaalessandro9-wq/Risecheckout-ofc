@@ -13,7 +13,7 @@
  * @refactored 2026-01-13 - Handlers extraídos para _shared/buyer-auth-handlers.ts
  */
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // Import handlers - Core (register, login, logout)
