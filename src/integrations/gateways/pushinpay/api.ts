@@ -1,16 +1,11 @@
 /**
  * API do PushinPay Gateway
- * Módulo: src/integrations/gateways/pushinpay
  * 
- * Este arquivo contém todas as funções para interagir com a API da PushinPay
- * via Edge Functions do Supabase.
- * 
- * RISE Protocol V2 Compliant - Todas as operações de escrita via Edge Functions
- * 
- * Migrado de: src/services/pushinpay.ts
+ * MIGRATED: Uses Edge Function instead of supabase.from()
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 import type {
   PushinPaySettings,
   PushinPayEnvironment,
@@ -21,27 +16,11 @@ import type {
   PushinPayAccountInfo,
 } from "./types";
 
-// URLs da API PushinPay por ambiente
 const PUSHINPAY_API_URLS = {
   sandbox: "https://api-sandbox.pushinpay.com.br/api",
   production: "https://api.pushinpay.com.br/api",
 } as const;
 
-/**
- * Busca informações da conta PushinPay usando o token
- * Endpoint: GET /accounts/find
- * 
- * @param token - Token de API da PushinPay
- * @param environment - Ambiente (sandbox ou production)
- * @returns Dados da conta (id, name, email) ou null se erro
- * 
- * @example
- * const account = await fetchPushinPayAccountInfo("pk_...", "production");
- * if (account) {
- *   console.log("Account ID:", account.id);
- *   console.log("Nome:", account.name);
- * }
- */
 export async function fetchPushinPayAccountInfo(
   token: string,
   environment: PushinPayEnvironment = "production"
@@ -76,24 +55,6 @@ export async function fetchPushinPayAccountInfo(
   }
 }
 
-/**
- * Salva ou atualiza as configurações da PushinPay para o usuário especificado
- * Usa Edge Function vault-save para segurança
- * 
- * @param userId - ID do usuário autenticado
- * @param settings - Configurações da PushinPay (token e ambiente)
- * @returns Objeto com status de sucesso e mensagem de erro (se houver)
- * 
- * @example
- * const result = await savePushinPaySettings(user.id, {
- *   pushinpay_token: "pk_test_...",
- *   environment: "sandbox"
- * });
- * 
- * if (result.ok) {
- *   console.log("Configurações salvas com sucesso!");
- * }
- */
 export async function savePushinPaySettings(
   userId: string,
   settings: PushinPaySettings
@@ -103,11 +64,8 @@ export async function savePushinPaySettings(
   }
 
   try {
-    // Obter token de sessão do produtor para autenticação
-    const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
     const sessionToken = getProducerSessionToken();
 
-    // Usar Edge Function vault-save para salvar credenciais de forma segura
     const { data, error } = await supabase.functions.invoke("vault-save", {
       body: {
         vendor_id: userId,
@@ -140,67 +98,47 @@ export async function savePushinPaySettings(
 }
 
 /**
- * Recupera as configurações da PushinPay do usuário especificado
- * 
- * @param userId - ID do usuário autenticado
- * @returns Configurações da PushinPay (com token mascarado) ou null se não encontrado
- * 
- * @example
- * const settings = await getPushinPaySettings(user.id);
- * 
- * if (settings) {
- *   console.log("Ambiente:", settings.environment);
- *   // Token sempre retorna mascarado: "••••••••"
- * }
+ * Get PushinPay settings via Edge Function
+ * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
  */
 export async function getPushinPaySettings(userId: string): Promise<PushinPaySettings | null> {
   if (!userId) {
     return null;
   }
 
-  // Buscar de vendor_integrations (onde vault-save salva os dados)
-  const { data, error } = await supabase
-    .from("vendor_integrations")
-    .select("config, active")
-    .eq("vendor_id", userId)
-    .eq("integration_type", "PUSHINPAY")
-    .eq("active", true)
-    .maybeSingle();
+  try {
+    const sessionToken = getProducerSessionToken();
+    
+    const { data, error } = await supabase.functions.invoke("admin-data", {
+      body: {
+        action: "vendor-integration",
+        integrationType: "PUSHINPAY",
+      },
+      headers: { "x-producer-session-token": sessionToken || "" },
+    });
 
-  if (error || !data) {
+    if (error || !data?.integration) {
+      return null;
+    }
+    
+    const integration = data.integration;
+    const config = integration.config as Record<string, unknown> | null;
+    
+    if (!config || !integration.active) {
+      return null;
+    }
+    
+    return {
+      pushinpay_token: config.credentials_in_vault ? "••••••••" : "",
+      pushinpay_account_id: (config.user_id as string) || "",
+      environment: (config.environment as PushinPayEnvironment) || "production",
+    };
+  } catch (error) {
+    console.error("[PushinPay] Erro ao buscar configurações:", error);
     return null;
   }
-  
-  const config = data.config as Record<string, unknown> | null;
-  
-  // Se não há config, não há dados salvos
-  if (!config) {
-    return null;
-  }
-  
-  // Retorna com token mascarado (o token real está no Vault)
-  return {
-    pushinpay_token: config.credentials_in_vault ? "••••••••" : "",
-    pushinpay_account_id: (config.user_id as string) || "",
-    environment: (config.environment as PushinPayEnvironment) || "production",
-  };
 }
 
-/**
- * Cria uma cobrança PIX via Edge Function
- * 
- * @param orderId - ID do pedido
- * @param valueInCents - Valor em centavos (ex: 10000 = R$ 100,00)
- * @returns Resposta com dados do PIX (QR Code, ID, etc.) ou erro
- * 
- * @example
- * const result = await createPixCharge("order-123", 10000);
- * 
- * if (result.ok && result.pix) {
- *   console.log("QR Code:", result.pix.qr_code);
- *   console.log("PIX ID:", result.pix.pix_id);
- * }
- */
 export async function createPixCharge(
   orderId: string,
   valueInCents: number
@@ -219,22 +157,6 @@ export async function createPixCharge(
   return data as PixChargeResponse;
 }
 
-/**
- * Consulta o status de um pagamento PIX via Edge Function
- * 
- * @param orderId - ID do pedido
- * @returns Status do pagamento (paid, created, expired, canceled) ou erro
- * 
- * @example
- * const result = await getPixStatus("order-123");
- * 
- * if (result.ok && result.status) {
- *   if (result.status.status === "paid") {
- *     console.log("Pagamento confirmado!");
- *     console.log("Pagador:", result.status.payer_name);
- *   }
- * }
- */
 export async function getPixStatus(orderId: string): Promise<PixStatusResponse> {
   const { data, error } = await supabase.functions.invoke(
     "pushinpay-get-status",
@@ -250,20 +172,6 @@ export async function getPixStatus(orderId: string): Promise<PixStatusResponse> 
   return data as PixStatusResponse;
 }
 
-/**
- * Testa a conexão com a API da PushinPay
- * 
- * @returns Resultado do teste com detalhes da conta ou erro
- * 
- * @example
- * const result = await testPushinPayConnection();
- * 
- * if (result.ok) {
- *   console.log("Conexão OK!");
- *   console.log("Ambiente:", result.environment);
- *   console.log("Conta:", result.details?.accountId);
- * }
- */
 export async function testPushinPayConnection(): Promise<PushinPayConnectionTestResponse> {
   const { data, error } = await supabase.functions.invoke("pushinpay-validate-token");
   
@@ -278,20 +186,6 @@ export async function testPushinPayConnection(): Promise<PushinPayConnectionTest
   return data;
 }
 
-/**
- * Obtém estatísticas de uso da PushinPay
- * 
- * @returns Estatísticas (total de transações, valor total, etc.) ou null se erro
- * 
- * @example
- * const stats = await getPushinPayStats();
- * 
- * if (stats) {
- *   console.log("Total de transações:", stats.totalTransactions);
- *   console.log("Valor total:", stats.totalAmount);
- *   console.log("Webhook:", stats.webhookStatus);
- * }
- */
 export async function getPushinPayStats(): Promise<PushinPayStats | null> {
   const { data, error } = await supabase.functions.invoke("pushinpay-stats");
   

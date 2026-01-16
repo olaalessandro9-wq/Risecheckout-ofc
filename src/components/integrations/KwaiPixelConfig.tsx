@@ -1,8 +1,7 @@
 /**
  * KwaiPixelConfig
  * 
- * Componente para configuração do Kwai Pixel.
- * Segue o mesmo padrão do FacebookPixelConfig.
+ * MIGRATED: Uses Edge Function instead of supabase.from()
  */
 
 import { useState, useEffect } from "react";
@@ -14,6 +13,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 
 export function KwaiPixelConfig() {
   const { user } = useAuth();
@@ -28,25 +28,33 @@ export function KwaiPixelConfig() {
     }
   }, [user]);
 
+  /**
+   * Load config via Edge Function
+   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   */
   const loadConfig = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("vendor_integrations")
-        .select("*")
-        .eq("vendor_id", user?.id)
-        .eq("integration_type", "KWAI_PIXEL")
-        .maybeSingle();
+      const sessionToken = getProducerSessionToken();
+      
+      const { data, error } = await supabase.functions.invoke("admin-data", {
+        body: {
+          action: "vendor-integration",
+          integrationType: "KWAI_PIXEL",
+        },
+        headers: { "x-producer-session-token": sessionToken || "" },
+      });
 
       if (error) throw error;
 
-      if (data) {
-        const config = data.config as { 
+      const integration = data?.integration;
+      if (integration) {
+        const config = integration.config as { 
           pixel_id?: string;
         } | null;
         
         setPixelId(config?.pixel_id || "");
-        setActive(data.active || false);
+        setActive(integration.active || false);
       }
     } catch (error: unknown) {
       console.error("Error loading Kwai config:", error);
