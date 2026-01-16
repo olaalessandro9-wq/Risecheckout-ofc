@@ -2,9 +2,11 @@
  * useVisitTracker
  * 
  * Hook para rastrear visitas ao checkout.
- * Insere registro em checkout_visits uma única vez por sessão.
+ * Insere registro em checkout_visits via Edge Function.
  * 
- * @version 1.0.0 - RISE Protocol V2
+ * MIGRATED: Zero fallback, apenas Edge Function
+ * 
+ * @version 2.0.0 - RISE Protocol V2
  */
 
 import { useEffect, useRef } from "react";
@@ -13,6 +15,8 @@ import { supabase } from "@/integrations/supabase/client";
 /**
  * Tracks a checkout visit once per session
  * Uses sessionStorage to prevent duplicate tracking
+ * 
+ * ZERO FALLBACK: Se a Edge Function falhar, NÃO tenta acesso direto ao banco
  */
 export function useVisitTracker(checkoutId: string | undefined): void {
   const hasTracked = useRef(false);
@@ -48,18 +52,12 @@ export function useVisitTracker(checkoutId: string | undefined): void {
         });
 
         if (error) {
-          console.warn("[useVisitTracker] Edge function error:", error);
-          // Fallback: insert directly (without IP)
-          await supabase.from("checkout_visits").insert({
-            checkout_id: checkoutId,
-            user_agent: navigator.userAgent,
-            referrer: document.referrer || null,
-            utm_source: urlParams.get("utm_source"),
-            utm_medium: urlParams.get("utm_medium"),
-            utm_campaign: urlParams.get("utm_campaign"),
-            utm_content: urlParams.get("utm_content"),
-            utm_term: urlParams.get("utm_term"),
-          });
+          // Log error but do NOT fallback to direct database access
+          console.error("[useVisitTracker] Edge function error:", error);
+          // Still mark as tracked to prevent infinite retries
+          sessionStorage.setItem(sessionKey, "failed");
+          hasTracked.current = true;
+          return;
         }
 
         // Mark as tracked in session
@@ -69,6 +67,8 @@ export function useVisitTracker(checkoutId: string | undefined): void {
         console.log("[useVisitTracker] Visit tracked for checkout:", checkoutId);
       } catch (err) {
         console.error("[useVisitTracker] Error tracking visit:", err);
+        // Mark as attempted to prevent infinite retries
+        hasTracked.current = true;
       }
     };
 
