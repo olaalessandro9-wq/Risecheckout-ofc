@@ -2,6 +2,8 @@
  * Stripe PIX Component
  * 
  * Exibe QR Code PIX gerado via Stripe.
+ * 
+ * MIGRATED: Uses Edge Function instead of supabase.from()
  */
 
 import { useState, useEffect } from "react";
@@ -38,19 +40,28 @@ export function StripePix({ orderId, amount, onPaymentConfirmed, onError }: Stri
     createPixPayment();
   }, [orderId]);
 
-  // Polling para verificar status
+  /**
+   * Polling via Edge Function (public endpoint)
+   * MIGRATED: Uses checkout-public-data instead of supabase.from()
+   */
   useEffect(() => {
     if (status !== "pending" || !pixData) return;
 
     const interval = setInterval(async () => {
       try {
-        const { data: order } = await supabase
-          .from("orders")
-          .select("status, pix_status")
-          .eq("id", orderId)
-          .maybeSingle();
+        const { data, error } = await supabase.functions.invoke('checkout-public-data', {
+          body: {
+            action: 'check-order-payment-status',
+            orderId,
+          }
+        });
 
-        if (order?.status === "PAID" || order?.pix_status === "paid") {
+        if (error) {
+          console.error("[StripePix] Polling error:", error);
+          return;
+        }
+
+        if (data?.status === "PAID" || data?.pix_status === "paid") {
           setStatus("paid");
           onPaymentConfirmed?.();
           clearInterval(interval);

@@ -72,18 +72,29 @@ export function AffiliatesTab() {
     }
   }, [product?.id]);
 
+  /**
+   * Load gateway settings via Edge Function
+   * MIGRATED: Uses admin-data instead of supabase.from()
+   */
   const loadGatewaySettings = async () => {
     if (!product?.id) return;
     try {
       const { supabase } = await import("@/integrations/supabase/client");
-      const { data } = await supabase
-        .from("products")
-        .select("affiliate_gateway_settings")
-        .eq("id", product.id)
-        .single();
+      const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
+      const sessionToken = getProducerSessionToken();
       
-      if (data?.affiliate_gateway_settings) {
-        const raw = data.affiliate_gateway_settings as unknown as AffiliateGatewaySettingsData;
+      const { data, error } = await supabase.functions.invoke('admin-data', {
+        body: { 
+          action: 'affiliate-gateway-settings',
+          productId: product.id,
+        },
+        headers: { 'x-producer-session-token': sessionToken || '' },
+      });
+      
+      if (error) throw error;
+      
+      if (data?.success && data?.data) {
+        const raw = data.data as AffiliateGatewaySettingsData;
         const settings: AffiliateGatewaySettingsData = {
           pix_allowed: raw?.pix_allowed || ["asaas"],
           credit_card_allowed: raw?.credit_card_allowed || ["mercadopago", "stripe"],

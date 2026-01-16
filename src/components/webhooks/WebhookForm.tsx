@@ -1,3 +1,9 @@
+/**
+ * WebhookForm - Formulário de Webhook
+ * 
+ * MIGRATED: Uses Edge Function instead of supabase.from()
+ */
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +13,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Checkbox } from "@/components/ui/checkbox";
+import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 
 interface WebhookFormProps {
   webhook?: {
@@ -71,6 +78,10 @@ export function WebhookForm({ webhook, onSave, onCancel }: WebhookFormProps) {
     }
   }, [products, webhook?.id, webhook?.product_id]);
 
+  /**
+   * Load products via Edge Function
+   * MIGRATED: Uses webhook-crud instead of supabase.from()
+   */
   const loadProducts = async () => {
     if (!user?.id) {
       console.log("User not loaded yet, skipping products load");
@@ -80,12 +91,14 @@ export function WebhookForm({ webhook, onSave, onCancel }: WebhookFormProps) {
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("products")
-        .select("id, name")
-        .eq("user_id", user.id)
-        .eq("status", "active")
-        .order("name");
+      const sessionToken = getProducerSessionToken();
+      
+      const { data, error } = await supabase.functions.invoke('webhook-crud', {
+        body: {
+          action: 'list-user-products',
+          sessionToken,
+        }
+      });
 
       if (error) {
         console.error("Error loading products:", error);
@@ -93,7 +106,13 @@ export function WebhookForm({ webhook, onSave, onCancel }: WebhookFormProps) {
         return;
       }
       
-      setProducts(data || []);
+      if (!data?.success) {
+        console.error("Error loading products:", data?.error);
+        toast.error("Erro ao carregar produtos");
+        return;
+      }
+      
+      setProducts(data.products || []);
     } catch (error: unknown) {
       console.error("Error loading products:", error);
     } finally {
@@ -101,34 +120,35 @@ export function WebhookForm({ webhook, onSave, onCancel }: WebhookFormProps) {
     }
   };
 
+  /**
+   * Load webhook products via Edge Function
+   * MIGRATED: Uses webhook-crud instead of supabase.from()
+   */
   const loadWebhookProducts = async (webhookId: string) => {
     try {
-      // Buscar produtos da tabela webhook_products
-      const { data, error } = await supabase
-        .from("webhook_products")
-        .select("product_id")
-        .eq("webhook_id", webhookId);
+      const sessionToken = getProducerSessionToken();
+      
+      const { data, error } = await supabase.functions.invoke('webhook-crud', {
+        body: {
+          action: 'get-webhook-products',
+          webhookId,
+          sessionToken,
+        }
+      });
 
-      if (error) {
-        console.error("Error loading webhook products:", error);
-        // Fallback: tentar buscar product_id direto do webhook (compatibilidade com webhooks antigos)
-        const { data: webhookData, error: webhookError } = await supabase
-          .from("outbound_webhooks")
-          .select("product_id")
-          .eq("id", webhookId)
-          .single();
-        
-        if (!webhookError && webhookData?.product_id) {
-          console.log("🔍 Usando product_id do webhook (fallback):", webhookData.product_id);
-          setSelectedProductIds([webhookData.product_id]);
+      if (error || !data?.success) {
+        console.error("Error loading webhook products:", error || data?.error);
+        // Fallback: usar product_id do webhook (compatibilidade com webhooks antigos)
+        if (webhook?.product_id) {
+          console.log("🔍 Usando product_id do webhook (fallback):", webhook.product_id);
+          setSelectedProductIds([webhook.product_id]);
         } else {
           setSelectedProductIds([]);
         }
         return;
       }
 
-      interface WebhookProductItem { product_id: string; }
-      const productIds = data.map((item: WebhookProductItem) => item.product_id);
+      const productIds = data.productIds || [];
       console.log("🔍 Produtos do webhook carregados:", productIds);
       setSelectedProductIds(productIds);
     } catch (error: unknown) {
