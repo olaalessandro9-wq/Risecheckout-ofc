@@ -132,9 +132,42 @@ Deno.serve(async (req) => {
           );
         }
       }
+
+      // ============================================
+      // INJECT p_user_id FOR RPCs THAT NEED IT
+      // ============================================
+      // RPCs that use auth.uid() in their SQL won't work because
+      // we're using service_role which doesn't set auth.uid().
+      // Instead, we inject the producer_id from the validated session.
+      const RPCS_NEED_USER_ID = ["get_producer_affiliates", "get_dashboard_metrics"];
+      
+      if (RPCS_NEED_USER_ID.includes(rpc)) {
+        // Inject p_user_id into params
+        const enrichedParams = {
+          ...(params || {}),
+          p_user_id: session.producer_id,
+        };
+        
+        console.log(`[rpc-proxy] Injecting p_user_id=${session.producer_id} for RPC ${rpc}`);
+        
+        const { data, error } = await supabase.rpc(rpc as never, enrichedParams);
+        
+        if (error) {
+          console.error(`[rpc-proxy] RPC ${rpc} failed:`, error);
+          return new Response(
+            JSON.stringify({ error: error.message }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
+        return new Response(
+          JSON.stringify({ data }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
-    // Execute the RPC
+    // Execute the RPC (for public RPCs or producer RPCs that don't need p_user_id)
     // Using type assertion since RPCs are validated above
     const { data, error } = await supabase.rpc(rpc as never, params || {});
 

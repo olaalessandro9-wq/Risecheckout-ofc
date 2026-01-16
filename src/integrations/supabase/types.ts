@@ -4141,24 +4141,43 @@ export type Database = {
           vendor_id: string
         }[]
       }
-      get_producer_affiliates: {
-        Args: { search_term?: string }
-        Returns: {
-          affiliate_code: string
-          affiliate_email: string
-          affiliate_name: string
-          commission_rate: number
-          created_at: string
-          id: string
-          product_id: string
-          product_name: string
-          product_settings: Json
-          status: string
-          total_sales_amount: number
-          total_sales_count: number
-          user_id: string
-        }[]
-      }
+      get_producer_affiliates:
+        | {
+            Args: { p_user_id: string; search_term?: string }
+            Returns: {
+              affiliate_code: string
+              affiliate_email: string
+              affiliate_name: string
+              commission_rate: number
+              created_at: string
+              id: string
+              product_id: string
+              product_name: string
+              product_settings: Json
+              status: string
+              total_sales_amount: number
+              total_sales_count: number
+              user_id: string
+            }[]
+          }
+        | {
+            Args: { search_term?: string }
+            Returns: {
+              affiliate_code: string
+              affiliate_email: string
+              affiliate_name: string
+              commission_rate: number
+              created_at: string
+              id: string
+              product_id: string
+              product_name: string
+              product_settings: Json
+              status: string
+              total_sales_amount: number
+              total_sales_count: number
+              user_id: string
+            }[]
+          }
       get_system_health_summary: {
         Args: never
         Returns: {
