@@ -84,7 +84,13 @@ serve(async (req) => {
     const vendorId = vendorResult.vendorId!;
 
     // Buscar credenciais
-    const { credentials, isOwner } = await getGatewayCredentials(supabase, vendorId, 'asaas');
+    const credResult = await getGatewayCredentials(supabase, vendorId, 'asaas');
+    if (!credResult.success || !credResult.credentials) {
+      console.error('[asaas-create-payment] ❌ Falha ao buscar credenciais:', credResult.error);
+      await recordPaymentAttempt(supabase, identifier, false);
+      return createErrorResponse(credResult.error || 'Credenciais não encontradas', 500);
+    }
+    const { credentials, isOwner } = credResult;
     const credValidation = validateCredentials('asaas', credentials);
     if (!credValidation.valid) {
       console.error('[asaas-create-payment] ❌ Credenciais inválidas:', credValidation.missingFields);
@@ -95,7 +101,7 @@ serve(async (req) => {
     const baseUrl = credentials.environment === 'sandbox'
       ? 'https://sandbox.asaas.com/api/v3'
       : 'https://api.asaas.com/v3';
-    const apiKey = credentials.apiKey!;
+    const apiKey = credentials.apiKey || credentials.api_key || '';
 
     console.log(`[asaas-create-payment] 🔑 Credenciais: ${isOwner ? 'Owner' : 'Vendor'}`);
     console.log(`[asaas-create-payment] 🌐 Ambiente: ${credentials.environment.toUpperCase()}`);

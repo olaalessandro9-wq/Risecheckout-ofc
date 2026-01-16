@@ -66,13 +66,17 @@ export async function determineSmartSplit(
     throw new Error(`Credenciais PushinPay do produtor não configuradas: ${message}`);
   }
   
+  if (!producerCredentials.success || !producerCredentials.credentials) {
+    throw new Error(`Credenciais PushinPay do produtor não encontradas: ${producerCredentials.error}`);
+  }
+  
   const validation = validateCredentials('pushinpay', producerCredentials.credentials);
   if (!validation.valid) {
     throw new Error(`Token PushinPay do produtor não configurado`);
   }
   
-  const producerToken = producerCredentials.credentials.token!;
-  const producerAccountId = producerCredentials.credentials.accountId || '';
+  const producerToken = producerCredentials.credentials.token || '';
+  const producerAccountId = producerCredentials.credentials.accountId || producerCredentials.credentials.account_id || '';
   const producerEnvironment = producerCredentials.credentials.environment || 'production';
   const isProducerOwner = producerCredentials.isOwner;
   

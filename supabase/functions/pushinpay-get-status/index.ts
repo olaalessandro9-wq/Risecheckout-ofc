@@ -120,6 +120,10 @@ Deno.serve(async (req) => {
       throw new Error(`Configurações do PushinPay não encontradas: ${errorMessage}`);
     }
 
+    if (!credentialsResult.success || !credentialsResult.credentials) {
+      throw new Error(`Credenciais PushinPay não encontradas: ${credentialsResult.error}`);
+    }
+    
     const { isOwner, credentials, source } = credentialsResult;
     
     // Validar credenciais
@@ -128,7 +132,7 @@ Deno.serve(async (req) => {
       throw new Error(`Token do PushinPay não configurado. Campos faltantes: ${validation.missingFields.join(', ')}`);
     }
 
-    const token = credentials.token!;
+    const token = credentials.token || '';
     const environment = credentials.environment || 'production';
     const baseUrl = environment === 'sandbox' 
       ? PUSHINPAY_URLS.sandbox 
