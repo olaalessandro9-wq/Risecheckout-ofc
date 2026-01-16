@@ -47,17 +47,13 @@ export function OffersTab({ affiliation }: OffersTabProps) {
       }
 
       try {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("asaas_wallet_id, mercadopago_collector_id, stripe_account_id")
-          .eq("id", user.id)
-          .maybeSingle();
+        const { data, error } = await supabase.functions.invoke("admin-data", {
+          body: { action: "user-gateway-status" },
+        });
 
-        setUserHasGateway(!!(
-          profile?.asaas_wallet_id || 
-          profile?.mercadopago_collector_id || 
-          profile?.stripe_account_id
-        ));
+        if (error) throw error;
+
+        setUserHasGateway(data?.hasPaymentAccount || false);
       } catch (err) {
         console.error("Erro ao verificar gateway:", err);
         setUserHasGateway(false);

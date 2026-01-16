@@ -32,24 +32,25 @@ export function GoogleAdsConfig() {
   const loadConfig = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("vendor_integrations")
-        .select("*")
-        .eq("vendor_id", user?.id)
-        .eq("integration_type", "GOOGLE_ADS")
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke("vendor-integrations", {
+        body: {
+          action: "get",
+          vendorId: user?.id,
+          integrationType: "GOOGLE_ADS",
+        },
+      });
 
       if (error) throw error;
 
-      if (data) {
-        const config = data.config as { 
+      if (data?.integration) {
+        const config = data.integration.config as { 
           conversion_id?: string; 
           conversion_label?: string;
         } | null;
         
         setConversionId(config?.conversion_id || "");
         setConversionLabel(config?.conversion_label || "");
-        setActive(data.active || false);
+        setActive(data.integration.active || false);
       }
     } catch (error: unknown) {
       console.error("Error loading Google Ads config:", error);
