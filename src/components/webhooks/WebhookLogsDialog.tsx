@@ -1,7 +1,15 @@
+/**
+ * Webhook Logs Dialog
+ * 
+ * MIGRATED: Uses Edge Function instead of direct database access
+ * @see RISE Protocol V2 - Zero direct database access from frontend
+ */
+
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 import type { Json } from "@/integrations/supabase/types";
 import {
   Dialog,
@@ -59,16 +67,24 @@ export function WebhookLogsDialog({
     }
   }, [open, webhookId]);
 
+  /**
+   * Load logs via Edge Function
+   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   */
   const loadLogs = async () => {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase
-        .from('webhook_deliveries')
-        .select('*')
-        .eq('webhook_id', webhookId)
-        .order('created_at', { ascending: false })
-        .limit(50);
+      const sessionToken = getProducerSessionToken();
+      const { data, error } = await supabase.functions.invoke("products-crud", {
+        body: {
+          action: "get-webhook-logs",
+          webhookId,
+        },
+        headers: {
+          "x-producer-session-token": sessionToken || "",
+        },
+      });
 
       if (error) {
         console.error('Error loading logs:', error);
@@ -76,10 +92,11 @@ export function WebhookLogsDialog({
         return;
       }
 
-      setLogs(data || []);
+      const logsData = data?.logs || [];
+      setLogs(logsData);
       // Selecionar o primeiro log automaticamente
-      if (data && data.length > 0) {
-        setSelectedLog(data[0]);
+      if (logsData.length > 0) {
+        setSelectedLog(logsData[0]);
       }
     } catch (error: unknown) {
       console.error("Error loading logs:", error);

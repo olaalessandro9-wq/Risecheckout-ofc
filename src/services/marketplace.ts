@@ -1,5 +1,12 @@
-import { supabase } from "@/integrations/supabase/client";
+/**
+ * Marketplace Service
+ * 
+ * MIGRATED: Uses Edge Function instead of direct database access
+ * @see RISE Protocol V2 - Zero direct database access from frontend
+ */
+
 import type { Database } from "@/integrations/supabase/types";
+import { supabase } from "@/integrations/supabase/client";
 import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 import { incrementMarketplaceViewRpc, incrementMarketplaceClickRpc } from "@/lib/rpc/rpcProxy";
 
@@ -30,97 +37,25 @@ export type MarketplaceProductWithDetails = MarketplaceProduct & {
 
 /**
  * Busca produtos do marketplace com filtros
+ * MIGRATED: Uses Edge Function
  */
 export async function fetchMarketplaceProducts(
   filters: MarketplaceFilters = {}
 ): Promise<MarketplaceProductWithDetails[]> {
   try {
-    let query = supabase
-      .from("marketplace_products")
-      .select("*");
-
-    // Filtro de categoria
-    if (filters.category) {
-      query = query.eq("marketplace_category", filters.category);
-    }
-
-    // Filtro de busca (nome ou descrição)
-    if (filters.search) {
-      query = query.or(
-        `name.ilike.%${filters.search}%,marketplace_description.ilike.%${filters.search}%`
-      );
-    }
-
-    // Filtro de comissão mínima
-    if (filters.minCommission) {
-      query = query.gte("commission_percentage", filters.minCommission);
-    }
-
-    // Filtro de comissão máxima
-    if (filters.maxCommission) {
-      query = query.lte("commission_percentage", filters.maxCommission);
-    }
-
-    // Filtro de aprovação
-    const approvalFilters: string[] = [];
-    if (filters.approvalImmediate) {
-      approvalFilters.push("requires_manual_approval.eq.false");
-    }
-    if (filters.approvalModeration) {
-      approvalFilters.push("requires_manual_approval.eq.true");
-    }
-    // Aplica apenas se algum filtro estiver ativo (não ambos ou nenhum)
-    if (approvalFilters.length === 1) {
-      query = query.or(approvalFilters[0]);
-    }
-
-    // Filtro de tipo de produto (baseado em tags do marketplace)
-    const typeFilters: string[] = [];
-    if (filters.typeEbook) {
-      typeFilters.push("marketplace_tags.cs.{ebook}");
-    }
-    if (filters.typeService) {
-      typeFilters.push("marketplace_tags.cs.{servico}");
-    }
-    if (filters.typeCourse) {
-      typeFilters.push("marketplace_tags.cs.{curso}");
-    }
-    // Aplica OR entre os tipos selecionados
-    if (typeFilters.length > 0 && typeFilters.length < 3) {
-      query = query.or(typeFilters.join(","));
-    }
-
-    // Ordenação
-    switch (filters.sortBy) {
-      case "recent":
-        query = query.order("marketplace_enabled_at", { ascending: false });
-        break;
-      case "popular":
-        query = query.order("popularity_score", { ascending: false });
-        break;
-      case "commission":
-        query = query.order("commission_percentage", { ascending: false });
-        break;
-      default:
-        query = query.order("marketplace_enabled_at", { ascending: false });
-    }
-
-    // Paginação
-    if (filters.limit) {
-      query = query.limit(filters.limit);
-    }
-    if (filters.offset) {
-      query = query.range(filters.offset, filters.offset + (filters.limit || 10) - 1);
-    }
-
-    const { data, error } = await query;
+    const { data, error } = await supabase.functions.invoke("products-crud", {
+      body: {
+        action: "get-marketplace",
+        filters,
+      },
+    });
 
     if (error) {
       console.error("[Marketplace] Erro ao buscar produtos:", error);
       throw error;
     }
 
-    return data || [];
+    return data?.products || [];
   } catch (error: unknown) {
     console.error("[Marketplace] Erro ao buscar produtos:", error);
     throw error;
@@ -129,23 +64,25 @@ export async function fetchMarketplaceProducts(
 
 /**
  * Busca detalhes de um produto específico do marketplace
+ * MIGRATED: Uses Edge Function
  */
 export async function fetchProductDetails(
   productId: string
 ): Promise<MarketplaceProductWithDetails | null> {
   try {
-    const { data, error } = await supabase
-      .from("marketplace_products")
-      .select("*")
-      .eq("id", productId)
-      .single();
+    const { data, error } = await supabase.functions.invoke("products-crud", {
+      body: {
+        action: "get-marketplace-product",
+        productId,
+      },
+    });
 
     if (error) {
       console.error("[Marketplace] Erro ao buscar detalhes do produto:", error);
       throw error;
     }
 
-    return data;
+    return data?.product || null;
   } catch (error: unknown) {
     console.error("[Marketplace] Erro ao buscar detalhes do produto:", error);
     throw error;
@@ -154,21 +91,22 @@ export async function fetchProductDetails(
 
 /**
  * Busca todas as categorias do marketplace
+ * MIGRATED: Uses Edge Function
  */
 export async function fetchMarketplaceCategories(): Promise<MarketplaceCategory[]> {
   try {
-    const { data, error } = await supabase
-      .from("marketplace_categories")
-      .select("*")
-      .eq("active", true)
-      .order("display_order", { ascending: true });
+    const { data, error } = await supabase.functions.invoke("products-crud", {
+      body: {
+        action: "get-marketplace-categories",
+      },
+    });
 
     if (error) {
       console.error("[Marketplace] Erro ao buscar categorias:", error);
       throw error;
     }
 
-    return data || [];
+    return data?.categories || [];
   } catch (error: unknown) {
     console.error("[Marketplace] Erro ao buscar categorias:", error);
     throw error;
