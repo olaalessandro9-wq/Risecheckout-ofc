@@ -23,13 +23,14 @@ const corsHeaders = {
 };
 
 interface RequestBody {
-  action: "product" | "offer" | "order-bumps" | "affiliate" | "all" | "validate-coupon" | "get-checkout-offer" | "checkout" | "product-pixels" | "order-by-token";
+  action: "product" | "offer" | "order-bumps" | "affiliate" | "all" | "validate-coupon" | "get-checkout-offer" | "checkout" | "product-pixels" | "order-by-token" | "payment-link-data";
   productId?: string;
   checkoutId?: string;
   affiliateCode?: string;
   couponCode?: string;
   orderId?: string;
   token?: string;
+  slug?: string;
 }
 
 serve(async (req) => {
@@ -544,6 +545,45 @@ serve(async (req) => {
       if (error || !data) {
         console.error("[checkout-public-data] Order not found:", error);
         return jsonResponse({ error: "Pedido não encontrado" }, 404);
+      }
+
+      return jsonResponse({ success: true, data });
+    }
+
+    // ===== ACTION: payment-link-data (fetch payment link info for redirect) =====
+    if (action === "payment-link-data") {
+      const slug = body.slug;
+      
+      if (!slug) {
+        return jsonResponse({ error: "slug required" }, 400);
+      }
+
+      const { data, error } = await supabase
+        .from("payment_links")
+        .select(`
+          id,
+          slug,
+          status,
+          offers (
+            id,
+            product_id,
+            products (
+              id,
+              status,
+              support_email
+            )
+          )
+        `)
+        .eq("slug", slug)
+        .maybeSingle();
+
+      if (error) {
+        console.error("[checkout-public-data] Payment link error:", error);
+        return jsonResponse({ error: "Link não encontrado" }, 404);
+      }
+
+      if (!data) {
+        return jsonResponse({ success: true, data: null });
       }
 
       return jsonResponse({ success: true, data });

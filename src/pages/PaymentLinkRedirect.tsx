@@ -1,22 +1,25 @@
-import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { Loader2, AlertCircle } from "lucide-react";
-
 /**
  * PaymentLinkRedirect
+ * 
+ * MIGRATED: Uses Edge Function instead of supabase.from()
  * 
  * Esta página processa links de pagamento no formato /c/:slug
  * e redireciona para o checkout apropriado.
  * 
  * Fluxo:
  * 1. Recebe slug do link de pagamento
- * 2. Busca o link no banco de dados
+ * 2. Busca o link via Edge Function
  * 3. Verifica se o link está ativo
  * 4. Verifica se o produto está ativo
  * 5. Redireciona para /pay/:slug (usando o slug do payment_link)
  */
-// Interface para tipagem do linkData retornado pelo Supabase
+
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Loader2 } from "lucide-react";
+
+// Interface para tipagem do linkData retornado
 interface PaymentLinkWithOffers {
   id: string;
   slug: string;
@@ -39,7 +42,12 @@ const PaymentLinkRedirect = () => {
   const [isInactive, setIsInactive] = useState(false);
 
   useEffect(() => {
-    console.log("[PaymentLinkRedirect] v2.7 - slug:", slug);
+    console.log("[PaymentLinkRedirect] v3.0 MIGRATED - slug:", slug);
+    
+    /**
+     * Process payment link via Edge Function
+     * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+     */
     const processPaymentLink = async () => {
       if (!slug) {
         setError("Link inválido");
@@ -47,44 +55,30 @@ const PaymentLinkRedirect = () => {
       }
 
       try {
-        // 1. Buscar o payment_link pelo slug com status e produto (tolerante a 0 linhas)
-        const { data: linkData, error: linkError } = await supabase
-          .from("payment_links")
-          .select(`
-            id,
+        const { data, error: fetchError } = await supabase.functions.invoke("checkout-public-data", {
+          body: {
+            action: "payment-link-data",
             slug,
-            status,
-            offers (
-              id,
-              product_id,
-              products (
-                id,
-                status,
-                support_email
-              )
-            )
-          `)
-          .eq("slug", slug)
-          .maybeSingle();
+          },
+        });
 
-        if (linkError) {
-          console.error("Erro ao buscar link:", linkError);
+        if (fetchError) {
+          console.error("Erro ao buscar link:", fetchError);
           // Fallback: redirecionar direto para /pay/:slug (compatibilidade com slugs antigos de checkout)
-          navigate(`/pay/${slug}?build=v2_7`, { replace: true });
+          navigate(`/pay/${slug}?build=v3_0`, { replace: true });
           return;
         }
 
-        if (!linkData) {
+        if (!data?.success || !data?.data) {
           console.error("Link não encontrado");
           // Fallback: ainda tentar abrir diretamente no /pay/:slug
-          navigate(`/pay/${slug}?build=v2_7`, { replace: true });
+          navigate(`/pay/${slug}?build=v3_0`, { replace: true });
           return;
         }
 
-        console.log("[PaymentLinkRedirect] Link encontrado:", linkData);
+        console.log("[PaymentLinkRedirect] Link encontrado:", data.data);
         
-        // Cast tipado para acessar nested properties
-        const typedLinkData = linkData as PaymentLinkWithOffers;
+        const typedLinkData = data.data as PaymentLinkWithOffers;
 
         // 2. Verificar se o link está ativo
         if (typedLinkData.status === "inactive") {
@@ -104,12 +98,11 @@ const PaymentLinkRedirect = () => {
         }
 
         // 4. Redirecionar para /pay/:slug (usando o slug do payment_link)
-        // O checkout público agora busca pelo slug do payment_link, não do checkout
-        navigate(`/pay/${typedLinkData.slug}?build=v2_7`, { replace: true });
+        navigate(`/pay/${typedLinkData.slug}?build=v3_0`, { replace: true });
       } catch (err) {
         console.error("Erro ao processar link:", err);
         // Fallback: redirecionar direto para /pay/:slug
-        navigate(`/pay/${slug}?build=v2_7`, { replace: true });
+        navigate(`/pay/${slug}?build=v3_0`, { replace: true });
         return;
       }
     };

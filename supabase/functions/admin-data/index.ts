@@ -52,7 +52,9 @@ type Action =
   | "payment-link-info"
   | "content-drip-settings"
   | "content-access-check"
-  | "order-bump-detail";
+  | "order-bump-detail"
+  | "product-detail-admin"
+  | "admin-products-global";
 
 interface RequestBody {
   action: Action;
@@ -1203,6 +1205,144 @@ async function getOrderBumpDetail(
   return jsonResponse({ orderBump: data }, corsHeaders);
 }
 
+// Product detail for admin (read-only view)
+async function getProductDetailAdmin(
+  supabase: SupabaseClient,
+  productId: string,
+  producerId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  // Check if user is admin or owner
+  const { data: role, error: roleError } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", producerId)
+    .maybeSingle();
+
+  if (roleError || !role || (role.role !== "owner" && role.role !== "admin")) {
+    return errorResponse("Acesso negado", "FORBIDDEN", corsHeaders, 403);
+  }
+
+  // Fetch product
+  const { data: product, error: productError } = await supabase
+    .from("products")
+    .select("id, name, description, price, image_url, status, support_name, support_email, created_at, user_id")
+    .eq("id", productId)
+    .single();
+
+  if (productError) {
+    console.error("[admin-data] Product detail error:", productError);
+    return errorResponse("Produto não encontrado", "NOT_FOUND", corsHeaders, 404);
+  }
+
+  // Fetch vendor name
+  let vendorName = "Desconhecido";
+  if (product.user_id) {
+    const { data: vendor } = await supabase
+      .from("profiles")
+      .select("name")
+      .eq("id", product.user_id)
+      .maybeSingle();
+    vendorName = vendor?.name || "Desconhecido";
+  }
+
+  // Fetch offers
+  const { data: offers, error: offersError } = await supabase
+    .from("offers")
+    .select("id, name, price, status, is_default")
+    .eq("product_id", productId)
+    .eq("status", "active")
+    .order("is_default", { ascending: false });
+
+  if (offersError) {
+    console.error("[admin-data] Offers error:", offersError);
+  }
+
+  return jsonResponse({
+    product,
+    vendorName,
+    offers: offers || [],
+  }, corsHeaders);
+}
+
+// Admin products global with metrics
+async function getAdminProductsGlobal(
+  supabase: SupabaseClient,
+  producerId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  // Check if user is owner
+  const { data: role, error: roleError } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", producerId)
+    .maybeSingle();
+
+  if (roleError || !role || role.role !== "owner") {
+    return errorResponse("Acesso negado", "FORBIDDEN", corsHeaders, 403);
+  }
+
+  // Fetch products
+  const { data: productsData, error: productsError } = await supabase
+    .from("products")
+    .select("id, name, price, status, created_at, user_id");
+
+  if (productsError) {
+    console.error("[admin-data] Products error:", productsError);
+    return errorResponse("Erro ao buscar produtos", "DB_ERROR", corsHeaders, 500);
+  }
+
+  // Fetch profiles for vendor names
+  const { data: profilesData, error: profilesError } = await supabase
+    .from("profiles")
+    .select("id, name");
+
+  if (profilesError) {
+    console.error("[admin-data] Profiles error:", profilesError);
+  }
+
+  // Fetch order metrics
+  const { data: ordersData, error: ordersError } = await supabase
+    .from("orders")
+    .select("product_id, amount_cents, status");
+
+  if (ordersError) {
+    console.error("[admin-data] Orders error:", ordersError);
+  }
+
+  // Aggregate metrics per product
+  const metricsMap = new Map<string, { gmv: number; count: number }>();
+  ordersData?.forEach((order: Record<string, unknown>) => {
+    if (order.status === "paid") {
+      const productId = order.product_id as string;
+      const current = metricsMap.get(productId) || { gmv: 0, count: 0 };
+      metricsMap.set(productId, {
+        gmv: current.gmv + ((order.amount_cents as number) || 0),
+        count: current.count + 1,
+      });
+    }
+  });
+
+  // Combine data
+  const productsWithMetrics = productsData.map((product: Record<string, unknown>) => {
+    const vendor = profilesData?.find((p: Record<string, unknown>) => p.id === product.user_id);
+    const metrics = metricsMap.get(product.id as string) || { gmv: 0, count: 0 };
+    return {
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      status: product.status || "active",
+      created_at: product.created_at,
+      user_id: product.user_id,
+      vendor_name: vendor?.name || "Desconhecido",
+      total_gmv: metrics.gmv,
+      orders_count: metrics.count,
+    };
+  });
+
+  return jsonResponse({ products: productsWithMetrics }, corsHeaders);
+}
+
 // ==========================================
 // MAIN HANDLER
 // ==========================================
@@ -1342,6 +1482,15 @@ serve(async (req) => {
           return errorResponse("orderBumpId é obrigatório", "VALIDATION_ERROR", corsHeaders, 400);
         }
         return getOrderBumpDetail(supabase, body.orderBumpId, corsHeaders);
+
+      case "product-detail-admin":
+        if (!productId) {
+          return errorResponse("productId é obrigatório", "VALIDATION_ERROR", corsHeaders, 400);
+        }
+        return getProductDetailAdmin(supabase, productId, producer.id, corsHeaders);
+
+      case "admin-products-global":
+        return getAdminProductsGlobal(supabase, producer.id, corsHeaders);
 
       default:
         return errorResponse(`Ação desconhecida: ${action}`, "INVALID_ACTION", corsHeaders, 400);
