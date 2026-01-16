@@ -1,6 +1,8 @@
 /**
  * Hook: useCheckoutProductPixels
- * Busca pixels vinculados a um produto para uso no checkout público
+ * 
+ * MIGRATED: Uses checkout-public-data Edge Function
+ * @see RISE Protocol V2 - Zero database access from frontend
  */
 
 import { useState, useEffect } from "react";
@@ -32,7 +34,7 @@ interface UseCheckoutProductPixelsReturn {
 
 /**
  * Busca pixels vinculados a um produto para renderização no checkout público.
- * Usa políticas RLS anon para acesso sem autenticação.
+ * MIGRATED: Uses checkout-public-data Edge Function
  */
 export function useCheckoutProductPixels(productId: string | null): UseCheckoutProductPixelsReturn {
   const [pixels, setPixels] = useState<CheckoutPixel[]>([]);
@@ -51,62 +53,26 @@ export function useCheckoutProductPixels(productId: string | null): UseCheckoutP
         setIsLoading(true);
         setError(null);
 
-        // Buscar vínculos de pixels do produto
-        const { data: links, error: linksError } = await supabase
-          .from("product_pixels")
-          .select(`
-            pixel_id,
-            fire_on_initiate_checkout,
-            fire_on_purchase,
-            fire_on_pix,
-            fire_on_card,
-            fire_on_boleto,
-            custom_value_percent
-          `)
-          .eq("product_id", productId);
+        // Fetch via Edge Function (public)
+        const { data, error: fnError } = await supabase.functions.invoke("checkout-public-data", {
+          body: {
+            action: "product-pixels",
+            productId,
+          },
+        });
 
-        if (linksError) throw linksError;
+        if (fnError) {
+          console.error("[useCheckoutProductPixels] Edge function error:", fnError);
+          throw fnError;
+        }
 
-        if (!links || links.length === 0) {
+        if (!data?.success) {
+          console.error("[useCheckoutProductPixels] API error:", data?.error);
           setPixels([]);
-          setIsLoading(false);
           return;
         }
 
-        // Buscar dados dos pixels
-        const pixelIds = links.map(l => l.pixel_id);
-        const { data: pixelsData, error: pixelsError } = await supabase
-          .from("vendor_pixels")
-          .select("id, platform, pixel_id, access_token, conversion_label, domain, is_active")
-          .in("id", pixelIds)
-          .eq("is_active", true);
-
-        if (pixelsError) throw pixelsError;
-
-        // Combinar dados
-        const combinedPixels: CheckoutPixel[] = [];
-        for (const link of links) {
-          const pixel = pixelsData?.find(p => p.id === link.pixel_id);
-          if (pixel && pixel.is_active) {
-            combinedPixels.push({
-              id: pixel.id,
-              platform: pixel.platform as PixelPlatform,
-              pixel_id: pixel.pixel_id,
-              access_token: pixel.access_token,
-              conversion_label: pixel.conversion_label,
-              domain: pixel.domain,
-              is_active: pixel.is_active,
-              fire_on_initiate_checkout: link.fire_on_initiate_checkout,
-              fire_on_purchase: link.fire_on_purchase,
-              fire_on_pix: link.fire_on_pix,
-              fire_on_card: link.fire_on_card,
-              fire_on_boleto: link.fire_on_boleto,
-              custom_value_percent: link.custom_value_percent,
-            });
-          }
-        }
-
-        setPixels(combinedPixels);
+        setPixels(data.data || []);
       } catch (err) {
         console.error("[useCheckoutProductPixels] Error:", err);
         setError("Erro ao carregar pixels");

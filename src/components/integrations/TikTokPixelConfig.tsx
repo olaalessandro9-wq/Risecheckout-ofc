@@ -30,27 +30,34 @@ export function TikTokPixelConfig() {
     }
   }, [user]);
 
+  /**
+   * Carrega configuração via Edge Function
+   * MIGRATED: Uses vendor-integrations Edge Function
+   */
   const loadConfig = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("vendor_integrations")
-        .select("*")
-        .eq("vendor_id", user?.id)
-        .eq("integration_type", "TIKTOK_PIXEL")
-        .maybeSingle();
+      
+      const { data, error } = await supabase.functions.invoke("vendor-integrations", {
+        body: {
+          action: "get",
+          vendorId: user?.id,
+          integrationType: "TIKTOK_PIXEL",
+        },
+      });
 
       if (error) throw error;
 
-      if (data) {
-        const config = data.config as { 
+      if (data?.integration) {
+        const integration = data.integration;
+        const config = integration.config as { 
           pixel_id?: string; 
           has_token?: boolean;
         } | null;
         
         setPixelId(config?.pixel_id || "");
         setHasExistingToken(config?.has_token || false);
-        setActive(data.active || false);
+        setActive(integration.active || false);
         setAccessToken("");
       }
     } catch (error: unknown) {
