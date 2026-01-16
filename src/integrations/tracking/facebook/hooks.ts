@@ -2,6 +2,8 @@
  * Hooks para o Facebook Pixel
  * Módulo: src/integrations/tracking/facebook
  * 
+ * MIGRATED: Uses vendor-integrations Edge Function
+ * 
  * Este arquivo contém hooks React para carregar e gerenciar
  * a configuração do Facebook Pixel do banco de dados.
  */
@@ -13,20 +15,10 @@ import { FacebookPixelConfig } from "./types";
 /**
  * Hook para carregar a configuração do Facebook Pixel de um vendedor
  * 
- * Busca no banco de dados (vendor_integrations) a configuração do pixel
- * específica para o vendedor. Inclui cache de 5 minutos.
+ * MIGRATED: Uses vendor-integrations Edge Function instead of direct database access
  * 
  * @param vendorId - ID do vendedor (opcional)
  * @returns Query result com os dados da configuração
- * 
- * @example
- * const { data: fbConfig, isLoading, error } = useFacebookConfig(vendorId);
- * 
- * if (isLoading) return <div>Carregando...</div>;
- * if (error) return <div>Erro ao carregar config</div>;
- * if (!fbConfig) return null;
- * 
- * return <Pixel config={fbConfig} />;
  */
 export function useFacebookConfig(vendorId?: string) {
   return useQuery({
@@ -39,34 +31,26 @@ export function useFacebookConfig(vendorId?: string) {
       }
 
       try {
-        // Query ao banco de dados
-        const { data, error } = await supabase
-          .from("vendor_integrations")
-          .select("config, active")
-          .eq("vendor_id", vendorId)
-          .eq("integration_type", "FACEBOOK_PIXEL")
-          .maybeSingle();
+        // MIGRATED: Call vendor-integrations Edge Function
+        const { data, error } = await supabase.functions.invoke('vendor-integrations', {
+          body: { 
+            action: 'get-config',
+            vendorId,
+            integrationType: 'FACEBOOK_PIXEL'
+          }
+        });
 
-        // Tratamento de erro
         if (error) {
-          console.error("[Facebook] Erro ao carregar configuração:", error);
+          console.error("[Facebook] Erro ao chamar Edge Function:", error);
           return null;
         }
 
-        // Validação: dados vazios ou integração inativa
-        if (!data || !data.active) {
+        if (data?.error || !data?.config) {
           console.log("[Facebook] Integração não encontrada ou desativada para vendor:", vendorId);
           return null;
         }
 
-        // Extrair config (tipo parcial do Facebook Pixel)
-        interface RawFacebookConfig {
-          pixel_id?: string;
-          access_token?: string;
-          selected_products?: string[];
-          fire_purchase_on_pix?: boolean;
-        }
-        const config = data.config as RawFacebookConfig | null;
+        const config = data.config;
 
         // Validação: pixel_id obrigatório
         if (!config?.pixel_id) {
@@ -78,9 +62,9 @@ export function useFacebookConfig(vendorId?: string) {
         const facebookConfig: FacebookPixelConfig = {
           pixel_id: config.pixel_id,
           access_token: config.access_token,
-          enabled: data.active,
-          selected_products: config.selected_products || [], // Vazio = todos os produtos
-          fire_purchase_on_pix: config.fire_purchase_on_pix ?? true, // Padrão: true
+          enabled: config.active ?? true,
+          selected_products: config.selected_products || [],
+          fire_purchase_on_pix: config.fire_purchase_on_pix ?? true,
         };
 
         console.log("[Facebook] Configuração carregada com sucesso:", {

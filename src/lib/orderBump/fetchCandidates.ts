@@ -1,5 +1,10 @@
-// Helper para carregar candidatos de Order Bump direto do Supabase.
-// MIGRATED: Uses useAuth pattern - receives userId as parameter
+/**
+ * Helper para carregar candidatos de Order Bump
+ * 
+ * MIGRATED: Uses products-crud Edge Function instead of direct database access
+ * 
+ * @see RISE Protocol V2 - Zero direct database access from frontend
+ */
 
 import { supabase } from "@/integrations/supabase/client";
 
@@ -26,32 +31,42 @@ export async function fetchOrderBumpCandidates(
   }
 
   const excludeId = opts?.excludeProductId;
+  const sessionToken = localStorage.getItem('producer_session_token');
 
-  let query = supabase
-    .from("products")
-    .select("id,name,price,image_url,description")
-    .eq("user_id", userId)
-    .eq("status", "active")
-    .order("created_at", { ascending: false });
+  try {
+    // MIGRATED: Use products-crud Edge Function
+    const { data, error } = await supabase.functions.invoke('products-crud', {
+      body: { action: 'list', excludeDeleted: true },
+      headers: { 'x-producer-session-token': sessionToken || '' }
+    });
 
-  if (excludeId) {
-    query = query.neq("id", excludeId);
-  }
+    if (error) {
+      console.error("[OrderBump] Edge Function error:", error);
+      throw error;
+    }
 
-  const { data, error } = await query;
+    if (data?.error) {
+      throw new Error(data.error);
+    }
 
-  if (error) {
+    const products = (data?.products ?? [])
+      .filter((p: { id: string; status?: string }) => {
+        // Filter out excluded product and non-active products
+        if (excludeId && p.id === excludeId) return false;
+        if (p.status !== 'active') return false;
+        return true;
+      })
+      .map((p: { id: string; name: string; price: number; image_url?: string; description?: string }): OrderBumpCandidate => ({
+        id: p.id,
+        name: p.name,
+        price: Number(p.price),
+        image_url: p.image_url,
+        description: p.description,
+      }));
+
+    return products;
+  } catch (error) {
     console.error("[OrderBump] load products failed:", error);
     throw error;
   }
-
-  return (data ?? [])
-    .filter((p) => Boolean(p && p.id && p.name))
-    .map((p): OrderBumpCandidate => ({
-      id: p.id,
-      name: p.name,
-      price: Number(p.price),
-      image_url: p.image_url,
-      description: p.description,
-    }));
 }

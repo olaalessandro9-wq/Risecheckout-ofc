@@ -23,7 +23,7 @@ const corsHeaders = {
 };
 
 interface RequestBody {
-  action: "product" | "offer" | "order-bumps" | "affiliate" | "all" | "validate-coupon";
+  action: "product" | "offer" | "order-bumps" | "affiliate" | "all" | "validate-coupon" | "get-checkout-offer";
   productId?: string;
   checkoutId?: string;
   affiliateCode?: string;
@@ -360,6 +360,33 @@ serve(async (req) => {
           apply_to_order_bumps: coupon.apply_to_order_bumps || false,
         },
       });
+    }
+
+    // ===== ACTION: get-checkout-offer (for checkout config) =====
+    if (action === "get-checkout-offer") {
+      if (!checkoutId) {
+        return jsonResponse({ error: "checkoutId required" }, 400);
+      }
+
+      const { data, error } = await supabase
+        .from("checkout_links")
+        .select(`
+          link_id,
+          payment_links (
+            offer_id
+          )
+        `)
+        .eq("checkout_id", checkoutId)
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error("[checkout-public-data] Get checkout offer error:", error);
+        return jsonResponse({ offerId: "" });
+      }
+
+      const paymentLinks = data?.payment_links as { offer_id: string } | null;
+      return jsonResponse({ offerId: paymentLinks?.offer_id || "" });
     }
 
     return jsonResponse({ error: "Ação desconhecida" }, 400);

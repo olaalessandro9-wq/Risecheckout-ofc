@@ -181,15 +181,20 @@
 | `manage-user-status` | `.../manage-user-status` | ✅ | 10 min ago | 199 |
 | `producer-auth` | `.../producer-auth` | ✅ | 10 min ago | 65 |
 | `product-crud` | `.../product-crud` | ✅ | 10 min ago | 9 |
+| `products-crud` | `.../products-crud` | ✅ | NEW | 0 |
 | `product-settings` | `.../product-settings` | ✅ | 10 min ago | 9 |
+| `product-entities` | `.../product-entities` | ✅ | NEW | 0 |
 | `offer-crud` | `.../offer-crud` | ✅ | 10 min ago | 8 |
 | `offer-bulk` | `.../offer-bulk` | ✅ | 10 min ago | 8 |
 | `checkout-crud` | `.../checkout-crud` | ✅ | 10 min ago | 10 |
 | `checkout-editor` | `.../checkout-editor` | ✅ | 10 min ago | 10 |
+| `checkout-public-data` | `.../checkout-public-data` | ✅ | NEW | 0 |
 | `order-bump-crud` | `.../order-bump-crud` | ✅ | 10 min ago | 10 |
 | `product-duplicate` | `.../product-duplicate` | ✅ | 10 min ago | 20 |
 | `coupon-management` | `.../coupon-management` | ✅ | 10 min ago | 17 |
 | `integration-management` | `.../integration-management` | ✅ | 10 min ago | 17 |
+| `vendor-integrations` | `.../vendor-integrations` | ✅ | NEW | 0 |
+| `affiliation-public` | `.../affiliation-public` | ✅ | NEW | 0 |
 
 ### Affiliates
 
