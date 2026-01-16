@@ -35,7 +35,15 @@ type Action =
   | "user-profile"
   | "user-products"
   | "check-unique-name"
-  | "user-gateway-status";
+  | "user-gateway-status"
+  | "role-stats"
+  | "security-alerts"
+  | "security-blocked-ips"
+  | "security-stats"
+  | "gateway-connections"
+  | "product-offers"
+  | "order-bumps"
+  | "content-editor-data";
 
 interface RequestBody {
   action: Action;
@@ -44,6 +52,15 @@ interface RequestBody {
   limit?: number;
   productName?: string;
   period?: string;
+  affiliationProductId?: string;
+  contentId?: string;
+  moduleId?: string;
+  isNew?: boolean;
+  filters?: {
+    type?: string;
+    severity?: string;
+    acknowledged?: boolean;
+  };
 }
 
 // ==========================================
@@ -460,6 +477,339 @@ async function getUserGatewayStatus(
   }, corsHeaders);
 }
 
+// Role stats for admin dashboard
+async function getRoleStats(
+  supabase: SupabaseClient,
+  producerId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  // Check if user is admin or owner
+  const { data: role, error: roleError } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", producerId)
+    .maybeSingle();
+
+  if (roleError || !role || (role.role !== "owner" && role.role !== "admin")) {
+    return errorResponse("Acesso negado", "FORBIDDEN", corsHeaders, 403);
+  }
+
+  const { data, error } = await supabase
+    .from("user_roles")
+    .select("role");
+
+  if (error) {
+    console.error("[admin-data] Role stats error:", error);
+    return errorResponse("Erro ao buscar estatísticas", "DB_ERROR", corsHeaders, 500);
+  }
+
+  const counts: Record<string, number> = {};
+  data?.forEach((row) => {
+    const r = row.role as string;
+    counts[r] = (counts[r] || 0) + 1;
+  });
+
+  const roleStats = Object.entries(counts).map(([role, count]) => ({
+    role,
+    count,
+  }));
+
+  return jsonResponse({ roleStats }, corsHeaders);
+}
+
+// Security alerts with filters
+async function getSecurityAlerts(
+  supabase: SupabaseClient,
+  producerId: string,
+  filters: { type?: string; severity?: string; acknowledged?: boolean } | undefined,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const { data: role } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", producerId)
+    .maybeSingle();
+
+  if (role?.role !== "owner" && role?.role !== "admin") {
+    return errorResponse("Acesso negado", "FORBIDDEN", corsHeaders, 403);
+  }
+
+  let query = supabase
+    .from("security_alerts")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  if (filters?.type) query = query.eq("alert_type", filters.type);
+  if (filters?.severity) query = query.eq("severity", filters.severity);
+  if (filters?.acknowledged !== undefined) query = query.eq("acknowledged", filters.acknowledged);
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("[admin-data] Security alerts error:", error);
+    return errorResponse("Erro ao buscar alertas", "DB_ERROR", corsHeaders, 500);
+  }
+
+  return jsonResponse({ alerts: data || [] }, corsHeaders);
+}
+
+// Security blocked IPs
+async function getSecurityBlockedIPs(
+  supabase: SupabaseClient,
+  producerId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const { data: role } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", producerId)
+    .maybeSingle();
+
+  if (role?.role !== "owner" && role?.role !== "admin") {
+    return errorResponse("Acesso negado", "FORBIDDEN", corsHeaders, 403);
+  }
+
+  const { data, error } = await supabase
+    .from("ip_blocklist")
+    .select("*")
+    .eq("is_active", true)
+    .order("blocked_at", { ascending: false });
+
+  if (error) {
+    console.error("[admin-data] Blocked IPs error:", error);
+    return errorResponse("Erro ao buscar IPs bloqueados", "DB_ERROR", corsHeaders, 500);
+  }
+
+  return jsonResponse({ blockedIPs: data || [] }, corsHeaders);
+}
+
+// Security stats
+async function getSecurityStats(
+  supabase: SupabaseClient,
+  producerId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const { data: role } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", producerId)
+    .maybeSingle();
+
+  if (role?.role !== "owner" && role?.role !== "admin") {
+    return errorResponse("Acesso negado", "FORBIDDEN", corsHeaders, 403);
+  }
+
+  const now = new Date();
+  const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+
+  const [criticalResult, blockedResult, bruteForceResult, rateLimitResult, unackResult] = await Promise.all([
+    supabase.from("security_alerts").select("*", { count: "exact", head: true }).eq("severity", "critical").gte("created_at", last24h),
+    supabase.from("ip_blocklist").select("*", { count: "exact", head: true }).eq("is_active", true),
+    supabase.from("security_alerts").select("*", { count: "exact", head: true }).eq("alert_type", "brute_force").gte("created_at", last24h),
+    supabase.from("buyer_rate_limits").select("*", { count: "exact", head: true }).not("blocked_until", "is", null).gte("last_attempt_at", last24h),
+    supabase.from("security_alerts").select("*", { count: "exact", head: true }).eq("acknowledged", false),
+  ]);
+
+  return jsonResponse({
+    stats: {
+      criticalAlerts24h: criticalResult.count || 0,
+      blockedIPsActive: blockedResult.count || 0,
+      bruteForceAttempts: bruteForceResult.count || 0,
+      rateLimitExceeded: rateLimitResult.count || 0,
+      unacknowledgedAlerts: unackResult.count || 0,
+    }
+  }, corsHeaders);
+}
+
+// Gateway connections for affiliate
+async function getGatewayConnections(
+  supabase: SupabaseClient,
+  producerId: string,
+  affiliationProductId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  // Fetch product gateway settings
+  const { data: productData } = await supabase
+    .from("products")
+    .select("affiliate_gateway_settings")
+    .eq("id", affiliationProductId)
+    .single();
+
+  // Fetch user connections
+  const { data: profileData } = await supabase
+    .from("profiles")
+    .select("asaas_wallet_id, mercadopago_collector_id, stripe_account_id")
+    .eq("id", producerId)
+    .single();
+
+  const { data: pushinpayData } = await supabase
+    .from("payment_gateway_settings")
+    .select("pushinpay_account_id, pushinpay_token")
+    .eq("user_id", producerId)
+    .single();
+
+  const connections: Record<string, boolean> = {
+    asaas: !!profileData?.asaas_wallet_id,
+    mercadopago: !!profileData?.mercadopago_collector_id,
+    stripe: !!profileData?.stripe_account_id,
+    pushinpay: !!(pushinpayData?.pushinpay_token && pushinpayData?.pushinpay_account_id),
+  };
+
+  const credentials = {
+    asaas_wallet_id: profileData?.asaas_wallet_id,
+    mercadopago_collector_id: profileData?.mercadopago_collector_id,
+    stripe_account_id: profileData?.stripe_account_id,
+    pushinpay_account_id: pushinpayData?.pushinpay_account_id,
+  };
+
+  return jsonResponse({
+    productSettings: productData?.affiliate_gateway_settings || {},
+    connections,
+    credentials,
+  }, corsHeaders);
+}
+
+// Product offers for marketplace
+async function getProductOffers(
+  supabase: SupabaseClient,
+  productId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const { data, error } = await supabase
+    .from("offers")
+    .select("*")
+    .eq("product_id", productId)
+    .eq("status", "active")
+    .order("price", { ascending: false });
+
+  if (error) {
+    console.error("[admin-data] Product offers error:", error);
+    return errorResponse("Erro ao buscar ofertas", "DB_ERROR", corsHeaders, 500);
+  }
+
+  return jsonResponse({ offers: data || [] }, corsHeaders);
+}
+
+// Order bumps for a product
+async function getOrderBumps(
+  supabase: SupabaseClient,
+  productId: string,
+  producerId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  // Verify ownership
+  const { data: product } = await supabase
+    .from("products")
+    .select("user_id")
+    .eq("id", productId)
+    .single();
+
+  if (product?.user_id !== producerId) {
+    return errorResponse("Acesso negado", "FORBIDDEN", corsHeaders, 403);
+  }
+
+  // Get checkouts
+  const { data: checkouts } = await supabase
+    .from("checkouts")
+    .select("id")
+    .eq("product_id", productId);
+
+  if (!checkouts || checkouts.length === 0) {
+    return jsonResponse({ orderBumps: [] }, corsHeaders);
+  }
+
+  const checkoutIds = checkouts.map(c => c.id);
+
+  // Get order bumps
+  const { data, error } = await supabase
+    .from("order_bumps")
+    .select(`
+      *,
+      products!order_bumps_product_id_fkey (
+        id, name, price, image_url
+      ),
+      offers (
+        id, name, price
+      )
+    `)
+    .in("checkout_id", checkoutIds)
+    .order("position", { ascending: true });
+
+  if (error) {
+    console.error("[admin-data] Order bumps error:", error);
+    return errorResponse("Erro ao buscar order bumps", "DB_ERROR", corsHeaders, 500);
+  }
+
+  return jsonResponse({ orderBumps: data || [] }, corsHeaders);
+}
+
+// Content editor data
+async function getContentEditorData(
+  supabase: SupabaseClient,
+  contentId: string | undefined,
+  moduleId: string | undefined,
+  isNew: boolean,
+  producerId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const result: Record<string, unknown> = {
+    content: null,
+    attachments: [],
+    release: null,
+    moduleContents: [],
+  };
+
+  // Always fetch module contents for after_content selection
+  if (moduleId) {
+    const { data: contentsData } = await supabase
+      .from("product_member_content")
+      .select("id, title")
+      .eq("module_id", moduleId)
+      .eq("is_active", true)
+      .order("position", { ascending: true });
+
+    result.moduleContents = contentsData || [];
+  }
+
+  if (isNew || !contentId) {
+    return jsonResponse(result, corsHeaders);
+  }
+
+  // Fetch content data
+  const { data: contentData, error: contentError } = await supabase
+    .from("product_member_content")
+    .select("*")
+    .eq("id", contentId)
+    .single();
+
+  if (contentError) {
+    console.error("[admin-data] Content error:", contentError);
+    return errorResponse("Conteúdo não encontrado", "NOT_FOUND", corsHeaders, 404);
+  }
+
+  result.content = contentData;
+
+  // Fetch attachments
+  const { data: attachmentsData } = await supabase
+    .from("content_attachments")
+    .select("*")
+    .eq("content_id", contentId)
+    .order("position", { ascending: true });
+
+  result.attachments = attachmentsData || [];
+
+  // Fetch release settings
+  const { data: releaseData } = await supabase
+    .from("content_release_settings")
+    .select("*")
+    .eq("content_id", contentId)
+    .maybeSingle();
+
+  result.release = releaseData;
+
+  return jsonResponse(result, corsHeaders);
+
 // ==========================================
 // MAIN HANDLER
 // ==========================================
@@ -530,6 +880,39 @@ serve(async (req) => {
 
       case "user-gateway-status":
         return getUserGatewayStatus(supabase, producer.id, corsHeaders);
+
+      case "role-stats":
+        return getRoleStats(supabase, producer.id, corsHeaders);
+
+      case "security-alerts":
+        return getSecurityAlerts(supabase, producer.id, body.filters, corsHeaders);
+
+      case "security-blocked-ips":
+        return getSecurityBlockedIPs(supabase, producer.id, corsHeaders);
+
+      case "security-stats":
+        return getSecurityStats(supabase, producer.id, corsHeaders);
+
+      case "gateway-connections":
+        if (!body.affiliationProductId) {
+          return errorResponse("affiliationProductId é obrigatório", "VALIDATION_ERROR", corsHeaders, 400);
+        }
+        return getGatewayConnections(supabase, producer.id, body.affiliationProductId, corsHeaders);
+
+      case "product-offers":
+        if (!productId) {
+          return errorResponse("productId é obrigatório", "VALIDATION_ERROR", corsHeaders, 400);
+        }
+        return getProductOffers(supabase, productId, corsHeaders);
+
+      case "order-bumps":
+        if (!productId) {
+          return errorResponse("productId é obrigatório", "VALIDATION_ERROR", corsHeaders, 400);
+        }
+        return getOrderBumps(supabase, productId, producer.id, corsHeaders);
+
+      case "content-editor-data":
+        return getContentEditorData(supabase, body.contentId, body.moduleId, body.isNew || false, producer.id, corsHeaders);
 
       default:
         return errorResponse(`Ação desconhecida: ${action}`, "INVALID_ACTION", corsHeaders, 400);

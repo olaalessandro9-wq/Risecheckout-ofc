@@ -1,13 +1,13 @@
 /**
  * useSecurityAlerts - Hook para gerenciamento de alertas de segurança
  * 
+ * MIGRATED: Uses Edge Function instead of supabase.from()
+ * 
  * Fornece acesso a:
  * - Lista de alertas de segurança
  * - Estatísticas de segurança
  * - IP Blocklist
  * - Ações de reconhecimento e bloqueio
- * 
- * MIGRATED: Uses useAuth() instead of supabase.auth.getUser()
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -63,97 +63,59 @@ export function useSecurityAlerts() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Buscar alertas com filtros
+  /**
+   * Fetch alerts via Edge Function
+   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   */
   const fetchAlerts = useCallback(async (filters?: AlertFilters) => {
     try {
-      let query = supabase
-        .from("security_alerts")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(100);
-
-      if (filters?.type) {
-        query = query.eq("alert_type", filters.type);
-      }
-      if (filters?.severity) {
-        query = query.eq("severity", filters.severity);
-      }
-      if (filters?.acknowledged !== undefined) {
-        query = query.eq("acknowledged", filters.acknowledged);
-      }
-
-      const { data, error } = await query;
+      const sessionToken = getProducerSessionToken();
+      const { data, error } = await supabase.functions.invoke("admin-data", {
+        body: { action: "security-alerts", filters },
+        headers: { "x-producer-session-token": sessionToken || "" },
+      });
 
       if (error) throw error;
-      setAlerts((data || []) as SecurityAlert[]);
+      setAlerts((data?.alerts || []) as SecurityAlert[]);
     } catch (err: unknown) {
       console.error("[useSecurityAlerts] Erro ao buscar alertas:", err);
       setError(err instanceof Error ? err.message : "Erro desconhecido");
     }
   }, []);
 
-  // Buscar IPs bloqueados
+  /**
+   * Fetch blocked IPs via Edge Function
+   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   */
   const fetchBlockedIPs = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from("ip_blocklist")
-        .select("*")
-        .eq("is_active", true)
-        .order("blocked_at", { ascending: false });
+      const sessionToken = getProducerSessionToken();
+      const { data, error } = await supabase.functions.invoke("admin-data", {
+        body: { action: "security-blocked-ips" },
+        headers: { "x-producer-session-token": sessionToken || "" },
+      });
 
       if (error) throw error;
-      setBlockedIPs((data || []) as BlockedIP[]);
+      setBlockedIPs((data?.blockedIPs || []) as BlockedIP[]);
     } catch (err: unknown) {
       console.error("[useSecurityAlerts] Erro ao buscar IPs bloqueados:", err);
     }
   }, []);
 
-  // Calcular estatísticas
+  /**
+   * Fetch security stats via Edge Function
+   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   */
   const fetchStats = useCallback(async () => {
     try {
-      const now = new Date();
-      const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
-
-      // Alertas críticos nas últimas 24h
-      const { count: criticalCount } = await supabase
-        .from("security_alerts")
-        .select("*", { count: "exact", head: true })
-        .eq("severity", "critical")
-        .gte("created_at", last24h);
-
-      // IPs bloqueados ativos
-      const { count: blockedCount } = await supabase
-        .from("ip_blocklist")
-        .select("*", { count: "exact", head: true })
-        .eq("is_active", true);
-
-      // Brute force attempts
-      const { count: bruteForceCount } = await supabase
-        .from("security_alerts")
-        .select("*", { count: "exact", head: true })
-        .eq("alert_type", "brute_force")
-        .gte("created_at", last24h);
-
-      // Rate limit exceeded
-      const { count: rateLimitCount } = await supabase
-        .from("buyer_rate_limits")
-        .select("*", { count: "exact", head: true })
-        .not("blocked_until", "is", null)
-        .gte("last_attempt_at", last24h);
-
-      // Alertas não reconhecidos
-      const { count: unacknowledgedCount } = await supabase
-        .from("security_alerts")
-        .select("*", { count: "exact", head: true })
-        .eq("acknowledged", false);
-
-      setStats({
-        criticalAlerts24h: criticalCount || 0,
-        blockedIPsActive: blockedCount || 0,
-        bruteForceAttempts: bruteForceCount || 0,
-        rateLimitExceeded: rateLimitCount || 0,
-        unacknowledgedAlerts: unacknowledgedCount || 0,
+      const sessionToken = getProducerSessionToken();
+      const { data, error } = await supabase.functions.invoke("admin-data", {
+        body: { action: "security-stats" },
+        headers: { "x-producer-session-token": sessionToken || "" },
       });
+
+      if (error) throw error;
+      setStats(data?.stats as SecurityStats);
     } catch (err: unknown) {
       console.error("[useSecurityAlerts] Erro ao calcular estatísticas:", err);
     }

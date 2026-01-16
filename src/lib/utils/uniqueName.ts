@@ -1,21 +1,27 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+/**
+ * ensureUniqueName - Check product name uniqueness via Edge Function
+ * 
+ * MIGRATED: Uses Edge Function instead of supabase.from()
+ */
+
+import { supabase } from "@/integrations/supabase/client";
+import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 
 export async function ensureUniqueName(
-  supabase: SupabaseClient,
+  _supabase: unknown, // Legacy parameter, not used anymore
   base: string,
 ): Promise<string> {
-  let candidate = base;
-  let suffix = 2; // começa em " (Cópia 2)" se já existir " (Cópia)"
-  while (true) {
-    const { data, error } = await supabase
-      .from("products")
-      .select("id")
-      .eq("name", candidate)
-      .limit(1);
-    if (error) throw error;
-    if (!data || data.length === 0) return candidate;
-    // Incrementa o sufixo se já existir
-    candidate = base.includes('(Cópia)') ? `${base.replace(/\s*\(Cópia.*?\)/, '')} (Cópia ${suffix})` : `${base} (${suffix})`;
-    suffix++;
-  }
+  const sessionToken = getProducerSessionToken();
+  
+  const { data, error } = await supabase.functions.invoke("admin-data", {
+    body: { 
+      action: "check-unique-name",
+      productName: base,
+    },
+    headers: { "x-producer-session-token": sessionToken || "" },
+  });
+
+  if (error) throw error;
+  
+  return data?.uniqueName || base;
 }

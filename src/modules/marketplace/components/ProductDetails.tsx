@@ -1,6 +1,8 @@
 /**
  * ProductDetails - Sheet Lateral de Detalhes do Produto
  * 
+ * MIGRATED: Uses Edge Function instead of supabase.from()
+ * 
  * Sheet lateral com informações completas do produto
  * Design inspirado no Kirvano - Clean e minimalista
  */
@@ -30,6 +32,7 @@ import { useAffiliateRequest } from "@/hooks/useAffiliateRequest";
 import { useAffiliationStatusCache } from "@/hooks/useAffiliationStatusCache";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -101,8 +104,6 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
     setCheckingOwner(false);
   }, [product?.id, product?.producer_id, open, user?.id]);
 
-  // Não precisa mais verificar status ao abrir - já está no cache!
-
   // Mostrar toast de erro
   useEffect(() => {
     if (error) {
@@ -118,24 +119,27 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
     }
   }, [success, onOpenChange]);
 
-  // Buscar ofertas do produto
+  /**
+   * Fetch offers via Edge Function
+   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   */
   useEffect(() => {
     if (!product || !open) return;
 
     const fetchOffers = async () => {
       setLoadingOffers(true);
       try {
-        // Buscar ofertas do produto (status active)
-        const { data: offersData, error } = await supabase
-          .from("offers")
-          .select("*")
-          .eq("product_id", product.id)
-          .eq("status", "active")
-          .order("price", { ascending: false });
+        const sessionToken = getProducerSessionToken();
+        const { data, error } = await supabase.functions.invoke("admin-data", {
+          body: { 
+            action: "product-offers",
+            productId: product.id,
+          },
+          headers: { "x-producer-session-token": sessionToken || "" },
+        });
 
         if (error) throw error;
 
-        // Interface para oferta do Supabase
         interface OfferRow {
           id: string;
           name: string | null;
@@ -143,8 +147,8 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
           is_default: boolean | null;
         }
 
-        if (offersData && offersData.length > 0) {
-          // Mapear ofertas
+        const offersData = data?.offers || [];
+        if (offersData.length > 0) {
           const mappedOffers: Offer[] = offersData.map((offer: OfferRow) => {
             const commission = (offer.price * (product.commission_percentage || 0)) / 100;
             return {
@@ -159,14 +163,11 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
 
           setOffers(mappedOffers);
 
-          // Comissão máxima = preço do produto (maior oferta ou price da view) x comissão
-          // Usamos o preço do produto da view (product.price) que é o preço principal
           const productPrice = product.price || mappedOffers[0]?.price || 0;
           const maxComm = (productPrice * (product.commission_percentage || 0)) / 100;
           setMaxCommission(maxComm);
         } else {
           setOffers([]);
-          // Fallback: usar preço do produto
           const maxComm = ((product.price || 0) * (product.commission_percentage || 0)) / 100;
           setMaxCommission(maxComm);
         }
@@ -196,7 +197,6 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
   const handleRequest = async () => {
     if (!product.id) return;
     await requestAffiliate(product.id);
-    // Após request, atualizar cache local com status "pending"
     updateStatus(product.id, "pending");
   };
 
@@ -233,7 +233,6 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
 
   // Renderizar botão baseado no status (para não-donos)
   const renderCTAButton = () => {
-    // Loading apenas durante request ou se cache ainda não carregou
     if (!cacheLoaded || (isLoading && !affiliationStatus)) {
       return (
         <Button disabled className="w-full h-12 text-base font-semibold">
@@ -242,7 +241,6 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
       );
     }
 
-    // Já é afiliado - mostrar aprovado + navegar para detalhes
     if (affiliationStatus?.status === "active" && affiliationStatus.affiliationId) {
       return (
         <div className="flex flex-col gap-2">
@@ -250,7 +248,6 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
           <Button
             onClick={() => {
               onOpenChange(false);
-              // Garante que o Sheet feche antes da navegação (evita clique “engolido”)
               setTimeout(() => {
                 navigate(`/dashboard/minhas-afiliacoes/${affiliationStatus.affiliationId}`);
               }, 0);
@@ -264,7 +261,6 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
       );
     }
 
-    // Pendente de aprovação
     if (affiliationStatus?.status === "pending") {
       return (
         <Button disabled className="w-full h-12 text-base font-semibold gap-2 bg-amber-600">
@@ -274,7 +270,6 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
       );
     }
 
-    // Rejeitado
     if (affiliationStatus?.status === "rejected") {
       return (
         <Button disabled variant="destructive" className="w-full h-12 text-base font-semibold">
@@ -283,7 +278,6 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
       );
     }
 
-    // Botão padrão - Texto dinâmico baseado no tipo de aprovação
     const buttonText = product.requires_manual_approval 
       ? "Solicitar afiliação"
       : "Se afiliar e acessar";
@@ -315,10 +309,9 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
           </SheetTitle>
         </SheetHeader>
 
-        {/* Header Card - Estilo Kirvano */}
+        {/* Header Card */}
         <div className="rounded-xl border bg-card p-4 mb-6">
           <div className="flex items-start gap-4">
-            {/* Imagem */}
             {product.image_url && (
               <div className="flex-shrink-0">
                 <img
@@ -329,7 +322,6 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
               </div>
             )}
 
-            {/* Informações */}
             <div className="flex-1 min-w-0 space-y-1">
               <h2 className="font-semibold text-base text-foreground leading-tight">
                 {product.name}
@@ -344,7 +336,6 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
                     Por <span className="font-medium">{product.producer_name || "Produtor"}</span>
                   </p>
                   
-                  {/* Destaque do Lucro - apenas para afiliados */}
                   {maxCommission > 0 && (
                     <p className="text-sm text-muted-foreground">
                       Você pode lucrar até{" "}
@@ -496,7 +487,7 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
             </>
           )}
 
-          {/* CTA - Botões diferenciados para dono vs afiliado */}
+          {/* CTA */}
           <div className="pt-4 pb-2">
             {checkingOwner ? (
               <Button disabled className="w-full h-12 text-base font-semibold">

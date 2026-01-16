@@ -1,3 +1,9 @@
+/**
+ * OrderBumpList - Order Bump Management Component
+ * 
+ * MIGRATED: Uses Edge Function instead of supabase.from()
+ */
+
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Trash2, GripVertical, Gift, MoreVertical, Pencil } from "lucide-react";
@@ -168,47 +174,25 @@ export function OrderBumpList({ productId, onAdd, onEdit, maxOrderBumps = 5 }: O
     })
   );
 
+  /**
+   * Load order bumps via Edge Function
+   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   */
   const loadOrderBumps = useCallback(async () => {
     try {
       setLoading(true);
       
-      // Get all checkouts for this product
-      const { data: checkouts, error: checkoutsError } = await supabase
-        .from("checkouts")
-        .select("id")
-        .eq("product_id", productId);
-
-      if (checkoutsError) throw checkoutsError;
-      if (!checkouts || checkouts.length === 0) {
-        setOrderBumps([]);
-        return;
-      }
-
-      const checkoutIds = checkouts.map(c => c.id);
-
-      // Get order bumps for these checkouts with product and offer details
-      const { data, error } = await supabase
-        .from("order_bumps")
-        .select(`
-          *,
-          products!order_bumps_product_id_fkey (
-            id,
-            name,
-            price,
-            image_url
-          ),
-          offers (
-            id,
-            name,
-            price
-          )
-        `)
-        .in("checkout_id", checkoutIds)
-        .order("position", { ascending: true });
+      const sessionToken = getProducerSessionToken();
+      const { data, error } = await supabase.functions.invoke("admin-data", {
+        body: { 
+          action: "order-bumps",
+          productId,
+        },
+        headers: { "x-producer-session-token": sessionToken || "" },
+      });
 
       if (error) throw error;
 
-      /** Raw order bump data from database with joined tables */
       interface RawOrderBumpRow {
         id: string;
         checkout_id: string;
@@ -229,20 +213,19 @@ export function OrderBumpList({ productId, onAdd, onEdit, maxOrderBumps = 5 }: O
         } | null;
       }
 
-      const mappedBumps: OrderBump[] = (data || []).map((bump) => {
-        const row = bump as RawOrderBumpRow;
+      const mappedBumps: OrderBump[] = (data?.orderBumps || []).map((bump: RawOrderBumpRow) => {
         return {
-          id: row.id,
-          checkout_id: row.checkout_id,
-          product_id: row.product_id,
-          offer_id: row.offer_id,
-          position: row.position,
-          active: row.active,
-          product_name: row.products?.name || "Produto não encontrado",
-          product_price: row.products?.price || 0,
-          product_image: row.products?.image_url ?? undefined,
-          offer_name: row.offers?.name,
-          offer_price: row.offers?.price,
+          id: bump.id,
+          checkout_id: bump.checkout_id,
+          product_id: bump.product_id,
+          offer_id: bump.offer_id,
+          position: bump.position,
+          active: bump.active,
+          product_name: bump.products?.name || "Produto não encontrado",
+          product_price: bump.products?.price || 0,
+          product_image: bump.products?.image_url ?? undefined,
+          offer_name: bump.offers?.name,
+          offer_price: bump.offers?.price,
         };
       });
 
@@ -267,18 +250,15 @@ export function OrderBumpList({ productId, onAdd, onEdit, maxOrderBumps = 5 }: O
     const oldIndex = orderBumps.findIndex((b) => b.id === active.id);
     const newIndex = orderBumps.findIndex((b) => b.id === over.id);
     
-    // 1. Atualizar estado local imediatamente (UI responsiva)
     const newOrder = arrayMove(orderBumps, oldIndex, newIndex);
     setOrderBumps(newOrder);
     
-    // Get checkout_id from first bump (they should all be from same checkout in the list)
     const checkoutId = newOrder[0]?.checkout_id;
     if (!checkoutId) {
       toast.error("Erro: checkout não encontrado");
       return;
     }
     
-    // 2. Salvar via Edge Function
     setIsSaving(true);
     try {
       const sessionToken = getProducerSessionToken();
@@ -305,7 +285,6 @@ export function OrderBumpList({ productId, onAdd, onEdit, maxOrderBumps = 5 }: O
     } catch (error: unknown) {
       console.error('Erro ao atualizar ordem:', error);
       toast.error(error instanceof Error ? error.message : 'Erro ao salvar nova ordem');
-      // Reverter estado local em caso de erro
       loadOrderBumps();
     } finally {
       setIsSaving(false);

@@ -1,6 +1,8 @@
 /**
  * ContentEditorView - Data Fetching Hook
  * 
+ * MIGRATED: Uses Edge Function instead of supabase.from()
+ * 
  * Responsible for:
  * - Load content, attachments, release settings
  * - Load module contents for after_content selection
@@ -11,6 +13,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 import type { ReleaseFormData, ContentAttachment, MemberContent } from "../types";
 
 interface ContentState {
@@ -52,6 +55,7 @@ interface UseContentEditorDataReturn {
 
 /**
  * Data fetching hook for Content Editor
+ * MIGRATED: Uses Edge Function instead of supabase.from()
  */
 export function useContentEditorData({
   isNew,
@@ -68,69 +72,56 @@ export function useContentEditorData({
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Always fetch module contents for after_content selection
-      if (moduleId) {
-        const { data: contentsData } = await supabase
-          .from("product_member_content")
-          .select("id, title")
-          .eq("module_id", moduleId)
-          .eq("is_active", true)
-          .order("position", { ascending: true });
+      const sessionToken = getProducerSessionToken();
+      const { data, error } = await supabase.functions.invoke("admin-data", {
+        body: { 
+          action: "content-editor-data",
+          contentId,
+          moduleId,
+          isNew,
+        },
+        headers: { "x-producer-session-token": sessionToken || "" },
+      });
 
-        if (contentsData) {
-          setModuleContents(contentsData);
-        }
-      }
-
-      if (isNew || !contentId) {
-        setIsLoading(false);
-        return;
-      }
-
-      // Fetch content data
-      const { data: contentData, error: contentError } = await supabase
-        .from("product_member_content")
-        .select("*")
-        .eq("id", contentId)
-        .single();
-
-      if (contentError) {
-        console.error("[useContentEditorData] Error loading content:", contentError);
+      if (error) {
+        console.error("[useContentEditorData] Error loading content:", error);
         toast.error("Erro ao carregar conteúdo");
         onBack();
         return;
       }
 
-      setContent({
-        title: contentData.title,
-        video_url: contentData.content_url,
-        body: contentData.body,
-      });
-
-      // Fetch attachments
-      const { data: attachmentsData } = await supabase
-        .from("content_attachments")
-        .select("*")
-        .eq("content_id", contentId)
-        .order("position", { ascending: true });
-
-      if (attachmentsData) {
-        setAttachments(attachmentsData as ContentAttachment[]);
+      // Set module contents for after_content selection
+      if (data?.moduleContents) {
+        setModuleContents(data.moduleContents);
       }
 
-      // Fetch release settings
-      const { data: releaseData } = await supabase
-        .from("content_release_settings")
-        .select("*")
-        .eq("content_id", contentId)
-        .maybeSingle();
+      // If new, stop here
+      if (isNew || !contentId) {
+        setIsLoading(false);
+        return;
+      }
 
-      if (releaseData) {
+      // Set content data
+      if (data?.content) {
+        setContent({
+          title: data.content.title,
+          video_url: data.content.content_url,
+          body: data.content.body,
+        });
+      }
+
+      // Set attachments
+      if (data?.attachments) {
+        setAttachments(data.attachments as ContentAttachment[]);
+      }
+
+      // Set release settings
+      if (data?.release) {
         setRelease({
-          release_type: releaseData.release_type as ReleaseFormData["release_type"],
-          days_after_purchase: releaseData.days_after_purchase,
-          fixed_date: releaseData.fixed_date,
-          after_content_id: releaseData.after_content_id,
+          release_type: data.release.release_type as ReleaseFormData["release_type"],
+          days_after_purchase: data.release.days_after_purchase,
+          fixed_date: data.release.fixed_date,
+          after_content_id: data.release.after_content_id,
         });
       }
     } catch (err) {
