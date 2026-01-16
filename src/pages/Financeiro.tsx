@@ -42,7 +42,7 @@ export default function Financeiro() {
       description: "Gateway de pagamento PIX",
       icon: Wallet,
       iconColor: "#3b82f6",
-      connected: state.hasExistingToken,
+      connected: state.pushinPayConnected,
     },
     {
       id: "mercadopago",
@@ -69,11 +69,11 @@ export default function Financeiro() {
       case "asaas":
         return <Asaas.ConfigForm onConnectionChange={actions.loadAllIntegrationsDebounced} />;
       case "pushinpay":
-        return <PushinPay.ConfigForm />;
+        return <PushinPay.ConfigForm onConnectionChange={actions.loadAllIntegrationsDebounced} />;
       case "mercadopago":
         return <MercadoPago.ConfigForm onConnectionChange={actions.loadAllIntegrationsDebounced} />;
       case "stripe":
-        return <Stripe.ConfigForm />;
+        return <Stripe.ConfigForm onConnectionChange={actions.loadAllIntegrationsDebounced} />;
       default:
         return null;
     }

@@ -19,7 +19,11 @@ interface StripeStatus {
   connected_at: string | null;
 }
 
-export function ConfigForm() {
+interface ConfigFormProps {
+  onConnectionChange?: () => void;
+}
+
+export function ConfigForm({ onConnectionChange }: ConfigFormProps) {
   const { user } = useAuth();
   const [status, setStatus] = useState<StripeStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -38,6 +42,8 @@ export function ConfigForm() {
     if (params.get('stripe_success') === 'true') {
       toast.success("Stripe conectado com sucesso!");
       checkStatus();
+      // Notificar parent para atualizar sidebar
+      onConnectionChange?.();
       // Limpar URL
       window.history.replaceState({}, '', window.location.pathname);
     }
@@ -45,7 +51,7 @@ export function ConfigForm() {
       toast.error(`Erro ao conectar Stripe: ${params.get('stripe_error')}`);
       window.history.replaceState({}, '', window.location.pathname);
     }
-  }, []);
+  }, [onConnectionChange]);
 
   const checkStatus = async () => {
     try {
@@ -124,6 +130,8 @@ export function ConfigForm() {
       if (data?.success) {
         toast.success("Stripe desconectado com sucesso");
         setStatus({ connected: false, account_id: null, email: null, livemode: null, connected_at: null });
+        // Notificar parent para atualizar sidebar
+        onConnectionChange?.();
       } else {
         throw new Error(data?.error || 'Erro ao desconectar');
       }
