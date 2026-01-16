@@ -5,6 +5,8 @@
  * Keeps index.ts as a clean router (~120 lines).
  * 
  * RISE Protocol Compliant - Zero `any` (uses typed interfaces)
+ * 
+ * @version 2.0.0 - Added LIST and GET handlers
  */
 
 import { SupabaseClient } from "./supabase-types.ts";
@@ -29,6 +31,23 @@ interface ProductRecord {
   id: string;
   user_id: string;
   name?: string;
+}
+
+export interface ProductListParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: string;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+}
+
+export interface ProductListResult {
+  items: unknown[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
 }
 
 // ============================================
@@ -144,7 +163,134 @@ export function validateUpdateProduct(data: Record<string, unknown>): { valid: b
 }
 
 // ============================================
-// HANDLERS
+// LIST HANDLER
+// ============================================
+
+export async function handleListProducts(
+  supabase: SupabaseClient,
+  producerId: string,
+  params: ProductListParams,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const page = Math.max(1, params.page || 1);
+  const pageSize = Math.min(100, Math.max(1, params.pageSize || 20));
+  const offset = (page - 1) * pageSize;
+  const sortBy = params.sortBy || "created_at";
+  const sortOrder = params.sortOrder === "asc";
+
+  try {
+    // Build query
+    let query = supabase
+      .from("products")
+      .select("id, name, description, price, status, image_url, created_at, updated_at, members_area_enabled", { count: "exact" })
+      .eq("user_id", producerId);
+
+    // Apply filters
+    if (params.status && ["active", "blocked"].includes(params.status)) {
+      query = query.eq("status", params.status);
+    }
+
+    if (params.search) {
+      query = query.ilike("name", `%${params.search}%`);
+    }
+
+    // Apply sorting
+    query = query.order(sortBy, { ascending: sortOrder });
+
+    // Apply pagination
+    query = query.range(offset, offset + pageSize - 1);
+
+    const { data: products, error, count } = await query;
+
+    if (error) {
+      console.error("[product-crud] List error:", error);
+      return new Response(JSON.stringify({ success: false, error: "Erro ao listar produtos" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    const total = count || 0;
+    const result: ProductListResult = {
+      items: products || [],
+      total,
+      page,
+      pageSize,
+      hasMore: offset + pageSize < total,
+    };
+
+    console.log(`[product-crud] Listed ${products?.length || 0} products for producer ${producerId}`);
+
+    return new Response(JSON.stringify({ success: true, data: result }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[product-crud] List error:", errorMessage);
+    return new Response(JSON.stringify({ success: false, error: "Erro ao listar produtos" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+  }
+}
+
+// ============================================
+// GET HANDLER
+// ============================================
+
+export async function handleGetProduct(
+  supabase: SupabaseClient,
+  producerId: string,
+  productId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  try {
+    const { data: product, error } = await supabase
+      .from("products")
+      .select(`
+        id, name, description, price, status, image_url, 
+        delivery_url, external_delivery, support_name, support_email,
+        members_area_enabled, marketplace_enabled, affiliate_enabled,
+        created_at, updated_at
+      `)
+      .eq("id", productId)
+      .eq("user_id", producerId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("[product-crud] Get error:", error);
+      return new Response(JSON.stringify({ success: false, error: "Erro ao buscar produto" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    if (!product) {
+      return new Response(JSON.stringify({ success: false, error: "Produto não encontrado" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    console.log(`[product-crud] Got product ${productId} for producer ${producerId}`);
+
+    return new Response(JSON.stringify({ success: true, data: product }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[product-crud] Get error:", errorMessage);
+    return new Response(JSON.stringify({ success: false, error: "Erro ao buscar produto" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+  }
+}
+
+// ============================================
+// CREATE HANDLER
 // ============================================
 
 export async function handleCreateProduct(
@@ -174,6 +320,10 @@ export async function handleCreateProduct(
     headers: { ...corsHeaders, "Content-Type": "application/json" }
   });
 }
+
+// ============================================
+// UPDATE HANDLER
+// ============================================
 
 export async function handleUpdateProduct(
   supabase: SupabaseClient,
@@ -224,6 +374,10 @@ export async function handleUpdateProduct(
     headers: { ...corsHeaders, "Content-Type": "application/json" }
   });
 }
+
+// ============================================
+// DELETE HANDLER
+// ============================================
 
 export async function handleDeleteProduct(
   supabase: SupabaseClient,

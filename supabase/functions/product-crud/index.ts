@@ -6,6 +6,15 @@
  * RISE Protocol Compliant:
  * - < 150 lines
  * - Zero business logic
+ * 
+ * Actions:
+ * - list: List products with pagination
+ * - get: Get single product by ID
+ * - create: Create new product
+ * - update: Update existing product
+ * - delete: Delete product
+ * 
+ * @version 2.0.0 - Added list/get actions
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
@@ -19,7 +28,10 @@ import {
   handleCreateProduct,
   handleUpdateProduct,
   handleDeleteProduct,
+  handleListProducts,
+  handleGetProduct,
 } from "../_shared/product-crud-handlers.ts";
+import type { ProductListParams } from "../_shared/product-crud-handlers.ts";
 
 // ============================================
 // HELPERS
@@ -58,6 +70,26 @@ serve(withSentry("product-crud", async (req) => {
     const sessionResult = await validateProducerSession(supabase, sessionToken);
     if (!sessionResult.valid) return errorResponse(sessionResult.error || "Não autorizado", corsHeaders, 401);
     const producerId = sessionResult.producerId!;
+
+    // LIST
+    if (action === "list") {
+      const params: ProductListParams = {
+        page: typeof body.page === "number" ? body.page : 1,
+        pageSize: typeof body.pageSize === "number" ? body.pageSize : 20,
+        search: typeof body.search === "string" ? body.search : undefined,
+        status: typeof body.status === "string" ? body.status : undefined,
+        sortBy: typeof body.sortBy === "string" ? body.sortBy : undefined,
+        sortOrder: body.sortOrder === "asc" || body.sortOrder === "desc" ? body.sortOrder : undefined,
+      };
+      return await handleListProducts(supabase, producerId, params, corsHeaders);
+    }
+
+    // GET
+    if (action === "get") {
+      const productId = body.productId as string;
+      if (!productId) return errorResponse("ID do produto é obrigatório", corsHeaders, 400);
+      return await handleGetProduct(supabase, producerId, productId, corsHeaders);
+    }
 
     // CREATE
     if (action === "create") {

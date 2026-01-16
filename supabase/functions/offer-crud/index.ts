@@ -4,8 +4,17 @@
  * Pure Router - Delegates all logic to _shared handlers.
  * 
  * RISE Protocol Compliant:
- * - < 100 lines
+ * - < 120 lines
  * - Zero business logic
+ * 
+ * Actions:
+ * - list: List offers with pagination
+ * - get: Get single offer by ID
+ * - create: Create new offer
+ * - update: Update existing offer
+ * - delete: Delete offer (soft delete)
+ * 
+ * @version 2.0.0 - Added list/get actions
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
@@ -19,7 +28,10 @@ import {
   handleCreateOffer,
   handleUpdateOffer,
   handleDeleteOffer,
+  handleListOffers,
+  handleGetOffer,
 } from "../_shared/offer-crud-handlers.ts";
+import type { OfferListParams } from "../_shared/offer-crud-handlers.ts";
 
 // ============================================
 // HELPERS
@@ -72,6 +84,24 @@ serve(withSentry("offer-crud", async (req) => {
       return errorResponse(sessionResult.error || "Não autorizado", corsHeaders, 401);
     }
     const producerId = sessionResult.producerId!;
+
+    // LIST
+    if (action === "list") {
+      const params: OfferListParams = {
+        productId: typeof body.productId === "string" ? body.productId : undefined,
+        page: typeof body.page === "number" ? body.page : 1,
+        pageSize: typeof body.pageSize === "number" ? body.pageSize : 20,
+        status: typeof body.status === "string" ? body.status : undefined,
+      };
+      return await handleListOffers(supabase, producerId, params, corsHeaders);
+    }
+
+    // GET
+    if (action === "get") {
+      const offerId = (body.offer_id as string) || (body.offerId as string);
+      if (!offerId) return errorResponse("ID da oferta é obrigatório", corsHeaders, 400);
+      return await handleGetOffer(supabase, producerId, offerId, corsHeaders);
+    }
 
     // CREATE
     if (action === "create" && req.method === "POST") {
