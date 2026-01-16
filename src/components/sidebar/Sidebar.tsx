@@ -13,16 +13,11 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
-
-// --- util: link do WhatsApp ---
-const WA_PHONE = import.meta.env.VITE_WA_PHONE_E164 as string | undefined;
-const WA_MSG =
-  (import.meta.env.VITE_WA_DEFAULT_MSG as string | undefined) ??
-  'Olá! Preciso de ajuda com meu checkout. Pode me orientar?';
+import { WA_PHONE, WA_DEFAULT_MSG } from '@/config/whatsapp';
 
 function buildWhatsAppHref() {
   if (!WA_PHONE) return null;
-  const msg = encodeURIComponent(WA_MSG);
+  const msg = encodeURIComponent(WA_DEFAULT_MSG);
   return `https://wa.me/${WA_PHONE}?text=${msg}`;
 }
 

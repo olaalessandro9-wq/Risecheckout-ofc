@@ -13,6 +13,7 @@
 import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { SUPABASE_URL } from "@/config/supabase";
 import type { PixGateway, PaymentConfig, PixNavigationState } from "./types";
 
 interface UsePixPaymentProps {
@@ -55,7 +56,7 @@ export function usePixPayment({ config, amount }: UsePixPaymentProps): UsePixPay
 
       case 'stripe': {
         const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-create-payment`,
+          `${SUPABASE_URL}/functions/v1/stripe-create-payment`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

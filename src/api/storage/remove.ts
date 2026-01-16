@@ -1,5 +1,6 @@
 // ✅ P0-7: Endpoint protegido com autenticação e validação de ownership
 import { createClient } from '@supabase/supabase-js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/config/supabase';
 
 export async function POST(request: Request) {
   try {
@@ -8,8 +9,8 @@ export async function POST(request: Request) {
     const authHeader = request.headers.get('Authorization');
     
     const supabase = createClient(
-      import.meta.env.VITE_SUPABASE_URL,
-      import.meta.env.VITE_SUPABASE_ANON_KEY
+      SUPABASE_URL,
+      SUPABASE_ANON_KEY
     );
 
     let userId: string | null = null;
