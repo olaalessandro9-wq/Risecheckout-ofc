@@ -11,12 +11,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { MERCADOPAGO_CLIENT_ID, MERCADOPAGO_REDIRECT_URI } from '@/config/mercadopago';
 import type { ConnectionMode, IntegrationData } from '../types';
-
-const MERCADOPAGO_CLIENT_ID = import.meta.env.VITE_MERCADOPAGO_CLIENT_ID || '2354396684039370';
-const MERCADOPAGO_REDIRECT_URI = 
-  import.meta.env.VITE_MERCADOPAGO_REDIRECT_URI || 
-  'https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/mercadopago-oauth-callback';
 
 function generateSecureNonce(): string {
   const array = new Uint8Array(32);

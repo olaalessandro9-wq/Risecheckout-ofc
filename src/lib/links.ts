@@ -1,7 +1,8 @@
-// src/lib/links.ts
-export const SUPPORT_WHATSAPP_URL =
-  import.meta.env.VITE_SUPPORT_WHATSAPP_URL ||
-  "https://wa.me/5599999999999?text=Olá! Preciso de suporte no Rise Checkout";
+/**
+ * External Links Configuration
+ * 
+ * RISE Protocol V2 Compliant - No VITE_* env vars in code.
+ * Re-exports from centralized config for backwards compatibility.
+ */
 
-export const HELP_CENTER_URL =
-  import.meta.env.VITE_HELP_CENTER_URL || "https://seu-dominio.com/ajuda";
+export { SUPPORT_WHATSAPP_URL, HELP_CENTER_URL } from "@/config/links";

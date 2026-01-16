@@ -13,6 +13,7 @@ import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { SUPABASE_URL } from "@/config/supabase";
 import type { CreditCardGateway, CardPaymentData, PaymentConfig } from "./types";
 import type { PersonalDataOverride } from "./useOrderCreation";
 
@@ -61,7 +62,7 @@ export function useCardPayment({ config, amount }: UseCardPaymentProps): UseCard
     switch (gateway) {
       case 'stripe': {
         const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-create-payment`,
+          `${SUPABASE_URL}/functions/v1/stripe-create-payment`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
