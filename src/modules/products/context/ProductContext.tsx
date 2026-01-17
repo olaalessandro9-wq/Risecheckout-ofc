@@ -231,14 +231,37 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     setSaving(true);
     // Limpa erros anteriores
     clearTabErrors();
+    formDispatch({ type: 'CLEAR_VALIDATION_ERRORS' });
     
     try {
       const result = await executeRegistrySaves();
       
       if (!result.success) {
-        // Popula erros de validação por aba
+        // Popula erros de validação por aba (para indicadores de tab)
         if (result.tabErrors) {
           setTabErrors(result.tabErrors);
+          
+          // Propagar erros para o reducer (para campos ficarem vermelhos)
+          // Mapeia os erros de cada tab para a seção correspondente no FormValidationErrors
+          const tabToSection: Record<string, 'general' | 'upsell' | 'affiliate'> = {
+            'geral': 'general',
+            'upsell': 'upsell',
+            'afiliados': 'affiliate',
+          };
+          
+          Object.entries(result.tabErrors).forEach(([tabKey, tabState]) => {
+            const section = tabToSection[tabKey];
+            if (section && tabState.errors) {
+              Object.entries(tabState.errors).forEach(([field, error]) => {
+                if (error) {
+                  formDispatch({
+                    type: 'SET_VALIDATION_ERROR',
+                    payload: { section, field, error }
+                  });
+                }
+              });
+            }
+          });
         }
         
         // Navega para primeira aba com erro
@@ -258,7 +281,7 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     } finally {
       setSaving(false);
     }
-  }, [executeRegistrySaves, clearTabErrors, setTabErrors, setActiveTab]);
+  }, [executeRegistrySaves, clearTabErrors, setTabErrors, setActiveTab, formDispatch]);
 
   // Context value (extraído para factory)
   const contextValue = createContextValue({

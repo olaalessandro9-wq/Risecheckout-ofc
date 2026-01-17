@@ -10,6 +10,7 @@ import type {
   ServerDataSnapshot,
   CheckoutSettingsFormData,
   GatewayCredentials,
+  FormValidationErrors,
 } from "../../types/productForm.types";
 import type { ProductData, UpsellSettings, AffiliateSettings, Offer } from "../../types/product.types";
 
@@ -85,6 +86,11 @@ export const formActions = {
   ) => ({
     type: "SET_VALIDATION_ERROR" as const,
     payload: { section, field, error },
+  }),
+  
+  setBulkValidationErrors: (payload: Partial<FormValidationErrors>) => ({
+    type: "SET_BULK_VALIDATION_ERRORS" as const,
+    payload,
   }),
   
   clearValidationErrors: () => ({ type: "CLEAR_VALIDATION_ERRORS" as const }),

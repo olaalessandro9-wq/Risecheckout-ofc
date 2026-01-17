@@ -11,4 +11,4 @@ export { handleUpdateOffers, handleAddDeletedOffer, handleResetOffers } from "./
 export { handleUpdateUpsell } from "./upsellActions";
 export { handleUpdateAffiliate } from "./affiliateActions";
 export { handleUpdateCheckoutSettings, handleInitCheckoutSettings, handleMarkCheckoutSettingsSaved } from "./checkoutActions";
-export { handleSetValidationError, handleClearValidationErrors } from "./validationActions";
+export { handleSetValidationError, handleSetBulkValidationErrors, handleClearValidationErrors } from "./validationActions";

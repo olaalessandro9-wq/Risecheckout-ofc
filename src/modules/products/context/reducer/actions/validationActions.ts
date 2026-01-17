@@ -4,7 +4,7 @@
  * @see RISE ARCHITECT PROTOCOL V3 - Modularização
  */
 
-import type { ProductFormState } from "../../../types/productForm.types";
+import type { ProductFormState, FormValidationErrors } from "../../../types/productForm.types";
 import { INITIAL_VALIDATION } from "../initialState";
 
 // ============================================================================
@@ -28,6 +28,33 @@ export function handleSetValidationError(
       [section]: {
         ...state.validation[section],
         [field]: error,
+      },
+    },
+  };
+}
+
+// ============================================================================
+// SET BULK VALIDATION ERRORS
+// ============================================================================
+
+export function handleSetBulkValidationErrors(
+  state: ProductFormState,
+  payload: Partial<FormValidationErrors>
+): ProductFormState {
+  return {
+    ...state,
+    validation: {
+      general: {
+        ...state.validation.general,
+        ...(payload.general || {}),
+      },
+      upsell: {
+        ...state.validation.upsell,
+        ...(payload.upsell || {}),
+      },
+      affiliate: {
+        ...state.validation.affiliate,
+        ...(payload.affiliate || {}),
       },
     },
   };

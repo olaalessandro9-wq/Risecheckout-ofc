@@ -8,6 +8,7 @@
  * - Registrar handler de Upsell (order: 30)
  * - Registrar handler de Affiliate (order: 40)
  * - Cleanup automático no unmount
+ * - Validação com erros detalhados
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - Regra de 300 linhas
  */
@@ -15,6 +16,7 @@
 import { useEffect } from "react";
 import type { RegisterSaveHandler } from "../../types/saveRegistry.types";
 import type { UpsellSettings, AffiliateSettings } from "../../types/product.types";
+import { validateUpsellSettings, validateAffiliateSettings } from "../productFormValidation";
 
 // ============================================================================
 // TYPES
@@ -70,6 +72,23 @@ export function useSettingsHandlerRegistration({
       { 
         order: 30,
         tabKey: 'upsell',
+        validate: () => {
+          const result = validateUpsellSettings(upsellSettings);
+          
+          // Converter erros para o formato esperado pelo registry
+          const fieldErrors: Record<string, string> = {};
+          if (result.errors.upsell) {
+            Object.entries(result.errors.upsell).forEach(([field, error]) => {
+              if (error) fieldErrors[field] = error;
+            });
+          }
+          
+          return {
+            isValid: result.isValid,
+            errors: fieldErrors,
+            tabKey: 'upsell',
+          };
+        },
       }
     );
 
@@ -82,6 +101,23 @@ export function useSettingsHandlerRegistration({
       { 
         order: 40,
         tabKey: 'afiliados',
+        validate: () => {
+          const result = validateAffiliateSettings(affiliateSettings);
+          
+          // Converter erros para o formato esperado pelo registry
+          const fieldErrors: Record<string, string> = {};
+          if (result.errors.affiliate) {
+            Object.entries(result.errors.affiliate).forEach(([field, error]) => {
+              if (error) fieldErrors[field] = error;
+            });
+          }
+          
+          return {
+            isValid: result.isValid,
+            errors: fieldErrors,
+            tabKey: 'afiliados',
+          };
+        },
       }
     );
 
