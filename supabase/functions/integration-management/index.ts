@@ -1,16 +1,16 @@
 /**
  * integration-management Edge Function
  * 
- * RISE Protocol Compliant - Router Puro < 100 linhas
+ * RISE Protocol V3 Compliant - unified-auth.ts
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
+import { getAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 
 import {
-  validateProducerSession,
   handleSaveCredentials,
   handleDisconnect,
   handleInitOAuth,
@@ -32,13 +32,11 @@ serve(withSentry("integration-management", async (req) => {
     const url = new URL(req.url);
     const urlAction = url.pathname.split("/").pop();
 
-    // Parse body first (needed for action detection)
     let body: Record<string, unknown> = {};
     if (req.method !== "GET") {
       try { body = await req.json(); } catch { return errorResponse("Corpo da requisição inválido", corsHeaders, 400); }
     }
 
-    // Prioridade: body.action > URL path (exceto nome da função)
     const bodyAction = typeof body.action === "string" ? body.action : null;
     const action = bodyAction ?? (urlAction && urlAction !== "integration-management" ? urlAction : null);
 
@@ -48,15 +46,13 @@ serve(withSentry("integration-management", async (req) => {
 
     console.log(`[integration-management] Action: ${action} (from ${bodyAction ? "body" : "url"}), Method: ${req.method}`);
 
-    const sessionToken = (body.sessionToken as string) || req.headers.get("x-producer-session-token") || "";
-    const sessionValidation = await validateProducerSession(supabase, sessionToken);
-
-    if (!sessionValidation.valid) {
-      console.warn(`[integration-management] Auth failed: ${sessionValidation.error}`);
-      return errorResponse(sessionValidation.error || "Não autorizado", corsHeaders, 401);
+    // ✅ RISE V3: unified-auth.ts
+    const producer = await getAuthenticatedProducer(supabase, req);
+    if (!producer) {
+      return unauthorizedResponse(corsHeaders);
     }
 
-    const producerId = sessionValidation.producerId!;
+    const producerId = producer.id;
     console.log(`[integration-management] Authenticated producer: ${producerId}`);
 
     if (action === "save-credentials" && req.method === "POST") {

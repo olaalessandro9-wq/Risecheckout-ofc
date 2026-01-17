@@ -88,47 +88,21 @@ export function errorResponse(message: string, corsHeaders: Record<string, strin
 }
 
 // ============================================================================
-// SESSION VALIDATION
+// SESSION VALIDATION (DEPRECATED - Use unified-auth.ts)
 // ============================================================================
 
+/**
+ * @deprecated Use `getAuthenticatedProducer` from `unified-auth.ts` instead.
+ * This function is kept for backward compatibility only.
+ * 
+ * RISE Protocol V3: All new code MUST use unified-auth.ts
+ */
 export async function validateProducerSession(
-  supabase: SupabaseClient,
-  sessionToken: string
+  _supabase: SupabaseClient,
+  _sessionToken: string
 ): Promise<{ valid: boolean; producerId?: string; error?: string }> {
-  if (!sessionToken) {
-    return { valid: false, error: "Token de sessão não fornecido" };
-  }
-
-  const { data: session, error } = await supabase
-    .from("producer_sessions")
-    .select("producer_id, expires_at, is_valid")
-    .eq("session_token", sessionToken)
-    .single();
-
-  if (error || !session) {
-    return { valid: false, error: "Sessão inválida" };
-  }
-
-  const sessionRecord = session as SessionRecord;
-
-  if (!sessionRecord.is_valid) {
-    return { valid: false, error: "Sessão expirada ou invalidada" };
-  }
-
-  if (new Date(sessionRecord.expires_at) < new Date()) {
-    await supabase
-      .from("producer_sessions")
-      .update({ is_valid: false })
-      .eq("session_token", sessionToken);
-    return { valid: false, error: "Sessão expirada" };
-  }
-
-  await supabase
-    .from("producer_sessions")
-    .update({ last_activity_at: new Date().toISOString() })
-    .eq("session_token", sessionToken);
-
-  return { valid: true, producerId: sessionRecord.producer_id };
+  console.warn("[DEPRECATED] validateProducerSession in integration-handlers.ts - Use unified-auth.ts");
+  return { valid: false, error: "DEPRECATED: Use unified-auth.ts" };
 }
 
 // ============================================================================

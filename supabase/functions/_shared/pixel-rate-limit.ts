@@ -107,37 +107,19 @@ export async function checkRateLimit(
 }
 
 // ============================================================================
-// Session Validation
+// Session Validation (DEPRECATED - Use unified-auth.ts)
 // ============================================================================
 
+/**
+ * @deprecated Use `getAuthenticatedProducer` from `unified-auth.ts` instead.
+ * This function is kept for backward compatibility only.
+ * 
+ * RISE Protocol V3: All new code MUST use unified-auth.ts
+ */
 export async function validateProducerSession(
-  supabase: SupabaseClient,
-  sessionToken: string
+  _supabase: SupabaseClient,
+  _sessionToken: string
 ): Promise<{ valid: boolean; producerId?: string; error?: string }> {
-  if (!sessionToken) {
-    return { valid: false, error: "Token de sessão não fornecido" };
-  }
-
-  const { data: session, error } = await supabase
-    .from("producer_sessions")
-    .select("producer_id, expires_at, is_valid")
-    .eq("session_token", sessionToken)
-    .single();
-
-  if (error || !session) {
-    console.error("[pixel-management] Session not found:", error?.message);
-    return { valid: false, error: "Sessão inválida" };
-  }
-
-  const sessionRecord = session as SessionRecord;
-
-  if (!sessionRecord.is_valid) {
-    return { valid: false, error: "Sessão foi invalidada" };
-  }
-
-  if (new Date(sessionRecord.expires_at) < new Date()) {
-    return { valid: false, error: "Sessão expirada" };
-  }
-
-  return { valid: true, producerId: sessionRecord.producer_id };
+  console.warn("[DEPRECATED] validateProducerSession in pixel-rate-limit.ts - Use unified-auth.ts");
+  return { valid: false, error: "DEPRECATED: Use unified-auth.ts" };
 }

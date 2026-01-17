@@ -5,13 +5,26 @@
  * - get-editor-data: Load all data for CheckoutCustomizer
  * - update-design: Save checkout customization
  * 
- * @version 2.0.0 - Zero `any` compliance (RISE Protocol V2)
+ * @version 3.0.0 - RISE Protocol V3 Compliant (unified-auth.ts)
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
+import { getAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { checkRateLimit, RateLimitConfig } from "../_shared/rate-limiter.ts";
+
+// ============================================
+// RATE LIMIT CONFIG
+// ============================================
+
+const CHECKOUT_EDITOR_RATE_LIMIT: RateLimitConfig = {
+  action: "checkout_update_design",
+  maxAttempts: 30,
+  windowMinutes: 5,
+  blockDurationMinutes: 5,
+};
 
 // ============================================
 // TYPES
@@ -100,68 +113,6 @@ function errorResponse(message: string, corsHeaders: Record<string, string>, sta
 }
 
 // ============================================
-// RATE LIMITING
-// ============================================
-
-async function checkRateLimit(
-  supabase: SupabaseClient,
-  producerId: string,
-  action: string
-): Promise<{ allowed: boolean; retryAfter?: number }> {
-  const MAX_ATTEMPTS = 30;
-  const WINDOW_MS = 5 * 60 * 1000;
-  const windowStart = new Date(Date.now() - WINDOW_MS);
-
-  const { data: attempts, error } = await supabase
-    .from("rate_limit_attempts")
-    .select("id")
-    .eq("identifier", `producer:${producerId}`)
-    .eq("action", action)
-    .gte("created_at", windowStart.toISOString());
-
-  if (error) return { allowed: true };
-  if ((attempts?.length || 0) >= MAX_ATTEMPTS) return { allowed: false, retryAfter: 300 };
-  return { allowed: true };
-}
-
-async function recordRateLimitAttempt(supabase: SupabaseClient, producerId: string, action: string): Promise<void> {
-  await supabase.from("rate_limit_attempts").insert({
-    identifier: `producer:${producerId}`,
-    action,
-    success: true,
-    created_at: new Date().toISOString(),
-  });
-}
-
-// ============================================
-// SESSION VALIDATION
-// ============================================
-
-async function validateProducerSession(
-  supabase: SupabaseClient,
-  sessionToken: string
-): Promise<{ valid: boolean; producerId?: string; error?: string }> {
-  if (!sessionToken) return { valid: false, error: "Token de sessão não fornecido" };
-
-  const { data: session, error } = await supabase
-    .from("producer_sessions")
-    .select("producer_id, expires_at, is_valid")
-    .eq("session_token", sessionToken)
-    .single();
-
-  if (error || !session) return { valid: false, error: "Sessão inválida" };
-  if (!session.is_valid) return { valid: false, error: "Sessão expirada ou invalidada" };
-
-  if (new Date(session.expires_at) < new Date()) {
-    await supabase.from("producer_sessions").update({ is_valid: false }).eq("session_token", sessionToken);
-    return { valid: false, error: "Sessão expirada" };
-  }
-
-  await supabase.from("producer_sessions").update({ last_activity_at: new Date().toISOString() }).eq("session_token", sessionToken);
-  return { valid: true, producerId: session.producer_id };
-}
-
-// ============================================
 // OWNERSHIP VERIFICATION
 // ============================================
 
@@ -217,11 +168,13 @@ serve(withSentry("checkout-editor", async (req) => {
       try { body = await req.json(); } catch { return errorResponse("Corpo da requisição inválido", corsHeaders, 400); }
     }
 
-    const sessionToken = body.sessionToken || req.headers.get("x-producer-session-token");
-    const sessionValidation = await validateProducerSession(supabase, sessionToken || '');
-    if (!sessionValidation.valid) return errorResponse(sessionValidation.error || "Não autorizado", corsHeaders, 401);
+    // ✅ RISE V3: unified-auth.ts
+    const producer = await getAuthenticatedProducer(supabase, req);
+    if (!producer) {
+      return unauthorizedResponse(corsHeaders);
+    }
 
-    const producerId = sessionValidation.producerId!;
+    const producerId = producer.id;
     console.log(`[checkout-editor] Action: ${action}, Producer: ${producerId}`);
 
     // ========== GET-EDITOR-DATA ==========
@@ -267,8 +220,8 @@ serve(withSentry("checkout-editor", async (req) => {
 
     // ========== UPDATE-DESIGN ==========
     if (action === "update-design" && (req.method === "POST" || req.method === "PUT")) {
-      const rateCheck = await checkRateLimit(supabase, producerId, "checkout_update_design");
-      if (!rateCheck.allowed) return jsonResponse({ success: false, error: "Muitas requisições.", retryAfter: rateCheck.retryAfter }, corsHeaders, 429);
+      const rateCheck = await checkRateLimit(supabase, producerId, CHECKOUT_EDITOR_RATE_LIMIT);
+      if (!rateCheck.allowed) return jsonResponse({ success: false, error: rateCheck.error || "Muitas requisições.", retryAfter: rateCheck.retryAfter }, corsHeaders, 429);
 
       const { checkoutId, design, topComponents, bottomComponents } = body;
       if (!checkoutId) return errorResponse("ID do checkout é obrigatório", corsHeaders, 400);
@@ -365,7 +318,6 @@ serve(withSentry("checkout-editor", async (req) => {
         const { error: updateError } = await supabase.from("checkouts").update(updates).eq("id", checkoutId);
         if (updateError) throw new Error(`Falha ao salvar design: ${updateError.message}`);
 
-        await recordRateLimitAttempt(supabase, producerId, "checkout_update_design");
         return jsonResponse({ success: true }, corsHeaders);
       } catch (error: unknown) {
         const err = error instanceof Error ? error : new Error(String(error));
