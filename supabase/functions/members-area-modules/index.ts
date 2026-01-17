@@ -18,6 +18,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { withSentry } from "../_shared/sentry.ts";
+import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 
 // Handlers
 import {
@@ -34,11 +35,7 @@ import {
 } from "../_shared/members-area-sections-handlers.ts";
 
 // Shared helpers
-import {
-  jsonResponse,
-  errorResponse,
-  validateProducerSession,
-} from "../_shared/edge-helpers.ts";
+import { jsonResponse, errorResponse } from "../_shared/edge-helpers.ts";
 
 // ============================================
 // TYPES
@@ -95,12 +92,14 @@ serve(withSentry("members-area-modules", async (req) => {
 
     console.log(`[members-area-modules] Action: ${action}`);
 
-    // Validate session
-    const sessionValidation = await validateProducerSession(supabase, sessionToken || "");
-    if (!sessionValidation.valid) {
-      return errorResponse(sessionValidation.error || "Não autorizado", corsHeaders, 401);
+    // Auth via unified-auth
+    let producerId: string;
+    try {
+      const producer = await requireAuthenticatedProducer(supabase, req);
+      producerId = producer.id;
+    } catch {
+      return unauthorizedResponse(corsHeaders);
     }
-    const producerId = sessionValidation.producerId!;
 
     // ============================================
     // ROUTE TO HANDLERS

@@ -13,13 +13,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { handleCors } from "../_shared/cors.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
+import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 
 import {
   jsonResponse,
   errorResponse,
   checkRateLimit,
   recordRateLimitAttempt,
-  validateProducerSession,
   ensureUniqueName,
   STRICT_RATE_LIMIT,
 } from "../_shared/edge-helpers.ts";
@@ -57,15 +57,14 @@ serve(withSentry("product-duplicate", async (req) => {
       return errorResponse("Corpo da requisição inválido", corsHeaders, 400);
     }
 
-    // Authentication
-    const sessionToken = (body.sessionToken as string) || req.headers.get("x-producer-session-token") || "";
-    const sessionValidation = await validateProducerSession(supabase, sessionToken);
-
-    if (!sessionValidation.valid) {
-      return errorResponse(sessionValidation.error || "Não autorizado", corsHeaders, 401);
+    // Auth via unified-auth
+    let producerId: string;
+    try {
+      const producer = await requireAuthenticatedProducer(supabase, req);
+      producerId = producer.id;
+    } catch {
+      return unauthorizedResponse(corsHeaders);
     }
-
-    const producerId = sessionValidation.producerId!;
 
     // Rate limiting (strict for expensive operation)
     const rateCheck = await checkRateLimit(supabase, producerId, {

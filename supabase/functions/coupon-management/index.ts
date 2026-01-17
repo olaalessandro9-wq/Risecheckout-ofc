@@ -15,6 +15,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { withSentry } from "../_shared/sentry.ts";
+import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 
 // Handlers
 import {
@@ -25,10 +26,7 @@ import {
 } from "../_shared/coupon-handlers.ts";
 
 // Shared helpers
-import {
-  errorResponse,
-  validateProducerSession,
-} from "../_shared/edge-helpers.ts";
+import { errorResponse } from "../_shared/edge-helpers.ts";
 
 // ============================================
 // MAIN HANDLER
@@ -68,17 +66,16 @@ serve(withSentry("coupon-management", async (req) => {
 
     console.log(`[coupon-management] Action: ${action} (from ${bodyAction ? "body" : "url"}), Method: ${req.method}`);
 
-    // Authentication
-    const sessionToken = (body.sessionToken as string) || req.headers.get("x-producer-session-token");
-    const sessionValidation = await validateProducerSession(supabase, sessionToken || "");
-
-    if (!sessionValidation.valid) {
-      console.warn(`[coupon-management] Auth failed: ${sessionValidation.error}`);
-      return errorResponse(sessionValidation.error || "Não autorizado", corsHeaders, 401);
+    // Auth via unified-auth
+    let producerId: string;
+    try {
+      const producer = await requireAuthenticatedProducer(supabase, req);
+      producerId = producer.id;
+      console.log(`[coupon-management] Authenticated producer: ${producerId}`);
+    } catch {
+      console.warn("[coupon-management] Auth failed");
+      return unauthorizedResponse(corsHeaders);
     }
-
-    const producerId = sessionValidation.producerId!;
-    console.log(`[coupon-management] Authenticated producer: ${producerId}`);
 
     // ============================================
     // ROUTE TO HANDLERS

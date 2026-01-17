@@ -15,12 +15,12 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
+import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 import {
   jsonResponse,
   errorResponse,
   checkRateLimit,
   recordRateLimitAttempt,
-  validateProducerSession,
   verifyCheckoutOwnership,
   verifyProductOwnership,
 } from "../_shared/checkout-crud-helpers.ts";
@@ -84,11 +84,14 @@ serve(withSentry("checkout-crud", async (req) => {
       return errorResponse("Ação não especificada", corsHeaders, 400);
     }
 
-    const sessionToken = body.sessionToken || req.headers.get("x-producer-session-token");
-    const sessionValidation = await validateProducerSession(supabase, sessionToken || '');
-    if (!sessionValidation.valid) return errorResponse(sessionValidation.error || "Não autorizado", corsHeaders, 401);
-
-    const producerId = sessionValidation.producerId!;
+    // Auth via unified-auth
+    let producerId: string;
+    try {
+      const producer = await requireAuthenticatedProducer(supabase, req);
+      producerId = producer.id;
+    } catch {
+      return unauthorizedResponse(corsHeaders);
+    }
     const baseUrl = req.headers.get("origin") || "https://risecheckout.com";
 
     console.log(`[checkout-crud] Action: ${action}, Producer: ${producerId}`);

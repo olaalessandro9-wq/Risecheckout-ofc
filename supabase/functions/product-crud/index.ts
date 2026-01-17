@@ -21,7 +21,8 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
-import { validateProducerSession, checkRateLimit, recordRateLimitAttempt, DEFAULT_RATE_LIMIT } from "../_shared/edge-helpers.ts";
+import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { checkRateLimit, recordRateLimitAttempt, DEFAULT_RATE_LIMIT } from "../_shared/edge-helpers.ts";
 import {
   validateCreateProduct,
   validateUpdateProduct,
@@ -65,11 +66,14 @@ serve(withSentry("product-crud", async (req) => {
     const { action } = body;
     console.log(`[product-crud] Action: ${action}, Method: ${req.method}`);
 
-    // Auth
-    const sessionToken = (body.sessionToken as string) || req.headers.get("x-producer-session-token") || "";
-    const sessionResult = await validateProducerSession(supabase, sessionToken);
-    if (!sessionResult.valid) return errorResponse(sessionResult.error || "Não autorizado", corsHeaders, 401);
-    const producerId = sessionResult.producerId!;
+    // Auth via unified-auth
+    let producerId: string;
+    try {
+      const producer = await requireAuthenticatedProducer(supabase, req);
+      producerId = producer.id;
+    } catch {
+      return unauthorizedResponse(corsHeaders);
+    }
 
     // LIST
     if (action === "list") {

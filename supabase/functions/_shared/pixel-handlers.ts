@@ -15,7 +15,8 @@ import {
 } from "./pixel-types.ts";
 
 // Re-export rate limiting utilities for backwards compatibility
-export { checkRateLimit, validateProducerSession } from "./pixel-rate-limit.ts";
+export { checkRateLimit } from "./pixel-rate-limit.ts";
+// NOTE: validateProducerSession removed - use unified-auth.ts instead
 
 // ============================================================================
 // Vendor Pixel Handlers
