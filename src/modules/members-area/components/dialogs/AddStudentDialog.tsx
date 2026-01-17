@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 import type { MemberGroup } from "@/modules/members-area/types";
 
@@ -57,21 +57,15 @@ export function AddStudentDialog({
     setIsSubmitting(true);
 
     try {
-      // Obter token de sessão para autenticação
-      const sessionToken = localStorage.getItem('producer_session_token');
-      
-      const { data, error } = await supabase.functions.invoke("students-invite", {
-        body: {
-          action: "invite", // Action no body, não no path
-          product_id: productId,
-          email: email.trim(),
-          name: name.trim() || undefined,
-          group_ids: selectedGroups.length > 0 ? selectedGroups : undefined,
-        },
-        headers: { 'x-producer-session-token': sessionToken || '' },
+      const { data, error } = await api.call<{ success?: boolean; error?: string }>("students-invite", {
+        action: "invite",
+        product_id: productId,
+        email: email.trim(),
+        name: name.trim() || undefined,
+        group_ids: selectedGroups.length > 0 ? selectedGroups : undefined,
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
       if (data?.success) {
         toast.success(`Convite enviado para ${email}`);

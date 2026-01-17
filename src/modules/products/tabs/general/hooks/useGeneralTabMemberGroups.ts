@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import type { MemberGroupOption } from "@/components/products/OffersManager";
 
 interface UseGeneralTabMemberGroupsProps {
@@ -31,10 +31,9 @@ export function useGeneralTabMemberGroups({ productId, membersAreaEnabled }: Use
             is_default?: boolean;
           }
           
-          const sessionToken = localStorage.getItem('producer_session_token');
-          const { data, error } = await supabase.functions.invoke('members-area-groups', {
-            body: { action: 'list', product_id: productId },
-            headers: { 'x-producer-session-token': sessionToken || '' },
+          const { data, error } = await api.call<{ groups?: MemberGroupFromAPI[] }>('members-area-groups', {
+            action: 'list',
+            product_id: productId,
           });
           
           if (!error && data?.groups) {

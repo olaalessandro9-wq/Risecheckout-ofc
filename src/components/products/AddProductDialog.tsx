@@ -11,7 +11,7 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { z } from "zod";
 import { ArrowLeft, ArrowRight, Package, Link as LinkIcon, Mail, Webhook } from "lucide-react";
@@ -92,31 +92,20 @@ export function AddProductDialog({ open, onOpenChange, onProductAdded }: AddProd
   };
 
   const handleSubmit = async () => {
-    // Validar URL somente se entrega interna
     if (!externalDelivery && !validateDeliveryUrl(formData.delivery_url)) {
-      return;
-    }
-    
-    // Get session token from localStorage
-    const sessionToken = localStorage.getItem("producer_session_token");
-    if (!sessionToken) {
-      toast.error("Você precisa estar autenticado. Faça login novamente.");
       return;
     }
     
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("product-crud", {
-        body: {
-          action: 'create',
-          sessionToken,
-          product: {
-            name: formData.name.trim(),
-            description: formData.description.trim() || "",
-            price: formData.price,
-            delivery_url: externalDelivery ? null : (formData.delivery_url.trim() || null),
-            external_delivery: externalDelivery,
-          },
+      const { data, error } = await api.call<{ success?: boolean; error?: string; product?: { id: string } }>("product-crud", {
+        action: 'create',
+        product: {
+          name: formData.name.trim(),
+          description: formData.description.trim() || "",
+          price: formData.price,
+          delivery_url: externalDelivery ? null : (formData.delivery_url.trim() || null),
+          external_delivery: externalDelivery,
         },
       });
 
@@ -137,7 +126,7 @@ export function AddProductDialog({ open, onOpenChange, onProductAdded }: AddProd
       
       if (onProductAdded) onProductAdded();
       
-      navigate(`/dashboard/produtos/editar?id=${data.product.id}`);
+      navigate(`/dashboard/produtos/editar?id=${data.product?.id}`);
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Erro ao criar produto");
       console.error("[AddProductDialog] Error:", error);

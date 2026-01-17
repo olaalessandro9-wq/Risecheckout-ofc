@@ -24,7 +24,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { formatCentsToBRL as formatBRL } from "@/lib/money";
 import type { Checkout } from "./CheckoutTable";
@@ -92,8 +92,6 @@ export const CheckoutConfigDialog = ({
 
     setSaving(true);
     try {
-      const sessionToken = localStorage.getItem('producer_session_token');
-      
       const action = checkout?.id ? 'update' : 'create';
       const payload: CheckoutCrudPayload = {
         action,
@@ -108,12 +106,7 @@ export const CheckoutConfigDialog = ({
         payload.productId = productId;
       }
 
-      const { data, error } = await supabase.functions.invoke('checkout-crud', {
-        body: payload,
-        headers: {
-          'x-producer-session-token': sessionToken || '',
-        },
-      });
+      const { data, error } = await api.call<{ success?: boolean; error?: string; data?: { checkout?: { id: string; linkId: string } } }>('checkout-crud', payload);
 
       if (error) {
         console.error('[CHECKOUT] Edge function error:', error);
@@ -124,7 +117,6 @@ export const CheckoutConfigDialog = ({
         throw new Error(data?.error || 'Erro ao salvar checkout');
       }
 
-      // Callback de sucesso
       const updatedCheckout: Checkout = {
         id: data.data?.checkout?.id || checkout?.id || '',
         name,
