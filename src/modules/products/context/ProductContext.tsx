@@ -12,8 +12,8 @@
 import { createContext, useContext, useReducer, useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import type { ProductContextState, ProductProviderProps, AffiliateSettings, UpsellSettings, Offer } from "../types/product.types";
-import type { GeneralFormData, ImageFormState, ProductFormState, ProductFormDispatch, CheckoutSettingsFormData, GatewayCredentials } from "../types/productForm.types";
+import type { ProductContextState, ProductProviderProps, Offer } from "../types/product.types";
+import type { GeneralFormData, ImageFormState, ProductFormState, ProductFormDispatch, CheckoutSettingsFormData, GatewayCredentials, AffiliateSettings, UpsellSettings } from "../types/productForm.types";
 
 // Reducer e Actions
 import { productFormReducer, INITIAL_FORM_STATE, formActions } from "./productFormReducer";
