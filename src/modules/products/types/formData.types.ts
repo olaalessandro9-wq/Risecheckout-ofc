@@ -147,4 +147,8 @@ export interface FormValidationErrors {
     marketplaceDescription?: string;
     marketplaceCategory?: string;
   };
+  checkoutSettings: {
+    pix_gateway?: string;
+    credit_card_gateway?: string;
+  };
 }

@@ -14,7 +14,7 @@ import { INITIAL_VALIDATION } from "../initialState";
 export function handleSetValidationError(
   state: ProductFormState,
   payload: {
-    section: "general" | "upsell" | "affiliate";
+    section: "general" | "upsell" | "affiliate" | "checkoutSettings";
     field: string;
     error: string | undefined;
   }
@@ -55,6 +55,10 @@ export function handleSetBulkValidationErrors(
       affiliate: {
         ...state.validation.affiliate,
         ...(payload.affiliate || {}),
+      },
+      checkoutSettings: {
+        ...state.validation.checkoutSettings,
+        ...(payload.checkoutSettings || {}),
       },
     },
   };

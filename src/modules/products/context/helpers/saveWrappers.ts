@@ -74,31 +74,5 @@ export function createSaveAffiliateSettings(
   };
 }
 
-export function createSaveAll(deps: SaveDependencies) {
-  return async () => {
-    deps.setSaving(true);
-    try {
-      const generalValidation = validateGeneralForm(deps.formState.editedData.general);
-      if (!generalValidation.isValid) {
-        toast.error("Corrija os erros antes de salvar");
-        return;
-      }
-
-      await Promise.all([
-        deps.core.saveProduct(),
-        deps.settings.savePaymentSettings(),
-        deps.settings.saveCheckoutFields(),
-        deps.settings.saveUpsellSettings(),
-        deps.settings.saveAffiliateSettings(),
-      ]);
-      
-      toast.success("Todas as alterações foram salvas");
-      deps.formDispatch(formActions.markSaved());
-    } catch (error: unknown) {
-      console.error("[ProductContext] Error saving all:", error);
-      toast.error("Erro ao salvar alterações");
-    } finally {
-      deps.setSaving(false);
-    }
-  };
-}
+// NOTA: createSaveAll foi movido para ./createSaveAll.ts para suportar
+// o novo sistema de validação global via Save Registry Pattern.

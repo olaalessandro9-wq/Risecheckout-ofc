@@ -59,6 +59,7 @@ export const INITIAL_VALIDATION: FormValidationErrors = {
   general: {},
   upsell: {},
   affiliate: {},
+  checkoutSettings: {},
 };
 
 // ============================================================================
