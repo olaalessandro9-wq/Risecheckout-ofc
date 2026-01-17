@@ -1,63 +1,66 @@
 /**
- * Utilitários de data com conversão UTC explícita
+ * @deprecated This module is deprecated. Use @/lib/timezone instead.
  * 
- * PROBLEMA RESOLVIDO:
- * O uso de startOfDay(date).toISOString() converte a data local para UTC,
- * causando perda de ~3 horas de dados no início do período (timezone BR: UTC-3).
+ * MIGRATION GUIDE:
+ * ================
  * 
- * SOLUÇÃO:
- * Estas funções garantem que a data seja convertida diretamente para UTC
- * preservando o dia/mês/ano da data local do usuário.
+ * Old (deprecated):
+ *   import { toUTCStartOfDay, toUTCEndOfDay } from '@/lib/date-utils';
+ *   const start = toUTCStartOfDay(date);
+ *   const end = toUTCEndOfDay(date);
+ * 
+ * New (recommended):
+ *   import { timezoneService } from '@/lib/timezone';
+ *   const start = timezoneService.toStartOfDay(date);
+ *   const end = timezoneService.toEndOfDay(date);
+ * 
+ * Or with destructuring:
+ *   const { startOfDay, endOfDay } = timezoneService.getDateBoundaries(date);
+ * 
+ * PROBLEM WITH THIS MODULE:
+ * =========================
+ * This module converts dates to UTC midnight, which causes incorrect filtering
+ * for vendors in non-UTC timezones (like Brazil, UTC-3). A sale at 21:50 São Paulo
+ * (stored as 00:50 UTC next day) would appear on the wrong day in filters.
+ * 
+ * The new TimezoneService handles this correctly by converting to the vendor's
+ * timezone first, then creating the boundaries.
+ * 
+ * This file will be removed in a future version.
+ * 
+ * @see src/lib/timezone/service.ts for the replacement
  */
 
+import { timezoneService } from './timezone';
+
 /**
- * Converte uma data local para início do dia em UTC
- * 
- * Exemplo:
- * - Input: 2026-01-02 (qualquer timezone local)
- * - Output: "2026-01-02T00:00:00.000Z"
- * 
- * Isso garante que ao filtrar por "02 de janeiro", 
- * pegamos TODOS os registros desse dia no banco.
+ * @deprecated Use timezoneService.toStartOfDay() instead
  */
 export function toUTCStartOfDay(date: Date): string {
-  return new Date(Date.UTC(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    0, 0, 0, 0
-  )).toISOString();
+  console.warn('[date-utils] toUTCStartOfDay is deprecated. Use timezoneService.toStartOfDay() instead.');
+  return timezoneService.toStartOfDay(date);
 }
 
 /**
- * Converte uma data local para fim do dia em UTC
- * 
- * Exemplo:
- * - Input: 2026-01-02 (qualquer timezone local)
- * - Output: "2026-01-02T23:59:59.999Z"
- * 
- * Isso garante que ao filtrar por "02 de janeiro",
- * pegamos registros ATÉ o último milissegundo desse dia.
+ * @deprecated Use timezoneService.toEndOfDay() instead
  */
 export function toUTCEndOfDay(date: Date): string {
-  return new Date(Date.UTC(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    23, 59, 59, 999
-  )).toISOString();
+  console.warn('[date-utils] toUTCEndOfDay is deprecated. Use timezoneService.toEndOfDay() instead.');
+  return timezoneService.toEndOfDay(date);
 }
 
 /**
- * Retorna a data atual como início do dia em UTC
+ * @deprecated Use timezoneService.toStartOfDay(new Date()) instead
  */
 export function todayUTCStart(): string {
-  return toUTCStartOfDay(new Date());
+  console.warn('[date-utils] todayUTCStart is deprecated. Use timezoneService.toStartOfDay(new Date()) instead.');
+  return timezoneService.toStartOfDay(new Date());
 }
 
 /**
- * Retorna a data atual como fim do dia em UTC
+ * @deprecated Use timezoneService.toEndOfDay(new Date()) instead
  */
 export function todayUTCEnd(): string {
-  return toUTCEndOfDay(new Date());
+  console.warn('[date-utils] todayUTCEnd is deprecated. Use timezoneService.toEndOfDay(new Date()) instead.');
+  return timezoneService.toEndOfDay(new Date());
 }

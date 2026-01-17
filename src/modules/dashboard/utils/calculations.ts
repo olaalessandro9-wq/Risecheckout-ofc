@@ -2,10 +2,10 @@
  * Funções de cálculo para métricas do Dashboard
  * 
  * @module dashboard/utils
- * @version RISE V3 Compliant
+ * @version 2.0.0 - RISE V3 Compliant (Timezone Support)
  */
 
-import { format } from "date-fns";
+import { timezoneService } from "@/lib/timezone";
 import type {
   DashboardMetrics,
   ChartDataPoint,
@@ -114,6 +114,9 @@ export function calculateMetricsFromRpc(
 
 /**
  * Agrupa dados por HORA para gráficos de período de 1 dia
+ * 
+ * Uses TimezoneService to get the correct hour in São Paulo timezone.
+ * This ensures a sale at 00:50 UTC (21:50 SP) appears in the 21h bar.
  */
 export function calculateHourlyChartData(
   orders: Order[],
@@ -121,6 +124,7 @@ export function calculateHourlyChartData(
 ): ChartDataPoint[] {
   const hourlyData: ChartDataPoint[] = [];
 
+  // Initialize all 24 hours
   for (let hour = 0; hour < 24; hour++) {
     hourlyData.push({
       date: `${hour.toString().padStart(2, "0")}:00`,
@@ -131,8 +135,8 @@ export function calculateHourlyChartData(
   }
 
   orders.forEach((order) => {
-    const orderDate = new Date(order.created_at);
-    const hour = orderDate.getHours();
+    // Use timezone service to get the correct hour in São Paulo
+    const hour = timezoneService.getHourInTimezone(order.created_at);
 
     if (order.status?.toLowerCase() === "paid") {
       hourlyData[hour].revenue += (order.amount_cents || 0) / 100;
@@ -150,6 +154,10 @@ export function calculateHourlyChartData(
 
 /**
  * Agrupa dados por dia para os gráficos
+ * 
+ * Uses TimezoneService to get the correct date in São Paulo timezone.
+ * This ensures a sale at 00:50 UTC on Jan 16 (21:50 SP Jan 15) 
+ * appears on Jan 15 in the chart.
  */
 export function calculateChartData(
   orders: Order[],
@@ -159,7 +167,8 @@ export function calculateChartData(
   const chartDataMap = new Map<string, ChartDataPoint>();
 
   orders.forEach((order) => {
-    const date = format(new Date(order.created_at), "yyyy-MM-dd");
+    // Use timezone service to get the correct date in São Paulo
+    const date = timezoneService.getDateInTimezone(order.created_at);
 
     if (!chartDataMap.has(date)) {
       chartDataMap.set(date, {
@@ -195,7 +204,7 @@ export function calculateChartData(
       const date = new Date(startDate);
       date.setDate(date.getDate() + Math.floor((i * daysDiff) / numPoints));
       chartData.push({
-        date: format(date, "yyyy-MM-dd"),
+        date: timezoneService.getDateInTimezone(date),
         revenue: 0,
         fees: 0,
         emails: 0,
