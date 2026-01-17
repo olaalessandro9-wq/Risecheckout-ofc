@@ -8,7 +8,7 @@
  */
 
 import { useProductContext } from "../context/ProductContext";
-import ProductSettingsPanelV2 from "@/components/products/ProductSettingsPanelV2";
+import ProductSettingsPanel from "@/components/products/ProductSettingsPanel";
 
 export function ConfiguracoesTab() {
   const { product, updateSettingsModified } = useProductContext();
@@ -22,7 +22,7 @@ export function ConfiguracoesTab() {
   }
 
   return (
-    <ProductSettingsPanelV2 
+    <ProductSettingsPanel 
       productId={product.id}
       onModifiedChange={updateSettingsModified}
     />

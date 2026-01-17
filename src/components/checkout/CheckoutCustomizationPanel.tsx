@@ -10,7 +10,7 @@ import { SettingsManager } from "@/features/checkout-builder/settings";
 import { TypeIcon, ImageIcon, CheckCircleIcon, AwardIcon, TimerIcon, QuoteIcon, VideoIcon } from "@/components/icons";
 import { useDraggable } from "@dnd-kit/core";
 import { getComponentConfig } from "./builder/registry";
-import { LegacyComponentEditor } from "./editors/LegacyComponentEditor"; // ✅ Importe o novo arquivo
+import { LegacyComponentEditor } from "./editors/legacy";
 
 // --- Interfaces ---
 interface CheckoutCustomizationPanelProps {

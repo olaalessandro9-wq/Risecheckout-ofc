@@ -105,21 +105,3 @@ export async function checkRateLimit(
 
   return { allowed: true };
 }
-
-// ============================================================================
-// Session Validation (DEPRECATED - Use unified-auth.ts)
-// ============================================================================
-
-/**
- * @deprecated Use `getAuthenticatedProducer` from `unified-auth.ts` instead.
- * This function is kept for backward compatibility only.
- * 
- * RISE Protocol V3: All new code MUST use unified-auth.ts
- */
-export async function validateProducerSession(
-  _supabase: SupabaseClient,
-  _sessionToken: string
-): Promise<{ valid: boolean; producerId?: string; error?: string }> {
-  console.warn("[DEPRECATED] validateProducerSession in pixel-rate-limit.ts - Use unified-auth.ts");
-  return { valid: false, error: "DEPRECATED: Use unified-auth.ts" };
-}
