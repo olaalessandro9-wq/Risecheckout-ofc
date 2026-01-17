@@ -2,9 +2,13 @@
  * useGeneralTabForm - Estado e Validação do Formulário
  * 
  * @see RISE ARCHITECT PROTOCOL
+ * 
+ * FIXES:
+ * - Added isInitialized flag to prevent false positive hasChanges
+ * - Form only marks as "initialized" after product data is loaded
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { GeneralFormData, GeneralFormErrors } from "../types";
 
 interface Product {
@@ -41,18 +45,40 @@ export function useGeneralTabForm({ product }: UseGeneralTabFormProps) {
     delivery_url: "",
   });
 
+  // Track if form has been initialized with product data
+  const [isInitialized, setIsInitialized] = useState(false);
+  
+  // Store reference to the product data that initialized the form
+  const initialProductRef = useRef<Product | null>(null);
+
   // Sincronizar form com product
   useEffect(() => {
     if (product) {
-      setForm({
+      const normalizedForm: GeneralFormData = {
         name: product.name,
         description: product.description || "",
         price: product.price,
         support_name: product.support_name || "",
         support_email: product.support_email || "",
         delivery_url: product.delivery_url || "",
-        external_delivery: product.external_delivery || false,
+        external_delivery: product.external_delivery ?? false,
+      };
+      
+      setForm(normalizedForm);
+      initialProductRef.current = product;
+      
+      // Mark as initialized after setting form from product
+      // Use requestAnimationFrame to ensure state update happens after render
+      requestAnimationFrame(() => {
+        setIsInitialized(true);
       });
+    }
+  }, [product]);
+
+  // Reset initialization when product id changes (different product)
+  useEffect(() => {
+    if (product && initialProductRef.current && product.name !== initialProductRef.current.name) {
+      setIsInitialized(false);
     }
   }, [product]);
 
@@ -114,5 +140,6 @@ export function useGeneralTabForm({ product }: UseGeneralTabFormProps) {
     errors,
     validate,
     clearError,
+    isInitialized,
   };
 }

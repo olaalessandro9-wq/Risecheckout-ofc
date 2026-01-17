@@ -6,6 +6,10 @@
  * - Cada responsabilidade em hook especializado
  * - Composição via hooks menores
  * - Single Responsibility aplicado
+ * 
+ * FIXES:
+ * - Normalized value comparison to prevent false positive hasChanges
+ * - Added isInitialized flag to prevent popup without edits
  */
 
 import { useMemo, useLayoutEffect } from "react";
@@ -18,6 +22,19 @@ import {
   useGeneralTabMemberGroups,
   useGeneralTabSave,
 } from "./hooks";
+
+/**
+ * Normalizes a value for comparison:
+ * - null/undefined -> ""
+ * - false/undefined -> false
+ */
+function normalizeString(value: string | null | undefined): string {
+  return value ?? "";
+}
+
+function normalizeBoolean(value: boolean | null | undefined): boolean {
+  return value ?? false;
+}
 
 export function useGeneralTab() {
   const { user } = useAuth();
@@ -38,6 +55,7 @@ export function useGeneralTab() {
     errors,
     validate,
     clearError,
+    isInitialized,
   } = useGeneralTabForm({ product });
 
   // Image handling
@@ -76,24 +94,26 @@ export function useGeneralTab() {
     membersAreaEnabled: product?.members_area_enabled,
   });
 
-  // Detect changes
+  // Detect changes - ONLY after initialization to prevent false positives
   const hasChanges = useMemo(() => {
-    if (!product) return false;
+    // Don't report changes until form is initialized with product data
+    if (!isInitialized || !product) return false;
 
+    // Normalize values before comparison to handle null/undefined vs ""
     const formChanged = (
       form.name !== product.name ||
-      form.description !== (product.description || "") ||
+      form.description !== normalizeString(product.description) ||
       form.price !== product.price ||
-      form.support_name !== (product.support_name || "") ||
-      form.support_email !== (product.support_email || "") ||
-      form.delivery_url !== (product.delivery_url || "") ||
-      form.external_delivery !== (product.external_delivery ?? false)
+      form.support_name !== normalizeString(product.support_name) ||
+      form.support_email !== normalizeString(product.support_email) ||
+      form.delivery_url !== normalizeString(product.delivery_url) ||
+      form.external_delivery !== normalizeBoolean(product.external_delivery)
     );
 
     const imageChanged = image.imageFile !== null || image.pendingRemoval;
 
     return formChanged || imageChanged || offersModified || deletedOfferIds.length > 0;
-  }, [form, product, image, offersModified, deletedOfferIds]);
+  }, [form, product, image, offersModified, deletedOfferIds, isInitialized]);
 
   // Notify context about changes
   useLayoutEffect(() => {

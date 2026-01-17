@@ -1367,7 +1367,8 @@ async function getMarketplaceCategories(
     return errorResponse("Erro ao buscar categorias", "DB_ERROR", corsHeaders, 500);
   }
 
-  return jsonResponse({ categories: data || [] }, corsHeaders);
+  // Return in standardized format expected by frontend
+  return jsonResponse({ success: true, data: data || [] }, corsHeaders);
 }
 
 // Marketplace stats for a product
@@ -1387,8 +1388,10 @@ async function getMarketplaceStats(
     return errorResponse("Erro ao buscar estatísticas", "DB_ERROR", corsHeaders, 500);
   }
 
+  // Return in standardized format expected by frontend
   return jsonResponse({
-    stats: {
+    success: true,
+    data: {
       views: data?.marketplace_views || 0,
       clicks: data?.marketplace_clicks || 0,
       enabledAt: data?.marketplace_enabled_at,
