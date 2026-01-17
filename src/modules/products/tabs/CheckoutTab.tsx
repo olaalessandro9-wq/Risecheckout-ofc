@@ -44,7 +44,7 @@ interface Checkout {
 }
 
 export function CheckoutTab() {
-  const { product, checkouts, refreshCheckouts, resetDirtySources } = useProductContext();
+  const { product, checkouts, refreshCheckouts } = useProductContext();
   const navigate = useNavigate();
   const { confirm, Bridge } = useConfirmDelete();
   const busy = useBusy();
@@ -105,18 +105,12 @@ export function CheckoutTab() {
       await busy.run(
         async () => {
           const { duplicateCheckout } = await import("@/lib/checkouts/duplicateCheckout");
-          const { id, editUrl } = await duplicateCheckout(checkout.id);
+          await duplicateCheckout(checkout.id);
           
-          // Recarregar checkouts
+          // Recarregar checkouts para mostrar o novo item na lista
           await refreshCheckouts();
           
-          toast.success("Checkout duplicado com sucesso!");
-          
-          // Reset dirty sources before navigation to prevent unsaved changes popup
-          resetDirtySources();
-          
-          // Navegar para personalização do novo checkout
-          navigate(editUrl);
+          toast.success("Checkout duplicado com sucesso! Clique em 'Customizar' para personalizá-lo.");
         },
         "Duplicando checkout..."
       );

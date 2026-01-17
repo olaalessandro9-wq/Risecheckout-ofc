@@ -40,6 +40,11 @@ export function AffiliatesTab() {
   // Referência para o snapshot inicial (para comparar mudanças)
   const snapshotRef = useRef<string>("");
   const gatewaySnapshotRef = useRef<string>("");
+  
+  // Track if component has been initialized (to prevent false dirty during load)
+  const [isInitialized, setIsInitialized] = useState(false);
+  // Track if user has interacted with the form
+  const hasUserInteracted = useRef(false);
 
   // Sincronizar com Context quando mudar e atualizar snapshot
   useEffect(() => {
@@ -62,64 +67,50 @@ export function AffiliatesTab() {
       };
       setLocalSettings(normalized);
       snapshotRef.current = JSON.stringify(normalized);
+      
+      // Mark initialized after data is loaded
+      requestAnimationFrame(() => {
+        setIsInitialized(true);
+      });
     }
   }, [affiliateSettings]);
 
-  // Carregar gateway settings do produto
+  // Gateway settings são defaults fixos por enquanto
+  // REMOVED: Call to admin-data with non-existent action 'affiliate-gateway-settings'
+  // Gateway settings ficam com valores padrão definidos no estado inicial
   useEffect(() => {
     if (product?.id) {
-      loadGatewaySettings();
+      // Set gateway snapshot with default values
+      gatewaySnapshotRef.current = JSON.stringify(gatewaySettings);
     }
   }, [product?.id]);
 
-  /**
-   * Load gateway settings via Edge Function
-   * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
-   */
-  const loadGatewaySettings = async () => {
-    if (!product?.id) return;
-    try {
-      const { api } = await import("@/lib/api");
-      
-      const { data, error } = await api.call<{ success?: boolean; data?: AffiliateGatewaySettingsData }>('admin-data', { 
-        action: 'affiliate-gateway-settings',
-        productId: product.id,
-      });
-      
-      if (error) throw new Error(error.message);
-      
-      if (data?.success && data?.data) {
-        const raw = data.data;
-        const settings: AffiliateGatewaySettingsData = {
-          pix_allowed: raw?.pix_allowed || ["asaas"],
-          credit_card_allowed: raw?.credit_card_allowed || ["mercadopago", "stripe"],
-          require_gateway_connection: raw?.require_gateway_connection ?? true,
-        };
-        setGatewaySettings(settings);
-        gatewaySnapshotRef.current = JSON.stringify(settings);
-      }
-    } catch (error: unknown) {
-      console.error("Erro ao carregar gateway settings:", error);
-    }
-  };
-
-  // Detectar mudanças comparando com snapshot
+  // Detectar mudanças comparando com snapshot - ONLY after initialization and user interaction
   useLayoutEffect(() => {
+    // Don't mark dirty until initialized and user has interacted
+    if (!isInitialized || !hasUserInteracted.current) {
+      return;
+    }
+    
     const currentJson = JSON.stringify(localSettings);
     const gatewayJson = JSON.stringify(gatewaySettings);
     const hasSettingsChanges = currentJson !== snapshotRef.current;
     const hasGatewayChanges = gatewayJson !== gatewaySnapshotRef.current;
     updateSettingsModified(hasSettingsChanges || hasGatewayChanges);
-  }, [localSettings, gatewaySettings, updateSettingsModified]);
+  }, [localSettings, gatewaySettings, updateSettingsModified, isInitialized]);
 
   type AffiliateSettingValue = string | number | boolean;
   
   const handleChange = (field: keyof AffiliateSettings, value: AffiliateSettingValue) => {
+    // Mark user interaction
+    hasUserInteracted.current = true;
     const newSettings = { ...localSettings, [field]: value } as AffiliateSettings;
     setLocalSettings(newSettings);
   };
 
   const handleGatewaySettingsChange = (settings: AffiliateGatewaySettingsData) => {
+    // Mark user interaction
+    hasUserInteracted.current = true;
     setGatewaySettings(settings);
   };
 
