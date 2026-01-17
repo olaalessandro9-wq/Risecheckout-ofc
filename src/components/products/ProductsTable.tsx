@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -125,12 +126,10 @@ export function ProductsTable() {
     
     setLoading(true);
     try {
-      const sessionToken = localStorage.getItem('producer_session_token');
-      
-      const { data, error } = await supabase.functions.invoke('products-crud', {
-        body: { action: 'list', excludeDeleted: true },
-        headers: { 'x-producer-session-token': sessionToken || '' }
-      });
+      const { data, error } = await api.call<{
+        products?: Product[];
+        error?: string;
+      }>('products-crud', { action: 'list', excludeDeleted: true });
 
       if (error) throw error;
       

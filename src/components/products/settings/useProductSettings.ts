@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { getGatewayById, isGatewayAvailable, type PaymentMethod } from "@/config/payment-gateways";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -44,9 +44,9 @@ export function useProductSettings(
 
   /**
    * Load credentials via Edge Function
-   * MIGRATED: Uses products-crud Edge Function
+   * MIGRATED: Uses api.call instead of supabase.functions.invoke
    */
-  const loadCredentials = useCallback(async (userId: string) => {
+  const loadCredentials = useCallback(async (_userId: string) => {
     // Owner: todas as credenciais vêm das Secrets - sempre configuradas
     if (isOwner) {
       setCredentials({
@@ -58,13 +58,10 @@ export function useProductSettings(
       return;
     }
 
-    // MIGRATED: Use products-crud Edge Function
+    // MIGRATED: Use api.call
     try {
-      const sessionToken = localStorage.getItem('producer_session_token');
-      
-      const { data, error } = await supabase.functions.invoke('products-crud', {
-        body: { action: 'check-credentials' },
-        headers: { 'x-producer-session-token': sessionToken || '' }
+      const { data, error } = await api.call<{ credentials?: GatewayCredentials }>('products-crud', {
+        action: 'check-credentials'
       });
 
       if (error) {
@@ -87,12 +84,16 @@ export function useProductSettings(
   const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
-      const sessionToken = localStorage.getItem('producer_session_token');
-      
-      const { data, error } = await supabase.functions.invoke('products-crud', {
-        body: { action: 'get-settings', productId },
-        headers: { 'x-producer-session-token': sessionToken || '' }
-      });
+      const { data, error } = await api.call<{
+        settings?: {
+          user_id?: string;
+          required_fields?: Record<string, boolean>;
+          default_payment_method?: string;
+          pix_gateway?: string;
+          credit_card_gateway?: string;
+        };
+        error?: string;
+      }>('products-crud', { action: 'get-settings', productId });
 
       if (error) {
         console.error("Error loading settings via Edge Function:", error);
@@ -152,24 +153,19 @@ export function useProductSettings(
 
     setSaving(true);
     try {
-      const sessionToken = localStorage.getItem('producer_session_token');
-      
-      const { data, error } = await supabase.functions.invoke('product-settings', {
-        body: {
-          action: 'update-settings',
-          productId,
-          sessionToken,
-          settings: {
-            required_fields: {
-              name: true,
-              email: true,
-              phone: form.required_fields.phone,
-              cpf: form.required_fields.cpf,
-            },
-            default_payment_method: form.default_payment_method,
-            pix_gateway: form.pix_gateway,
-            credit_card_gateway: form.credit_card_gateway,
+      const { data, error } = await api.call<{ success?: boolean; error?: string }>('product-settings', {
+        action: 'update-settings',
+        productId,
+        settings: {
+          required_fields: {
+            name: true,
+            email: true,
+            phone: form.required_fields.phone,
+            cpf: form.required_fields.cpf,
           },
+          default_payment_method: form.default_payment_method,
+          pix_gateway: form.pix_gateway,
+          credit_card_gateway: form.credit_card_gateway,
         },
       });
 

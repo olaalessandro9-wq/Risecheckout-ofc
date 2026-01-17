@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
@@ -21,19 +21,13 @@ export async function deleteProductCascade(_supabaseClient: SupabaseClient, rawP
 
   console.log('[deleteProductCascade] Starting smart deletion via Edge Function for product:', productId);
 
-  // Obter sessionToken para autenticação
-  const sessionToken = localStorage.getItem('producer_session_token');
-
   // Chamar Edge Function para deleção segura
-  const { data, error } = await supabase.functions.invoke('product-settings', {
-    body: {
-      action: 'smart-delete',
-      productId,
-      sessionToken,
-    },
-    headers: {
-      'x-producer-session-token': sessionToken || '',
-    },
+  const { data, error } = await api.call<{
+    success?: boolean;
+    error?: string;
+  }>('product-settings', {
+    action: 'smart-delete',
+    productId,
   });
 
   if (error) {
