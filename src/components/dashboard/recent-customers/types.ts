@@ -5,6 +5,8 @@
  * - Single Source of Truth: Todos os tipos em um lugar
  */
 
+import type { CustomerDisplayStatus } from "@/modules/dashboard/types";
+
 export interface Customer {
   id: string;
   orderId: string;
@@ -14,7 +16,8 @@ export interface Customer {
   email: string;
   createdAt: string;
   value: string;
-  status: "Pago" | "Pendente" | "Reembolso" | "Chargeback";
+  status: CustomerDisplayStatus;
+  statusRaw?: string;
   productName: string;
   productImageUrl: string;
   productOwnerId: string;

@@ -2,12 +2,13 @@
  * Funções de formatação para o Dashboard
  * 
  * @module dashboard/utils
- * @version 2.0.0 - RISE V3 Compliant (Timezone Support)
+ * @version 3.0.0 - RISE V3 Compliant (Solution C - Canonical Status)
  */
 
 import type { Order, RecentCustomer } from "../types";
 import { formatCentsToBRL } from "@/lib/money";
 import { timezoneService } from "@/lib/timezone";
+import { orderStatusService } from "@/lib/order-status";
 
 // Re-export para manter compatibilidade
 export const formatCurrency = formatCentsToBRL;
@@ -23,22 +24,45 @@ export function formatDate(dateString: string): string {
 }
 
 // ============================================================================
-// STATUS TRANSLATOR
+// STATUS TRANSLATOR (Using OrderStatusService)
 // ============================================================================
 
-export function translateStatus(
-  status: string
-): "Pago" | "Pendente" | "Reembolso" | "Chargeback" {
-  const statusMap: Record<
-    string,
-    "Pago" | "Pendente" | "Reembolso" | "Chargeback"
-  > = {
-    paid: "Pago",
-    pending: "Pendente",
-    refunded: "Reembolso",
-    chargeback: "Chargeback",
-  };
-  return statusMap[status?.toLowerCase()] || "Pendente";
+import type { CustomerDisplayStatus } from "../types";
+
+/**
+ * Traduz o status do pedido para exibição
+ * 
+ * IMPORTANTE: Agora usa OrderStatusService para normalização.
+ * Não há mais fallback para "Pendente" - status desconhecidos
+ * aparecem como "Desconhecido".
+ * 
+ * @param status - Status do pedido (canônico ou de gateway)
+ * @returns Label traduzido para PT-BR
+ */
+export function translateStatus(status: string): CustomerDisplayStatus {
+  return orderStatusService.getDisplayLabel(status) as CustomerDisplayStatus;
+}
+
+/**
+ * Retorna o esquema de cores para um status
+ * Uso em badges e indicadores visuais
+ */
+export function getStatusColors(status: string) {
+  return orderStatusService.getColorScheme(status);
+}
+
+/**
+ * Verifica se o status representa um pagamento concluído
+ */
+export function isStatusPaid(status: string): boolean {
+  return orderStatusService.isPaid(status);
+}
+
+/**
+ * Verifica se o status representa um pagamento pendente
+ */
+export function isStatusPending(status: string): boolean {
+  return orderStatusService.isPending(status);
 }
 
 // ============================================================================
@@ -81,6 +105,8 @@ export function formatRecentCustomers(orders: Order[]): RecentCustomer[] {
       createdAt: formatDate(order.created_at),
       value: formatCurrency(order.amount_cents || 0),
       status: translateStatus(order.status),
+      // Preservar status raw para debugging/diagnóstico
+      statusRaw: order.status,
       productName: product?.name || "Produto não encontrado",
       productImageUrl: product?.image_url || "",
       productOwnerId: product?.user_id || "",

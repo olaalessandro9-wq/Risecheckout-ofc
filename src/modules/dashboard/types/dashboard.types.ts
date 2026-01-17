@@ -123,6 +123,19 @@ export interface ChartDataPoint {
 // ============================================================================
 
 /**
+ * Status de exibição para clientes
+ * Agora inclui todos os status canônicos traduzidos
+ */
+export type CustomerDisplayStatus = 
+  | "Pago" 
+  | "Pendente" 
+  | "Reembolso" 
+  | "Chargeback" 
+  | "Cancelado" 
+  | "Falhou"
+  | "Desconhecido";
+
+/**
  * Cliente recente formatado para exibição
  */
 export interface RecentCustomer {
@@ -134,7 +147,10 @@ export interface RecentCustomer {
   readonly email: string;
   readonly createdAt: string;
   readonly value: string;
-  readonly status: "Pago" | "Pendente" | "Reembolso" | "Chargeback";
+  /** Status traduzido para exibição */
+  readonly status: CustomerDisplayStatus;
+  /** Status raw original (para debugging/diagnóstico) */
+  readonly statusRaw?: string;
   // Dados completos para o dialog
   readonly productName: string;
   readonly productImageUrl: string;
