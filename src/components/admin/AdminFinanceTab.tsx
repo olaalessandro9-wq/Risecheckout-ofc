@@ -2,8 +2,7 @@
  * AdminFinanceTab - Aba de métricas financeiras do dashboard admin
  */
 
-import { MetricCard } from "@/components/dashboard/MetricCard";
-import { RevenueChart } from "@/components/dashboard/RevenueChart";
+import { MetricCard, RevenueChart } from "@/modules/dashboard";
 import { AdminTopSellersTable } from "./AdminTopSellersTable";
 import { 
   useAdminFinancialMetrics, 
