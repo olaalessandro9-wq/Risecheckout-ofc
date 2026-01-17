@@ -16,11 +16,9 @@ import {
   getClientIP 
 } from "../_shared/rate-limiter.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const corsHeaders = PUBLIC_CORS_HEADERS;
 
 interface CertificateRequest {
   action: "list-templates" | "get-template" | "create-template" | "update-template" | "delete-template" | "generate" | "verify" | "list-buyer-certificates";

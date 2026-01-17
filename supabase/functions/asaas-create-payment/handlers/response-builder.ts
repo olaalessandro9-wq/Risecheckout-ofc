@@ -4,10 +4,9 @@
  * Responsável por construir respostas padronizadas
  */
 
-export const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { PUBLIC_CORS_HEADERS } from "../../_shared/cors.ts";
+
+export const corsHeaders = PUBLIC_CORS_HEADERS;
 
 /**
  * Mapeia status do Asaas para status interno
