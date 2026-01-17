@@ -106,6 +106,17 @@ export interface InitCheckoutSettingsAction {
 }
 
 /**
+ * Ação: Marcar checkout settings como salvo (após save bem-sucedido)
+ * Força atualização do serverData, ignorando o guard de dirty
+ */
+export interface MarkCheckoutSettingsSavedAction {
+  type: "MARK_CHECKOUT_SETTINGS_SAVED";
+  payload: {
+    settings: CheckoutSettingsFormData;
+  };
+}
+
+/**
  * Ação: Resetar para dados do servidor
  */
 export interface ResetToServerAction {
@@ -175,6 +186,7 @@ export type ProductFormAction =
   | UpdateAffiliateAction
   | UpdateCheckoutSettingsAction
   | InitCheckoutSettingsAction
+  | MarkCheckoutSettingsSavedAction
   | ResetToServerAction
   | MarkSavedAction
   | SetValidationErrorAction

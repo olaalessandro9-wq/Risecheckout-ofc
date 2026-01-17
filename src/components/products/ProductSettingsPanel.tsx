@@ -37,15 +37,22 @@ export default function ProductSettingsPanel({ productId, onModifiedChange }: Pr
     updateCheckoutSettingsField,
     initCheckoutSettings,
     formState,
+    formDispatch,
   } = useProductContext();
   
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const { role, isLoading: permissionsLoading } = usePermissions();
   const isOwner = role === "owner";
 
-  // Carregar configurações do servidor na montagem
+  // Carregar configurações do servidor APENAS se ainda não foram inicializadas
+  // Isso garante que ao navegar entre abas, as edições do usuário são preservadas
   useEffect(() => {
+    // Se já inicializado, não recarrega (preserva edições do usuário)
+    if (formState.isCheckoutSettingsInitialized) {
+      return;
+    }
+    
     if (permissionsLoading || !productId) return;
 
     const loadSettings = async () => {
@@ -98,7 +105,7 @@ export default function ProductSettingsPanel({ productId, onModifiedChange }: Pr
     };
 
     loadSettings();
-  }, [productId, permissionsLoading, isOwner, initCheckoutSettings]);
+  }, [productId, permissionsLoading, isOwner, initCheckoutSettings, formState.isCheckoutSettingsInitialized]);
 
   // Notificar mudanças
   useEffect(() => {
@@ -158,14 +165,17 @@ export default function ProductSettingsPanel({ productId, onModifiedChange }: Pr
       }
 
       toast.success("Configurações salvas com sucesso.");
-      // Re-init para marcar como salvo
-      initCheckoutSettings(form, checkoutCredentials);
+      // Usar action específica que não tem guard - força atualização do serverData
+      formDispatch({ type: "MARK_CHECKOUT_SETTINGS_SAVED", payload: { settings: form } });
     } finally {
       setSaving(false);
     }
-  }, [form, productId, initCheckoutSettings, checkoutCredentials]);
+  }, [form, productId, formDispatch]);
 
-  if (loading || permissionsLoading) {
+  // Loading: só mostra se ainda não foi inicializado OU se está carregando ativamente
+  const isLoading = loading || permissionsLoading || (!formState.isCheckoutSettingsInitialized && !loading);
+
+  if (isLoading && !formState.isCheckoutSettingsInitialized) {
     return (
       <Card className="border-muted">
         <CardContent className="p-6">
