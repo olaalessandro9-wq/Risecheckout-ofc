@@ -3,7 +3,8 @@
  * 
  * MODULARIZADO seguindo RISE Protocol V3.
  * - Reducer como Single Source of Truth
- * - Zero duplicidade de estado (useProductSettings refatorado)
+ * - Zero duplicidade de estado
+ * - Helpers extraídos para manter < 300 linhas
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - Nota 10/10
  */
@@ -11,21 +12,14 @@
 import { createContext, useContext, useReducer, useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import type { ProductContextState, ProductProviderProps, AffiliateSettings, UpsellSettings, ProductData, Offer } from "../types/product.types";
-import type { GeneralFormData, ImageFormState, ProductFormState, ProductFormDispatch, FormValidationErrors, CheckoutSettingsFormData, GatewayCredentials } from "../types/productForm.types";
+import type { ProductContextState, ProductProviderProps, AffiliateSettings, UpsellSettings, Offer } from "../types/product.types";
+import type { GeneralFormData, ImageFormState, ProductFormState, ProductFormDispatch, CheckoutSettingsFormData, GatewayCredentials } from "../types/productForm.types";
 
 // Reducer e Actions
 import { productFormReducer, INITIAL_FORM_STATE, formActions } from "./productFormReducer";
-import { validateGeneralForm } from "./productFormValidation";
 
 // Hooks especializados
-import {
-  useProductCore,
-  useProductEntities,
-  useProductCheckouts,
-} from "./hooks";
-
-// Adapter puro (zero useState)
+import { useProductCore, useProductEntities, useProductCheckouts } from "./hooks";
 import { useProductSettings as useProductSettingsAdapter } from "./hooks/useProductSettingsAdapter";
 
 // Helpers
@@ -38,10 +32,11 @@ import {
   createUpdateCheckoutSettingsField,
   createInitCheckoutSettings,
   createSaveProduct,
-  createSaveAll,
-  createUpdateProduct,
-  createUpdateProductBulk,
 } from "./helpers";
+
+// Factory functions extraídas
+import { createContextValue } from "./helpers/createContextValue";
+import { createLegacyCallbacks } from "./helpers/legacyCallbacks";
 
 // ============================================================================
 // CONTEXT TYPE ESTENDIDO
@@ -51,7 +46,7 @@ interface ProductContextExtended extends ProductContextState {
   formState: ProductFormState;
   formDispatch: ProductFormDispatch;
   dispatchForm: ProductFormDispatch;
-  formErrors: FormValidationErrors;
+  formErrors: ProductFormState["validation"];
   validateGeneralForm: () => boolean;
   generalForm: GeneralFormData;
   imageState: ImageFormState;
@@ -90,18 +85,8 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
 
   const hasUnsavedChanges = formState.isDirty;
 
-  // Legacy callbacks (no-op para compatibilidade)
-  const markCoreUnsaved = useCallback(() => {}, []);
-  const markCoreSaved = useCallback(() => {}, []);
-  const markSettingsSaved = useCallback(() => {
-    formDispatch(formActions.markSaved());
-  }, []);
-  const updateGeneralModified = useCallback(() => {}, []);
-  const updateSettingsModified = useCallback(() => {}, []);
-  const updateUpsellModified = useCallback(() => {}, []);
-  const resetDirtySources = useCallback(() => {
-    formDispatch(formActions.resetToServer());
-  }, []);
+  // Legacy callbacks (extraídos para helper)
+  const legacyCallbacks = createLegacyCallbacks(formDispatch);
 
   // Callbacks para o adapter - atualizam o Reducer
   const handleUpdateUpsell = useCallback((settings: Partial<UpsellSettings>) => {
@@ -120,16 +105,15 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     affiliateSettings: formState.editedData.affiliate,
     onUpdateUpsell: handleUpdateUpsell,
     onUpdateAffiliate: handleUpdateAffiliate,
-    onSaveComplete: markSettingsSaved,
+    onSaveComplete: legacyCallbacks.markSettingsSaved,
   });
 
   // Core hook (carregamento do produto)
   const core = useProductCore({
     productId,
     userId: user?.id,
-    onUnsavedChange: markCoreUnsaved,
+    onUnsavedChange: legacyCallbacks.markCoreUnsaved,
     onUpsellSettingsLoaded: (settings: UpsellSettings) => {
-      // Quando carregado, inicializa no Reducer
       formDispatch(formActions.updateUpsell(settings));
     },
     onAffiliateSettingsLoaded: (settings: AffiliateSettings | null) => {
@@ -230,79 +214,17 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     }
   }, [saveProduct, settingsAdapter, formState.editedData]);
 
-  // Update wrappers
-  const updateProduct = useCallback(
-    createUpdateProduct(core, formDispatch),
-    [core]
-  );
-
-  const updateProductBulk = useCallback(
-    createUpdateProductBulk(core, formDispatch),
-    [core]
-  );
-
-  // Default settings (para compatibilidade)
-  const defaultPaymentSettings = {
-    pixEnabled: true,
-    creditCardEnabled: true,
-    defaultPaymentMethod: "credit_card" as const,
-  };
-
-  const defaultCheckoutFields = {
-    fullName: true,
-    phone: true,
-    email: true,
-    cpf: false,
-  };
-
-  // Context value
-  const contextValue: ProductContextExtended = {
-    product: core.product,
-    offers: entities.offers,
-    orderBumps: entities.orderBumps,
-    checkouts: checkoutsHook.checkouts,
-    coupons: entities.coupons,
-    paymentLinks: checkoutsHook.paymentLinks,
-    paymentSettings: defaultPaymentSettings,
-    checkoutFields: defaultCheckoutFields,
-    upsellSettings: formState.editedData.upsell,
-    affiliateSettings: formState.editedData.affiliate,
+  // Context value (extraído para factory)
+  const contextValue = createContextValue({
+    core,
+    entities,
+    checkoutsHook,
+    formState,
+    formDispatch,
+    settingsAdapter,
     loading,
     saving,
     hasUnsavedChanges,
-    updateSettingsModified,
-    updateGeneralModified,
-    updateUpsellModified,
-    resetDirtySources,
-    updateProduct,
-    updateProductBulk,
-    updatePaymentSettings: () => {}, // Legacy no-op
-    updateCheckoutFields: () => {}, // Legacy no-op
-    updateUpsellSettings: settingsAdapter.updateUpsellSettings,
-    updateAffiliateSettings: settingsAdapter.updateAffiliateSettings,
-    saveProduct,
-    savePaymentSettings: async () => {}, // Legacy no-op
-    saveCheckoutFields: async () => {}, // Legacy no-op
-    saveUpsellSettings,
-    saveAffiliateSettings,
-    saveAll,
-    refreshProduct: core.refreshProduct,
-    refreshOffers: entities.refreshOffers,
-    refreshOrderBumps: entities.refreshOrderBumps,
-    refreshCheckouts: checkoutsHook.refreshCheckouts,
-    refreshCoupons: entities.refreshCoupons,
-    refreshPaymentLinks: checkoutsHook.refreshPaymentLinks,
-    refreshAll,
-    deleteProduct: core.deleteProduct,
-    formState,
-    formDispatch,
-    dispatchForm: formDispatch,
-    formErrors: formState.validation,
-    validateGeneralForm: () => validateGeneralForm(formState.editedData.general).isValid,
-    generalForm: formState.editedData.general,
-    imageState: formState.editedData.image,
-    localOffers: formState.editedData.offers.localOffers,
-    checkoutSettingsForm: formState.editedData.checkoutSettings,
     checkoutCredentials,
     updateGeneralField,
     updateImageState,
@@ -311,7 +233,13 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     setOffersModified,
     updateCheckoutSettingsField,
     initCheckoutSettings: initCheckoutSettingsHandler,
-  };
+    saveProduct,
+    saveUpsellSettings,
+    saveAffiliateSettings,
+    saveAll,
+    refreshAll,
+    ...legacyCallbacks,
+  }) as ProductContextExtended;
 
   return (
     <ProductContext.Provider value={contextValue}>
