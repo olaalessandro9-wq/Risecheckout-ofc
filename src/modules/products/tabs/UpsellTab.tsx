@@ -8,7 +8,7 @@
  * @see RISE ARCHITECT PROTOCOL V3
  */
 
-import React, { useLayoutEffect, useCallback, useMemo, useState } from "react";
+import { useLayoutEffect, useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

@@ -1,39 +1,46 @@
 /**
  * useGeneralTabOffers - Lógica de Ofertas
  * 
- * @see RISE ARCHITECT PROTOCOL
+ * REFATORADO para usar estado do ProductContext via reducer.
+ * Não mantém estado local - usa formState.editedData.offers.
+ * 
+ * @see RISE ARCHITECT PROTOCOL - Solução C
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback } from "react";
 import { api } from "@/lib/api";
-import type { Offer } from "@/components/products/OffersManager";
+import { useProductContext } from "../../../context/ProductContext";
+import type { Offer } from "../../../types/product.types";
 
 interface UseGeneralTabOffersProps {
-  offers: Offer[];
   productId: string | undefined;
 }
 
-export function useGeneralTabOffers({ offers, productId }: UseGeneralTabOffersProps) {
-  const [localOffers, setLocalOffers] = useState<Offer[]>([]);
-  const [deletedOfferIds, setDeletedOfferIds] = useState<string[]>([]);
-  const [offersModified, setOffersModified] = useState(false);
-
-  // Sincronizar ofertas
-  useEffect(() => {
-    setLocalOffers(offers);
-  }, [offers]);
+export function useGeneralTabOffers({ productId }: UseGeneralTabOffersProps) {
+  const { 
+    localOffers,
+    formState,
+    updateLocalOffers,
+    markOfferDeleted,
+    setOffersModified,
+    dispatchForm,
+  } = useProductContext();
+  
+  // Derivar do reducer
+  const offersModified = formState.editedData.offers.modified;
+  const deletedOfferIds = formState.editedData.offers.deletedOfferIds;
 
   const handleOffersChange = useCallback((newOffers: Offer[]) => {
-    setLocalOffers(newOffers);
-  }, []);
+    updateLocalOffers(newOffers);
+  }, [updateLocalOffers]);
 
   const handleOffersModifiedChange = useCallback((modified: boolean) => {
     setOffersModified(modified);
-  }, []);
+  }, [setOffersModified]);
 
   const handleOfferDeleted = useCallback((offerId: string) => {
-    setDeletedOfferIds((prev) => [...prev, offerId]);
-  }, []);
+    markOfferDeleted(offerId);
+  }, [markOfferDeleted]);
 
   // Salvar ofertas deletadas via Edge Function
   const saveDeletedOffers = useCallback(async () => {
@@ -64,7 +71,7 @@ export function useGeneralTabOffers({ offers, productId }: UseGeneralTabOffersPr
       name: offer.name,
       price: offer.price,
       isDefault: offer.is_default || false,
-      memberGroupId: offer.member_group_id || null,
+      memberGroupId: null,
     }));
     
     const { data, error } = await api.call<{ success?: boolean; error?: string }>('offer-bulk/bulk-save', {
@@ -82,9 +89,8 @@ export function useGeneralTabOffers({ offers, productId }: UseGeneralTabOffersPr
   }, [offersModified, localOffers, productId]);
 
   const resetOffers = useCallback(() => {
-    setOffersModified(false);
-    setDeletedOfferIds([]);
-  }, []);
+    dispatchForm({ type: 'RESET_OFFERS' });
+  }, [dispatchForm]);
 
   return {
     localOffers,
