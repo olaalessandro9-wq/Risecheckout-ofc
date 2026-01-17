@@ -1,6 +1,8 @@
 /**
  * Página de Confirmação de Exclusão de Dados (LGPD)
  * 
+ * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
+ * 
  * Recebe o token de verificação e permite ao usuário
  * confirmar a anonimização permanente de seus dados.
  */
@@ -13,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 
 interface AnonymizationSummary {
@@ -58,11 +60,13 @@ export default function GdprConfirm() {
     setIsProcessing(true);
 
     try {
-      const { data, error: fnError } = await supabase.functions.invoke("gdpr-forget", {
-        body: { 
-          token: token,
-          confirm: true
-        }
+      const { data, error: fnError } = await api.publicCall<{ 
+        success?: boolean; 
+        message?: string; 
+        summary?: AnonymizationSummary 
+      }>("gdpr-forget", {
+        token: token,
+        confirm: true,
       });
 
       if (fnError) {

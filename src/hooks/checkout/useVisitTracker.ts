@@ -4,13 +4,13 @@
  * Hook para rastrear visitas ao checkout.
  * Insere registro em checkout_visits via Edge Function.
  * 
- * MIGRATED: Zero fallback, apenas Edge Function
+ * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
  * 
  * @version 2.0.0 - RISE Protocol V2
  */
 
 import { useEffect, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 
 /**
  * Tracks a checkout visit once per session
@@ -38,17 +38,15 @@ export function useVisitTracker(checkoutId: string | undefined): void {
         const urlParams = new URLSearchParams(window.location.search);
         
         // Call edge function to track visit (captures IP server-side)
-        const { error } = await supabase.functions.invoke("track-visit", {
-          body: {
-            checkoutId,
-            userAgent: navigator.userAgent,
-            referrer: document.referrer || null,
-            utmSource: urlParams.get("utm_source"),
-            utmMedium: urlParams.get("utm_medium"),
-            utmCampaign: urlParams.get("utm_campaign"),
-            utmContent: urlParams.get("utm_content"),
-            utmTerm: urlParams.get("utm_term"),
-          },
+        const { error } = await api.publicCall("track-visit", {
+          checkoutId,
+          userAgent: navigator.userAgent,
+          referrer: document.referrer || null,
+          utmSource: urlParams.get("utm_source"),
+          utmMedium: urlParams.get("utm_medium"),
+          utmCampaign: urlParams.get("utm_campaign"),
+          utmContent: urlParams.get("utm_content"),
+          utmTerm: urlParams.get("utm_term"),
         });
 
         if (error) {
