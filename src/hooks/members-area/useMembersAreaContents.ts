@@ -4,7 +4,7 @@
  */
 
 import { useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { createLogger } from "@/lib/logger";
 import { normalizeContentType } from "@/modules/members-area/utils";
@@ -39,18 +39,14 @@ export function useMembersAreaContents({
     data: Omit<MemberContent, "id" | "module_id" | "position" | "created_at" | "updated_at">
   ): Promise<MemberContent | null> => {
     setIsSaving(true);
-    const sessionToken = localStorage.getItem('producer_session_token');
     try {
-      const { data: result, error } = await supabase.functions.invoke("content-crud", {
-        body: {
-          action: "create",
-          moduleId,
-          data,
-        },
-        headers: { 'x-producer-session-token': sessionToken || '' },
+      const { data: result, error } = await api.call<{ success?: boolean; error?: string; data?: MemberContent }>("content-crud", {
+        action: "create",
+        moduleId,
+        data,
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       if (!result?.success) throw new Error(result?.error || "Failed to create content");
 
       const newContent = result.data;
@@ -77,18 +73,14 @@ export function useMembersAreaContents({
 
   const updateContent = useCallback(async (id: string, data: Partial<MemberContent>) => {
     setIsSaving(true);
-    const sessionToken = localStorage.getItem('producer_session_token');
     try {
-      const { data: result, error } = await supabase.functions.invoke("content-crud", {
-        body: {
-          action: "update",
-          contentId: id,
-          data,
-        },
-        headers: { 'x-producer-session-token': sessionToken || '' },
+      const { data: result, error } = await api.call<{ success?: boolean; error?: string }>("content-crud", {
+        action: "update",
+        contentId: id,
+        data,
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       if (!result?.success) throw new Error(result?.error || "Failed to update content");
 
       setModules(prev => prev.map(m => ({
@@ -106,17 +98,13 @@ export function useMembersAreaContents({
 
   const deleteContent = useCallback(async (id: string) => {
     setIsSaving(true);
-    const sessionToken = localStorage.getItem('producer_session_token');
     try {
-      const { data: result, error } = await supabase.functions.invoke("content-crud", {
-        body: {
-          action: "delete",
-          contentId: id,
-        },
-        headers: { 'x-producer-session-token': sessionToken || '' },
+      const { data: result, error } = await api.call<{ success?: boolean; error?: string }>("content-crud", {
+        action: "delete",
+        contentId: id,
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       if (!result?.success) throw new Error(result?.error || "Failed to delete content");
 
       setModules(prev => prev.map(m => ({
@@ -156,18 +144,14 @@ export function useMembersAreaContents({
     });
 
     // 3. Persistir em background via Edge Function
-    const sessionToken = localStorage.getItem('producer_session_token');
     try {
-      const { data: result, error } = await supabase.functions.invoke("content-crud", {
-        body: {
-          action: "reorder",
-          moduleId,
-          orderedIds,
-        },
-        headers: { 'x-producer-session-token': sessionToken || '' },
+      const { data: result, error } = await api.call<{ success?: boolean; error?: string }>("content-crud", {
+        action: "reorder",
+        moduleId,
+        orderedIds,
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       if (!result?.success) throw new Error(result?.error || "Failed to reorder contents");
     } catch (error: unknown) {
       // 4. Rollback em caso de erro

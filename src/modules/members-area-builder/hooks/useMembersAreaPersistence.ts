@@ -10,7 +10,7 @@
  */
 
 import { useCallback, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import type { 
   BuilderState, 
@@ -56,19 +56,12 @@ export function useMembersAreaPersistence({
     setState(prev => ({ ...prev, isLoading: true }));
     
     try {
-      const sessionToken = localStorage.getItem('producer_session_token');
-      
-      const { data, error } = await supabase.functions.invoke('admin-data', {
-        body: {
-          action: 'members-area-data',
-          productId,
-        },
-        headers: {
-          'x-producer-session-token': sessionToken || '',
-        },
+      const { data, error } = await api.call<{ error?: string; sections?: unknown[]; settings?: unknown }>('admin-data', {
+        action: 'members-area-data',
+        productId,
       });
       
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
       
       const parsedSections = parseSections(data?.sections || []);
@@ -102,41 +95,30 @@ export function useMembersAreaPersistence({
     setState(prev => ({ ...prev, isSaving: true }));
     
     try {
-      const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
-      const sessionToken = getProducerSessionToken();
-      
       // 1. Get deleted section IDs (in original but not in current, excluding temp IDs)
       const originalIds = new Set(originalSectionsRef.current.map(s => s.id));
       const currentIds = new Set(state.sections.map(s => s.id));
       const deletedIds = [...originalIds].filter(id => !currentIds.has(id));
       
       // 2. Save sections via Edge Function
-      const { data: sectionsResult, error: sectionsError } = await supabase.functions.invoke('members-area-modules', {
-        body: {
-          action: 'save-sections',
-          productId,
-          sections: state.sections,
-          deletedIds,
-          sessionToken,
-        },
-        headers: { 'x-producer-session-token': sessionToken || '' },
+      const { data: sectionsResult, error: sectionsError } = await api.call<{ success?: boolean; error?: string; insertedIdMap?: Record<string, string> }>('members-area-modules', {
+        action: 'save-sections',
+        productId,
+        sections: state.sections,
+        deletedIds,
       });
       
       if (sectionsError || !sectionsResult?.success) {
         throw new Error(sectionsResult?.error || sectionsError?.message || "Erro ao salvar seções");
       }
       
-      const insertedIdMap: Map<string, string> = new Map(Object.entries(sectionsResult.insertedIdMap || {}));
+      const insertedIdMap: Map<string, string> = new Map(Object.entries(sectionsResult?.insertedIdMap || {}));
       
       // 3. Save settings via Edge Function
-      const { data: settingsResult, error: settingsError } = await supabase.functions.invoke('members-area-modules', {
-        body: {
-          action: 'save-builder-settings',
-          productId,
-          settings: state.settings,
-          sessionToken,
-        },
-        headers: { 'x-producer-session-token': sessionToken || '' },
+      const { data: settingsResult, error: settingsError } = await api.call<{ success?: boolean; error?: string }>('members-area-modules', {
+        action: 'save-builder-settings',
+        productId,
+        settings: state.settings,
       });
       
       if (settingsError || !settingsResult?.success) {
@@ -186,25 +168,18 @@ export function useMembersAreaPersistence({
 
   /**
    * Load modules via Edge Function
-   * MIGRATED: Uses admin-data Edge Function
+   * MIGRATED: Uses admin-data Edge Function via api.call
    */
   const loadModules = useCallback(async () => {
     if (!productId) return;
     
     try {
-      const sessionToken = localStorage.getItem('producer_session_token');
-      
-      const { data, error } = await supabase.functions.invoke('admin-data', {
-        body: {
-          action: 'members-area-modules',
-          productId,
-        },
-        headers: {
-          'x-producer-session-token': sessionToken || '',
-        },
+      const { data, error } = await api.call<{ error?: string; modules?: unknown[] }>('admin-data', {
+        action: 'members-area-modules',
+        productId,
       });
       
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
       
       setState(prev => ({

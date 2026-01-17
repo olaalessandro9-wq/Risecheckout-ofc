@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import type { Offer } from "@/components/products/OffersManager";
 
 interface UseGeneralTabOffersProps {
@@ -39,17 +39,14 @@ export function useGeneralTabOffers({ offers, productId }: UseGeneralTabOffersPr
   const saveDeletedOffers = useCallback(async () => {
     if (deletedOfferIds.length === 0) return;
 
-    const sessionToken = localStorage.getItem('producer_session_token');
-    
     for (const offerId of deletedOfferIds) {
-      const { data, error } = await supabase.functions.invoke('offer-crud/delete', {
-        body: { offerId },
-        headers: { 'x-producer-session-token': sessionToken || '' }
+      const { data, error } = await api.call<{ success?: boolean; error?: string }>('offer-crud/delete', {
+        offerId,
       });
       
       if (error) {
         console.error('[useGeneralTabOffers] Error deleting offer:', error);
-        throw error;
+        throw new Error(error.message);
       }
       if (!data?.success) {
         throw new Error(data?.error || 'Falha ao deletar oferta');
@@ -61,8 +58,6 @@ export function useGeneralTabOffers({ offers, productId }: UseGeneralTabOffersPr
   const saveOffers = useCallback(async () => {
     if (!offersModified || !productId) return;
 
-    const sessionToken = localStorage.getItem('producer_session_token');
-    
     const offersToSave = localOffers.map(offer => ({
       id: offer.id.startsWith("temp-") ? undefined : offer.id,
       productId: productId,
@@ -72,14 +67,14 @@ export function useGeneralTabOffers({ offers, productId }: UseGeneralTabOffersPr
       memberGroupId: offer.member_group_id || null,
     }));
     
-    const { data, error } = await supabase.functions.invoke('offer-bulk/bulk-save', {
-      body: { productId: productId, offers: offersToSave },
-      headers: { 'x-producer-session-token': sessionToken || '' }
+    const { data, error } = await api.call<{ success?: boolean; error?: string }>('offer-bulk/bulk-save', {
+      productId: productId,
+      offers: offersToSave,
     });
     
     if (error) {
       console.error('[useGeneralTabOffers] Error saving offers:', error);
-      throw error;
+      throw new Error(error.message);
     }
     if (!data?.success) {
       throw new Error(data?.error || 'Falha ao salvar ofertas');

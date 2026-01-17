@@ -23,6 +23,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { useConfirmDelete } from "@/components/common/ConfirmDelete";
 import { useBusy } from "@/components/BusyProvider";
 
+interface ProductEntitiesResponse {
+  offers?: Array<{ id: string; name: string; price: number; is_default: boolean | null; status?: string }>;
+  error?: string;
+}
+
+interface CheckoutCrudResponse {
+  success?: boolean;
+  error?: string;
+}
+
 // Tipo Checkout (igual ao CheckoutTable)
 interface Checkout {
   id: string;
@@ -62,24 +72,22 @@ export function CheckoutTab() {
 
   /**
    * Load offers via Edge Function
-   * MIGRATED: Uses product-entities Edge Function
+   * MIGRATED: Uses product-entities Edge Function via api.call
    */
   const loadOffers = async () => {
     if (!product?.id) return;
     
     try {
-      const sessionToken = localStorage.getItem('producer_session_token');
-      
-      const { data, error } = await supabase.functions.invoke('product-entities', {
-        body: { action: 'offers', productId: product.id },
-        headers: { 'x-producer-session-token': sessionToken || '' }
+      const { data, error } = await api.call<ProductEntitiesResponse>('product-entities', {
+        action: 'offers',
+        productId: product.id,
       });
       
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       
       // Filter only active offers
       const activeOffers = (data?.offers || []).filter(
-        (o: { status?: string }) => o.status === 'active'
+        (o) => o.status === 'active'
       );
       setAvailableOffers(activeOffers);
     } catch (error: unknown) {
@@ -124,16 +132,14 @@ export function CheckoutTab() {
         onConfirm: async () => {
           console.log("[CHECKOUT DEBUG] Deletando checkout via Edge Function:", id);
           
-          const sessionToken = localStorage.getItem('producer_session_token');
-          
-          const { data, error } = await supabase.functions.invoke('checkout-crud', {
-            body: { action: 'delete', checkoutId: id },
-            headers: { 'x-producer-session-token': sessionToken || '' }
+          const { data, error } = await api.call<CheckoutCrudResponse>('checkout-crud', {
+            action: 'delete',
+            checkoutId: id,
           });
           
           if (error) {
             console.error("[CHECKOUT DEBUG] Edge Function error:", error);
-            throw error;
+            throw new Error(error.message);
           }
           
           if (!data?.success) {

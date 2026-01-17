@@ -6,7 +6,7 @@
  * @see RISE Protocol V2 - Zero direct database access from frontend
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 
 export type OrderBumpCandidate = {
   id: string;
@@ -31,18 +31,17 @@ export async function fetchOrderBumpCandidates(
   }
 
   const excludeId = opts?.excludeProductId;
-  const sessionToken = localStorage.getItem('producer_session_token');
 
   try {
-    // MIGRATED: Use products-crud Edge Function
-    const { data, error } = await supabase.functions.invoke('products-crud', {
-      body: { action: 'list', excludeDeleted: true },
-      headers: { 'x-producer-session-token': sessionToken || '' }
+    // MIGRATED: Use products-crud Edge Function via api.call
+    const { data, error } = await api.call<{ error?: string; products?: Array<{ id: string; name: string; price: number; status?: string; image_url?: string; description?: string }> }>('products-crud', {
+      action: 'list',
+      excludeDeleted: true,
     });
 
     if (error) {
       console.error("[OrderBump] Edge Function error:", error);
-      throw error;
+      throw new Error(error.message);
     }
 
     if (data?.error) {

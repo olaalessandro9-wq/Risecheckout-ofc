@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 
 export interface AffiliationProduct {
   id: string;
@@ -118,18 +118,33 @@ export function useAffiliationDetails(affiliationId: string | undefined): UseAff
     setError(null);
 
     try {
-      // Get session token for authentication
-      const sessionToken = localStorage.getItem("producer_session_token");
-      
-      if (!sessionToken) {
-        throw new Error("Sessão não encontrada. Faça login novamente.");
-      }
-
       // Call Edge Function to get affiliation details (bypasses RLS)
-      const { data, error: invokeError } = await supabase.functions.invoke("get-affiliation-details", {
-        body: { affiliation_id: affiliationId },
-        headers: { "x-producer-session-token": sessionToken },
-      });
+      const { data, error: invokeError } = await api.call<{ 
+        error?: string; 
+        affiliation?: {
+          id: string;
+          affiliate_code: string;
+          commission_rate: number;
+          status: string;
+          total_sales_count?: number;
+          total_sales_amount?: number;
+          created_at: string;
+          product?: AffiliationProduct;
+          offers?: AffiliationOffer[];
+          checkouts?: AffiliationCheckout[];
+          producer?: ProducerProfile;
+          pixels?: AffiliatePixel[];
+          pix_gateway?: string;
+          credit_card_gateway?: string;
+          gateway_credentials?: Record<string, string>;
+          allowed_gateways?: {
+            pix_allowed: string[];
+            credit_card_allowed: string[];
+            require_gateway_connection: boolean;
+          };
+        };
+        otherProducts?: OtherProducerProduct[];
+      }>("get-affiliation-details", { affiliation_id: affiliationId });
 
       if (invokeError) {
         console.error("Erro ao invocar get-affiliation-details:", invokeError);

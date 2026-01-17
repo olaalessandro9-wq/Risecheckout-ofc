@@ -9,7 +9,7 @@
 import { useState, useEffect } from "react";
 import { useProductContext } from "../context/ProductContext";
 import { LinksTable, PaymentLink } from "@/components/products/LinksTable";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
@@ -40,19 +40,13 @@ export function LinksTab() {
 
   const handleToggleStatus = async (linkId: string) => {
     try {
-      // Obter token de sessão para autenticação
-      const sessionToken = localStorage.getItem('producer_session_token');
-      
       // Alternar status via Edge Function
-      const { data, error } = await supabase.functions.invoke('checkout-crud', {
-        body: {
-          action: 'toggle-link-status',
-          linkId,
-        },
-        headers: { 'x-producer-session-token': sessionToken || '' },
+      const { data, error } = await api.call<{ error?: string; newStatus?: string }>('checkout-crud', {
+        action: 'toggle-link-status',
+        linkId,
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
 
       toast.success(
