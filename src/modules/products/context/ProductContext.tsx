@@ -21,7 +21,7 @@ import type { RegisterSaveHandler } from "../types/saveRegistry.types";
 import { productFormReducer, INITIAL_FORM_STATE, formActions } from "./productFormReducer";
 
 // Hooks especializados
-import { useProductCore, useProductEntities, useProductCheckouts } from "./hooks";
+import { useProductCore, useProductEntities, useProductCheckouts, useSettingsHandlerRegistration } from "./hooks";
 import { useProductSettings as useProductSettingsAdapter } from "./hooks/useProductSettingsAdapter";
 import { useSaveRegistry } from "./hooks/useSaveRegistry";
 
@@ -170,35 +170,16 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     }
   }, [productId, user]);
 
-  // =========================================================================
-  // SAVE REGISTRY - Registrar handlers de Upsell e Affiliate
-  // =========================================================================
-  useEffect(() => {
-    if (!productId || !user?.id) return;
-
-    // Upsell handler
-    const unregisterUpsell = registerSaveHandler(
-      'upsell',
-      async () => {
-        await settingsAdapter.saveUpsellSettings(formState.editedData.upsell);
-      },
-      { order: 30 }
-    );
-
-    // Affiliate handler
-    const unregisterAffiliate = registerSaveHandler(
-      'affiliate',
-      async () => {
-        await settingsAdapter.saveAffiliateSettings(formState.editedData.affiliate);
-      },
-      { order: 40 }
-    );
-
-    return () => {
-      unregisterUpsell();
-      unregisterAffiliate();
-    };
-  }, [productId, user?.id, registerSaveHandler, settingsAdapter, formState.editedData.upsell, formState.editedData.affiliate]);
+  // Settings handler registration (extraído para hook dedicado - RISE V3)
+  useSettingsHandlerRegistration({
+    productId,
+    userId: user?.id,
+    registerSaveHandler,
+    upsellSettings: formState.editedData.upsell,
+    affiliateSettings: formState.editedData.affiliate,
+    saveUpsellSettings: settingsAdapter.saveUpsellSettings,
+    saveAffiliateSettings: settingsAdapter.saveAffiliateSettings,
+  });
 
   // Form helpers (usando factory functions)
   const updateGeneralField = useCallback(createUpdateGeneralField(formDispatch), []);
