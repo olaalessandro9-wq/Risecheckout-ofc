@@ -74,27 +74,22 @@ export function AffiliatesTab() {
 
   /**
    * Load gateway settings via Edge Function
-   * MIGRATED: Uses admin-data instead of supabase.from()
+   * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
    */
   const loadGatewaySettings = async () => {
     if (!product?.id) return;
     try {
-      const { supabase } = await import("@/integrations/supabase/client");
-      const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
-      const sessionToken = getProducerSessionToken();
+      const { api } = await import("@/lib/api");
       
-      const { data, error } = await supabase.functions.invoke('admin-data', {
-        body: { 
-          action: 'affiliate-gateway-settings',
-          productId: product.id,
-        },
-        headers: { 'x-producer-session-token': sessionToken || '' },
+      const { data, error } = await api.call<{ success?: boolean; data?: AffiliateGatewaySettingsData }>('admin-data', { 
+        action: 'affiliate-gateway-settings',
+        productId: product.id,
       });
       
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       
       if (data?.success && data?.data) {
-        const raw = data.data as AffiliateGatewaySettingsData;
+        const raw = data.data;
         const settings: AffiliateGatewaySettingsData = {
           pix_allowed: raw?.pix_allowed || ["asaas"],
           credit_card_allowed: raw?.credit_card_allowed || ["mercadopago", "stripe"],
@@ -174,17 +169,12 @@ export function AffiliatesTab() {
       }
 
       // Salvar gateway settings via Edge Function
-      const { supabase } = await import("@/integrations/supabase/client");
-      const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
-      const sessionToken = getProducerSessionToken();
+      const { api } = await import("@/lib/api");
       
-      const { data: result, error: gatewayError } = await supabase.functions.invoke('product-settings', {
-        body: { 
-          action: 'update-affiliate-gateway-settings',
-          productId: product.id,
-          gatewaySettings,
-          sessionToken,
-        }
+      const { data: result, error: gatewayError } = await api.call<{ success?: boolean; error?: string }>('product-settings', { 
+        action: 'update-affiliate-gateway-settings',
+        productId: product.id,
+        gatewaySettings,
       });
       
       if (gatewayError || !result?.success) {

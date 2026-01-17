@@ -1,8 +1,24 @@
+/**
+ * PaymentSuccessPage - Página de sucesso de pagamento
+ * 
+ * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
+ * @see RISE Protocol V2 - Zero database access from frontend
+ */
+
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { CheckCircle2, Mail, MessageCircle, Copy, Check, Package, ShoppingBag, GraduationCap, ArrowRight, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+
+interface OrderDetailsResponse {
+  data?: OrderDetails;
+  error?: string;
+}
+
+interface StudentsInviteResponse {
+  accessUrl?: string;
+}
 
 interface OrderItem {
   id: string;
@@ -49,12 +65,10 @@ export const PaymentSuccessPage = () => {
 
       try {
         // Buscar pedido via Edge Function
-        const { data: result, error } = await supabase.functions.invoke('checkout-public-data', {
-          body: {
-            action: 'order-by-token',
-            orderId,
-            token,
-          },
+        const { data: result, error } = await api.publicCall<OrderDetailsResponse>('checkout-public-data', {
+          action: 'order-by-token',
+          orderId,
+          token,
         });
 
         if (error || result?.error) {
@@ -98,13 +112,11 @@ export const PaymentSuccessPage = () => {
     
     try {
       // Chamar edge function para gerar token de acesso
-      const { data, error } = await supabase.functions.invoke('students-invite', {
-        body: {
-          action: 'generate-purchase-access', // Action no body, não no path
-          order_id: orderId,
-          customer_email: orderDetails.customer_email,
-          product_id: orderDetails.product_id,
-        },
+      const { data, error } = await api.publicCall<StudentsInviteResponse>('students-invite', {
+        action: 'generate-purchase-access', // Action no body, não no path
+        order_id: orderId,
+        customer_email: orderDetails.customer_email,
+        product_id: orderDetails.product_id,
       });
 
       if (error) {

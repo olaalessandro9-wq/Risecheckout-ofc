@@ -1,12 +1,11 @@
 /**
  * Offers Service
  * 
- * MIGRATED: Uses Edge Function instead of direct database access
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
  * @see RISE Protocol V2 - Zero direct database access from frontend
  */
 
-import { supabase } from "@/integrations/supabase/client";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
+import { api } from "@/lib/api";
 
 export type NormalizedOffer = {
   id: string;
@@ -16,29 +15,32 @@ export type NormalizedOffer = {
   updated_at?: string | null;
 };
 
+interface OffersResponse {
+  offers?: Array<{
+    id: string;
+    product_id: string;
+    price: number;
+    name?: string;
+    updated_at?: string;
+  }>;
+}
+
 /**
  * Fetch offers by product
- * MIGRATED: Uses Edge Function
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
  */
 export async function fetchOffersByProduct(productId: string): Promise<NormalizedOffer[]> {
-  const sessionToken = getProducerSessionToken();
-
-  const { data, error } = await supabase.functions.invoke("products-crud", {
-    body: {
-      action: "get-offers",
-      productId,
-    },
-    headers: {
-      "x-producer-session-token": sessionToken || "",
-    },
+  const { data, error } = await api.call<OffersResponse>("products-crud", {
+    action: "get-offers",
+    productId,
   });
 
   if (error) {
     console.error("[Offers] load offers failed:", error);
-    throw error;
+    throw new Error(error.message);
   }
 
-  return (data?.offers ?? []).map((offer: { id: string; product_id: string; price: number; name?: string; updated_at?: string }) => ({
+  return (data?.offers ?? []).map((offer) => ({
     id: offer.id,
     product_id: offer.product_id,
     price: Number(offer.price), // Preço em centavos decimais (990.00 = R$ 9,90)

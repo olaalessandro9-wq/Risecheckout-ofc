@@ -1,7 +1,8 @@
 /**
  * OrderBumpTab - Aba de Order Bumps do Produto
  * 
- * MIGRATED: Uses Edge Function instead of supabase.from()
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
+ * @see RISE Protocol V2 - Zero database access from frontend
  */
 
 import { useState } from "react";
@@ -10,9 +11,12 @@ import { Sparkles } from "lucide-react";
 import { OrderBumpList } from "@/components/products/OrderBumpList";
 import { OrderBumpDialog } from "@/components/products/order-bump-dialog";
 import { useProductContext } from "../context/ProductContext";
-import { supabase } from "@/integrations/supabase/client";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
+import { api } from "@/lib/api";
 import type { EditOrderBump } from "@/components/products/order-bump-dialog/types";
+
+interface OrderBumpDetailResponse {
+  orderBump?: EditOrderBump;
+}
 
 export function OrderBumpTab() {
   const { product } = useProductContext();
@@ -31,18 +35,13 @@ export function OrderBumpTab() {
    */
   const handleEditOrderBump = async (orderBump: EditOrderBump) => {
     try {
-      const sessionToken = getProducerSessionToken();
-      
-      const { data, error } = await supabase.functions.invoke("admin-data", {
-        body: {
-          action: "order-bump-detail",
-          orderBumpId: orderBump.id,
-        },
-        headers: { "x-producer-session-token": sessionToken || "" },
+      const { data, error } = await api.call<OrderBumpDetailResponse>("admin-data", {
+        action: "order-bump-detail",
+        orderBumpId: orderBump.id,
       });
       
-      if (error) throw error;
-      setEditingOrderBump((data?.orderBump as EditOrderBump) || orderBump);
+      if (error) throw new Error(error.message);
+      setEditingOrderBump(data?.orderBump || orderBump);
     } catch (error: unknown) {
       console.error('Erro ao buscar order bump:', error);
       setEditingOrderBump(orderBump);
