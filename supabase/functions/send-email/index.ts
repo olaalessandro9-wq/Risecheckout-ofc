@@ -2,7 +2,9 @@
  * Edge Function: send-email
  * 
  * Endpoint centralizado para envio de emails via ZeptoMail.
- * Requer autenticação JWT.
+ * Requer autenticação via producer_sessions (unified-auth).
+ * 
+ * @version 2.0.0 - RISE V3 Compliance (unified-auth migration)
  */
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
@@ -10,6 +12,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { sendEmail, type EmailType, type EmailRecipient } from '../_shared/zeptomail.ts';
 import { handleCors } from '../_shared/cors.ts';
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from '../_shared/rate-limiter.ts';
+import { requireAuthenticatedProducer } from '../_shared/unified-auth.ts';
 
 interface SendEmailRequest {
   to: EmailRecipient | EmailRecipient[];
@@ -53,6 +56,20 @@ serve(async (req: Request) => {
       console.warn(`[send-email] Rate limit exceeded for IP: ${getClientIP(req)}`);
       return rateLimitResult;
     }
+
+    // RISE V3: Autenticação via producer_sessions (unified-auth)
+    let producer;
+    try {
+      producer = await requireAuthenticatedProducer(supabase, req);
+    } catch {
+      console.warn('[send-email] Tentativa de acesso não autenticado');
+      return new Response(
+        JSON.stringify({ error: 'Não autorizado' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`[send-email] Request from producer ${producer.id} (role: ${producer.role})`);
 
     const body: SendEmailRequest = await req.json();
 
@@ -102,7 +119,7 @@ serve(async (req: Request) => {
       );
     }
 
-    console.log('[send-email] Email sent successfully:', result.messageId);
+    console.log(`[send-email] Email sent successfully by producer ${producer.id}:`, result.messageId);
 
     return new Response(
       JSON.stringify({
