@@ -7,8 +7,15 @@
  */
 
 import { useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { getAffiliateCode } from "@/hooks/useAffiliateTracking";
+
+interface CreateOrderResponse {
+  success?: boolean;
+  error?: string;
+  order_id?: string;
+  access_token?: string;
+}
 import type { 
   CreateOrderPayload, 
   CreateOrderResult, 
@@ -97,9 +104,7 @@ export function useOrderCreation({ config }: UseOrderCreationProps): UseOrderCre
         affiliate_code: getAffiliateCode()
       };
 
-      const { data, error: invokeError } = await supabase.functions.invoke("create-order", {
-        body: payload
-      });
+      const { data, error: invokeError } = await api.publicCall<CreateOrderResponse>("create-order", payload);
 
       if (invokeError) {
         throw new Error("Erro ao criar pedido. Tente novamente.");

@@ -10,7 +10,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from '@/components/ui/sonner';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { MERCADOPAGO_CLIENT_ID, MERCADOPAGO_REDIRECT_URI } from '@/config/mercadopago';
 import type { ConnectionMode, IntegrationData } from '../types';
 
@@ -70,15 +70,9 @@ export function useMercadoPagoConnection({
       if (!userId) return;
 
       // Usar Edge Function para buscar status (não depende de Supabase Auth)
-      const { getProducerSessionToken } = await import('@/hooks/useProducerAuth');
-      const sessionToken = getProducerSessionToken();
-
-      const { data: result, error } = await supabase.functions.invoke<IntegrationStatusResponse>('integration-management', {
-        body: {
-          action: 'status',
-          integrationType: 'MERCADOPAGO',
-        },
-        headers: { 'x-producer-session-token': sessionToken || '' },
+      const { data: result, error } = await api.call<IntegrationStatusResponse>('integration-management', {
+        action: 'status',
+        integrationType: 'MERCADOPAGO',
       });
 
       if (error) {
@@ -200,15 +194,10 @@ export function useMercadoPagoConnection({
 
     try {
       const nonce = generateSecureNonce();
-      const { getProducerSessionToken } = await import('@/hooks/useProducerAuth');
-      const sessionToken = getProducerSessionToken();
 
-      const { data: oauthResult, error: oauthError } = await supabase.functions.invoke('integration-management', {
-        body: {
-          action: 'init-oauth',
-          integrationType: 'MERCADOPAGO',
-        },
-        headers: { 'x-producer-session-token': sessionToken || '' },
+      const { data: oauthResult, error: oauthError } = await api.call<{ success?: boolean; error?: string; state?: string }>('integration-management', {
+        action: 'init-oauth',
+        integrationType: 'MERCADOPAGO',
       });
 
       if (oauthError || !oauthResult?.success) {
@@ -280,15 +269,9 @@ export function useMercadoPagoConnection({
     try {
       if (!integration?.id) return;
 
-      const { getProducerSessionToken } = await import('@/hooks/useProducerAuth');
-      const sessionToken = getProducerSessionToken();
-
-      const { data: result, error } = await supabase.functions.invoke('integration-management', {
-        body: {
-          action: 'disconnect',
-          integrationId: integration.id,
-        },
-        headers: { 'x-producer-session-token': sessionToken || '' },
+      const { data: result, error } = await api.call<{ success?: boolean; error?: string }>('integration-management', {
+        action: 'disconnect',
+        integrationId: integration.id,
       });
 
       if (error || !result?.success) {
