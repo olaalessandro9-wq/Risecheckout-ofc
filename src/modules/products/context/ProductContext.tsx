@@ -16,6 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 import type { ProductContextState, ProductProviderProps, Offer } from "../types/product.types";
 import type { GeneralFormData, ImageFormState, ProductFormState, ProductFormDispatch, CheckoutSettingsFormData, GatewayCredentials, AffiliateSettings, UpsellSettings } from "../types/productForm.types";
 import type { RegisterSaveHandler } from "../types/saveRegistry.types";
+import type { TabValidationMap } from "../types/tabValidation.types";
 
 // Reducer e Actions
 import { productFormReducer, INITIAL_FORM_STATE, formActions } from "./productFormReducer";
@@ -24,7 +25,6 @@ import { productFormReducer, INITIAL_FORM_STATE, formActions } from "./productFo
 import { useProductCore, useProductEntities, useProductCheckouts, useGlobalValidationHandlers, useTabValidation } from "./hooks";
 import { useProductSettings as useProductSettingsAdapter } from "./hooks/useProductSettingsAdapter";
 import { useSaveRegistry } from "./hooks/useSaveRegistry";
-import type { TabValidationMap } from "../types/tabValidation.types";
 
 // Helpers
 import {
@@ -38,8 +38,6 @@ import {
   createSaveProduct,
   createSaveAll,
 } from "./helpers";
-
-// Factory functions extraídas
 import { createContextValue } from "./helpers/createContextValue";
 import { createLegacyCallbacks } from "./helpers/legacyCallbacks";
 
@@ -85,27 +83,15 @@ const ProductContext = createContext<ProductContextExtended | null>(null);
 
 export function ProductProvider({ productId, children }: ProductProviderProps) {
   const { user } = useAuth();
-
-  // Reducer: Single Source of Truth
   const [formState, formDispatch] = useReducer(productFormReducer, INITIAL_FORM_STATE);
-
-  // Save Registry: Open/Closed Pattern
   const { registerSaveHandler, executeAll: executeRegistrySaves } = useSaveRegistry();
-
-  // Tab Validation: Sistema de validação global
   const { activeTab, setActiveTab, tabErrors, setTabErrors, clearTabErrors } = useTabValidation();
-
-  // Estados de UI
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [checkoutCredentials, setCheckoutCredentials] = useState<GatewayCredentials>({});
-
   const hasUnsavedChanges = formState.isDirty;
-
-  // Legacy callbacks (extraídos para helper)
   const legacyCallbacks = createLegacyCallbacks(formDispatch);
 
-  // Callbacks para o adapter
   const handleUpdateUpsell = useCallback((settings: Partial<UpsellSettings>) => {
     formDispatch(formActions.updateUpsell(settings));
   }, []);
@@ -114,7 +100,6 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     formDispatch(formActions.updateAffiliate(settings));
   }, []);
 
-  // Settings adapter
   const settingsAdapter = useProductSettingsAdapter({
     productId,
     userId: user?.id,
@@ -125,7 +110,6 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     onSaveComplete: legacyCallbacks.markSettingsSaved,
   });
 
-  // Core hook
   const core = useProductCore({
     productId,
     userId: user?.id,
@@ -139,7 +123,6 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
   const entities = useProductEntities({ productId });
   const checkoutsHook = useProductCheckouts({ productId });
 
-  // Sincronizar dados → Reducer
   useEffect(() => {
     if (core.product && entities.offers !== undefined) {
       formDispatch(formActions.initFromServer({
@@ -151,7 +134,6 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     }
   }, [core.product, entities.offers]);
 
-  // Refresh all
   const refreshAll = useCallback(async () => {
     setLoading(true);
     try {
@@ -172,7 +154,7 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     if (productId && user) refreshAll();
   }, [productId, user]);
 
-  // Global Validation Handlers - SEMPRE REGISTRADOS (no nível do Context)
+  // Global Validation Handlers - SEMPRE REGISTRADOS
   useGlobalValidationHandlers({
     productId,
     userId: user?.id,
@@ -181,19 +163,20 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     product: core.product,
     imageFile: formState.editedData.image.imageFile,
     pendingRemoval: formState.editedData.image.pendingRemoval,
-    uploadImage: async () => null, // Será resolvido via refs no hook
+    localOffers: formState.editedData.offers.localOffers,
+    offersModified: formState.editedData.offers.modified,
+    deletedOfferIds: formState.editedData.offers.deletedOfferIds,
     resetImage: () => formDispatch({ type: 'RESET_IMAGE' }),
-    saveDeletedOffers: async () => {}, // Placeholder - lógica está no handler
-    saveOffers: async () => {},
     resetOffers: () => formDispatch({ type: 'RESET_OFFERS' }),
     checkoutSettingsForm: formState.editedData.checkoutSettings,
     isCheckoutSettingsInitialized: formState.isCheckoutSettingsInitialized,
-    saveCheckoutSettings: async () => {}, // Será resolvido no handler
+    saveCheckoutSettings: async () => {}, // Placeholder - checkout has its own save
     upsellSettings: formState.editedData.upsell,
     saveUpsellSettings: settingsAdapter.saveUpsellSettings,
     affiliateSettings: formState.editedData.affiliate,
     saveAffiliateSettings: settingsAdapter.saveAffiliateSettings,
   });
+
   const updateGeneralField = useCallback(createUpdateGeneralField(formDispatch), []);
   const updateImageState = useCallback(createUpdateImageState(formDispatch), []);
   const updateLocalOffers = useCallback(createUpdateLocalOffers(formDispatch), []);
@@ -201,8 +184,6 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
   const setOffersModified = useCallback(createSetOffersModified(formDispatch), []);
   const updateCheckoutSettingsField = useCallback(createUpdateCheckoutSettingsField(formDispatch), []);
   const initCheckoutSettingsHandler = useCallback(createInitCheckoutSettings(formDispatch, setCheckoutCredentials), []);
-
-  // Save wrappers
   const saveProduct = useCallback(createSaveProduct({ setSaving, formDispatch, core }), [core]);
 
   const saveUpsellSettings = useCallback(async () => {
@@ -217,13 +198,11 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     finally { setSaving(false); }
   }, [settingsAdapter, formState.editedData.affiliate]);
 
-  // SaveAll via factory (extraído para < 300 linhas)
   const saveAll = useCallback(
     createSaveAll({ setSaving, clearTabErrors, formDispatch, executeRegistrySaves, setTabErrors, setActiveTab }),
     [executeRegistrySaves, clearTabErrors, setTabErrors, setActiveTab]
   );
 
-  // Context value
   const contextValue = createContextValue({
     core, entities, checkoutsHook, formState, formDispatch, settingsAdapter,
     loading, saving, hasUnsavedChanges, checkoutCredentials,

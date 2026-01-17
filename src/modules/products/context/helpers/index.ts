@@ -1,27 +1,26 @@
 /**
- * Context Helpers Index
+ * Helpers Index - Re-exporta todos os helpers
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - Modularização
  */
 
-export {
-  createUpdateGeneralField,
-  createUpdateImageState,
-  createUpdateLocalOffers,
-  createMarkOfferDeleted,
-  createSetOffersModified,
-  createUpdateCheckoutSettingsField,
-  createInitCheckoutSettings,
-} from "./formHelpers";
-
-export {
-  createSaveProduct,
-  createSaveUpsellSettings,
-  createSaveAffiliateSettings,
-} from "./saveWrappers";
-
-// Factory saveAll extraída para manter ProductContext < 300 linhas
+export { createUpdateGeneralField } from "./formHelpers";
+export { createUpdateImageState } from "./formHelpers";
+export { createUpdateLocalOffers } from "./formHelpers";
+export { createMarkOfferDeleted } from "./formHelpers";
+export { createSetOffersModified } from "./formHelpers";
+export { createUpdateCheckoutSettingsField } from "./formHelpers";
+export { createInitCheckoutSettings } from "./formHelpers";
+export { createSaveProduct } from "./saveWrappers";
 export { createSaveAll } from "./createSaveAll";
+
+// Pure save functions (for useGlobalValidationHandlers)
+export {
+  uploadProductImage,
+  saveDeletedOffers,
+  saveOffers,
+  saveGeneralProduct,
+} from "./saveFunctions";
 
 export {
   createUpdateProduct,
