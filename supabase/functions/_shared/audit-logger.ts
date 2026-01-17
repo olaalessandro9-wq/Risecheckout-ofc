@@ -1,8 +1,7 @@
 /**
  * Audit Logger - Helper para registrar eventos de segurança
  * 
- * @rise-protocol-compliant true
- * @version 2.1.0 - Zero `any` compliance - Using real SDK types
+ * @version 2.1.0
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";

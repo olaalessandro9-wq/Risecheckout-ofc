@@ -1,7 +1,7 @@
 /**
  * get-vendor-token.ts - Helpers para buscar tokens e configs do Vault
  * 
- * @version 2.0.0 - RISE Protocol V2 Compliant - Zero `any`
+ * @version 2.0.0
  * 
  * P0-4: Tokens nunca devem ir para o frontend
  */

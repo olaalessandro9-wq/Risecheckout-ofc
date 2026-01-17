@@ -4,7 +4,7 @@
  * Handles atomic save for members area content:
  * - save-full: Atomic save (content + attachments + drip settings)
  * 
- * @version 2.0.0 - RISE Protocol V2 Compliant - Zero `any`
+ * @version 2.0.0
  */
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";

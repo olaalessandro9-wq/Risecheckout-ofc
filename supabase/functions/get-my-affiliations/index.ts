@@ -1,7 +1,7 @@
 /**
  * get-my-affiliations - Edge Function para listar afiliações do usuário
  * 
- * @version 2.0.0 - RISE Protocol V2 Compliant - Zero `any`
+ * @version 2.0.0
  * 
  * Lista todas as afiliações do usuário logado.
  * Usa service_role para bypass de RLS (sistema usa autenticação customizada).

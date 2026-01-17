@@ -2,8 +2,7 @@
  * Payment link handlers for checkout-crud Edge Function
  * Extracted for RISE Protocol compliance (< 300 lines per file)
  * 
- * @rise-protocol-compliant true
- * @version 2.0.0 - Zero `any` compliance
+ * @version 2.0.0
  */
 
 import { SupabaseClient } from "./supabase-types.ts";

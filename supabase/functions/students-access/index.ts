@@ -5,8 +5,7 @@
  * - grant-access: Grant product access to a buyer
  * - revoke-access: Revoke product access from a buyer
  * 
- * RISE Protocol V2 Compliant - Zero `any`
- * Version: 2.0.0
+ * @version 2.0.0
  */
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";

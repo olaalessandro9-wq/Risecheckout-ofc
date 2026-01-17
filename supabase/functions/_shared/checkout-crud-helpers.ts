@@ -2,8 +2,7 @@
  * Shared helpers for checkout-crud Edge Function
  * Extracted for RISE Protocol compliance (< 300 lines per file)
  * 
- * @rise-protocol-compliant true
- * @version 2.0.0 - Zero `any` compliance
+ * @version 2.0.0
  */
 
 import { SupabaseClient, CheckoutWithProduct, JsonResponseData } from "./supabase-types.ts";

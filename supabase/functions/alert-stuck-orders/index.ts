@@ -3,8 +3,7 @@
  * ALERT-STUCK-ORDERS EDGE FUNCTION
  * ============================================================================
  * 
- * RISE Protocol V2 Compliant - Zero `any`
- * Version: 2.0.0
+ * @version 2.0.0
  * 
  * Alerta sobre pedidos presos há mais de 15 minutos.
  * Envia notificação via Telegram para o admin.

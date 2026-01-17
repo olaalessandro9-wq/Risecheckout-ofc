@@ -15,7 +15,7 @@
  * - handlers/order-creator.ts (~180 linhas)
  * - index.ts (~170 linhas) ← VOCÊ ESTÁ AQUI
  * 
- * @version 2.0.0 - RISE Protocol V2 Compliance (Zero any)
+ * @version 2.0.0
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
@@ -31,7 +31,7 @@ import { processAffiliate } from "./handlers/affiliate-processor.ts";
 import { createOrder } from "./handlers/order-creator.ts";
 import { logSecurityEvent, SecurityAction } from "../_shared/audit-logger.ts";
 
-// === INTERFACES (Zero any) ===
+// === INTERFACES ===
 
 interface ValidatedOrderData {
   product_id: string;

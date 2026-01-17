@@ -5,8 +5,7 @@
  * - list: List students with pagination, search, filters
  * - get: Get detailed student info
  * 
- * RISE Protocol V2 Compliant - Zero `any`
- * Version: 2.0.0
+ * @version 2.0.0
  */
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";

@@ -6,8 +6,7 @@
  * Envia emails individuais para cada item do pedido (produto principal + bumps).
  * Cada produto recebe seu próprio email com seu respectivo link de acesso.
  * 
- * @rise-protocol-compliant true
- * @version 2.0.0 - Zero `any` compliance
+ * @version 2.0.0
  * ============================================================================
  */
 

@@ -1,7 +1,7 @@
 /**
  * members-area-drip - Gerenciamento de liberação de conteúdo (drip)
  * 
- * @version 2.0.0 - RISE Protocol V2 Compliance (Zero any)
+ * @version 2.0.0
  */
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -16,7 +16,7 @@ import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 // Use public CORS for members area
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
-// === INTERFACES (Zero any) ===
+// === INTERFACES ===
 
 /**
  * Canonical release types - aligned with DB and frontend

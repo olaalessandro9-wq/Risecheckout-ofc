@@ -6,7 +6,6 @@
  * Concede acesso à área de membros automaticamente após compra aprovada.
  * Usado pelos webhooks de pagamento (MercadoPago, Asaas, Stripe).
  * 
- * RISE Protocol V2 Compliant - Zero `any`
  * @version 2.0.0
  * Data de Criação: 2026-01-06
  * ============================================================================
