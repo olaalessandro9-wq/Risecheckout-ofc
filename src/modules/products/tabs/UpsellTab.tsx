@@ -1,17 +1,14 @@
 /**
  * UpsellTab - Aba de Configurações de Upsell/Downsell
  * 
- * Esta aba gerencia:
- * - Página de obrigado customizada
- * - URL de redirecionamento após compra
- * - Comportamento em caso de falha de order bump
+ * Refatorado seguindo RISE ARCHITECT PROTOCOL V3:
+ * - Estado vem do Context via Reducer
+ * - Tab é Pure View - consome estado do Context
  * 
- * IMPORTANTE: Requer coluna upsell_settings (JSONB) na tabela products.
- * Execute no Supabase Dashboard:
- * ALTER TABLE products ADD COLUMN IF NOT EXISTS upsell_settings JSONB DEFAULT '{}'::jsonb;
+ * @see RISE ARCHITECT PROTOCOL V3
  */
 
-import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import React, { useLayoutEffect, useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,19 +20,20 @@ import { cn } from "@/lib/utils";
 
 export function UpsellTab() {
   const { 
-    product, 
-    upsellSettings, 
-    updateUpsellSettings,
-    saveUpsellSettings,
+    product,
+    formState,
+    dispatchForm,
     updateUpsellModified,
     saving
   } = useProductContext();
 
-  const [localSettings, setLocalSettings] = useState(upsellSettings);
+  // Estado vem do reducer
+  const localSettings = formState.editedData.upsell;
+  const serverSettings = formState.serverData.upsell;
+  const isInitialized = formState.isInitialized;
+
+  // URL error (UI state, não form data)
   const [urlError, setUrlError] = useState<string | null>(null);
-  
-  // Referência para o snapshot inicial (para comparar mudanças)
-  const snapshotRef = useRef<string>("");
 
   // Validar URL
   const isValidUrl = (url: string): boolean => {
@@ -47,31 +45,30 @@ export function UpsellTab() {
     }
   };
 
-  // Sincronizar com Context quando mudar e atualizar snapshot
-  useEffect(() => {
-    setLocalSettings(upsellSettings);
-    snapshotRef.current = JSON.stringify(upsellSettings);
-  }, [upsellSettings]);
+  // Detectar mudanças comparando com serverData
+  const hasChanges = useMemo(() => {
+    if (!isInitialized) return false;
+    return JSON.stringify(localSettings) !== JSON.stringify(serverSettings);
+  }, [localSettings, serverSettings, isInitialized]);
 
-  // Detectar mudanças comparando com snapshot
+  // Notificar context sobre mudanças
   useLayoutEffect(() => {
-    const currentJson = JSON.stringify(localSettings);
-    const hasChanges = currentJson !== snapshotRef.current;
-    updateUpsellModified(hasChanges);
-  }, [localSettings, updateUpsellModified]);
-
-  type UpsellSettingValue = string | boolean;
-  
-  const handleChange = (field: keyof typeof upsellSettings, value: UpsellSettingValue) => {
-    const newSettings = { ...localSettings, [field]: value };
-    setLocalSettings(newSettings);
-    if (field === 'customPageUrl') {
-      setUrlError(null); // Limpa erro ao digitar
+    if (isInitialized) {
+      updateUpsellModified(hasChanges);
     }
-  };
+  }, [hasChanges, updateUpsellModified, isInitialized]);
+  
+  const handleChange = useCallback((field: 'hasCustomThankYouPage' | 'customPageUrl' | 'redirectIgnoringOrderBumpFailures', value: string | boolean) => {
+    dispatchForm({ 
+      type: 'UPDATE_UPSELL', 
+      payload: { [field]: value } 
+    });
+    if (field === 'customPageUrl') {
+      setUrlError(null);
+    }
+  }, [dispatchForm]);
 
-  const handleSave = async () => {
-    // Validação: Se ativou página customizada, URL é obrigatória e válida
+  const handleSave = useCallback(async () => {
     if (localSettings.hasCustomThankYouPage) {
       const url = localSettings.customPageUrl.trim();
       
@@ -91,11 +88,18 @@ export function UpsellTab() {
     setUrlError(null);
     
     try {
-      // Salvar diretamente passando localSettings
-      await saveUpsellSettings(localSettings);
+      const { api } = await import("@/lib/api");
       
-      // Atualizar snapshot após salvar
-      snapshotRef.current = JSON.stringify(localSettings);
+      const { data, error } = await api.call<{ success?: boolean; error?: string }>('product-settings', {
+        action: 'update-upsell-settings',
+        productId: product?.id,
+        upsellSettings: localSettings,
+      });
+      
+      if (error) throw new Error(error.message);
+      if (!data?.success) throw new Error(data?.error || 'Falha ao salvar');
+      
+      dispatchForm({ type: 'MARK_SAVED' });
       updateUpsellModified(false);
       
       toast.success("Configurações de upsell salvas com sucesso");
@@ -103,10 +107,7 @@ export function UpsellTab() {
       console.error("Erro ao salvar upsell:", error);
       toast.error("Não foi possível salvar as configurações");
     }
-  };
-
-  // Verificar se há mudanças comparando com snapshot
-  const hasChanges = JSON.stringify(localSettings) !== snapshotRef.current;
+  }, [localSettings, product?.id, dispatchForm, updateUpsellModified]);
 
   if (!product?.id) {
     return (
@@ -125,7 +126,6 @@ export function UpsellTab() {
         </p>
 
         <div className="space-y-6">
-          {/* Página de Obrigado Customizada */}
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
               <Switch 
@@ -165,12 +165,9 @@ export function UpsellTab() {
               </div>
             )}
           </div>
-
-
         </div>
       </div>
 
-      {/* Botão Salvar */}
       <div className="flex justify-between items-center pt-6 border-t border-border">
         <div />
         <Button 
