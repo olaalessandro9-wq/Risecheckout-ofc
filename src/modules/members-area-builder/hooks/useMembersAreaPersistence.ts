@@ -6,7 +6,9 @@
  * - Save all changes to database
  * - Discard changes (restore from original)
  * 
- * @see RISE ARCHITECT PROTOCOL - Extracted for 300-line compliance
+ * REFACTORED: Uses dispatch from Reducer
+ * 
+ * @see RISE ARCHITECT PROTOCOL V3 - Single Source of Truth
  */
 
 import { useCallback, useEffect } from 'react';
@@ -18,12 +20,13 @@ import type {
   MembersAreaBuilderSettings,
   MemberModule,
 } from '../types/builder.types';
+import type { BuilderAction } from '../state/builderReducer';
 import { parseSections, parseSettings } from './useMembersAreaParsers';
 
 interface UseMembersAreaPersistenceProps {
   productId: string | undefined;
   state: BuilderState;
-  setState: React.Dispatch<React.SetStateAction<BuilderState>>;
+  dispatch: React.Dispatch<BuilderAction>;
   originalSectionsRef: React.MutableRefObject<Section[]>;
   originalSettingsRef: React.MutableRefObject<MembersAreaBuilderSettings>;
 }
@@ -41,19 +44,18 @@ interface UseMembersAreaPersistenceReturn {
 export function useMembersAreaPersistence({
   productId,
   state,
-  setState,
+  dispatch,
   originalSectionsRef,
   originalSettingsRef,
 }: UseMembersAreaPersistenceProps): UseMembersAreaPersistenceReturn {
 
   /**
    * Load members area data via Edge Function
-   * MIGRATED: Uses admin-data Edge Function
    */
   const load = useCallback(async () => {
     if (!productId) return;
     
-    setState(prev => ({ ...prev, isLoading: true }));
+    dispatch({ type: 'SET_LOADING', isLoading: true });
     
     try {
       const { data, error } = await api.call<{ error?: string; sections?: unknown[]; settings?: unknown }>('admin-data', {
@@ -71,19 +73,13 @@ export function useMembersAreaPersistence({
       originalSectionsRef.current = parsedSections;
       originalSettingsRef.current = parsedSettings;
       
-      setState(prev => ({
-        ...prev,
-        sections: parsedSections,
-        settings: parsedSettings,
-        isLoading: false,
-        isDirty: false,
-      }));
+      dispatch({ type: 'LOAD_SUCCESS', sections: parsedSections, settings: parsedSettings });
     } catch (error: unknown) {
       console.error('[useMembersAreaBuilder] Load error:', error);
       toast.error('Erro ao carregar configurações');
-      setState(prev => ({ ...prev, isLoading: false }));
+      dispatch({ type: 'SET_LOADING', isLoading: false });
     }
-  }, [productId, setState, originalSectionsRef, originalSettingsRef]);
+  }, [productId, dispatch, originalSectionsRef, originalSettingsRef]);
 
   useEffect(() => {
     load();
@@ -92,7 +88,7 @@ export function useMembersAreaPersistence({
   const save = useCallback(async (): Promise<boolean> => {
     if (!productId) return false;
     
-    setState(prev => ({ ...prev, isSaving: true }));
+    dispatch({ type: 'SET_SAVING', isSaving: true });
     
     try {
       // 1. Get deleted section IDs (in original but not in current, excluding temp IDs)
@@ -125,50 +121,41 @@ export function useMembersAreaPersistence({
         throw new Error(settingsResult?.error || settingsError?.message || "Erro ao salvar configurações");
       }
       
-      // 4. Update local state with real IDs and refresh originals
-      setState(prev => {
-        const updatedSections = prev.sections.map(s => {
-          const realId = insertedIdMap.get(s.id);
-          return realId ? { ...s, id: realId } : s;
-        });
-        
-        // Update refs
-        originalSectionsRef.current = updatedSections;
-        originalSettingsRef.current = prev.settings;
-        
-        return {
-          ...prev,
-          sections: updatedSections,
-          isDirty: false,
-          isSaving: false,
-        };
+      // 4. Update local state with real IDs
+      const updatedSections = state.sections.map(s => {
+        const realId = insertedIdMap.get(s.id);
+        return realId ? { ...s, id: realId } : s;
       });
+      
+      // Update refs
+      originalSectionsRef.current = updatedSections;
+      originalSettingsRef.current = state.settings;
+      
+      dispatch({ type: 'MARK_SAVED', sections: updatedSections });
       
       toast.success('Alterações salvas');
       return true;
     } catch (error: unknown) {
       console.error('[useMembersAreaBuilder] Save error:', error);
       toast.error('Erro ao salvar');
-      setState(prev => ({ ...prev, isSaving: false }));
+      dispatch({ type: 'SET_SAVING', isSaving: false });
       return false;
     }
-  }, [productId, state.sections, state.settings, setState, originalSectionsRef, originalSettingsRef]);
+  }, [productId, state.sections, state.settings, dispatch, originalSectionsRef, originalSettingsRef]);
 
   const discard = useCallback(() => {
-    // Restore from original refs
-    setState(prev => ({
-      ...prev,
-      sections: originalSectionsRef.current,
-      settings: originalSettingsRef.current,
-      isDirty: false,
-      selectedSectionId: null,
-    }));
+    dispatch({ 
+      type: 'DISCARD_CHANGES', 
+      original: {
+        sections: originalSectionsRef.current,
+        settings: originalSettingsRef.current,
+      }
+    });
     toast.info('Alterações descartadas');
-  }, [setState, originalSectionsRef, originalSettingsRef]);
+  }, [dispatch, originalSectionsRef, originalSettingsRef]);
 
   /**
    * Load modules via Edge Function
-   * MIGRATED: Uses admin-data Edge Function via api.call
    */
   const loadModules = useCallback(async () => {
     if (!productId) return;
@@ -182,14 +169,11 @@ export function useMembersAreaPersistence({
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
       
-      setState(prev => ({
-        ...prev,
-        modules: (data?.modules || []) as MemberModule[],
-      }));
+      dispatch({ type: 'SET_MODULES', modules: (data?.modules || []) as MemberModule[] });
     } catch (error: unknown) {
       console.error('[useMembersAreaBuilder] Load modules error:', error);
     }
-  }, [productId, setState]);
+  }, [productId, dispatch]);
 
   useEffect(() => {
     if (productId) {

@@ -2,18 +2,15 @@
  * Members Area Builder - Main Orchestrator Hook
  * 
  * Composes smaller hooks for:
- * - State management
+ * - State management (Reducer)
  * - Sections CRUD
  * - Persistence (load/save)
  * - View state
  * - Module editing
  * 
- * FLUXO DE SALVAMENTO MANUAL:
- * - Todas as operações (add, update, delete, reorder) alteram APENAS o estado local
- * - O banco de dados só é modificado ao clicar em "Salvar"
- * - isDirty = true quando há alterações não salvas
+ * REFACTORED: Uses useReducer as Single Source of Truth
  * 
- * @see RISE ARCHITECT PROTOCOL - Refactored to ~80 lines (compliance: 300-line limit)
+ * @see RISE ARCHITECT PROTOCOL V3 - State Management via Reducer
  */
 
 import type { BuilderState, BuilderActions } from '../types/builder.types';
@@ -32,10 +29,10 @@ interface UseMembersAreaBuilderReturn {
  * Main orchestrator hook for Members Area Builder
  */
 export function useMembersAreaBuilder(productId: string | undefined): UseMembersAreaBuilderReturn {
-  // Core state management
+  // Core state management via Reducer
   const {
     state,
-    setState,
+    dispatch,
     originalSectionsRef,
     originalSettingsRef,
   } = useMembersAreaState();
@@ -48,7 +45,7 @@ export function useMembersAreaBuilder(productId: string | undefined): UseMembers
     deleteSection,
     reorderSections,
     duplicateSection,
-  } = useMembersAreaSections({ productId, state, setState });
+  } = useMembersAreaSections({ productId, state, dispatch });
 
   // Persistence (load/save/discard)
   const {
@@ -59,7 +56,7 @@ export function useMembersAreaBuilder(productId: string | undefined): UseMembers
   } = useMembersAreaPersistence({
     productId,
     state,
-    setState,
+    dispatch,
     originalSectionsRef,
     originalSettingsRef,
   });
@@ -72,14 +69,14 @@ export function useMembersAreaBuilder(productId: string | undefined): UseMembers
     togglePreviewMode,
     toggleMenuCollapse,
     updateSettings,
-  } = useMembersAreaView({ setState });
+  } = useMembersAreaView({ dispatch });
 
   // Module editing
   const {
     updateModule,
     selectModule,
     setEditingModule,
-  } = useMembersAreaModulesEdit({ setState });
+  } = useMembersAreaModulesEdit({ dispatch });
 
   // Compose all actions
   const actions: BuilderActions = {

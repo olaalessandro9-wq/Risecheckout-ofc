@@ -1,13 +1,13 @@
 /**
  * Members Area Settings Hook
  * Handles fetching and updating product members area settings
- * OTIMIZADO: Usa React Query para cache inteligente
  * 
- * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
- * @see RISE Protocol V2 - Zero database access from frontend
+ * REFACTORED: Uses useReducer for Single Source of Truth
+ * 
+ * @see RISE Protocol V3 - State Management via Reducer
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useReducer, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createLogger } from "@/lib/logger";
 
@@ -19,6 +19,11 @@ import { useAuth } from "@/hooks/useAuth";
 import type { Json } from "@/integrations/supabase/types";
 import type { MembersAreaSettings, MemberModuleWithContents, MemberContent } from "./types";
 import { normalizeContentType } from "@/modules/members-area/utils";
+import { 
+  membersAreaReducer, 
+  INITIAL_MEMBERS_AREA_STATE,
+  type MembersAreaAction 
+} from "./membersAreaReducer";
 
 interface SettingsResponse {
   success: boolean;
@@ -60,7 +65,6 @@ export const membersAreaQueryKeys = {
 
 /**
  * Fetch settings via Edge Function
- * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
  */
 async function fetchMembersAreaSettings(productId: string): Promise<MembersAreaSettings> {
   const { data, error } = await api.call<SettingsResponse>('admin-data', { 
@@ -79,7 +83,6 @@ async function fetchMembersAreaSettings(productId: string): Promise<MembersAreaS
 
 /**
  * Fetch modules via Edge Function
- * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
  */
 async function fetchMembersAreaModules(productId: string): Promise<MemberModuleWithContents[]> {
   const { data, error } = await api.call<ModulesResponse>('admin-data', { 
@@ -104,10 +107,9 @@ async function fetchMembersAreaModules(productId: string): Promise<MemberModuleW
 interface UseMembersAreaSettingsReturn {
   isLoading: boolean;
   isSaving: boolean;
-  setIsSaving: (saving: boolean) => void;
   settings: MembersAreaSettings;
   modules: MemberModuleWithContents[];
-  setModules: React.Dispatch<React.SetStateAction<MemberModuleWithContents[]>>;
+  dispatch: React.Dispatch<MembersAreaAction>;
   updateSettings: (enabled: boolean, settings?: Json) => Promise<void>;
   fetchData: () => Promise<void>;
 }
@@ -115,8 +117,9 @@ interface UseMembersAreaSettingsReturn {
 export function useMembersAreaSettings(productId: string | undefined): UseMembersAreaSettingsReturn {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const [isSaving, setIsSaving] = useState(false);
-  const [localModules, setLocalModules] = useState<MemberModuleWithContents[]>([]);
+  
+  // Single Source of Truth via Reducer
+  const [state, dispatch] = useReducer(membersAreaReducer, INITIAL_MEMBERS_AREA_STATE);
 
   // Query para settings
   const settingsQuery = useQuery({
@@ -136,20 +139,17 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
     gcTime: SETTINGS_CACHE_TIME,
   });
 
-  // Reset localModules quando productId muda
+  // Reset modules quando productId muda
   useEffect(() => {
-    setLocalModules([]);
+    dispatch({ type: 'RESET', modules: [] });
   }, [productId]);
 
-  // Sincronizar localModules quando modulesQuery.data carrega/muda
+  // Sincronizar modules do React Query com Reducer
   useEffect(() => {
     if (modulesQuery.data && modulesQuery.data.length > 0) {
-      setLocalModules(modulesQuery.data);
+      dispatch({ type: 'SET_MODULES', modules: modulesQuery.data });
     }
   }, [modulesQuery.data]);
-
-  // Usar sempre localModules (agora sincronizado com React Query)
-  const modules = localModules;
 
   // Mutation para atualizar settings via Edge Function
   const updateMutation = useMutation({
@@ -229,13 +229,13 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
       toast.error("Erro ao atualizar configurações");
     },
     onSettled: () => {
-      setIsSaving(false);
+      dispatch({ type: 'SET_SAVING', isSaving: false });
     },
   });
 
   const updateSettings = useCallback(async (enabled: boolean, newSettings?: Json) => {
     if (!productId) return;
-    setIsSaving(true);
+    dispatch({ type: 'SET_SAVING', isSaving: true });
     await updateMutation.mutateAsync({ enabled, newSettings });
   }, [productId, updateMutation]);
 
@@ -249,11 +249,10 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
 
   return {
     isLoading: settingsQuery.isLoading || modulesQuery.isLoading,
-    isSaving,
-    setIsSaving,
+    isSaving: state.isSaving,
     settings: settingsQuery.data ?? { enabled: false, settings: null },
-    modules,
-    setModules: setLocalModules,
+    modules: state.modules,
+    dispatch,
     updateSettings,
     fetchData,
   };

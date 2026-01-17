@@ -2,28 +2,32 @@
  * Members Area Builder - State Management Hook
  * 
  * Responsible for:
- * - Initial state setup
+ * - useReducer as Single Source of Truth
  * - State refs for comparison during save
- * - State wrapper types
  * 
- * @see RISE ARCHITECT PROTOCOL - Extracted for 300-line compliance
+ * REFACTORED: Uses useReducer instead of useState
+ * 
+ * @see RISE ARCHITECT PROTOCOL V3 - State Management via Reducer
  */
 
-import { useState, useRef } from 'react';
+import { useReducer, useRef } from 'react';
 import type { 
-  BuilderState, 
   Section,
-  SectionType,
   MembersAreaBuilderSettings,
 } from '../types/builder.types';
 import { DEFAULT_BUILDER_SETTINGS } from '../types/builder.types';
+import { 
+  builderReducer, 
+  INITIAL_BUILDER_STATE,
+  type BuilderAction,
+} from '../state/builderReducer';
 
 /** Valid section types for type guard */
-export const VALID_SECTION_TYPES: SectionType[] = ['banner', 'modules', 'courses', 'continue_watching', 'text', 'spacer'];
+export const VALID_SECTION_TYPES = ['banner', 'modules', 'courses', 'continue_watching', 'text', 'spacer'] as const;
 
 /** Type guard for SectionType */
-export function isSectionType(type: string): type is SectionType {
-  return VALID_SECTION_TYPES.includes(type as SectionType);
+export function isSectionType(type: string): type is typeof VALID_SECTION_TYPES[number] {
+  return VALID_SECTION_TYPES.includes(type as typeof VALID_SECTION_TYPES[number]);
 }
 
 /** Raw section row from database */
@@ -39,23 +43,6 @@ export interface RawSectionRow {
   updated_at: string;
 }
 
-/** Initial state for the builder */
-export const INITIAL_STATE: BuilderState = {
-  sections: [],
-  settings: DEFAULT_BUILDER_SETTINGS,
-  selectedSectionId: null,
-  selectedMenuItemId: null,
-  viewMode: 'desktop',
-  isPreviewMode: false,
-  isMenuCollapsed: false,
-  isDirty: false,
-  isLoading: true,
-  isSaving: false,
-  modules: [],
-  selectedModuleId: null,
-  isEditingModule: false,
-};
-
 /** Check if ID is temporary (not yet in DB) */
 export function isTemporaryId(id: string): boolean {
   return id.startsWith('temp_');
@@ -63,17 +50,18 @@ export function isTemporaryId(id: string): boolean {
 
 /** Hook return type */
 export interface UseMembersAreaStateReturn {
-  state: BuilderState;
-  setState: React.Dispatch<React.SetStateAction<BuilderState>>;
+  state: ReturnType<typeof builderReducer>;
+  dispatch: React.Dispatch<BuilderAction>;
   originalSectionsRef: React.MutableRefObject<Section[]>;
   originalSettingsRef: React.MutableRefObject<MembersAreaBuilderSettings>;
 }
 
 /**
  * State management hook for Members Area Builder
+ * Uses useReducer for Single Source of Truth
  */
 export function useMembersAreaState(): UseMembersAreaStateReturn {
-  const [state, setState] = useState<BuilderState>(INITIAL_STATE);
+  const [state, dispatch] = useReducer(builderReducer, INITIAL_BUILDER_STATE);
   
   // Store original sections from DB for comparison during save
   const originalSectionsRef = useRef<Section[]>([]);
@@ -81,7 +69,7 @@ export function useMembersAreaState(): UseMembersAreaStateReturn {
 
   return {
     state,
-    setState,
+    dispatch,
     originalSectionsRef,
     originalSettingsRef,
   };

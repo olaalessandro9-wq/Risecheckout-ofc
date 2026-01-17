@@ -167,27 +167,3 @@ export function useProductSettings({
     saveAffiliateSettings,
   };
 }
-
-// ============================================================================
-// LEGACY COMPATIBILITY TYPES (para transição gradual)
-// ============================================================================
-
-/**
- * @deprecated Use useProductSettings com dados do Reducer
- */
-export interface LegacyProductSettingsReturn {
-  paymentSettings: PaymentSettings;
-  checkoutFields: CheckoutFields;
-  upsellSettings: UpsellSettings;
-  affiliateSettings: AffiliateSettings | null;
-  setUpsellSettings: React.Dispatch<React.SetStateAction<UpsellSettings>>;
-  setAffiliateSettings: React.Dispatch<React.SetStateAction<AffiliateSettings | null>>;
-  updatePaymentSettings: (settings: Partial<PaymentSettings>) => void;
-  updateCheckoutFields: (fields: Partial<CheckoutFields>) => void;
-  updateUpsellSettings: (settings: Partial<UpsellSettings>) => void;
-  updateAffiliateSettings: (settings: Partial<AffiliateSettings>) => void;
-  savePaymentSettings: () => Promise<void>;
-  saveCheckoutFields: () => Promise<void>;
-  saveUpsellSettings: (settings?: UpsellSettings) => Promise<void>;
-  saveAffiliateSettings: (settings?: AffiliateSettings | null) => Promise<void>;
-}
