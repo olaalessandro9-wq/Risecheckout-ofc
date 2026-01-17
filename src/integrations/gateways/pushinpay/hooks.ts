@@ -1,13 +1,19 @@
 /**
  * Hooks para o PushinPay Gateway
  * 
- * MIGRATED: Uses vendor-integrations Edge Function
+ * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
  * @see RISE Protocol V2 - Zero database access from frontend
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import type { PushinPayIntegration } from "./types";
+
+interface PushinPayConfigResponse {
+  success?: boolean;
+  data?: PushinPayIntegration;
+  error?: string;
+}
 
 /**
  * Hook para carregar a configuração da PushinPay de um vendedor
@@ -25,12 +31,10 @@ export function usePushinPayConfig(vendorId?: string) {
       }
 
       try {
-        const { data, error } = await supabase.functions.invoke("vendor-integrations", {
-          body: {
-            action: "get-config",
-            vendorId,
-            integrationType: "PUSHINPAY",
-          },
+        const { data, error } = await api.publicCall<PushinPayConfigResponse>("vendor-integrations", {
+          action: "get-config",
+          vendorId,
+          integrationType: "PUSHINPAY",
         });
 
         if (error) {
@@ -44,7 +48,7 @@ export function usePushinPayConfig(vendorId?: string) {
         }
 
         console.log("[PushinPay] Configuração carregada com sucesso para vendor:", vendorId);
-        return data.data as PushinPayIntegration;
+        return data.data;
       } catch (error: unknown) {
         console.error("[PushinPay] Erro inesperado ao carregar config:", error);
         return null;

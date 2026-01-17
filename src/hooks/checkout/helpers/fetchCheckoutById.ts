@@ -1,11 +1,11 @@
 /**
  * Helper: fetchCheckoutById
  * 
- * MIGRATED: Uses checkout-public-data Edge Function
+ * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
  * @see RISE Protocol V2 - Zero database access from frontend
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 
 export interface CheckoutRawData {
   id: string;
@@ -32,12 +32,16 @@ export interface CheckoutRawData {
   stripe_public_key: string | null;
 }
 
+interface CheckoutResponse {
+  success?: boolean;
+  data?: CheckoutRawData;
+  error?: string;
+}
+
 export async function fetchCheckoutById(checkoutId: string): Promise<CheckoutRawData> {
-  const { data, error } = await supabase.functions.invoke("checkout-public-data", {
-    body: {
-      action: "checkout",
-      checkoutId,
-    },
+  const { data, error } = await api.publicCall<CheckoutResponse>("checkout-public-data", {
+    action: "checkout",
+    checkoutId,
   });
 
   if (error) {

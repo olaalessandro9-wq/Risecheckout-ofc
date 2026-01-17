@@ -1,11 +1,11 @@
 /**
  * Helper: fetchProductData
  * 
- * MIGRATED: Uses checkout-public-data Edge Function
+ * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
  * @see RISE Protocol V2 - Zero database access from frontend
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 
 export interface ProductRawData {
   id: string;
@@ -24,12 +24,16 @@ export interface ProductRawData {
   credit_card_gateway: string | null;
 }
 
+interface ProductResponse {
+  success?: boolean;
+  data?: ProductRawData;
+  error?: string;
+}
+
 export async function fetchProductData(productId: string): Promise<ProductRawData> {
-  const { data, error } = await supabase.functions.invoke("checkout-public-data", {
-    body: {
-      action: "product",
-      productId,
-    },
+  const { data, error } = await api.publicCall<ProductResponse>("checkout-public-data", {
+    action: "product",
+    productId,
   });
 
   if (error) {

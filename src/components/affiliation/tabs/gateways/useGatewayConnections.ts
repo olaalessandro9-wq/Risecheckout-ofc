@@ -3,17 +3,22 @@
  * 
  * Gerencia o estado de conexões de gateway do usuário e configurações do produto.
  * 
- * MIGRATED: Uses Edge Function instead of supabase.from()
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
  */
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
-import { invokeEdgeFunction } from "@/lib/api-client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 import { DEFAULT_PIX_GATEWAYS, DEFAULT_CARD_GATEWAYS, GATEWAY_INFO } from "./gateway-constants";
 import type { AffiliationDetails } from "@/hooks/useAffiliationDetails";
+
+interface GatewayConnectionsResponse {
+  connections?: Record<string, boolean>;
+  credentials?: Record<string, string>;
+  productSettings?: AffiliateGatewaySettings | null;
+  error?: string;
+}
 
 interface AffiliateGatewaySettings {
   pix_allowed?: string[];
@@ -40,23 +45,20 @@ export function useGatewayConnections({ affiliation, onRefetch }: UseGatewayConn
 
   /**
    * Load gateway connections via Edge Function
-   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
    */
   const loadData = useCallback(async () => {
     if (!user?.id) return;
     
     setLoading(true);
     try {
-      const sessionToken = getProducerSessionToken();
-      const { data, error } = await supabase.functions.invoke("admin-data", {
-        body: { 
-          action: "gateway-connections",
-          affiliationProductId: affiliation.product?.id,
-        },
-        headers: { "x-producer-session-token": sessionToken || "" },
+      const { data, error } = await api.call<GatewayConnectionsResponse>("admin-data", {
+        action: "gateway-connections",
+        affiliationProductId: affiliation.product?.id,
       });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       const settings = data?.productSettings as AffiliateGatewaySettings | null;
       
@@ -131,7 +133,7 @@ export function useGatewayConnections({ affiliation, onRefetch }: UseGatewayConn
       }
 
       // Atualizar afiliado via Edge Function (PROTOCOLO: Zero bypass direto)
-      const { data, error } = await invokeEdgeFunction<{ success: boolean; error?: string }>("update-affiliate-settings", {
+      const { data, error } = await api.call<{ success: boolean; error?: string }>("update-affiliate-settings", {
         action: "update_gateways",
         affiliate_id: affiliation.id,
         pix_gateway: selectedPixGateway,
@@ -139,7 +141,7 @@ export function useGatewayConnections({ affiliation, onRefetch }: UseGatewayConn
         gateway_credentials: gatewayCredentials,
       });
 
-      if (error) throw new Error(error);
+      if (error) throw new Error(error.message);
       if (!data?.success) throw new Error(data?.error || "Erro ao atualizar gateways");
 
       toast.success("Gateways configurados com sucesso!");

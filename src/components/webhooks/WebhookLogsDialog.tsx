@@ -1,15 +1,14 @@
 /**
  * Webhook Logs Dialog
  * 
- * MIGRATED: Uses Edge Function instead of direct database access
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
  * @see RISE Protocol V2 - Zero direct database access from frontend
  */
 
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
+import { api } from "@/lib/api";
 import type { Json } from "@/integrations/supabase/types";
 import {
   Dialog,
@@ -69,21 +68,15 @@ export function WebhookLogsDialog({
 
   /**
    * Load logs via Edge Function
-   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
    */
   const loadLogs = async () => {
     try {
       setLoading(true);
       
-      const sessionToken = getProducerSessionToken();
-      const { data, error } = await supabase.functions.invoke("products-crud", {
-        body: {
-          action: "get-webhook-logs",
-          webhookId,
-        },
-        headers: {
-          "x-producer-session-token": sessionToken || "",
-        },
+      const { data, error } = await api.call<{ logs?: WebhookDelivery[]; error?: string }>("products-crud", {
+        action: "get-webhook-logs",
+        webhookId,
       });
 
       if (error) {
