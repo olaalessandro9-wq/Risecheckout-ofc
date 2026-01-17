@@ -156,3 +156,44 @@ export async function saveGeneralProduct({
   if (error) throw new Error(error.message);
   if (!data?.success) throw new Error(data?.error || 'Falha ao atualizar produto');
 }
+
+// ============================================================================
+// CHECKOUT SETTINGS SAVE
+// ============================================================================
+
+interface SaveCheckoutSettingsParams {
+  productId: string;
+  checkoutSettings: {
+    required_fields: {
+      name: boolean;
+      email: boolean;
+      phone: boolean;
+      cpf: boolean;
+    };
+    default_payment_method: string;
+    pix_gateway: string;
+    credit_card_gateway: string;
+  };
+}
+
+/**
+ * Salva configurações de checkout do produto via Edge Function.
+ */
+export async function saveCheckoutSettingsProduct({
+  productId,
+  checkoutSettings,
+}: SaveCheckoutSettingsParams): Promise<void> {
+  const { data, error } = await api.call<{ success?: boolean; error?: string }>('product-settings', {
+    action: 'update-settings',
+    productId,
+    settings: {
+      required_fields: checkoutSettings.required_fields,
+      default_payment_method: checkoutSettings.default_payment_method,
+      pix_gateway: checkoutSettings.pix_gateway,
+      credit_card_gateway: checkoutSettings.credit_card_gateway,
+    },
+  });
+
+  if (error) throw new Error(error.message);
+  if (!data?.success) throw new Error(data?.error || 'Falha ao salvar configurações de checkout');
+}
