@@ -13,17 +13,22 @@
  * @see RISE ARCHITECT PROTOCOL V3 - Single Source of Truth
  */
 
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { RegisterSaveHandler } from "../../types/saveRegistry.types";
-import type { GeneralFormData, CheckoutSettingsFormData, GatewayCredentials } from "../../types/productForm.types";
+import type { GeneralFormData, CheckoutSettingsFormData } from "../../types/productForm.types";
 import type { UpsellSettings, AffiliateSettings, ProductData, Offer } from "../../types/product.types";
 import { 
   validateGeneralForm, 
   validateUpsellSettings, 
   validateAffiliateSettings 
 } from "../productFormValidation";
-import { api } from "@/lib/api";
 import { getGatewayById, isGatewayAvailable } from "@/config/payment-gateways";
+import {
+  uploadProductImage,
+  saveDeletedOffers,
+  saveOffers,
+  saveGeneralProduct,
+} from "../helpers/saveFunctions";
 
 // ============================================================================
 // TYPES
@@ -33,15 +38,18 @@ interface UseGlobalValidationHandlersOptions {
   productId: string | null;
   userId: string | undefined;
   registerSaveHandler: RegisterSaveHandler;
-  // General
+  // General Form Data (from reducer)
   generalForm: GeneralFormData;
   product: ProductData | null;
+  // Image Data (from reducer)
   imageFile: File | null;
   pendingRemoval: boolean;
-  uploadImage: () => Promise<string | null>;
+  // Offers Data (from reducer)
+  localOffers: Offer[];
+  offersModified: boolean;
+  deletedOfferIds: string[];
+  // Reset callbacks
   resetImage: () => void;
-  saveDeletedOffers: () => Promise<void>;
-  saveOffers: () => Promise<void>;
   resetOffers: () => void;
   // Checkout Settings
   checkoutSettingsForm: CheckoutSettingsFormData;
@@ -74,10 +82,10 @@ export function useGlobalValidationHandlers(options: UseGlobalValidationHandlers
     product,
     imageFile,
     pendingRemoval,
-    uploadImage,
+    localOffers,
+    offersModified,
+    deletedOfferIds,
     resetImage,
-    saveDeletedOffers,
-    saveOffers,
     resetOffers,
     checkoutSettingsForm,
     isCheckoutSettingsInitialized,
@@ -88,15 +96,19 @@ export function useGlobalValidationHandlers(options: UseGlobalValidationHandlers
     saveAffiliateSettings,
   } = options;
 
-  // Refs para evitar stale closures
+  // Refs para evitar stale closures - acessar dados atuais no momento do save
   const generalFormRef = useRef(generalForm);
   const upsellSettingsRef = useRef(upsellSettings);
   const affiliateSettingsRef = useRef(affiliateSettings);
   const checkoutSettingsFormRef = useRef(checkoutSettingsForm);
   const imageFileRef = useRef(imageFile);
   const pendingRemovalRef = useRef(pendingRemoval);
+  const localOffersRef = useRef(localOffers);
+  const offersModifiedRef = useRef(offersModified);
+  const deletedOfferIdsRef = useRef(deletedOfferIds);
+  const productRef = useRef(product);
 
-  // Atualizar refs
+  // Atualizar refs quando dados mudam
   useEffect(() => {
     generalFormRef.current = generalForm;
     upsellSettingsRef.current = upsellSettings;
@@ -104,7 +116,11 @@ export function useGlobalValidationHandlers(options: UseGlobalValidationHandlers
     checkoutSettingsFormRef.current = checkoutSettingsForm;
     imageFileRef.current = imageFile;
     pendingRemovalRef.current = pendingRemoval;
-  }, [generalForm, upsellSettings, affiliateSettings, checkoutSettingsForm, imageFile, pendingRemoval]);
+    localOffersRef.current = localOffers;
+    offersModifiedRef.current = offersModified;
+    deletedOfferIdsRef.current = deletedOfferIds;
+    productRef.current = product;
+  }, [generalForm, upsellSettings, affiliateSettings, checkoutSettingsForm, imageFile, pendingRemoval, localOffers, offersModified, deletedOfferIds, product]);
 
   useEffect(() => {
     if (!productId || !userId) return;
@@ -120,37 +136,45 @@ export function useGlobalValidationHandlers(options: UseGlobalValidationHandlers
         const currentForm = generalFormRef.current;
         const currentImageFile = imageFileRef.current;
         const currentPendingRemoval = pendingRemovalRef.current;
+        const currentDeletedOfferIds = deletedOfferIdsRef.current;
+        const currentLocalOffers = localOffersRef.current;
+        const currentOffersModified = offersModifiedRef.current;
+        const currentProduct = productRef.current;
 
-        let finalImageUrl = product?.image_url || null;
+        // Determinar URL final da imagem
+        let finalImageUrl = currentProduct?.image_url || null;
 
         if (currentImageFile) {
-          finalImageUrl = await uploadImage();
+          finalImageUrl = await uploadProductImage({
+            imageFile: currentImageFile,
+            userId,
+            productId,
+            currentImageUrl: currentProduct?.image_url || null,
+          });
         } else if (currentPendingRemoval) {
           finalImageUrl = null;
         }
 
-        const { data, error } = await api.call<{ success?: boolean; error?: string }>('product-settings', {
-          action: 'update-general',
+        // Salvar produto
+        await saveGeneralProduct({
           productId,
-          data: {
-            name: currentForm.name,
-            description: currentForm.description,
-            price: currentForm.price,
-            support_name: currentForm.support_name,
-            support_email: currentForm.support_email,
-            delivery_url: currentForm.external_delivery ? null : (currentForm.delivery_url || null),
-            external_delivery: currentForm.external_delivery,
-            status: "active",
-            image_url: finalImageUrl,
-          },
+          generalForm: currentForm,
+          finalImageUrl,
         });
 
-        if (error) throw new Error(error.message);
-        if (!data?.success) throw new Error(data?.error || 'Falha ao atualizar produto');
+        // Salvar ofertas deletadas
+        await saveDeletedOffers({
+          deletedOfferIds: currentDeletedOfferIds,
+        });
 
-        await saveDeletedOffers();
-        await saveOffers();
+        // Salvar ofertas modificadas
+        await saveOffers({
+          productId,
+          localOffers: currentLocalOffers,
+          offersModified: currentOffersModified,
+        });
 
+        // Reset states
         resetImage();
         resetOffers();
       },
@@ -285,11 +309,7 @@ export function useGlobalValidationHandlers(options: UseGlobalValidationHandlers
     productId,
     userId,
     registerSaveHandler,
-    product?.image_url,
-    uploadImage,
     resetImage,
-    saveDeletedOffers,
-    saveOffers,
     resetOffers,
     isCheckoutSettingsInitialized,
     saveCheckoutSettings,
