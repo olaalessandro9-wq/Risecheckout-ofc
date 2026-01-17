@@ -2,7 +2,10 @@
  * Order Status Service - Centralized Status Operations
  * 
  * @module lib/order-status
- * @version RISE V3 Compliant - Solution C (9.9 score)
+ * @version RISE V3 Compliant - Modelo Hotmart/Kiwify
+ * 
+ * PADRÃO DE MERCADO: Uma venda pendente NUNCA vira "cancelada".
+ * Status expired, cancelled, failed do gateway = 'pending' na UI.
  * 
  * This service handles all status-related operations:
  * - Display label generation
@@ -19,6 +22,7 @@ import {
   STATUS_COLORS,
   CANONICAL_STATUS_SET,
   isCanonicalStatus,
+  CANONICAL_STATUSES,
 } from './types';
 
 // ============================================================================
@@ -28,54 +32,58 @@ import {
 /**
  * Maps raw gateway statuses to canonical statuses
  * 
- * This handles variations from different payment gateways:
- * - MercadoPago: approved, pending, rejected, refunded, etc.
- * - PushinPay: paid, expired, cancelled, etc.
- * - Stripe: succeeded, pending, failed, etc.
+ * MODELO HOTMART/KIWIFY:
+ * - Todos os status de "falha" mapeiam para 'pending' (vendas não "cancelam")
+ * - Apenas 4 status canônicos: paid, pending, refunded, chargeback
  */
 const GATEWAY_STATUS_MAP: Readonly<Record<string, CanonicalOrderStatus>> = {
-  // Universal
+  // ===== CANONICAL (passthrough) =====
   paid: 'paid',
   pending: 'pending',
-  cancelled: 'cancelled',
   refunded: 'refunded',
   chargeback: 'chargeback',
-  failed: 'failed',
   
-  // MercadoPago variations
+  // ===== SUCCESS (→ paid) =====
   approved: 'paid',
+  succeeded: 'paid',
+  success: 'paid',
+  complete: 'paid',
+  completed: 'paid',
+  confirmed: 'paid',
+  
+  // ===== PENDING (→ pending) =====
   authorized: 'pending',
   in_process: 'pending',
   in_mediation: 'pending',
-  rejected: 'failed',
-  cancelled_by_user: 'cancelled',
-  
-  // PushinPay variations
-  expired: 'cancelled',
   created: 'pending',
-  
-  // Stripe variations
-  succeeded: 'paid',
   requires_payment_method: 'pending',
   requires_confirmation: 'pending',
   requires_action: 'pending',
   processing: 'pending',
   requires_capture: 'pending',
-  canceled: 'cancelled',
   
-  // Common variations
-  success: 'paid',
-  complete: 'paid',
-  completed: 'paid',
-  confirmed: 'paid',
-  timeout: 'cancelled',
-  expired_pix: 'cancelled',
-  abandoned: 'cancelled',
-  error: 'failed',
-  declined: 'failed',
+  // ===== EXPIRED/CANCELLED (→ pending, padrão mercado) =====
+  // Uma venda pendente NUNCA vira cancelada - fica pendente eternamente
+  expired: 'pending',
+  cancelled: 'pending',
+  canceled: 'pending',
+  cancelled_by_user: 'pending',
+  timeout: 'pending',
+  expired_pix: 'pending',
+  abandoned: 'pending',
+  
+  // ===== FAILED/REJECTED (→ pending, padrão mercado) =====
+  // Erros de gateway = venda continua pendente
+  failed: 'pending',
+  rejected: 'pending',
+  error: 'pending',
+  declined: 'pending',
+  
+  // ===== REFUND/CHARGEBACK =====
   dispute: 'chargeback',
   disputed: 'chargeback',
   chargedback: 'chargeback',
+  charged_back: 'chargeback',
 } as const;
 
 // ============================================================================
@@ -87,35 +95,35 @@ class OrderStatusService {
    * Get display label for a status
    * 
    * @param status - Canonical status or raw gateway status
-   * @returns User-friendly label, or "Desconhecido" if not mappable
+   * @returns User-friendly label, or "Pendente" if not mappable (padrão mercado)
    * 
    * @example
    * getDisplayLabel('paid') // "Pago"
    * getDisplayLabel('approved') // "Pago" (via gateway mapping)
-   * getDisplayLabel('xyz123') // "Desconhecido"
+   * getDisplayLabel('expired') // "Pendente" (padrão mercado)
    */
-  getDisplayLabel(status: string | null | undefined): StatusDisplayLabel | 'Desconhecido' {
-    if (!status) return 'Desconhecido';
+  getDisplayLabel(status: string | null | undefined): StatusDisplayLabel {
+    if (!status) return 'Pendente';
     
     const normalized = this.normalize(status);
     if (normalized) {
       return STATUS_DISPLAY_MAP[normalized];
     }
     
-    // Log unknown status for monitoring
-    console.warn(`[OrderStatusService] Unknown status: "${status}"`);
-    return 'Desconhecido';
+    // Status desconhecido = Pendente (padrão mercado: não existe "desconhecido")
+    console.warn(`[OrderStatusService] Unknown status: "${status}" → defaulting to "Pendente"`);
+    return 'Pendente';
   }
 
   /**
    * Get color scheme for a status
    * 
    * @param status - Canonical status or raw gateway status
-   * @returns Color scheme object, or neutral colors for unknown status
+   * @returns Color scheme object, or pending colors for unknown status
    */
   getColorScheme(status: string | null | undefined): StatusColorScheme {
     if (!status) {
-      return STATUS_COLORS.cancelled; // Neutral gray for unknown
+      return STATUS_COLORS.pending; // Padrão mercado: sem status = pendente
     }
     
     const normalized = this.normalize(status);
@@ -123,18 +131,22 @@ class OrderStatusService {
       return STATUS_COLORS[normalized];
     }
     
-    // Unknown status uses neutral colors
-    return STATUS_COLORS.cancelled;
+    // Unknown status uses pending colors (padrão mercado)
+    return STATUS_COLORS.pending;
   }
 
   /**
    * Normalize any status string to a canonical status
    * 
+   * PADRÃO HOTMART/KIWIFY:
+   * - expired, cancelled, failed → 'pending'
+   * - Apenas 4 status possíveis: paid, pending, refunded, chargeback
+   * 
    * @param status - Any status string (canonical or gateway-specific)
-   * @returns Canonical status, or null if not mappable
+   * @returns Canonical status, or 'pending' if not mappable
    */
-  normalize(status: string | null | undefined): CanonicalOrderStatus | null {
-    if (!status) return null;
+  normalize(status: string | null | undefined): CanonicalOrderStatus {
+    if (!status) return 'pending';
     
     const lower = status.toLowerCase().trim();
     
@@ -149,7 +161,8 @@ class OrderStatusService {
       return mapped;
     }
     
-    return null;
+    // Fallback: desconhecido = pendente (padrão mercado)
+    return 'pending';
   }
 
   /**
@@ -168,12 +181,14 @@ class OrderStatusService {
 
   /**
    * Check if a status is a terminal/final state
+   * 
+   * NOTA: 'pending' não é terminal - pode virar 'paid'
    */
   isTerminal(status: string | null | undefined): boolean {
     const normalized = this.normalize(status);
-    if (!normalized) return false;
-    
-    return ['paid', 'cancelled', 'refunded', 'chargeback', 'failed'].includes(normalized);
+    // Terminal = não pode mais mudar (paid, refunded, chargeback)
+    // Pending não é terminal pois pode virar paid
+    return ['paid', 'refunded', 'chargeback'].includes(normalized);
   }
 
   /**
@@ -191,7 +206,7 @@ class OrderStatusService {
    * Get all canonical statuses (for dropdowns, filters, etc.)
    */
   getAllStatuses(): readonly CanonicalOrderStatus[] {
-    return ['paid', 'pending', 'cancelled', 'refunded', 'chargeback', 'failed'];
+    return CANONICAL_STATUSES;
   }
 
   /**

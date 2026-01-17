@@ -3,9 +3,11 @@
  * ASAAS-WEBHOOK EDGE FUNCTION
  * ============================================================================
  * 
- * Versão: 4 (+ IP Whitelist)
- * Última Atualização: 2026-01-12
- * Status: ✅ DLQ + IP Whitelist para segurança máxima
+ * @version 5 - RISE Protocol V3 - Modelo Hotmart/Kiwify
+ * 
+ * PADRÃO DE MERCADO: Uma venda pendente NUNCA vira "cancelada".
+ * OVERDUE = status continua PENDING + technical_status = 'expired'.
+ * 
  * ============================================================================
  */
 
@@ -24,14 +26,13 @@ import {
 import { processPostPaymentActions } from '../_shared/webhook-post-payment.ts';
 import { validateAsaasIP } from '../_shared/ip-whitelist.ts';
 
-const FUNCTION_VERSION = "4";
+const FUNCTION_VERSION = "5";
 const logger = createLogger('asaas-webhook', FUNCTION_VERSION);
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const ASAAS_WEBHOOK_TOKEN = Deno.env.get('ASAAS_WEBHOOK_TOKEN') || '';
 
-// Se true, bloqueia IPs fora da whitelist. Se false, apenas loga warning.
 const ENFORCE_IP_WHITELIST = Deno.env.get('ASAAS_ENFORCE_IP_WHITELIST') === 'true';
 
 interface AsaasWebhookEvent {
@@ -63,7 +64,7 @@ serve(async (req) => {
   let orderId: string | undefined;
 
   try {
-    // 🆕 Validate IP Whitelist
+    // Validate IP Whitelist
     const ipValidation = validateAsaasIP(req, ENFORCE_IP_WHITELIST);
     
     if (!ipValidation.isValid) {
@@ -89,7 +90,6 @@ serve(async (req) => {
       return createErrorResponse(ERROR_CODES.UNAUTHORIZED, 'IP não autorizado', 403);
     }
     
-    // Log IP para auditoria (mesmo quando válido)
     if (ipValidation.clientIP) {
       logger.info('IP validado', { ip: ipValidation.clientIP });
     }
@@ -130,8 +130,8 @@ serve(async (req) => {
       return createSuccessResponse({ received: true, message: `Evento ${eventType} não processado` });
     }
 
-    // Map Status
-    const { orderStatus, eventType: webhookEventType } = mapAsaasStatus(payment.status);
+    // Map Status (Modelo Hotmart/Kiwify)
+    const { orderStatus, eventType: webhookEventType, technicalStatus } = mapAsaasStatus(payment.status);
     orderId = payment.externalReference;
 
     if (!orderId) {
@@ -139,27 +139,43 @@ serve(async (req) => {
       return createSuccessResponse({ received: true, message: 'Payment sem orderId' });
     }
 
-    logger.info(`Atualizando order ${orderId} para status ${orderStatus}`);
+    logger.info('Mapeamento de status', { 
+      gateway_status: payment.status, 
+      order_status: orderStatus, 
+      technical_status: technicalStatus 
+    });
 
     // Fetch Order
     const { data: orderData } = await supabase
       .from('orders')
-      .select('vendor_id, customer_email, customer_name, product_name, amount_cents, product_id, offer_id')
+      .select('vendor_id, customer_email, customer_name, product_name, amount_cents, product_id, offer_id, status')
       .eq('id', orderId)
       .single();
 
     const vendorId = orderData?.vendor_id || '00000000-0000-0000-0000-000000000000';
 
-    // Update Order - Normalizar status para lowercase
+    // Build update data - MODELO HOTMART/KIWIFY
     const normalizedStatus = orderStatus.toLowerCase();
     const updateData: Record<string, unknown> = {
-      status: normalizedStatus,
       gateway_payment_id: payment.id,
       updated_at: new Date().toISOString()
     };
 
+    // MODELO HOTMART/KIWIFY:
+    // - Para PAID: atualiza status para 'paid'
+    // - Para technical status changes: mantém status atual, atualiza technical_status
     if (normalizedStatus === 'paid') {
+      updateData.status = 'paid';
       updateData.paid_at = payment.confirmedDate || payment.paymentDate || new Date().toISOString();
+    } else if (normalizedStatus === 'refunded') {
+      updateData.status = 'refunded';
+    } else if (normalizedStatus === 'chargeback') {
+      updateData.status = 'chargeback';
+    } else if (technicalStatus) {
+      // NÃO muda o status principal - mantém pending (padrão de mercado)
+      updateData.technical_status = technicalStatus;
+      updateData.expired_at = new Date().toISOString();
+      logger.info(`[MODELO HOTMART] Mantendo status=${orderData?.status || 'pending'}, technical_status=${technicalStatus}`);
     }
 
     const { error: updateError } = await supabase
@@ -170,7 +186,6 @@ serve(async (req) => {
     if (updateError) {
       logger.error('Erro ao atualizar order', updateError);
       
-      // 🆕 Salvar na DLQ em caso de erro de update
       await saveToDeadLetterQueue(supabase, {
         gateway: 'asaas',
         eventType: eventType || 'unknown',
@@ -183,7 +198,7 @@ serve(async (req) => {
       return createErrorResponse(ERROR_CODES.UPDATE_ERROR, 'Erro ao atualizar order', 500);
     }
 
-    // Post-Payment Actions
+    // Post-Payment Actions (only for PAID)
     if (normalizedStatus === 'paid' && orderData) {
       await processPostPaymentActions(supabase, {
         orderId,
@@ -202,7 +217,12 @@ serve(async (req) => {
     await supabase.from('order_events').insert({
       order_id: orderId,
       type: `asaas.${eventType?.toLowerCase()}`,
-      data: event,
+      data: { 
+        ...event, 
+        technical_status: technicalStatus,
+        model: 'hotmart_kiwify',
+        version: FUNCTION_VERSION 
+      },
       gateway_event_id: payment.id,
       occurred_at: new Date().toISOString(),
       vendor_id: vendorId
@@ -216,23 +236,34 @@ serve(async (req) => {
       resourceId: orderId,
       success: true,
       request: req,
-      metadata: { gateway: 'asaas', eventType, paymentId: payment.id, newStatus: orderStatus }
+      metadata: { 
+        gateway: 'asaas', 
+        eventType, 
+        paymentId: payment.id, 
+        newStatus: normalizedStatus === 'paid' ? 'paid' : orderData?.status,
+        technicalStatus,
+        model: 'hotmart_kiwify'
+      }
     });
 
-    logger.info(`Order ${orderId} atualizada com sucesso para ${orderStatus}`);
+    logger.info(`Order ${orderId} processada`, { 
+      status: normalizedStatus === 'paid' ? 'paid' : orderData?.status,
+      technical_status: technicalStatus 
+    });
 
     return createSuccessResponse({ 
       received: true, 
       orderId, 
-      status: orderStatus,
-      asaasPaymentId: payment.id 
+      status: normalizedStatus === 'paid' ? 'paid' : orderData?.status,
+      technicalStatus,
+      asaasPaymentId: payment.id,
+      model: 'hotmart_kiwify'
     });
 
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Erro interno';
     logger.error('Exception', error);
 
-    // 🆕 Salvar na DLQ para erros críticos não tratados
     if (supabase && event) {
       await saveToDeadLetterQueue(supabase, {
         gateway: 'asaas',

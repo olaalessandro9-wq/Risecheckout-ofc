@@ -2,12 +2,13 @@
  * Order Status Domain - Canonical Types
  * 
  * @module lib/order-status
- * @version RISE V3 Compliant - Solution C (9.9 score)
+ * @version RISE V3 Compliant - Modelo Hotmart/Kiwify
  * 
  * This is the SINGLE SOURCE OF TRUTH for order status definitions.
  * All status handling in the application MUST use these types.
  * 
- * NEVER add status strings directly in components or services.
+ * PADRÃO DE MERCADO: Uma venda pendente NUNCA vira "cancelada".
+ * Fica pendente eternamente ou vira paga. Igual Hotmart, Kiwify, Braip.
  */
 
 // ============================================================================
@@ -17,19 +18,45 @@
 /**
  * Canonical order statuses stored in the database
  * 
- * These are the ONLY valid values for orders.status column.
- * A database CHECK constraint enforces this at the DB level.
+ * MODELO DE MERCADO (Hotmart/Kiwify):
+ * - pending: Aguardando pagamento (PIX gerado, boleto emitido)
+ * - paid: Pagamento confirmado
+ * - refunded: Reembolso efetuado
+ * - chargeback: Contestação no cartão
+ * 
+ * NOTA: 'cancelled' e 'failed' foram REMOVIDOS.
+ * Vendas expiradas/canceladas pelo gateway continuam como 'pending'.
+ * O campo 'technical_status' guarda o status técnico real para relatórios.
  */
 export const CANONICAL_STATUSES = [
   'paid',
   'pending',
-  'cancelled',
   'refunded',
   'chargeback',
-  'failed',
 ] as const;
 
 export type CanonicalOrderStatus = typeof CANONICAL_STATUSES[number];
+
+// ============================================================================
+// TECHNICAL STATUS (INTERNAL TRACKING)
+// ============================================================================
+
+/**
+ * Technical statuses for internal tracking
+ * 
+ * Estes valores são salvos no campo 'technical_status' da tabela orders.
+ * Usados para relatórios de recuperação de vendas e diagnóstico.
+ */
+export const TECHNICAL_STATUSES = [
+  'active',           // Venda ativa, aguardando pagamento
+  'expired',          // PIX/Boleto expirou
+  'gateway_cancelled', // Gateway cancelou a transação
+  'gateway_timeout',  // Timeout do gateway
+  'gateway_error',    // Erro no gateway
+  'abandoned',        // Usuário abandonou checkout
+] as const;
+
+export type TechnicalOrderStatus = typeof TECHNICAL_STATUSES[number];
 
 // ============================================================================
 // STATUS DISPLAY (UI VALUES)
@@ -42,10 +69,8 @@ export type CanonicalOrderStatus = typeof CANONICAL_STATUSES[number];
 export const STATUS_DISPLAY_MAP: Readonly<Record<CanonicalOrderStatus, string>> = {
   paid: 'Pago',
   pending: 'Pendente',
-  cancelled: 'Cancelado',
   refunded: 'Reembolso',
   chargeback: 'Chargeback',
-  failed: 'Falhou',
 } as const;
 
 export type StatusDisplayLabel = typeof STATUS_DISPLAY_MAP[CanonicalOrderStatus];
@@ -79,12 +104,6 @@ export const STATUS_COLORS: Readonly<Record<CanonicalOrderStatus, StatusColorSch
     border: 'border-amber-500/20',
     dot: 'bg-amber-500',
   },
-  cancelled: {
-    bg: 'bg-muted/50',
-    text: 'text-muted-foreground',
-    border: 'border-muted',
-    dot: 'bg-muted-foreground',
-  },
   refunded: {
     bg: 'bg-blue-500/10',
     text: 'text-blue-500',
@@ -92,12 +111,6 @@ export const STATUS_COLORS: Readonly<Record<CanonicalOrderStatus, StatusColorSch
     dot: 'bg-blue-500',
   },
   chargeback: {
-    bg: 'bg-red-500/10',
-    text: 'text-red-500',
-    border: 'border-red-500/20',
-    dot: 'bg-red-500',
-  },
-  failed: {
     bg: 'bg-red-500/10',
     text: 'text-red-500',
     border: 'border-red-500/20',
@@ -115,12 +128,10 @@ export const STATUS_COLORS: Readonly<Record<CanonicalOrderStatus, StatusColorSch
 export const STATUS_CATEGORIES = {
   /** Successfully completed payments */
   success: ['paid'] as const,
-  /** Payments awaiting confirmation */
+  /** Payments awaiting confirmation (includes expired - padrão mercado) */
   pending: ['pending'] as const,
   /** Payments that were reversed */
   reversed: ['refunded', 'chargeback'] as const,
-  /** Payments that did not complete */
-  failed: ['cancelled', 'failed'] as const,
 } as const;
 
 export type StatusCategory = keyof typeof STATUS_CATEGORIES;

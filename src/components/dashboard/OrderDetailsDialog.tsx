@@ -49,13 +49,6 @@ const getStatusConfig = (status: CustomerDisplayStatus) => {
         iconColor: "text-amber-600",
         gradient: "from-amber-500/5 to-transparent"
       };
-    case "Cancelado":
-      return {
-        color: "bg-muted/50 text-muted-foreground border-muted",
-        icon: XCircle,
-        iconColor: "text-muted-foreground",
-        gradient: "from-gray-500/5 to-transparent"
-      };
     case "Reembolso":
       return {
         color: "bg-blue-500/10 text-blue-700 border-blue-500/20",
@@ -69,21 +62,6 @@ const getStatusConfig = (status: CustomerDisplayStatus) => {
         icon: XCircle,
         iconColor: "text-red-600",
         gradient: "from-red-500/5 to-transparent"
-      };
-    case "Falhou":
-      return {
-        color: "bg-red-500/10 text-red-700 border-red-500/20",
-        icon: XCircle,
-        iconColor: "text-red-600",
-        gradient: "from-red-500/5 to-transparent"
-      };
-    case "Desconhecido":
-    default:
-      return {
-        color: "bg-muted text-muted-foreground border-border",
-        icon: AlertCircle,
-        iconColor: "text-muted-foreground",
-        gradient: "from-gray-500/5 to-transparent"
       };
   }
 };
