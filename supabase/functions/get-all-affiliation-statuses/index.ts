@@ -5,21 +5,16 @@
  * Usado para pré-carregar cache no marketplace e evitar requests individuais.
  * 
  * @returns { statuses: { [product_id]: { status, affiliationId } } }
- * @version 2.0.0 - RISE Protocol V2 Compliance (Zero any)
+ * @version 3.0.0 - RISE Protocol V3 (unified-auth)
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
+import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
 // === INTERFACES (Zero any) ===
-
-interface SessionRecord {
-  producer_id: string;
-  expires_at: string;
-  is_valid: boolean;
-}
 
 interface AffiliationRecord {
   id: string;
@@ -55,36 +50,15 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Validar sessão via header Authorization
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(
-        JSON.stringify({ error: "Token de sessão não fornecido" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // Auth via unified-auth
+    let producer;
+    try {
+      producer = await requireAuthenticatedProducer(supabase, req);
+    } catch {
+      return unauthorizedResponse(corsHeaders);
     }
 
-    const sessionToken = authHeader.replace("Bearer ", "");
-
-    // Buscar sessão válida
-    const { data: sessionData, error: sessionError } = await supabase
-      .from("producer_sessions")
-      .select("producer_id, expires_at, is_valid")
-      .eq("session_token", sessionToken)
-      .eq("is_valid", true)
-      .gt("expires_at", new Date().toISOString())
-      .maybeSingle() as { data: SessionRecord | null; error: Error | null };
-
-    if (sessionError || !sessionData) {
-      console.error("[get-all-affiliation-statuses] Sessão inválida:", sessionError);
-      return new Response(
-        JSON.stringify({ error: "Sessão inválida ou expirada" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const userId = sessionData.producer_id;
-
+    const userId = producer.id;
     console.log(`[get-all-affiliation-statuses] Buscando status para usuário: ${userId.substring(0, 8)}...`);
 
     // Buscar todas as afiliações do usuário em UMA única query

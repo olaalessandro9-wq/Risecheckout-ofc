@@ -6,11 +6,12 @@
  * - Secure upload/remove operations
  * - Path validation
  * 
- * @see RISE ARCHITECT PROTOCOL - Zero direct storage calls from frontend
+ * @version 3.0.0 - RISE Protocol V3 (unified-auth)
  */
 
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors, PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
+import { getAuthenticatedProducer } from "../_shared/unified-auth.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -50,49 +51,6 @@ interface CopyRequest {
 
 type StorageRequest = UploadRequest | RemoveRequest | ListRequest | CopyRequest;
 
-interface ProducerAuth {
-  id: string;
-  email: string;
-  name: string | null;
-  role: string;
-}
-
-async function getAuthenticatedProducer(
-  supabase: SupabaseClient,
-  req: Request
-): Promise<ProducerAuth | null> {
-  const sessionToken = req.headers.get("x-producer-session-token");
-  if (!sessionToken) return null;
-
-  const { data: session } = await supabase
-    .from("producer_sessions")
-    .select("producer_id, expires_at, is_valid")
-    .eq("session_token", sessionToken)
-    .single();
-
-  if (!session || !session.is_valid) return null;
-  if (new Date(session.expires_at) < new Date()) return null;
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, name")
-    .eq("id", session.producer_id)
-    .single();
-
-  const { data: roleData } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", session.producer_id)
-    .single();
-
-  return {
-    id: session.producer_id,
-    email: "",
-    name: profile?.name || null,
-    role: roleData?.role || "producer",
-  };
-}
-
 Deno.serve(async (req) => {
   // Handle CORS
   const corsResult = handleCors(req);
@@ -104,7 +62,7 @@ Deno.serve(async (req) => {
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
     
-    // Require authentication for all storage operations
+    // Auth via unified-auth
     const producer = await getAuthenticatedProducer(supabase, req);
     
     if (!producer) {

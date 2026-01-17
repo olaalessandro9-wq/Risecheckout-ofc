@@ -1,5 +1,5 @@
 /**
- * ProductSettingsPanelV2 - Painel de Configurações do Produto
+ * ProductSettingsPanel - Painel de Configurações do Produto
  * 
  * Versão refatorada seguindo Rise Architect Protocol:
  * - < 300 linhas (orquestrador apenas)
@@ -25,7 +25,7 @@ interface Props {
   onModifiedChange?: (modified: boolean) => void;
 }
 
-export default function ProductSettingsPanelV2({ productId, onModifiedChange }: Props) {
+export default function ProductSettingsPanel({ productId, onModifiedChange }: Props) {
   const {
     loading,
     saving,

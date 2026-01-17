@@ -3,6 +3,8 @@
  * 
  * Rate limiting específico para operações de pixel
  * Extraído de pixel-handlers.ts para manter < 300 linhas
+ * 
+ * @version 3.0.0 - RISE Protocol V3 (removed dead code)
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -19,12 +21,6 @@ interface RateLimitRecord {
   first_attempt_at: string;
   last_attempt_at: string;
   blocked_until: string | null;
-}
-
-interface SessionRecord {
-  producer_id: string;
-  expires_at: string;
-  is_valid: boolean;
 }
 
 // ============================================================================

@@ -4,11 +4,12 @@
  * Verifica se o usuário logado já é afiliado de um produto e retorna o status.
  * Usa service_role para bypass de RLS (sistema usa autenticação customizada).
  * 
- * @version 2.0.0
+ * @version 3.0.0 - RISE Protocol V3 (unified-auth)
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
+import { getAuthenticatedProducer } from "../_shared/unified-auth.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
@@ -18,18 +19,6 @@ const corsHeaders = PUBLIC_CORS_HEADERS;
 
 interface RequestBody {
   product_id: string;
-}
-
-interface ProfileData {
-  id: string;
-  email: string;
-}
-
-interface SessionData {
-  producer_id: string;
-  expires_at: string;
-  is_valid: boolean;
-  profiles: ProfileData;
 }
 
 interface AffiliationData {
@@ -45,18 +34,6 @@ interface StatusResponse {
 }
 
 // ============================================
-// HELPERS
-// ============================================
-
-function maskEmail(email: string): string {
-  if (!email) return "***";
-  const [local, domain] = email.split("@");
-  if (!domain) return "***";
-  const maskedLocal = local.length > 2 ? local[0] + "***" + local[local.length - 1] : "***";
-  return `${maskedLocal}@${domain}`;
-}
-
-// ============================================
 // MAIN HANDLER
 // ============================================
 
@@ -67,18 +44,24 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Obter token de sessão do header
-    const sessionToken =
-      req.headers.get("x-producer-session-token") ||
-      req.headers.get("Authorization")?.replace("Bearer ", "");
+    // Criar cliente Supabase com service_role para bypass de RLS
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
 
-    if (!sessionToken) {
-      console.error("🚨 [get-affiliation-status] Token de sessão não fornecido");
+    // Auth via unified-auth (opcional - retorna null se não autenticado)
+    const producer = await getAuthenticatedProducer(supabaseClient, req);
+
+    if (!producer) {
+      console.error("🚨 [get-affiliation-status] Sessão inválida ou não fornecida");
       return new Response(
-        JSON.stringify({ isAffiliate: false, error: "Token de sessão não fornecido" } as StatusResponse),
+        JSON.stringify({ isAffiliate: false, error: "Sessão inválida" } as StatusResponse),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const userId = producer.id;
 
     // Parse body
     const body = await req.json() as RequestBody;
@@ -91,42 +74,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Criar cliente Supabase com service_role para bypass de RLS
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
-
-    // Validar sessão e obter usuário
-    const { data: sessionData, error: sessionError } = await supabaseClient
-      .from("producer_sessions")
-      .select(`
-        producer_id,
-        expires_at,
-        is_valid,
-        profiles:producer_id (
-          id,
-          email
-        )
-      `)
-      .eq("session_token", sessionToken)
-      .eq("is_valid", true)
-      .gt("expires_at", new Date().toISOString())
-      .maybeSingle();
-
-    if (sessionError || !sessionData || !sessionData.profiles) {
-      console.error(`🚨 [get-affiliation-status] Sessão inválida: ${sessionError?.message || 'No session data'}`);
-      return new Response(
-        JSON.stringify({ isAffiliate: false, error: "Sessão inválida" } as StatusResponse),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const typedSessionData = sessionData as unknown as SessionData;
-    const userId = typedSessionData.producer_id;
-    const userEmail = typedSessionData.profiles.email;
-
-    console.log(`🔍 [get-affiliation-status] Verificando status para ${maskEmail(userEmail)} no produto ${product_id}`);
+    console.log(`🔍 [get-affiliation-status] Verificando status para ${producer.email} no produto ${product_id}`);
 
     // Buscar afiliação do usuário para este produto
     const { data: affiliationData, error: affiliationError } = await supabaseClient

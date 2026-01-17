@@ -6,11 +6,12 @@
  * - Rate limiting (future)
  * - Audit logging (future)
  * 
- * @see RISE ARCHITECT PROTOCOL - Zero direct RPC calls from frontend
+ * @version 3.0.0 - RISE Protocol V3 (unified-auth)
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors, PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
+import { getAuthenticatedProducer } from "../_shared/unified-auth.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -82,50 +83,19 @@ Deno.serve(async (req) => {
 
     // Validate authentication for non-public RPCs
     if (isProducer || isAdmin) {
-      const sessionToken = req.headers.get("x-producer-session-token");
+      // Auth via unified-auth
+      const producer = await getAuthenticatedProducer(supabase, req);
 
-      if (!sessionToken) {
+      if (!producer) {
         return new Response(
           JSON.stringify({ error: "Authentication required" }),
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      // Validate session token
-      // FIX: producer_sessions uses "producer_id", NOT "user_id"
-      const { data: session, error: sessionError } = await supabase
-        .from("producer_sessions")
-        .select("producer_id, expires_at, is_valid")
-        .eq("session_token", sessionToken)
-        .single();
-
-      if (sessionError || !session || !session.is_valid) {
-        console.error("[rpc-proxy] Invalid session:", sessionError?.message || "no session found");
-        return new Response(
-          JSON.stringify({ error: "Invalid session" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // Check expiration
-      if (new Date(session.expires_at) < new Date()) {
-        console.warn("[rpc-proxy] Session expired for producer:", session.producer_id);
-        return new Response(
-          JSON.stringify({ error: "Session expired" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
       // For admin RPCs, verify admin role
-      // FIX: use producer_id (which maps to profiles.id / user_roles.user_id)
       if (isAdmin) {
-        const { data: role } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", session.producer_id)
-          .single();
-
-        if (!role || (role.role !== "admin" && role.role !== "owner")) {
+        if (producer.role !== "admin" && producer.role !== "owner") {
           return new Response(
             JSON.stringify({ error: "Admin access required" }),
             { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -136,19 +106,15 @@ Deno.serve(async (req) => {
       // ============================================
       // INJECT p_user_id FOR RPCs THAT NEED IT
       // ============================================
-      // RPCs that use auth.uid() in their SQL won't work because
-      // we're using service_role which doesn't set auth.uid().
-      // Instead, we inject the producer_id from the validated session.
       const RPCS_NEED_USER_ID = ["get_producer_affiliates"];
       
       if (RPCS_NEED_USER_ID.includes(rpc)) {
-        // Inject p_user_id into params
         const enrichedParams = {
           ...(params || {}),
-          p_user_id: session.producer_id,
+          p_user_id: producer.id,
         };
         
-        console.log(`[rpc-proxy] Injecting p_user_id=${session.producer_id} for RPC ${rpc}`);
+        console.log(`[rpc-proxy] Injecting p_user_id=${producer.id} for RPC ${rpc}`);
         
         const { data, error } = await supabase.rpc(rpc as never, enrichedParams);
         
@@ -168,7 +134,6 @@ Deno.serve(async (req) => {
     }
 
     // Execute the RPC (for public RPCs or producer RPCs that don't need p_user_id)
-    // Using type assertion since RPCs are validated above
     const { data, error } = await supabase.rpc(rpc as never, params || {});
 
     if (error) {
