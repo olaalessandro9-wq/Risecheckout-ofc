@@ -8,10 +8,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Package, User, Mail, Phone, CreditCard, Calendar, CheckCircle2, Clock, XCircle, FileText, Eye, Loader2 } from "lucide-react";
+import { Package, User, Mail, Phone, CreditCard, Calendar, CheckCircle2, Clock, XCircle, FileText, Eye, Loader2, AlertCircle } from "lucide-react";
 import { useDecryptCustomerData } from "@/hooks/useDecryptCustomerData";
 import { useAuth } from "@/hooks/useAuth";
 import { isEncryptedValue } from "./recent-customers/utils/customerUtils";
+import type { CustomerDisplayStatus } from "@/modules/dashboard/types";
 
 interface OrderDetailsDialogProps {
   open: boolean;
@@ -25,14 +26,14 @@ interface OrderDetailsDialogProps {
     productName: string;
     productImageUrl: string;
     amount: string;
-    status: "Pago" | "Pendente" | "Reembolso" | "Chargeback";
+    status: CustomerDisplayStatus;
     createdAt: string;
   } | null;
   /** ID do dono do produto (products.user_id) - usado para auto-decrypt */
   productOwnerId?: string;
 }
 
-const getStatusConfig = (status: string) => {
+const getStatusConfig = (status: CustomerDisplayStatus) => {
   switch (status) {
     case "Pago":
       return {
@@ -48,7 +49,20 @@ const getStatusConfig = (status: string) => {
         iconColor: "text-amber-600",
         gradient: "from-amber-500/5 to-transparent"
       };
+    case "Cancelado":
+      return {
+        color: "bg-muted/50 text-muted-foreground border-muted",
+        icon: XCircle,
+        iconColor: "text-muted-foreground",
+        gradient: "from-gray-500/5 to-transparent"
+      };
     case "Reembolso":
+      return {
+        color: "bg-blue-500/10 text-blue-700 border-blue-500/20",
+        icon: XCircle,
+        iconColor: "text-blue-600",
+        gradient: "from-blue-500/5 to-transparent"
+      };
     case "Chargeback":
       return {
         color: "bg-red-500/10 text-red-700 border-red-500/20",
@@ -56,10 +70,18 @@ const getStatusConfig = (status: string) => {
         iconColor: "text-red-600",
         gradient: "from-red-500/5 to-transparent"
       };
+    case "Falhou":
+      return {
+        color: "bg-red-500/10 text-red-700 border-red-500/20",
+        icon: XCircle,
+        iconColor: "text-red-600",
+        gradient: "from-red-500/5 to-transparent"
+      };
+    case "Desconhecido":
     default:
       return {
         color: "bg-muted text-muted-foreground border-border",
-        icon: Clock,
+        icon: AlertCircle,
         iconColor: "text-muted-foreground",
         gradient: "from-gray-500/5 to-transparent"
       };
