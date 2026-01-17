@@ -1,13 +1,24 @@
 /**
  * useContentDrip Hook
  * 
- * MIGRATED: Uses Edge Function instead of supabase.from()
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
+ * @see RISE Protocol V2 - Zero database access from frontend
  */
 
 import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { getProducerSessionToken } from '@/hooks/useProducerAuth';
+import { api } from '@/lib/api';
 import type { ContentReleaseSettings, ContentAccessStatus, ReleaseType } from '../types';
+
+interface DripSettingsResponse {
+  settings?: Array<{
+    id: string;
+    content_id: string;
+    release_type: string;
+    days_after_purchase?: number;
+    fixed_date?: string;
+    after_content_id?: string;
+  }>;
+}
 
 interface UseContentDripReturn {
   isLoading: boolean;
@@ -31,17 +42,12 @@ export function useContentDrip(): UseContentDripReturn {
     const settingsMap = new Map<string, ContentReleaseSettings>();
 
     try {
-      const sessionToken = getProducerSessionToken();
-      
-      const { data, error } = await supabase.functions.invoke("admin-data", {
-        body: {
-          action: "content-drip-settings",
-          productId,
-        },
-        headers: { "x-producer-session-token": sessionToken || "" },
+      const { data, error } = await api.call<DripSettingsResponse>("admin-data", {
+        action: "content-drip-settings",
+        productId,
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
       const settings = data?.settings || [];
       settings.forEach((s: Record<string, unknown>) => {
@@ -107,19 +113,14 @@ export function useContentDrip(): UseContentDripReturn {
     purchaseDate: string
   ): Promise<ContentAccessStatus> => {
     try {
-      const sessionToken = getProducerSessionToken();
-      
-      const { data, error } = await supabase.functions.invoke("admin-data", {
-        body: {
-          action: "content-access-check",
-          contentId,
-          buyerId,
-          purchaseDate,
-        },
-        headers: { "x-producer-session-token": sessionToken || "" },
+      const { data, error } = await api.call<ContentAccessStatus>("admin-data", {
+        action: "content-access-check",
+        contentId,
+        buyerId,
+        purchaseDate,
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
       return data as ContentAccessStatus;
     } catch (error) {
