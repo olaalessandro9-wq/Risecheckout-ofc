@@ -1,9 +1,17 @@
 import { useState, useCallback } from "react";
 import { checkAffiliationStatus } from "@/services/marketplace";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 import { useAffiliationStatusCache } from "@/hooks/useAffiliationStatusCache";
+
+interface AffiliationResponse {
+  success?: boolean;
+  message?: string;
+  affiliate_code?: string;
+  status?: string;
+  affiliationId?: string;
+}
 
 interface UseAffiliateRequestReturn {
   requestAffiliate: (productId: string) => Promise<void>;
@@ -70,11 +78,8 @@ export function useAffiliateRequest(): UseAffiliateRequestReturn & { isCheckingS
 
         console.log("[useAffiliateRequest] Chamando Edge Function request-affiliation");
         
-        const { data, error: fnError } = await supabase.functions.invoke("request-affiliation", {
-          body: { product_id: productId },
-          headers: {
-            Authorization: `Bearer ${sessionToken}`,
-          },
+        const { data, error: fnError } = await api.call<AffiliationResponse>("request-affiliation", {
+          product_id: productId,
         });
 
         if (fnError) {

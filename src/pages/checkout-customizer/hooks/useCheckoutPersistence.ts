@@ -2,9 +2,9 @@
  * useCheckoutPersistence Hook
  * 
  * Handles load/save operations for checkout customizer.
- * RISE Protocol V2 Compliant - Clean Architecture
+ * RISE Protocol V3 Compliant - Unified API Client
  * 
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 import { useState, useCallback, useEffect } from "react";
@@ -12,12 +12,22 @@ import { useNavigate } from "react-router-dom";
 import { parseJsonSafely } from "@/lib/utils";
 import { hasPendingUploads, waitForUploadsToFinish, getAllComponentsFromCustomization } from "@/lib/uploadUtils";
 import { normalizeDesign } from "@/lib/checkout/normalizeDesign";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 import type { CheckoutCustomization } from "@/hooks/useCheckoutEditor";
 import type { OrderBump } from "@/types/checkout";
 import type { CheckoutPersistenceState, OrderBumpApiResponse } from "../types";
+
+interface EditorDataResponse {
+  success: boolean;
+  error?: string;
+  data?: {
+    checkout: Record<string, unknown>;
+    product: Record<string, unknown>;
+    offers?: unknown[];
+    orderBumps?: OrderBumpApiResponse[];
+  };
+}
 
 interface UseCheckoutPersistenceProps {
   checkoutId: string | null;
@@ -51,48 +61,46 @@ export function useCheckoutPersistence({
   const loadCheckoutData = useCallback(async (id: string) => {
     setLoading(true);
     try {
-      const sessionToken = getProducerSessionToken();
-      if (!sessionToken) {
-        toast({ title: "Sessão expirada", description: "Faça login novamente", variant: "destructive" });
-        navigate("/login");
-        return;
-      }
-
-      const { data: response, error } = await supabase.functions.invoke('checkout-editor', {
-        body: { action: 'get-editor-data', checkoutId: id },
-        headers: { 'x-producer-session-token': sessionToken }
+      const { data: response, error } = await api.call<EditorDataResponse>('checkout-editor', {
+        action: 'get-editor-data',
+        checkoutId: id,
       });
 
       if (error) throw error;
-      if (!response.success) throw new Error(response.error || 'Erro ao carregar dados');
+      if (!response?.success) throw new Error(response?.error || 'Erro ao carregar dados');
 
-      const { checkout, product, offers, orderBumps: bumps } = response.data;
+      const { checkout, product, offers, orderBumps: bumps } = response.data || {};
+
+      if (!checkout || !product) throw new Error('Dados do checkout não encontrados');
 
       // Extract offer price
-      const checkoutLink = checkout?.checkout_links?.[0];
+      const checkoutAny = checkout as Record<string, unknown>;
+      const productAny = product as Record<string, unknown>;
+      const checkoutLinks = checkoutAny.checkout_links as Array<{ payment_links?: { offers?: { price?: number } } }> | undefined;
+      const checkoutLink = checkoutLinks?.[0];
       const paymentLink = checkoutLink?.payment_links;
       const offer = paymentLink?.offers;
-      const offerPrice = offer?.price || product?.price || 0;
+      const offerPrice = offer?.price || (productAny.price as number) || 0;
       
       // Use normalizeDesign utility
-      const themePreset = normalizeDesign(checkout);
+      const themePreset = normalizeDesign(checkoutAny);
       
       const designWithFallbacks = {
-        theme: checkout.theme || 'light',
-        font: checkout.font || 'Inter',
+        theme: (checkoutAny.theme as string) || 'light',
+        font: (checkoutAny.font as string) || 'Inter',
         colors: themePreset.colors,
-        backgroundImage: (parseJsonSafely(checkout.design, {}) as { backgroundImage?: { url?: string; fixed?: boolean; repeat?: boolean; expand?: boolean } })?.backgroundImage,
+        backgroundImage: (parseJsonSafely(checkoutAny.design as string, {}) as { backgroundImage?: { url?: string; fixed?: boolean; repeat?: boolean; expand?: boolean } })?.backgroundImage,
       };
       
       const loadedCustomization: CheckoutCustomization = {
          design: designWithFallbacks,
-         topComponents: parseJsonSafely(checkout.top_components, []),
-         bottomComponents: parseJsonSafely(checkout.bottom_components, []),
+         topComponents: parseJsonSafely(checkoutAny.top_components as string, []),
+         bottomComponents: parseJsonSafely(checkoutAny.bottom_components as string, []),
       };
 
       setCustomization(loadedCustomization);
-      setProductData({ ...product, price: offerPrice });
-      if (offers) setProductOffers(offers);
+      setProductData({ ...productAny, price: offerPrice } as CheckoutPersistenceState["productData"]);
+      if (offers) setProductOffers(offers as CheckoutPersistenceState["productOffers"]);
 
       // Map order bumps
       if (bumps && bumps.length > 0) {
@@ -120,13 +128,6 @@ export function useCheckoutPersistence({
     setIsSaving(true);
     toast({ title: "Salvando..." });
 
-    const sessionToken = getProducerSessionToken();
-    if (!sessionToken) {
-      toast({ title: "Sessão expirada", description: "Faça login novamente", variant: "destructive" });
-      setIsSaving(false);
-      return;
-    }
-
     // Check pending uploads
     if (hasPendingUploads(customization)) {
        try {
@@ -145,19 +146,16 @@ export function useCheckoutPersistence({
             if (c.content?._old_storage_path) oldPaths.push(c.content._old_storage_path);
         });
 
-        const { data: response, error } = await supabase.functions.invoke('checkout-editor', {
-          body: {
-            action: 'update-design',
-            checkoutId,
-            design: customization.design,
-            topComponents: customization.topComponents,
-            bottomComponents: customization.bottomComponents,
-          },
-          headers: { 'x-producer-session-token': sessionToken }
+        const { data: response, error } = await api.call<EditorDataResponse>('checkout-editor', {
+          action: 'update-design',
+          checkoutId,
+          design: customization.design,
+          topComponents: customization.topComponents,
+          bottomComponents: customization.bottomComponents,
         });
 
         if (error) throw error;
-        if (!response.success) throw new Error(response.error || 'Erro ao salvar');
+        if (!response?.success) throw new Error(response?.error || 'Erro ao salvar');
 
         // Cleanup old storage paths
         if (oldPaths.length > 0) {

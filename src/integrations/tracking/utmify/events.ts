@@ -2,10 +2,13 @@
  * Lógica de Eventos do UTMify
  * Módulo: src/integrations/tracking/utmify
  * 
+ * MIGRATED: Uses api.publicCall() - Unified API Client
+ * @see RISE Protocol V3
+ * 
  * Este arquivo contém funções para enviar eventos e conversões ao UTMify.
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import {
   UTMifyOrderData,
   UTMifyResponse,
@@ -126,13 +129,16 @@ export async function sendUTMifyConversion(
   try {
     console.log("[UTMify] 📡 Enviando conversão para vendor:", vendorId, "Evento:", eventType);
 
-    const { data, error } = await supabase.functions.invoke("utmify-conversion", {
-      body: {
-        vendorId,
-        orderData,
-        eventType,
-        productId,
-      },
+    interface UTMifyApiResponse {
+      success: boolean;
+      message?: string;
+    }
+
+    const { data, error } = await api.publicCall<UTMifyApiResponse>("utmify-conversion", {
+      vendorId,
+      orderData,
+      eventType,
+      productId,
     });
 
     if (error) {

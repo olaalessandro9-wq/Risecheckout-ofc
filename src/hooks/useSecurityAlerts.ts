@@ -1,7 +1,8 @@
 /**
  * useSecurityAlerts - Hook para gerenciamento de alertas de segurança
  * 
- * MIGRATED: Uses Edge Function instead of supabase.from()
+ * MIGRATED: Uses api.call() - Unified API Client
+ * @see RISE Protocol V3
  * 
  * Fornece acesso a:
  * - Lista de alertas de segurança
@@ -11,10 +12,9 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 
 export interface SecurityAlert {
   id: string;
@@ -55,6 +55,26 @@ export interface AlertFilters {
   acknowledged?: boolean;
 }
 
+interface AlertsResponse {
+  alerts?: SecurityAlert[];
+  error?: string;
+}
+
+interface BlockedIPsResponse {
+  blockedIPs?: BlockedIP[];
+  error?: string;
+}
+
+interface StatsResponse {
+  stats?: SecurityStats;
+  error?: string;
+}
+
+interface ActionResponse {
+  success: boolean;
+  error?: string;
+}
+
 export function useSecurityAlerts() {
   const { user } = useAuth();
   const [alerts, setAlerts] = useState<SecurityAlert[]>([]);
@@ -65,14 +85,13 @@ export function useSecurityAlerts() {
 
   /**
    * Fetch alerts via Edge Function
-   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   * MIGRATED: Uses api.call() - Unified API Client
    */
   const fetchAlerts = useCallback(async (filters?: AlertFilters) => {
     try {
-      const sessionToken = getProducerSessionToken();
-      const { data, error } = await supabase.functions.invoke("admin-data", {
-        body: { action: "security-alerts", filters },
-        headers: { "x-producer-session-token": sessionToken || "" },
+      const { data, error } = await api.call<AlertsResponse>("admin-data", {
+        action: "security-alerts",
+        filters,
       });
 
       if (error) throw error;
@@ -85,14 +104,12 @@ export function useSecurityAlerts() {
 
   /**
    * Fetch blocked IPs via Edge Function
-   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   * MIGRATED: Uses api.call() - Unified API Client
    */
   const fetchBlockedIPs = useCallback(async () => {
     try {
-      const sessionToken = getProducerSessionToken();
-      const { data, error } = await supabase.functions.invoke("admin-data", {
-        body: { action: "security-blocked-ips" },
-        headers: { "x-producer-session-token": sessionToken || "" },
+      const { data, error } = await api.call<BlockedIPsResponse>("admin-data", {
+        action: "security-blocked-ips",
       });
 
       if (error) throw error;
@@ -104,14 +121,12 @@ export function useSecurityAlerts() {
 
   /**
    * Fetch security stats via Edge Function
-   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   * MIGRATED: Uses api.call() - Unified API Client
    */
   const fetchStats = useCallback(async () => {
     try {
-      const sessionToken = getProducerSessionToken();
-      const { data, error } = await supabase.functions.invoke("admin-data", {
-        body: { action: "security-stats" },
-        headers: { "x-producer-session-token": sessionToken || "" },
+      const { data, error } = await api.call<StatsResponse>("admin-data", {
+        action: "security-stats",
       });
 
       if (error) throw error;
@@ -124,10 +139,9 @@ export function useSecurityAlerts() {
   // Reconhecer um alerta - via Edge Function
   const acknowledgeAlert = useCallback(async (alertId: string) => {
     try {
-      const sessionToken = getProducerSessionToken();
-      const { data, error } = await supabase.functions.invoke("security-management", {
-        body: { action: "acknowledge-alert", alertId },
-        headers: { "x-producer-session-token": sessionToken || "" },
+      const { data, error } = await api.call<ActionResponse>("security-management", {
+        action: "acknowledge-alert",
+        alertId,
       });
 
       if (error) throw error;
@@ -145,10 +159,11 @@ export function useSecurityAlerts() {
   // Bloquear um IP manualmente - via Edge Function
   const blockIP = useCallback(async (ipAddress: string, reason: string, expiresInDays?: number) => {
     try {
-      const sessionToken = getProducerSessionToken();
-      const { data, error } = await supabase.functions.invoke("security-management", {
-        body: { action: "block-ip", ipAddress, reason, expiresInDays },
-        headers: { "x-producer-session-token": sessionToken || "" },
+      const { data, error } = await api.call<ActionResponse>("security-management", {
+        action: "block-ip",
+        ipAddress,
+        reason,
+        expiresInDays,
       });
 
       if (error) throw error;
@@ -166,10 +181,9 @@ export function useSecurityAlerts() {
   // Desbloquear um IP - via Edge Function
   const unblockIP = useCallback(async (ipAddress: string) => {
     try {
-      const sessionToken = getProducerSessionToken();
-      const { data, error } = await supabase.functions.invoke("security-management", {
-        body: { action: "unblock-ip", ipAddress },
-        headers: { "x-producer-session-token": sessionToken || "" },
+      const { data, error } = await api.call<ActionResponse>("security-management", {
+        action: "unblock-ip",
+        ipAddress,
       });
 
       if (error) throw error;
