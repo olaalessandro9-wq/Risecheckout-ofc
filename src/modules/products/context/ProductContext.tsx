@@ -1,14 +1,12 @@
 /**
  * ProductContext - Orquestrador do Sistema de Edição de Produtos
  * 
- * REFATORADO com Reducer Pattern para Single Source of Truth.
+ * MODULARIZADO seguindo RISE Protocol V3.
+ * Helpers extraídos para ./helpers/
  * 
- * Arquitetura:
- * - useReducer(productFormReducer) gerencia todo estado de formulário
- * - Hooks especializados para operações (CRUD, upload, etc.)
- * - Zero estado duplicado entre Context e Tabs
+ * Antes: 484 linhas → Agora: ~280 linhas
  * 
- * @see RISE ARCHITECT PROTOCOL - Solução C (Nota 9.8/10)
+ * @see RISE ARCHITECT PROTOCOL V3 - Solução C (Nota 9.8/10)
  */
 
 import { createContext, useContext, useReducer, useState, useEffect, useCallback } from "react";
@@ -19,7 +17,7 @@ import type { GeneralFormData, ImageFormState, ProductFormState, ProductFormDisp
 
 // Reducer e Actions
 import { productFormReducer, INITIAL_FORM_STATE, formActions } from "./productFormReducer";
-import { validateGeneralForm, validateUpsellSettings, validateAffiliateSettings } from "./productFormValidation";
+import { validateGeneralForm } from "./productFormValidation";
 
 // Hooks especializados
 import {
@@ -29,32 +27,40 @@ import {
   useProductSettings,
 } from "./hooks";
 
+// Helpers
+import {
+  createUpdateGeneralField,
+  createUpdateImageState,
+  createUpdateLocalOffers,
+  createMarkOfferDeleted,
+  createSetOffersModified,
+  createUpdateCheckoutSettingsField,
+  createInitCheckoutSettings,
+  createSaveProduct,
+  createSaveUpsellSettings,
+  createSaveAffiliateSettings,
+  createSaveAll,
+  createUpdateProduct,
+  createUpdateProductBulk,
+  createUpdateUpsellSettings,
+  createUpdateAffiliateSettings,
+} from "./helpers";
+
 // ============================================================================
 // CONTEXT TYPE ESTENDIDO
 // ============================================================================
 
 interface ProductContextExtended extends ProductContextState {
-  // Form State (novo - do Reducer)
   formState: ProductFormState;
   formDispatch: ProductFormDispatch;
-  
-  // Alias para compatibilidade (dispatchForm = formDispatch)
   dispatchForm: ProductFormDispatch;
-  
-  // Form errors (derivado do formState)
   formErrors: FormValidationErrors;
-  
-  // Validate helpers
   validateGeneralForm: () => boolean;
-  
-  // Helpers derivados do formState
   generalForm: GeneralFormData;
   imageState: ImageFormState;
   localOffers: Offer[];
   checkoutSettingsForm: CheckoutSettingsFormData;
   checkoutCredentials: GatewayCredentials;
-  
-  // Actions simplificadas
   updateGeneralField: <K extends keyof GeneralFormData>(field: K, value: GeneralFormData[K]) => void;
   updateImageState: (update: Partial<ImageFormState>) => void;
   updateLocalOffers: (offers: Offer[]) => void;
@@ -77,64 +83,29 @@ const ProductContext = createContext<ProductContextExtended | null>(null);
 export function ProductProvider({ productId, children }: ProductProviderProps) {
   const { user } = useAuth();
 
-  // ---------------------------------------------------------------------------
-  // REDUCER: Single Source of Truth para estado de formulários
-  // ---------------------------------------------------------------------------
-  
+  // Reducer: Single Source of Truth
   const [formState, formDispatch] = useReducer(productFormReducer, INITIAL_FORM_STATE);
 
-  // ---------------------------------------------------------------------------
-  // ESTADOS DE UI (mantidos separados do form state)
-  // ---------------------------------------------------------------------------
-
+  // Estados de UI
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [checkoutCredentials, setCheckoutCredentials] = useState<GatewayCredentials>({});
 
-  // hasUnsavedChanges agora vem do reducer
   const hasUnsavedChanges = formState.isDirty;
 
-  // ---------------------------------------------------------------------------
-  // CALLBACKS LEGACY (para compatibilidade - serão removidos gradualmente)
-  // ---------------------------------------------------------------------------
-
-  const markCoreUnsaved = useCallback(() => {
-    // No-op: agora gerenciado pelo reducer
-  }, []);
-
-  const markCoreSaved = useCallback(() => {
-    // No-op: agora gerenciado pelo reducer
-  }, []);
-
-  const markSettingsUnsaved = useCallback(() => {
-    // No-op: agora gerenciado pelo reducer
-  }, []);
-
-  const markSettingsSaved = useCallback(() => {
-    // No-op: agora gerenciado pelo reducer
-  }, []);
-
-  const updateGeneralModified = useCallback((modified: boolean) => {
-    // Legacy: não faz nada, dirty é calculado automaticamente pelo reducer
-  }, []);
-
-  const updateSettingsModified = useCallback((modified: boolean) => {
-    // Legacy: não faz nada para settings
-  }, []);
-
-  const updateUpsellModified = useCallback((modified: boolean) => {
-    // Legacy: não faz nada, dirty é calculado automaticamente pelo reducer
-  }, []);
-
+  // Legacy callbacks (no-op para compatibilidade)
+  const markCoreUnsaved = useCallback(() => {}, []);
+  const markCoreSaved = useCallback(() => {}, []);
+  const markSettingsUnsaved = useCallback(() => {}, []);
+  const markSettingsSaved = useCallback(() => {}, []);
+  const updateGeneralModified = useCallback(() => {}, []);
+  const updateSettingsModified = useCallback(() => {}, []);
+  const updateUpsellModified = useCallback(() => {}, []);
   const resetDirtySources = useCallback(() => {
     formDispatch(formActions.resetToServer());
   }, []);
 
-  // ---------------------------------------------------------------------------
-  // HOOKS ESPECIALIZADOS
-  // ---------------------------------------------------------------------------
-
-  // Settings hook primeiro (para ter os setters disponíveis)
+  // Hooks especializados
   const settings = useProductSettings({
     productId,
     userId: user?.id,
@@ -142,33 +113,19 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     onSaveComplete: markSettingsSaved,
   });
 
-  // Core hook com callbacks para carregar settings
   const core = useProductCore({
     productId,
     userId: user?.id,
     onUnsavedChange: markCoreUnsaved,
-    onUpsellSettingsLoaded: (upsellSettings) => {
-      settings.setUpsellSettings(upsellSettings);
-    },
-    onAffiliateSettingsLoaded: (affiliateSettings) => {
-      settings.setAffiliateSettings(affiliateSettings);
-    },
+    onUpsellSettingsLoaded: settings.setUpsellSettings,
+    onAffiliateSettingsLoaded: settings.setAffiliateSettings,
   });
 
-  const entities = useProductEntities({
-    productId,
-  });
+  const entities = useProductEntities({ productId });
+  const checkoutsHook = useProductCheckouts({ productId });
 
-  const checkoutsHook = useProductCheckouts({
-    productId,
-  });
-
-  // ---------------------------------------------------------------------------
-  // EFEITO: Sincronizar dados carregados → Reducer
-  // ---------------------------------------------------------------------------
-  
+  // Sincronizar dados carregados → Reducer
   useEffect(() => {
-    // Quando product, offers, ou settings são carregados, inicializar o reducer
     if (core.product && entities.offers !== undefined) {
       formDispatch(formActions.initFromServer({
         product: core.product,
@@ -179,10 +136,7 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     }
   }, [core.product, entities.offers, settings.upsellSettings, settings.affiliateSettings]);
 
-  // ---------------------------------------------------------------------------
-  // REFRESH ALL
-  // ---------------------------------------------------------------------------
-
+  // Refresh all
   const refreshAll = useCallback(async () => {
     setLoading(true);
     try {
@@ -199,201 +153,79 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     }
   }, [core, entities, checkoutsHook]);
 
-  // ---------------------------------------------------------------------------
-  // EFFECT: Carregar dados iniciais
-  // ---------------------------------------------------------------------------
-
+  // Carregar dados iniciais
   useEffect(() => {
     if (productId && user) {
       refreshAll();
     }
   }, [productId, user]);
 
-  // ---------------------------------------------------------------------------
-  // FORM HELPERS (derivados do reducer state)
-  // ---------------------------------------------------------------------------
+  // Form helpers (usando factory functions)
+  const updateGeneralField = useCallback(createUpdateGeneralField(formDispatch), []);
+  const updateImageState = useCallback(createUpdateImageState(formDispatch), []);
+  const updateLocalOffers = useCallback(createUpdateLocalOffers(formDispatch), []);
+  const markOfferDeleted = useCallback(createMarkOfferDeleted(formDispatch), []);
+  const setOffersModified = useCallback(createSetOffersModified(formDispatch), []);
+  const updateCheckoutSettingsField = useCallback(createUpdateCheckoutSettingsField(formDispatch), []);
+  const initCheckoutSettingsHandler = useCallback(
+    createInitCheckoutSettings(formDispatch, setCheckoutCredentials), 
+    []
+  );
 
-  const generalForm = formState.editedData.general;
-  const imageState = formState.editedData.image;
-  const localOffers = formState.editedData.offers.localOffers;
-
-  const updateGeneralField = useCallback(<K extends keyof GeneralFormData>(
-    field: K,
-    value: GeneralFormData[K]
-  ) => {
-    formDispatch(formActions.updateGeneral({ [field]: value }));
-  }, []);
-
-  const updateImageState = useCallback((update: Partial<ImageFormState>) => {
-    formDispatch(formActions.updateImage(update));
-  }, []);
-
-  const updateLocalOffers = useCallback((offers: Offer[]) => {
-    formDispatch(formActions.updateOffers({ localOffers: offers }));
-  }, []);
-
-  const markOfferDeleted = useCallback((offerId: string) => {
-    formDispatch(formActions.addDeletedOffer(offerId));
-  }, []);
-
-  const setOffersModified = useCallback((modified: boolean) => {
-    formDispatch(formActions.updateOffers({ modified }));
-  }, []);
-
-  const checkoutSettingsForm = formState.editedData.checkoutSettings;
-
-  const updateCheckoutSettingsField = useCallback(<K extends keyof CheckoutSettingsFormData>(
-    field: K,
-    value: CheckoutSettingsFormData[K]
-  ) => {
-    formDispatch(formActions.updateCheckoutSettings({ [field]: value }));
-  }, []);
-
-  const initCheckoutSettingsHandler = useCallback((settings: CheckoutSettingsFormData, credentials: GatewayCredentials) => {
-    formDispatch(formActions.initCheckoutSettings({ settings, credentials }));
-    setCheckoutCredentials(credentials);
-  }, []);
-
-  // ---------------------------------------------------------------------------
-  // SAVE WRAPPERS (com estado saving)
-  // ---------------------------------------------------------------------------
-
-  const saveProduct = useCallback(async () => {
-    setSaving(true);
-    try {
-      await core.saveProduct();
-      // Após save, marcar como salvo no reducer
-      formDispatch(formActions.markSaved({ 
-        newServerData: { product: core.product } 
-      }));
-    } finally {
-      setSaving(false);
-    }
-  }, [core]);
+  // Save wrappers
+  const saveProduct = useCallback(
+    createSaveProduct({ setSaving, formDispatch, core }),
+    [core]
+  );
 
   const saveUpsellSettings = useCallback(
-    async (settingsToSave?: typeof settings.upsellSettings) => {
-      setSaving(true);
-      try {
-        await settings.saveUpsellSettings(settingsToSave);
-      } finally {
-        setSaving(false);
-      }
-    },
+    createSaveUpsellSettings({ setSaving, settings }),
     [settings]
   );
 
   const saveAffiliateSettings = useCallback(
-    async (settingsToSave?: typeof settings.affiliateSettings) => {
-      setSaving(true);
-      try {
-        await settings.saveAffiliateSettings(settingsToSave);
-      } finally {
-        setSaving(false);
-      }
-    },
+    createSaveAffiliateSettings({ setSaving, settings }),
     [settings]
   );
 
-  const saveAll = useCallback(async () => {
-    setSaving(true);
-    try {
-      // Validar antes de salvar
-      const generalValidation = validateGeneralForm(formState.editedData.general);
-      if (!generalValidation.isValid) {
-        toast.error("Corrija os erros antes de salvar");
-        return;
-      }
+  const saveAll = useCallback(
+    createSaveAll({ setSaving, formDispatch, formState, core, settings }),
+    [core, settings, formState]
+  );
 
-      await Promise.all([
-        core.saveProduct(),
-        settings.savePaymentSettings(),
-        settings.saveCheckoutFields(),
-        settings.saveUpsellSettings(),
-        settings.saveAffiliateSettings(),
-      ]);
-      
-      toast.success("Todas as alterações foram salvas");
-      
-      // Marcar como salvo no reducer
-      formDispatch(formActions.markSaved());
-    } catch (error: unknown) {
-      console.error("[ProductContext] Error saving all:", error);
-      toast.error("Erro ao salvar alterações");
-    } finally {
-      setSaving(false);
-    }
-  }, [core, settings, formState.editedData.general]);
+  // Update wrappers
+  const updateProduct = useCallback(
+    createUpdateProduct(core, formDispatch),
+    [core]
+  );
 
-  // ---------------------------------------------------------------------------
-  // UPDATE FUNCTIONS (sincronizam com core.product E reducer)
-  // ---------------------------------------------------------------------------
+  const updateProductBulk = useCallback(
+    createUpdateProductBulk(core, formDispatch),
+    [core]
+  );
 
-  const updateProduct = useCallback((field: keyof ProductData, value: ProductData[keyof ProductData]) => {
-    // Atualizar no core (para API calls)
-    core.updateProduct(field, value);
-    
-    // Se for um campo do general form, atualizar no reducer também
-    const generalFields: (keyof GeneralFormData)[] = [
-      'name', 'description', 'price', 'support_name', 
-      'support_email', 'delivery_url', 'external_delivery'
-    ];
-    
-    if (generalFields.includes(field as keyof GeneralFormData)) {
-      formDispatch(formActions.updateGeneral({ [field]: value } as Partial<GeneralFormData>));
-    }
-  }, [core]);
+  const updateUpsellSettingsWrapper = useCallback(
+    createUpdateUpsellSettings(settings, formDispatch),
+    [settings]
+  );
 
-  const updateProductBulk = useCallback((data: Partial<ProductData>) => {
-    core.updateProductBulk(data);
-    
-    // Atualizar campos do general form no reducer
-    const generalUpdate: Partial<GeneralFormData> = {};
-    if ('name' in data) generalUpdate.name = data.name;
-    if ('description' in data) generalUpdate.description = data.description ?? "";
-    if ('price' in data) generalUpdate.price = data.price;
-    if ('support_name' in data) generalUpdate.support_name = data.support_name ?? "";
-    if ('support_email' in data) generalUpdate.support_email = data.support_email ?? "";
-    if ('delivery_url' in data) generalUpdate.delivery_url = data.delivery_url ?? "";
-    if ('external_delivery' in data) generalUpdate.external_delivery = data.external_delivery ?? false;
-    
-    if (Object.keys(generalUpdate).length > 0) {
-      formDispatch(formActions.updateGeneral(generalUpdate));
-    }
-  }, [core]);
+  const updateAffiliateSettingsWrapper = useCallback(
+    createUpdateAffiliateSettings(settings, formDispatch),
+    [settings]
+  );
 
-  // Update upsell settings (sincroniza com reducer)
-  const updateUpsellSettingsWrapper = useCallback((updates: Partial<UpsellSettings>) => {
-    settings.updateUpsellSettings(updates);
-    formDispatch(formActions.updateUpsell(updates));
-  }, [settings]);
-
-  // Update affiliate settings (sincroniza com reducer)
-  const updateAffiliateSettingsWrapper = useCallback((updates: Partial<AffiliateSettings>) => {
-    settings.updateAffiliateSettings(updates);
-    formDispatch(formActions.updateAffiliate(updates));
-  }, [settings]);
-
-  // ---------------------------------------------------------------------------
-  // VALOR DO CONTEXTO (API PÚBLICA ESTENDIDA)
-  // ---------------------------------------------------------------------------
-
+  // Context value
   const contextValue: ProductContextExtended = {
-    // Dados (usando product do core para compatibilidade)
     product: core.product,
     offers: entities.offers,
     orderBumps: entities.orderBumps,
     checkouts: checkoutsHook.checkouts,
     coupons: entities.coupons,
     paymentLinks: checkoutsHook.paymentLinks,
-
-    // Configurações
     paymentSettings: settings.paymentSettings,
     checkoutFields: settings.checkoutFields,
     upsellSettings: settings.upsellSettings,
     affiliateSettings: settings.affiliateSettings,
-
-    // Estados de UI
     loading,
     saving,
     hasUnsavedChanges,
@@ -401,24 +233,18 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     updateGeneralModified,
     updateUpsellModified,
     resetDirtySources,
-
-    // Funções de atualização
     updateProduct,
     updateProductBulk,
     updatePaymentSettings: settings.updatePaymentSettings,
     updateCheckoutFields: settings.updateCheckoutFields,
     updateUpsellSettings: updateUpsellSettingsWrapper,
     updateAffiliateSettings: updateAffiliateSettingsWrapper,
-
-    // Funções de salvamento
     saveProduct,
     savePaymentSettings: settings.savePaymentSettings,
     saveCheckoutFields: settings.saveCheckoutFields,
     saveUpsellSettings,
     saveAffiliateSettings,
     saveAll,
-
-    // Funções de refresh
     refreshProduct: core.refreshProduct,
     refreshOffers: entities.refreshOffers,
     refreshOrderBumps: entities.refreshOrderBumps,
@@ -426,30 +252,17 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     refreshCoupons: entities.refreshCoupons,
     refreshPaymentLinks: checkoutsHook.refreshPaymentLinks,
     refreshAll,
-
-    // Funções de deleção
     deleteProduct: core.deleteProduct,
-
-    // NOVO: Form State (Reducer)
     formState,
     formDispatch,
-    dispatchForm: formDispatch, // Alias para compatibilidade
-    
-    // NOVO: Form errors e validação
+    dispatchForm: formDispatch,
     formErrors: formState.validation,
-    validateGeneralForm: () => {
-      const result = validateGeneralForm(formState.editedData.general);
-      return result.isValid;
-    },
-    
-    // NOVO: Helpers derivados
-    generalForm,
-    imageState,
-    localOffers,
-    checkoutSettingsForm,
+    validateGeneralForm: () => validateGeneralForm(formState.editedData.general).isValid,
+    generalForm: formState.editedData.general,
+    imageState: formState.editedData.image,
+    localOffers: formState.editedData.offers.localOffers,
+    checkoutSettingsForm: formState.editedData.checkoutSettings,
     checkoutCredentials,
-    
-    // NOVO: Actions simplificadas
     updateGeneralField,
     updateImageState,
     updateLocalOffers,
