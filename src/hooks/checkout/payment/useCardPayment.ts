@@ -7,15 +7,32 @@
  * - Mercado Pago
  * - Stripe
  * - Asaas
+ * 
+ * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
+ * @see RISE Protocol V2 - Zero database access from frontend
  */
 
 import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { SUPABASE_URL } from "@/config/supabase";
 import type { CreditCardGateway, CardPaymentData, PaymentConfig } from "./types";
 import type { PersonalDataOverride } from "./useOrderCreation";
+
+interface MercadoPagoCardResponse {
+  success: boolean;
+  error?: string;
+  data?: {
+    status?: string;
+  };
+}
+
+interface AsaasCardResponse {
+  success: boolean;
+  error?: string;
+  status?: string;
+}
 
 interface UseCardPaymentProps {
   config: PaymentConfig;
@@ -102,20 +119,18 @@ export function useCardPayment({ config, amount }: UseCardPaymentProps): UseCard
           payerDocumentFinal: payerDocumentFinal || '(NULL)'
         });
 
-        const { data: paymentData, error: paymentError } = await supabase.functions.invoke(
+        const { data: paymentData, error: paymentError } = await api.publicCall<MercadoPagoCardResponse>(
           "mercadopago-create-payment",
           {
-            body: {
-              orderId,
-              payerEmail: effectiveEmail,  // ✅ USAR OVERRIDE
-              payerName: effectiveName,    // ✅ USAR OVERRIDE
-              payerDocument: payerDocumentFinal,
-              paymentMethod: 'credit_card',
-              token: cardData.token,
-              installments: cardData.installments,
-              paymentMethodId: cardData.paymentMethodId,
-              issuerId: cardData.issuerId
-            }
+            orderId,
+            payerEmail: effectiveEmail,  // ✅ USAR OVERRIDE
+            payerName: effectiveName,    // ✅ USAR OVERRIDE
+            payerDocument: payerDocumentFinal,
+            paymentMethod: 'credit_card',
+            token: cardData.token,
+            installments: cardData.installments,
+            paymentMethodId: cardData.paymentMethodId,
+            issuerId: cardData.issuerId
           }
         );
 
@@ -133,24 +148,22 @@ export function useCardPayment({ config, amount }: UseCardPaymentProps): UseCard
       }
 
       case 'asaas': {
-        const { data: paymentData, error: paymentError } = await supabase.functions.invoke(
+        const { data: paymentData, error: paymentError } = await api.publicCall<AsaasCardResponse>(
           "asaas-create-payment",
           {
-            body: {
-              orderId,
-              // vendorId não é mais necessário - busca da order no backend
-              amountCents: amount,
-              customer: {
-                name: config.formData.name,
-                email: config.formData.email,
-                document: (config.formData.cpf || config.formData.document)?.replace(/\D/g, '') || '',
-                phone: config.formData.phone || undefined,
-              },
-              description: `Pedido ${orderId}`,
-              paymentMethod: 'credit_card',
-              cardToken: cardData.token,
-              installments: cardData.installments,
-            }
+            orderId,
+            // vendorId não é mais necessário - busca da order no backend
+            amountCents: amount,
+            customer: {
+              name: config.formData.name,
+              email: config.formData.email,
+              document: (config.formData.cpf || config.formData.document)?.replace(/\D/g, '') || '',
+              phone: config.formData.phone || undefined,
+            },
+            description: `Pedido ${orderId}`,
+            paymentMethod: 'credit_card',
+            cardToken: cardData.token,
+            installments: cardData.installments,
           }
         );
 

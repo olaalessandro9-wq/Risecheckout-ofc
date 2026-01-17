@@ -4,11 +4,18 @@
  * All RPC calls must go through this utility to comply with
  * RISE Protocol V2: "Zero direct database operations from frontend"
  * 
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
+ * 
  * @see supabase/functions/rpc-proxy/index.ts
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { getProducerSessionToken } from "@/hooks/useProducerAuth";
+
+interface RpcProxyResponse<T> {
+  data?: T;
+  error?: string;
+}
 
 export type RpcAuthLevel = "public" | "producer" | "admin";
 
@@ -53,14 +60,16 @@ export async function invokeRpc<T>(
   }
 
   try {
-    const { data, error } = await supabase.functions.invoke("rpc-proxy", {
-      body: { rpc: rpcName, params },
-      headers,
-    });
+    // Use api.call for producer/admin, api.publicCall for public
+    const isPublic = authLevel === "public";
+    
+    const { data, error } = isPublic 
+      ? await api.publicCall<RpcProxyResponse<T>>("rpc-proxy", { rpc: rpcName, params })
+      : await api.call<RpcProxyResponse<T>>("rpc-proxy", { rpc: rpcName, params });
 
     if (error) {
       console.error(`[rpcProxy] Error invoking ${rpcName}:`, error);
-      return { data: null, error };
+      return { data: null, error: new Error(error.message) };
     }
 
     // The rpc-proxy returns { data: <result> } on success

@@ -9,11 +9,18 @@
  * - Lookup instantâneo por productId
  * - Atualização local após nova afiliação (sem refetch)
  * - Invalidação ao deslogar
+ * 
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
+ * @see RISE Protocol V2 - Zero database access from frontend
  */
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { getProducerSessionToken } from "@/hooks/useProducerAuth";
+
+interface AffiliationStatusesResponse {
+  statuses?: Record<string, { status: string; affiliationId: string }>;
+}
 
 interface AffiliationStatus {
   status: "pending" | "active" | "rejected" | "blocked";
@@ -99,15 +106,11 @@ export function useAffiliationStatusCache(): UseAffiliationStatusCacheReturn {
       try {
         console.log("[useAffiliationStatusCache] Carregando status de afiliação...");
 
-        const { data, error } = await supabase.functions.invoke("get-all-affiliation-statuses", {
-          headers: {
-            Authorization: `Bearer ${sessionToken}`,
-          },
-        });
+        const { data, error } = await api.call<AffiliationStatusesResponse>("get-all-affiliation-statuses", {});
 
         if (error) {
           console.error("[useAffiliationStatusCache] Erro ao carregar:", error);
-          throw error;
+          throw new Error(error.message);
         }
 
         // Popular cache com os status recebidos

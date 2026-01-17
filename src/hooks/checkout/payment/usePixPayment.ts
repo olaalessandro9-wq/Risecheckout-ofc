@@ -8,13 +8,36 @@
  * - Mercado Pago: Chama edge function, navega com QR
  * - Stripe: Chama edge function, navega com QR
  * - Asaas: Chama edge function, navega com QR
+ * 
+ * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
+ * @see RISE Protocol V2 - Zero database access from frontend
  */
 
 import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { SUPABASE_URL } from "@/config/supabase";
 import type { PixGateway, PaymentConfig, PixNavigationState } from "./types";
+
+interface MercadoPagoPixResponse {
+  success: boolean;
+  error?: string;
+  data?: {
+    pix?: {
+      qrCode?: string;
+      qr_code?: string;
+      qrCodeBase64?: string;
+      qr_code_base64?: string;
+    };
+  };
+}
+
+interface AsaasPixResponse {
+  success: boolean;
+  error?: string;
+  qrCode?: string;
+  qrCodeText?: string;
+}
 
 interface UsePixPaymentProps {
   config: PaymentConfig;
@@ -84,18 +107,16 @@ export function usePixPayment({ config, amount }: UsePixPaymentProps): UsePixPay
       }
 
       case 'mercadopago': {
-        const { data: paymentData, error: paymentError } = await supabase.functions.invoke(
+        const { data: paymentData, error: paymentError } = await api.publicCall<MercadoPagoPixResponse>(
           "mercadopago-create-payment",
           {
-            body: {
-              orderId,
-              payerEmail: config.formData.email,
-              payerName: config.formData.name,
-              payerDocument: config.formData.document?.replace(/\D/g, '') || null,
-              paymentMethod: 'pix',
-              token: null,
-              installments: 1
-            }
+            orderId,
+            payerEmail: config.formData.email,
+            payerName: config.formData.name,
+            payerDocument: config.formData.document?.replace(/\D/g, '') || null,
+            paymentMethod: 'pix',
+            token: null,
+            installments: 1
           }
         );
 
@@ -114,22 +135,20 @@ export function usePixPayment({ config, amount }: UsePixPaymentProps): UsePixPay
       }
 
       case 'asaas': {
-        const { data: paymentData, error: paymentError } = await supabase.functions.invoke(
+        const { data: paymentData, error: paymentError } = await api.publicCall<AsaasPixResponse>(
           "asaas-create-payment",
           {
-            body: {
-              orderId,
-              // vendorId não é mais necessário - busca da order no backend
-              amountCents: amount,
-              customer: {
-                name: config.formData.name,
-                email: config.formData.email,
-                document: (config.formData.cpf || config.formData.document)?.replace(/\D/g, '') || '',
-                phone: config.formData.phone || undefined,
-              },
-              description: `Pedido ${orderId}`,
-              paymentMethod: 'pix',
-            }
+            orderId,
+            // vendorId não é mais necessário - busca da order no backend
+            amountCents: amount,
+            customer: {
+              name: config.formData.name,
+              email: config.formData.email,
+              document: (config.formData.cpf || config.formData.document)?.replace(/\D/g, '') || '',
+              phone: config.formData.phone || undefined,
+            },
+            description: `Pedido ${orderId}`,
+            paymentMethod: 'pix',
           }
         );
 
