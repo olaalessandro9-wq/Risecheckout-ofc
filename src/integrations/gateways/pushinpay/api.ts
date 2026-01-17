@@ -4,8 +4,7 @@
  * MIGRATED: Uses Edge Function instead of supabase.from()
  */
 
-import { supabase } from "@/integrations/supabase/client";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
+import { api } from "@/lib/api/client";
 import type {
   PushinPaySettings,
   PushinPayEnvironment,
@@ -55,6 +54,11 @@ export async function fetchPushinPayAccountInfo(
   }
 }
 
+interface VaultSaveResponse {
+  success?: boolean;
+  error?: string;
+}
+
 export async function savePushinPaySettings(
   userId: string,
   settings: PushinPaySettings
@@ -64,20 +68,15 @@ export async function savePushinPaySettings(
   }
 
   try {
-    const sessionToken = getProducerSessionToken();
-
-    const { data, error } = await supabase.functions.invoke("vault-save", {
-      body: {
-        vendor_id: userId,
-        integration_type: "PUSHINPAY",
-        credentials: {
-          api_token: settings.pushinpay_token,
-          environment: settings.environment,
-          user_id: settings.pushinpay_account_id || null,
-        },
-        active: true,
+    const { data, error } = await api.call<VaultSaveResponse>("vault-save", {
+      vendor_id: userId,
+      integration_type: "PUSHINPAY",
+      credentials: {
+        api_token: settings.pushinpay_token,
+        environment: settings.environment,
+        user_id: settings.pushinpay_account_id || null,
       },
-      headers: { 'x-producer-session-token': sessionToken || '' },
+      active: true,
     });
 
     if (error) {
@@ -85,9 +84,8 @@ export async function savePushinPaySettings(
       return { ok: false, error: error.message };
     }
 
-    const result = data as { success?: boolean; error?: string };
-    if (!result.success) {
-      return { ok: false, error: result.error || "Erro ao salvar configurações" };
+    if (!data?.success) {
+      return { ok: false, error: data?.error || "Erro ao salvar configurações" };
     }
     
     return { ok: true };
@@ -97,9 +95,16 @@ export async function savePushinPaySettings(
   }
 }
 
+interface VendorIntegrationResponse {
+  integration?: {
+    active: boolean;
+    config: Record<string, unknown> | null;
+  };
+}
+
 /**
  * Get PushinPay settings via Edge Function
- * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+ * MIGRATED: Uses api.call instead of supabase.functions.invoke
  */
 export async function getPushinPaySettings(userId: string): Promise<PushinPaySettings | null> {
   if (!userId) {
@@ -107,14 +112,9 @@ export async function getPushinPaySettings(userId: string): Promise<PushinPaySet
   }
 
   try {
-    const sessionToken = getProducerSessionToken();
-    
-    const { data, error } = await supabase.functions.invoke("admin-data", {
-      body: {
-        action: "vendor-integration",
-        integrationType: "PUSHINPAY",
-      },
-      headers: { "x-producer-session-token": sessionToken || "" },
+    const { data, error } = await api.call<VendorIntegrationResponse>("admin-data", {
+      action: "vendor-integration",
+      integrationType: "PUSHINPAY",
     });
 
     if (error || !data?.integration) {
@@ -122,7 +122,7 @@ export async function getPushinPaySettings(userId: string): Promise<PushinPaySet
     }
     
     const integration = data.integration;
-    const config = integration.config as Record<string, unknown> | null;
+    const config = integration.config;
     
     if (!config || !integration.active) {
       return null;
@@ -143,37 +143,33 @@ export async function createPixCharge(
   orderId: string,
   valueInCents: number
 ): Promise<PixChargeResponse> {
-  const { data, error } = await supabase.functions.invoke(
+  const { data, error } = await api.publicCall<PixChargeResponse>(
     "pushinpay-create-pix",
-    {
-      body: { orderId, valueInCents },
-    }
+    { orderId, valueInCents }
   );
 
   if (error) {
     return { ok: false, error: error.message };
   }
   
-  return data as PixChargeResponse;
+  return data || { ok: false, error: "No response data" };
 }
 
 export async function getPixStatus(orderId: string): Promise<PixStatusResponse> {
-  const { data, error } = await supabase.functions.invoke(
+  const { data, error } = await api.publicCall<PixStatusResponse>(
     "pushinpay-get-status",
-    {
-      body: { orderId },
-    }
+    { orderId }
   );
 
   if (error) {
     return { ok: false, error: error.message };
   }
   
-  return data as PixStatusResponse;
+  return data || { ok: false, error: "No response data" };
 }
 
 export async function testPushinPayConnection(): Promise<PushinPayConnectionTestResponse> {
-  const { data, error } = await supabase.functions.invoke("pushinpay-validate-token");
+  const { data, error } = await api.call<PushinPayConnectionTestResponse>("pushinpay-validate-token");
   
   if (error) {
     return { 
@@ -183,11 +179,11 @@ export async function testPushinPayConnection(): Promise<PushinPayConnectionTest
     };
   }
   
-  return data;
+  return data || { ok: false, environment: "sandbox", message: "No response data" };
 }
 
 export async function getPushinPayStats(): Promise<PushinPayStats | null> {
-  const { data, error } = await supabase.functions.invoke("pushinpay-stats");
+  const { data, error } = await api.call<PushinPayStats>("pushinpay-stats");
   
   if (error || !data) {
     return null;

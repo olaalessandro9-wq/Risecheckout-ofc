@@ -13,10 +13,8 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Loader2, ChevronDown } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api/client";
 import { useAuth } from "@/hooks/useAuth";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
-import { SUPABASE_URL } from "@/config/supabase";
 import {
   Command,
   CommandEmpty,
@@ -34,6 +32,27 @@ import { Badge } from "@/components/ui/badge";
 interface Product {
   id: string;
   name: string;
+  status?: string;
+}
+
+interface ProductsListResponse {
+  products: Product[];
+}
+
+interface VendorIntegrationResponse {
+  integration?: {
+    active: boolean;
+    config: {
+      selected_products?: string[];
+      selected_events?: string[];
+      has_token?: boolean;
+    } | null;
+  };
+}
+
+interface VaultSaveResponse {
+  success: boolean;
+  error?: string;
 }
 
 interface UTMifyEvent {
@@ -76,21 +95,19 @@ export const UTMifyConfig = () => {
 
   /**
    * Load products via Edge Function
-   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   * MIGRATED: Uses api.call instead of supabase.functions.invoke
    */
   const loadProducts = async () => {
     try {
       setLoadingProducts(true);
-      const sessionToken = getProducerSessionToken();
       
-      const { data, error } = await supabase.functions.invoke("products-crud", {
-        body: { action: "list" },
-        headers: { "x-producer-session-token": sessionToken || "" },
+      const { data, error } = await api.call<ProductsListResponse>("products-crud", {
+        action: "list",
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       
-      const productsList = (data?.products || []).filter((p: { status?: string }) => p.status !== "deleted");
+      const productsList = (data?.products || []).filter((p) => p.status !== "deleted");
       setProducts(productsList);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
@@ -102,30 +119,22 @@ export const UTMifyConfig = () => {
 
   /**
    * Load UTMify config via Edge Function
-   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   * MIGRATED: Uses api.call instead of supabase.functions.invoke
    */
   const loadUTMifyConfig = async () => {
     try {
       setLoadingConfig(true);
-      const sessionToken = getProducerSessionToken();
       
-      const { data, error } = await supabase.functions.invoke("admin-data", {
-        body: {
-          action: "vendor-integration",
-          integrationType: "UTMIFY",
-        },
-        headers: { "x-producer-session-token": sessionToken || "" },
+      const { data, error } = await api.call<VendorIntegrationResponse>("admin-data", {
+        action: "vendor-integration",
+        integrationType: "UTMIFY",
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
       const integration = data?.integration;
       if (integration) {
-        const config = integration.config as { 
-          selected_products?: string[]; 
-          selected_events?: string[];
-          has_token?: boolean;
-        } | null;
+        const config = integration.config;
         
         setUtmifyActive(integration.active || false);
         setSelectedProducts(config?.selected_products || []);
@@ -153,12 +162,6 @@ export const UTMifyConfig = () => {
       const shouldActivate = !hasExistingToken && !utmifyActive && utmifyToken.trim();
       const activeStatus = shouldActivate ? true : utmifyActive;
 
-      const token = getProducerSessionToken();
-      if (!token) {
-        toast.error("Sessão expirada. Faça login novamente.");
-        return;
-      }
-
       const credentials: Record<string, unknown> = {
         selected_products: selectedProducts,
         selected_events: selectedEvents,
@@ -169,27 +172,19 @@ export const UTMifyConfig = () => {
         credentials.api_token = utmifyToken.trim();
       }
 
-      const response = await fetch(
-        `${SUPABASE_URL}/functions/v1/vault-save`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Producer-Session-Token": token,
-          },
-          body: JSON.stringify({
-            vendor_id: user?.id,
-            integration_type: "UTMIFY",
-            credentials,
-            active: activeStatus,
-          }),
-        }
-      );
+      const { data: result, error } = await api.call<VaultSaveResponse>("vault-save", {
+        vendor_id: user?.id,
+        integration_type: "UTMIFY",
+        credentials,
+        active: activeStatus,
+      });
 
-      const result = await response.json();
+      if (error) {
+        throw new Error(error.message || "Erro ao salvar credenciais");
+      }
 
-      if (!response.ok) {
-        throw new Error(result.error || "Erro ao salvar credenciais");
+      if (!result?.success) {
+        throw new Error(result?.error || "Erro ao salvar credenciais");
       }
 
       if (shouldActivate) {

@@ -7,8 +7,12 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api/client";
 import { GoogleAdsConfig, GoogleAdsIntegration } from "./types";
+
+interface VendorIntegrationResponse {
+  integration?: GoogleAdsIntegration;
+}
 
 /**
  * Hook para carregar a configuração do Google Ads de um vendedor
@@ -47,13 +51,11 @@ export function useGoogleAdsConfig(vendorId?: string) {
       }
 
       try {
-        // Query via Edge Function (public)
-        const { data, error } = await supabase.functions.invoke("vendor-integrations", {
-          body: {
-            action: "get",
-            vendorId,
-            integrationType: "GOOGLE_ADS",
-          },
+        // Query via Edge Function (public) using api.publicCall
+        const { data, error } = await api.publicCall<VendorIntegrationResponse>("vendor-integrations", {
+          action: "get",
+          vendorId,
+          integrationType: "GOOGLE_ADS",
         });
 
         // Tratamento de erro
@@ -70,7 +72,7 @@ export function useGoogleAdsConfig(vendorId?: string) {
 
         console.log("[Google Ads] Configuração carregada com sucesso para vendor:", vendorId);
 
-        return data.integration as GoogleAdsIntegration;
+        return data.integration;
       } catch (error: unknown) {
         console.error("[Google Ads] Erro inesperado ao carregar config:", error);
         return null;

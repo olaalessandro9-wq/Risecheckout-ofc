@@ -7,9 +7,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ExternalLink, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+
+interface StripeConnectResponse {
+  connected: boolean;
+  account_id: string | null;
+  email: string | null;
+  livemode: boolean | null;
+  connected_at: string | null;
+  url?: string;
+  success?: boolean;
+  error?: string;
+}
 
 interface StripeStatus {
   connected: boolean;
@@ -57,14 +68,8 @@ export function ConfigForm({ onConnectionChange }: ConfigFormProps) {
     try {
       setLoading(true);
       
-      // Obter token de sessão do produtor
-      const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
-      const sessionToken = getProducerSessionToken();
-      
-      // Usar supabase.functions.invoke com query param via body
-      const { data: statusData, error } = await supabase.functions.invoke('stripe-connect-oauth', {
-        body: { action: 'status' },
-        headers: { 'x-producer-session-token': sessionToken || '' },
+      const { data: statusData, error } = await api.call<StripeConnectResponse>('stripe-connect-oauth', {
+        action: 'status',
       });
 
       if (error) {
@@ -72,7 +77,9 @@ export function ConfigForm({ onConnectionChange }: ConfigFormProps) {
         return;
       }
 
-      setStatus(statusData);
+      if (statusData) {
+        setStatus(statusData);
+      }
     } catch (error: unknown) {
       console.error('[StripeConfig] Error checking status:', error);
     } finally {
@@ -84,13 +91,8 @@ export function ConfigForm({ onConnectionChange }: ConfigFormProps) {
     try {
       setConnecting(true);
       
-      // Obter token de sessão do produtor
-      const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
-      const sessionToken = getProducerSessionToken();
-      
-      const { data, error } = await supabase.functions.invoke('stripe-connect-oauth', {
-        body: { action: 'start' },
-        headers: { 'x-producer-session-token': sessionToken || '' },
+      const { data, error } = await api.call<StripeConnectResponse>('stripe-connect-oauth', {
+        action: 'start',
       });
       
       if (error) {
@@ -114,13 +116,8 @@ export function ConfigForm({ onConnectionChange }: ConfigFormProps) {
     try {
       setDisconnecting(true);
       
-      // Obter token de sessão do produtor
-      const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
-      const sessionToken = getProducerSessionToken();
-      
-      const { data, error } = await supabase.functions.invoke('stripe-connect-oauth', {
-        body: { action: 'disconnect' },
-        headers: { 'x-producer-session-token': sessionToken || '' },
+      const { data, error } = await api.call<StripeConnectResponse>('stripe-connect-oauth', {
+        action: 'disconnect',
       });
       
       if (error) {

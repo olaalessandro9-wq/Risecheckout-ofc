@@ -5,7 +5,7 @@
  * RISE Protocol V2 Compliant - Todas as operações via Edge Functions
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api/client";
 
 export type GatewayType = 'asaas' | 'mercadopago' | 'pushinpay' | 'stripe';
 export type GatewayEnvironment = 'sandbox' | 'production';
@@ -24,15 +24,21 @@ const DEFAULT_ENVIRONMENTS: OwnerGatewayEnvironments = {
   stripe: 'production',
 };
 
+interface EnvironmentsResponse {
+  success: boolean;
+  environments?: OwnerGatewayEnvironments;
+  error?: string;
+}
+
 /**
  * Busca os ambientes configurados para todos os gateways do Owner
  * Usa Edge Function para maior segurança
  */
 export async function getOwnerGatewayEnvironments(): Promise<OwnerGatewayEnvironments> {
   try {
-    const { data, error } = await supabase.functions.invoke(
+    const { data, error } = await api.call<EnvironmentsResponse>(
       "owner-settings/get-gateway-environments",
-      { body: {} }
+      {}
     );
 
     if (error) {
@@ -40,18 +46,21 @@ export async function getOwnerGatewayEnvironments(): Promise<OwnerGatewayEnviron
       return DEFAULT_ENVIRONMENTS;
     }
 
-    const result = data as { success: boolean; environments?: OwnerGatewayEnvironments; error?: string };
-    
-    if (!result.success || !result.environments) {
-      console.error('[owner/settings] Resposta inválida:', result.error);
+    if (!data?.success || !data.environments) {
+      console.error('[owner/settings] Resposta inválida:', data?.error);
       return DEFAULT_ENVIRONMENTS;
     }
 
-    return result.environments;
+    return data.environments;
   } catch (error: unknown) {
     console.error('[owner/settings] Erro inesperado:', error);
     return DEFAULT_ENVIRONMENTS;
   }
+}
+
+interface SetEnvironmentResponse {
+  success: boolean;
+  error?: string;
 }
 
 /**
@@ -63,11 +72,9 @@ export async function setOwnerGatewayEnvironment(
   environment: GatewayEnvironment
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const { data, error } = await supabase.functions.invoke(
+    const { data, error } = await api.call<SetEnvironmentResponse>(
       "owner-settings/set-gateway-environment",
-      {
-        body: { gateway, environment },
-      }
+      { gateway, environment }
     );
 
     if (error) {
@@ -75,10 +82,8 @@ export async function setOwnerGatewayEnvironment(
       return { ok: false, error: error.message };
     }
 
-    const result = data as { success: boolean; error?: string };
-    
-    if (!result.success) {
-      return { ok: false, error: result.error || "Erro ao atualizar ambiente" };
+    if (!data?.success) {
+      return { ok: false, error: data?.error || "Erro ao atualizar ambiente" };
     }
 
     console.log(`[owner/settings] Gateway ${gateway} alterado para ${environment}`);

@@ -11,9 +11,23 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api/client";
 import { useAuth } from "@/hooks/useAuth";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
+
+interface VendorIntegrationResponse {
+  integration?: {
+    active: boolean;
+    config: {
+      pixel_id?: string;
+      has_token?: boolean;
+    } | null;
+  };
+}
+
+interface VaultSaveResponse {
+  success: boolean;
+  error?: string;
+}
 
 export function FacebookPixelConfig() {
   const { user } = useAuth();
@@ -32,29 +46,22 @@ export function FacebookPixelConfig() {
 
   /**
    * Load config via Edge Function
-   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   * MIGRATED: Uses api.call instead of supabase.functions.invoke
    */
   const loadConfig = async () => {
     try {
       setLoading(true);
-      const sessionToken = getProducerSessionToken();
       
-      const { data, error } = await supabase.functions.invoke("admin-data", {
-        body: {
-          action: "vendor-integration",
-          integrationType: "FACEBOOK_PIXEL",
-        },
-        headers: { "x-producer-session-token": sessionToken || "" },
+      const { data, error } = await api.call<VendorIntegrationResponse>("admin-data", {
+        action: "vendor-integration",
+        integrationType: "FACEBOOK_PIXEL",
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
       const integration = data?.integration;
       if (integration) {
-        const config = integration.config as { 
-          pixel_id?: string; 
-          has_token?: boolean;
-        } | null;
+        const config = integration.config;
         
         setPixelId(config?.pixel_id || "");
         setHasExistingToken(config?.has_token || false);
@@ -94,17 +101,19 @@ export function FacebookPixelConfig() {
         credentials.has_token = true;
       }
 
-      const { data: result, error } = await supabase.functions.invoke("vault-save", {
-        body: {
-          vendor_id: user.id,
-          integration_type: "FACEBOOK_PIXEL",
-          credentials,
-          active,
-        },
+      const { data: result, error } = await api.call<VaultSaveResponse>("vault-save", {
+        vendor_id: user.id,
+        integration_type: "FACEBOOK_PIXEL",
+        credentials,
+        active,
       });
 
       if (error) {
         throw new Error(error.message || "Erro ao salvar credenciais");
+      }
+
+      if (!result?.success) {
+        throw new Error(result?.error || "Erro ao salvar credenciais");
       }
 
       if (accessToken.trim()) {
