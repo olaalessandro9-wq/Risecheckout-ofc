@@ -16,7 +16,7 @@ import { CouponsTable } from "@/components/products/CouponsTable";
 import { CouponDialog, type CouponFormData, type CouponSaveResult } from "@/components/products/CouponDialog";
 import { useProductContext } from "../context/ProductContext";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useConfirmDelete } from "@/components/common/ConfirmDelete";
 
 // Tipo Coupon para a tabela
@@ -54,20 +54,12 @@ export function CuponsTab() {
       setLoading(true);
 
       // Buscar cupons via Edge Function
-      const sessionToken = localStorage.getItem('producer_session_token');
-      
-      const { data, error } = await supabase.functions.invoke('coupon-management', {
-        body: {
-          action: 'list',
-          productId: product.id,
-          sessionToken,
-        },
-        headers: {
-          'x-producer-session-token': sessionToken || '',
-        },
+      const { data, error } = await api.call<{ coupons?: Array<CouponResponse>; error?: string }>('coupon-management', {
+        action: 'list',
+        productId: product.id,
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
 
       // Tipo para dados retornados pela Edge Function
@@ -111,22 +103,28 @@ export function CuponsTab() {
   const handleEditCoupon = async (coupon: Coupon) => {
     // Buscar dados completos do cupom via Edge Function
     try {
-      const sessionToken = localStorage.getItem('producer_session_token');
-      
-      const { data, error } = await supabase.functions.invoke('products-crud', {
-        body: {
-          action: 'get-coupon',
-          couponId: coupon.id,
-        },
-        headers: {
-          'x-producer-session-token': sessionToken || '',
-        },
+      const { data, error } = await api.call<{ coupon?: Record<string, unknown>; error?: string }>('products-crud', {
+        action: 'get-coupon',
+        couponId: coupon.id,
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
       
-      const couponData = data?.coupon;
+      const couponData = data?.coupon as {
+        id: string;
+        name?: string;
+        code: string;
+        description?: string;
+        discount_type: string;
+        discount_value: number;
+        expires_at?: string;
+        start_date?: string;
+        max_uses?: number;
+        max_uses_per_customer?: number;
+        apply_to_order_bumps?: boolean;
+        uses_count?: number;
+      };
       if (!couponData) throw new Error("Cupom não encontrado");
 
       const formData: CouponFormData = {
@@ -158,35 +156,27 @@ export function CuponsTab() {
 
     try {
       const action = couponData.id ? 'update' : 'create';
-      const sessionToken = localStorage.getItem('producer_session_token');
       
-      const { data, error } = await supabase.functions.invoke('coupon-management', {
-        body: {
-          action,
-          productId: product.id,
-          couponId: couponData.id,
-          sessionToken,
-          // Backend espera snake_case
-          coupon: {
-            name: couponData.name,
-            code: couponData.code,
-            description: couponData.description,
-            discount_type: couponData.discountType,
-            discount_value: couponData.discountValue,
-            start_date: couponData.startDate?.toISOString() || null,
-            expires_at: couponData.hasExpiration && couponData.endDate ? couponData.endDate.toISOString() : null,
-            max_uses: couponData.maxUses || null,
-            max_uses_per_customer: couponData.maxUsesPerCustomer || null,
-            apply_to_order_bumps: couponData.applyToOrderBumps ?? true,
-            active: true,
-          },
-        },
-        headers: {
-          'x-producer-session-token': sessionToken || '',
+      const { data, error } = await api.call<{ error?: string; field?: string }>('coupon-management', {
+        action,
+        productId: product.id,
+        couponId: couponData.id,
+        coupon: {
+          name: couponData.name,
+          code: couponData.code,
+          description: couponData.description,
+          discount_type: couponData.discountType,
+          discount_value: couponData.discountValue,
+          start_date: couponData.startDate?.toISOString() || null,
+          expires_at: couponData.hasExpiration && couponData.endDate ? couponData.endDate.toISOString() : null,
+          max_uses: couponData.maxUses || null,
+          max_uses_per_customer: couponData.maxUsesPerCustomer || null,
+          apply_to_order_bumps: couponData.applyToOrderBumps ?? true,
+          active: true,
         },
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       
       if (data?.error) {
         return { 
@@ -196,7 +186,6 @@ export function CuponsTab() {
         };
       }
 
-      // Recarregar lista
       await loadCoupons();
       return { success: true };
     } catch (error: unknown) {
@@ -210,21 +199,13 @@ export function CuponsTab() {
       resourceName: coupons.find(c => c.id === id)?.code || "",
       onConfirm: async () => {
         try {
-          const sessionToken = localStorage.getItem('producer_session_token');
-          
-          const { data, error } = await supabase.functions.invoke('coupon-management', {
-            body: {
-              action: 'delete',
-              productId: product?.id,
-              couponId: id,
-              sessionToken,
-            },
-            headers: {
-              'x-producer-session-token': sessionToken || '',
-            },
+          const { data, error } = await api.call<{ error?: string }>('coupon-management', {
+            action: 'delete',
+            productId: product?.id,
+            couponId: id,
           });
 
-          if (error) throw error;
+          if (error) throw new Error(error.message);
           if (data?.error) throw new Error(data.error);
 
           await loadCoupons();

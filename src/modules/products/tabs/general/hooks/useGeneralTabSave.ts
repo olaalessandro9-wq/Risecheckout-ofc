@@ -7,7 +7,7 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import type { GeneralFormData } from "../types";
 
 interface UseGeneralTabSaveProps {
@@ -68,27 +68,23 @@ export function useGeneralTabSave({
         finalImageUrl = null;
       }
 
-      const sessionToken = localStorage.getItem('producer_session_token');
-      const { data, error } = await supabase.functions.invoke('product-settings', {
-        body: {
-          action: 'update-general',
-          productId: productId,
-          data: {
-            name: form.name,
-            description: form.description,
-            price: form.price,
-            support_name: form.support_name,
-            support_email: form.support_email,
-            delivery_url: form.external_delivery ? null : (form.delivery_url || null),
-            external_delivery: form.external_delivery,
-            status: "active",
-            image_url: finalImageUrl,
-          },
+      const { data, error } = await api.call<{ success?: boolean; error?: string }>('product-settings', {
+        action: 'update-general',
+        productId: productId,
+        data: {
+          name: form.name,
+          description: form.description,
+          price: form.price,
+          support_name: form.support_name,
+          support_email: form.support_email,
+          delivery_url: form.external_delivery ? null : (form.delivery_url || null),
+          external_delivery: form.external_delivery,
+          status: "active",
+          image_url: finalImageUrl,
         },
-        headers: { 'x-producer-session-token': sessionToken || '' },
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       if (!data?.success) throw new Error(data?.error || 'Falha ao atualizar produto');
 
       await saveDeletedOffers();

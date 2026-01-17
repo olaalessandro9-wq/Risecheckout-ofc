@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { AffiliatePixel } from "@/hooks/useAffiliationDetails";
 
 interface PixelsTabProps {
@@ -118,12 +118,6 @@ export function PixelsTab({ affiliationId, initialPixels, onRefetch }: PixelsTab
   };
 
   const handleSave = async () => {
-    const sessionToken = localStorage.getItem('producer_session_token');
-    if (!sessionToken) {
-      toast.error("Sessão expirada. Faça login novamente.");
-      return;
-    }
-
     setIsSaving(true);
 
     try {
@@ -162,16 +156,13 @@ export function PixelsTab({ affiliationId, initialPixels, onRefetch }: PixelsTab
       }
 
       // Chamar Edge Function
-      const { data, error } = await supabase.functions.invoke("affiliate-pixel-management", {
-        headers: { "x-producer-token": sessionToken },
-        body: {
-          action: "save-all",
-          affiliate_id: affiliationId,
-          pixels: allPixels,
-        },
+      const { data, error } = await api.call<{ error?: string }>("affiliate-pixel-management", {
+        action: "save-all",
+        affiliate_id: affiliationId,
+        pixels: allPixels,
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
 
       toast.success("Pixels salvos com sucesso!");

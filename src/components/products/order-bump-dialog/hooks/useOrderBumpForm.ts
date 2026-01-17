@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { parseBRLInput } from "@/lib/money";
 import { NormalizedOffer } from "@/services/offers";
 import { OrderBumpFormData, OrderBumpProduct, DEFAULT_FORM_VALUES, EditOrderBump } from "../types";
@@ -180,20 +180,13 @@ export function useOrderBumpForm({
     try {
       setLoading(true);
       
-      const sessionToken = localStorage.getItem('producer_session_token');
-      
       // Buscar checkout_id do produto principal via Edge Function
-      const { data: checkoutResponse, error: checkoutsError } = await supabase.functions.invoke('products-crud', {
-        body: {
-          action: 'get-checkouts',
-          productId,
-        },
-        headers: {
-          'x-producer-session-token': sessionToken || '',
-        },
+      const { data: checkoutResponse, error: checkoutsError } = await api.call<{ checkouts?: Array<{ id: string }>; error?: string }>('products-crud', {
+        action: 'get-checkouts',
+        productId,
       });
 
-      if (checkoutsError) throw checkoutsError;
+      if (checkoutsError) throw new Error(checkoutsError.message);
       if (checkoutResponse?.error) throw new Error(checkoutResponse.error);
 
       const checkouts = checkoutResponse?.checkouts || [];
@@ -218,30 +211,24 @@ export function useOrderBumpForm({
 
       if (editOrderBump) {
         // Update via Edge Function
-        const { data, error } = await supabase.functions.invoke('order-bump-crud', {
-          body: { 
-            action: 'update', 
-            order_bump_id: editOrderBump.id,
-            ...orderBumpData 
-          },
-          headers: { 'x-producer-session-token': sessionToken || '' }
+        const { data, error } = await api.call<{ success?: boolean; error?: string }>('order-bump-crud', { 
+          action: 'update', 
+          order_bump_id: editOrderBump.id,
+          ...orderBumpData 
         });
 
-        if (error) throw error;
+        if (error) throw new Error(error.message);
         if (!data?.success) throw new Error(data?.error || 'Falha ao atualizar order bump');
         
         toast.success("Order bump atualizado com sucesso");
       } else {
         // Create via Edge Function
-        const { data, error } = await supabase.functions.invoke('order-bump-crud', {
-          body: { 
-            action: 'create', 
-            ...orderBumpData 
-          },
-          headers: { 'x-producer-session-token': sessionToken || '' }
+        const { data, error } = await api.call<{ success?: boolean; error?: string }>('order-bump-crud', { 
+          action: 'create', 
+          ...orderBumpData 
         });
 
-        if (error) throw error;
+        if (error) throw new Error(error.message);
         if (!data?.success) throw new Error(data?.error || 'Falha ao criar order bump');
         
         toast.success("Order bump adicionado com sucesso");

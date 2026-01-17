@@ -5,7 +5,7 @@
  * @see RISE Protocol V2 - Zero database access from frontend
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 
 /**
  * Aguarda checkout auto-criado (se houver automação/trigger), e só cria 1 checkout
@@ -21,18 +21,11 @@ export async function ensureSingleCheckout(
 
   console.log('[ensureSingleCheckout] Waiting for auto-created checkout for product:', id);
 
-  const sessionToken = localStorage.getItem('producer_session_token');
-
   // Aguarda checkout auto-criado pelo trigger
   for (let i = 0; i < tries; i++) {
-    const { data: response, error } = await supabase.functions.invoke('products-crud', {
-      body: {
-        action: 'get-checkouts',
-        productId: id,
-      },
-      headers: {
-        'x-producer-session-token': sessionToken || '',
-      },
+    const { data: response, error } = await api.call<{ checkouts?: Array<{ id: string }>; error?: string }>('products-crud', {
+      action: 'get-checkouts',
+      productId: id,
     });
     
     if (error) {

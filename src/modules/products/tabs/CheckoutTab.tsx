@@ -18,6 +18,7 @@ import { CheckoutTable } from "@/components/products/CheckoutTable";
 import { CheckoutConfigDialog } from "@/components/products/CheckoutConfigDialog";
 import { useProductContext } from "../context/ProductContext";
 import { toast } from "sonner";
+import { api } from "@/lib/api";
 import { supabase } from "@/integrations/supabase/client";
 import { useConfirmDelete } from "@/components/common/ConfirmDelete";
 import { useBusy } from "@/components/BusyProvider";
