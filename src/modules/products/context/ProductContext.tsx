@@ -6,13 +6,13 @@
  * - Zero duplicidade de estado
  * - Helpers extraídos para manter < 300 linhas
  * - Registry Pattern para saveAll global
+ * - Global Validation Handlers (SEMPRE montados)
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - Nota 10/10
  */
 
 import { createContext, useContext, useReducer, useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { toast } from "sonner";
 import type { ProductContextState, ProductProviderProps, Offer } from "../types/product.types";
 import type { GeneralFormData, ImageFormState, ProductFormState, ProductFormDispatch, CheckoutSettingsFormData, GatewayCredentials, AffiliateSettings, UpsellSettings } from "../types/productForm.types";
 import type { RegisterSaveHandler } from "../types/saveRegistry.types";
@@ -21,7 +21,7 @@ import type { RegisterSaveHandler } from "../types/saveRegistry.types";
 import { productFormReducer, INITIAL_FORM_STATE, formActions } from "./productFormReducer";
 
 // Hooks especializados
-import { useProductCore, useProductEntities, useProductCheckouts, useSettingsHandlerRegistration, useTabValidation } from "./hooks";
+import { useProductCore, useProductEntities, useProductCheckouts, useGlobalValidationHandlers, useTabValidation } from "./hooks";
 import { useProductSettings as useProductSettingsAdapter } from "./hooks/useProductSettingsAdapter";
 import { useSaveRegistry } from "./hooks/useSaveRegistry";
 import type { TabValidationMap } from "../types/tabValidation.types";
@@ -36,6 +36,7 @@ import {
   createUpdateCheckoutSettingsField,
   createInitCheckoutSettings,
   createSaveProduct,
+  createSaveAll,
 } from "./helpers";
 
 // Factory functions extraídas
@@ -64,9 +65,7 @@ interface ProductContextExtended extends ProductContextState {
   setOffersModified: (modified: boolean) => void;
   updateCheckoutSettingsField: <K extends keyof CheckoutSettingsFormData>(field: K, value: CheckoutSettingsFormData[K]) => void;
   initCheckoutSettings: (settings: CheckoutSettingsFormData, credentials: GatewayCredentials) => void;
-  // Save Registry Pattern
   registerSaveHandler: RegisterSaveHandler;
-  // Tab Validation - Sistema de validação global
   activeTab: string;
   setActiveTab: (tab: string) => void;
   tabErrors: TabValidationMap;
@@ -106,7 +105,7 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
   // Legacy callbacks (extraídos para helper)
   const legacyCallbacks = createLegacyCallbacks(formDispatch);
 
-  // Callbacks para o adapter - atualizam o Reducer
+  // Callbacks para o adapter
   const handleUpdateUpsell = useCallback((settings: Partial<UpsellSettings>) => {
     formDispatch(formActions.updateUpsell(settings));
   }, []);
@@ -115,7 +114,7 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     formDispatch(formActions.updateAffiliate(settings));
   }, []);
 
-  // Settings adapter (zero useState interno)
+  // Settings adapter
   const settingsAdapter = useProductSettingsAdapter({
     productId,
     userId: user?.id,
@@ -126,25 +125,21 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     onSaveComplete: legacyCallbacks.markSettingsSaved,
   });
 
-  // Core hook (carregamento do produto)
+  // Core hook
   const core = useProductCore({
     productId,
     userId: user?.id,
     onUnsavedChange: legacyCallbacks.markCoreUnsaved,
-    onUpsellSettingsLoaded: (settings: UpsellSettings) => {
-      formDispatch(formActions.updateUpsell(settings));
-    },
+    onUpsellSettingsLoaded: (settings: UpsellSettings) => formDispatch(formActions.updateUpsell(settings)),
     onAffiliateSettingsLoaded: (settings: AffiliateSettings | null) => {
-      if (settings) {
-        formDispatch(formActions.updateAffiliate(settings));
-      }
+      if (settings) formDispatch(formActions.updateAffiliate(settings));
     },
   });
 
   const entities = useProductEntities({ productId });
   const checkoutsHook = useProductCheckouts({ productId });
 
-  // Sincronizar dados carregados → Reducer
+  // Sincronizar dados → Reducer
   useEffect(() => {
     if (core.product && entities.offers !== undefined) {
       formDispatch(formActions.initFromServer({
@@ -173,154 +168,73 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     }
   }, [core, entities, checkoutsHook]);
 
-  // Carregar dados iniciais
   useEffect(() => {
-    if (productId && user) {
-      refreshAll();
-    }
+    if (productId && user) refreshAll();
   }, [productId, user]);
 
-  // Settings handler registration (extraído para hook dedicado - RISE V3)
-  useSettingsHandlerRegistration({
+  // Global Validation Handlers - SEMPRE REGISTRADOS (no nível do Context)
+  useGlobalValidationHandlers({
     productId,
     userId: user?.id,
     registerSaveHandler,
+    generalForm: formState.editedData.general,
+    product: core.product,
+    imageFile: formState.editedData.image.imageFile,
+    pendingRemoval: formState.editedData.image.pendingRemoval,
+    uploadImage: async () => null, // Será resolvido via refs no hook
+    resetImage: () => formDispatch({ type: 'RESET_IMAGE' }),
+    saveDeletedOffers: async () => {}, // Placeholder - lógica está no handler
+    saveOffers: async () => {},
+    resetOffers: () => formDispatch({ type: 'RESET_OFFERS' }),
+    checkoutSettingsForm: formState.editedData.checkoutSettings,
+    isCheckoutSettingsInitialized: formState.isCheckoutSettingsInitialized,
+    saveCheckoutSettings: async () => {}, // Será resolvido no handler
     upsellSettings: formState.editedData.upsell,
-    affiliateSettings: formState.editedData.affiliate,
     saveUpsellSettings: settingsAdapter.saveUpsellSettings,
+    affiliateSettings: formState.editedData.affiliate,
     saveAffiliateSettings: settingsAdapter.saveAffiliateSettings,
   });
-
-  // Form helpers (usando factory functions)
   const updateGeneralField = useCallback(createUpdateGeneralField(formDispatch), []);
   const updateImageState = useCallback(createUpdateImageState(formDispatch), []);
   const updateLocalOffers = useCallback(createUpdateLocalOffers(formDispatch), []);
   const markOfferDeleted = useCallback(createMarkOfferDeleted(formDispatch), []);
   const setOffersModified = useCallback(createSetOffersModified(formDispatch), []);
   const updateCheckoutSettingsField = useCallback(createUpdateCheckoutSettingsField(formDispatch), []);
-  const initCheckoutSettingsHandler = useCallback(
-    createInitCheckoutSettings(formDispatch, setCheckoutCredentials), 
-    []
-  );
+  const initCheckoutSettingsHandler = useCallback(createInitCheckoutSettings(formDispatch, setCheckoutCredentials), []);
 
   // Save wrappers
-  const saveProduct = useCallback(
-    createSaveProduct({ setSaving, formDispatch, core }),
-    [core]
-  );
+  const saveProduct = useCallback(createSaveProduct({ setSaving, formDispatch, core }), [core]);
 
   const saveUpsellSettings = useCallback(async () => {
     setSaving(true);
-    try {
-      await settingsAdapter.saveUpsellSettings(formState.editedData.upsell);
-    } finally {
-      setSaving(false);
-    }
+    try { await settingsAdapter.saveUpsellSettings(formState.editedData.upsell); } 
+    finally { setSaving(false); }
   }, [settingsAdapter, formState.editedData.upsell]);
 
   const saveAffiliateSettings = useCallback(async () => {
     setSaving(true);
-    try {
-      await settingsAdapter.saveAffiliateSettings(formState.editedData.affiliate);
-    } finally {
-      setSaving(false);
-    }
+    try { await settingsAdapter.saveAffiliateSettings(formState.editedData.affiliate); } 
+    finally { setSaving(false); }
   }, [settingsAdapter, formState.editedData.affiliate]);
 
-  const saveAll = useCallback(async () => {
-    setSaving(true);
-    // Limpa erros anteriores
-    clearTabErrors();
-    formDispatch({ type: 'CLEAR_VALIDATION_ERRORS' });
-    
-    try {
-      const result = await executeRegistrySaves();
-      
-      if (!result.success) {
-        // Popula erros de validação por aba (para indicadores de tab)
-        if (result.tabErrors) {
-          setTabErrors(result.tabErrors);
-          
-          // Propagar erros para o reducer (para campos ficarem vermelhos)
-          // Mapeia os erros de cada tab para a seção correspondente no FormValidationErrors
-          const tabToSection: Record<string, 'general' | 'upsell' | 'affiliate'> = {
-            'geral': 'general',
-            'upsell': 'upsell',
-            'afiliados': 'affiliate',
-          };
-          
-          Object.entries(result.tabErrors).forEach(([tabKey, tabState]) => {
-            const section = tabToSection[tabKey];
-            if (section && tabState.errors) {
-              Object.entries(tabState.errors).forEach(([field, error]) => {
-                if (error) {
-                  formDispatch({
-                    type: 'SET_VALIDATION_ERROR',
-                    payload: { section, field, error }
-                  });
-                }
-              });
-            }
-          });
-        }
-        
-        // Navega para primeira aba com erro
-        if (result.firstFailedTabKey) {
-          setActiveTab(result.firstFailedTabKey);
-        }
-        
-        toast.error("Corrija os campos obrigatórios antes de salvar");
-        return;
-      }
+  // SaveAll via factory (extraído para < 300 linhas)
+  const saveAll = useCallback(
+    createSaveAll({ setSaving, clearTabErrors, formDispatch, executeRegistrySaves, setTabErrors, setActiveTab }),
+    [executeRegistrySaves, clearTabErrors, setTabErrors, setActiveTab]
+  );
 
-      formDispatch(formActions.markSaved());
-      toast.success("Todas as alterações foram salvas!");
-    } catch (error) {
-      console.error("[ProductContext] Error saving all:", error);
-      toast.error("Erro ao salvar alterações");
-    } finally {
-      setSaving(false);
-    }
-  }, [executeRegistrySaves, clearTabErrors, setTabErrors, setActiveTab, formDispatch]);
-
-  // Context value (extraído para factory)
+  // Context value
   const contextValue = createContextValue({
-    core,
-    entities,
-    checkoutsHook,
-    formState,
-    formDispatch,
-    settingsAdapter,
-    loading,
-    saving,
-    hasUnsavedChanges,
-    checkoutCredentials,
-    updateGeneralField,
-    updateImageState,
-    updateLocalOffers,
-    markOfferDeleted,
-    setOffersModified,
-    updateCheckoutSettingsField,
-    initCheckoutSettings: initCheckoutSettingsHandler,
-    saveProduct,
-    saveUpsellSettings,
-    saveAffiliateSettings,
-    saveAll,
-    refreshAll,
-    registerSaveHandler,
-    activeTab,
-    setActiveTab,
-    tabErrors,
-    setTabErrors,
-    clearTabErrors,
+    core, entities, checkoutsHook, formState, formDispatch, settingsAdapter,
+    loading, saving, hasUnsavedChanges, checkoutCredentials,
+    updateGeneralField, updateImageState, updateLocalOffers, markOfferDeleted, setOffersModified,
+    updateCheckoutSettingsField, initCheckoutSettings: initCheckoutSettingsHandler,
+    saveProduct, saveUpsellSettings, saveAffiliateSettings, saveAll, refreshAll,
+    registerSaveHandler, activeTab, setActiveTab, tabErrors, setTabErrors, clearTabErrors,
     ...legacyCallbacks,
   }) as ProductContextExtended;
 
-  return (
-    <ProductContext.Provider value={contextValue}>
-      {children}
-    </ProductContext.Provider>
-  );
+  return <ProductContext.Provider value={contextValue}>{children}</ProductContext.Provider>;
 }
 
 // ============================================================================
@@ -329,13 +243,8 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
 
 export function useProductContext() {
   const context = useContext(ProductContext);
-
   if (!context) {
-    throw new Error(
-      "useProductContext must be used within a ProductProvider. " +
-      "Wrap your component tree with <ProductProvider>."
-    );
+    throw new Error("useProductContext must be used within a ProductProvider.");
   }
-
   return context;
 }

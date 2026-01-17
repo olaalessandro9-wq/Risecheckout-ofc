@@ -140,7 +140,7 @@ export interface MarkSavedAction {
 export interface SetValidationErrorAction {
   type: "SET_VALIDATION_ERROR";
   payload: {
-    section: "general" | "upsell" | "affiliate";
+    section: "general" | "upsell" | "affiliate" | "checkoutSettings";
     field: string;
     error: string | undefined;
   };

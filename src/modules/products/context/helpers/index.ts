@@ -18,8 +18,10 @@ export {
   createSaveProduct,
   createSaveUpsellSettings,
   createSaveAffiliateSettings,
-  createSaveAll,
 } from "./saveWrappers";
+
+// Factory saveAll extraída para manter ProductContext < 300 linhas
+export { createSaveAll } from "./createSaveAll";
 
 export {
   createUpdateProduct,

@@ -178,38 +178,9 @@ export default function ProductSettingsPanel({ productId, onModifiedChange }: Pr
     }
   }, [executeSave]);
 
-  // =========================================================================
-  // SAVE REGISTRY - Registrar handler para "Checkout Settings"
-  // =========================================================================
-  useEffect(() => {
-    if (!productId || !formState.isCheckoutSettingsInitialized) return;
-
-    const validateGateways = (): boolean => {
-      const pixGateway = getGatewayById(form.pix_gateway);
-      const ccGateway = getGatewayById(form.credit_card_gateway);
-
-      if (!isGatewayAvailable(form.pix_gateway)) {
-        toast.error(`Gateway de PIX "${pixGateway?.displayName || form.pix_gateway}" não está disponível.`);
-        return false;
-      }
-      if (!isGatewayAvailable(form.credit_card_gateway)) {
-        toast.error(`Gateway de Cartão "${ccGateway?.displayName || form.credit_card_gateway}" não está disponível.`);
-        return false;
-      }
-      return true;
-    };
-
-    const unregister = registerSaveHandler(
-      'checkout-settings',
-      executeSave,
-      {
-        validate: validateGateways,
-        order: 20, // Após General
-      }
-    );
-
-    return unregister;
-  }, [productId, form, formState.isCheckoutSettingsInitialized, executeSave, registerSaveHandler]);
+  // NOTA: O handler de save registry foi movido para useGlobalValidationHandlers
+  // no ProductContext para garantir que a validação funcione independente
+  // de qual aba está ativa. Este componente agora é apenas uma Pure View.
 
   // Loading: só mostra se ainda não foi inicializado OU se está carregando ativamente
   const isLoading = loading || permissionsLoading || (!formState.isCheckoutSettingsInitialized && !loading);

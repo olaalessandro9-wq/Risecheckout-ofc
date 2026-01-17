@@ -12,5 +12,8 @@ export { useProductSettings } from "./useProductSettingsAdapter";
 // Save Registry Pattern - Registro de handlers
 export { useSettingsHandlerRegistration } from "./useSettingsHandlerRegistration";
 
+// Global Validation Handlers - TODOS os handlers de validação centralizados
+export { useGlobalValidationHandlers } from "./useGlobalValidationHandlers";
+
 // Tab Validation - Sistema de validação global
 export { useTabValidation } from "./useTabValidation";

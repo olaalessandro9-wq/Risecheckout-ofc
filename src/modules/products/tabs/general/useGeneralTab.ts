@@ -160,93 +160,9 @@ export function useGeneralTab() {
     deleteProduct,
   });
 
-  // =========================================================================
-  // SAVE REGISTRY - Registrar handler para "General" tab
-  // =========================================================================
-  useEffect(() => {
-    // Só registra se o produto existir
-    if (!product?.id) return;
-
-    const unregister = registerSaveHandler(
-      'general',
-      async () => {
-        // Não refaz validação aqui - o registry já validou
-        // Executa a mesma lógica do handleSave mas sem toast
-        // (toast é dado pelo saveAll global)
-        
-        let finalImageUrl = product.image_url;
-
-        if (image.imageFile) {
-          finalImageUrl = await uploadImage();
-        } else if (image.pendingRemoval) {
-          finalImageUrl = null;
-        }
-
-        const { api } = await import("@/lib/api");
-        const { data, error } = await api.call<{ success?: boolean; error?: string }>('product-settings', {
-          action: 'update-general',
-          productId: product.id,
-          data: {
-            name: form.name,
-            description: form.description,
-            price: form.price,
-            support_name: form.support_name,
-            support_email: form.support_email,
-            delivery_url: form.external_delivery ? null : (form.delivery_url || null),
-            external_delivery: form.external_delivery,
-            status: "active",
-            image_url: finalImageUrl,
-          },
-        });
-
-        if (error) throw new Error(error.message);
-        if (!data?.success) throw new Error(data?.error || 'Falha ao atualizar produto');
-
-        await saveDeletedOffers();
-        await saveOffers();
-
-        resetImage();
-        resetOffers();
-      },
-      {
-        validate: () => {
-          // Importar e executar validação centralizada
-          const { validateGeneralForm: validateGeneral } = require("../../context/productFormValidation");
-          const result = validateGeneral(form) as { isValid: boolean; errors: { general?: Record<string, string | undefined> } };
-          
-          // Converter erros para o formato esperado pelo registry
-          const fieldErrors: Record<string, string> = {};
-          if (result.errors.general) {
-            Object.entries(result.errors.general).forEach(([field, error]) => {
-              if (error) fieldErrors[field] = error as string;
-            });
-          }
-          
-          return {
-            isValid: result.isValid,
-            errors: fieldErrors,
-            tabKey: 'geral',
-          };
-        },
-        order: 10,
-        tabKey: 'geral',
-      }
-    );
-
-    return unregister;
-  }, [
-    product?.id,
-    product?.image_url,
-    form,
-    image.imageFile,
-    image.pendingRemoval,
-    uploadImage,
-    saveDeletedOffers,
-    saveOffers,
-    resetImage,
-    resetOffers,
-    registerSaveHandler,
-  ]);
+  // NOTA: O handler de save registry foi movido para useGlobalValidationHandlers
+  // no ProductContext para garantir que a validação funcione independente
+  // de qual aba está ativa. Este hook agora é apenas uma Pure View.
 
   return {
     // State
