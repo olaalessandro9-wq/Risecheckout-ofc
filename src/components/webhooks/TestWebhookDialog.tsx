@@ -1,9 +1,22 @@
+/**
+ * TestWebhookDialog
+ * 
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
+ * @see RISE Protocol V2 - Zero database access from frontend
+ */
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Loader2, Send } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
+
+interface WebhookTestResponse {
+  success?: boolean;
+  status_code?: number;
+  error?: string;
+}
 import {
   Dialog,
   DialogContent,
@@ -187,18 +200,16 @@ export function TestWebhookDialog({
         executionMode: "production",
       };
 
-      // Enviar através da Edge Function usando supabase client
-      const { data: result, error } = await supabase.functions.invoke('send-webhook-test', {
-        body: {
-          webhook_id: webhookId,
-          webhook_url: webhookUrl,
-          event_type: selectedEvent,
-          payload: testPayload,
-        },
+      // Enviar através da Edge Function usando api.call()
+      const { data: result, error } = await api.call<WebhookTestResponse>('send-webhook-test', {
+        webhook_id: webhookId,
+        webhook_url: webhookUrl,
+        event_type: selectedEvent,
+        payload: testPayload,
       });
 
       if (error) {
-        throw error;
+        throw new Error(error.message);
       }
 
       if (result?.success) {
