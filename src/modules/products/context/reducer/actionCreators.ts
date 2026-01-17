@@ -66,6 +66,11 @@ export const formActions = {
     payload,
   }),
   
+  markCheckoutSettingsSaved: (payload: { settings: CheckoutSettingsFormData }) => ({
+    type: "MARK_CHECKOUT_SETTINGS_SAVED" as const,
+    payload,
+  }),
+  
   resetToServer: () => ({ type: "RESET_TO_SERVER" as const }),
   
   markSaved: (payload?: { newServerData?: Partial<ServerDataSnapshot> }) => ({

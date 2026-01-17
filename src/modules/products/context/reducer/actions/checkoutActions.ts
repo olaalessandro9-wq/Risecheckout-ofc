@@ -6,9 +6,6 @@
 
 import type { ProductFormState, CheckoutSettingsFormData, GatewayCredentials } from "../../../types/productForm.types";
 import { calculateDirtyFlags, anyDirty } from "../helpers";
-
-// ============================================================================
-// UPDATE CHECKOUT SETTINGS
 // ============================================================================
 
 export function handleUpdateCheckoutSettings(
@@ -37,6 +34,12 @@ export function handleInitCheckoutSettings(
 ): ProductFormState {
   const { settings } = payload;
   
+  // GUARD: Se já inicializado E há alterações não salvas, NÃO sobrescrever
+  // Isso preserva as edições do usuário ao navegar entre abas
+  if (state.isCheckoutSettingsInitialized && state.dirtyFlags.checkoutSettings) {
+    return state;
+  }
+  
   return {
     ...state,
     serverData: {
@@ -47,9 +50,42 @@ export function handleInitCheckoutSettings(
       ...state.editedData,
       checkoutSettings: { ...settings },
     },
+    isCheckoutSettingsInitialized: true,
     dirtyFlags: {
       ...state.dirtyFlags,
       checkoutSettings: false,
     },
+  };
+}
+
+// ============================================================================
+// MARK CHECKOUT SETTINGS SAVED
+// ============================================================================
+
+/**
+ * Marca checkout settings como salvo após save bem-sucedido
+ * Atualiza serverData com os valores atuais e reseta dirty flag
+ * NÃO tem guard - sempre executa (usado após save)
+ */
+export function handleMarkCheckoutSettingsSaved(
+  state: ProductFormState,
+  payload: { settings: CheckoutSettingsFormData }
+): ProductFormState {
+  const { settings } = payload;
+  
+  return {
+    ...state,
+    serverData: {
+      ...state.serverData,
+      checkoutSettings: { ...settings },
+    },
+    dirtyFlags: {
+      ...state.dirtyFlags,
+      checkoutSettings: false,
+    },
+    isDirty: anyDirty({
+      ...state.dirtyFlags,
+      checkoutSettings: false,
+    }),
   };
 }

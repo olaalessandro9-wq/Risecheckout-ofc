@@ -32,6 +32,9 @@ export interface ProductFormState {
   // Estado de inicialização
   isInitialized: boolean;
   
+  // Flag separada para checkout settings (carregadas em chamada separada)
+  isCheckoutSettingsInitialized: boolean;
+  
   // Dirty tracking: true se há diferenças entre editedData e serverData
   isDirty: boolean;
   

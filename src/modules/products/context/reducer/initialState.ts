@@ -83,6 +83,7 @@ export const INITIAL_FORM_STATE: ProductFormState = {
     checkoutSettings: INITIAL_CHECKOUT_SETTINGS,
   },
   isInitialized: false,
+  isCheckoutSettingsInitialized: false,
   isDirty: false,
   dirtyFlags: {
     general: false,

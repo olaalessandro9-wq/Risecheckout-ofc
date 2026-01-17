@@ -27,6 +27,7 @@ import {
   handleUpdateAffiliate,
   handleUpdateCheckoutSettings,
   handleInitCheckoutSettings,
+  handleMarkCheckoutSettingsSaved,
   handleSetValidationError,
   handleClearValidationErrors,
 } from "./actions";
@@ -66,6 +67,9 @@ export function productFormReducer(
     
     case "INIT_CHECKOUT_SETTINGS":
       return handleInitCheckoutSettings(state, action.payload);
+    
+    case "MARK_CHECKOUT_SETTINGS_SAVED":
+      return handleMarkCheckoutSettingsSaved(state, action.payload);
     
     case "RESET_TO_SERVER":
       return handleResetToServer(state);
