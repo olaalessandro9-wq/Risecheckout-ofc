@@ -46,7 +46,10 @@ export function useDecryptCustomerBatch(
       );
 
       if (apiError) {
-        throw new Error(apiError.message || "Erro ao descriptografar dados");
+        const errorMessage = typeof apiError === 'object' && apiError !== null && 'message' in apiError
+          ? String(apiError.message)
+          : "Erro ao descriptografar dados";
+        throw new Error(errorMessage);
       }
 
       if (!result?.success) {

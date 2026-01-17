@@ -59,7 +59,10 @@ export function useDecryptCustomerData(
       });
 
       if (fnError) {
-        throw new Error(String(fnError) || "Erro ao descriptografar dados");
+        const errorMessage = typeof fnError === 'object' && fnError !== null && 'message' in fnError
+          ? String(fnError.message)
+          : "Erro ao descriptografar dados";
+        throw new Error(errorMessage);
       }
 
       if (!data?.success) {

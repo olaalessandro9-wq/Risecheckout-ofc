@@ -1,10 +1,10 @@
 /**
  * decrypt-customer-data-batch - Descriptografa telefones em lote para listagem
  * 
- * @version 2.0.0 - RISE Protocol V2 Compliant - Zero `any`
+ * @version 3.0.0 - RISE Protocol V3 - Migrated to unified-auth
  * 
  * SECURITY:
- * - Requer autenticação (JWT)
+ * - Requer autenticação via X-Producer-Session-Token (unified-auth)
  * - SOMENTE para PRODUTOR do produto (product.user_id)
  * - Owner NÃO tem acesso aqui (deve usar modal individual)
  * - Limite máximo de 20 pedidos por request (anti-abuso)
@@ -12,9 +12,10 @@
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP, RateLimitConfig } from "../_shared/rate-limiter.ts";
+import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 
 const MAX_ORDER_IDS = 20;
 
@@ -76,7 +77,6 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const encryptionKey = Deno.env.get("BUYER_ENCRYPTION_KEY");
     
@@ -85,7 +85,7 @@ serve(async (req) => {
     // SECURITY: Rate limiting para dados sensíveis
     const rateLimitConfig: RateLimitConfig = RATE_LIMIT_CONFIGS.DECRYPT_DATA;
     const rateLimitResult = await rateLimitMiddleware(
-      supabaseAdmin as SupabaseClient,
+      supabaseAdmin,
       req,
       rateLimitConfig
     );
@@ -99,29 +99,13 @@ serve(async (req) => {
       throw new Error("BUYER_ENCRYPTION_KEY not configured");
     }
 
-    // Autenticação - usar ANON_KEY para validar JWT do usuário
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader) {
-      console.error("[decrypt-batch] No authorization header");
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Extrair token do header
-    const token = authHeader.replace("Bearer ", "");
-    
-    // Cliente para autenticação (ANON_KEY) - usar getUser(token) explicitamente
-    const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey);
-    
-    const { data: { user }, error: authError } = await supabaseAnon.auth.getUser(token);
-    if (authError || !user) {
-      console.error("[decrypt-batch] Auth error:", authError?.message || "No user", { token: token.substring(0, 20) + "..." });
-      return new Response(
-        JSON.stringify({ error: "Invalid token", details: authError?.message }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // AUTENTICAÇÃO via unified-auth (X-Producer-Session-Token)
+    let producer;
+    try {
+      producer = await requireAuthenticatedProducer(supabaseAdmin, req);
+    } catch {
+      console.error("[decrypt-batch] Authentication failed");
+      return unauthorizedResponse(corsHeaders);
     }
 
     const { order_ids, fields = ["customer_phone"] } = await req.json();
@@ -141,7 +125,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[decrypt-batch] User ${user.id} requesting ${order_ids.length} orders`);
+    console.log(`[decrypt-batch] Producer ${producer.id} requesting ${order_ids.length} orders`);
 
     // Buscar todos os pedidos de uma vez
     const { data: orders, error: ordersError } = await supabaseAdmin
@@ -173,7 +157,7 @@ serve(async (req) => {
       const productOwnerId = product?.user_id;
       
       // APENAS produtor tem acesso no batch (owner usa modal individual)
-      const isProductOwner = user.id === productOwnerId;
+      const isProductOwner = producer.id === productOwnerId;
       
       if (!isProductOwner) {
         denied.push(order.id);
@@ -198,7 +182,7 @@ serve(async (req) => {
     const decryptedIds = Object.keys(result);
     if (decryptedIds.length > 0) {
       await supabaseAdmin.from("security_audit_log").insert({
-        user_id: user.id,
+        user_id: producer.id,
         action: "DECRYPT_CUSTOMER_DATA_BATCH",
         resource: "orders",
         resource_id: decryptedIds[0], // Primeiro ID como referência
