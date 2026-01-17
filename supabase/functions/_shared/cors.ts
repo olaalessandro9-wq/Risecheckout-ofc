@@ -11,18 +11,21 @@
 
 /**
  * Lista de origens permitidas para CORS
- * Adicione novos domínios conforme necessário
+ * 
+ * SECURITY: Apenas domínios explícitos - zero patterns genéricos
+ * Atualizado: 2026-01-17 - CORS x-correlation-id fix
  */
 export const ALLOWED_ORIGINS = [
-  // Produção
+  // === PRODUÇÃO ===
   "https://risecheckout.com",
   "https://www.risecheckout.com",
   
-  // Staging/Preview (Lovable)
-  "https://risecheckout-84776.lovable.app",
-  "https://prime-checkout-hub.lovable.app",
+  // === STAGING/PREVIEW (Lovable) - DOMÍNIOS ESPECÍFICOS ===
+  "https://biz-bridge-bliss.lovable.app",
+  "https://preview--biz-bridge-bliss.lovable.app",
+  "https://id-preview--ed9257df-d9f6-4a5e-961f-eca053f14944.lovable.app",
   
-  // Desenvolvimento local
+  // === DESENVOLVIMENTO LOCAL ===
   "http://localhost:5173",
   "http://localhost:3000",
   "http://127.0.0.1:5173",
@@ -42,7 +45,7 @@ export function getCorsHeaders(origin: string | null): Record<string, string> | 
   if (!origin) {
     return {
       "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
-      "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-buyer-session, x-producer-session-token",
+      "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-buyer-session, x-producer-session-token, x-correlation-id",
       "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
       "Access-Control-Max-Age": "86400",
     };
@@ -56,7 +59,7 @@ export function getCorsHeaders(origin: string | null): Record<string, string> | 
 
   return {
     "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-buyer-session, x-producer-session-token",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-buyer-session, x-producer-session-token, x-correlation-id",
     "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
     "Access-Control-Max-Age": "86400",
   };
@@ -109,7 +112,7 @@ export function handleCors(req: Request): { headers: Record<string, string> } | 
  */
 export const PUBLIC_CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-producer-session-token, x-buyer-session",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-producer-session-token, x-buyer-session, x-correlation-id",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
   "Access-Control-Max-Age": "86400",
 };
