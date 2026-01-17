@@ -6,11 +6,12 @@
  * - Tabs são Pure Views - consomem estado do Context
  * - Zero estado local de formulário
  * - Single Source of Truth
+ * - Registra save handler via Registry Pattern
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - Arquitetura de Form State Centralizado
  */
 
-import { useMemo, useLayoutEffect, useCallback } from "react";
+import { useMemo, useLayoutEffect, useCallback, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useProductContext } from "../../context/ProductContext";
 import {
@@ -36,6 +37,8 @@ export function useGeneralTab() {
     dispatchForm,
     formErrors,
     validateGeneralForm,
+    // Save Registry
+    registerSaveHandler,
   } = useProductContext();
 
   // Form state vem do Context (reducer) - NÃO do useState local
@@ -156,6 +159,76 @@ export function useGeneralTab() {
     refreshPaymentLinks,
     deleteProduct,
   });
+
+  // =========================================================================
+  // SAVE REGISTRY - Registrar handler para "General" tab
+  // =========================================================================
+  useEffect(() => {
+    // Só registra se o produto existir
+    if (!product?.id) return;
+
+    const unregister = registerSaveHandler(
+      'general',
+      async () => {
+        // Não refaz validação aqui - o registry já validou
+        // Executa a mesma lógica do handleSave mas sem toast
+        // (toast é dado pelo saveAll global)
+        
+        let finalImageUrl = product.image_url;
+
+        if (image.imageFile) {
+          finalImageUrl = await uploadImage();
+        } else if (image.pendingRemoval) {
+          finalImageUrl = null;
+        }
+
+        const { api } = await import("@/lib/api");
+        const { data, error } = await api.call<{ success?: boolean; error?: string }>('product-settings', {
+          action: 'update-general',
+          productId: product.id,
+          data: {
+            name: form.name,
+            description: form.description,
+            price: form.price,
+            support_name: form.support_name,
+            support_email: form.support_email,
+            delivery_url: form.external_delivery ? null : (form.delivery_url || null),
+            external_delivery: form.external_delivery,
+            status: "active",
+            image_url: finalImageUrl,
+          },
+        });
+
+        if (error) throw new Error(error.message);
+        if (!data?.success) throw new Error(data?.error || 'Falha ao atualizar produto');
+
+        await saveDeletedOffers();
+        await saveOffers();
+
+        resetImage();
+        resetOffers();
+      },
+      {
+        validate: () => validateGeneralForm(),
+        order: 10, // General tab salva primeiro
+      }
+    );
+
+    return unregister;
+  }, [
+    product?.id,
+    product?.image_url,
+    form,
+    image.imageFile,
+    image.pendingRemoval,
+    uploadImage,
+    saveDeletedOffers,
+    saveOffers,
+    resetImage,
+    resetOffers,
+    validateGeneralForm,
+    registerSaveHandler,
+  ]);
 
   return {
     // State

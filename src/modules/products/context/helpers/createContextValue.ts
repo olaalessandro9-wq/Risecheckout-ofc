@@ -16,6 +16,7 @@ import type {
   CheckoutSettingsFormData,
   GatewayCredentials,
 } from "../../types/productForm.types";
+import type { RegisterSaveHandler } from "../../types/saveRegistry.types";
 import { validateGeneralForm } from "../productFormValidation";
 
 // ============================================================================
@@ -75,6 +76,8 @@ export interface ContextValueDependencies {
   updateGeneralModified: () => void;
   updateUpsellModified: () => void;
   resetDirtySources: () => void;
+  // Save Registry Pattern
+  registerSaveHandler: RegisterSaveHandler;
 }
 
 // ============================================================================
@@ -126,6 +129,7 @@ export function createContextValue(deps: ContextValueDependencies) {
     updateGeneralModified,
     updateUpsellModified,
     resetDirtySources,
+    registerSaveHandler,
   } = deps;
 
   return {
@@ -192,5 +196,7 @@ export function createContextValue(deps: ContextValueDependencies) {
     setOffersModified,
     updateCheckoutSettingsField,
     initCheckoutSettings,
+    // Save Registry Pattern
+    registerSaveHandler,
   };
 }
