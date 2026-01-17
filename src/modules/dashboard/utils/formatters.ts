@@ -1,7 +1,8 @@
 /**
  * Funções de formatação para o Dashboard
  * 
- * RISE ARCHITECT: formatCurrency unificado com src/lib/money.ts
+ * @module dashboard/utils
+ * @version RISE V3 Compliant
  */
 
 import type { Order, RecentCustomer } from "../types";
@@ -12,12 +13,12 @@ export const formatCurrency = formatCentsToBRL;
 
 export function formatDate(dateString: string): string {
   const date = new Date(dateString);
-  return date.toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
+  return date.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 
@@ -25,14 +26,19 @@ export function formatDate(dateString: string): string {
 // STATUS TRANSLATOR
 // ============================================================================
 
-export function translateStatus(status: string): "Pago" | "Pendente" | "Reembolso" | "Chargeback" {
-  const statusMap: Record<string, "Pago" | "Pendente" | "Reembolso" | "Chargeback"> = {
-    'paid': 'Pago',
-    'pending': 'Pendente',
-    'refunded': 'Reembolso',
-    'chargeback': 'Chargeback'
+export function translateStatus(
+  status: string
+): "Pago" | "Pendente" | "Reembolso" | "Chargeback" {
+  const statusMap: Record<
+    string,
+    "Pago" | "Pendente" | "Reembolso" | "Chargeback"
+  > = {
+    paid: "Pago",
+    pending: "Pendente",
+    refunded: "Reembolso",
+    chargeback: "Chargeback",
   };
-  return statusMap[status?.toLowerCase()] || 'Pendente';
+  return statusMap[status?.toLowerCase()] || "Pendente";
 }
 
 // ============================================================================
@@ -41,13 +47,16 @@ export function translateStatus(status: string): "Pago" | "Pendente" | "Reembols
 
 export function formatDocument(doc: string | null): string {
   if (!doc) return "N/A";
-  const digits = doc.replace(/\D/g, '');
+  const digits = doc.replace(/\D/g, "");
   if (digits.length === 11) {
     // CPF: 000.000.000-00
-    return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
   } else if (digits.length === 14) {
     // CNPJ: 00.000.000/0000-00
-    return digits.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+    return digits.replace(
+      /(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,
+      "$1.$2.$3/$4-$5"
+    );
   }
   return doc;
 }
@@ -57,9 +66,11 @@ export function formatDocument(doc: string | null): string {
 // ============================================================================
 
 export function formatRecentCustomers(orders: Order[]): RecentCustomer[] {
-  return orders.map(order => {
-    const product = Array.isArray(order.product) ? order.product[0] : order.product;
-    
+  return orders.map((order) => {
+    const product = Array.isArray(order.product)
+      ? order.product[0]
+      : order.product;
+
     return {
       id: order.id.substring(0, 8),
       orderId: order.id,
@@ -77,7 +88,7 @@ export function formatRecentCustomers(orders: Order[]): RecentCustomer[] {
       customerEmail: order.customer_email || "N/A",
       customerPhone: order.customer_phone || "N/A",
       customerDocument: formatDocument(order.customer_document),
-      fullCreatedAt: order.created_at
+      fullCreatedAt: order.created_at,
     };
   });
 }

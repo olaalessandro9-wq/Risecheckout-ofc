@@ -112,10 +112,10 @@ export interface DashboardMetrics {
  * Ponto de dados para gráficos
  */
 export interface ChartDataPoint {
-  readonly date: string;
-  readonly revenue: number;
-  readonly fees: number;
-  readonly emails: number;
+  date: string;
+  revenue: number;
+  fees: number;
+  emails: number;
 }
 
 // ============================================================================

@@ -2,8 +2,8 @@
  * AdminTrafficTab - Aba de métricas de tráfego do dashboard admin
  */
 
-import { MetricCard } from "@/components/dashboard/MetricCard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MetricCard } from "@/modules/dashboard";
+
 import { 
   useAdminTrafficMetrics, 
   useAdminDailyVisits,

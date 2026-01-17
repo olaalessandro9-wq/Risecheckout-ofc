@@ -58,7 +58,7 @@ import StudentShell from "./layouts/StudentShell";
 // ============================================================================
 // ROTAS PROTEGIDAS - Eager Loading
 // ============================================================================
-import Index from "./pages/Index";
+import { Dashboard } from "@/modules/dashboard";
 import Produtos from "./pages/Produtos";
 import ProductEdit from "./pages/ProductEdit";
 import CheckoutCustomizer from "./pages/CheckoutCustomizer";
@@ -223,7 +223,7 @@ const router = createBrowserRouter([
         path: "/dashboard",
         element: <DashboardLayout />,
         children: [
-          { index: true, element: <Index /> },
+          { index: true, element: <Dashboard /> },
           { path: "produtos", element: <Produtos /> },
           { path: "produtos/editar", element: <ProductEdit /> },
           { path: "marketplace", element: <Marketplace /> },
