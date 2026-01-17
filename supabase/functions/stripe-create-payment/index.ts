@@ -1,7 +1,9 @@
 /**
  * stripe-create-payment/index.ts - Orquestrador Principal
  * 
- * Responsabilidade ÚNICA: Orquestrar handlers modulares
+ * @version 3.0.0 - RISE Protocol V3 Compliant
+ * - Uses handleCors from _shared/cors.ts
+ * - Uses PUBLIC_CORS_HEADERS for checkout (public endpoint)
  * 
  * Estrutura:
  * - handlers/order-loader.ts (~100 linhas) - Carrega e valida pedido
@@ -13,26 +15,12 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.14.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { handleCors, PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
 import { rateLimitMiddleware, getIdentifier } from "../_shared/rate-limit.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { loadOrder, getVendorStripeConfig } from "./handlers/order-loader.ts";
 import { buildPaymentIntentParams } from "./handlers/intent-builder.ts";
 import { processAffiliateCommission, triggerWebhook, processPixPayment } from "./handlers/post-payment.ts";
-
-// 🔒 SEGURANÇA: Lista de domínios permitidos
-const ALLOWED_ORIGINS = [
-  "http://localhost:5173",
-  "http://localhost:3000",
-  "https://risecheckout.com",
-  "https://www.risecheckout.com",
-  "https://risecheckout-84776.lovable.app",
-  "https://prime-checkout-hub.lovable.app"
-];
-
-const getCorsHeaders = (origin: string) => ({
-  "Access-Control-Allow-Origin": ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-});
 
 const logStep = (step: string, details?: unknown) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
@@ -47,10 +35,23 @@ interface CreatePaymentRequest {
 }
 
 serve(withSentry('stripe-create-payment', async (req) => {
-  const origin = req.headers.get("origin") || "";
-  const corsHeaders = getCorsHeaders(origin);
+  // Use handleCors for origin validation, fallback to PUBLIC_CORS_HEADERS for checkout
+  const corsResult = handleCors(req);
+  
+  // For checkout endpoints, we allow the request but use validated headers if available
+  let corsHeaders: Record<string, string>;
+  if (corsResult instanceof Response) {
+    // If preflight, return it
+    if (req.method === "OPTIONS") {
+      return corsResult;
+    }
+    // For non-preflight blocked origins, use PUBLIC for checkout (anonymous clients)
+    corsHeaders = PUBLIC_CORS_HEADERS;
+  } else {
+    corsHeaders = corsResult.headers;
+  }
 
-  // 0. CORS Preflight
+  // Handle OPTIONS separately
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

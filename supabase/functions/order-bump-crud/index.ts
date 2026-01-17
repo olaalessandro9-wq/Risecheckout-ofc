@@ -1,19 +1,22 @@
 /**
  * order-bump-crud Edge Function
  * 
+ * @version 3.0.0 - RISE Protocol V3 Compliant
+ * - Uses unified-auth.ts for authentication
+ * - Removed local validateProducerSession
+ *
  * Handles order bump CRUD operations:
  * - create: Create new order bump
  * - update: Update order bump
  * - delete: Delete order bump
  * - reorder: Reorder order bumps
- * 
- * @version 2.0.0
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
+import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 
 // ============================================
 // INTERFACES
@@ -72,7 +75,6 @@ interface OrderBumpUpdates {
 
 interface RequestBody {
   action?: string;
-  sessionToken?: string;
   orderBump?: OrderBumpPayload;
   checkoutId?: string;
   orderedIds?: string[];
@@ -149,34 +151,6 @@ async function recordRateLimitAttempt(supabase: SupabaseClient, producerId: stri
 }
 
 // ============================================
-// SESSION VALIDATION
-// ============================================
-
-async function validateProducerSession(
-  supabase: SupabaseClient,
-  sessionToken: string
-): Promise<{ valid: boolean; producerId?: string; error?: string }> {
-  if (!sessionToken) return { valid: false, error: "Token de sessão não fornecido" };
-
-  const { data: session, error } = await supabase
-    .from("producer_sessions")
-    .select("producer_id, expires_at, is_valid")
-    .eq("session_token", sessionToken)
-    .single();
-
-  if (error || !session) return { valid: false, error: "Sessão inválida" };
-  if (!session.is_valid) return { valid: false, error: "Sessão expirada ou invalidada" };
-
-  if (new Date(session.expires_at) < new Date()) {
-    await supabase.from("producer_sessions").update({ is_valid: false }).eq("session_token", sessionToken);
-    return { valid: false, error: "Sessão expirada" };
-  }
-
-  await supabase.from("producer_sessions").update({ last_activity_at: new Date().toISOString() }).eq("session_token", sessionToken);
-  return { valid: true, producerId: session.producer_id };
-}
-
-// ============================================
 // OWNERSHIP VERIFICATION
 // ============================================
 
@@ -245,11 +219,17 @@ serve(withSentry("order-bump-crud", async (req) => {
       return errorResponse("Ação não especificada", corsHeaders, 400);
     }
 
-    const sessionToken = body.sessionToken || req.headers.get("x-producer-session-token") || "";
-    const sessionValidation = await validateProducerSession(supabase, sessionToken);
-    if (!sessionValidation.valid) return errorResponse(sessionValidation.error || "Não autorizado", corsHeaders, 401);
+    // ============================================
+    // AUTHENTICATION via unified-auth.ts
+    // ============================================
+    let producer;
+    try {
+      producer = await requireAuthenticatedProducer(supabase, req);
+    } catch {
+      return unauthorizedResponse(corsHeaders);
+    }
+    const producerId = producer.id;
 
-    const producerId = sessionValidation.producerId!;
     console.log(`[order-bump-crud] Action: ${action}, Producer: ${producerId}`);
 
     // ========== CREATE ==========

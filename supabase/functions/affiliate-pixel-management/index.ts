@@ -1,16 +1,18 @@
 /**
  * affiliate-pixel-management Edge Function
  * 
+ * @version 3.0.0 - RISE Protocol V3 Compliant
+ * - Uses unified-auth.ts for authentication
+ * - Uses handleCors from _shared/cors.ts
+ * - Removed local validateProducerSession
+ *
  * Gerencia pixels de tracking para afiliados.
  * Ações: save-all (atômico: delete + insert)
- * 
- * @version 2.0.0 - RISE Protocol V2 Compliant - Zero `any`
  */
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { handleCors, PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
-
-const corsHeaders = PUBLIC_CORS_HEADERS;
+import { handleCors } from "../_shared/cors.ts";
+import { requireAuthenticatedProducer, unauthorizedResponse, ProducerAuth } from "../_shared/unified-auth.ts";
 
 interface PixelData {
   pixel_id: string;
@@ -31,34 +33,6 @@ interface SaveAllPayload {
 }
 
 // =====================================================
-// SESSION VALIDATION
-// =====================================================
-
-interface SessionData {
-  producer_id: string;
-  expires_at: string;
-}
-
-async function validateProducerSession(
-  supabaseClient: SupabaseClient,
-  token: string
-): Promise<{ userId: string } | null> {
-  const { data, error } = await supabaseClient
-    .from("producer_sessions")
-    .select("producer_id, expires_at")
-    .eq("session_token", token)
-    .eq("is_valid", true)
-    .single();
-
-  if (error || !data) return null;
-  
-  const sessionData = data as SessionData;
-  if (new Date(sessionData.expires_at) < new Date()) return null;
-
-  return { userId: sessionData.producer_id };
-}
-
-// =====================================================
 // OWNERSHIP VALIDATION
 // =====================================================
 
@@ -72,7 +46,6 @@ async function validateAffiliateOwnership(
   affiliateId: string,
   userId: string
 ): Promise<boolean> {
-  // Verificar se o afiliado pertence ao usuário logado
   const { data, error } = await supabaseClient
     .from("affiliates")
     .select("id, user_id")
@@ -91,7 +64,8 @@ async function validateAffiliateOwnership(
 async function handleSaveAll(
   supabaseClient: SupabaseClient,
   payload: SaveAllPayload,
-  userId: string
+  userId: string,
+  corsHeaders: Record<string, string>
 ): Promise<Response> {
   const { affiliate_id, pixels } = payload;
 
@@ -180,7 +154,7 @@ async function handleSaveAll(
 // =====================================================
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
+  // Handle CORS with centralized handler
   const corsResult = handleCors(req);
   if (corsResult instanceof Response) return corsResult;
   const corsHeaders = corsResult.headers;
@@ -191,32 +165,25 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Validate session
-    const token = req.headers.get("x-producer-token");
-    if (!token) {
-      return new Response(
-        JSON.stringify({ error: "Token de sessão não fornecido" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const session = await validateProducerSession(supabase, token);
-    if (!session) {
-      return new Response(
-        JSON.stringify({ error: "Sessão inválida ou expirada" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // ============================================
+    // AUTHENTICATION via unified-auth.ts
+    // ============================================
+    let producer: ProducerAuth;
+    try {
+      producer = await requireAuthenticatedProducer(supabase, req);
+    } catch {
+      return unauthorizedResponse(corsHeaders);
     }
 
     // Parse body
     const body = await req.json();
     const { action, ...payload } = body;
 
-    console.log(`[affiliate-pixel-management] Action: ${action}, User: ${session.userId}`);
+    console.log(`[affiliate-pixel-management] Action: ${action}, User: ${producer.id}`);
 
     switch (action) {
       case "save-all":
-        return handleSaveAll(supabase, payload as SaveAllPayload, session.userId);
+        return handleSaveAll(supabase, payload as SaveAllPayload, producer.id, corsHeaders);
 
       default:
         return new Response(
