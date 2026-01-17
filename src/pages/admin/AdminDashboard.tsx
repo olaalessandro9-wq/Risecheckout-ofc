@@ -19,8 +19,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Users, Activity, Shield, TrendingUp, DollarSign, Eye, Package, ShieldAlert } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
+import { api } from "@/lib/api";
 import { AdminUsersTab } from "@/components/admin/AdminUsersTab";
 import { AdminLogsTab } from "@/components/admin/AdminLogsTab";
 import { AdminFinanceTab } from "@/components/admin/AdminFinanceTab";
@@ -56,14 +55,12 @@ export default function AdminDashboard() {
   const { data: roleStats, isLoading: statsLoading } = useQuery({
     queryKey: ["admin-role-stats"],
     queryFn: async () => {
-      const sessionToken = getProducerSessionToken();
-      const { data, error } = await supabase.functions.invoke("admin-data", {
-        body: { action: "role-stats" },
-        headers: { "x-producer-session-token": sessionToken || "" },
+      const { data, error } = await api.call<{ roleStats?: RoleStats[] }>("admin-data", {
+        action: "role-stats",
       });
       
       if (error) throw error;
-      return data?.roleStats as RoleStats[];
+      return data?.roleStats;
     },
   });
 

@@ -13,7 +13,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
+import { api } from "@/lib/api";
 
 export function KwaiPixelConfig() {
   const { user } = useAuth();
@@ -35,14 +35,15 @@ export function KwaiPixelConfig() {
   const loadConfig = async () => {
     try {
       setLoading(true);
-      const sessionToken = getProducerSessionToken();
       
-      const { data, error } = await supabase.functions.invoke("admin-data", {
-        body: {
-          action: "vendor-integration",
-          integrationType: "KWAI_PIXEL",
-        },
-        headers: { "x-producer-session-token": sessionToken || "" },
+      const { data, error } = await api.call<{
+        integration?: {
+          config?: { pixel_id?: string } | null;
+          active?: boolean;
+        };
+      }>("admin-data", {
+        action: "vendor-integration",
+        integrationType: "KWAI_PIXEL",
       });
 
       if (error) throw error;

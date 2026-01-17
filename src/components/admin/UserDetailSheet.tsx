@@ -7,7 +7,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { usePermissions, AppRole } from "@/hooks/usePermissions";
 import {
   Sheet,
@@ -130,12 +130,21 @@ export function UserDetailSheet({
     productAction?: "activate" | "block" | "delete";
   } | null>(null);
 
+  // Interface for profile response
+  interface UserProfile {
+    status?: string;
+    custom_fee_percent?: number | null;
+    created_at?: string;
+    status_reason?: string;
+  }
+
   // Buscar dados do perfil (status, custom_fee)
   const { data: profile } = useQuery({
     queryKey: ["admin-user-profile", userId],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("admin-data", {
-        body: { action: "user-profile", userId },
+      const { data, error } = await api.call<{ error?: string; profile?: UserProfile }>("admin-data", {
+        action: "user-profile",
+        userId,
       });
 
       if (error) throw error;
@@ -150,14 +159,15 @@ export function UserDetailSheet({
   const { data: products, isLoading: productsLoading } = useQuery({
     queryKey: ["admin-user-products", userId],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("admin-data", {
-        body: { action: "user-products", userId },
+      const { data, error } = await api.call<{ error?: string; products?: UserProduct[] }>("admin-data", {
+        action: "user-products",
+        userId,
       });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      return data?.products as UserProduct[] || [];
+      return data?.products || [];
     },
     enabled: open,
   });
@@ -172,9 +182,7 @@ export function UserDetailSheet({
       feePercent?: number | null;
       productId?: string;
     }) => {
-      const { data, error } = await supabase.functions.invoke("manage-user-status", {
-        body: params,
-      });
+      const { data, error } = await api.call<{ error?: string }>("manage-user-status", params);
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);

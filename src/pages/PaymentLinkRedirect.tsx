@@ -17,6 +17,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 
 // Interface para tipagem do linkData retornado
@@ -55,11 +56,12 @@ const PaymentLinkRedirect = () => {
       }
 
       try {
-        const { data, error: fetchError } = await supabase.functions.invoke("checkout-public-data", {
-          body: {
-            action: "payment-link-data",
-            slug,
-          },
+        const { data, error: fetchError } = await api.call<{
+          success?: boolean;
+          data?: PaymentLinkWithOffers;
+        }>("checkout-public-data", {
+          action: "payment-link-data",
+          slug,
         });
 
         if (fetchError) {
@@ -78,7 +80,7 @@ const PaymentLinkRedirect = () => {
 
         console.log("[PaymentLinkRedirect] Link encontrado:", data.data);
         
-        const typedLinkData = data.data as PaymentLinkWithOffers;
+        const typedLinkData = data.data;
 
         // 2. Verificar se o link está ativo
         if (typedLinkData.status === "inactive") {

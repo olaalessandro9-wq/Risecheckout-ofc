@@ -11,7 +11,7 @@
  */
 
 import { useEffect, useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { getProducerSessionToken } from "@/hooks/useProducerAuth";
@@ -57,14 +57,10 @@ export function useAffiliations(): UseAffiliationsResult {
 
       console.log("[useAffiliations] Buscando afiliações via Edge Function...");
 
-      const { data, error: invokeError } = await supabase.functions.invoke(
-        "get-my-affiliations",
-        {
-          headers: {
-            "x-producer-session-token": sessionToken,
-          },
-        }
-      );
+      const { data, error: invokeError } = await api.call<{
+        error?: string;
+        affiliations?: Affiliation[];
+      }>("get-my-affiliations", {});
 
       if (invokeError) {
         console.error("[useAffiliations] Erro na Edge Function:", invokeError);
@@ -92,13 +88,11 @@ export function useAffiliations(): UseAffiliationsResult {
   const cancelAffiliation = useCallback(async (id: string): Promise<boolean> => {
     try {
       // Usar Edge Function segura (não UPDATE direto via RLS)
-      const { data, error: invokeError } = await supabase.functions.invoke(
-        'update-affiliate-settings',
+      const { data, error: invokeError } = await api.call<{ error?: string }>(
+        "update-affiliate-settings",
         {
-          body: {
-            action: 'cancel_affiliation',
-            affiliate_id: id
-          }
+          action: "cancel_affiliation",
+          affiliate_id: id,
         }
       );
 

@@ -9,7 +9,7 @@
 
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -111,14 +111,14 @@ export function AdminProductsTab() {
   const { data: products, isLoading } = useQuery({
     queryKey: ["admin-products-global"],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("admin-data", {
-        body: { action: "admin-products-global" },
+      const { data, error } = await api.call<{ error?: string; products?: ProductWithMetrics[] }>("admin-data", {
+        action: "admin-products-global",
       });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      return (data.products || []) as ProductWithMetrics[];
+      return data?.products || [];
     },
     enabled: isOwner,
   });
@@ -126,12 +126,10 @@ export function AdminProductsTab() {
   // Mutation para alterar status do produto
   const updateProductMutation = useMutation({
     mutationFn: async ({ productId, newStatus }: { productId: string; newStatus: string }) => {
-      const { data, error } = await supabase.functions.invoke("manage-user-status", {
-        body: { 
-          action: "updateProductStatus",
-          productId,
-          status: newStatus,
-        },
+      const { data, error } = await api.call<{ error?: string }>("manage-user-status", {
+        action: "updateProductStatus",
+        productId,
+        status: newStatus,
       });
 
       if (error) throw error;
