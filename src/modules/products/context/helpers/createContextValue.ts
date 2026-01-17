@@ -1,20 +1,22 @@
 /**
  * createContextValue - Factory para construir o valor do ProductContext
- * 
+ *
  * Extrai a construção do objeto de contexto para manter
  * ProductContext.tsx sob o limite de 300 linhas.
- * 
+ *
  * @see RISE ARCHITECT PROTOCOL V3 - Modularização
  */
 
-import type { ProductData, Offer, AffiliateSettings, UpsellSettings } from "../../types/product.types";
+import type { ProductData, Offer } from "../../types/product.types";
 import type { 
   GeneralFormData, 
   ImageFormState, 
   ProductFormState, 
   ProductFormDispatch,
   CheckoutSettingsFormData,
-  GatewayCredentials 
+  GatewayCredentials,
+  AffiliateSettings,
+  UpsellSettings,
 } from "../../types/productForm.types";
 import { validateGeneralForm } from "../productFormValidation";
 
