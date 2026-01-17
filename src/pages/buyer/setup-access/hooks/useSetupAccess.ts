@@ -7,13 +7,13 @@
  * - Estados de loading/error
  * - Ações de login/logout/submit
  * 
- * @see RISE ARCHITECT PROTOCOL
+ * @see RISE ARCHITECT PROTOCOL V3 - Unified API Client
  */
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { SUPABASE_URL } from "@/config/supabase";
 import { 
   getBuyerSessionToken, 
@@ -21,6 +21,22 @@ import {
   setBuyerSessionToken 
 } from "@/hooks/useBuyerSession";
 import type { TokenStatus, TokenInfo, LoggedBuyer } from "../types";
+
+interface InviteTokenResponse {
+  success?: boolean;
+  valid?: boolean;
+  error?: string;
+  redirect?: boolean;
+  reason?: string;
+  needsPasswordSetup?: boolean;
+  buyer_id?: string;
+  product_id?: string;
+  product_name?: string;
+  product_image?: string;
+  buyer_email?: string;
+  buyer_name?: string;
+  sessionToken?: string;
+}
 
 export function useSetupAccess() {
   const [searchParams] = useSearchParams();
@@ -39,14 +55,12 @@ export function useSetupAccess() {
   const [isGrantingAccess, setIsGrantingAccess] = useState(false);
 
   // Grant access for already logged user
-  const grantAccessForLoggedUser = useCallback(async (productId: string) => {
+  const grantAccessForLoggedUser = useCallback(async (_productId: string) => {
     setIsGrantingAccess(true);
     try {
-      const { data, error } = await supabase.functions.invoke("students-invite", {
-        body: {
-          action: "use-invite-token",
-          token,
-        },
+      const { data, error } = await api.publicCall<InviteTokenResponse>("students-invite", {
+        action: "use-invite-token",
+        token,
       });
 
       if (error) throw error;
@@ -72,11 +86,9 @@ export function useSetupAccess() {
   const validateTokenAndCheckSession = useCallback(async () => {
     try {
       // 1. Validate token first
-      const { data, error } = await supabase.functions.invoke("students-invite", {
-        body: {
-          action: "validate-invite-token",
-          token,
-        },
+      const { data, error } = await api.publicCall<InviteTokenResponse>("students-invite", {
+        action: "validate-invite-token",
+        token,
       });
 
       if (error) throw error;
@@ -203,17 +215,15 @@ export function useSetupAccess() {
     setIsSubmitting(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("students-invite", {
-        body: {
-          action: "use-invite-token",
-          token,
-          password,
-        },
+      const { data, error } = await api.publicCall<InviteTokenResponse>("students-invite", {
+        action: "use-invite-token",
+        token,
+        password,
       });
 
       if (error) throw error;
 
-      if (data?.success) {
+      if (data?.success && data.sessionToken) {
         setBuyerSessionToken(data.sessionToken);
         toast.success("Conta criada com sucesso!");
         navigate("/minha-conta/dashboard");

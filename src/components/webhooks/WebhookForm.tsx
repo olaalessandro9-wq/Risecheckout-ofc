@@ -10,10 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { Checkbox } from "@/components/ui/checkbox";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 
 interface WebhookFormProps {
   webhook?: {
@@ -91,13 +90,15 @@ export function WebhookForm({ webhook, onSave, onCancel }: WebhookFormProps) {
 
     try {
       setLoading(true);
-      const sessionToken = getProducerSessionToken();
       
-      const { data, error } = await supabase.functions.invoke('webhook-crud', {
-        body: {
-          action: 'list-user-products',
-          sessionToken,
-        }
+      interface ProductsResponse {
+        success: boolean;
+        products?: Product[];
+        error?: string;
+      }
+      
+      const { data, error } = await api.call<ProductsResponse>('webhook-crud', {
+        action: 'list-user-products',
       });
 
       if (error) {
@@ -126,14 +127,15 @@ export function WebhookForm({ webhook, onSave, onCancel }: WebhookFormProps) {
    */
   const loadWebhookProducts = async (webhookId: string) => {
     try {
-      const sessionToken = getProducerSessionToken();
+      interface WebhookProductsResponse {
+        success: boolean;
+        productIds?: string[];
+        error?: string;
+      }
       
-      const { data, error } = await supabase.functions.invoke('webhook-crud', {
-        body: {
-          action: 'get-webhook-products',
-          webhookId,
-          sessionToken,
-        }
+      const { data, error } = await api.call<WebhookProductsResponse>('webhook-crud', {
+        action: 'get-webhook-products',
+        webhookId,
       });
 
       if (error || !data?.success) {

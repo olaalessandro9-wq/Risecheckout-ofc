@@ -1,13 +1,19 @@
 /**
  * Hooks para o TikTok Pixel
  * 
- * MIGRATED: Uses vendor-integrations Edge Function
- * @see RISE Protocol V2 - Zero database access from frontend
+ * MIGRATED: Uses api.call() with vendor-integrations Edge Function
+ * @see RISE Protocol V3 - Unified API Client
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { TikTokIntegration } from "./types";
+
+interface TikTokConfigResponse {
+  success: boolean;
+  data?: TikTokIntegration;
+  error?: string;
+}
 
 /**
  * Hook para carregar a configuração do TikTok Pixel de um vendedor
@@ -22,12 +28,10 @@ export function useTikTokConfig(vendorId?: string) {
       }
 
       try {
-        const { data, error } = await supabase.functions.invoke("vendor-integrations", {
-          body: {
-            action: "get-config",
-            vendorId,
-            integrationType: "TIKTOK_PIXEL",
-          },
+        const { data, error } = await api.call<TikTokConfigResponse>("vendor-integrations", {
+          action: "get-config",
+          vendorId,
+          integrationType: "TIKTOK_PIXEL",
         });
 
         if (error) {
@@ -41,7 +45,7 @@ export function useTikTokConfig(vendorId?: string) {
         }
 
         console.log("[TikTok] Configuração carregada com sucesso para vendor:", vendorId);
-        return data.data as unknown as TikTokIntegration;
+        return data.data;
       } catch (error: unknown) {
         console.error("[TikTok] Erro inesperado ao carregar config:", error);
         return null;
