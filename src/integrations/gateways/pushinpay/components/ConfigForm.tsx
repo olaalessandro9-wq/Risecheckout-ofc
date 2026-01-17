@@ -8,8 +8,14 @@ import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { savePushinPaySettings, getPushinPaySettings } from "../api";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api/client";
 import type { PushinPayEnvironment, PushinPaySettings, PushinPayAccountInfo } from "../types";
+
+interface ValidateTokenResponse {
+  valid: boolean;
+  error?: string;
+  account?: PushinPayAccountInfo;
+}
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -108,9 +114,9 @@ export function ConfigForm({ onConnectionChange }: ConfigFormProps) {
         setValidatingToken(true);
         setMessage({ type: "info", text: "Verificando token com a PushinPay..." });
         
-        const { data: validationResult, error: validationError } = await supabase.functions.invoke(
+        const { data: validationResult, error: validationError } = await api.publicCall<ValidateTokenResponse>(
           'pushinpay-validate-token',
-          { body: { api_token: tokenToSave, environment } }
+          { api_token: tokenToSave, environment }
         );
         
         setValidatingToken(false);
@@ -124,7 +130,7 @@ export function ConfigForm({ onConnectionChange }: ConfigFormProps) {
         
         const fetchedAccountInfo = validationResult.account;
         accountIdToSave = fetchedAccountInfo?.id || null;
-        setAccountInfo(fetchedAccountInfo);
+        setAccountInfo(fetchedAccountInfo ?? null);
       }
 
       const settingsToSave: PushinPaySettings = {

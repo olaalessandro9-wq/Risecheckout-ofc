@@ -7,8 +7,12 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api/client";
 import { UTMifyIntegration } from "./types";
+
+interface VendorIntegrationResponse {
+  integration?: UTMifyIntegration;
+}
 
 /**
  * Hook para carregar a configuração do UTMify de um vendedor
@@ -28,13 +32,11 @@ export function useUTMifyConfig(vendorId?: string) {
       }
 
       try {
-        // Query via Edge Function
-        const { data, error } = await supabase.functions.invoke("vendor-integrations", {
-          body: {
-            action: "get",
-            vendorId,
-            integrationType: "UTMIFY",
-          },
+        // Query via Edge Function using api.publicCall (vendor-integrations is public)
+        const { data, error } = await api.publicCall<VendorIntegrationResponse>("vendor-integrations", {
+          action: "get",
+          vendorId,
+          integrationType: "UTMIFY",
         });
 
         // Tratamento de erro
@@ -51,7 +53,7 @@ export function useUTMifyConfig(vendorId?: string) {
 
         console.log("[UTMify] Configuração carregada com sucesso para vendor:", vendorId);
 
-        return data.integration as UTMifyIntegration;
+        return data.integration;
       } catch (error: unknown) {
         console.error("[UTMify] Erro inesperado ao carregar config:", error);
         return null;

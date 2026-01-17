@@ -1,11 +1,17 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, CheckCircle2, AlertCircle, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+
+interface AffiliationResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
 
 // Hooks extraídos
 import { usePaymentAccountCheck } from "@/hooks/usePaymentAccountCheck";
@@ -34,14 +40,14 @@ export default function SolicitarAfiliacao() {
       setRequesting(true);
       setRequestError(null);
 
-      // Chamar Edge Function request-affiliation
-      const { data, error: fnError } = await supabase.functions.invoke("request-affiliation", {
-        body: { product_id },
+      // Chamar Edge Function request-affiliation via api.call
+      const { data, error } = await api.call<AffiliationResponse>("request-affiliation", {
+        product_id,
       });
 
-      if (fnError) {
-        console.error("Erro na Edge Function:", fnError);
-        throw new Error(fnError.message || "Erro ao processar solicitação");
+      if (error) {
+        console.error("Erro na Edge Function:", error);
+        throw new Error(error.message || "Erro ao processar solicitação");
       }
 
       if (!data?.success) {
@@ -49,7 +55,7 @@ export default function SolicitarAfiliacao() {
       }
 
       setSuccess(true);
-      toast.success(data.message);
+      toast.success(data.message || "Solicitação enviada com sucesso!");
     } catch (err: unknown) {
       console.error("Erro ao solicitar afiliação:", err);
       const errorMessage = err instanceof Error ? err.message : "Não foi possível processar sua solicitação. Tente novamente.";

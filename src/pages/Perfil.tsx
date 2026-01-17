@@ -8,14 +8,26 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Loader2, User } from "lucide-react";
-const SESSION_KEY = "producer_session_token";
+
+interface ProfileResponse {
+  profile: {
+    name: string | null;
+    cpf_cnpj: string | null;
+    phone: string | null;
+  } | null;
+}
+
+interface UpdateProfileResponse {
+  success: boolean;
+  error?: string;
+}
 
 // Máscaras
 function maskCPF(value: string): string {
@@ -51,7 +63,6 @@ function getInitials(name: string | null | undefined): string {
 
 export default function Perfil() {
   const { user } = useAuth();
-  const sessionToken = localStorage.getItem(SESSION_KEY);
   const queryClient = useQueryClient();
   
   const [nome, setNome] = useState("");
@@ -61,20 +72,15 @@ export default function Perfil() {
   
   /**
    * Load profile via Edge Function
-   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   * MIGRATED: Uses api.call instead of supabase.functions.invoke
    */
   const { data: profile, isLoading } = useQuery({
     queryKey: ["user-profile-full", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
       
-      const { data, error } = await supabase.functions.invoke("products-crud", {
-        body: {
-          action: "get-profile",
-        },
-        headers: {
-          "x-producer-session-token": sessionToken || "",
-        },
+      const { data, error } = await api.call<ProfileResponse>("products-crud", {
+        action: "get-profile",
       });
       
       if (error) {
@@ -84,7 +90,7 @@ export default function Perfil() {
       
       return data?.profile || null;
     },
-    enabled: !!user?.id && !!sessionToken,
+    enabled: !!user?.id,
   });
   
   // Preencher formulário quando os dados chegarem
@@ -101,29 +107,24 @@ export default function Perfil() {
   const updateMutation = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error("Usuário não autenticado");
-      if (!sessionToken) throw new Error("Sessão não encontrada");
       
       const fullName = `${nome.trim()} ${sobrenome.trim()}`.trim();
       const cleanCpf = cpf.replace(/\D/g, "");
       const cleanPhone = celular.replace(/\D/g, "");
       
-      const { data, error } = await supabase.functions.invoke(
+      const { data, error } = await api.call<UpdateProfileResponse>(
         "integration-management/update-profile",
         {
-          body: {
-            sessionToken,
-            name: fullName,
-            cpf_cnpj: cleanCpf || null,
-            phone: cleanPhone || null,
-          },
+          name: fullName,
+          cpf_cnpj: cleanCpf || null,
+          phone: cleanPhone || null,
         }
       );
       
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       
-      const result = data as { success: boolean; error?: string };
-      if (!result.success) {
-        throw new Error(result.error || "Erro ao atualizar perfil");
+      if (!data?.success) {
+        throw new Error(data?.error || "Erro ao atualizar perfil");
       }
     },
     onSuccess: () => {
