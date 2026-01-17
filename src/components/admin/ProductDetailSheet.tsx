@@ -8,7 +8,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import {
   Sheet,
   SheetContent,
@@ -77,20 +77,23 @@ export function ProductDetailSheet({ productId, open, onOpenChange }: ProductDet
     queryFn: async () => {
       if (!productId) return null;
       
-      const { data: response, error } = await supabase.functions.invoke("admin-data", {
-        body: {
-          action: "product-detail-admin",
-          productId,
-        },
+      const { data: response, error } = await api.call<{
+        error?: string;
+        product?: ProductDetails;
+        vendorName?: string;
+        offers?: Offer[];
+      }>("admin-data", {
+        action: "product-detail-admin",
+        productId,
       });
 
       if (error) throw error;
       if (response?.error) throw new Error(response.error);
       
       return {
-        product: response.product as ProductDetails,
-        vendorName: response.vendorName as string,
-        offers: response.offers as Offer[],
+        product: response?.product as ProductDetails,
+        vendorName: response?.vendorName as string,
+        offers: response?.offers as Offer[],
       };
     },
     enabled: !!productId && open,
