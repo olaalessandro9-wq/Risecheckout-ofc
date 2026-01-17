@@ -9,9 +9,14 @@
  */
 
 import { useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import type { BuilderState, MemberModule } from '../types/builder.types';
+
+interface ModuleUpdateResponse {
+  success?: boolean;
+  error?: string;
+}
 
 interface UseMembersAreaModulesEditProps {
   setState: React.Dispatch<React.SetStateAction<BuilderState>>;
@@ -32,17 +37,10 @@ export function useMembersAreaModulesEdit({
 
   const updateModule = useCallback(async (id: string, moduleData: Partial<MemberModule>) => {
     try {
-      const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
-      const sessionToken = getProducerSessionToken();
-      
-      const { data: result, error } = await supabase.functions.invoke('members-area-modules', {
-        body: {
-          action: 'update',
-          moduleId: id,
-          data: moduleData,
-          sessionToken,
-        },
-        headers: { 'x-producer-session-token': sessionToken || '' },
+      const { data: result, error } = await api.call<ModuleUpdateResponse>('members-area-modules', {
+        action: 'update',
+        moduleId: id,
+        data: moduleData,
       });
       
       if (error || !result?.success) {
