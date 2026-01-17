@@ -3,11 +3,12 @@
  * 
  * Retorna detalhes completos de uma afiliação para o painel do afiliado.
  * 
- * @version 2.0.0
+ * @version 3.0.0 - RISE Protocol V3 (unified-auth)
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
+import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
@@ -17,17 +18,6 @@ const corsHeaders = PUBLIC_CORS_HEADERS;
 
 interface RequestBody {
   affiliation_id: string;
-}
-
-interface ProfileData {
-  id: string;
-  email: string;
-  name: string | null;
-}
-
-interface SessionData {
-  producer_id: string;
-  profiles: ProfileData;
 }
 
 interface AffiliationRecord {
@@ -85,22 +75,6 @@ interface OfferRecord {
   payment_links: PaymentLinkRecord[] | null;
 }
 
-interface CheckoutLinkPaymentLink {
-  slug: string;
-}
-
-interface CheckoutLinkRecord {
-  payment_links: CheckoutLinkPaymentLink | CheckoutLinkPaymentLink[] | null;
-}
-
-interface CheckoutRecord {
-  id: string;
-  slug: string;
-  is_default: boolean;
-  status: string;
-  checkout_links: CheckoutLinkRecord[] | null;
-}
-
 interface ProducerRecord {
   id: string;
   name: string | null;
@@ -141,16 +115,6 @@ interface OfferWithPaymentSlug {
 }
 
 // ============================================
-// HELPERS
-// ============================================
-
-function maskEmail(email: string): string {
-  const [local, domain] = email.split("@");
-  const masked = local.length > 2 ? local[0] + "***" + local[local.length - 1] : "***";
-  return `${masked}@${domain}`;
-}
-
-// ============================================
 // MAIN HANDLER
 // ============================================
 
@@ -161,16 +125,25 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Get session token from header
-    const sessionToken = req.headers.get("x-producer-session-token");
-    
-    if (!sessionToken) {
-      console.log("[get-affiliation-details] No session token provided");
+    // Create Supabase client with service role (bypasses RLS)
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    // Auth via unified-auth
+    let producer;
+    try {
+      producer = await requireAuthenticatedProducer(supabase, req);
+    } catch {
       return new Response(
-        JSON.stringify({ error: "Token de sessão não fornecido" }),
+        JSON.stringify({ error: "Sessão inválida ou expirada" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const userId = producer.id;
+    console.log(`[get-affiliation-details] User authenticated: ${producer.email}`);
 
     // Get affiliation_id from body
     const body = await req.json() as RequestBody;
@@ -184,34 +157,6 @@ Deno.serve(async (req) => {
     }
 
     console.log(`[get-affiliation-details] Fetching details for affiliation: ${affiliation_id}`);
-
-    // Create Supabase client with service role (bypasses RLS)
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
-    // Validate session token
-    const { data: sessionData, error: sessionError } = await supabase
-      .from("producer_sessions")
-      .select("producer_id, profiles:producer_id(id, email, name)")
-      .eq("session_token", sessionToken)
-      .eq("is_valid", true)
-      .gt("expires_at", new Date().toISOString())
-      .maybeSingle();
-
-    if (sessionError || !sessionData) {
-      console.log("[get-affiliation-details] Invalid or expired session");
-      return new Response(
-        JSON.stringify({ error: "Sessão inválida ou expirada" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const typedSession = sessionData as unknown as SessionData;
-    const userId = typedSession.producer_id;
-    const profile = typedSession.profiles;
-    console.log(`[get-affiliation-details] User authenticated: ${maskEmail(profile?.email || "")}`);
 
     // Fetch affiliation with product data
     const { data: affiliationData, error: affiliationError } = await supabase
@@ -341,7 +286,7 @@ Deno.serve(async (req) => {
     });
 
     // Fetch producer profile
-    let producer: ProducerRecord | null = null;
+    let producer_profile: ProducerRecord | null = null;
     if (typedProduct?.user_id) {
       const { data: producerData } = await supabase
         .from("profiles")
@@ -349,7 +294,7 @@ Deno.serve(async (req) => {
         .eq("id", typedProduct.user_id)
         .maybeSingle();
       
-      producer = producerData as ProducerRecord | null;
+      producer_profile = producerData as ProducerRecord | null;
     }
 
     // Fetch affiliate pixels
@@ -380,7 +325,6 @@ Deno.serve(async (req) => {
 
     // Map offers with payment link slugs
     const offersWithPaymentSlug: OfferWithPaymentSlug[] = typedOffers.map((o) => {
-      // Priorizar payment_link ativo, fallback para primeiro disponível
       const activeLink = o.payment_links?.find((l) => l.status === 'active');
       const firstLink = o.payment_links?.[0];
       const paymentLink = activeLink || firstLink;
@@ -388,7 +332,7 @@ Deno.serve(async (req) => {
       return {
         id: o.id,
         name: o.name,
-        price: o.price / 100, // Convert cents to reais
+        price: o.price / 100,
         status: o.status,
         is_default: o.is_default,
         payment_link_slug: paymentLink?.slug || null,
@@ -418,7 +362,7 @@ Deno.serve(async (req) => {
       } : null,
       offers: offersWithPaymentSlug,
       checkouts: checkoutsWithPaymentSlug,
-      producer,
+      producer: producer_profile,
       pixels: typedPixels,
       pix_gateway: typedAffiliation.pix_gateway || null,
       credit_card_gateway: typedAffiliation.credit_card_gateway || null,

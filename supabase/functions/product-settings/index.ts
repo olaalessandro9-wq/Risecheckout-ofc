@@ -9,13 +9,14 @@
  * - update-affiliate-gateway-settings: Affiliate gateway config
  * - update-members-area-settings: Members area config
  * 
- * @version 2.0.0
+ * @version 3.0.0 - RISE Protocol V3 (unified-auth)
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
+import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 import {
   handleUpdateSettings,
   handleUpdateGeneral,
@@ -37,12 +38,6 @@ import type {
 interface RateLimitResult {
   allowed: boolean;
   retryAfter?: number;
-}
-
-interface SessionValidationResult {
-  valid: boolean;
-  producerId?: string;
-  error?: string;
 }
 
 interface OwnershipResult {
@@ -72,7 +67,6 @@ interface ProductUpdateData {
 interface RequestBody {
   action?: string;
   productId?: string;
-  sessionToken?: string;
   settings?: ProductSettings;
   data?: ProductUpdateData;
   price?: number;
@@ -83,12 +77,6 @@ interface RequestBody {
 
 interface RateLimitAttempt {
   id: string;
-}
-
-interface SessionRecord {
-  producer_id: string;
-  expires_at: string;
-  is_valid: boolean;
 }
 
 interface ProductRecord {
@@ -155,31 +143,6 @@ function errorResponse(
   return jsonResponse({ success: false, error: message }, headers, status);
 }
 
-async function validateSession(
-  supabase: SupabaseClient, 
-  token: string | null
-): Promise<SessionValidationResult> {
-  if (!token) return { valid: false, error: "Token de sessão não fornecido" };
-
-  const { data: session, error } = await supabase
-    .from("producer_sessions")
-    .select("producer_id, expires_at, is_valid")
-    .eq("session_token", token)
-    .single();
-
-  if (error || !session) return { valid: false, error: "Sessão inválida" };
-  
-  const sessionData = session as SessionRecord;
-  if (!sessionData.is_valid) return { valid: false, error: "Sessão expirada ou invalidada" };
-  if (new Date(sessionData.expires_at) < new Date()) {
-    await supabase.from("producer_sessions").update({ is_valid: false }).eq("session_token", token);
-    return { valid: false, error: "Sessão expirada" };
-  }
-
-  await supabase.from("producer_sessions").update({ last_activity_at: new Date().toISOString() }).eq("session_token", token);
-  return { valid: true, producerId: sessionData.producer_id };
-}
-
 async function verifyOwnership(
   supabase: SupabaseClient, 
   productId: string, 
@@ -227,13 +190,14 @@ serve(withSentry("product-settings", async (req) => {
     const { action, productId } = body;
     console.log(`[product-settings] Action: ${action}, ProductId: ${productId}`);
 
-    // Auth
-    const sessionToken = body.sessionToken || req.headers.get("x-producer-session-token");
-    const sessionResult = await validateSession(supabase, sessionToken || null);
-    if (!sessionResult.valid) {
-      return errorResponse(sessionResult.error || "Não autorizado", corsHeaders, 401);
+    // Auth via unified-auth
+    let producer;
+    try {
+      producer = await requireAuthenticatedProducer(supabase, req);
+    } catch {
+      return errorResponse("Não autorizado", corsHeaders, 401);
     }
-    const producerId = sessionResult.producerId!;
+    const producerId = producer.id;
 
     // Common validation
     if (!productId || typeof productId !== "string") {
@@ -261,7 +225,6 @@ serve(withSentry("product-settings", async (req) => {
         );
       }
       
-      // Validate settings before passing to handler
       if (!body.settings || typeof body.settings !== "object") {
         return errorResponse("settings é obrigatório para esta ação", corsHeaders, 400);
       }
@@ -281,7 +244,6 @@ serve(withSentry("product-settings", async (req) => {
         );
       }
       
-      // Validate data before passing to handler
       if (!body.data || typeof body.data !== "object") {
         return errorResponse("data é obrigatório para esta ação", corsHeaders, 400);
       }
@@ -323,7 +285,6 @@ serve(withSentry("product-settings", async (req) => {
         );
       }
       
-      // Validate gatewaySettings before passing to handler
       if (!body.gatewaySettings || typeof body.gatewaySettings !== "object") {
         return errorResponse("gatewaySettings é obrigatório para esta ação", corsHeaders, 400);
       }
