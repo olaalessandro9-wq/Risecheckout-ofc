@@ -4,7 +4,7 @@
  */
 
 import { useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { createLogger } from "@/lib/logger";
 import type { MemberModule, MemberModuleWithContents } from "./types";
@@ -41,13 +41,13 @@ export function useMembersAreaModules({
 
     setIsSaving(true);
     try {
-      const sessionToken = localStorage.getItem('producer_session_token');
-      const { data, error } = await supabase.functions.invoke('members-area-modules', {
-        body: { action: 'create', productId, data: { title, description, cover_image_url: coverImageUrl } },
-        headers: { 'x-producer-session-token': sessionToken || '' },
+      const { data, error } = await api.call<{ success?: boolean; error?: string; module?: MemberModule }>('members-area-modules', {
+        action: 'create',
+        productId,
+        data: { title, description, cover_image_url: coverImageUrl },
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       if (!data?.success) throw new Error(data?.error || 'Falha ao criar módulo');
 
       setModules(prev => [...prev, { ...data.module, contents: [] }]);
@@ -65,13 +65,13 @@ export function useMembersAreaModules({
   const updateModule = useCallback(async (id: string, data: Partial<MemberModule>) => {
     setIsSaving(true);
     try {
-      const sessionToken = localStorage.getItem('producer_session_token');
-      const { data: result, error } = await supabase.functions.invoke('members-area-modules', {
-        body: { action: 'update', moduleId: id, data },
-        headers: { 'x-producer-session-token': sessionToken || '' },
+      const { data: result, error } = await api.call<{ success?: boolean; error?: string }>('members-area-modules', {
+        action: 'update',
+        moduleId: id,
+        data,
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       if (!result?.success) throw new Error(result?.error || 'Falha ao atualizar módulo');
 
       setModules(prev => prev.map(m => m.id === id ? { ...m, ...data } : m));
@@ -87,13 +87,12 @@ export function useMembersAreaModules({
   const deleteModule = useCallback(async (id: string) => {
     setIsSaving(true);
     try {
-      const sessionToken = localStorage.getItem('producer_session_token');
-      const { data, error } = await supabase.functions.invoke('members-area-modules', {
-        body: { action: 'delete', moduleId: id },
-        headers: { 'x-producer-session-token': sessionToken || '' },
+      const { data, error } = await api.call<{ success?: boolean; error?: string }>('members-area-modules', {
+        action: 'delete',
+        moduleId: id,
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       if (!data?.success) throw new Error(data?.error || 'Falha ao excluir módulo');
 
       setModules(prev => prev.filter(m => m.id !== id));
@@ -122,13 +121,13 @@ export function useMembersAreaModules({
     });
 
     try {
-      const sessionToken = localStorage.getItem('producer_session_token');
-      const { data, error } = await supabase.functions.invoke('members-area-modules', {
-        body: { action: 'reorder', productId, orderedIds },
-        headers: { 'x-producer-session-token': sessionToken || '' },
+      const { data, error } = await api.call<{ success?: boolean; error?: string }>('members-area-modules', {
+        action: 'reorder',
+        productId,
+        orderedIds,
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       if (!data?.success) throw new Error(data?.error || 'Falha ao reordenar');
     } catch (error: unknown) {
       log.error("Error reordering modules", error);

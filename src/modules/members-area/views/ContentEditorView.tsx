@@ -16,7 +16,7 @@ import { useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import {
   TitleSection,
   VideoSection,
@@ -100,25 +100,21 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
         })
       );
 
-      const sessionToken = localStorage.getItem('producer_session_token');
-      const { data: result, error } = await supabase.functions.invoke("content-save", {
-        body: {
-          action: "save-full",
-          productId,
-          moduleId,
-          contentId: isNew ? null : contentId,
-          content: {
-            title: content.title,
-            video_url: content.video_url,
-            body: content.body,
-          },
-          attachments: preparedAttachments,
-          release,
+      const { data: result, error } = await api.call<{ success?: boolean; error?: string }>("content-save", {
+        action: "save-full",
+        productId,
+        moduleId,
+        contentId: isNew ? null : contentId,
+        content: {
+          title: content.title,
+          video_url: content.video_url,
+          body: content.body,
         },
-        headers: { 'x-producer-session-token': sessionToken || '' },
+        attachments: preparedAttachments,
+        release,
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       if (!result?.success) throw new Error(result?.error || "Failed to save content");
 
       toast.success(isNew ? "Conteúdo criado com sucesso!" : "Conteúdo atualizado com sucesso!");

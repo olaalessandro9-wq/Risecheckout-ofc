@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { api } from "@/lib/api";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
@@ -224,19 +223,10 @@ export const useProduct = () => {
   const deleteProduct = async () => {
     if (!productId || !user) return false;
 
-    // Get session token
-    const sessionToken = localStorage.getItem("producer_session_token");
-    if (!sessionToken) {
-      toast.error("Sessão expirada. Faça login novamente.");
-      return false;
-    }
-
     try {
-      const { data, error } = await supabase.functions.invoke("product-crud", {
-        body: {
-          action: 'delete',
-          productId,
-        },
+      const { data, error } = await api.call<{ success?: boolean; error?: string }>("product-crud", {
+        action: 'delete',
+        productId,
       });
 
       if (error) {
