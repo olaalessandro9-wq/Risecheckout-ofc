@@ -7,7 +7,7 @@
  * @see RISE ARCHITECT PROTOCOL V3 - Modularização
  */
 
-import type { ProductData, Offer } from "../../types/product.types";
+import type { ProductData, Offer, AffiliateSettings, UpsellSettings } from "../../types/product.types";
 import type { 
   GeneralFormData, 
   ImageFormState, 
@@ -15,8 +15,6 @@ import type {
   ProductFormDispatch,
   CheckoutSettingsFormData,
   GatewayCredentials,
-  AffiliateSettings,
-  UpsellSettings,
 } from "../../types/productForm.types";
 import { validateGeneralForm } from "../productFormValidation";
 
