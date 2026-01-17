@@ -1,10 +1,26 @@
 project_id = "wivbtmtgpsxupfjwwovf"
 
 # =====================================================
-# EDGE FUNCTIONS - CONFIGURAÇÃO DE AUTENTICAÇÃO
+# RISE V3 - EDGE FUNCTIONS AUTHENTICATION CONFIG
+# =====================================================
+# 
+# PADRÃO: verify_jwt = false
+# Todas as funções usam autenticação app-level via:
+# - producer_sessions (unified-auth) para dashboard/producers
+# - buyer_token para área de membros
+# - Sem auth para webhooks/públicas
+#
+# NUNCA use verify_jwt = true para funções producer_sessions!
+# O gateway do Supabase bloquearia requests legítimos.
 # =====================================================
 
-# ✅ PRODUCT MANAGEMENT (usa producer_sessions, não JWT)
+# =====================================================
+# PRODUCER_SESSIONS AUTH (unified-auth)
+# Usam X-Producer-Session-Token
+# verify_jwt DEVE ser false
+# =====================================================
+
+# Product Management
 [functions.product-crud]
 verify_jwt = false
 
@@ -16,8 +32,6 @@ verify_jwt = false
 
 [functions.offer-bulk]
 verify_jwt = false
-
-# ✅ (REMOVIDA: checkout-management foi dividida em 3 funções abaixo)
 
 [functions.checkout-crud]
 verify_jwt = false
@@ -52,11 +66,238 @@ verify_jwt = false
 [functions.affiliate-pixel-management]
 verify_jwt = false
 
-# verify_jwt = false → Função pública (não requer auth)
-# verify_jwt = true (ou omitido) → Requer autenticação
+# User Management (producer_sessions)
+[functions.manage-user-role]
+verify_jwt = false
+
+[functions.manage-user-status]
+verify_jwt = false
+
+[functions.get-users-with-emails]
+verify_jwt = false
+
+# Affiliates (producer_sessions)
+[functions.manage-affiliation]
+verify_jwt = false
+
+[functions.request-affiliation]
+verify_jwt = false
+
+[functions.get-affiliation-status]
+verify_jwt = false
+
+[functions.get-all-affiliation-statuses]
+verify_jwt = false
+
+[functions.get-my-affiliations]
+verify_jwt = false
+
+[functions.get-affiliation-details]
+verify_jwt = false
+
+[functions.update-affiliate-settings]
+verify_jwt = false
+
+# Vault & Credentials (producer_sessions)
+[functions.vault-save]
+verify_jwt = false
+
+# Security & Crypto (producer_sessions)
+[functions.decrypt-customer-data]
+verify_jwt = false
+
+[functions.decrypt-customer-data-batch]
+verify_jwt = false
+
+[functions.encrypt-token]
+verify_jwt = false
+
+[functions.security-management]
+verify_jwt = false
+
+# Email (producer_sessions)
+[functions.send-email]
+verify_jwt = false
+
+# Admin/Owner (producer_sessions)
+[functions.admin-health]
+verify_jwt = false
+
+[functions.owner-settings]
+verify_jwt = false
+
+# =====================================================
+# BUYER_TOKEN AUTH (x-buyer-session)
+# Área de Membros - autenticação própria
+# verify_jwt DEVE ser false
 # =====================================================
 
-# ✅ PROTEÇÃO DE PRODUÇÃO (Reconciliação e Alertas)
+[functions.buyer-auth]
+verify_jwt = false
+
+[functions.buyer-orders]
+verify_jwt = false
+
+[functions.buyer-profile]
+verify_jwt = false
+
+[functions.buyer-session]
+verify_jwt = false
+
+[functions.members-area-drip]
+verify_jwt = false
+
+[functions.members-area-progress]
+verify_jwt = false
+
+[functions.members-area-quizzes]
+verify_jwt = false
+
+[functions.members-area-certificates]
+verify_jwt = false
+
+[functions.members-area-groups]
+verify_jwt = false
+
+[functions.students-invite]
+verify_jwt = false
+
+[functions.students-access]
+verify_jwt = false
+
+[functions.students-groups]
+verify_jwt = false
+
+[functions.students-list]
+verify_jwt = false
+
+# =====================================================
+# PUBLIC - Webhooks e Callbacks Externos
+# Sem autenticação JWT, validam payload/signature
+# verify_jwt DEVE ser false
+# =====================================================
+
+[functions.mercadopago-webhook]
+verify_jwt = false
+
+[functions.pushinpay-webhook]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.asaas-webhook]
+verify_jwt = false
+
+[functions.mercadopago-oauth-callback]
+verify_jwt = false
+
+[functions.stripe-connect-oauth]
+verify_jwt = false
+
+[functions.trigger-webhooks]
+verify_jwt = false
+
+[functions.process-webhook-queue]
+verify_jwt = false
+
+[functions.dispatch-webhook]
+verify_jwt = false
+
+[functions.send-webhook]
+verify_jwt = false
+
+[functions.retry-webhooks]
+verify_jwt = false
+
+[functions.send-webhook-test]
+verify_jwt = false
+
+[functions.get-webhook-logs]
+verify_jwt = false
+
+[functions.webhook-crud]
+verify_jwt = false
+
+[functions.test-webhook-dispatch]
+verify_jwt = false
+
+[functions.trigger-webhooks-internal]
+verify_jwt = false
+
+# =====================================================
+# PUBLIC - Checkout (clientes anônimos)
+# verify_jwt DEVE ser false
+# =====================================================
+
+[functions.create-order]
+verify_jwt = false
+
+[functions.mercadopago-create-payment]
+verify_jwt = false
+
+[functions.stripe-create-payment]
+verify_jwt = false
+
+[functions.asaas-create-payment]
+verify_jwt = false
+
+[functions.asaas-validate-credentials]
+verify_jwt = false
+
+[functions.pushinpay-create-pix]
+verify_jwt = false
+
+[functions.pushinpay-get-status]
+verify_jwt = false
+
+[functions.pushinpay-validate-token]
+verify_jwt = false
+
+[functions.get-order-for-pix]
+verify_jwt = false
+
+[functions.verify-turnstile]
+verify_jwt = false
+
+# =====================================================
+# PUBLIC - Autenticação
+# Endpoints de login (não requerem auth prévia)
+# verify_jwt DEVE ser false
+# =====================================================
+
+[functions.producer-auth]
+verify_jwt = false
+
+# =====================================================
+# PUBLIC - Tracking & Analytics
+# verify_jwt DEVE ser false
+# =====================================================
+
+[functions.utmify-conversion]
+verify_jwt = false
+
+[functions.facebook-conversion-api]
+verify_jwt = false
+
+[functions.dashboard-analytics]
+verify_jwt = false
+
+[functions.checkout-heartbeat]
+verify_jwt = false
+
+[functions.detect-abandoned-checkouts]
+verify_jwt = false
+
+[functions.track-visit]
+verify_jwt = false
+
+# =====================================================
+# PUBLIC - Reconciliação e Proteção
+# Chamadas internas/cron
+# verify_jwt DEVE ser false
+# =====================================================
+
 [functions.reconcile-pending-orders]
 verify_jwt = false
 
@@ -76,66 +317,32 @@ verify_jwt = false
 verify_jwt = false
 
 # =====================================================
-# verify_jwt = false → Função pública (não requer auth)
-# verify_jwt = true (ou omitido) → Requer autenticação
+# PUBLIC - Email (chamadas internas)
+# verify_jwt DEVE ser false
 # =====================================================
 
-# ✅ PÚBLICAS (Webhooks e callbacks externos)
-[functions.trigger-webhooks]
+[functions.send-confirmation-email]
 verify_jwt = false
 
-[functions.mercadopago-webhook]
+[functions.send-pix-email]
 verify_jwt = false
 
-[functions.pushinpay-webhook]
+# =====================================================
+# PUBLIC - LGPD/GDPR
+# verify_jwt DEVE ser false
+# =====================================================
+
+[functions.gdpr-request]
 verify_jwt = false
 
-[functions.mercadopago-oauth-callback]
+[functions.gdpr-forget]
 verify_jwt = false
 
-[functions.process-webhook-queue]
-verify_jwt = false
+# =====================================================
+# PUBLIC - Diagnóstico e Health Check
+# verify_jwt DEVE ser false
+# =====================================================
 
-[functions.stripe-webhook]
-verify_jwt = false
-
-[functions.stripe-connect-oauth]
-verify_jwt = false
-
-[functions.asaas-webhook]
-verify_jwt = false
-
-# ✅ PÚBLICAS (Checkout - acessadas por clientes anônimos)
-[functions.create-order]
-verify_jwt = false
-
-[functions.mercadopago-create-payment]
-verify_jwt = false
-
-[functions.stripe-create-payment]
-verify_jwt = false
-
-[functions.asaas-create-payment]
-verify_jwt = false
-
-[functions.asaas-validate-credentials]
-verify_jwt = false
-
-# ✅ PÚBLICAS (Teste de Webhooks)
-[functions.send-webhook-test]
-verify_jwt = false
-
-# ✅ PÚBLICAS (PushinPay - PIX)
-[functions.pushinpay-create-pix]
-verify_jwt = false
-
-[functions.pushinpay-get-status]
-verify_jwt = false
-
-[functions.pushinpay-validate-token]
-verify_jwt = false
-
-# ✅ PÚBLICAS (Diagnóstico e Health Check)
 [functions.check-secrets]
 verify_jwt = false
 
@@ -145,205 +352,21 @@ verify_jwt = false
 [functions.test-deploy]
 verify_jwt = false
 
-# ✅ PÚBLICAS (Área de Membros - Buyer Auth)
-[functions.buyer-auth]
-verify_jwt = false
-
-# ✅ PÚBLICAS (Autenticação de Produtores)
-[functions.producer-auth]
-verify_jwt = false
-
-[functions.buyer-orders]
-verify_jwt = false
-
-# ✅ PÚBLICAS (Área de Membros - Drip e Progress usam buyer_token)
-[functions.members-area-drip]
-verify_jwt = false
-
-[functions.members-area-progress]
-verify_jwt = false
-
-[functions.members-area-quizzes]
-verify_jwt = false
-
-[functions.members-area-certificates]
-verify_jwt = false
-
-# ✅ AUTENTICADAS (Área de Membros - Gestão pelo vendedor)
-[functions.members-area-groups]
-verify_jwt = false
-
-# ✅ PÚBLICAS (Área de Membros - Students refatorada em 4 funções)
-[functions.students-invite]
-verify_jwt = false
-
-[functions.students-access]
-verify_jwt = false
-
-[functions.students-groups]
-verify_jwt = false
-
-[functions.students-list]
-verify_jwt = false
-
-# ✅ AUTENTICADAS (Vault - usa producer_sessions)
-[functions.vault-save]
-verify_jwt = false
-
-[functions.manage-affiliation]
-verify_jwt = false
-
-[functions.request-affiliation]
-verify_jwt = false
-
-# ✅ PÚBLICAS (Afiliações - Usam producer_sessions token)
-[functions.get-affiliation-status]
-verify_jwt = false
-
-[functions.get-all-affiliation-statuses]
-verify_jwt = false
-
-[functions.get-my-affiliations]
-verify_jwt = false
-
-[functions.get-affiliation-details]
-verify_jwt = false
-
-[functions.migrate-credentials-to-vault]
-verify_jwt = true
-
-# ✅ AUTENTICADAS (Admin - Gerenciamento de usuários)
-[functions.manage-user-role]
-verify_jwt = true
-
-[functions.get-users-with-emails]
-verify_jwt = true
-
-[functions.manage-user-status]
-verify_jwt = true
-
-# ✅ AUTENTICADAS (Email)
-[functions.send-email]
-verify_jwt = true
-
-# ✅ AUTENTICADAS (Afiliados - Update seguro)
-[functions.update-affiliate-settings]
-verify_jwt = true
-
-# ✅ AUTENTICADAS (Migração de credenciais para Vault)
-[functions.migrate-vendor-credentials-to-vault]
-verify_jwt = true
-
-# ✅ PÚBLICAS (Turnstile Captcha - Verificação)
-[functions.verify-turnstile]
-verify_jwt = false
-
-# ✅ PRODUCER AUTH (Descriptografia de dados do cliente - usa producer_sessions)
-[functions.decrypt-customer-data]
-verify_jwt = false
-
-[functions.decrypt-customer-data-batch]
-verify_jwt = false
-
-# ✅ PÚBLICAS (LGPD - Direito ao Esquecimento)
-[functions.gdpr-request]
-verify_jwt = false
-
-[functions.gdpr-forget]
-verify_jwt = false
-
 # =====================================================
-# FASE 3: STUBS MIGRADOS DO DEPLOY
+# PUBLIC - PushinPay Stats
+# verify_jwt DEVE ser false
 # =====================================================
-
-# ✅ PÚBLICAS (PushinPay Stats)
 
 [functions.pushinpay-stats]
 verify_jwt = false
 
-# ✅ PÚBLICAS (Tracking - Conversões e Analytics)
-[functions.utmify-conversion]
-verify_jwt = false
-
-[functions.facebook-conversion-api]
-verify_jwt = false
-
-[functions.dashboard-analytics]
-verify_jwt = false
-
-[functions.checkout-heartbeat]
-verify_jwt = false
-
-[functions.detect-abandoned-checkouts]
-verify_jwt = false
-
-# ✅ PÚBLICAS (Orders)
-[functions.get-order-for-pix]
-verify_jwt = false
-
-# ✅ PÚBLICAS (Webhooks)
-[functions.dispatch-webhook]
-verify_jwt = false
-
-[functions.send-webhook]
-verify_jwt = false
-
-[functions.retry-webhooks]
-verify_jwt = false
-
-[functions.get-webhook-logs]
-verify_jwt = false
-
-[functions.webhook-crud]
-verify_jwt = false
-
-[functions.test-webhook-dispatch]
-verify_jwt = false
-
-[functions.trigger-webhooks-internal]
-verify_jwt = false
-
-# ✅ PÚBLICAS (Buyer - Autenticação própria via x-buyer-token)
-[functions.buyer-profile]
-verify_jwt = false
-
-[functions.buyer-session]
-verify_jwt = false
-
-# ✅ PÚBLICAS (Email - Chamadas internas)
-[functions.send-confirmation-email]
-verify_jwt = false
-
-[functions.send-pix-email]
-verify_jwt = false
-
-# ✅ AUTENTICADAS (Security)
-[functions.encrypt-token]
-verify_jwt = false
-
-[functions.security-management]
-verify_jwt = false
-
-# ✅ AUTENTICADAS (Admin Health)
-[functions.admin-health]
-verify_jwt = false
-
-# ✅ AUTENTICADAS (Owner Settings - Mais restritiva)
-[functions.owner-settings]
-verify_jwt = false
-
 # =====================================================
-# RISE PROTOCOL V2 - COMPLIANCE (2 novas funções)
+# RISE PROTOCOL V2 - Compliance Functions
+# verify_jwt DEVE ser false
 # =====================================================
 
-# ✅ RPC Proxy (centraliza chamadas RPC do frontend)
 [functions.rpc-proxy]
 verify_jwt = false
 
-# ✅ Storage Management (centraliza operações de storage)
 [functions.storage-management]
-verify_jwt = false
-
-# ✅ PÚBLICAS (Tracking de Visitas)
-[functions.track-visit]
 verify_jwt = false

@@ -1,7 +1,7 @@
 # Rise Checkout - Edge Functions Registry
 
 > **🔴 FONTE DA VERDADE MÁXIMA** - Este documento lista TODAS as Edge Functions deployadas no Supabase.  
-> Última atualização: 2026-01-16 (Auditoria Final)  
+> Última atualização: 2026-01-17 (RISE V3 Auth Standardization)  
 > Mantenedor: AI Assistant + User
 
 ---
@@ -10,19 +10,141 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 101 |
-| **No código local** | 101 |
+| **Total de Funções** | 99 |
+| **No código local** | 99 |
 | **Apenas deployadas** | 0 |
 | **Operações Diretas Frontend** | 0 ✅ |
-| **Arquivos API obsoletos removidos** | 1 (src/api/storage/remove.ts) |
+| **Funções com verify_jwt=true** | 0 ✅ |
 | **Base URL** | `https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/` |
 
-### RISE Protocol V2 Compliance Functions (NEW)
+---
 
-| Nome | URL | No Repo? | Descrição |
-|------|-----|----------|-----------|
-| `rpc-proxy` | `.../rpc-proxy` | ✅ | Centraliza RPCs do frontend |
-| `storage-management` | `.../storage-management` | ✅ | Centraliza operações de storage |
+## 🔐 Mecanismos de Autenticação (RISE V3)
+
+> **REGRA ABSOLUTA**: Todas as funções usam `verify_jwt = false` no `supabase/config.toml`.
+> A autenticação é feita no código via producer_sessions ou buyer_token.
+
+| Mecanismo | Header | Validação | Funções |
+|-----------|--------|-----------|---------|
+| **producer_sessions** | `X-Producer-Session-Token` | `unified-auth.ts` | Dashboard, User Mgmt, Affiliates, Vault, Security |
+| **buyer_token** | `X-Buyer-Session` | `buyer-auth.ts` | Members Area, Buyer Portal |
+| **webhook/public** | N/A | Signature/payload | Webhooks, Checkout, Auth endpoints |
+
+### Tabela de Auth por Função
+
+| Função | Auth Mechanism | verify_jwt | Observação |
+|--------|----------------|------------|------------|
+| **Product Management** | | | |
+| `product-crud` | producer_sessions | false | unified-auth |
+| `product-settings` | producer_sessions | false | unified-auth |
+| `offer-crud` | producer_sessions | false | unified-auth |
+| `offer-bulk` | producer_sessions | false | unified-auth |
+| `checkout-crud` | producer_sessions | false | unified-auth |
+| `order-bump-crud` | producer_sessions | false | unified-auth |
+| `checkout-editor` | producer_sessions | false | unified-auth |
+| `product-duplicate` | producer_sessions | false | unified-auth |
+| `coupon-management` | producer_sessions | false | unified-auth |
+| `integration-management` | producer_sessions | false | unified-auth |
+| **User Management** | | | |
+| `manage-user-role` | producer_sessions | false | unified-auth, owner only |
+| `manage-user-status` | producer_sessions | false | unified-auth, admin+ |
+| `get-users-with-emails` | producer_sessions | false | unified-auth, owner only |
+| `producer-auth` | public | false | Login endpoint |
+| **Security & Crypto** | | | |
+| `decrypt-customer-data` | producer_sessions | false | unified-auth, owner check |
+| `decrypt-customer-data-batch` | producer_sessions | false | unified-auth, owner check |
+| `encrypt-token` | producer_sessions | false | unified-auth |
+| `security-management` | producer_sessions | false | unified-auth |
+| **Affiliates** | | | |
+| `manage-affiliation` | producer_sessions | false | unified-auth |
+| `request-affiliation` | producer_sessions | false | unified-auth |
+| `update-affiliate-settings` | producer_sessions | false | unified-auth |
+| `get-affiliation-status` | producer_sessions | false | unified-auth |
+| `get-all-affiliation-statuses` | producer_sessions | false | unified-auth |
+| `get-my-affiliations` | producer_sessions | false | unified-auth |
+| `get-affiliation-details` | producer_sessions | false | unified-auth |
+| **Vault & Credentials** | | | |
+| `vault-save` | producer_sessions | false | unified-auth |
+| **Email** | | | |
+| `send-email` | producer_sessions | false | unified-auth (v2.0.0) |
+| `send-confirmation-email` | internal | false | Chamada interna |
+| `send-pix-email` | internal | false | Chamada interna |
+| **Buyer Portal** | | | |
+| `buyer-auth` | public | false | Login endpoint |
+| `buyer-orders` | buyer_token | false | x-buyer-session |
+| `buyer-profile` | buyer_token | false | x-buyer-session |
+| `buyer-session` | buyer_token | false | x-buyer-session |
+| **Members Area** | | | |
+| `members-area-modules` | producer_sessions | false | unified-auth |
+| `members-area-drip` | buyer_token | false | x-buyer-session |
+| `members-area-progress` | buyer_token | false | x-buyer-session |
+| `members-area-quizzes` | buyer_token | false | x-buyer-session |
+| `members-area-certificates` | buyer_token | false | x-buyer-session |
+| `members-area-groups` | producer_sessions | false | unified-auth |
+| `content-crud` | producer_sessions | false | unified-auth |
+| `content-save` | producer_sessions | false | unified-auth |
+| `students-invite` | producer_sessions | false | unified-auth |
+| `students-access` | producer_sessions | false | unified-auth |
+| `students-groups` | producer_sessions | false | unified-auth |
+| `students-list` | producer_sessions | false | unified-auth |
+| `pixel-management` | producer_sessions | false | unified-auth |
+| `affiliate-pixel-management` | producer_sessions | false | unified-auth |
+| **Webhooks** | | | |
+| `mercadopago-webhook` | webhook | false | Signature validation |
+| `pushinpay-webhook` | webhook | false | Signature validation |
+| `stripe-webhook` | webhook | false | Signature validation |
+| `asaas-webhook` | webhook | false | Signature validation |
+| `trigger-webhooks` | internal | false | Chamada interna |
+| `process-webhook-queue` | internal | false | Chamada interna |
+| `dispatch-webhook` | internal | false | Chamada interna |
+| `send-webhook` | internal | false | Chamada interna |
+| `retry-webhooks` | internal | false | Chamada interna |
+| `send-webhook-test` | producer_sessions | false | unified-auth |
+| `get-webhook-logs` | producer_sessions | false | unified-auth |
+| `webhook-crud` | producer_sessions | false | unified-auth |
+| `test-webhook-dispatch` | producer_sessions | false | unified-auth |
+| `trigger-webhooks-internal` | internal | false | Chamada interna |
+| **OAuth Callbacks** | | | |
+| `mercadopago-oauth-callback` | oauth | false | OAuth flow |
+| `stripe-connect-oauth` | oauth | false | OAuth flow |
+| **Checkout (Public)** | | | |
+| `create-order` | public | false | Clientes anônimos |
+| `mercadopago-create-payment` | public | false | Clientes anônimos |
+| `stripe-create-payment` | public | false | Clientes anônimos |
+| `asaas-create-payment` | public | false | Clientes anônimos |
+| `asaas-validate-credentials` | public | false | Validação |
+| `pushinpay-create-pix` | public | false | Clientes anônimos |
+| `pushinpay-get-status` | public | false | Polling status |
+| `pushinpay-validate-token` | public | false | Validação |
+| `get-order-for-pix` | public | false | PIX page |
+| `verify-turnstile` | public | false | Captcha |
+| **Tracking & Analytics** | | | |
+| `utmify-conversion` | public | false | Tracking |
+| `facebook-conversion-api` | public | false | Tracking |
+| `dashboard-analytics` | producer_sessions | false | unified-auth |
+| `checkout-heartbeat` | public | false | Heartbeat |
+| `detect-abandoned-checkouts` | internal | false | Cron |
+| `track-visit` | public | false | Tracking |
+| **Reconciliation** | | | |
+| `reconcile-pending-orders` | internal | false | Orquestrador |
+| `reconcile-mercadopago` | internal | false | Gateway specific |
+| `reconcile-asaas` | internal | false | Gateway specific |
+| `grant-member-access` | internal | false | Chamada interna |
+| `alert-stuck-orders` | internal | false | Cron |
+| `smoke-test` | public | false | Health check |
+| **LGPD/GDPR** | | | |
+| `gdpr-request` | public | false | User request |
+| `gdpr-forget` | public | false | User request |
+| **Health & Diagnostics** | | | |
+| `check-secrets` | public | false | Debug |
+| `health` | public | false | Health check |
+| `test-deploy` | public | false | Deploy test |
+| `admin-health` | producer_sessions | false | unified-auth |
+| `owner-settings` | producer_sessions | false | unified-auth, owner only |
+| **RISE Protocol V2** | | | |
+| `rpc-proxy` | producer_sessions | false | unified-auth |
+| `storage-management` | producer_sessions | false | unified-auth |
+| `pushinpay-stats` | producer_sessions | false | unified-auth |
 
 ---
 
@@ -45,7 +167,6 @@
 15. [LGPD/GDPR](#lgpdgdpr)
 16. [Vault & Credentials](#vault--credentials)
 17. [Health & Diagnostics](#health--diagnostics)
-18. [Utilities](#utilities)
 
 ---
 
@@ -53,409 +174,248 @@
 
 ### Payments - Asaas
 
-| Nome | URL | No Repo? | Última Atividade | Invocações |
-|------|-----|----------|------------------|------------|
-| `asaas-create-payment` | `.../asaas-create-payment` | ✅ | 10 min ago | 188 |
-| `asaas-webhook` | `.../asaas-webhook` | ✅ | 10 min ago | 194 |
-| `asaas-validate-credentials` | `.../asaas-validate-credentials` | ✅ | 20 days ago | 19 |
+| Nome | URL | No Repo? | Auth |
+|------|-----|----------|------|
+| `asaas-create-payment` | `.../asaas-create-payment` | ✅ | public |
+| `asaas-webhook` | `.../asaas-webhook` | ✅ | webhook |
+| `asaas-validate-credentials` | `.../asaas-validate-credentials` | ✅ | public |
 
 ### Payments - PushinPay
 
-| Nome | URL | No Repo? | Última Atividade | Invocações |
-|------|-----|----------|------------------|------------|
-| `pushinpay-create-pix` | `.../pushinpay-create-pix` | ✅ | 10 min ago | 438 |
-| `pushinpay-get-status` | `.../pushinpay-get-status` | ✅ | 10 min ago | 398 |
-| `pushinpay-webhook` | `.../pushinpay-webhook` | ✅ | 10 min ago | 420 |
-| `pushinpay-stats` | `.../pushinpay-stats` | ✅ | 10 min ago | 103 |
-| `pushinpay-validate-token` | `.../pushinpay-validate-token` | ✅ | NEW | 0 |
+| Nome | URL | No Repo? | Auth |
+|------|-----|----------|------|
+| `pushinpay-create-pix` | `.../pushinpay-create-pix` | ✅ | public |
+| `pushinpay-get-status` | `.../pushinpay-get-status` | ✅ | public |
+| `pushinpay-webhook` | `.../pushinpay-webhook` | ✅ | webhook |
+| `pushinpay-stats` | `.../pushinpay-stats` | ✅ | producer_sessions |
+| `pushinpay-validate-token` | `.../pushinpay-validate-token` | ✅ | public |
 
 ### Payments - MercadoPago
 
-| Nome | URL | No Repo? | Última Atividade | Invocações |
-|------|-----|----------|------------------|------------|
-| `mercadopago-create-payment` | `.../mercadopago-create-payment` | ✅ | 10 min ago | 915 |
-| `mercadopago-webhook` | `.../mercadopago-webhook` | ✅ | 10 min ago | 519 |
-| `mercadopago-oauth-callback` | `.../mercadopago-oauth-callback` | ✅ | 10 min ago | 468 |
+| Nome | URL | No Repo? | Auth |
+|------|-----|----------|------|
+| `mercadopago-create-payment` | `.../mercadopago-create-payment` | ✅ | public |
+| `mercadopago-webhook` | `.../mercadopago-webhook` | ✅ | webhook |
+| `mercadopago-oauth-callback` | `.../mercadopago-oauth-callback` | ✅ | oauth |
 
 ### Payments - Stripe
 
-| Nome | URL | No Repo? | Última Atividade | Invocações |
-|------|-----|----------|------------------|------------|
-| `stripe-create-payment` | `.../stripe-create-payment` | ✅ | 10 min ago | 251 |
-| `stripe-webhook` | `.../stripe-webhook` | ✅ | 10 min ago | 252 |
-| `stripe-connect-oauth` | `.../stripe-connect-oauth` | ✅ | 10 min ago | 251 |
+| Nome | URL | No Repo? | Auth |
+|------|-----|----------|------|
+| `stripe-create-payment` | `.../stripe-create-payment` | ✅ | public |
+| `stripe-webhook` | `.../stripe-webhook` | ✅ | webhook |
+| `stripe-connect-oauth` | `.../stripe-connect-oauth` | ✅ | oauth |
 
 ### Tracking & Analytics
 
-| Nome | URL | No Repo? | Última Atividade | Invocações |
-|------|-----|----------|------------------|------------|
-| `utmify-conversion` | `.../utmify-conversion` | ✅ | 10 min ago | 120 |
-| `facebook-conversion-api` | `.../facebook-conversion-api` | ✅ | 10 min ago | 122 |
-| `dashboard-analytics` | `.../dashboard-analytics` | ✅ | 10 min ago | 141 |
-| `dashboard-orders` | `.../dashboard-orders` | ✅ | NEW | 0 |
-| `checkout-heartbeat` | `.../checkout-heartbeat` | ✅ | 10 min ago | 249 |
-| `detect-abandoned-checkouts` | `.../detect-abandoned-checkouts` | ✅ | 10 min ago | 249 |
-| `track-visit` | `.../track-visit` | ✅ | 10 min ago | 0 |
+| Nome | URL | No Repo? | Auth |
+|------|-----|----------|------|
+| `utmify-conversion` | `.../utmify-conversion` | ✅ | public |
+| `facebook-conversion-api` | `.../facebook-conversion-api` | ✅ | public |
+| `dashboard-analytics` | `.../dashboard-analytics` | ✅ | producer_sessions |
+| `checkout-heartbeat` | `.../checkout-heartbeat` | ✅ | public |
+| `detect-abandoned-checkouts` | `.../detect-abandoned-checkouts` | ✅ | internal |
+| `track-visit` | `.../track-visit` | ✅ | public |
 
 ### Orders
 
-| Nome | URL | No Repo? | Última Atividade | Invocações |
-|------|-----|----------|------------------|------------|
-| `create-order` | `.../create-order` | ✅ | 10 min ago | 935 |
-| `get-order-for-pix` | `.../get-order-for-pix` | ✅ | 10 min ago | 150 |
-| `alert-stuck-orders` | `.../alert-stuck-orders` | ✅ | 10 min ago | 87 |
+| Nome | URL | No Repo? | Auth |
+|------|-----|----------|------|
+| `create-order` | `.../create-order` | ✅ | public |
+| `get-order-for-pix` | `.../get-order-for-pix` | ✅ | public |
+| `alert-stuck-orders` | `.../alert-stuck-orders` | ✅ | internal |
 
-### Reconciliation (RISE V2 Refactored)
+### Reconciliation (RISE V2)
 
-| Nome | URL | No Repo? | Última Atividade | Descrição |
-|------|-----|----------|------------------|-----------|
-| `reconcile-pending-orders` | `.../reconcile-pending-orders` | ✅ | 10 min ago | **Orquestrador** - busca pedidos pendentes e delega para gateways |
-| `reconcile-mercadopago` | `.../reconcile-mercadopago` | ✅ | NEW | Reconcilia pedidos MercadoPago |
-| `reconcile-asaas` | `.../reconcile-asaas` | ✅ | NEW | Reconcilia pedidos Asaas |
-| `grant-member-access` | `.../grant-member-access` | ✅ | NEW | Concede acesso à área de membros |
+| Nome | URL | No Repo? | Auth | Descrição |
+|------|-----|----------|------|-----------|
+| `reconcile-pending-orders` | `.../reconcile-pending-orders` | ✅ | internal | Orquestrador |
+| `reconcile-mercadopago` | `.../reconcile-mercadopago` | ✅ | internal | Gateway specific |
+| `reconcile-asaas` | `.../reconcile-asaas` | ✅ | internal | Gateway specific |
+| `grant-member-access` | `.../grant-member-access` | ✅ | internal | Chamada interna |
 
 ### Webhooks
 
-| Nome | URL | No Repo? | Última Atividade | Invocações |
-|------|-----|----------|------------------|------------|
-| `trigger-webhooks` | `.../trigger-webhooks` | ✅ | 10 min ago | 843 |
-| `process-webhook-queue` | `.../process-webhook-queue` | ✅ | 10 min ago | 737 |
-| `dispatch-webhook` | `.../dispatch-webhook` | ✅ | 10 min ago | 185 |
-| `send-webhook` | `.../send-webhook` | ✅ | 10 min ago | 94 |
-| `retry-webhooks` | `.../retry-webhooks` | ✅ | 10 min ago | 275 |
-| `send-webhook-test` | `.../send-webhook-test` | ✅ | 10 min ago | 124 |
-| `get-webhook-logs` | `.../get-webhook-logs` | ✅ | 10 min ago | 57 |
-| `test-webhook-dispatch` | `.../test-webhook-dispatch` | ✅ | 10 min ago | 50 |
-| `trigger-webhooks-internal` | `.../trigger-webhooks-internal` | ✅ | 10 min ago | 67 |
-| `webhook-crud` | `.../webhook-crud` | ✅ | 2026-01-13 | 0 |
+| Nome | URL | No Repo? | Auth |
+|------|-----|----------|------|
+| `trigger-webhooks` | `.../trigger-webhooks` | ✅ | internal |
+| `process-webhook-queue` | `.../process-webhook-queue` | ✅ | internal |
+| `dispatch-webhook` | `.../dispatch-webhook` | ✅ | internal |
+| `send-webhook` | `.../send-webhook` | ✅ | internal |
+| `retry-webhooks` | `.../retry-webhooks` | ✅ | internal |
+| `send-webhook-test` | `.../send-webhook-test` | ✅ | producer_sessions |
+| `get-webhook-logs` | `.../get-webhook-logs` | ✅ | producer_sessions |
+| `test-webhook-dispatch` | `.../test-webhook-dispatch` | ✅ | producer_sessions |
+| `trigger-webhooks-internal` | `.../trigger-webhooks-internal` | ✅ | internal |
+| `webhook-crud` | `.../webhook-crud` | ✅ | producer_sessions |
 
 ### Buyer Portal
 
-| Nome | URL | No Repo? | Última Atividade | Invocações |
-|------|-----|----------|------------------|------------|
-| `buyer-auth` | `.../buyer-auth` | ✅ | 10 min ago | 119 |
-| `buyer-orders` | `.../buyer-orders` | ✅ | 10 min ago | 115 |
-| `buyer-profile` | `.../buyer-profile` | ✅ | 10 min ago | 11 |
-| `buyer-session` | `.../buyer-session` | ✅ | 10 min ago | 11 |
+| Nome | URL | No Repo? | Auth |
+|------|-----|----------|------|
+| `buyer-auth` | `.../buyer-auth` | ✅ | public |
+| `buyer-orders` | `.../buyer-orders` | ✅ | buyer_token |
+| `buyer-profile` | `.../buyer-profile` | ✅ | buyer_token |
+| `buyer-session` | `.../buyer-session` | ✅ | buyer_token |
 
 ### Members Area
 
-| Nome | URL | No Repo? | Última Atividade | Invocações |
-|------|-----|----------|------------------|------------|
-| `members-area-certificates` | `.../members-area-certificates` | ✅ | 10 min ago | 105 |
-| `members-area-drip` | `.../members-area-drip` | ✅ | 10 min ago | 106 |
-| `members-area-groups` | `.../members-area-groups` | ✅ | 10 min ago | 109 |
-| `members-area-modules` | `.../members-area-modules` | ✅ | 10 min ago | 15 |
-| `members-area-progress` | `.../members-area-progress` | ✅ | 10 min ago | 104 |
-| `members-area-quizzes` | `.../members-area-quizzes` | ✅ | 10 min ago | 105 |
-| `content-crud` | `.../content-crud` | ✅ | 10 min ago | 6 |
-| `content-save` | `.../content-save` | ✅ | 10 min ago | 6 |
-| `students-invite` | `.../students-invite` | ✅ | 10 min ago | 8 |
-| `students-access` | `.../students-access` | ✅ | 10 min ago | 8 |
-| `students-groups` | `.../students-groups` | ✅ | 10 min ago | 8 |
-| `students-list` | `.../students-list` | ✅ | 10 min ago | 8 |
+| Nome | URL | No Repo? | Auth |
+|------|-----|----------|------|
+| `members-area-certificates` | `.../members-area-certificates` | ✅ | buyer_token |
+| `members-area-drip` | `.../members-area-drip` | ✅ | buyer_token |
+| `members-area-groups` | `.../members-area-groups` | ✅ | producer_sessions |
+| `members-area-modules` | `.../members-area-modules` | ✅ | producer_sessions |
+| `members-area-progress` | `.../members-area-progress` | ✅ | buyer_token |
+| `members-area-quizzes` | `.../members-area-quizzes` | ✅ | buyer_token |
+| `content-crud` | `.../content-crud` | ✅ | producer_sessions |
+| `content-save` | `.../content-save` | ✅ | producer_sessions |
+| `students-invite` | `.../students-invite` | ✅ | producer_sessions |
+| `students-access` | `.../students-access` | ✅ | producer_sessions |
+| `students-groups` | `.../students-groups` | ✅ | producer_sessions |
+| `students-list` | `.../students-list` | ✅ | producer_sessions |
 
 ### Email
 
-| Nome | URL | No Repo? | Última Atividade | Invocações |
-|------|-----|----------|------------------|------------|
-| `send-email` | `.../send-email` | ✅ | 10 min ago | 161 |
-| `send-confirmation-email` | `.../send-confirmation-email` | ✅ | 10 min ago | 58 |
-| `send-pix-email` | `.../send-pix-email` | ✅ | 10 min ago | 58 |
+| Nome | URL | No Repo? | Auth |
+|------|-----|----------|------|
+| `send-email` | `.../send-email` | ✅ | producer_sessions |
+| `send-confirmation-email` | `.../send-confirmation-email` | ✅ | internal |
+| `send-pix-email` | `.../send-pix-email` | ✅ | internal |
 
 ### Security & Crypto
 
-| Nome | URL | No Repo? | Última Atividade | Invocações |
-|------|-----|----------|------------------|------------|
-| `decrypt-customer-data` | `.../decrypt-customer-data` | ✅ | 10 min ago | 82 |
-| `decrypt-customer-data-batch` | `.../decrypt-customer-data-batch` | ✅ | 10 min ago | 77 |
-| `encrypt-token` | `.../encrypt-token` | ✅ | 10 min ago | 197 |
-| `security-management` | `.../security-management` | ✅ | 2026-01-13 | 0 |
-| `verify-turnstile` | `.../verify-turnstile` | ✅ | 10 min ago | 81 |
+| Nome | URL | No Repo? | Auth |
+|------|-----|----------|------|
+| `decrypt-customer-data` | `.../decrypt-customer-data` | ✅ | producer_sessions |
+| `decrypt-customer-data-batch` | `.../decrypt-customer-data-batch` | ✅ | producer_sessions |
+| `encrypt-token` | `.../encrypt-token` | ✅ | producer_sessions |
+| `security-management` | `.../security-management` | ✅ | producer_sessions |
+| `verify-turnstile` | `.../verify-turnstile` | ✅ | public |
 
 ### User Management
 
-| Nome | URL | No Repo? | Última Atividade | Invocações |
-|------|-----|----------|------------------|------------|
-| `get-users-with-emails` | `.../get-users-with-emails` | ✅ | 10 min ago | 199 |
-| `manage-user-role` | `.../manage-user-role` | ✅ | 10 min ago | 201 |
-| `manage-user-status` | `.../manage-user-status` | ✅ | 10 min ago | 199 |
-| `producer-auth` | `.../producer-auth` | ✅ | 10 min ago | 65 |
-| `product-crud` | `.../product-crud` | ✅ | 10 min ago | 9 |
-| `products-crud` | `.../products-crud` | ✅ | NEW | 0 |
-| `product-settings` | `.../product-settings` | ✅ | 10 min ago | 9 |
-| `product-entities` | `.../product-entities` | ✅ | NEW | 0 |
-| `offer-crud` | `.../offer-crud` | ✅ | 10 min ago | 8 |
-| `offer-bulk` | `.../offer-bulk` | ✅ | 10 min ago | 8 |
-| `checkout-crud` | `.../checkout-crud` | ✅ | 10 min ago | 10 |
-| `checkout-editor` | `.../checkout-editor` | ✅ | 10 min ago | 10 |
-| `checkout-public-data` | `.../checkout-public-data` | ✅ | NEW | 0 |
-| `order-bump-crud` | `.../order-bump-crud` | ✅ | 10 min ago | 10 |
-| `product-duplicate` | `.../product-duplicate` | ✅ | 10 min ago | 20 |
-| `coupon-management` | `.../coupon-management` | ✅ | 10 min ago | 17 |
-| `integration-management` | `.../integration-management` | ✅ | 10 min ago | 17 |
-| `vendor-integrations` | `.../vendor-integrations` | ✅ | NEW | 0 |
-| `affiliation-public` | `.../affiliation-public` | ✅ | NEW | 0 |
+| Nome | URL | No Repo? | Auth |
+|------|-----|----------|------|
+| `get-users-with-emails` | `.../get-users-with-emails` | ✅ | producer_sessions |
+| `manage-user-role` | `.../manage-user-role` | ✅ | producer_sessions |
+| `manage-user-status` | `.../manage-user-status` | ✅ | producer_sessions |
+| `producer-auth` | `.../producer-auth` | ✅ | public |
+| `product-crud` | `.../product-crud` | ✅ | producer_sessions |
+| `product-settings` | `.../product-settings` | ✅ | producer_sessions |
+| `offer-crud` | `.../offer-crud` | ✅ | producer_sessions |
+| `offer-bulk` | `.../offer-bulk` | ✅ | producer_sessions |
+| `checkout-crud` | `.../checkout-crud` | ✅ | producer_sessions |
+| `checkout-editor` | `.../checkout-editor` | ✅ | producer_sessions |
+| `order-bump-crud` | `.../order-bump-crud` | ✅ | producer_sessions |
+| `product-duplicate` | `.../product-duplicate` | ✅ | producer_sessions |
+| `coupon-management` | `.../coupon-management` | ✅ | producer_sessions |
+| `integration-management` | `.../integration-management` | ✅ | producer_sessions |
 
 ### Affiliates
 
-| Nome | URL | No Repo? | Última Atividade | Invocações |
-|------|-----|----------|------------------|------------|
-| `manage-affiliation` | `.../manage-affiliation` | ✅ | 10 min ago | 332 |
-| `request-affiliation` | `.../request-affiliation` | ✅ | 10 min ago | 337 |
-| `update-affiliate-settings` | `.../update-affiliate-settings` | ✅ | 10 min ago | 137 |
-| `get-affiliation-details` | `.../get-affiliation-details` | ✅ | 10 min ago | 27 |
-| `get-affiliation-status` | `.../get-affiliation-status` | ✅ | 10 min ago | 27 |
-| `get-all-affiliation-statuses` | `.../get-all-affiliation-statuses` | ✅ | 10 min ago | 25 |
-| `get-my-affiliations` | `.../get-my-affiliations` | ✅ | 10 min ago | 27 |
-| `affiliate-pixel-management` | `.../affiliate-pixel-management` | ✅ | 10 min ago | 1 |
+| Nome | URL | No Repo? | Auth |
+|------|-----|----------|------|
+| `manage-affiliation` | `.../manage-affiliation` | ✅ | producer_sessions |
+| `request-affiliation` | `.../request-affiliation` | ✅ | producer_sessions |
+| `update-affiliate-settings` | `.../update-affiliate-settings` | ✅ | producer_sessions |
+| `get-affiliation-details` | `.../get-affiliation-details` | ✅ | producer_sessions |
+| `get-affiliation-status` | `.../get-affiliation-status` | ✅ | producer_sessions |
+| `get-all-affiliation-statuses` | `.../get-all-affiliation-statuses` | ✅ | producer_sessions |
+| `get-my-affiliations` | `.../get-my-affiliations` | ✅ | producer_sessions |
+| `affiliate-pixel-management` | `.../affiliate-pixel-management` | ✅ | producer_sessions |
 
 ### Pixels
 
-| Nome | URL | No Repo? | Última Atividade | Invocações |
-|------|-----|----------|------------------|------------|
-| `pixel-management` | `.../pixel-management` | ✅ | 10 min ago | 13 |
+| Nome | URL | No Repo? | Auth |
+|------|-----|----------|------|
+| `pixel-management` | `.../pixel-management` | ✅ | producer_sessions |
 
 ### LGPD/GDPR
 
-| Nome | URL | No Repo? | Última Atividade | Invocações |
-|------|-----|----------|------------------|------------|
-| `gdpr-forget` | `.../gdpr-forget` | ✅ | 10 min ago | 40 |
-| `gdpr-request` | `.../gdpr-request` | ✅ | 10 min ago | 40 |
+| Nome | URL | No Repo? | Auth |
+|------|-----|----------|------|
+| `gdpr-forget` | `.../gdpr-forget` | ✅ | public |
+| `gdpr-request` | `.../gdpr-request` | ✅ | public |
 
 ### Vault & Credentials
 
-| Nome | URL | No Repo? | Última Atividade | Invocações |
-|------|-----|----------|------------------|------------|
-| `vault-save` | `.../vault-save` | ✅ | 10 min ago | 136 |
-| `vault-migration` | `.../vault-migration` | ✅ | 10 min ago | 137 |
-| `check-secrets` | `.../check-secrets` | ✅ | 21 days ago | 14 |
+| Nome | URL | No Repo? | Auth |
+|------|-----|----------|------|
+| `vault-save` | `.../vault-save` | ✅ | producer_sessions |
 
 ### Health & Diagnostics
 
-| Nome | URL | No Repo? | Última Atividade | Invocações |
-|------|-----|----------|------------------|------------|
-| `admin-health` | `.../admin-health` | ✅ | 2026-01-13 | 0 |
-| `health` | `.../health` | ✅ | 10 min ago | 290 |
-| `smoke-test` | `.../smoke-test` | ✅ | 10 min ago | 89 |
-| `test-deploy` | `.../test-deploy` | ✅ | 10 min ago | 175 |
+| Nome | URL | No Repo? | Auth |
+|------|-----|----------|------|
+| `admin-health` | `.../admin-health` | ✅ | producer_sessions |
+| `health` | `.../health` | ✅ | public |
+| `smoke-test` | `.../smoke-test` | ✅ | public |
+| `test-deploy` | `.../test-deploy` | ✅ | public |
+| `check-secrets` | `.../check-secrets` | ✅ | public |
 
 ### Owner
 
-| Nome | URL | No Repo? | Última Atividade | Invocações |
-|------|-----|----------|------------------|------------|
-| `owner-settings` | `.../owner-settings` | ✅ | 2026-01-13 | 0 |
+| Nome | URL | No Repo? | Auth |
+|------|-----|----------|------|
+| `owner-settings` | `.../owner-settings` | ✅ | producer_sessions |
 
-### Utilities
+### RISE Protocol V2
 
-| Nome | URL | No Repo? | Última Atividade | Invocações |
-|------|-----|----------|------------------|------------|
-
+| Nome | URL | No Repo? | Auth |
+|------|-----|----------|------|
+| `rpc-proxy` | `.../rpc-proxy` | ✅ | producer_sessions |
+| `storage-management` | `.../storage-management` | ✅ | producer_sessions |
 
 ---
 
 ## Funções NÃO Presentes no Código Local (0)
 
-> ✅ **Todas as funções estão sincronizadas!** Não há mais dívida técnica de funções deployed-only.
-
-| Função | Categoria | Ação Recomendada |
-|--------|-----------|------------------|
-| - | - | Nenhuma ação necessária |
+> ✅ **Todas as funções estão sincronizadas!** Não há mais dívida técnica.
 
 ---
 
 ## Notas de Manutenção
+
+### Regras de Autenticação (RISE V3)
+
+1. **NUNCA** use `verify_jwt = true` para funções que usam `producer_sessions`
+2. Funções de dashboard DEVEM usar `unified-auth.ts`
+3. Funções de buyer portal DEVEM usar `buyer_token`
+4. Webhooks DEVEM validar signature/payload, não JWT
 
 ### Como Atualizar Este Documento
 
 1. Acesse o Supabase Dashboard → Edge Functions
 2. Copie a lista de funções
 3. Compare com este documento
-4. Atualize as métricas e datas
+4. Atualize as métricas e auth mechanisms
 
 ### Convenções
 
 - ✅ = Presente no código local (`supabase/functions/`)
-- ❌ = Apenas deployada (não está no repo)
-- **Legacy** = Função antiga que deve ser deprecada
-- **Duplicate** = Função duplicada, manter apenas uma
-- **One-time** = Função de migração/fix que pode ser removida
+- **producer_sessions** = Autenticação via X-Producer-Session-Token
+- **buyer_token** = Autenticação via X-Buyer-Session
+- **public** = Sem autenticação
+- **webhook** = Validação de signature
+- **internal** = Chamada interna (cron, outras edge functions)
+- **oauth** = Callback de OAuth flow
 
 ### Changelog
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-17 | **RISE V3 AUTH STANDARDIZATION** - Padronização completa de autenticação |
+| 2026-01-17 | Migrado `get-users-with-emails` para unified-auth (v2.0.0) |
+| 2026-01-17 | Migrado `send-email` para unified-auth (v2.0.0) |
+| 2026-01-17 | Removidas referências órfãs: `migrate-credentials-to-vault`, `migrate-vendor-credentials-to-vault` |
+| 2026-01-17 | Corrigido `verify_jwt` para `manage-user-role`, `manage-user-status`, `update-affiliate-settings` |
+| 2026-01-17 | Corrigido `verify_jwt` para `decrypt-customer-data`, `decrypt-customer-data-batch` |
+| 2026-01-17 | Adicionada seção "Mecanismos de Autenticação" com tabela completa |
+| 2026-01-17 | Total de funções com verify_jwt=true: **0** ✅ |
 | 2026-01-16 | **AUDITORIA FINAL - MIGRAÇÃO 100% COMPLETA** ✅ |
 | 2026-01-16 | Deletado `src/api/storage/remove.ts` - substituído por `storage-management` Edge Function |
-| 2026-01-16 | **MIGRAÇÃO FRONTEND → EDGE FUNCTIONS** (10 arquivos): |
-| 2026-01-16 | - `WebhooksConfig.tsx` → `webhook-crud` (listWebhooksWithProducts, listUserProducts) |
-| 2026-01-16 | - `WebhookForm.tsx` → `webhook-crud` (getWebhookProducts) |
-| 2026-01-16 | - `AffiliatesTab.tsx` → `admin-data` (affiliate-gateway-settings) |
-| 2026-01-16 | - `MarketplaceSettings.tsx` → `admin-data` (marketplace-categories) |
-| 2026-01-16 | - `useMembersAreaSettings.ts` → `admin-data` (members-area-settings, members-area-modules-with-contents) |
-| 2026-01-16 | - `MenuPreview.tsx` → `admin-data` (user-profile-name) |
-| 2026-01-16 | - `StripePix.tsx` → `checkout-public-data` (check-order-payment-status) |
-| 2026-01-16 | - `uniqueCheckoutName.ts` → `admin-data` (check-unique-checkout-name) |
-| 2026-01-16 | Expandida `admin-data` com 7 novas actions: marketplace-categories, marketplace-stats, user-profile-name, check-unique-checkout-name, user-products-simple, members-area-settings, members-area-modules-with-contents |
-| 2026-01-16 | Expandida `webhook-crud` com 3 novas actions: listWebhooksWithProducts, listUserProducts, getWebhookProducts |
-| 2026-01-16 | Expandida `checkout-public-data` com action: check-order-payment-status |
-| 2026-01-16 | **RISE V2 REFACTOR**: `reconcile-pending-orders` (475 linhas) dividida em 4 Edge Functions especializadas |
-| 2026-01-16 | Criada `reconcile-mercadopago` (~115 linhas) - Reconciliação MercadoPago |
-| 2026-01-16 | Criada `reconcile-asaas` (~115 linhas) - Reconciliação Asaas |
-| 2026-01-16 | Criada `grant-member-access` (~95 linhas) - Concessão de acesso área de membros |
-| 2026-01-16 | `reconcile-pending-orders` refatorada para orquestrador (~105 linhas) |
-| 2026-01-16 | **DT-02 FINAL**: Removida `test-pushinpay-connection` do Registry (função legado deletada) |
-| 2026-01-16 | **DT-08 FIX**: URL hardcoded em `PushinPayAdapter.ts` → dinâmica via `Deno.env.get('SUPABASE_URL')` |
-| 2026-01-16 | **DT-06 FIX**: Criado `_shared/logger.ts` - Logger centralizado com níveis (debug/info/warn/error) |
-| 2026-01-15 | **FIX GATEWAYS**: Criada `pushinpay-validate-token` - validação de token via backend (elimina CSP + segurança) |
-| 2026-01-15 | **FIX GATEWAYS**: Corrigido CORS em `stripe-connect-oauth` - adicionado `x-producer-session-token` aos headers |
-| 2026-01-15 | **FIX GATEWAYS**: Corrigido 406 em PushinPay API - `.single()` → `.maybeSingle()` |
-| 2026-01-15 | **FIX GATEWAYS**: Corrigido walletId persistente em Asaas ConfigForm - não apaga mais valor manual |
-| 2026-01-15 | **VAULT UNIFICADO**: `vault-save` atualizado para usar convenção `gateway_{type}_{vendor_id}` via RPC `save_gateway_credentials` |
-| 2026-01-15 | Correção: Arquitetura Vault unificada - todas as integrações agora usam mesma convenção que OAuth callbacks |
-| 2026-01-15 | Sincronização: `asaas-validate-credentials` e `check-secrets` adicionadas ao código local (eram deployed-only) |
-| 2026-01-15 | Correção: `user_id` → `producer_id` em `pixel-rate-limit.ts`, `affiliate-pixel-management`, `storage-management` |
-| 2026-01-15 | Correção: Normalização snake_case no payload de Order Bumps (`useOrderBumpForm.ts`) |
-| 2026-01-13 | **FASE 3**: Criados 21 stubs para funções deployed-only - DÍVIDA TÉCNICA ZERO! |
-| 2026-01-13 | **FASE 2**: Deletadas 6 funções legado: `webhook-pushingpay`, `forward-to-utmify`, `facebook-conversions-api`, `save-vendor-credentials`, `migrate-credentials-to-vault`, `fix-inactive-products` |
-| 2026-01-13 | **REFATORAÇÃO FASE 1.4**: `members-area-students` (1155 linhas) dividida em 4 Edge Functions especializadas |
-| 2026-01-13 | Criada `students-invite` (~280 linhas) - Convites: invite, auto-invite |
-| 2026-01-13 | Criada `students-access` (~100 linhas) - Acesso: grant-access, revoke-access |
-| 2026-01-13 | Criada `students-groups` (~140 linhas) - Grupos: assign-groups |
-| 2026-01-13 | Criada `students-list` (~250 linhas) - Listagem: list |
-| 2026-01-13 | Migrados 4 arquivos frontend para usar novas Edge Functions de students |
-| 2026-01-13 | Deletada `members-area-students` (substituída pelas 4 novas funções) |
-| 2026-01-13 | **REFATORAÇÃO FASE 1.4**: `members-area-content` (584 linhas) dividida em 2 Edge Functions especializadas |
-| 2026-01-13 | Criada `content-crud` (~260 linhas) - CRUD: create, update, delete, reorder |
-| 2026-01-13 | Criada `content-save` (~230 linhas) - Save: save-full (atomic) |
-| 2026-01-13 | Migrados 2 arquivos frontend para usar novas Edge Functions de content |
-| 2026-01-13 | Deletada `members-area-content` (substituída pelas 2 novas funções) |
-| 2026-01-13 | **REFATORAÇÃO FASE 1.3**: `offer-management` (603 linhas) dividida em 2 Edge Functions especializadas |
-| 2026-01-13 | Criada `offer-crud` (~280 linhas) - CRUD individual: create, update, delete |
-| 2026-01-13 | Criada `offer-bulk` (~220 linhas) - Bulk operations: bulk-save |
-| 2026-01-13 | Migrado `useGeneralTab.ts` para usar novas Edge Functions de oferta |
-| 2026-01-13 | Deletada `offer-management` (substituída pelas 2 novas funções) |
-| 2026-01-13 | **REFATORAÇÃO FASE 1.2**: `product-management` (954 linhas) dividida em 2 Edge Functions especializadas |
-| 2026-01-13 | Criada `product-crud` (~280 linhas) - CRUD básico: create, update, delete |
-| 2026-01-13 | Criada `product-settings` (~300 linhas) - Settings: update-settings, update-general, smart-delete, update-price |
-| 2026-01-13 | Migrados 6 arquivos frontend para usar novas Edge Functions de produto |
-| 2026-01-13 | Deletada `product-management` (substituída pelas 2 novas funções) |
-| 2026-01-13 | **REFATORAÇÃO FASE 1.1**: `checkout-management` (1354 linhas) dividida em 3 Edge Functions especializadas |
-| 2026-01-13 | Criada `checkout-crud` (~296 linhas) - CRUD de checkouts: create, update, set-default, delete, toggle-link-status |
-| 2026-01-13 | Criada `checkout-editor` (~239 linhas) - Editor: get-editor-data, update-design |
-| 2026-01-13 | Criada `order-bump-crud` (~213 linhas) - CRUD de order bumps: create, update, delete, reorder |
-| 2026-01-13 | Migrados 6 arquivos frontend para usar novas Edge Functions especializadas |
-| 2026-01-13 | Deletada `checkout-management` (substituída pelas 3 novas funções) |
-| 2026-01-13 | Criados módulos compartilhados: `_shared/session.ts`, `_shared/response.ts`, `_shared/ownership.ts` |
-| 2026-01-13 | Criada `pixel-management` Edge Function - migração completa de `useVendorPixels.ts` |
-| 2026-01-13 | Adicionadas 4 funções de afiliação ao Registry: `get-affiliation-details`, `get-affiliation-status`, `get-all-affiliation-statuses`, `get-my-affiliations` |
-| 2026-01-13 | Adicionado rate limiting em `members-area-modules` e `members-area-content` |
-| 2026-01-13 | Adicionada ação `update-price` em `product-management` - atualização atômica de preço |
-| 2026-01-13 | Adicionada ação `order-bump/reorder` em `checkout-management` - reordenação via Edge Function |
-| 2026-01-13 | Migrado `EditPriceDialog.tsx` - zero operações diretas ao banco |
-| 2026-01-13 | Migrado `OrderBumpList.tsx` - zero operações diretas ao banco (reorder e delete) |
-| 2026-01-13 | Expandida `checkout-management` com ações `get-editor-data` e `update-design` |
-| 2026-01-13 | Migrado `CheckoutCustomizer.tsx` - zero operações diretas ao banco |
-| 2026-01-12 | Adicionadas `members-area-modules` e `members-area-content` - migração completa da Members Area |
-| 2026-01-12 | Expandida `product-management` com ação `update-general` |
-| 2026-01-12 | Removidos hooks `useDripSettings` e `useAttachmentUpload` - lógica integrada em `members-area-content` |
-| 2026-01-12 | Adicionadas `coupon-management` e `integration-management` - migração completa de CuponsTab e MercadoPagoConfig |
-| 2026-01-13 | ✅ **MIGRAÇÃO 100% COMPLETA** - Zero operações diretas no frontend |
-| 2026-01-13 | Adicionada `webhook-crud` para CRUD de webhooks via backend |
-| 2026-01-13 | Migrados: WebhooksConfig, AffiliatesTab, useMembersAreaSettings, useMembersAreaBuilder |
-| 2026-01-13 | Expandida `integration-management` com `save-profile-wallet`, `clear-profile-wallet` |
-| 2026-01-13 | Expandida `product-settings` com `update-affiliate-gateway-settings`, `update-members-area-settings` |
-| 2026-01-13 | Expandida `members-area-modules` com `save-sections`, `save-builder-settings` |
-| 2026-01-13 | **REFATORAÇÃO RISE PROTOCOL V2 - FASE 1**: Transformados 5 `index.ts` em Routers puros |
-| 2026-01-13 | Criado `buyer-auth-email-templates.ts` (85 linhas) |
-| 2026-01-13 | Criado `buyer-auth-producer-handlers.ts` (194 linhas) |
-| 2026-01-13 | Criado `product-duplicate-handlers.ts` (305 linhas) |
-| 2026-01-13 | Corrigido `any` → `SupabaseClient` em 23+ funções de handlers |
-| 2026-01-13 | Reduzido `producer-auth/index.ts`: 570→95 linhas (-83%) |
-| 2026-01-13 | Reduzido `members-area-modules/index.ts`: 568→137 linhas (-76%) |
-| 2026-01-13 | Reduzido `coupon-management/index.ts`: 522→113 linhas (-78%) |
-| 2026-01-13 | Reduzido `product-duplicate/index.ts`: 363→120 linhas (-67%) |
-| 2026-01-13 | Corrigido log functions em `trigger-webhooks/index.ts` (`any` → `unknown`) |
-| 2026-01-13 | **REFATORAÇÃO RISE PROTOCOL V2 - FASE 2**: Transformados mais 5 `index.ts` em Routers puros |
-| 2026-01-13 | Dividido `email-templates.ts` em 5 arquivos modulares (553→39 linhas barrel) |
-| 2026-01-13 | Criado `email-templates-base.ts` (233 linhas) - Tipos e helpers |
-| 2026-01-13 | Criado `email-templates-purchase.ts` (146 linhas) - Templates de compra |
-| 2026-01-13 | Criado `email-templates-payment.ts` (95 linhas) - Templates de pagamento |
-| 2026-01-13 | Criado `email-templates-seller.ts` (114 linhas) - Templates do vendedor |
-| 2026-01-13 | Criado `trigger-webhooks-handlers.ts` (295 linhas) - Handlers de webhooks |
-| 2026-01-13 | Criado `integration-handlers.ts` (393 linhas) - Handlers de integrações |
-| 2026-01-13 | Criado `smoke-test-handlers.ts` (271 linhas) - Handlers de smoke test |
-| 2026-01-13 | Reduzido `trigger-webhooks/index.ts`: 438→120 linhas (-73%) |
-| 2026-01-13 | Reduzido `integration-management/index.ts`: 429→85 linhas (-80%) |
-| 2026-01-13 | Reduzido `smoke-test/index.ts`: 409→59 linhas (-86%) |
-| 2026-01-13 | Reduzido `product-crud/index.ts`: 322→102 linhas (-68%) |
-| 2026-01-13 | Reduzido `offer-crud/index.ts`: 329→96 linhas (-71%) |
-| 2026-01-13 | Dividido `producer-auth-handlers.ts`: extraído `producer-auth-session-handlers.ts` (121 linhas) |
-| 2026-01-13 | Dividido `product-duplicate-handlers.ts`: extraído `product-duplicate-cloner.ts` (144 linhas) |
-| 2026-01-13 | Dividido `coupon-handlers.ts`: extraído `coupon-validation.ts` (124 linhas) |
-| 2026-01-13 | Criado `product-crud-handlers.ts` (271 linhas) - CRUD de produtos |
-| 2026-01-13 | Criado `offer-crud-handlers.ts` (269 linhas) - CRUD de ofertas |
-| 2026-01-13 | Dividido `buyer-auth-handlers.ts`: extraído `buyer-auth-password.ts` (93 linhas) |
-| 2026-01-13 | Dividido `pixel-handlers.ts`: extraído `pixel-rate-limit.ts` (143 linhas) |
-| 2026-01-13 | **FASE 2 COMPLETA**: 14 novos handlers, 10 routers puros, 93% conformidade RISE Protocol |
-| 2026-01-12 | Expandida `product-management` com ações `update-settings` e `smart-delete` |
-| 2026-01-12 | Expandida `checkout-management` com ação `toggle-link-status` |
-| 2026-01-12 | Expandida `members-area-students` com ação `assign_groups` |
-| 2026-01-12 | Migrados frontends: useProductSettings, deleteProduct, CuponsTab, LinksTab, StudentsTab |
-| 2026-01-12 | Expandida `checkout-management` com ações CREATE, UPDATE e SET-DEFAULT |
-| 2026-01-12 | Adicionadas `offer-management`, `checkout-management`, `product-duplicate` |
-| 2026-01-12 | Adicionada `product-management` para CRUD de produtos via backend |
-| 2026-01-12 | Criação inicial do documento com 66 funções |
-
----
-
-## Módulos Compartilhados (`_shared/`)
-
-### Tipos e Helpers Base
-
-| Arquivo | Linhas | Descrição |
-|---------|--------|-----------|
-| `supabase-types.ts` | 222 | Tipos centralizados (SupabaseClient, interfaces) |
-| `edge-helpers.ts` | 275 | Helpers: jsonResponse, errorResponse, validateSession |
-| `cors.ts` | ~50 | CORS seguro com lista de origens permitidas |
-| `sentry.ts` | ~80 | Integração com Sentry para tracking de erros |
-| `rate-limit.ts` | ~100 | Rate limiting usando `rate_limit_attempts` |
-| `session.ts` | ~60 | Validação de sessão do produtor |
-| `response.ts` | ~50 | Helpers para respostas JSON padronizadas |
-| `ownership.ts` | ~80 | Verificação de ownership (produto, checkout, offer, pixel) |
-
-### Handlers de Autenticação
-
-| Arquivo | Linhas | Descrição |
-|---------|--------|-----------|
-| `producer-auth-handlers.ts` | 379 | Register, Login, Logout, Validate |
-| `producer-auth-reset-handlers.ts` | ~150 | Password reset flow |
-| `producer-auth-helpers.ts` | ~100 | Helpers de autenticação |
-| `buyer-auth-handlers.ts` | 330 | Register, Login, Logout |
-| `buyer-auth-handlers-extended.ts` | 318 | Validate, CheckEmail, Password reset |
-| `buyer-auth-producer-handlers.ts` | 194 | Producer-specific buyer auth |
-| `buyer-auth-email-templates.ts` | 85 | Email templates |
-| `unified-auth.ts` | ~200 | Autenticação cross-system |
-
-### Handlers de Negócio
-
-| Arquivo | Linhas | Descrição |
-|---------|--------|-----------|
-| `members-area-handlers.ts` | 301 | CRUD de módulos |
-| `members-area-sections-handlers.ts` | ~150 | Sections e builder settings |
-| `coupon-handlers.ts` | 353 | CRUD de cupons |
-| `product-duplicate-handlers.ts` | 305 | Duplicação de produtos |
-
----
-
-## Referência Rápida
-
-```bash
-# Base URL para todas as funções
-https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/{function-name}
-
-# Exemplo de chamada
-curl -X POST \
-  https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/health \
-  -H "Authorization: Bearer YOUR_ANON_KEY"
-```
+| 2026-01-16 | **MIGRAÇÃO FRONTEND → EDGE FUNCTIONS** (10 arquivos) |
+| 2026-01-16 | **RISE V2 REFACTOR**: `reconcile-pending-orders` dividida em 4 Edge Functions |
+| 2026-01-15 | **FIX GATEWAYS**: Criada `pushinpay-validate-token` |
+| 2026-01-13 | **FASE 3**: Criados 21 stubs para funções deployed-only |

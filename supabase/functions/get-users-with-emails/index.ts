@@ -7,15 +7,15 @@
  * - Apenas owner pode ver emails
  * - Outros roles recebem lista vazia
  * - CORS restrito a domínios permitidos
+ * - Autenticação via producer_sessions (unified-auth)
  * 
- * @version 1.1.0
+ * @version 2.0.0 - RISE V3 Compliance (unified-auth migration)
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared/rate-limiter.ts";
-
-type AppRole = "owner" | "admin" | "user" | "seller";
+import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 
 Deno.serve(async (req: Request) => {
   // SECURITY: Validação CORS com bloqueio de origens inválidas
@@ -27,7 +27,6 @@ Deno.serve(async (req: Request) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
@@ -43,47 +42,20 @@ Deno.serve(async (req: Request) => {
       return rateLimitResult;
     }
 
-    // Verificar autenticação
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    // RISE V3: Autenticação via producer_sessions (unified-auth)
+    let producer;
+    try {
+      producer = await requireAuthenticatedProducer(supabaseAdmin, req);
+    } catch {
       return new Response(
         JSON.stringify({ error: "Não autorizado", emails: {} }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    const { data: { user: caller }, error: authError } = await supabaseAuth.auth.getUser();
-    if (authError || !caller) {
-      return new Response(
-        JSON.stringify({ error: "Usuário não autenticado", emails: {} }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Buscar role do caller
-    const { data: callerRoleData, error: callerRoleError } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", caller.id)
-      .single();
-
-    if (callerRoleError || !callerRoleData) {
-      console.error("[get-users-with-emails] Erro ao buscar role:", callerRoleError);
-      return new Response(
-        JSON.stringify({ error: "Erro ao verificar permissões", emails: {} }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const callerRole = callerRoleData.role as AppRole;
-
     // Apenas owner pode ver emails
-    if (callerRole !== "owner") {
-      console.log(`[get-users-with-emails] Acesso negado para ${caller.id} (role: ${callerRole})`);
+    if (producer.role !== "owner") {
+      console.log(`[get-users-with-emails] Acesso negado para ${producer.id} (role: ${producer.role})`);
       return new Response(
         JSON.stringify({ emails: {} }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -109,7 +81,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    console.log(`[get-users-with-emails] Owner ${caller.id} buscou ${Object.keys(emails).length} emails`);
+    console.log(`[get-users-with-emails] Owner ${producer.id} buscou ${Object.keys(emails).length} emails`);
 
     return new Response(
       JSON.stringify({ emails }),
