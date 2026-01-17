@@ -67,7 +67,10 @@ export function useSettingsHandlerRegistration({
       async () => {
         await saveUpsellSettings(upsellSettings);
       },
-      { order: 30 }
+      { 
+        order: 30,
+        tabKey: 'upsell',
+      }
     );
 
     // Registrar handler de Affiliate (order: 40)
@@ -76,7 +79,10 @@ export function useSettingsHandlerRegistration({
       async () => {
         await saveAffiliateSettings(affiliateSettings);
       },
-      { order: 40 }
+      { 
+        order: 40,
+        tabKey: 'afiliados',
+      }
     );
 
     // Cleanup: remover handlers quando dependências mudam ou unmount

@@ -209,8 +209,16 @@ export function useGeneralTab() {
         resetOffers();
       },
       {
-        validate: () => validateGeneralForm(),
-        order: 10, // General tab salva primeiro
+        validate: () => {
+          const result = validateGeneralForm();
+          return {
+            isValid: result,
+            errors: result ? {} : { name: "Campos obrigatórios não preenchidos" },
+            tabKey: 'geral',
+          };
+        },
+        order: 10,
+        tabKey: 'geral',
       }
     );
 

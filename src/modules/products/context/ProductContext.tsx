@@ -21,9 +21,10 @@ import type { RegisterSaveHandler } from "../types/saveRegistry.types";
 import { productFormReducer, INITIAL_FORM_STATE, formActions } from "./productFormReducer";
 
 // Hooks especializados
-import { useProductCore, useProductEntities, useProductCheckouts, useSettingsHandlerRegistration } from "./hooks";
+import { useProductCore, useProductEntities, useProductCheckouts, useSettingsHandlerRegistration, useTabValidation } from "./hooks";
 import { useProductSettings as useProductSettingsAdapter } from "./hooks/useProductSettingsAdapter";
 import { useSaveRegistry } from "./hooks/useSaveRegistry";
+import type { TabValidationMap } from "../types/tabValidation.types";
 
 // Helpers
 import {
@@ -65,6 +66,12 @@ interface ProductContextExtended extends ProductContextState {
   initCheckoutSettings: (settings: CheckoutSettingsFormData, credentials: GatewayCredentials) => void;
   // Save Registry Pattern
   registerSaveHandler: RegisterSaveHandler;
+  // Tab Validation - Sistema de validação global
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+  tabErrors: TabValidationMap;
+  setTabErrors: (errors: TabValidationMap) => void;
+  clearTabErrors: () => void;
 }
 
 // ============================================================================
@@ -85,6 +92,9 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
 
   // Save Registry: Open/Closed Pattern
   const { registerSaveHandler, executeAll: executeRegistrySaves } = useSaveRegistry();
+
+  // Tab Validation: Sistema de validação global
+  const { activeTab, setActiveTab, tabErrors, setTabErrors, clearTabErrors } = useTabValidation();
 
   // Estados de UI
   const [loading, setLoading] = useState(false);
@@ -219,16 +229,24 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
 
   const saveAll = useCallback(async () => {
     setSaving(true);
+    // Limpa erros anteriores
+    clearTabErrors();
+    
     try {
-      // Executa todos os handlers registrados (General, Checkout Settings, etc.)
       const result = await executeRegistrySaves();
       
       if (!result.success) {
-        if (result.failedKey) {
-          toast.error(`Validação falhou em: ${result.failedKey}`);
-        } else {
-          throw result.error || new Error("Erro desconhecido");
+        // Popula erros de validação por aba
+        if (result.tabErrors) {
+          setTabErrors(result.tabErrors);
         }
+        
+        // Navega para primeira aba com erro
+        if (result.firstFailedTabKey) {
+          setActiveTab(result.firstFailedTabKey);
+        }
+        
+        toast.error("Corrija os campos obrigatórios antes de salvar");
         return;
       }
 
@@ -240,7 +258,7 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     } finally {
       setSaving(false);
     }
-  }, [executeRegistrySaves]);
+  }, [executeRegistrySaves, clearTabErrors, setTabErrors, setActiveTab]);
 
   // Context value (extraído para factory)
   const contextValue = createContextValue({
@@ -267,6 +285,11 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     saveAll,
     refreshAll,
     registerSaveHandler,
+    activeTab,
+    setActiveTab,
+    tabErrors,
+    setTabErrors,
+    clearTabErrors,
     ...legacyCallbacks,
   }) as ProductContextExtended;
 
