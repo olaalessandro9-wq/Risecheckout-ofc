@@ -187,6 +187,7 @@ export interface ProductContextState {
   updateSettingsModified: (modified: boolean) => void;
   updateGeneralModified: (modified: boolean) => void;
   updateUpsellModified: (modified: boolean) => void;
+  resetDirtySources: () => void;
   
   // Funções de atualização do produto
   updateProduct: (field: keyof ProductData, value: ProductData[keyof ProductData]) => void;

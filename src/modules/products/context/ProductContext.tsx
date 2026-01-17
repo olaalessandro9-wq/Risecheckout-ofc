@@ -97,6 +97,11 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     []
   );
 
+  // Reset all dirty sources - used for programmatic navigation (e.g., after duplication)
+  const resetDirtySources = useCallback(() => {
+    setDirtySources({ general: false, settings: false, core: false, upsell: false });
+  }, []);
+
   // ---------------------------------------------------------------------------
   // HOOKS ESPECIALIZADOS
   // ---------------------------------------------------------------------------
@@ -240,6 +245,7 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     updateSettingsModified,
     updateGeneralModified,
     updateUpsellModified,
+    resetDirtySources,
 
     // Funções de atualização
     updateProduct: core.updateProduct,

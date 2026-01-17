@@ -44,7 +44,7 @@ interface Checkout {
 }
 
 export function CheckoutTab() {
-  const { product, checkouts, refreshCheckouts } = useProductContext();
+  const { product, checkouts, refreshCheckouts, resetDirtySources } = useProductContext();
   const navigate = useNavigate();
   const { confirm, Bridge } = useConfirmDelete();
   const busy = useBusy();
@@ -111,6 +111,9 @@ export function CheckoutTab() {
           await refreshCheckouts();
           
           toast.success("Checkout duplicado com sucesso!");
+          
+          // Reset dirty sources before navigation to prevent unsaved changes popup
+          resetDirtySources();
           
           // Navegar para personalização do novo checkout
           navigate(editUrl);
