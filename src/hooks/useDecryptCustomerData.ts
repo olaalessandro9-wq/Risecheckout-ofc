@@ -1,5 +1,19 @@
+/**
+ * useDecryptCustomerData
+ * 
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
+ * @see RISE Protocol V2 - Zero database access from frontend
+ */
+
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
+
+interface DecryptCustomerDataResponse {
+  success?: boolean;
+  error?: string;
+  data?: DecryptedData;
+  access_type?: "vendor" | "admin";
+}
 
 interface DecryptedData {
   customer_phone: string | null;
@@ -40,12 +54,12 @@ export function useDecryptCustomerData(
     setError(null);
 
     try {
-      const { data, error: fnError } = await supabase.functions.invoke("decrypt-customer-data", {
-        body: { order_id: orderId },
+      const { data, error: fnError } = await api.call<DecryptCustomerDataResponse>("decrypt-customer-data", {
+        order_id: orderId,
       });
 
       if (fnError) {
-        throw new Error(fnError.message || "Erro ao descriptografar dados");
+        throw new Error(String(fnError) || "Erro ao descriptografar dados");
       }
 
       if (!data?.success) {

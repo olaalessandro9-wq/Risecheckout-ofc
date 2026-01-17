@@ -12,8 +12,22 @@
 
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { usePermissions, AppRole } from "@/hooks/usePermissions";
+
+interface UsersWithEmailsResponse {
+  emails?: Record<string, string>;
+}
+
+interface AdminUsersResponse {
+  error?: string;
+  users?: UserWithRole[];
+}
+
+interface ManageUserRoleResponse {
+  success?: boolean;
+  error?: string;
+}
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -125,7 +139,7 @@ export function AdminUsersTab() {
   const { data: usersWithEmails } = useQuery({
     queryKey: ["admin-users-emails"],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("get-users-with-emails");
+      const { data, error } = await api.call<UsersWithEmailsResponse>("get-users-with-emails", {});
       if (error) {
         console.error("Erro ao buscar emails:", error);
         return {};
@@ -139,11 +153,11 @@ export function AdminUsersTab() {
   const { data: users, isLoading } = useQuery({
     queryKey: ["admin-users-with-metrics"],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("admin-data", {
-        body: { action: "users-with-metrics" },
+      const { data, error } = await api.call<AdminUsersResponse>("admin-data", {
+        action: "users-with-metrics",
       });
 
-      if (error) throw error;
+      if (error) throw new Error(String(error));
       if (data?.error) throw new Error(data.error);
 
       return data?.users || [];
@@ -176,11 +190,12 @@ export function AdminUsersTab() {
   // Mutation para alterar role
   const changeRoleMutation = useMutation({
     mutationFn: async ({ userId, newRole }: { userId: string; newRole: AppRole }) => {
-      const { data, error } = await supabase.functions.invoke("manage-user-role", {
-        body: { targetUserId: userId, newRole },
+      const { data, error } = await api.call<ManageUserRoleResponse>("manage-user-role", {
+        targetUserId: userId,
+        newRole,
       });
 
-      if (error) throw error;
+      if (error) throw new Error(String(error));
       if (data?.error) throw new Error(data.error);
 
       return data;

@@ -5,7 +5,12 @@
  * @see RISE Protocol V2 - Zero database access from frontend
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
+
+interface FetchOrderBumpsResponse {
+  success?: boolean;
+  data?: OrderBumpFormatted[];
+}
 
 export interface OrderBumpRaw {
   id: string;
@@ -44,11 +49,9 @@ export interface OrderBumpFormatted {
 }
 
 export async function fetchOrderBumps(checkoutId: string): Promise<OrderBumpFormatted[]> {
-  const { data, error } = await supabase.functions.invoke("checkout-public-data", {
-    body: {
-      action: "order-bumps",
-      checkoutId,
-    },
+  const { data, error } = await api.publicCall<FetchOrderBumpsResponse>("checkout-public-data", {
+    action: "order-bumps",
+    checkoutId,
   });
 
   if (error) {

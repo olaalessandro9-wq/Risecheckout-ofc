@@ -6,7 +6,16 @@
  */
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
+
+interface AffiliationProductResponse {
+  success?: boolean;
+  error?: string;
+  data?: {
+    product: AffiliationProduct;
+    offers: Offer[];
+  };
+}
 
 export interface AffiliateSettings {
   enabled: boolean;
@@ -56,23 +65,21 @@ export function useAffiliationProduct(productId: string | undefined): UseAffilia
 
     const loadData = async () => {
       try {
-        const { data, error: invokeError } = await supabase.functions.invoke("affiliation-public", {
-          body: {
-            action: "all",
-            productId,
-          },
+        const { data, error: invokeError } = await api.publicCall<AffiliationProductResponse>("affiliation-public", {
+          action: "all",
+          productId,
         });
 
         if (invokeError) {
-          throw invokeError;
+          throw new Error(String(invokeError));
         }
 
         if (!data?.success) {
           throw new Error(data?.error || "Erro ao carregar dados");
         }
 
-        setProduct(data.data.product);
-        setOffers(data.data.offers || []);
+        setProduct(data.data!.product);
+        setOffers(data.data!.offers || []);
       } catch (err) {
         console.error("Erro ao carregar produto:", err);
         const message = err instanceof Error ? err.message : "Produto não encontrado ou programa de afiliados desativado.";

@@ -6,7 +6,12 @@
  */
 
 import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
+
+interface TurnstileVerifyResponse {
+  success?: boolean;
+  error?: string;
+}
 
 interface VerificationResult {
   success: boolean;
@@ -65,11 +70,9 @@ export const useTurnstileVerification = () => {
     try {
       console.log('[useTurnstileVerification] Verificando token com backend...');
 
-      const { data, error: invokeError } = await supabase.functions.invoke(
+      const { data, error: invokeError } = await api.publicCall<TurnstileVerifyResponse>(
         'verify-turnstile',
-        {
-          body: { token },
-        }
+        { token }
       );
 
       if (invokeError) {

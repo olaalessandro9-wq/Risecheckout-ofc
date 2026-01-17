@@ -12,8 +12,23 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
+
+interface GoogleAdsConfigResponse {
+  integration?: {
+    active: boolean;
+    config?: {
+      conversion_id?: string;
+      conversion_label?: string;
+    } | null;
+  };
+}
+
+interface VaultSaveResponse {
+  success?: boolean;
+  error?: string;
+}
 
 export function GoogleAdsConfig() {
   const { user } = useAuth();
@@ -32,15 +47,13 @@ export function GoogleAdsConfig() {
   const loadConfig = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase.functions.invoke("vendor-integrations", {
-        body: {
-          action: "get",
-          vendorId: user?.id,
-          integrationType: "GOOGLE_ADS",
-        },
+      const { data, error } = await api.call<GoogleAdsConfigResponse>("vendor-integrations", {
+        action: "get",
+        vendorId: user?.id,
+        integrationType: "GOOGLE_ADS",
       });
 
-      if (error) throw error;
+      if (error) throw new Error(String(error));
 
       if (data?.integration) {
         const config = data.integration.config as { 
@@ -79,17 +92,15 @@ export function GoogleAdsConfig() {
         conversion_label: conversionLabel.trim() || undefined,
       };
 
-      const { data: result, error } = await supabase.functions.invoke("vault-save", {
-        body: {
-          vendor_id: user.id,
-          integration_type: "GOOGLE_ADS",
-          credentials,
-          active,
-        },
+      const { data: result, error } = await api.call<VaultSaveResponse>("vault-save", {
+        vendor_id: user.id,
+        integration_type: "GOOGLE_ADS",
+        credentials,
+        active,
       });
 
       if (error) {
-        throw new Error(error.message || "Erro ao salvar credenciais");
+        throw new Error(String(error) || "Erro ao salvar credenciais");
       }
 
       toast.success("Configuração do Google Ads salva com sucesso!");

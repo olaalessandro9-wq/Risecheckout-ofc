@@ -6,8 +6,21 @@
  */
 
 import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { toast } from 'sonner';
+
+interface CouponValidationResponse {
+  success?: boolean;
+  error?: string;
+  data?: {
+    id: string;
+    code: string;
+    name: string;
+    discount_type: string;
+    discount_value: number;
+    apply_to_order_bumps: boolean;
+  };
+}
 
 export interface AppliedCoupon {
   id: string;
@@ -55,12 +68,10 @@ export function useCouponValidation({ productId }: UseCouponValidationParams): U
         productId
       });
 
-      const { data, error } = await supabase.functions.invoke('checkout-public-data', {
-        body: {
-          action: 'validate-coupon',
-          couponCode: couponCode.trim(),
-          productId,
-        },
+      const { data, error } = await api.publicCall<CouponValidationResponse>('checkout-public-data', {
+        action: 'validate-coupon',
+        couponCode: couponCode.trim(),
+        productId,
       });
 
       if (error) {
