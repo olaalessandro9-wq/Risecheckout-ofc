@@ -2161,6 +2161,7 @@ export type Database = {
           customer_name: string | null
           customer_phone: string | null
           discount_amount_cents: number | null
+          expired_at: string | null
           gateway: string
           gateway_payment_id: string | null
           id: string
@@ -2175,6 +2176,7 @@ export type Database = {
           product_id: string
           product_name: string | null
           status: string
+          technical_status: string | null
           updated_at: string
           vendor_id: string
         }
@@ -2195,6 +2197,7 @@ export type Database = {
           customer_name?: string | null
           customer_phone?: string | null
           discount_amount_cents?: number | null
+          expired_at?: string | null
           gateway: string
           gateway_payment_id?: string | null
           id?: string
@@ -2209,6 +2212,7 @@ export type Database = {
           product_id: string
           product_name?: string | null
           status: string
+          technical_status?: string | null
           updated_at?: string
           vendor_id: string
         }
@@ -2229,6 +2233,7 @@ export type Database = {
           customer_name?: string | null
           customer_phone?: string | null
           discount_amount_cents?: number | null
+          expired_at?: string | null
           gateway?: string
           gateway_payment_id?: string | null
           id?: string
@@ -2243,6 +2248,7 @@ export type Database = {
           product_id?: string
           product_name?: string | null
           status?: string
+          technical_status?: string | null
           updated_at?: string
           vendor_id?: string
         }

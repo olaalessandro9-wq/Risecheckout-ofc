@@ -3,11 +3,11 @@
  * WEBHOOK HELPERS - Funções Compartilhadas para Webhooks de Pagamento
  * ============================================================================
  * 
- * Funções utilitárias usadas por múltiplos webhooks de gateway.
- * Centraliza lógica comum para evitar duplicação de código.
+ * @version 3.0 - RISE Protocol V3 Compliant - Modelo Hotmart/Kiwify
  * 
- * Versão: 2.0 (+ Dead Letter Queue)
- * Data de Criação: 2026-01-11
+ * PADRÃO DE MERCADO: Uma venda pendente NUNCA vira "cancelada".
+ * Status expired, cancelled, failed = 'pending' + technical_status atualizado.
+ * 
  * ============================================================================
  */
 
@@ -20,6 +20,8 @@ import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 export interface StatusMapping {
   orderStatus: string;
   eventType: string | null;
+  /** Status técnico para rastreabilidade (salvo em technical_status) */
+  technicalStatus?: string;
 }
 
 export interface SignatureValidationResult {
@@ -152,11 +154,13 @@ export async function generateHmacSignature(secret: string, message: string): Pr
 }
 
 // ============================================================================
-// STATUS MAPPING
+// STATUS MAPPING - MODELO HOTMART/KIWIFY
 // ============================================================================
 
 /**
  * Mapeia status do Mercado Pago para status interno
+ * 
+ * PADRÃO DE MERCADO: rejected/cancelled = PENDING (não CANCELLED)
  */
 export function mapMercadoPagoStatus(paymentStatus: string): StatusMapping {
   switch (paymentStatus) {
@@ -167,14 +171,23 @@ export function mapMercadoPagoStatus(paymentStatus: string): StatusMapping {
     case 'in_mediation':
       return { orderStatus: 'PENDING', eventType: 'pix_generated' };
     case 'rejected':
-    case 'cancelled':
-      return { orderStatus: 'CANCELLED', eventType: 'purchase_refused' };
-    case 'refunded':
-    case 'charged_back':
-      return {
-        orderStatus: 'REFUNDED',
-        eventType: paymentStatus === 'charged_back' ? 'chargeback' : 'refund'
+      // MODELO HOTMART: rejected = continua PENDING + technical_status
+      return { 
+        orderStatus: 'PENDING', 
+        eventType: null, 
+        technicalStatus: 'gateway_error' 
       };
+    case 'cancelled':
+      // MODELO HOTMART: cancelled = continua PENDING + technical_status
+      return { 
+        orderStatus: 'PENDING', 
+        eventType: null, 
+        technicalStatus: 'gateway_cancelled' 
+      };
+    case 'refunded':
+      return { orderStatus: 'REFUNDED', eventType: 'refund' };
+    case 'charged_back':
+      return { orderStatus: 'CHARGEBACK', eventType: 'chargeback' };
     default:
       return { orderStatus: 'PENDING', eventType: null };
   }
@@ -182,15 +195,27 @@ export function mapMercadoPagoStatus(paymentStatus: string): StatusMapping {
 
 /**
  * Mapeia status do PushinPay para status interno
+ * 
+ * PADRÃO DE MERCADO: expired/canceled = PENDING (não EXPIRED/CANCELLED)
  */
 export function mapPushinPayStatus(status: string): StatusMapping {
   switch (status) {
     case 'paid':
       return { orderStatus: 'PAID', eventType: 'purchase_approved' };
     case 'expired':
-      return { orderStatus: 'EXPIRED', eventType: null };
+      // MODELO HOTMART: expired = continua PENDING + technical_status
+      return { 
+        orderStatus: 'PENDING', 
+        eventType: null, 
+        technicalStatus: 'expired' 
+      };
     case 'canceled':
-      return { orderStatus: 'CANCELLED', eventType: null };
+      // MODELO HOTMART: canceled = continua PENDING + technical_status
+      return { 
+        orderStatus: 'PENDING', 
+        eventType: null, 
+        technicalStatus: 'gateway_cancelled' 
+      };
     case 'created':
       return { orderStatus: 'PENDING', eventType: null };
     default:
@@ -200,36 +225,38 @@ export function mapPushinPayStatus(status: string): StatusMapping {
 
 /**
  * Mapeia status do Asaas para status interno
+ * 
+ * PADRÃO DE MERCADO: OVERDUE = PENDING (não EXPIRED)
  */
 export function mapAsaasStatus(status: string): StatusMapping {
-  const statusMap: Record<string, string> = {
-    'PENDING': 'PENDING',
-    'RECEIVED': 'PAID',
-    'CONFIRMED': 'PAID',
-    'OVERDUE': 'EXPIRED',
-    'REFUNDED': 'REFUNDED',
-    'RECEIVED_IN_CASH': 'PAID',
-    'REFUND_REQUESTED': 'REFUND_REQUESTED',
-    'REFUND_IN_PROGRESS': 'REFUND_IN_PROGRESS',
-    'CHARGEBACK_REQUESTED': 'CHARGEBACK',
-    'CHARGEBACK_DISPUTE': 'CHARGEBACK_DISPUTE',
-    'AWAITING_RISK_ANALYSIS': 'PENDING',
-    'DUNNING_REQUESTED': 'PENDING',
-    'DUNNING_RECEIVED': 'PAID'
-  };
-
-  const orderStatus = statusMap[status] || 'PENDING';
-  let eventType: string | null = null;
-
-  if (orderStatus === 'PAID') {
-    eventType = 'purchase_approved';
-  } else if (orderStatus === 'REFUNDED') {
-    eventType = 'purchase_refunded';
-  } else if (orderStatus === 'PENDING') {
-    eventType = 'pix_generated';
+  switch (status) {
+    case 'PENDING':
+    case 'AWAITING_RISK_ANALYSIS':
+    case 'DUNNING_REQUESTED':
+      return { orderStatus: 'PENDING', eventType: 'pix_generated' };
+    case 'RECEIVED':
+    case 'CONFIRMED':
+    case 'RECEIVED_IN_CASH':
+    case 'DUNNING_RECEIVED':
+      return { orderStatus: 'PAID', eventType: 'purchase_approved' };
+    case 'OVERDUE':
+      // MODELO HOTMART: OVERDUE = continua PENDING + technical_status
+      return { 
+        orderStatus: 'PENDING', 
+        eventType: null, 
+        technicalStatus: 'expired' 
+      };
+    case 'REFUNDED':
+      return { orderStatus: 'REFUNDED', eventType: 'purchase_refunded' };
+    case 'REFUND_REQUESTED':
+    case 'REFUND_IN_PROGRESS':
+      return { orderStatus: 'PENDING', eventType: null, technicalStatus: 'refund_in_progress' };
+    case 'CHARGEBACK_REQUESTED':
+    case 'CHARGEBACK_DISPUTE':
+      return { orderStatus: 'CHARGEBACK', eventType: 'chargeback' };
+    default:
+      return { orderStatus: 'PENDING', eventType: null };
   }
-
-  return { orderStatus, eventType };
 }
 
 // ============================================================================

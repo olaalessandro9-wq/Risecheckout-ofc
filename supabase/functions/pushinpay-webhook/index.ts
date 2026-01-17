@@ -3,9 +3,11 @@
  * PUSHINPAY-WEBHOOK EDGE FUNCTION
  * ============================================================================
  * 
- * Versão: 6 (+ Rate Limiting)
- * Última Atualização: 2026-01-12
- * Status: ✅ Rate Limiting adicionado para proteção contra brute force
+ * @version 7 - RISE Protocol V3 - Modelo Hotmart/Kiwify
+ * 
+ * PADRÃO DE MERCADO: Uma venda pendente NUNCA vira "cancelada".
+ * expired/canceled = status continua PENDING + technical_status atualizado.
+ * 
  * ============================================================================
  */
 
@@ -28,7 +30,7 @@ import {
   getClientIP 
 } from '../_shared/rate-limiter.ts';
 
-const FUNCTION_VERSION = "6";
+const FUNCTION_VERSION = "7";
 const logger = createLogger('pushinpay-webhook', FUNCTION_VERSION);
 
 interface PushinPayWebhookBody {
@@ -50,7 +52,6 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   // ========== RATE LIMITING ==========
-  // Proteção contra brute force e abuso (100 req/min por IP)
   const clientIP = getClientIP(req);
   const rateLimitResult = await rateLimitMiddleware(
     supabase,
@@ -136,33 +137,41 @@ serve(async (req) => {
       return createSuccessResponse({ message: 'Event logged' });
     }
 
-    // Avoid reprocessing
-    if (body.status === 'paid' && (currentOrder.status as string)?.toUpperCase() === 'PAID') {
+    // Avoid reprocessing paid orders
+    if (body.status === 'paid' && (currentOrder.status as string)?.toLowerCase() === 'paid') {
       logger.warn('Pedido já está PAID - ignorando duplicata');
       return createSuccessResponse({ message: 'Already processed' });
     }
 
-    // Map Status
-    const { orderStatus, eventType } = mapPushinPayStatus(body.status);
+    // Map Status (Modelo Hotmart/Kiwify)
+    const { orderStatus, eventType, technicalStatus } = mapPushinPayStatus(body.status);
 
-    if (orderStatus === 'PENDING') {
-      logger.warn('Status desconhecido', { status: body.status });
-      return createSuccessResponse({ message: `Unknown status: ${body.status}` });
-    }
+    logger.info('Mapeamento de status', { 
+      gateway_status: body.status, 
+      order_status: orderStatus, 
+      technical_status: technicalStatus 
+    });
 
-    logger.info('Atualizando pedido', { old_status: currentOrder.status, new_status: orderStatus });
-
-    // Update Order
+    // Build update data
     const updateData: Record<string, unknown> = {
-      status: orderStatus,
       pix_status: body.status,
       updated_at: new Date().toISOString(),
     };
 
+    // MODELO HOTMART/KIWIFY: 
+    // - Para PAID: atualiza status para 'paid'
+    // - Para expired/canceled: mantém status como 'pending', atualiza technical_status
     if (orderStatus === 'PAID') {
+      updateData.status = 'paid';
       updateData.paid_at = new Date().toISOString();
+    } else if (technicalStatus) {
+      // NÃO muda o status principal - mantém pending (padrão de mercado)
+      updateData.technical_status = technicalStatus;
+      updateData.expired_at = new Date().toISOString();
+      logger.info(`[MODELO HOTMART] Mantendo status=${currentOrder.status}, technical_status=${technicalStatus}`);
     }
 
+    // Update customer data if available
     if (body.payer_name && !currentOrder.customer_name) {
       updateData.customer_name = body.payer_name;
     }
@@ -190,9 +199,9 @@ serve(async (req) => {
       return createErrorResponse(ERROR_CODES.UPDATE_ERROR, 'Failed to update order', 500);
     }
 
-    logger.info('✅ Pedido atualizado');
+    logger.info('✅ Pedido atualizado', updateData);
 
-    // Security Log
+    // Security Log for payments
     if (orderStatus === 'PAID') {
       await logSecurityEvent(supabase, {
         userId: currentOrder.vendor_id as string,
@@ -204,7 +213,7 @@ serve(async (req) => {
       });
     }
 
-    // Post-Payment Actions
+    // Post-Payment Actions (only for PAID)
     if (orderStatus === 'PAID') {
       await processPostPaymentActions(supabase, {
         orderId: currentOrder.id as string,
@@ -226,7 +235,13 @@ serve(async (req) => {
         vendor_id: currentOrder.vendor_id,
         type: `pushinpay_${body.status}`,
         occurred_at: new Date().toISOString(),
-        data: { status: body.status, payer_name: body.payer_name, version: FUNCTION_VERSION },
+        data: { 
+          status: body.status, 
+          payer_name: body.payer_name, 
+          version: FUNCTION_VERSION,
+          technical_status: technicalStatus,
+          model: 'hotmart_kiwify'
+        },
       });
     } catch (eventError) {
       logger.warn('Erro ao registrar evento', eventError);
@@ -236,14 +251,15 @@ serve(async (req) => {
 
     return createSuccessResponse({
       order_id: currentOrder.id,
-      new_status: orderStatus,
+      new_status: orderStatus === 'PAID' ? 'paid' : currentOrder.status,
+      technical_status: technicalStatus,
+      model: 'hotmart_kiwify',
     });
 
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Internal server error';
     logger.error('Erro geral', error);
 
-    // 🆕 Salvar na DLQ para erros críticos não tratados
     if (supabase && body) {
       await saveToDeadLetterQueue(supabase, {
         gateway: 'pushinpay',

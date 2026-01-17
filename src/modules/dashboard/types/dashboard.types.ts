@@ -124,16 +124,17 @@ export interface ChartDataPoint {
 
 /**
  * Status de exibição para clientes
- * Agora inclui todos os status canônicos traduzidos
+ * 
+ * MODELO HOTMART/KIWIFY (padrão de mercado):
+ * - Apenas 4 status possíveis
+ * - Vendas pendentes NUNCA viram "canceladas"
+ * - Expired/Failed/Cancelled = Pendente na UI
  */
 export type CustomerDisplayStatus = 
   | "Pago" 
   | "Pendente" 
   | "Reembolso" 
-  | "Chargeback" 
-  | "Cancelado" 
-  | "Falhou"
-  | "Desconhecido";
+  | "Chargeback";
 
 /**
  * Cliente recente formatado para exibição

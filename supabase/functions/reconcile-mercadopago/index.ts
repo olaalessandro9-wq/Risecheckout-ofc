@@ -3,20 +3,10 @@
  * RECONCILE-MERCADOPAGO EDGE FUNCTION
  * ============================================================================
  * 
- * @version 1.0.0 - RISE Protocol V2 Compliant
+ * @version 2.0.0 - RISE Protocol V3 - Modelo Hotmart/Kiwify
  * 
- * Função especializada para reconciliar pedidos pendentes do MercadoPago.
- * Chamada pelo orquestrador `reconcile-pending-orders`.
- * 
- * ============================================================================
- * RESPONSABILIDADE ÚNICA
- * ============================================================================
- * 
- * 1. Recebe lista de order_ids com gateway = 'mercadopago'
- * 2. Busca credenciais do Vault para cada vendor
- * 3. Consulta status na API MercadoPago
- * 4. Para aprovados: atualiza status, chama grant-member-access, dispara webhooks
- * 5. Para rejeitados: atualiza status correspondente
+ * PADRÃO DE MERCADO: Uma venda pendente NUNCA vira "cancelada".
+ * rejected/cancelled = status continua PENDING + technical_status atualizado.
  * 
  * ============================================================================
  */
@@ -42,6 +32,7 @@ interface ReconcileResult {
   order_id: string;
   previous_status: string;
   new_status: string;
+  technical_status?: string;
   action: 'updated' | 'skipped' | 'error';
   reason: string;
 }
@@ -62,21 +53,22 @@ const CORS_HEADERS = {
 };
 
 const PREFIX = '[reconcile-mercadopago]';
+const FUNCTION_VERSION = '2.0.0';
 
 // ============================================================================
 // LOGGER
 // ============================================================================
 
 function logInfo(message: string, data?: unknown): void {
-  console.log(`${PREFIX} [INFO] ${message}`, data ? JSON.stringify(data) : '');
+  console.log(`${PREFIX} [v${FUNCTION_VERSION}] [INFO] ${message}`, data ? JSON.stringify(data) : '');
 }
 
 function logWarn(message: string, data?: unknown): void {
-  console.warn(`${PREFIX} [WARN] ${message}`, data ? JSON.stringify(data) : '');
+  console.warn(`${PREFIX} [v${FUNCTION_VERSION}] [WARN] ${message}`, data ? JSON.stringify(data) : '');
 }
 
 function logError(message: string, error?: unknown): void {
-  console.error(`${PREFIX} [ERROR] ${message}`, error);
+  console.error(`${PREFIX} [v${FUNCTION_VERSION}] [ERROR] ${message}`, error);
 }
 
 // ============================================================================
@@ -191,7 +183,7 @@ async function callGrantMemberAccess(order: PendingOrder): Promise<void> {
 }
 
 // ============================================================================
-// RECONCILE SINGLE ORDER
+// RECONCILE SINGLE ORDER - MODELO HOTMART/KIWIFY
 // ============================================================================
 
 async function reconcileOrder(
@@ -254,6 +246,8 @@ async function reconcileOrder(
         source: 'reconcile-mercadopago',
         gateway_status: mpStatus.status,
         reconciled_at: new Date().toISOString(),
+        model: 'hotmart_kiwify',
+        version: FUNCTION_VERSION,
       },
     });
 
@@ -269,12 +263,9 @@ async function reconcileOrder(
     };
   }
 
-  // Process rejected/cancelled
-  if (['rejected', 'cancelled', 'refunded', 'charged_back'].includes(mpStatus.status)) {
-    const newStatus = mpStatus.status === 'rejected' ? 'rejected' 
-      : mpStatus.status === 'cancelled' ? 'cancelled' 
-      : mpStatus.status === 'refunded' ? 'refunded' 
-      : 'chargeback';
+  // Process refunded/chargeback - estes SIM mudam status
+  if (['refunded', 'charged_back'].includes(mpStatus.status)) {
+    const newStatus = mpStatus.status === 'charged_back' ? 'chargeback' : 'refunded';
 
     await supabase
       .from('orders')
@@ -290,7 +281,12 @@ async function reconcileOrder(
       vendor_id: order.vendor_id,
       type: `purchase_${mpStatus.status}`,
       occurred_at: new Date().toISOString(),
-      data: { source: 'reconcile-mercadopago', gateway_status: mpStatus.status },
+      data: { 
+        source: 'reconcile-mercadopago', 
+        gateway_status: mpStatus.status,
+        model: 'hotmart_kiwify',
+        version: FUNCTION_VERSION,
+      },
     });
 
     return {
@@ -299,6 +295,48 @@ async function reconcileOrder(
       new_status: newStatus,
       action: 'updated',
       reason: `Status atualizado para ${newStatus}`,
+    };
+  }
+
+  // MODELO HOTMART/KIWIFY: rejected/cancelled = continua PENDING
+  if (['rejected', 'cancelled'].includes(mpStatus.status)) {
+    const technicalStatus = mpStatus.status === 'rejected' ? 'gateway_error' : 'gateway_cancelled';
+
+    // NÃO muda o status principal - apenas atualiza technical_status
+    await supabase
+      .from('orders')
+      .update({
+        technical_status: technicalStatus,
+        expired_at: new Date().toISOString(),
+        pix_status: mpStatus.status,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', orderId);
+
+    await supabase.from('order_events').insert({
+      order_id: orderId,
+      vendor_id: order.vendor_id,
+      type: `mercadopago_${mpStatus.status}`,
+      occurred_at: new Date().toISOString(),
+      data: { 
+        source: 'reconcile-mercadopago', 
+        gateway_status: mpStatus.status,
+        technical_status: technicalStatus,
+        model: 'hotmart_kiwify',
+        note: 'Status mantido como pending (padrão de mercado)',
+        version: FUNCTION_VERSION,
+      },
+    });
+
+    logInfo(`[MODELO HOTMART] Order ${orderId}: mantendo status=${order.status}, technical_status=${technicalStatus}`);
+
+    return {
+      order_id: orderId,
+      previous_status: order.status,
+      new_status: order.status, // Mantém o mesmo status
+      technical_status: technicalStatus,
+      action: 'updated',
+      reason: `Technical status atualizado para ${technicalStatus} (status público mantido como ${order.status})`,
     };
   }
 
@@ -340,7 +378,7 @@ serve(async (req) => {
       );
     }
 
-    logInfo(`Processando ${body.orders.length} pedidos MercadoPago`);
+    logInfo(`Processando ${body.orders.length} pedidos MercadoPago (Modelo Hotmart/Kiwify)`);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -382,6 +420,8 @@ serve(async (req) => {
       updated: results.filter(r => r.action === 'updated').length,
       skipped: results.filter(r => r.action === 'skipped').length,
       errors: results.filter(r => r.action === 'error').length,
+      model: 'hotmart_kiwify',
+      version: FUNCTION_VERSION,
     };
 
     logInfo('Reconciliação MercadoPago concluída', summary);
