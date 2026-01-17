@@ -187,9 +187,9 @@ export const INITIAL_VALIDATION: FormValidationErrors = {
  * Estado inicial de upsell
  */
 export const INITIAL_UPSELL: UpsellSettings = {
-  enabled: false,
-  useCustomPage: false,
+  hasCustomThankYouPage: false,
   customPageUrl: "",
+  redirectIgnoringOrderBumpFailures: false,
 };
 
 /**
