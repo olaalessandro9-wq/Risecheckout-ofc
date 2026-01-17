@@ -1,12 +1,14 @@
 /**
  * usePixPaymentStatus - Hook para verificar status de pagamento PIX
  * 
+ * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
+ * 
  * Responsabilidade ÚNICA: Polling e verificação de status multi-gateway
  */
 
 import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { getOrderForPaymentRpc } from "@/lib/rpc/rpcProxy";
 import { sendUTMifyConversion, formatDateForUTMify } from "@/lib/utmify-helper";
@@ -87,9 +89,11 @@ export function usePixPaymentStatus({
         return { paid: false };
       }
 
-      const { data, error } = await supabase.functions.invoke("pushinpay-get-status", {
-        body: { orderId }
-      });
+      const { data, error } = await api.publicCall<{ 
+        ok?: boolean; 
+        error?: string; 
+        status?: { status: string } 
+      }>("pushinpay-get-status", { orderId });
       
       console.log("[usePixPaymentStatus] 📡 Resposta do pushinpay-get-status:", { data, error });
 

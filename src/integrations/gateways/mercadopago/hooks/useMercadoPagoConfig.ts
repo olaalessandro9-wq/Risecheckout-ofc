@@ -1,13 +1,19 @@
 /**
  * useMercadoPagoConfig - Hook para carregar configuração do Mercado Pago
  * 
- * MIGRATED: Uses vendor-integrations Edge Function
+ * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
  * @see RISE Protocol V2 - Zero database access from frontend
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { MercadoPagoIntegration } from "../types";
+
+interface MercadoPagoConfigResponse {
+  success?: boolean;
+  data?: MercadoPagoIntegration;
+  error?: string;
+}
 
 /**
  * Hook para carregar a configuração do Mercado Pago de um vendedor
@@ -25,12 +31,10 @@ export function useMercadoPagoConfig(vendorId?: string) {
       }
 
       try {
-        const { data, error } = await supabase.functions.invoke("vendor-integrations", {
-          body: {
-            action: "get-config",
-            vendorId,
-            integrationType: "MERCADOPAGO",
-          },
+        const { data, error } = await api.publicCall<MercadoPagoConfigResponse>("vendor-integrations", {
+          action: "get-config",
+          vendorId,
+          integrationType: "MERCADOPAGO",
         });
 
         if (error) {
@@ -44,7 +48,7 @@ export function useMercadoPagoConfig(vendorId?: string) {
         }
 
         console.log("[MercadoPago] Configuração carregada com sucesso para vendor:", vendorId);
-        return data.data as unknown as MercadoPagoIntegration;
+        return data.data;
       } catch (error: unknown) {
         console.error("[MercadoPago] Erro inesperado ao carregar config:", error);
         return null;

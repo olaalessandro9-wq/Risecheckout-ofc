@@ -2,13 +2,20 @@
  * Hooks para o Kwai Pixel
  * Módulo: src/integrations/tracking/kwai
  * 
+ * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
+ * 
  * Este arquivo contém hooks React para carregar e gerenciar
  * a configuração do Kwai Pixel do banco de dados.
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { KwaiConfig, KwaiIntegration } from "./types";
+
+interface KwaiConfigResponse {
+  integration?: KwaiIntegration;
+  error?: string;
+}
 
 /**
  * Hook para carregar a configuração do Kwai Pixel de um vendedor
@@ -38,12 +45,10 @@ export function useKwaiConfig(vendorId?: string) {
       }
 
       try {
-        const { data, error } = await supabase.functions.invoke("vendor-integrations", {
-          body: {
-            action: "get",
-            vendorId,
-            integrationType: "KWAI_PIXEL",
-          },
+        const { data, error } = await api.publicCall<KwaiConfigResponse>("vendor-integrations", {
+          action: "get",
+          vendorId,
+          integrationType: "KWAI_PIXEL",
         });
 
         if (error) {
@@ -57,7 +62,7 @@ export function useKwaiConfig(vendorId?: string) {
         }
 
         console.log("[Kwai] Configuração carregada com sucesso para vendor:", vendorId);
-        return data.integration as KwaiIntegration;
+        return data.integration;
       } catch (error: unknown) {
         console.error("[Kwai] Erro inesperado ao carregar config:", error);
         return null;
