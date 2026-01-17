@@ -3,7 +3,8 @@
  * 
  * Exibe QR Code PIX gerado via Stripe.
  * 
- * MIGRATED: Uses Edge Function instead of supabase.from()
+ * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
+ * @see RISE Protocol V2 - Zero database access from frontend
  */
 
 import { useState, useEffect } from "react";
@@ -11,8 +12,13 @@ import { Loader2, Copy, CheckCircle2, Clock, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { SUPABASE_URL } from "@/config/supabase";
+
+interface OrderPaymentStatusResponse {
+  status?: string;
+  pix_status?: string;
+}
 
 interface StripePixProps {
   orderId: string;
@@ -42,18 +48,16 @@ export function StripePix({ orderId, amount, onPaymentConfirmed, onError }: Stri
 
   /**
    * Polling via Edge Function (public endpoint)
-   * MIGRATED: Uses checkout-public-data instead of supabase.from()
+   * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
    */
   useEffect(() => {
     if (status !== "pending" || !pixData) return;
 
     const interval = setInterval(async () => {
       try {
-        const { data, error } = await supabase.functions.invoke('checkout-public-data', {
-          body: {
-            action: 'check-order-payment-status',
-            orderId,
-          }
+        const { data, error } = await api.publicCall<OrderPaymentStatusResponse>('checkout-public-data', {
+          action: 'check-order-payment-status',
+          orderId,
         });
 
         if (error) {

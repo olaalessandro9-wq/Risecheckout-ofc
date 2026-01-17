@@ -1,27 +1,26 @@
 /**
  * ensureUniqueName - Check product name uniqueness via Edge Function
  * 
- * MIGRATED: Uses Edge Function instead of supabase.from()
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
+ * @see RISE Protocol V2 - Zero database access from frontend
  */
 
-import { supabase } from "@/integrations/supabase/client";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
+import { api } from "@/lib/api";
+
+interface UniqueNameResponse {
+  uniqueName?: string;
+}
 
 export async function ensureUniqueName(
   _supabase: unknown, // Legacy parameter, not used anymore
   base: string,
 ): Promise<string> {
-  const sessionToken = getProducerSessionToken();
-  
-  const { data, error } = await supabase.functions.invoke("admin-data", {
-    body: { 
-      action: "check-unique-name",
-      productName: base,
-    },
-    headers: { "x-producer-session-token": sessionToken || "" },
+  const { data, error } = await api.call<UniqueNameResponse>("admin-data", {
+    action: "check-unique-name",
+    productName: base,
   });
 
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   
   return data?.uniqueName || base;
 }

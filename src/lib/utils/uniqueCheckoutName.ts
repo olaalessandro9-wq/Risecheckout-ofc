@@ -1,30 +1,31 @@
 /**
  * Unique Checkout Name Utility
  * 
- * MIGRATED: Uses Edge Function instead of supabase.from()
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
+ * @see RISE Protocol V2 - Zero database access from frontend
  */
 
-import { supabase } from "@/integrations/supabase/client";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
+import { api } from "@/lib/api";
+
+interface UniqueCheckoutNameResponse {
+  success?: boolean;
+  uniqueName?: string;
+  error?: string;
+}
 
 export async function ensureUniqueCheckoutName(
   _supabase: unknown, // Kept for backward compatibility, not used
   productId: string,
   base: string
 ): Promise<string> {
-  const sessionToken = getProducerSessionToken();
-  
-  const { data, error } = await supabase.functions.invoke('admin-data', {
-    body: {
-      action: 'check-unique-checkout-name',
-      productId,
-      baseName: base,
-    },
-    headers: { 'x-producer-session-token': sessionToken || '' },
+  const { data, error } = await api.call<UniqueCheckoutNameResponse>('admin-data', {
+    action: 'check-unique-checkout-name',
+    productId,
+    baseName: base,
   });
 
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   if (!data?.success) throw new Error(data?.error || 'Erro ao verificar nome único');
   
-  return data.uniqueName;
+  return data.uniqueName!;
 }
