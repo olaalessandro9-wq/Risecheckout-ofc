@@ -84,7 +84,7 @@ export function useGeneralTab() {
     currentImageUrl: product?.image_url,
   });
 
-  // Offers handling - ainda usa estado local (gerenciamento de lista)
+  // Offers handling - agora consome do reducer via ProductContext
   const {
     localOffers,
     offersModified,
@@ -96,7 +96,6 @@ export function useGeneralTab() {
     saveOffers,
     resetOffers,
   } = useGeneralTabOffers({
-    offers,
     productId: product?.id,
   });
 

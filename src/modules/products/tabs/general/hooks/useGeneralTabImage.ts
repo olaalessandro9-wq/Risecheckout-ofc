@@ -1,13 +1,17 @@
 /**
  * useGeneralTabImage - Lógica de Imagem
  * 
- * @see RISE ARCHITECT PROTOCOL
+ * REFATORADO para usar estado do ProductContext via reducer.
+ * Não mantém estado local - usa formState.editedData.image.
+ * 
+ * @see RISE ARCHITECT PROTOCOL - Solução C
  */
 
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import { toast } from "sonner";
 import { uploadViaEdge } from "@/lib/storage/storageProxy";
-import type { ImageState } from "../types";
+import { useProductContext } from "../../../context/ProductContext";
+import type { ImageFormState } from "../../../types/productForm.types";
 
 interface UseGeneralTabImageProps {
   userId: string | undefined;
@@ -16,36 +20,32 @@ interface UseGeneralTabImageProps {
 }
 
 export function useGeneralTabImage({ userId, productId, currentImageUrl }: UseGeneralTabImageProps) {
-  const [image, setImage] = useState<ImageState>({
-    imageFile: null,
-    imageUrl: "",
-    pendingRemoval: false,
-  });
+  const { imageState, updateImageState } = useProductContext();
 
   const handleImageFileChange = useCallback((file: File | null) => {
-    setImage((prev) => ({ ...prev, imageFile: file, pendingRemoval: false }));
-  }, []);
+    updateImageState({ imageFile: file, pendingRemoval: false });
+  }, [updateImageState]);
 
   const handleImageUrlChange = useCallback((url: string) => {
-    setImage((prev) => ({ ...prev, imageUrl: url, pendingRemoval: false }));
-  }, []);
+    updateImageState({ imageUrl: url, pendingRemoval: false });
+  }, [updateImageState]);
 
   const handleRemoveImage = useCallback(() => {
-    setImage((prev) => ({ ...prev, pendingRemoval: true }));
+    updateImageState({ pendingRemoval: true });
     toast.success("Imagem marcada para remoção. Clique em 'Salvar Alterações' para confirmar.");
-  }, []);
+  }, [updateImageState]);
 
   const uploadImage = useCallback(async (): Promise<string | null | undefined> => {
-    if (!image.imageFile || !userId || !productId) return currentImageUrl;
+    if (!imageState.imageFile || !userId || !productId) return currentImageUrl;
 
     try {
-      const fileExt = image.imageFile.name.split(".").pop();
+      const fileExt = imageState.imageFile.name.split(".").pop();
       const fileName = `${userId}/${productId}.${fileExt}`;
 
       const { publicUrl, error: uploadError } = await uploadViaEdge(
         "product-images",
         fileName,
-        image.imageFile,
+        imageState.imageFile,
         { upsert: true }
       );
 
@@ -57,14 +57,14 @@ export function useGeneralTabImage({ userId, productId, currentImageUrl }: UseGe
       toast.error("Não foi possível fazer upload da imagem");
       throw error;
     }
-  }, [image.imageFile, userId, productId, currentImageUrl]);
+  }, [imageState.imageFile, userId, productId, currentImageUrl]);
 
   const resetImage = useCallback(() => {
-    setImage({ imageFile: null, imageUrl: "", pendingRemoval: false });
-  }, []);
+    updateImageState({ imageFile: null, imageUrl: "", pendingRemoval: false });
+  }, [updateImageState]);
 
   return {
-    image,
+    image: imageState,
     handleImageFileChange,
     handleImageUrlChange,
     handleRemoveImage,

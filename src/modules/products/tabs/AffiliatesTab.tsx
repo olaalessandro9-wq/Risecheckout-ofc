@@ -1,10 +1,14 @@
 /**
  * AffiliatesTab - Aba de Configurações de Afiliados
  * 
- * Layout unificado em um único Card, como na aba Geral
+ * REFATORADO para Pure View seguindo Rise Architect Protocol V3.
+ * Consome estado do ProductContext via formState.editedData.affiliate.
+ * Zero estado local - apenas dispatch de actions.
+ * 
+ * @see RISE ARCHITECT PROTOCOL - Solução C (Nota 9.8/10)
  */
 
-import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,101 +24,103 @@ import { toast } from "sonner";
 import { AffiliateSettings } from "../types/product.types";
 import { MarketplaceSettings } from "../components/MarketplaceSettings";
 import { AffiliateGatewaySettings, type AffiliateGatewaySettingsData } from "../components/AffiliateGatewaySettings";
+import { formActions } from "../context/productFormReducer";
+
+// ============================================================================
+// DEFAULT VALUES
+// ============================================================================
+
+const DEFAULT_AFFILIATE_SETTINGS: AffiliateSettings = {
+  enabled: false,
+  defaultRate: 30,
+  cookieDuration: 30,
+  attributionModel: "last_click",
+  requireApproval: true,
+  commissionOnOrderBump: false,
+  commissionOnUpsell: false,
+  supportEmail: "",
+  publicDescription: "",
+  showInMarketplace: false,
+  marketplaceDescription: "",
+  marketplaceCategory: "",
+};
+
+const DEFAULT_GATEWAY_SETTINGS: AffiliateGatewaySettingsData = {
+  pix_allowed: ["asaas"],
+  credit_card_allowed: ["mercadopago", "stripe"],
+  require_gateway_connection: true,
+};
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
 
 export function AffiliatesTab() {
   const { 
     product, 
-    affiliateSettings, 
+    formState,
+    dispatchForm,
     saveAffiliateSettings,
     updateSettingsModified,
     saving
   } = useProductContext();
 
-  const [localSettings, setLocalSettings] = useState(affiliateSettings);
-  const [gatewaySettings, setGatewaySettings] = useState<AffiliateGatewaySettingsData>({
-    pix_allowed: ["asaas"],
-    credit_card_allowed: ["mercadopago", "stripe"],
-    require_gateway_connection: true,
-  });
-  
-  // Referência para o snapshot inicial (para comparar mudanças)
-  const snapshotRef = useRef<string>("");
-  const gatewaySnapshotRef = useRef<string>("");
-  
-  // Track if component has been initialized (to prevent false dirty during load)
-  const [isInitialized, setIsInitialized] = useState(false);
-  // Track if user has interacted with the form
-  const hasUserInteracted = useRef(false);
+  // ---------------------------------------------------------------------------
+  // DERIVED STATE FROM REDUCER
+  // ---------------------------------------------------------------------------
 
-  // Sincronizar com Context quando mudar e atualizar snapshot
+  // localSettings é derivado do reducer, com fallback para defaults
+  const localSettings = useMemo(() => {
+    return formState.editedData.affiliate ?? DEFAULT_AFFILIATE_SETTINGS;
+  }, [formState.editedData.affiliate]);
+
+  // serverSettings para comparação
+  const serverSettings = useMemo(() => {
+    return formState.serverData.affiliateSettings ?? DEFAULT_AFFILIATE_SETTINGS;
+  }, [formState.serverData.affiliateSettings]);
+
+  // ---------------------------------------------------------------------------
+  // LOCAL STATE (Gateway Settings - ainda não migrado para reducer)
+  // ---------------------------------------------------------------------------
+
+  const [gatewaySettings, setGatewaySettings] = useState<AffiliateGatewaySettingsData>(DEFAULT_GATEWAY_SETTINGS);
+  const [gatewaySnapshot, setGatewaySnapshot] = useState<string>("");
+
+  // Inicializar gateway snapshot
   useEffect(() => {
-    if (affiliateSettings) {
-      // Interface para campos legados que podem existir no banco
-      interface LegacyAffiliateSettings extends AffiliateSettings {
-        allowUpsells?: boolean;
-      }
-      const legacy = affiliateSettings as LegacyAffiliateSettings;
-      const normalized = {
-        ...affiliateSettings,
-        commissionOnOrderBump: affiliateSettings.commissionOnOrderBump ?? legacy.allowUpsells ?? false,
-        commissionOnUpsell: affiliateSettings.commissionOnUpsell ?? legacy.allowUpsells ?? false,
-        supportEmail: affiliateSettings.supportEmail || "",
-        publicDescription: affiliateSettings.publicDescription || "",
-        // Campos de marketplace
-        showInMarketplace: affiliateSettings.showInMarketplace ?? false,
-        marketplaceDescription: affiliateSettings.marketplaceDescription || "",
-        marketplaceCategory: affiliateSettings.marketplaceCategory || "",
-      };
-      setLocalSettings(normalized);
-      snapshotRef.current = JSON.stringify(normalized);
-      
-      // Mark initialized after data is loaded
-      requestAnimationFrame(() => {
-        setIsInitialized(true);
-      });
+    if (product?.id && gatewaySnapshot === "") {
+      setGatewaySnapshot(JSON.stringify(gatewaySettings));
     }
-  }, [affiliateSettings]);
+  }, [product?.id, gatewaySnapshot, gatewaySettings]);
 
-  // Gateway settings são defaults fixos por enquanto
-  // REMOVED: Call to admin-data with non-existent action 'affiliate-gateway-settings'
-  // Gateway settings ficam com valores padrão definidos no estado inicial
-  useEffect(() => {
-    if (product?.id) {
-      // Set gateway snapshot with default values
-      gatewaySnapshotRef.current = JSON.stringify(gatewaySettings);
-    }
-  }, [product?.id]);
+  // ---------------------------------------------------------------------------
+  // CHANGE DETECTION
+  // ---------------------------------------------------------------------------
 
-  // Detectar mudanças comparando com snapshot - ONLY after initialization and user interaction
+  const hasAffiliateChanges = formState.dirtyFlags.affiliate;
+  const hasGatewayChanges = JSON.stringify(gatewaySettings) !== gatewaySnapshot;
+  const hasChanges = hasAffiliateChanges || hasGatewayChanges;
+
+  // Notificar parent sobre mudanças
   useLayoutEffect(() => {
-    // Don't mark dirty until initialized and user has interacted
-    if (!isInitialized || !hasUserInteracted.current) {
-      return;
-    }
-    
-    const currentJson = JSON.stringify(localSettings);
-    const gatewayJson = JSON.stringify(gatewaySettings);
-    const hasSettingsChanges = currentJson !== snapshotRef.current;
-    const hasGatewayChanges = gatewayJson !== gatewaySnapshotRef.current;
-    updateSettingsModified(hasSettingsChanges || hasGatewayChanges);
-  }, [localSettings, gatewaySettings, updateSettingsModified, isInitialized]);
+    updateSettingsModified(hasChanges);
+  }, [hasChanges, updateSettingsModified]);
+
+  // ---------------------------------------------------------------------------
+  // HANDLERS
+  // ---------------------------------------------------------------------------
 
   type AffiliateSettingValue = string | number | boolean;
   
-  const handleChange = (field: keyof AffiliateSettings, value: AffiliateSettingValue) => {
-    // Mark user interaction
-    hasUserInteracted.current = true;
-    const newSettings = { ...localSettings, [field]: value } as AffiliateSettings;
-    setLocalSettings(newSettings);
-  };
+  const handleChange = useCallback((field: keyof AffiliateSettings, value: AffiliateSettingValue) => {
+    dispatchForm(formActions.updateAffiliate({ [field]: value }));
+  }, [dispatchForm]);
 
-  const handleGatewaySettingsChange = (settings: AffiliateGatewaySettingsData) => {
-    // Mark user interaction
-    hasUserInteracted.current = true;
+  const handleGatewaySettingsChange = useCallback((settings: AffiliateGatewaySettingsData) => {
     setGatewaySettings(settings);
-  };
+  }, []);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     try {
       // Validações
       if (localSettings.defaultRate < 1 || localSettings.defaultRate > 90) {
@@ -164,7 +170,7 @@ export function AffiliatesTab() {
       
       const { data: result, error: gatewayError } = await api.call<{ success?: boolean; error?: string }>('product-settings', { 
         action: 'update-affiliate-gateway-settings',
-        productId: product.id,
+        productId: product?.id,
         gatewaySettings,
       });
       
@@ -175,8 +181,10 @@ export function AffiliatesTab() {
       await saveAffiliateSettings(localSettings);
       
       // Atualizar snapshots após salvar
-      snapshotRef.current = JSON.stringify(localSettings);
-      gatewaySnapshotRef.current = JSON.stringify(gatewaySettings);
+      setGatewaySnapshot(JSON.stringify(gatewaySettings));
+      
+      // Marcar como salvo no reducer
+      dispatchForm(formActions.markSaved());
       updateSettingsModified(false);
       
       toast.success("Configurações de afiliados salvas com sucesso");
@@ -184,11 +192,11 @@ export function AffiliatesTab() {
       console.error("Erro ao salvar afiliados:", error);
       toast.error("Não foi possível salvar as configurações");
     }
-  };
+  }, [localSettings, gatewaySettings, product?.id, saveAffiliateSettings, dispatchForm, updateSettingsModified]);
 
-  // Verificar se há mudanças comparando com snapshot
-  const hasChanges = JSON.stringify(localSettings) !== snapshotRef.current || 
-                     JSON.stringify(gatewaySettings) !== gatewaySnapshotRef.current;
+  // ---------------------------------------------------------------------------
+  // LOADING STATE
+  // ---------------------------------------------------------------------------
 
   if (!product?.id) {
     return (
@@ -197,6 +205,10 @@ export function AffiliatesTab() {
       </div>
     );
   }
+
+  // ---------------------------------------------------------------------------
+  // RENDER
+  // ---------------------------------------------------------------------------
 
   return (
     <div className="space-y-6">
