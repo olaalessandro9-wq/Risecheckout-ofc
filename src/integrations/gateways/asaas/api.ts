@@ -5,7 +5,7 @@
  * @see RISE Protocol V2 - Zero database access from frontend
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import type {
   AsaasEnvironment,
   AsaasPaymentRequest,
@@ -13,6 +13,38 @@ import type {
   AsaasValidationResult,
   AsaasIntegrationConfig,
 } from "./types";
+
+interface AsaasValidationApiResponse {
+  valid?: boolean;
+  message?: string;
+  accountName?: string;
+  walletId?: string;
+}
+
+interface AsaasPaymentApiResponse {
+  success?: boolean;
+  transactionId?: string;
+  status?: string;
+  qrCode?: string;
+  qrCodeText?: string;
+  pixId?: string;
+  errorMessage?: string;
+}
+
+interface AsaasConfigResponse {
+  success?: boolean;
+  data?: {
+    config?: {
+      environment?: AsaasEnvironment;
+      has_api_key?: boolean;
+    };
+  };
+}
+
+interface IntegrationManagementResponse {
+  success?: boolean;
+  error?: string;
+}
 
 // ============================================
 // CONSTANTS
@@ -32,11 +64,9 @@ export async function validateAsaasCredentials(
   environment: AsaasEnvironment
 ): Promise<AsaasValidationResult> {
   try {
-    const { data, error } = await supabase.functions.invoke('asaas-validate-credentials', {
-      body: {
-        apiKey,
-        environment,
-      },
+    const { data, error } = await api.publicCall<AsaasValidationApiResponse>('asaas-validate-credentials', {
+      apiKey,
+      environment,
     });
 
     if (error) {
@@ -73,11 +103,9 @@ export async function createAsaasPixPayment(
   request: AsaasPaymentRequest
 ): Promise<AsaasPaymentResponse> {
   try {
-    const { data, error } = await supabase.functions.invoke('asaas-create-payment', {
-      body: {
-        ...request,
-        paymentMethod: 'pix',
-      },
+    const { data, error } = await api.publicCall<AsaasPaymentApiResponse>('asaas-create-payment', {
+      ...request,
+      paymentMethod: 'pix',
     });
 
     if (error) {
@@ -91,7 +119,7 @@ export async function createAsaasPixPayment(
     return {
       success: data?.success ?? false,
       transactionId: data?.transactionId,
-      status: data?.status,
+      status: data?.status as AsaasPaymentResponse['status'],
       qrCode: data?.qrCode,
       qrCodeText: data?.qrCodeText,
       pixId: data?.pixId,
@@ -113,11 +141,9 @@ export async function createAsaasCreditCardPayment(
   request: AsaasPaymentRequest
 ): Promise<AsaasPaymentResponse> {
   try {
-    const { data, error } = await supabase.functions.invoke('asaas-create-payment', {
-      body: {
-        ...request,
-        paymentMethod: 'credit_card',
-      },
+    const { data, error } = await api.publicCall<AsaasPaymentApiResponse>('asaas-create-payment', {
+      ...request,
+      paymentMethod: 'credit_card',
     });
 
     if (error) {
@@ -131,7 +157,7 @@ export async function createAsaasCreditCardPayment(
     return {
       success: data?.success ?? false,
       transactionId: data?.transactionId,
-      status: data?.status,
+      status: data?.status as AsaasPaymentResponse['status'],
       errorMessage: data?.errorMessage,
     };
   } catch (err) {
@@ -154,12 +180,10 @@ export async function getAsaasSettings(
   vendorId: string
 ): Promise<AsaasIntegrationConfig | null> {
   try {
-    const { data, error } = await supabase.functions.invoke('vendor-integrations', {
-      body: {
-        action: 'get-config',
-        vendorId,
-        integrationType: INTEGRATION_TYPE,
-      },
+    const { data, error } = await api.publicCall<AsaasConfigResponse>('vendor-integrations', {
+      action: 'get-config',
+      vendorId,
+      integrationType: INTEGRATION_TYPE,
     });
 
     if (error) {
@@ -171,15 +195,15 @@ export async function getAsaasSettings(
       return null;
     }
 
-    const config = data.data.config as Record<string, unknown>;
+    const config = data.data.config;
     return {
       api_key: '', // Not exposed via public endpoint
-      environment: (config?.environment as AsaasEnvironment) || 'sandbox',
+      environment: config?.environment || 'sandbox',
       wallet_id: undefined, // Not exposed
       validated_at: undefined,
       account_name: undefined,
       // For checking if connected, use has_api_key
-      _has_api_key: config?.has_api_key as boolean,
+      _has_api_key: config?.has_api_key,
     } as AsaasIntegrationConfig;
   } catch (err) {
     console.error('[Asaas] Get settings exception:', err);
@@ -195,23 +219,17 @@ export async function saveAsaasSettings(
   config: AsaasIntegrationConfig
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
-    const sessionToken = getProducerSessionToken();
-
     // Salvar credenciais via integration-management
-    const { data: result, error } = await supabase.functions.invoke('integration-management', {
-      body: {
-        action: 'save-credentials',
-        integrationType: INTEGRATION_TYPE,
-        config: {
-          api_key: config.api_key,
-          environment: config.environment,
-          wallet_id: config.wallet_id,
-          validated_at: config.validated_at,
-          account_name: config.account_name,
-        },
+    const { data: result, error } = await api.call<IntegrationManagementResponse>('integration-management', {
+      action: 'save-credentials',
+      integrationType: INTEGRATION_TYPE,
+      config: {
+        api_key: config.api_key,
+        environment: config.environment,
+        wallet_id: config.wallet_id,
+        validated_at: config.validated_at,
+        account_name: config.account_name,
       },
-      headers: { 'x-producer-session-token': sessionToken || '' },
     });
 
     if (error || !result?.success) {
@@ -221,12 +239,9 @@ export async function saveAsaasSettings(
 
     // Salvar wallet_id no profile via Edge Function
     if (config.wallet_id) {
-      const { error: walletError } = await supabase.functions.invoke('integration-management', {
-        body: {
-          action: 'save-profile-wallet',
-          walletId: config.wallet_id,
-        },
-        headers: { 'x-producer-session-token': sessionToken || '' },
+      const { error: walletError } = await api.call<IntegrationManagementResponse>('integration-management', {
+        action: 'save-profile-wallet',
+        walletId: config.wallet_id,
       });
 
       if (walletError) {
@@ -253,16 +268,10 @@ export async function disconnectAsaas(
   vendorId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { getProducerSessionToken } = await import("@/hooks/useProducerAuth");
-    const sessionToken = getProducerSessionToken();
-
     // Disconnect via Edge Function
-    const { data: result, error } = await supabase.functions.invoke('integration-management', {
-      body: {
-        action: 'disconnect',
-        integrationType: INTEGRATION_TYPE,
-      },
-      headers: { 'x-producer-session-token': sessionToken || '' },
+    const { data: result, error } = await api.call<IntegrationManagementResponse>('integration-management', {
+      action: 'disconnect',
+      integrationType: INTEGRATION_TYPE,
     });
 
     if (error || !result?.success) {
@@ -271,9 +280,8 @@ export async function disconnectAsaas(
     }
 
     // Limpar wallet_id no profile
-    await supabase.functions.invoke('integration-management', {
-      body: { action: 'clear-profile-wallet' },
-      headers: { 'x-producer-session-token': sessionToken || '' },
+    await api.call<IntegrationManagementResponse>('integration-management', {
+      action: 'clear-profile-wallet',
     });
 
     console.log('[Asaas] Desconectado e wallet_id limpo para vendor:', vendorId);
