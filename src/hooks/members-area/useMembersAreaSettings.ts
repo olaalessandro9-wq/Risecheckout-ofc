@@ -3,7 +3,8 @@
  * Handles fetching and updating product members area settings
  * OTIMIZADO: Usa React Query para cache inteligente
  * 
- * MIGRATED: Uses Edge Function instead of supabase.from()
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
+ * @see RISE Protocol V2 - Zero database access from frontend
  */
 
 import { useState, useCallback, useEffect } from "react";
@@ -11,14 +12,40 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("MembersAreaSettings");
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { SUPABASE_URL } from "@/config/supabase";
 import { useAuth } from "@/hooks/useAuth";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 import type { Json } from "@/integrations/supabase/types";
 import type { MembersAreaSettings, MemberModuleWithContents, MemberContent } from "./types";
 import { normalizeContentType } from "@/modules/members-area/utils";
+
+interface SettingsResponse {
+  success: boolean;
+  error?: string;
+  data?: {
+    enabled: boolean;
+    settings: Json | null;
+  };
+}
+
+interface ModulesResponse {
+  success: boolean;
+  error?: string;
+  data?: MemberModuleWithContents[];
+}
+
+interface GroupsResponse {
+  groups?: unknown[];
+  data?: unknown[];
+}
+
+interface ProductDataResponse {
+  success: boolean;
+  data?: {
+    user_id?: string;
+  };
+}
 
 // Cache de 5 minutos
 const SETTINGS_STALE_TIME = 5 * 60 * 1000;
@@ -33,20 +60,15 @@ export const membersAreaQueryKeys = {
 
 /**
  * Fetch settings via Edge Function
- * MIGRATED: Uses admin-data instead of supabase.from()
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
  */
 async function fetchMembersAreaSettings(productId: string): Promise<MembersAreaSettings> {
-  const sessionToken = getProducerSessionToken();
-  
-  const { data, error } = await supabase.functions.invoke('admin-data', {
-    body: { 
-      action: 'members-area-settings',
-      productId,
-    },
-    headers: { 'x-producer-session-token': sessionToken || '' },
+  const { data, error } = await api.call<SettingsResponse>('admin-data', { 
+    action: 'members-area-settings',
+    productId,
   });
 
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   if (!data?.success) throw new Error(data?.error || 'Erro ao carregar settings');
 
   return {
@@ -57,20 +79,15 @@ async function fetchMembersAreaSettings(productId: string): Promise<MembersAreaS
 
 /**
  * Fetch modules via Edge Function
- * MIGRATED: Uses admin-data instead of supabase.from()
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
  */
 async function fetchMembersAreaModules(productId: string): Promise<MemberModuleWithContents[]> {
-  const sessionToken = getProducerSessionToken();
-  
-  const { data, error } = await supabase.functions.invoke('admin-data', {
-    body: { 
-      action: 'members-area-modules-with-contents',
-      productId,
-    },
-    headers: { 'x-producer-session-token': sessionToken || '' },
+  const { data, error } = await api.call<ModulesResponse>('admin-data', { 
+    action: 'members-area-modules-with-contents',
+    productId,
   });
 
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   if (!data?.success) throw new Error(data?.error || 'Erro ao carregar modules');
 
   return (data.data || []).map((module: MemberModuleWithContents) => ({
@@ -139,16 +156,11 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
     mutationFn: async ({ enabled, newSettings }: { enabled: boolean; newSettings?: Json }) => {
       if (!productId) throw new Error("Product ID required");
 
-      const sessionToken = getProducerSessionToken();
-      
-      const { data: result, error } = await supabase.functions.invoke('product-settings', {
-        body: {
-          action: 'update-members-area-settings',
-          productId,
-          enabled,
-          settings: newSettings,
-          sessionToken,
-        }
+      const { data: result, error } = await api.call<{ success: boolean; error?: string }>('product-settings', {
+        action: 'update-members-area-settings',
+        productId,
+        enabled,
+        settings: newSettings,
       });
       
       if (error || !result?.success) {
@@ -158,12 +170,9 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
       // Configurações adicionais quando habilitado
       if (enabled && user?.email) {
         try {
-          const { data: productData } = await supabase.functions.invoke('admin-data', {
-            body: { 
-              action: 'user-products-simple',
-              productId,
-            },
-            headers: { 'x-producer-session-token': sessionToken || '' },
+          const { data: productData } = await api.call<ProductDataResponse>('admin-data', { 
+            action: 'user-products-simple',
+            productId,
           });
 
           const userId = productData?.data?.user_id;
@@ -180,25 +189,22 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
             });
           }
 
-          const { data: existingGroups } = await supabase.functions.invoke('members-area-groups', {
-            body: { action: 'list', product_id: productId },
-            headers: { 'x-producer-session-token': sessionToken || '' },
+          const { data: existingGroups } = await api.call<GroupsResponse>('members-area-groups', {
+            action: 'list',
+            product_id: productId,
           });
 
           const groupsList = existingGroups?.groups || existingGroups?.data || [];
           
           if (!groupsList.length) {
-            await supabase.functions.invoke('members-area-groups', {
-              body: { 
-                action: 'create', 
-                product_id: productId,
-                data: { 
-                  name: 'Padrão', 
-                  description: 'Grupo padrão para todos os alunos', 
-                  is_default: true 
-                }
-              },
-              headers: { 'x-producer-session-token': sessionToken || '' },
+            await api.call('members-area-groups', { 
+              action: 'create', 
+              product_id: productId,
+              data: { 
+                name: 'Padrão', 
+                description: 'Grupo padrão para todos os alunos', 
+                is_default: true 
+              }
             });
           }
         } catch (accessError) {

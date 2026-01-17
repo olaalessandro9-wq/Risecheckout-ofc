@@ -1,3 +1,10 @@
+/**
+ * EditPriceDialog - Diálogo para edição de preço de produto
+ * 
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
+ * @see RISE Protocol V2 - Zero database access from frontend
+ */
+
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -10,10 +17,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { CurrencyInput } from "@/components/ui/currency-input";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
+
+interface UpdatePriceResponse {
+  success: boolean;
+  error?: string;
+}
 
 interface EditPriceDialogProps {
   open: boolean;
@@ -46,21 +57,16 @@ export function EditPriceDialog({
       return;
     }
 
-    const sessionToken = getProducerSessionToken();
-    if (!sessionToken) {
-      toast.error("Sessão expirada. Por favor, faça login novamente.");
-      return;
-    }
-
     setIsSaving(true);
 
     try {
       console.log("[EditPriceDialog] Atualizando preço do produto:", productId, "para:", price);
 
       // Atualizar preço via Edge Function (atomicamente atualiza produto + oferta padrão)
-      const { data: response, error } = await supabase.functions.invoke("product-settings", {
-        body: { action: 'update-price', productId, price },
-        headers: { "x-producer-session-token": sessionToken },
+      const { data, error } = await api.call<UpdatePriceResponse>("product-settings", {
+        action: 'update-price',
+        productId,
+        price,
       });
 
       if (error) {
@@ -68,8 +74,8 @@ export function EditPriceDialog({
         throw new Error(error.message || "Erro ao atualizar preço");
       }
 
-      if (!response?.success) {
-        throw new Error(response?.error || "Erro ao atualizar preço");
+      if (!data?.success) {
+        throw new Error(data?.error || "Erro ao atualizar preço");
       }
 
       console.log("[EditPriceDialog] Preço atualizado com sucesso!");
