@@ -170,7 +170,7 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     resetOffers: () => formDispatch({ type: 'RESET_OFFERS' }),
     checkoutSettingsForm: formState.editedData.checkoutSettings,
     isCheckoutSettingsInitialized: formState.isCheckoutSettingsInitialized,
-    saveCheckoutSettings: async () => {}, // Placeholder - checkout has its own save
+    formDispatch,
     upsellSettings: formState.editedData.upsell,
     saveUpsellSettings: settingsAdapter.saveUpsellSettings,
     affiliateSettings: formState.editedData.affiliate,

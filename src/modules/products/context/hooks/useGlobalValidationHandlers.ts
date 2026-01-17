@@ -28,7 +28,9 @@ import {
   saveDeletedOffers,
   saveOffers,
   saveGeneralProduct,
+  saveCheckoutSettingsProduct,
 } from "../helpers/saveFunctions";
+import type { ProductFormAction } from "../../types/formActions.types";
 
 // ============================================================================
 // TYPES
@@ -54,7 +56,7 @@ interface UseGlobalValidationHandlersOptions {
   // Checkout Settings
   checkoutSettingsForm: CheckoutSettingsFormData;
   isCheckoutSettingsInitialized: boolean;
-  saveCheckoutSettings: () => Promise<void>;
+  formDispatch: React.Dispatch<ProductFormAction>;
   // Upsell
   upsellSettings: UpsellSettings;
   saveUpsellSettings: (settings: UpsellSettings) => Promise<void>;
@@ -89,7 +91,7 @@ export function useGlobalValidationHandlers(options: UseGlobalValidationHandlers
     resetOffers,
     checkoutSettingsForm,
     isCheckoutSettingsInitialized,
-    saveCheckoutSettings,
+    formDispatch,
     upsellSettings,
     saveUpsellSettings,
     affiliateSettings,
@@ -208,7 +210,21 @@ export function useGlobalValidationHandlers(options: UseGlobalValidationHandlers
     if (isCheckoutSettingsInitialized) {
       const unregisterCheckout = registerSaveHandler(
         'checkout-settings',
-        saveCheckoutSettings,
+        async () => {
+          const currentSettings = checkoutSettingsFormRef.current;
+          
+          // Chamar função real de salvamento
+          await saveCheckoutSettingsProduct({
+            productId,
+            checkoutSettings: currentSettings,
+          });
+          
+          // Disparar action para atualizar serverData e limpar dirty flag
+          formDispatch({
+            type: 'MARK_CHECKOUT_SETTINGS_SAVED',
+            payload: { settings: currentSettings }
+          });
+        },
         {
           validate: () => {
             const form = checkoutSettingsFormRef.current;
@@ -312,7 +328,7 @@ export function useGlobalValidationHandlers(options: UseGlobalValidationHandlers
     resetImage,
     resetOffers,
     isCheckoutSettingsInitialized,
-    saveCheckoutSettings,
+    formDispatch,
     saveUpsellSettings,
     saveAffiliateSettings,
   ]);
