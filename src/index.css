@@ -237,15 +237,15 @@
     min-height: 100%;
   }
 
-  /* Fix iOS zoom on input focus */
-  input[type="text"],
-  input[type="email"],
-  input[type="tel"],
-  input[type="number"],
-  input[type="password"],
-  select,
-  textarea {
-    font-size: 16px !important;
+  /* Fix iOS zoom on input focus - using high specificity instead of !important */
+  html body input[type="text"],
+  html body input[type="email"],
+  html body input[type="tel"],
+  html body input[type="number"],
+  html body input[type="password"],
+  html body select,
+  html body textarea {
+    font-size: 16px;
   }
 
   /* Scrollbar minimalista */
@@ -425,11 +425,12 @@ iframe.mp-error {
   transition: background-color 0.15s ease;
 }
 
-[data-radix-select-item][style]:focus,
-[data-radix-select-item][style]:hover,
-[data-radix-select-item][style][data-highlighted] {
-  background-color: var(--item-hover-bg, rgba(0, 0, 0, 0.05)) !important;
-  color: inherit !important;
+/* High specificity to override inline styles without !important */
+html body [data-radix-select-viewport] [data-radix-select-item][style]:focus,
+html body [data-radix-select-viewport] [data-radix-select-item][style]:hover,
+html body [data-radix-select-viewport] [data-radix-select-item][style][data-highlighted] {
+  background-color: var(--item-hover-bg, rgba(0, 0, 0, 0.05));
+  color: inherit;
 }
 
 /* ========================================
