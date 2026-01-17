@@ -15,6 +15,7 @@ import type {
   CheckoutSettingsFormData,
   GatewayCredentials,
   ServerDataSnapshot,
+  FormValidationErrors,
 } from "./formData.types";
 
 // ============================================================================
@@ -146,6 +147,14 @@ export interface SetValidationErrorAction {
 }
 
 /**
+ * Ação: Setar múltiplos erros de validação de uma vez
+ */
+export interface SetBulkValidationErrorsAction {
+  type: "SET_BULK_VALIDATION_ERRORS";
+  payload: Partial<FormValidationErrors>;
+}
+
+/**
  * Ação: Limpar todos os erros de validação
  */
 export interface ClearValidationErrorsAction {
@@ -190,6 +199,7 @@ export type ProductFormAction =
   | ResetToServerAction
   | MarkSavedAction
   | SetValidationErrorAction
+  | SetBulkValidationErrorsAction
   | ClearValidationErrorsAction
   | ResetImageAction
   | ResetOffersAction

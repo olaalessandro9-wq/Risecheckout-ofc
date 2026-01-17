@@ -210,10 +210,21 @@ export function useGeneralTab() {
       },
       {
         validate: () => {
-          const result = validateGeneralForm();
+          // Importar e executar validação centralizada
+          const { validateGeneralForm: validateGeneral } = require("../../context/productFormValidation");
+          const result = validateGeneral(form) as { isValid: boolean; errors: { general?: Record<string, string | undefined> } };
+          
+          // Converter erros para o formato esperado pelo registry
+          const fieldErrors: Record<string, string> = {};
+          if (result.errors.general) {
+            Object.entries(result.errors.general).forEach(([field, error]) => {
+              if (error) fieldErrors[field] = error as string;
+            });
+          }
+          
           return {
-            isValid: result,
-            errors: result ? {} : { name: "Campos obrigatórios não preenchidos" },
+            isValid: result.isValid,
+            errors: fieldErrors,
             tabKey: 'geral',
           };
         },
@@ -234,7 +245,6 @@ export function useGeneralTab() {
     saveOffers,
     resetImage,
     resetOffers,
-    validateGeneralForm,
     registerSaveHandler,
   ]);
 

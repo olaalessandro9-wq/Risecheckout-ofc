@@ -29,6 +29,7 @@ import {
   handleInitCheckoutSettings,
   handleMarkCheckoutSettingsSaved,
   handleSetValidationError,
+  handleSetBulkValidationErrors,
   handleClearValidationErrors,
 } from "./actions";
 
@@ -79,6 +80,9 @@ export function productFormReducer(
     
     case "SET_VALIDATION_ERROR":
       return handleSetValidationError(state, action.payload);
+    
+    case "SET_BULK_VALIDATION_ERRORS":
+      return handleSetBulkValidationErrors(state, action.payload);
     
     case "CLEAR_VALIDATION_ERRORS":
       return handleClearValidationErrors(state);
