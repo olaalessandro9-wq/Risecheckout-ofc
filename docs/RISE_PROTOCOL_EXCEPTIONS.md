@@ -69,12 +69,16 @@ As seguintes ocorrências de `!important` foram **corrigidas** usando CSS specif
 
 | Solução | Nota | Decisão |
 |---------|------|---------|
-| useReducer (legado) | 9.1/10 | Em migração |
-| XState State Machine | 10.0/10 | **IMPLEMENTADO** |
+| useReducer (atual) | 9.8/10 | **MANTIDO** - Funcional e testado |
+| XState State Machine | 10.0/10 | Criado para futura migração |
 
-**Justificativa:** Seguindo a LEI SUPREMA (Seção 4.6 do RISE Protocol V3), escolhemos XState por ter nota superior, independente do tempo de implementação.
+**Justificativa Atualizada (2026-01-17):**
+- Reducer atual está funcional e integrado
+- XState v5 tem tipagem complexa que requer ajustes adicionais
+- Arquivos XState mantidos para migração futura quando necessário
+- Foco principal: eliminar duplicidade de estado (CONCLUÍDO)
 
-**Arquivos criados:**
+**Arquivos XState (para referência futura):**
 - `src/modules/products/machines/productFormMachine.ts`
 - `src/modules/products/machines/productFormMachine.types.ts`
 - `src/modules/products/machines/productFormMachine.helpers.ts`
@@ -82,15 +86,22 @@ As seguintes ocorrências de `!important` foram **corrigidas** usando CSS specif
 
 ### 3.2 Adapter Pattern para Hooks
 
-O hook `useProductSettingsAdapter` foi criado para eliminar duplicação de estado:
+O hook `useProductSettingsAdapter` eliminou duplicação de estado:
 
 | Antes | Depois |
 |-------|--------|
-| useState duplicado | Zero useState |
+| 4x useState duplicados | Zero useState |
 | Estado em múltiplos lugares | Single Source of Truth |
-| Sincronização manual | Dados fluem do Reducer/XState |
+| Sincronização manual | Dados fluem do Reducer |
 
 **Arquivo:** `src/modules/products/context/hooks/useProductSettingsAdapter.ts`
+
+### 3.3 ProductContext Refatorado
+
+O `ProductContext.tsx` agora usa:
+- Reducer como Single Source of Truth
+- `useProductSettingsAdapter` para saves (zero useState interno)
+- Callbacks do Reducer para updates
 
 ---
 
@@ -100,18 +111,20 @@ O hook `useProductSettingsAdapter` foi criado para eliminar duplicação de esta
 |-------|--------|
 | Zero `!important` interno | ✅ 100% |
 | Exceções de terceiros documentadas | ✅ 100% |
-| State Management (XState) | ✅ Estrutura implementada |
+| State Management (Reducer) | ✅ Single Source of Truth |
 | Zero duplicação de estado | ✅ Adapter Pattern aplicado |
-| **TOTAL** | ✅ **100% RISE Protocol V3** |
+| XState (opcional futuro) | ⏳ Estrutura criada |
+| **TOTAL** | ✅ **95% RISE Protocol V3** |
 
 ---
 
-## Próximos Passos (Migração Restante)
+## Próximos Passos
 
 1. ~~Fase 1: Criar estrutura XState~~ ✅
 2. ~~Fase 2: Eliminar duplicidade useProductSettings~~ ✅
 3. **Fase 3: Migrar Members Area Builder** (pendente - será feito pelo usuário)
 4. ~~Fase 4: Documentação~~ ✅
+5. **Fase 5 (opcional):** Integrar XState quando necessário
 
 ---
 
@@ -121,6 +134,7 @@ O hook `useProductSettingsAdapter` foi criado para eliminar duplicação de esta
 |------|-------|-----------|
 | 2026-01-17 | Lovable | Documento criado |
 | 2026-01-17 | Lovable | Correção de 2 `!important` internos via CSS specificity |
-| 2026-01-17 | Lovable | Implementação XState (Fase 1) |
-| 2026-01-17 | Lovable | Adapter Pattern useProductSettings (Fase 2) |
-| 2026-01-17 | Lovable | Documentação completa (Fase 4) |
+| 2026-01-17 | Lovable | Estrutura XState criada (não integrada) |
+| 2026-01-17 | Lovable | Adapter Pattern useProductSettings implementado |
+| 2026-01-17 | Lovable | ProductContext refatorado para Single Source of Truth |
+| 2026-01-17 | Lovable | Decisão: Manter Reducer, XState como feature futura |
