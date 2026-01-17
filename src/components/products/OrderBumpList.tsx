@@ -13,10 +13,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { formatCentsToBRL as formatBRL } from "@/lib/money";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 import {
   DndContext,
   closestCenter,
@@ -174,44 +173,50 @@ export function OrderBumpList({ productId, onAdd, onEdit, maxOrderBumps = 5 }: O
     })
   );
 
+  interface RawOrderBumpRow {
+    id: string;
+    checkout_id: string;
+    product_id: string;
+    offer_id: string | null;
+    position: number;
+    active: boolean;
+    products?: {
+      id: string;
+      name: string;
+      price: number;
+      image_url?: string | null;
+    } | null;
+    offers?: {
+      id: string;
+      name: string;
+      price: number;
+    } | null;
+  }
+
+  interface OrderBumpsResponse {
+    orderBumps?: RawOrderBumpRow[];
+    error?: string;
+  }
+
+  interface OrderBumpCrudResponse {
+    success: boolean;
+    error?: string;
+  }
+
   /**
    * Load order bumps via Edge Function
-   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   * MIGRATED: Uses api.call() - Unified API Client
    */
   const loadOrderBumps = useCallback(async () => {
     try {
       setLoading(true);
       
-      const sessionToken = getProducerSessionToken();
-      const { data, error } = await supabase.functions.invoke("admin-data", {
-        body: { 
-          action: "order-bumps",
-          productId,
-        },
-        headers: { "x-producer-session-token": sessionToken || "" },
+      const { data, error } = await api.call<OrderBumpsResponse>("admin-data", { 
+        action: "order-bumps",
+        productId,
       });
 
       if (error) throw error;
-
-      interface RawOrderBumpRow {
-        id: string;
-        checkout_id: string;
-        product_id: string;
-        offer_id: string | null;
-        position: number;
-        active: boolean;
-        products?: {
-          id: string;
-          name: string;
-          price: number;
-          image_url?: string | null;
-        } | null;
-        offers?: {
-          id: string;
-          name: string;
-          price: number;
-        } | null;
-      }
 
       const mappedBumps: OrderBump[] = (data?.orderBumps || []).map((bump: RawOrderBumpRow) => {
         return {
@@ -261,16 +266,12 @@ export function OrderBumpList({ productId, onAdd, onEdit, maxOrderBumps = 5 }: O
     
     setIsSaving(true);
     try {
-      const sessionToken = getProducerSessionToken();
-      if (!sessionToken) {
-        throw new Error("Sessão expirada");
-      }
-
       const orderedIds = newOrder.map(b => b.id);
 
-      const { data: response, error } = await supabase.functions.invoke("order-bump-crud", {
-        body: { action: 'reorder', checkoutId, orderedIds },
-        headers: { "x-producer-session-token": sessionToken },
+      const { data: response, error } = await api.call<OrderBumpCrudResponse>("order-bump-crud", {
+        action: 'reorder',
+        checkoutId,
+        orderedIds,
       });
 
       if (error) {
@@ -293,15 +294,10 @@ export function OrderBumpList({ productId, onAdd, onEdit, maxOrderBumps = 5 }: O
 
   const handleRemove = async (id: string) => {
     try {
-      const sessionToken = getProducerSessionToken();
-      if (!sessionToken) {
-        toast.error("Sessão expirada. Por favor, faça login novamente.");
-        return;
-      }
 
-      const { data: response, error } = await supabase.functions.invoke("order-bump-crud", {
-        body: { action: 'delete', id },
-        headers: { "x-producer-session-token": sessionToken },
+      const { data: response, error } = await api.call<OrderBumpCrudResponse>("order-bump-crud", {
+        action: 'delete',
+        id,
       });
 
       if (error) {

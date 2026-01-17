@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { getSystemHealthSummaryRpc, getUnresolvedErrorsRpc, getWebhookStats24hRpc } from "@/lib/rpc/rpcProxy";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertCircle, CheckCircle, XCircle, TrendingUp } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { toast } from "sonner";
 import type { SystemMetric, UnresolvedError, WebhookStats } from "@/types/admin-health.types";
+
+interface ResolveErrorResponse {
+  success: boolean;
+  error?: string;
+}
 
 export default function AdminHealth() {
   const [loading, setLoading] = useState(true);
@@ -59,20 +63,15 @@ export default function AdminHealth() {
     setResolvingIds(prev => new Set(prev).add(errorId));
     
     try {
-      const sessionToken = getProducerSessionToken();
-      const { data, error } = await supabase.functions.invoke(
-        "admin-health",
-        {
-          body: { action: "resolve-error", errorId },
-          headers: { "x-producer-session-token": sessionToken || "" },
-        }
-      );
+      const { data, error } = await api.call<ResolveErrorResponse>("admin-health", {
+        action: "resolve-error",
+        errorId,
+      });
 
       if (error) throw error;
 
-      const result = data as { success: boolean; error?: string };
-      if (!result.success) {
-        throw new Error(result.error || "Erro ao resolver");
+      if (!data?.success) {
+        throw new Error(data?.error || "Erro ao resolver");
       }
 
       toast.success("Erro marcado como resolvido");
