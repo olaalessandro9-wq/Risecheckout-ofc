@@ -1,8 +1,8 @@
 /**
  * TikTokPixelConfig
  * 
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke
  * Componente para configuração do TikTok Pixel.
- * Segue o mesmo padrão do FacebookPixelConfig.
  */
 
 import { useState, useEffect } from "react";
@@ -12,8 +12,24 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
+
+interface TikTokIntegrationResponse {
+  integration?: {
+    active: boolean;
+    config: {
+      pixel_id?: string;
+      has_token?: boolean;
+    } | null;
+  };
+  error?: string;
+}
+
+interface VaultSaveResponse {
+  success: boolean;
+  error?: string;
+}
 
 export function TikTokPixelConfig() {
   const { user } = useAuth();
@@ -31,29 +47,23 @@ export function TikTokPixelConfig() {
   }, [user]);
 
   /**
-   * Carrega configuração via Edge Function
-   * MIGRATED: Uses vendor-integrations Edge Function
+   * Carrega configuração via api.call()
    */
   const loadConfig = async () => {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase.functions.invoke("vendor-integrations", {
-        body: {
-          action: "get",
-          vendorId: user?.id,
-          integrationType: "TIKTOK_PIXEL",
-        },
+      const { data, error } = await api.call<TikTokIntegrationResponse>("vendor-integrations", {
+        action: "get",
+        vendorId: user?.id,
+        integrationType: "TIKTOK_PIXEL",
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
       if (data?.integration) {
         const integration = data.integration;
-        const config = integration.config as { 
-          pixel_id?: string; 
-          has_token?: boolean;
-        } | null;
+        const config = integration.config;
         
         setPixelId(config?.pixel_id || "");
         setHasExistingToken(config?.has_token || false);
@@ -93,13 +103,11 @@ export function TikTokPixelConfig() {
         credentials.has_token = true;
       }
 
-      const { data: result, error } = await supabase.functions.invoke("vault-save", {
-        body: {
-          vendor_id: user.id,
-          integration_type: "TIKTOK_PIXEL",
-          credentials,
-          active,
-        },
+      const { data: result, error } = await api.call<VaultSaveResponse>("vault-save", {
+        vendor_id: user.id,
+        integration_type: "TIKTOK_PIXEL",
+        credentials,
+        active,
       });
 
       if (error) {

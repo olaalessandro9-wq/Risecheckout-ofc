@@ -31,8 +31,7 @@ import {
 import { useAffiliateRequest } from "@/hooks/useAffiliateRequest";
 import { useAffiliationStatusCache } from "@/hooks/useAffiliationStatusCache";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -120,36 +119,35 @@ export function ProductDetails({ product, open, onOpenChange }: ProductDetailsPr
   }, [success, onOpenChange]);
 
   /**
-   * Fetch offers via Edge Function
-   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   * Fetch offers via api.call()
+   * MIGRATED: Uses api.call() instead of supabase.functions.invoke
    */
   useEffect(() => {
     if (!product || !open) return;
 
+    interface ProductOffersResponse {
+      offers?: Array<{
+        id: string;
+        name: string | null;
+        price: number;
+        is_default: boolean | null;
+      }>;
+      error?: string;
+    }
+
     const fetchOffers = async () => {
       setLoadingOffers(true);
       try {
-        const sessionToken = getProducerSessionToken();
-        const { data, error } = await supabase.functions.invoke("admin-data", {
-          body: { 
-            action: "product-offers",
-            productId: product.id,
-          },
-          headers: { "x-producer-session-token": sessionToken || "" },
+        const { data, error } = await api.call<ProductOffersResponse>("admin-data", { 
+          action: "product-offers",
+          productId: product.id,
         });
 
-        if (error) throw error;
-
-        interface OfferRow {
-          id: string;
-          name: string | null;
-          price: number;
-          is_default: boolean | null;
-        }
+        if (error) throw new Error(error.message);
 
         const offersData = data?.offers || [];
         if (offersData.length > 0) {
-          const mappedOffers: Offer[] = offersData.map((offer: OfferRow) => {
+          const mappedOffers: Offer[] = offersData.map((offer) => {
             const commission = (offer.price * (product.commission_percentage || 0)) / 100;
             return {
               id: offer.id,

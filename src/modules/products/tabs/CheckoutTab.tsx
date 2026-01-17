@@ -19,7 +19,6 @@ import { CheckoutConfigDialog } from "@/components/products/CheckoutConfigDialog
 import { useProductContext } from "../context/ProductContext";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
-import { supabase } from "@/integrations/supabase/client";
 import { useConfirmDelete } from "@/components/common/ConfirmDelete";
 import { useBusy } from "@/components/BusyProvider";
 
@@ -162,18 +161,16 @@ export function CheckoutTab() {
 
   /**
    * Configure checkout - load associated offer
-   * MIGRATED: Uses checkout-public-data Edge Function
+   * MIGRATED: Uses api.publicCall()
    */
   const handleConfigureCheckout = async (checkout: Checkout) => {
     setEditingCheckout(checkout);
     
     try {
-      // Use the checkout-public-data Edge Function to get checkout with links
-      const { data, error } = await supabase.functions.invoke('checkout-public-data', {
-        body: { 
-          action: 'get-checkout-offer',
-          checkoutId: checkout.id
-        }
+      // Use api.publicCall for public checkout data
+      const { data, error } = await api.publicCall<{ offerId?: string }>('checkout-public-data', { 
+        action: 'get-checkout-offer',
+        checkoutId: checkout.id
       });
 
       if (error) {
