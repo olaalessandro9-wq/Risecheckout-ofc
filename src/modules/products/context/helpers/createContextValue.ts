@@ -17,6 +17,7 @@ import type {
   GatewayCredentials,
 } from "../../types/productForm.types";
 import type { RegisterSaveHandler } from "../../types/saveRegistry.types";
+import type { TabValidationMap } from "../../types/tabValidation.types";
 import { validateGeneralForm } from "../productFormValidation";
 
 // ============================================================================
@@ -78,6 +79,12 @@ export interface ContextValueDependencies {
   resetDirtySources: () => void;
   // Save Registry Pattern
   registerSaveHandler: RegisterSaveHandler;
+  // Tab Validation - Sistema de validação global
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+  tabErrors: TabValidationMap;
+  setTabErrors: (errors: TabValidationMap) => void;
+  clearTabErrors: () => void;
 }
 
 // ============================================================================
@@ -130,6 +137,11 @@ export function createContextValue(deps: ContextValueDependencies) {
     updateUpsellModified,
     resetDirtySources,
     registerSaveHandler,
+    activeTab,
+    setActiveTab,
+    tabErrors,
+    setTabErrors,
+    clearTabErrors,
   } = deps;
 
   return {
@@ -198,5 +210,11 @@ export function createContextValue(deps: ContextValueDependencies) {
     initCheckoutSettings,
     // Save Registry Pattern
     registerSaveHandler,
+    // Tab Validation - Sistema de validação global
+    activeTab,
+    setActiveTab,
+    tabErrors,
+    setTabErrors,
+    clearTabErrors,
   };
 }

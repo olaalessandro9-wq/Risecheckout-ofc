@@ -1,63 +1,33 @@
 /**
- * useSaveRegistry - Registry Pattern para Save Handlers
+ * useSaveRegistry - Registry Pattern para Save Handlers (Estendido)
  * 
  * Implementa Open/Closed Principle:
  * - Cada aba registra seu próprio handler de salvamento
  * - saveAll itera sobre todos os handlers registrados
  * - Adicionar nova aba = registrar handler (zero mudança no core)
  * 
- * @see RISE ARCHITECT PROTOCOL V3 - Solução C (Nota 10/10)
+ * Estendido para suportar:
+ * - Validação com erros por campo
+ * - Identificação de aba (tabKey) para navegação automática
+ * - Retorno detalhado de erros por aba
+ * 
+ * @see RISE ARCHITECT PROTOCOL V3 - Sistema de Validação Global
  */
 
 import { useRef, useCallback } from "react";
-
-// ============================================================================
-// TYPES
-// ============================================================================
-
-/**
- * Função que executa o salvamento
- */
-export type SaveHandler = () => Promise<void>;
-
-/**
- * Função que valida antes do salvamento
- * Retorna true se válido, false se inválido
- */
-export type ValidationHandler = () => boolean;
-
-/**
- * Entrada no registry
- */
-export interface SaveRegistryEntry {
-  /** Nome identificador (para logs/debug) */
-  key: string;
-  /** Função de salvamento */
-  save: SaveHandler;
-  /** Função de validação (opcional) */
-  validate?: ValidationHandler;
-  /** Ordem de execução (menor = primeiro) */
-  order: number;
-}
-
-/**
- * Opções ao registrar um handler
- */
-export interface RegisterOptions {
-  /** Função de validação (opcional) */
-  validate?: ValidationHandler;
-  /** Ordem de execução (default: 50) */
-  order?: number;
-}
-
-/**
- * Resultado do saveAll
- */
-export interface SaveAllResult {
-  success: boolean;
-  failedKey?: string;
-  error?: Error;
-}
+import type { 
+  SaveHandler, 
+  ValidationHandler,
+  RegisterSaveHandlerOptions,
+  SaveRegistryEntry,
+  SaveAllResult,
+} from "../../types/saveRegistry.types";
+import type { 
+  TabValidationMap,
+  TabValidationState,
+  ValidationResultExtended,
+} from "../../types/tabValidation.types";
+import { TAB_ORDER } from "../../types/tabValidation.types";
 
 // ============================================================================
 // HOOK
@@ -74,17 +44,18 @@ export function useSaveRegistry() {
   const registerSaveHandler = useCallback((
     key: string,
     save: SaveHandler,
-    options?: RegisterOptions
+    options?: RegisterSaveHandlerOptions
   ): (() => void) => {
     const entry: SaveRegistryEntry = {
       key,
       save,
       validate: options?.validate,
       order: options?.order ?? 50,
+      tabKey: options?.tabKey,
     };
 
     registryRef.current.set(key, entry);
-    console.log(`[SaveRegistry] Registered handler: ${key} (order: ${entry.order})`);
+    console.log(`[SaveRegistry] Registered handler: ${key} (order: ${entry.order}, tab: ${entry.tabKey || 'N/A'})`);
 
     // Retorna cleanup function
     return () => {
@@ -105,7 +76,6 @@ export function useSaveRegistry() {
 
   /**
    * Verifica se há handlers com alterações pendentes
-   * (Opcional: para integração futura com hasChanges)
    */
   const hasRegisteredHandlers = useCallback((): boolean => {
     return registryRef.current.size > 0;
@@ -119,12 +89,33 @@ export function useSaveRegistry() {
   }, []);
 
   /**
+   * Normaliza resultado de validação para formato estendido
+   */
+  const normalizeValidationResult = (
+    result: ValidationResultExtended | boolean,
+    tabKey?: string
+  ): ValidationResultExtended => {
+    if (typeof result === "boolean") {
+      return {
+        isValid: result,
+        errors: {},
+        tabKey,
+      };
+    }
+    return {
+      ...result,
+      tabKey: result.tabKey || tabKey,
+    };
+  };
+
+  /**
    * Executa todos os handlers registrados
    * 
    * Fluxo:
    * 1. Ordena por prioridade (order)
-   * 2. Valida todos primeiro
-   * 3. Se todas validações passarem, executa saves em paralelo
+   * 2. Valida todos primeiro, coletando TODOS os erros
+   * 3. Se houver erro, retorna com detalhes de abas
+   * 4. Se todas validações passarem, executa saves em paralelo
    */
   const executeAll = useCallback(async (): Promise<SaveAllResult> => {
     const entries = Array.from(registryRef.current.entries())
@@ -139,19 +130,59 @@ export function useSaveRegistry() {
     console.log(`[SaveRegistry] Executing ${entries.length} handlers:`, 
       entries.map(e => `${e.key}(${e.order})`).join(", "));
 
-    // Fase 1: Validação
+    // Fase 1: Validação - coleta TODOS os erros
+    const tabErrors: TabValidationMap = {};
+    let hasAnyError = false;
+    let firstFailedTabKey: string | undefined;
+
     for (const entry of entries) {
       if (entry.validate) {
-        const isValid = entry.validate();
-        if (!isValid) {
-          console.warn(`[SaveRegistry] Validation failed for: ${entry.key}`);
-          return {
-            success: false,
-            failedKey: entry.key,
-            error: new Error(`Validation failed for ${entry.key}`),
-          };
+        const rawResult = entry.validate();
+        const result = normalizeValidationResult(rawResult, entry.tabKey);
+        
+        if (!result.isValid) {
+          hasAnyError = true;
+          console.warn(`[SaveRegistry] Validation failed for: ${entry.key} (tab: ${entry.tabKey})`);
+          
+          // Registra erros para esta tab
+          if (entry.tabKey) {
+            const existingState = tabErrors[entry.tabKey];
+            const newErrors = { ...existingState?.errors, ...result.errors };
+            const newFields = Object.keys(newErrors);
+            
+            tabErrors[entry.tabKey] = {
+              hasError: true,
+              fields: newFields,
+              errors: newErrors,
+            };
+
+            // Determina primeira tab com erro seguindo ordem da UI
+            if (!firstFailedTabKey) {
+              firstFailedTabKey = entry.tabKey;
+            } else {
+              // Compara ordem para pegar a mais à esquerda
+              const currentIndex = TAB_ORDER.indexOf(entry.tabKey);
+              const firstIndex = TAB_ORDER.indexOf(firstFailedTabKey);
+              if (currentIndex !== -1 && (firstIndex === -1 || currentIndex < firstIndex)) {
+                firstFailedTabKey = entry.tabKey;
+              }
+            }
+          }
         }
       }
+    }
+
+    // Se houver erros, retorna sem executar saves
+    if (hasAnyError) {
+      console.warn(`[SaveRegistry] Validation failed. First failed tab: ${firstFailedTabKey}`);
+      console.warn(`[SaveRegistry] Tab errors:`, tabErrors);
+      
+      return {
+        success: false,
+        firstFailedTabKey,
+        tabErrors,
+        error: new Error("Validação falhou em um ou mais campos"),
+      };
     }
 
     console.log("[SaveRegistry] All validations passed, executing saves...");
