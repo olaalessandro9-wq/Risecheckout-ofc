@@ -99,46 +99,11 @@ export async function recordRateLimitAttempt(
 }
 
 // ============================================
-// SESSION VALIDATION
+// SESSION VALIDATION (DEPRECATED)
 // ============================================
-
-export async function validateProducerSession(
-  supabase: SupabaseClient,
-  sessionToken: string
-): Promise<SessionValidationResult> {
-  if (!sessionToken) {
-    return { valid: false, error: "Token de sessão não fornecido" };
-  }
-
-  const { data: session, error } = await supabase
-    .from("producer_sessions")
-    .select("producer_id, expires_at, is_valid")
-    .eq("session_token", sessionToken)
-    .single() as { data: ProducerSession | null; error: unknown };
-
-  if (error || !session) {
-    return { valid: false, error: "Sessão inválida" };
-  }
-
-  if (!session.is_valid) {
-    return { valid: false, error: "Sessão expirada ou invalidada" };
-  }
-
-  if (new Date(session.expires_at) < new Date()) {
-    await supabase
-      .from("producer_sessions")
-      .update({ is_valid: false })
-      .eq("session_token", sessionToken);
-    return { valid: false, error: "Sessão expirada" };
-  }
-
-  await supabase
-    .from("producer_sessions")
-    .update({ last_activity_at: new Date().toISOString() })
-    .eq("session_token", sessionToken);
-
-  return { valid: true, producerId: session.producer_id };
-}
+// NOTE: Use unified-auth.ts instead for authentication
+// This is kept for backwards compatibility only
+// @deprecated Use requireAuthenticatedProducer from unified-auth.ts
 
 // ============================================
 // OWNERSHIP VERIFICATION

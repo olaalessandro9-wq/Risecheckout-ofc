@@ -22,11 +22,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { RequestBody, jsonResponse } from "../_shared/pixel-types.ts";
+import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 
 // Import handlers
 import {
   checkRateLimit,
-  validateProducerSession,
   handleList,
   handleCreate,
   handleUpdate,
@@ -53,23 +53,19 @@ Deno.serve(async (req) => {
   const corsHeaders = corsResult.headers;
 
   try {
-    // Validar sessão do produtor
-    const sessionToken = req.headers.get("x-producer-session-token") || "";
-    
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const sessionResult = await validateProducerSession(supabase, sessionToken);
-    if (!sessionResult.valid || !sessionResult.producerId) {
-      return new Response(
-        JSON.stringify({ error: sessionResult.error || "Não autorizado" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // Auth via unified-auth
+    let producerId: string;
+    try {
+      const producer = await requireAuthenticatedProducer(supabase, req);
+      producerId = producer.id;
+    } catch {
+      return unauthorizedResponse(corsHeaders);
     }
-
-    const producerId = sessionResult.producerId;
 
     // Parse body
     const body: RequestBody = await req.json();

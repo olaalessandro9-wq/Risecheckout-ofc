@@ -14,7 +14,6 @@ import { captureException } from "./sentry.ts";
 import {
   jsonResponse,
   errorResponse,
-  validateProducerSession as validateSession,
   verifyProductOwnership as verifyOwnership,
   verifyModuleOwnership as verifyModule,
 } from "./edge-helpers.ts";
@@ -55,15 +54,11 @@ export interface MemberSection {
 export { jsonResponse, errorResponse } from "./edge-helpers.ts";
 
 // ============================================
-// SESSION VALIDATION (wrapper for backwards compatibility)
+// SESSION VALIDATION
 // ============================================
-
-export async function validateProducerSession(
-  supabase: SupabaseClient,
-  sessionToken: string
-): Promise<{ valid: boolean; producerId?: string; error?: string }> {
-  return validateSession(supabase, sessionToken);
-}
+// NOTE: Authentication is now handled at the edge function level
+// using unified-auth.ts. Handlers receive producerId directly.
+// This export is kept for backwards compatibility but does nothing.
 
 // ============================================
 // OWNERSHIP VERIFICATION (wrapper for backwards compatibility)
