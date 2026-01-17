@@ -238,12 +238,12 @@ verify_jwt = true
 [functions.verify-turnstile]
 verify_jwt = false
 
-# ✅ AUTENTICADAS (Descriptografia de dados do cliente)
+# ✅ PRODUCER AUTH (Descriptografia de dados do cliente - usa producer_sessions)
 [functions.decrypt-customer-data]
-verify_jwt = true
+verify_jwt = false
 
 [functions.decrypt-customer-data-batch]
-verify_jwt = true
+verify_jwt = false
 
 # ✅ PÚBLICAS (LGPD - Direito ao Esquecimento)
 [functions.gdpr-request]
