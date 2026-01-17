@@ -15,6 +15,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.14.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
 
 // Handlers
 import { startOAuthFlow } from "./handlers/oauth-start.ts";
@@ -22,10 +23,7 @@ import { processOAuthCallback } from "./handlers/oauth-callback.ts";
 import { disconnectStripe } from "./handlers/disconnect.ts";
 import { getStripeStatus } from "./handlers/status.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-producer-session-token",
-};
+const corsHeaders = PUBLIC_CORS_HEADERS;
 
 interface RequestBody {
   action?: string;

@@ -17,6 +17,7 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
 
 // Handlers
 import { exchangeCodeForToken } from "./handlers/token-exchange.ts";
@@ -24,10 +25,7 @@ import { validateOAuthState } from "./handlers/state-validator.ts";
 import { fetchMercadoPagoUserInfo } from "./handlers/user-info-fetcher.ts";
 import { saveOAuthIntegration } from "./handlers/integration-saver.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const corsHeaders = PUBLIC_CORS_HEADERS;
 
 // URLs permitidas para redirect (anti open-redirect)
 const ALLOWED_REDIRECT_DOMAINS = [
