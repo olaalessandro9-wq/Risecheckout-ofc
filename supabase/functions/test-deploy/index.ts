@@ -1,7 +1,6 @@
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
+
+const corsHeaders = PUBLIC_CORS_HEADERS;
 
 Deno.serve(async (req) => {
   // Handle CORS preflight

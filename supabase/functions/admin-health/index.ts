@@ -17,11 +17,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-producer-session-token',
-};
-
 interface ResolveErrorPayload {
   action: string;
   errorId: string;
@@ -32,6 +27,7 @@ Deno.serve(async (req) => {
   // Handle CORS preflight
   const corsResult = handleCors(req);
   if (corsResult instanceof Response) return corsResult;
+  const corsHeaders = corsResult.headers;
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;

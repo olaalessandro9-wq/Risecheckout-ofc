@@ -8,11 +8,9 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const corsHeaders = PUBLIC_CORS_HEADERS;
 
 interface TrackVisitPayload {
   checkoutId: string;

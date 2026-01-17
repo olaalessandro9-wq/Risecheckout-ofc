@@ -12,11 +12,9 @@
  */
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const corsHeaders = PUBLIC_CORS_HEADERS;
 
 interface ValidateRequest {
   apiKey: string;

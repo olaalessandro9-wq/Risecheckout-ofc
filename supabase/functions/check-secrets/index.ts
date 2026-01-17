@@ -1,10 +1,9 @@
 // supabase/functions/check-secrets/index.ts
 // Edge Function de Diagnóstico - Verifica status de todas as secrets do sistema
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
+
+const corsHeaders = PUBLIC_CORS_HEADERS;
 
 interface SecretStatus {
   configured: boolean;
