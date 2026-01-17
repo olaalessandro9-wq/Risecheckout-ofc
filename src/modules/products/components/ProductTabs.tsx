@@ -69,88 +69,52 @@ export function ProductTabs() {
         </TabsTrigger>
       </TabsList>
       
-      {/* ABA GERAL */}
-      <TabsContent 
-        value="geral" 
-        className={`space-y-6 ${activeTab !== "geral" ? "hidden" : ""}`}
-        forceMount
-      >
+      {/* ABA GERAL - Renderiza apenas quando ativa */}
+      <TabsContent value="geral" className="space-y-6">
         <GeneralTab />
       </TabsContent>
       
-      {/* ABA CONFIGURAÇÕES */}
-      <TabsContent 
-        value="configuracoes" 
-        className={`space-y-6 ${activeTab !== "configuracoes" ? "hidden" : ""}`}
-        forceMount
-      >
+      {/* ABA CONFIGURAÇÕES - Renderiza apenas quando ativa */}
+      <TabsContent value="configuracoes" className="space-y-6">
         <ConfiguracoesTab />
       </TabsContent>
       
-      {/* ABA ORDER BUMP */}
-      <TabsContent 
-        value="order-bump" 
-        className={`space-y-6 ${activeTab !== "order-bump" ? "hidden" : ""}`}
-        forceMount
-      >
+      {/* ABA ORDER BUMP - Renderiza apenas quando ativa */}
+      <TabsContent value="order-bump" className="space-y-6">
         <OrderBumpTab />
       </TabsContent>
       
-      {/* ABA UPSELL/DOWNSELL */}
-      <TabsContent 
-        value="upsell" 
-        className={`space-y-6 ${activeTab !== "upsell" ? "hidden" : ""}`}
-        forceMount
-      >
+      {/* ABA UPSELL/DOWNSELL - Renderiza apenas quando ativa */}
+      <TabsContent value="upsell" className="space-y-6">
         <UpsellTab />
       </TabsContent>
       
-      {/* ABA CHECKOUT */}
-      <TabsContent 
-        value="checkout" 
-        className={`space-y-6 ${activeTab !== "checkout" ? "hidden" : ""}`}
-        forceMount
-      >
+      {/* ABA CHECKOUT - Renderiza apenas quando ativa */}
+      <TabsContent value="checkout" className="space-y-6">
         <CheckoutTab />
       </TabsContent>
       
-      {/* ABA CUPONS */}
-      <TabsContent 
-        value="cupons" 
-        className={`space-y-6 ${activeTab !== "cupons" ? "hidden" : ""}`}
-        forceMount
-      >
+      {/* ABA CUPONS - Renderiza apenas quando ativa */}
+      <TabsContent value="cupons" className="space-y-6">
         <CuponsTab />
       </TabsContent>
       
-      {/* ABA AFILIADOS - só renderiza se tem permissão, com lazy loading */}
+      {/* ABA AFILIADOS - Renderiza apenas quando ativa (com lazy loading) */}
       {canHaveAffiliates && (
-        <TabsContent 
-          value="afiliados" 
-          className={`space-y-6 ${activeTab !== "afiliados" ? "hidden" : ""}`}
-          forceMount
-        >
+        <TabsContent value="afiliados" className="space-y-6">
           <Suspense fallback={<TabLoader />}>
             <AffiliatesTab />
           </Suspense>
         </TabsContent>
       )}
       
-      {/* ABA LINKS */}
-      <TabsContent 
-        value="links" 
-        className={`space-y-6 ${activeTab !== "links" ? "hidden" : ""}`}
-        forceMount
-      >
+      {/* ABA LINKS - Renderiza apenas quando ativa */}
+      <TabsContent value="links" className="space-y-6">
         <LinksTab />
       </TabsContent>
 
-      {/* ABA ÁREA DE MEMBROS */}
-      <TabsContent 
-        value="membros" 
-        className={`space-y-6 ${activeTab !== "membros" ? "hidden" : ""}`}
-        forceMount
-      >
+      {/* ABA ÁREA DE MEMBROS - Renderiza apenas quando ativa */}
+      <TabsContent value="membros" className="space-y-6">
         <MembersAreaTab />
       </TabsContent>
     </Tabs>
