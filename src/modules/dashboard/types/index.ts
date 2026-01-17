@@ -24,6 +24,7 @@ export type {
   
   // Customer
   RecentCustomer,
+  CustomerDisplayStatus,
   
   // Order
   Order,
