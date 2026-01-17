@@ -2,7 +2,6 @@
  * Integration OAuth Handlers
  * 
  * Extracted OAuth-specific handlers for integration-management.
- * RISE Protocol V2 Compliant - Zero `any`
  * 
  * @created 2026-01-13 - Extracted from integration-handlers.ts
  * @version 2.0.0

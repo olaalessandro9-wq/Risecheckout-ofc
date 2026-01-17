@@ -7,7 +7,7 @@
  * - delete: Delete order bump
  * - reorder: Reorder order bumps
  * 
- * @version 2.0.0 - RISE Protocol V2 Compliant - Zero `any`
+ * @version 2.0.0
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";

@@ -4,7 +4,6 @@
  * Clone functions for checkout rows, components, and links.
  * Extracted from product-duplicate-handlers.ts to keep files < 300 lines.
  * 
- * RISE Protocol V2 Compliant - Zero `any`
  * @version 2.0.0
  */
 

@@ -1,8 +1,6 @@
 /**
  * Logger Centralizado - Supabase Edge Functions
  * 
- * RISE Protocol V2 Compliant - Zero `any`
- * 
  * Níveis de log controlados por variável de ambiente LOG_LEVEL:
  * - debug: Todos os logs (desenvolvimento)
  * - info: Info, warn e error (padrão)

@@ -12,7 +12,6 @@
  * - Audit logging via log_security_event RPC
  * 
  * @version 1.0.0
- * @rise-protocol-compliant true
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";

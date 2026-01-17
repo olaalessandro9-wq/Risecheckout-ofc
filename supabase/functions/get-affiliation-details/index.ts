@@ -3,7 +3,7 @@
  * 
  * Retorna detalhes completos de uma afiliação para o painel do afiliado.
  * 
- * @version 2.0.0 - RISE Protocol V2 Compliant - Zero `any`
+ * @version 2.0.0
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";

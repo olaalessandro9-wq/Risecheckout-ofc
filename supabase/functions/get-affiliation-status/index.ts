@@ -4,7 +4,7 @@
  * Verifica se o usuário logado já é afiliado de um produto e retorna o status.
  * Usa service_role para bypass de RLS (sistema usa autenticação customizada).
  * 
- * @version 2.0.0 - RISE Protocol V2 Compliant - Zero `any`
+ * @version 2.0.0
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";

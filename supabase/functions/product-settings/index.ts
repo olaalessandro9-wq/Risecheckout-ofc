@@ -9,7 +9,6 @@
  * - update-affiliate-gateway-settings: Affiliate gateway config
  * - update-members-area-settings: Members area config
  * 
- * RISE Protocol V2 Compliant - Zero `any`
  * @version 2.0.0
  */
 
@@ -32,7 +31,7 @@ import type {
 } from "../_shared/supabase-types.ts";
 
 // ============================================
-// TYPES (Zero any)
+// TYPES
 // ============================================
 
 interface RateLimitResult {
@@ -98,7 +97,7 @@ interface ProductRecord {
 }
 
 // ============================================
-// HELPERS (Zero any)
+// HELPERS
 // ============================================
 
 async function checkRateLimit(
