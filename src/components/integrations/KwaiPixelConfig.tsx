@@ -1,7 +1,7 @@
 /**
  * KwaiPixelConfig
  * 
- * MIGRATED: Uses Edge Function instead of supabase.from()
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
  */
 
 import { useState, useEffect } from "react";
@@ -11,9 +11,20 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
+
+interface KwaiIntegrationResponse {
+  integration?: {
+    config?: { pixel_id?: string } | null;
+    active?: boolean;
+  };
+}
+
+interface VaultSaveResponse {
+  success?: boolean;
+  error?: string;
+}
 
 export function KwaiPixelConfig() {
   const { user } = useAuth();
@@ -30,18 +41,13 @@ export function KwaiPixelConfig() {
 
   /**
    * Load config via Edge Function
-   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
    */
   const loadConfig = async () => {
     try {
       setLoading(true);
       
-      const { data, error } = await api.call<{
-        integration?: {
-          config?: { pixel_id?: string } | null;
-          active?: boolean;
-        };
-      }>("admin-data", {
+      const { data, error } = await api.call<KwaiIntegrationResponse>("admin-data", {
         action: "vendor-integration",
         integrationType: "KWAI_PIXEL",
       });
@@ -83,17 +89,19 @@ export function KwaiPixelConfig() {
         pixel_id: pixelId.trim(),
       };
 
-      const { data: result, error } = await supabase.functions.invoke("vault-save", {
-        body: {
-          vendor_id: user.id,
-          integration_type: "KWAI_PIXEL",
-          credentials,
-          active,
-        },
+      const { data: result, error } = await api.call<VaultSaveResponse>("vault-save", {
+        vendor_id: user.id,
+        integration_type: "KWAI_PIXEL",
+        credentials,
+        active,
       });
 
       if (error) {
         throw new Error(error.message || "Erro ao salvar credenciais");
+      }
+
+      if (!result?.success) {
+        throw new Error(result?.error || "Erro ao salvar credenciais");
       }
 
       toast.success("Configuração do Kwai salva com sucesso!");

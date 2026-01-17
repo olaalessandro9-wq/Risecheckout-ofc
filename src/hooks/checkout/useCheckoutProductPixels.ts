@@ -1,12 +1,12 @@
 /**
  * Hook: useCheckoutProductPixels
  * 
- * MIGRATED: Uses checkout-public-data Edge Function
+ * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
  * @see RISE Protocol V2 - Zero database access from frontend
  */
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import type { PixelPlatform } from "@/components/pixels/types";
 
 export interface CheckoutPixel {
@@ -32,9 +32,15 @@ interface UseCheckoutProductPixelsReturn {
   error: string | null;
 }
 
+interface PixelsResponse {
+  success: boolean;
+  data?: CheckoutPixel[];
+  error?: string;
+}
+
 /**
  * Busca pixels vinculados a um produto para renderização no checkout público.
- * MIGRATED: Uses checkout-public-data Edge Function
+ * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
  */
 export function useCheckoutProductPixels(productId: string | null): UseCheckoutProductPixelsReturn {
   const [pixels, setPixels] = useState<CheckoutPixel[]>([]);
@@ -54,11 +60,9 @@ export function useCheckoutProductPixels(productId: string | null): UseCheckoutP
         setError(null);
 
         // Fetch via Edge Function (public)
-        const { data, error: fnError } = await supabase.functions.invoke("checkout-public-data", {
-          body: {
-            action: "product-pixels",
-            productId,
-          },
+        const { data, error: fnError } = await api.publicCall<PixelsResponse>("checkout-public-data", {
+          action: "product-pixels",
+          productId,
         });
 
         if (fnError) {

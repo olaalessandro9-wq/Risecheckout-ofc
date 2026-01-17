@@ -3,10 +3,12 @@
  * 
  * Single Responsibility: Criação de pagamento via Edge Function.
  * RISE Protocol V2 Compliant (~90 linhas).
+ * 
+ * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
  */
 
 import { useState, useCallback, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 import type { MercadoPagoOrderData, CreatePaymentResult } from "../types";
 
@@ -22,6 +24,18 @@ interface UseMercadoPagoChargeReturn {
   expiresAt: React.MutableRefObject<number>;
   createPayment: (orderData: MercadoPagoOrderData) => Promise<CreatePaymentResult>;
   resetCharge: () => void;
+}
+
+interface MercadoPagoPaymentResponse {
+  success: boolean;
+  data?: {
+    paymentId: string;
+    pix?: {
+      qrCode?: string;
+      qrCodeBase64?: string;
+    };
+  };
+  error?: string;
 }
 
 export function useMercadoPagoCharge({
@@ -53,14 +67,12 @@ export function useMercadoPagoCharge({
         amount: orderData.amount_cents / 100 
       });
 
-      const { data, error } = await supabase.functions.invoke("mercadopago-create-payment", {
-        body: { 
-          orderId,
-          amount: orderData.amount_cents / 100,
-          payerEmail: orderData.customer_email,
-          payerName: orderData.customer_name,
-          paymentMethod: orderData.payment_method || 'pix'
-        },
+      const { data, error } = await api.publicCall<MercadoPagoPaymentResponse>("mercadopago-create-payment", { 
+        orderId,
+        amount: orderData.amount_cents / 100,
+        payerEmail: orderData.customer_email,
+        payerName: orderData.customer_name,
+        paymentMethod: orderData.payment_method || 'pix'
       });
 
       if (error) {

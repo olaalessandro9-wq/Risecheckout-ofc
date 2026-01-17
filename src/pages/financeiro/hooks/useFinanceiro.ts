@@ -4,13 +4,15 @@
  * Centralizes all state management and business logic for Financeiro page.
  * RISE Protocol V2 Compliant - Clean Architecture
  * 
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
+ * 
  * @version 1.0.0
  */
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "@/components/ui/sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { getPushinPaySettings, savePushinPaySettings } from "@/integrations/gateways/pushinpay/api";
 import type { PushinPayEnvironment } from "@/integrations/gateways/pushinpay/types";
@@ -19,6 +21,12 @@ import type { PaymentGateway, FinanceiroState, FinanceiroActions } from "../type
 interface UseFinanceiroReturn {
   state: FinanceiroState;
   actions: FinanceiroActions;
+}
+
+interface IntegrationStatusResponse {
+  success: boolean;
+  integrations?: Array<{ integration_type: string; active: boolean }>;
+  error?: string;
 }
 
 export function useFinanceiro(): UseFinanceiroReturn {
@@ -59,18 +67,8 @@ export function useFinanceiro(): UseFinanceiroReturn {
       }
 
       // Load all gateways via Edge Function
-      const { getProducerSessionToken } = await import('@/hooks/useProducerAuth');
-      const sessionToken = getProducerSessionToken();
-
-      interface IntegrationStatusResponse {
-        success: boolean;
-        integrations?: Array<{ integration_type: string; active: boolean }>;
-        error?: string;
-      }
-
-      const { data: result, error } = await supabase.functions.invoke<IntegrationStatusResponse>('integration-management', {
-        body: { action: 'status' },
-        headers: { 'x-producer-session-token': sessionToken || '' },
+      const { data: result, error } = await api.call<IntegrationStatusResponse>('integration-management', {
+        action: 'status',
       });
 
       if (error) {

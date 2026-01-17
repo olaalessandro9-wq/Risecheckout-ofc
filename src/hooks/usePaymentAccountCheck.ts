@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 
 interface PaymentAccountStatus {
@@ -9,9 +9,17 @@ interface PaymentAccountStatus {
   isLoading: boolean;
 }
 
+interface GatewayStatusResponse {
+  hasPaymentAccount?: boolean;
+  hasMercadoPago?: boolean;
+  hasStripe?: boolean;
+}
+
 /**
  * Hook para verificar se o usuário logado possui conta de pagamento conectada
  * (Mercado Pago ou Stripe) para receber comissões de afiliação.
+ * 
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
  */
 export function usePaymentAccountCheck(): PaymentAccountStatus {
   const { user } = useAuth();
@@ -35,8 +43,8 @@ export function usePaymentAccountCheck(): PaymentAccountStatus {
       }
 
       try {
-        const { data, error } = await supabase.functions.invoke("admin-data", {
-          body: { action: "user-gateway-status" },
+        const { data, error } = await api.call<GatewayStatusResponse>("admin-data", {
+          action: "user-gateway-status",
         });
 
         if (error) throw error;

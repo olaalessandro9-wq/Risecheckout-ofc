@@ -3,6 +3,8 @@
  * 
  * Permite que usuários solicitem a exclusão de seus dados pessoais
  * conforme previsto na Lei Geral de Proteção de Dados (Art. 18).
+ * 
+ * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
  */
 
 import { useState } from "react";
@@ -13,8 +15,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
+
+interface GdprResponse {
+  success: boolean;
+  message?: string;
+}
 
 export default function GdprRequest() {
   const navigate = useNavigate();
@@ -40,8 +47,8 @@ export default function GdprRequest() {
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("gdpr-request", {
-        body: { email: email.trim().toLowerCase() }
+      const { data, error } = await api.publicCall<GdprResponse>("gdpr-request", {
+        email: email.trim().toLowerCase()
       });
 
       if (error) {

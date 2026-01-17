@@ -6,15 +6,15 @@
  * - Fetch groups
  * - Manage producer student display
  * 
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
  * @see RISE ARCHITECT PROTOCOL - Extracted for 300-line compliance
  */
 
 import { useState, useCallback, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 import type { MemberGroup, BuyerWithGroups, StudentStats, StudentFilters } from "@/modules/members-area/types";
 import { studentsService } from "../services/students.service";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 
 interface UseStudentsDataProps {
   productId?: string;
@@ -41,6 +41,18 @@ interface StudentsServiceResponse {
   stats?: StudentStats;
 }
 
+interface GroupsResponse {
+  groups?: MemberGroup[];
+}
+
+interface ProducerInfoResponse {
+  producer_info?: {
+    id: string;
+    email?: string;
+    name?: string;
+  };
+}
+
 /**
  * Data fetching hook for Students Tab
  */
@@ -64,10 +76,9 @@ export function useStudentsData({
   const fetchGroups = useCallback(async () => {
     if (!productId) return;
     
-    const token = getProducerSessionToken();
-    const { data, error } = await supabase.functions.invoke('students-groups', {
-      body: { action: 'list-groups', product_id: productId },
-      headers: { 'X-Producer-Session-Token': token || '' }
+    const { data, error } = await api.call<GroupsResponse>('students-groups', {
+      action: 'list-groups',
+      product_id: productId,
     });
 
     if (error) {
@@ -106,10 +117,9 @@ export function useStudentsData({
       const backendStats = response?.stats;
 
       // Get producer info via Edge Function
-      const token = getProducerSessionToken();
-      const { data: producerData } = await supabase.functions.invoke('students-list', {
-        body: { action: 'get-producer-info', product_id: productId },
-        headers: { 'X-Producer-Session-Token': token || '' }
+      const { data: producerData } = await api.call<ProducerInfoResponse>('students-list', {
+        action: 'get-producer-info',
+        product_id: productId,
       });
 
       const producerInfo = producerData?.producer_info;
