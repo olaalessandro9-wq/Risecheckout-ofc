@@ -180,14 +180,15 @@ Interface para configurar a integração:
 
 ## Mapeamento de Status
 
+> **Nota:** O RiseCheckout segue o modelo Hotmart/Kiwify com apenas 4 status canônicos.
+> Veja [ORDER_STATUS_MODEL.md](./ORDER_STATUS_MODEL.md) para detalhes.
+
 | Status Interno | Status Utmify |
 |----------------|---------------|
+| `paid` | `aprovado` |
 | `pending` | `pendente` |
-| `approved` | `aprovado` |
-| `completed` | `completo` |
-| `cancelled` | `cancelado` |
 | `refunded` | `reembolsado` |
-| `failed` | `falhou` |
+| `chargeback` | `estornado` |
 
 ## Mapeamento de Métodos de Pagamento
 
