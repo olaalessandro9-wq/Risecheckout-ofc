@@ -1,72 +1,39 @@
-// src/layouts/AppShell.tsx
+/**
+ * AppShell - Layout Principal da Aplicação
+ * 
+ * Integra Sidebar, Topbar e área de conteúdo principal.
+ * Usa o novo sistema de navegação modular.
+ * 
+ * @see RISE ARCHITECT PROTOCOL V3 - Layouts Simples
+ */
+
 import { Outlet } from "react-router-dom";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { Sidebar, useNavigation } from "@/modules/navigation";
 import { Topbar } from "@/components/layout/Topbar";
 import { useScrollShadow } from "@/hooks/useScrollShadow";
-import { useState, useEffect, useCallback, useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { 
-  type SidebarState, 
-  SIDEBAR_WIDTHS, 
-  SIDEBAR_STORAGE_KEY 
-} from "@/components/layout/sidebar/types";
 
 export default function AppShell() {
   const { sentinelRef, scrolled } = useScrollShadow();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [isHovering, setIsHovering] = useState(false);
-  
-  // Estado do sidebar com persistência localStorage
-  const [sidebarState, setSidebarState] = useState<SidebarState>(() => {
-    if (typeof window === 'undefined') return 'collapsed';
-    const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY);
-    if (saved === 'hidden' || saved === 'collapsed' || saved === 'expanded') {
-      return saved;
-    }
-    return 'collapsed';
-  });
+  const navigation = useNavigation();
 
-  // Persistir mudanças no localStorage
-  useEffect(() => {
-    localStorage.setItem(SIDEBAR_STORAGE_KEY, sidebarState);
-  }, [sidebarState]);
+  // Detectar mobile para remover padding (sidebar é overlay)
+  const isMobile =
+    typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
 
-  // Ciclo de estados: hidden → collapsed → expanded → hidden
-  const cycleSidebarState = useCallback(() => {
-    const cycle: Record<SidebarState, SidebarState> = {
-      hidden: 'collapsed',
-      collapsed: 'expanded',
-      expanded: 'hidden',
-    };
-    setSidebarState(prev => cycle[prev]);
-  }, []);
+  // Largura efetiva do sidebar
+  const effectiveWidth = isMobile ? 0 : navigation.currentWidth;
 
   const handleNotificationsClick = () => {
     console.log("Notificações clicadas");
   };
 
-  // Detectar se é mobile para remover padding (sem usar !important)
-  const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
-
-  // Largura efetiva do sidebar (considera hover temporário e mobile)
-  const effectiveWidth = useMemo(() => {
-    if (isMobile) return 0; // Mobile: sem padding, sidebar é overlay
-    if (sidebarState === 'hidden') return 0;
-    if (sidebarState === 'collapsed' && isHovering) return SIDEBAR_WIDTHS.expanded;
-    return SIDEBAR_WIDTHS[sidebarState];
-  }, [sidebarState, isHovering, isMobile]);
   return (
     <div className="flex min-h-screen w-full bg-background text-foreground">
-      <Sidebar 
-        mobileOpen={mobileOpen} 
-        setMobileOpen={setMobileOpen}
-        sidebarState={sidebarState}
-        onHoverChange={setIsHovering}
-        onStateChange={setSidebarState}
-      />
-      
+      <Sidebar navigation={navigation} />
+
       {/* Container principal com offset dinâmico */}
-      <div 
+      <div
         className={cn(
           "flex min-w-0 flex-1 flex-col",
           "transition-[padding-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
@@ -75,21 +42,23 @@ export default function AppShell() {
           paddingLeft: `${effectiveWidth}px`,
         }}
       >
-        <Topbar 
-          scrolled={scrolled} 
+        <Topbar
+          scrolled={scrolled}
           onNotificationsClick={handleNotificationsClick}
-          onMenuClick={() => setMobileOpen(true)}
-          sidebarState={sidebarState}
-          onSidebarToggle={cycleSidebarState}
+          onMenuClick={() => navigation.setMobileOpen(true)}
+          sidebarState={navigation.state.sidebarState}
+          onSidebarToggle={navigation.cycleSidebarState}
         />
+
         {/* Sentinel invisível para ativar a sombra ao rolar */}
         <div ref={sentinelRef} className="h-1 w-full" />
+
         <main className="relative w-full">
           <div className="px-4 pb-8 pt-4 md:px-6 lg:px-8">
             <Outlet />
           </div>
-      </main>
+        </main>
+      </div>
     </div>
-  </div>
   );
 }
