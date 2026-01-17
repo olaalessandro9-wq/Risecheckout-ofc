@@ -71,7 +71,8 @@ const INITIAL_VALIDATION: FormValidationErrors = {
 export const INITIAL_FORM_STATE: ProductFormState = {
   serverData: {
     product: null,
-    upsellSettings: INITIAL_UPSELL_SETTINGS,
+    general: INITIAL_GENERAL_FORM,
+    upsell: INITIAL_UPSELL_SETTINGS,
     affiliateSettings: null,
     offers: [],
   },
@@ -130,19 +131,17 @@ function deriveGeneralFromProduct(product: ProductData | null): GeneralFormData 
 }
 
 /**
- * Compara GeneralFormData com ProductData para detectar mudanças
+ * Compara GeneralFormData com serverData.general para detectar mudanças
  */
-function isGeneralDirty(form: GeneralFormData, product: ProductData | null): boolean {
-  if (!product) return false;
-  
+function isGeneralDirty(form: GeneralFormData, serverGeneral: GeneralFormData): boolean {
   return (
-    form.name !== product.name ||
-    form.description !== normalizeString(product.description) ||
-    form.price !== product.price ||
-    form.support_name !== normalizeString(product.support_name) ||
-    form.support_email !== normalizeString(product.support_email) ||
-    form.delivery_url !== normalizeString(product.delivery_url) ||
-    form.external_delivery !== normalizeBoolean(product.external_delivery)
+    form.name !== serverGeneral.name ||
+    form.description !== serverGeneral.description ||
+    form.price !== serverGeneral.price ||
+    form.support_name !== serverGeneral.support_name ||
+    form.support_email !== serverGeneral.support_email ||
+    form.delivery_url !== serverGeneral.delivery_url ||
+    form.external_delivery !== serverGeneral.external_delivery
   );
 }
 
@@ -189,10 +188,10 @@ function calculateDirtyFlags(
   serverData: ServerDataSnapshot
 ): ProductFormState["dirtyFlags"] {
   return {
-    general: isGeneralDirty(editedData.general, serverData.product),
+    general: isGeneralDirty(editedData.general, serverData.general),
     image: isImageDirty(editedData.image),
     offers: isOffersDirty(editedData.offers),
-    upsell: isUpsellDirty(editedData.upsell, serverData.upsellSettings),
+    upsell: isUpsellDirty(editedData.upsell, serverData.upsell),
     affiliate: isAffiliateDirty(editedData.affiliate, serverData.affiliateSettings),
   };
 }
@@ -219,15 +218,18 @@ export function productFormReducer(
     case "INIT_FROM_SERVER": {
       const { product, upsellSettings, affiliateSettings, offers } = action.payload;
       
+      const generalFromProduct = deriveGeneralFromProduct(product);
+      
       const serverData: ServerDataSnapshot = {
         product,
-        upsellSettings,
+        general: generalFromProduct,
+        upsell: upsellSettings,
         affiliateSettings,
         offers,
       };
       
       const editedData: EditedFormData = {
-        general: deriveGeneralFromProduct(product),
+        general: { ...generalFromProduct },
         image: INITIAL_IMAGE_STATE,
         offers: {
           localOffers: offers,
@@ -367,14 +369,14 @@ export function productFormReducer(
     // =========================================================================
     case "RESET_TO_SERVER": {
       const editedData: EditedFormData = {
-        general: deriveGeneralFromProduct(state.serverData.product),
+        general: { ...state.serverData.general },
         image: INITIAL_IMAGE_STATE,
         offers: {
           localOffers: state.serverData.offers,
           deletedOfferIds: [],
           modified: false,
         },
-        upsell: { ...state.serverData.upsellSettings },
+        upsell: { ...state.serverData.upsell },
         affiliate: state.serverData.affiliateSettings 
           ? { ...state.serverData.affiliateSettings } 
           : null,
@@ -403,6 +405,19 @@ export function productFormReducer(
       let newServerData = state.serverData;
       if (action.payload?.newServerData) {
         newServerData = { ...state.serverData, ...action.payload.newServerData };
+        
+        // Se produto foi atualizado, atualizar general também
+        if (action.payload.newServerData.product) {
+          newServerData.general = deriveGeneralFromProduct(action.payload.newServerData.product);
+        }
+      } else {
+        // Sem payload, copiar editedData para serverData (assume que save foi completo)
+        newServerData = {
+          ...state.serverData,
+          general: { ...state.editedData.general },
+          upsell: { ...state.editedData.upsell },
+          affiliateSettings: state.editedData.affiliate ? { ...state.editedData.affiliate } : null,
+        };
       }
       
       // Recalcula dirty flags com novos dados do servidor
@@ -558,4 +573,6 @@ export const formActions = {
   resetImage: () => ({ type: "RESET_IMAGE" as const }),
   
   resetOffers: () => ({ type: "RESET_OFFERS" as const }),
+  
+  markUserInteraction: () => ({ type: "MARK_USER_INTERACTION" as const }),
 };

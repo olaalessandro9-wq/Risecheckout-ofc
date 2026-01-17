@@ -15,7 +15,7 @@ import { createContext, useContext, useReducer, useState, useEffect, useCallback
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import type { ProductContextState, ProductProviderProps, AffiliateSettings, UpsellSettings, ProductData, Offer } from "../types/product.types";
-import type { GeneralFormData, ImageFormState, ProductFormState, ProductFormDispatch } from "../types/productForm.types";
+import type { GeneralFormData, ImageFormState, ProductFormState, ProductFormDispatch, FormValidationErrors } from "../types/productForm.types";
 
 // Reducer e Actions
 import { productFormReducer, INITIAL_FORM_STATE, formActions } from "./productFormReducer";
@@ -37,6 +37,15 @@ interface ProductContextExtended extends ProductContextState {
   // Form State (novo - do Reducer)
   formState: ProductFormState;
   formDispatch: ProductFormDispatch;
+  
+  // Alias para compatibilidade (dispatchForm = formDispatch)
+  dispatchForm: ProductFormDispatch;
+  
+  // Form errors (derivado do formState)
+  formErrors: FormValidationErrors;
+  
+  // Validate helpers
+  validateGeneralForm: () => boolean;
   
   // Helpers derivados do formState
   generalForm: GeneralFormData;
@@ -405,6 +414,14 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     // NOVO: Form State (Reducer)
     formState,
     formDispatch,
+    dispatchForm: formDispatch, // Alias para compatibilidade
+    
+    // NOVO: Form errors e validação
+    formErrors: formState.validation,
+    validateGeneralForm: () => {
+      const result = validateGeneralForm(formState.editedData.general);
+      return result.isValid;
+    },
     
     // NOVO: Helpers derivados
     generalForm,

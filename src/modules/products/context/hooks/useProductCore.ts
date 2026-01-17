@@ -220,7 +220,8 @@ export function useProductCore({
         throw new Error(data?.error || "Erro ao salvar produto");
       }
 
-      toast.success("Produto salvo com sucesso");
+      // NOTA: Toast removido - quem chama saveProduct decide se mostra toast
+      // Isso evita toasts duplicados (RISE PROTOCOL V3 - Fase 4)
       await refreshProduct();
     } catch (error: unknown) {
       console.error("[useProductCore] Error saving product:", error);

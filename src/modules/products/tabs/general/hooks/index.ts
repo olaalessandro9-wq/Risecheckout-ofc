@@ -1,10 +1,11 @@
 /**
  * General Tab Hooks - Exports
  * 
- * @see RISE ARCHITECT PROTOCOL
+ * @see RISE ARCHITECT PROTOCOL V3
+ * 
+ * NOTA: useGeneralTabForm foi REMOVIDO - estado agora vive no ProductContext via Reducer
  */
 
-export { useGeneralTabForm } from "./useGeneralTabForm";
 export { useGeneralTabImage } from "./useGeneralTabImage";
 export { useGeneralTabOffers } from "./useGeneralTabOffers";
 export { useGeneralTabMemberGroups } from "./useGeneralTabMemberGroups";

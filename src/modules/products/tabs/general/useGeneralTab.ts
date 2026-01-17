@@ -1,40 +1,25 @@
 /**
- * useGeneralTab - Hook Orquestrador (Refatorado)
+ * useGeneralTab - Hook Orquestrador (Refatorado para Reducer Pattern)
  * 
- * Refatorado seguindo RISE ARCHITECT PROTOCOL:
- * - De 438 linhas para ~120 linhas (-73%)
- * - Cada responsabilidade em hook especializado
- * - Composição via hooks menores
- * - Single Responsibility aplicado
+ * Refatorado seguindo RISE ARCHITECT PROTOCOL V3:
+ * - Estado de formulário centralizado no ProductContext via Reducer
+ * - Tabs são Pure Views - consomem estado do Context
+ * - Zero estado local de formulário
+ * - Single Source of Truth
  * 
- * FIXES:
- * - Normalized value comparison to prevent false positive hasChanges
- * - Added isInitialized flag to prevent popup without edits
+ * @see RISE ARCHITECT PROTOCOL V3 - Arquitetura de Form State Centralizado
  */
 
-import { useMemo, useLayoutEffect } from "react";
+import { useMemo, useLayoutEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useProductContext } from "../../context/ProductContext";
 import {
-  useGeneralTabForm,
   useGeneralTabImage,
   useGeneralTabOffers,
   useGeneralTabMemberGroups,
   useGeneralTabSave,
 } from "./hooks";
-
-/**
- * Normalizes a value for comparison:
- * - null/undefined -> ""
- * - false/undefined -> false
- */
-function normalizeString(value: string | null | undefined): string {
-  return value ?? "";
-}
-
-function normalizeBoolean(value: boolean | null | undefined): boolean {
-  return value ?? false;
-}
+import type { GeneralFormData, GeneralFormErrors } from "./types";
 
 export function useGeneralTab() {
   const { user } = useAuth();
@@ -46,19 +31,46 @@ export function useGeneralTab() {
     refreshPaymentLinks,
     deleteProduct,
     updateGeneralModified,
+    // Novo: estado do reducer
+    formState,
+    dispatchForm,
+    formErrors,
+    validateGeneralForm,
   } = useProductContext();
 
-  // Form state and validation
-  const {
-    form,
-    setForm,
-    errors,
-    validate,
-    clearError,
-    isInitialized,
-  } = useGeneralTabForm({ product });
+  // Form state vem do Context (reducer) - NÃO do useState local
+  const form = formState.editedData.general;
+  const isInitialized = formState.isInitialized;
 
-  // Image handling
+  // Setter que dispara action para o reducer
+  const setForm = useCallback((updater: GeneralFormData | ((prev: GeneralFormData) => GeneralFormData)) => {
+    if (typeof updater === 'function') {
+      const newForm = updater(form);
+      dispatchForm({ type: 'UPDATE_GENERAL', payload: newForm });
+    } else {
+      dispatchForm({ type: 'UPDATE_GENERAL', payload: updater });
+    }
+  }, [form, dispatchForm]);
+
+  // Errors vem do formState - mapear para tipo correto
+  const errors: GeneralFormErrors = {
+    name: formErrors.general.name || "",
+    description: formErrors.general.description || "",
+    price: formErrors.general.price || "",
+    support_name: formErrors.general.support_name || "",
+    support_email: formErrors.general.support_email || "",
+    delivery_url: formErrors.general.delivery_url || "",
+  };
+
+  // Clear error - dispara action
+  const clearError = useCallback((field: keyof GeneralFormErrors) => {
+    dispatchForm({ 
+      type: 'SET_VALIDATION_ERROR', 
+      payload: { section: 'general', field, error: undefined } 
+    });
+  }, [dispatchForm]);
+
+  // Image handling - ainda usa estado local (não é formulário)
   const {
     image,
     handleImageFileChange,
@@ -72,7 +84,7 @@ export function useGeneralTab() {
     currentImageUrl: product?.image_url,
   });
 
-  // Offers handling
+  // Offers handling - ainda usa estado local (gerenciamento de lista)
   const {
     localOffers,
     offersModified,
@@ -94,31 +106,38 @@ export function useGeneralTab() {
     membersAreaEnabled: product?.members_area_enabled,
   });
 
-  // Detect changes - ONLY after initialization to prevent false positives
+  // Detect changes - compara editedData com serverData
   const hasChanges = useMemo(() => {
-    // Don't report changes until form is initialized with product data
     if (!isInitialized || !product) return false;
 
-    // Normalize values before comparison to handle null/undefined vs ""
+    // Compara os dados editados com os dados do servidor
+    const serverGeneral = formState.serverData.general;
+    const editedGeneral = formState.editedData.general;
+
     const formChanged = (
-      form.name !== product.name ||
-      form.description !== normalizeString(product.description) ||
-      form.price !== product.price ||
-      form.support_name !== normalizeString(product.support_name) ||
-      form.support_email !== normalizeString(product.support_email) ||
-      form.delivery_url !== normalizeString(product.delivery_url) ||
-      form.external_delivery !== normalizeBoolean(product.external_delivery)
+      editedGeneral.name !== serverGeneral.name ||
+      editedGeneral.description !== serverGeneral.description ||
+      editedGeneral.price !== serverGeneral.price ||
+      editedGeneral.support_name !== serverGeneral.support_name ||
+      editedGeneral.support_email !== serverGeneral.support_email ||
+      editedGeneral.delivery_url !== serverGeneral.delivery_url ||
+      editedGeneral.external_delivery !== serverGeneral.external_delivery
     );
 
     const imageChanged = image.imageFile !== null || image.pendingRemoval;
 
     return formChanged || imageChanged || offersModified || deletedOfferIds.length > 0;
-  }, [form, product, image, offersModified, deletedOfferIds, isInitialized]);
+  }, [formState, product, image, offersModified, deletedOfferIds, isInitialized]);
 
   // Notify context about changes
   useLayoutEffect(() => {
     updateGeneralModified(hasChanges);
   }, [hasChanges, updateGeneralModified]);
+
+  // Validate wrapper
+  const validate = useCallback((): boolean => {
+    return validateGeneralForm();
+  }, [validateGeneralForm]);
 
   // Save and delete
   const { isSaving, isDeleting, handleSave, handleDelete } = useGeneralTabSave({

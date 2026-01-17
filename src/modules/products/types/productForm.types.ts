@@ -61,10 +61,14 @@ export interface OffersFormState {
  */
 export interface ServerDataSnapshot {
   product: ProductData | null;
-  upsellSettings: UpsellSettings;
+  general: GeneralFormData;
+  upsell: UpsellSettings;
   affiliateSettings: AffiliateSettings | null;
   offers: Offer[];
 }
+
+// Re-export para uso externo
+export type { UpsellSettings, AffiliateSettings } from "./product.types";
 
 // ============================================================================
 // EDITED DATA (Dados Editados pelo Usuário)
