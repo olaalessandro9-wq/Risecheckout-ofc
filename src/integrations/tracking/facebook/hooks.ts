@@ -2,20 +2,31 @@
  * Hooks para o Facebook Pixel
  * Módulo: src/integrations/tracking/facebook
  * 
- * MIGRATED: Uses vendor-integrations Edge Function
+ * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
  * 
  * Este arquivo contém hooks React para carregar e gerenciar
  * a configuração do Facebook Pixel do banco de dados.
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { FacebookPixelConfig } from "./types";
+
+interface FacebookConfigResponse {
+  config?: {
+    pixel_id?: string;
+    access_token?: string;
+    active?: boolean;
+    selected_products?: string[];
+    fire_purchase_on_pix?: boolean;
+  };
+  error?: string;
+}
 
 /**
  * Hook para carregar a configuração do Facebook Pixel de um vendedor
  * 
- * MIGRATED: Uses vendor-integrations Edge Function instead of direct database access
+ * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
  * 
  * @param vendorId - ID do vendedor (opcional)
  * @returns Query result com os dados da configuração
@@ -31,13 +42,11 @@ export function useFacebookConfig(vendorId?: string) {
       }
 
       try {
-        // MIGRATED: Call vendor-integrations Edge Function
-        const { data, error } = await supabase.functions.invoke('vendor-integrations', {
-          body: { 
-            action: 'get-config',
-            vendorId,
-            integrationType: 'FACEBOOK_PIXEL'
-          }
+        // MIGRATED: Uses api.publicCall() for public vendor config
+        const { data, error } = await api.publicCall<FacebookConfigResponse>('vendor-integrations', { 
+          action: 'get-config',
+          vendorId,
+          integrationType: 'FACEBOOK_PIXEL'
         });
 
         if (error) {

@@ -1,4 +1,10 @@
-import { supabase } from "@/integrations/supabase/client";
+/**
+ * UTMify Helper
+ * 
+ * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
+ */
+
+import { api } from "@/lib/api";
 
 interface UTMifyOrderData {
   orderId: string;
@@ -42,6 +48,11 @@ interface UTMifyOrderData {
   isTest?: boolean;
 }
 
+interface UTMifyConversionResponse {
+  success: boolean;
+  message?: string;
+}
+
 /**
  * Envia conversão para a API da UTMify via Edge Function
  */
@@ -54,13 +65,11 @@ export async function sendUTMifyConversion(
   try {
     console.log("[UTMify Helper] Enviando conversão para vendor:", vendorId, "Evento:", eventType, "Produto:", productId);
 
-    const { data, error } = await supabase.functions.invoke("utmify-conversion", {
-      body: {
-        vendorId,
-        orderData,
-        eventType,
-        productId,
-      },
+    const { data, error } = await api.publicCall<UTMifyConversionResponse>("utmify-conversion", {
+      vendorId,
+      orderData,
+      eventType,
+      productId,
     });
 
     if (error) {
