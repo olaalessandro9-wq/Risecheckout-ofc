@@ -13,13 +13,18 @@ import { productFormMachine } from "./productFormMachine";
 import type {
   ProductFormContext,
   ProductFormEvent,
-  InitCheckoutSettingsEvent,
 } from "./productFormMachine.types";
 import type {
   GeneralFormData,
   ImageFormState,
   FormValidationErrors,
 } from "../types/productForm.types";
+import type {
+  ProductData,
+  Offer,
+  UpsellSettings,
+  AffiliateSettings,
+} from "../types/product.types";
 
 // Re-define localmente para evitar import circular
 type CheckoutSettingsFormData = {
@@ -35,12 +40,6 @@ type CheckoutSettingsFormData = {
 };
 
 type GatewayCredentials = Record<string, { configured: boolean; viaSecrets?: boolean } | undefined>;
-import type {
-  ProductData,
-  Offer,
-  UpsellSettings,
-  AffiliateSettings,
-} from "../types/product.types";
 
 // ============================================================================
 // HOOK RETURN TYPE
