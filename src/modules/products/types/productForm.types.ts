@@ -15,6 +15,45 @@ import type {
   UpsellSettings,
   AffiliateSettings,
 } from "./product.types";
+import type { PaymentMethod } from "@/config/payment-gateways";
+
+// ============================================================================
+// CHECKOUT SETTINGS (para ConfiguracoesTab)
+// ============================================================================
+
+/**
+ * Dados do formulário de configurações de checkout
+ */
+export interface CheckoutSettingsFormData {
+  required_fields: {
+    name: boolean;
+    email: boolean;
+    phone: boolean;
+    cpf: boolean;
+  };
+  default_payment_method: PaymentMethod;
+  pix_gateway: string;
+  credit_card_gateway: string;
+}
+
+/**
+ * Status de credencial de gateway
+ */
+export interface GatewayCredentialStatus {
+  configured: boolean;
+  viaSecrets?: boolean;
+}
+
+/**
+ * Credenciais de gateways de pagamento
+ */
+export interface GatewayCredentials {
+  mercadopago?: GatewayCredentialStatus;
+  pushinpay?: GatewayCredentialStatus;
+  stripe?: GatewayCredentialStatus;
+  asaas?: GatewayCredentialStatus;
+  [key: string]: GatewayCredentialStatus | undefined;
+}
 
 // ============================================================================
 // FORM DATA TYPES (Dados Editáveis)
@@ -65,6 +104,7 @@ export interface ServerDataSnapshot {
   upsell: UpsellSettings;
   affiliateSettings: AffiliateSettings | null;
   offers: Offer[];
+  checkoutSettings: CheckoutSettingsFormData;
 }
 
 // Re-export para uso externo
@@ -83,6 +123,7 @@ export interface EditedFormData {
   offers: OffersFormState;
   upsell: UpsellSettings;
   affiliate: AffiliateSettings | null;
+  checkoutSettings: CheckoutSettingsFormData;
 }
 
 // ============================================================================
@@ -141,6 +182,7 @@ export interface ProductFormState {
     offers: boolean;
     upsell: boolean;
     affiliate: boolean;
+    checkoutSettings: boolean;
   };
   
   // Erros de validação
@@ -217,6 +259,25 @@ export interface UpdateAffiliateAction {
 }
 
 /**
+ * Ação: Atualizar configurações de checkout (ConfiguracoesTab)
+ */
+export interface UpdateCheckoutSettingsAction {
+  type: "UPDATE_CHECKOUT_SETTINGS";
+  payload: Partial<CheckoutSettingsFormData>;
+}
+
+/**
+ * Ação: Inicializar configurações de checkout (quando carregadas)
+ */
+export interface InitCheckoutSettingsAction {
+  type: "INIT_CHECKOUT_SETTINGS";
+  payload: {
+    settings: CheckoutSettingsFormData;
+    credentials: GatewayCredentials;
+  };
+}
+
+/**
  * Ação: Resetar para dados do servidor
  */
 export interface ResetToServerAction {
@@ -284,6 +345,8 @@ export type ProductFormAction =
   | AddDeletedOfferAction
   | UpdateUpsellAction
   | UpdateAffiliateAction
+  | UpdateCheckoutSettingsAction
+  | InitCheckoutSettingsAction
   | ResetToServerAction
   | MarkSavedAction
   | SetValidationErrorAction
