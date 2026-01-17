@@ -1,9 +1,22 @@
+/**
+ * useDecryptCustomerBatch
+ * 
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke
+ */
+
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 
 interface DecryptedBatchData {
   customer_phone?: string | null;
   customer_document?: string | null;
+}
+
+interface DecryptBatchResponse {
+  success: boolean;
+  data?: Record<string, DecryptedBatchData>;
+  denied?: string[];
+  error?: string;
 }
 
 interface UseDecryptCustomerBatchReturn {
@@ -27,15 +40,13 @@ export function useDecryptCustomerBatch(
         return { data: {}, denied: [] };
       }
 
-      const { data: result, error: fnError } = await supabase.functions.invoke(
+      const { data: result, error: apiError } = await api.call<DecryptBatchResponse>(
         "decrypt-customer-data-batch",
-        {
-          body: { order_ids: orderIds, fields: ["customer_phone"] },
-        }
+        { order_ids: orderIds, fields: ["customer_phone"] }
       );
 
-      if (fnError) {
-        throw new Error(fnError.message || "Erro ao descriptografar dados");
+      if (apiError) {
+        throw new Error(apiError.message || "Erro ao descriptografar dados");
       }
 
       if (!result?.success) {

@@ -1,13 +1,12 @@
 /**
  * Marketplace Service
  * 
- * MIGRATED: Uses Edge Function instead of direct database access
+ * MIGRATED: Uses api.call() and api.publicCall()
  * @see RISE Protocol V2 - Zero direct database access from frontend
  */
 
 import type { Database } from "@/integrations/supabase/types";
-import { supabase } from "@/integrations/supabase/client";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
+import { api } from "@/lib/api";
 import { incrementMarketplaceViewRpc, incrementMarketplaceClickRpc } from "@/lib/rpc/rpcProxy";
 
 // Types
@@ -35,24 +34,37 @@ export type MarketplaceProductWithDetails = MarketplaceProduct & {
   category_info?: MarketplaceCategory | null;
 };
 
+interface MarketplaceProductsResponse {
+  products?: MarketplaceProductWithDetails[];
+  error?: string;
+}
+
+interface MarketplaceProductResponse {
+  product?: MarketplaceProductWithDetails | null;
+  error?: string;
+}
+
+interface MarketplaceCategoriesResponse {
+  categories?: MarketplaceCategory[];
+  error?: string;
+}
+
 /**
  * Busca produtos do marketplace com filtros
- * MIGRATED: Uses Edge Function
+ * Uses api.publicCall for public marketplace data
  */
 export async function fetchMarketplaceProducts(
   filters: MarketplaceFilters = {}
 ): Promise<MarketplaceProductWithDetails[]> {
   try {
-    const { data, error } = await supabase.functions.invoke("products-crud", {
-      body: {
-        action: "get-marketplace",
-        filters,
-      },
+    const { data, error } = await api.publicCall<MarketplaceProductsResponse>("products-crud", {
+      action: "get-marketplace",
+      filters,
     });
 
     if (error) {
       console.error("[Marketplace] Erro ao buscar produtos:", error);
-      throw error;
+      throw new Error(error.message);
     }
 
     return data?.products || [];
@@ -64,22 +76,20 @@ export async function fetchMarketplaceProducts(
 
 /**
  * Busca detalhes de um produto específico do marketplace
- * MIGRATED: Uses Edge Function
+ * Uses api.publicCall for public product details
  */
 export async function fetchProductDetails(
   productId: string
 ): Promise<MarketplaceProductWithDetails | null> {
   try {
-    const { data, error } = await supabase.functions.invoke("products-crud", {
-      body: {
-        action: "get-marketplace-product",
-        productId,
-      },
+    const { data, error } = await api.publicCall<MarketplaceProductResponse>("products-crud", {
+      action: "get-marketplace-product",
+      productId,
     });
 
     if (error) {
       console.error("[Marketplace] Erro ao buscar detalhes do produto:", error);
-      throw error;
+      throw new Error(error.message);
     }
 
     return data?.product || null;
@@ -91,19 +101,17 @@ export async function fetchProductDetails(
 
 /**
  * Busca todas as categorias do marketplace
- * MIGRATED: Uses Edge Function
+ * Uses api.publicCall for public categories
  */
 export async function fetchMarketplaceCategories(): Promise<MarketplaceCategory[]> {
   try {
-    const { data, error } = await supabase.functions.invoke("products-crud", {
-      body: {
-        action: "get-marketplace-categories",
-      },
+    const { data, error } = await api.publicCall<MarketplaceCategoriesResponse>("products-crud", {
+      action: "get-marketplace-categories",
     });
 
     if (error) {
       console.error("[Marketplace] Erro ao buscar categorias:", error);
-      throw error;
+      throw new Error(error.message);
     }
 
     return data?.categories || [];
@@ -147,11 +155,15 @@ export async function trackProductClick(productId: string): Promise<void> {
   }
 }
 
+interface AffiliationStatusResponse {
+  isAffiliate: boolean;
+  status?: "pending" | "active" | "rejected" | "blocked";
+  affiliationId?: string;
+}
+
 /**
  * Verifica se o usuário já é afiliado de um produto
- * 
- * MIGRATED: Usa Edge Function para bypass de RLS
- * (sistema usa autenticação customizada via producer_sessions)
+ * Uses api.call() for authenticated affiliation check
  */
 export async function checkAffiliationStatus(
   productId: string,
@@ -162,26 +174,20 @@ export async function checkAffiliationStatus(
   affiliationId?: string;
 }> {
   try {
-    const sessionToken = getProducerSessionToken();
-
-    if (!sessionToken) {
-      console.log("[Marketplace] Sem token de sessão - usuário não logado");
-      return { isAffiliate: false };
-    }
-
-    const { data, error } = await supabase.functions.invoke("get-affiliation-status", {
-      body: { product_id: productId },
-      headers: {
-        "x-producer-session-token": sessionToken,
-      },
+    const { data, error } = await api.call<AffiliationStatusResponse>("get-affiliation-status", {
+      product_id: productId,
     });
 
     if (error) {
+      // Se não autenticado, retorna não afiliado
+      if (error.code === "UNAUTHORIZED") {
+        console.log("[Marketplace] Sem token de sessão - usuário não logado");
+        return { isAffiliate: false };
+      }
       console.error("[Marketplace] Erro ao verificar status de afiliação:", error);
       return { isAffiliate: false };
     }
 
-    // Edge Function retorna { isAffiliate, status?, affiliationId? }
     return {
       isAffiliate: data?.isAffiliate || false,
       status: data?.status,

@@ -1,7 +1,7 @@
 /**
  * useVideoLibrary - Hook para buscar vídeos já usados no produto
  * 
- * MIGRATED: Uses Edge Function instead of direct database access
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke
  * @see RISE Protocol V2 - Zero direct database access from frontend
  * 
  * Implementa as funcionalidades:
@@ -10,8 +10,7 @@
  */
 
 import { useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
+import { api } from "@/lib/api";
 
 interface VideoItem {
   id: string;
@@ -19,6 +18,11 @@ interface VideoItem {
   thumbnail: string | null;
   title: string;
   moduleTitle: string;
+}
+
+interface VideoLibraryResponse {
+  videos?: Array<{ id: string; url: string; title: string; moduleTitle: string }>;
+  error?: string;
 }
 
 interface UseVideoLibraryReturn {
@@ -55,24 +59,17 @@ export function useVideoLibrary(): UseVideoLibraryReturn {
   const [isLoading, setIsLoading] = useState(false);
 
   /**
-   * Fetch videos via Edge Function
-   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   * Fetch videos via api.call()
    */
   const fetchVideos = useCallback(async (productId: string, excludeContentId?: string) => {
     if (!productId) return;
 
     setIsLoading(true);
     try {
-      const sessionToken = getProducerSessionToken();
-      const { data, error } = await supabase.functions.invoke("products-crud", {
-        body: {
-          action: "get-video-library",
-          productId,
-          excludeContentId,
-        },
-        headers: {
-          "x-producer-session-token": sessionToken || "",
-        },
+      const { data, error } = await api.call<VideoLibraryResponse>("products-crud", {
+        action: "get-video-library",
+        productId,
+        excludeContentId,
       });
 
       if (error) {
@@ -81,7 +78,7 @@ export function useVideoLibrary(): UseVideoLibraryReturn {
       }
 
       // Map videos with thumbnails
-      const videoItems: VideoItem[] = (data?.videos || []).map((item: { id: string; url: string; title: string; moduleTitle: string }) => {
+      const videoItems: VideoItem[] = (data?.videos || []).map((item) => {
         const youtubeId = extractYouTubeId(item.url);
         return {
           id: item.id,

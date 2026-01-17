@@ -1,7 +1,12 @@
+/**
+ * useAdminOrders
+ * 
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke
+ */
+
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { PeriodFilter } from "@/hooks/useAdminAnalytics";
-import { startOfDay, endOfDay, subDays } from "date-fns";
 import { formatCentsToBRL } from "@/lib/money";
 
 export interface AdminOrder {
@@ -21,6 +26,11 @@ export interface AdminOrder {
   paymentMethod: string | null;
   createdAt: string;
   fullCreatedAt: string;
+}
+
+interface AdminOrdersResponse {
+  orders?: Array<Record<string, unknown>>;
+  error?: string;
 }
 
 function formatDate(dateString: string): string {
@@ -44,36 +54,18 @@ function translateStatus(status: string): "Pago" | "Pendente" | "Reembolso" | "C
   return statusMap[status?.toLowerCase()] || 'Pendente';
 }
 
-function getDateRange(period: PeriodFilter): { start: Date; end: Date } {
-  const now = new Date();
-  
-  switch (period) {
-    case "today":
-      return { start: startOfDay(now), end: endOfDay(now) };
-    case "yesterday":
-      const yesterday = subDays(now, 1);
-      return { start: startOfDay(yesterday), end: endOfDay(yesterday) };
-    case "7days":
-      return { start: startOfDay(subDays(now, 7)), end: endOfDay(now) };
-    case "30days":
-      return { start: startOfDay(subDays(now, 30)), end: endOfDay(now) };
-    case "all":
-    default:
-      return { start: new Date("2020-01-01"), end: endOfDay(now) };
-  }
-}
-
 export function useAdminOrders(period: PeriodFilter) {
   return useQuery({
     queryKey: ["admin-orders", period],
     queryFn: async (): Promise<AdminOrder[]> => {
-      const { data, error } = await supabase.functions.invoke("admin-data", {
-        body: { action: "admin-orders", period },
+      const { data, error } = await api.call<AdminOrdersResponse>("admin-data", {
+        action: "admin-orders",
+        period,
       });
 
       if (error) {
         console.error("[useAdminOrders] Erro ao buscar pedidos:", error);
-        throw error;
+        throw new Error(error.message);
       }
 
       if (data?.error) {
