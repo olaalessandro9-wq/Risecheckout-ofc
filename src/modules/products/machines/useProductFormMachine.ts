@@ -13,21 +13,15 @@ import { productFormMachine } from "./productFormMachine";
 import type {
   ProductFormContext,
   ProductFormEvent,
+  InitCheckoutSettingsEvent,
 } from "./productFormMachine.types";
 import type {
   GeneralFormData,
   ImageFormState,
-  OffersFormState,
   FormValidationErrors,
 } from "../types/productForm.types";
-import type {
-  ProductData,
-  Offer,
-  UpsellSettings,
-  AffiliateSettings,
-} from "../types/product.types";
 
-// Checkout types - using any to avoid circular import issues temporarily
+// Re-define localmente para evitar import circular
 type CheckoutSettingsFormData = {
   required_fields: {
     name: boolean;
@@ -41,6 +35,12 @@ type CheckoutSettingsFormData = {
 };
 
 type GatewayCredentials = Record<string, { configured: boolean; viaSecrets?: boolean } | undefined>;
+import type {
+  ProductData,
+  Offer,
+  UpsellSettings,
+  AffiliateSettings,
+} from "../types/product.types";
 
 // ============================================================================
 // HOOK RETURN TYPE
