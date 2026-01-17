@@ -5,7 +5,9 @@
  * - Add, update, delete, reorder, duplicate sections
  * - All operations are LOCAL ONLY (no DB calls)
  * 
- * @see RISE ARCHITECT PROTOCOL - Extracted for 300-line compliance
+ * REFACTORED: Uses dispatch from Reducer
+ * 
+ * @see RISE ARCHITECT PROTOCOL V3 - Single Source of Truth
  */
 
 import { useCallback } from 'react';
@@ -17,12 +19,13 @@ import type {
   SectionSettings,
   MemberModule,
 } from '../types/builder.types';
+import type { BuilderAction } from '../state/builderReducer';
 import { getSectionDefaults } from '../registry';
 
 interface UseMembersAreaSectionsProps {
   productId: string | undefined;
   state: BuilderState;
-  setState: React.Dispatch<React.SetStateAction<BuilderState>>;
+  dispatch: React.Dispatch<BuilderAction>;
 }
 
 interface UseMembersAreaSectionsReturn {
@@ -40,7 +43,7 @@ interface UseMembersAreaSectionsReturn {
 export function useMembersAreaSections({
   productId,
   state,
-  setState,
+  dispatch,
 }: UseMembersAreaSectionsProps): UseMembersAreaSectionsReturn {
 
   const addSection = useCallback(async (type: SectionType, position?: number): Promise<Section | null> => {
@@ -74,64 +77,28 @@ export function useMembersAreaSections({
       updated_at: new Date().toISOString(),
     };
     
-    setState(prev => ({
-      ...prev,
-      sections: [...prev.sections, newSection].sort((a, b) => a.position - b.position),
-      selectedSectionId: newSection.id,
-      isDirty: true,
-    }));
+    dispatch({ type: 'ADD_SECTION', section: newSection });
     
     toast.success('Seção adicionada');
     return newSection;
-  }, [productId, state.sections.length, state.modules, setState]);
+  }, [productId, state.sections.length, state.modules, dispatch]);
 
   const updateSection = useCallback(async (id: string, updates: Partial<Section>) => {
-    setState(prev => ({
-      ...prev,
-      sections: prev.sections.map(s => s.id === id ? { ...s, ...updates, updated_at: new Date().toISOString() } : s),
-      isDirty: true,
-    }));
-  }, [setState]);
+    dispatch({ type: 'UPDATE_SECTION', id, updates });
+  }, [dispatch]);
 
   const updateSectionSettings = useCallback(async (id: string, settings: Partial<SectionSettings>) => {
-    setState(prev => {
-      const section = prev.sections.find(s => s.id === id);
-      if (!section) return prev;
-      
-      const mergedSettings = { ...section.settings, ...settings } as SectionSettings;
-      
-      return {
-        ...prev,
-        sections: prev.sections.map(s => 
-          s.id === id ? { ...s, settings: mergedSettings, updated_at: new Date().toISOString() } : s
-        ),
-        isDirty: true,
-      };
-    });
-  }, [setState]);
+    dispatch({ type: 'UPDATE_SECTION_SETTINGS', id, settings });
+  }, [dispatch]);
 
   const deleteSection = useCallback(async (id: string) => {
-    setState(prev => ({
-      ...prev,
-      sections: prev.sections.filter(s => s.id !== id),
-      selectedSectionId: prev.selectedSectionId === id ? null : prev.selectedSectionId,
-      isDirty: true,
-    }));
-    
+    dispatch({ type: 'DELETE_SECTION', id });
     toast.success('Seção removida');
-  }, [setState]);
+  }, [dispatch]);
 
   const reorderSections = useCallback(async (orderedIds: string[]) => {
-    setState(prev => {
-      const sectionMap = new Map(prev.sections.map(s => [s.id, s]));
-      const reordered = orderedIds.map((id, index) => ({
-        ...sectionMap.get(id)!,
-        position: index,
-        updated_at: new Date().toISOString(),
-      }));
-      return { ...prev, sections: reordered, isDirty: true };
-    });
-  }, [setState]);
+    dispatch({ type: 'REORDER_SECTIONS', orderedIds });
+  }, [dispatch]);
 
   const duplicateSection = useCallback(async (id: string): Promise<Section | null> => {
     const section = state.sections.find(s => s.id === id);
@@ -149,22 +116,11 @@ export function useMembersAreaSections({
       updated_at: new Date().toISOString(),
     };
     
-    setState(prev => {
-      // Shift positions of sections after the duplicated one
-      const updated = prev.sections.map(s =>
-        s.position > section.position ? { ...s, position: s.position + 1 } : s
-      );
-      return {
-        ...prev,
-        sections: [...updated, newSection].sort((a, b) => a.position - b.position),
-        selectedSectionId: newSection.id,
-        isDirty: true,
-      };
-    });
+    dispatch({ type: 'DUPLICATE_SECTION', original: section, duplicate: newSection });
     
     toast.success('Seção duplicada');
     return newSection;
-  }, [productId, state.sections, setState]);
+  }, [productId, state.sections, dispatch]);
 
   return {
     addSection,

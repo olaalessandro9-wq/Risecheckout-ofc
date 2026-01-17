@@ -1,21 +1,25 @@
 /**
  * Members Area Contents Hook
  * Handles CRUD operations for content items within modules via Edge Function
+ * 
+ * REFACTORED: Uses dispatch from Reducer for state management
+ * 
+ * @see RISE Protocol V3 - Single Source of Truth
  */
 
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { createLogger } from "@/lib/logger";
 import { normalizeContentType } from "@/modules/members-area/utils";
 import type { MemberContent, MemberModuleWithContents } from "./types";
+import type { MembersAreaAction } from "./membersAreaReducer";
 
 const log = createLogger("MembersAreaContents");
 
 interface UseMembersAreaContentsProps {
   modules: MemberModuleWithContents[];
-  setModules: React.Dispatch<React.SetStateAction<MemberModuleWithContents[]>>;
-  setIsSaving: (saving: boolean) => void;
+  dispatch: React.Dispatch<MembersAreaAction>;
 }
 
 interface UseMembersAreaContentsReturn {
@@ -30,15 +34,16 @@ interface UseMembersAreaContentsReturn {
 
 export function useMembersAreaContents({
   modules,
-  setModules,
-  setIsSaving,
+  dispatch,
 }: UseMembersAreaContentsProps): UseMembersAreaContentsReturn {
+  // Ref para rollback em caso de erro
+  const previousModulesRef = useRef<MemberModuleWithContents[]>([]);
 
   const addContent = useCallback(async (
     moduleId: string, 
     data: Omit<MemberContent, "id" | "module_id" | "position" | "created_at" | "updated_at">
   ): Promise<MemberContent | null> => {
-    setIsSaving(true);
+    dispatch({ type: 'SET_SAVING', isSaving: true });
     try {
       const { data: result, error } = await api.call<{ success?: boolean; error?: string; data?: MemberContent }>("content-crud", {
         action: "create",
@@ -47,19 +52,14 @@ export function useMembersAreaContents({
       });
 
       if (error) throw new Error(error.message);
-      if (!result?.success) throw new Error(result?.error || "Failed to create content");
+      if (!result?.success || !result.data) throw new Error(result?.error || "Failed to create content");
 
-      const newContent = result.data;
       const normalizedContent = {
-        ...newContent,
-        content_type: normalizeContentType(newContent.content_type),
+        ...result.data,
+        content_type: normalizeContentType(result.data.content_type),
       } as MemberContent;
 
-      setModules(prev => prev.map(m => 
-        m.id === moduleId 
-          ? { ...m, contents: [...m.contents, normalizedContent] }
-          : m
-      ));
+      dispatch({ type: 'ADD_CONTENT', moduleId, content: normalizedContent });
       toast.success("Conteúdo adicionado!");
       return normalizedContent;
     } catch (error: unknown) {
@@ -67,12 +67,12 @@ export function useMembersAreaContents({
       toast.error("Erro ao adicionar conteúdo");
       return null;
     } finally {
-      setIsSaving(false);
+      dispatch({ type: 'SET_SAVING', isSaving: false });
     }
-  }, [setModules, setIsSaving]);
+  }, [dispatch]);
 
   const updateContent = useCallback(async (id: string, data: Partial<MemberContent>) => {
-    setIsSaving(true);
+    dispatch({ type: 'SET_SAVING', isSaving: true });
     try {
       const { data: result, error } = await api.call<{ success?: boolean; error?: string }>("content-crud", {
         action: "update",
@@ -83,21 +83,18 @@ export function useMembersAreaContents({
       if (error) throw new Error(error.message);
       if (!result?.success) throw new Error(result?.error || "Failed to update content");
 
-      setModules(prev => prev.map(m => ({
-        ...m,
-        contents: m.contents.map(c => c.id === id ? { ...c, ...data } : c),
-      })));
+      dispatch({ type: 'UPDATE_CONTENT', id, data });
       toast.success("Conteúdo atualizado!");
     } catch (error: unknown) {
       log.error("Error updating content", error);
       toast.error("Erro ao atualizar conteúdo");
     } finally {
-      setIsSaving(false);
+      dispatch({ type: 'SET_SAVING', isSaving: false });
     }
-  }, [setModules, setIsSaving]);
+  }, [dispatch]);
 
   const deleteContent = useCallback(async (id: string) => {
-    setIsSaving(true);
+    dispatch({ type: 'SET_SAVING', isSaving: true });
     try {
       const { data: result, error } = await api.call<{ success?: boolean; error?: string }>("content-crud", {
         action: "delete",
@@ -107,43 +104,23 @@ export function useMembersAreaContents({
       if (error) throw new Error(error.message);
       if (!result?.success) throw new Error(result?.error || "Failed to delete content");
 
-      setModules(prev => prev.map(m => ({
-        ...m,
-        contents: m.contents.filter(c => c.id !== id),
-      })));
+      dispatch({ type: 'DELETE_CONTENT', id });
       toast.success("Conteúdo excluído!");
     } catch (error: unknown) {
       log.error("Error deleting content", error);
       toast.error("Erro ao excluir conteúdo");
     } finally {
-      setIsSaving(false);
+      dispatch({ type: 'SET_SAVING', isSaving: false });
     }
-  }, [setModules, setIsSaving]);
+  }, [dispatch]);
 
   const reorderContents = useCallback(async (moduleId: string, orderedIds: string[]) => {
-    // 1. Salvar estado anterior para possível rollback
-    let previousModules: MemberModuleWithContents[] = [];
+    // Salvar estado anterior para rollback
+    previousModulesRef.current = modules;
 
-    // 2. Atualizar state IMEDIATAMENTE (otimista - elimina animação duplicada)
-    setModules(prev => {
-      previousModules = prev;
-      return prev.map(m => {
-        if (m.id !== moduleId) return m;
-        const contentMap = new Map(m.contents.map(c => [c.id, c]));
-        return {
-          ...m,
-          contents: orderedIds
-            .map((id, index) => {
-              const content = contentMap.get(id);
-              if (!content) return null;
-              return { ...content, position: index };
-            })
-            .filter((c): c is MemberContent => c !== null),
-        };
-      });
-    });
+    // Update otimista
+    dispatch({ type: 'REORDER_CONTENTS', moduleId, orderedIds });
 
-    // 3. Persistir em background via Edge Function
     try {
       const { data: result, error } = await api.call<{ success?: boolean; error?: string }>("content-crud", {
         action: "reorder",
@@ -154,12 +131,12 @@ export function useMembersAreaContents({
       if (error) throw new Error(error.message);
       if (!result?.success) throw new Error(result?.error || "Failed to reorder contents");
     } catch (error: unknown) {
-      // 4. Rollback em caso de erro
       log.error("Error reordering contents", error);
       toast.error("Erro ao reordenar conteúdos");
-      setModules(previousModules);
+      // Rollback
+      dispatch({ type: 'SET_MODULES', modules: previousModulesRef.current });
     }
-  }, [setModules]);
+  }, [modules, dispatch]);
 
   return {
     addContent,

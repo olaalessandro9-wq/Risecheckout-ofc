@@ -1,21 +1,25 @@
 /**
  * Members Area Modules Hook
  * Handles CRUD operations for modules
+ * 
+ * REFACTORED: Uses dispatch from Reducer for state management
+ * 
+ * @see RISE Protocol V3 - Single Source of Truth
  */
 
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { createLogger } from "@/lib/logger";
 import type { MemberModule, MemberModuleWithContents } from "./types";
+import type { MembersAreaAction } from "./membersAreaReducer";
 
 const log = createLogger("MembersAreaModules");
 
 interface UseMembersAreaModulesProps {
   productId: string | undefined;
   modules: MemberModuleWithContents[];
-  setModules: React.Dispatch<React.SetStateAction<MemberModuleWithContents[]>>;
-  setIsSaving: (saving: boolean) => void;
+  dispatch: React.Dispatch<MembersAreaAction>;
 }
 
 interface UseMembersAreaModulesReturn {
@@ -28,9 +32,10 @@ interface UseMembersAreaModulesReturn {
 export function useMembersAreaModules({
   productId,
   modules,
-  setModules,
-  setIsSaving,
+  dispatch,
 }: UseMembersAreaModulesProps): UseMembersAreaModulesReturn {
+  // Ref para rollback em caso de erro
+  const previousModulesRef = useRef<MemberModuleWithContents[]>([]);
 
   const addModule = useCallback(async (
     title: string, 
@@ -39,7 +44,7 @@ export function useMembersAreaModules({
   ): Promise<MemberModule | null> => {
     if (!productId) return null;
 
-    setIsSaving(true);
+    dispatch({ type: 'SET_SAVING', isSaving: true });
     try {
       const { data, error } = await api.call<{ success?: boolean; error?: string; module?: MemberModule }>('members-area-modules', {
         action: 'create',
@@ -48,9 +53,9 @@ export function useMembersAreaModules({
       });
 
       if (error) throw new Error(error.message);
-      if (!data?.success) throw new Error(data?.error || 'Falha ao criar módulo');
+      if (!data?.success || !data.module) throw new Error(data?.error || 'Falha ao criar módulo');
 
-      setModules(prev => [...prev, { ...data.module, contents: [] }]);
+      dispatch({ type: 'ADD_MODULE', module: { ...data.module, contents: [] } });
       toast.success("Módulo criado!");
       return data.module;
     } catch (error: unknown) {
@@ -58,12 +63,12 @@ export function useMembersAreaModules({
       toast.error("Erro ao criar módulo");
       return null;
     } finally {
-      setIsSaving(false);
+      dispatch({ type: 'SET_SAVING', isSaving: false });
     }
-  }, [productId, setModules, setIsSaving]);
+  }, [productId, dispatch]);
 
   const updateModule = useCallback(async (id: string, data: Partial<MemberModule>) => {
-    setIsSaving(true);
+    dispatch({ type: 'SET_SAVING', isSaving: true });
     try {
       const { data: result, error } = await api.call<{ success?: boolean; error?: string }>('members-area-modules', {
         action: 'update',
@@ -74,18 +79,18 @@ export function useMembersAreaModules({
       if (error) throw new Error(error.message);
       if (!result?.success) throw new Error(result?.error || 'Falha ao atualizar módulo');
 
-      setModules(prev => prev.map(m => m.id === id ? { ...m, ...data } : m));
+      dispatch({ type: 'UPDATE_MODULE', id, data });
       toast.success("Módulo atualizado!");
     } catch (error: unknown) {
       log.error("Error updating module", error);
       toast.error("Erro ao atualizar módulo");
     } finally {
-      setIsSaving(false);
+      dispatch({ type: 'SET_SAVING', isSaving: false });
     }
-  }, [setModules, setIsSaving]);
+  }, [dispatch]);
 
   const deleteModule = useCallback(async (id: string) => {
-    setIsSaving(true);
+    dispatch({ type: 'SET_SAVING', isSaving: true });
     try {
       const { data, error } = await api.call<{ success?: boolean; error?: string }>('members-area-modules', {
         action: 'delete',
@@ -95,30 +100,22 @@ export function useMembersAreaModules({
       if (error) throw new Error(error.message);
       if (!data?.success) throw new Error(data?.error || 'Falha ao excluir módulo');
 
-      setModules(prev => prev.filter(m => m.id !== id));
+      dispatch({ type: 'DELETE_MODULE', id });
       toast.success("Módulo excluído!");
     } catch (error: unknown) {
       log.error("Error deleting module", error);
       toast.error("Erro ao excluir módulo");
     } finally {
-      setIsSaving(false);
+      dispatch({ type: 'SET_SAVING', isSaving: false });
     }
-  }, [setModules, setIsSaving]);
+  }, [dispatch]);
 
   const reorderModules = useCallback(async (orderedIds: string[]) => {
-    let previousModules: MemberModuleWithContents[] = [];
+    // Salvar estado anterior para rollback
+    previousModulesRef.current = modules;
 
-    setModules(prev => {
-      previousModules = prev;
-      const moduleMap = new Map(prev.map(m => [m.id, m]));
-      return orderedIds
-        .map((id, index) => {
-          const module = moduleMap.get(id);
-          if (!module) return null;
-          return { ...module, position: index };
-        })
-        .filter((m): m is MemberModuleWithContents => m !== null);
-    });
+    // Update otimista
+    dispatch({ type: 'REORDER_MODULES', orderedIds });
 
     try {
       const { data, error } = await api.call<{ success?: boolean; error?: string }>('members-area-modules', {
@@ -132,9 +129,10 @@ export function useMembersAreaModules({
     } catch (error: unknown) {
       log.error("Error reordering modules", error);
       toast.error("Erro ao reordenar módulos");
-      setModules(previousModules);
+      // Rollback
+      dispatch({ type: 'SET_MODULES', modules: previousModulesRef.current });
     }
-  }, [productId, setModules]);
+  }, [productId, modules, dispatch]);
 
   return {
     addModule,

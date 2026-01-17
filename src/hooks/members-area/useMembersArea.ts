@@ -2,7 +2,9 @@
  * Members Area Hook - Facade
  * Composes settings, modules, and contents hooks into a single interface
  * 
- * @see RISE ARCHITECT PROTOCOL - Refatorado para compliance de 300 linhas
+ * REFACTORED: Uses dispatch from Reducer for Single Source of Truth
+ * 
+ * @see RISE ARCHITECT PROTOCOL V3 - State Management via Reducer
  */
 
 import { useMembersAreaSettings } from "./useMembersAreaSettings";
@@ -11,19 +13,18 @@ import { useMembersAreaContents } from "./useMembersAreaContents";
 import type { UseMembersAreaReturn } from "./types";
 
 export function useMembersArea(productId: string | undefined): UseMembersAreaReturn {
-  // Settings hook (handles loading, saving, fetch)
+  // Settings hook (handles loading, saving, fetch, dispatch)
   const {
     isLoading,
     isSaving,
-    setIsSaving,
     settings,
     modules,
-    setModules,
+    dispatch,
     updateSettings,
     fetchData,
   } = useMembersAreaSettings(productId);
 
-  // Modules CRUD hook
+  // Modules CRUD hook - uses dispatch
   const {
     addModule,
     updateModule,
@@ -32,11 +33,10 @@ export function useMembersArea(productId: string | undefined): UseMembersAreaRet
   } = useMembersAreaModules({
     productId,
     modules,
-    setModules,
-    setIsSaving,
+    dispatch,
   });
 
-  // Contents CRUD hook
+  // Contents CRUD hook - uses dispatch
   const {
     addContent,
     updateContent,
@@ -44,8 +44,7 @@ export function useMembersArea(productId: string | undefined): UseMembersAreaRet
     reorderContents,
   } = useMembersAreaContents({
     modules,
-    setModules,
-    setIsSaving,
+    dispatch,
   });
 
   return {

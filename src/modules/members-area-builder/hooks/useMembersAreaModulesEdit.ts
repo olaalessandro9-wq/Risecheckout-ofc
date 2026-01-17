@@ -5,13 +5,16 @@
  * - Update individual modules
  * - Selection state for module editing
  * 
- * @see RISE ARCHITECT PROTOCOL - Extracted for 300-line compliance
+ * REFACTORED: Uses dispatch from Reducer
+ * 
+ * @see RISE ARCHITECT PROTOCOL V3 - Single Source of Truth
  */
 
 import { useCallback } from 'react';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
-import type { BuilderState, MemberModule } from '../types/builder.types';
+import type { MemberModule } from '../types/builder.types';
+import type { BuilderAction } from '../state/builderReducer';
 
 interface ModuleUpdateResponse {
   success?: boolean;
@@ -19,7 +22,7 @@ interface ModuleUpdateResponse {
 }
 
 interface UseMembersAreaModulesEditProps {
-  setState: React.Dispatch<React.SetStateAction<BuilderState>>;
+  dispatch: React.Dispatch<BuilderAction>;
 }
 
 interface UseMembersAreaModulesEditReturn {
@@ -32,7 +35,7 @@ interface UseMembersAreaModulesEditReturn {
  * Modules editing hook for Members Area Builder
  */
 export function useMembersAreaModulesEdit({
-  setState,
+  dispatch,
 }: UseMembersAreaModulesEditProps): UseMembersAreaModulesEditReturn {
 
   const updateModule = useCallback(async (id: string, moduleData: Partial<MemberModule>) => {
@@ -47,33 +50,22 @@ export function useMembersAreaModulesEdit({
         throw new Error(result?.error || error?.message || 'Falha ao atualizar módulo');
       }
       
-      setState(prev => ({
-        ...prev,
-        modules: prev.modules.map(m => m.id === id ? { ...m, ...moduleData } : m),
-      }));
+      dispatch({ type: 'UPDATE_MODULE', id, data: moduleData });
       
       toast.success('Módulo atualizado');
     } catch (error: unknown) {
       console.error('[useMembersAreaBuilder] Update module error:', error);
       toast.error('Erro ao atualizar módulo');
     }
-  }, [setState]);
+  }, [dispatch]);
 
   const selectModule = useCallback((id: string | null) => {
-    setState(prev => ({ 
-      ...prev, 
-      selectedModuleId: id,
-      isEditingModule: id !== null,
-    }));
-  }, [setState]);
+    dispatch({ type: 'SELECT_MODULE', id });
+  }, [dispatch]);
 
   const setEditingModule = useCallback((isEditing: boolean) => {
-    setState(prev => ({ 
-      ...prev, 
-      isEditingModule: isEditing,
-      selectedModuleId: isEditing ? prev.selectedModuleId : null,
-    }));
-  }, [setState]);
+    dispatch({ type: 'SET_EDITING_MODULE', isEditing });
+  }, [dispatch]);
 
   return {
     updateModule,

@@ -8,18 +8,20 @@
  * - Menu collapse toggle
  * - Settings update
  * 
- * @see RISE ARCHITECT PROTOCOL - Extracted for 300-line compliance
+ * REFACTORED: Uses dispatch from Reducer
+ * 
+ * @see RISE ARCHITECT PROTOCOL V3 - Single Source of Truth
  */
 
 import { useCallback } from 'react';
 import type { 
-  BuilderState, 
   ViewMode,
   MembersAreaBuilderSettings,
 } from '../types/builder.types';
+import type { BuilderAction } from '../state/builderReducer';
 
 interface UseMembersAreaViewProps {
-  setState: React.Dispatch<React.SetStateAction<BuilderState>>;
+  dispatch: React.Dispatch<BuilderAction>;
 }
 
 interface UseMembersAreaViewReturn {
@@ -35,36 +37,32 @@ interface UseMembersAreaViewReturn {
  * View state hook for Members Area Builder
  */
 export function useMembersAreaView({
-  setState,
+  dispatch,
 }: UseMembersAreaViewProps): UseMembersAreaViewReturn {
 
   const selectSection = useCallback((id: string | null) => {
-    setState(prev => ({ ...prev, selectedSectionId: id, selectedMenuItemId: null }));
-  }, [setState]);
+    dispatch({ type: 'SELECT_SECTION', id });
+  }, [dispatch]);
 
   const selectMenuItem = useCallback((id: string | null) => {
-    setState(prev => ({ ...prev, selectedMenuItemId: id, selectedSectionId: null }));
-  }, [setState]);
+    dispatch({ type: 'SELECT_MENU_ITEM', id });
+  }, [dispatch]);
 
   const setViewMode = useCallback((mode: ViewMode) => {
-    setState(prev => ({ ...prev, viewMode: mode }));
-  }, [setState]);
+    dispatch({ type: 'SET_VIEW_MODE', mode });
+  }, [dispatch]);
 
   const togglePreviewMode = useCallback(() => {
-    setState(prev => ({ ...prev, isPreviewMode: !prev.isPreviewMode }));
-  }, [setState]);
+    dispatch({ type: 'TOGGLE_PREVIEW_MODE' });
+  }, [dispatch]);
 
   const toggleMenuCollapse = useCallback(() => {
-    setState(prev => ({ ...prev, isMenuCollapsed: !prev.isMenuCollapsed }));
-  }, [setState]);
+    dispatch({ type: 'TOGGLE_MENU_COLLAPSE' });
+  }, [dispatch]);
 
   const updateSettings = useCallback(async (settings: Partial<MembersAreaBuilderSettings>) => {
-    setState(prev => ({
-      ...prev,
-      settings: { ...prev.settings, ...settings },
-      isDirty: true,
-    }));
-  }, [setState]);
+    dispatch({ type: 'UPDATE_SETTINGS', settings });
+  }, [dispatch]);
 
   return {
     selectSection,
