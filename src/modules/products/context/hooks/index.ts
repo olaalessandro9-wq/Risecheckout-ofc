@@ -8,3 +8,6 @@ export { useProductCheckouts } from "./useProductCheckouts";
 
 // Adapter puro (zero useState) - renomeado para uso geral
 export { useProductSettings } from "./useProductSettingsAdapter";
+
+// Save Registry Pattern - Registro de handlers
+export { useSettingsHandlerRegistration } from "./useSettingsHandlerRegistration";
