@@ -1,8 +1,10 @@
 /**
  * Exports do módulo de configurações de produto
+ * 
+ * NOTA: useProductSettings (local) foi DEPRECADO.
+ * O ProductSettingsPanel agora usa o ProductContext diretamente.
  */
 
-export { useProductSettings } from "./useProductSettings";
 export { RequiredFieldsSection } from "./RequiredFieldsSection";
 export { PaymentMethodSection } from "./PaymentMethodSection";
 export { GatewaySection } from "./GatewaySection";

@@ -15,7 +15,7 @@ import { createContext, useContext, useReducer, useState, useEffect, useCallback
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import type { ProductContextState, ProductProviderProps, AffiliateSettings, UpsellSettings, ProductData, Offer } from "../types/product.types";
-import type { GeneralFormData, ImageFormState, ProductFormState, ProductFormDispatch, FormValidationErrors } from "../types/productForm.types";
+import type { GeneralFormData, ImageFormState, ProductFormState, ProductFormDispatch, FormValidationErrors, CheckoutSettingsFormData, GatewayCredentials } from "../types/productForm.types";
 
 // Reducer e Actions
 import { productFormReducer, INITIAL_FORM_STATE, formActions } from "./productFormReducer";
@@ -51,6 +51,8 @@ interface ProductContextExtended extends ProductContextState {
   generalForm: GeneralFormData;
   imageState: ImageFormState;
   localOffers: Offer[];
+  checkoutSettingsForm: CheckoutSettingsFormData;
+  checkoutCredentials: GatewayCredentials;
   
   // Actions simplificadas
   updateGeneralField: <K extends keyof GeneralFormData>(field: K, value: GeneralFormData[K]) => void;
@@ -58,6 +60,8 @@ interface ProductContextExtended extends ProductContextState {
   updateLocalOffers: (offers: Offer[]) => void;
   markOfferDeleted: (offerId: string) => void;
   setOffersModified: (modified: boolean) => void;
+  updateCheckoutSettingsField: <K extends keyof CheckoutSettingsFormData>(field: K, value: CheckoutSettingsFormData[K]) => void;
+  initCheckoutSettings: (settings: CheckoutSettingsFormData, credentials: GatewayCredentials) => void;
 }
 
 // ============================================================================
@@ -85,6 +89,7 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [checkoutCredentials, setCheckoutCredentials] = useState<GatewayCredentials>({});
 
   // hasUnsavedChanges agora vem do reducer
   const hasUnsavedChanges = formState.isDirty;
@@ -233,6 +238,20 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
 
   const setOffersModified = useCallback((modified: boolean) => {
     formDispatch(formActions.updateOffers({ modified }));
+  }, []);
+
+  const checkoutSettingsForm = formState.editedData.checkoutSettings;
+
+  const updateCheckoutSettingsField = useCallback(<K extends keyof CheckoutSettingsFormData>(
+    field: K,
+    value: CheckoutSettingsFormData[K]
+  ) => {
+    formDispatch(formActions.updateCheckoutSettings({ [field]: value }));
+  }, []);
+
+  const initCheckoutSettingsHandler = useCallback((settings: CheckoutSettingsFormData, credentials: GatewayCredentials) => {
+    formDispatch(formActions.initCheckoutSettings({ settings, credentials }));
+    setCheckoutCredentials(credentials);
   }, []);
 
   // ---------------------------------------------------------------------------
@@ -427,6 +446,8 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     generalForm,
     imageState,
     localOffers,
+    checkoutSettingsForm,
+    checkoutCredentials,
     
     // NOVO: Actions simplificadas
     updateGeneralField,
@@ -434,6 +455,8 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     updateLocalOffers,
     markOfferDeleted,
     setOffersModified,
+    updateCheckoutSettingsField,
+    initCheckoutSettings: initCheckoutSettingsHandler,
   };
 
   return (

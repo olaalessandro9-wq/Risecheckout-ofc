@@ -22,6 +22,8 @@ import type {
   ImageFormState,
   OffersFormState,
   FormValidationErrors,
+  CheckoutSettingsFormData,
+  GatewayCredentials,
 } from "../types/productForm.types";
 import type {
   ProductData,
@@ -56,6 +58,13 @@ const INITIAL_OFFERS_STATE: OffersFormState = {
   modified: false,
 };
 
+const INITIAL_CHECKOUT_SETTINGS: CheckoutSettingsFormData = {
+  required_fields: { name: true, email: true, phone: false, cpf: false },
+  default_payment_method: "pix",
+  pix_gateway: "pushinpay",
+  credit_card_gateway: "mercadopago",
+};
+
 const INITIAL_UPSELL_SETTINGS: UpsellSettings = {
   hasCustomThankYouPage: false,
   customPageUrl: "",
@@ -75,6 +84,7 @@ export const INITIAL_FORM_STATE: ProductFormState = {
     upsell: INITIAL_UPSELL_SETTINGS,
     affiliateSettings: null,
     offers: [],
+    checkoutSettings: INITIAL_CHECKOUT_SETTINGS,
   },
   editedData: {
     general: INITIAL_GENERAL_FORM,
@@ -82,6 +92,7 @@ export const INITIAL_FORM_STATE: ProductFormState = {
     offers: INITIAL_OFFERS_STATE,
     upsell: INITIAL_UPSELL_SETTINGS,
     affiliate: null,
+    checkoutSettings: INITIAL_CHECKOUT_SETTINGS,
   },
   isInitialized: false,
   isDirty: false,
@@ -91,6 +102,7 @@ export const INITIAL_FORM_STATE: ProductFormState = {
     offers: false,
     upsell: false,
     affiliate: false,
+    checkoutSettings: false,
   },
   validation: INITIAL_VALIDATION,
 };
@@ -181,6 +193,13 @@ function isAffiliateDirty(edited: AffiliateSettings | null, server: AffiliateSet
 }
 
 /**
+ * Compara CheckoutSettingsFormData para detectar mudanças
+ */
+function isCheckoutSettingsDirty(edited: CheckoutSettingsFormData, server: CheckoutSettingsFormData): boolean {
+  return JSON.stringify(edited) !== JSON.stringify(server);
+}
+
+/**
  * Calcula todos os dirty flags
  */
 function calculateDirtyFlags(
@@ -193,6 +212,7 @@ function calculateDirtyFlags(
     offers: isOffersDirty(editedData.offers),
     upsell: isUpsellDirty(editedData.upsell, serverData.upsell),
     affiliate: isAffiliateDirty(editedData.affiliate, serverData.affiliateSettings),
+    checkoutSettings: isCheckoutSettingsDirty(editedData.checkoutSettings, serverData.checkoutSettings),
   };
 }
 
@@ -200,7 +220,7 @@ function calculateDirtyFlags(
  * Verifica se algum flag está dirty
  */
 function anyDirty(flags: ProductFormState["dirtyFlags"]): boolean {
-  return flags.general || flags.image || flags.offers || flags.upsell || flags.affiliate;
+  return flags.general || flags.image || flags.offers || flags.upsell || flags.affiliate || flags.checkoutSettings;
 }
 
 // ============================================================================
@@ -226,6 +246,7 @@ export function productFormReducer(
         upsell: upsellSettings,
         affiliateSettings,
         offers,
+        checkoutSettings: state.serverData.checkoutSettings, // Mantém o existente
       };
       
       const editedData: EditedFormData = {
@@ -238,6 +259,7 @@ export function productFormReducer(
         },
         upsell: { ...upsellSettings },
         affiliate: affiliateSettings ? { ...affiliateSettings } : null,
+        checkoutSettings: state.editedData.checkoutSettings, // Mantém o existente
       };
       
       return {
@@ -252,6 +274,7 @@ export function productFormReducer(
           offers: false,
           upsell: false,
           affiliate: false,
+          checkoutSettings: false,
         },
         validation: INITIAL_VALIDATION,
       };
@@ -365,6 +388,44 @@ export function productFormReducer(
     }
     
     // =========================================================================
+    // UPDATE_CHECKOUT_SETTINGS
+    // =========================================================================
+    case "UPDATE_CHECKOUT_SETTINGS": {
+      const newCheckoutSettings = { ...state.editedData.checkoutSettings, ...action.payload };
+      const newEditedData = { ...state.editedData, checkoutSettings: newCheckoutSettings };
+      const newDirtyFlags = calculateDirtyFlags(newEditedData, state.serverData);
+      
+      return {
+        ...state,
+        editedData: newEditedData,
+        dirtyFlags: newDirtyFlags,
+        isDirty: anyDirty(newDirtyFlags),
+      };
+    }
+    
+    // =========================================================================
+    // INIT_CHECKOUT_SETTINGS
+    // =========================================================================
+    case "INIT_CHECKOUT_SETTINGS": {
+      const { settings } = action.payload;
+      
+      return {
+        ...state,
+        serverData: {
+          ...state.serverData,
+          checkoutSettings: { ...settings },
+        },
+        editedData: {
+          ...state.editedData,
+          checkoutSettings: { ...settings },
+        },
+        dirtyFlags: {
+          ...state.dirtyFlags,
+          checkoutSettings: false,
+        },
+      };
+    }
+    // =========================================================================
     // RESET_TO_SERVER
     // =========================================================================
     case "RESET_TO_SERVER": {
@@ -380,6 +441,7 @@ export function productFormReducer(
         affiliate: state.serverData.affiliateSettings 
           ? { ...state.serverData.affiliateSettings } 
           : null,
+        checkoutSettings: { ...state.serverData.checkoutSettings },
       };
       
       return {
@@ -392,6 +454,7 @@ export function productFormReducer(
           offers: false,
           upsell: false,
           affiliate: false,
+          checkoutSettings: false,
         },
         validation: INITIAL_VALIDATION,
       };
@@ -549,6 +612,16 @@ export const formActions = {
   
   updateAffiliate: (payload: Partial<AffiliateSettings>) => ({
     type: "UPDATE_AFFILIATE" as const,
+    payload,
+  }),
+  
+  updateCheckoutSettings: (payload: Partial<CheckoutSettingsFormData>) => ({
+    type: "UPDATE_CHECKOUT_SETTINGS" as const,
+    payload,
+  }),
+  
+  initCheckoutSettings: (payload: { settings: CheckoutSettingsFormData; credentials: GatewayCredentials }) => ({
+    type: "INIT_CHECKOUT_SETTINGS" as const,
     payload,
   }),
   
