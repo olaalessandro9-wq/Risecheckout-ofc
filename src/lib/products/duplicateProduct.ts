@@ -8,7 +8,7 @@
  * - Logs centralizados
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export async function duplicateProductDeep(
@@ -25,16 +25,11 @@ export async function duplicateProductDeep(
 
   console.log('[duplicateProductDeep] Starting duplication via Edge Function for product:', productId);
 
-  const sessionToken = localStorage.getItem('producer_session_token');
-  
-  if (!sessionToken) {
-    throw new Error("Sessão não encontrada. Faça login novamente.");
-  }
-
-  const { data, error } = await supabase.functions.invoke('product-duplicate', {
-    body: { productId },
-    headers: { 'x-producer-session-token': sessionToken }
-  });
+  const { data, error } = await api.call<{
+    success?: boolean;
+    error?: string;
+    newProductId?: string;
+  }>('product-duplicate', { productId });
 
   if (error) {
     console.error('[duplicateProductDeep] Edge Function error:', error);

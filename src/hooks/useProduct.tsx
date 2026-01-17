@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
 import { uploadViaEdge } from "@/lib/storage/storageProxy";
@@ -34,7 +35,7 @@ export const useProduct = () => {
 
   /**
    * Load product via Edge Function
-   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   * MIGRATED: Uses api.call instead of supabase.functions.invoke
    */
   const loadProduct = async (showLoading = true) => {
     if (!productId || !user) return;
@@ -43,16 +44,21 @@ export const useProduct = () => {
       setLoading(true);
     }
     try {
-      const sessionToken = localStorage.getItem('producer_session_token');
-      
-      const { data: response, error } = await supabase.functions.invoke('products-crud', {
-        body: {
-          action: 'get',
-          productId,
-        },
-        headers: {
-          'x-producer-session-token': sessionToken || '',
-        },
+      const { data: response, error } = await api.call<{
+        product?: {
+          id: string;
+          name: string;
+          description: string;
+          price: number;
+          image_url: string | null;
+          support_name: string;
+          support_email: string;
+          status: string;
+        };
+        error?: string;
+      }>('products-crud', {
+        action: 'get',
+        productId,
       });
 
       if (error) throw error;
@@ -65,7 +71,7 @@ export const useProduct = () => {
         id: data.id,
         name: data.name || "",
         description: data.description || "",
-        price: data.price || 0,  // Centavos
+        price: data.price || 0,
         image_url: data.image_url,
         support_name: data.support_name || "",
         support_email: data.support_email || "",
@@ -124,13 +130,6 @@ export const useProduct = () => {
       return;
     }
 
-    // Get session token
-    const sessionToken = localStorage.getItem("producer_session_token");
-    if (!sessionToken) {
-      toast.error("Sessão expirada. Faça login novamente.");
-      return;
-    }
-
     try {
       // Usar image_url do productData se fornecido (permite null para remover)
       let imageUrl = productData.image_url !== undefined ? productData.image_url : product?.image_url;
@@ -142,20 +141,17 @@ export const useProduct = () => {
 
       if (productId) {
         // Update via Edge Function
-        const { data, error } = await supabase.functions.invoke("product-crud", {
-          body: {
-            action: 'update',
-            sessionToken,
-            product: {
-              productId,
-              name: productData.name.trim(),
-              description: productData.description?.trim() || "",
-              support_name: productData.support_name?.trim() || "",
-              support_email: productData.support_email?.trim() || "",
-              status: productData.status || "active",
-              image_url: imageUrl,
-              price: productData.price,
-            },
+        const { data, error } = await api.call<{ success?: boolean; error?: string }>('product-crud', {
+          action: 'update',
+          product: {
+            productId,
+            name: productData.name.trim(),
+            description: productData.description?.trim() || "",
+            support_name: productData.support_name?.trim() || "",
+            support_email: productData.support_email?.trim() || "",
+            status: productData.status || "active",
+            image_url: imageUrl,
+            price: productData.price,
           },
         });
 
@@ -172,19 +168,16 @@ export const useProduct = () => {
         await loadProduct(false);
       } else {
         // Create via Edge Function
-        const { data, error } = await supabase.functions.invoke("product-crud", {
-          body: {
-            action: 'create',
-            sessionToken,
-            product: {
-              name: productData.name.trim(),
-              description: productData.description?.trim() || "",
-              support_name: productData.support_name?.trim() || "",
-              support_email: productData.support_email?.trim() || "",
-              status: productData.status || "active",
-              image_url: imageUrl,
-              price: productData.price,
-            },
+        const { data, error } = await api.call<{ success?: boolean; error?: string; product?: { id: string; name: string; description: string; price: number; image_url: string | null; support_name: string; support_email: string; status: string } }>('product-crud', {
+          action: 'create',
+          product: {
+            name: productData.name.trim(),
+            description: productData.description?.trim() || "",
+            support_name: productData.support_name?.trim() || "",
+            support_email: productData.support_email?.trim() || "",
+            status: productData.status || "active",
+            image_url: imageUrl,
+            price: productData.price,
           },
         });
 

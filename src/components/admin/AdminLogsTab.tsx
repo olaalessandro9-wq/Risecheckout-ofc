@@ -3,7 +3,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -35,21 +35,17 @@ interface SecurityLog {
 export function AdminLogsTab() {
   /**
    * Carrega logs via Edge Function
-   * MIGRATED: Uses admin-data Edge Function
+   * MIGRATED: Uses api.call instead of supabase.functions.invoke
    */
   const { data: logs, isLoading } = useQuery({
     queryKey: ["admin-security-logs"],
     queryFn: async () => {
-      const sessionToken = localStorage.getItem('producer_session_token');
-      
-      const { data, error } = await supabase.functions.invoke('admin-data', {
-        body: {
-          action: 'security-logs',
-          limit: 100,
-        },
-        headers: {
-          'x-producer-session-token': sessionToken || '',
-        },
+      const { data, error } = await api.call<{
+        logs?: SecurityLog[];
+        error?: string;
+      }>('admin-data', {
+        action: 'security-logs',
+        limit: 100,
       });
 
       if (error) throw error;

@@ -12,7 +12,7 @@
  */
 
 import { useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 import type { 
   ProductData, 
@@ -50,23 +50,38 @@ export function useProductCore({
 
   // ---------------------------------------------------------------------------
   // REFRESH - Carregar via Edge Function + Extrair Settings
-  // MIGRADO: Uses supabase.functions.invoke instead of supabase.from()
+  // MIGRADO: Uses api.call instead of supabase.functions.invoke
   // ---------------------------------------------------------------------------
 
   const refreshProduct = useCallback(async (): Promise<void> => {
     if (!productId || !userId) return;
 
     try {
-      const sessionToken = localStorage.getItem('producer_session_token');
-      
-      const { data: response, error } = await supabase.functions.invoke('products-crud', {
-        body: {
-          action: 'get',
-          productId,
-        },
-        headers: {
-          'x-producer-session-token': sessionToken || '',
-        },
+      const { data: response, error } = await api.call<{
+        product?: {
+          id: string;
+          name: string;
+          description: string;
+          price: number;
+          image_url: string | null;
+          support_name: string;
+          support_email: string;
+          status: string;
+          user_id: string;
+          created_at: string;
+          updated_at: string;
+          delivery_url: string | null;
+          external_delivery: boolean;
+          upsell_settings?: Record<string, unknown>;
+          affiliate_settings?: Record<string, unknown>;
+          show_in_marketplace?: boolean;
+          marketplace_description?: string;
+          marketplace_category?: string;
+        };
+        error?: string;
+      }>('products-crud', {
+        action: 'get',
+        productId,
       });
 
       if (error) throw error;
@@ -177,24 +192,19 @@ export function useProductCore({
     if (!product || !productId || !userId) return;
 
     try {
-      const sessionToken = localStorage.getItem('producer_session_token');
-      
-      const { data, error } = await supabase.functions.invoke('product-settings', {
-        body: {
-          action: 'update-general',
-          productId,
-          sessionToken,
-          data: {
-            name: product.name,
-            description: product.description,
-            price: product.price,
-            image_url: product.image_url,
-            support_name: product.support_name,
-            support_email: product.support_email,
-            status: product.status,
-            delivery_url: product.external_delivery ? null : (product.delivery_url ?? null),
-            external_delivery: product.external_delivery ?? false,
-          },
+      const { data, error } = await api.call<{ success?: boolean; error?: string }>('product-settings', {
+        action: 'update-general',
+        productId,
+        data: {
+          name: product.name,
+          description: product.description,
+          price: product.price,
+          image_url: product.image_url,
+          support_name: product.support_name,
+          support_email: product.support_email,
+          status: product.status,
+          delivery_url: product.external_delivery ? null : (product.delivery_url ?? null),
+          external_delivery: product.external_delivery ?? false,
         },
       });
 
@@ -226,14 +236,9 @@ export function useProductCore({
     if (!productId || !userId) return false;
 
     try {
-      const sessionToken = localStorage.getItem('producer_session_token');
-      
-      const { data, error } = await supabase.functions.invoke('product-settings', {
-        body: {
-          action: 'smart-delete',
-          productId,
-          sessionToken,
-        },
+      const { data, error } = await api.call<{ success?: boolean; error?: string; type?: string }>('product-settings', {
+        action: 'smart-delete',
+        productId,
       });
 
       if (error) {

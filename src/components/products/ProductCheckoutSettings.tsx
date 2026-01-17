@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 
 type RequiredFields = {
@@ -32,22 +32,21 @@ export function ProductCheckoutSettings({ productId }: { productId: string }) {
 
   /**
    * Carrega configurações via Edge Function
-   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
+   * MIGRATED: Uses api.call instead of supabase.functions.invoke
    */
   useEffect(() => {
     (async () => {
       setLoading(true);
       try {
-        const sessionToken = localStorage.getItem('producer_session_token');
-        
-        const { data: response, error } = await supabase.functions.invoke('products-crud', {
-          body: {
-            action: 'get-settings',
-            productId,
-          },
-          headers: {
-            'x-producer-session-token': sessionToken || '',
-          },
+        const { data: response, error } = await api.call<{
+          settings?: {
+            required_fields?: Record<string, boolean>;
+            default_payment_method?: string;
+          };
+          error?: string;
+        }>('products-crud', {
+          action: 'get-settings',
+          productId,
         });
 
         if (error) {
@@ -85,17 +84,12 @@ export function ProductCheckoutSettings({ productId }: { productId: string }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const sessionToken = localStorage.getItem('producer_session_token');
-      
-      const { data, error } = await supabase.functions.invoke('product-settings', {
-        body: {
-          action: 'update-settings',
-          productId,
-          sessionToken,
-          settings: {
-            required_fields: requiredFields,
-            default_payment_method: defaultMethod,
-          },
+      const { data, error } = await api.call<{ success?: boolean; error?: string }>('product-settings', {
+        action: 'update-settings',
+        productId,
+        settings: {
+          required_fields: requiredFields,
+          default_payment_method: defaultMethod,
         },
       });
 
