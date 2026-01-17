@@ -5,6 +5,7 @@
  * - Consome estado de formState.editedData.checkoutSettings
  * - Dispara actions via formDispatch
  * - Zero estado local duplicado
+ * - Registra save handler via Registry Pattern
  */
 
 import { useEffect, useCallback, useState } from "react";
@@ -38,6 +39,7 @@ export default function ProductSettingsPanel({ productId, onModifiedChange }: Pr
     initCheckoutSettings,
     formState,
     formDispatch,
+    registerSaveHandler,
   } = useProductContext();
   
   const [loading, setLoading] = useState(false);
@@ -132,45 +134,82 @@ export default function ProductSettingsPanel({ productId, onModifiedChange }: Pr
     }
   }, [form, updateCheckoutSettingsField]);
 
-  // Salvar
-  const handleSave = useCallback(async () => {
+  // Salvar (para uso local do botão)
+  const executeSave = useCallback(async () => {
     const pixGateway = getGatewayById(form.pix_gateway);
     const ccGateway = getGatewayById(form.credit_card_gateway);
 
     if (!isGatewayAvailable(form.pix_gateway)) {
-      toast.error(`Gateway de PIX "${pixGateway?.displayName || form.pix_gateway}" não está disponível.`);
-      return;
+      throw new Error(`Gateway de PIX "${pixGateway?.displayName || form.pix_gateway}" não está disponível.`);
     }
     if (!isGatewayAvailable(form.credit_card_gateway)) {
-      toast.error(`Gateway de Cartão "${ccGateway?.displayName || form.credit_card_gateway}" não está disponível.`);
-      return;
+      throw new Error(`Gateway de Cartão "${ccGateway?.displayName || form.credit_card_gateway}" não está disponível.`);
     }
 
+    const { data, error } = await api.call<{ success?: boolean; error?: string }>('product-settings', {
+      action: 'update-settings',
+      productId,
+      settings: {
+        required_fields: form.required_fields,
+        default_payment_method: form.default_payment_method,
+        pix_gateway: form.pix_gateway,
+        credit_card_gateway: form.credit_card_gateway,
+      },
+    });
+
+    if (error || !data?.success) {
+      throw new Error(data?.error || "Erro ao salvar configurações.");
+    }
+
+    // Usar action específica que não tem guard - força atualização do serverData
+    formDispatch({ type: "MARK_CHECKOUT_SETTINGS_SAVED", payload: { settings: form } });
+  }, [form, productId, formDispatch]);
+
+  // Handler para o botão local
+  const handleSave = useCallback(async () => {
     setSaving(true);
     try {
-      const { data, error } = await api.call<{ success?: boolean; error?: string }>('product-settings', {
-        action: 'update-settings',
-        productId,
-        settings: {
-          required_fields: form.required_fields,
-          default_payment_method: form.default_payment_method,
-          pix_gateway: form.pix_gateway,
-          credit_card_gateway: form.credit_card_gateway,
-        },
-      });
-
-      if (error || !data?.success) {
-        toast.error(data?.error || "Erro ao salvar configurações.");
-        return;
-      }
-
+      await executeSave();
       toast.success("Configurações salvas com sucesso.");
-      // Usar action específica que não tem guard - força atualização do serverData
-      formDispatch({ type: "MARK_CHECKOUT_SETTINGS_SAVED", payload: { settings: form } });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao salvar configurações.");
     } finally {
       setSaving(false);
     }
-  }, [form, productId, formDispatch]);
+  }, [executeSave]);
+
+  // =========================================================================
+  // SAVE REGISTRY - Registrar handler para "Checkout Settings"
+  // =========================================================================
+  useEffect(() => {
+    if (!productId || !formState.isCheckoutSettingsInitialized) return;
+
+    const validateGateways = (): boolean => {
+      const pixGateway = getGatewayById(form.pix_gateway);
+      const ccGateway = getGatewayById(form.credit_card_gateway);
+
+      if (!isGatewayAvailable(form.pix_gateway)) {
+        toast.error(`Gateway de PIX "${pixGateway?.displayName || form.pix_gateway}" não está disponível.`);
+        return false;
+      }
+      if (!isGatewayAvailable(form.credit_card_gateway)) {
+        toast.error(`Gateway de Cartão "${ccGateway?.displayName || form.credit_card_gateway}" não está disponível.`);
+        return false;
+      }
+      return true;
+    };
+
+    const unregister = registerSaveHandler(
+      'checkout-settings',
+      executeSave,
+      {
+        validate: validateGateways,
+        order: 20, // Após General
+      }
+    );
+
+    return unregister;
+  }, [productId, form, formState.isCheckoutSettingsInitialized, executeSave, registerSaveHandler]);
 
   // Loading: só mostra se ainda não foi inicializado OU se está carregando ativamente
   const isLoading = loading || permissionsLoading || (!formState.isCheckoutSettingsInitialized && !loading);

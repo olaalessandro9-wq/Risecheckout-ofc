@@ -5,6 +5,7 @@
  * - Reducer como Single Source of Truth
  * - Zero duplicidade de estado
  * - Helpers extraídos para manter < 300 linhas
+ * - Registry Pattern para saveAll global
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - Nota 10/10
  */
@@ -14,6 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import type { ProductContextState, ProductProviderProps, Offer } from "../types/product.types";
 import type { GeneralFormData, ImageFormState, ProductFormState, ProductFormDispatch, CheckoutSettingsFormData, GatewayCredentials, AffiliateSettings, UpsellSettings } from "../types/productForm.types";
+import type { RegisterSaveHandler } from "../types/saveRegistry.types";
 
 // Reducer e Actions
 import { productFormReducer, INITIAL_FORM_STATE, formActions } from "./productFormReducer";
@@ -21,6 +23,7 @@ import { productFormReducer, INITIAL_FORM_STATE, formActions } from "./productFo
 // Hooks especializados
 import { useProductCore, useProductEntities, useProductCheckouts } from "./hooks";
 import { useProductSettings as useProductSettingsAdapter } from "./hooks/useProductSettingsAdapter";
+import { useSaveRegistry } from "./hooks/useSaveRegistry";
 
 // Helpers
 import {
@@ -60,6 +63,8 @@ interface ProductContextExtended extends ProductContextState {
   setOffersModified: (modified: boolean) => void;
   updateCheckoutSettingsField: <K extends keyof CheckoutSettingsFormData>(field: K, value: CheckoutSettingsFormData[K]) => void;
   initCheckoutSettings: (settings: CheckoutSettingsFormData, credentials: GatewayCredentials) => void;
+  // Save Registry Pattern
+  registerSaveHandler: RegisterSaveHandler;
 }
 
 // ============================================================================
@@ -77,6 +82,9 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
 
   // Reducer: Single Source of Truth
   const [formState, formDispatch] = useReducer(productFormReducer, INITIAL_FORM_STATE);
+
+  // Save Registry: Open/Closed Pattern
+  const { registerSaveHandler, executeAll: executeRegistrySaves } = useSaveRegistry();
 
   // Estados de UI
   const [loading, setLoading] = useState(false);
@@ -162,6 +170,36 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     }
   }, [productId, user]);
 
+  // =========================================================================
+  // SAVE REGISTRY - Registrar handlers de Upsell e Affiliate
+  // =========================================================================
+  useEffect(() => {
+    if (!productId || !user?.id) return;
+
+    // Upsell handler
+    const unregisterUpsell = registerSaveHandler(
+      'upsell',
+      async () => {
+        await settingsAdapter.saveUpsellSettings(formState.editedData.upsell);
+      },
+      { order: 30 }
+    );
+
+    // Affiliate handler
+    const unregisterAffiliate = registerSaveHandler(
+      'affiliate',
+      async () => {
+        await settingsAdapter.saveAffiliateSettings(formState.editedData.affiliate);
+      },
+      { order: 40 }
+    );
+
+    return () => {
+      unregisterUpsell();
+      unregisterAffiliate();
+    };
+  }, [productId, user?.id, registerSaveHandler, settingsAdapter, formState.editedData.upsell, formState.editedData.affiliate]);
+
   // Form helpers (usando factory functions)
   const updateGeneralField = useCallback(createUpdateGeneralField(formDispatch), []);
   const updateImageState = useCallback(createUpdateImageState(formDispatch), []);
@@ -201,18 +239,27 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
   const saveAll = useCallback(async () => {
     setSaving(true);
     try {
-      await saveProduct();
-      await settingsAdapter.saveUpsellSettings(formState.editedData.upsell);
-      await settingsAdapter.saveAffiliateSettings(formState.editedData.affiliate);
+      // Executa todos os handlers registrados (General, Checkout Settings, etc.)
+      const result = await executeRegistrySaves();
+      
+      if (!result.success) {
+        if (result.failedKey) {
+          toast.error(`Validação falhou em: ${result.failedKey}`);
+        } else {
+          throw result.error || new Error("Erro desconhecido");
+        }
+        return;
+      }
+
       formDispatch(formActions.markSaved());
-      toast.success("Alterações salvas com sucesso!");
+      toast.success("Todas as alterações foram salvas!");
     } catch (error) {
       console.error("[ProductContext] Error saving all:", error);
       toast.error("Erro ao salvar alterações");
     } finally {
       setSaving(false);
     }
-  }, [saveProduct, settingsAdapter, formState.editedData]);
+  }, [executeRegistrySaves]);
 
   // Context value (extraído para factory)
   const contextValue = createContextValue({
@@ -238,6 +285,7 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     saveAffiliateSettings,
     saveAll,
     refreshAll,
+    registerSaveHandler,
     ...legacyCallbacks,
   }) as ProductContextExtended;
 
