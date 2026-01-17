@@ -11,7 +11,7 @@
  */
 
 import { useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 import type {
   PaymentSettings,
@@ -19,6 +19,11 @@ import type {
   UpsellSettings,
   AffiliateSettings,
 } from "../../types/product.types";
+
+interface ProductSettingsResponse {
+  success?: boolean;
+  error?: string;
+}
 
 interface UseProductSettingsOptions {
   productId: string | null;
@@ -139,16 +144,14 @@ export function useProductSettings({
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke('product-settings', {
-        body: {
-          action: 'update-settings',
-          productId,
-          settingsType: 'payment',
-          settings: {
-            defaultPaymentMethod: paymentSettings.defaultPaymentMethod,
-            pixEnabled: paymentSettings.pixEnabled,
-            creditCardEnabled: paymentSettings.creditCardEnabled,
-          },
+      const { data, error } = await api.call<ProductSettingsResponse>('product-settings', {
+        action: 'update-settings',
+        productId,
+        settingsType: 'payment',
+        settings: {
+          defaultPaymentMethod: paymentSettings.defaultPaymentMethod,
+          pixEnabled: paymentSettings.pixEnabled,
+          creditCardEnabled: paymentSettings.creditCardEnabled,
         },
       });
 
@@ -169,17 +172,15 @@ export function useProductSettings({
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke('product-settings', {
-        body: {
-          action: 'update-settings',
-          productId,
-          settingsType: 'checkout_fields',
-          settings: {
-            name: checkoutFields.fullName,
-            email: checkoutFields.email,
-            phone: checkoutFields.phone,
-            cpf: checkoutFields.cpf,
-          },
+      const { data, error } = await api.call<ProductSettingsResponse>('product-settings', {
+        action: 'update-settings',
+        productId,
+        settingsType: 'checkout_fields',
+        settings: {
+          name: checkoutFields.fullName,
+          email: checkoutFields.email,
+          phone: checkoutFields.phone,
+          cpf: checkoutFields.cpf,
         },
       });
 
@@ -205,13 +206,11 @@ export function useProductSettings({
       try {
         console.log("[useProductSettings] Salvando upsell_settings:", settings);
 
-        const { data, error } = await supabase.functions.invoke('product-settings', {
-          body: {
-            action: 'update-settings',
-            productId,
-            settingsType: 'upsell',
-            settings,
-          },
+        const { data, error } = await api.call<ProductSettingsResponse>('product-settings', {
+          action: 'update-settings',
+          productId,
+          settingsType: 'upsell',
+          settings,
         });
 
         if (error) throw error;
@@ -241,14 +240,12 @@ export function useProductSettings({
       try {
         console.log("[useProductSettings] Salvando affiliate_settings:", settings);
 
-        const { data, error } = await supabase.functions.invoke('product-settings', {
-          body: {
-            action: 'update-settings',
-            productId,
-            settingsType: 'affiliate',
-            settings,
-            previousShowInMarketplace: affiliateSettings?.showInMarketplace || false,
-          },
+        const { data, error } = await api.call<ProductSettingsResponse>('product-settings', {
+          action: 'update-settings',
+          productId,
+          settingsType: 'affiliate',
+          settings,
+          previousShowInMarketplace: affiliateSettings?.showInMarketplace || false,
         });
 
         if (error) throw error;

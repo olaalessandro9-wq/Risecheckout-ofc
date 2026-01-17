@@ -14,9 +14,14 @@ import * as Icons from 'lucide-react';
 import { ChevronLeft, ChevronRight, Plus, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { getProducerSessionToken } from '@/hooks/useProducerAuth';
+import { api } from '@/lib/api';
 import type { MembersAreaBuilderSettings } from '../../types/builder.types';
+
+interface ProfileResponse {
+  success?: boolean;
+  data?: { name?: string | null };
+  error?: string;
+}
 
 interface MenuPreviewProps {
   settings: MembersAreaBuilderSettings;
@@ -58,21 +63,16 @@ export function MenuPreview({
   
   /**
    * Fetch profile via Edge Function
-   * MIGRATED: Uses admin-data instead of supabase.from()
+   * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
    */
   const { data: profile } = useQuery({
     queryKey: ["user-profile-builder", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
       
-      const sessionToken = getProducerSessionToken();
-      
-      const { data, error } = await supabase.functions.invoke('admin-data', {
-        body: { 
-          action: 'user-profile-name',
-          userId: user.id,
-        },
-        headers: { 'x-producer-session-token': sessionToken || '' },
+      const { data, error } = await api.call<ProfileResponse>('admin-data', {
+        action: 'user-profile-name',
+        userId: user.id,
       });
       
       if (error) {

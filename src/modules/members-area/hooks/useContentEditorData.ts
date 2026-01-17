@@ -11,10 +11,26 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 import type { ReleaseFormData, ContentAttachment, MemberContent } from "../types";
+
+interface ContentEditorDataResponse {
+  moduleContents?: Pick<MemberContent, "id" | "title">[];
+  content?: {
+    title: string;
+    content_url?: string | null;
+    body?: string | null;
+  };
+  attachments?: ContentAttachment[];
+  release?: {
+    release_type: string;
+    days_after_purchase?: number | null;
+    fixed_date?: string | null;
+    after_content_id?: string | null;
+  };
+  error?: string;
+}
 
 interface ContentState {
   title: string;
@@ -72,15 +88,11 @@ export function useContentEditorData({
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const sessionToken = getProducerSessionToken();
-      const { data, error } = await supabase.functions.invoke("admin-data", {
-        body: { 
-          action: "content-editor-data",
-          contentId,
-          moduleId,
-          isNew,
-        },
-        headers: { "x-producer-session-token": sessionToken || "" },
+      const { data, error } = await api.call<ContentEditorDataResponse>("admin-data", {
+        action: "content-editor-data",
+        contentId,
+        moduleId,
+        isNew,
       });
 
       if (error) {
