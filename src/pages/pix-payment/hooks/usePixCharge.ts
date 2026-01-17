@@ -5,9 +5,21 @@
  */
 
 import { useState, useCallback, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 import type { OrderDataFromRpc, PixNavigationState } from "../types";
+
+interface PixChargeResponse {
+  ok?: boolean;
+  pix?: {
+    id?: string;
+    pix_id?: string;
+    qr_code?: string;
+    qrcode?: string;
+    emv?: string;
+  };
+  error?: string;
+}
 
 interface UsePixChargeReturn {
   qrCode: string;
@@ -52,8 +64,9 @@ export function usePixCharge(
         valueInCents: orderData.amount_cents,
       });
 
-      const { data, error } = await supabase.functions.invoke("pushinpay-create-pix", {
-        body: { orderId, valueInCents: orderData.amount_cents },
+      const { data, error } = await api.publicCall<PixChargeResponse>("pushinpay-create-pix", {
+        orderId,
+        valueInCents: orderData.amount_cents,
       });
 
       console.log("[usePixCharge] Resposta da Edge Function:", { data, error });
