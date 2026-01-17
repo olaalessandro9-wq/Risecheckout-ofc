@@ -1,9 +1,9 @@
 // src/components/layout/Topbar.tsx
 import { Bell, Menu, PanelLeft, PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import clsx from "clsx";
+import { cn } from "@/lib/utils";
 import ThemeToggle from "@/components/ThemeToggle";
 import { UserAvatar } from "@/components/layout/UserAvatar";
-import type { SidebarState } from "./sidebar/types";
+import type { SidebarState } from "@/modules/navigation";
 
 type TopbarProps = {
   scrolled?: boolean;
@@ -48,7 +48,7 @@ export function Topbar({
 
   return (
     <header
-      className={clsx(
+      className={cn(
         "sticky top-0 z-40",
         // fundo translúcido e blur para efeito premium
         "backdrop-blur supports-[backdrop-filter]:bg-background/60",
