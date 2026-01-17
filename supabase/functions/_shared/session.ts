@@ -1,10 +1,24 @@
 /**
  * Producer Session Validation
  * 
- * Centralizes session validation logic for all Edge Functions
- * that require producer authentication.
+ * @deprecated ENTIRE MODULE DEPRECATED - Use unified-auth.ts instead
  * 
- * @version 1.0.0
+ * RISE Protocol V3: This module exists only for backward compatibility.
+ * All new Edge Functions MUST use unified-auth.ts for authentication.
+ * 
+ * Migration guide:
+ * ```typescript
+ * // OLD (deprecated):
+ * import { validateProducerSession } from "../_shared/session.ts";
+ * const result = await validateProducerSession(supabase, token);
+ * 
+ * // NEW (RISE V3 compliant):
+ * import { getAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+ * const producer = await getAuthenticatedProducer(supabase, req);
+ * if (!producer) return unauthorizedResponse(corsHeaders);
+ * ```
+ * 
+ * @version DEPRECATED
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -15,64 +29,21 @@ export interface SessionValidationResult {
   error?: string;
 }
 
-interface SessionRecord {
-  producer_id: string;
-  expires_at: string;
-  is_valid: boolean;
-}
-
 /**
- * Validates a producer session token
- * 
- * @param supabase - Supabase client with service role
- * @param sessionToken - The session token from x-producer-session-token header
- * @returns Validation result with producerId if valid
+ * @deprecated Use `getAuthenticatedProducer` from `unified-auth.ts` instead.
  */
 export async function validateProducerSession(
-  supabase: SupabaseClient,
-  sessionToken: string
+  _supabase: SupabaseClient,
+  _sessionToken: string
 ): Promise<SessionValidationResult> {
-  if (!sessionToken) {
-    return { valid: false, error: "Token de sessão não fornecido" };
-  }
-
-  const { data: session, error } = await supabase
-    .from("producer_sessions")
-    .select("producer_id, expires_at, is_valid")
-    .eq("session_token", sessionToken)
-    .single();
-
-  if (error || !session) {
-    return { valid: false, error: "Sessão inválida" };
-  }
-
-  const sessionRecord = session as SessionRecord;
-
-  if (!sessionRecord.is_valid) {
-    return { valid: false, error: "Sessão expirada ou invalidada" };
-  }
-
-  if (new Date(sessionRecord.expires_at) < new Date()) {
-    // Mark as invalid
-    await supabase
-      .from("producer_sessions")
-      .update({ is_valid: false })
-      .eq("session_token", sessionToken);
-    return { valid: false, error: "Sessão expirada" };
-  }
-
-  // Update last activity
-  await supabase
-    .from("producer_sessions")
-    .update({ last_activity_at: new Date().toISOString() })
-    .eq("session_token", sessionToken);
-
-  return { valid: true, producerId: sessionRecord.producer_id };
+  console.warn("[DEPRECATED] session.ts is deprecated - Use unified-auth.ts");
+  return { valid: false, error: "DEPRECATED: Use unified-auth.ts" };
 }
 
 /**
- * Extracts session token from request (header or body)
+ * @deprecated Use request headers directly with unified-auth.ts
  */
-export function extractSessionToken(req: Request, body?: Record<string, unknown>): string {
-  return (body?.sessionToken as string) || req.headers.get("x-producer-session-token") || "";
+export function extractSessionToken(_req: Request, _body?: Record<string, unknown>): string {
+  console.warn("[DEPRECATED] extractSessionToken is deprecated - Use unified-auth.ts");
+  return "";
 }
