@@ -1,31 +1,28 @@
 /**
  * offer-bulk Edge Function
  * 
- * @version 2.0.0 - RISE Protocol V2 Compliant - Zero `any`
- * 
+ * @version 3.0.0 - RISE Protocol V3 Compliant
+ * - Uses unified-auth.ts for authentication
+ * - Removed local validateProducerSession
+ *
  * Handles bulk offer operations:
  * - POST /bulk-save - Bulk create/update/delete offers
- * 
- * RISE Protocol Compliant:
- * - Producer session authentication
- * - Rate limiting per producer
- * - Ownership verification
- * - Sentry error tracking
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
+import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 
 // ============================================
 // TYPES
 // ============================================
 
-interface BulkSavePayload {
-  product_id: string;
-  productId?: string; // alias
-  offers: Array<{
+interface RequestBody {
+  product_id?: string;
+  productId?: string;
+  offers?: Array<{
     id?: string;
     name: string;
     price: number;
@@ -37,14 +34,6 @@ interface BulkSavePayload {
   deleted_offer_ids?: string[];
 }
 
-interface RequestBody {
-  sessionToken?: string;
-  product_id?: string;
-  productId?: string;
-  offers?: BulkSavePayload["offers"];
-  deleted_offer_ids?: string[];
-}
-
 interface JsonResponseData {
   success: boolean;
   error?: string;
@@ -53,16 +42,6 @@ interface JsonResponseData {
     updated: string[];
     deleted: string[];
   };
-}
-
-interface SessionRecord {
-  producer_id: string;
-  expires_at: string;
-  is_valid: boolean;
-}
-
-interface ProductRecord {
-  id: string;
 }
 
 interface OfferRecord {
@@ -82,46 +61,6 @@ function jsonResponse(data: JsonResponseData, corsHeaders: Record<string, string
 
 function errorResponse(message: string, corsHeaders: Record<string, string>, status = 400): Response {
   return jsonResponse({ success: false, error: message }, corsHeaders, status);
-}
-
-async function validateProducerSession(
-  supabase: SupabaseClient,
-  sessionToken: string
-): Promise<{ valid: boolean; producerId?: string; error?: string }> {
-  if (!sessionToken) {
-    return { valid: false, error: "Token de sessão não fornecido" };
-  }
-
-  const { data: session, error } = await supabase
-    .from("producer_sessions")
-    .select("producer_id, expires_at, is_valid")
-    .eq("session_token", sessionToken)
-    .single();
-
-  if (error || !session) {
-    return { valid: false, error: "Sessão inválida" };
-  }
-
-  const sessionData = session as SessionRecord;
-
-  if (!sessionData.is_valid) {
-    return { valid: false, error: "Sessão expirada ou invalidada" };
-  }
-
-  if (new Date(sessionData.expires_at) < new Date()) {
-    await supabase
-      .from("producer_sessions")
-      .update({ is_valid: false })
-      .eq("session_token", sessionToken);
-    return { valid: false, error: "Sessão expirada" };
-  }
-
-  await supabase
-    .from("producer_sessions")
-    .update({ last_activity_at: new Date().toISOString() })
-    .eq("session_token", sessionToken);
-
-  return { valid: true, producerId: sessionData.producer_id };
 }
 
 async function verifyProductOwnership(supabase: SupabaseClient, productId: string, producerId: string): Promise<boolean> {
@@ -167,16 +106,16 @@ serve(withSentry("offer-bulk", async (req) => {
       return errorResponse("Corpo da requisição inválido", corsHeaders, 400);
     }
 
-    // Authentication
-    const sessionToken = body.sessionToken || req.headers.get("x-producer-session-token") || "";
-    const sessionValidation = await validateProducerSession(supabase, sessionToken);
-
-    if (!sessionValidation.valid) {
-      console.warn(`[offer-bulk] Auth failed: ${sessionValidation.error}`);
-      return errorResponse(sessionValidation.error || "Não autorizado", corsHeaders, 401);
+    // ============================================
+    // AUTHENTICATION via unified-auth.ts
+    // ============================================
+    let producer;
+    try {
+      producer = await requireAuthenticatedProducer(supabase, req);
+    } catch {
+      return unauthorizedResponse(corsHeaders);
     }
-
-    const producerId = sessionValidation.producerId!;
+    const producerId = producer.id;
 
     // BULK-SAVE
     if (action === "bulk-save") {

@@ -1,44 +1,19 @@
 /**
  * request-affiliation Edge Function
  * 
- * @version 2.0.0 - Zero `any` compliance (RISE Protocol V2)
+ * @version 3.0.0 - RISE Protocol V3 Compliant
+ * - Uses handleCors from _shared/cors.ts
+ * - Uses unified-auth.ts for authentication
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const ALLOWED_ORIGINS = [
-  "http://localhost:5173",
-  "http://localhost:3000",
-  "https://risecheckout.com",
-  "https://www.risecheckout.com",
-  "https://risecheckout-84776.lovable.app",
-  "https://prime-checkout-hub.lovable.app"
-];
-
-const getCorsHeaders = (origin: string) => ({
-  "Access-Control-Allow-Origin": ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-});
+import { handleCors } from "../_shared/cors.ts";
+import { requireAuthenticatedProducer, ProducerAuth } from "../_shared/unified-auth.ts";
 
 // ==========================================
 // TYPES
 // ==========================================
-
-interface SessionProfile {
-  id: string;
-  email: string;
-  asaas_wallet_id: string | null;
-  mercadopago_collector_id: string | null;
-  stripe_account_id: string | null;
-}
-
-interface SessionData {
-  producer_id: string;
-  expires_at: string;
-  is_valid: boolean;
-  profiles: SessionProfile | SessionProfile[];
-}
 
 interface Product {
   id: string;
@@ -64,6 +39,12 @@ interface Affiliation {
   status: string;
 }
 
+interface ProfileData {
+  asaas_wallet_id: string | null;
+  mercadopago_collector_id: string | null;
+  stripe_account_id: string | null;
+}
+
 // ==========================================
 // RATE LIMITING CONFIG
 // ==========================================
@@ -71,13 +52,12 @@ const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minuto
 const RATE_LIMIT_MAX_REQUESTS = 5; // 5 solicitações por minuto
 
 serve(async (req) => {
-  const origin = req.headers.get("origin") || "";
-  const corsHeaders = getCorsHeaders(origin);
-
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  // Handle CORS with centralized handler
+  const corsResult = handleCors(req);
+  if (corsResult instanceof Response) {
+    return corsResult;
   }
+  const corsHeaders = corsResult.headers;
 
   try {
     // Setup Supabase Client
@@ -94,60 +74,26 @@ serve(async (req) => {
     }
 
     // ==========================================
-    // AUTENTICAÇÃO VIA PRODUCER SESSION (token customizado)
+    // AUTENTICAÇÃO VIA unified-auth.ts
     // ==========================================
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      throw new Error("Usuário não autenticado");
+    let producer: ProducerAuth;
+    try {
+      producer = await requireAuthenticatedProducer(supabaseClient, req);
+    } catch {
+      return new Response(
+        JSON.stringify({ success: false, error: "Usuário não autenticado" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    const sessionToken = authHeader.replace("Bearer ", "");
-
-    // Validar token customizado na tabela producer_sessions
-    const { data: sessionData, error: sessionError } = await supabaseClient
-      .from("producer_sessions")
-      .select(`
-        producer_id,
-        expires_at,
-        is_valid,
-        profiles:producer_id (
-          id,
-          email,
-          asaas_wallet_id,
-          mercadopago_collector_id,
-          stripe_account_id
-        )
-      `)
-      .eq("session_token", sessionToken)
-      .eq("is_valid", true)
-      .gt("expires_at", new Date().toISOString())
-      .maybeSingle();
-
-    if (sessionError || !sessionData || !sessionData.profiles) {
-      console.error(`🚨 [request-affiliation] Sessão inválida ou expirada. Error: ${sessionError?.message || 'No session data'}`);
-      throw new Error("Sessão inválida ou expirada. Faça login novamente.");
-    }
-
-    const typedSession = sessionData as unknown as SessionData;
-    
-    // Handle profiles that could be array or object
-    const profilesData = typedSession.profiles;
-    const userProfile: SessionProfile = Array.isArray(profilesData) ? profilesData[0] : profilesData;
-
-    // Extrair dados do usuário e profile
-    const user = {
-      id: typedSession.producer_id,
-      email: userProfile.email,
-    };
-
-    console.log(`📝 [request-affiliation] Solicitação de ${maskEmail(user.email || '')} para produto ${product_id}`);
+    console.log(`📝 [request-affiliation] Solicitação de ${maskEmail(producer.email)} para produto ${product_id}`);
 
     // ==========================================
     // 0. RATE LIMITING - Prevenir abuso
     // ==========================================
-    const rateLimitResult = await checkRateLimit(supabaseClient, user.id);
+    const rateLimitResult = await checkRateLimit(supabaseClient, producer.id);
     if (!rateLimitResult.allowed) {
-      console.warn(`🚫 [request-affiliation] Rate limit excedido para ${maskEmail(user.email || '')}`);
+      console.warn(`🚫 [request-affiliation] Rate limit excedido para ${maskEmail(producer.email)}`);
       return new Response(
         JSON.stringify({
           success: false,
@@ -161,19 +107,20 @@ serve(async (req) => {
     }
 
     // Registrar tentativa
-    await recordRateLimitAttempt(supabaseClient, user.id);
+    await recordRateLimitAttempt(supabaseClient, producer.id);
 
     // ==========================================
-    // 1. VALIDAR GATEWAYS DO USUÁRIO (userProfile já obtido na autenticação)
+    // 1. BUSCAR PROFILE DO USUÁRIO PARA VALIDAR GATEWAYS
     // ==========================================
-    // Verificar se tem pelo menos uma conexão de gateway
-    const hasAnyGateway = !!(
-      userProfile?.asaas_wallet_id || 
-      userProfile?.mercadopago_collector_id || 
-      userProfile?.stripe_account_id
-    );
+    const { data: userProfile } = await supabaseClient
+      .from("profiles")
+      .select("asaas_wallet_id, mercadopago_collector_id, stripe_account_id")
+      .eq("id", producer.id)
+      .single();
 
-    console.log(`✅ [request-affiliation] Conexões do usuário: Asaas=${!!userProfile?.asaas_wallet_id}, MP=${!!userProfile?.mercadopago_collector_id}, Stripe=${!!userProfile?.stripe_account_id}`);
+    const profileData = userProfile as ProfileData | null;
+
+    console.log(`✅ [request-affiliation] Conexões do usuário: Asaas=${!!profileData?.asaas_wallet_id}, MP=${!!profileData?.mercadopago_collector_id}, Stripe=${!!profileData?.stripe_account_id}`);
 
     // ==========================================
     // 2. BUSCAR PRODUTO E VALIDAR PROGRAMA
@@ -193,8 +140,8 @@ serve(async (req) => {
     // ==========================================
     // 🔒 SEGURANÇA: BLOQUEAR AUTO-AFILIAÇÃO
     // ==========================================
-    if (typedProduct.user_id === user.id) {
-      console.warn(`🚫 [request-affiliation] Tentativa de auto-afiliação bloqueada: ${maskEmail(user.email || '')}`);
+    if (typedProduct.user_id === producer.id) {
+      console.warn(`🚫 [request-affiliation] Tentativa de auto-afiliação bloqueada: ${maskEmail(producer.email)}`);
       throw new Error("Você não pode se afiliar ao seu próprio produto");
     }
 
@@ -206,27 +153,23 @@ serve(async (req) => {
       throw new Error("O programa de afiliados não está ativo para este produto");
     }
 
-    // Verificar configurações de gateway do produto
+    // Verificar configurações de gateway do produto (informativo, NÃO bloqueia)
     const gatewaySettings: GatewaySettings = typedProduct.affiliate_gateway_settings || {};
     const pixAllowed = gatewaySettings.pix_allowed || ["asaas"];
     const cardAllowed = gatewaySettings.credit_card_allowed || ["mercadopago", "stripe"];
 
-    // LOG: Verificar gateways permitidos pelo produto (informativo, NÃO bloqueia)
     const hasAllowedPixGateway = (
-      (pixAllowed.includes("asaas") && userProfile?.asaas_wallet_id) ||
-      (pixAllowed.includes("mercadopago") && userProfile?.mercadopago_collector_id) ||
-      (pixAllowed.includes("pushinpay")) // PushinPay usa credenciais da plataforma
+      (pixAllowed.includes("asaas") && profileData?.asaas_wallet_id) ||
+      (pixAllowed.includes("mercadopago") && profileData?.mercadopago_collector_id) ||
+      (pixAllowed.includes("pushinpay"))
     );
     
     const hasAllowedCardGateway = (
-      (cardAllowed.includes("mercadopago") && userProfile?.mercadopago_collector_id) ||
-      (cardAllowed.includes("stripe") && userProfile?.stripe_account_id)
+      (cardAllowed.includes("mercadopago") && profileData?.mercadopago_collector_id) ||
+      (cardAllowed.includes("stripe") && profileData?.stripe_account_id)
     );
 
-    // Apenas log informativo - afiliação é permitida sem gateway configurado
-    // O link de afiliado só será exibido quando o usuário configurar os gateways
     console.log(`ℹ️ [request-affiliation] Gateway status: PIX=${hasAllowedPixGateway}, Card=${hasAllowedCardGateway} (não bloqueia afiliação)`);
-
     console.log(`✅ [request-affiliation] Programa ativo para produto: ${typedProduct.name}`);
 
     // ==========================================
@@ -236,7 +179,7 @@ serve(async (req) => {
       .from("affiliates")
       .select("id, status")
       .eq("product_id", product_id)
-      .eq("user_id", user.id)
+      .eq("user_id", producer.id)
       .maybeSingle();
 
     const typedAffiliation = existingAffiliation as Affiliation | null;
@@ -248,20 +191,15 @@ serve(async (req) => {
         throw new Error("Você já possui uma solicitação pendente para este produto");
       } else if (typedAffiliation.status === "blocked") {
         throw new Error("Você foi bloqueado e não pode se afiliar a este produto");
-      } else if (typedAffiliation.status === "rejected") {
-        // Permite reenviar se foi recusado anteriormente
-        console.log(`🔄 [request-affiliation] Reenviando solicitação previamente recusada`);
       }
+      // status === "rejected" permite reenviar
+      console.log(`🔄 [request-affiliation] Reenviando solicitação previamente recusada`);
     }
 
     // ==========================================
     // 4. CRIAR OU ATUALIZAR AFILIAÇÃO
     // ==========================================
     const requireApproval = affiliateSettings.requireApproval || false;
-    const defaultRate = affiliateSettings.defaultRate || 50;
-
-    // Status inicial e código seguro
-    // ✅ FIX: Sempre gerar código (coluna NOT NULL), mesmo para status pending
     const initialStatus = requireApproval ? "pending" : "active";
     const affiliateCode = generateSecureAffiliateCode();
 
@@ -274,7 +212,7 @@ serve(async (req) => {
         .update({
           status: initialStatus,
           affiliate_code: affiliateCode,
-          commission_rate: null, // NULL = herda dinamicamente do produto
+          commission_rate: null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", typedAffiliation.id)
@@ -289,10 +227,10 @@ serve(async (req) => {
         .from("affiliates")
         .insert({
           product_id,
-          user_id: user.id,
+          user_id: producer.id,
           status: initialStatus,
           affiliate_code: affiliateCode,
-          commission_rate: null, // NULL = herda dinamicamente do produto
+          commission_rate: null,
         })
         .select()
         .single();
@@ -377,7 +315,6 @@ async function checkRateLimit(
 
   if (error) {
     console.error("Erro ao verificar rate limit:", error);
-    // Em caso de erro, permitir (fail-open para não bloquear usuários legítimos)
     return { allowed: true };
   }
 

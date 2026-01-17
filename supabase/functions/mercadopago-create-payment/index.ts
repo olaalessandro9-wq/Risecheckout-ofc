@@ -1,11 +1,14 @@
 /**
  * Mercado Pago Create Payment - Edge Function
  * 
- * @version 3.1.0 - RISE Protocol V2 Compliance (< 300 lines)
+ * @version 4.0.0 - RISE Protocol V3 Compliance
+ * - Uses handleCors from _shared/cors.ts
+ * - Uses PUBLIC_CORS_HEADERS for checkout (public endpoint)
  */
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { handleCors, PUBLIC_CORS_HEADERS } from '../_shared/cors.ts';
 import { rateLimitMiddleware, getIdentifier } from '../_shared/rate-limit.ts';
 import { getVendorCredentials } from '../_shared/vault-credentials.ts';
 import { processPostPaymentActions } from '../_shared/webhook-post-payment.ts';
@@ -47,12 +50,6 @@ interface RequestBody {
 }
 
 // === CONSTANTS ===
-const ALLOWED_ORIGINS = [
-  "https://risecheckout.com", "https://www.risecheckout.com",
-  "https://risecheckout-84776.lovable.app", "https://prime-checkout-hub.lovable.app",
-  "http://localhost:5173", "http://localhost:3000"
-];
-
 const ERROR_CODES = {
   INVALID_REQUEST: 'INVALID_REQUEST',
   ORDER_NOT_FOUND: 'ORDER_NOT_FOUND',
@@ -64,15 +61,6 @@ const ERROR_CODES = {
 };
 
 // === HELPERS ===
-function getCorsHeaders(origin: string): Record<string, string> {
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-  return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
-  };
-}
-
 function createErrorResponse(
   code: string, message: string, status: number, 
   headers: Record<string, string>, details?: unknown
@@ -129,10 +117,25 @@ async function calculateSplit(
 
 // === MAIN HANDLER ===
 serve(async (req) => {
-  const origin = req.headers.get("origin") || "";
-  const corsHeaders = getCorsHeaders(origin);
+  // Use handleCors for origin validation, fallback to PUBLIC_CORS_HEADERS for checkout
+  const corsResult = handleCors(req);
+  
+  let corsHeaders: Record<string, string>;
+  if (corsResult instanceof Response) {
+    // If preflight, return it
+    if (req.method === 'OPTIONS') {
+      return corsResult;
+    }
+    // For non-preflight blocked origins, use PUBLIC for checkout (anonymous clients)
+    corsHeaders = PUBLIC_CORS_HEADERS;
+  } else {
+    corsHeaders = corsResult.headers;
+  }
 
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  // Handle OPTIONS separately
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
 
   try {
     const rateLimitResponse = await rateLimitMiddleware(req, {
@@ -242,6 +245,6 @@ serve(async (req) => {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logError('Erro fatal', { message: errorMessage });
-    return createErrorResponse(ERROR_CODES.INTERNAL_ERROR, 'Erro interno', 500, getCorsHeaders(""));
+    return createErrorResponse(ERROR_CODES.INTERNAL_ERROR, 'Erro interno', 500, PUBLIC_CORS_HEADERS);
   }
 });

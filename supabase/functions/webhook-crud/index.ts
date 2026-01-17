@@ -1,18 +1,21 @@
 /**
  * webhook-crud Edge Function
  * 
+ * @version 3.0.0 - RISE Protocol V3 Compliant
+ * - Uses unified-auth.ts for authentication
+ * - Removed local validateProducerSession
+ *
  * Centralizes all webhook CRUD operations:
  * - create: Create new webhook with products
  * - update: Update webhook and products
  * - delete: Delete webhook
- * 
- * @version 2.0.0
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
+import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 
 // ============================================
 // INTERFACES
@@ -60,13 +63,6 @@ interface RequestBody {
   action: string;
   webhookId?: string;
   data?: WebhookData;
-  sessionToken?: string;
-}
-
-interface SessionRecord {
-  producer_id: string;
-  expires_at: string;
-  is_valid: boolean;
 }
 
 interface WebhookOwnership {
@@ -95,50 +91,6 @@ function jsonResponse(data: JsonResponseData, corsHeaders: Record<string, string
 
 function errorResponse(message: string, corsHeaders: Record<string, string>, status = 400): Response {
   return jsonResponse({ success: false, error: message }, corsHeaders, status);
-}
-
-// ============================================
-// SESSION VALIDATION
-// ============================================
-
-async function validateProducerSession(
-  supabase: SupabaseClient,
-  sessionToken: string
-): Promise<{ valid: boolean; producerId?: string; error?: string }> {
-  if (!sessionToken) {
-    return { valid: false, error: "Token de sessão não fornecido" };
-  }
-
-  const { data: session, error } = await supabase
-    .from("producer_sessions")
-    .select("producer_id, expires_at, is_valid")
-    .eq("session_token", sessionToken)
-    .single();
-
-  if (error || !session) {
-    return { valid: false, error: "Sessão inválida" };
-  }
-
-  const typedSession = session as SessionRecord;
-
-  if (!typedSession.is_valid) {
-    return { valid: false, error: "Sessão expirada ou invalidada" };
-  }
-
-  if (new Date(typedSession.expires_at) < new Date()) {
-    await supabase
-      .from("producer_sessions")
-      .update({ is_valid: false })
-      .eq("session_token", sessionToken);
-    return { valid: false, error: "Sessão expirada" };
-  }
-
-  await supabase
-    .from("producer_sessions")
-    .update({ last_activity_at: new Date().toISOString() })
-    .eq("session_token", sessionToken);
-
-  return { valid: true, producerId: typedSession.producer_id };
 }
 
 // ============================================
@@ -178,7 +130,6 @@ async function listWebhooksWithProducts(
   vendorId: string,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  // Fetch webhooks
   const { data: webhooksData, error: webhooksError } = await supabase
     .from("outbound_webhooks")
     .select("id, name, url, events, product_id, created_at")
@@ -190,7 +141,6 @@ async function listWebhooksWithProducts(
     return errorResponse("Erro ao listar webhooks", corsHeaders, 500);
   }
 
-  // Fetch products for mapping
   const { data: productsData } = await supabase
     .from("products")
     .select("id, name")
@@ -199,7 +149,6 @@ async function listWebhooksWithProducts(
 
   const productMap = new Map((productsData || []).map((p: { id: string; name: string }) => [p.id, p.name]));
 
-  // Map webhooks with product names
   const webhooksWithProducts: WebhookWithProduct[] = (webhooksData || []).map((webhook: {
     id: string;
     name: string;
@@ -241,13 +190,11 @@ async function getWebhookProducts(
   vendorId: string,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  // Verify ownership first
   const ownership = await verifyWebhookOwnership(supabase, webhookId, vendorId);
   if (!ownership.valid) {
     return errorResponse(ownership.error!, corsHeaders, 403);
   }
 
-  // Fetch from webhook_products table
   const { data, error } = await supabase
     .from("webhook_products")
     .select("product_id")
@@ -255,7 +202,6 @@ async function getWebhookProducts(
 
   if (error) {
     console.error("[webhook-crud] Get webhook products error:", error);
-    // Fallback: try product_id from webhook
     const { data: webhookData } = await supabase
       .from("outbound_webhooks")
       .select("product_id")
@@ -294,16 +240,19 @@ serve(withSentry("webhook-crud", async (req) => {
     }
 
     const { action, webhookId, data } = body;
-    const sessionToken = body.sessionToken || req.headers.get("x-producer-session-token");
 
     console.log(`[webhook-crud] Action: ${action}`);
 
-    // Validate session
-    const sessionValidation = await validateProducerSession(supabase, sessionToken || "");
-    if (!sessionValidation.valid) {
-      return errorResponse(sessionValidation.error || "Não autorizado", corsHeaders, 401);
+    // ============================================
+    // AUTHENTICATION via unified-auth.ts
+    // ============================================
+    let producer;
+    try {
+      producer = await requireAuthenticatedProducer(supabase, req);
+    } catch {
+      return unauthorizedResponse(corsHeaders);
     }
-    const vendorId = sessionValidation.producerId!;
+    const vendorId = producer.id;
 
     // ============================================
     // LIST ACTIONS (no webhookId required)
@@ -331,7 +280,6 @@ serve(withSentry("webhook-crud", async (req) => {
         return errorResponse("name, url e events são obrigatórios", corsHeaders, 400);
       }
 
-      // Gerar secret
       const secret = `whsec_${crypto.randomUUID().replace(/-/g, "")}`;
 
       const { data: newWebhook, error: insertError } = await supabase
@@ -353,7 +301,6 @@ serve(withSentry("webhook-crud", async (req) => {
         return errorResponse("Erro ao criar webhook", corsHeaders, 500);
       }
 
-      // Insert product associations
       if (data.product_ids && data.product_ids.length > 0) {
         const { error: linkError } = await supabase
           .from("webhook_products")
@@ -403,15 +350,9 @@ serve(withSentry("webhook-crud", async (req) => {
         return errorResponse("Erro ao atualizar webhook", corsHeaders, 500);
       }
 
-      // Update product associations
       if (Array.isArray(data?.product_ids)) {
-        // Remove old
-        await supabase
-          .from("webhook_products")
-          .delete()
-          .eq("webhook_id", webhookId);
+        await supabase.from("webhook_products").delete().eq("webhook_id", webhookId);
 
-        // Insert new
         if (data.product_ids.length > 0) {
           await supabase
             .from("webhook_products")
