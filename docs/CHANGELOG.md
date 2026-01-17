@@ -6,6 +6,33 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
+## [3.2.0] - 2026-01-17
+
+### 📦 Sistema de Status Hotmart/Kiwify
+
+#### Adicionado
+- **Arquitetura Dual-Layer de Status:**
+  - `status` (público): 4 valores canônicos (`paid`, `pending`, `refunded`, `chargeback`)
+  - `technical_status` (interno): 6 valores (`active`, `expired`, `gateway_cancelled`, `gateway_timeout`, `gateway_error`, `abandoned`)
+  - `expired_at`: Timestamp de expiração para PIX/boleto
+
+- **Novo documento:** `docs/ORDER_STATUS_MODEL.md` - Documentação completa do sistema
+
+#### Alterado
+- **Modelo de Status:** Seguindo padrão Hotmart/Kiwify, vendas pendentes NUNCA transitam para "cancelado" na UI
+- **Webhooks atualizados:** `pushinpay-webhook`, `asaas-webhook`, `reconcile-mercadopago` agora definem `technical_status`
+- **Frontend:** `OrderDetailsDialog.tsx` e `dashboard.types.ts` simplificados para 4 status
+
+#### Migrado
+- **14 pedidos históricos** de `status = 'cancelled'` para `status = 'pending'` com `technical_status = 'expired'`
+
+#### Documentação
+- Atualizado `docs/ARCHITECTURE.md` com seção de Sistema de Status
+- Atualizado `docs/UTMIFY_INTEGRATION.md` com mapeamento correto
+- Atualizado `docs/STATUS_ATUAL.md` para versão 3.2
+
+---
+
 ## [3.1.0] - 2026-01-16
 
 ### 🔒 Migração Frontend → Edge Functions (RISE Protocol V2)

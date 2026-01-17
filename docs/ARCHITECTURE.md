@@ -112,11 +112,38 @@ Este sistema segue 100% o protocolo:
 
 ---
 
+## 📦 Sistema de Status de Pedidos
+
+O RiseCheckout utiliza o **modelo Hotmart/Kiwify** com arquitetura dual-layer:
+
+### Status Canônicos (UI)
+
+| Status | Display | Descrição |
+|--------|---------|-----------|
+| `paid` | Pago | Pagamento confirmado |
+| `pending` | Pendente | Aguardando (inclui expirados) |
+| `refunded` | Reembolso | Valor devolvido |
+| `chargeback` | Chargeback | Contestação |
+
+### Technical Status (Interno)
+
+| Status | Descrição |
+|--------|-----------|
+| `active` | Aguardando pagamento |
+| `expired` | PIX/boleto expirou |
+| `gateway_cancelled` | Cancelado pelo gateway |
+| `gateway_error` | Erro no processamento |
+
+> **Documentação completa:** [ORDER_STATUS_MODEL.md](./ORDER_STATUS_MODEL.md)
+
+---
+
 ## 📖 Documentação Relacionada
 
 ### Arquitetura de Componentes
 - [Sistema de Pixels](./PIXEL_SYSTEM.md) - Tracking multi-plataforma
 - [Arquitetura do Sidebar](./SIDEBAR_ARCHITECTURE.md) - Navegação responsiva
+- [Sistema de Status](./ORDER_STATUS_MODEL.md) - Modelo Hotmart/Kiwify
 
 ### Autenticação e Segurança
 - [Sistema de Autenticação Completo](./AUTHENTICATION_SYSTEM.md)
