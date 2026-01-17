@@ -3106,6 +3106,7 @@ export type Database = {
           test_access_token: string | null
           test_mode_enabled: boolean | null
           test_public_key: string | null
+          timezone: string
           updated_at: string | null
         }
         Insert: {
@@ -3136,6 +3137,7 @@ export type Database = {
           test_access_token?: string | null
           test_mode_enabled?: boolean | null
           test_public_key?: string | null
+          timezone?: string
           updated_at?: string | null
         }
         Update: {
@@ -3166,6 +3168,7 @@ export type Database = {
           test_access_token?: string | null
           test_mode_enabled?: boolean | null
           test_public_key?: string | null
+          timezone?: string
           updated_at?: string | null
         }
         Relationships: []
@@ -4115,7 +4118,12 @@ export type Database = {
         }[]
       }
       get_dashboard_metrics: {
-        Args: { p_end_date: string; p_start_date: string; p_vendor_id: string }
+        Args: {
+          p_end_date: string
+          p_start_date: string
+          p_timezone?: string
+          p_vendor_id: string
+        }
         Returns: Json
       }
       get_gateway_credentials: {

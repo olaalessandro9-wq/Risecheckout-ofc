@@ -2,24 +2,24 @@
  * Funções de formatação para o Dashboard
  * 
  * @module dashboard/utils
- * @version RISE V3 Compliant
+ * @version 2.0.0 - RISE V3 Compliant (Timezone Support)
  */
 
 import type { Order, RecentCustomer } from "../types";
 import { formatCentsToBRL } from "@/lib/money";
+import { timezoneService } from "@/lib/timezone";
 
 // Re-export para manter compatibilidade
 export const formatCurrency = formatCentsToBRL;
 
+/**
+ * Formata uma data para exibição no timezone de São Paulo
+ * 
+ * Uses TimezoneService to ensure dates are displayed
+ * in the vendor's timezone, not UTC.
+ */
 export function formatDate(dateString: string): string {
-  const date = new Date(dateString);
-  return date.toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return timezoneService.formatFull(dateString);
 }
 
 // ============================================================================

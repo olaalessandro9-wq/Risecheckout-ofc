@@ -3,18 +3,21 @@
  * 
  * Centralizes RPC calls from frontend, providing:
  * - Authentication validation
+ * - Timezone injection for relevant RPCs
  * - Rate limiting (future)
  * - Audit logging (future)
  * 
- * @version 3.0.0 - RISE Protocol V3 (unified-auth)
+ * @version 4.0.0 - RISE Protocol V3 (timezone support)
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors, PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
 import { getAuthenticatedProducer } from "../_shared/unified-auth.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+const DEFAULT_TIMEZONE = 'America/Sao_Paulo';
 
 // RPCs that don't require authentication
 const PUBLIC_RPCS = [
@@ -43,9 +46,48 @@ const ADMIN_RPCS = [
   "get_webhook_stats_24h",
 ];
 
+// RPCs that need p_user_id injection
+const RPCS_NEED_USER_ID = ["get_producer_affiliates"];
+
+// RPCs that need p_timezone injection
+const RPCS_NEED_TIMEZONE = ["get_dashboard_metrics"];
+
 interface RpcRequest {
   rpc: string;
   params?: Record<string, unknown>;
+}
+
+interface ProducerWithTimezone {
+  id: string;
+  role?: string;
+  timezone?: string;
+}
+
+/**
+ * Get vendor timezone from profile
+ */
+async function getVendorTimezone(
+  supabase: SupabaseClient,
+  vendorId: string
+): Promise<string> {
+  try {
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('timezone')
+      .eq('id', vendorId)
+      .single();
+    
+    if (error || !profile) {
+      console.log(`[rpc-proxy] No timezone for vendor ${vendorId}, using default`);
+      return DEFAULT_TIMEZONE;
+    }
+    
+    const tz = (profile as { timezone?: string }).timezone;
+    return tz || DEFAULT_TIMEZONE;
+  } catch {
+    console.log(`[rpc-proxy] Error fetching timezone, using default`);
+    return DEFAULT_TIMEZONE;
+  }
 }
 
 Deno.serve(async (req) => {
@@ -82,9 +124,11 @@ Deno.serve(async (req) => {
     }
 
     // Validate authentication for non-public RPCs
+    let producer: ProducerWithTimezone | null = null;
+    
     if (isProducer || isAdmin) {
       // Auth via unified-auth
-      const producer = await getAuthenticatedProducer(supabase, req);
+      producer = await getAuthenticatedProducer(supabase, req);
 
       if (!producer) {
         return new Response(
@@ -104,17 +148,27 @@ Deno.serve(async (req) => {
       }
 
       // ============================================
-      // INJECT p_user_id FOR RPCs THAT NEED IT
+      // INJECT PARAMETERS FOR SPECIFIC RPCs
       // ============================================
-      const RPCS_NEED_USER_ID = ["get_producer_affiliates"];
       
-      if (RPCS_NEED_USER_ID.includes(rpc)) {
-        const enrichedParams = {
-          ...(params || {}),
-          p_user_id: producer.id,
-        };
+      const needsUserId = RPCS_NEED_USER_ID.includes(rpc);
+      const needsTimezone = RPCS_NEED_TIMEZONE.includes(rpc);
+      
+      if (needsUserId || needsTimezone) {
+        let enrichedParams = { ...(params || {}) };
         
-        console.log(`[rpc-proxy] Injecting p_user_id=${producer.id} for RPC ${rpc}`);
+        // Inject p_user_id
+        if (needsUserId) {
+          enrichedParams.p_user_id = producer.id;
+          console.log(`[rpc-proxy] Injecting p_user_id=${producer.id} for RPC ${rpc}`);
+        }
+        
+        // Inject p_timezone
+        if (needsTimezone) {
+          const timezone = await getVendorTimezone(supabase, producer.id);
+          enrichedParams.p_timezone = timezone;
+          console.log(`[rpc-proxy] Injecting p_timezone=${timezone} for RPC ${rpc}`);
+        }
         
         const { data, error } = await supabase.rpc(rpc as never, enrichedParams);
         
@@ -133,7 +187,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Execute the RPC (for public RPCs or producer RPCs that don't need p_user_id)
+    // Execute the RPC (for public RPCs or producer RPCs that don't need injection)
     const { data, error } = await supabase.rpc(rpc as never, params || {});
 
     if (error) {
