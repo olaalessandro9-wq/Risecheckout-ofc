@@ -2,14 +2,13 @@
  * Feature Flags - Controle de Funcionalidades
  * 
  * Este arquivo centraliza todas as feature flags do sistema.
+ * 
+ * RISE Protocol V3: Flags obsoletas foram removidas na auditoria de código morto.
  */
 
 const isDevelopment = import.meta.env.DEV;
 
 export const FEATURE_FLAGS = {
-  /** Nova Arquitetura Multi-Gateway de Pagamento */
-  USE_NEW_PAYMENT_ARCHITECTURE: true,
-
   /** Stripe Gateway (em breve) */
   ENABLE_STRIPE_GATEWAY: false,
 
@@ -22,16 +21,6 @@ export const FEATURE_FLAGS = {
   /** Debug Mode */
   DEBUG_MODE: isDevelopment,
 } as const;
-
-export function isFeatureEnabled(flag: keyof typeof FEATURE_FLAGS): boolean {
-  return FEATURE_FLAGS[flag];
-}
-
-export function getActiveFlags(): string[] {
-  return Object.entries(FEATURE_FLAGS)
-    .filter(([_, value]) => value === true)
-    .map(([key]) => key);
-}
 
 export function debugLog(message: string, data?: unknown): void {
   if (FEATURE_FLAGS.DEBUG_MODE) {
