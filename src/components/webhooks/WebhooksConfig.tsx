@@ -1,14 +1,14 @@
 /**
  * WebhooksConfig - Configuração de Webhooks
  * 
- * MIGRATED: Uses Edge Function instead of supabase.from()
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
  */
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { WebhooksList } from "./WebhooksList";
 import { WebhookForm } from "./WebhookForm";
@@ -27,7 +27,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
+
+interface WebhookCrudResponse {
+  success?: boolean;
+  error?: string;
+  webhooks?: WebhookData[];
+  products?: Product[];
+}
 
 interface WebhookData {
   id: string;
@@ -64,19 +70,15 @@ export function WebhooksConfig() {
 
   /**
    * Load data via Edge Function
-   * MIGRATED: Uses webhook-crud instead of supabase.from()
+   * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
    */
   const loadData = async () => {
     try {
       setLoading(true);
-      const sessionToken = getProducerSessionToken();
       
       // Carregar produtos e webhooks via Edge Function
-      const { data, error } = await supabase.functions.invoke('webhook-crud', {
-        body: {
-          action: 'list-with-products',
-          sessionToken,
-        }
+      const { data, error } = await api.call<WebhookCrudResponse>('webhook-crud', {
+        action: 'list-with-products',
       });
 
       if (error) throw error;
@@ -99,22 +101,17 @@ export function WebhooksConfig() {
     product_ids: string[];
   }) => {
     try {
-      const sessionToken = getProducerSessionToken();
-
       if (editingWebhook) {
         // Atualizar webhook existente via Edge Function
-        const { data: result, error } = await supabase.functions.invoke('webhook-crud', {
-          body: {
-            action: 'update',
-            webhookId: editingWebhook.id,
-            data: {
-              name: data.name,
-              url: data.url,
-              events: data.events,
-              product_ids: data.product_ids,
-            },
-            sessionToken,
-          }
+        const { data: result, error } = await api.call<WebhookCrudResponse>('webhook-crud', {
+          action: 'update',
+          webhookId: editingWebhook.id,
+          data: {
+            name: data.name,
+            url: data.url,
+            events: data.events,
+            product_ids: data.product_ids,
+          },
         });
 
         if (error || !result?.success) {
@@ -124,17 +121,14 @@ export function WebhooksConfig() {
         toast.success("Webhook atualizado com sucesso!");
       } else {
         // Criar novo webhook via Edge Function
-        const { data: result, error } = await supabase.functions.invoke('webhook-crud', {
-          body: {
-            action: 'create',
-            data: {
-              name: data.name,
-              url: data.url,
-              events: data.events,
-              product_ids: data.product_ids,
-            },
-            sessionToken,
-          }
+        const { data: result, error } = await api.call<WebhookCrudResponse>('webhook-crud', {
+          action: 'create',
+          data: {
+            name: data.name,
+            url: data.url,
+            events: data.events,
+            product_ids: data.product_ids,
+          },
         });
 
         if (error || !result?.success) {
@@ -160,14 +154,9 @@ export function WebhooksConfig() {
 
   const handleDelete = async (webhookId: string) => {
     try {
-      const sessionToken = getProducerSessionToken();
-
-      const { data: result, error } = await supabase.functions.invoke('webhook-crud', {
-        body: {
-          action: 'delete',
-          webhookId,
-          sessionToken,
-        }
+      const { data: result, error } = await api.call<WebhookCrudResponse>('webhook-crud', {
+        action: 'delete',
+        webhookId,
       });
 
       if (error || !result?.success) {

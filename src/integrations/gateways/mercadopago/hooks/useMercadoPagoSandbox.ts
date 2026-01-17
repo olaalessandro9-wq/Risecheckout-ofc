@@ -1,13 +1,15 @@
 /**
  * useMercadoPagoSandbox Hook
  * 
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
+ * 
  * Gerencia a lógica de credenciais sandbox (manuais) do Mercado Pago.
  * Usa vault-save para armazenar tokens sensíveis.
  */
 
 import { useState, useEffect } from 'react';
 import { toast } from '@/components/ui/sonner';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 
 interface UseMercadoPagoSandboxProps {
   userId: string | undefined;
@@ -65,21 +67,15 @@ export function useMercadoPagoSandbox({
     try {
       if (!userId) throw new Error('Usuário não autenticado');
 
-      const { getProducerSessionToken } = await import('@/hooks/useProducerAuth');
-      const sessionToken = getProducerSessionToken();
-
-      const { data: vaultResponse, error: vaultError } = await supabase.functions.invoke('vault-save', {
-        body: {
-          vendor_id: userId,
-          integration_type: 'MERCADOPAGO',
-          credentials: {
-            access_token: accessToken,
-            public_key: publicKey,
-            is_test: true,
-            environment: 'sandbox',
-          },
+      const { data: vaultResponse, error: vaultError } = await api.call<{ success?: boolean; error?: string }>('vault-save', {
+        vendor_id: userId,
+        integration_type: 'MERCADOPAGO',
+        credentials: {
+          access_token: accessToken,
+          public_key: publicKey,
+          is_test: true,
+          environment: 'sandbox',
         },
-        headers: { 'x-producer-session-token': sessionToken || '' },
       });
 
       if (vaultError) {

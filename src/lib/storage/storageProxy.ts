@@ -1,14 +1,15 @@
 /**
  * Storage Proxy - Centralized Storage operations via Edge Function
  * 
+ * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
+ * 
  * All storage operations must go through this utility to comply with
  * RISE Protocol V2: "Zero direct storage operations from frontend"
  * 
  * @see supabase/functions/storage-management/index.ts
  */
 
-import { supabase } from "@/integrations/supabase/client";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
+import { api } from "@/lib/api";
 
 // ============================================
 // Utility Functions
@@ -26,12 +27,11 @@ async function fileToBase64(file: File | Blob): Promise<string> {
   });
 }
 
-/**
- * Gets headers with optional producer session token
- */
-function getAuthHeaders(): Record<string, string> {
-  const token = getProducerSessionToken();
-  return token ? { "x-producer-session-token": token } : {};
+interface StorageResponse {
+  publicUrl?: string | null;
+  path?: string | null;
+  files?: Array<{ name: string; metadata?: Record<string, unknown> }>;
+  error?: string;
 }
 
 // ============================================
@@ -78,21 +78,18 @@ export async function uploadViaEdge(
     const contentType = options?.contentType || 
       (file instanceof File ? file.type : "application/octet-stream");
 
-    const { data, error } = await supabase.functions.invoke("storage-management", {
-      body: {
-        action: "upload",
-        bucket,
-        path,
-        fileData: base64,
-        contentType,
-        upsert: options?.upsert ?? true,
-      },
-      headers: getAuthHeaders(),
+    const { data, error } = await api.call<StorageResponse>("storage-management", {
+      action: "upload",
+      bucket,
+      path,
+      fileData: base64,
+      contentType,
+      upsert: options?.upsert ?? true,
     });
 
     if (error) {
       console.error("[storageProxy] Upload error:", error);
-      return { publicUrl: null, path: null, error };
+      return { publicUrl: null, path: null, error: new Error(error.message) };
     }
 
     if (data?.error) {
@@ -126,14 +123,13 @@ export async function removeViaEdge(
   }
 
   try {
-    const { data, error } = await supabase.functions.invoke("storage-management", {
-      body: { action: "remove", bucket, paths },
-      headers: getAuthHeaders(),
+    const { data, error } = await api.call<StorageResponse>("storage-management", {
+      action: "remove", bucket, paths,
     });
 
     if (error) {
       console.error("[storageProxy] Remove error:", error);
-      return { error };
+      return { error: new Error(error.message) };
     }
 
     if (data?.error) {
@@ -161,14 +157,13 @@ export async function listViaEdge(
   options?: { limit?: number; offset?: number }
 ): Promise<ListResult> {
   try {
-    const { data, error } = await supabase.functions.invoke("storage-management", {
-      body: { action: "list", bucket, prefix, ...options },
-      headers: getAuthHeaders(),
+    const { data, error } = await api.call<StorageResponse>("storage-management", {
+      action: "list", bucket, prefix, ...options,
     });
 
     if (error) {
       console.error("[storageProxy] List error:", error);
-      return { files: null, error };
+      return { files: null, error: new Error(error.message) };
     }
 
     if (data?.error) {
@@ -196,14 +191,13 @@ export async function copyViaEdge(
   toPath: string
 ): Promise<CopyResult> {
   try {
-    const { data, error } = await supabase.functions.invoke("storage-management", {
-      body: { action: "copy", bucket, fromPath, toPath },
-      headers: getAuthHeaders(),
+    const { data, error } = await api.call<StorageResponse>("storage-management", {
+      action: "copy", bucket, fromPath, toPath,
     });
 
     if (error) {
       console.error("[storageProxy] Copy error:", error);
-      return { publicUrl: null, error };
+      return { publicUrl: null, error: new Error(error.message) };
     }
 
     if (data?.error) {
