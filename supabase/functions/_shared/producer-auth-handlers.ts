@@ -17,9 +17,14 @@ import {
   verifyPassword,
   generateSessionToken,
   logAuditEvent,
-  jsonResponse,
-  errorResponse,
 } from "./producer-auth-helpers.ts";
+import { jsonResponse, errorResponse } from "./response-helpers.ts";
+import {
+  PASSWORD_REQUIRES_RESET,
+  PASSWORD_PENDING_SETUP,
+  PASSWORD_OWNER_NO_PASSWORD,
+  PRODUCER_SESSION_DURATION_DAYS,
+} from "./auth-constants.ts";
 
 import type { ProducerProfile, UserRole } from "./supabase-types.ts";
 
@@ -87,11 +92,16 @@ export async function handleRegister(
     .single() as { data: ExistingProfileResult | null; error: unknown };
 
   if (existingProfile) {
-    if (existingProfile.password_hash && existingProfile.password_hash !== "PENDING_MIGRATION") {
+    // Check if profile already has a valid password (not a placeholder marker)
+    const isPlaceholder = existingProfile.password_hash === PASSWORD_REQUIRES_RESET ||
+                          existingProfile.password_hash === PASSWORD_PENDING_SETUP ||
+                          existingProfile.password_hash === PASSWORD_OWNER_NO_PASSWORD;
+    
+    if (existingProfile.password_hash && !isPlaceholder) {
       return errorResponse("Este email já está cadastrado", corsHeaders, 409);
     }
 
-    // Migration case - set password for existing user
+    // Migration case - set password for existing user with placeholder
     const passwordHash = hashPassword(password);
     const { error: updateError } = await supabase
       .from("profiles")
@@ -190,37 +200,51 @@ export async function handleLogin(
     return errorResponse("Conta desativada", corsHeaders, 403);
   }
 
-  // Handle legacy Supabase Auth migration
-  if (!producer.password_hash || producer.password_hash === "PENDING_MIGRATION") {
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email: email.toLowerCase(),
-      password,
+  // Check for password markers that require special handling
+  const isPlaceholder = !producer.password_hash ||
+                        producer.password_hash === PASSWORD_REQUIRES_RESET ||
+                        producer.password_hash === PASSWORD_PENDING_SETUP;
+  
+  if (isPlaceholder) {
+    // User needs to set/reset password
+    await logAuditEvent(supabase, producer.id, "LOGIN_FAILED", false, clientIP, userAgent, { 
+      email, 
+      reason: "password_not_set" 
     });
-
-    if (authError || !authData.user) {
-      await logAuditEvent(supabase, producer.id, "LOGIN_FAILED", false, clientIP, userAgent, { email, reason: "invalid_password" });
-      return errorResponse("Email ou senha inválidos", corsHeaders, 401);
-    }
-
-    // Migrate password to custom system
-    const passwordHash = hashPassword(password);
-    await supabase.from("profiles").update({
-      password_hash: passwordHash,
-      password_hash_version: CURRENT_HASH_VERSION,
-    }).eq("id", producer.id);
-    console.log(`[producer-auth] Migrated password for: ${email}`);
-  } else {
-    const isValid = verifyPassword(password, producer.password_hash);
-    if (!isValid) {
-      await logAuditEvent(supabase, producer.id, "LOGIN_FAILED", false, clientIP, userAgent, { email, reason: "invalid_password" });
-      return errorResponse("Email ou senha inválidos", corsHeaders, 401);
-    }
+    return errorResponse(
+      "Você precisa definir sua senha. Use 'Esqueci minha senha' para criar uma nova senha.", 
+      corsHeaders, 
+      401
+    );
+  }
+  
+  // Check for owner accounts that authenticate via producer portal only
+  if (producer.password_hash === PASSWORD_OWNER_NO_PASSWORD) {
+    await logAuditEvent(supabase, producer.id, "LOGIN_FAILED", false, clientIP, userAgent, { 
+      email, 
+      reason: "owner_no_password" 
+    });
+    return errorResponse(
+      "Esta conta é gerenciada pelo produtor. Entre em contato com o suporte.", 
+      corsHeaders, 
+      403
+    );
+  }
+  
+  // Standard bcrypt password verification (password_hash is guaranteed non-null here)
+  const isValid = verifyPassword(password, producer.password_hash as string);
+  if (!isValid) {
+    await logAuditEvent(supabase, producer.id, "LOGIN_FAILED", false, clientIP, userAgent, { 
+      email, 
+      reason: "invalid_password" 
+    });
+    return errorResponse("Email ou senha inválidos", corsHeaders, 401);
   }
 
   // Create session
   const sessionToken = generateSessionToken();
   const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 30);
+  expiresAt.setDate(expiresAt.getDate() + PRODUCER_SESSION_DURATION_DAYS);
 
   const { error: sessionError } = await supabase.from("producer_sessions").insert({
     producer_id: producer.id,
@@ -245,27 +269,9 @@ export async function handleLogin(
     .eq("user_id", producer.id)
     .single() as { data: UserRole | null; error: unknown };
 
-  // Sync with Supabase Auth for RLS compatibility
-  let supabaseSession = null;
-  try {
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email: email.toLowerCase(),
-      password,
-    });
-
-    if (!authError && authData.session) {
-      supabaseSession = {
-        access_token: authData.session.access_token,
-        refresh_token: authData.session.refresh_token,
-        expires_at: authData.session.expires_at,
-      };
-      console.log(`[producer-auth] Supabase Auth session synced for: ${email}`);
-    }
-  } catch (syncError) {
-    console.warn("[producer-auth] Supabase Auth sync failed (non-blocking):", syncError);
-  }
-
   console.log(`[producer-auth] Login successful: ${email}, role: ${roleData?.role || "user"}`);
+  
+  // RISE V3: Return ONLY custom session token - no Supabase Auth sync
   return jsonResponse({
     success: true,
     sessionToken,
@@ -276,6 +282,5 @@ export async function handleLogin(
       name: producer.name,
       role: roleData?.role || "user",
     },
-    supabaseSession,
   }, corsHeaders);
 }
