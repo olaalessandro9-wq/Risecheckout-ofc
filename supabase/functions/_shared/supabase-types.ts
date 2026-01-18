@@ -369,6 +369,22 @@ export interface UpsellSettingsInput {
 }
 
 // ============================================
+// PRODUCT UPDATE TYPES
+// ============================================
+
+export interface ProductUpdateData {
+  name?: string;
+  description?: string;
+  price?: number;
+  support_name?: string;
+  support_email?: string;
+  delivery_url?: string | null;
+  external_delivery?: boolean;
+  image_url?: string;
+  status?: string;
+}
+
+// ============================================
 // JSON RESPONSE HELPERS
 // ============================================
 
