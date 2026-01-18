@@ -23,7 +23,6 @@ import type {
 interface UseProductCoreOptions {
   productId: string | null;
   userId: string | undefined;
-  onUnsavedChange: () => void;
 }
 
 interface UseProductCoreReturn {
@@ -41,7 +40,6 @@ interface UseProductCoreReturn {
 export function useProductCore({
   productId,
   userId,
-  onUnsavedChange,
 }: UseProductCoreOptions): UseProductCoreReturn {
   const [product, setProduct] = useState<ProductData | null>(null);
   const [upsellSettings, setUpsellSettings] = useState<UpsellSettings | null>(null);
@@ -162,9 +160,8 @@ export function useProductCore({
         if (!prev) return prev;
         return { ...prev, [field]: value };
       });
-      onUnsavedChange();
     },
-    [onUnsavedChange]
+    []
   );
 
   const updateProductBulk = useCallback(
@@ -173,9 +170,8 @@ export function useProductCore({
         if (!prev) return prev;
         return { ...prev, ...data };
       });
-      onUnsavedChange();
     },
-    [onUnsavedChange]
+    []
   );
 
   // ---------------------------------------------------------------------------

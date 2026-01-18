@@ -11,7 +11,7 @@ import { useProductContext } from "../context/ProductContext";
 import ProductSettingsPanel from "@/components/products/ProductSettingsPanel";
 
 export function ConfiguracoesTab() {
-  const { product, updateSettingsModified } = useProductContext();
+  const { product } = useProductContext();
 
   if (!product?.id) {
     return (
@@ -24,7 +24,6 @@ export function ConfiguracoesTab() {
   return (
     <ProductSettingsPanel 
       productId={product.id}
-      onModifiedChange={updateSettingsModified}
     />
   );
 }

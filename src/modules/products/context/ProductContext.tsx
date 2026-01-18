@@ -89,7 +89,6 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
   const [saving, setSaving] = useState(false);
   const [checkoutCredentials, setCheckoutCredentials] = useState<GatewayCredentials>({});
   const hasUnsavedChanges = formState.isDirty;
-  const legacyCallbacks = createLegacyCallbacks(formDispatch);
 
   const handleUpdateUpsell = useCallback((settings: Partial<UpsellSettings>) => {
     formDispatch(formActions.updateUpsell(settings));
@@ -106,13 +105,11 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     affiliateSettings: formState.editedData.affiliate,
     onUpdateUpsell: handleUpdateUpsell,
     onUpdateAffiliate: handleUpdateAffiliate,
-    onSaveComplete: legacyCallbacks.markSettingsSaved,
   });
 
   const core = useProductCore({
     productId,
     userId: user?.id,
-    onUnsavedChange: legacyCallbacks.markCoreUnsaved,
   });
 
   const entities = useProductEntities({ productId });
@@ -223,7 +220,6 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     updateCheckoutSettingsField, initCheckoutSettings: initCheckoutSettingsHandler,
     saveProduct, saveUpsellSettings, saveAffiliateSettings, saveAll, refreshAll,
     registerSaveHandler, activeTab, setActiveTab, tabErrors, setTabErrors, clearTabErrors,
-    ...legacyCallbacks,
   }) as ProductContextExtended;
 
   return <ProductContext.Provider value={contextValue}>{children}</ProductContext.Provider>;

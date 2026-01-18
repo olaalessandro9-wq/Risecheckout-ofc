@@ -72,11 +72,6 @@ export interface ContextValueDependencies {
   saveAll: () => Promise<void>;
   // Refresh
   refreshAll: () => Promise<void>;
-  // Legacy callbacks
-  updateSettingsModified: () => void;
-  updateGeneralModified: () => void;
-  updateUpsellModified: () => void;
-  resetDirtySources: () => void;
   // Save Registry Pattern
   registerSaveHandler: RegisterSaveHandler;
   // Tab Validation - Sistema de validação global
@@ -132,10 +127,6 @@ export function createContextValue(deps: ContextValueDependencies) {
     saveAffiliateSettings,
     saveAll,
     refreshAll,
-    updateSettingsModified,
-    updateGeneralModified,
-    updateUpsellModified,
-    resetDirtySources,
     registerSaveHandler,
     activeTab,
     setActiveTab,
@@ -160,11 +151,6 @@ export function createContextValue(deps: ContextValueDependencies) {
     loading,
     saving,
     hasUnsavedChanges,
-    // Legacy callbacks
-    updateSettingsModified,
-    updateGeneralModified,
-    updateUpsellModified,
-    resetDirtySources,
     // Update handlers
     updateProduct: core.updateProduct,
     updateProductBulk: core.updateProductBulk,

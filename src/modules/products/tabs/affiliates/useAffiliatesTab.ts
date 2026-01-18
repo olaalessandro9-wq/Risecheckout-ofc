@@ -6,7 +6,7 @@
  * @see RISE ARCHITECT PROTOCOL V3 - Modularização
  */
 
-import { useState, useEffect, useLayoutEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { useProductContext } from "../../context/ProductContext";
 import { formActions } from "../../context/productFormReducer";
@@ -49,7 +49,6 @@ export function useAffiliatesTab() {
     formState,
     dispatchForm,
     saveAffiliateSettings,
-    updateSettingsModified,
     saving
   } = useProductContext();
 
@@ -85,10 +84,6 @@ export function useAffiliatesTab() {
   const hasAffiliateChanges = formState.dirtyFlags.affiliate;
   const hasGatewayChanges = JSON.stringify(gatewaySettings) !== gatewaySnapshot;
   const hasChanges = hasAffiliateChanges || hasGatewayChanges;
-
-  useLayoutEffect(() => {
-    updateSettingsModified(hasChanges);
-  }, [hasChanges, updateSettingsModified]);
 
   // ---------------------------------------------------------------------------
   // HANDLERS
@@ -161,14 +156,13 @@ export function useAffiliatesTab() {
       
       setGatewaySnapshot(JSON.stringify(gatewaySettings));
       dispatchForm(formActions.markSaved());
-      updateSettingsModified(false);
       
       toast.success("Configurações de afiliados salvas com sucesso");
     } catch (error: unknown) {
       console.error("Erro ao salvar afiliados:", error);
       toast.error("Não foi possível salvar as configurações");
     }
-  }, [localSettings, gatewaySettings, product?.id, saveAffiliateSettings, dispatchForm, updateSettingsModified]);
+  }, [localSettings, gatewaySettings, product?.id, saveAffiliateSettings, dispatchForm]);
 
   return {
     product,

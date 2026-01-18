@@ -39,9 +39,6 @@ interface UseProductSettingsOptions {
   // Callbacks para atualizar o Reducer
   onUpdateUpsell: (settings: Partial<UpsellSettings>) => void;
   onUpdateAffiliate: (settings: Partial<AffiliateSettings>) => void;
-  
-  // Callbacks de salvamento
-  onSaveComplete: () => void;
 }
 
 interface UseProductSettingsReturn {
@@ -65,7 +62,6 @@ export function useProductSettings({
   affiliateSettings,
   onUpdateUpsell,
   onUpdateAffiliate,
-  onSaveComplete,
 }: UseProductSettingsOptions): UseProductSettingsReturn {
 
   // ---------------------------------------------------------------------------
@@ -114,13 +110,12 @@ export function useProductSettings({
         if (data?.error) throw new Error(data.error);
 
         console.log("[useProductSettings] upsell_settings salvo com sucesso!");
-        onSaveComplete();
       } catch (error: unknown) {
         console.error("[useProductSettings] Error saving upsell settings:", error);
         throw error;
       }
     },
-    [upsellSettings, productId, userId, onSaveComplete]
+    [upsellSettings, productId, userId]
   );
 
   const saveAffiliateSettings = useCallback(
@@ -148,13 +143,12 @@ export function useProductSettings({
         if (data?.error) throw new Error(data.error);
 
         console.log("[useProductSettings] affiliate_settings salvo com sucesso!");
-        onSaveComplete();
       } catch (error: unknown) {
         console.error("[useProductSettings] Error saving affiliate settings:", error);
         throw error;
       }
     },
-    [affiliateSettings, productId, userId, onSaveComplete]
+    [affiliateSettings, productId, userId]
   );
 
   return {

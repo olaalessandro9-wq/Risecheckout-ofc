@@ -184,10 +184,6 @@ export interface ProductContextState {
   
   // Estados de modificação (para UnsavedChanges)
   hasUnsavedChanges: boolean;
-  updateSettingsModified: (modified: boolean) => void;
-  updateGeneralModified: (modified: boolean) => void;
-  updateUpsellModified: (modified: boolean) => void;
-  resetDirtySources: () => void;
   
   // Funções de atualização do produto
   updateProduct: (field: keyof ProductData, value: ProductData[keyof ProductData]) => void;
