@@ -25,18 +25,17 @@ export function LinksTab() {
   }, [product?.id]);
 
   // Mapear paymentLinks do contexto para o formato da LinksTable
-  const links: PaymentLink[] = paymentLinks
-    .filter(link => link.status === 'active')
-    .map(link => ({
-      id: link.id,
-      slug: link.slug,
-      url: link.url,
-      offer_name: link.offer_name,
-      offer_price: link.offer_price,
-      is_default: link.is_default,
-      status: link.status as 'active' | 'inactive',
-      checkouts: link.checkouts || []
-    }));
+  // Mostra TODOS os links (ativos e inativos) para permitir reativação
+  const links: PaymentLink[] = paymentLinks.map(link => ({
+    id: link.id,
+    slug: link.slug,
+    url: link.url,
+    offer_name: link.offer_name,
+    offer_price: link.offer_price,
+    is_default: link.is_default,
+    status: link.status as 'active' | 'inactive',
+    checkouts: link.checkouts || []
+  }));
 
   const handleToggleStatus = async (linkId: string) => {
     try {
