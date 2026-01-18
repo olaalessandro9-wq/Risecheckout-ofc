@@ -97,12 +97,14 @@ export async function handleEnsureProducerAccess(
         .eq("id", producerUserId)
         .single();
 
+      // RISE V3: Use account_status instead of password_hash markers
       const { data: newBuyer, error: createError } = await supabase
         .from("buyer_profiles")
         .insert({
           email: email.toLowerCase(),
-          password_hash: "OWNER_NO_PASSWORD",
+          password_hash: null,
           password_hash_version: 2,
+          account_status: "owner_no_password",
           name: profile?.name || null,
           is_active: true,
         })
