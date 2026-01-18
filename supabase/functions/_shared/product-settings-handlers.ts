@@ -12,7 +12,8 @@ import {
   AffiliateGatewaySettings,
   JsonResponseData,
   Product,
-  Offer
+  Offer,
+  UpsellSettingsInput,
 } from "./supabase-types.ts";
 
 // ============================================
@@ -327,6 +328,58 @@ export async function handleUpdateAffiliateGatewaySettings(
   }
 
   console.log(`[product-settings] Affiliate gateway settings updated for: ${productId}`);
+  return jsonResponse({ success: true }, corsHeaders);
+}
+
+// ============================================
+// UPDATE UPSELL SETTINGS HANDLER (JSONB column)
+// ============================================
+
+export async function handleUpdateUpsellSettings(
+  supabase: SupabaseClient,
+  productId: string,
+  upsellSettings: UpsellSettingsInput,
+  corsHeaders: CorsHeaders
+): Promise<Response> {
+  console.log(`[product-settings] Updating upsell_settings for: ${productId}`, upsellSettings);
+
+  // Validation: URL required when custom page is enabled
+  if (upsellSettings.hasCustomThankYouPage) {
+    const url = upsellSettings.customPageUrl?.trim();
+    if (!url) {
+      return errorResponse("URL é obrigatória quando página personalizada está ativa", corsHeaders, 400);
+    }
+    try {
+      const parsed = new URL(url);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        return errorResponse("URL deve usar protocolo HTTP ou HTTPS", corsHeaders, 400);
+      }
+    } catch {
+      return errorResponse("URL inválida", corsHeaders, 400);
+    }
+  }
+
+  // Sanitize and save as JSONB
+  const sanitized = {
+    hasCustomThankYouPage: !!upsellSettings.hasCustomThankYouPage,
+    customPageUrl: upsellSettings.customPageUrl?.trim() || "",
+    redirectIgnoringOrderBumpFailures: !!upsellSettings.redirectIgnoringOrderBumpFailures,
+  };
+
+  const { error } = await supabase
+    .from("products")
+    .update({
+      upsell_settings: sanitized,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", productId);
+
+  if (error) {
+    console.error("[product-settings] Update upsell_settings error:", error);
+    return errorResponse("Erro ao atualizar configurações de upsell", corsHeaders, 500);
+  }
+
+  console.log(`[product-settings] upsell_settings updated successfully for: ${productId}`);
   return jsonResponse({ success: true }, corsHeaders);
 }
 
