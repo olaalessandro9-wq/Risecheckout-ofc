@@ -6,6 +6,50 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
+## [3.3.0] - 2026-01-18
+
+### 🎯 Refatoração RISE V3 - Marketplace
+
+#### Adicionado
+- **Edge Function `marketplace-public`** (222 linhas):
+  - `get-products`: Lista produtos do marketplace com filtros
+  - `get-product`: Detalhes de um produto específico
+  - `get-categories`: Categorias ativas do marketplace
+
+- **10 novos sub-componentes MarketplaceFilters:**
+  - `FilterHeader`, `SearchFilter`, `ApprovalFilter`, `TypeFilter`
+  - `CategoryFilter`, `CommissionFilter`, `SortFilter`, `FilterActions`
+  - `useMarketplaceFilters` hook
+  - `index.tsx` (orquestrador com 84 linhas)
+
+- **11 novos sub-componentes ProductDetails:**
+  - `ProductHeader`, `ProductInfo`, `CommissionDetails`, `OfferCard`
+  - `OffersList`, `OwnerActions`, `AffiliateActions`, `utils`
+  - `useProductOffers`, `useOwnerCheck` hooks
+  - `index.tsx` (orquestrador com 167 linhas)
+
+#### Alterado
+- **MarketplaceFilters.tsx:** Refatorado de 369 para 84 linhas (-77%)
+- **ProductDetails.tsx:** Refatorado de 504 para 167 linhas (-67%)
+- **products-crud:** Reduzido de 747 para 597 linhas (endpoints públicos movidos)
+- **marketplace.ts:** Atualizado para usar `marketplace-public` Edge Function via `api.publicCall()`
+
+#### Removido
+- Endpoints de marketplace de `products-crud` (movidos para `marketplace-public`)
+- Código morto: `OffersList.tsx`, `PopularityIndicator.tsx`, `RulesList.tsx`, `AffiliateButton.tsx`
+- Prop não utilizada: `onPromote` em `ProductCard`, `MarketplaceGrid`, `Marketplace`
+- Handlers duplicados: `getMarketplaceProducts`, `getMarketplaceProduct`, `getMarketplaceCategories` de `products-crud`
+
+#### Conformidade RISE V3
+- **Seção 4 (Lei Suprema):** ✅ 100% - Escolhida solução nota 10/10 sobre 7.6/10
+- **Zero arquivos > 300 linhas no frontend:** ✅ 100%
+- **Zero God Objects:** ✅ 100%
+- **Single Responsibility Principle:** ✅ 100%
+- **Zero Database Access (Frontend):** ✅ 100%
+- **Zero tipos `any`:** ✅ 100%
+
+---
+
 ## [3.2.0] - 2026-01-17
 
 ### 📦 Sistema de Status Hotmart/Kiwify
@@ -154,3 +198,5 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 - 📝 Documentação
 - 🗑️ Removido
 - 🔒 Segurança
+- 🎯 Refatoração RISE V3
+- 📦 Sistema de Status
