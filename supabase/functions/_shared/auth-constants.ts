@@ -26,12 +26,12 @@ export const BCRYPT_COST = 10;
 // ============================================
 
 /**
- * Producer session duration in days
+ * Producer session duration in days (legacy - for backwards compatibility)
  */
 export const PRODUCER_SESSION_DURATION_DAYS = 30;
 
 /**
- * Buyer session duration in days
+ * Buyer session duration in days (legacy - for backwards compatibility)
  */
 export const BUYER_SESSION_DURATION_DAYS = 30;
 
@@ -39,6 +39,20 @@ export const BUYER_SESSION_DURATION_DAYS = 30;
  * Alias for backwards compatibility with buyer-auth-types.ts
  */
 export const SESSION_DURATION_DAYS = BUYER_SESSION_DURATION_DAYS;
+
+// ============================================
+// REFRESH TOKEN CONSTANTS (PHASE 3)
+// ============================================
+
+/**
+ * Access token duration in minutes (short-lived for security)
+ */
+export const ACCESS_TOKEN_DURATION_MINUTES = 15;
+
+/**
+ * Refresh token duration in days (long-lived for convenience)
+ */
+export const REFRESH_TOKEN_DURATION_DAYS = 30;
 
 /**
  * Password reset token expiry in hours

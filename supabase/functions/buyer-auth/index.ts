@@ -9,8 +9,10 @@
  * - VULN-007: Política de senhas forte
  * - VULN-006: Sanitização de inputs
  * - Password Reset Flow with email
+ * - PHASE 3: Refresh token support
  * 
  * @refactored 2026-01-13 - Handlers extraídos para _shared/buyer-auth-handlers.ts
+ * @updated 2026-01-18 - PHASE 3: Added refresh token endpoint
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
@@ -39,6 +41,9 @@ import {
   handleEnsureProducerAccess,
   handleProducerLogin,
 } from "../_shared/buyer-auth-producer-handlers.ts";
+
+// PHASE 3: Refresh token handler
+import { handleRefresh } from "../_shared/buyer-auth-refresh-handler.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
@@ -76,6 +81,11 @@ serve(async (req) => {
 
     if (action === "validate" && req.method === "POST") {
       return handleValidate(supabase, req, corsHeaders);
+    }
+
+    // PHASE 3: Refresh token endpoint
+    if (action === "refresh" && req.method === "POST") {
+      return handleRefresh(supabase, req, corsHeaders);
     }
 
     if (action === "check-email" && req.method === "POST") {

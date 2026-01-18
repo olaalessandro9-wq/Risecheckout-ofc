@@ -9,6 +9,7 @@
  * - POST /login - Authenticate producer
  * - POST /logout - Invalidate session
  * - POST /validate - Validate existing session
+ * - POST /refresh - Refresh access token using refresh token (PHASE 3)
  * - POST /request-password-reset - Request password reset email
  * - POST /verify-reset-token - Verify reset token validity
  * - POST /reset-password - Reset password with token
@@ -33,6 +34,9 @@ import {
   handleVerifyResetToken,
   handleResetPassword,
 } from "../_shared/producer-auth-reset-handlers.ts";
+
+// PHASE 3: Refresh token handler
+import { handleRefresh } from "../_shared/producer-auth-refresh-handler.ts";
 
 // Response helpers
 import {
@@ -79,6 +83,9 @@ serve(async (req) => {
 
       case "validate":
         return handleValidate(supabase, req, corsHeaders);
+
+      case "refresh":
+        return handleRefresh(supabase, req, corsHeaders);
 
       case "request-password-reset":
         return handleRequestPasswordReset(supabase, req, corsHeaders);

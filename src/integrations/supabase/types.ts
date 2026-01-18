@@ -679,6 +679,7 @@ export type Database = {
       }
       buyer_sessions: {
         Row: {
+          access_token_expires_at: string | null
           buyer_id: string
           created_at: string | null
           expires_at: string
@@ -686,10 +687,13 @@ export type Database = {
           ip_address: string | null
           is_valid: boolean | null
           last_activity_at: string | null
+          refresh_token: string | null
+          refresh_token_expires_at: string | null
           session_token: string
           user_agent: string | null
         }
         Insert: {
+          access_token_expires_at?: string | null
           buyer_id: string
           created_at?: string | null
           expires_at?: string
@@ -697,10 +701,13 @@ export type Database = {
           ip_address?: string | null
           is_valid?: boolean | null
           last_activity_at?: string | null
+          refresh_token?: string | null
+          refresh_token_expires_at?: string | null
           session_token: string
           user_agent?: string | null
         }
         Update: {
+          access_token_expires_at?: string | null
           buyer_id?: string
           created_at?: string | null
           expires_at?: string
@@ -708,6 +715,8 @@ export type Database = {
           ip_address?: string | null
           is_valid?: boolean | null
           last_activity_at?: string | null
+          refresh_token?: string | null
+          refresh_token_expires_at?: string | null
           session_token?: string
           user_agent?: string | null
         }
@@ -2641,6 +2650,7 @@ export type Database = {
       }
       producer_sessions: {
         Row: {
+          access_token_expires_at: string | null
           created_at: string | null
           expires_at: string
           id: string
@@ -2648,10 +2658,13 @@ export type Database = {
           is_valid: boolean | null
           last_activity_at: string | null
           producer_id: string
+          refresh_token: string | null
+          refresh_token_expires_at: string | null
           session_token: string
           user_agent: string | null
         }
         Insert: {
+          access_token_expires_at?: string | null
           created_at?: string | null
           expires_at?: string
           id?: string
@@ -2659,10 +2672,13 @@ export type Database = {
           is_valid?: boolean | null
           last_activity_at?: string | null
           producer_id: string
+          refresh_token?: string | null
+          refresh_token_expires_at?: string | null
           session_token: string
           user_agent?: string | null
         }
         Update: {
+          access_token_expires_at?: string | null
           created_at?: string | null
           expires_at?: string
           id?: string
@@ -2670,6 +2686,8 @@ export type Database = {
           is_valid?: boolean | null
           last_activity_at?: string | null
           producer_id?: string
+          refresh_token?: string | null
+          refresh_token_expires_at?: string | null
           session_token?: string
           user_agent?: string | null
         }
