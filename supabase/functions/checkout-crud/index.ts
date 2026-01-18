@@ -20,7 +20,6 @@ import {
   jsonResponse,
   errorResponse,
   checkRateLimit,
-  recordRateLimitAttempt,
   verifyCheckoutOwnership,
   verifyProductOwnership,
 } from "../_shared/checkout-crud-helpers.ts";
@@ -128,7 +127,7 @@ serve(withSentry("checkout-crud", async (req) => {
         return errorResponse(linkResult.error || "Falha ao criar link de pagamento", corsHeaders, 500);
       }
 
-      await recordRateLimitAttempt(supabase, producerId, "checkout_create");
+      // Rate limit auto-records in consolidated module
       return jsonResponse({ success: true, data: { checkout: { id: newCheckout.id, name: newCheckout.name, isDefault: newCheckout.is_default, linkId: linkResult.linkId } } }, corsHeaders);
     }
 
@@ -166,7 +165,7 @@ serve(withSentry("checkout-crud", async (req) => {
         if (linkResult.success) linkId = linkResult.linkId;
       }
 
-      await recordRateLimitAttempt(supabase, producerId, "checkout_update");
+      // Rate limit auto-records in consolidated module
       return jsonResponse({ success: true, data: { checkout: { id: updatedCheckout.id, name: updatedCheckout.name, isDefault: updatedCheckout.is_default, linkId } } }, corsHeaders);
     }
 

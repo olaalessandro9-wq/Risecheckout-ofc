@@ -6,26 +6,18 @@
  */
 
 import { SupabaseClient, CheckoutWithProduct, JsonResponseData } from "./supabase-types.ts";
+import { 
+  checkRateLimit as checkRateLimitCore, 
+  RATE_LIMIT_CONFIGS 
+} from "./rate-limiting/index.ts";
 
 // ============================================
 // TYPES
 // ============================================
 
-interface SessionValidationResult {
-  valid: boolean;
-  producerId?: string;
-  error?: string;
-}
-
 interface OwnershipValidationResult {
   valid: boolean;
   checkout?: CheckoutWithProduct;
-}
-
-interface ProducerSession {
-  producer_id: string;
-  expires_at: string;
-  is_valid: boolean;
 }
 
 interface ProductOwnership {
@@ -49,54 +41,26 @@ export function errorResponse(message: string, corsHeaders: Record<string, strin
 }
 
 // ============================================
-// RATE LIMITING
+// RATE LIMITING (re-export from consolidated module)
 // ============================================
-
-interface RateLimitAttempt {
-  id: string;
-}
 
 export async function checkRateLimit(
   supabase: SupabaseClient,
   producerId: string,
-  action: string
+  _action: string
 ): Promise<{ allowed: boolean; retryAfter?: number }> {
-  const MAX_ATTEMPTS = 30;
-  const WINDOW_MS = 5 * 60 * 1000;
-  const windowStart = new Date(Date.now() - WINDOW_MS);
-
-  const { data: attempts, error } = await supabase
-    .from("rate_limit_attempts")
-    .select("id")
-    .eq("identifier", `producer:${producerId}`)
-    .eq("action", action)
-    .gte("created_at", windowStart.toISOString()) as { data: RateLimitAttempt[] | null; error: unknown };
-
-  if (error) {
-    console.error("[checkout-crud] Rate limit check error:", error);
-    return { allowed: true };
-  }
-
-  const count = attempts?.length || 0;
-  if (count >= MAX_ATTEMPTS) {
-    return { allowed: false, retryAfter: 300 };
-  }
-
-  return { allowed: true };
+  const result = await checkRateLimitCore(
+    supabase, 
+    `producer:${producerId}`, 
+    RATE_LIMIT_CONFIGS.PRODUCER_ACTION
+  );
+  return { 
+    allowed: result.allowed, 
+    retryAfter: result.retryAfter ? 300 : undefined 
+  };
 }
 
-export async function recordRateLimitAttempt(
-  supabase: SupabaseClient,
-  producerId: string,
-  action: string
-): Promise<void> {
-  await supabase.from("rate_limit_attempts").insert({
-    identifier: `producer:${producerId}`,
-    action,
-    success: true,
-    created_at: new Date().toISOString(),
-  });
-}
+// recordRateLimitAttempt is no longer needed - consolidated module auto-records
 
 // ============================================
 // SESSION VALIDATION (DEPRECATED)

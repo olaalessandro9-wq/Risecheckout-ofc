@@ -3,11 +3,12 @@
  * 
  * Extracted handlers for integration-management edge function.
  * 
- * RISE Protocol V2 Compliant - Zero `any`
- * @version 2.0.0
+ * RISE Protocol V3 Compliant - Uses consolidated rate-limiting
+ * @version 3.0.0
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkRateLimit as checkRateLimitCore, RATE_LIMIT_CONFIGS } from "./rate-limiting/index.ts";
 
 // ============================================================================
 // TYPES
@@ -21,49 +22,25 @@ export interface CredentialsPayload {
 }
 
 // ============================================================================
-// RATE LIMITING
+// RATE LIMITING (wrapper for backwards compatibility)
 // ============================================================================
 
 export async function checkRateLimit(
   supabase: SupabaseClient,
   producerId: string,
-  action: string
+  _action: string
 ): Promise<{ allowed: boolean; retryAfter?: number }> {
-  const MAX_ATTEMPTS = 20;
-  const WINDOW_MS = 5 * 60 * 1000;
-  const windowStart = new Date(Date.now() - WINDOW_MS);
-
-  const { data: attempts, error } = await supabase
-    .from("rate_limit_attempts")
-    .select("id")
-    .eq("identifier", `producer:${producerId}`)
-    .eq("action", action)
-    .gte("created_at", windowStart.toISOString());
-
-  if (error) {
-    console.error("[integration-management] Rate limit check error:", error);
-    return { allowed: true };
-  }
-
-  const count = attempts?.length || 0;
-  if (count >= MAX_ATTEMPTS) {
-    return { allowed: false, retryAfter: 300 };
-  }
-
-  return { allowed: true };
+  const result = await checkRateLimitCore(supabase, `producer:${producerId}`, RATE_LIMIT_CONFIGS.PRODUCER_ACTION);
+  return { allowed: result.allowed, retryAfter: result.retryAfter ? 300 : undefined };
 }
 
+// recordRateLimitAttempt is no longer needed - consolidated module auto-records
 export async function recordRateLimitAttempt(
-  supabase: SupabaseClient,
-  producerId: string,
-  action: string
+  _supabase: SupabaseClient,
+  _producerId: string,
+  _action: string
 ): Promise<void> {
-  await supabase.from("rate_limit_attempts").insert({
-    identifier: `producer:${producerId}`,
-    action,
-    success: true,
-    created_at: new Date().toISOString(),
-  });
+  // No-op: consolidated rate-limiting module auto-records attempts
 }
 
 // ============================================================================
@@ -158,7 +135,7 @@ export async function handleSaveCredentials(
     }
   }
 
-  await recordRateLimitAttempt(supabase, producerId, "integration_save");
+  // Rate limit auto-records in consolidated module
 
   console.log(`[integration-management] Credentials saved for ${integrationType} by ${producerId}`);
   return jsonResponse({ success: true }, corsHeaders);
