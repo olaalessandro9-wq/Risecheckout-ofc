@@ -39,7 +39,6 @@ export default function ProductSettingsPanel({ productId, onModifiedChange }: Pr
     initCheckoutSettings,
     formState,
     formDispatch,
-    registerSaveHandler,
   } = useProductContext();
   
   const [loading, setLoading] = useState(false);

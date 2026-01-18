@@ -1,6 +1,6 @@
 # RISE Protocol V3 - Exceções Documentadas
 
-**Data:** 17 de Janeiro de 2026  
+**Data:** 18 de Janeiro de 2026  
 **Versão do Protocolo:** 3.0  
 **Status:** ✅ **100% CONFORMIDADE ATINGIDA**
 
@@ -102,7 +102,35 @@ Todo estado de formulário complexo usa `useReducer` como fonte única da verdad
 
 ---
 
-## 4. Arquivos Deletados (Código Morto)
+## 4. Sistema de Validação Global
+
+### Arquitetura
+
+| Componente | Responsabilidade |
+|------------|-----------------|
+| `useGlobalValidationHandlers` | Registra handlers no ProductContext (< 270 linhas) |
+| `validationHandlerConfigs.ts` | Factories de validação para cada seção (~120 linhas) |
+| `saveFunctions.ts` | Funções puras de salvamento |
+| `createSaveAll.ts` | Orquestra execução e propagação de erros |
+
+### Handlers Registrados
+
+| Handler | Order | Tab Key |
+|---------|-------|---------|
+| general | 10 | geral |
+| checkout-settings | 20 | configuracoes |
+| upsell | 30 | upsell |
+| affiliate | 40 | afiliados |
+
+### Refatoração Aplicada
+
+O hook `useGlobalValidationHandlers` foi dividido para manter < 300 linhas:
+- Funções de validação extraídas para `validationHandlerConfigs.ts`
+- Imports não utilizados removidos de `useGeneralTab.ts` e `ProductSettingsPanel.tsx`
+
+---
+
+## 5. Arquivos Deletados (Código Morto)
 
 Os seguintes arquivos foram removidos por conterem código não utilizado ou com erros:
 
@@ -119,9 +147,9 @@ Os seguintes arquivos foram removidos por conterem código não utilizado ou com
 
 ---
 
-## 5. Padrões Adotados
+## 6. Padrões Adotados
 
-### 5.1 Arquitetura State Management
+### 6.1 Arquitetura State Management
 
 ```
 useReducer (Single Source of Truth)
@@ -131,13 +159,13 @@ useReducer (Single Source of Truth)
          └── Hook C (usa dispatch)
 ```
 
-### 5.2 Separação de Responsabilidades
+### 6.2 Separação de Responsabilidades
 
 - **Reducer**: Define estado e transições (puro, testável)
 - **Hooks especializados**: Lógica de negócio + chamadas API
 - **Hook facade**: Compõe e expõe API pública limpa
 
-### 5.3 Adapter Pattern
+### 6.3 Adapter Pattern
 
 Hooks que precisam salvar dados recebem:
 - Dados do Reducer (não têm estado próprio)
@@ -146,7 +174,7 @@ Hooks que precisam salvar dados recebem:
 
 ---
 
-## 6. Métricas de Conformidade Final
+## 7. Métricas de Conformidade Final
 
 | Métrica | Valor |
 |---------|-------|
@@ -156,11 +184,12 @@ Hooks que precisam salvar dados recebem:
 | Componentes > 300 linhas | **0** |
 | `!important` interno | **0** |
 | Acesso direto ao DB no frontend | **0** |
+| Imports não utilizados | **0** |
 | **CONFORMIDADE RISE V3** | **100%** |
 
 ---
 
-## 7. Changelog
+## 8. Changelog
 
 | Data | Autor | Alteração |
 |------|-------|-----------|
@@ -172,4 +201,8 @@ Hooks que precisam salvar dados recebem:
 | 2026-01-17 | Lovable | Migração Members Area Settings para useReducer |
 | 2026-01-17 | Lovable | Criação builderReducer.ts (18 actions) |
 | 2026-01-17 | Lovable | Migração Members Area Builder para useReducer |
-| 2026-01-17 | Lovable | **✅ CONFORMIDADE 100% RISE V3 ATINGIDA** |
+| 2026-01-17 | Lovable | ✅ CONFORMIDADE 100% RISE V3 ATINGIDA |
+| 2026-01-18 | Lovable | Extração de validationHandlerConfigs.ts (335→~262 linhas) |
+| 2026-01-18 | Lovable | Remoção de imports não utilizados |
+| 2026-01-18 | Lovable | Correção do salvamento da aba Configurações |
+| 2026-01-18 | Lovable | ✅ RE-VALIDAÇÃO 100% RISE V3 CONFIRMADA |
