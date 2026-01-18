@@ -10,10 +10,9 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
+import { BUYER_SESSION_DURATION_DAYS } from "../_shared/auth-constants.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
-
-const SESSION_DURATION_DAYS = 30;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -111,7 +110,7 @@ serve(async (req) => {
 
       // Generate new token
       const newToken = crypto.randomUUID();
-      const expiresAt = new Date(Date.now() + SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000);
+      const expiresAt = new Date(Date.now() + BUYER_SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000);
 
       // Invalidate old session and create new one
       await supabase
