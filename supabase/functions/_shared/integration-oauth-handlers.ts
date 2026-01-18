@@ -13,7 +13,6 @@ import {
   jsonResponse, 
   errorResponse,
   checkRateLimit,
-  recordRateLimitAttempt,
   generateSecureNonce,
 } from "./integration-handlers.ts";
 
@@ -59,7 +58,7 @@ export async function handleInitOAuth(
     return errorResponse("Erro ao iniciar autenticação", corsHeaders, 500);
   }
 
-  await recordRateLimitAttempt(supabase, producerId, "oauth_init");
+  // Rate limit auto-records in consolidated module
 
   console.log(`[integration-management] OAuth state created for ${integrationType} by ${producerId}`);
   return jsonResponse({ success: true, state: nonce }, corsHeaders);

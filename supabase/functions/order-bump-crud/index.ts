@@ -17,6 +17,7 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 import { handleCors } from "../_shared/cors.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { checkRateLimit, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiting/index.ts";
 
 // ============================================
 // INTERFACES
@@ -116,39 +117,7 @@ function errorResponse(message: string, corsHeaders: Record<string, string>, sta
   return jsonResponse({ success: false, error: message }, corsHeaders, status);
 }
 
-// ============================================
-// RATE LIMITING
-// ============================================
-
-async function checkRateLimit(
-  supabase: SupabaseClient,
-  producerId: string,
-  action: string
-): Promise<{ allowed: boolean; retryAfter?: number }> {
-  const MAX_ATTEMPTS = 30;
-  const WINDOW_MS = 5 * 60 * 1000;
-  const windowStart = new Date(Date.now() - WINDOW_MS);
-
-  const { data: attempts, error } = await supabase
-    .from("rate_limit_attempts")
-    .select("id")
-    .eq("identifier", `producer:${producerId}`)
-    .eq("action", action)
-    .gte("created_at", windowStart.toISOString());
-
-  if (error) return { allowed: true };
-  if ((attempts?.length || 0) >= MAX_ATTEMPTS) return { allowed: false, retryAfter: 300 };
-  return { allowed: true };
-}
-
-async function recordRateLimitAttempt(supabase: SupabaseClient, producerId: string, action: string): Promise<void> {
-  await supabase.from("rate_limit_attempts").insert({
-    identifier: `producer:${producerId}`,
-    action,
-    success: true,
-    created_at: new Date().toISOString(),
-  });
-}
+// Rate limiting now uses consolidated module from _shared/rate-limiting/
 
 // ============================================
 // OWNERSHIP VERIFICATION
@@ -234,8 +203,8 @@ serve(withSentry("order-bump-crud", async (req) => {
 
     // ========== CREATE ==========
     if (action === "create" && req.method === "POST") {
-      const rateCheck = await checkRateLimit(supabase, producerId, "order_bump_create");
-      if (!rateCheck.allowed) return jsonResponse({ success: false, error: "Muitas requisições.", retryAfter: rateCheck.retryAfter }, corsHeaders, 429);
+      const rateCheck = await checkRateLimit(supabase, `producer:${producerId}`, RATE_LIMIT_CONFIGS.PRODUCER_ACTION);
+      if (!rateCheck.allowed) return jsonResponse({ success: false, error: "Muitas requisições.", retryAfter: rateCheck.retryAfter ? 300 : undefined }, corsHeaders, 429);
 
       const payload: OrderBumpPayload = body.orderBump || body;
       if (!payload.checkout_id) return errorResponse("ID do checkout é obrigatório", corsHeaders, 400);
@@ -274,14 +243,14 @@ serve(withSentry("order-bump-crud", async (req) => {
         return errorResponse("Erro ao criar order bump", corsHeaders, 500);
       }
 
-      await recordRateLimitAttempt(supabase, producerId, "order_bump_create");
+      // Rate limit auto-records in consolidated module
       return jsonResponse({ success: true, orderBump: newOrderBump as OrderBumpRecord }, corsHeaders);
     }
 
     // ========== UPDATE ==========
     if (action === "update" && (req.method === "PUT" || req.method === "POST")) {
-      const rateCheck = await checkRateLimit(supabase, producerId, "order_bump_update");
-      if (!rateCheck.allowed) return jsonResponse({ success: false, error: "Muitas requisições.", retryAfter: rateCheck.retryAfter }, corsHeaders, 429);
+      const rateCheck = await checkRateLimit(supabase, `producer:${producerId}`, RATE_LIMIT_CONFIGS.PRODUCER_ACTION);
+      if (!rateCheck.allowed) return jsonResponse({ success: false, error: "Muitas requisições.", retryAfter: rateCheck.retryAfter ? 300 : undefined }, corsHeaders, 429);
 
       const payload: OrderBumpPayload = body.orderBump || body;
       const orderBumpId = payload.id || payload.order_bump_id;
@@ -315,7 +284,7 @@ serve(withSentry("order-bump-crud", async (req) => {
         return errorResponse("Erro ao atualizar order bump", corsHeaders, 500);
       }
 
-      await recordRateLimitAttempt(supabase, producerId, "order_bump_update");
+      // Rate limit auto-records in consolidated module
       return jsonResponse({ success: true, orderBump: updatedOrderBump as OrderBumpRecord }, corsHeaders);
     }
 
@@ -338,8 +307,8 @@ serve(withSentry("order-bump-crud", async (req) => {
 
     // ========== REORDER ==========
     if (action === "reorder" && (req.method === "PUT" || req.method === "POST")) {
-      const rateCheck = await checkRateLimit(supabase, producerId, "order_bump_reorder");
-      if (!rateCheck.allowed) return jsonResponse({ success: false, error: "Muitas requisições.", retryAfter: rateCheck.retryAfter }, corsHeaders, 429);
+      const rateCheck = await checkRateLimit(supabase, `producer:${producerId}`, RATE_LIMIT_CONFIGS.PRODUCER_ACTION);
+      if (!rateCheck.allowed) return jsonResponse({ success: false, error: "Muitas requisições.", retryAfter: rateCheck.retryAfter ? 300 : undefined }, corsHeaders, 429);
 
       const { checkoutId, orderedIds } = body;
       if (!checkoutId) return errorResponse("ID do checkout é obrigatório", corsHeaders, 400);
@@ -356,7 +325,7 @@ serve(withSentry("order-bump-crud", async (req) => {
         const results = await Promise.all(updates);
         if (results.some((r) => r.error)) return errorResponse("Erro ao reordenar order bumps", corsHeaders, 500);
 
-        await recordRateLimitAttempt(supabase, producerId, "order_bump_reorder");
+        // Rate limit auto-records in consolidated module
         return jsonResponse({ success: true }, corsHeaders);
       } catch (error: unknown) {
         const err = error instanceof Error ? error : new Error(String(error));
