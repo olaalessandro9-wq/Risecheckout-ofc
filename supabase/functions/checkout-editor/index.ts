@@ -31,6 +31,7 @@ const CHECKOUT_EDITOR_RATE_LIMIT: RateLimitConfig = {
 // ============================================
 
 interface RequestBody {
+  action?: string;
   sessionToken?: string;
   checkoutId?: string;
   design?: DesignSettings;
@@ -159,13 +160,17 @@ serve(withSentry("checkout-editor", async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const url = new URL(req.url);
-    const pathParts = url.pathname.split("/").filter(Boolean);
-    const action = pathParts[pathParts.length - 1];
-
+    // Parse body first to get action
     let body: RequestBody = {};
     if (req.method !== "GET") {
       try { body = await req.json(); } catch { return errorResponse("Corpo da requisição inválido", corsHeaders, 400); }
+    }
+
+    // ✅ RISE V3: Action comes from body, not URL pathname
+    const action = body.action;
+    if (!action) {
+      console.error("[checkout-editor] Missing action in request body");
+      return errorResponse("Ação é obrigatória", corsHeaders, 400);
     }
 
     // ✅ RISE V3: unified-auth.ts
