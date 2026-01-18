@@ -25,7 +25,6 @@ import type {
   AffiliateSettings,
   AffiliateRecord,
   AffiliateUserData,
-  MAX_COMMISSION_RATE,
 } from "./types.ts";
 
 // Re-export types for external consumers
@@ -208,14 +207,18 @@ async function processAffiliateCode(
   return { affiliateId: affiliate.id, commissionCents, affiliateWalletId };
 }
 
+/**
+ * Extract wallet IDs from affiliate's profile (Single Source of Truth)
+ * 
+ * RISE V3 Solution D: Affiliates inherit credentials from their profiles table.
+ * The affiliates.gateway_credentials column is DEPRECATED.
+ */
 function extractWalletIds(affiliate: AffiliateRecord) {
   const profile = affiliate.profiles;
-  const credentials = affiliate.gateway_credentials || {};
-
   return {
-    asaas: credentials.asaas_wallet_id || profile?.asaas_wallet_id || null,
-    mercadopago: credentials.mercadopago_collector_id || profile?.mercadopago_collector_id || null,
-    stripe: credentials.stripe_account_id || profile?.stripe_account_id || null,
+    asaas: profile?.asaas_wallet_id || null,
+    mercadopago: profile?.mercadopago_collector_id || null,
+    stripe: profile?.stripe_account_id || null,
   };
 }
 

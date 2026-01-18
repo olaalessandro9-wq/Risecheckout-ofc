@@ -22,7 +22,6 @@ import {
   mapOffersWithPaymentSlug,
   mapCheckoutsWithPaymentSlug,
   extractGatewaySettings,
-  type ProductRecord,
   type ProducerRecord,
   type MarketplaceProduct,
 } from "../_shared/affiliation-queries/index.ts";
@@ -136,7 +135,8 @@ Deno.serve(async (req) => {
       pixels,
       pix_gateway: affiliation.pix_gateway || null,
       credit_card_gateway: affiliation.credit_card_gateway || null,
-      gateway_credentials: affiliation.gateway_credentials || {},
+      // gateway_credentials REMOVED - RISE V3 Solution D
+      // Affiliates inherit credentials from their own profile
       allowed_gateways: extractGatewaySettings(product),
     };
 
