@@ -22,7 +22,7 @@ import {
   rateLimitMiddleware, 
   RATE_LIMIT_CONFIGS,
   getClientIP 
-} from "../_shared/rate-limiter.ts";
+} from "../_shared/rate-limiting/index.ts";
 
 // === INTERFACES (Zero any) ===
 
@@ -97,7 +97,8 @@ serve(async (req) => {
     const rateLimitResult = await rateLimitMiddleware(
       supabaseAdmin,
       req,
-      RATE_LIMIT_CONFIGS.AFFILIATION_MANAGE
+      RATE_LIMIT_CONFIGS.AFFILIATION_MANAGE,
+      corsHeaders
     );
     if (rateLimitResult) {
       console.warn(`[update-affiliate-settings] Rate limit exceeded for IP: ${getClientIP(req)}`);

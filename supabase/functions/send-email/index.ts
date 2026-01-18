@@ -11,7 +11,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { sendEmail, type EmailType, type EmailRecipient } from '../_shared/zeptomail.ts';
 import { handleCors } from '../_shared/cors.ts';
-import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from '../_shared/rate-limiter.ts';
+import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from '../_shared/rate-limiting/index.ts';
 import { requireAuthenticatedProducer } from '../_shared/unified-auth.ts';
 
 interface SendEmailRequest {
@@ -50,7 +50,8 @@ serve(async (req: Request) => {
     const rateLimitResult = await rateLimitMiddleware(
       supabase,
       req,
-      RATE_LIMIT_CONFIGS.SEND_EMAIL
+      RATE_LIMIT_CONFIGS.SEND_EMAIL,
+      corsHeaders
     );
     if (rateLimitResult) {
       console.warn(`[send-email] Rate limit exceeded for IP: ${getClientIP(req)}`);

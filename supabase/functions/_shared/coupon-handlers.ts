@@ -8,13 +8,11 @@
 
 import { SupabaseClient, Coupon } from "./supabase-types.ts";
 import { captureException } from "./sentry.ts";
-import {
-  jsonResponse,
-  errorResponse,
-  checkRateLimit,
-  recordRateLimitAttempt,
-  DEFAULT_RATE_LIMIT,
-} from "./edge-helpers.ts";
+import { jsonResponse, errorResponse } from "./edge-helpers.ts";
+import { 
+  checkRateLimit, 
+  RATE_LIMIT_CONFIGS,
+} from "./rate-limiting/index.ts";
 
 import {
   type CouponPayload,
@@ -24,12 +22,8 @@ import {
 } from "./coupon-validation.ts";
 
 // Re-export helpers
-export { 
-  jsonResponse, 
-  errorResponse, 
-  checkRateLimit, 
-  recordRateLimitAttempt,
-} from "./edge-helpers.ts";
+export { jsonResponse, errorResponse } from "./edge-helpers.ts";
+export { checkRateLimit } from "./rate-limiting/index.ts";
 
 export { validateCouponPayload, verifyProductOwnership } from "./coupon-validation.ts";
 export type { CouponPayload } from "./coupon-validation.ts";
@@ -58,8 +52,9 @@ export async function handleCreateCoupon(
   producerId: string,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  const rateCheck = await checkRateLimit(supabase, producerId, { 
-    ...DEFAULT_RATE_LIMIT, 
+  const identifier = `producer:${producerId}`;
+  const rateCheck = await checkRateLimit(supabase, identifier, {
+    ...RATE_LIMIT_CONFIGS.PRODUCER_ACTION,
     action: "coupon_create" 
   });
   if (!rateCheck.allowed) {
@@ -134,7 +129,7 @@ export async function handleCreateCoupon(
     return errorResponse("Erro ao vincular cupom ao produto", corsHeaders, 500);
   }
 
-  await recordRateLimitAttempt(supabase, producerId, "coupon_create");
+  // Rate limit recording is automatic via checkRateLimit
 
   console.log(`[coupon-management] Coupon created: ${(newCoupon as Coupon).id} for product ${productId}`);
   return jsonResponse({ success: true, coupon: newCoupon }, corsHeaders);

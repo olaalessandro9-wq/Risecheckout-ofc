@@ -15,14 +15,12 @@ import { handleCors } from "../_shared/cors.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 
-import {
-  jsonResponse,
-  errorResponse,
-  checkRateLimit,
-  recordRateLimitAttempt,
-  ensureUniqueName,
-  STRICT_RATE_LIMIT,
-} from "../_shared/edge-helpers.ts";
+import { jsonResponse, errorResponse, ensureUniqueName } from "../_shared/edge-helpers.ts";
+import { 
+  rateLimitMiddleware, 
+  RATE_LIMIT_CONFIGS,
+  getClientIP 
+} from "../_shared/rate-limiting/index.ts";
 
 import {
   verifyProductOwnership,
@@ -67,16 +65,16 @@ serve(withSentry("product-duplicate", async (req) => {
     }
 
     // Rate limiting (strict for expensive operation)
-    const rateCheck = await checkRateLimit(supabase, producerId, {
-      ...STRICT_RATE_LIMIT,
-      action: "product_duplicate",
-    });
-    if (!rateCheck.allowed) {
-      return jsonResponse(
-        { success: false, error: "Muitas duplicações. Tente novamente em alguns minutos.", retryAfter: rateCheck.retryAfter },
-        corsHeaders,
-        429
-      );
+    const rateLimitResult = await rateLimitMiddleware(
+      supabase,
+      req,
+      { ...RATE_LIMIT_CONFIGS.ADMIN_ACTION, action: "product_duplicate" },
+      corsHeaders,
+      producerId
+    );
+    if (rateLimitResult) {
+      console.warn(`[product-duplicate] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      return rateLimitResult;
     }
 
     const productId = (body.product_id as string) || (body.productId as string);
@@ -101,8 +99,6 @@ serve(withSentry("product-duplicate", async (req) => {
       });
       return errorResponse(`Erro ao duplicar produto: ${result.error}`, corsHeaders, 500);
     }
-
-    await recordRateLimitAttempt(supabase, producerId, "product_duplicate");
 
     return jsonResponse({
       success: true,
