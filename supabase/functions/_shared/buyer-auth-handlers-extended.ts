@@ -51,17 +51,8 @@ export async function handleValidate(
   const currentIP = getClientIP(req);
   const currentUA = req.headers.get("user-agent");
 
-  // RISE V3: Read token from httpOnly cookie first, fallback to body for legacy
-  let sessionToken = getAccessToken(req, "buyer");
-  
-  if (!sessionToken) {
-    try {
-      const body = await req.json();
-      sessionToken = body.sessionToken;
-    } catch {
-      // No body provided - that's fine if cookie was present
-    }
-  }
+  // RISE V3: Read token ONLY from httpOnly cookie (zero legacy code)
+  const sessionToken = getAccessToken(req, "buyer");
 
   if (!sessionToken) {
     return jsonResponse({ valid: false }, corsHeaders, 200);

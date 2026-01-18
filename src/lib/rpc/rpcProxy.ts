@@ -10,7 +10,6 @@
  */
 
 import { api } from "@/lib/api";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 
 interface RpcProxyResponse<T> {
   data?: T;
@@ -27,40 +26,20 @@ export interface RpcResult<T> {
 /**
  * Invokes an RPC via the rpc-proxy Edge Function
  * 
+ * RISE V3: Autenticação via cookies httpOnly (credentials: include em api.call)
+ * 
  * @param rpcName - Name of the RPC function to call
  * @param params - Parameters to pass to the RPC
  * @param authLevel - Authentication level required (public, producer, admin)
  * @returns Promise with data or error
- * 
- * @example
- * // Public RPC (no auth needed)
- * const { data, error } = await invokeRpc('validate_coupon', { p_code: 'SAVE10' }, 'public');
- * 
- * // Producer RPC (requires session token)
- * const { data, error } = await invokeRpc('get_dashboard_metrics', { p_vendor_id: id }, 'producer');
  */
 export async function invokeRpc<T>(
   rpcName: string,
   params: Record<string, unknown> = {},
   authLevel: RpcAuthLevel = "public"
 ): Promise<RpcResult<T>> {
-  const headers: Record<string, string> = {};
-
-  // Add authentication header for non-public RPCs
-  if (authLevel !== "public") {
-    const token = getProducerSessionToken();
-    if (token) {
-      headers["x-producer-session-token"] = token;
-    } else if (authLevel === "producer" || authLevel === "admin") {
-      return {
-        data: null,
-        error: new Error("Sessão não encontrada. Faça login novamente."),
-      };
-    }
-  }
-
   try {
-    // Use api.call for producer/admin, api.publicCall for public
+    // RISE V3: api.call usa credentials: include, cookies são enviados automaticamente
     const isPublic = authLevel === "public";
     
     const { data, error } = isPublic 

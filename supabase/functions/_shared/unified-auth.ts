@@ -19,6 +19,7 @@
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getProducerAccessToken } from "./session-reader.ts";
 
 export interface ProducerAuth {
   id: string;
@@ -39,10 +40,11 @@ export async function getAuthenticatedProducer(
   supabase: SupabaseClient,
   request: Request
 ): Promise<ProducerAuth | null> {
-  const sessionToken = request.headers.get("X-Producer-Session-Token");
+  // RISE V3: Read token ONLY from httpOnly cookie (zero legacy code)
+  const sessionToken = getProducerAccessToken(request);
   
   if (!sessionToken) {
-    console.log("[unified-auth] No session token provided");
+    console.log("[unified-auth] No session token in cookie");
     return null;
   }
 

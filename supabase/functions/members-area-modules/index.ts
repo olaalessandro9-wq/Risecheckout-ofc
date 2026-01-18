@@ -88,7 +88,7 @@ serve(withSentry("members-area-modules", async (req) => {
     }
 
     const { action, productId, moduleId, data, orderedIds, sections, deletedIds, settings } = body;
-    const sessionToken = body.sessionToken || req.headers.get("x-producer-session-token");
+    // RISE V3: Session validation via unified-auth (reads from httpOnly cookie)
 
     console.log(`[members-area-modules] Action: ${action}`);
 
