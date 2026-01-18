@@ -24,7 +24,9 @@ export function UpsellTab() {
     formState,
     dispatchForm,
     updateUpsellModified,
-    saving
+    saving,
+    saveAll,
+    hasUnsavedChanges
   } = useProductContext();
 
   // Estado vem do reducer
@@ -171,12 +173,12 @@ export function UpsellTab() {
       <div className="flex justify-between items-center pt-6 border-t border-border">
         <div />
         <Button 
-          onClick={handleSave}
-          disabled={saving || !hasChanges}
+          onClick={saveAll}
+          disabled={saving || !hasUnsavedChanges}
           className="bg-primary hover:bg-primary/90"
         >
           {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-          {saving ? "Salvando..." : "Salvar Alterações"}
+          {saving ? "Salvando..." : "Salvar Produto"}
         </Button>
       </div>
     </div>

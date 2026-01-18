@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Loader2 } from "lucide-react";
 
 import { useAffiliatesTab } from "./useAffiliatesTab";
+import { useProductContext } from "../../context/ProductContext";
 import {
   AffiliateProgramStatus,
   AffiliateInviteLink,
@@ -34,12 +35,11 @@ export function AffiliatesTab() {
     product,
     localSettings,
     gatewaySettings,
-    hasChanges,
-    saving,
     handleChange,
     handleGatewaySettingsChange,
-    handleSave,
   } = useAffiliatesTab();
+  
+  const { saveAll, saving, hasUnsavedChanges } = useProductContext();
 
   // Loading state
   if (!product?.id) {
@@ -117,12 +117,12 @@ export function AffiliatesTab() {
           {/* Save Button */}
           <div className="flex justify-end pt-4 border-t">
             <Button 
-              onClick={handleSave}
-              disabled={saving || !hasChanges}
+              onClick={saveAll}
+              disabled={saving || !hasUnsavedChanges}
               className="bg-primary hover:bg-primary/90"
             >
               {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Salvar Alterações
+              {saving ? "Salvando..." : "Salvar Produto"}
             </Button>
           </div>
 
