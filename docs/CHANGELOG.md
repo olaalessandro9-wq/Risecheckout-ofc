@@ -6,6 +6,38 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
+## [3.3.1] - 2026-01-18
+
+### 🔧 Refatoração products-crud (RISE V3 Seção 6.4)
+
+#### Adicionado
+- **Edge Function `producer-profile`** (208 linhas):
+  - `get-profile`: Retorna perfil do produtor
+  - `check-credentials`: Verifica credenciais de gateway
+  - `get-gateway-connections`: Retorna conexões de gateway
+
+- **Edge Function `coupon-read`** (125 linhas):
+  - `get-coupon`: Retorna cupom específico para edição
+
+- **Edge Function `content-library`** (200 linhas):
+  - `get-video-library`: Biblioteca de vídeos do produto
+  - `get-webhook-logs`: Logs de webhook
+
+#### Alterado
+- **products-crud:** Reduzida de 597 para 268 linhas (-55%)
+- **Frontend atualizado:**
+  - `Perfil.tsx` → `producer-profile`
+  - `CuponsTab.tsx` → `coupon-read`
+  - `useVideoLibrary.ts` → `content-library`
+  - `WebhookLogsDialog.tsx` → `content-library`
+
+#### Conformidade RISE V3
+- **Seção 6.4 (Limite 300 linhas):** ✅ Todas funções < 300 linhas
+- **Single Responsibility Principle:** ✅ 1 domínio por função
+- **Total Edge Functions:** 110 (+3)
+
+---
+
 ## [3.3.0] - 2026-01-18
 
 ### 🎯 Refatoração RISE V3 - Marketplace

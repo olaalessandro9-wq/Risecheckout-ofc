@@ -66,7 +66,7 @@ export function useVideoLibrary(): UseVideoLibraryReturn {
 
     setIsLoading(true);
     try {
-      const { data, error } = await api.call<VideoLibraryResponse>("products-crud", {
+      const { data, error } = await api.call<VideoLibraryResponse>("content-library", {
         action: "get-video-library",
         productId,
         excludeContentId,
