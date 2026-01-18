@@ -1,14 +1,19 @@
 /**
  * useBuyerSession - Hook centralizado para validação de sessão de buyer
- * Usa React Query para cache inteligente, evitando validações repetidas
+ * 
+ * RISE ARCHITECT PROTOCOL - Zero Technical Debt
+ * 
+ * ARCHITECTURE (REFACTORED V3):
+ * - Uses TokenManager for automatic token refresh
+ * - React Query for intelligent caching
+ * - Seamless session renewal without user interaction
  */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SUPABASE_URL } from "@/config/supabase";
 import { createLogger } from "@/lib/logger";
+import { buyerTokenManager } from "@/lib/token-manager";
 
 const log = createLogger("BuyerSession");
-
-const SESSION_KEY = "buyer_session_token";
 
 // Cache de 10 minutos para sessão
 const SESSION_STALE_TIME = 10 * 60 * 1000;
@@ -25,22 +30,13 @@ interface SessionValidation {
   buyer: BuyerProfile | null;
 }
 
-// Helpers para token
-export function getBuyerSessionToken(): string | null {
-  return localStorage.getItem(SESSION_KEY);
-}
-
-export function setBuyerSessionToken(token: string): void {
-  localStorage.setItem(SESSION_KEY, token);
-}
-
-export function clearBuyerSessionToken(): void {
-  localStorage.removeItem(SESSION_KEY);
-}
+// Query key para sessão
+export const buyerSessionQueryKey = ["buyer-session"] as const;
 
 // Função de validação de sessão
 async function validateBuyerSession(): Promise<SessionValidation> {
-  const token = getBuyerSessionToken();
+  // Use TokenManager to get valid token (auto-refresh if needed)
+  const token = await buyerTokenManager.getValidAccessToken();
   
   if (!token) {
     return { valid: false, buyer: null };
@@ -60,7 +56,7 @@ async function validateBuyerSession(): Promise<SessionValidation> {
     }
     
     // Token inválido - limpar
-    clearBuyerSessionToken();
+    buyerTokenManager.clearTokens();
     return { valid: false, buyer: null };
   } catch (error: unknown) {
     log.error("Error validating session", error);
@@ -68,12 +64,10 @@ async function validateBuyerSession(): Promise<SessionValidation> {
   }
 }
 
-// Query key para sessão
-export const buyerSessionQueryKey = ["buyer-session"] as const;
-
 /**
  * Hook principal para sessão de buyer com cache
  * Evita chamadas repetidas de validação
+ * Auto-refresh de tokens quando necessário
  */
 export function useBuyerSession() {
   const queryClient = useQueryClient();
@@ -102,7 +96,7 @@ export function useBuyerSession() {
 
   // Limpar sessão completamente
   const clearSession = () => {
-    clearBuyerSessionToken();
+    buyerTokenManager.clearTokens();
     queryClient.setQueryData(buyerSessionQueryKey, { valid: false, buyer: null });
   };
 
@@ -114,4 +108,18 @@ export function useBuyerSession() {
     setSessionData,
     clearSession,
   };
+}
+
+// Helpers para token - delegam para TokenManager
+export function getBuyerSessionToken(): string | null {
+  return buyerTokenManager.getAccessTokenSync();
+}
+
+export function setBuyerSessionToken(token: string): void {
+  // This is a compatibility function - prefer using login flow
+  console.warn("setBuyerSessionToken is deprecated - use login flow instead");
+}
+
+export function clearBuyerSessionToken(): void {
+  buyerTokenManager.clearTokens();
 }

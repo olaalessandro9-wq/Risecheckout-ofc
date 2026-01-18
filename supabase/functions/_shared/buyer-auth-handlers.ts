@@ -34,8 +34,9 @@ import {
 
 import {
   CURRENT_HASH_VERSION,
-  SESSION_DURATION_DAYS,
 } from "./buyer-auth-types.ts";
+import { generateSessionTokens } from "./buyer-auth-refresh-handler.ts";
+import { ACCESS_TOKEN_DURATION_MINUTES } from "./auth-constants.ts";
 
 // Import and re-export from password module
 import {
@@ -206,16 +207,18 @@ export async function handleLogin(
     return jsonResponse({ error: "Email ou senha inválidos" }, corsHeaders, 401);
   }
 
-  const sessionToken = generateSessionToken();
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + SESSION_DURATION_DAYS);
+  // Create session with refresh tokens
+  const { accessToken, refreshToken, accessTokenExpiresAt, refreshTokenExpiresAt } = generateSessionTokens();
 
   const { error: sessionError } = await supabase
     .from("buyer_sessions")
     .insert({
       buyer_id: buyer.id,
-      session_token: sessionToken,
-      expires_at: expiresAt.toISOString(),
+      session_token: accessToken,
+      refresh_token: refreshToken,
+      access_token_expires_at: accessTokenExpiresAt.toISOString(),
+      refresh_token_expires_at: refreshTokenExpiresAt.toISOString(),
+      expires_at: refreshTokenExpiresAt.toISOString(), // Backwards compatibility
       ip_address: req.headers.get("x-forwarded-for") || null,
       user_agent: req.headers.get("user-agent") || null,
     });
@@ -240,10 +243,14 @@ export async function handleLogin(
   });
 
   console.log(`[buyer-auth] Login successful: ${email}`);
+  
+  // RISE V3: Return access token, refresh token, and expiry info
   return jsonResponse({
     success: true,
-    sessionToken,
-    expiresAt: expiresAt.toISOString(),
+    accessToken,
+    refreshToken,
+    expiresIn: ACCESS_TOKEN_DURATION_MINUTES * 60, // seconds
+    expiresAt: accessTokenExpiresAt.toISOString(),
     buyer: { id: buyer.id, email: buyer.email, name: buyer.name },
   }, corsHeaders, 200);
 }

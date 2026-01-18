@@ -27,11 +27,12 @@ import { SUPABASE_URL } from "@/config/supabase";
 import type { ApiResponse, ApiError } from "./types";
 import { parseHttpError, parseNetworkError, createApiError } from "./errors";
 
+import { producerTokenManager } from "@/lib/token-manager";
+
 // ============================================
 // CONSTANTS
 // ============================================
 
-const SESSION_KEY = "producer_session_token";
 const DEFAULT_TIMEOUT = 30000; // 30 seconds
 
 // ============================================
@@ -48,14 +49,10 @@ function generateCorrelationId(): string {
 }
 
 /**
- * Gets the producer session token from localStorage
+ * Gets a valid producer session token (with auto-refresh)
  */
-function getSessionToken(): string | null {
-  try {
-    return localStorage.getItem(SESSION_KEY);
-  } catch {
-    return null;
-  }
+async function getSessionToken(): Promise<string | null> {
+  return producerTokenManager.getValidAccessToken();
 }
 
 // ============================================
@@ -101,9 +98,9 @@ async function call<T>(
     ...customHeaders,
   };
   
-  // Add auth header if not public
+  // Add auth header if not public (with auto-refresh via TokenManager)
   if (!isPublic) {
-    const token = getSessionToken();
+    const token = await getSessionToken();
     if (token) {
       headers["X-Producer-Session-Token"] = token;
     }
