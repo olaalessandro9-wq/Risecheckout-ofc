@@ -11,7 +11,7 @@
  * @see RISE ARCHITECT PROTOCOL V3 - Arquitetura de Form State Centralizado
  */
 
-import { useMemo, useLayoutEffect, useCallback, useEffect } from "react";
+import { useMemo, useLayoutEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useProductContext } from "../../context/ProductContext";
 import {
@@ -26,19 +26,15 @@ export function useGeneralTab() {
   const { user } = useAuth();
   const {
     product,
-    offers,
     refreshOffers,
     refreshProduct,
     refreshPaymentLinks,
     deleteProduct,
     updateGeneralModified,
-    // Novo: estado do reducer
     formState,
     dispatchForm,
     formErrors,
     validateGeneralForm,
-    // Save Registry
-    registerSaveHandler,
   } = useProductContext();
 
   // Form state vem do Context (reducer) - NÃO do useState local

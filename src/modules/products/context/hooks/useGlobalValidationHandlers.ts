@@ -4,12 +4,6 @@
  * CRITICAL: Este hook é chamado no ProductContext, que está SEMPRE montado.
  * Isso garante que a validação funciona independente de qual aba está ativa.
  * 
- * Handlers registrados:
- * - general (order: 10, tab: 'geral')
- * - checkout-settings (order: 20, tab: 'configuracoes')
- * - upsell (order: 30, tab: 'upsell')
- * - affiliate (order: 40, tab: 'afiliados')
- * 
  * @see RISE ARCHITECT PROTOCOL V3 - Single Source of Truth
  */
 
@@ -17,12 +11,6 @@ import { useEffect, useRef } from "react";
 import type { RegisterSaveHandler } from "../../types/saveRegistry.types";
 import type { GeneralFormData, CheckoutSettingsFormData } from "../../types/productForm.types";
 import type { UpsellSettings, AffiliateSettings, ProductData, Offer } from "../../types/product.types";
-import { 
-  validateGeneralForm, 
-  validateUpsellSettings, 
-  validateAffiliateSettings 
-} from "../productFormValidation";
-import { getGatewayById, isGatewayAvailable } from "@/config/payment-gateways";
 import {
   uploadProductImage,
   saveDeletedOffers,
@@ -30,6 +18,12 @@ import {
   saveGeneralProduct,
   saveCheckoutSettingsProduct,
 } from "../helpers/saveFunctions";
+import {
+  createGeneralValidation,
+  createCheckoutSettingsValidation,
+  createUpsellValidation,
+  createAffiliateValidation,
+} from "../helpers/validationHandlerConfigs";
 import type { ProductFormAction } from "../../types/formActions.types";
 
 // ============================================================================
@@ -181,23 +175,7 @@ export function useGlobalValidationHandlers(options: UseGlobalValidationHandlers
         resetOffers();
       },
       {
-        validate: () => {
-          const currentForm = generalFormRef.current;
-          const result = validateGeneralForm(currentForm);
-          const fieldErrors: Record<string, string> = {};
-          
-          if (result.errors.general) {
-            Object.entries(result.errors.general).forEach(([field, error]) => {
-              if (error) fieldErrors[field] = error;
-            });
-          }
-          
-          return {
-            isValid: result.isValid,
-            errors: fieldErrors,
-            tabKey: 'geral',
-          };
-        },
+        validate: createGeneralValidation(generalFormRef),
         order: 10,
         tabKey: 'geral',
       }
@@ -226,28 +204,7 @@ export function useGlobalValidationHandlers(options: UseGlobalValidationHandlers
           });
         },
         {
-          validate: () => {
-            const form = checkoutSettingsFormRef.current;
-            const pixGateway = getGatewayById(form.pix_gateway);
-            const ccGateway = getGatewayById(form.credit_card_gateway);
-            const errors: Record<string, string> = {};
-            let isValid = true;
-
-            if (!isGatewayAvailable(form.pix_gateway)) {
-              errors.pix_gateway = `Gateway de PIX "${pixGateway?.displayName || form.pix_gateway}" não está disponível`;
-              isValid = false;
-            }
-            if (!isGatewayAvailable(form.credit_card_gateway)) {
-              errors.credit_card_gateway = `Gateway de Cartão "${ccGateway?.displayName || form.credit_card_gateway}" não está disponível`;
-              isValid = false;
-            }
-
-            return {
-              isValid,
-              errors,
-              tabKey: 'configuracoes',
-            };
-          },
+          validate: createCheckoutSettingsValidation(checkoutSettingsFormRef),
           order: 20,
           tabKey: 'configuracoes',
         }
@@ -264,22 +221,7 @@ export function useGlobalValidationHandlers(options: UseGlobalValidationHandlers
         await saveUpsellSettings(upsellSettingsRef.current);
       },
       {
-        validate: () => {
-          const result = validateUpsellSettings(upsellSettingsRef.current);
-          const fieldErrors: Record<string, string> = {};
-          
-          if (result.errors.upsell) {
-            Object.entries(result.errors.upsell).forEach(([field, error]) => {
-              if (error) fieldErrors[field] = error;
-            });
-          }
-          
-          return {
-            isValid: result.isValid,
-            errors: fieldErrors,
-            tabKey: 'upsell',
-          };
-        },
+        validate: createUpsellValidation(upsellSettingsRef),
         order: 30,
         tabKey: 'upsell',
       }
@@ -295,22 +237,7 @@ export function useGlobalValidationHandlers(options: UseGlobalValidationHandlers
         await saveAffiliateSettings(affiliateSettingsRef.current);
       },
       {
-        validate: () => {
-          const result = validateAffiliateSettings(affiliateSettingsRef.current);
-          const fieldErrors: Record<string, string> = {};
-          
-          if (result.errors.affiliate) {
-            Object.entries(result.errors.affiliate).forEach(([field, error]) => {
-              if (error) fieldErrors[field] = error;
-            });
-          }
-          
-          return {
-            isValid: result.isValid,
-            errors: fieldErrors,
-            tabKey: 'afiliados',
-          };
-        },
+        validate: createAffiliateValidation(affiliateSettingsRef),
         order: 40,
         tabKey: 'afiliados',
       }
