@@ -12,7 +12,6 @@ type MarketplaceProduct = Database["public"]["Views"]["marketplace_products"]["R
 interface ProductCardProps {
   product: MarketplaceProduct;
   onViewDetails: (productId: string) => void;
-  onPromote: (productId: string) => void;
 }
 
 export function ProductCard({ product, onViewDetails }: ProductCardProps) {

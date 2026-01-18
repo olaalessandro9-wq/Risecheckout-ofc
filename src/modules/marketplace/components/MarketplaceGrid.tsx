@@ -18,7 +18,6 @@ interface MarketplaceGridProps {
   hasMore: boolean;
   onLoadMore: () => void;
   onViewDetails: (productId: string) => void;
-  onPromote: (productId: string) => void;
 }
 
 export function MarketplaceGrid({
@@ -27,7 +26,6 @@ export function MarketplaceGrid({
   hasMore,
   onLoadMore,
   onViewDetails,
-  onPromote,
 }: MarketplaceGridProps) {
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -79,7 +77,6 @@ export function MarketplaceGrid({
             key={product.id}
             product={product}
             onViewDetails={onViewDetails}
-            onPromote={onPromote}
           />
         ))}
       </div>
