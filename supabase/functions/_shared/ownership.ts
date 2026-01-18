@@ -197,3 +197,71 @@ export async function verifyPixelOwnership(
 
   return !error && !!data;
 }
+
+// ============================================
+// AFFILIATE OWNERSHIP VERIFICATION
+// ============================================
+
+/**
+ * Verifies that a user owns an affiliation
+ * 
+ * @param supabase - Supabase client
+ * @param affiliateId - Affiliate record ID
+ * @param userId - User ID to verify ownership
+ * @returns True if user owns the affiliation
+ */
+export async function verifyAffiliateOwnership(
+  supabase: SupabaseClient,
+  affiliateId: string,
+  userId: string
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("affiliates")
+    .select("id")
+    .eq("id", affiliateId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  return !error && !!data;
+}
+
+/**
+ * Verifies that a user owns an affiliation and returns the record
+ * 
+ * @param supabase - Supabase client
+ * @param affiliateId - Affiliate record ID
+ * @param userId - User ID to verify ownership
+ * @returns Object with valid flag and optional affiliation data
+ */
+export async function verifyAffiliateOwnershipWithData(
+  supabase: SupabaseClient,
+  affiliateId: string,
+  userId: string
+): Promise<{ valid: boolean; affiliation?: AffiliateOwnershipData }> {
+  const { data, error } = await supabase
+    .from("affiliates")
+    .select("id, product_id, status, affiliate_code")
+    .eq("id", affiliateId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error || !data) {
+    return { valid: false };
+  }
+
+  return { 
+    valid: true, 
+    affiliation: data as AffiliateOwnershipData 
+  };
+}
+
+// ============================================
+// AFFILIATE OWNERSHIP TYPES
+// ============================================
+
+interface AffiliateOwnershipData {
+  id: string;
+  product_id: string;
+  status: string;
+  affiliate_code: string | null;
+}
