@@ -8,6 +8,7 @@
  * - Prevents concurrent refresh calls
  * - Clears tokens on refresh failure
  * - Type-safe for producer and buyer domains
+ * - ENHANCED: Supports Refresh Token Rotation
  */
 
 import { SUPABASE_URL } from "@/config/supabase";
@@ -28,6 +29,7 @@ export interface TokenData {
 interface RefreshResponse {
   success: boolean;
   accessToken?: string;
+  refreshToken?: string; // NEW: Rotated refresh token
   expiresIn?: number;
   error?: string;
 }
@@ -151,6 +153,7 @@ export class TokenManager {
   /**
    * Refresh tokens using the refresh token
    * Returns true if successful, false otherwise
+   * ENHANCED: Now handles refresh token rotation
    */
   async refresh(): Promise<boolean> {
     // Prevent concurrent refresh calls
@@ -212,6 +215,13 @@ export class TokenManager {
         const expiresAt = Date.now() + data.expiresIn * 1000;
         localStorage.setItem(keys.access, data.accessToken);
         localStorage.setItem(keys.expiresAt, String(expiresAt));
+        
+        // ROTATION: Store new refresh token if received
+        if (data.refreshToken) {
+          localStorage.setItem(keys.refresh, data.refreshToken);
+          log.info(`Refresh token rotated for ${this.type}`);
+        }
+        
         log.info(`Token refreshed successfully for ${this.type}`);
         return true;
       }

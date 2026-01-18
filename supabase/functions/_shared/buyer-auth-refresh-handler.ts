@@ -4,6 +4,11 @@
  * PHASE 3: Implements refresh token logic for buyers.
  * Allows clients to obtain new access tokens using long-lived refresh tokens.
  * 
+ * ENHANCED: Refresh Token Rotation with Theft Detection
+ * - Each refresh generates a NEW refresh token
+ * - Old token is stored as previous_refresh_token
+ * - If previous token is reused, ALL sessions are invalidated (theft detected)
+ * 
  * RISE Protocol V3 Compliant
  */
 
@@ -31,6 +36,11 @@ interface BuyerSessionWithRefresh {
          { id: string; email: string; name: string | null; is_active: boolean }[];
 }
 
+interface ReusedTokenSession {
+  id: string;
+  buyer_id: string;
+}
+
 // ============================================
 // REFRESH HANDLER
 // ============================================
@@ -48,7 +58,45 @@ export async function handleRefresh(
     return jsonResponse({ error: "Refresh token é obrigatório" }, corsHeaders, 400);
   }
 
-  // Fetch session by refresh token
+  // ============================================
+  // THEFT DETECTION: Check if token was already rotated
+  // ============================================
+  const { data: reusedSession } = await supabase
+    .from("buyer_sessions")
+    .select("id, buyer_id")
+    .eq("previous_refresh_token", refreshToken)
+    .single() as { data: ReusedTokenSession | null; error: unknown };
+
+  if (reusedSession) {
+    // TOKEN REUSE DETECTED = POSSIBLE THEFT
+    console.error("[SECURITY] Buyer refresh token reuse detected! Possible theft. Buyer:", reusedSession.buyer_id);
+    
+    // Invalidate ALL sessions for this buyer
+    await supabase
+      .from("buyer_sessions")
+      .update({ is_valid: false })
+      .eq("buyer_id", reusedSession.buyer_id);
+
+    // Log security event
+    await logSecurityEvent(supabase, {
+      userId: reusedSession.buyer_id,
+      action: SecurityAction.LOGIN_FAILED,
+      resource: "buyer_auth_token_theft_detected",
+      success: false,
+      request: req,
+      metadata: {
+        reason: "refresh_token_reuse",
+        reused_token_prefix: refreshToken.substring(0, 8),
+        action_taken: "all_sessions_invalidated",
+      }
+    });
+
+    return jsonResponse({ error: "Sessão comprometida. Faça login novamente." }, corsHeaders, 401);
+  }
+
+  // ============================================
+  // NORMAL FLOW: Fetch session by current refresh token
+  // ============================================
   const { data: session } = await supabase
     .from("buyer_sessions")
     .select(`
@@ -96,17 +144,27 @@ export async function handleRefresh(
     return jsonResponse({ error: "Sessão invalidada por segurança" }, corsHeaders, 401);
   }
 
-  // Generate new access token
+  // ============================================
+  // TOKEN ROTATION: Generate NEW tokens
+  // ============================================
   const newAccessToken = generateSessionToken();
+  const newRefreshToken = generateRefreshToken();
+
   const accessTokenExpiresAt = new Date();
   accessTokenExpiresAt.setMinutes(accessTokenExpiresAt.getMinutes() + ACCESS_TOKEN_DURATION_MINUTES);
 
-  // Update session with new access token
+  const refreshTokenExpiresAt = new Date();
+  refreshTokenExpiresAt.setDate(refreshTokenExpiresAt.getDate() + REFRESH_TOKEN_DURATION_DAYS);
+
+  // Update session with ROTATED tokens
   const { error: updateError } = await supabase
     .from("buyer_sessions")
     .update({
       session_token: newAccessToken,
       access_token_expires_at: accessTokenExpiresAt.toISOString(),
+      refresh_token: newRefreshToken,
+      refresh_token_expires_at: refreshTokenExpiresAt.toISOString(),
+      previous_refresh_token: refreshToken, // Store old token for theft detection
       last_activity_at: new Date().toISOString(),
     })
     .eq("id", session.id);
@@ -116,11 +174,12 @@ export async function handleRefresh(
     return jsonResponse({ error: "Erro ao renovar token" }, corsHeaders, 500);
   }
 
-  console.log(`[buyer-auth] Token refreshed for buyer: ${buyerData.email}`);
+  console.log(`[buyer-auth] Token rotated for buyer: ${buyerData.email}`);
 
   return jsonResponse({
     success: true,
     accessToken: newAccessToken,
+    refreshToken: newRefreshToken, // NEW: Return rotated refresh token
     expiresIn: ACCESS_TOKEN_DURATION_MINUTES * 60, // in seconds
     expiresAt: accessTokenExpiresAt.toISOString(),
     buyer: {

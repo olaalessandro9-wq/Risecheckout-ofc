@@ -687,6 +687,7 @@ export type Database = {
           ip_address: string | null
           is_valid: boolean | null
           last_activity_at: string | null
+          previous_refresh_token: string | null
           refresh_token: string | null
           refresh_token_expires_at: string | null
           session_token: string
@@ -701,6 +702,7 @@ export type Database = {
           ip_address?: string | null
           is_valid?: boolean | null
           last_activity_at?: string | null
+          previous_refresh_token?: string | null
           refresh_token?: string | null
           refresh_token_expires_at?: string | null
           session_token: string
@@ -715,6 +717,7 @@ export type Database = {
           ip_address?: string | null
           is_valid?: boolean | null
           last_activity_at?: string | null
+          previous_refresh_token?: string | null
           refresh_token?: string | null
           refresh_token_expires_at?: string | null
           session_token?: string
@@ -2657,6 +2660,7 @@ export type Database = {
           ip_address: string | null
           is_valid: boolean | null
           last_activity_at: string | null
+          previous_refresh_token: string | null
           producer_id: string
           refresh_token: string | null
           refresh_token_expires_at: string | null
@@ -2671,6 +2675,7 @@ export type Database = {
           ip_address?: string | null
           is_valid?: boolean | null
           last_activity_at?: string | null
+          previous_refresh_token?: string | null
           producer_id: string
           refresh_token?: string | null
           refresh_token_expires_at?: string | null
@@ -2685,6 +2690,7 @@ export type Database = {
           ip_address?: string | null
           is_valid?: boolean | null
           last_activity_at?: string | null
+          previous_refresh_token?: string | null
           producer_id?: string
           refresh_token?: string | null
           refresh_token_expires_at?: string | null
