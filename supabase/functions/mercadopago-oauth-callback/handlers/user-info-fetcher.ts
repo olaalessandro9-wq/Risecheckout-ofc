@@ -6,6 +6,8 @@
  * @module mercadopago-oauth-callback/handlers/user-info-fetcher
  */
 
+import { maskEmail } from "../../_shared/kernel/security/pii-masking.ts";
+
 export interface UserInfoResponse {
   email: string;
 }
@@ -46,14 +48,4 @@ export async function fetchMercadoPagoUserInfo(
     console.warn('[User Info Fetcher] Erro ao buscar info:', error);
     return { email: null };
   }
-}
-
-/**
- * Mascara PII (email) em logs
- */
-function maskEmail(email: string): string {
-  if (!email || !email.includes('@')) return '***@***';
-  const [user, domain] = email.split('@');
-  const maskedUser = user.length > 2 ? user.substring(0, 2) + '***' : '***';
-  return `${maskedUser}@${domain}`;
 }

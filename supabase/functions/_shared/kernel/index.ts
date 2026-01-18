@@ -26,7 +26,7 @@ export {
   maskCardNumber,
 } from "./security/pii-masking.ts";
 
-// Types
+// Types - Re-export from modular affiliate types
 export type {
   // Core types
   AffiliationStatus,
@@ -82,4 +82,4 @@ export type {
   
   // Audit
   AffiliateAuditLogEntry,
-} from "./types/affiliate-domain.ts";
+} from "./types/affiliate/index.ts";
