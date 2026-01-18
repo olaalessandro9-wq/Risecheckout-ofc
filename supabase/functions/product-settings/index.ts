@@ -8,8 +8,9 @@
  * - update-price: Atomic price update (product + default offer)
  * - update-affiliate-gateway-settings: Affiliate gateway config
  * - update-members-area-settings: Members area config
+ * - update-upsell-settings: Upsell JSONB settings
  * 
- * @version 3.0.0 - RISE Protocol V3 (unified-auth)
+ * @version 3.1.0 - RISE Protocol V3 (refactored < 300 lines)
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
@@ -17,6 +18,9 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 import { handleCors } from "../_shared/cors.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
+import { jsonResponse, errorResponse } from "../_shared/response.ts";
+import { verifyProductOwnership } from "../_shared/ownership.ts";
+import { checkProducerRateLimit, recordProducerAttempt } from "../_shared/producer-rate-limit.ts";
 import {
   handleUpdateSettings,
   handleUpdateGeneral,
@@ -35,40 +39,12 @@ import type {
   AffiliateGatewaySettings,
   MembersAreaSettings,
   UpsellSettingsInput,
+  ProductUpdateData,
 } from "../_shared/supabase-types.ts";
 
 // ============================================
 // TYPES
 // ============================================
-
-interface RateLimitResult {
-  allowed: boolean;
-  retryAfter?: number;
-}
-
-interface OwnershipResult {
-  valid: boolean;
-  error?: string;
-}
-
-interface JsonResponseData {
-  success: boolean;
-  error?: string;
-  retryAfter?: number;
-  [key: string]: unknown;
-}
-
-interface ProductUpdateData {
-  name?: string;
-  description?: string;
-  price?: number;
-  support_name?: string;
-  support_email?: string;
-  delivery_url?: string | null;
-  external_delivery?: boolean;
-  image_url?: string;
-  status?: string;
-}
 
 interface RequestBody {
   action?: string;
@@ -83,92 +59,28 @@ interface RequestBody {
   producerEmail?: string;
 }
 
-interface RateLimitAttempt {
-  id: string;
-}
-
-interface ProductRecord {
-  id: string;
-  user_id: string;
-}
-
 // ============================================
-// HELPERS
+// ACTION HANDLERS
 // ============================================
 
-async function checkRateLimit(
-  supabase: SupabaseClient, 
-  producerId: string, 
-  action: string
-): Promise<RateLimitResult> {
-  const MAX_ATTEMPTS = 20;
-  const WINDOW_MS = 5 * 60 * 1000;
-  const windowStart = new Date(Date.now() - WINDOW_MS);
-
-  const { data: attempts } = await supabase
-    .from("rate_limit_attempts")
-    .select("id")
-    .eq("identifier", `producer:${producerId}`)
-    .eq("action", action)
-    .gte("created_at", windowStart.toISOString());
-
-  const attemptList = (attempts || []) as RateLimitAttempt[];
-  if (attemptList.length >= MAX_ATTEMPTS) {
-    return { allowed: false, retryAfter: 300 };
+async function handleRateLimitedAction(
+  supabase: SupabaseClient,
+  producerId: string,
+  action: string,
+  corsHeaders: Record<string, string>,
+  handler: () => Promise<Response>
+): Promise<Response> {
+  const rateCheck = await checkProducerRateLimit(supabase, producerId, action);
+  if (!rateCheck.allowed) {
+    return jsonResponse(
+      { success: false, error: "Muitas requisições", retryAfter: rateCheck.retryAfter },
+      corsHeaders,
+      429
+    );
   }
-  return { allowed: true };
-}
-
-async function recordAttempt(
-  supabase: SupabaseClient, 
-  producerId: string, 
-  action: string
-): Promise<void> {
-  await supabase.from("rate_limit_attempts").insert({
-    identifier: `producer:${producerId}`,
-    action,
-    success: true,
-    created_at: new Date().toISOString(),
-  });
-}
-
-function jsonResponse(
-  data: JsonResponseData, 
-  headers: Record<string, string>, 
-  status = 200
-): Response {
-  return new Response(JSON.stringify(data), { 
-    status, 
-    headers: { ...headers, "Content-Type": "application/json" } 
-  });
-}
-
-function errorResponse(
-  message: string, 
-  headers: Record<string, string>, 
-  status = 400
-): Response {
-  return jsonResponse({ success: false, error: message }, headers, status);
-}
-
-async function verifyOwnership(
-  supabase: SupabaseClient, 
-  productId: string, 
-  producerId: string
-): Promise<OwnershipResult> {
-  const { data: product, error } = await supabase
-    .from("products")
-    .select("id, user_id")
-    .eq("id", productId)
-    .single();
-    
-  if (error || !product) return { valid: false, error: "Produto não encontrado" };
-  
-  const productData = product as ProductRecord;
-  if (productData.user_id !== producerId) {
-    return { valid: false, error: "Você não tem permissão para editar este produto" };
-  }
-  return { valid: true };
+  const response = await handler();
+  await recordProducerAttempt(supabase, producerId, action);
+  return response;
 }
 
 // ============================================
@@ -182,16 +94,16 @@ serve(withSentry("product-settings", async (req) => {
 
   try {
     const supabase: SupabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL")!, 
+      Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
     let body: RequestBody = {};
     if (req.method !== "GET") {
-      try { 
-        body = await req.json() as RequestBody; 
-      } catch { 
-        return errorResponse("Corpo da requisição inválido", corsHeaders, 400); 
+      try {
+        body = await req.json() as RequestBody;
+      } catch {
+        return errorResponse("Corpo da requisição inválido", corsHeaders, 400);
       }
     }
 
@@ -212,53 +124,29 @@ serve(withSentry("product-settings", async (req) => {
       return errorResponse("ID do produto é obrigatório", corsHeaders, 400);
     }
 
-    // Ownership check (all actions require it)
-    const ownership = await verifyOwnership(supabase, productId, producerId);
-    if (!ownership.valid) {
-      return errorResponse(
-        ownership.error!, 
-        corsHeaders, 
-        ownership.error === "Produto não encontrado" ? 404 : 403
-      );
+    // Ownership check using shared utility
+    const isOwner = await verifyProductOwnership(supabase, productId, producerId);
+    if (!isOwner) {
+      return errorResponse("Produto não encontrado ou sem permissão", corsHeaders, 403);
     }
 
     // Route to handlers
     if (action === "update-settings") {
-      const rateCheck = await checkRateLimit(supabase, producerId, "product_settings");
-      if (!rateCheck.allowed) {
-        return jsonResponse(
-          { success: false, error: "Muitas requisições", retryAfter: rateCheck.retryAfter }, 
-          corsHeaders, 
-          429
-        );
-      }
-      
       if (!body.settings || typeof body.settings !== "object") {
         return errorResponse("settings é obrigatório para esta ação", corsHeaders, 400);
       }
-      
-      const response = await handleUpdateSettings(supabase, productId, body.settings, corsHeaders);
-      await recordAttempt(supabase, producerId, "product_settings");
-      return response;
+      return handleRateLimitedAction(supabase, producerId, "product_settings", corsHeaders, () =>
+        handleUpdateSettings(supabase, productId, body.settings!, corsHeaders)
+      );
     }
 
     if (action === "update-general") {
-      const rateCheck = await checkRateLimit(supabase, producerId, "product_general");
-      if (!rateCheck.allowed) {
-        return jsonResponse(
-          { success: false, error: "Muitas requisições", retryAfter: rateCheck.retryAfter }, 
-          corsHeaders, 
-          429
-        );
-      }
-      
       if (!body.data || typeof body.data !== "object") {
         return errorResponse("data é obrigatório para esta ação", corsHeaders, 400);
       }
-      
-      const response = await handleUpdateGeneral(supabase, productId, body.data, corsHeaders);
-      await recordAttempt(supabase, producerId, "product_general");
-      return response;
+      return handleRateLimitedAction(supabase, producerId, "product_general", corsHeaders, () =>
+        handleUpdateGeneral(supabase, productId, body.data!, corsHeaders)
+      );
     }
 
     if (action === "smart-delete") {
@@ -266,94 +154,56 @@ serve(withSentry("product-settings", async (req) => {
     }
 
     if (action === "update-price") {
-      const rateCheck = await checkRateLimit(supabase, producerId, "product_price");
-      if (!rateCheck.allowed) {
-        return jsonResponse(
-          { success: false, error: "Muitas requisições", retryAfter: rateCheck.retryAfter }, 
-          corsHeaders, 
-          429
-        );
-      }
       const { price } = body;
       if (typeof price !== "number" || !Number.isInteger(price) || price <= 0) {
         return errorResponse("Preço deve ser um valor inteiro positivo em centavos", corsHeaders, 400);
       }
-      const response = await handleUpdatePrice(supabase, productId, price, corsHeaders);
-      await recordAttempt(supabase, producerId, "product_price");
-      return response;
+      return handleRateLimitedAction(supabase, producerId, "product_price", corsHeaders, () =>
+        handleUpdatePrice(supabase, productId, price, corsHeaders)
+      );
     }
 
     if (action === "update-affiliate-gateway-settings") {
-      const rateCheck = await checkRateLimit(supabase, producerId, "affiliate_gateway_settings");
-      if (!rateCheck.allowed) {
-        return jsonResponse(
-          { success: false, error: "Muitas requisições", retryAfter: rateCheck.retryAfter }, 
-          corsHeaders, 
-          429
-        );
-      }
-      
       if (!body.gatewaySettings || typeof body.gatewaySettings !== "object") {
         return errorResponse("gatewaySettings é obrigatório para esta ação", corsHeaders, 400);
       }
-      
-      const response = await handleUpdateAffiliateGatewaySettings(supabase, productId, body.gatewaySettings, corsHeaders);
-      await recordAttempt(supabase, producerId, "affiliate_gateway_settings");
-      return response;
+      return handleRateLimitedAction(supabase, producerId, "affiliate_gateway_settings", corsHeaders, () =>
+        handleUpdateAffiliateGatewaySettings(supabase, productId, body.gatewaySettings!, corsHeaders)
+      );
     }
 
     if (action === "update-members-area-settings") {
-      const rateCheck = await checkRateLimit(supabase, producerId, "members_area_settings");
-      if (!rateCheck.allowed) {
-        return jsonResponse(
-          { success: false, error: "Muitas requisições", retryAfter: rateCheck.retryAfter }, 
-          corsHeaders, 
-          429
-        );
-      }
-
-      // OPTIMIZED: Se habilitando, usa handler consolidado que faz tudo em paralelo
+      // Enable members area with consolidated handler
       if (body.enabled === true) {
         const producerEmail = body.producerEmail || producer.email;
         if (!producerEmail) {
           return errorResponse("Email do produtor é obrigatório para habilitar área de membros", corsHeaders, 400);
         }
-        const response = await handleEnableMembersArea(supabase, productId, producerEmail, producerId, corsHeaders);
-        await recordAttempt(supabase, producerId, "members_area_settings");
-        return response;
-      }
-
-      // Se desabilitando, usa handler simples
-      if (body.enabled === false) {
-        const response = await handleDisableMembersArea(supabase, productId, corsHeaders);
-        await recordAttempt(supabase, producerId, "members_area_settings");
-        return response;
-      }
-
-      // Se só atualizando settings (sem mudar enabled), usa handler legado
-      const response = await handleUpdateMembersAreaSettings(supabase, productId, body.enabled, body.membersSettings, corsHeaders);
-      await recordAttempt(supabase, producerId, "members_area_settings");
-      return response;
-    }
-
-    // ✅ RISE V3: Dedicated handler for upsell_settings JSONB column
-    if (action === "update-upsell-settings") {
-      const rateCheck = await checkRateLimit(supabase, producerId, "upsell_settings");
-      if (!rateCheck.allowed) {
-        return jsonResponse(
-          { success: false, error: "Muitas requisições", retryAfter: rateCheck.retryAfter }, 
-          corsHeaders, 
-          429
+        return handleRateLimitedAction(supabase, producerId, "members_area_settings", corsHeaders, () =>
+          handleEnableMembersArea(supabase, productId, producerEmail, producerId, corsHeaders)
         );
       }
-      
+
+      // Disable members area
+      if (body.enabled === false) {
+        return handleRateLimitedAction(supabase, producerId, "members_area_settings", corsHeaders, () =>
+          handleDisableMembersArea(supabase, productId, corsHeaders)
+        );
+      }
+
+      // Update settings only (without changing enabled state)
+      return handleRateLimitedAction(supabase, producerId, "members_area_settings", corsHeaders, () =>
+        handleUpdateMembersAreaSettings(supabase, productId, body.enabled, body.membersSettings, corsHeaders)
+      );
+    }
+
+    if (action === "update-upsell-settings") {
       if (!body.upsellSettings || typeof body.upsellSettings !== "object") {
         return errorResponse("upsellSettings é obrigatório para esta ação", corsHeaders, 400);
       }
-      
-      const response = await handleUpdateUpsellSettings(supabase, productId, body.upsellSettings, corsHeaders);
-      await recordAttempt(supabase, producerId, "upsell_settings");
-      return response;
+      return handleRateLimitedAction(supabase, producerId, "upsell_settings", corsHeaders, () =>
+        handleUpdateUpsellSettings(supabase, productId, body.upsellSettings!, corsHeaders)
+      );
     }
 
     return errorResponse(`Ação desconhecida: ${action}`, corsHeaders, 404);
@@ -362,7 +212,7 @@ serve(withSentry("product-settings", async (req) => {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("[product-settings] Unexpected error:", errorMessage);
     await captureException(
-      error instanceof Error ? error : new Error(String(error)), 
+      error instanceof Error ? error : new Error(String(error)),
       { functionName: "product-settings" }
     );
     return errorResponse("Erro interno do servidor", corsHeaders, 500);
