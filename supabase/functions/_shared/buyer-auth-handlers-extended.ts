@@ -142,7 +142,7 @@ export async function handleCheckEmail(
 
   const { data: buyer } = await supabase
     .from("buyer_profiles")
-    .select("id, password_hash")
+    .select("id, account_status")
     .eq("email", email.toLowerCase())
     .single();
 
@@ -150,7 +150,8 @@ export async function handleCheckEmail(
     return jsonResponse({ exists: false, needsPasswordSetup: false }, corsHeaders, 200);
   }
 
-  const needsPasswordSetup = buyer.password_hash === "PENDING_PASSWORD_SETUP";
+  // RISE V3: Use account_status instead of password_hash markers
+  const needsPasswordSetup = buyer.account_status === "pending_setup";
   return jsonResponse({ exists: true, needsPasswordSetup, buyerId: buyer.id }, corsHeaders, 200);
 }
 
@@ -179,7 +180,7 @@ export async function handleRequestPasswordReset(
 
   const { data: buyer, error: findError } = await supabase
     .from("buyer_profiles")
-    .select("id, email, name, password_hash")
+    .select("id, email, name, account_status")
     .eq("email", email.toLowerCase())
     .single();
 
@@ -188,7 +189,8 @@ export async function handleRequestPasswordReset(
     return jsonResponse({ success: true, message: "Se o email existir, você receberá instruções" }, corsHeaders, 200);
   }
 
-  if (buyer.password_hash === "PENDING_PASSWORD_SETUP") {
+  // RISE V3: Use account_status instead of password_hash markers
+  if (buyer.account_status === "pending_setup") {
     return jsonResponse({ 
       error: "Você ainda não definiu uma senha. Use o link de configuração enviado por email." 
     }, corsHeaders, 400);
@@ -301,11 +303,13 @@ export async function handleResetPassword(
 
   const passwordHash = hashPassword(password);
 
+  // RISE V3: Also update account_status to active when resetting password
   const { error: updateError } = await supabase
     .from("buyer_profiles")
     .update({
       password_hash: passwordHash,
       password_hash_version: CURRENT_HASH_VERSION,
+      account_status: "active",
       reset_token: null,
       reset_token_expires_at: null,
       updated_at: new Date().toISOString(),

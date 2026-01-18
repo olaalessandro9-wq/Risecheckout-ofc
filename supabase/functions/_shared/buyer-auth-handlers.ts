@@ -88,19 +88,21 @@ export async function handleRegister(
 
   const { data: existingBuyer } = await supabase
     .from("buyer_profiles")
-    .select("id, password_hash")
+    .select("id, account_status")
     .eq("email", email)
     .single();
 
   const passwordHash = hashPassword(password);
 
   if (existingBuyer) {
-    if (existingBuyer.password_hash === "PENDING_PASSWORD_SETUP") {
+    // RISE V3: Use account_status instead of password_hash markers
+    if (existingBuyer.account_status === "pending_setup") {
       const { error: updateError } = await supabase
         .from("buyer_profiles")
         .update({ 
           password_hash: passwordHash,
           password_hash_version: CURRENT_HASH_VERSION,
+          account_status: "active",
           name: name || undefined,
           phone: phone || undefined,
           updated_at: new Date().toISOString()
@@ -125,6 +127,7 @@ export async function handleRegister(
       email: email.toLowerCase(),
       password_hash: passwordHash,
       password_hash_version: CURRENT_HASH_VERSION,
+      account_status: "active",
       name: name || null,
       phone: phone || null,
     })
@@ -166,7 +169,7 @@ export async function handleLogin(
 
   const { data: buyer, error: findError } = await supabase
     .from("buyer_profiles")
-    .select("id, email, name, password_hash, password_hash_version, is_active")
+    .select("id, email, name, password_hash, password_hash_version, is_active, account_status")
     .eq("email", email.toLowerCase())
     .single();
 
@@ -179,7 +182,8 @@ export async function handleLogin(
     return jsonResponse({ error: "Conta desativada" }, corsHeaders, 403);
   }
 
-  if (buyer.password_hash === "PENDING_PASSWORD_SETUP") {
+  // RISE V3: Use account_status instead of password_hash markers
+  if (buyer.account_status === "pending_setup") {
     return jsonResponse({ 
       error: "Você precisa definir sua senha primeiro",
       needsPasswordSetup: true 

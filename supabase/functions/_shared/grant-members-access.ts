@@ -132,7 +132,7 @@ export async function grantMembersAccess(
 
   let { data: existingBuyer } = await supabase
     .from('buyer_profiles')
-    .select('id, email, name, password_hash')
+    .select('id, email, name, account_status')
     .eq('email', normalizedEmail)
     .single();
 
@@ -141,13 +141,14 @@ export async function grantMembersAccess(
   let needsPasswordSetup = false;
 
   if (!existingBuyer) {
-    // Criar novo buyer profile com senha pendente
+    // RISE V3: Criar novo buyer profile com account_status pending_setup
     const { data: newBuyer, error: createError } = await supabase
       .from('buyer_profiles')
       .insert({
         email: normalizedEmail,
         name: customerName || null,
-        password_hash: 'PENDING_PASSWORD_SETUP',
+        password_hash: null,
+        account_status: 'pending_setup',
         is_active: true,
       })
       .select('id, email, name')
@@ -164,7 +165,8 @@ export async function grantMembersAccess(
     logInfo('Novo buyer profile criado', { buyerId, email: normalizedEmail });
   } else {
     buyerId = existingBuyer.id;
-    needsPasswordSetup = !existingBuyer.password_hash || existingBuyer.password_hash === 'PENDING_PASSWORD_SETUP';
+    // RISE V3: Use account_status instead of password_hash markers
+    needsPasswordSetup = existingBuyer.account_status === 'pending_setup' || existingBuyer.account_status === 'reset_required';
     
     // Atualizar nome se não tiver
     if (customerName && !existingBuyer.name) {

@@ -24,6 +24,7 @@ import {
   PASSWORD_PENDING_SETUP,
   PASSWORD_OWNER_NO_PASSWORD,
   PRODUCER_SESSION_DURATION_DAYS,
+  AccountStatus,
 } from "./auth-constants.ts";
 
 import type { ProducerProfile, UserRole } from "./supabase-types.ts";
@@ -187,7 +188,7 @@ export async function handleLogin(
 
   const { data: producer, error: findError } = await supabase
     .from("profiles")
-    .select("id, email, name, password_hash, password_hash_version, is_active")
+    .select("id, email, name, password_hash, password_hash_version, is_active, account_status")
     .eq("email", email.toLowerCase())
     .single() as { data: ProducerProfile | null; error: unknown };
 
@@ -200,16 +201,20 @@ export async function handleLogin(
     return errorResponse("Conta desativada", corsHeaders, 403);
   }
 
-  // Check for password markers that require special handling
-  const isPlaceholder = !producer.password_hash ||
-                        producer.password_hash === PASSWORD_REQUIRES_RESET ||
-                        producer.password_hash === PASSWORD_PENDING_SETUP;
+  // RISE V3: Check account_status first (Phase 2 migration)
+  // Fallback to password_hash markers for backwards compatibility during migration
+  const accountStatus = producer.account_status;
+  const isPlaceholderByStatus = accountStatus === AccountStatus.PENDING_SETUP || 
+                                 accountStatus === AccountStatus.RESET_REQUIRED;
+  const isPlaceholderByHash = !producer.password_hash ||
+                               producer.password_hash === PASSWORD_REQUIRES_RESET ||
+                               producer.password_hash === PASSWORD_PENDING_SETUP;
   
-  if (isPlaceholder) {
-    // User needs to set/reset password
+  if (isPlaceholderByStatus || isPlaceholderByHash) {
     await logAuditEvent(supabase, producer.id, "LOGIN_FAILED", false, clientIP, userAgent, { 
       email, 
-      reason: "password_not_set" 
+      reason: "password_not_set",
+      account_status: accountStatus,
     });
     return errorResponse(
       "Você precisa definir sua senha. Use 'Esqueci minha senha' para criar uma nova senha.", 
@@ -218,11 +223,15 @@ export async function handleLogin(
     );
   }
   
-  // Check for owner accounts that authenticate via producer portal only
-  if (producer.password_hash === PASSWORD_OWNER_NO_PASSWORD) {
+  // RISE V3: Check for owner accounts using account_status first
+  const isOwnerByStatus = accountStatus === AccountStatus.OWNER_NO_PASSWORD;
+  const isOwnerByHash = producer.password_hash === PASSWORD_OWNER_NO_PASSWORD;
+  
+  if (isOwnerByStatus || isOwnerByHash) {
     await logAuditEvent(supabase, producer.id, "LOGIN_FAILED", false, clientIP, userAgent, { 
       email, 
-      reason: "owner_no_password" 
+      reason: "owner_no_password",
+      account_status: accountStatus,
     });
     return errorResponse(
       "Esta conta é gerenciada pelo produtor. Entre em contato com o suporte.", 
