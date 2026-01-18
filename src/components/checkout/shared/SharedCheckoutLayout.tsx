@@ -7,12 +7,11 @@
  */
 
 import React from 'react';
-import { CheckCircle, Wallet, Zap, ShieldCheck } from 'lucide-react';
+import { CheckCircle, Wallet, Zap } from 'lucide-react';
 import {
   SharedProductSection, SharedPersonalDataForm, SharedPaymentMethodSelector,
   SharedOrderBumps, SharedOrderSummary, SharedCheckoutButton,
 } from './index';
-import { TurnstileWidget } from '@/components/checkout/TurnstileWidget';
 import { useCheckoutSubmit } from '@/hooks/checkout/useCheckoutSubmit';
 
 import type { RequiredFieldsConfig, AppliedCoupon } from "@/types/checkout-shared.types";
@@ -40,17 +39,12 @@ interface SharedCheckoutLayoutProps {
   onTotalChange?: (total: number, appliedCoupon: AppliedCoupon | null) => void;
   additionalContent?: React.ReactNode;
   formWrapper?: (children: React.ReactNode, formRef: React.RefObject<HTMLFormElement>) => React.ReactNode;
-  turnstileToken?: string | null;
-  onTurnstileVerify?: (token: string) => void;
-  onTurnstileError?: (error: string) => void;
-  onTurnstileExpire?: () => void;
 }
 
 export const SharedCheckoutLayout: React.FC<SharedCheckoutLayoutProps> = ({
   productData, orderBumps, design, selectedPayment, onPaymentChange, selectedBumps, onToggleBump,
   mode, formData, formErrors, onFieldChange, requiredFields, isProcessing, publicKey,
   creditCardGateway, amount, onSubmitPayment, onTotalChange, additionalContent, formWrapper,
-  turnstileToken, onTurnstileVerify, onTurnstileError, onTurnstileExpire,
 }) => {
   const { formRef, handleCardSubmitReady, handleCheckoutClick } = useCheckoutSubmit(selectedPayment);
 
@@ -131,22 +125,10 @@ export const SharedCheckoutLayout: React.FC<SharedCheckoutLayoutProps> = ({
         </>
       )}
 
-      {/* Turnstile Captcha */}
-      {mode === 'public' && onTurnstileVerify && (
-        <div className="mt-6">
-          <div className="flex items-center justify-center gap-2 mb-3" style={{ color: design.colors.secondaryText }}>
-            <ShieldCheck className="w-4 h-4" />
-            <span className="text-xs">Verificação de segurança</span>
-          </div>
-          <TurnstileWidget onVerify={onTurnstileVerify} onError={onTurnstileError} onExpire={onTurnstileExpire}
-            theme={design.colors.primaryText === '#FFFFFF' ? 'dark' : 'light'} />
-        </div>
-      )}
-
       {/* Botão de Finalizar */}
       <div className="mt-6">
         <SharedCheckoutButton selectedPayment={selectedPayment} design={design} mode={mode} isProcessing={isProcessing}
-          disabled={mode === 'public' && !turnstileToken} onClick={handleCheckoutClick} />
+          disabled={false} onClick={handleCheckoutClick} />
       </div>
 
       {additionalContent}
