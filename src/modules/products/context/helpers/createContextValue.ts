@@ -154,14 +154,10 @@ export function createContextValue(deps: ContextValueDependencies) {
     // Update handlers
     updateProduct: core.updateProduct,
     updateProductBulk: core.updateProductBulk,
-    updatePaymentSettings: () => {}, // Legacy no-op
-    updateCheckoutFields: () => {}, // Legacy no-op
     updateUpsellSettings: settingsAdapter.updateUpsellSettings,
     updateAffiliateSettings: settingsAdapter.updateAffiliateSettings,
     // Save handlers
     saveProduct,
-    savePaymentSettings: async () => {}, // Legacy no-op
-    saveCheckoutFields: async () => {}, // Legacy no-op
     saveUpsellSettings,
     saveAffiliateSettings,
     saveAll,
