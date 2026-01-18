@@ -2,20 +2,15 @@
  * Buyer Auth Producer Handlers
  * 
  * Handlers para produtores acessando área de membros
- * Separado para manter arquivos < 300 linhas
+ * 
+ * RISE V3: Response helpers imported from response-helpers.ts
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-import { SESSION_DURATION_DAYS } from "./buyer-auth-types.ts";
+import { SESSION_DURATION_DAYS } from "./auth-constants.ts";
 import { generateSessionToken } from "./buyer-auth-handlers.ts";
-
-function jsonResponse(data: unknown, status = 200, corsHeaders: Record<string, string>): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" }
-  });
-}
+import { jsonResponse, errorResponse } from "./response-helpers.ts";
 
 // ============================================
 // CHECK-PRODUCER-BUYER HANDLER
@@ -28,7 +23,7 @@ export async function handleCheckProducerBuyer(
   const { email, producerUserId } = await req.json();
 
   if (!email) {
-    return jsonResponse({ error: "Email é obrigatório" }, 400, corsHeaders);
+    return errorResponse("Email é obrigatório", corsHeaders, 400);
   }
 
   let hasOwnProducts = false;
@@ -50,7 +45,7 @@ export async function handleCheckProducerBuyer(
 
   if (!buyer && !hasOwnProducts) {
     console.log(`[buyer-auth] No buyer profile or own products for producer: ${email}`);
-    return jsonResponse({ hasBuyerProfile: false, hasOwnProducts: false }, 200, corsHeaders);
+    return jsonResponse({ hasBuyerProfile: false, hasOwnProducts: false }, corsHeaders, 200);
   }
 
   let hasActiveAccess = false;
@@ -71,7 +66,7 @@ export async function handleCheckProducerBuyer(
     hasBuyerProfile: shouldShowStudentPanel,
     hasOwnProducts,
     buyerId: buyer?.id || null,
-  }, 200, corsHeaders);
+  }, corsHeaders, 200);
 }
 
 // ============================================
@@ -85,7 +80,7 @@ export async function handleEnsureProducerAccess(
   const { email, productId, producerUserId } = await req.json();
 
   if (!email || !productId) {
-    return jsonResponse({ error: "Email e productId são obrigatórios" }, 400, corsHeaders);
+    return errorResponse("Email e productId são obrigatórios", corsHeaders, 400);
   }
 
   try {
@@ -124,11 +119,11 @@ export async function handleEnsureProducerAccess(
 
     console.log(`[buyer-auth] Producer ${email} has access via product ownership, no buyer_product_access needed`);
 
-    return jsonResponse({ success: true, buyerId: buyer.id }, 200, corsHeaders);
+    return jsonResponse({ success: true, buyerId: buyer.id }, corsHeaders, 200);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("[buyer-auth] Error ensuring producer access:", errorMessage);
-    return jsonResponse({ error: "Erro ao criar acesso do produtor" }, 500, corsHeaders);
+    return errorResponse("Erro ao criar acesso do produtor", corsHeaders, 500);
   }
 }
 
@@ -143,7 +138,7 @@ export async function handleProducerLogin(
   const { email } = await req.json();
 
   if (!email) {
-    return jsonResponse({ error: "Email é obrigatório" }, 400, corsHeaders);
+    return errorResponse("Email é obrigatório", corsHeaders, 400);
   }
 
   const { data: buyer, error: findError } = await supabase
@@ -154,11 +149,11 @@ export async function handleProducerLogin(
 
   if (findError || !buyer) {
     console.log(`[buyer-auth] Producer login failed - buyer not found: ${email}`);
-    return jsonResponse({ error: "Perfil de comprador não encontrado" }, 404, corsHeaders);
+    return errorResponse("Perfil de comprador não encontrado", corsHeaders, 404);
   }
 
   if (!buyer.is_active) {
-    return jsonResponse({ error: "Conta desativada" }, 403, corsHeaders);
+    return errorResponse("Conta desativada", corsHeaders, 403);
   }
 
   const sessionToken = generateSessionToken();
@@ -177,7 +172,7 @@ export async function handleProducerLogin(
 
   if (sessionError) {
     console.error("[buyer-auth] Error creating producer session:", sessionError);
-    return jsonResponse({ error: "Erro ao criar sessão" }, 500, corsHeaders);
+    return errorResponse("Erro ao criar sessão", corsHeaders, 500);
   }
 
   await supabase
@@ -191,5 +186,5 @@ export async function handleProducerLogin(
     sessionToken,
     expiresAt: expiresAt.toISOString(),
     buyer: { id: buyer.id, email: buyer.email, name: buyer.name },
-  }, 200, corsHeaders);
+  }, corsHeaders, 200);
 }

@@ -1,21 +1,16 @@
 /**
  * Tipos e Constantes para Buyer Auth
  * 
- * Separado do handler para manter arquivos < 300 linhas
+ * RISE V3: Constants imported from auth-constants.ts (Single Source of Truth)
  */
 
-// ============================================
-// HASH CONSTANTS
-// ============================================
-// RISE V3: SHA-256 legacy eliminado - apenas bcrypt
-export const CURRENT_HASH_VERSION = 2;
-export const BCRYPT_COST = 10;
-
-// ============================================
-// SESSION CONSTANTS
-// ============================================
-export const SESSION_DURATION_DAYS = 30;
-export const RESET_TOKEN_EXPIRY_HOURS = 1;
+// Import centralized constants
+export { 
+  CURRENT_HASH_VERSION, 
+  BCRYPT_COST,
+  SESSION_DURATION_DAYS,
+  RESET_TOKEN_EXPIRY_HOURS,
+} from "./auth-constants.ts";
 
 // ============================================
 // REQUEST TYPES

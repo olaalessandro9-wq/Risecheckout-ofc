@@ -3,7 +3,9 @@
  * 
  * Extracted handlers for integration-management edge function.
  * 
- * RISE Protocol V3 Compliant - Uses consolidated rate-limiting
+ * RISE Protocol V3 Compliant:
+ * - Response helpers from response-helpers.ts
+ * - Uses consolidated rate-limiting
  * @version 3.0.0
  */
 
@@ -13,6 +15,7 @@ import {
   RATE_LIMIT_CONFIGS,
   type RateLimitResult 
 } from "./rate-limiting/index.ts";
+import { jsonResponse, errorResponse } from "./response-helpers.ts";
 
 // ============================================================================
 // TYPES
@@ -56,22 +59,6 @@ export async function checkRateLimit(
     retryAfter: retryAfterSeconds 
   };
 }
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-export function jsonResponse(data: unknown, corsHeaders: Record<string, string>, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
-
-export function errorResponse(message: string, corsHeaders: Record<string, string>, status = 400): Response {
-  return jsonResponse({ success: false, error: message }, corsHeaders, status);
-}
-
 
 // ============================================================================
 // NONCE GENERATION

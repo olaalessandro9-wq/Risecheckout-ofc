@@ -2,7 +2,9 @@
  * Shared helpers for checkout-crud Edge Function
  * Extracted for RISE Protocol compliance (< 300 lines per file)
  * 
- * RISE Protocol V3 Compliant - Uses consolidated rate-limiting
+ * RISE Protocol V3 Compliant:
+ * - Response helpers from response-helpers.ts
+ * - Uses consolidated rate-limiting
  * @version 3.0.0
  */
 
@@ -12,6 +14,7 @@ import {
   RATE_LIMIT_CONFIGS,
   type RateLimitResult 
 } from "./rate-limiting/index.ts";
+import { jsonResponse as jsonResponseBase, errorResponse as errorResponseBase } from "./response-helpers.ts";
 
 // ============================================
 // TYPES
@@ -28,18 +31,15 @@ interface ProductOwnership {
 }
 
 // ============================================
-// RESPONSE HELPERS
+// RESPONSE HELPERS - Wrapper for type compatibility
 // ============================================
 
 export function jsonResponse(data: JsonResponseData, corsHeaders: Record<string, string>, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+  return jsonResponseBase(data, corsHeaders, status);
 }
 
 export function errorResponse(message: string, corsHeaders: Record<string, string>, status = 400): Response {
-  return jsonResponse({ success: false, error: message }, corsHeaders, status);
+  return errorResponseBase(message, corsHeaders, status);
 }
 
 // ============================================

@@ -4,18 +4,21 @@
  * Funções utilitárias extraídas do producer-auth para manter o arquivo principal
  * abaixo do limite de 300 linhas (RISE Protocol).
  * 
- * RISE Protocol Compliant - Zero `any` (exceto auditLog para flexibilidade)
+ * RISE Protocol V3 Compliant:
+ * - Constants imported from auth-constants.ts
+ * - Response helpers imported from response-helpers.ts
+ * - Zero duplication
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { genSaltSync, hashSync, compareSync } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
-// ============================================
-// CONSTANTS
-// ============================================
+// Import centralized constants
+export { CURRENT_HASH_VERSION, BCRYPT_COST } from "./auth-constants.ts";
+import { BCRYPT_COST } from "./auth-constants.ts";
 
-export const CURRENT_HASH_VERSION = 2;
-export const BCRYPT_COST = 10;
+// Re-export response helpers for backwards compatibility
+export { jsonResponse, errorResponse } from "./response-helpers.ts";
 
 // ============================================
 // PASSWORD FUNCTIONS
@@ -188,33 +191,4 @@ Se você não solicitou esta alteração, ignore este email.
 Atenciosamente,
 Equipe RiseCheckout
   `.trim();
-}
-
-// ============================================
-// RESPONSE HELPERS
-// ============================================
-
-/**
- * Create JSON response with CORS headers
- */
-export function jsonResponse(
-  data: object,
-  corsHeaders: Record<string, string>,
-  status = 200
-): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
-
-/**
- * Create error response with CORS headers
- */
-export function errorResponse(
-  error: string,
-  corsHeaders: Record<string, string>,
-  status = 400
-): Response {
-  return jsonResponse({ error }, corsHeaders, status);
 }

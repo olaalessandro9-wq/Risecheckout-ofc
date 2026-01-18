@@ -3,10 +3,16 @@
  * 
  * RISE V3: SHA-256 legacy ELIMINADO
  * Apenas bcrypt para hash de senhas
+ * 
+ * Constants imported from auth-constants.ts
+ * Response helpers imported from response-helpers.ts
  */
 
 import { genSaltSync, hashSync, compareSync } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
-import { BCRYPT_COST } from "./buyer-auth-types.ts";
+import { BCRYPT_COST } from "./auth-constants.ts";
+
+// Re-export response helper for backwards compatibility
+export { jsonResponse } from "./response-helpers.ts";
 
 // ============================================
 // PASSWORD HASHING (Apenas bcrypt)
@@ -47,22 +53,4 @@ export function generateResetToken(): string {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
   return Array.from(array, b => b.toString(16).padStart(2, "0")).join("");
-}
-
-// ============================================
-// RESPONSE HELPERS
-// ============================================
-
-/**
- * Create a JSON response with CORS headers
- */
-export function jsonResponse(
-  data: unknown, 
-  status = 200, 
-  corsHeaders: Record<string, string>
-): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" }
-  });
 }
