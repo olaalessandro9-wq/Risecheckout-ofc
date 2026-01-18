@@ -2,7 +2,8 @@
  * Members Area Settings Hook
  * Handles fetching and updating product members area settings
  * 
- * REFACTORED: Uses useReducer for Single Source of Truth
+ * OPTIMIZED V3: Backend now handles all enable logic in single call
+ * Frontend reduced from 5 sequential calls to 1 call
  * 
  * @see RISE Protocol V3 - State Management via Reducer
  */
@@ -14,7 +15,6 @@ import { createLogger } from "@/lib/logger";
 const log = createLogger("MembersAreaSettings");
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { SUPABASE_URL } from "@/config/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import type { Json } from "@/integrations/supabase/types";
 import type { MembersAreaSettings, MemberModuleWithContents, MemberContent } from "./types";
@@ -38,18 +38,6 @@ interface ModulesResponse {
   success: boolean;
   error?: string;
   data?: MemberModuleWithContents[];
-}
-
-interface GroupsResponse {
-  groups?: unknown[];
-  data?: unknown[];
-}
-
-interface ProductDataResponse {
-  success: boolean;
-  data?: {
-    user_id?: string;
-  };
 }
 
 // Cache de 5 minutos
@@ -152,64 +140,22 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
   }, [modulesQuery.data]);
 
   // Mutation para atualizar settings via Edge Function
+  // OPTIMIZED V3: Backend agora faz tudo em uma única chamada quando enabled=true
   const updateMutation = useMutation({
     mutationFn: async ({ enabled, newSettings }: { enabled: boolean; newSettings?: Json }) => {
       if (!productId) throw new Error("Product ID required");
 
+      // Single API call - backend handles all setup logic
       const { data: result, error } = await api.call<{ success: boolean; error?: string }>('product-settings', {
         action: 'update-members-area-settings',
         productId,
         enabled,
         settings: newSettings,
+        producerEmail: user?.email, // Backend uses this for setup when enabling
       });
       
       if (error || !result?.success) {
         throw new Error(result?.error || error?.message || "Erro ao atualizar configurações");
-      }
-
-      // Configurações adicionais quando habilitado
-      if (enabled && user?.email) {
-        try {
-          const { data: productData } = await api.call<ProductDataResponse>('admin-data', { 
-            action: 'user-products-simple',
-            productId,
-          });
-
-          const userId = productData?.data?.user_id;
-
-          if (userId) {
-            await fetch(`${SUPABASE_URL}/functions/v1/buyer-auth/ensure-producer-access`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                email: user.email,
-                productId: productId,
-                producerUserId: userId,
-              }),
-            });
-          }
-
-          const { data: existingGroups } = await api.call<GroupsResponse>('members-area-groups', {
-            action: 'list',
-            product_id: productId,
-          });
-
-          const groupsList = existingGroups?.groups || existingGroups?.data || [];
-          
-          if (!groupsList.length) {
-            await api.call('members-area-groups', { 
-              action: 'create', 
-              product_id: productId,
-              data: { 
-                name: 'Padrão', 
-                description: 'Grupo padrão para todos os alunos', 
-                is_default: true 
-              }
-            });
-          }
-        } catch (accessError) {
-          log.error("Error in setup", accessError);
-        }
       }
 
       return { enabled, settings: newSettings || settingsQuery.data?.settings };

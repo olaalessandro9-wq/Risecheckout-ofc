@@ -26,6 +26,10 @@ import {
   handleUpdateMembersAreaSettings,
   handleUpdateUpsellSettings,
 } from "../_shared/product-settings-handlers.ts";
+import {
+  handleEnableMembersArea,
+  handleDisableMembersArea,
+} from "../_shared/product-members-area-handlers.ts";
 import type { 
   ProductSettings, 
   AffiliateGatewaySettings,
@@ -76,6 +80,7 @@ interface RequestBody {
   enabled?: boolean;
   membersSettings?: MembersAreaSettings;
   upsellSettings?: UpsellSettingsInput;
+  producerEmail?: string;
 }
 
 interface RateLimitAttempt {
@@ -306,6 +311,26 @@ serve(withSentry("product-settings", async (req) => {
           429
         );
       }
+
+      // OPTIMIZED: Se habilitando, usa handler consolidado que faz tudo em paralelo
+      if (body.enabled === true) {
+        const producerEmail = body.producerEmail || producer.email;
+        if (!producerEmail) {
+          return errorResponse("Email do produtor é obrigatório para habilitar área de membros", corsHeaders, 400);
+        }
+        const response = await handleEnableMembersArea(supabase, productId, producerEmail, producerId, corsHeaders);
+        await recordAttempt(supabase, producerId, "members_area_settings");
+        return response;
+      }
+
+      // Se desabilitando, usa handler simples
+      if (body.enabled === false) {
+        const response = await handleDisableMembersArea(supabase, productId, corsHeaders);
+        await recordAttempt(supabase, producerId, "members_area_settings");
+        return response;
+      }
+
+      // Se só atualizando settings (sem mudar enabled), usa handler legado
       const response = await handleUpdateMembersAreaSettings(supabase, productId, body.enabled, body.membersSettings, corsHeaders);
       await recordAttempt(supabase, producerId, "members_area_settings");
       return response;
