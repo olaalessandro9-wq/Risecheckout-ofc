@@ -22,7 +22,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getGatewayCredentials, validateCredentials } from "../_shared/platform-config.ts";
 import { findOrCreateCustomer } from "../_shared/asaas-customer.ts";
 import { calculateMarketplaceSplitData } from "../_shared/asaas-split-calculator.ts";
-import { getIdentifier } from "../_shared/rate-limit.ts";
+import { getIdentifier } from "../_shared/rate-limiting/index.ts";
 import { logSecurityEvent, SecurityAction } from "../_shared/audit-logger.ts";
 
 // Handlers locais

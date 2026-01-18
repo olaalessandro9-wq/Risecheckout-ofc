@@ -9,7 +9,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { handleCors, PUBLIC_CORS_HEADERS } from '../_shared/cors.ts';
-import { rateLimitMiddleware, getIdentifier } from '../_shared/rate-limit.ts';
+import { rateLimitOnlyMiddleware, getIdentifier, RATE_LIMIT_CONFIGS } from '../_shared/rate-limiting/index.ts';
 import { getVendorCredentials } from '../_shared/vault-credentials.ts';
 import { processPostPaymentActions } from '../_shared/webhook-post-payment.ts';
 import { handlePixPayment, PixPaymentResult } from './handlers/pix-handler.ts';
@@ -138,18 +138,19 @@ serve(async (req) => {
   }
 
   try {
-    const rateLimitResponse = await rateLimitMiddleware(req, {
-      maxAttempts: 10, windowMs: 60000,
-      identifier: getIdentifier(req, false), action: 'create_payment'
-    });
-    if (rateLimitResponse) return rateLimitResponse;
-
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
-
+    
+    const rateLimitResponse = await rateLimitOnlyMiddleware(
+      supabase,
+      req,
+      RATE_LIMIT_CONFIGS.CREATE_PIX,
+      corsHeaders
+    );
+    if (rateLimitResponse) return rateLimitResponse;
     const body: RequestBody | null = await req.json().catch(() => null);
     if (!body) return createErrorResponse(ERROR_CODES.INVALID_REQUEST, 'JSON inválido', 400, corsHeaders);
 

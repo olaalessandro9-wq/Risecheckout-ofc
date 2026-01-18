@@ -6,13 +6,9 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CustomerData } from "../../_shared/asaas-customer.ts";
-import { checkRateLimit, recordAttempt } from "../../_shared/rate-limit.ts";
+import { checkRateLimit, RATE_LIMIT_CONFIGS } from "../../_shared/rate-limiting/index.ts";
 
-export const RATE_LIMIT_CONFIG = {
-  maxAttempts: 10,
-  windowMs: 60 * 1000,
-  action: 'asaas_create_payment'
-};
+// Use config from consolidated rate-limiting module
 
 export interface PaymentRequest {
   vendorId?: string;
@@ -37,22 +33,19 @@ export interface ValidationResult {
 export async function checkPaymentRateLimit(
   supabase: SupabaseClient,
   identifier: string
-): Promise<{ allowed: boolean; retryAfter?: number }> {
-  return await checkRateLimit(supabase, {
-    ...RATE_LIMIT_CONFIG,
-    identifier
-  });
+): Promise<{ allowed: boolean; retryAfter?: string }> {
+  return await checkRateLimit(supabase, identifier, RATE_LIMIT_CONFIGS.CREATE_PIX);
 }
 
 /**
- * Registra tentativa de pagamento
+ * Registra tentativa de pagamento (agora é no-op, rate limiting já registra)
  */
 export async function recordPaymentAttempt(
-  supabase: SupabaseClient,
-  identifier: string,
-  success: boolean
+  _supabase: SupabaseClient,
+  _identifier: string,
+  _success: boolean
 ): Promise<void> {
-  await recordAttempt(supabase, { ...RATE_LIMIT_CONFIG, identifier }, success);
+  // Rate limiting consolidado já registra tentativas automaticamente
 }
 
 /**

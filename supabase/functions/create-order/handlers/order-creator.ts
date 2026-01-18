@@ -10,7 +10,7 @@
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { recordAttempt } from "../../_shared/rate-limit.ts";
+import { checkRateLimit } from "../../_shared/rate-limiting/index.ts";
 import { encryptValue } from "../../_shared/encryption.ts";
 import type { OrderItem } from "./bump-processor.ts";
 
@@ -121,14 +121,6 @@ export async function createOrder(
   if (existingOrders && existingOrders.length > 0) {
     const existing = existingOrders[0] as ExistingOrder;
     console.log(`[order-creator] Pedido duplicado: ${existing.id}`);
-
-    // Registrar tentativa falhada
-    await recordAttempt(supabase, {
-      identifier,
-      action: "create_order",
-      maxAttempts: 10,
-      windowMs: 5 * 60 * 1000
-    }, false);
 
     return new Response(
       JSON.stringify({
