@@ -4296,14 +4296,7 @@ export type Database = {
         Returns: undefined
       }
       is_admin: { Args: { p_user_id: string }; Returns: boolean }
-      is_ip_blocked: {
-        Args: { p_ip_address: string }
-        Returns: {
-          blocked: boolean
-          expires_at: string
-          reason: string
-        }[]
-      }
+      is_ip_blocked: { Args: { check_ip: string }; Returns: boolean }
       is_product_in_active_public_checkout: {
         Args: { _product_id: string }
         Returns: boolean

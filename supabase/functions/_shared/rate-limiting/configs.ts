@@ -253,30 +253,54 @@ export const DEFAULT: RateLimitConfig = {
 // Config Map (para lookup dinâmico)
 // ============================================================================
 
-export const RATE_LIMIT_CONFIGS: Record<string, RateLimitConfig> = {
-  buyer_auth_login: BUYER_AUTH_LOGIN,
-  buyer_auth_register: BUYER_AUTH_REGISTER,
-  buyer_auth_reset: BUYER_AUTH_RESET,
-  producer_auth_login: PRODUCER_AUTH_LOGIN,
-  create_order: CREATE_ORDER,
-  create_pix: CREATE_PIX,
-  asaas_create_payment: ASAAS_CREATE_PAYMENT,
-  mercadopago_create_payment: MERCADOPAGO_CREATE_PAYMENT,
-  stripe_create_payment: STRIPE_CREATE_PAYMENT,
-  webhook: WEBHOOK,
-  webhook_test: WEBHOOK_TEST,
-  members_area: MEMBERS_AREA,
-  members_area_write: MEMBERS_AREA_WRITE,
-  turnstile_verify: TURNSTILE_VERIFY,
-  decrypt_data: DECRYPT_DATA,
-  vault_save: VAULT_SAVE,
-  admin_action: ADMIN_ACTION,
-  send_email: SEND_EMAIL,
-  producer_action: PRODUCER_ACTION,
-  affiliation_manage: AFFILIATION_MANAGE,
-  product_settings: PRODUCT_SETTINGS,
-  pixel_management: PIXEL_MANAGEMENT,
-  crud_default: CRUD_DEFAULT,
-  gdpr_request: GDPR_REQUEST,
-  default: DEFAULT,
-};
+/**
+ * Mapeamento de configurações usando SCREAMING_CASE como chaves.
+ * Isso garante consistência com o padrão de acesso usado nos arquivos:
+ * RATE_LIMIT_CONFIGS.DECRYPT_DATA ao invés de RATE_LIMIT_CONFIGS.decrypt_data
+ */
+export const RATE_LIMIT_CONFIGS = {
+  // Authentication
+  BUYER_AUTH_LOGIN,
+  BUYER_AUTH_REGISTER,
+  BUYER_AUTH_RESET,
+  PRODUCER_AUTH_LOGIN,
+  
+  // Payments
+  CREATE_ORDER,
+  CREATE_PIX,
+  ASAAS_CREATE_PAYMENT,
+  MERCADOPAGO_CREATE_PAYMENT,
+  STRIPE_CREATE_PAYMENT,
+  
+  // Webhooks
+  WEBHOOK,
+  WEBHOOK_TEST,
+  
+  // Members Area
+  MEMBERS_AREA,
+  MEMBERS_AREA_WRITE,
+  
+  // Security
+  TURNSTILE_VERIFY,
+  DECRYPT_DATA,
+  
+  // Vault
+  VAULT_SAVE,
+  
+  // Admin
+  ADMIN_ACTION,
+  SEND_EMAIL,
+  
+  // Producer
+  PRODUCER_ACTION,
+  AFFILIATION_MANAGE,
+  PRODUCT_SETTINGS,
+  PIXEL_MANAGEMENT,
+  
+  // CRUD
+  CRUD_DEFAULT,
+  GDPR_REQUEST,
+  
+  // Default
+  DEFAULT,
+} as const;
