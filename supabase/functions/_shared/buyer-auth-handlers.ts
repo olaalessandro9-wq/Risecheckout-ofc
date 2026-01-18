@@ -32,7 +32,6 @@ import {
 } from "./audit-logger.ts";
 
 import {
-  HASH_VERSION_SHA256,
   CURRENT_HASH_VERSION,
   SESSION_DURATION_DAYS,
 } from "./buyer-auth-types.ts";
@@ -186,8 +185,8 @@ export async function handleLogin(
     }, 401, corsHeaders);
   }
 
-  const hashVersion = buyer.password_hash_version || HASH_VERSION_SHA256;
-  const isValid = await verifyPassword(password, buyer.password_hash, hashVersion);
+  // RISE V3: Apenas bcrypt - não precisa verificar versão
+  const isValid = verifyPassword(password, buyer.password_hash);
   
   if (!isValid) {
     console.log(`[buyer-auth] Login failed - wrong password: ${email}`);
@@ -200,19 +199,6 @@ export async function handleLogin(
       metadata: { email: buyer.email, reason: "invalid_password" }
     });
     return jsonResponse({ error: "Email ou senha inválidos" }, 401, corsHeaders);
-  }
-
-  // Transparent rehash: upgrade to bcrypt if using legacy hash
-  if (hashVersion === HASH_VERSION_SHA256) {
-    const newHash = hashPassword(password);
-    await supabase
-      .from("buyer_profiles")
-      .update({ 
-        password_hash: newHash,
-        password_hash_version: CURRENT_HASH_VERSION 
-      })
-      .eq("id", buyer.id);
-    console.log(`[buyer-auth] Upgraded password hash to bcrypt for: ${email}`);
   }
 
   const sessionToken = generateSessionToken();

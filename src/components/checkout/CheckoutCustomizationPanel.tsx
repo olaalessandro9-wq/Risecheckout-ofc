@@ -10,7 +10,6 @@ import { SettingsManager } from "@/features/checkout-builder/settings";
 import { TypeIcon, ImageIcon, CheckCircleIcon, AwardIcon, TimerIcon, QuoteIcon, VideoIcon } from "@/components/icons";
 import { useDraggable } from "@dnd-kit/core";
 import { getComponentConfig } from "./builder/registry";
-import { LegacyComponentEditor } from "./editors/legacy";
 
 // --- Interfaces ---
 interface CheckoutCustomizationPanelProps {
@@ -148,21 +147,17 @@ export const CheckoutCustomizationPanel = ({
           <span className="font-semibold text-sm capitalize">Editar {componentLabel}</span>
         </div>
 
-        {/* Área de Edição com Scroll Próprio */}
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
           {registryConfig ? (
-            // ✅ Editor Moderno (Registry)
             <registryConfig.editor 
               component={selectedComponent}
               onChange={(newContent: Partial<CheckoutComponentContent>) => onUpdateComponent(selectedComponent.id, newContent)}
               design={customization.design}
             />
           ) : (
-            // ⚠️ Editor Legado (Extraído para outro arquivo)
-            <LegacyComponentEditor 
-              component={selectedComponent}
-              onUpdate={onUpdateComponent}
-            />
+            <div className="text-muted-foreground text-sm">
+              Editor não disponível para este componente.
+            </div>
           )}
         </div>
 

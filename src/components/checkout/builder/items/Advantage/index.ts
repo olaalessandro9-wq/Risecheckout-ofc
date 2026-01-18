@@ -1,5 +1,6 @@
 import { BuilderComponentConfig } from "../../types";
 import { AdvantageView } from "./AdvantageView";
+import { AdvantageEditor } from "./AdvantageEditor";
 import { CheckCircle } from "lucide-react";
 
 export interface AdvantageContent {
@@ -17,7 +18,7 @@ export const AdvantageConfig: BuilderComponentConfig<AdvantageContent> = {
   label: "Vantagem",
   icon: CheckCircle,
   view: AdvantageView,
-  editor: () => null, // Editor será criado depois se necessário
+  editor: AdvantageEditor,
   defaults: {
     title: "Vantagem",
     description: "Descrição da vantagem",

@@ -205,7 +205,7 @@ Deno.serve(async (req) => {
         const passwordHash = hashPassword(password);
         await supabase
           .from("buyer_profiles")
-          .update({ password_hash: passwordHash, password_hash_version: 1, updated_at: new Date().toISOString() })
+          .update({ password_hash: passwordHash, password_hash_version: 2, updated_at: new Date().toISOString() })
           .eq("id", typedBuyer.id);
       }
 
