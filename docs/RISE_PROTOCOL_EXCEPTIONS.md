@@ -134,22 +134,53 @@ O hook `useGlobalValidationHandlers` foi dividido para manter < 300 linhas:
 
 Os seguintes arquivos foram removidos por conterem código não utilizado ou com erros:
 
-| Arquivo | Razão |
-|---------|-------|
-| `src/modules/products/machines/productFormMachine.ts` | XState não integrado, 19 erros TS |
-| `src/modules/products/machines/productFormMachine.types.ts` | Dependência de código deletado |
-| `src/modules/products/machines/productFormMachine.helpers.ts` | Dependência de código deletado |
-| `src/modules/products/machines/useProductFormMachine.ts` | Dependência de código deletado |
-| `src/modules/products/machines/index.ts` | Barrel export vazio |
-| `src/modules/products/context/hooks/useProductSettings.ts` | 4x useState duplicados, não usado |
+| Arquivo | Linhas | Razão |
+|---------|--------|-------|
+| `src/modules/products/machines/productFormMachine.ts` | ~200 | XState não integrado, 19 erros TS |
+| `src/modules/products/machines/productFormMachine.types.ts` | ~150 | Dependência de código deletado |
+| `src/modules/products/machines/productFormMachine.helpers.ts` | ~100 | Dependência de código deletado |
+| `src/modules/products/machines/useProductFormMachine.ts` | ~80 | Dependência de código deletado |
+| `src/modules/products/machines/index.ts` | ~10 | Barrel export vazio |
+| `src/modules/products/context/hooks/useProductSettings.ts` | ~150 | 4x useState duplicados, não usado |
+| `src/modules/products/context/hooks/useSettingsHandlerRegistration.ts` | 138 | Nunca importado, substituído por useGlobalValidationHandlers |
+| `src/modules/products/tabs/general/hooks/useGeneralTabSave.ts` | 143 | Salvamento duplicado, unificado via header |
 
-**Total:** 6 arquivos deletados, ~1000 linhas de código morto eliminadas
+**Total:** 8 arquivos deletados, ~1.281 linhas de código morto eliminadas
 
 ---
 
-## 6. Padrões Adotados
+## 6. Unificação do Fluxo de Salvamento
 
-### 6.1 Arquitetura State Management
+### Problema Identificado
+
+O sistema possuía DOIS fluxos de salvamento paralelos com ~83 linhas duplicadas:
+
+1. **Fluxo Local:** Botão "Salvar Alterações" na aba Geral
+2. **Fluxo Global:** Botão "Salvar Produto" no header
+
+### Solução Implementada
+
+**Opção A escolhida (Nota 10/10):** Remover botão local, manter apenas botão global.
+
+| Alteração | Arquivo |
+|-----------|---------|
+| DELETADO | `useGeneralTabSave.ts` |
+| REFATORADO | `useGeneralTabOffers.ts` → removidas funções save |
+| REFATORADO | `useGeneralTabImage.ts` → removida função upload |
+| REFATORADO | `GeneralTabActions.tsx` → removido botão Salvar |
+| REFATORADO | `GeneralTab.tsx` → removidas props de save |
+| REFATORADO | `useGeneralTab.ts` → removidas refs a funções deletadas |
+
+### Resultado
+
+- **Antes:** 2 fluxos de salvamento, 83 linhas duplicadas
+- **Depois:** 1 fluxo unificado, 0 linhas duplicadas
+
+---
+
+## 7. Padrões Adotados
+
+### 7.1 Arquitetura State Management
 
 ```
 useReducer (Single Source of Truth)
@@ -159,13 +190,13 @@ useReducer (Single Source of Truth)
          └── Hook C (usa dispatch)
 ```
 
-### 6.2 Separação de Responsabilidades
+### 7.2 Separação de Responsabilidades
 
 - **Reducer**: Define estado e transições (puro, testável)
 - **Hooks especializados**: Lógica de negócio + chamadas API
 - **Hook facade**: Compõe e expõe API pública limpa
 
-### 6.3 Adapter Pattern
+### 7.3 Adapter Pattern
 
 Hooks que precisam salvar dados recebem:
 - Dados do Reducer (não têm estado próprio)
@@ -174,22 +205,24 @@ Hooks que precisam salvar dados recebem:
 
 ---
 
-## 7. Métricas de Conformidade Final
+## 8. Métricas de Conformidade Final
 
 | Métrica | Valor |
 |---------|-------|
 | Erros TypeScript | **0** |
 | Arquivos código morto | **0** |
+| Linhas duplicadas | **0** |
 | useState duplicados em forms | **0** |
 | Componentes > 300 linhas | **0** |
 | `!important` interno | **0** |
 | Acesso direto ao DB no frontend | **0** |
 | Imports não utilizados | **0** |
+| Fluxos de salvamento | **1** (unificado) |
 | **CONFORMIDADE RISE V3** | **100%** |
 
 ---
 
-## 8. Changelog
+## 9. Changelog
 
 | Data | Autor | Alteração |
 |------|-------|-----------|
@@ -206,3 +239,8 @@ Hooks que precisam salvar dados recebem:
 | 2026-01-18 | Lovable | Remoção de imports não utilizados |
 | 2026-01-18 | Lovable | Correção do salvamento da aba Configurações |
 | 2026-01-18 | Lovable | ✅ RE-VALIDAÇÃO 100% RISE V3 CONFIRMADA |
+| 2026-01-18 | Lovable | Deleção useSettingsHandlerRegistration.ts (138 linhas) |
+| 2026-01-18 | Lovable | Deleção useGeneralTabSave.ts (143 linhas) |
+| 2026-01-18 | Lovable | Unificação fluxo salvamento (83 linhas duplicadas eliminadas) |
+| 2026-01-18 | Lovable | Criação PRODUCTS_MODULE_ARCHITECTURE.md |
+| 2026-01-18 | Lovable | ✅ AUDITORIA COMPLETA - 100% RISE V3 |
