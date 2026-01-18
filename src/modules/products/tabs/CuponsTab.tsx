@@ -103,7 +103,7 @@ export function CuponsTab() {
   const handleEditCoupon = async (coupon: Coupon) => {
     // Buscar dados completos do cupom via Edge Function
     try {
-      const { data, error } = await api.call<{ coupon?: Record<string, unknown>; error?: string }>('products-crud', {
+      const { data, error } = await api.call<{ coupon?: Record<string, unknown>; error?: string }>('coupon-read', {
         action: 'get-coupon',
         couponId: coupon.id,
       });

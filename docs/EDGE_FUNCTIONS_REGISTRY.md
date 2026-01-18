@@ -1,7 +1,7 @@
 # Rise Checkout - Edge Functions Registry
 
 > **🔴 FONTE DA VERDADE MÁXIMA** - Este documento lista TODAS as Edge Functions deployadas no Supabase.  
-> Última atualização: 2026-01-17 (RISE V3 Marketplace Separation)  
+> Última atualização: 2026-01-18 (RISE V3 products-crud Refactoring)  
 > Mantenedor: AI Assistant + User
 
 ---
@@ -10,8 +10,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 107 |
-| **No código local** | 107 |
+| **Total de Funções** | 110 |
+| **No código local** | 110 |
 | **Apenas deployadas** | 0 |
 | **Operações Diretas Frontend** | 0 ✅ |
 | **Funções com verify_jwt=true** | 0 ✅ |
@@ -149,7 +149,10 @@
 | `admin-data` | producer_sessions | false | unified-auth |
 | `dashboard-orders` | producer_sessions | false | unified-auth |
 | `product-entities` | producer_sessions | false | unified-auth |
-| `products-crud` | producer_sessions | false | LEGADO - avaliar remoção |
+| `products-crud` | producer_sessions | false | Core: list, get, get-settings, get-offers, get-checkouts (RISE V3) |
+| `producer-profile` | producer_sessions | false | get-profile, check-credentials, get-gateway-connections (RISE V3) |
+| `coupon-read` | producer_sessions | false | get-coupon (RISE V3) |
+| `content-library` | producer_sessions | false | get-video-library, get-webhook-logs (RISE V3) |
 | `vendor-integrations` | producer_sessions | false | unified-auth |
 | **Public Endpoints** | | | |
 | `affiliation-public` | public | false | Dados públicos de afiliação |
@@ -441,9 +444,14 @@
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-18 | **RISE V3 products-crud REFACTORING** - Dividida em 4 Edge Functions |
+| 2026-01-18 | Criada `producer-profile` (get-profile, check-credentials, get-gateway-connections) |
+| 2026-01-18 | Criada `coupon-read` (get-coupon) |
+| 2026-01-18 | Criada `content-library` (get-video-library, get-webhook-logs) |
+| 2026-01-18 | `products-crud` reduzida de 597 para 268 linhas |
 | 2026-01-18 | **RISE V3 MARKETPLACE SEPARATION** - Criada `marketplace-public` Edge Function |
 | 2026-01-18 | Separados endpoints públicos do marketplace de `products-crud` |
-| 2026-01-18 | `products-crud` agora contém apenas endpoints autenticados |
+| 2026-01-18 | `products-crud` agora contém apenas endpoints core autenticados |
 | 2026-01-17 | **RISE V3 AUTH STANDARDIZATION** - Padronização completa de autenticação |
 | 2026-01-17 | Migrado `get-users-with-emails` para unified-auth (v2.0.0) |
 | 2026-01-17 | Migrado `send-email` para unified-auth (v2.0.0) |

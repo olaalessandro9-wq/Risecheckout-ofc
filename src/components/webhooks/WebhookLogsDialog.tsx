@@ -74,7 +74,7 @@ export function WebhookLogsDialog({
     try {
       setLoading(true);
       
-      const { data, error } = await api.call<{ logs?: WebhookDelivery[]; error?: string }>("products-crud", {
+      const { data, error } = await api.call<{ logs?: WebhookDelivery[]; error?: string }>("content-library", {
         action: "get-webhook-logs",
         webhookId,
       });

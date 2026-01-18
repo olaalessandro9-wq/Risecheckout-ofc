@@ -21,6 +21,18 @@ project_id = "wivbtmtgpsxupfjwwovf"
 # =====================================================
 
 # Product Management
+[functions.products-crud]
+verify_jwt = false
+
+[functions.producer-profile]
+verify_jwt = false
+
+[functions.coupon-read]
+verify_jwt = false
+
+[functions.content-library]
+verify_jwt = false
+
 [functions.product-crud]
 verify_jwt = false
 

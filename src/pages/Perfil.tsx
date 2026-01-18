@@ -79,7 +79,7 @@ export default function Perfil() {
     queryFn: async () => {
       if (!user?.id) return null;
       
-      const { data, error } = await api.call<ProfileResponse>("products-crud", {
+      const { data, error } = await api.call<ProfileResponse>("producer-profile", {
         action: "get-profile",
       });
       
