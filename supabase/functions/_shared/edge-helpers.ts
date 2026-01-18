@@ -36,66 +36,17 @@ export function errorResponse(
 }
 
 // ============================================================================
-// Rate Limiting
+// Rate Limiting (Deprecated - use _shared/rate-limiting/ module)
 // ============================================================================
+// NOTE: Rate limiting has been consolidated into _shared/rate-limiting/
+// These exports are kept for backwards compatibility only.
+// New code should import directly from _shared/rate-limiting/index.ts
 
-export interface RateLimitConfig {
-  maxAttempts: number;
-  windowMs: number;
-  action: string;
-}
-
-export const DEFAULT_RATE_LIMIT: RateLimitConfig = {
-  maxAttempts: 30,
-  windowMs: 5 * 60 * 1000, // 5 minutos
-  action: "generic",
-};
-
-export const STRICT_RATE_LIMIT: RateLimitConfig = {
-  maxAttempts: 5,
-  windowMs: 5 * 60 * 1000, // 5 minutos
-  action: "strict_operation",
-};
-
-export async function checkRateLimit(
-  supabase: SupabaseClient,
-  producerId: string,
-  config: RateLimitConfig = DEFAULT_RATE_LIMIT
-): Promise<{ allowed: boolean; retryAfter?: number }> {
-  const windowStart = new Date(Date.now() - config.windowMs);
-
-  const { data: attempts, error } = await supabase
-    .from("rate_limit_attempts")
-    .select("id")
-    .eq("identifier", `producer:${producerId}`)
-    .eq("action", config.action)
-    .gte("created_at", windowStart.toISOString());
-
-  if (error) {
-    console.error(`[rate-limit] Check error for ${config.action}:`, error);
-    return { allowed: true }; // Fail open
-  }
-
-  const count = attempts?.length || 0;
-  if (count >= config.maxAttempts) {
-    return { allowed: false, retryAfter: Math.ceil(config.windowMs / 1000) };
-  }
-
-  return { allowed: true };
-}
-
-export async function recordRateLimitAttempt(
-  supabase: SupabaseClient,
-  producerId: string,
-  action: string
-): Promise<void> {
-  await supabase.from("rate_limit_attempts").insert({
-    identifier: `producer:${producerId}`,
-    action,
-    success: true,
-    created_at: new Date().toISOString(),
-  });
-}
+export {
+  checkRateLimit,
+  RATE_LIMIT_CONFIGS,
+  type RateLimitConfig,
+} from "./rate-limiting/index.ts";
 
 // ============================================================================
 // Session Validation (DEPRECATED - Use unified-auth.ts instead)
