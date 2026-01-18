@@ -10,8 +10,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 99 |
-| **No código local** | 99 |
+| **Total de Funções** | 106 |
+| **No código local** | 106 |
 | **Apenas deployadas** | 0 |
 | **Operações Diretas Frontend** | 0 ✅ |
 | **Funções com verify_jwt=true** | 0 ✅ |
@@ -145,6 +145,17 @@
 | `rpc-proxy` | producer_sessions | false | unified-auth |
 | `storage-management` | producer_sessions | false | unified-auth |
 | `pushinpay-stats` | producer_sessions | false | unified-auth |
+| **Dashboard & Data** | | | |
+| `admin-data` | producer_sessions | false | unified-auth |
+| `dashboard-orders` | producer_sessions | false | unified-auth |
+| `product-entities` | producer_sessions | false | unified-auth |
+| `products-crud` | producer_sessions | false | LEGADO - avaliar remoção |
+| `vendor-integrations` | producer_sessions | false | unified-auth |
+| **Public Endpoints** | | | |
+| `affiliation-public` | public | false | Dados públicos de afiliação |
+| `checkout-public-data` | public | false | Dados públicos do checkout |
+| **Internal/Migration** | | | |
+| `vault-migration` | internal | false | One-time migration |
 
 ---
 
@@ -366,6 +377,29 @@
 |------|-----|----------|------|
 | `rpc-proxy` | `.../rpc-proxy` | ✅ | producer_sessions |
 | `storage-management` | `.../storage-management` | ✅ | producer_sessions |
+
+### Dashboard & Data
+
+| Nome | URL | No Repo? | Auth |
+|------|-----|----------|------|
+| `admin-data` | `.../admin-data` | ✅ | producer_sessions |
+| `dashboard-orders` | `.../dashboard-orders` | ✅ | producer_sessions |
+| `product-entities` | `.../product-entities` | ✅ | producer_sessions |
+| `products-crud` | `.../products-crud` | ✅ | producer_sessions (LEGADO - avaliar remoção) |
+| `vendor-integrations` | `.../vendor-integrations` | ✅ | producer_sessions |
+
+### Public Endpoints
+
+| Nome | URL | No Repo? | Auth |
+|------|-----|----------|------|
+| `affiliation-public` | `.../affiliation-public` | ✅ | public |
+| `checkout-public-data` | `.../checkout-public-data` | ✅ | public |
+
+### Internal/Migration
+
+| Nome | URL | No Repo? | Auth |
+|------|-----|----------|------|
+| `vault-migration` | `.../vault-migration` | ✅ | internal (one-time migration) |
 
 ---
 
