@@ -62,8 +62,8 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
       try {
         const response = await fetch(`${SUPABASE_URL}/functions/v1/buyer-auth/validate`, {
           method: "POST",
+          credentials: "include", // Send httpOnly cookies
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionToken: token }),
         });
 
         const data = await response.json();
@@ -89,6 +89,7 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
     try {
       const response = await fetch(`${SUPABASE_URL}/functions/v1/buyer-auth/login`, {
         method: "POST",
+        credentials: "include", // CRITICAL: Receive httpOnly cookies
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
@@ -103,9 +104,9 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
         };
       }
 
-      // Store tokens using TokenManager
-      if (data.accessToken && data.refreshToken && data.expiresIn) {
-        buyerTokenManager.setTokens(data.accessToken, data.refreshToken, data.expiresIn);
+      // Mark as authenticated - tokens are in httpOnly cookies
+      if (data.expiresIn) {
+        buyerTokenManager.setAuthenticated(data.expiresIn);
       }
       
       if (data.buyer) {
@@ -114,7 +115,7 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
         queryClient.invalidateQueries({ queryKey: buyerQueryKeys.all });
       }
       
-      log.info("Login successful - tokens stored via TokenManager");
+      log.info("Login successful - tokens stored in httpOnly cookies");
       return { success: true };
     } catch (error: unknown) {
       log.error("Login error", error);
@@ -144,20 +145,18 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
   }, []);
 
   const logout = useCallback(async () => {
-    const token = buyerTokenManager.getAccessTokenSync();
-    if (token) {
-      try {
-        await fetch(`${SUPABASE_URL}/functions/v1/buyer-auth/logout`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionToken: token }),
-        });
-      } catch (error: unknown) {
-        log.error("Logout error", error);
-      }
+    // Logout - cookies are sent automatically
+    try {
+      await fetch(`${SUPABASE_URL}/functions/v1/buyer-auth/logout`, {
+        method: "POST",
+        credentials: "include", // Send httpOnly cookies for logout
+        headers: { "Content-Type": "application/json" },
+      });
+    } catch (error: unknown) {
+      log.error("Logout error", error);
     }
     
-    // Clear tokens via TokenManager
+    // Clear auth state
     buyerTokenManager.clearTokens();
     setBuyer(null);
     

@@ -5,6 +5,88 @@
 
 ---
 
+## [4.0.0] - 2026-01-18
+
+### 🔒 httpOnly Cookies - Proteção XSS
+
+Migração completa do armazenamento de tokens para **cookies httpOnly**, eliminando vulnerabilidades XSS.
+
+#### Funcionalidades
+
+| Feature | Descrição |
+|---------|-----------|
+| **httpOnly Cookies** | Tokens invisíveis ao JavaScript |
+| **Secure Flag** | Cookies enviados apenas via HTTPS |
+| **SameSite=None** | Suporte cross-origin com segurança |
+| **__Host- Prefix** | Proteção contra domain override |
+| **Partitioned (CHIPS)** | Isolamento em contexto third-party |
+| **Backward Compatibility** | Leitura de cookie OU header durante migração |
+
+#### Arquivos Modificados
+
+| Arquivo | Mudança |
+|---------|---------|
+| `_shared/cookie-helper.ts` | ✅ Criado - Helpers para cookies seguros |
+| `_shared/session-reader.ts` | ✅ Criado - Leitura híbrida (cookie/header) |
+| `_shared/cors.ts` | ✅ Adicionado `Access-Control-Allow-Credentials` |
+| `_shared/producer-auth-handlers.ts` | ✅ Set-Cookie no login |
+| `_shared/buyer-auth-handlers.ts` | ✅ Set-Cookie no login/logout |
+| `_shared/producer-auth-refresh-handler.ts` | ✅ Lê/escreve cookies |
+| `_shared/buyer-auth-refresh-handler.ts` | ✅ Lê/escreve cookies |
+| `src/lib/token-manager.ts` | ✅ Refatorado - gerencia estado, não tokens |
+| `src/hooks/useProducerAuth.ts` | ✅ credentials: 'include' |
+| `src/hooks/useBuyerAuth.ts` | ✅ credentials: 'include' |
+| `src/hooks/useProducerSession.ts` | ✅ credentials: 'include' |
+| `src/hooks/useBuyerSession.ts` | ✅ credentials: 'include' |
+
+#### Diagrama de Segurança
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    CAMADAS DE PROTEÇÃO                       │
+└─────────────────────────────────────────────────────────────┘
+
+1. httpOnly Flag
+   └─▶ JavaScript NÃO consegue ler document.cookie
+
+2. Secure Flag
+   └─▶ Cookie só é enviado via HTTPS
+
+3. SameSite=None + Partitioned
+   └─▶ Funciona cross-origin mas com isolamento
+
+4. __Host- Prefix
+   └─▶ Previne domain override attacks
+
+5. IP Binding (V2)
+   └─▶ Token inválido se IP mudar
+
+6. Refresh Token Rotation (V3)
+   └─▶ Detecta roubo de refresh token
+
+RESULTADO: XSS não consegue roubar tokens
+```
+
+#### Fluxo de Autenticação Atualizado
+
+```
+┌──────────┐    POST /login           ┌──────────┐
+│ Frontend │ ─────────────────────────▶│ Backend  │
+│          │  credentials: 'include'   └──────────┘
+└──────────┘                                │
+     │                                      │
+     │◀─────── Set-Cookie: httpOnly ────────┤
+     │         JSON { success, user }       │
+     ▼                                      
+┌────────────────┐                          
+│  Cookie Store  │  ◀── INVISÍVEL AO JS     
+│  __Host-access │                          
+│  __Host-refresh│                          
+└────────────────┘                          
+```
+
+---
+
 ## [3.0.0] - 2026-01-18
 
 ### 🔄 Rotação de Refresh Tokens com Detecção de Roubo

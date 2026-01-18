@@ -152,7 +152,8 @@ export async function handleRefresh(
         reason: "ip_mismatch",
         session_ip: session.ip_address,
         current_ip: currentIP,
-      }
+      },
+    });
     return errorResponse("Sessão invalidada por segurança", corsHeaders, 401);
   }
 

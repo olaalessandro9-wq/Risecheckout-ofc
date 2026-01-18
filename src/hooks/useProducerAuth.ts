@@ -97,6 +97,7 @@ export function useProducerAuth(): UseProducerAuthReturn {
     try {
       const response = await fetch(`${SUPABASE_URL}/functions/v1/producer-auth/login`, {
         method: "POST",
+        credentials: "include", // CRITICAL: Receive httpOnly cookies
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
@@ -111,9 +112,9 @@ export function useProducerAuth(): UseProducerAuthReturn {
         };
       }
 
-      // Store tokens using TokenManager
-      if (data.accessToken && data.refreshToken && data.expiresIn) {
-        producerTokenManager.setTokens(data.accessToken, data.refreshToken, data.expiresIn);
+      // Mark as authenticated - tokens are in httpOnly cookies
+      if (data.expiresIn) {
+        producerTokenManager.setAuthenticated(data.expiresIn);
       }
       
       if (data.producer) {
@@ -122,7 +123,7 @@ export function useProducerAuth(): UseProducerAuthReturn {
         queryClient.setQueryData(producerSessionQueryKey, { valid: true, producer: data.producer });
       }
 
-      log.info("Login successful - tokens stored via TokenManager");
+      log.info("Login successful - tokens stored in httpOnly cookies");
       return { success: true };
     } catch (error: unknown) {
       log.error("Login error", error);
@@ -163,22 +164,18 @@ export function useProducerAuth(): UseProducerAuthReturn {
   }, []);
 
   const logout = useCallback(async () => {
-    const token = producerTokenManager.getAccessTokenSync();
-    
-    // Logout from producer_sessions
-    if (token) {
-      try {
-        await fetch(`${SUPABASE_URL}/functions/v1/producer-auth/logout`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionToken: token }),
-        });
-      } catch (error: unknown) {
-        log.error("Logout error", error);
-      }
+    // Logout - cookies are sent automatically
+    try {
+      await fetch(`${SUPABASE_URL}/functions/v1/producer-auth/logout`, {
+        method: "POST",
+        credentials: "include", // Send httpOnly cookies for logout
+        headers: { "Content-Type": "application/json" },
+      });
+    } catch (error: unknown) {
+      log.error("Logout error", error);
     }
     
-    // Clear tokens via TokenManager
+    // Clear auth state
     producerTokenManager.clearTokens();
     setProducer(null);
 
@@ -220,8 +217,8 @@ export function useProducerAuth(): UseProducerAuthReturn {
     try {
       const response = await fetch(`${SUPABASE_URL}/functions/v1/producer-auth/validate`, {
         method: "POST",
+        credentials: "include", // Send httpOnly cookies
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionToken: token }),
       });
 
       const data = await response.json();

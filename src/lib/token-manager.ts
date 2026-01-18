@@ -1,14 +1,20 @@
 /**
- * Token Manager - Centralized token storage and refresh logic
+ * Token Manager - Centralized authentication state management
  * 
- * RISE Protocol V3: Single source of truth for token operations
+ * RISE Protocol V3: Single source of truth for authentication
+ * 
+ * ENHANCED V4: httpOnly Cookies
+ * - Tokens are now stored in httpOnly cookies (invisible to JS)
+ * - This class manages authentication STATE only
+ * - Actual tokens are sent/received via cookies automatically
+ * - XSS attacks can no longer steal tokens
  * 
  * Features:
  * - Automatic token refresh before expiration
  * - Prevents concurrent refresh calls
- * - Clears tokens on refresh failure
+ * - Clears state on refresh failure
  * - Type-safe for producer and buyer domains
- * - ENHANCED: Supports Refresh Token Rotation
+ * - Supports Refresh Token Rotation
  */
 
 import { SUPABASE_URL } from "@/config/supabase";
@@ -20,16 +26,8 @@ const log = createLogger("TokenManager");
 // TYPES
 // ============================================
 
-export interface TokenData {
-  accessToken: string;
-  refreshToken: string;
-  expiresAt: number; // timestamp in ms
-}
-
 interface RefreshResponse {
   success: boolean;
-  accessToken?: string;
-  refreshToken?: string; // NEW: Rotated refresh token
   expiresIn?: number;
   error?: string;
 }
@@ -40,16 +38,15 @@ type TokenType = "producer" | "buyer";
 // CONSTANTS
 // ============================================
 
-const STORAGE_KEYS = {
+// Local state keys (NOT tokens - just auth state)
+const STATE_KEYS = {
   producer: {
-    access: "producer_session_token",
-    refresh: "producer_refresh_token",
-    expiresAt: "producer_token_expires_at",
+    authenticated: "producer_authenticated",
+    expiresAt: "producer_auth_expires_at",
   },
   buyer: {
-    access: "buyer_session_token",
-    refresh: "buyer_refresh_token",
-    expiresAt: "buyer_token_expires_at",
+    authenticated: "buyer_authenticated",
+    expiresAt: "buyer_auth_expires_at",
   },
 } as const;
 
@@ -71,89 +68,96 @@ export class TokenManager {
   // ========== PUBLIC METHODS ==========
   
   /**
-   * Store tokens after login
+   * Mark as authenticated after login
+   * Tokens are stored in httpOnly cookies by the backend
    */
-  setTokens(accessToken: string, refreshToken: string, expiresIn: number): void {
-    const keys = STORAGE_KEYS[this.type];
+  setAuthenticated(expiresIn: number): void {
+    const keys = STATE_KEYS[this.type];
     const expiresAt = Date.now() + expiresIn * 1000;
     
     try {
-      localStorage.setItem(keys.access, accessToken);
-      localStorage.setItem(keys.refresh, refreshToken);
+      localStorage.setItem(keys.authenticated, "true");
       localStorage.setItem(keys.expiresAt, String(expiresAt));
-      log.info(`Tokens stored for ${this.type}`);
+      log.info(`Authenticated for ${this.type} (httpOnly cookies)`);
     } catch (error) {
-      log.error("Failed to store tokens", error);
+      log.error("Failed to store auth state", error);
     }
   }
   
   /**
-   * Get access token - automatically refreshes if needed
-   * Returns null if no valid token is available
+   * Legacy method for backward compatibility during migration
+   * Will be removed after full migration to cookies
+   */
+  setTokens(accessToken: string, refreshToken: string, expiresIn: number): void {
+    // During migration, we still mark as authenticated
+    // but tokens are also being set as httpOnly cookies by backend
+    this.setAuthenticated(expiresIn);
+    log.info(`Tokens received for ${this.type} - cookies will handle storage`);
+  }
+  
+  /**
+   * Check if authenticated - uses local state
+   * Actual token validation happens via httpOnly cookie on backend
    */
   async getValidAccessToken(): Promise<string | null> {
-    const keys = STORAGE_KEYS[this.type];
+    const keys = STATE_KEYS[this.type];
     
     try {
-      const accessToken = localStorage.getItem(keys.access);
+      const isAuthenticated = localStorage.getItem(keys.authenticated) === "true";
       const expiresAt = Number(localStorage.getItem(keys.expiresAt) || 0);
       
-      if (!accessToken) {
+      if (!isAuthenticated) {
         return null;
       }
       
-      // Check if token needs refresh (expired or about to expire)
+      // Check if we need to refresh (based on local expiry tracking)
       if (this.needsRefresh(expiresAt)) {
-        log.info(`Token expiring for ${this.type}, attempting refresh...`);
+        log.info(`Auth expiring for ${this.type}, attempting refresh...`);
         const refreshed = await this.refresh();
         
         if (!refreshed) {
-          log.warn(`Token refresh failed for ${this.type}`);
+          log.warn(`Auth refresh failed for ${this.type}`);
           return null;
         }
-        
-        // Return the new access token
-        return localStorage.getItem(keys.access);
       }
       
-      return accessToken;
+      // Return a marker that auth is valid - actual token is in cookie
+      return "cookie-authenticated";
     } catch (error) {
-      log.error("Error getting access token", error);
+      log.error("Error checking auth state", error);
       return null;
     }
   }
   
   /**
-   * Get access token synchronously (no refresh)
-   * Use this when you need immediate access without waiting for refresh
+   * Check if authenticated synchronously (no refresh)
    */
   getAccessTokenSync(): string | null {
-    const keys = STORAGE_KEYS[this.type];
+    const keys = STATE_KEYS[this.type];
     try {
-      return localStorage.getItem(keys.access);
+      const isAuthenticated = localStorage.getItem(keys.authenticated) === "true";
+      return isAuthenticated ? "cookie-authenticated" : null;
     } catch {
       return null;
     }
   }
   
   /**
-   * Check if a valid access token exists (without refreshing)
+   * Check if authenticated without checking expiry
    */
   hasValidToken(): boolean {
-    const keys = STORAGE_KEYS[this.type];
+    const keys = STATE_KEYS[this.type];
     try {
-      const accessToken = localStorage.getItem(keys.access);
+      const isAuthenticated = localStorage.getItem(keys.authenticated) === "true";
       const expiresAt = Number(localStorage.getItem(keys.expiresAt) || 0);
-      return !!accessToken && Date.now() < expiresAt;
+      return isAuthenticated && Date.now() < expiresAt;
     } catch {
       return false;
     }
   }
   
   /**
-   * Refresh tokens using the refresh token
-   * Returns true if successful, false otherwise
-   * ENHANCED: Now handles refresh token rotation
+   * Refresh authentication using httpOnly refresh cookie
    */
   async refresh(): Promise<boolean> {
     // Prevent concurrent refresh calls
@@ -168,17 +172,16 @@ export class TokenManager {
   }
   
   /**
-   * Clear all tokens (on logout)
+   * Clear authentication state (on logout)
    */
   clearTokens(): void {
-    const keys = STORAGE_KEYS[this.type];
+    const keys = STATE_KEYS[this.type];
     try {
-      localStorage.removeItem(keys.access);
-      localStorage.removeItem(keys.refresh);
+      localStorage.removeItem(keys.authenticated);
       localStorage.removeItem(keys.expiresAt);
-      log.info(`Tokens cleared for ${this.type}`);
+      log.info(`Auth state cleared for ${this.type}`);
     } catch (error) {
-      log.error("Failed to clear tokens", error);
+      log.error("Failed to clear auth state", error);
     }
   }
   
@@ -189,11 +192,11 @@ export class TokenManager {
   }
   
   private async doRefresh(): Promise<boolean> {
-    const keys = STORAGE_KEYS[this.type];
-    const refreshToken = localStorage.getItem(keys.refresh);
+    const keys = STATE_KEYS[this.type];
+    const isAuthenticated = localStorage.getItem(keys.authenticated) === "true";
     
-    if (!refreshToken) {
-      log.warn(`No refresh token available for ${this.type}`);
+    if (!isAuthenticated) {
+      log.warn(`Not authenticated for ${this.type}`);
       this.clearTokens();
       return false;
     }
@@ -205,28 +208,22 @@ export class TokenManager {
         
       const response = await fetch(`${SUPABASE_URL}${endpoint}`, {
         method: "POST",
+        credentials: "include", // CRITICAL: Send/receive httpOnly cookies
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken }),
       });
       
       const data: RefreshResponse = await response.json();
       
-      if (data.success && data.accessToken && data.expiresIn) {
+      if (data.success && data.expiresIn) {
         const expiresAt = Date.now() + data.expiresIn * 1000;
-        localStorage.setItem(keys.access, data.accessToken);
+        localStorage.setItem(keys.authenticated, "true");
         localStorage.setItem(keys.expiresAt, String(expiresAt));
         
-        // ROTATION: Store new refresh token if received
-        if (data.refreshToken) {
-          localStorage.setItem(keys.refresh, data.refreshToken);
-          log.info(`Refresh token rotated for ${this.type}`);
-        }
-        
-        log.info(`Token refreshed successfully for ${this.type}`);
+        log.info(`Auth refreshed for ${this.type} (via httpOnly cookies)`);
         return true;
       }
       
-      // Refresh failed - clear all tokens
+      // Refresh failed - clear state
       log.warn(`Refresh response invalid for ${this.type}: ${data.error}`);
       this.clearTokens();
       return false;
