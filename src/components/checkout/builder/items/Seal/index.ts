@@ -1,5 +1,6 @@
 import { BuilderComponentConfig } from "../../types";
 import { SealView } from "./SealView";
+import { SealEditor } from "./SealEditor";
 import { Award } from "lucide-react";
 
 export interface SealContent {
@@ -16,7 +17,7 @@ export const SealConfig: BuilderComponentConfig<SealContent> = {
   label: "Selo",
   icon: Award,
   view: SealView,
-  editor: () => null, // Editor será criado depois se necessário
+  editor: SealEditor,
   defaults: {
     topText: "7",
     title: "Privacidade",

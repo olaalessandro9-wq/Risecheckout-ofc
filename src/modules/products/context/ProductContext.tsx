@@ -39,7 +39,6 @@ import {
   createSaveAll,
 } from "./helpers";
 import { createContextValue } from "./helpers/createContextValue";
-import { createLegacyCallbacks } from "./helpers/legacyCallbacks";
 
 // ============================================================================
 // CONTEXT TYPE ESTENDIDO

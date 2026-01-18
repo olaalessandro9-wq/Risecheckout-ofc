@@ -7,9 +7,8 @@
 // ============================================
 // HASH CONSTANTS
 // ============================================
-export const HASH_VERSION_SHA256 = 1;
-export const HASH_VERSION_BCRYPT = 2;
-export const CURRENT_HASH_VERSION = HASH_VERSION_BCRYPT;
+// RISE V3: SHA-256 legacy eliminado - apenas bcrypt
+export const CURRENT_HASH_VERSION = 2;
 export const BCRYPT_COST = 10;
 
 // ============================================
