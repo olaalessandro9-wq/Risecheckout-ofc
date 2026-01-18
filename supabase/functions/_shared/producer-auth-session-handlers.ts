@@ -65,8 +65,13 @@ export async function handleLogout(
 }
 
 // ============================================
-// VALIDATE HANDLER
+// VALIDATE HANDLER (PHASE 1: Strict Session Blocking)
 // ============================================
+
+interface SessionWithSecurityInfo extends SessionWithProducerResult {
+  ip_address: string | null;
+  user_agent: string | null;
+}
 
 export async function handleValidate(
   supabase: SupabaseClient,
@@ -74,16 +79,19 @@ export async function handleValidate(
   corsHeaders: Record<string, string>
 ): Promise<Response> {
   const { sessionToken } = await req.json();
+  const currentIP = getClientIP(req);
+  const currentUA = req.headers.get("user-agent");
 
   if (!sessionToken) {
     return jsonResponse({ valid: false }, corsHeaders);
   }
 
+  // RISE V3: Fetch session WITH ip_address and user_agent for strict binding
   const { data: session } = await supabase
     .from("producer_sessions")
-    .select(`id, expires_at, is_valid, producer:producer_id (id, email, name, is_active)`)
+    .select(`id, expires_at, is_valid, ip_address, user_agent, producer:producer_id (id, email, name, is_active)`)
     .eq("session_token", sessionToken)
-    .single() as { data: SessionWithProducerResult | null; error: unknown };
+    .single() as { data: SessionWithSecurityInfo | null; error: unknown };
 
   if (!session || !session.is_valid || !session.producer) {
     return jsonResponse({ valid: false }, corsHeaders);
@@ -95,11 +103,35 @@ export async function handleValidate(
     return jsonResponse({ valid: false }, corsHeaders);
   }
 
+  // Check session expiration
   if (new Date(session.expires_at) < new Date()) {
     await supabase.from("producer_sessions").update({ is_valid: false }).eq("id", session.id);
     return jsonResponse({ valid: false }, corsHeaders);
   }
 
+  // PHASE 1: Strict Session Blocking - Invalidate if IP changes
+  if (session.ip_address && session.ip_address !== currentIP) {
+    console.warn(`[producer-auth] Session hijack attempt blocked - IP mismatch. Session IP: ${session.ip_address}, Current IP: ${currentIP}`);
+    await supabase.from("producer_sessions").update({ is_valid: false }).eq("id", session.id);
+    await logAuditEvent(supabase, producerData.id, "SESSION_HIJACK_BLOCKED", false, currentIP, currentUA, {
+      reason: "ip_mismatch",
+      session_ip: session.ip_address,
+      current_ip: currentIP,
+    });
+    return jsonResponse({ valid: false, reason: "session_invalidated" }, corsHeaders);
+  }
+
+  // PHASE 1: Strict Session Blocking - Invalidate if User-Agent changes
+  if (session.user_agent && currentUA && session.user_agent !== currentUA) {
+    console.warn(`[producer-auth] Session hijack attempt blocked - UA mismatch for producer: ${producerData.id}`);
+    await supabase.from("producer_sessions").update({ is_valid: false }).eq("id", session.id);
+    await logAuditEvent(supabase, producerData.id, "SESSION_HIJACK_BLOCKED", false, currentIP, currentUA, {
+      reason: "user_agent_mismatch",
+    });
+    return jsonResponse({ valid: false, reason: "session_invalidated" }, corsHeaders);
+  }
+
+  // Update last activity
   await supabase.from("producer_sessions").update({ last_activity_at: new Date().toISOString() }).eq("id", session.id);
 
   // Fetch user role

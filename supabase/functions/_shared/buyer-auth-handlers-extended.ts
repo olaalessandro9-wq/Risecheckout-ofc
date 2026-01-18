@@ -29,27 +29,41 @@ import { hashPassword, generateResetToken, jsonResponse } from "./buyer-auth-pas
 import { generateResetEmailHtml, generateResetEmailText } from "./buyer-auth-email-templates.ts";
 
 // ============================================
-// VALIDATE HANDLER
+// VALIDATE HANDLER (PHASE 1: Strict Session Blocking)
 // ============================================
+
+interface BuyerSessionWithSecurity {
+  id: string;
+  expires_at: string;
+  is_valid: boolean;
+  ip_address: string | null;
+  user_agent: string | null;
+  buyer: { id: string; email: string; name: string | null; is_active: boolean } | 
+         { id: string; email: string; name: string | null; is_active: boolean }[];
+}
+
 export async function handleValidate(
   supabase: SupabaseClient,
   req: Request,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
   const { sessionToken } = await req.json();
+  const currentIP = getClientIP(req);
+  const currentUA = req.headers.get("user-agent");
 
   if (!sessionToken) {
     return jsonResponse({ valid: false }, corsHeaders, 200);
   }
 
+  // RISE V3: Fetch session WITH ip_address and user_agent for strict binding
   const { data: session } = await supabase
     .from("buyer_sessions")
     .select(`
-      id, expires_at, is_valid,
+      id, expires_at, is_valid, ip_address, user_agent,
       buyer:buyer_id (id, email, name, is_active)
     `)
     .eq("session_token", sessionToken)
-    .single();
+    .single() as { data: BuyerSessionWithSecurity | null; error: unknown };
 
   if (!session || !session.is_valid || !session.buyer) {
     return jsonResponse({ valid: false }, corsHeaders, 200);
@@ -61,11 +75,47 @@ export async function handleValidate(
     return jsonResponse({ valid: false }, corsHeaders, 200);
   }
 
+  // Check session expiration
   if (new Date(session.expires_at) < new Date()) {
     await supabase.from("buyer_sessions").update({ is_valid: false }).eq("id", session.id);
     return jsonResponse({ valid: false }, corsHeaders, 200);
   }
 
+  // PHASE 1: Strict Session Blocking - Invalidate if IP changes
+  if (session.ip_address && session.ip_address !== currentIP) {
+    console.warn(`[buyer-auth] Session hijack attempt blocked - IP mismatch. Session IP: ${session.ip_address}, Current IP: ${currentIP}`);
+    await supabase.from("buyer_sessions").update({ is_valid: false }).eq("id", session.id);
+    await logSecurityEvent(supabase, {
+      userId: buyerData.id,
+      action: SecurityAction.LOGIN_FAILED,
+      resource: "buyer_auth_session_hijack",
+      success: false,
+      request: req,
+      metadata: { 
+        reason: "ip_mismatch",
+        session_ip: session.ip_address,
+        current_ip: currentIP,
+      }
+    });
+    return jsonResponse({ valid: false, reason: "session_invalidated" }, corsHeaders, 200);
+  }
+
+  // PHASE 1: Strict Session Blocking - Invalidate if User-Agent changes
+  if (session.user_agent && currentUA && session.user_agent !== currentUA) {
+    console.warn(`[buyer-auth] Session hijack attempt blocked - UA mismatch for buyer: ${buyerData.id}`);
+    await supabase.from("buyer_sessions").update({ is_valid: false }).eq("id", session.id);
+    await logSecurityEvent(supabase, {
+      userId: buyerData.id,
+      action: SecurityAction.LOGIN_FAILED,
+      resource: "buyer_auth_session_hijack",
+      success: false,
+      request: req,
+      metadata: { reason: "user_agent_mismatch" }
+    });
+    return jsonResponse({ valid: false, reason: "session_invalidated" }, corsHeaders, 200);
+  }
+
+  // Update last activity
   await supabase.from("buyer_sessions")
     .update({ last_activity_at: new Date().toISOString() })
     .eq("id", session.id);

@@ -22,6 +22,12 @@ export interface ApiResponse<T = unknown> {
 }
 
 // ============================================
+// ACCOUNT STATUS ENUM (PHASE 2)
+// ============================================
+
+export type AccountStatusType = "active" | "pending_setup" | "reset_required" | "owner_no_password";
+
+// ============================================
 // PRODUCER TYPES
 // ============================================
 
@@ -32,6 +38,7 @@ export interface ProducerProfile {
   password_hash: string | null;
   password_hash_version: number | null;
   is_active: boolean;
+  account_status?: AccountStatusType;
   last_login_at?: string | null;
   reset_token?: string | null;
   reset_token_expires_at?: string | null;
@@ -71,6 +78,7 @@ export interface BuyerProfile {
   password_hash: string;
   password_hash_version: number | null;
   is_active: boolean;
+  account_status?: AccountStatusType;
   phone?: string | null;
   last_login_at?: string | null;
   reset_token?: string | null;
