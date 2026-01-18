@@ -56,15 +56,6 @@ export default function Marketplace() {
     }
   };
 
-  // Promover produto
-  const handlePromote = (productId: string) => {
-    const product = products.find((p) => p.id === productId);
-    if (product) {
-      setSelectedProduct(product);
-      setDetailsOpen(true);
-      trackClick(productId);
-    }
-  };
 
   // Buscar
   const handleSearch = () => {
@@ -181,7 +172,6 @@ export default function Marketplace() {
           hasMore={hasMore}
           onLoadMore={loadMore}
           onViewDetails={handleViewDetails}
-          onPromote={handlePromote}
         />
 
         {/* Modal de Detalhes */}
