@@ -32,19 +32,14 @@ async function invokeQuizzesFunction<T>(
   payload: object
 ): Promise<ServiceResponse<T>> {
   try {
-    const token = getProducerSessionToken();
-
-    if (!token) {
-      return { data: null, error: 'Not authenticated' };
-    }
-
+    // RISE V3: Autenticação via cookies httpOnly (credentials: include)
     const response = await fetch(`${SUPABASE_URL}/functions/v1/${FUNCTION_NAME}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Producer-Session-Token': token,
       },
       body: JSON.stringify({ action, ...payload }),
+      credentials: 'include',
     });
 
     const data = await response.json();

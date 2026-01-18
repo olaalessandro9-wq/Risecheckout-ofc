@@ -18,6 +18,7 @@ import {
   RATE_LIMIT_CONFIGS,
   getClientIP 
 } from "../_shared/rate-limiting/index.ts";
+import { getBuyerAccessToken } from "../_shared/session-reader.ts";
 
 // ============================================
 // INTERFACES
@@ -187,8 +188,8 @@ serve(async (req) => {
     const pathParts = url.pathname.split("/").filter(Boolean);
     const action = pathParts[pathParts.length - 1];
 
-    // Get session token from header
-    const sessionToken = req.headers.get("x-buyer-session");
+    // RISE V3: Read token ONLY from httpOnly cookie (zero legacy code)
+    const sessionToken = getBuyerAccessToken(req);
     const buyer = await validateSession(supabase, sessionToken);
 
     if (!buyer) {

@@ -18,18 +18,14 @@ import { getAccessToken, getRefreshToken, type CookieDomain } from "./cookie-hel
 // ============================================
 
 /**
- * Gets producer access token from cookie or header.
+ * Gets producer access token from httpOnly cookie.
+ * RISE V3: Zero legacy code - cookies only.
  * 
  * @param req - Request object
  * @returns Access token or null
  */
 export function getProducerAccessToken(req: Request): string | null {
-  // Priority 1: Cookie (new httpOnly method)
-  const cookieToken = getAccessToken(req, "producer");
-  if (cookieToken) return cookieToken;
-  
-  // Priority 2: Header (legacy fallback)
-  return req.headers.get("X-Producer-Session-Token");
+  return getAccessToken(req, "producer");
 }
 
 /**
@@ -43,18 +39,14 @@ export function getProducerRefreshToken(req: Request): string | null {
 }
 
 /**
- * Gets buyer access token from cookie or header.
+ * Gets buyer access token from httpOnly cookie.
+ * RISE V3: Zero legacy code - cookies only.
  * 
  * @param req - Request object
  * @returns Access token or null
  */
 export function getBuyerAccessToken(req: Request): string | null {
-  // Priority 1: Cookie (new httpOnly method)
-  const cookieToken = getAccessToken(req, "buyer");
-  if (cookieToken) return cookieToken;
-  
-  // Priority 2: Header (legacy fallback)
-  return req.headers.get("X-Buyer-Session-Token") || req.headers.get("X-Buyer-Session");
+  return getAccessToken(req, "buyer");
 }
 
 /**

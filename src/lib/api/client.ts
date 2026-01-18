@@ -98,13 +98,8 @@ async function call<T>(
     ...customHeaders,
   };
   
-  // Add auth header if not public (with auto-refresh via TokenManager)
-  if (!isPublic) {
-    const token = await getSessionToken();
-    if (token) {
-      headers["X-Producer-Session-Token"] = token;
-    }
-  }
+  // RISE V3: Cookies httpOnly - não precisa mais adicionar header
+  // O browser envia automaticamente com credentials: include
   
   try {
     const url = `${SUPABASE_URL}/functions/v1/${functionName}`;
@@ -114,6 +109,7 @@ async function call<T>(
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: controller.signal,
+      credentials: 'include',
     });
     
     clearTimeout(timeoutId);

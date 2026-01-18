@@ -83,20 +83,18 @@ interface ProductContent {
 const STALE_TIME = 5 * 60 * 1000; // 5 minutos
 const CACHE_TIME = 10 * 60 * 1000; // 10 minutos
 
-// Headers helper
-const getHeaders = () => {
-  const token = getBuyerSessionToken();
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { "x-buyer-session": token } : {}),
-  };
-};
+// RISE V3: Headers simples - cookies httpOnly são enviados automaticamente
+const getHeaders = () => ({
+  "Content-Type": "application/json",
+});
 
 // Fetch functions separadas para React Query
 async function fetchBuyerOrders(): Promise<BuyerOrder[]> {
+  // RISE V3: credentials: include envia cookies httpOnly automaticamente
   const response = await fetch(`${SUPABASE_URL}/functions/v1/buyer-orders/orders`, {
     method: "GET",
     headers: getHeaders(),
+    credentials: 'include',
   });
 
   const data = await response.json();
@@ -109,9 +107,11 @@ async function fetchBuyerOrders(): Promise<BuyerOrder[]> {
 }
 
 async function fetchBuyerAccess(): Promise<BuyerAccess[]> {
+  // RISE V3: credentials: include envia cookies httpOnly automaticamente
   const response = await fetch(`${SUPABASE_URL}/functions/v1/buyer-orders/access`, {
     method: "GET",
     headers: getHeaders(),
+    credentials: 'include',
   });
 
   const data = await response.json();
@@ -124,11 +124,13 @@ async function fetchBuyerAccess(): Promise<BuyerAccess[]> {
 }
 
 async function fetchBuyerProductContent(productId: string): Promise<ProductContent | null> {
+  // RISE V3: credentials: include envia cookies httpOnly automaticamente
   const response = await fetch(
     `${SUPABASE_URL}/functions/v1/buyer-orders/content?productId=${productId}`,
     {
       method: "GET",
       headers: getHeaders(),
+      credentials: 'include',
     }
   );
 

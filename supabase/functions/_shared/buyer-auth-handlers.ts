@@ -274,18 +274,8 @@ export async function handleLogout(
   req: Request,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  // Try to get token from cookie first, then body
-  let sessionToken = getAccessToken(req, "buyer");
-  
-  // Fallback: try to read from body (legacy)
-  if (!sessionToken) {
-    try {
-      const body = await req.json();
-      sessionToken = body.sessionToken;
-    } catch {
-      // No body provided
-    }
-  }
+  // RISE V3: Read token ONLY from httpOnly cookie (zero legacy code)
+  const sessionToken = getAccessToken(req, "buyer");
 
   if (sessionToken) {
     const { data: session } = await supabase

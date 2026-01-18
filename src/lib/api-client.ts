@@ -32,16 +32,11 @@ export async function apiCall(
   url: string,
   options: RequestInit = {}
 ): Promise<Response> {
-  const token = getProducerSessionToken();
-  
   const headers = new Headers(options.headers);
   headers.set("Content-Type", "application/json");
   
-  if (token) {
-    headers.set("X-Producer-Session-Token", token);
-  }
-  
-  return fetch(url, { ...options, headers });
+  // RISE V3: Cookies httpOnly - credentials: include faz o browser enviar automaticamente
+  return fetch(url, { ...options, headers, credentials: 'include' });
 }
 
 /**
@@ -55,18 +50,17 @@ export async function invokeEdgeFunction<T = unknown>(
   functionName: string,
   body?: object
 ): Promise<{ data: T | null; error: string | null }> {
-  const token = getProducerSessionToken();
-  
   try {
+    // RISE V3: Cookies httpOnly - credentials: include faz o browser enviar automaticamente
     const response = await fetch(
       `${SUPABASE_URL}/functions/v1/${functionName}`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { "X-Producer-Session-Token": token } : {}),
         },
         body: body ? JSON.stringify(body) : undefined,
+        credentials: 'include',
       }
     );
 

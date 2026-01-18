@@ -30,19 +30,16 @@ async function invokeGroupsFunction<T>(
   payload: object
 ): Promise<ServiceResponse<T>> {
   try {
-    const token = getProducerSessionToken();
+    // RISE V3: Autenticação via cookies httpOnly (credentials: include)
 
-    if (!token) {
-      return { data: null, error: 'Not authenticated' };
-    }
-
+    // RISE V3: credentials: include envia cookies httpOnly automaticamente
     const response = await fetch(`${SUPABASE_URL}/functions/v1/${FUNCTION_NAME}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Producer-Session-Token': token,
       },
       body: JSON.stringify({ action, ...payload }),
+      credentials: 'include',
     });
 
     // Parse response robustly
