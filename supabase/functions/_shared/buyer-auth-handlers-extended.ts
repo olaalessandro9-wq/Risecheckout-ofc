@@ -27,6 +27,7 @@ import { sendEmail } from "./zeptomail.ts";
 import { CURRENT_HASH_VERSION, RESET_TOKEN_EXPIRY_HOURS } from "./buyer-auth-types.ts";
 import { hashPassword, generateResetToken, jsonResponse } from "./buyer-auth-password.ts";
 import { generateResetEmailHtml, generateResetEmailText } from "./buyer-auth-email-templates.ts";
+import { getAccessToken } from "./cookie-helper.ts";
 
 // ============================================
 // VALIDATE HANDLER (PHASE 1: Strict Session Blocking)
@@ -47,9 +48,20 @@ export async function handleValidate(
   req: Request,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  const { sessionToken } = await req.json();
   const currentIP = getClientIP(req);
   const currentUA = req.headers.get("user-agent");
+
+  // RISE V3: Read token from httpOnly cookie first, fallback to body for legacy
+  let sessionToken = getAccessToken(req, "buyer");
+  
+  if (!sessionToken) {
+    try {
+      const body = await req.json();
+      sessionToken = body.sessionToken;
+    } catch {
+      // No body provided - that's fine if cookie was present
+    }
+  }
 
   if (!sessionToken) {
     return jsonResponse({ valid: false }, corsHeaders, 200);
