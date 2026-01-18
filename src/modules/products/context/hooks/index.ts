@@ -1,5 +1,9 @@
 /**
  * Re-exportação dos hooks especializados do ProductContext
+ * 
+ * NOTA: useSettingsHandlerRegistration foi DELETADO
+ * Motivo: Código morto - nunca importado/usado, substituído por useGlobalValidationHandlers
+ * Data: 2026-01-18
  */
 
 export { useProductCore } from "./useProductCore";
@@ -8,9 +12,6 @@ export { useProductCheckouts } from "./useProductCheckouts";
 
 // Adapter puro (zero useState) - renomeado para uso geral
 export { useProductSettings } from "./useProductSettingsAdapter";
-
-// Save Registry Pattern - Registro de handlers
-export { useSettingsHandlerRegistration } from "./useSettingsHandlerRegistration";
 
 // Global Validation Handlers - TODOS os handlers de validação centralizados
 export { useGlobalValidationHandlers } from "./useGlobalValidationHandlers";

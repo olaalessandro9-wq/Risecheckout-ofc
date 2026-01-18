@@ -1,12 +1,13 @@
 /**
  * GeneralTab - Aba Geral (Arquitetura Modular)
  * 
- * Refatorado seguindo RISE ARCHITECT PROTOCOL:
+ * Refatorado seguindo RISE ARCHITECT PROTOCOL V3:
  * - De 525 linhas para ~60 linhas (-88%)
  * - Hook useGeneralTab com toda a lógica
  * - Sub-componentes focados (Single Responsibility)
  * - Zero prop drilling via hook
  * - Detecção automática de mudanças
+ * - Salvamento unificado via botão global "Salvar Produto" (header)
  */
 
 import { useConfirmDelete } from "@/components/common/ConfirmDelete";
@@ -31,12 +32,9 @@ export function GeneralTab() {
     clearError,
     image,
     localOffers,
-    hasChanges,
-    isSaving,
     isDeleting,
     memberGroups,
     hasMembersArea,
-    handleSave,
     handleDelete,
     handleImageFileChange,
     handleImageUrlChange,
@@ -112,10 +110,7 @@ export function GeneralTab() {
         />
 
         <GeneralTabActions
-          hasChanges={hasChanges}
-          isSaving={isSaving}
           isDeleting={isDeleting}
-          onSave={handleSave}
           onDelete={onDeleteClick}
         />
       </div>

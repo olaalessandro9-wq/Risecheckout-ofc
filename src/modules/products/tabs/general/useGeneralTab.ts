@@ -1,40 +1,39 @@
 /**
- * useGeneralTab - Hook Orquestrador (Refatorado para Reducer Pattern)
+ * useGeneralTab - Hook Orquestrador (View Only)
  * 
  * Refatorado seguindo RISE ARCHITECT PROTOCOL V3:
  * - Estado de formulário centralizado no ProductContext via Reducer
  * - Tabs são Pure Views - consomem estado do Context
  * - Zero estado local de formulário
  * - Single Source of Truth
- * - Registra save handler via Registry Pattern
+ * - Salvamento unificado via botão global "Salvar Produto" (useGlobalValidationHandlers)
  * 
- * @see RISE ARCHITECT PROTOCOL V3 - Arquitetura de Form State Centralizado
+ * NOTA: useGeneralTabSave foi DELETADO - salvamento unificado no header
+ * 
+ * @see RISE ARCHITECT PROTOCOL V3 - Zero Duplicação
  */
 
-import { useMemo, useLayoutEffect, useCallback } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useMemo, useLayoutEffect, useCallback, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useProductContext } from "../../context/ProductContext";
 import {
   useGeneralTabImage,
   useGeneralTabOffers,
   useGeneralTabMemberGroups,
-  useGeneralTabSave,
 } from "./hooks";
 import type { GeneralFormData, GeneralFormErrors } from "./types";
 
 export function useGeneralTab() {
-  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [isDeleting, setIsDeleting] = useState(false);
+  
   const {
     product,
-    refreshOffers,
-    refreshProduct,
-    refreshPaymentLinks,
     deleteProduct,
     updateGeneralModified,
     formState,
     dispatchForm,
     formErrors,
-    validateGeneralForm,
   } = useProductContext();
 
   // Form state vem do Context (reducer) - NÃO do useState local
@@ -69,21 +68,15 @@ export function useGeneralTab() {
     });
   }, [dispatchForm]);
 
-  // Image handling - ainda usa estado local (não é formulário)
+  // Image handling - view only (salvamento via useGlobalValidationHandlers)
   const {
     image,
     handleImageFileChange,
     handleImageUrlChange,
     handleRemoveImage,
-    uploadImage,
-    resetImage,
-  } = useGeneralTabImage({
-    userId: user?.id,
-    productId: product?.id,
-    currentImageUrl: product?.image_url,
-  });
+  } = useGeneralTabImage();
 
-  // Offers handling - agora consome do reducer via ProductContext
+  // Offers handling - view only (salvamento via useGlobalValidationHandlers)
   const {
     localOffers,
     offersModified,
@@ -91,12 +84,7 @@ export function useGeneralTab() {
     handleOffersChange,
     handleOffersModifiedChange,
     handleOfferDeleted,
-    saveDeletedOffers,
-    saveOffers,
-    resetOffers,
-  } = useGeneralTabOffers({
-    productId: product?.id,
-  });
+  } = useGeneralTabOffers();
 
   // Member groups
   const { memberGroups, hasMembersArea } = useGeneralTabMemberGroups({
@@ -132,33 +120,19 @@ export function useGeneralTab() {
     updateGeneralModified(hasChanges);
   }, [hasChanges, updateGeneralModified]);
 
-  // Validate wrapper
-  const validate = useCallback((): boolean => {
-    return validateGeneralForm();
-  }, [validateGeneralForm]);
-
-  // Save and delete
-  const { isSaving, isDeleting, handleSave, handleDelete } = useGeneralTabSave({
-    productId: product?.id,
-    form,
-    validate,
-    uploadImage,
-    imageFile: image.imageFile,
-    pendingRemoval: image.pendingRemoval,
-    currentImageUrl: product?.image_url,
-    saveDeletedOffers,
-    saveOffers,
-    resetImage,
-    resetOffers,
-    refreshProduct,
-    refreshOffers,
-    refreshPaymentLinks,
-    deleteProduct,
-  });
-
-  // NOTA: O handler de save registry foi movido para useGlobalValidationHandlers
-  // no ProductContext para garantir que a validação funcione independente
-  // de qual aba está ativa. Este hook agora é apenas uma Pure View.
+  // Delete handler - único handler local mantido
+  const handleDelete = useCallback(async () => {
+    setIsDeleting(true);
+    try {
+      const success = await deleteProduct();
+      if (!success) {
+        throw new Error("Falha ao excluir produto");
+      }
+      navigate("/dashboard/produtos");
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [deleteProduct, navigate]);
 
   return {
     // State
@@ -170,13 +144,11 @@ export function useGeneralTab() {
     image,
     localOffers,
     hasChanges,
-    isSaving,
     isDeleting,
     memberGroups,
     hasMembersArea,
 
     // Handlers
-    handleSave,
     handleDelete,
     handleImageFileChange,
     handleImageUrlChange,
