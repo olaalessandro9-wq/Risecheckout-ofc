@@ -114,25 +114,39 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     productId,
     userId: user?.id,
     onUnsavedChange: legacyCallbacks.markCoreUnsaved,
-    onUpsellSettingsLoaded: (settings: UpsellSettings) => formDispatch(formActions.updateUpsell(settings)),
-    onAffiliateSettingsLoaded: (settings: AffiliateSettings | null) => {
-      if (settings) formDispatch(formActions.updateAffiliate(settings));
-    },
   });
 
   const entities = useProductEntities({ productId });
   const checkoutsHook = useProductCheckouts({ productId });
 
+  // ✅ SOLUÇÃO C: Usa settings diretamente do core (elimina race condition)
   useEffect(() => {
     if (core.product && entities.offers !== undefined) {
       formDispatch(formActions.initFromServer({
         product: core.product,
-        upsellSettings: formState.editedData.upsell,
-        affiliateSettings: formState.editedData.affiliate,
+        upsellSettings: core.upsellSettings || {
+          hasCustomThankYouPage: false,
+          customPageUrl: "",
+          redirectIgnoringOrderBumpFailures: false,
+        },
+        affiliateSettings: core.affiliateSettings || {
+          enabled: false,
+          defaultRate: 50,
+          requireApproval: false,
+          commissionOnOrderBump: false,
+          commissionOnUpsell: false,
+          supportEmail: "",
+          publicDescription: "",
+          attributionModel: "last_click",
+          cookieDuration: 30,
+          showInMarketplace: false,
+          marketplaceDescription: "",
+          marketplaceCategory: "",
+        },
         offers: entities.offers,
       }));
     }
-  }, [core.product, entities.offers]);
+  }, [core.product, core.upsellSettings, core.affiliateSettings, entities.offers]);
 
   const refreshAll = useCallback(async () => {
     setLoading(true);

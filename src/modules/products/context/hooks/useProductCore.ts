@@ -24,13 +24,12 @@ interface UseProductCoreOptions {
   productId: string | null;
   userId: string | undefined;
   onUnsavedChange: () => void;
-  // Callbacks para setar settings após refresh (injeção de dependência)
-  onUpsellSettingsLoaded?: (settings: UpsellSettings) => void;
-  onAffiliateSettingsLoaded?: (settings: AffiliateSettings) => void;
 }
 
 interface UseProductCoreReturn {
   product: ProductData | null;
+  upsellSettings: UpsellSettings | null;
+  affiliateSettings: AffiliateSettings | null;
   setProduct: React.Dispatch<React.SetStateAction<ProductData | null>>;
   refreshProduct: () => Promise<void>;
   updateProduct: (field: keyof ProductData, value: ProductData[keyof ProductData]) => void;
@@ -43,10 +42,10 @@ export function useProductCore({
   productId,
   userId,
   onUnsavedChange,
-  onUpsellSettingsLoaded,
-  onAffiliateSettingsLoaded,
 }: UseProductCoreOptions): UseProductCoreReturn {
   const [product, setProduct] = useState<ProductData | null>(null);
+  const [upsellSettings, setUpsellSettings] = useState<UpsellSettings | null>(null);
+  const [affiliateSettings, setAffiliateSettings] = useState<AffiliateSettings | null>(null);
 
   // ---------------------------------------------------------------------------
   // REFRESH - Carregar via Edge Function + Extrair Settings
@@ -107,56 +106,51 @@ export function useProductCore({
         external_delivery: data.external_delivery ?? false,
       });
 
-      // Extrair e notificar upsell_settings
-      if (onUpsellSettingsLoaded && data.upsell_settings) {
-        const upsell = data.upsell_settings as {
-          hasCustomThankYouPage?: boolean;
-          customPageUrl?: string;
-          redirectIgnoringOrderBumpFailures?: boolean;
-        };
-        onUpsellSettingsLoaded({
-          hasCustomThankYouPage: upsell.hasCustomThankYouPage || false,
-          customPageUrl: upsell.customPageUrl || "",
-          redirectIgnoringOrderBumpFailures: upsell.redirectIgnoringOrderBumpFailures || false,
-        });
-      }
+      // Extrair upsell_settings como estado (elimina race condition)
+      const upsell = (data.upsell_settings as {
+        hasCustomThankYouPage?: boolean;
+        customPageUrl?: string;
+        redirectIgnoringOrderBumpFailures?: boolean;
+      }) || {};
+      setUpsellSettings({
+        hasCustomThankYouPage: upsell.hasCustomThankYouPage || false,
+        customPageUrl: upsell.customPageUrl || "",
+        redirectIgnoringOrderBumpFailures: upsell.redirectIgnoringOrderBumpFailures || false,
+      });
 
-      // Extrair e notificar affiliate_settings
-      if (onAffiliateSettingsLoaded) {
-        const affiliate = (data.affiliate_settings as {
-          enabled?: boolean;
-          defaultRate?: number;
-          commission?: number;
-          requireApproval?: boolean;
-          commissionOnOrderBump?: boolean;
-          commissionOnUpsell?: boolean;
-          allowUpsells?: boolean;
-          supportEmail?: string;
-          publicDescription?: string;
-          attributionModel?: "last_click" | "first_click";
-          cookieDuration?: number;
-        }) || {};
-        onAffiliateSettingsLoaded({
-          enabled: affiliate.enabled || false,
-          defaultRate: affiliate.defaultRate || affiliate.commission || 50,
-          requireApproval: affiliate.requireApproval || false,
-          commissionOnOrderBump: affiliate.commissionOnOrderBump ?? affiliate.allowUpsells ?? false,
-          commissionOnUpsell: affiliate.commissionOnUpsell ?? affiliate.allowUpsells ?? false,
-          supportEmail: affiliate.supportEmail || "",
-          publicDescription: affiliate.publicDescription || "",
-          attributionModel: affiliate.attributionModel || "last_click",
-          cookieDuration: affiliate.cookieDuration || 30,
-          // ✅ Campos de marketplace dos campos diretos da tabela
-          showInMarketplace: data.show_in_marketplace || false,
-          marketplaceDescription: data.marketplace_description || "",
-          marketplaceCategory: data.marketplace_category || "",
-        });
-      }
+      // Extrair affiliate_settings como estado (elimina race condition)
+      const affiliate = (data.affiliate_settings as {
+        enabled?: boolean;
+        defaultRate?: number;
+        commission?: number;
+        requireApproval?: boolean;
+        commissionOnOrderBump?: boolean;
+        commissionOnUpsell?: boolean;
+        allowUpsells?: boolean;
+        supportEmail?: string;
+        publicDescription?: string;
+        attributionModel?: "last_click" | "first_click";
+        cookieDuration?: number;
+      }) || {};
+      setAffiliateSettings({
+        enabled: affiliate.enabled || false,
+        defaultRate: affiliate.defaultRate || affiliate.commission || 50,
+        requireApproval: affiliate.requireApproval || false,
+        commissionOnOrderBump: affiliate.commissionOnOrderBump ?? affiliate.allowUpsells ?? false,
+        commissionOnUpsell: affiliate.commissionOnUpsell ?? affiliate.allowUpsells ?? false,
+        supportEmail: affiliate.supportEmail || "",
+        publicDescription: affiliate.publicDescription || "",
+        attributionModel: affiliate.attributionModel || "last_click",
+        cookieDuration: affiliate.cookieDuration || 30,
+        showInMarketplace: data.show_in_marketplace || false,
+        marketplaceDescription: data.marketplace_description || "",
+        marketplaceCategory: data.marketplace_category || "",
+      });
     } catch (error: unknown) {
       console.error("[useProductCore] Error loading product:", error);
       toast.error("Erro ao carregar produto");
     }
-  }, [productId, userId, onUpsellSettingsLoaded, onAffiliateSettingsLoaded]);
+  }, [productId, userId]);
 
   // ---------------------------------------------------------------------------
   // UPDATE LOCAL - Sem salvar no banco
@@ -266,6 +260,8 @@ export function useProductCore({
 
   return {
     product,
+    upsellSettings,
+    affiliateSettings,
     setProduct,
     refreshProduct,
     updateProduct,
