@@ -13,6 +13,11 @@ import {
   logAuditEvent,
   jsonResponse,
 } from "./producer-auth-helpers.ts";
+import {
+  getAccessToken,
+  createLogoutCookies,
+  jsonResponseWithCookies,
+} from "./cookie-helper.ts";
 
 import type { ProducerProfile, UserRole } from "./supabase-types.ts";
 
@@ -40,28 +45,39 @@ export async function handleLogout(
   req: Request,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  const { sessionToken } = await req.json();
   const clientIP = getClientIP(req);
   const userAgent = req.headers.get("user-agent");
 
+  // RISE V3: Read token from httpOnly cookie first, fallback to body for legacy
+  let sessionToken = getAccessToken(req, "producer");
+  
   if (!sessionToken) {
-    return jsonResponse({ success: false, error: "Token de sessão é obrigatório" }, corsHeaders, 400);
+    try {
+      const body = await req.json();
+      sessionToken = body.sessionToken;
+    } catch {
+      // No body provided - that's fine if cookie was present
+    }
   }
 
-  const { data: session } = await supabase
-    .from("producer_sessions")
-    .select("producer_id")
-    .eq("session_token", sessionToken)
-    .single() as { data: SessionQueryResult | null; error: unknown };
+  if (sessionToken) {
+    const { data: session } = await supabase
+      .from("producer_sessions")
+      .select("producer_id")
+      .eq("session_token", sessionToken)
+      .single() as { data: SessionQueryResult | null; error: unknown };
 
-  await supabase.from("producer_sessions").update({ is_valid: false }).eq("session_token", sessionToken);
+    await supabase.from("producer_sessions").update({ is_valid: false }).eq("session_token", sessionToken);
 
-  if (session?.producer_id) {
-    await logAuditEvent(supabase, session.producer_id, "LOGOUT", true, clientIP, userAgent);
+    if (session?.producer_id) {
+      await logAuditEvent(supabase, session.producer_id, "LOGOUT", true, clientIP, userAgent);
+    }
   }
 
+  // Clear httpOnly cookies
+  const cookies = createLogoutCookies("producer");
   console.log("[producer-auth] Logout successful");
-  return jsonResponse({ success: true }, corsHeaders);
+  return jsonResponseWithCookies({ success: true }, corsHeaders, cookies);
 }
 
 // ============================================
@@ -78,9 +94,20 @@ export async function handleValidate(
   req: Request,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  const { sessionToken } = await req.json();
   const currentIP = getClientIP(req);
   const currentUA = req.headers.get("user-agent");
+
+  // RISE V3: Read token from httpOnly cookie first, fallback to body for legacy
+  let sessionToken = getAccessToken(req, "producer");
+  
+  if (!sessionToken) {
+    try {
+      const body = await req.json();
+      sessionToken = body.sessionToken;
+    } catch {
+      // No body provided
+    }
+  }
 
   if (!sessionToken) {
     return jsonResponse({ valid: false }, corsHeaders);
