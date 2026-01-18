@@ -6,7 +6,7 @@ import { AffiliationHeader } from "@/components/affiliation/AffiliationHeader";
 import { AffiliationSidebar, AffiliationTab } from "@/components/affiliation/AffiliationSidebar";
 import { OffersTab } from "@/components/affiliation/tabs/OffersTab";
 import { GatewaysTab } from "@/components/affiliation/tabs/GatewaysTab";
-import { PixelsTab } from "@/components/affiliation/tabs/PixelsTab";
+import { PixelsTab } from "@/components/affiliation/tabs/pixels";
 import { DetailsTab } from "@/components/affiliation/tabs/DetailsTab";
 import { OtherProductsTab } from "@/components/affiliation/tabs/OtherProductsTab";
 

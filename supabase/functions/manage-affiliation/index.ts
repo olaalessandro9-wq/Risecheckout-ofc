@@ -243,9 +243,10 @@ serve(async (req) => {
     // ============================================
     // RETURN RESPONSE
     // ============================================
+    const typedAction = action as ManageAction;
     const message = action === "update_commission" 
-      ? `${ACTION_MESSAGES[action]} para ${commission_rate}%`
-      : ACTION_MESSAGES[action as ManageAction];
+      ? `${ACTION_MESSAGES[typedAction]} para ${commission_rate}%`
+      : ACTION_MESSAGES[typedAction];
 
     return new Response(
       JSON.stringify({

@@ -115,11 +115,11 @@ export function maskCpf(cpf: string): string {
  * Shows only first 2 and last 2 digits.
  * 
  * @param cnpj - CNPJ to mask (with or without formatting)
- * @returns Masked CNPJ (e.g., "12.***.***/****-34")
+ * @returns Masked CNPJ (e.g., "12.---.---/----90")
  * 
  * @example
  * maskCnpj("12345678000190");
- * // Returns: "12.***.***/****-90"
+ * // Returns: "12.---.---/----90"
  */
 export function maskCnpj(cnpj: string): string {
   if (!cnpj || typeof cnpj !== "string") {
