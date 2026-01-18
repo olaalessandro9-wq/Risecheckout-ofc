@@ -8,9 +8,9 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
 import { 
   rateLimitMiddleware, 
-  RATE_LIMIT_CONFIGS,
+  MEMBERS_AREA,
   getClientIP 
-} from "../_shared/rate-limiter.ts";
+} from "../_shared/rate-limiting/index.ts";
 
 // Use public CORS for members area
 const corsHeaders = PUBLIC_CORS_HEADERS;
@@ -90,7 +90,8 @@ Deno.serve(async (req) => {
     const rateLimitResult = await rateLimitMiddleware(
       supabase,
       req,
-      RATE_LIMIT_CONFIGS.MEMBERS_AREA
+      MEMBERS_AREA,
+      corsHeaders
     );
     if (rateLimitResult) {
       console.warn(`[members-area-progress] Rate limit exceeded for IP: ${getClientIP(req)}`);

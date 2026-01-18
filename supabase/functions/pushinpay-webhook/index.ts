@@ -26,9 +26,9 @@ import {
 import { processPostPaymentActions } from '../_shared/webhook-post-payment.ts';
 import { 
   rateLimitMiddleware, 
-  RATE_LIMIT_CONFIGS, 
+  WEBHOOK, 
   getClientIP 
-} from '../_shared/rate-limiter.ts';
+} from '../_shared/rate-limiting/index.ts';
 
 const FUNCTION_VERSION = "7";
 const logger = createLogger('pushinpay-webhook', FUNCTION_VERSION);
@@ -56,7 +56,7 @@ serve(async (req) => {
   const rateLimitResult = await rateLimitMiddleware(
     supabase,
     req,
-    RATE_LIMIT_CONFIGS.WEBHOOK,
+    WEBHOOK,
     CORS_HEADERS
   );
 

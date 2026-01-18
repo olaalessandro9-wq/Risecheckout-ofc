@@ -34,9 +34,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { 
   rateLimitMiddleware, 
-  RATE_LIMIT_CONFIGS,
+  VAULT_SAVE,
   getClientIP 
-} from '../_shared/rate-limiter.ts';
+} from '../_shared/rate-limiting/index.ts';
 import { handleCors } from '../_shared/cors.ts';
 import { requireAuthenticatedProducer, unauthorizedResponse } from '../_shared/unified-auth.ts';
 import { createLogger } from '../_shared/logger.ts';
@@ -134,7 +134,8 @@ Deno.serve(async (req) => {
     const rateLimitResult = await rateLimitMiddleware(
       supabase, 
       req, 
-      RATE_LIMIT_CONFIGS.VAULT_SAVE
+      VAULT_SAVE,
+      corsHeaders
     );
     if (rateLimitResult) {
       log.warn(`Rate limit exceeded for IP: ${getClientIP(req)}`);

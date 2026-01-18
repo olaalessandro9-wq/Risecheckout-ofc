@@ -20,7 +20,7 @@ import { withSentry, captureException } from "../_shared/sentry.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 import { jsonResponse, errorResponse } from "../_shared/response.ts";
 import { verifyProductOwnership } from "../_shared/ownership.ts";
-import { checkProducerRateLimit, recordProducerAttempt } from "../_shared/producer-rate-limit.ts";
+import { checkRateLimit, PRODUCT_SETTINGS } from "../_shared/rate-limiting/index.ts";
 import {
   handleUpdateSettings,
   handleUpdateGeneral,
@@ -66,11 +66,10 @@ interface RequestBody {
 async function handleRateLimitedAction(
   supabase: SupabaseClient,
   producerId: string,
-  action: string,
   corsHeaders: Record<string, string>,
   handler: () => Promise<Response>
 ): Promise<Response> {
-  const rateCheck = await checkProducerRateLimit(supabase, producerId, action);
+  const rateCheck = await checkRateLimit(supabase, `producer:${producerId}`, PRODUCT_SETTINGS);
   if (!rateCheck.allowed) {
     return jsonResponse(
       { success: false, error: "Muitas requisições", retryAfter: rateCheck.retryAfter },
@@ -78,9 +77,7 @@ async function handleRateLimitedAction(
       429
     );
   }
-  const response = await handler();
-  await recordProducerAttempt(supabase, producerId, action);
-  return response;
+  return await handler();
 }
 
 // ============================================
@@ -133,18 +130,18 @@ serve(withSentry("product-settings", async (req) => {
     // Route to handlers
     if (action === "update-settings") {
       if (!body.settings || typeof body.settings !== "object") {
-        return errorResponse("settings é obrigatório para esta ação", corsHeaders, 400);
+      return errorResponse("settings é obrigatório para esta ação", corsHeaders, 400);
       }
-      return handleRateLimitedAction(supabase, producerId, "product_settings", corsHeaders, () =>
+      return handleRateLimitedAction(supabase, producerId, corsHeaders, () =>
         handleUpdateSettings(supabase, productId, body.settings!, corsHeaders)
       );
     }
 
     if (action === "update-general") {
       if (!body.data || typeof body.data !== "object") {
-        return errorResponse("data é obrigatório para esta ação", corsHeaders, 400);
+      return errorResponse("data é obrigatório para esta ação", corsHeaders, 400);
       }
-      return handleRateLimitedAction(supabase, producerId, "product_general", corsHeaders, () =>
+      return handleRateLimitedAction(supabase, producerId, corsHeaders, () =>
         handleUpdateGeneral(supabase, productId, body.data!, corsHeaders)
       );
     }
@@ -158,7 +155,7 @@ serve(withSentry("product-settings", async (req) => {
       if (typeof price !== "number" || !Number.isInteger(price) || price <= 0) {
         return errorResponse("Preço deve ser um valor inteiro positivo em centavos", corsHeaders, 400);
       }
-      return handleRateLimitedAction(supabase, producerId, "product_price", corsHeaders, () =>
+      return handleRateLimitedAction(supabase, producerId, corsHeaders, () =>
         handleUpdatePrice(supabase, productId, price, corsHeaders)
       );
     }
@@ -167,7 +164,7 @@ serve(withSentry("product-settings", async (req) => {
       if (!body.gatewaySettings || typeof body.gatewaySettings !== "object") {
         return errorResponse("gatewaySettings é obrigatório para esta ação", corsHeaders, 400);
       }
-      return handleRateLimitedAction(supabase, producerId, "affiliate_gateway_settings", corsHeaders, () =>
+      return handleRateLimitedAction(supabase, producerId, corsHeaders, () =>
         handleUpdateAffiliateGatewaySettings(supabase, productId, body.gatewaySettings!, corsHeaders)
       );
     }
@@ -179,20 +176,20 @@ serve(withSentry("product-settings", async (req) => {
         if (!producerEmail) {
           return errorResponse("Email do produtor é obrigatório para habilitar área de membros", corsHeaders, 400);
         }
-        return handleRateLimitedAction(supabase, producerId, "members_area_settings", corsHeaders, () =>
+        return handleRateLimitedAction(supabase, producerId, corsHeaders, () =>
           handleEnableMembersArea(supabase, productId, producerEmail, producerId, corsHeaders)
         );
       }
 
       // Disable members area
       if (body.enabled === false) {
-        return handleRateLimitedAction(supabase, producerId, "members_area_settings", corsHeaders, () =>
+        return handleRateLimitedAction(supabase, producerId, corsHeaders, () =>
           handleDisableMembersArea(supabase, productId, corsHeaders)
         );
       }
 
       // Update settings only (without changing enabled state)
-      return handleRateLimitedAction(supabase, producerId, "members_area_settings", corsHeaders, () =>
+      return handleRateLimitedAction(supabase, producerId, corsHeaders, () =>
         handleUpdateMembersAreaSettings(supabase, productId, body.enabled, body.membersSettings, corsHeaders)
       );
     }
@@ -201,7 +198,7 @@ serve(withSentry("product-settings", async (req) => {
       if (!body.upsellSettings || typeof body.upsellSettings !== "object") {
         return errorResponse("upsellSettings é obrigatório para esta ação", corsHeaders, 400);
       }
-      return handleRateLimitedAction(supabase, producerId, "upsell_settings", corsHeaders, () =>
+      return handleRateLimitedAction(supabase, producerId, corsHeaders, () =>
         handleUpdateUpsellSettings(supabase, productId, body.upsellSettings!, corsHeaders)
       );
     }

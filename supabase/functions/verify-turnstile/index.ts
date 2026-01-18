@@ -13,9 +13,9 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 import { handleCors, PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
 import { 
   rateLimitMiddleware, 
-  RATE_LIMIT_CONFIGS,
+  TURNSTILE_VERIFY,
   getClientIP 
-} from "../_shared/rate-limiter.ts";
+} from "../_shared/rate-limiting/index.ts";
 
 // === INTERFACES (Zero any) ===
 
@@ -52,7 +52,8 @@ Deno.serve(async (req) => {
     const rateLimitResult = await rateLimitMiddleware(
       supabase,
       req,
-      RATE_LIMIT_CONFIGS.TURNSTILE_VERIFY
+      TURNSTILE_VERIFY,
+      corsHeaders
     );
     if (rateLimitResult) {
       console.warn(`[verify-turnstile] Rate limit exceeded for IP: ${getClientIP(req)}`);
