@@ -4224,6 +4224,7 @@ export type Database = {
               user_id: string
             }[]
           }
+      get_producer_id_from_session: { Args: never; Returns: string }
       get_system_health_summary: {
         Args: never
         Returns: {
