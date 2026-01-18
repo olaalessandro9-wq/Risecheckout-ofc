@@ -190,15 +190,11 @@ export interface ProductContextState {
   updateProductBulk: (data: Partial<ProductData>) => void;
   
   // Funções de atualização de configurações
-  updatePaymentSettings: (settings: Partial<PaymentSettings>) => void;
-  updateCheckoutFields: (fields: Partial<CheckoutFields>) => void;
   updateUpsellSettings: (settings: Partial<UpsellSettings>) => void;
   updateAffiliateSettings: (settings: Partial<AffiliateSettings>) => void;
   
   // Funções de salvamento
   saveProduct: () => Promise<void>;
-  savePaymentSettings: () => Promise<void>;
-  saveCheckoutFields: () => Promise<void>;
   saveUpsellSettings: (settings?: UpsellSettings) => Promise<void>;
   saveAffiliateSettings: (settings?: AffiliateSettings | null) => Promise<void>;
   saveAll: () => Promise<void>;
