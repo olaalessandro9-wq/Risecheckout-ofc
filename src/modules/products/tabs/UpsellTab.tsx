@@ -8,7 +8,7 @@
  * @see RISE ARCHITECT PROTOCOL V3
  */
 
-import { useLayoutEffect, useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,7 +23,6 @@ export function UpsellTab() {
     product,
     formState,
     dispatchForm,
-    updateUpsellModified,
     saving,
     saveAll,
     hasUnsavedChanges
@@ -52,13 +51,6 @@ export function UpsellTab() {
     if (!isInitialized) return false;
     return JSON.stringify(localSettings) !== JSON.stringify(serverSettings);
   }, [localSettings, serverSettings, isInitialized]);
-
-  // Notificar context sobre mudanças
-  useLayoutEffect(() => {
-    if (isInitialized) {
-      updateUpsellModified(hasChanges);
-    }
-  }, [hasChanges, updateUpsellModified, isInitialized]);
   
   const handleChange = useCallback((field: 'hasCustomThankYouPage' | 'customPageUrl' | 'redirectIgnoringOrderBumpFailures', value: string | boolean) => {
     dispatchForm({ 

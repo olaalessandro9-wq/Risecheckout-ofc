@@ -13,7 +13,7 @@
  * @see RISE ARCHITECT PROTOCOL V3 - Zero Duplicação
  */
 
-import { useMemo, useLayoutEffect, useCallback, useState } from "react";
+import { useMemo, useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProductContext } from "../../context/ProductContext";
 import {
@@ -30,7 +30,6 @@ export function useGeneralTab() {
   const {
     product,
     deleteProduct,
-    updateGeneralModified,
     formState,
     dispatchForm,
     formErrors,
@@ -114,11 +113,6 @@ export function useGeneralTab() {
 
     return formChanged || imageChanged || offersModified || deletedOfferIds.length > 0;
   }, [formState, product, image, offersModified, deletedOfferIds, isInitialized]);
-
-  // Notify context about changes
-  useLayoutEffect(() => {
-    updateGeneralModified(hasChanges);
-  }, [hasChanges, updateGeneralModified]);
 
   // Delete handler - único handler local mantido
   const handleDelete = useCallback(async () => {

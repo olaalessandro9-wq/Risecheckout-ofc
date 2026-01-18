@@ -28,10 +28,9 @@ import type { ProductSettings, GatewayCredentials } from "./settings/types";
 
 interface Props {
   productId: string;
-  onModifiedChange?: (modified: boolean) => void;
 }
 
-export default function ProductSettingsPanel({ productId, onModifiedChange }: Props) {
+export default function ProductSettingsPanel({ productId }: Props) {
   const { 
     checkoutSettingsForm, 
     checkoutCredentials,
@@ -108,10 +107,6 @@ export default function ProductSettingsPanel({ productId, onModifiedChange }: Pr
     loadSettings();
   }, [productId, permissionsLoading, isOwner, initCheckoutSettings, formState.isCheckoutSettingsInitialized]);
 
-  // Notificar mudanças
-  useEffect(() => {
-    onModifiedChange?.(formState.dirtyFlags.checkoutSettings);
-  }, [formState.dirtyFlags.checkoutSettings, onModifiedChange]);
 
   // Adapter: form e setForm para compatibilidade com sub-componentes
   const form: ProductSettings = checkoutSettingsForm;
