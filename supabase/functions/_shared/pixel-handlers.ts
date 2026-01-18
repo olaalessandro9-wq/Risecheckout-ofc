@@ -3,7 +3,8 @@
  * 
  * Handlers extraídos do index.ts para manter arquivos < 300 linhas
  * 
- * @refactored 2026-01-13 - Rate limiting extraído para pixel-rate-limit.ts
+ * RISE Protocol V3 Compliant - Uses consolidated rate-limiting
+ * @version 3.0.0
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -13,11 +14,33 @@ import {
   PixelData,
   jsonResponse 
 } from "./pixel-types.ts";
+import { 
+  checkRateLimit as checkRateLimitCore, 
+  RATE_LIMIT_CONFIGS,
+  type RateLimitResult 
+} from "./rate-limiting/index.ts";
 
-// Re-export rate limiting utilities for backwards compatibility
-// NOTE: This uses pixel-specific rate limiting with different signature
-export { checkRateLimit } from "./pixel-rate-limit.ts";
-// NOTE: validateProducerSession removed - use unified-auth.ts instead
+// Re-export rate limiting for backwards compatibility with consolidated module
+export async function checkRateLimit(
+  supabase: SupabaseClient,
+  producerId: string,
+  action: string
+): Promise<{ allowed: boolean; retryAfter?: number }> {
+  const result: RateLimitResult = await checkRateLimitCore(
+    supabase, 
+    `pixel:${producerId}:${action}`, 
+    RATE_LIMIT_CONFIGS.PIXEL_MANAGEMENT
+  );
+  
+  // Convert ISO timestamp to seconds remaining
+  let retryAfterSeconds: number | undefined;
+  if (result.retryAfter) {
+    const retryDate = new Date(result.retryAfter);
+    retryAfterSeconds = Math.max(0, Math.ceil((retryDate.getTime() - Date.now()) / 1000));
+  }
+  
+  return { allowed: result.allowed, retryAfter: retryAfterSeconds };
+}
 
 // ============================================================================
 // Vendor Pixel Handlers

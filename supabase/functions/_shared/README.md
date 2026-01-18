@@ -9,15 +9,23 @@
 
 ```
 _shared/
-├── platform-config.ts      # Configurações centralizadas da plataforma
-├── asaas-customer.ts       # Gerenciamento de clientes Asaas
-├── asaas-split-calculator.ts  # Cálculo de split Marketplace
-├── audit-logger.ts         # Log de eventos de segurança
-├── rate-limit.ts           # Proteção contra brute force
-├── role-validator.ts       # Validação de permissões (RBAC)
-├── get-vendor-token.ts     # Busca tokens do Vault
-└── payment-gateways/       # Módulos específicos de gateways
+├── platform-config.ts        # Configurações centralizadas da plataforma
+├── asaas-customer.ts         # Gerenciamento de clientes Asaas
+├── asaas-split-calculator.ts # Cálculo de split Marketplace
+├── audit-logger.ts           # Log de eventos de segurança
+├── rate-limiting/            # 🆕 Módulo consolidado de rate limiting (RISE V3)
+│   ├── index.ts              # Barrel exports
+│   ├── types.ts              # Tipagens TypeScript
+│   ├── configs.ts            # Configurações por action
+│   ├── service.ts            # Lógica core (checkRateLimit)
+│   ├── blocklist.ts          # IP blocklist
+│   └── middleware.ts         # Middlewares prontos
+├── role-validator.ts         # Validação de permissões (RBAC)
+├── get-vendor-token.ts       # Busca tokens do Vault
+└── payment-gateways/         # Módulos específicos de gateways
 ```
+
+> **Nota**: Tabela `buyer_rate_limits` é a fonte única de rate limiting.
 
 ---
 
@@ -331,49 +339,38 @@ await logSecurityEvent(supabase, {
 
 ---
 
-### 5. `rate-limit.ts`
+### 5. `rate-limiting/` (Módulo Consolidado - RISE V3)
 
-**Propósito**: Proteção contra brute force e abuso de API.
+**Propósito**: Sistema unificado de rate limiting e IP blocklist.
 
-#### Funções
+> **RISE V3 Compliant**: Módulo consolidado, zero duplicação, arquivos < 300 linhas.
 
-```typescript
-// Verificar limite
-checkRateLimit(supabase, config): Promise<RateLimitResult>
+#### Arquivos
 
-// Registrar tentativa
-recordAttempt(supabase, config, success): Promise<void>
+| Arquivo | Linhas | Descrição |
+|---------|--------|-----------|
+| `index.ts` | 37 | Barrel exports |
+| `types.ts` | 100 | Tipagens TypeScript |
+| `configs.ts` | 282 | Configurações por action |
+| `service.ts` | 188 | Lógica core |
+| `blocklist.ts` | 101 | IP blocklist |
+| `middleware.ts` | 120 | Middlewares prontos |
 
-// Middleware completo
-rateLimitMiddleware(req, config): Promise<Response | null>
-
-// Extrair identificador
-getIdentifier(req, preferUserId?): string
-```
-
-#### Configuração
+#### Uso Básico
 
 ```typescript
-interface RateLimitConfig {
-  maxAttempts: number;  // Máximo de tentativas
-  windowMs: number;     // Janela de tempo em ms
-  identifier: string;   // IP ou User ID
-  action: string;       // Nome da ação
-}
-```
+import { 
+  checkRateLimit, 
+  RATE_LIMIT_CONFIGS,
+  rateLimitMiddleware 
+} from "../_shared/rate-limiting/index.ts";
 
-#### Exemplo
-
-```typescript
-import { checkRateLimit, recordAttempt, getIdentifier } from "../_shared/rate-limit.ts";
-
-const identifier = getIdentifier(req);
-const result = await checkRateLimit(supabase, {
-  maxAttempts: 10,
-  windowMs: 60 * 1000, // 1 minuto
-  identifier,
-  action: 'create_payment'
-});
+// Verificar rate limit
+const result = await checkRateLimit(
+  supabase, 
+  `producer:${producerId}`, 
+  RATE_LIMIT_CONFIGS.PRODUCER_ACTION
+);
 
 if (!result.allowed) {
   return new Response(JSON.stringify({
@@ -381,11 +378,21 @@ if (!result.allowed) {
     retryAfter: result.retryAfter
   }), { status: 429 });
 }
-
-// Processar...
-
-await recordAttempt(supabase, config, true);
 ```
+
+#### Middleware Completo
+
+```typescript
+// Verifica IP blocklist + rate limit automaticamente
+const blocked = await rateLimitMiddleware(
+  supabase, req, RATE_LIMIT_CONFIGS.CREATE_ORDER, corsHeaders, userId
+);
+if (blocked) return blocked;
+```
+
+#### Tabela
+
+Usa exclusivamente `buyer_rate_limits` (tabela única consolidada).
 
 ---
 

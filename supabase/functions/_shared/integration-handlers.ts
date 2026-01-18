@@ -8,7 +8,11 @@
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { checkRateLimit as checkRateLimitCore, RATE_LIMIT_CONFIGS } from "./rate-limiting/index.ts";
+import { 
+  checkRateLimit as checkRateLimitCore, 
+  RATE_LIMIT_CONFIGS,
+  type RateLimitResult 
+} from "./rate-limiting/index.ts";
 
 // ============================================================================
 // TYPES
@@ -22,25 +26,35 @@ export interface CredentialsPayload {
 }
 
 // ============================================================================
-// RATE LIMITING (wrapper for backwards compatibility)
+// RATE LIMITING (RISE V3 - wrapper for legacy signature)
 // ============================================================================
 
+/**
+ * Rate limit check with legacy signature for backwards compatibility.
+ * Delegates to consolidated rate-limiting module.
+ */
 export async function checkRateLimit(
   supabase: SupabaseClient,
   producerId: string,
-  _action: string
+  action: string
 ): Promise<{ allowed: boolean; retryAfter?: number }> {
-  const result = await checkRateLimitCore(supabase, `producer:${producerId}`, RATE_LIMIT_CONFIGS.PRODUCER_ACTION);
-  return { allowed: result.allowed, retryAfter: result.retryAfter ? 300 : undefined };
-}
-
-// recordRateLimitAttempt is no longer needed - consolidated module auto-records
-export async function recordRateLimitAttempt(
-  _supabase: SupabaseClient,
-  _producerId: string,
-  _action: string
-): Promise<void> {
-  // No-op: consolidated rate-limiting module auto-records attempts
+  const result: RateLimitResult = await checkRateLimitCore(
+    supabase, 
+    `producer:${producerId}:${action}`, 
+    RATE_LIMIT_CONFIGS.PRODUCER_ACTION
+  );
+  
+  // Convert ISO timestamp to seconds remaining
+  let retryAfterSeconds: number | undefined;
+  if (result.retryAfter) {
+    const retryDate = new Date(result.retryAfter);
+    retryAfterSeconds = Math.max(0, Math.ceil((retryDate.getTime() - Date.now()) / 1000));
+  }
+  
+  return { 
+    allowed: result.allowed, 
+    retryAfter: retryAfterSeconds 
+  };
 }
 
 // ============================================================================

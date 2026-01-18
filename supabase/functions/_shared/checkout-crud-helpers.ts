@@ -2,13 +2,15 @@
  * Shared helpers for checkout-crud Edge Function
  * Extracted for RISE Protocol compliance (< 300 lines per file)
  * 
- * @version 2.0.0
+ * RISE Protocol V3 Compliant - Uses consolidated rate-limiting
+ * @version 3.0.0
  */
 
 import { SupabaseClient, CheckoutWithProduct, JsonResponseData } from "./supabase-types.ts";
 import { 
   checkRateLimit as checkRateLimitCore, 
-  RATE_LIMIT_CONFIGS 
+  RATE_LIMIT_CONFIGS,
+  type RateLimitResult 
 } from "./rate-limiting/index.ts";
 
 // ============================================
@@ -41,26 +43,36 @@ export function errorResponse(message: string, corsHeaders: Record<string, strin
 }
 
 // ============================================
-// RATE LIMITING (re-export from consolidated module)
+// RATE LIMITING (RISE V3 - wrapper for legacy signature)
 // ============================================
 
+/**
+ * Rate limit check with legacy signature for backwards compatibility.
+ * Delegates to consolidated rate-limiting module.
+ */
 export async function checkRateLimit(
   supabase: SupabaseClient,
   producerId: string,
-  _action: string
+  action: string
 ): Promise<{ allowed: boolean; retryAfter?: number }> {
-  const result = await checkRateLimitCore(
+  const result: RateLimitResult = await checkRateLimitCore(
     supabase, 
-    `producer:${producerId}`, 
+    `producer:${producerId}:${action}`, 
     RATE_LIMIT_CONFIGS.PRODUCER_ACTION
   );
+  
+  // Convert ISO timestamp to seconds remaining
+  let retryAfterSeconds: number | undefined;
+  if (result.retryAfter) {
+    const retryDate = new Date(result.retryAfter);
+    retryAfterSeconds = Math.max(0, Math.ceil((retryDate.getTime() - Date.now()) / 1000));
+  }
+  
   return { 
     allowed: result.allowed, 
-    retryAfter: result.retryAfter ? 300 : undefined 
+    retryAfter: retryAfterSeconds 
   };
 }
-
-// recordRateLimitAttempt is no longer needed - consolidated module auto-records
 
 // ============================================
 // SESSION VALIDATION (DEPRECATED)
