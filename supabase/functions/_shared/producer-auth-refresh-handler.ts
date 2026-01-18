@@ -4,6 +4,11 @@
  * PHASE 3: Implements refresh token logic for producers.
  * Allows clients to obtain new access tokens using long-lived refresh tokens.
  * 
+ * ENHANCED: Refresh Token Rotation with Theft Detection
+ * - Each refresh generates a NEW refresh token
+ * - Old token is stored as previous_refresh_token
+ * - If previous token is reused, ALL sessions are invalidated (theft detected)
+ * 
  * RISE Protocol V3 Compliant
  */
 
@@ -32,6 +37,11 @@ interface RefreshSessionResult {
   producer: ProducerProfile | ProducerProfile[];
 }
 
+interface ReusedTokenSession {
+  id: string;
+  producer_id: string;
+}
+
 // ============================================
 // REFRESH HANDLER
 // ============================================
@@ -49,7 +59,46 @@ export async function handleRefresh(
     return errorResponse("Refresh token é obrigatório", corsHeaders, 400);
   }
 
-  // Fetch session by refresh token
+  // ============================================
+  // THEFT DETECTION: Check if token was already rotated
+  // ============================================
+  const { data: reusedSession } = await supabase
+    .from("producer_sessions")
+    .select("id, producer_id")
+    .eq("previous_refresh_token", refreshToken)
+    .single() as { data: ReusedTokenSession | null; error: unknown };
+
+  if (reusedSession) {
+    // TOKEN REUSE DETECTED = POSSIBLE THEFT
+    console.error("[SECURITY] Producer refresh token reuse detected! Possible theft. Producer:", reusedSession.producer_id);
+    
+    // Invalidate ALL sessions for this producer
+    await supabase
+      .from("producer_sessions")
+      .update({ is_valid: false })
+      .eq("producer_id", reusedSession.producer_id);
+
+    // Log security event
+    await logAuditEvent(
+      supabase,
+      reusedSession.producer_id,
+      "TOKEN_THEFT_DETECTED",
+      false,
+      currentIP,
+      currentUA,
+      {
+        reason: "refresh_token_reuse",
+        reused_token_prefix: refreshToken.substring(0, 8),
+        action_taken: "all_sessions_invalidated",
+      }
+    );
+
+    return errorResponse("Sessão comprometida. Faça login novamente.", corsHeaders, 401);
+  }
+
+  // ============================================
+  // NORMAL FLOW: Fetch session by current refresh token
+  // ============================================
   const { data: session } = await supabase
     .from("producer_sessions")
     .select(`
@@ -90,17 +139,27 @@ export async function handleRefresh(
     return errorResponse("Sessão invalidada por segurança", corsHeaders, 401);
   }
 
-  // Generate new access token
+  // ============================================
+  // TOKEN ROTATION: Generate NEW tokens
+  // ============================================
   const newAccessToken = generateSessionToken();
+  const newRefreshToken = generateRefreshToken();
+
   const accessTokenExpiresAt = new Date();
   accessTokenExpiresAt.setMinutes(accessTokenExpiresAt.getMinutes() + ACCESS_TOKEN_DURATION_MINUTES);
 
-  // Update session with new access token
+  const refreshTokenExpiresAt = new Date();
+  refreshTokenExpiresAt.setDate(refreshTokenExpiresAt.getDate() + REFRESH_TOKEN_DURATION_DAYS);
+
+  // Update session with ROTATED tokens
   const { error: updateError } = await supabase
     .from("producer_sessions")
     .update({
       session_token: newAccessToken,
       access_token_expires_at: accessTokenExpiresAt.toISOString(),
+      refresh_token: newRefreshToken,
+      refresh_token_expires_at: refreshTokenExpiresAt.toISOString(),
+      previous_refresh_token: refreshToken, // Store old token for theft detection
       last_activity_at: new Date().toISOString(),
     })
     .eq("id", session.id);
@@ -117,11 +176,12 @@ export async function handleRefresh(
     .eq("user_id", producerData.id)
     .single() as { data: UserRole | null; error: unknown };
 
-  console.log(`[producer-auth] Token refreshed for producer: ${producerData.email}`);
+  console.log(`[producer-auth] Token rotated for producer: ${producerData.email}`);
 
   return jsonResponse({
     success: true,
     accessToken: newAccessToken,
+    refreshToken: newRefreshToken, // NEW: Return rotated refresh token
     expiresIn: ACCESS_TOKEN_DURATION_MINUTES * 60, // in seconds
     expiresAt: accessTokenExpiresAt.toISOString(),
     producer: {

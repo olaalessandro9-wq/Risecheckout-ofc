@@ -5,6 +5,49 @@
 
 ---
 
+## [3.0.0] - 2026-01-18
+
+### 🔄 Rotação de Refresh Tokens com Detecção de Roubo
+
+Implementação completa do sistema de rotação de refresh tokens com detecção automática de roubo de tokens.
+
+#### Funcionalidades
+
+| Feature | Descrição |
+|---------|-----------|
+| **Rotação Automática** | Cada refresh gera um NOVO refresh token |
+| **Detecção de Roubo** | Reutilização de token antigo invalida TODAS as sessões |
+| **Histórico de Token** | Token anterior armazenado para detecção |
+| **Auditoria** | Log completo de tentativas de roubo |
+
+#### Arquivos Modificados
+
+| Arquivo | Mudança |
+|---------|---------|
+| `producer_sessions` (SQL) | ✅ Adicionado `previous_refresh_token` |
+| `buyer_sessions` (SQL) | ✅ Adicionado `previous_refresh_token` |
+| `producer-auth-refresh-handler.ts` | ✅ Rotação + detecção de roubo |
+| `buyer-auth-refresh-handler.ts` | ✅ Rotação + detecção de roubo |
+| `src/lib/token-manager.ts` | ✅ Suporte a rotação no frontend |
+
+#### Fluxo de Detecção de Roubo
+
+```
+T0: Usuário faz login → Recebe refresh_token_v1
+T1: Atacante rouba refresh_token_v1
+T2: Usuário faz refresh → Recebe v2, backend salva v1 como "previous"
+T3: Atacante tenta usar v1 → ROUBO DETECTADO → Todas sessões invalidadas
+```
+
+#### Segurança
+
+- Janela de ataque reduzida ao tempo entre refreshes
+- Detecção automática de uso simultâneo
+- Invalidação em cadeia de todas as sessões do usuário
+- Log de segurança com detalhes do ataque
+
+---
+
 ## [2.0.0] - 2026-01-18
 
 ### 🎯 Refatoração Completa - RISE V3 10.0/10
