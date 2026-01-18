@@ -5,35 +5,19 @@
  * - Rate limiting
  * - Session validation
  * - Ownership verification
- * - Response helpers
+ * - Response helpers (delegated to response-helpers.ts)
  * 
- * @refactored 2026-01-13 - Centralização de código duplicado
+ * RISE V3: Response helpers imported from response-helpers.ts
+ * @refactored 2026-01-18 - Centralized response helpers
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // ============================================================================
-// Response Helpers
+// Response Helpers - Re-exported from response-helpers.ts
 // ============================================================================
 
-export function jsonResponse(
-  data: unknown, 
-  corsHeaders: Record<string, string>, 
-  status = 200
-): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
-
-export function errorResponse(
-  message: string, 
-  corsHeaders: Record<string, string>, 
-  status = 400
-): Response {
-  return jsonResponse({ success: false, error: message }, corsHeaders, status);
-}
+export { jsonResponse, errorResponse } from "./response-helpers.ts";
 
 // ============================================================================
 // Rate Limiting (Deprecated - use _shared/rate-limiting/ module)

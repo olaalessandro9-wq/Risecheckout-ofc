@@ -1,8 +1,11 @@
 /**
  * Tipos para Pixel Management
  * 
- * Separado do handler para manter arquivos < 300 linhas
+ * RISE V3: Response helper imported from response-helpers.ts
  */
+
+// Re-export jsonResponse for backwards compatibility
+export { jsonResponse } from "./response-helpers.ts";
 
 // ============================================================================
 // Request Types
@@ -85,22 +88,4 @@ export interface ProductPixelLink {
   fire_on_boleto: boolean;
   custom_value_percent: number | null;
   created_at: string;
-}
-
-// ============================================================================
-// Response Helper
-// ============================================================================
-
-export function jsonResponse(
-  data: unknown, 
-  status = 200, 
-  corsHeaders?: Record<string, string>
-): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 
-      "Content-Type": "application/json",
-      ...(corsHeaders || {})
-    }
-  });
 }
