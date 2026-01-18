@@ -24,11 +24,13 @@ import {
   handleUpdatePrice,
   handleUpdateAffiliateGatewaySettings,
   handleUpdateMembersAreaSettings,
+  handleUpdateUpsellSettings,
 } from "../_shared/product-settings-handlers.ts";
 import type { 
   ProductSettings, 
   AffiliateGatewaySettings,
-  MembersAreaSettings 
+  MembersAreaSettings,
+  UpsellSettingsInput,
 } from "../_shared/supabase-types.ts";
 
 // ============================================
@@ -73,6 +75,7 @@ interface RequestBody {
   gatewaySettings?: AffiliateGatewaySettings;
   enabled?: boolean;
   membersSettings?: MembersAreaSettings;
+  upsellSettings?: UpsellSettingsInput;
 }
 
 interface RateLimitAttempt {
@@ -305,6 +308,26 @@ serve(withSentry("product-settings", async (req) => {
       }
       const response = await handleUpdateMembersAreaSettings(supabase, productId, body.enabled, body.membersSettings, corsHeaders);
       await recordAttempt(supabase, producerId, "members_area_settings");
+      return response;
+    }
+
+    // ✅ RISE V3: Dedicated handler for upsell_settings JSONB column
+    if (action === "update-upsell-settings") {
+      const rateCheck = await checkRateLimit(supabase, producerId, "upsell_settings");
+      if (!rateCheck.allowed) {
+        return jsonResponse(
+          { success: false, error: "Muitas requisições", retryAfter: rateCheck.retryAfter }, 
+          corsHeaders, 
+          429
+        );
+      }
+      
+      if (!body.upsellSettings || typeof body.upsellSettings !== "object") {
+        return errorResponse("upsellSettings é obrigatório para esta ação", corsHeaders, 400);
+      }
+      
+      const response = await handleUpdateUpsellSettings(supabase, productId, body.upsellSettings, corsHeaders);
+      await recordAttempt(supabase, producerId, "upsell_settings");
       return response;
     }
 

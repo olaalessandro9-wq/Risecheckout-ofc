@@ -70,46 +70,8 @@ export function UpsellTab() {
     }
   }, [dispatchForm]);
 
-  const handleSave = useCallback(async () => {
-    if (localSettings.hasCustomThankYouPage) {
-      const url = localSettings.customPageUrl.trim();
-      
-      if (!url) {
-        setUrlError("URL é obrigatória quando a página personalizada está ativa");
-        toast.error("Informe a URL da página de obrigado");
-        return;
-      }
-      
-      if (!isValidUrl(url)) {
-        setUrlError("URL inválida. Use o formato: https://exemplo.com/pagina");
-        toast.error("URL inválida");
-        return;
-      }
-    }
-    
-    setUrlError(null);
-    
-    try {
-      const { api } = await import("@/lib/api");
-      
-      const { data, error } = await api.call<{ success?: boolean; error?: string }>('product-settings', {
-        action: 'update-upsell-settings',
-        productId: product?.id,
-        upsellSettings: localSettings,
-      });
-      
-      if (error) throw new Error(error.message);
-      if (!data?.success) throw new Error(data?.error || 'Falha ao salvar');
-      
-      dispatchForm({ type: 'MARK_SAVED' });
-      updateUpsellModified(false);
-      
-      toast.success("Configurações de upsell salvas com sucesso");
-    } catch (error: unknown) {
-      console.error("Erro ao salvar upsell:", error);
-      toast.error("Não foi possível salvar as configurações");
-    }
-  }, [localSettings, product?.id, dispatchForm, updateUpsellModified]);
+  // ✅ RISE V3: handleSave removido - agora usa saveAll via Save Registry
+  // A validação de URL é feita no backend (handleUpdateUpsellSettings)
 
   if (!product?.id) {
     return (

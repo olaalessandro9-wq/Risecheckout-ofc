@@ -103,11 +103,11 @@ export function useProductSettings({
       try {
         console.log("[useProductSettings] Salvando upsell_settings:", settings);
 
+        // ✅ RISE V3: Use dedicated action for upsell_settings JSONB column
         const { data, error } = await api.call<ProductSettingsResponse>('product-settings', {
-          action: 'update-settings',
+          action: 'update-upsell-settings',
           productId,
-          settingsType: 'upsell',
-          settings,
+          upsellSettings: settings,
         });
 
         if (error) throw error;

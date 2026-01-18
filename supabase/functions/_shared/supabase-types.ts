@@ -359,6 +359,16 @@ export interface MembersAreaSettings {
 }
 
 // ============================================
+// UPSELL SETTINGS TYPES (JSONB column)
+// ============================================
+
+export interface UpsellSettingsInput {
+  hasCustomThankYouPage?: boolean;
+  customPageUrl?: string;
+  redirectIgnoringOrderBumpFailures?: boolean;
+}
+
+// ============================================
 // JSON RESPONSE HELPERS
 // ============================================
 
