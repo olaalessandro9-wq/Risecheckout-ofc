@@ -1,20 +1,23 @@
 /**
  * manage-affiliation Edge Function
  * 
- * @version 2.0.0 - Zero `any` compliance (RISE Protocol V2)
+ * @version 3.0.0 - RISE Protocol V3 Compliant (Vertical Slice Architecture)
+ * - Uses Shared Kernel for crypto and PII masking
+ * - Zero duplicate code
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { requireCanHaveAffiliates } from "../_shared/role-validator.ts";
-import { logSecurityEvent, SecurityAction } from "../_shared/audit-logger.ts";
 import { handleCors } from "../_shared/cors.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared/rate-limiter.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { generateSecureAffiliateCode } from "../_shared/kernel/security/crypto-utils.ts";
+import { maskEmail } from "../_shared/kernel/security/pii-masking.ts";
 
-// ==========================================
-// 🔒 TYPES
-// ==========================================
+// ============================================
+// TYPES
+// ============================================
 
 interface AffiliationProduct {
   id: string;
@@ -31,13 +34,28 @@ interface Affiliation {
   products: AffiliationProduct | AffiliationProduct[];
 }
 
-// ==========================================
-// 🔒 CONSTANTES DE SEGURANÇA
-// ==========================================
-const MAX_COMMISSION_RATE = 90; // Limite máximo de comissão (previne 99%+)
+type ManageAction = "approve" | "reject" | "block" | "unblock" | "update_commission";
+
+// ============================================
+// CONSTANTS
+// ============================================
+
+const MAX_COMMISSION_RATE = 90;
+
+const ACTION_MESSAGES: Record<ManageAction, string> = {
+  approve: "Afiliado aprovado com sucesso!",
+  reject: "Afiliado recusado.",
+  block: "Afiliado bloqueado.",
+  unblock: "Afiliado desbloqueado e ativado.",
+  update_commission: "Taxa de comissão atualizada",
+};
+
+// ============================================
+// MAIN HANDLER
+// ============================================
 
 serve(async (req) => {
-  // SECURITY: Validação CORS centralizada
+  // CORS handling
   const corsResult = handleCors(req);
   if (corsResult instanceof Response) {
     return corsResult;
@@ -51,7 +69,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // SECURITY: Rate limiting para gerenciamento de afiliados
+    // Rate limiting
     const rateLimitResult = await rateLimitMiddleware(
       supabaseClient,
       req,
@@ -69,18 +87,19 @@ serve(async (req) => {
       throw new Error("affiliation_id e action são obrigatórios");
     }
 
-    if (!["approve", "reject", "block", "unblock", "update_commission"].includes(action)) {
+    const validActions: ManageAction[] = ["approve", "reject", "block", "unblock", "update_commission"];
+    if (!validActions.includes(action)) {
       throw new Error("Ação inválida. Use: approve, reject, block, unblock ou update_commission");
     }
     
-    // Validação específica para update_commission
+    // Validate commission rate for update_commission action
     if (action === "update_commission") {
       if (typeof commission_rate !== 'number' || commission_rate < 1 || commission_rate > MAX_COMMISSION_RATE) {
         throw new Error(`Taxa de comissão deve ser um número entre 1 e ${MAX_COMMISSION_RATE}`);
       }
     }
 
-    // Get authenticated producer via unified-auth
+    // Authentication
     let producer;
     try {
       producer = await requireAuthenticatedProducer(supabaseClient, req);
@@ -88,10 +107,7 @@ serve(async (req) => {
       return unauthorizedResponse(corsHeaders);
     }
 
-    // ==========================================
-    // 🔒 VALIDAÇÃO DE ROLE - SEGURANÇA CRÍTICA
-    // ==========================================
-    // Apenas owner/admin podem gerenciar afiliados
+    // Role validation
     await requireCanHaveAffiliates(
       supabaseClient,
       producer.id,
@@ -101,9 +117,9 @@ serve(async (req) => {
 
     console.log(`🔧 [manage-affiliation] ${maskEmail(producer.email || '')} executando ação: ${action} em ${affiliation_id}`);
 
-    // ==========================================
-    // 1. BUSCAR AFILIAÇÃO E VALIDAR PROPRIEDADE
-    // ==========================================
+    // ============================================
+    // FETCH AFFILIATION AND VALIDATE OWNERSHIP
+    // ============================================
     const { data: affiliation, error: fetchError } = await supabaseClient
       .from("affiliates")
       .select(`
@@ -131,16 +147,16 @@ serve(async (req) => {
     const productsData = typedAffiliation.products;
     const product: AffiliationProduct = Array.isArray(productsData) ? productsData[0] : productsData;
     
-    // Verificar se o usuário autenticado é o dono do produto
+    // Verify user owns the product
     if (product.user_id !== producer.id) {
       throw new Error("Você não tem permissão para gerenciar este afiliado");
     }
 
     console.log(`✅ [manage-affiliation] Validação OK. Produto: ${product.name}`);
 
-    // ==========================================
-    // 2. EXECUTAR AÇÃO
-    // ==========================================
+    // ============================================
+    // EXECUTE ACTION
+    // ============================================
     let newStatus: string;
     let affiliateCode: string | null = typedAffiliation.affiliate_code;
     let newCommissionRate: number | null = null;
@@ -148,7 +164,6 @@ serve(async (req) => {
     switch (action) {
       case "approve":
         newStatus = "active";
-        // Gerar código se não existir
         if (!affiliateCode) {
           affiliateCode = generateSecureAffiliateCode();
         }
@@ -164,14 +179,12 @@ serve(async (req) => {
       
       case "unblock":
         newStatus = "active";
-        // Gerar código se não existir
         if (!affiliateCode) {
           affiliateCode = generateSecureAffiliateCode();
         }
         break;
       
       case "update_commission":
-        // Não muda status, apenas atualiza taxa
         newStatus = typedAffiliation.status;
         newCommissionRate = commission_rate;
         console.log(`💰 [manage-affiliation] Atualizando comissão para ${commission_rate}%`);
@@ -181,19 +194,18 @@ serve(async (req) => {
         throw new Error("Ação não implementada");
     }
 
-    // Montar objeto de update
+    // Build update object
     const updateData: Record<string, string | number | null> = {
       status: newStatus,
       affiliate_code: affiliateCode,
       updated_at: new Date().toISOString(),
     };
     
-    // Adicionar commission_rate se foi alterada
     if (newCommissionRate !== null) {
       updateData.commission_rate = newCommissionRate;
     }
 
-    // Atualizar no banco
+    // Update in database
     const { data: updated, error: updateError } = await supabaseClient
       .from("affiliates")
       .update(updateData)
@@ -207,9 +219,9 @@ serve(async (req) => {
 
     console.log(`✅ [manage-affiliation] Status atualizado: ${typedAffiliation.status} → ${newStatus}`);
 
-    // ==========================================
-    // 3. REGISTRAR AUDIT LOG
-    // ==========================================
+    // ============================================
+    // AUDIT LOG
+    // ============================================
     try {
       await supabaseClient.from("affiliate_audit_log").insert({
         affiliate_id: affiliation_id,
@@ -225,26 +237,21 @@ serve(async (req) => {
       });
       console.log(`📝 [manage-affiliation] Audit log registrado: ${action}`);
     } catch (auditError: unknown) {
-      // Não falhar se audit log falhar - apenas logar
       console.error(`⚠️ [manage-affiliation] Erro ao registrar audit log:`, auditError);
     }
 
-    // ==========================================
-    // 4. RETORNAR RESPOSTA
-    // ==========================================
-    const messages: Record<string, string> = {
-      approve: "Afiliado aprovado com sucesso!",
-      reject: "Afiliado recusado.",
-      block: "Afiliado bloqueado.",
-      unblock: "Afiliado desbloqueado e ativado.",
-      update_commission: `Taxa de comissão atualizada para ${commission_rate}%`,
-    };
+    // ============================================
+    // RETURN RESPONSE
+    // ============================================
+    const message = action === "update_commission" 
+      ? `${ACTION_MESSAGES[action]} para ${commission_rate}%`
+      : ACTION_MESSAGES[action as ManageAction];
 
     return new Response(
       JSON.stringify({
         success: true,
         affiliation: updated,
-        message: messages[action],
+        message,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -267,23 +274,3 @@ serve(async (req) => {
     );
   }
 });
-
-// ==========================================
-// HELPER: Gerar código de afiliado único (SEGURO)
-// ==========================================
-function generateSecureAffiliateCode(): string {
-  const bytes = new Uint8Array(12);
-  crypto.getRandomValues(bytes);
-  const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
-  return `AFF-${hex.slice(0, 8)}-${hex.slice(8, 16)}`;
-}
-
-// ==========================================
-// 🔒 HELPER: Mascarar PII (email) em logs
-// ==========================================
-function maskEmail(email: string): string {
-  if (!email || !email.includes('@')) return '***@***';
-  const [user, domain] = email.split('@');
-  const maskedUser = user.length > 2 ? user.substring(0, 2) + '***' : '***';
-  return `${maskedUser}@${domain}`;
-}
