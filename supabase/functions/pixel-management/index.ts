@@ -16,6 +16,7 @@
  * 
  * @version 2.0.0
  * @refactored 2026-01-13 - Handlers extraídos para _shared/pixel-handlers.ts
+ * @refactored 2026-01-18 - jsonResponse signature standardized
  * @security Requer producer_session token válido
  */
 
@@ -93,75 +94,54 @@ Deno.serve(async (req) => {
     }
 
     // Router
-    let response: Response;
-    
     switch (action) {
       // Vendor Pixel CRUD
       case "list":
-        response = await handleList(supabase, producerId);
-        break;
+        return await handleList(supabase, producerId, corsHeaders);
         
       case "create":
-        response = await handleCreate(supabase, producerId, data);
-        break;
+        return await handleCreate(supabase, producerId, data, corsHeaders);
         
       case "update":
         if (!pixelId) {
-          return jsonResponse({ error: "pixelId é obrigatório para update" }, 400, corsHeaders);
+          return jsonResponse({ error: "pixelId é obrigatório para update" }, corsHeaders, 400);
         }
-        response = await handleUpdate(supabase, producerId, pixelId, data);
-        break;
+        return await handleUpdate(supabase, producerId, pixelId, data, corsHeaders);
         
       case "delete":
         if (!pixelId) {
-          return jsonResponse({ error: "pixelId é obrigatório para delete" }, 400, corsHeaders);
+          return jsonResponse({ error: "pixelId é obrigatório para delete" }, corsHeaders, 400);
         }
-        response = await handleDelete(supabase, producerId, pixelId);
-        break;
+        return await handleDelete(supabase, producerId, pixelId, corsHeaders);
 
       // Product Pixel Link actions
       case "list-product-links":
         if (!productId) {
-          return jsonResponse({ error: "productId é obrigatório" }, 400, corsHeaders);
+          return jsonResponse({ error: "productId é obrigatório" }, corsHeaders, 400);
         }
-        response = await handleListProductLinks(supabase, producerId, productId);
-        break;
+        return await handleListProductLinks(supabase, producerId, productId, corsHeaders);
         
       case "link-to-product":
         if (!productId || !pixelId) {
-          return jsonResponse({ error: "productId e pixelId são obrigatórios" }, 400, corsHeaders);
+          return jsonResponse({ error: "productId e pixelId são obrigatórios" }, corsHeaders, 400);
         }
-        response = await handleLinkToProduct(supabase, producerId, productId, pixelId, data);
-        break;
+        return await handleLinkToProduct(supabase, producerId, productId, pixelId, data, corsHeaders);
         
       case "unlink-from-product":
         if (!productId || !pixelId) {
-          return jsonResponse({ error: "productId e pixelId são obrigatórios" }, 400, corsHeaders);
+          return jsonResponse({ error: "productId e pixelId são obrigatórios" }, corsHeaders, 400);
         }
-        response = await handleUnlinkFromProduct(supabase, producerId, productId, pixelId);
-        break;
+        return await handleUnlinkFromProduct(supabase, producerId, productId, pixelId, corsHeaders);
         
       case "update-product-link":
         if (!productId || !pixelId) {
-          return jsonResponse({ error: "productId e pixelId são obrigatórios" }, 400, corsHeaders);
+          return jsonResponse({ error: "productId e pixelId são obrigatórios" }, corsHeaders, 400);
         }
-        response = await handleUpdateProductLink(supabase, producerId, productId, pixelId, data);
-        break;
+        return await handleUpdateProductLink(supabase, producerId, productId, pixelId, data, corsHeaders);
 
       default:
-        return jsonResponse({ error: `Ação desconhecida: ${action}` }, 400, corsHeaders);
+        return jsonResponse({ error: `Ação desconhecida: ${action}` }, corsHeaders, 400);
     }
-
-    // Adicionar CORS headers à resposta
-    const responseHeaders = new Headers(response.headers);
-    Object.entries(corsHeaders).forEach(([key, value]) => {
-      responseHeaders.set(key, value);
-    });
-
-    return new Response(response.body, {
-      status: response.status,
-      headers: responseHeaders,
-    });
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Erro interno";
