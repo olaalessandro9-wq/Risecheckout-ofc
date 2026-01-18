@@ -27,7 +27,7 @@ import { validateCreateOrderInput, createValidationErrorResponse } from "../_sha
 import { validateProduct, type ProductValidationResult } from "./handlers/product-validator.ts";
 import { processBumps, type BumpProcessingResult } from "./handlers/bump-processor.ts";
 import { processCoupon } from "./handlers/coupon-processor.ts";
-import { processAffiliate } from "./handlers/affiliate-processor.ts";
+import { processAffiliate } from "./handlers/affiliate/index.ts";
 import { createOrder } from "./handlers/order-creator.ts";
 import { logSecurityEvent, SecurityAction } from "../_shared/audit-logger.ts";
 import { maskEmail } from "../_shared/kernel/security/pii-masking.ts";

@@ -48,6 +48,7 @@ KEYS_SUPABASE.md
 # EXCEÇÕES: Arquivos de código legítimos (não contêm valores sensíveis)
 !supabase/functions/_shared/platform-secrets.ts
 !supabase/functions/_shared/gateway-credentials.ts
+!supabase/functions/_shared/kernel/types/affiliate/credentials.ts
 !supabase/functions/asaas-validate-credentials/
 !supabase/functions/check-secrets/
 

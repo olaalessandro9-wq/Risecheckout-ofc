@@ -25,7 +25,7 @@ import {
   type ProductRecord,
   type ProducerRecord,
   type MarketplaceProduct,
-} from "../_shared/affiliation-queries.ts";
+} from "../_shared/affiliation-queries/index.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
