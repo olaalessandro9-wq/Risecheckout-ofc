@@ -5,6 +5,7 @@
  * Separado para manter arquivos < 300 linhas
  * 
  * @refactored 2026-01-13 - Usa buyer-auth-password.ts para password utilities
+ * @refactored 2026-01-18 - RISE V3: jsonResponse signature standardized
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -38,7 +39,7 @@ export async function handleValidate(
   const { sessionToken } = await req.json();
 
   if (!sessionToken) {
-    return jsonResponse({ valid: false }, 200, corsHeaders);
+    return jsonResponse({ valid: false }, corsHeaders, 200);
   }
 
   const { data: session } = await supabase
@@ -51,18 +52,18 @@ export async function handleValidate(
     .single();
 
   if (!session || !session.is_valid || !session.buyer) {
-    return jsonResponse({ valid: false }, 200, corsHeaders);
+    return jsonResponse({ valid: false }, corsHeaders, 200);
   }
 
   const buyerData = Array.isArray(session.buyer) ? session.buyer[0] : session.buyer;
 
   if (!buyerData.is_active) {
-    return jsonResponse({ valid: false }, 200, corsHeaders);
+    return jsonResponse({ valid: false }, corsHeaders, 200);
   }
 
   if (new Date(session.expires_at) < new Date()) {
     await supabase.from("buyer_sessions").update({ is_valid: false }).eq("id", session.id);
-    return jsonResponse({ valid: false }, 200, corsHeaders);
+    return jsonResponse({ valid: false }, corsHeaders, 200);
   }
 
   await supabase.from("buyer_sessions")
@@ -72,7 +73,7 @@ export async function handleValidate(
   return jsonResponse({
     valid: true,
     buyer: { id: buyerData.id, email: buyerData.email, name: buyerData.name },
-  }, 200, corsHeaders);
+  }, corsHeaders, 200);
 }
 
 // ============================================
@@ -86,7 +87,7 @@ export async function handleCheckEmail(
   const { email } = await req.json();
 
   if (!email) {
-    return jsonResponse({ error: "Email é obrigatório" }, 400, corsHeaders);
+    return jsonResponse({ error: "Email é obrigatório" }, corsHeaders, 400);
   }
 
   const { data: buyer } = await supabase
@@ -96,11 +97,11 @@ export async function handleCheckEmail(
     .single();
 
   if (!buyer) {
-    return jsonResponse({ exists: false, needsPasswordSetup: false }, 200, corsHeaders);
+    return jsonResponse({ exists: false, needsPasswordSetup: false }, corsHeaders, 200);
   }
 
   const needsPasswordSetup = buyer.password_hash === "PENDING_PASSWORD_SETUP";
-  return jsonResponse({ exists: true, needsPasswordSetup, buyerId: buyer.id }, 200, corsHeaders);
+  return jsonResponse({ exists: true, needsPasswordSetup, buyerId: buyer.id }, corsHeaders, 200);
 }
 
 // ============================================
@@ -123,7 +124,7 @@ export async function handleRequestPasswordReset(
   const email = sanitizeEmail(rawBody.email);
 
   if (!email) {
-    return jsonResponse({ error: "Email é obrigatório" }, 400, corsHeaders);
+    return jsonResponse({ error: "Email é obrigatório" }, corsHeaders, 400);
   }
 
   const { data: buyer, error: findError } = await supabase
@@ -134,13 +135,13 @@ export async function handleRequestPasswordReset(
 
   if (findError || !buyer) {
     console.log(`[buyer-auth] Password reset requested for non-existent email: ${email}`);
-    return jsonResponse({ success: true, message: "Se o email existir, você receberá instruções" }, 200, corsHeaders);
+    return jsonResponse({ success: true, message: "Se o email existir, você receberá instruções" }, corsHeaders, 200);
   }
 
   if (buyer.password_hash === "PENDING_PASSWORD_SETUP") {
     return jsonResponse({ 
       error: "Você ainda não definiu uma senha. Use o link de configuração enviado por email." 
-    }, 400, corsHeaders);
+    }, corsHeaders, 400);
   }
 
   const resetToken = generateResetToken();
@@ -154,7 +155,7 @@ export async function handleRequestPasswordReset(
 
   if (updateError) {
     console.error("[buyer-auth] Error setting reset token:", updateError);
-    return jsonResponse({ error: "Erro ao processar solicitação" }, 500, corsHeaders);
+    return jsonResponse({ error: "Erro ao processar solicitação" }, corsHeaders, 500);
   }
 
   const resetLink = `${Deno.env.get("APP_URL") || "https://risecheckout.lovable.app"}/buyer/reset-password?token=${resetToken}`;
@@ -168,11 +169,11 @@ export async function handleRequestPasswordReset(
 
   if (!emailResult.success) {
     console.error("[buyer-auth] Error sending reset email:", emailResult.error);
-    return jsonResponse({ error: "Erro ao enviar email. Tente novamente." }, 500, corsHeaders);
+    return jsonResponse({ error: "Erro ao enviar email. Tente novamente." }, corsHeaders, 500);
   }
 
   console.log(`[buyer-auth] Password reset email sent to: ${email}`);
-  return jsonResponse({ success: true, message: "Email enviado" }, 200, corsHeaders);
+  return jsonResponse({ success: true, message: "Email enviado" }, corsHeaders, 200);
 }
 
 // ============================================
@@ -186,7 +187,7 @@ export async function handleVerifyResetToken(
   const { token } = await req.json();
 
   if (!token) {
-    return jsonResponse({ valid: false, error: "Token não fornecido" }, 400, corsHeaders);
+    return jsonResponse({ valid: false, error: "Token não fornecido" }, corsHeaders, 400);
   }
 
   const { data: buyer, error: findError } = await supabase
@@ -197,15 +198,15 @@ export async function handleVerifyResetToken(
 
   if (findError || !buyer) {
     console.log(`[buyer-auth] Invalid reset token: ${token.substring(0, 10)}...`);
-    return jsonResponse({ valid: false, error: "Link inválido ou já utilizado" }, 400, corsHeaders);
+    return jsonResponse({ valid: false, error: "Link inválido ou já utilizado" }, corsHeaders, 400);
   }
 
   if (!buyer.reset_token_expires_at || new Date(buyer.reset_token_expires_at) < new Date()) {
     console.log(`[buyer-auth] Expired reset token for: ${buyer.email}`);
-    return jsonResponse({ valid: false, error: "Link expirado. Solicite um novo." }, 400, corsHeaders);
+    return jsonResponse({ valid: false, error: "Link expirado. Solicite um novo." }, corsHeaders, 400);
   }
 
-  return jsonResponse({ valid: true, email: buyer.email }, 200, corsHeaders);
+  return jsonResponse({ valid: true, email: buyer.email }, corsHeaders, 200);
 }
 
 // ============================================
@@ -219,7 +220,7 @@ export async function handleResetPassword(
   const { token, password } = await req.json();
 
   if (!token || !password) {
-    return jsonResponse({ error: "Token e senha são obrigatórios" }, 400, corsHeaders);
+    return jsonResponse({ error: "Token e senha são obrigatórios" }, corsHeaders, 400);
   }
 
   const { data: buyer, error: findError } = await supabase
@@ -229,11 +230,11 @@ export async function handleResetPassword(
     .single();
 
   if (findError || !buyer) {
-    return jsonResponse({ error: "Link inválido ou já utilizado" }, 400, corsHeaders);
+    return jsonResponse({ error: "Link inválido ou já utilizado" }, corsHeaders, 400);
   }
 
   if (!buyer.reset_token_expires_at || new Date(buyer.reset_token_expires_at) < new Date()) {
-    return jsonResponse({ error: "Link expirado. Solicite um novo." }, 400, corsHeaders);
+    return jsonResponse({ error: "Link expirado. Solicite um novo." }, corsHeaders, 400);
   }
 
   const passwordValidation = validatePassword(password);
@@ -245,7 +246,7 @@ export async function handleResetPassword(
         errors: passwordValidation.errors,
         suggestions: passwordValidation.suggestions,
       }
-    }, 400, corsHeaders);
+    }, corsHeaders, 400);
   }
 
   const passwordHash = hashPassword(password);
@@ -263,7 +264,7 @@ export async function handleResetPassword(
 
   if (updateError) {
     console.error("[buyer-auth] Error updating password:", updateError);
-    return jsonResponse({ error: "Erro ao redefinir senha" }, 500, corsHeaders);
+    return jsonResponse({ error: "Erro ao redefinir senha" }, corsHeaders, 500);
   }
 
   await logSecurityEvent(supabase, {
@@ -276,5 +277,5 @@ export async function handleResetPassword(
   });
 
   console.log(`[buyer-auth] Password reset successful for: ${buyer.email}`);
-  return jsonResponse({ success: true, message: "Senha redefinida com sucesso" }, 200, corsHeaders);
+  return jsonResponse({ success: true, message: "Senha redefinida com sucesso" }, corsHeaders, 200);
 }

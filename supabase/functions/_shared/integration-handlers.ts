@@ -17,6 +17,9 @@ import {
 } from "./rate-limiting/index.ts";
 import { jsonResponse, errorResponse } from "./response-helpers.ts";
 
+// Re-export for backwards compatibility
+export { jsonResponse, errorResponse };
+
 // ============================================================================
 // TYPES
 // ============================================================================

@@ -2,6 +2,8 @@
  * Pixel Management Handlers - Product Links
  * 
  * Handlers para gerenciamento de vínculos entre pixels e produtos
+ * 
+ * @refactored 2026-01-18 - jsonResponse signature standardized
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -45,13 +47,14 @@ export async function verifyProductOwnership(
 export async function handleListProductLinks(
   supabase: SupabaseClient,
   producerId: string,
-  productId: string
+  productId: string,
+  corsHeaders: Record<string, string>
 ): Promise<Response> {
   console.log("[pixel-management] Listing product pixel links:", productId);
 
   const ownership = await verifyProductOwnership(supabase, productId, producerId);
   if (!ownership.valid) {
-    return jsonResponse({ error: ownership.error }, 403);
+    return jsonResponse({ error: ownership.error }, corsHeaders, 403);
   }
 
   const { data: vendorPixels, error: pixelsError } = await supabase
@@ -86,7 +89,7 @@ export async function handleListProductLinks(
       link: productLinks.find((l) => l.pixel_id === pixel.id),
     }));
 
-  return jsonResponse({ success: true, vendorPixels: pixels, linkedPixels, links: productLinks });
+  return jsonResponse({ success: true, vendorPixels: pixels, linkedPixels, links: productLinks }, corsHeaders);
 }
 
 export async function handleLinkToProduct(
@@ -94,13 +97,14 @@ export async function handleLinkToProduct(
   producerId: string,
   productId: string,
   pixelId: string,
-  data: PixelData | undefined
+  data: PixelData | undefined,
+  corsHeaders: Record<string, string>
 ): Promise<Response> {
   console.log("[pixel-management] Linking pixel to product:", { pixelId, productId });
 
   const ownership = await verifyProductOwnership(supabase, productId, producerId);
   if (!ownership.valid) {
-    return jsonResponse({ error: ownership.error }, 403);
+    return jsonResponse({ error: ownership.error }, corsHeaders, 403);
   }
 
   const { data: pixel, error: pixelError } = await supabase
@@ -110,11 +114,11 @@ export async function handleLinkToProduct(
     .single();
 
   if (pixelError || !pixel) {
-    return jsonResponse({ error: "Pixel não encontrado" }, 404);
+    return jsonResponse({ error: "Pixel não encontrado" }, corsHeaders, 404);
   }
 
   if (pixel.vendor_id !== producerId) {
-    return jsonResponse({ error: "Acesso negado ao pixel" }, 403);
+    return jsonResponse({ error: "Acesso negado ao pixel" }, corsHeaders, 403);
   }
 
   const { data: newLink, error: insertError } = await supabase
@@ -134,7 +138,7 @@ export async function handleLinkToProduct(
 
   if (insertError) {
     if (insertError.code === "23505") {
-      return jsonResponse({ error: "Este pixel já está vinculado ao produto" }, 409);
+      return jsonResponse({ error: "Este pixel já está vinculado ao produto" }, corsHeaders, 409);
     }
     console.error("[pixel-management] Error linking pixel:", insertError);
     throw new Error("Erro ao vincular pixel");
@@ -142,20 +146,21 @@ export async function handleLinkToProduct(
 
   console.log("[pixel-management] ✅ Pixel linked:", newLink.id);
 
-  return jsonResponse({ success: true, link: newLink }, 201);
+  return jsonResponse({ success: true, link: newLink }, corsHeaders, 201);
 }
 
 export async function handleUnlinkFromProduct(
   supabase: SupabaseClient,
   producerId: string,
   productId: string,
-  pixelId: string
+  pixelId: string,
+  corsHeaders: Record<string, string>
 ): Promise<Response> {
   console.log("[pixel-management] Unlinking pixel from product:", { pixelId, productId });
 
   const ownership = await verifyProductOwnership(supabase, productId, producerId);
   if (!ownership.valid) {
-    return jsonResponse({ error: ownership.error }, 403);
+    return jsonResponse({ error: ownership.error }, corsHeaders, 403);
   }
 
   const { error } = await supabase
@@ -171,7 +176,7 @@ export async function handleUnlinkFromProduct(
 
   console.log("[pixel-management] ✅ Pixel unlinked");
 
-  return jsonResponse({ success: true });
+  return jsonResponse({ success: true }, corsHeaders);
 }
 
 export async function handleUpdateProductLink(
@@ -179,13 +184,14 @@ export async function handleUpdateProductLink(
   producerId: string,
   productId: string,
   pixelId: string,
-  data: PixelData | undefined
+  data: PixelData | undefined,
+  corsHeaders: Record<string, string>
 ): Promise<Response> {
   console.log("[pixel-management] Updating product pixel link:", { pixelId, productId });
 
   const ownership = await verifyProductOwnership(supabase, productId, producerId);
   if (!ownership.valid) {
-    return jsonResponse({ error: ownership.error }, 403);
+    return jsonResponse({ error: ownership.error }, corsHeaders, 403);
   }
 
   const updateData: Record<string, unknown> = {};
@@ -211,5 +217,5 @@ export async function handleUpdateProductLink(
 
   console.log("[pixel-management] ✅ Link updated");
 
-  return jsonResponse({ success: true, link: updatedLink });
+  return jsonResponse({ success: true, link: updatedLink }, corsHeaders);
 }

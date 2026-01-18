@@ -5,6 +5,7 @@
  * Separado para manter arquivos < 300 linhas
  * 
  * @refactored 2026-01-13 - Password utilities extraídas para buyer-auth-password.ts
+ * @refactored 2026-01-18 - RISE V3: jsonResponse signature standardized
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -70,7 +71,7 @@ export async function handleRegister(
   const phone = sanitizePhone(rawBody.phone);
 
   if (!email || !password) {
-    return jsonResponse({ error: "Email e senha são obrigatórios" }, 400, corsHeaders);
+    return jsonResponse({ error: "Email e senha são obrigatórios" }, corsHeaders, 400);
   }
 
   const passwordValidation = validatePassword(password);
@@ -82,7 +83,7 @@ export async function handleRegister(
         errors: passwordValidation.errors,
         suggestions: passwordValidation.suggestions,
       }
-    }, 400, corsHeaders);
+    }, corsHeaders, 400);
   }
 
   const { data: existingBuyer } = await supabase
@@ -108,14 +109,14 @@ export async function handleRegister(
 
       if (updateError) {
         console.error("[buyer-auth] Error updating password:", updateError);
-        return jsonResponse({ error: "Erro ao definir senha" }, 500, corsHeaders);
+        return jsonResponse({ error: "Erro ao definir senha" }, corsHeaders, 500);
       }
 
       console.log(`[buyer-auth] Password set with bcrypt for existing buyer: ${email}`);
-      return jsonResponse({ success: true, message: "Senha definida com sucesso" }, 200, corsHeaders);
+      return jsonResponse({ success: true, message: "Senha definida com sucesso" }, corsHeaders, 200);
     }
 
-    return jsonResponse({ error: "Este email já está cadastrado" }, 409, corsHeaders);
+    return jsonResponse({ error: "Este email já está cadastrado" }, corsHeaders, 409);
   }
 
   const { data: newBuyer, error: createError } = await supabase
@@ -132,11 +133,11 @@ export async function handleRegister(
 
   if (createError) {
     console.error("[buyer-auth] Error creating buyer:", createError);
-    return jsonResponse({ error: "Erro ao criar conta" }, 500, corsHeaders);
+    return jsonResponse({ error: "Erro ao criar conta" }, corsHeaders, 500);
   }
 
   console.log(`[buyer-auth] New buyer created with bcrypt: ${email}`);
-  return jsonResponse({ success: true, buyerId: newBuyer.id }, 200, corsHeaders);
+  return jsonResponse({ success: true, buyerId: newBuyer.id }, corsHeaders, 200);
 }
 
 // ============================================
@@ -160,7 +161,7 @@ export async function handleLogin(
   const password = rawBody.password;
 
   if (!email || !password) {
-    return jsonResponse({ error: "Email e senha são obrigatórios" }, 400, corsHeaders);
+    return jsonResponse({ error: "Email e senha são obrigatórios" }, corsHeaders, 400);
   }
 
   const { data: buyer, error: findError } = await supabase
@@ -171,18 +172,18 @@ export async function handleLogin(
 
   if (findError || !buyer) {
     console.log(`[buyer-auth] Login failed - buyer not found: ${email}`);
-    return jsonResponse({ error: "Email ou senha inválidos" }, 401, corsHeaders);
+    return jsonResponse({ error: "Email ou senha inválidos" }, corsHeaders, 401);
   }
 
   if (!buyer.is_active) {
-    return jsonResponse({ error: "Conta desativada" }, 403, corsHeaders);
+    return jsonResponse({ error: "Conta desativada" }, corsHeaders, 403);
   }
 
   if (buyer.password_hash === "PENDING_PASSWORD_SETUP") {
     return jsonResponse({ 
       error: "Você precisa definir sua senha primeiro",
       needsPasswordSetup: true 
-    }, 401, corsHeaders);
+    }, corsHeaders, 401);
   }
 
   // RISE V3: Apenas bcrypt - não precisa verificar versão
@@ -198,7 +199,7 @@ export async function handleLogin(
       request: req,
       metadata: { email: buyer.email, reason: "invalid_password" }
     });
-    return jsonResponse({ error: "Email ou senha inválidos" }, 401, corsHeaders);
+    return jsonResponse({ error: "Email ou senha inválidos" }, corsHeaders, 401);
   }
 
   const sessionToken = generateSessionToken();
@@ -217,7 +218,7 @@ export async function handleLogin(
 
   if (sessionError) {
     console.error("[buyer-auth] Error creating session:", sessionError);
-    return jsonResponse({ error: "Erro ao criar sessão" }, 500, corsHeaders);
+    return jsonResponse({ error: "Erro ao criar sessão" }, corsHeaders, 500);
   }
 
   await supabase
@@ -240,7 +241,7 @@ export async function handleLogin(
     sessionToken,
     expiresAt: expiresAt.toISOString(),
     buyer: { id: buyer.id, email: buyer.email, name: buyer.name },
-  }, 200, corsHeaders);
+  }, corsHeaders, 200);
 }
 
 // ============================================
@@ -254,7 +255,7 @@ export async function handleLogout(
   const { sessionToken } = await req.json();
 
   if (!sessionToken) {
-    return jsonResponse({ error: "Token de sessão é obrigatório" }, 400, corsHeaders);
+    return jsonResponse({ error: "Token de sessão é obrigatório" }, corsHeaders, 400);
   }
 
   const { data: session } = await supabase
@@ -279,5 +280,5 @@ export async function handleLogout(
   }
 
   console.log("[buyer-auth] Logout successful");
-  return jsonResponse({ success: true }, 200, corsHeaders);
+  return jsonResponse({ success: true }, corsHeaders, 200);
 }
