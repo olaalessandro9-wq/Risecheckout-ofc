@@ -2,13 +2,11 @@
  * Modules Editor - Editor de configurações de módulos
  * Suporta reordenação e visibilidade de módulos
  * 
- * @see RISE ARCHITECT PROTOCOL
+ * @see RISE ARCHITECT PROTOCOL V3
  */
 
-import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Button } from '@/components/ui/button';
 import { 
   Select,
   SelectContent,
@@ -17,8 +15,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Pencil, ImageIcon, GripVertical, Eye, EyeOff } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import {
   DndContext,
   closestCenter,
@@ -32,10 +28,9 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
-  useSortable,
 } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import type { Section, ModulesSettings, MemberModule } from '../../../types/builder.types';
+import { SortableModuleListItem } from './SortableModuleListItem';
 
 interface ModulesEditorProps {
   section: Section;
@@ -120,7 +115,7 @@ export function ModulesEditor({ section, onUpdate, modules = [], onModuleEdit }:
       <div className="space-y-4">
         <h4 className="text-sm font-medium text-muted-foreground">Configurações da Seção</h4>
         
-        {/* Course Selection - placeholder for now */}
+        {/* Course Selection */}
         <div className="space-y-2">
           <Label>Curso</Label>
           <Select
@@ -132,7 +127,6 @@ export function ModulesEditor({ section, onUpdate, modules = [], onModuleEdit }:
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os cursos</SelectItem>
-              {/* TODO: Populate with actual courses */}
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
@@ -233,97 +227,6 @@ export function ModulesEditor({ section, onUpdate, modules = [], onModuleEdit }:
           </DndContext>
         )}
       </div>
-    </div>
-  );
-}
-
-interface SortableModuleListItemProps {
-  module: MemberModule;
-  isHidden: boolean;
-  onEdit: () => void;
-  onToggleVisibility: () => void;
-}
-
-function SortableModuleListItem({ module, isHidden, onEdit, onToggleVisibility }: SortableModuleListItemProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: module.id });
-  
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <div 
-      ref={setNodeRef}
-      style={style}
-      className={cn(
-        'flex items-center gap-3 p-2 rounded-lg border transition-colors group',
-        isHidden ? 'opacity-50 bg-muted/50' : 'hover:bg-accent',
-        !module.is_active && 'opacity-60'
-      )}
-    >
-      {/* Drag Handle */}
-      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
-        <GripVertical className="h-4 w-4 text-muted-foreground" />
-      </div>
-
-      {/* Thumbnail */}
-      <div 
-        className="w-10 h-14 rounded bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer"
-        onClick={onEdit}
-      >
-        {module.cover_image_url ? (
-          <img 
-            src={module.cover_image_url} 
-            alt={module.title}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <ImageIcon className="h-4 w-4 text-muted-foreground" />
-        )}
-      </div>
-
-      {/* Info */}
-      <div className="flex-1 min-w-0 cursor-pointer" onClick={onEdit}>
-        <p className={cn('text-sm font-medium truncate', isHidden && 'line-through')}>
-          {module.title}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {module.cover_image_url ? 'Com capa' : 'Sem capa'}
-          {isHidden && ' • Oculto'}
-        </p>
-      </div>
-
-      {/* Visibility Toggle */}
-      <Button 
-        variant="ghost" 
-        size="icon" 
-        className="flex-shrink-0 opacity-0 group-hover:opacity-100"
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggleVisibility();
-        }}
-        title={isHidden ? 'Mostrar módulo' : 'Ocultar módulo'}
-      >
-        {isHidden ? (
-          <EyeOff className="h-4 w-4" />
-        ) : (
-          <Eye className="h-4 w-4" />
-        )}
-      </Button>
-
-      {/* Edit Button */}
-      <Button variant="ghost" size="icon" className="flex-shrink-0" onClick={onEdit}>
-        <Pencil className="h-4 w-4" />
-      </Button>
     </div>
   );
 }
