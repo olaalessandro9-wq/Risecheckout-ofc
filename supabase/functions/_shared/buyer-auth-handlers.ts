@@ -13,7 +13,7 @@ import {
   rateLimitMiddleware, 
   RATE_LIMIT_CONFIGS,
   getClientIP 
-} from "./rate-limiter.ts";
+} from "./rate-limiting/index.ts";
 
 import { 
   validatePassword, 

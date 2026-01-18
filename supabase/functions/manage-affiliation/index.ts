@@ -10,7 +10,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { requireCanHaveAffiliates } from "../_shared/role-validator.ts";
 import { handleCors } from "../_shared/cors.ts";
-import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared/rate-limiter.ts";
+import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 import { generateSecureAffiliateCode } from "../_shared/kernel/security/crypto-utils.ts";
 import { maskEmail } from "../_shared/kernel/security/pii-masking.ts";
@@ -73,7 +73,8 @@ serve(async (req) => {
     const rateLimitResult = await rateLimitMiddleware(
       supabaseClient,
       req,
-      RATE_LIMIT_CONFIGS.AFFILIATION_MANAGE
+      RATE_LIMIT_CONFIGS.AFFILIATION_MANAGE,
+      corsHeaders
     );
     if (rateLimitResult) {
       console.warn(`[manage-affiliation] Rate limit exceeded for IP: ${getClientIP(req)}`);

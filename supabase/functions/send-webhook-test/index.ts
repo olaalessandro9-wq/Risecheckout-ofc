@@ -10,7 +10,7 @@ import {
   rateLimitMiddleware, 
   RATE_LIMIT_CONFIGS,
   getClientIP 
-} from "../_shared/rate-limiter.ts";
+} from "../_shared/rate-limiting/index.ts";
 
 // === INTERFACES (Zero any) ===
 
@@ -82,7 +82,8 @@ Deno.serve(async (req) => {
     const rateLimitResult = await rateLimitMiddleware(
       supabaseClient,
       req,
-      RATE_LIMIT_CONFIGS.WEBHOOK_TEST
+      RATE_LIMIT_CONFIGS.WEBHOOK_TEST,
+      corsHeaders
     );
     if (rateLimitResult) {
       console.warn(`[send-webhook-test] Rate limit exceeded for IP: ${getClientIP(req)}`);
