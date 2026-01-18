@@ -22,7 +22,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
-import { checkRateLimit, recordRateLimitAttempt, DEFAULT_RATE_LIMIT } from "../_shared/edge-helpers.ts";
+import { checkRateLimit, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiting/index.ts";
 import {
   validateCreateProduct,
   validateUpdateProduct,
@@ -97,28 +97,24 @@ serve(withSentry("product-crud", async (req) => {
 
     // CREATE
     if (action === "create") {
-      const rateCheck = await checkRateLimit(supabase, producerId, { ...DEFAULT_RATE_LIMIT, action: "product_create" });
+      const rateCheck = await checkRateLimit(supabase, `producer:${producerId}`, RATE_LIMIT_CONFIGS.PRODUCER_ACTION);
       if (!rateCheck.allowed) return jsonResponse({ success: false, error: "Muitas requisições", retryAfter: rateCheck.retryAfter }, corsHeaders, 429);
 
       const validation = validateCreateProduct((body.product as Record<string, unknown>) || body);
       if (!validation.valid) return errorResponse(validation.error!, corsHeaders, 400);
 
-      const result = await handleCreateProduct(supabase, producerId, validation.sanitized!, corsHeaders);
-      await recordRateLimitAttempt(supabase, producerId, "product_create");
-      return result;
+      return await handleCreateProduct(supabase, producerId, validation.sanitized!, corsHeaders);
     }
 
     // UPDATE
     if (action === "update") {
-      const rateCheck = await checkRateLimit(supabase, producerId, { ...DEFAULT_RATE_LIMIT, action: "product_update" });
+      const rateCheck = await checkRateLimit(supabase, `producer:${producerId}`, RATE_LIMIT_CONFIGS.PRODUCER_ACTION);
       if (!rateCheck.allowed) return jsonResponse({ success: false, error: "Muitas requisições", retryAfter: rateCheck.retryAfter }, corsHeaders, 429);
 
       const validation = validateUpdateProduct((body.product as Record<string, unknown>) || body);
       if (!validation.valid) return errorResponse(validation.error!, corsHeaders, 400);
 
-      const result = await handleUpdateProduct(supabase, producerId, validation.productId!, validation.updates!, corsHeaders);
-      await recordRateLimitAttempt(supabase, producerId, "product_update");
-      return result;
+      return await handleUpdateProduct(supabase, producerId, validation.productId!, validation.updates!, corsHeaders);
     }
 
     // DELETE

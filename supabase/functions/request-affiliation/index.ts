@@ -11,7 +11,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { requireAuthenticatedProducer, ProducerAuth } from "../_shared/unified-auth.ts";
-import { checkProducerRateLimit, recordProducerAttempt } from "../_shared/producer-rate-limit.ts";
+import { checkRateLimit, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiting/index.ts";
 import { generateSecureAffiliateCode } from "../_shared/kernel/security/crypto-utils.ts";
 import { maskEmail } from "../_shared/kernel/security/pii-masking.ts";
 
@@ -53,9 +53,7 @@ interface ProfileData {
 // CONSTANTS
 // ============================================
 
-const RATE_LIMIT_ACTION = "request-affiliation";
-const RATE_LIMIT_MAX = 5;
-const RATE_LIMIT_WINDOW_MINUTES = 1;
+// Use config from consolidated rate-limiting module
 
 // ============================================
 // MAIN HANDLER
@@ -99,14 +97,12 @@ serve(async (req) => {
     console.log(`📝 [request-affiliation] Solicitação de ${maskEmail(producer.email)} para produto ${product_id}`);
 
     // ============================================
-    // RATE LIMITING (usando Shared Kernel)
+    // RATE LIMITING (usando módulo consolidado)
     // ============================================
-    const rateLimitResult = await checkProducerRateLimit(
+    const rateLimitResult = await checkRateLimit(
       supabaseClient,
-      producer.id,
-      RATE_LIMIT_ACTION,
-      RATE_LIMIT_MAX,
-      RATE_LIMIT_WINDOW_MINUTES
+      `producer:${producer.id}`,
+      RATE_LIMIT_CONFIGS.AFFILIATION_MANAGE
     );
     
     if (!rateLimitResult.allowed) {
@@ -114,7 +110,8 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: false,
-          error: `Muitas solicitações. Tente novamente em ${rateLimitResult.retryAfter} segundos.`,
+          error: rateLimitResult.error || "Muitas solicitações. Tente novamente mais tarde.",
+          retryAfter: rateLimitResult.retryAfter,
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -122,9 +119,6 @@ serve(async (req) => {
         }
       );
     }
-
-    // Registrar tentativa
-    await recordProducerAttempt(supabaseClient, producer.id, RATE_LIMIT_ACTION);
 
     // ============================================
     // FETCH USER PROFILE FOR GATEWAY VALIDATION

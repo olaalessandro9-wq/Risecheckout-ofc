@@ -78,20 +78,30 @@ export function createErrorResponse(
 /**
  * Cria resposta de rate limit
  */
-export function createRateLimitResponse(retryAfter?: number): Response {
+export function createRateLimitResponse(retryAfter?: string | number): Response {
+  // Handle both string (ISO timestamp) and number (seconds) formats
+  let retryAfterSeconds: number;
+  if (typeof retryAfter === 'string') {
+    // Parse ISO timestamp and calculate seconds from now
+    const retryDate = new Date(retryAfter);
+    retryAfterSeconds = Math.max(0, Math.ceil((retryDate.getTime() - Date.now()) / 1000));
+  } else {
+    retryAfterSeconds = retryAfter || 60;
+  }
+  
   return new Response(
     JSON.stringify({
       success: false,
       error: 'Too many requests',
-      message: `Rate limit exceeded. Try again in ${retryAfter} seconds.`,
-      retryAfter
+      message: `Rate limit exceeded. Try again in ${retryAfterSeconds} seconds.`,
+      retryAfter: retryAfterSeconds
     }),
     {
       status: 429,
       headers: {
         ...corsHeaders,
         'Content-Type': 'application/json',
-        'Retry-After': retryAfter?.toString() || '60',
+        'Retry-After': retryAfterSeconds.toString(),
         'X-RateLimit-Remaining': '0'
       }
     }

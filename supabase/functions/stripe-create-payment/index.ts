@@ -16,7 +16,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.14.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors, PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
-import { rateLimitMiddleware, getIdentifier } from "../_shared/rate-limit.ts";
+import { rateLimitOnlyMiddleware, getIdentifier, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiting/index.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { loadOrder, getVendorStripeConfig } from "./handlers/order-loader.ts";
 import { buildPaymentIntentParams } from "./handlers/intent-builder.ts";
@@ -56,23 +56,23 @@ serve(withSentry('stripe-create-payment', async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // 1. Rate Limiting
-  const rateLimitResponse = await rateLimitMiddleware(req, {
-    maxAttempts: 10,
-    windowMs: 60 * 1000,
-    identifier: getIdentifier(req, false),
-    action: "stripe_create_payment",
-  });
-
-  if (rateLimitResponse) {
-    logStep("Rate limit exceeded", { identifier: getIdentifier(req, false) });
-    return rateLimitResponse;
-  }
-
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
   );
+
+  // 1. Rate Limiting
+  const rateLimitResponse = await rateLimitOnlyMiddleware(
+    supabase,
+    req,
+    RATE_LIMIT_CONFIGS.CREATE_PIX,
+    corsHeaders
+  );
+
+  if (rateLimitResponse) {
+    logStep("Rate limit exceeded", { identifier: getIdentifier(req) });
+    return rateLimitResponse;
+  }
 
   let rawBody = "";
 

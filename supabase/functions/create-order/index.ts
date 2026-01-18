@@ -21,7 +21,7 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { rateLimitMiddleware, getIdentifier } from "../_shared/rate-limit.ts";
+import { rateLimitOnlyMiddleware, getIdentifier, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiting/index.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { handleCors } from "../_shared/cors.ts";
 import { validateCreateOrderInput, createValidationErrorResponse } from "../_shared/validators.ts";
@@ -67,13 +67,17 @@ serve(withSentry('create-order', async (req) => {
   const corsHeaders = corsResult.headers;
 
   // 1. Rate Limiting
-  const identifier = getIdentifier(req, false);
-  const rateLimitResponse = await rateLimitMiddleware(req, {
-    maxAttempts: 10,
-    windowMs: 5 * 60 * 1000,
-    identifier,
-    action: "create_order",
-  });
+  const supabaseForRateLimit = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+  );
+  const identifier = getIdentifier(req);
+  const rateLimitResponse = await rateLimitOnlyMiddleware(
+    supabaseForRateLimit,
+    req,
+    RATE_LIMIT_CONFIGS.CREATE_ORDER,
+    corsHeaders
+  );
 
   if (rateLimitResponse) {
     console.log(`[create-order] Rate limit excedido: ${identifier}`);

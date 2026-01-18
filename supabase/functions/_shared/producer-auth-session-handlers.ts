@@ -8,7 +8,7 @@
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getClientIP } from "./rate-limiter.ts";
+import { getClientIP } from "./rate-limiting/service.ts";
 import {
   logAuditEvent,
   jsonResponse,

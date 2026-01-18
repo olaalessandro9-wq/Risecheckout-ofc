@@ -11,7 +11,7 @@
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { rateLimitMiddleware, getIdentifier } from '../_shared/rate-limit.ts';
+import { rateLimitOnlyMiddleware, RATE_LIMIT_CONFIGS } from '../_shared/rate-limiting/index.ts';
 import { getGatewayCredentials, validateCredentials } from '../_shared/platform-config.ts';
 import { logSecurityEvent, SecurityAction } from '../_shared/audit-logger.ts';
 import { 
@@ -51,16 +51,18 @@ serve(async (req) => {
     logger.info(`🚀 Webhook recebido - Versão ${FUNCTION_VERSION}`);
 
     // Rate Limiting
-    const rateLimitResponse = await rateLimitMiddleware(req, {
-      maxAttempts: 30,
-      windowMs: 60 * 1000,
-      identifier: getIdentifier(req, false),
-      action: 'mercadopago_webhook',
-    });
+    if (supabase) {
+      const rateLimitResponse = await rateLimitOnlyMiddleware(
+        supabase,
+        req,
+        RATE_LIMIT_CONFIGS.WEBHOOK,
+        CORS_HEADERS
+      );
 
-    if (rateLimitResponse) {
-      logger.warn('Rate limit excedido');
-      return rateLimitResponse;
+      if (rateLimitResponse) {
+        logger.warn('Rate limit excedido');
+        return rateLimitResponse;
+      }
     }
 
     if (!supabase) {
