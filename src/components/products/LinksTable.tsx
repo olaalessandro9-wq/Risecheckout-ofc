@@ -108,7 +108,10 @@ export function LinksTable({ links, onToggleStatus }: LinksTableProps) {
             </TableHeader>
             <TableBody>
               {filteredLinks.map((link) => (
-                <TableRow key={link.id} className="hover:bg-muted/30">
+                <TableRow 
+                  key={link.id} 
+                  className={`hover:bg-muted/30 ${link.status === 'inactive' ? 'opacity-50' : ''}`}
+                >
                   <TableCell className="font-medium text-foreground">
                     <div className="flex items-center gap-2">
                       {link.offer_name}
@@ -185,10 +188,11 @@ export function LinksTable({ links, onToggleStatus }: LinksTableProps) {
                         <DropdownMenuContent align="end" className="w-48">
                           <DropdownMenuItem
                             onClick={() => openLink(link.url)}
-                            className="cursor-pointer"
+                            className={link.status === 'inactive' ? 'opacity-50 pointer-events-none' : 'cursor-pointer'}
+                            disabled={link.status === 'inactive'}
                           >
                             <ExternalLink className="w-4 h-4 mr-2" />
-                            Abrir Link
+                            {link.status === 'inactive' ? 'Link Desativado' : 'Abrir Link'}
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => onToggleStatus(link.id)}
