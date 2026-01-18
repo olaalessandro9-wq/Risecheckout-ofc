@@ -1,18 +1,38 @@
+/**
+ * useBuyerAuth - Custom authentication hook for buyers
+ * 
+ * RISE ARCHITECT PROTOCOL - Zero Technical Debt
+ * 
+ * ARCHITECTURE (REFACTORED V3):
+ * - Uses TokenManager for centralized token management
+ * - Supports refresh tokens for seamless session renewal
+ * - All backend calls use buyer_session_token
+ */
+
 import { useState, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { SUPABASE_URL } from "@/config/supabase";
 import { createLogger } from "@/lib/logger";
+import { buyerTokenManager } from "@/lib/token-manager";
 import { buyerQueryKeys } from "./useBuyerOrders";
 import { buyerSessionQueryKey } from "./useBuyerSession";
 
 const log = createLogger("BuyerAuth");
 
-const SESSION_KEY = "buyer_session_token";
-
 interface BuyerProfile {
   id: string;
   email: string;
   name: string | null;
+}
+
+interface LoginResponse {
+  success: boolean;
+  accessToken?: string;
+  refreshToken?: string;
+  expiresIn?: number;
+  error?: string;
+  needsPasswordSetup?: boolean;
+  buyer?: BuyerProfile;
 }
 
 interface UseBuyerAuthReturn {
@@ -30,14 +50,10 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
   const [buyer, setBuyer] = useState<BuyerProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const getSessionToken = () => localStorage.getItem(SESSION_KEY);
-  const setSessionToken = (token: string) => localStorage.setItem(SESSION_KEY, token);
-  const clearSessionToken = () => localStorage.removeItem(SESSION_KEY);
-
   // Validate session on mount
   useEffect(() => {
     const validateSession = async () => {
-      const token = getSessionToken();
+      const token = await buyerTokenManager.getValidAccessToken();
       if (!token) {
         setIsLoading(false);
         return;
@@ -53,15 +69,14 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
         const data = await response.json();
         if (data.valid && data.buyer) {
           setBuyer(data.buyer);
-          // Atualizar cache de sessão
           queryClient.setQueryData(buyerSessionQueryKey, { valid: true, buyer: data.buyer });
         } else {
-          clearSessionToken();
+          buyerTokenManager.clearTokens();
           queryClient.setQueryData(buyerSessionQueryKey, { valid: false, buyer: null });
         }
       } catch (error: unknown) {
         log.error("Error validating session", error);
-        clearSessionToken();
+        buyerTokenManager.clearTokens();
       } finally {
         setIsLoading(false);
       }
@@ -78,7 +93,7 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
+      const data: LoginResponse = await response.json();
 
       if (!response.ok) {
         return { 
@@ -88,13 +103,18 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
         };
       }
 
-      setSessionToken(data.sessionToken);
-      setBuyer(data.buyer);
+      // Store tokens using TokenManager
+      if (data.accessToken && data.refreshToken && data.expiresIn) {
+        buyerTokenManager.setTokens(data.accessToken, data.refreshToken, data.expiresIn);
+      }
       
-      // Atualizar cache de sessão e invalidar queries de dados
-      queryClient.setQueryData(buyerSessionQueryKey, { valid: true, buyer: data.buyer });
-      queryClient.invalidateQueries({ queryKey: buyerQueryKeys.all });
+      if (data.buyer) {
+        setBuyer(data.buyer);
+        queryClient.setQueryData(buyerSessionQueryKey, { valid: true, buyer: data.buyer });
+        queryClient.invalidateQueries({ queryKey: buyerQueryKeys.all });
+      }
       
+      log.info("Login successful - tokens stored via TokenManager");
       return { success: true };
     } catch (error: unknown) {
       log.error("Login error", error);
@@ -124,7 +144,7 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
   }, []);
 
   const logout = useCallback(async () => {
-    const token = getSessionToken();
+    const token = buyerTokenManager.getAccessTokenSync();
     if (token) {
       try {
         await fetch(`${SUPABASE_URL}/functions/v1/buyer-auth/logout`, {
@@ -136,12 +156,16 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
         log.error("Logout error", error);
       }
     }
-    clearSessionToken();
+    
+    // Clear tokens via TokenManager
+    buyerTokenManager.clearTokens();
     setBuyer(null);
     
-    // Limpar todos os caches de buyer
+    // Clear caches
     queryClient.setQueryData(buyerSessionQueryKey, { valid: false, buyer: null });
     queryClient.removeQueries({ queryKey: buyerQueryKeys.all });
+    
+    log.info("Logout successful");
   }, [queryClient]);
 
   const checkEmail = useCallback(async (email: string) => {
@@ -174,7 +198,7 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
   };
 }
 
-// Helper to get session token for API calls
+// Helper to get session token for API calls (uses TokenManager)
 export function getBuyerSessionToken(): string | null {
-  return localStorage.getItem(SESSION_KEY);
+  return buyerTokenManager.getAccessTokenSync();
 }

@@ -15,9 +15,10 @@ import {
   CURRENT_HASH_VERSION,
   hashPassword,
   verifyPassword,
-  generateSessionToken,
   logAuditEvent,
 } from "./producer-auth-helpers.ts";
+import { generateSessionTokens } from "./producer-auth-refresh-handler.ts";
+import { ACCESS_TOKEN_DURATION_MINUTES } from "./auth-constants.ts";
 import { jsonResponse, errorResponse } from "./response-helpers.ts";
 import {
   PASSWORD_REQUIRES_RESET,
@@ -250,15 +251,16 @@ export async function handleLogin(
     return errorResponse("Email ou senha inválidos", corsHeaders, 401);
   }
 
-  // Create session
-  const sessionToken = generateSessionToken();
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + PRODUCER_SESSION_DURATION_DAYS);
+  // Create session with refresh tokens
+  const { accessToken, refreshToken, accessTokenExpiresAt, refreshTokenExpiresAt } = generateSessionTokens();
 
   const { error: sessionError } = await supabase.from("producer_sessions").insert({
     producer_id: producer.id,
-    session_token: sessionToken,
-    expires_at: expiresAt.toISOString(),
+    session_token: accessToken,
+    refresh_token: refreshToken,
+    access_token_expires_at: accessTokenExpiresAt.toISOString(),
+    refresh_token_expires_at: refreshTokenExpiresAt.toISOString(),
+    expires_at: refreshTokenExpiresAt.toISOString(), // Backwards compatibility
     ip_address: clientIP,
     user_agent: userAgent,
   });
@@ -280,11 +282,13 @@ export async function handleLogin(
 
   console.log(`[producer-auth] Login successful: ${email}, role: ${roleData?.role || "user"}`);
   
-  // RISE V3: Return ONLY custom session token - no Supabase Auth sync
+  // RISE V3: Return access token, refresh token, and expiry info
   return jsonResponse({
     success: true,
-    sessionToken,
-    expiresAt: expiresAt.toISOString(),
+    accessToken,
+    refreshToken,
+    expiresIn: ACCESS_TOKEN_DURATION_MINUTES * 60, // seconds
+    expiresAt: accessTokenExpiresAt.toISOString(),
     producer: {
       id: producer.id,
       email: producer.email,

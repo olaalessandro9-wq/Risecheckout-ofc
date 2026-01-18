@@ -6,16 +6,15 @@
  * Uses React Query for caching and automatic revalidation.
  * Provides a consistent way to check producer session across components.
  * 
- * ARCHITECTURE (REFACTORED):
+ * ARCHITECTURE (REFACTORED V3):
+ * - Uses TokenManager for automatic token refresh
  * - Validates ONLY producer_session_token (custom token)
  * - NO Supabase Auth dependency (eliminated dual-auth)
- * - All backend calls must use Edge Functions with X-Producer-Session-Token
  */
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SUPABASE_URL } from "@/config/supabase";
-
-const SESSION_KEY = "producer_session_token";
+import { producerTokenManager } from "@/lib/token-manager";
 
 // Export query key for use in other hooks
 export const producerSessionQueryKey = ["producer-session"] as const;
@@ -35,7 +34,8 @@ interface SessionData {
 }
 
 async function validateProducerSession(): Promise<SessionData> {
-  const token = localStorage.getItem(SESSION_KEY);
+  // Use TokenManager to get valid token (auto-refresh if needed)
+  const token = await producerTokenManager.getValidAccessToken();
   
   if (!token) {
     return { valid: false, producer: null };
@@ -54,8 +54,8 @@ async function validateProducerSession(): Promise<SessionData> {
       return { valid: true, producer: data.producer };
     }
 
-    // Invalid session - clear token
-    localStorage.removeItem(SESSION_KEY);
+    // Invalid session - clear tokens
+    producerTokenManager.clearTokens();
     return { valid: false, producer: null };
   } catch (error: unknown) {
     console.error("Error validating producer session:", error);
@@ -83,7 +83,7 @@ export function useProducerSession() {
   };
 
   const clearSession = () => {
-    localStorage.removeItem(SESSION_KEY);
+    producerTokenManager.clearTokens();
     queryClient.setQueryData(producerSessionQueryKey, { valid: false, producer: null });
   };
 

@@ -3,25 +3,21 @@
  * 
  * RISE ARCHITECT PROTOCOL - Zero Technical Debt
  * 
- * ARCHITECTURE (REFACTORED):
- * - Uses ONLY producer_sessions for authentication
+ * ARCHITECTURE (REFACTORED V3):
+ * - Uses TokenManager for centralized token management
+ * - Supports refresh tokens for seamless session renewal
  * - All backend calls use X-Producer-Session-Token header
  * - Edge Functions use service_role (bypass RLS)
- * - NO Supabase Auth JWT sync (eliminated dual-auth problem)
- * 
- * IMPORTANT: After this refactor, the frontend should NOT use supabase.from()
- * directly. All data operations must go through Edge Functions.
  */
 
 import { useState, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { SUPABASE_URL } from "@/config/supabase";
 import { createLogger } from "@/lib/logger";
+import { producerTokenManager } from "@/lib/token-manager";
 import { producerSessionQueryKey } from "./useProducerSession";
 
 const log = createLogger("ProducerAuth");
-
-const SESSION_KEY = "producer_session_token";
 
 interface ProducerProfile {
   id: string;
@@ -72,15 +68,25 @@ interface RegisterData {
   registrationSource?: "producer" | "affiliate";
 }
 
+interface LoginResponse {
+  success: boolean;
+  accessToken?: string;
+  refreshToken?: string;
+  expiresIn?: number;
+  error?: string;
+  validation?: {
+    score: number;
+    errors: string[];
+    suggestions: string[];
+  };
+  producer?: ProducerProfile;
+}
+
 
 export function useProducerAuth(): UseProducerAuthReturn {
   const queryClient = useQueryClient();
   const [producer, setProducer] = useState<ProducerProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  const getSessionToken = () => localStorage.getItem(SESSION_KEY);
-  const setSessionToken = (token: string) => localStorage.setItem(SESSION_KEY, token);
-  const clearSessionToken = () => localStorage.removeItem(SESSION_KEY);
 
   // Set loading to false on mount - useProducerSession handles validation
   useEffect(() => {
@@ -95,7 +101,7 @@ export function useProducerAuth(): UseProducerAuthReturn {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
+      const data: LoginResponse = await response.json();
 
       if (!response.ok) {
         return {
@@ -105,14 +111,18 @@ export function useProducerAuth(): UseProducerAuthReturn {
         };
       }
 
-      // Store session token (ONLY auth mechanism)
-      setSessionToken(data.sessionToken);
-      setProducer(data.producer);
+      // Store tokens using TokenManager
+      if (data.accessToken && data.refreshToken && data.expiresIn) {
+        producerTokenManager.setTokens(data.accessToken, data.refreshToken, data.expiresIn);
+      }
+      
+      if (data.producer) {
+        setProducer(data.producer);
+        // Update React Query cache
+        queryClient.setQueryData(producerSessionQueryKey, { valid: true, producer: data.producer });
+      }
 
-      // Update React Query cache
-      queryClient.setQueryData(producerSessionQueryKey, { valid: true, producer: data.producer });
-
-      log.info("Login successful - using producer_session_token only");
+      log.info("Login successful - tokens stored via TokenManager");
       return { success: true };
     } catch (error: unknown) {
       log.error("Login error", error);
@@ -153,7 +163,7 @@ export function useProducerAuth(): UseProducerAuthReturn {
   }, []);
 
   const logout = useCallback(async () => {
-    const token = getSessionToken();
+    const token = producerTokenManager.getAccessTokenSync();
     
     // Logout from producer_sessions
     if (token) {
@@ -168,8 +178,8 @@ export function useProducerAuth(): UseProducerAuthReturn {
       }
     }
     
-    // Clear local state
-    clearSessionToken();
+    // Clear tokens via TokenManager
+    producerTokenManager.clearTokens();
     setProducer(null);
 
     // Clear all producer-related caches
@@ -204,7 +214,7 @@ export function useProducerAuth(): UseProducerAuthReturn {
   }, []);
 
   const validateSession = useCallback(async (): Promise<boolean> => {
-    const token = getSessionToken();
+    const token = await producerTokenManager.getValidAccessToken();
     if (!token) return false;
 
     try {
@@ -233,7 +243,7 @@ export function useProducerAuth(): UseProducerAuthReturn {
   };
 }
 
-// Helper to get session token for API calls
+// Helper to get session token for API calls (uses TokenManager)
 export function getProducerSessionToken(): string | null {
-  return localStorage.getItem(SESSION_KEY);
+  return producerTokenManager.getAccessTokenSync();
 }
