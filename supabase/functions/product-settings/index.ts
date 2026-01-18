@@ -18,7 +18,7 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 import { handleCors } from "../_shared/cors.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
-import { jsonResponse, errorResponse } from "../_shared/response.ts";
+import { jsonResponse, errorResponse } from "../_shared/response-helpers.ts";
 import { verifyProductOwnership } from "../_shared/ownership.ts";
 import { checkRateLimit, PRODUCT_SETTINGS } from "../_shared/rate-limiting/index.ts";
 import {
