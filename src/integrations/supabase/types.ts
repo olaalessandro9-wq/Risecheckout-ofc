@@ -476,6 +476,9 @@ export type Database = {
       }
       buyer_profiles: {
         Row: {
+          account_status:
+            | Database["public"]["Enums"]["account_status_enum"]
+            | null
           created_at: string | null
           document_encrypted: string | null
           document_hash: string | null
@@ -493,6 +496,9 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          account_status?:
+            | Database["public"]["Enums"]["account_status_enum"]
+            | null
           created_at?: string | null
           document_encrypted?: string | null
           document_hash?: string | null
@@ -510,6 +516,9 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          account_status?:
+            | Database["public"]["Enums"]["account_status_enum"]
+            | null
           created_at?: string | null
           document_encrypted?: string | null
           document_hash?: string | null
@@ -3106,6 +3115,9 @@ export type Database = {
       }
       profiles: {
         Row: {
+          account_status:
+            | Database["public"]["Enums"]["account_status_enum"]
+            | null
           asaas_wallet_id: string | null
           cpf_cnpj: string | null
           created_at: string | null
@@ -3137,6 +3149,9 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          account_status?:
+            | Database["public"]["Enums"]["account_status_enum"]
+            | null
           asaas_wallet_id?: string | null
           cpf_cnpj?: string | null
           created_at?: string | null
@@ -3168,6 +3183,9 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          account_status?:
+            | Database["public"]["Enums"]["account_status_enum"]
+            | null
           asaas_wallet_id?: string | null
           cpf_cnpj?: string | null
           created_at?: string | null
@@ -4351,6 +4369,11 @@ export type Database = {
       }
     }
     Enums: {
+      account_status_enum:
+        | "active"
+        | "pending_setup"
+        | "reset_required"
+        | "owner_no_password"
       app_role: "admin" | "user" | "owner" | "seller"
       credit_card_gateway_type: "mercadopago" | "stripe" | "asaas"
       integration_type:
@@ -4486,6 +4509,12 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      account_status_enum: [
+        "active",
+        "pending_setup",
+        "reset_required",
+        "owner_no_password",
+      ],
       app_role: ["admin", "user", "owner", "seller"],
       credit_card_gateway_type: ["mercadopago", "stripe", "asaas"],
       integration_type: [

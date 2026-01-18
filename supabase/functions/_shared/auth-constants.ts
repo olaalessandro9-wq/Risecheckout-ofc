@@ -46,26 +46,44 @@ export const SESSION_DURATION_DAYS = BUYER_SESSION_DURATION_DAYS;
 export const RESET_TOKEN_EXPIRY_HOURS = 1;
 
 // ============================================
-// PASSWORD MARKERS
+// ACCOUNT STATUS (PHASE 2: Replaces Password Markers)
 // ============================================
 
 /**
- * Marker for passwords that require reset (e.g., forgot password flow)
+ * Account status enum - replaces password_hash markers
+ * RISE V3: Single source of truth for account states
+ */
+export enum AccountStatus {
+  ACTIVE = "active",
+  PENDING_SETUP = "pending_setup",
+  RESET_REQUIRED = "reset_required",
+  OWNER_NO_PASSWORD = "owner_no_password",
+}
+
+// ============================================
+// PASSWORD MARKERS (DEPRECATED)
+// ============================================
+
+/**
+ * @deprecated Use AccountStatus.RESET_REQUIRED instead.
+ * Kept for backwards compatibility during migration.
  */
 export const PASSWORD_REQUIRES_RESET = "REQUIRES_RESET";
 
 /**
- * Marker for newly created accounts pending password setup
+ * @deprecated Use AccountStatus.PENDING_SETUP instead.
+ * Kept for backwards compatibility during migration.
  */
 export const PASSWORD_PENDING_SETUP = "PENDING_PASSWORD_SETUP";
 
 /**
- * Marker for owner/producer accounts that don't need password (access via producer auth)
+ * @deprecated Use AccountStatus.OWNER_NO_PASSWORD instead.
+ * Kept for backwards compatibility during migration.
  */
 export const PASSWORD_OWNER_NO_PASSWORD = "OWNER_NO_PASSWORD";
 
 /**
- * @deprecated Use PASSWORD_REQUIRES_RESET or PASSWORD_PENDING_SETUP instead.
+ * @deprecated Use AccountStatus instead.
  * Kept for migration detection only.
  */
 export const PENDING_MIGRATION = "PENDING_MIGRATION";
