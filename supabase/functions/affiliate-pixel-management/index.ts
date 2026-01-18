@@ -1,10 +1,9 @@
 /**
  * affiliate-pixel-management Edge Function
  * 
- * @version 3.0.0 - RISE Protocol V3 Compliant
- * - Uses unified-auth.ts for authentication
- * - Uses handleCors from _shared/cors.ts
- * - Removed local validateProducerSession
+ * @version 4.0.0 - RISE Protocol V3 Compliant (Vertical Slice Architecture)
+ * - Uses Shared Kernel for ownership validation
+ * - Zero duplicate code
  *
  * Gerencia pixels de tracking para afiliados.
  * Ações: save-all (atômico: delete + insert)
@@ -13,6 +12,11 @@
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse, ProducerAuth } from "../_shared/unified-auth.ts";
+import { verifyAffiliateOwnership } from "../_shared/ownership.ts";
+
+// ============================================
+// TYPES
+// ============================================
 
 interface PixelData {
   pixel_id: string;
@@ -32,34 +36,15 @@ interface SaveAllPayload {
   pixels: PixelData[];
 }
 
-// =====================================================
-// OWNERSHIP VALIDATION
-// =====================================================
+// ============================================
+// CONSTANTS
+// ============================================
 
-interface AffiliateData {
-  id: string;
-  user_id: string;
-}
+const MAX_PIXELS = 200;
 
-async function validateAffiliateOwnership(
-  supabaseClient: SupabaseClient,
-  affiliateId: string,
-  userId: string
-): Promise<boolean> {
-  const { data, error } = await supabaseClient
-    .from("affiliates")
-    .select("id, user_id")
-    .eq("id", affiliateId)
-    .single();
-
-  if (error || !data) return false;
-  const affiliateData = data as AffiliateData;
-  return affiliateData.user_id === userId;
-}
-
-// =====================================================
+// ============================================
 // HANDLERS
-// =====================================================
+// ============================================
 
 async function handleSaveAll(
   supabaseClient: SupabaseClient,
@@ -76,8 +61,8 @@ async function handleSaveAll(
     );
   }
 
-  // Validar ownership
-  const isOwner = await validateAffiliateOwnership(supabaseClient, affiliate_id, userId);
+  // Validate ownership using Shared Kernel
+  const isOwner = await verifyAffiliateOwnership(supabaseClient, affiliate_id, userId);
   if (!isOwner) {
     return new Response(
       JSON.stringify({ error: "Não autorizado: você não é dono desta afiliação" }),
@@ -85,16 +70,16 @@ async function handleSaveAll(
     );
   }
 
-  // Validação de limite
-  if (pixels && pixels.length > 200) {
+  // Validate pixel limit
+  if (pixels && pixels.length > MAX_PIXELS) {
     return new Response(
-      JSON.stringify({ error: "Máximo de 200 pixels permitidos" }),
+      JSON.stringify({ error: `Máximo de ${MAX_PIXELS} pixels permitidos` }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 
   try {
-    // 1. Deletar todos os pixels existentes deste afiliado
+    // 1. Delete all existing pixels for this affiliate
     const { error: deleteError } = await supabaseClient
       .from("affiliate_pixels")
       .delete()
@@ -102,7 +87,7 @@ async function handleSaveAll(
 
     if (deleteError) throw deleteError;
 
-    // 2. Inserir novos pixels (se houver)
+    // 2. Insert new pixels (if any)
     if (pixels && pixels.length > 0) {
       const pixelsToInsert = pixels
         .filter(p => p.pixel_id && p.pixel_id.trim())
@@ -149,12 +134,12 @@ async function handleSaveAll(
   }
 }
 
-// =====================================================
+// ============================================
 // MAIN HANDLER
-// =====================================================
+// ============================================
 
 Deno.serve(async (req) => {
-  // Handle CORS with centralized handler
+  // Handle CORS
   const corsResult = handleCors(req);
   if (corsResult instanceof Response) return corsResult;
   const corsHeaders = corsResult.headers;
@@ -165,9 +150,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // ============================================
-    // AUTHENTICATION via unified-auth.ts
-    // ============================================
+    // Authentication
     let producer: ProducerAuth;
     try {
       producer = await requireAuthenticatedProducer(supabase, req);

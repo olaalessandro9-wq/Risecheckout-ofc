@@ -1,19 +1,21 @@
 /**
  * get-affiliation-details Edge Function
  * 
- * Retorna detalhes completos de uma afiliação para o painel do afiliado.
- * 
- * @version 3.0.0 - RISE Protocol V3 (unified-auth)
+ * @version 4.0.0 - RISE Protocol V3 Compliant (Vertical Slice Architecture)
+ * - Uses Shared Kernel for types
+ * - Parallel queries for optimal performance
+ * - Zero duplicate code
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
+import { maskId } from "../_shared/kernel/security/pii-masking.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
 // ============================================
-// INTERFACES
+// TYPES
 // ============================================
 
 interface RequestBody {
@@ -97,21 +99,135 @@ interface AffiliatePixel {
   [key: string]: unknown;
 }
 
-interface CheckoutWithPaymentSlug {
-  id: string;
-  slug: string;
-  payment_link_slug: string | null;
-  is_default: boolean;
-  status: string;
+interface CheckoutLinkData {
+  payment_links?: { slug: string } | Array<{ slug: string }>;
 }
 
-interface OfferWithPaymentSlug {
+interface CheckoutRecord {
   id: string;
-  name: string;
-  price: number;
-  status: string;
+  slug: string;
   is_default: boolean;
-  payment_link_slug: string | null;
+  status: string;
+  checkout_links?: CheckoutLinkData[];
+}
+
+// ============================================
+// PARALLEL QUERY FUNCTIONS
+// ============================================
+
+async function fetchAffiliationWithValidation(
+  supabase: SupabaseClient,
+  affiliationId: string,
+  userId: string
+): Promise<{ affiliation: AffiliationRecord | null; error: string | null }> {
+  const { data, error } = await supabase
+    .from("affiliates")
+    .select(`
+      id, affiliate_code, commission_rate, status,
+      total_sales_count, total_sales_amount, created_at,
+      product_id, user_id, pix_gateway, credit_card_gateway, gateway_credentials
+    `)
+    .eq("id", affiliationId)
+    .maybeSingle();
+
+  if (error) return { affiliation: null, error: "Erro ao buscar afiliação" };
+  if (!data) return { affiliation: null, error: "Afiliação não encontrada" };
+  
+  const affiliation = data as AffiliationRecord;
+  if (affiliation.user_id !== userId) {
+    return { affiliation: null, error: "Você não tem permissão para acessar esta afiliação" };
+  }
+  
+  return { affiliation, error: null };
+}
+
+async function fetchProductData(
+  supabase: SupabaseClient,
+  productId: string
+): Promise<ProductRecord | null> {
+  const { data } = await supabase
+    .from("products")
+    .select(`
+      id, name, description, image_url, price,
+      marketplace_description, marketplace_rules, marketplace_category,
+      user_id, affiliate_settings, affiliate_gateway_settings
+    `)
+    .eq("id", productId)
+    .maybeSingle();
+
+  return data as ProductRecord | null;
+}
+
+async function fetchOffers(
+  supabase: SupabaseClient,
+  productId: string
+): Promise<OfferRecord[]> {
+  const { data } = await supabase
+    .from("offers")
+    .select(`
+      id, name, price, status, is_default,
+      payment_links (id, slug, status)
+    `)
+    .eq("product_id", productId)
+    .eq("status", "active");
+
+  return (data || []) as OfferRecord[];
+}
+
+async function fetchCheckouts(
+  supabase: SupabaseClient,
+  productId: string
+): Promise<CheckoutRecord[]> {
+  const { data } = await supabase
+    .from("checkouts")
+    .select(`
+      id, slug, is_default, status,
+      checkout_links (payment_links (slug))
+    `)
+    .eq("product_id", productId)
+    .eq("status", "active");
+
+  return (data || []) as CheckoutRecord[];
+}
+
+async function fetchPixels(
+  supabase: SupabaseClient,
+  affiliationId: string
+): Promise<AffiliatePixel[]> {
+  const { data } = await supabase
+    .from("affiliate_pixels")
+    .select("*")
+    .eq("affiliate_id", affiliationId);
+
+  return (data || []) as AffiliatePixel[];
+}
+
+async function fetchProducerProfile(
+  supabase: SupabaseClient,
+  producerId: string
+): Promise<ProducerRecord | null> {
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, name")
+    .eq("id", producerId)
+    .maybeSingle();
+
+  return data as ProducerRecord | null;
+}
+
+async function fetchOtherProducts(
+  supabase: SupabaseClient,
+  producerId: string,
+  currentProductId: string
+): Promise<MarketplaceProduct[]> {
+  const { data } = await supabase
+    .from("marketplace_products")
+    .select("id, name, image_url, price, commission_percentage")
+    .eq("producer_id", producerId)
+    .neq("id", currentProductId)
+    .limit(6);
+
+  return (data || []) as MarketplaceProduct[];
 }
 
 // ============================================
@@ -119,19 +235,17 @@ interface OfferWithPaymentSlug {
 // ============================================
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Create Supabase client with service role (bypasses RLS)
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Auth via unified-auth
+    // Authentication
     let producer;
     try {
       producer = await requireAuthenticatedProducer(supabase, req);
@@ -143,7 +257,7 @@ Deno.serve(async (req) => {
     }
 
     const userId = producer.id;
-    console.log(`[get-affiliation-details] User authenticated: ${producer.email}`);
+    console.log(`[get-affiliation-details] User: ${maskId(producer.id)}`);
 
     // Get affiliation_id from body
     const body = await req.json() as RequestBody;
@@ -156,175 +270,66 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`[get-affiliation-details] Fetching details for affiliation: ${affiliation_id}`);
+    // ============================================
+    // BATCH 1: Fetch affiliation with ownership validation
+    // ============================================
+    const { affiliation, error: affiliationError } = await fetchAffiliationWithValidation(
+      supabase, affiliation_id, userId
+    );
 
-    // Fetch affiliation with product data
-    const { data: affiliationData, error: affiliationError } = await supabase
-      .from("affiliates")
-      .select(`
-        id,
-        affiliate_code,
-        commission_rate,
-        status,
-        total_sales_count,
-        total_sales_amount,
-        created_at,
-        product_id,
-        user_id,
-        pix_gateway,
-        credit_card_gateway,
-        gateway_credentials
-      `)
-      .eq("id", affiliation_id)
-      .maybeSingle();
-
-    if (affiliationError) {
-      console.error("[get-affiliation-details] Error fetching affiliation:", affiliationError);
+    if (affiliationError || !affiliation) {
+      const status = affiliationError?.includes("permissão") ? 403 : 
+                     affiliationError?.includes("encontrada") ? 404 : 500;
       return new Response(
-        JSON.stringify({ error: "Erro ao buscar afiliação" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: affiliationError || "Erro ao buscar afiliação" }),
+        { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    if (!affiliationData) {
-      return new Response(
-        JSON.stringify({ error: "Afiliação não encontrada" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const productId = affiliation.product_id;
 
-    const typedAffiliation = affiliationData as AffiliationRecord;
-
-    // Verify ownership - user must own this affiliation
-    if (typedAffiliation.user_id !== userId) {
-      console.log(`[get-affiliation-details] User ${userId} does not own affiliation ${affiliation_id}`);
-      return new Response(
-        JSON.stringify({ error: "Você não tem permissão para acessar esta afiliação" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const productId = typedAffiliation.product_id;
-
-    // Fetch product data
-    const { data: productData } = await supabase
-      .from("products")
-      .select(`
-        id,
-        name,
-        description,
-        image_url,
-        price,
-        marketplace_description,
-        marketplace_rules,
-        marketplace_category,
-        user_id,
-        affiliate_settings,
-        affiliate_gateway_settings
-      `)
-      .eq("id", productId)
-      .maybeSingle();
-
-    const typedProduct = productData as ProductRecord | null;
+    // ============================================
+    // BATCH 2: Parallel queries for product-related data
+    // ============================================
+    const [product, offers, checkouts, pixels] = await Promise.all([
+      fetchProductData(supabase, productId),
+      fetchOffers(supabase, productId),
+      fetchCheckouts(supabase, productId),
+      fetchPixels(supabase, affiliation_id),
+    ]);
 
     // Extract gateway settings
-    const gatewaySettings: GatewaySettings = typedProduct?.affiliate_gateway_settings || {};
+    const gatewaySettings: GatewaySettings = product?.affiliate_gateway_settings || {};
     const allowedGateways = {
       pix_allowed: gatewaySettings.pix_allowed || ["asaas"],
       credit_card_allowed: gatewaySettings.credit_card_allowed || ["mercadopago", "stripe"],
       require_gateway_connection: gatewaySettings.require_gateway_connection ?? true,
     };
 
-    // Fetch offers for this product with payment_links
-    const { data: offersData } = await supabase
-      .from("offers")
-      .select(`
-        id, 
-        name, 
-        price, 
-        status, 
-        is_default,
-        payment_links (
-          id,
-          slug,
-          status
-        )
-      `)
-      .eq("product_id", productId)
-      .eq("status", "active");
-
-    const typedOffers = (offersData || []) as OfferRecord[];
-
-    // Fetch checkouts with payment links
-    const { data: checkoutsData } = await supabase
-      .from("checkouts")
-      .select(`
-        id, 
-        slug, 
-        is_default, 
-        status,
-        checkout_links (
-          payment_links (
-            slug
-          )
-        )
-      `)
-      .eq("product_id", productId)
-      .eq("status", "active");
-
-    // Map checkouts to include payment_link_slug
-    const checkoutsWithPaymentSlug: CheckoutWithPaymentSlug[] = (checkoutsData || []).map((c: { id: string; slug: string; is_default: boolean; status: string; checkout_links?: Array<{ payment_links?: { slug: string } | Array<{ slug: string }> }> }) => {
-      const firstLink = c.checkout_links?.[0]?.payment_links;
-      const slug = Array.isArray(firstLink) ? firstLink[0]?.slug : firstLink?.slug;
-      return {
-        id: c.id,
-        slug: c.slug,
-        payment_link_slug: slug || null,
-        is_default: c.is_default,
-        status: c.status,
-      };
-    });
-
-    // Fetch producer profile
-    let producer_profile: ProducerRecord | null = null;
-    if (typedProduct?.user_id) {
-      const { data: producerData } = await supabase
-        .from("profiles")
-        .select("id, name")
-        .eq("id", typedProduct.user_id)
-        .maybeSingle();
-      
-      producer_profile = producerData as ProducerRecord | null;
-    }
-
-    // Fetch affiliate pixels
-    const { data: pixelsData } = await supabase
-      .from("affiliate_pixels")
-      .select("*")
-      .eq("affiliate_id", affiliation_id);
-
-    const typedPixels = (pixelsData || []) as AffiliatePixel[];
-
-    // Fetch other products from the same producer
+    // ============================================
+    // BATCH 3: Parallel queries for producer data
+    // ============================================
+    let producerProfile: ProducerRecord | null = null;
     let otherProducts: MarketplaceProduct[] = [];
-    if (typedProduct?.user_id) {
-      const { data: otherProductsData } = await supabase
-        .from("marketplace_products")
-        .select("id, name, image_url, price, commission_percentage")
-        .eq("producer_id", typedProduct.user_id)
-        .neq("id", productId)
-        .limit(6);
 
-      otherProducts = (otherProductsData || []) as MarketplaceProduct[];
+    if (product?.user_id) {
+      [producerProfile, otherProducts] = await Promise.all([
+        fetchProducerProfile(supabase, product.user_id),
+        fetchOtherProducts(supabase, product.user_id, productId),
+      ]);
     }
 
+    // ============================================
+    // TRANSFORM DATA
+    // ============================================
+    
     // Calculate effective commission rate
     const effectiveCommissionRate = 
-      typedAffiliation.commission_rate ?? 
-      (typedProduct?.affiliate_settings?.defaultRate || 0);
+      affiliation.commission_rate ?? 
+      (product?.affiliate_settings?.defaultRate || 0);
 
     // Map offers with payment link slugs
-    const offersWithPaymentSlug: OfferWithPaymentSlug[] = typedOffers.map((o) => {
+    const offersWithPaymentSlug = offers.map((o) => {
       const activeLink = o.payment_links?.find((l) => l.status === 'active');
       const firstLink = o.payment_links?.[0];
       const paymentLink = activeLink || firstLink;
@@ -339,41 +344,56 @@ Deno.serve(async (req) => {
       };
     });
 
-    // Build response
-    const affiliation = {
-      id: typedAffiliation.id,
-      affiliate_code: typedAffiliation.affiliate_code,
+    // Map checkouts with payment link slugs
+    const checkoutsWithPaymentSlug = checkouts.map((c) => {
+      const firstLink = c.checkout_links?.[0]?.payment_links;
+      const slug = Array.isArray(firstLink) ? firstLink[0]?.slug : firstLink?.slug;
+      return {
+        id: c.id,
+        slug: c.slug,
+        payment_link_slug: slug || null,
+        is_default: c.is_default,
+        status: c.status,
+      };
+    });
+
+    // ============================================
+    // BUILD RESPONSE
+    // ============================================
+    const affiliationResponse = {
+      id: affiliation.id,
+      affiliate_code: affiliation.affiliate_code,
       commission_rate: effectiveCommissionRate,
-      status: typedAffiliation.status,
-      total_sales_count: typedAffiliation.total_sales_count || 0,
-      total_sales_amount: typedAffiliation.total_sales_amount || 0,
-      created_at: typedAffiliation.created_at,
-      product: typedProduct ? {
-        id: typedProduct.id,
-        name: typedProduct.name,
-        description: typedProduct.description,
-        image_url: typedProduct.image_url,
-        price: typedProduct.price,
-        marketplace_description: typedProduct.marketplace_description,
-        marketplace_rules: typedProduct.marketplace_rules,
-        marketplace_category: typedProduct.marketplace_category,
-        user_id: typedProduct.user_id,
-        affiliate_settings: typedProduct.affiliate_settings,
+      status: affiliation.status,
+      total_sales_count: affiliation.total_sales_count || 0,
+      total_sales_amount: affiliation.total_sales_amount || 0,
+      created_at: affiliation.created_at,
+      product: product ? {
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        image_url: product.image_url,
+        price: product.price,
+        marketplace_description: product.marketplace_description,
+        marketplace_rules: product.marketplace_rules,
+        marketplace_category: product.marketplace_category,
+        user_id: product.user_id,
+        affiliate_settings: product.affiliate_settings,
       } : null,
       offers: offersWithPaymentSlug,
       checkouts: checkoutsWithPaymentSlug,
-      producer: producer_profile,
-      pixels: typedPixels,
-      pix_gateway: typedAffiliation.pix_gateway || null,
-      credit_card_gateway: typedAffiliation.credit_card_gateway || null,
-      gateway_credentials: typedAffiliation.gateway_credentials || {},
+      producer: producerProfile,
+      pixels,
+      pix_gateway: affiliation.pix_gateway || null,
+      credit_card_gateway: affiliation.credit_card_gateway || null,
+      gateway_credentials: affiliation.gateway_credentials || {},
       allowed_gateways: allowedGateways,
     };
 
-    console.log(`[get-affiliation-details] Successfully fetched affiliation details for ${affiliation_id}`);
+    console.log(`[get-affiliation-details] Success for ${maskId(affiliation_id)}`);
 
     return new Response(
-      JSON.stringify({ affiliation, otherProducts }),
+      JSON.stringify({ affiliation: affiliationResponse, otherProducts }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
