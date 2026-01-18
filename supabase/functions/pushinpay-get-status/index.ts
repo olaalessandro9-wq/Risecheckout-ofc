@@ -20,7 +20,7 @@ import {
   rateLimitMiddleware, 
   RATE_LIMIT_CONFIGS,
   getClientIP 
-} from "../_shared/rate-limiter.ts";
+} from "../_shared/rate-limiting/index.ts";
 
 // Use public CORS for checkout/payment endpoints
 const corsHeaders = PUBLIC_CORS_HEADERS;
@@ -66,7 +66,8 @@ Deno.serve(async (req) => {
     const rateLimitResult = await rateLimitMiddleware(
       supabase,
       req,
-      RATE_LIMIT_CONFIGS.MEMBERS_AREA // Using same config for status checks
+      RATE_LIMIT_CONFIGS.MEMBERS_AREA,
+      corsHeaders
     );
     if (rateLimitResult) {
       console.warn(`[${functionName}] Rate limit exceeded for IP: ${getClientIP(req)}`);

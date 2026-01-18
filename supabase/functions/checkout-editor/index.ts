@@ -13,7 +13,7 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 import { handleCors } from "../_shared/cors.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { getAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
-import { checkRateLimit, RateLimitConfig } from "../_shared/rate-limiter.ts";
+import { checkRateLimit, type RateLimitConfig } from "../_shared/rate-limiting/index.ts";
 
 // ============================================
 // RATE LIMIT CONFIG

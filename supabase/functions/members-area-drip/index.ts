@@ -10,7 +10,7 @@ import {
   rateLimitMiddleware, 
   RATE_LIMIT_CONFIGS,
   getClientIP 
-} from "../_shared/rate-limiter.ts";
+} from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 
 // Use public CORS for members area
@@ -96,7 +96,8 @@ Deno.serve(async (req) => {
     const rateLimitResult = await rateLimitMiddleware(
       supabase,
       req,
-      RATE_LIMIT_CONFIGS.MEMBERS_AREA
+      RATE_LIMIT_CONFIGS.MEMBERS_AREA,
+      corsHeaders
     );
     if (rateLimitResult) {
       console.warn(`[members-area-drip] Rate limit exceeded for IP: ${getClientIP(req)}`);

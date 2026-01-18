@@ -7,7 +7,7 @@
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { rateLimitMiddleware, getClientIP } from "./rate-limiter.ts";
+import { rateLimitMiddleware, getClientIP } from "./rate-limiting/index.ts";
 import { validatePassword, formatPasswordError } from "./password-policy.ts";
 import { sanitizeEmail } from "./sanitizer.ts";
 import { sendEmail } from "./zeptomail.ts";

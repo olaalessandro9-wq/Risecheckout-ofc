@@ -20,7 +20,7 @@ import {
   rateLimitMiddleware, 
   RATE_LIMIT_CONFIGS,
   getClientIP 
-} from "../_shared/rate-limiter.ts";
+} from "../_shared/rate-limiting/index.ts";
 import { determineSmartSplit } from "./handlers/smart-split.ts";
 import { buildPixPayload, callPushinPayApi, type PushinPayResponse } from "./handlers/pix-builder.ts";
 import { updateOrderWithPixData, triggerPixGeneratedWebhook, logManualPaymentIfNeeded } from "./handlers/post-pix.ts";
@@ -94,7 +94,8 @@ Deno.serve(withSentry('pushinpay-create-pix', async (req) => {
     const rateLimitResult = await rateLimitMiddleware(
       supabase,
       req,
-      RATE_LIMIT_CONFIGS.CREATE_PIX
+      RATE_LIMIT_CONFIGS.CREATE_PIX,
+      corsHeaders
     );
     if (rateLimitResult) {
       console.warn(`[${functionName}] Rate limit exceeded for IP: ${getClientIP(req)}`);
