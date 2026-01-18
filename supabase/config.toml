@@ -370,3 +370,11 @@ verify_jwt = false
 
 [functions.storage-management]
 verify_jwt = false
+
+# =====================================================
+# PUBLIC - Marketplace
+# verify_jwt DEVE ser false
+# =====================================================
+
+[functions.marketplace-public]
+verify_jwt = false

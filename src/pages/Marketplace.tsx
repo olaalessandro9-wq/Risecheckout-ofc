@@ -1,30 +1,25 @@
 /**
- * Marketplace - Página do Marketplace de Afiliados
- * 
- * Página onde afiliados podem descobrir e solicitar afiliação a produtos
- * Layout inspirado em Kirvano (abas horizontais, sem sidebar)
+ * Marketplace - Página de marketplace para afiliados
+ *
+ * Permite que afiliados descubram produtos e solicitem afiliação.
+ *
+ * @version 2.0.0
+ * @see RISE Protocol V3 - Zero direct database access from frontend
  */
 
 import { useState } from "react";
-import { Store, Search, SlidersHorizontal } from "lucide-react";
 import { Helmet } from "react-helmet-async";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Search, SlidersHorizontal, Store } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import type { Database } from "@/integrations/supabase/types";
 import { useMarketplaceProducts } from "@/hooks/useMarketplaceProducts";
-import { useMarketplaceTracking } from "@/hooks/useMarketplaceTracking";
+import { trackProductView } from "@/services/marketplace";
 import { MarketplaceGrid } from "@/modules/marketplace/components/MarketplaceGrid";
 import { ProductDetails } from "@/modules/marketplace/components/ProductDetails";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 import { MarketplaceFilters } from "@/modules/marketplace/components/MarketplaceFilters";
-import type { Database } from "@/integrations/supabase/types";
 
 type MarketplaceProduct = Database["public"]["Views"]["marketplace_products"]["Row"];
 
@@ -39,8 +34,6 @@ export default function Marketplace() {
     loadMore,
   } = useMarketplaceProducts();
 
-  const { trackView, trackClick } = useMarketplaceTracking();
-
   const [selectedProduct, setSelectedProduct] = useState<MarketplaceProduct | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [searchInput, setSearchInput] = useState(filters.search || "");
@@ -52,7 +45,7 @@ export default function Marketplace() {
     if (product) {
       setSelectedProduct(product);
       setDetailsOpen(true);
-      trackView(productId);
+      trackProductView(productId);
     }
   };
 

@@ -57,8 +57,8 @@ export async function fetchMarketplaceProducts(
   filters: MarketplaceFilters = {}
 ): Promise<MarketplaceProductWithDetails[]> {
   try {
-    const { data, error } = await api.publicCall<MarketplaceProductsResponse>("products-crud", {
-      action: "get-marketplace",
+    const { data, error } = await api.publicCall<MarketplaceProductsResponse>("marketplace-public", {
+      action: "get-products",
       filters,
     });
 
@@ -82,8 +82,8 @@ export async function fetchProductDetails(
   productId: string
 ): Promise<MarketplaceProductWithDetails | null> {
   try {
-    const { data, error } = await api.publicCall<MarketplaceProductResponse>("products-crud", {
-      action: "get-marketplace-product",
+    const { data, error } = await api.publicCall<MarketplaceProductResponse>("marketplace-public", {
+      action: "get-product",
       productId,
     });
 
@@ -105,8 +105,8 @@ export async function fetchProductDetails(
  */
 export async function fetchMarketplaceCategories(): Promise<MarketplaceCategory[]> {
   try {
-    const { data, error } = await api.publicCall<MarketplaceCategoriesResponse>("products-crud", {
-      action: "get-marketplace-categories",
+    const { data, error } = await api.publicCall<MarketplaceCategoriesResponse>("marketplace-public", {
+      action: "get-categories",
     });
 
     if (error) {
