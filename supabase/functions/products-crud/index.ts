@@ -1,7 +1,8 @@
 /**
  * Products CRUD Edge Function
  * 
- * RISE Protocol V2 - Zero direct database access from frontend
+ * RISE Protocol V3 - Zero direct database access from frontend
+ * Authenticated endpoints only (producer_sessions)
  * 
  * Actions:
  * - list: Lista produtos do produtor autenticado
@@ -15,11 +16,10 @@
  * - get-gateway-connections: Retorna conexões de gateway do produtor
  * - get-webhook-logs: Retorna logs de webhook
  * - get-video-library: Retorna biblioteca de vídeos
- * - get-marketplace: Busca produtos do marketplace (público)
- * - get-marketplace-product: Detalhes de produto do marketplace (público)
- * - get-marketplace-categories: Categorias do marketplace (público)
  * 
- * @version 1.2.0
+ * NOTE: Marketplace public endpoints moved to marketplace-public Edge Function
+ * 
+ * @version 2.0.0 - RISE V3 Separation of Concerns
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
@@ -42,25 +42,7 @@ type Action =
   | "get-offers"
   | "get-gateway-connections"
   | "get-webhook-logs"
-  | "get-video-library"
-  | "get-marketplace"
-  | "get-marketplace-product"
-  | "get-marketplace-categories";
-
-interface MarketplaceFilters {
-  category?: string;
-  search?: string;
-  minCommission?: number;
-  maxCommission?: number;
-  sortBy?: "recent" | "popular" | "commission";
-  limit?: number;
-  offset?: number;
-  approvalImmediate?: boolean;
-  approvalModeration?: boolean;
-  typeEbook?: boolean;
-  typeService?: boolean;
-  typeCourse?: boolean;
-}
+  | "get-video-library";
 
 interface RequestBody {
   action: Action;
@@ -69,7 +51,6 @@ interface RequestBody {
   webhookId?: string;
   excludeDeleted?: boolean;
   excludeContentId?: string;
-  filters?: MarketplaceFilters;
 }
 
 // ==========================================
@@ -517,123 +498,6 @@ async function getVideoLibrary(
   return jsonResponse({ videos }, corsHeaders);
 }
 
-// Marketplace functions (public - no auth required)
-async function getMarketplaceProducts(
-  supabase: SupabaseClient,
-  filters: MarketplaceFilters,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  let query = supabase
-    .from("marketplace_products")
-    .select("*");
-
-  if (filters.category) {
-    query = query.eq("marketplace_category", filters.category);
-  }
-
-  if (filters.search) {
-    query = query.or(
-      `name.ilike.%${filters.search}%,marketplace_description.ilike.%${filters.search}%`
-    );
-  }
-
-  if (filters.minCommission) {
-    query = query.gte("commission_percentage", filters.minCommission);
-  }
-
-  if (filters.maxCommission) {
-    query = query.lte("commission_percentage", filters.maxCommission);
-  }
-
-  // Approval filters
-  const approvalFilters: string[] = [];
-  if (filters.approvalImmediate) {
-    approvalFilters.push("requires_manual_approval.eq.false");
-  }
-  if (filters.approvalModeration) {
-    approvalFilters.push("requires_manual_approval.eq.true");
-  }
-  if (approvalFilters.length === 1) {
-    query = query.or(approvalFilters[0]);
-  }
-
-  // Type filters
-  const typeFilters: string[] = [];
-  if (filters.typeEbook) typeFilters.push("marketplace_tags.cs.{ebook}");
-  if (filters.typeService) typeFilters.push("marketplace_tags.cs.{servico}");
-  if (filters.typeCourse) typeFilters.push("marketplace_tags.cs.{curso}");
-  if (typeFilters.length > 0 && typeFilters.length < 3) {
-    query = query.or(typeFilters.join(","));
-  }
-
-  // Sorting
-  switch (filters.sortBy) {
-    case "recent":
-      query = query.order("marketplace_enabled_at", { ascending: false });
-      break;
-    case "popular":
-      query = query.order("popularity_score", { ascending: false });
-      break;
-    case "commission":
-      query = query.order("commission_percentage", { ascending: false });
-      break;
-    default:
-      query = query.order("marketplace_enabled_at", { ascending: false });
-  }
-
-  // Pagination
-  if (filters.limit) query = query.limit(filters.limit);
-  if (filters.offset) {
-    query = query.range(filters.offset, filters.offset + (filters.limit || 10) - 1);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    console.error("[products-crud] Marketplace error:", error);
-    return errorResponse("Erro ao buscar produtos", "DB_ERROR", corsHeaders, 500);
-  }
-
-  return jsonResponse({ products: data || [] }, corsHeaders);
-}
-
-async function getMarketplaceProduct(
-  supabase: SupabaseClient,
-  productId: string,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  const { data, error } = await supabase
-    .from("marketplace_products")
-    .select("*")
-    .eq("id", productId)
-    .single();
-
-  if (error) {
-    console.error("[products-crud] Marketplace product error:", error);
-    return errorResponse("Produto não encontrado", "NOT_FOUND", corsHeaders, 404);
-  }
-
-  return jsonResponse({ product: data }, corsHeaders);
-}
-
-async function getMarketplaceCategories(
-  supabase: SupabaseClient,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  const { data, error } = await supabase
-    .from("marketplace_categories")
-    .select("*")
-    .eq("active", true)
-    .order("display_order", { ascending: true });
-
-  if (error) {
-    console.error("[products-crud] Categories error:", error);
-    return errorResponse("Erro ao buscar categorias", "DB_ERROR", corsHeaders, 500);
-  }
-
-  return jsonResponse({ categories: data || [] }, corsHeaders);
-}
-
 // ==========================================
 // MAIN HANDLER
 // ==========================================
@@ -650,25 +514,11 @@ serve(async (req) => {
     );
 
     const body = await req.json() as RequestBody;
-    const { action, productId, couponId, webhookId, excludeDeleted = true, excludeContentId, filters } = body;
+    const { action, productId, couponId, webhookId, excludeDeleted = true, excludeContentId } = body;
 
     console.log(`[products-crud] Action: ${action}`);
 
-    // Public actions (no auth required)
-    if (action === "get-marketplace") {
-      return getMarketplaceProducts(supabase, filters || {}, corsHeaders);
-    }
-    if (action === "get-marketplace-product") {
-      if (!productId) {
-        return errorResponse("productId é obrigatório", "VALIDATION_ERROR", corsHeaders, 400);
-      }
-      return getMarketplaceProduct(supabase, productId, corsHeaders);
-    }
-    if (action === "get-marketplace-categories") {
-      return getMarketplaceCategories(supabase, corsHeaders);
-    }
-
-    // Authenticated actions
+    // All actions require authentication (marketplace moved to marketplace-public)
     let producer;
     try {
       producer = await requireAuthenticatedProducer(supabase, req);

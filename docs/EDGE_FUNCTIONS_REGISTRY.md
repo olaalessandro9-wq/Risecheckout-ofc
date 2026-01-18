@@ -1,7 +1,7 @@
 # Rise Checkout - Edge Functions Registry
 
 > **🔴 FONTE DA VERDADE MÁXIMA** - Este documento lista TODAS as Edge Functions deployadas no Supabase.  
-> Última atualização: 2026-01-17 (RISE V3 Auth Standardization)  
+> Última atualização: 2026-01-17 (RISE V3 Marketplace Separation)  
 > Mantenedor: AI Assistant + User
 
 ---
@@ -10,8 +10,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 106 |
-| **No código local** | 106 |
+| **Total de Funções** | 107 |
+| **No código local** | 107 |
 | **Apenas deployadas** | 0 |
 | **Operações Diretas Frontend** | 0 ✅ |
 | **Funções com verify_jwt=true** | 0 ✅ |
@@ -154,6 +154,7 @@
 | **Public Endpoints** | | | |
 | `affiliation-public` | public | false | Dados públicos de afiliação |
 | `checkout-public-data` | public | false | Dados públicos do checkout |
+| `marketplace-public` | public | false | Endpoints públicos do marketplace (RISE V3) |
 | **Internal/Migration** | | | |
 | `vault-migration` | internal | false | One-time migration |
 
@@ -385,7 +386,7 @@
 | `admin-data` | `.../admin-data` | ✅ | producer_sessions |
 | `dashboard-orders` | `.../dashboard-orders` | ✅ | producer_sessions |
 | `product-entities` | `.../product-entities` | ✅ | producer_sessions |
-| `products-crud` | `.../products-crud` | ✅ | producer_sessions (LEGADO - avaliar remoção) |
+| `products-crud` | `.../products-crud` | ✅ | producer_sessions |
 | `vendor-integrations` | `.../vendor-integrations` | ✅ | producer_sessions |
 
 ### Public Endpoints
@@ -394,6 +395,7 @@
 |------|-----|----------|------|
 | `affiliation-public` | `.../affiliation-public` | ✅ | public |
 | `checkout-public-data` | `.../checkout-public-data` | ✅ | public |
+| `marketplace-public` | `.../marketplace-public` | ✅ | public |
 
 ### Internal/Migration
 
@@ -439,6 +441,9 @@
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-18 | **RISE V3 MARKETPLACE SEPARATION** - Criada `marketplace-public` Edge Function |
+| 2026-01-18 | Separados endpoints públicos do marketplace de `products-crud` |
+| 2026-01-18 | `products-crud` agora contém apenas endpoints autenticados |
 | 2026-01-17 | **RISE V3 AUTH STANDARDIZATION** - Padronização completa de autenticação |
 | 2026-01-17 | Migrado `get-users-with-emails` para unified-auth (v2.0.0) |
 | 2026-01-17 | Migrado `send-email` para unified-auth (v2.0.0) |
