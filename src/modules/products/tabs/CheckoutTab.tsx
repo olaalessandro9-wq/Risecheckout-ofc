@@ -185,7 +185,9 @@ export function CheckoutTab() {
   };
 
   const handleCustomizeCheckout = (checkout: Checkout) => {
-    navigate(`/dashboard/produtos/checkout/personalizar?id=${checkout.id}`);
+    // Abre o builder em nova aba (padrão Kiwify/Cakto/Hotmart)
+    // Isso preserva o contexto da página de produtos e evita conflitos com UnsavedChangesGuard
+    window.open(`/dashboard/produtos/checkout/personalizar?id=${checkout.id}`, '_blank');
   };
 
   if (!product?.id) {
