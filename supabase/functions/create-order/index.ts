@@ -30,6 +30,7 @@ import { processCoupon } from "./handlers/coupon-processor.ts";
 import { processAffiliate } from "./handlers/affiliate-processor.ts";
 import { createOrder } from "./handlers/order-creator.ts";
 import { logSecurityEvent, SecurityAction } from "../_shared/audit-logger.ts";
+import { maskEmail } from "../_shared/kernel/security/pii-masking.ts";
 
 // === INTERFACES ===
 
@@ -52,16 +53,6 @@ interface ProductData {
   user_id: string;
   name: string | null;
   affiliate_settings: Record<string, unknown>;
-}
-
-/**
- * Mascara email para logs (LGPD)
- */
-function maskEmail(email: string): string {
-  if (!email || !email.includes("@")) return "***@***";
-  const [user, domain] = email.split("@");
-  const maskedUser = user.length > 2 ? user.substring(0, 2) + "***" : "***";
-  return `${maskedUser}@${domain}`;
 }
 
 // === MAIN HANDLER ===

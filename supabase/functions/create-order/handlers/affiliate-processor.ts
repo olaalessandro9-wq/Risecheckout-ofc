@@ -17,8 +17,8 @@ import {
   getVendorFeePercent,
   isVendorOwner
 } from "../../_shared/platform-config.ts";
+import { maskEmail } from "../../_shared/kernel/security/pii-masking.ts";
 import type { OrderItem } from "./bump-processor.ts";
-
 // === INTERFACES (Zero any) ===
 
 export interface SplitData {
@@ -86,16 +86,6 @@ interface AffiliateUserData {
 
 // Máximo de comissão permitido (segurança)
 const MAX_COMMISSION_RATE = 90;
-
-/**
- * Mascara email para logs (LGPD)
- */
-function maskEmail(email: string): string {
-  if (!email || !email.includes("@")) return "***@***";
-  const [user, domain] = email.split("@");
-  const maskedUser = user.length > 2 ? user.substring(0, 2) + "***" : "***";
-  return `${maskedUser}@${domain}`;
-}
 
 /**
  * Processa lógica de afiliados e calcula split
