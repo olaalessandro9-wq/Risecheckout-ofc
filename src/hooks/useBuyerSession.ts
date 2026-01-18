@@ -3,8 +3,9 @@
  * 
  * RISE ARCHITECT PROTOCOL - Zero Technical Debt
  * 
- * ARCHITECTURE (REFACTORED V3):
- * - Uses TokenManager for automatic token refresh
+ * ARCHITECTURE (REFACTORED V4):
+ * - Uses httpOnly cookies for token transport (XSS protection)
+ * - Uses TokenManager for auth state tracking
  * - React Query for intelligent caching
  * - Seamless session renewal without user interaction
  */
@@ -35,7 +36,7 @@ export const buyerSessionQueryKey = ["buyer-session"] as const;
 
 // Função de validação de sessão
 async function validateBuyerSession(): Promise<SessionValidation> {
-  // Use TokenManager to get valid token (auto-refresh if needed)
+  // Use TokenManager to check auth state (auto-refresh if needed)
   const token = await buyerTokenManager.getValidAccessToken();
   
   if (!token) {
@@ -45,8 +46,8 @@ async function validateBuyerSession(): Promise<SessionValidation> {
   try {
     const response = await fetch(`${SUPABASE_URL}/functions/v1/buyer-auth/validate`, {
       method: "POST",
+      credentials: "include", // Send httpOnly cookies
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionToken: token }),
     });
 
     const data = await response.json();

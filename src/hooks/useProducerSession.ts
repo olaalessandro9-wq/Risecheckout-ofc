@@ -6,9 +6,10 @@
  * Uses React Query for caching and automatic revalidation.
  * Provides a consistent way to check producer session across components.
  * 
- * ARCHITECTURE (REFACTORED V3):
- * - Uses TokenManager for automatic token refresh
- * - Validates ONLY producer_session_token (custom token)
+ * ARCHITECTURE (REFACTORED V4):
+ * - Uses httpOnly cookies for token transport (XSS protection)
+ * - Uses TokenManager for auth state tracking
+ * - Validates session via cookies sent automatically
  * - NO Supabase Auth dependency (eliminated dual-auth)
  */
 
@@ -34,7 +35,7 @@ interface SessionData {
 }
 
 async function validateProducerSession(): Promise<SessionData> {
-  // Use TokenManager to get valid token (auto-refresh if needed)
+  // Use TokenManager to check auth state (auto-refresh if needed)
   const token = await producerTokenManager.getValidAccessToken();
   
   if (!token) {
@@ -44,8 +45,8 @@ async function validateProducerSession(): Promise<SessionData> {
   try {
     const response = await fetch(`${SUPABASE_URL}/functions/v1/producer-auth/validate`, {
       method: "POST",
+      credentials: "include", // Send httpOnly cookies
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionToken: token }),
     });
 
     const data = await response.json();
@@ -54,7 +55,7 @@ async function validateProducerSession(): Promise<SessionData> {
       return { valid: true, producer: data.producer };
     }
 
-    // Invalid session - clear tokens
+    // Invalid session - clear auth state
     producerTokenManager.clearTokens();
     return { valid: false, producer: null };
   } catch (error: unknown) {
