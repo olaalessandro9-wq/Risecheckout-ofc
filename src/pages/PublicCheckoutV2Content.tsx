@@ -17,7 +17,6 @@ import { useFormManager } from "@/hooks/checkout/useFormManager";
 import { usePaymentOrchestrator } from "@/hooks/checkout/payment/usePaymentOrchestrator";
 import { useTrackingService } from "@/hooks/checkout/useTrackingService";
 import { useAffiliateTracking } from "@/hooks/useAffiliateTracking";
-import { useTurnstileVerification } from "@/hooks/checkout/useTurnstileVerification";
 import { useCheckoutProductPixels } from "@/hooks/checkout/useCheckoutProductPixels";
 import { useVisitTracker } from "@/hooks/checkout/useVisitTracker";
 import { getSubmitSnapshot, requiredFieldsToArray, parseRequiredFields } from "@/features/checkout/personal-data";
@@ -81,9 +80,6 @@ export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, desi
 
   const handleTotalChange = React.useCallback((total: number, coupon: typeof appliedCoupon) => { setAppliedCoupon(coupon); }, []);
 
-  // Turnstile
-  const { token: turnstileToken, onTokenReceived: handleTurnstileVerify, onWidgetError: handleTurnstileError, onTokenExpired: handleTurnstileExpire, verifyToken: verifyTurnstileToken } = useTurnstileVerification();
-
   // Tracking Service (apenas UTMify)
   const { fireInitiateCheckout } = useTrackingService({
     vendorId: vendorId || null, productId: checkout.product.id, productName: checkout.product.name,
@@ -98,8 +94,6 @@ export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, desi
     const snapshot = getSubmitSnapshot(e.currentTarget, formData);
     const validation = validateForm(snapshot);
     if (!validation.isValid) { toast.error("Por favor, preencha todos os campos obrigatórios corretamente"); return; }
-    const turnstileResult = await verifyTurnstileToken();
-    if (!turnstileResult.success) { toast.error(turnstileResult.error || "Falha na verificação de segurança"); return; }
     updateMultipleFields(snapshot);
     setProcessing(true);
     try {
@@ -107,14 +101,12 @@ export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, desi
       if (selectedPayment === 'pix') await submitPayment(undefined, undefined, undefined, undefined, undefined, snapshot);
     } catch (error: unknown) { console.error("[PublicCheckoutV2] Erro:", error); }
     finally { setProcessing(false); }
-  }, [formData, validateForm, updateMultipleFields, setProcessing, fireInitiateCheckout, selectedBumps, orderBumps, selectedPayment, submitPayment, verifyTurnstileToken]);
+  }, [formData, validateForm, updateMultipleFields, setProcessing, fireInitiateCheckout, selectedBumps, orderBumps, selectedPayment, submitPayment]);
 
   const handleCardSubmit = React.useCallback(async (token: string, installments: number, paymentMethodId: string, issuerId: string, holderDocument?: string) => {
     const snapshot = getSubmitSnapshot(null, formData);
     const validation = validateForm(snapshot);
     if (!validation.isValid) { toast.error("Por favor, preencha todos os campos obrigatórios corretamente"); return; }
-    const turnstileResult = await verifyTurnstileToken();
-    if (!turnstileResult.success) { toast.error(turnstileResult.error || "Falha na verificação de segurança"); return; }
     updateMultipleFields(snapshot);
     setProcessing(true);
     try {
@@ -122,7 +114,7 @@ export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, desi
       await submitPayment(token, installments, paymentMethodId, issuerId, holderDocument, snapshot);
     } catch (error: unknown) { console.error("[PublicCheckoutV2] Erro cartão:", error); }
     finally { setProcessing(false); }
-  }, [formData, validateForm, updateMultipleFields, setProcessing, fireInitiateCheckout, selectedBumps, orderBumps, submitPayment, verifyTurnstileToken]);
+  }, [formData, validateForm, updateMultipleFields, setProcessing, fireInitiateCheckout, selectedBumps, orderBumps, submitPayment]);
 
   // Render
   const productData = { id: checkout.product.id, name: checkout.product.name, description: checkout.product.description, price: checkout.product.price, image_url: checkout.product.image_url };
@@ -140,8 +132,7 @@ export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, desi
         <SharedCheckoutLayout productData={productData} orderBumps={orderBumps} design={design} selectedPayment={selectedPayment} onPaymentChange={setSelectedPayment}
           selectedBumps={selectedBumps} onToggleBump={toggleBump} mode="public" formData={formData} formErrors={formErrors} onFieldChange={updateField}
           requiredFields={checkout.product.required_fields} isProcessing={isProcessing} publicKey={cardPublicKey} creditCardGateway={creditCardGateway}
-          amount={memoizedAmount} onSubmitPayment={handleCardSubmit} onTotalChange={handleTotalChange} turnstileToken={turnstileToken}
-          onTurnstileVerify={handleTurnstileVerify} onTurnstileError={handleTurnstileError} onTurnstileExpire={handleTurnstileExpire}
+          amount={memoizedAmount} onSubmitPayment={handleCardSubmit} onTotalChange={handleTotalChange}
           formWrapper={(children, formRef) => <form ref={formRef as React.RefObject<HTMLFormElement>} onSubmit={handleSubmit} className="space-y-6">{children}</form>} />
       </CheckoutMasterLayout>
     </CheckoutProvider>
