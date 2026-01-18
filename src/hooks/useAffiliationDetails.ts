@@ -73,10 +73,11 @@ export interface AffiliationDetails {
   checkouts: AffiliationCheckout[];
   producer: ProducerProfile | null;
   pixels: AffiliatePixel[];
-  // Novos campos de gateway
+  // Gateway selection (which gateways the affiliate chose)
   pix_gateway: string | null;
   credit_card_gateway: string | null;
-  gateway_credentials: Record<string, string>;
+  // gateway_credentials REMOVED - RISE V3 Solution D
+  // Affiliates inherit credentials from their own profile
   // Configurações permitidas pelo owner
   allowed_gateways: {
     pix_allowed: string[];
@@ -136,7 +137,7 @@ export function useAffiliationDetails(affiliationId: string | undefined): UseAff
           pixels?: AffiliatePixel[];
           pix_gateway?: string;
           credit_card_gateway?: string;
-          gateway_credentials?: Record<string, string>;
+          // gateway_credentials removed - RISE V3 Solution D
           allowed_gateways?: {
             pix_allowed: string[];
             credit_card_allowed: string[];
@@ -175,7 +176,7 @@ export function useAffiliationDetails(affiliationId: string | undefined): UseAff
         pixels: data.affiliation.pixels as AffiliatePixel[],
         pix_gateway: data.affiliation.pix_gateway,
         credit_card_gateway: data.affiliation.credit_card_gateway,
-        gateway_credentials: data.affiliation.gateway_credentials || {},
+        // gateway_credentials removed - RISE V3 Solution D
         allowed_gateways: data.affiliation.allowed_gateways,
       });
 

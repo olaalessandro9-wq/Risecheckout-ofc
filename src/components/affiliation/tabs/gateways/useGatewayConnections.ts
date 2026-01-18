@@ -37,7 +37,6 @@ export function useGatewayConnections({ affiliation, onRefetch }: UseGatewayConn
   const [userConnections, setUserConnections] = useState<Record<string, boolean>>({});
   const [pixAllowed, setPixAllowed] = useState<string[]>([]);
   const [cardAllowed, setCardAllowed] = useState<string[]>([]);
-  const [credentials, setCredentials] = useState<Record<string, string>>({});
   
   // Seleções do usuário
   const [selectedPixGateway, setSelectedPixGateway] = useState<string>("");
@@ -69,7 +68,6 @@ export function useGatewayConnections({ affiliation, onRefetch }: UseGatewayConn
       setPixAllowed(pixGateways);
       setCardAllowed(cardGateways);
       setUserConnections(data?.connections || {});
-      setCredentials(data?.credentials || {});
 
       // Carregar seleções atuais do afiliado
       if (affiliation.pix_gateway) {
@@ -116,21 +114,9 @@ export function useGatewayConnections({ affiliation, onRefetch }: UseGatewayConn
 
     setSaving(true);
     try {
-      // Build credentials from cached data
-      const gatewayCredentials: Record<string, string> = {};
-      
-      if (selectedPixGateway === "asaas" && credentials.asaas_wallet_id) {
-        gatewayCredentials.asaas_wallet_id = credentials.asaas_wallet_id;
-      }
-      if ((selectedPixGateway === "mercadopago" || selectedCardGateway === "mercadopago") && credentials.mercadopago_collector_id) {
-        gatewayCredentials.mercadopago_collector_id = credentials.mercadopago_collector_id;
-      }
-      if (selectedPixGateway === "pushinpay" && credentials.pushinpay_account_id) {
-        gatewayCredentials.pushinpay_account_id = credentials.pushinpay_account_id;
-      }
-      if (selectedCardGateway === "stripe" && credentials.stripe_account_id) {
-        gatewayCredentials.stripe_account_id = credentials.stripe_account_id;
-      }
+      // RISE V3 Solution D: gateway_credentials REMOVED
+      // Affiliates inherit credentials from their own profile (Settings > Integrações)
+      // We only update which gateways the affiliate selected
 
       // Atualizar afiliado via Edge Function (PROTOCOLO: Zero bypass direto)
       const { data, error } = await api.call<{ success: boolean; error?: string }>("update-affiliate-settings", {
@@ -138,7 +124,6 @@ export function useGatewayConnections({ affiliation, onRefetch }: UseGatewayConn
         affiliate_id: affiliation.id,
         pix_gateway: selectedPixGateway,
         credit_card_gateway: selectedCardGateway,
-        gateway_credentials: gatewayCredentials,
       });
 
       if (error) throw new Error(error.message);

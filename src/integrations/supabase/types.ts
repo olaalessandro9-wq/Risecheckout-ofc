@@ -74,6 +74,13 @@ export type Database = {
             foreignKeyName: "affiliate_audit_log_affiliate_id_fkey"
             columns: ["affiliate_id"]
             isOneToOne: false
+            referencedRelation: "_audit_affiliates_with_gateway_credentials"
+            referencedColumns: ["affiliate_id"]
+          },
+          {
+            foreignKeyName: "affiliate_audit_log_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
             referencedRelation: "affiliates"
             referencedColumns: ["id"]
           },
@@ -129,6 +136,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "affiliate_pixels_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "_audit_affiliates_with_gateway_credentials"
+            referencedColumns: ["affiliate_id"]
+          },
           {
             foreignKeyName: "affiliate_pixels_affiliate_id_fkey"
             columns: ["affiliate_id"]
@@ -2257,6 +2271,13 @@ export type Database = {
             foreignKeyName: "orders_affiliate_id_fkey"
             columns: ["affiliate_id"]
             isOneToOne: false
+            referencedRelation: "_audit_affiliates_with_gateway_credentials"
+            referencedColumns: ["affiliate_id"]
+          },
+          {
+            foreignKeyName: "orders_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
             referencedRelation: "affiliates"
             referencedColumns: ["id"]
           },
@@ -3850,6 +3871,17 @@ export type Database = {
       }
     }
     Views: {
+      _audit_affiliates_with_gateway_credentials: {
+        Row: {
+          affiliate_id: string | null
+          gateway_credentials: Json | null
+          profile_asaas: string | null
+          profile_mp: string | null
+          profile_stripe: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       marketplace_products: {
         Row: {
           approval_mode: string | null

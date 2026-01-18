@@ -7,15 +7,16 @@
  * - VULN-005: Validação de schema com validators.ts
  * - VULN-008: CORS com bloqueio de origens inválidas
  * 
- * Estrutura:
+ * Estrutura Modularizada (RISE V3):
  * - handlers/product-validator.ts (~110 linhas)
  * - handlers/bump-processor.ts (~140 linhas)
  * - handlers/coupon-processor.ts (~100 linhas)
- * - handlers/affiliate-processor.ts (~200 linhas)
+ * - handlers/affiliate/index.ts (~290 linhas)
+ * - handlers/affiliate/types.ts (~92 linhas)
  * - handlers/order-creator.ts (~180 linhas)
- * - index.ts (~170 linhas) ← VOCÊ ESTÁ AQUI
+ * - index.ts (~260 linhas) ← VOCÊ ESTÁ AQUI
  * 
- * @version 2.0.0
+ * @version 2.1.0
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";

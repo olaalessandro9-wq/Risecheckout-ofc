@@ -29,12 +29,18 @@ import {
 // Ações permitidas para afiliados
 type AllowedAction = "update_gateways" | "cancel_affiliation";
 
+/**
+ * UpdateGatewaysPayload
+ * 
+ * RISE V3 Solution D: gateway_credentials REMOVED
+ * Affiliates now inherit credentials from their own profile.
+ * To update credentials, affiliate uses Settings > Integrações (profile).
+ */
 interface UpdateGatewaysPayload {
   action: "update_gateways";
   affiliate_id: string;
   pix_gateway?: string | null;
   credit_card_gateway?: string | null;
-  gateway_credentials?: Record<string, string>;
 }
 
 interface CancelAffiliationPayload {
@@ -159,7 +165,7 @@ serve(async (req) => {
     // 7. Processar ação
     switch (action) {
       case "update_gateways": {
-        const { pix_gateway, credit_card_gateway, gateway_credentials } = payload as UpdateGatewaysPayload;
+        const { pix_gateway, credit_card_gateway } = payload as UpdateGatewaysPayload;
 
         // Validar gateways
         if (pix_gateway !== undefined && !VALID_PIX_GATEWAYS.includes(pix_gateway)) {
@@ -203,11 +209,10 @@ serve(async (req) => {
           );
         }
 
-        // Executar UPDATE seguro
+        // Executar UPDATE seguro (gateway_credentials REMOVED - RISE V3 Solution D)
         const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
         if (pix_gateway !== undefined) updateData.pix_gateway = pix_gateway;
         if (credit_card_gateway !== undefined) updateData.credit_card_gateway = credit_card_gateway;
-        if (gateway_credentials !== undefined) updateData.gateway_credentials = gateway_credentials;
 
         const { error: updateError } = await supabaseAdmin
           .from("affiliates")
