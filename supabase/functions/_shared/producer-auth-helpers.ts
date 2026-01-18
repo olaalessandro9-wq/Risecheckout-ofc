@@ -14,9 +14,7 @@ import { genSaltSync, hashSync, compareSync } from "https://deno.land/x/bcrypt@v
 // CONSTANTS
 // ============================================
 
-export const HASH_VERSION_SHA256 = 1;
-export const HASH_VERSION_BCRYPT = 2;
-export const CURRENT_HASH_VERSION = HASH_VERSION_BCRYPT;
+export const CURRENT_HASH_VERSION = 2;
 export const BCRYPT_COST = 10;
 
 // ============================================

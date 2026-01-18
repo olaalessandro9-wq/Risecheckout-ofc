@@ -23,8 +23,6 @@ interface SaveDependencies {
     saveProduct: () => Promise<void>;
   };
   settings: {
-    savePaymentSettings: () => Promise<void>;
-    saveCheckoutFields: () => Promise<void>;
     saveUpsellSettings: (settings?: UpsellSettings) => Promise<void>;
     saveAffiliateSettings: (settings?: AffiliateSettings) => Promise<void>;
   };

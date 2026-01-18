@@ -10,8 +10,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 110 |
-| **No código local** | 110 |
+| **Total de Funções** | 109 |
+| **No código local** | 109 |
 | **Apenas deployadas** | 0 |
 | **Operações Diretas Frontend** | 0 ✅ |
 | **Funções com verify_jwt=true** | 0 ✅ |
@@ -158,8 +158,6 @@
 | `affiliation-public` | public | false | Dados públicos de afiliação |
 | `checkout-public-data` | public | false | Dados públicos do checkout |
 | `marketplace-public` | public | false | Endpoints públicos do marketplace (RISE V3) |
-| **Internal/Migration** | | | |
-| `vault-migration` | internal | false | One-time migration |
 
 ---
 
@@ -399,12 +397,6 @@
 | `affiliation-public` | `.../affiliation-public` | ✅ | public |
 | `checkout-public-data` | `.../checkout-public-data` | ✅ | public |
 | `marketplace-public` | `.../marketplace-public` | ✅ | public |
-
-### Internal/Migration
-
-| Nome | URL | No Repo? | Auth |
-|------|-----|----------|------|
-| `vault-migration` | `.../vault-migration` | ✅ | internal (one-time migration) |
 
 ---
 

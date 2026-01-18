@@ -3,14 +3,10 @@
  * 
  * Tipos para o TrackingManager.
  * 
- * RISE Protocol V2: Código legacy removido.
- * Apenas UTMify permanece pois não migrou para product_pixels.
+ * RISE Protocol V3: Código legacy removido.
+ * UTMify usa tipos diretamente de @/integrations/tracking/utmify/types
  */
 
-import type { UTMifyIntegration } from "@/integrations/tracking/utmify/types";
-
-/**
- * Re-exportar UTMify para uso no TrackingManager
- * (único tracking que ainda não migrou para product_pixels)
- */
-export type LegacyUTMifyIntegration = UTMifyIntegration;
+// Este arquivo existe apenas para manter compatibilidade.
+// Todos os tipos são importados diretamente de seus módulos de origem.
+export {};
