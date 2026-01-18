@@ -4,7 +4,8 @@
  * Extracted handlers for producer-auth edge function.
  * Keeps index.ts as a clean router (~150 lines).
  * 
- * RISE Protocol Compliant - Zero `any` (exceto SupabaseClient internals)
+ * RISE Protocol V3 Compliant - Zero `any`
+ * ENHANCED: httpOnly Cookies for XSS protection
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -20,6 +21,10 @@ import {
 import { generateSessionTokens } from "./producer-auth-refresh-handler.ts";
 import { ACCESS_TOKEN_DURATION_MINUTES } from "./auth-constants.ts";
 import { jsonResponse, errorResponse } from "./response-helpers.ts";
+import {
+  createAuthCookies,
+  jsonResponseWithCookies,
+} from "./cookie-helper.ts";
 import {
   PASSWORD_REQUIRES_RESET,
   PASSWORD_PENDING_SETUP,
@@ -282,9 +287,13 @@ export async function handleLogin(
 
   console.log(`[producer-auth] Login successful: ${email}, role: ${roleData?.role || "user"}`);
   
-  // RISE V3: Return access token, refresh token, and expiry info
-  return jsonResponse({
+  // RISE V3: Set httpOnly cookies for tokens (XSS protection)
+  const cookies = createAuthCookies("producer", accessToken, refreshToken);
+  
+  return jsonResponseWithCookies({
     success: true,
+    // MIGRATION: Still return tokens in body for backwards compatibility
+    // TODO: Remove after frontend fully migrated to cookies
     accessToken,
     refreshToken,
     expiresIn: ACCESS_TOKEN_DURATION_MINUTES * 60, // seconds
@@ -295,5 +304,5 @@ export async function handleLogin(
       name: producer.name,
       role: roleData?.role || "user",
     },
-  }, corsHeaders);
+  }, corsHeaders, cookies);
 }

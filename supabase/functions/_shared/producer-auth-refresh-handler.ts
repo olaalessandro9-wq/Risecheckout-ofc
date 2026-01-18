@@ -9,17 +9,26 @@
  * - Old token is stored as previous_refresh_token
  * - If previous token is reused, ALL sessions are invalidated (theft detected)
  * 
+ * ENHANCED: httpOnly Cookies for XSS protection
+ * - Tokens set as httpOnly cookies (invisible to JavaScript)
+ * - Fallback to body for backwards compatibility
+ * 
  * RISE Protocol V3 Compliant
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getClientIP } from "./rate-limiting/service.ts";
 import { logAuditEvent, generateSessionToken } from "./producer-auth-helpers.ts";
-import { jsonResponse, errorResponse } from "./response-helpers.ts";
+import { errorResponse } from "./response-helpers.ts";
 import {
   ACCESS_TOKEN_DURATION_MINUTES,
   REFRESH_TOKEN_DURATION_DAYS,
 } from "./auth-constants.ts";
+import {
+  getRefreshToken,
+  createAuthCookies,
+  jsonResponseWithCookies,
+} from "./cookie-helper.ts";
 
 import type { ProducerProfile, UserRole } from "./supabase-types.ts";
 
@@ -51,9 +60,21 @@ export async function handleRefresh(
   req: Request,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  const { refreshToken } = await req.json();
   const currentIP = getClientIP(req);
   const currentUA = req.headers.get("user-agent");
+
+  // Try to get refresh token from cookie first, then body
+  let refreshToken = getRefreshToken(req, "producer");
+  
+  // Fallback: try to read from body (legacy)
+  if (!refreshToken) {
+    try {
+      const body = await req.json();
+      refreshToken = body.refreshToken;
+    } catch {
+      // No body provided
+    }
+  }
 
   if (!refreshToken) {
     return errorResponse("Refresh token é obrigatório", corsHeaders, 400);
@@ -178,11 +199,15 @@ export async function handleRefresh(
 
   console.log(`[producer-auth] Token rotated for producer: ${producerData.email}`);
 
-  return jsonResponse({
+  // RISE V3: Set httpOnly cookies for tokens (XSS protection)
+  const cookies = createAuthCookies("producer", newAccessToken, newRefreshToken);
+
+  return jsonResponseWithCookies({
     success: true,
+    // MIGRATION: Still return tokens in body for backwards compatibility
     accessToken: newAccessToken,
-    refreshToken: newRefreshToken, // NEW: Return rotated refresh token
-    expiresIn: ACCESS_TOKEN_DURATION_MINUTES * 60, // in seconds
+    refreshToken: newRefreshToken,
+    expiresIn: ACCESS_TOKEN_DURATION_MINUTES * 60,
     expiresAt: accessTokenExpiresAt.toISOString(),
     producer: {
       id: producerData.id,
@@ -190,7 +215,7 @@ export async function handleRefresh(
       name: producerData.name,
       role: roleData?.role || "user",
     },
-  }, corsHeaders);
+  }, corsHeaders, cookies);
 }
 
 // ============================================

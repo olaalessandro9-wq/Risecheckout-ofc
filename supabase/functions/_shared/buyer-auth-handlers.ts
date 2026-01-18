@@ -6,6 +6,7 @@
  * 
  * @refactored 2026-01-13 - Password utilities extraídas para buyer-auth-password.ts
  * @refactored 2026-01-18 - RISE V3: jsonResponse signature standardized
+ * @refactored 2026-01-18 - RISE V3: httpOnly Cookies for XSS protection
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -37,6 +38,12 @@ import {
 } from "./buyer-auth-types.ts";
 import { generateSessionTokens } from "./buyer-auth-refresh-handler.ts";
 import { ACCESS_TOKEN_DURATION_MINUTES } from "./auth-constants.ts";
+import {
+  createAuthCookies,
+  createLogoutCookies,
+  jsonResponseWithCookies,
+  getAccessToken,
+} from "./cookie-helper.ts";
 
 // Import and re-export from password module
 import {
@@ -244,15 +251,19 @@ export async function handleLogin(
 
   console.log(`[buyer-auth] Login successful: ${email}`);
   
-  // RISE V3: Return access token, refresh token, and expiry info
-  return jsonResponse({
+  // RISE V3: Set httpOnly cookies for tokens (XSS protection)
+  const cookies = createAuthCookies("buyer", accessToken, refreshToken);
+  
+  return jsonResponseWithCookies({
     success: true,
+    // MIGRATION: Still return tokens in body for backwards compatibility
+    // TODO: Remove after frontend fully migrated to cookies
     accessToken,
     refreshToken,
     expiresIn: ACCESS_TOKEN_DURATION_MINUTES * 60, // seconds
     expiresAt: accessTokenExpiresAt.toISOString(),
     buyer: { id: buyer.id, email: buyer.email, name: buyer.name },
-  }, corsHeaders, 200);
+  }, corsHeaders, cookies);
 }
 
 // ============================================
@@ -263,33 +274,45 @@ export async function handleLogout(
   req: Request,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  const { sessionToken } = await req.json();
-
+  // Try to get token from cookie first, then body
+  let sessionToken = getAccessToken(req, "buyer");
+  
+  // Fallback: try to read from body (legacy)
   if (!sessionToken) {
-    return jsonResponse({ error: "Token de sessão é obrigatório" }, corsHeaders, 400);
+    try {
+      const body = await req.json();
+      sessionToken = body.sessionToken;
+    } catch {
+      // No body provided
+    }
   }
 
-  const { data: session } = await supabase
-    .from("buyer_sessions")
-    .select("buyer_id")
-    .eq("session_token", sessionToken)
-    .single();
+  if (sessionToken) {
+    const { data: session } = await supabase
+      .from("buyer_sessions")
+      .select("buyer_id")
+      .eq("session_token", sessionToken)
+      .single();
 
-  await supabase
-    .from("buyer_sessions")
-    .update({ is_valid: false })
-    .eq("session_token", sessionToken);
+    await supabase
+      .from("buyer_sessions")
+      .update({ is_valid: false })
+      .eq("session_token", sessionToken);
 
-  if (session?.buyer_id) {
-    await logSecurityEvent(supabase, {
-      userId: session.buyer_id,
-      action: SecurityAction.LOGOUT,
-      resource: "buyer_auth",
-      success: true,
-      request: req,
-    });
+    if (session?.buyer_id) {
+      await logSecurityEvent(supabase, {
+        userId: session.buyer_id,
+        action: SecurityAction.LOGOUT,
+        resource: "buyer_auth",
+        success: true,
+        request: req,
+      });
+    }
   }
+
+  // Clear cookies
+  const cookies = createLogoutCookies("buyer");
 
   console.log("[buyer-auth] Logout successful");
-  return jsonResponse({ success: true }, corsHeaders, 200);
+  return jsonResponseWithCookies({ success: true }, corsHeaders, cookies);
 }
