@@ -2,12 +2,9 @@
  * Buyer Auth Refresh Handler
  * 
  * PHASE 3: Implements refresh token logic for buyers.
- * Allows clients to obtain new access tokens using long-lived refresh tokens.
  * 
  * ENHANCED: Refresh Token Rotation with Theft Detection
- * - Each refresh generates a NEW refresh token
- * - Old token is stored as previous_refresh_token
- * - If previous token is reused, ALL sessions are invalidated (theft detected)
+ * ENHANCED: httpOnly Cookies for XSS protection
  * 
  * RISE Protocol V3 Compliant
  */
@@ -15,11 +12,17 @@
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getClientIP } from "./rate-limiting/service.ts";
 import { logSecurityEvent, SecurityAction } from "./audit-logger.ts";
-import { generateSessionToken, jsonResponse } from "./buyer-auth-password.ts";
+import { generateSessionToken } from "./buyer-auth-password.ts";
 import {
   ACCESS_TOKEN_DURATION_MINUTES,
   REFRESH_TOKEN_DURATION_DAYS,
 } from "./auth-constants.ts";
+import {
+  getRefreshToken,
+  createAuthCookies,
+  jsonResponseWithCookies,
+} from "./cookie-helper.ts";
+import { errorResponse } from "./response-helpers.ts";
 
 // ============================================
 // INTERNAL TYPES
@@ -50,12 +53,24 @@ export async function handleRefresh(
   req: Request,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  const { refreshToken } = await req.json();
   const currentIP = getClientIP(req);
   const currentUA = req.headers.get("user-agent");
 
+  // Try to get refresh token from cookie first, then body
+  let refreshToken = getRefreshToken(req, "buyer");
+  
+  // Fallback: try to read from body (legacy)
   if (!refreshToken) {
-    return jsonResponse({ error: "Refresh token é obrigatório" }, corsHeaders, 400);
+    try {
+      const body = await req.json();
+      refreshToken = body.refreshToken;
+    } catch {
+      // No body provided
+    }
+  }
+
+  if (!refreshToken) {
+    return errorResponse("Refresh token é obrigatório", corsHeaders, 400);
   }
 
   // ============================================
@@ -91,7 +106,7 @@ export async function handleRefresh(
       }
     });
 
-    return jsonResponse({ error: "Sessão comprometida. Faça login novamente." }, corsHeaders, 401);
+    return errorResponse("Sessão comprometida. Faça login novamente.", corsHeaders, 401);
   }
 
   // ============================================
@@ -108,21 +123,19 @@ export async function handleRefresh(
     .single() as { data: BuyerSessionWithRefresh | null; error: unknown };
 
   if (!session) {
-    console.warn("[buyer-auth] Refresh failed - token not found or invalid");
-    return jsonResponse({ error: "Refresh token inválido" }, corsHeaders, 401);
+    return errorResponse("Refresh token inválido", corsHeaders, 401);
   }
 
   const buyerData = Array.isArray(session.buyer) ? session.buyer[0] : session.buyer;
 
   if (!buyerData || !buyerData.is_active) {
-    return jsonResponse({ error: "Conta desativada" }, corsHeaders, 403);
+    return errorResponse("Conta desativada", corsHeaders, 403);
   }
 
   // Check refresh token expiration
   if (session.refresh_token_expires_at && new Date(session.refresh_token_expires_at) < new Date()) {
     await supabase.from("buyer_sessions").update({ is_valid: false }).eq("id", session.id);
-    console.warn("[buyer-auth] Refresh failed - token expired");
-    return jsonResponse({ error: "Refresh token expirado" }, corsHeaders, 401);
+    return errorResponse("Refresh token expirado", corsHeaders, 401);
   }
 
   // PHASE 1 Security: Check IP binding
@@ -140,8 +153,7 @@ export async function handleRefresh(
         session_ip: session.ip_address,
         current_ip: currentIP,
       }
-    });
-    return jsonResponse({ error: "Sessão invalidada por segurança" }, corsHeaders, 401);
+    return errorResponse("Sessão invalidada por segurança", corsHeaders, 401);
   }
 
   // ============================================
@@ -170,24 +182,26 @@ export async function handleRefresh(
     .eq("id", session.id);
 
   if (updateError) {
-    console.error("[buyer-auth] Error updating session:", updateError);
-    return jsonResponse({ error: "Erro ao renovar token" }, corsHeaders, 500);
+    return errorResponse("Erro ao renovar token", corsHeaders, 500);
   }
 
   console.log(`[buyer-auth] Token rotated for buyer: ${buyerData.email}`);
 
-  return jsonResponse({
+  // RISE V3: Set httpOnly cookies for tokens (XSS protection)
+  const cookies = createAuthCookies("buyer", newAccessToken, newRefreshToken);
+
+  return jsonResponseWithCookies({
     success: true,
     accessToken: newAccessToken,
-    refreshToken: newRefreshToken, // NEW: Return rotated refresh token
-    expiresIn: ACCESS_TOKEN_DURATION_MINUTES * 60, // in seconds
+    refreshToken: newRefreshToken,
+    expiresIn: ACCESS_TOKEN_DURATION_MINUTES * 60,
     expiresAt: accessTokenExpiresAt.toISOString(),
     buyer: {
       id: buyerData.id,
       email: buyerData.email,
       name: buyerData.name,
     },
-  }, corsHeaders, 200);
+  }, corsHeaders, cookies);
 }
 
 // ============================================
