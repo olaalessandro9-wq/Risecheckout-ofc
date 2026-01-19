@@ -127,8 +127,8 @@ export function mapCheckoutRecords(records: CheckoutRecord[]): Checkout[] {
   return records.map((record) => ({
     id: record.id,
     name: record.name,
-    price: 0, // Será preenchido via payment links
-    visits: 0, // Não vem do BFF simplificado
+    price: 0,
+    visits: record.visits_count ?? 0,
     offer: "",
     isDefault: record.is_default,
     linkId: "",

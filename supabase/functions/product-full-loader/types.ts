@@ -70,6 +70,7 @@ export interface CheckoutRecord {
   is_default: boolean;
   status: string | null;
   theme: string | null;
+  visits_count: number;
   created_at: string;
   updated_at: string | null;
 }
