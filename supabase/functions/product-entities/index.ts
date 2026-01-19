@@ -4,11 +4,11 @@
  * Retorna entidades relacionadas a produtos:
  * - offers: Ofertas do produto
  * - orderBumps: Order bumps dos checkouts do produto
- * - coupons: Cupons (global)
+ * - coupons: Cupons (global ou por produto)
  * - checkouts: Checkouts do produto
  * - paymentLinks: Links de pagamento do produto
  * 
- * @version 1.0.0 - RISE Protocol V2
+ * @version 2.0.0 - RISE V3 Compliant (uses _shared/entities)
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
@@ -16,6 +16,14 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 import { createLogger } from "../_shared/logger.ts";
+import {
+  fetchActiveProductOffers,
+  fetchProductOrderBumps,
+  fetchProductCheckoutsWithRelations,
+  fetchProductPaymentLinksWithRelations,
+  fetchProductCoupons,
+  fetchAllCoupons,
+} from "../_shared/entities/index.ts";
 
 const log = createLogger("product-entities");
 
@@ -40,202 +48,24 @@ interface RequestBody {
 // HELPERS
 // ==========================================
 
-function jsonResponse(data: unknown, corsHeaders: Record<string, string>, status = 200): Response {
+function jsonResponse(
+  data: unknown, 
+  corsHeaders: Record<string, string>, 
+  status = 200
+): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
 
-function errorResponse(message: string, code: string, corsHeaders: Record<string, string>, status = 400): Response {
+function errorResponse(
+  message: string, 
+  code: string, 
+  corsHeaders: Record<string, string>, 
+  status = 400
+): Response {
   return jsonResponse({ error: message, code }, corsHeaders, status);
-}
-
-// ==========================================
-// HANDLERS
-// ==========================================
-
-async function getOffers(
-  supabase: SupabaseClient,
-  productId: string,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  const { data, error } = await supabase
-    .from("offers")
-    .select("*")
-    .eq("product_id", productId)
-    .eq("status", "active")
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    log.error("Offers error:", error);
-    return errorResponse("Erro ao buscar ofertas", "DB_ERROR", corsHeaders, 500);
-  }
-
-  return jsonResponse({ offers: data || [] }, corsHeaders);
-}
-
-async function getOrderBumps(
-  supabase: SupabaseClient,
-  productId: string,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  // First get checkout IDs for this product
-  const { data: checkouts, error: checkoutsError } = await supabase
-    .from("checkouts")
-    .select("id")
-    .eq("product_id", productId);
-
-  if (checkoutsError) {
-    log.error("Checkouts error:", checkoutsError);
-    return errorResponse("Erro ao buscar checkouts", "DB_ERROR", corsHeaders, 500);
-  }
-
-  const checkoutIds = (checkouts || []).map((c) => c.id);
-
-  if (checkoutIds.length === 0) {
-    return jsonResponse({ orderBumps: [] }, corsHeaders);
-  }
-
-  const { data, error } = await supabase
-    .from("order_bumps")
-    .select("*")
-    .in("checkout_id", checkoutIds);
-
-  if (error) {
-    log.error("Order bumps error:", error);
-    return errorResponse("Erro ao buscar order bumps", "DB_ERROR", corsHeaders, 500);
-  }
-
-  return jsonResponse({ orderBumps: data || [] }, corsHeaders);
-}
-
-async function getCoupons(
-  supabase: SupabaseClient,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  const { data, error } = await supabase
-    .from("coupons")
-    .select(`
-      *,
-      coupon_products (
-        product_id
-      )
-    `)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    log.error("Coupons error:", error);
-    return errorResponse("Erro ao buscar cupons", "DB_ERROR", corsHeaders, 500);
-  }
-
-  return jsonResponse({ coupons: data || [] }, corsHeaders);
-}
-
-async function getCheckouts(
-  supabase: SupabaseClient,
-  productId: string,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  const { data, error } = await supabase
-    .from("checkouts")
-    .select(`
-      *,
-      products (
-        name,
-        price
-      ),
-      checkout_links (
-        link_id,
-        payment_links (
-          offers (
-            name,
-            price
-          )
-        )
-      )
-    `)
-    .eq("product_id", productId)
-    .neq("status", "deleted")
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    log.error("Checkouts detail error:", error);
-    return errorResponse("Erro ao buscar checkouts", "DB_ERROR", corsHeaders, 500);
-  }
-
-  return jsonResponse({ checkouts: data || [] }, corsHeaders);
-}
-
-async function getPaymentLinks(
-  supabase: SupabaseClient,
-  productId: string,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  // Get offer IDs for this product
-  const { data: offers, error: offersError } = await supabase
-    .from("offers")
-    .select("id")
-    .eq("product_id", productId);
-
-  if (offersError) {
-    log.error("Offers for links error:", offersError);
-    return errorResponse("Erro ao buscar ofertas", "DB_ERROR", corsHeaders, 500);
-  }
-
-  const offerIds = (offers || []).map((o) => o.id);
-
-  if (offerIds.length === 0) {
-    return jsonResponse({ paymentLinks: [] }, corsHeaders);
-  }
-
-  // Get payment links for these offers
-  const { data: links, error: linksError } = await supabase
-    .from("payment_links")
-    .select(`
-      id,
-      slug,
-      url,
-      status,
-      offers (
-        id,
-        name,
-        price,
-        is_default,
-        product_id
-      )
-    `)
-    .in("offer_id", offerIds);
-
-  if (linksError) {
-    log.error("Links error:", linksError);
-    return errorResponse("Erro ao buscar links", "DB_ERROR", corsHeaders, 500);
-  }
-
-  // Get checkouts for each link
-  const linksWithCheckouts = await Promise.all(
-    (links || []).map(async (link) => {
-      const { data: checkoutLinks } = await supabase
-        .from("checkout_links")
-        .select("checkout_id")
-        .eq("link_id", link.id);
-
-      const checkoutIds = (checkoutLinks || []).map((cl) => cl.checkout_id);
-      
-      let checkouts: Array<{ id: string; name: string }> = [];
-      if (checkoutIds.length > 0) {
-        const { data: checkoutsData } = await supabase
-          .from("checkouts")
-          .select("id, name")
-          .in("id", checkoutIds);
-        checkouts = checkoutsData || [];
-      }
-
-      return { ...link, checkouts };
-    })
-  );
-
-  return jsonResponse({ paymentLinks: linksWithCheckouts }, corsHeaders);
 }
 
 // ==========================================
@@ -287,37 +117,47 @@ serve(async (req) => {
     log.info(`Action: ${action}, Product: ${productId}`);
 
     switch (action) {
-      case "offers":
-        return getOffers(supabase, productId, corsHeaders);
+      case "offers": {
+        const offers = await fetchActiveProductOffers(supabase, productId);
+        return jsonResponse({ offers }, corsHeaders);
+      }
       
-      case "order-bumps":
-        return getOrderBumps(supabase, productId, corsHeaders);
+      case "order-bumps": {
+        const orderBumps = await fetchProductOrderBumps(supabase, productId);
+        return jsonResponse({ orderBumps }, corsHeaders);
+      }
       
-      case "coupons":
-        return getCoupons(supabase, corsHeaders);
+      case "coupons": {
+        const coupons = await fetchAllCoupons(supabase);
+        return jsonResponse({ coupons }, corsHeaders);
+      }
       
-      case "checkouts":
-        return getCheckouts(supabase, productId, corsHeaders);
+      case "checkouts": {
+        const checkouts = await fetchProductCheckoutsWithRelations(supabase, productId);
+        return jsonResponse({ checkouts }, corsHeaders);
+      }
       
-      case "payment-links":
-        return getPaymentLinks(supabase, productId, corsHeaders);
+      case "payment-links": {
+        const paymentLinks = await fetchProductPaymentLinksWithRelations(supabase, productId);
+        return jsonResponse({ paymentLinks }, corsHeaders);
+      }
       
       case "all": {
-        // Get all entities in parallel
-        const [offersRes, orderBumpsRes, couponsRes, checkoutsRes, paymentLinksRes] = await Promise.all([
-          getOffers(supabase, productId, corsHeaders).then(r => r.json()),
-          getOrderBumps(supabase, productId, corsHeaders).then(r => r.json()),
-          getCoupons(supabase, corsHeaders).then(r => r.json()),
-          getCheckouts(supabase, productId, corsHeaders).then(r => r.json()),
-          getPaymentLinks(supabase, productId, corsHeaders).then(r => r.json()),
+        // Get all entities in parallel using shared handlers
+        const [offers, orderBumps, coupons, checkouts, paymentLinks] = await Promise.all([
+          fetchActiveProductOffers(supabase, productId),
+          fetchProductOrderBumps(supabase, productId),
+          fetchAllCoupons(supabase),
+          fetchProductCheckoutsWithRelations(supabase, productId),
+          fetchProductPaymentLinksWithRelations(supabase, productId),
         ]);
 
         return jsonResponse({
-          offers: offersRes.offers || [],
-          orderBumps: orderBumpsRes.orderBumps || [],
-          coupons: couponsRes.coupons || [],
-          checkouts: checkoutsRes.checkouts || [],
-          paymentLinks: paymentLinksRes.paymentLinks || [],
+          offers,
+          orderBumps,
+          coupons,
+          checkouts,
+          paymentLinks,
         }, corsHeaders);
       }
       

@@ -5,20 +5,28 @@
  * Reduz 6 chamadas paralelas para 1 chamada BFF.
  * 
  * @module product-full-loader
- * @version RISE V3 Compliant
+ * @version 2.0.0 - RISE V3 Compliant (uses _shared/entities)
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 import { createLogger } from "../_shared/logger.ts";
-import { fetchProduct } from "./handlers/productHandler.ts";
-import { fetchOffers } from "./handlers/offersHandler.ts";
-import { fetchCheckoutsAndLinks } from "./handlers/checkoutsHandler.ts";
-import { fetchEntities } from "./handlers/entitiesHandler.ts";
-import type { ProductFullRequest, ProductFullResponse } from "./types.ts";
+import {
+  fetchProduct,
+  fetchProductOffers,
+  fetchProductOrderBumps,
+  fetchProductCheckouts,
+  fetchProductPaymentLinks,
+  fetchProductCoupons,
+} from "../_shared/entities/index.ts";
 
 const logger = createLogger("product-full-loader");
+
+interface ProductFullRequest {
+  action: string;
+  productId: string;
+}
 
 Deno.serve(async (req: Request): Promise<Response> => {
   // Handle CORS preflight
@@ -64,28 +72,32 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Fetch all data in parallel (3 parallel queries instead of 6 sequential)
+    // Fetch all data in parallel using shared handlers
     const [
       productResult,
       offers,
-      checkoutsResult,
-      entitiesResult,
+      orderBumps,
+      checkouts,
+      paymentLinks,
+      coupons,
     ] = await Promise.all([
       fetchProduct(supabase, productId, vendorId),
-      fetchOffers(supabase, productId),
-      fetchCheckoutsAndLinks(supabase, productId),
-      fetchEntities(supabase, productId),
+      fetchProductOffers(supabase, productId),
+      fetchProductOrderBumps(supabase, productId),
+      fetchProductCheckouts(supabase, productId),
+      fetchProductPaymentLinks(supabase, productId),
+      fetchProductCoupons(supabase, productId),
     ]);
 
-    const response: ProductFullResponse = {
+    const response = {
       product: productResult.product,
       upsellSettings: productResult.upsellSettings,
       affiliateSettings: productResult.affiliateSettings,
       offers,
-      orderBumps: entitiesResult.orderBumps,
-      checkouts: checkoutsResult.checkouts,
-      paymentLinks: checkoutsResult.paymentLinks,
-      coupons: entitiesResult.coupons,
+      orderBumps,
+      checkouts,
+      paymentLinks,
+      coupons,
     };
 
     logger.info("Product full data loaded", { productId, vendorId });
