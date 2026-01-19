@@ -13,7 +13,10 @@
 
 import { useCallback, useEffect } from 'react';
 import { api } from '@/lib/api';
+import { createLogger } from '@/lib/logger';
 import { toast } from 'sonner';
+
+const log = createLogger("UseMembersAreaPersistence");
 import type { 
   BuilderState, 
   Section,
@@ -75,7 +78,7 @@ export function useMembersAreaPersistence({
       
       dispatch({ type: 'LOAD_SUCCESS', sections: parsedSections, settings: parsedSettings });
     } catch (error: unknown) {
-      console.error('[useMembersAreaBuilder] Load error:', error);
+      log.error('Load error:', error);
       toast.error('Erro ao carregar configurações');
       dispatch({ type: 'SET_LOADING', isLoading: false });
     }
@@ -136,7 +139,7 @@ export function useMembersAreaPersistence({
       toast.success('Alterações salvas');
       return true;
     } catch (error: unknown) {
-      console.error('[useMembersAreaBuilder] Save error:', error);
+      log.error('Save error:', error);
       toast.error('Erro ao salvar');
       dispatch({ type: 'SET_SAVING', isSaving: false });
       return false;
@@ -171,7 +174,7 @@ export function useMembersAreaPersistence({
       
       dispatch({ type: 'SET_MODULES', modules: (data?.modules || []) as MemberModule[] });
     } catch (error: unknown) {
-      console.error('[useMembersAreaBuilder] Load modules error:', error);
+      log.error('Load modules error:', error);
     }
   }, [productId, dispatch]);
 

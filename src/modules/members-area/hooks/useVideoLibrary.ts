@@ -11,6 +11,9 @@
 
 import { useState, useCallback } from "react";
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("UseVideoLibrary");
 
 interface VideoItem {
   id: string;
@@ -73,7 +76,7 @@ export function useVideoLibrary(): UseVideoLibraryReturn {
       });
 
       if (error) {
-        console.error("[useVideoLibrary] Error fetching videos:", error);
+        log.error("Error fetching videos:", error);
         return;
       }
 
@@ -91,7 +94,7 @@ export function useVideoLibrary(): UseVideoLibraryReturn {
 
       setVideos(videoItems);
     } catch (err) {
-      console.error("[useVideoLibrary] Exception:", err);
+      log.error("Exception:", err);
     } finally {
       setIsLoading(false);
     }
