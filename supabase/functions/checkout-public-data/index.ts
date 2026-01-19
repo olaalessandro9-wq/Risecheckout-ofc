@@ -16,9 +16,10 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
+import { handleCors } from "../_shared/cors.ts";
+import { createLogger } from "../_shared/logger.ts";
 
-const corsHeaders = PUBLIC_CORS_HEADERS;
+const log = createLogger("checkout-public-data");
 
 interface RequestBody {
   action: "product" | "offer" | "order-bumps" | "affiliate" | "all" | "validate-coupon" | "get-checkout-offer" | "checkout" | "product-pixels" | "order-by-token" | "payment-link-data";
@@ -32,10 +33,20 @@ interface RequestBody {
 }
 
 serve(async (req) => {
-  // CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  // CORS handling - dynamic origin validation
+  const corsResult = handleCors(req);
+  if (corsResult instanceof Response) {
+    return corsResult; // Preflight or invalid origin
   }
+  const corsHeaders = corsResult.headers;
+
+  // Helper to create JSON responses with CORS headers
+  const jsonResponse = (data: unknown, status = 200): Response => {
+    return new Response(JSON.stringify(data), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  };
 
   try {
     const supabase = createClient(
@@ -46,7 +57,7 @@ serve(async (req) => {
     const body: RequestBody = await req.json();
     const { action, productId, checkoutId, affiliateCode } = body;
 
-    console.log(`[checkout-public-data] Action: ${action}`);
+    log.info(`Action: ${action}`);
 
     // ===== ACTION: product =====
     if (action === "product") {
@@ -76,7 +87,7 @@ serve(async (req) => {
         .maybeSingle();
 
       if (error || !data) {
-        console.error("[checkout-public-data] Product not found:", error);
+        log.error("Product not found:", error);
         return jsonResponse({ error: "Produto não encontrado" }, 404);
       }
 
@@ -110,7 +121,7 @@ serve(async (req) => {
         .maybeSingle();
 
       if (error || !data) {
-        console.error("[checkout-public-data] Offer not found:", error);
+        log.error("Offer not found:", error);
         return jsonResponse({ error: "Oferta não encontrada" }, 404);
       }
 
@@ -154,7 +165,7 @@ serve(async (req) => {
         .order("position");
 
       if (error) {
-        console.error("[checkout-public-data] Order bumps error:", error);
+        log.error("Order bumps error:", error);
         return jsonResponse({ success: true, data: [] });
       }
 
@@ -382,7 +393,7 @@ serve(async (req) => {
         .maybeSingle();
 
       if (error) {
-        console.error("[checkout-public-data] Get checkout offer error:", error);
+        log.error("Get checkout offer error:", error);
         return jsonResponse({ offerId: "" });
       }
 
@@ -426,7 +437,7 @@ serve(async (req) => {
         .maybeSingle();
 
       if (error || !data) {
-        console.error("[checkout-public-data] Checkout not found:", error);
+        log.error("Checkout not found:", error);
         return jsonResponse({ error: "Checkout não encontrado" }, 404);
       }
 
@@ -458,7 +469,7 @@ serve(async (req) => {
         .eq("product_id", productId);
 
       if (linksError) {
-        console.error("[checkout-public-data] Product pixels links error:", linksError);
+        log.error("Product pixels links error:", linksError);
         return jsonResponse({ success: true, data: [] });
       }
 
@@ -475,7 +486,7 @@ serve(async (req) => {
         .eq("is_active", true);
 
       if (pixelsError) {
-        console.error("[checkout-public-data] Pixels data error:", pixelsError);
+        log.error("Pixels data error:", pixelsError);
         return jsonResponse({ success: true, data: [] });
       }
 
@@ -541,7 +552,7 @@ serve(async (req) => {
         .single();
 
       if (error || !data) {
-        console.error("[checkout-public-data] Order not found:", error);
+        log.error("Order not found:", error);
         return jsonResponse({ error: "Pedido não encontrado" }, 404);
       }
 
@@ -576,7 +587,7 @@ serve(async (req) => {
         .maybeSingle();
 
       if (error) {
-        console.error("[checkout-public-data] Payment link error:", error);
+        log.error("Payment link error:", error);
         return jsonResponse({ error: "Link não encontrado" }, 404);
       }
 
@@ -601,7 +612,7 @@ serve(async (req) => {
         .maybeSingle();
 
       if (error) {
-        console.error("[checkout-public-data] Order check error:", error);
+        log.error("Order check error:", error);
         return jsonResponse({ error: "Erro ao verificar pedido" }, 500);
       }
 
@@ -625,14 +636,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const err = error instanceof Error ? error : new Error(String(error));
-    console.error("[checkout-public-data] Error:", err.message);
+    log.error("Error:", err.message);
     return jsonResponse({ error: "Erro interno" }, 500);
   }
 });
-
-function jsonResponse(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
