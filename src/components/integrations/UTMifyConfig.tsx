@@ -15,6 +15,9 @@ import { toast } from "sonner";
 import { Loader2, ChevronDown } from "lucide-react";
 import { api } from "@/lib/api/client";
 import { useAuth } from "@/hooks/useAuth";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("UTMifyConfig");
 import {
   Command,
   CommandEmpty,
@@ -143,7 +146,7 @@ export const UTMifyConfig = () => {
         setUtmifyToken("");
       }
     } catch (error: unknown) {
-      console.error("Error loading UTMify config:", error);
+      log.error("Error loading UTMify config:", error);
       toast.error("Erro ao carregar configuração da UTMify");
     } finally {
       setLoadingConfig(false);
@@ -196,7 +199,7 @@ export const UTMifyConfig = () => {
       
       toast.success("Integração UTMify salva com sucesso!");
     } catch (error: unknown) {
-      console.error("Error saving UTMify integration:", error);
+      log.error("Error saving UTMify integration:", error);
       const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
       toast.error("Erro ao salvar integração UTMify: " + errorMessage);
     } finally {

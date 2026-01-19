@@ -17,6 +17,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("GdprConfirm");
 
 interface AnonymizationSummary {
   total_records: number;
@@ -82,7 +85,7 @@ export default function GdprConfirm() {
       toast.success("Dados anonimizados com sucesso!");
 
     } catch (err: unknown) {
-      console.error("[GdprConfirm] Error:", err);
+      log.error("Error:", err);
       const message = err instanceof Error ? err.message : "Erro ao processar solicitação";
       setError(message);
       toast.error(message);

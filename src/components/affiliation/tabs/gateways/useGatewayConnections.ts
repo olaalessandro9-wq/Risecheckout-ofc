@@ -12,6 +12,9 @@ import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { DEFAULT_PIX_GATEWAYS, DEFAULT_CARD_GATEWAYS, GATEWAY_INFO } from "./gateway-constants";
 import type { AffiliationDetails } from "@/hooks/useAffiliationDetails";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("UseGatewayConnections");
 
 interface GatewayConnectionsResponse {
   connections?: Record<string, boolean>;
@@ -78,7 +81,7 @@ export function useGatewayConnections({ affiliation, onRefetch }: UseGatewayConn
       }
 
     } catch (error: unknown) {
-      console.error("Erro ao carregar dados de gateway:", error);
+      log.error("Erro ao carregar dados de gateway:", error);
       toast.error("Erro ao carregar configurações de gateway");
     } finally {
       setLoading(false);
@@ -133,7 +136,7 @@ export function useGatewayConnections({ affiliation, onRefetch }: UseGatewayConn
       await onRefetch();
 
     } catch (error: unknown) {
-      console.error("Erro ao salvar gateways:", error);
+      log.error("Erro ao salvar gateways:", error);
       toast.error("Erro ao salvar configuração de gateways");
     } finally {
       setSaving(false);

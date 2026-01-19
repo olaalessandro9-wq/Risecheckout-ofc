@@ -118,7 +118,7 @@ export function getBuyerSessionToken(): string | null {
 
 export function setBuyerSessionToken(token: string): void {
   // This is a compatibility function - prefer using login flow
-  console.warn("setBuyerSessionToken is deprecated - use login flow instead");
+  log.warn("setBuyerSessionToken is deprecated - use login flow instead");
 }
 
 export function clearBuyerSessionToken(): void {
