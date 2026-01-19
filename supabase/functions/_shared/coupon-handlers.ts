@@ -4,6 +4,7 @@
  * Extracted handlers for coupon-management edge function.
  * 
  * RISE Protocol Compliant - Zero `any`
+ * @version 1.1.0 - Migrated to centralized logger
  */
 
 import { SupabaseClient, Coupon } from "./supabase-types.ts";
@@ -13,6 +14,9 @@ import {
   checkRateLimit, 
   RATE_LIMIT_CONFIGS,
 } from "./rate-limiting/index.ts";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("CouponHandlers");
 
 import {
   type CouponPayload,
@@ -111,7 +115,7 @@ export async function handleCreateCoupon(
     .single();
 
   if (createError) {
-    console.error("[coupon-management] Create error:", createError);
+    log.error("Create error", createError);
     await captureException(new Error(createError.message), {
       functionName: "coupon-management",
       extra: { action: "create", producerId, productId },
@@ -131,7 +135,7 @@ export async function handleCreateCoupon(
 
   // Rate limit recording is automatic via checkRateLimit
 
-  console.log(`[coupon-management] Coupon created: ${(newCoupon as Coupon).id} for product ${productId}`);
+  log.info(`Coupon created: ${(newCoupon as Coupon).id} for product ${productId}`);
   return jsonResponse({ success: true, coupon: newCoupon }, corsHeaders);
 }
 
@@ -196,11 +200,11 @@ export async function handleUpdateCoupon(
     .single();
 
   if (updateError) {
-    console.error("[coupon-management] Update error:", updateError);
+    log.error("Update error", updateError);
     return errorResponse("Erro ao atualizar cupom", corsHeaders, 500);
   }
 
-  console.log(`[coupon-management] Coupon updated: ${couponId}`);
+  log.info(`Coupon updated: ${couponId}`);
   return jsonResponse({ success: true, coupon: updatedCoupon }, corsHeaders);
 }
 
@@ -227,7 +231,7 @@ export async function handleDeleteCoupon(
     .eq("product_id", productId);
 
   if (unlinkError) {
-    console.error("[coupon-management] Unlink error:", unlinkError);
+    log.error("Unlink error", unlinkError);
     return errorResponse("Erro ao remover vínculo do cupom", corsHeaders, 500);
   }
 
@@ -241,7 +245,7 @@ export async function handleDeleteCoupon(
     await supabase.from("coupons").delete().eq("id", couponId);
   }
 
-  console.log(`[coupon-management] Coupon ${couponId} removed from product ${productId}`);
+  log.info(`Coupon ${couponId} removed from product ${productId}`);
   return jsonResponse({ success: true }, corsHeaders);
 }
 
@@ -255,11 +259,11 @@ export async function handleListCoupons(
   producerId: string,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  console.log(`[handleListCoupons] productId: ${productId}, producerId: ${producerId}`);
+  log.debug(`Listing coupons - productId: ${productId}, producerId: ${producerId}`);
   
   const isOwner = await verifyProductOwnership(supabase, productId, producerId);
   if (!isOwner) {
-    console.warn(`[handleListCoupons] Ownership verification failed for producer ${producerId} on product ${productId}`);
+    log.warn(`Ownership verification failed for producer ${producerId} on product ${productId}`);
     return errorResponse("Você não tem permissão para ver cupons deste produto", corsHeaders, 403);
   }
 
@@ -269,7 +273,7 @@ export async function handleListCoupons(
     .eq("product_id", productId);
 
   if (listError) {
-    console.error("[handleListCoupons] Database error:", listError);
+    log.error("Database error listing coupons", listError);
     return errorResponse("Erro ao listar cupons", corsHeaders, 500);
   }
 
@@ -280,6 +284,6 @@ export async function handleListCoupons(
     .filter((c): c is Coupon => c !== null)
     .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
 
-  console.log(`[handleListCoupons] Found ${coupons?.length || 0} coupons for product ${productId}`);
+  log.info(`Found ${coupons?.length || 0} coupons for product ${productId}`);
   return jsonResponse({ success: true, coupons: coupons || [] }, corsHeaders);
 }

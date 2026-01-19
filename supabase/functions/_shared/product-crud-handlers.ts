@@ -6,11 +6,14 @@
  * 
  * RISE Protocol Compliant - Zero `any` (uses typed interfaces)
  * 
- * @version 2.0.0 - Added LIST and GET handlers
+ * @version 2.1.0 - Migrated to centralized logger
  */
 
 import { SupabaseClient } from "./supabase-types.ts";
 import { captureException } from "./sentry.ts";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("ProductCrud");
 
 // ============================================
 // TYPES
@@ -203,7 +206,7 @@ export async function handleListProducts(
     const { data: products, error, count } = await query;
 
     if (error) {
-      console.error("[product-crud] List error:", error);
+      log.error("List error", error);
       return new Response(JSON.stringify({ success: false, error: "Erro ao listar produtos" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -219,7 +222,7 @@ export async function handleListProducts(
       hasMore: offset + pageSize < total,
     };
 
-    console.log(`[product-crud] Listed ${products?.length || 0} products for producer ${producerId}`);
+    log.info(`Listed ${products?.length || 0} products for producer ${producerId}`);
 
     return new Response(JSON.stringify({ success: true, data: result }), {
       status: 200,
@@ -227,7 +230,7 @@ export async function handleListProducts(
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[product-crud] List error:", errorMessage);
+    log.error("List error", errorMessage);
     return new Response(JSON.stringify({ success: false, error: "Erro ao listar produtos" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -259,7 +262,7 @@ export async function handleGetProduct(
       .maybeSingle();
 
     if (error) {
-      console.error("[product-crud] Get error:", error);
+      log.error("Get error", error);
       return new Response(JSON.stringify({ success: false, error: "Erro ao buscar produto" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -273,7 +276,7 @@ export async function handleGetProduct(
       });
     }
 
-    console.log(`[product-crud] Got product ${productId} for producer ${producerId}`);
+    log.info(`Got product ${productId} for producer ${producerId}`);
 
     return new Response(JSON.stringify({ success: true, data: product }), {
       status: 200,
@@ -281,7 +284,7 @@ export async function handleGetProduct(
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[product-crud] Get error:", errorMessage);
+    log.error("Get error", errorMessage);
     return new Response(JSON.stringify({ success: false, error: "Erro ao buscar produto" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -306,7 +309,7 @@ export async function handleCreateProduct(
     .single();
 
   if (insertError) {
-    console.error("[product-crud] Insert error:", insertError);
+    log.error("Insert error", insertError);
     await captureException(new Error(insertError.message), { functionName: "product-crud", extra: { action: "create", producerId } });
     return new Response(JSON.stringify({ success: false, error: "Erro ao criar produto" }), {
       status: 500,
@@ -314,7 +317,7 @@ export async function handleCreateProduct(
     });
   }
 
-  console.log(`[product-crud] Product created: ${(newProduct as ProductRecord).id}`);
+  log.info(`Product created: ${(newProduct as ProductRecord).id}`);
   return new Response(JSON.stringify({ success: true, product: newProduct }), {
     status: 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -361,14 +364,14 @@ export async function handleUpdateProduct(
     .single();
 
   if (updateError) {
-    console.error("[product-crud] Update error:", updateError);
+    log.error("Update error", updateError);
     return new Response(JSON.stringify({ success: false, error: "Erro ao atualizar produto" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   }
 
-  console.log(`[product-crud] Product updated: ${productId}`);
+  log.info(`Product updated: ${productId}`);
   return new Response(JSON.stringify({ success: true, product: updatedProduct }), {
     status: 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -410,14 +413,14 @@ export async function handleDeleteProduct(
 
   const { error: deleteError } = await supabase.from("products").delete().eq("id", productId);
   if (deleteError) {
-    console.error("[product-crud] Delete error:", deleteError);
+    log.error("Delete error", deleteError);
     return new Response(JSON.stringify({ success: false, error: "Erro ao excluir produto" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   }
 
-  console.log(`[product-crud] Product deleted: ${productId} (${product.name})`);
+  log.info(`Product deleted: ${productId} (${product.name})`);
   return new Response(JSON.stringify({ success: true, deletedId: productId }), {
     status: 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" }
