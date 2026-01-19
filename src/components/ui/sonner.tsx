@@ -1,5 +1,8 @@
 import { useTheme } from "@/providers/theme";
 import { Toaster as Sonner, toast } from "sonner";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("Sonner");
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
@@ -10,7 +13,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
     const ctx = useTheme();
     theme = ctx?.theme || "light";
   } catch (error: unknown) {
-    console.warn('[Sonner] ThemeProvider não disponível, usando tema light');
+    log.warn('ThemeProvider não disponível, usando tema light');
   }
 
   return (

@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "@/lib/api/client";
+import { createLogger } from "@/lib/logger";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, CheckCircle2, AlertCircle, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+
+const log = createLogger("SolicitarAfiliacao");
 
 interface AffiliationResponse {
   success: boolean;
@@ -46,7 +49,7 @@ export default function SolicitarAfiliacao() {
       });
 
       if (error) {
-        console.error("Erro na Edge Function:", error);
+        log.error("Erro na Edge Function:", error);
         throw new Error(error.message || "Erro ao processar solicitação");
       }
 
@@ -57,7 +60,7 @@ export default function SolicitarAfiliacao() {
       setSuccess(true);
       toast.success(data.message || "Solicitação enviada com sucesso!");
     } catch (err: unknown) {
-      console.error("Erro ao solicitar afiliação:", err);
+      log.error("Erro ao solicitar afiliação:", err);
       const errorMessage = err instanceof Error ? err.message : "Não foi possível processar sua solicitação. Tente novamente.";
       setRequestError(errorMessage);
       toast.error(errorMessage);
