@@ -2,7 +2,7 @@
  * Action handlers for product-settings Edge Function
  * Extracted for RISE Protocol compliance (< 300 lines per file)
  * 
- * @version 2.0.0
+ * @version 3.0.0 - Centralized Logger
  */
 
 import { 
@@ -15,6 +15,9 @@ import {
   Offer,
   UpsellSettingsInput,
 } from "./supabase-types.ts";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("ProductSettings");
 
 // ============================================
 // TYPES
@@ -104,11 +107,11 @@ export async function handleUpdateSettings(
     .single() as { data: Product | null; error: { message: string } | null };
 
   if (updateError) {
-    console.error("[product-settings] Update error:", updateError);
+    log.error("Update error:", updateError);
     return errorResponse("Erro ao atualizar configurações", corsHeaders, 500);
   }
 
-  console.log(`[product-settings] Settings updated for: ${productId}`);
+  log.info(`Settings updated for: ${productId}`);
   return jsonResponse({ success: true, product: updatedProduct }, corsHeaders);
 }
 
@@ -188,11 +191,11 @@ export async function handleUpdateGeneral(
     .single() as { data: Product | null; error: { message: string } | null };
 
   if (updateError) {
-    console.error("[product-settings] Update-general error:", updateError);
+    log.error("Update-general error:", updateError);
     return errorResponse("Erro ao atualizar produto", corsHeaders, 500);
   }
 
-  console.log(`[product-settings] General update for: ${productId}`);
+  log.info(`General update for: ${productId}`);
   return jsonResponse({ success: true, product: updatedProduct }, corsHeaders);
 }
 
@@ -215,7 +218,7 @@ export async function handleSmartDelete(
 
   if (hasOrders) {
     // SOFT DELETE
-    console.log(`[product-settings] Soft deleting ${productId} (${orderCount} orders)`);
+    log.info(`Soft deleting ${productId} (${orderCount} orders)`);
 
     await supabase
       .from("products")
@@ -236,19 +239,19 @@ export async function handleSmartDelete(
         .in("offer_id", offers.map((o: Offer) => o.id));
     }
 
-    console.log(`[product-settings] Soft deleted: ${productId}`);
+    log.info(`Soft deleted: ${productId}`);
     return jsonResponse({ success: true, type: "soft", deletedId: productId }, corsHeaders);
   } else {
     // HARD DELETE
-    console.log(`[product-settings] Hard deleting ${productId} (no orders)`);
+    log.info(`Hard deleting ${productId} (no orders)`);
 
     const { error: deleteError } = await supabase.from("products").delete().eq("id", productId) as { error: { message: string } | null };
     if (deleteError) {
-      console.error("[product-settings] Hard delete error:", deleteError);
+      log.error("Hard delete error:", deleteError);
       return errorResponse("Erro ao excluir produto", corsHeaders, 500);
     }
 
-    console.log(`[product-settings] Hard deleted: ${productId}`);
+    log.info(`Hard deleted: ${productId}`);
     return jsonResponse({ success: true, type: "hard", deletedId: productId }, corsHeaders);
   }
 }
@@ -263,7 +266,7 @@ export async function handleUpdatePrice(
   price: number,
   corsHeaders: CorsHeaders
 ): Promise<Response> {
-  console.log(`[product-settings] Updating price for ${productId} to ${price}`);
+  log.info(`Updating price for ${productId} to ${price}`);
 
   // 1. Update product
   const { error: productError } = await supabase
@@ -272,7 +275,7 @@ export async function handleUpdatePrice(
     .eq("id", productId) as { error: { message: string } | null };
 
   if (productError) {
-    console.error("[product-settings] Product price error:", productError);
+    log.error("Product price error:", productError);
     return errorResponse("Erro ao atualizar preço do produto", corsHeaders, 500);
   }
 
@@ -284,10 +287,10 @@ export async function handleUpdatePrice(
     .eq("is_default", true) as { error: { message: string } | null };
 
   if (offerError) {
-    console.warn(`[product-settings] Failed to update default offer: ${offerError.message}`);
+    log.warn(`Failed to update default offer: ${offerError.message}`);
   }
 
-  console.log(`[product-settings] Price updated for: ${productId}`);
+  log.info(`Price updated for: ${productId}`);
   return jsonResponse({ success: true, price }, corsHeaders);
 }
 
@@ -323,11 +326,11 @@ export async function handleUpdateAffiliateGatewaySettings(
     .eq("id", productId) as { error: { message: string } | null };
 
   if (updateError) {
-    console.error("[product-settings] Update affiliate gateway settings error:", updateError);
+    log.error("Update affiliate gateway settings error:", updateError);
     return errorResponse("Erro ao atualizar configurações de gateway", corsHeaders, 500);
   }
 
-  console.log(`[product-settings] Affiliate gateway settings updated for: ${productId}`);
+  log.info(`Affiliate gateway settings updated for: ${productId}`);
   return jsonResponse({ success: true }, corsHeaders);
 }
 
@@ -341,7 +344,7 @@ export async function handleUpdateUpsellSettings(
   upsellSettings: UpsellSettingsInput,
   corsHeaders: CorsHeaders
 ): Promise<Response> {
-  console.log(`[product-settings] Updating upsell_settings for: ${productId}`, upsellSettings);
+  log.info(`Updating upsell_settings for: ${productId}`, upsellSettings);
 
   // Validation: URL required when custom page is enabled
   if (upsellSettings.hasCustomThankYouPage) {
@@ -375,11 +378,11 @@ export async function handleUpdateUpsellSettings(
     .eq("id", productId);
 
   if (error) {
-    console.error("[product-settings] Update upsell_settings error:", error);
+    log.error("Update upsell_settings error:", error);
     return errorResponse("Erro ao atualizar configurações de upsell", corsHeaders, 500);
   }
 
-  console.log(`[product-settings] upsell_settings updated successfully for: ${productId}`);
+  log.info(`upsell_settings updated successfully for: ${productId}`);
   return jsonResponse({ success: true }, corsHeaders);
 }
 

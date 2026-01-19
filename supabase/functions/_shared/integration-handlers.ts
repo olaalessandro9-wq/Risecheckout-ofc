@@ -6,7 +6,8 @@
  * RISE Protocol V3 Compliant:
  * - Response helpers from response-helpers.ts
  * - Uses consolidated rate-limiting
- * @version 3.0.0
+ * - Centralized Logger
+ * @version 3.1.0
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -16,6 +17,9 @@ import {
   type RateLimitResult 
 } from "./rate-limiting/index.ts";
 import { jsonResponse, errorResponse } from "./response-helpers.ts";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("IntegrationHandlers");
 
 // Re-export for backwards compatibility
 export { jsonResponse, errorResponse };
@@ -120,7 +124,7 @@ export async function handleSaveCredentials(
       .eq("id", existing.id);
 
     if (error) {
-      console.error("[integration-management] Update error:", error);
+      log.error("Update error:", error);
       return errorResponse("Erro ao atualizar integração", corsHeaders, 500);
     }
   } else {
@@ -134,14 +138,14 @@ export async function handleSaveCredentials(
       });
 
     if (error) {
-      console.error("[integration-management] Insert error:", error);
+      log.error("Insert error:", error);
       return errorResponse("Erro ao criar integração", corsHeaders, 500);
     }
   }
 
   // Rate limit auto-records in consolidated module
 
-  console.log(`[integration-management] Credentials saved for ${integrationType} by ${producerId}`);
+  log.info(`Credentials saved for ${integrationType} by ${producerId}`);
   return jsonResponse({ success: true }, corsHeaders);
 }
 
@@ -172,11 +176,11 @@ export async function handleDisconnect(
   const { error } = await query;
 
   if (error) {
-    console.error("[integration-management] Disconnect error:", error);
+    log.error("Disconnect error:", error);
     return errorResponse("Erro ao desconectar integração", corsHeaders, 500);
   }
 
-  console.log(`[integration-management] Disconnected ${integrationType || integrationId} for ${producerId}`);
+  log.info(`Disconnected ${integrationType || integrationId} for ${producerId}`);
   return jsonResponse({ success: true }, corsHeaders);
 }
 

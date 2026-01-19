@@ -6,12 +6,15 @@
  * Concede acesso à área de membros automaticamente após compra aprovada.
  * Usado pelos webhooks de pagamento (MercadoPago, Asaas, Stripe).
  * 
- * @version 2.0.0
+ * @version 3.0.0 - Centralized Logger
  * Data de Criação: 2026-01-06
  * ============================================================================
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("GrantMembersAccess");
 
 // ============================================================================
 // TYPES
@@ -35,22 +38,6 @@ export interface GrantAccessResult {
   accessUrl?: string;
   assignedGroupId?: string; // Grupo atribuído ao buyer
   error?: string;
-}
-
-// ============================================================================
-// LOGGING HELPERS
-// ============================================================================
-
-function logInfo(message: string, data?: unknown) {
-  console.log(`[grant-members-access] [INFO] ${message}`, data ? JSON.stringify(data) : '');
-}
-
-function logWarn(message: string, data?: unknown) {
-  console.warn(`[grant-members-access] [WARN] ${message}`, data ? JSON.stringify(data) : '');
-}
-
-function logError(message: string, error?: unknown) {
-  console.error(`[grant-members-access] [ERROR] ${message}`, error);
 }
 
 // ============================================================================
@@ -100,7 +87,7 @@ export async function grantMembersAccess(
   
   const { orderId, customerEmail, customerName, productId, productName, offerId } = input;
   
-  logInfo('Iniciando concessão de acesso', { orderId, productId, customerEmail, offerId });
+  log.info('Iniciando concessão de acesso', { orderId, productId, customerEmail, offerId });
 
   // ========================================================================
   // 1. VERIFICAR SE PRODUTO TEM ÁREA DE MEMBROS
@@ -113,16 +100,16 @@ export async function grantMembersAccess(
     .single();
 
   if (productError || !product) {
-    logWarn('Produto não encontrado', { productId, error: productError });
+    log.warn('Produto não encontrado', { productId, error: productError });
     return { success: false, hasMembersArea: false, error: 'Produto não encontrado' };
   }
 
   if (!product.members_area_enabled) {
-    logInfo('Produto não tem área de membros habilitada', { productId });
+    log.info('Produto não tem área de membros habilitada', { productId });
     return { success: true, hasMembersArea: false };
   }
 
-  logInfo('Produto tem área de membros habilitada', { productId, productName: product.name });
+  log.info('Produto tem área de membros habilitada', { productId, productName: product.name });
 
   // ========================================================================
   // 2. BUSCAR OU CRIAR BUYER_PROFILE
@@ -155,14 +142,14 @@ export async function grantMembersAccess(
       .single();
 
     if (createError) {
-      logError('Erro ao criar buyer profile', createError);
+      log.error('Erro ao criar buyer profile', createError);
       return { success: false, hasMembersArea: true, error: 'Erro ao criar perfil do comprador' };
     }
 
     buyerId = newBuyer.id;
     isNewBuyer = true;
     needsPasswordSetup = true;
-    logInfo('Novo buyer profile criado', { buyerId, email: normalizedEmail });
+    log.info('Novo buyer profile criado', { buyerId, email: normalizedEmail });
   } else {
     buyerId = existingBuyer.id;
     // RISE V3: Use account_status instead of password_hash markers
@@ -176,7 +163,7 @@ export async function grantMembersAccess(
         .eq('id', buyerId);
     }
     
-    logInfo('Buyer profile existente encontrado', { buyerId, needsPasswordSetup });
+    log.info('Buyer profile existente encontrado', { buyerId, needsPasswordSetup });
   }
 
   // ========================================================================
@@ -197,10 +184,10 @@ export async function grantMembersAccess(
     });
 
   if (accessError) {
-    logError('Erro ao conceder acesso ao produto', accessError);
+    log.error('Erro ao conceder acesso ao produto', accessError);
     // Não é erro fatal, o acesso pode já existir
   } else {
-    logInfo('Acesso ao produto concedido', { buyerId, productId, orderId });
+    log.info('Acesso ao produto concedido', { buyerId, productId, orderId });
   }
 
   // ========================================================================
@@ -219,7 +206,7 @@ export async function grantMembersAccess(
     
     if (offer?.member_group_id) {
       assignedGroupId = offer.member_group_id;
-      logInfo('Grupo encontrado na oferta', { offerId, groupId: assignedGroupId });
+      log.info('Grupo encontrado na oferta', { offerId, groupId: assignedGroupId });
     }
   }
 
@@ -234,7 +221,7 @@ export async function grantMembersAccess(
     
     if (defaultGroup?.id) {
       assignedGroupId = defaultGroup.id;
-      logInfo('Usando grupo padrão do produto', { productId, groupId: assignedGroupId });
+      log.info('Usando grupo padrão do produto', { productId, groupId: assignedGroupId });
     }
   }
 
@@ -252,12 +239,12 @@ export async function grantMembersAccess(
       });
 
     if (groupError) {
-      logWarn('Erro ao atribuir buyer ao grupo', groupError);
+      log.warn('Erro ao atribuir buyer ao grupo', groupError);
     } else {
-      logInfo('Buyer atribuído ao grupo', { buyerId, groupId: assignedGroupId });
+      log.info('Buyer atribuído ao grupo', { buyerId, groupId: assignedGroupId });
     }
   } else {
-    logWarn('Nenhum grupo encontrado para atribuir', { productId, offerId });
+    log.warn('Nenhum grupo encontrado para atribuir', { productId, offerId });
   }
 
   // ========================================================================
@@ -284,13 +271,13 @@ export async function grantMembersAccess(
       });
 
     if (tokenError) {
-      logError('Erro ao criar invite token', tokenError);
+      log.error('Erro ao criar invite token', tokenError);
       // Não é erro fatal
     } else {
       inviteToken = rawToken;
       const baseUrl = Deno.env.get('PUBLIC_SITE_URL') || 'https://risecheckout.com';
       accessUrl = `${baseUrl}/minha-conta/setup-acesso?token=${rawToken}`;
-      logInfo('Invite token criado', { buyerId, productId });
+      log.info('Invite token criado', { buyerId, productId });
     }
   } else {
     // Buyer já tem senha, link direto para login
@@ -302,7 +289,7 @@ export async function grantMembersAccess(
   // 6. RETORNAR RESULTADO
   // ========================================================================
 
-  logInfo('Acesso à área de membros concedido com sucesso', {
+  log.info('Acesso à área de membros concedido com sucesso', {
     orderId,
     buyerId,
     productId,

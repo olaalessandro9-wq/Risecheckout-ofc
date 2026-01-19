@@ -3,7 +3,7 @@
  * 
  * Middleware unificado para Edge Functions.
  * 
- * @version 1.0.0 - RISE V3 Compliant
+ * @version 2.0.0 - Centralized Logger
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -15,6 +15,9 @@ import {
   getClientIP,
   getIdentifier,
 } from "./service.ts";
+import { createLogger } from "../logger.ts";
+
+const log = createLogger("RateLimitMiddleware");
 
 // ============================================================================
 // Full Middleware (Blocklist + Rate Limit)
@@ -42,7 +45,7 @@ export async function rateLimitMiddleware(
   const blocklistResult = await checkIPBlocklist(supabase, ip);
 
   if (blocklistResult.blocked) {
-    console.warn(`[middleware] IP blocked: ${ip}`);
+    log.warn(`IP blocked: ${ip}`);
     return createBlocklistResponse(blocklistResult, corsHeaders);
   }
 
@@ -51,7 +54,7 @@ export async function rateLimitMiddleware(
   const rateLimitResult = await checkRateLimit(supabase, identifier, config);
 
   if (!rateLimitResult.allowed) {
-    console.warn(`[middleware] Rate limited: ${identifier}`);
+    log.warn(`Rate limited: ${identifier}`);
     return createRateLimitResponse(rateLimitResult, corsHeaders);
   }
 
@@ -80,7 +83,7 @@ export async function blocklistMiddleware(
   const result = await checkIPBlocklist(supabase, ip);
 
   if (result.blocked) {
-    console.warn(`[middleware] IP blocked: ${ip}`);
+    log.warn(`IP blocked: ${ip}`);
     return createBlocklistResponse(result, corsHeaders);
   }
 
@@ -112,7 +115,7 @@ export async function rateLimitOnlyMiddleware(
   const result = await checkRateLimit(supabase, identifier, config);
 
   if (!result.allowed) {
-    console.warn(`[middleware] Rate limited: ${identifier}`);
+    log.warn(`Rate limited: ${identifier}`);
     return createRateLimitResponse(result, corsHeaders);
   }
 
