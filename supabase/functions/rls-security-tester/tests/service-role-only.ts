@@ -86,12 +86,25 @@ export async function runServiceRoleOnlyTest(
     }
 
     // Check if policies are properly restrictive
+    // A policy is problematic if it's PERMISSIVE and grants access to non-service roles
     const hasPermissivePublic = tablePolicies.some(p => {
       const qual = p.qual?.toLowerCase() || '';
+      // deno-lint-ignore no-explicit-any
+      const rolesRaw = p.roles as any;
+      const roles = Array.isArray(rolesRaw) ? rolesRaw.join(',').toLowerCase() : String(rolesRaw || '').toLowerCase();
+      
+      // Skip if policy is specifically for service_role
+      if (roles.includes('service_role')) {
+        return false;
+      }
+      
+      // Flag if permissive and allows broad access to authenticated/anon
       return p.permissive === 'PERMISSIVE' && (
         qual === 'true' ||
         qual.includes('authenticated') ||
-        qual.includes('anon')
+        qual.includes('anon') ||
+        roles.includes('authenticated') ||
+        roles.includes('anon')
       );
     });
 
