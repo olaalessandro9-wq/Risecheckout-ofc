@@ -410,5 +410,8 @@ verify_jwt = false
 [functions.key-rotation-executor]
 verify_jwt = false
 
+[functions.rls-security-tester]
+verify_jwt = false
+
 [functions.session-manager]
 verify_jwt = false

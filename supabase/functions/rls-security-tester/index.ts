@@ -1,32 +1,24 @@
 /**
  * ============================================================================
- * Key Rotation Executor - Edge Function Router
+ * RLS Security Tester - Edge Function Router
  * ============================================================================
  * 
- * Modular router for key rotation operations.
+ * Automated RLS security testing framework.
  * 
  * Endpoints:
- * - POST { action: "status" }   - Get current rotation status
- * - POST { action: "prepare" }  - Register new key version
- * - POST { action: "rotate" }   - Re-encrypt data with new key
- * - POST { action: "activate" } - Activate new key version
+ * - POST { action: "run-all" } - Run all RLS security tests
  * 
- * @version 2.0.0 - RISE Protocol V3 Compliant (Modularized)
+ * @version 1.0.0 - RISE Protocol V3 Compliant
  * ============================================================================
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { createLogger } from "../_shared/logger.ts";
-import type { SupabaseClientAny } from "./types.ts";
+import type { SupabaseClientAny, TestRequest } from "./types.ts";
+import { runAllTests } from "./services/test-runner.ts";
 
-// Import handlers
-import { handleStatus } from "./handlers/status.ts";
-import { handlePrepare } from "./handlers/prepare.ts";
-import { handleRotate } from "./handlers/rotate.ts";
-import { handleActivate } from "./handlers/activate.ts";
-
-const log = createLogger("KeyRotationExecutor");
+const log = createLogger("RlsSecurityTester");
 
 // ============================================================================
 // MAIN HANDLER
@@ -47,34 +39,32 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Initialize Supabase client
+    // Initialize Supabase client with service role
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase: SupabaseClientAny = createClient(supabaseUrl, serviceRoleKey);
 
     // Parse request
-    const body = await req.json();
+    const body: TestRequest = await req.json();
     const { action } = body;
 
     log.info(`Action: ${action}`);
 
-    // Route to handler
     switch (action) {
-      case "status":
-        return await handleStatus(supabase, corsHeaders);
-      
-      case "prepare":
-        return await handlePrepare(supabase, body, corsHeaders);
-      
-      case "rotate":
-        return await handleRotate(supabase, body, corsHeaders);
-      
-      case "activate":
-        return await handleActivate(supabase, body, corsHeaders);
-      
+      case "run-all": {
+        const results = await runAllTests(supabase);
+        
+        log.info(`Tests complete: ${results.passed}/${results.totalTests} passed, ${results.criticalFailures} critical failures`);
+
+        return new Response(
+          JSON.stringify(results),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       default:
         return new Response(
-          JSON.stringify({ error: `Unknown action: ${action}` }),
+          JSON.stringify({ error: `Unknown action: ${action}`, hint: "Use 'run-all'" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
     }
