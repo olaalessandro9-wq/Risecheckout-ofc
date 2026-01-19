@@ -48,10 +48,14 @@ export interface DLQPayload {
 // CONSTANTS
 // ============================================================================
 
-export const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-pushinpay-token, asaas-access-token, stripe-signature'
-};
+// Import from cors-v2.ts for Single Source of Truth
+import { PUBLIC_CORS_HEADERS } from './cors-v2.ts';
+
+// Re-export for backward compatibility with existing code
+export { PUBLIC_CORS_HEADERS as CORS_HEADERS };
+
+// Local constant for internal use in this file
+const CORS_HEADERS_INTERNAL = PUBLIC_CORS_HEADERS;
 
 export const ERROR_CODES = {
   PAYMENT_ID_MISSING: 'PAYMENT_ID_MISSING',
@@ -273,7 +277,7 @@ export function createSuccessResponse(data: unknown): Response {
   return new Response(
     JSON.stringify({ success: true, data }),
     {
-      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      headers: { ...CORS_HEADERS_INTERNAL, 'Content-Type': 'application/json' },
       status: 200,
     }
   );
@@ -286,7 +290,7 @@ export function createErrorResponse(code: string, message: string, status: numbe
   return new Response(
     JSON.stringify({ success: false, error: message, code }),
     {
-      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      headers: { ...CORS_HEADERS_INTERNAL, 'Content-Type': 'application/json' },
       status,
     }
   );

@@ -25,6 +25,8 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { PUBLIC_CORS_HEADERS as CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
 
 // ============================================================================
 // TYPES
@@ -58,32 +60,14 @@ interface GatewayResponse {
 }
 
 // ============================================================================
-// CONSTANTS
+// CONSTANTS & LOGGER
 // ============================================================================
 
+const log = createLogger("ReconcilePendingOrders");
 const FUNCTION_VERSION = "3.0";
 const MAX_ORDERS_PER_RUN = 50;
 const MIN_AGE_MINUTES = 3;
 const MAX_AGE_HOURS = 24;
-
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-internal-secret",
-};
-
-const PREFIX = '[reconcile-pending-orders]';
-
-// ============================================================================
-// LOGGER
-// ============================================================================
-
-function logInfo(message: string, data?: unknown): void {
-  console.log(`${PREFIX} [INFO] ${message}`, data ? JSON.stringify(data) : '');
-}
-
-function logError(message: string, error?: unknown): void {
-  console.error(`${PREFIX} [ERROR] ${message}`, error);
-}
 
 // ============================================================================
 // GATEWAY DELEGATION
@@ -138,14 +122,14 @@ serve(async (req) => {
   const startTime = Date.now();
 
   try {
-    logInfo(`Versão ${FUNCTION_VERSION} (Orchestrator) iniciada`);
+    log.info(`Versão ${FUNCTION_VERSION} (Orchestrator) iniciada`);
 
     // Validate internal authentication
     const internalSecret = req.headers.get('X-Internal-Secret');
     const expectedSecret = Deno.env.get('INTERNAL_WEBHOOK_SECRET');
 
     if (!internalSecret || internalSecret !== expectedSecret) {
-      logError('Unauthorized: Invalid or missing X-Internal-Secret');
+      log.error('Unauthorized: Invalid or missing X-Internal-Secret');
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
@@ -181,7 +165,7 @@ serve(async (req) => {
     const orders = (pendingOrders || []) as PendingOrder[];
 
     if (orders.length === 0) {
-      logInfo('Nenhum pedido pendente para reconciliar');
+      log.info('Nenhum pedido pendente para reconciliar');
       return new Response(
         JSON.stringify({
           success: true,
@@ -193,7 +177,7 @@ serve(async (req) => {
       );
     }
 
-    logInfo(`Encontrados ${orders.length} pedidos para reconciliar`);
+    log.info(`Encontrados ${orders.length} pedidos para reconciliar`);
 
     // Group orders by gateway
     const mercadopagoOrders = orders.filter(
@@ -206,7 +190,7 @@ serve(async (req) => {
       o => !['mercadopago', 'asaas'].includes(o.gateway?.toLowerCase() || '') || !o.gateway_payment_id
     );
 
-    logInfo('Pedidos agrupados por gateway', {
+    log.info('Pedidos agrupados por gateway', {
       mercadopago: mercadopagoOrders.length,
       asaas: asaasOrders.length,
       unsupported: unsupportedOrders.length,
@@ -251,7 +235,7 @@ serve(async (req) => {
     };
 
     const durationMs = Date.now() - startTime;
-    logInfo(`Reconciliação concluída em ${durationMs}ms`, summary);
+    log.info(`Reconciliação concluída em ${durationMs}ms`, summary);
 
     return new Response(
       JSON.stringify({
@@ -266,7 +250,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const durationMs = Date.now() - startTime;
-    logError('Handler error', error);
+    log.error('Handler error', error);
 
     return new Response(
       JSON.stringify({
