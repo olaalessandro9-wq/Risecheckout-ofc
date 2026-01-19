@@ -13,8 +13,11 @@
 import { useState, useCallback, useEffect } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { createLogger } from "@/lib/logger";
 import type { MemberGroup, BuyerWithGroups, StudentStats, StudentFilters } from "@/modules/members-area/types";
 import { studentsService } from "../services/students.service";
+
+const log = createLogger("useStudentsData");
 
 interface UseStudentsDataProps {
   productId?: string;
@@ -82,7 +85,7 @@ export function useStudentsData({
     });
 
     if (error) {
-      console.error('Error fetching groups:', error);
+      log.error("Error fetching groups:", error);
       return;
     }
 
@@ -105,7 +108,7 @@ export function useStudentsData({
       });
 
       if (studentsError) {
-        console.error('Error fetching students from service:', studentsError);
+        log.error("Error fetching students from service:", studentsError);
         toast.error('Erro ao carregar alunos');
         setIsLoading(false);
         return;
@@ -177,7 +180,7 @@ export function useStudentsData({
       const displayTotal = shouldIncludeProducer && !filters.groupId && producerMatchesSearch ? backendTotal + 1 : backendTotal;
       setTotal(displayTotal);
     } catch (fetchError) {
-      console.error('Error fetching students:', fetchError);
+      log.error("Error fetching students:", fetchError);
       toast.error('Erro ao carregar alunos');
     } finally {
       setIsLoading(false);

@@ -20,7 +20,10 @@ import {
   clearBuyerSessionToken,
   setBuyerSessionToken 
 } from "@/hooks/useBuyerSession";
+import { createLogger } from "@/lib/logger";
 import type { TokenStatus, TokenInfo, LoggedBuyer } from "../types";
+
+const log = createLogger("useSetupAccess");
 
 interface InviteTokenResponse {
   success?: boolean;
@@ -74,7 +77,7 @@ export function useSetupAccess() {
         throw new Error(data?.error || "Erro ao ativar acesso");
       }
     } catch (err) {
-      console.error("Error granting access:", err);
+      log.error("Error granting access:", err);
       toast.error("Erro ao liberar acesso. Tente fazer login.");
       setStatus("needs-login");
     } finally {
@@ -159,7 +162,7 @@ export function useSetupAccess() {
       // 4. User needs password setup - show form
       setStatus("valid");
     } catch (err) {
-      console.error("Error validating token:", err);
+      log.error("Error validating token:", err);
       setStatus("invalid");
       setErrorMessage("Erro ao validar o link. Tente novamente.");
     }
@@ -231,7 +234,7 @@ export function useSetupAccess() {
         throw new Error(data?.error || "Erro ao criar conta");
       }
     } catch (err) {
-      console.error("Error creating account:", err);
+      log.error("Error creating account:", err);
       toast.error(err instanceof Error ? err.message : "Erro ao criar conta");
     } finally {
       setIsSubmitting(false);

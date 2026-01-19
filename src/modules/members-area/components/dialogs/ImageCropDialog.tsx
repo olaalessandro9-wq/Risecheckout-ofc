@@ -3,6 +3,9 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("ImageCropDialog");
 import {
   Dialog,
   DialogContent,
@@ -171,7 +174,7 @@ export function ImageCropDialog({
       onCropComplete(croppedFile);
       onOpenChange(false);
     } catch (error: unknown) {
-      console.error("Error cropping image:", error);
+      log.error("Error cropping image:", error);
     } finally {
       setIsSaving(false);
     }

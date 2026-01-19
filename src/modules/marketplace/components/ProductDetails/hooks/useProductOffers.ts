@@ -9,6 +9,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("useProductOffers");
 
 interface ProductOffersResponse {
   offers?: Array<{
@@ -89,7 +92,7 @@ export function useProductOffers({
         setMaxCommission(maxComm);
       }
     } catch (error: unknown) {
-      console.error("Erro ao buscar ofertas:", error);
+      log.error("Erro ao buscar ofertas:", error);
       toast.error("Erro ao carregar ofertas do produto");
     } finally {
       setLoadingOffers(false);

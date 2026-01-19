@@ -12,7 +12,10 @@
 
 import { useState, useCallback } from "react";
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
 import type { Checkout, PaymentLink } from "../../types/product.types";
+
+const log = createLogger("useProductCheckouts");
 
 interface UseProductCheckoutsOptions {
   productId: string | null;
@@ -105,7 +108,7 @@ export function useProductCheckouts({
         })
       );
     } catch (error: unknown) {
-      console.error("[useProductCheckouts] Error loading checkouts:", error);
+      log.error("Error loading checkouts:", error);
     }
   }, [productId]);
 
@@ -141,7 +144,7 @@ export function useProductCheckouts({
         })
       );
     } catch (error: unknown) {
-      console.error("[useProductCheckouts] Error loading payment links:", error);
+      log.error("Error loading payment links:", error);
     }
   }, [productId]);
 

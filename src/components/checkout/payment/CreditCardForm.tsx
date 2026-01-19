@@ -296,7 +296,7 @@ const CreditCardFormComponent = forwardRef<CreditCardFormRef, CreditCardFormProp
               ref={stripeFieldsRef}
               publicKey={publicKey}
               amount={amount}
-              onReady={() => console.log('[CreditCardForm] Stripe pronto')}
+              onReady={() => log.info('Stripe pronto')}
               onError={onError}
             />
           )}
