@@ -18,6 +18,9 @@
 
 import { SupabaseClient } from "./supabase-types.ts";
 import { isVendorOwner } from "./platform-config.ts";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("AsaasSplitCalculator");
 
 // ============================================
 // TYPES
@@ -73,7 +76,7 @@ export async function calculateMarketplaceSplitData(
   orderId: string,
   vendorId: string
 ): Promise<CalculatedSplitData> {
-  console.log('[split-calculator] orderId:', orderId, 'vendorId:', vendorId);
+  log.info("Processing split calculation", { orderId, vendorId });
   
   const result: CalculatedSplitData = {
     isOwner: false,
@@ -87,7 +90,7 @@ export async function calculateMarketplaceSplitData(
 
   // 1. Verificar se é Owner
   result.isOwner = await isVendorOwner(supabase, vendorId);
-  console.log('[split-calculator] isOwner:', result.isOwner);
+  log.debug("Owner check result", { isOwner: result.isOwner });
 
   // 2. Buscar ordem para verificar afiliado
   const { data: orderData, error: orderError } = await supabase
@@ -97,7 +100,7 @@ export async function calculateMarketplaceSplitData(
     .single();
   
   if (orderError) {
-    console.error('[split-calculator] Erro ao buscar ordem:', orderError);
+    log.error("Error fetching order:", orderError);
     return result;
   }
 
@@ -136,7 +139,7 @@ export async function calculateMarketplaceSplitData(
         const defaultRate = product?.affiliate_settings?.defaultRate;
         commissionRate = defaultRate ?? 0;
         
-        console.log('[split-calculator] commission_rate NULL, usando defaultRate do produto:', commissionRate);
+        log.debug("commission_rate NULL, using product defaultRate:", commissionRate);
       }
       
       result.affiliateCommissionPercent = commissionRate;
@@ -155,7 +158,7 @@ export async function calculateMarketplaceSplitData(
         }
       }
       
-      console.log('[split-calculator] Afiliado:', {
+      log.info("Affiliate data resolved", {
         id: result.affiliateId,
         userId: result.affiliateUserId,
         walletId: result.affiliateWalletId,
@@ -174,7 +177,7 @@ export async function calculateMarketplaceSplitData(
     
     const vendor = vendorProfile as ProfileData | null;
     result.vendorWalletId = vendor?.asaas_wallet_id || null;
-    console.log('[split-calculator] Vendor wallet:', result.vendorWalletId);
+    log.debug("Vendor wallet resolved", { vendorWalletId: result.vendorWalletId });
   }
 
   return result;

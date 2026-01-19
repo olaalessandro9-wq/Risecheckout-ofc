@@ -12,6 +12,9 @@ import {
   errorResponse, 
   verifyProductOwnership 
 } from "./edge-helpers.ts";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("MembersAreaSections");
 
 // ============================================
 // TYPES
@@ -56,7 +59,7 @@ export async function handleSaveSections(
       .eq("product_id", productId);
 
     if (deleteError) {
-      console.error("[members-area-modules] Delete sections error:", deleteError);
+      log.error("Delete sections error:", deleteError);
       return errorResponse("Erro ao excluir seções", corsHeaders, 500);
     }
   }
@@ -82,7 +85,7 @@ export async function handleSaveSections(
       .single();
 
     if (insertError) {
-      console.error("[members-area-modules] Insert section error:", insertError);
+      log.error("Insert section error:", insertError);
       return errorResponse("Erro ao criar seção", corsHeaders, 500);
     }
 
@@ -106,12 +109,12 @@ export async function handleSaveSections(
       .eq("product_id", productId);
 
     if (updateError) {
-      console.error("[members-area-modules] Update section error:", updateError);
+      log.error("Update section error:", updateError);
       return errorResponse("Erro ao atualizar seção", corsHeaders, 500);
     }
   }
 
-  console.log(`[members-area-modules] Sections saved by ${producerId}`);
+  log.info(`Sections saved by ${producerId}`);
   return jsonResponse({ success: true, insertedIdMap }, corsHeaders);
 }
 
@@ -153,7 +156,7 @@ export async function handleSaveBuilderSettings(
       .eq("product_id", productId);
 
     if (error) {
-      console.error("[members-area-modules] Update settings error:", error);
+      log.error("Update settings error:", error);
       return errorResponse("Erro ao atualizar configurações", corsHeaders, 500);
     }
   } else {
@@ -166,11 +169,11 @@ export async function handleSaveBuilderSettings(
       });
 
     if (error) {
-      console.error("[members-area-modules] Insert settings error:", error);
+      log.error("Insert settings error:", error);
       return errorResponse("Erro ao salvar configurações", corsHeaders, 500);
     }
   }
 
-  console.log(`[members-area-modules] Builder settings saved by ${producerId}`);
+  log.info(`Builder settings saved by ${producerId}`);
   return jsonResponse({ success: true }, corsHeaders);
 }
