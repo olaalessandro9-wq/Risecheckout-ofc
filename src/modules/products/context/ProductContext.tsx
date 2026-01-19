@@ -88,7 +88,6 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
   const [formState, formDispatch] = useReducer(productFormReducer, INITIAL_FORM_STATE);
   const { registerSaveHandler, executeAll: executeRegistrySaves } = useSaveRegistry();
   const { activeTab, setActiveTab, tabErrors, setTabErrors, clearTabErrors } = useTabValidation();
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [checkoutCredentials, setCheckoutCredentials] = useState<GatewayCredentials>({});
   const hasUnsavedChanges = formState.isDirty;
@@ -118,9 +117,21 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
   const entities = useProductEntities({ productId });
   const checkoutsHook = useProductCheckouts({ productId });
   
-  // BFF Loader - 1 chamada substitui 6
-  const { loadFull, isLoading: bffLoading } = useProductLoader({ productId: productId ?? "" });
+  // React Query BFF Loader - Cache automático + 1 chamada substitui 6
+  const { 
+    data: rawProductData, 
+    isLoading: bffLoading, 
+    isFetching,
+    invalidate: invalidateProductCache,
+    error: loadError 
+  } = useProductLoader({ 
+    productId: productId ?? "",
+    enabled: !!productId && !!user 
+  });
   const { mapFullData } = useProductDataMapper();
+  
+  // Loading state: true se carregando pela primeira vez OU re-fetching
+  const loading = bffLoading || isFetching;
 
   // ✅ SOLUÇÃO C: Usa settings diretamente do core (elimina race condition)
   useEffect(() => {
@@ -152,56 +163,50 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
   }, [core.product, core.upsellSettings, core.affiliateSettings, entities.offers]);
 
   // ============================================================================
-  // REFRESH ALL - BFF (1 chamada substitui 6)
+  // REACT QUERY DATA SYNC - Sincroniza dados do cache com hooks de entidade
   // ============================================================================
 
-  const refreshAll = useCallback(async () => {
-    if (!productId || !user) return;
-    
-    setLoading(true);
-    try {
-      const rawData = await loadFull();
-      const mapped = mapFullData(rawData);
-      
-      // Injetar produto no core
-      core.setProduct(mapped.product);
-      
-      // Injetar entidades nos hooks
-      entities.setOffers(mapped.offers);
-      entities.setOrderBumps(mapped.orderBumps);
-      entities.setCoupons(mapped.coupons);
-      checkoutsHook.setCheckouts(mapped.checkouts);
-      checkoutsHook.setPaymentLinks(mapped.paymentLinks);
-      
-      // Dispatch para o reducer (form state)
-      formDispatch(formActions.initFromServer({
-        product: mapped.product,
-        upsellSettings: mapped.upsellSettings,
-        affiliateSettings: mapped.affiliateSettings,
-        offers: mapped.offers,
-      }));
-      
-      log.info("Product data loaded via BFF", { productId });
-    } catch (error) {
-      log.error("Error loading product via BFF, falling back to parallel calls", error);
-      
-      // Fallback: chamadas paralelas (compatibilidade)
-      await Promise.all([
-        core.refreshProduct(),
-        entities.refreshOffers(),
-        entities.refreshOrderBumps(),
-        checkoutsHook.refreshCheckouts(),
-        entities.refreshCoupons(),
-        checkoutsHook.refreshPaymentLinks(),
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  }, [productId, user, loadFull, mapFullData, core, entities, checkoutsHook, formDispatch]);
-
   useEffect(() => {
-    if (productId && user) refreshAll();
-  }, [productId, user]);
+    if (!rawProductData) return;
+    
+    const mapped = mapFullData(rawProductData);
+    
+    // Injetar produto no core
+    core.setProduct(mapped.product);
+    
+    // Injetar entidades nos hooks
+    entities.setOffers(mapped.offers);
+    entities.setOrderBumps(mapped.orderBumps);
+    entities.setCoupons(mapped.coupons);
+    checkoutsHook.setCheckouts(mapped.checkouts);
+    checkoutsHook.setPaymentLinks(mapped.paymentLinks);
+    
+    // Dispatch para o reducer (form state)
+    formDispatch(formActions.initFromServer({
+      product: mapped.product,
+      upsellSettings: mapped.upsellSettings,
+      affiliateSettings: mapped.affiliateSettings,
+      offers: mapped.offers,
+    }));
+    
+    log.info("Product data synced from React Query cache", { productId });
+  }, [rawProductData, mapFullData, core, entities, checkoutsHook, formDispatch, productId]);
+
+  // Log de erros do React Query
+  useEffect(() => {
+    if (loadError) {
+      log.error("React Query load error", { productId, error: loadError });
+    }
+  }, [loadError, productId]);
+
+  // ============================================================================
+  // REFRESH ALL - Invalidação do cache React Query
+  // ============================================================================
+
+  const refreshAll = useCallback(async (): Promise<void> => {
+    log.info("Invalidating product cache via React Query", { productId });
+    invalidateProductCache();
+  }, [invalidateProductCache, productId]);
 
   // Global Validation Handlers - SEMPRE REGISTRADOS
   useGlobalValidationHandlers({
