@@ -1,15 +1,7 @@
 /**
  * MercadoPagoCardForm - REFATORADO
  * 
- * Componente principal do formulário de cartão usando @mercadopago/sdk-react
- * 
- * REFATORAÇÃO:
- * - Lógica de estado → useCardFormState
- * - Lógica de validação → useCardValidation  
- * - Resolução de BIN → useBinResolution
- * - Campos seguros → SecureFields + SecureFieldsPortal
- * 
- * Este arquivo agora tem < 200 linhas (antes: 714)
+ * @version 3.0.0 - RISE Protocol V3 - Zero console.log
  */
 
 import React, { useEffect, useCallback, useRef } from 'react';
@@ -17,8 +9,8 @@ import { initMercadoPago, createCardToken } from '@mercadopago/sdk-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ChevronDown } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CreditCard, Calendar, Lock, User, ShieldCheck } from 'lucide-react';
+import { createLogger } from '@/lib/logger';
 import type { CardFormProps, CardTokenResult } from '@/types/payment-types';
 
 // Hooks refatorados
@@ -26,6 +18,8 @@ import { useCardFormState, useCardValidation, useBinResolution } from './hooks';
 
 // Componentes refatorados
 import { SecureFieldsPortal } from './components';
+
+const log = createLogger("MPCardForm");
 
 // Controle de inicialização global do SDK
 let lastInitializedPublicKey: string | null = null;
@@ -100,11 +94,11 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
   useEffect(() => {
     if (publicKey && publicKey !== lastInitializedPublicKey) {
       try {
-        console.log('[MercadoPagoCardForm] Inicializando SDK');
+        log.debug('Inicializando SDK');
         initMercadoPago(publicKey, { locale: 'pt-BR' });
         lastInitializedPublicKey = publicKey;
       } catch (e) {
-        console.log('[MercadoPagoCardForm] Erro ao inicializar SDK:', e);
+        log.warn('Erro ao inicializar SDK:', e);
         lastInitializedPublicKey = publicKey;
       }
     }
@@ -117,7 +111,7 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
 
   // Função de submit
   const handleSubmit = useCallback(async () => {
-    console.log('[MercadoPagoCardForm] Submit chamado');
+    log.debug('Submit chamado');
     setHasAttemptedSubmit(true);
     
     const currentName = cardholderNameRef.current || '';
@@ -169,7 +163,7 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
         throw new Error('Token não foi gerado');
       }
     } catch (error: unknown) {
-      console.error('[MercadoPagoCardForm] Erro ao criar token:', error);
+      log.error('Erro ao criar token:', error);
       
       const mpErrors = mapMPErrorsToFields(error);
       setErrors({ ...localErrors, ...mpErrors });

@@ -2,15 +2,17 @@
  * useMercadoPagoCharge - Hook para criar pagamento PIX via MercadoPago
  * 
  * Single Responsibility: Criação de pagamento via Edge Function.
- * RISE Protocol V2 Compliant (~90 linhas).
  * 
- * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
+ * @version 3.0.0 - RISE Protocol V3 - Zero console.log
  */
 
 import { useState, useCallback, useRef } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { createLogger } from "@/lib/logger";
 import type { MercadoPagoOrderData, CreatePaymentResult } from "../types";
+
+const log = createLogger("MPCharge");
 
 interface UseMercadoPagoChargeProps {
   orderId: string | undefined;
@@ -62,10 +64,7 @@ export function useMercadoPagoCharge({
     setLoading(true);
 
     try {
-      console.log("[useMercadoPagoCharge] Criando pagamento:", { 
-        orderId, 
-        amount: orderData.amount_cents / 100 
-      });
+      log.debug("Criando pagamento:", { orderId, amount: orderData.amount_cents / 100 });
 
       const { data, error } = await api.publicCall<MercadoPagoPaymentResponse>("mercadopago-create-payment", { 
         orderId,
@@ -76,12 +75,12 @@ export function useMercadoPagoCharge({
       });
 
       if (error) {
-        console.error("[useMercadoPagoCharge] Erro:", error);
+        log.error("Erro:", error);
         throw new Error(error.message || "Erro ao criar pagamento");
       }
 
       if (!data?.success) {
-        console.error("[useMercadoPagoCharge] Resposta não OK:", data);
+        log.error("Resposta não OK:", data);
         throw new Error(data?.error || "Erro ao criar pagamento");
       }
 
@@ -90,7 +89,7 @@ export function useMercadoPagoCharge({
       }
 
       const paymentData = data.data;
-      console.log("[useMercadoPagoCharge] ✅ Pagamento criado:", paymentData);
+      log.info("✅ Pagamento criado:", paymentData);
       
       setPaymentId(paymentData.paymentId.toString());
       
@@ -112,7 +111,7 @@ export function useMercadoPagoCharge({
       };
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Erro ao gerar QR Code";
-      console.error("[useMercadoPagoCharge] ❌ Erro:", errorMessage);
+      log.error("❌ Erro:", errorMessage);
       toast.error(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
