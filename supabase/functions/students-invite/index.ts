@@ -16,6 +16,9 @@ import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { rateLimitMiddleware, MEMBERS_AREA } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 import { genSaltSync, hashSync, compareSync } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("students-invite");
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
@@ -121,7 +124,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action } = body;
 
-    console.log(`[students-invite] Action: ${action}`);
+    log.info(`Action: ${action}`);
 
     // ========== VALIDATE-INVITE-TOKEN (public) ==========
     if (action === "validate-invite-token") {
@@ -377,7 +380,7 @@ Deno.serve(async (req) => {
           }),
         });
       } catch (emailErr: unknown) {
-        console.error("[students-invite] Email error:", emailErr);
+        log.error("Email error:", emailErr);
       }
 
       return jsonResponse({ success: true, buyer_id: buyerId, is_new_buyer: isNewBuyer, email_sent: true });
@@ -386,7 +389,7 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Invalid action" }, 400);
 
   } catch (error: unknown) {
-    console.error("[students-invite] Error:", error);
+    log.error("Error:", error);
     return jsonResponse({ error: error instanceof Error ? error.message : "Internal server error" }, 500);
   }
 });

@@ -17,6 +17,9 @@ import {
 } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("members-area-certificates");
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
@@ -66,14 +69,14 @@ Deno.serve(async (req) => {
       corsHeaders
     );
     if (rateLimitResult) {
-      console.warn(`[members-area-certificates] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      log.warn(`Rate limit exceeded for IP: ${getClientIP(req)}`);
       return rateLimitResult;
     }
 
     const body: CertificateRequest = await req.json();
     const { action, product_id, template_id, certificate_id, verification_code, buyer_token, data } = body;
 
-    console.log(`[members-area-certificates] Action: ${action}`);
+    log.info(`Action: ${action}`);
 
     // Ações públicas (verificação)
     if (action === "verify") {
@@ -273,7 +276,7 @@ Deno.serve(async (req) => {
 
         if (certError) throw certError;
 
-        console.log(`[members-area-certificates] Generated certificate ${certificate.id} for buyer ${buyer_id}`);
+        log.info(`Generated certificate ${certificate.id} for buyer ${buyer_id}`);
 
         return new Response(
           JSON.stringify({ success: true, certificate }),
@@ -377,7 +380,7 @@ Deno.serve(async (req) => {
 
         if (error) throw error;
 
-        console.log(`[members-area-certificates] Created template: ${template.id}`);
+        log.info(`Created template: ${template.id}`);
 
         return new Response(
           JSON.stringify({ success: true, template }),
@@ -443,7 +446,7 @@ Deno.serve(async (req) => {
         );
     }
   } catch (error: unknown) {
-    console.error("[members-area-certificates] Error:", error);
+    log.error("Error:", error);
     const message = error instanceof Error ? error.message : "Internal server error";
     return new Response(
       JSON.stringify({ error: message }),

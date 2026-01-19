@@ -12,6 +12,9 @@ import {
   getClientIP 
 } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("members-area-drip");
 
 // Use public CORS for members area
 const corsHeaders = PUBLIC_CORS_HEADERS;
@@ -100,14 +103,14 @@ Deno.serve(async (req) => {
       corsHeaders
     );
     if (rateLimitResult) {
-      console.warn(`[members-area-drip] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      log.warn(`Rate limit exceeded for IP: ${getClientIP(req)}`);
       return rateLimitResult;
     }
 
     const body: DripRequest = await req.json();
     const { action, content_id, product_id, buyer_id, settings } = body;
 
-    console.log(`[members-area-drip] Action: ${action}`);
+    log.info(`Action: ${action}`);
 
     // Para ações de vendedor, verificar autenticação via unified-auth
     let producer: ProducerAuth | null = null;
@@ -116,7 +119,7 @@ Deno.serve(async (req) => {
         producer = await requireAuthenticatedProducer(supabase, req);
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error("[members-area-drip] Auth error:", errorMessage);
+        log.error("Auth error:", errorMessage);
         return new Response(
           JSON.stringify({ error: "Authorization required" }),
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -205,7 +208,7 @@ Deno.serve(async (req) => {
             .delete()
             .eq("content_id", content_id);
 
-          console.log(`[members-area-drip] Deleted settings for content ${content_id} (immediate release)`);
+          log.info(`Deleted settings for content ${content_id} (immediate release)`);
 
           return new Response(
             JSON.stringify({ success: true }),
@@ -227,7 +230,7 @@ Deno.serve(async (req) => {
 
         if (error) throw error;
 
-        console.log(`[members-area-drip] Updated settings for content ${content_id}`);
+        log.info(`Updated settings for content ${content_id}`);
 
         return new Response(
           JSON.stringify({ success: true }),
@@ -398,7 +401,7 @@ Deno.serve(async (req) => {
 
         if (error) throw error;
 
-        console.log(`[members-area-drip] Manually unlocked content ${content_id} for buyer ${buyer_id}`);
+        log.info(`Manually unlocked content ${content_id} for buyer ${buyer_id}`);
 
         return new Response(
           JSON.stringify({ success: true }),
@@ -413,7 +416,7 @@ Deno.serve(async (req) => {
         );
     }
   } catch (error: unknown) {
-    console.error("[members-area-drip] Error:", error);
+    log.error("Error:", error);
     const message = error instanceof Error ? error.message : "Internal server error";
     return new Response(
       JSON.stringify({ error: message }),

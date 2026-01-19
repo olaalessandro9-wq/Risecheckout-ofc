@@ -19,6 +19,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { withSentry } from "../_shared/sentry.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("members-area-modules");
 
 // Handlers
 import {
@@ -90,7 +93,7 @@ serve(withSentry("members-area-modules", async (req) => {
     const { action, productId, moduleId, data, orderedIds, sections, deletedIds, settings } = body;
     // RISE V3: Session validation via unified-auth (reads from httpOnly cookie)
 
-    console.log(`[members-area-modules] Action: ${action}`);
+    log.info(`Action: ${action}`);
 
     // Auth via unified-auth
     let producerId: string;
@@ -131,7 +134,7 @@ serve(withSentry("members-area-modules", async (req) => {
     }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[members-area-modules] Unexpected error:", errorMessage);
+    log.error("Unexpected error:", errorMessage);
     return errorResponse("Erro interno do servidor", corsHeaders, 500);
   }
 }));

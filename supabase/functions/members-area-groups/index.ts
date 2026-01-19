@@ -12,6 +12,9 @@ import {
   getClientIP 
 } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("members-area-groups");
 
 // Use public CORS for members area
 const corsHeaders = PUBLIC_CORS_HEADERS;
@@ -95,7 +98,7 @@ Deno.serve(async (req) => {
       corsHeaders
     );
     if (rateLimitResult) {
-      console.warn(`[members-area-groups] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      log.warn(`Rate limit exceeded for IP: ${getClientIP(req)}`);
       return rateLimitResult;
     }
 
@@ -110,7 +113,7 @@ Deno.serve(async (req) => {
     }
     const { action, product_id, group_id, data } = body;
 
-    console.log(`[members-area-groups] Action: ${action}, User: ${producer.id}`);
+    log.info(`Action: ${action}, User: ${producer.id}`);
 
     // Verificar ownership do produto
     if (product_id) {
@@ -208,7 +211,7 @@ Deno.serve(async (req) => {
 
         if (error) throw error;
 
-        console.log(`[members-area-groups] Created group: ${group?.id}`);
+        log.info(`Created group: ${group?.id}`);
 
         return new Response(
           JSON.stringify({ success: true, group }),
@@ -424,7 +427,7 @@ Deno.serve(async (req) => {
           if (updateError) throw updateError;
         }
 
-        console.log(`[members-area-groups] Linked ${offerIds.length} offers to group ${group_id}`);
+        log.info(`Linked ${offerIds.length} offers to group ${group_id}`);
 
         return new Response(
           JSON.stringify({ success: true }),
@@ -439,7 +442,7 @@ Deno.serve(async (req) => {
         );
     }
   } catch (error: unknown) {
-    console.error("[members-area-groups] Error:", error);
+    log.error("Error:", error);
     const message = error instanceof Error ? error.message : "Internal server error";
     return new Response(
       JSON.stringify({ error: message }),

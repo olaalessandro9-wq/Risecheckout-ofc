@@ -15,6 +15,9 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("content-library");
 
 // ==========================================
 // TYPES
@@ -82,7 +85,7 @@ async function getVideoLibrary(
     .eq("is_active", true);
 
   if (error) {
-    console.error("[content-library] Get video library error:", error);
+    log.error("Get video library error:", error);
     return errorResponse("Erro ao buscar vídeos", "DB_ERROR", corsHeaders, 500);
   }
 
@@ -149,7 +152,7 @@ async function getWebhookLogs(
     .limit(50);
 
   if (error) {
-    console.error("[content-library] Get webhook logs error:", error);
+    log.error("Get webhook logs error:", error);
     return errorResponse("Erro ao buscar logs", "DB_ERROR", corsHeaders, 500);
   }
 
@@ -174,7 +177,7 @@ serve(async (req) => {
     const body = await req.json() as RequestBody;
     const { action, productId, webhookId, excludeContentId } = body;
 
-    console.log(`[content-library] Action: ${action}`);
+    log.info(`Action: ${action}`);
 
     // All actions require authentication
     let producer;
@@ -184,7 +187,7 @@ serve(async (req) => {
       return unauthorizedResponse(corsHeaders);
     }
 
-    console.log(`[content-library] Producer: ${producer.id}`);
+    log.info(`Producer: ${producer.id}`);
 
     switch (action) {
       case "get-video-library":
@@ -204,7 +207,7 @@ serve(async (req) => {
     }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("[content-library] Error:", errorMessage);
+    log.error("Error:", errorMessage);
     return errorResponse("Erro interno do servidor", "INTERNAL_ERROR", corsHeaders, 500);
   }
 });
