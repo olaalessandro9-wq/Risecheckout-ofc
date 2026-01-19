@@ -5,6 +5,10 @@
  * Suporta 3 tipos de email com remetentes diferentes.
  */
 
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("ZeptoMail");
+
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -75,7 +79,7 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
   const apiKey = Deno.env.get('ZEPTOMAIL_API_KEY');
   
   if (!apiKey) {
-    console.error('[ZeptoMail] API key not configured');
+    log.error("API key not configured");
     return {
       success: false,
       error: 'ZEPTOMAIL_API_KEY not configured',
@@ -88,7 +92,7 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
   const recipients = Array.isArray(params.to) ? params.to : [params.to];
   
   if (recipients.length === 0) {
-    console.error('[ZeptoMail] No recipients provided');
+    log.error("No recipients provided");
     return {
       success: false,
       error: 'No recipients provided',
@@ -114,7 +118,7 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
     client_reference: params.clientReference,
   };
 
-  console.log('[ZeptoMail] Sending email:', {
+  log.info("Sending email", {
     from: fromEmail,
     to: recipients.map(r => r.email),
     subject: params.subject,
@@ -136,7 +140,7 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
     const responseData = await response.json();
 
     if (!response.ok) {
-      console.error('[ZeptoMail] API error:', {
+      log.error("API error", {
         status: response.status,
         statusText: response.statusText,
         body: responseData,
@@ -148,7 +152,7 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
       };
     }
 
-    console.log('[ZeptoMail] Email sent successfully:', responseData);
+    log.info("Email sent successfully", responseData);
 
     return {
       success: true,
@@ -157,7 +161,7 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
     };
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[ZeptoMail] Network/unexpected error:', errorMessage);
+    log.error("Network/unexpected error", errorMessage);
     return {
       success: false,
       error: errorMessage,
