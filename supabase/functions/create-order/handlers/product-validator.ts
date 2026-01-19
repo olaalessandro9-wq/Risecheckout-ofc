@@ -5,8 +5,10 @@
  * 
  * Responsabilidade ÚNICA: Validar ownership e buscar dados do produto
  */
-
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createLogger } from "../../_shared/logger.ts";
+
+const log = createLogger("product-validator");
 
 interface AffiliateSettings {
   enabled?: boolean;
@@ -82,7 +84,7 @@ export async function validateProduct(
     .maybeSingle();
 
   if (productError || !product) {
-    console.error("[product-validator] Produto não encontrado:", product_id);
+    log.error("Produto não encontrado:", product_id);
     throw new Error("Produto principal não encontrado.");
   }
 
@@ -100,10 +102,10 @@ export async function validateProduct(
       .maybeSingle();
 
     if (checkoutError || !checkout) {
-      console.warn(`[product-validator] checkout_id inválido: ${checkout_id}`);
+      log.warn(`checkout_id inválido: ${checkout_id}`);
       validatedCheckoutId = null;
     } else {
-      console.log(`[product-validator] checkout validado: ${checkout_id}`);
+      log.info(`checkout validado: ${checkout_id}`);
     }
   }
 
@@ -117,7 +119,7 @@ export async function validateProduct(
   let derivedOfferId = offer_id;
 
   if (!derivedOfferId && validatedCheckoutId) {
-    console.log("[product-validator] offer_id não fornecido, tentando derivar do checkout...");
+    log.info("offer_id não fornecido, tentando derivar do checkout...");
     
     const { data: checkoutLink } = await supabase
       .from("checkout_links")
@@ -136,7 +138,7 @@ export async function validateProduct(
         : linkData.payment_links;
       if (paymentLinks) {
         derivedOfferId = paymentLinks.offer_id;
-        console.log("[product-validator] ✅ offer_id derivado do checkout:", derivedOfferId);
+        log.info("✅ offer_id derivado do checkout:", derivedOfferId);
       }
     }
   }
@@ -151,7 +153,7 @@ export async function validateProduct(
       .maybeSingle();
 
     if (offerError || !offer) {
-      console.error("[product-validator] Oferta inválida:", { derivedOfferId, product_id: productData.id });
+      log.error("Oferta inválida:", { derivedOfferId, product_id: productData.id });
       return new Response(
         JSON.stringify({
           error: "Invalid or inactive offer",
@@ -166,7 +168,7 @@ export async function validateProduct(
 
     const offerData = offer as OfferRecord;
 
-    console.log("[product-validator] ✅ Usando oferta:", {
+    log.info("✅ Usando oferta:", {
       offer_id: offerData.id,
       name: offerData.name,
       price: offerData.price

@@ -13,6 +13,9 @@
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createLogger } from "../../_shared/logger.ts";
+
+const log = createLogger("bump-processor");
 
 export interface OrderItem {
   product_id: string;
@@ -94,7 +97,7 @@ export async function processBumps(
     .eq("active", true);
 
   if (bumpsError || !bumps || bumps.length !== order_bump_ids.length) {
-    console.error("[bump-processor] Bumps inválidos:", {
+    log.error("Bumps inválidos:", {
       requested: order_bump_ids.length,
       found: bumps?.length || 0
     });
@@ -111,7 +114,7 @@ export async function processBumps(
     );
   }
 
-  console.log("[bump-processor] Bumps validados:", bumps.map((b: BumpData) => b.id));
+  log.info("Bumps validados:", bumps.map((b: BumpData) => b.id));
 
   // =====================================================
   // OTIMIZAÇÃO: Batch queries para eliminar N+1
@@ -152,7 +155,7 @@ export async function processBumps(
     (productsResult.data || []).map((p: ProductData) => [p.id, p])
   );
 
-  console.log("[bump-processor] Batch query results:", {
+  log.info("Batch query results:", {
     offers: offersMap.size,
     products: productsMap.size
   });
@@ -163,7 +166,7 @@ export async function processBumps(
   for (const bump of bumps as BumpData[]) {
     try {
       if (!bump.product_id) {
-        console.warn(`[bump-processor] Bump ${bump.id} sem produto vinculado`);
+        log.warn(`Bump ${bump.id} sem produto vinculado`);
         continue;
       }
 
@@ -177,7 +180,7 @@ export async function processBumps(
         if (bumpOffer) {
           bumpPriceCents = Number(bumpOffer.price);
           if (!bump.custom_title) bumpName = bumpOffer.name;
-          console.log(`[bump-processor] Bump via offer: ${bumpPriceCents} centavos`);
+          log.info(`Bump via offer: ${bumpPriceCents} centavos`);
         }
       }
 
@@ -188,9 +191,9 @@ export async function processBumps(
         if (bumpProduct) {
           bumpPriceCents = Math.round(Number(bumpProduct.price) * 100);
           if (!bump.custom_title) bumpName = bumpProduct.name;
-          console.log(`[bump-processor] Bump via product: ${bumpPriceCents} centavos`);
+          log.info(`Bump via product: ${bumpPriceCents} centavos`);
         } else {
-          console.warn(`[bump-processor] Produto ${bump.product_id} não encontrado no batch`);
+          log.warn(`Produto ${bump.product_id} não encontrado no batch`);
           continue;
         }
       }
@@ -198,7 +201,7 @@ export async function processBumps(
       // PRIORIDADE 3: Override com discount_price (BRL → centavos)
       if (bump.discount_enabled && bump.discount_price) {
         bumpPriceCents = Math.round(Number(bump.discount_price) * 100);
-        console.log(`[bump-processor] Bump com desconto: ${bumpPriceCents} centavos`);
+        log.info(`Bump com desconto: ${bumpPriceCents} centavos`);
       }
 
       totalAmount += bumpPriceCents;
@@ -212,7 +215,7 @@ export async function processBumps(
       });
 
     } catch (e: unknown) {
-      console.error(`[bump-processor] Erro no bump ${bump.id}:`, e);
+      log.error(`Erro no bump ${bump.id}:`, e);
     }
   }
 

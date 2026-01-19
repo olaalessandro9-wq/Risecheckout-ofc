@@ -19,6 +19,9 @@ import {
   isVendorOwner,
 } from "../../../_shared/platform-config.ts";
 import { maskEmail } from "../../../_shared/kernel/security/pii-masking.ts";
+import { createLogger } from "../../../_shared/logger.ts";
+
+const log = createLogger("affiliate-processor");
 import type {
   AffiliateInput,
   AffiliateResult,
@@ -73,15 +76,15 @@ export async function processAffiliate(
   if (isOwner && !hasActiveAffiliate) {
     platformFeeCents = 0;
     netAmountCents = amountInCents;
-    console.log("[affiliate-processor] Owner venda direta - Taxa 0%");
+    log.info("Owner venda direta - Taxa 0%");
   } else if (isOwner && hasActiveAffiliate) {
     platformFeeCents = calculatePlatformFeeCents(amountInCents, vendorFeePercent);
     netAmountCents = amountInCents - platformFeeCents;
-    console.log(`[affiliate-processor] Owner + Afiliado - Taxa ${vendorFeePercent * 100}%`);
+    log.info(`Owner + Afiliado - Taxa ${vendorFeePercent * 100}%`);
   } else {
     platformFeeCents = calculatePlatformFeeCents(amountInCents, vendorFeePercent);
     netAmountCents = amountInCents - platformFeeCents;
-    console.log(`[affiliate-processor] Vendedor - Taxa ${vendorFeePercent * 100}%`);
+    log.info(`Vendedor - Taxa ${vendorFeePercent * 100}%`);
   }
 
   // Configurações de afiliados
@@ -90,11 +93,11 @@ export async function processAffiliate(
 
   // Segurança: Limite máximo de comissão
   if (defaultRate > MAX_RATE) {
-    console.warn(`[affiliate-processor] Taxa ${defaultRate}% limitada a ${MAX_RATE}%`);
+    log.warn(`Taxa ${defaultRate}% limitada a ${MAX_RATE}%`);
     defaultRate = MAX_RATE;
   }
 
-  console.log(`[affiliate-processor] Programa: ${affiliateProgramEnabled}, Taxa: ${defaultRate}%`);
+  log.info(`Programa: ${affiliateProgramEnabled}, Taxa: ${defaultRate}%`);
 
   // Processar afiliado se existir
   if (affiliate_code && affiliateProgramEnabled) {
@@ -117,7 +120,7 @@ export async function processAffiliate(
     commissionCents = result.commissionCents;
     affiliateWalletId = result.affiliateWalletId;
   } else if (affiliate_code && !affiliateProgramEnabled) {
-    console.warn("[affiliate-processor] Programa desativado");
+    log.warn("Programa desativado");
   }
 
   return {
@@ -151,7 +154,7 @@ async function processAffiliateCode(
   totalAmount: number,
   allOrderItems: AffiliateInput["allOrderItems"]
 ): Promise<{ affiliateId: string | null; commissionCents: number; affiliateWalletId: string | null }> {
-  console.log(`[affiliate-processor] Buscando código: ${affiliate_code}`);
+  log.info(`Buscando código: ${affiliate_code}`);
 
   const { data: affiliate } = (await supabase
     .from("affiliates")
@@ -164,7 +167,7 @@ async function processAffiliateCode(
     .maybeSingle()) as { data: AffiliateRecord | null };
 
   if (!affiliate) {
-    console.warn(`[affiliate-processor] Código não encontrado: ${affiliate_code}`);
+    log.warn(`Código não encontrado: ${affiliate_code}`);
     return { affiliateId: null, commissionCents: 0, affiliateWalletId: null };
   }
 
@@ -173,12 +176,12 @@ async function processAffiliateCode(
 
   // Verificar status
   if (requireApproval && affiliate.status !== "active") {
-    console.warn(`[affiliate-processor] Aguardando aprovação: ${affiliate_code}`);
+    log.warn(`Aguardando aprovação: ${affiliate_code}`);
     return { affiliateId: null, commissionCents: 0, affiliateWalletId: null };
   }
 
   if (affiliate.status !== "active") {
-    console.warn(`[affiliate-processor] Status inválido: ${affiliate.status}`);
+    log.warn(`Status inválido: ${affiliate.status}`);
     return { affiliateId: null, commissionCents: 0, affiliateWalletId: null };
   }
 
@@ -188,7 +191,7 @@ async function processAffiliateCode(
   // Anti-Self-Referral check
   const isSelfReferral = await checkSelfReferral(supabase, affiliate.user_id, customer_email);
   if (isSelfReferral) {
-    console.warn(`[affiliate-processor] Auto-indicação detectada: ${maskEmail(customer_email)}`);
+    log.warn(`Auto-indicação detectada: ${maskEmail(customer_email)}`);
     return { affiliateId: null, commissionCents: 0, affiliateWalletId: null };
   }
 
@@ -260,7 +263,7 @@ function calculateCommission(
     upsell: affiliateSettings.commissionOnUpsell ?? affiliateSettings.allowUpsells ?? false,
   };
 
-  console.log(`[affiliate-processor] Regras: Bump=${rules.orderBump}`);
+  log.info(`Regras: Bump=${rules.orderBump}`);
 
   let commissionableGrossAmount = 0;
   for (const item of allOrderItems) {
@@ -278,16 +281,16 @@ function calculateCommission(
 
   let commissionRate = affiliate.commission_rate ?? defaultRate ?? 50;
   if (commissionRate > 90) {
-    console.warn(`[affiliate-processor] Taxa ${commissionRate}% limitada`);
+    log.warn(`Taxa ${commissionRate}% limitada`);
     commissionRate = 90;
   }
 
   const commissionCents = Math.round(commissionableNetAmount * (commissionRate / 100));
 
-  console.log(`[affiliate-processor] MODELO CAKTO:`);
-  console.log(`  - Bruto comissionável: R$ ${(commissionableGrossAmount / 100).toFixed(2)}`);
-  console.log(`  - Líquido comissionável: R$ ${(commissionableNetAmount / 100).toFixed(2)}`);
-  console.log(`  - Comissão (${commissionRate}%): R$ ${(commissionCents / 100).toFixed(2)}`);
+  log.info(`MODELO CAKTO:`);
+  log.info(`  - Bruto comissionável: R$ ${(commissionableGrossAmount / 100).toFixed(2)}`);
+  log.info(`  - Líquido comissionável: R$ ${(commissionableNetAmount / 100).toFixed(2)}`);
+  log.info(`  - Comissão (${commissionRate}%): R$ ${(commissionCents / 100).toFixed(2)}`);
 
   return commissionCents;
 }

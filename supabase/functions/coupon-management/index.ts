@@ -16,6 +16,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { withSentry } from "../_shared/sentry.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("coupon-management");
 
 // Handlers
 import {
@@ -64,16 +67,16 @@ serve(withSentry("coupon-management", async (req) => {
       return errorResponse("Ação não informada (use body.action ou path)", corsHeaders, 400);
     }
 
-    console.log(`[coupon-management] Action: ${action} (from ${bodyAction ? "body" : "url"}), Method: ${req.method}`);
+    log.info(`Action: ${action} (from ${bodyAction ? "body" : "url"}), Method: ${req.method}`);
 
     // Auth via unified-auth
     let producerId: string;
     try {
       const producer = await requireAuthenticatedProducer(supabase, req);
       producerId = producer.id;
-      console.log(`[coupon-management] Authenticated producer: ${producerId}`);
+      log.info(`Authenticated producer: ${producerId}`);
     } catch {
-      console.warn("[coupon-management] Auth failed");
+      log.warn("Auth failed");
       return unauthorizedResponse(corsHeaders);
     }
 
@@ -111,7 +114,7 @@ serve(withSentry("coupon-management", async (req) => {
     }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[coupon-management] Unexpected error:", errorMessage);
+    log.error("Unexpected error:", errorMessage);
     return errorResponse("Erro interno do servidor", corsHeaders, 500);
   }
 }));

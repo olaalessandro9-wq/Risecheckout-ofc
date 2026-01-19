@@ -8,6 +8,9 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@14.14.0";
+import { createLogger } from "../../_shared/logger.ts";
+
+const log = createLogger("stripe-disconnect");
 
 interface IntegrationConfig {
   stripe_account_id?: string;
@@ -31,7 +34,7 @@ export async function disconnectStripe(
   stripe: Stripe,
   vendorId: string
 ): Promise<DisconnectResult> {
-  console.log('[Disconnect] Desconectando Stripe para vendor:', vendorId);
+  log.info('Desconectando Stripe para vendor:', vendorId);
 
   try {
     // Buscar integração existente
@@ -51,9 +54,9 @@ export async function disconnectStripe(
           client_id: Deno.env.get("STRIPE_CLIENT_ID") || "",
           stripe_user_id: integrationData.config.stripe_account_id,
         });
-        console.log('[Disconnect] Acesso Stripe revogado');
+        log.info('Acesso Stripe revogado');
       } catch (revokeError) {
-        console.warn('[Disconnect] Erro ao revogar (continuando):', revokeError);
+        log.warn('Erro ao revogar (continuando):', revokeError);
       }
     }
 
@@ -68,7 +71,7 @@ export async function disconnectStripe(
       .eq("vendor_id", vendorId)
       .eq("integration_type", "STRIPE");
 
-    console.log('[Disconnect] ✅ Integração desconectada');
+    log.info('✅ Integração desconectada');
 
     return {
       success: true,
@@ -76,7 +79,7 @@ export async function disconnectStripe(
     };
 
   } catch (error) {
-    console.error('[Disconnect] Exception:', error);
+    log.error('Exception:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro ao desconectar'

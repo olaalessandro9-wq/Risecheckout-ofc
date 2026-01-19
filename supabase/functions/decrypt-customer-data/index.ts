@@ -16,6 +16,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("decrypt-customer-data");
 
 // === INTERFACES (Zero any) ===
 
@@ -114,12 +117,12 @@ serve(async (req) => {
       corsHeaders
     );
     if (rateLimitResult) {
-      console.warn(`[decrypt-customer-data] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      log.warn(`Rate limit exceeded for IP: ${getClientIP(req)}`);
       return rateLimitResult;
     }
     
     if (!encryptionKey) {
-      console.error("[decrypt-customer-data] BUYER_ENCRYPTION_KEY not configured");
+      log.error("BUYER_ENCRYPTION_KEY not configured");
       throw new Error("BUYER_ENCRYPTION_KEY not configured");
     }
 
@@ -128,7 +131,7 @@ serve(async (req) => {
     try {
       producer = await requireAuthenticatedProducer(supabaseAdmin, req);
     } catch {
-      console.error("[decrypt-customer-data] Authentication failed");
+      log.error("Authentication failed");
       return unauthorizedResponse(corsHeaders);
     }
 
@@ -136,14 +139,14 @@ serve(async (req) => {
     const { order_id } = body;
     
     if (!order_id) {
-      console.error("[decrypt-customer-data] Missing order_id");
+      log.error("Missing order_id");
       return new Response(
         JSON.stringify({ error: "order_id required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`[decrypt-customer-data] Producer ${producer.id} requesting order ${order_id}`);
+    log.info(`Producer ${producer.id} requesting order ${order_id}`);
 
     // Buscar pedido COM dados do produto (para pegar o user_id do produto)
     const { data: order, error: orderError } = await supabaseAdmin
@@ -162,7 +165,7 @@ serve(async (req) => {
       .single() as { data: OrderRecord | null; error: Error | null };
 
     if (orderError || !order) {
-      console.error("[decrypt-customer-data] Order not found:", order_id, orderError?.message);
+      log.error("Order not found:", { order_id, error: orderError?.message });
       return new Response(
         JSON.stringify({ error: "Order not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -177,11 +180,11 @@ serve(async (req) => {
     const isProductOwner = producer.id === productOwnerId;
     const isOwner = producer.role === "owner";
 
-    console.log(`[decrypt-customer-data] Access check: producer=${producer.id}, productOwner=${productOwnerId}, isProductOwner=${isProductOwner}, role=${producer.role}, isOwner=${isOwner}`);
+    log.info(`Access check: producer=${producer.id}, productOwner=${productOwnerId}, isProductOwner=${isProductOwner}, role=${producer.role}, isOwner=${isOwner}`);
 
     // Regra: Só PRODUTOR do produto ou OWNER da plataforma podem acessar
     if (!isProductOwner && !isOwner) {
-      console.log(`[decrypt-customer-data] ACCESS DENIED: producer=${producer.id}, productOwner=${productOwnerId}, role=${producer.role}`);
+      log.info(`ACCESS DENIED: producer=${producer.id}, productOwner=${productOwnerId}, role=${producer.role}`);
       
       // Log de tentativa de acesso negado
       const auditEntry: SecurityAuditEntry = {
@@ -229,7 +232,7 @@ serve(async (req) => {
     };
     await supabaseAdmin.from("security_audit_log").insert(successAudit);
 
-    console.log(`[decrypt-customer-data] Producer ${producer.id} (${accessType}) accessed order ${order_id}`);
+    log.info(`Producer ${producer.id} (${accessType}) accessed order ${order_id}`);
 
     return new Response(
       JSON.stringify({
@@ -245,7 +248,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[decrypt-customer-data] Error:", errorMessage);
+    log.error("Error:", errorMessage);
     return new Response(
       JSON.stringify({ error: errorMessage || "Internal error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
