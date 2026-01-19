@@ -16,6 +16,9 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logPermissionDenied } from "./audit-logger.ts";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("RoleValidator");
 
 // Tipos de role
 export type UserRole = "owner" | "admin" | "user" | "seller";
@@ -40,7 +43,7 @@ export async function getUserRole(
   });
 
   if (error) {
-    console.error("[RoleValidator] Erro ao buscar role:", error);
+    log.error("Erro ao buscar role:", error);
     return "user"; // Fallback seguro
   }
 
@@ -48,7 +51,7 @@ export async function getUserRole(
   
   // Validar que o role é conhecido
   if (!Object.keys(ROLE_HIERARCHY).includes(role)) {
-    console.warn("[RoleValidator] Role desconhecido:", role);
+    log.warn("Role desconhecido:", role);
     return "user";
   }
 
@@ -79,7 +82,7 @@ export async function canHaveAffiliates(
   });
 
   if (error) {
-    console.error("[RoleValidator] Erro ao verificar can_have_affiliates:", error);
+    log.error("Erro ao verificar can_have_affiliates:", error);
     return false;
   }
 
@@ -98,7 +101,7 @@ export async function isAdmin(
   });
 
   if (error) {
-    console.error("[RoleValidator] Erro ao verificar is_admin:", error);
+    log.error("Erro ao verificar is_admin:", error);
     return false;
   }
 
@@ -137,7 +140,7 @@ export async function requireRole(
     );
   }
 
-  console.log(`[RoleValidator] Acesso permitido: ${userRole} >= ${requiredRole} para ${action}`);
+  log.info(`Acesso permitido: ${userRole} >= ${requiredRole} para ${action}`);
   return userRole;
 }
 
@@ -170,5 +173,5 @@ export async function requireCanHaveAffiliates(
     );
   }
 
-  console.log(`[RoleValidator] Acesso a afiliados permitido para ${action}`);
+  log.info(`Acesso a afiliados permitido para ${action}`);
 }

@@ -7,6 +7,9 @@
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("VendorToken");
 
 // ============================================
 // TYPES
@@ -45,14 +48,14 @@ export async function getVendorToken(
       .rpc('get_vault_secret', { p_name: secretName });
 
     if (error) {
-      console.error(`[get-vendor-token] Failed to get token for ${gateway}:`, error);
+      log.error(`Failed to get token for ${gateway}:`, error);
       return null;
     }
 
     return data as string | null;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`[get-vendor-token] Exception:`, errorMessage);
+    log.error("Exception:", errorMessage);
     return null;
   }
 }
@@ -80,14 +83,14 @@ export async function getVendorIntegrationConfig(
       .single();
 
     if (error) {
-      console.error(`[get-vendor-integration] Failed to get config for ${gateway}:`, error);
+      log.error(`Failed to get config for ${gateway}:`, error);
       return null;
     }
 
     return data as VendorIntegration | null;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`[get-vendor-integration] Exception:`, errorMessage);
+    log.error("Exception:", errorMessage);
     return null;
   }
 }

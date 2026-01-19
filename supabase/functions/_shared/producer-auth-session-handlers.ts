@@ -18,8 +18,11 @@ import {
   createLogoutCookies,
   jsonResponseWithCookies,
 } from "./cookie-helper.ts";
+import { createLogger } from "./logger.ts";
 
 import type { ProducerProfile, UserRole } from "./supabase-types.ts";
+
+const log = createLogger("ProducerAuthSession");
 
 // ============================================
 // INTERNAL TYPES
@@ -67,7 +70,7 @@ export async function handleLogout(
 
   // Clear httpOnly cookies
   const cookies = createLogoutCookies("producer");
-  console.log("[producer-auth] Logout successful");
+  log.info("Logout successful");
   return jsonResponseWithCookies({ success: true }, corsHeaders, cookies);
 }
 
@@ -120,7 +123,7 @@ export async function handleValidate(
 
   // PHASE 1: Strict Session Blocking - Invalidate if IP changes
   if (session.ip_address && session.ip_address !== currentIP) {
-    console.warn(`[producer-auth] Session hijack attempt blocked - IP mismatch. Session IP: ${session.ip_address}, Current IP: ${currentIP}`);
+    log.warn(`Session hijack attempt blocked - IP mismatch. Session IP: ${session.ip_address}, Current IP: ${currentIP}`);
     await supabase.from("producer_sessions").update({ is_valid: false }).eq("id", session.id);
     await logAuditEvent(supabase, producerData.id, "SESSION_HIJACK_BLOCKED", false, currentIP, currentUA, {
       reason: "ip_mismatch",
@@ -132,7 +135,7 @@ export async function handleValidate(
 
   // PHASE 1: Strict Session Blocking - Invalidate if User-Agent changes
   if (session.user_agent && currentUA && session.user_agent !== currentUA) {
-    console.warn(`[producer-auth] Session hijack attempt blocked - UA mismatch for producer: ${producerData.id}`);
+    log.warn(`Session hijack attempt blocked - UA mismatch for producer: ${producerData.id}`);
     await supabase.from("producer_sessions").update({ is_valid: false }).eq("id", session.id);
     await logAuditEvent(supabase, producerData.id, "SESSION_HIJACK_BLOCKED", false, currentIP, currentUA, {
       reason: "user_agent_mismatch",
