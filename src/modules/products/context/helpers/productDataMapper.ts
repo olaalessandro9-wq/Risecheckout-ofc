@@ -41,8 +41,8 @@ export function mapProductRecord(record: ProductRecord): ProductData {
     description: record.description ?? "",
     price: record.price,
     image_url: record.image_url,
-    support_name: "", // Não vem do BFF, será preenchido pelo form
-    support_email: "", // Não vem do BFF, será preenchido pelo form
+    support_name: record.support_name ?? "",
+    support_email: record.support_email ?? "",
     status: record.status === "active" ? "active" : "blocked",
     user_id: record.vendor_id,
     created_at: record.created_at,
@@ -58,8 +58,8 @@ export function mapProductRecord(record: ProductRecord): ProductData {
 export function mapUpsellSettings(backend: BackendUpsellSettings): UpsellSettings {
   return {
     hasCustomThankYouPage: backend.upsell_enabled,
-    customPageUrl: "", // Não mapeado diretamente do backend
-    redirectIgnoringOrderBumpFailures: false, // Default
+    customPageUrl: backend.upsell_custom_page_url ?? "",
+    redirectIgnoringOrderBumpFailures: false,
   };
 }
 
@@ -67,20 +67,23 @@ export function mapUpsellSettings(backend: BackendUpsellSettings): UpsellSetting
 // AFFILIATE SETTINGS MAPPER
 // ============================================================================
 
-export function mapAffiliateSettings(backend: BackendAffiliateSettings): AffiliateSettings {
+export function mapAffiliateSettings(
+  backend: BackendAffiliateSettings,
+  product: ProductRecord
+): AffiliateSettings {
   return {
     enabled: backend.affiliate_enabled,
     defaultRate: backend.affiliate_commission_value,
     requireApproval: backend.affiliate_approval_mode === "manual",
-    commissionOnOrderBump: false, // Default
-    commissionOnUpsell: false, // Default
-    supportEmail: "", // Não vem do BFF
-    publicDescription: "", // Não vem do BFF
+    commissionOnOrderBump: false,
+    commissionOnUpsell: false,
+    supportEmail: product.support_email ?? "",
+    publicDescription: "",
     attributionModel: "last_click",
     cookieDuration: backend.affiliate_cookie_days,
     showInMarketplace: backend.affiliate_public_in_marketplace,
-    marketplaceDescription: "",
-    marketplaceCategory: "",
+    marketplaceDescription: product.marketplace_description ?? "",
+    marketplaceCategory: product.marketplace_category ?? "",
   };
 }
 

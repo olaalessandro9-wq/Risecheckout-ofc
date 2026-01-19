@@ -21,6 +21,7 @@ export interface UpsellSettings {
   upsell_checkout_id: string | null;
   upsell_timer_enabled: boolean;
   upsell_timer_minutes: number;
+  upsell_custom_page_url: string | null;
 }
 
 export interface AffiliateSettings {
@@ -112,12 +113,20 @@ export interface ProductRecord {
   category: string | null;
   status: string;
   vendor_id: string;
+  // Support fields
+  support_email: string | null;
+  support_name: string | null;
+  // Marketplace fields
+  marketplace_description: string | null;
+  marketplace_category: string | null;
+  // Upsell settings
   upsell_enabled: boolean;
   upsell_product_id: string | null;
   upsell_offer_id: string | null;
   upsell_checkout_id: string | null;
   upsell_timer_enabled: boolean;
   upsell_timer_minutes: number;
+  // Affiliate settings
   affiliate_enabled: boolean;
   affiliate_commission_type: string;
   affiliate_commission_value: number;
@@ -125,6 +134,7 @@ export interface ProductRecord {
   affiliate_approval_mode: string;
   affiliate_allow_coupon: boolean;
   affiliate_public_in_marketplace: boolean;
+  // Members area
   members_area_enabled: boolean;
   created_at: string;
   updated_at: string | null;
