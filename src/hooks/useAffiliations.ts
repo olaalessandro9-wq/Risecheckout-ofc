@@ -80,7 +80,7 @@ export function useAffiliations(): UseAffiliationsResult {
 
       setAffiliations(fetchedAffiliations);
     } catch (err) {
-      console.error("Erro ao buscar afiliações:", err);
+      log.error("Erro ao buscar afiliações:", err);
       setError("Erro ao carregar suas afiliações.");
       toast.error("Erro ao carregar suas afiliações.");
     } finally {
@@ -112,7 +112,7 @@ export function useAffiliations(): UseAffiliationsResult {
       toast.success("Afiliação cancelada com sucesso.");
       return true;
     } catch (err) {
-      console.error("Erro ao cancelar afiliação:", err);
+      log.error("Erro ao cancelar afiliação:", err);
       toast.error("Erro ao cancelar afiliação.");
       return false;
     }

@@ -1,13 +1,17 @@
 /**
  * useAdminOrders
  * 
+ * @version 2.0.0 - RISE Protocol V3 - Zero console.log
  * MIGRATED: Uses api.call() instead of supabase.functions.invoke
  */
 
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
 import { PeriodFilter } from "@/hooks/useAdminAnalytics";
 import { formatCentsToBRL } from "@/lib/money";
+
+const log = createLogger("AdminOrders");
 
 export interface AdminOrder {
   id: string;
@@ -64,7 +68,7 @@ export function useAdminOrders(period: PeriodFilter) {
       });
 
       if (error) {
-        console.error("[useAdminOrders] Erro ao buscar pedidos:", error);
+        log.error("Erro ao buscar pedidos:", error);
         throw new Error(error.message);
       }
 

@@ -1,5 +1,14 @@
+/**
+ * useAffiliationDetails
+ * 
+ * @version 2.0.0 - RISE Protocol V3 - Zero console.log
+ */
+
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("AffiliationDetails");
 
 export interface AffiliationProduct {
   id: string;
@@ -148,7 +157,7 @@ export function useAffiliationDetails(affiliationId: string | undefined): UseAff
       }>("get-affiliation-details", { affiliation_id: affiliationId });
 
       if (invokeError) {
-        console.error("Erro ao invocar get-affiliation-details:", invokeError);
+        log.error("Erro ao invocar get-affiliation-details:", invokeError);
         throw new Error(invokeError.message || "Erro ao buscar detalhes da afiliação");
       }
 
@@ -184,7 +193,7 @@ export function useAffiliationDetails(affiliationId: string | undefined): UseAff
       setOtherProducts(data.otherProducts || []);
 
     } catch (err: unknown) {
-      console.error("Erro ao buscar detalhes da afiliação:", err);
+      log.error("Erro ao buscar detalhes da afiliação:", err);
       setError(err instanceof Error ? err.message : "Erro ao carregar detalhes");
     } finally {
       setIsLoading(false);
