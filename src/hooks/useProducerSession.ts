@@ -15,7 +15,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SUPABASE_URL } from "@/config/supabase";
-import { producerTokenManager } from "@/lib/token-manager";
+import { producerTokenService } from "@/lib/token-manager";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("UseProducerSession");
@@ -38,8 +38,8 @@ interface SessionData {
 }
 
 async function validateProducerSession(): Promise<SessionData> {
-  // Use TokenManager to check auth state (auto-refresh if needed)
-  const token = await producerTokenManager.getValidAccessToken();
+  // Use TokenService FSM to check auth state (auto-refresh if needed)
+  const token = await producerTokenService.getValidAccessToken();
   
   if (!token) {
     return { valid: false, producer: null };
@@ -59,7 +59,7 @@ async function validateProducerSession(): Promise<SessionData> {
     }
 
     // Invalid session - clear auth state
-    producerTokenManager.clearTokens();
+    producerTokenService.clearTokens();
     return { valid: false, producer: null };
   } catch (error: unknown) {
     log.error("Error validating session:", error);
@@ -87,7 +87,7 @@ export function useProducerSession() {
   };
 
   const clearSession = () => {
-    producerTokenManager.clearTokens();
+    producerTokenService.clearTokens();
     queryClient.setQueryData(producerSessionQueryKey, { valid: false, producer: null });
   };
 

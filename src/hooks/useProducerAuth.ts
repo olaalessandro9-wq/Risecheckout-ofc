@@ -14,7 +14,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { SUPABASE_URL } from "@/config/supabase";
 import { createLogger } from "@/lib/logger";
-import { producerTokenManager } from "@/lib/token-manager";
+import { producerTokenService } from "@/lib/token-manager";
 import { producerSessionQueryKey } from "./useProducerSession";
 
 const log = createLogger("ProducerAuth");
@@ -114,7 +114,7 @@ export function useProducerAuth(): UseProducerAuthReturn {
 
       // Mark as authenticated - tokens are in httpOnly cookies
       if (data.expiresIn) {
-        producerTokenManager.setAuthenticated(data.expiresIn);
+        producerTokenService.setAuthenticated(data.expiresIn);
       }
       
       if (data.producer) {
@@ -176,7 +176,7 @@ export function useProducerAuth(): UseProducerAuthReturn {
     }
     
     // Clear auth state
-    producerTokenManager.clearTokens();
+    producerTokenService.clearTokens();
     setProducer(null);
 
     // Clear all producer-related caches
@@ -211,7 +211,7 @@ export function useProducerAuth(): UseProducerAuthReturn {
   }, []);
 
   const validateSession = useCallback(async (): Promise<boolean> => {
-    const token = await producerTokenManager.getValidAccessToken();
+    const token = await producerTokenService.getValidAccessToken();
     if (!token) return false;
 
     try {
@@ -240,7 +240,7 @@ export function useProducerAuth(): UseProducerAuthReturn {
   };
 }
 
-// Helper to get session token for API calls (uses TokenManager)
+// Helper to get session token for API calls (uses TokenService FSM)
 export function getProducerSessionToken(): string | null {
-  return producerTokenManager.getAccessTokenSync();
+  return producerTokenService.getAccessTokenSync();
 }

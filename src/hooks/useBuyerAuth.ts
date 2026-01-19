@@ -13,7 +13,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { SUPABASE_URL } from "@/config/supabase";
 import { createLogger } from "@/lib/logger";
-import { buyerTokenManager } from "@/lib/token-manager";
+import { buyerTokenService } from "@/lib/token-manager";
 import { buyerQueryKeys } from "./useBuyerOrders";
 import { buyerSessionQueryKey } from "./useBuyerSession";
 
@@ -53,7 +53,7 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
   // Validate session on mount
   useEffect(() => {
     const validateSession = async () => {
-      const token = await buyerTokenManager.getValidAccessToken();
+      const token = await buyerTokenService.getValidAccessToken();
       if (!token) {
         setIsLoading(false);
         return;
@@ -71,12 +71,12 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
           setBuyer(data.buyer);
           queryClient.setQueryData(buyerSessionQueryKey, { valid: true, buyer: data.buyer });
         } else {
-          buyerTokenManager.clearTokens();
+          buyerTokenService.clearTokens();
           queryClient.setQueryData(buyerSessionQueryKey, { valid: false, buyer: null });
         }
       } catch (error: unknown) {
         log.error("Error validating session", error);
-        buyerTokenManager.clearTokens();
+        buyerTokenService.clearTokens();
       } finally {
         setIsLoading(false);
       }
@@ -106,7 +106,7 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
 
       // Mark as authenticated - tokens are in httpOnly cookies
       if (data.expiresIn) {
-        buyerTokenManager.setAuthenticated(data.expiresIn);
+        buyerTokenService.setAuthenticated(data.expiresIn);
       }
       
       if (data.buyer) {
@@ -157,7 +157,7 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
     }
     
     // Clear auth state
-    buyerTokenManager.clearTokens();
+    buyerTokenService.clearTokens();
     setBuyer(null);
     
     // Clear caches
@@ -197,7 +197,7 @@ export function useBuyerAuth(): UseBuyerAuthReturn {
   };
 }
 
-// Helper to get session token for API calls (uses TokenManager)
+// Helper to get session token for API calls (uses TokenService FSM)
 export function getBuyerSessionToken(): string | null {
-  return buyerTokenManager.getAccessTokenSync();
+  return buyerTokenService.getAccessTokenSync();
 }
