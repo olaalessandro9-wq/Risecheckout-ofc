@@ -6,6 +6,10 @@
  * RISE Protocol Compliant - < 300 linhas
  */
 
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("TriggerWebhooks");
+
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -54,18 +58,6 @@ export interface Order {
 export const DISPATCH_TIMEOUT = 30000;
 
 // ============================================================================
-// LOGGING
-// ============================================================================
-
-export function logInfo(message: string, data?: unknown) {
-  console.log(`[trigger-webhooks] [INFO] ${message}`, data ? JSON.stringify(data) : '');
-}
-
-export function logError(message: string, error?: unknown) {
-  console.error(`[trigger-webhooks] [ERROR] ${message}`, error);
-}
-
-// ============================================================================
 // UTILITIES
 // ============================================================================
 
@@ -100,7 +92,7 @@ export function isUrlSafe(urlString: string): boolean {
     const url = new URL(urlString);
     
     if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-      logError(`URL rejeitada: protocolo inválido (deve ser http ou https)`, { url: urlString });
+      log.error("URL rejeitada: protocolo inválido (deve ser http ou https)", { url: urlString });
       return false;
     }
     
@@ -123,16 +115,16 @@ export function isUrlSafe(urlString: string): boolean {
     
     for (const pattern of blockedPatterns) {
       if (pattern.test(hostname)) {
-        logError(`URL rejeitada: hostname bloqueado (SSRF protection)`, { url: urlString, hostname });
+        log.error("URL rejeitada: hostname bloqueado (SSRF protection)", { url: urlString, hostname });
         return false;
       }
     }
     
-    logInfo(`URL aprovada para envio`, { url: urlString });
+    log.info("URL aprovada para envio", { url: urlString });
     return true;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logError(`URL rejeitada: formato inválido`, { url: urlString, error: errorMessage });
+    log.error("URL rejeitada: formato inválido", { url: urlString, error: errorMessage });
     return false;
   }
 }
@@ -148,7 +140,7 @@ export async function sendToExternalWebhook(
   productName: string
 ): Promise<WebhookResult> {
   if (!isUrlSafe(webhook.url)) {
-    logError(`SSRF Protection: URL bloqueada`, { webhook_id: webhook.id, url: webhook.url });
+    log.error("SSRF Protection: URL bloqueada", { webhook_id: webhook.id, url: webhook.url });
     return {
       success: false,
       status: 0,
@@ -161,14 +153,14 @@ export async function sendToExternalWebhook(
   const timeoutId = setTimeout(() => controller.abort(), DISPATCH_TIMEOUT);
 
   try {
-    logInfo(`📡 Enviando para: ${webhook.url}`, { webhook_id: webhook.id });
+    log.info(`📡 Enviando para: ${webhook.url}`, { webhook_id: webhook.id });
 
     const payloadString = JSON.stringify(payload);
     const timestamp = Date.now().toString();
     
     const webhookSecret = webhook.secret_encrypted || webhook.secret;
     if (!webhookSecret || webhookSecret.trim() === '') {
-      logError(`Webhook ${webhook.id} sem secret configurado - PULANDO`);
+      log.error(`Webhook ${webhook.id} sem secret configurado - PULANDO`);
       return {
         success: false,
         status: 0,
@@ -233,14 +225,14 @@ export function filterRelevantWebhooks(
   return webhooks.filter((wh) => {
     const supportsEvent = wh.events?.includes(eventType);
     if (!supportsEvent) {
-      logInfo(`  ❌ Webhook ${wh.name} não suporta evento ${eventType}`);
+      log.info(`  ❌ Webhook ${wh.name} não suporta evento ${eventType}`);
       return false;
     }
 
     const hasProductFilter = (wh.webhook_products && wh.webhook_products.length > 0) || wh.product_id;
     
     if (!hasProductFilter) {
-      logInfo(`  ✅ Match GLOBAL com webhook: ${wh.name}`);
+      log.info(`  ✅ Match GLOBAL com webhook: ${wh.name}`);
       return true;
     }
 
@@ -253,9 +245,9 @@ export function filterRelevantWebhooks(
     const isMatch = isLegacyMatch || isRelationMatch;
 
     if (isMatch) {
-      logInfo(`  ✅ Match ESPECÍFICO com webhook: ${wh.name}`);
+      log.info(`  ✅ Match ESPECÍFICO com webhook: ${wh.name}`);
     } else {
-      logInfo(`  ❌ Webhook ${wh.name} não está configurado para produto`);
+      log.info(`  ❌ Webhook ${wh.name} não está configurado para produto`);
     }
 
     return isMatch;

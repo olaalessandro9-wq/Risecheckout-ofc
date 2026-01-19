@@ -8,6 +8,9 @@
  */
 
 import { SupabaseClient, MembersAreaSettings, JsonResponseData } from "./supabase-types.ts";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("MembersArea");
 
 // ============================================
 // TYPES
@@ -61,7 +64,7 @@ async function ensureProducerBuyerProfile(
     .maybeSingle() as { data: BuyerProfileRecord | null };
 
   if (existingBuyer) {
-    console.log(`[members-area] Producer buyer profile already exists: ${existingBuyer.id}`);
+    log.info(`Producer buyer profile already exists: ${existingBuyer.id}`);
     return;
   }
 
@@ -77,9 +80,9 @@ async function ensureProducerBuyerProfile(
     });
 
   if (createError) {
-    console.error("[members-area] Error creating producer buyer profile:", createError);
+    log.error("Error creating producer buyer profile", createError);
   } else {
-    console.log(`[members-area] Created buyer profile for producer: ${producerId}`);
+    log.info(`Created buyer profile for producer: ${producerId}`);
   }
 }
 
@@ -98,7 +101,7 @@ async function ensureDefaultGroup(
     .limit(1) as { data: GroupRecord[] | null };
 
   if (existingGroups && existingGroups.length > 0) {
-    console.log(`[members-area] Default group already exists for product: ${productId}`);
+    log.info(`Default group already exists for product: ${productId}`);
     return;
   }
 
@@ -113,9 +116,9 @@ async function ensureDefaultGroup(
     });
 
   if (createError) {
-    console.error("[members-area] Error creating default group:", createError);
+    log.error("Error creating default group", createError);
   } else {
-    console.log(`[members-area] Created default group for product: ${productId}`);
+    log.info(`Created default group for product: ${productId}`);
   }
 }
 
@@ -138,7 +141,7 @@ export async function handleEnableMembersArea(
   producerId: string,
   corsHeaders: CorsHeaders
 ): Promise<Response> {
-  console.log(`[members-area] Enabling members area for product: ${productId}`);
+  log.info(`Enabling members area for product: ${productId}`);
   
   const startTime = Date.now();
   
@@ -153,7 +156,7 @@ export async function handleEnableMembersArea(
       .eq("id", productId);
 
     if (updateError) {
-      console.error("[members-area] Error enabling members area:", updateError);
+      log.error("Error enabling members area", updateError);
       return errorResponse("Erro ao habilitar área de membros", corsHeaders, 500);
     }
 
@@ -164,11 +167,11 @@ export async function handleEnableMembersArea(
     ]);
 
     const duration = Date.now() - startTime;
-    console.log(`[members-area] Enabled members area in ${duration}ms for: ${productId}`);
+    log.info(`Enabled members area in ${duration}ms for: ${productId}`);
     
     return jsonResponse({ success: true, enabled: true }, corsHeaders);
   } catch (error) {
-    console.error("[members-area] Unexpected error:", error);
+    log.error("Unexpected error", error);
     return errorResponse("Erro interno ao habilitar área de membros", corsHeaders, 500);
   }
 }
@@ -185,7 +188,7 @@ export async function handleDisableMembersArea(
   productId: string,
   corsHeaders: CorsHeaders
 ): Promise<Response> {
-  console.log(`[members-area] Disabling members area for product: ${productId}`);
+  log.info(`Disabling members area for product: ${productId}`);
   
   const { error: updateError } = await supabase
     .from("products")
@@ -196,11 +199,11 @@ export async function handleDisableMembersArea(
     .eq("id", productId);
 
   if (updateError) {
-    console.error("[members-area] Error disabling members area:", updateError);
+    log.error("Error disabling members area", updateError);
     return errorResponse("Erro ao desabilitar área de membros", corsHeaders, 500);
   }
 
-  console.log(`[members-area] Disabled members area for: ${productId}`);
+  log.info(`Disabled members area for: ${productId}`);
   return jsonResponse({ success: true, enabled: false }, corsHeaders);
 }
 
@@ -228,10 +231,10 @@ export async function handleUpdateMembersAreaSettings(
   const { error: updateError } = await supabase.from("products").update(updates).eq("id", productId) as { error: { message: string } | null };
 
   if (updateError) {
-    console.error("[product-settings] Update members area settings error:", updateError);
+    log.error("Update members area settings error", updateError);
     return errorResponse("Erro ao atualizar configurações da área de membros", corsHeaders, 500);
   }
 
-  console.log(`[product-settings] Members area settings updated for: ${productId}`);
+  log.info(`Members area settings updated for: ${productId}`);
   return jsonResponse({ success: true, enabled, settings }, corsHeaders);
 }

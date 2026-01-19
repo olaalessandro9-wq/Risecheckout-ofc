@@ -8,6 +8,9 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { RateLimitConfig, RateLimitResult, RateLimitRecord } from "./types.ts";
+import { createLogger } from "../logger.ts";
+
+const log = createLogger("RateLimitService");
 
 // ============================================================================
 // IP Extraction
@@ -98,7 +101,7 @@ export async function checkRateLimit(
       .maybeSingle();
 
     if (fetchError) {
-      console.error("[rate-limit] Fetch error:", fetchError.message);
+      log.error("Fetch error", fetchError.message);
       // Em caso de erro, permitir a requisição (fail-open)
       return { allowed: true, remaining: config.maxAttempts };
     }
@@ -179,7 +182,7 @@ export async function checkRateLimit(
       remaining: config.maxAttempts - record.attempts - 1,
     };
   } catch (err) {
-    console.error("[rate-limit] Unexpected error:", err);
+    log.error("Unexpected error", err);
     // Em caso de erro, permitir a requisição (fail-open)
     return { allowed: true, remaining: config.maxAttempts };
   }

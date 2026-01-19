@@ -12,6 +12,9 @@
  */
 
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createLogger as createCentralLogger } from "./logger.ts";
+
+const log = createCentralLogger("WebhookHelpers");
 
 // ============================================================================
 // TYPES
@@ -99,13 +102,13 @@ export async function saveToDeadLetterQueue(
     });
 
     if (error) {
-      console.error('[DLQ] Erro ao salvar na DLQ:', error);
+      log.error("Erro ao salvar na DLQ", error);
     } else {
-      console.log(`[DLQ] Webhook salvo na DLQ: ${data.gateway}/${data.eventType}`);
+      log.info(`Webhook salvo na DLQ: ${data.gateway}/${data.eventType}`);
     }
   } catch (dlqError) {
     // Log mas não falha - DLQ é best-effort
-    console.error('[DLQ] Exception ao salvar na DLQ:', dlqError);
+    log.error("Exception ao salvar na DLQ", dlqError);
   }
 }
 
@@ -290,9 +293,12 @@ export function createErrorResponse(code: string, message: string, status: numbe
 }
 
 // ============================================================================
-// LOGGING FACTORY
+// LOGGING FACTORY (Re-exports for backward compatibility)
 // ============================================================================
 
+/**
+ * Logger interface for webhook functions
+ */
 export interface Logger {
   info: (message: string, data?: unknown) => void;
   warn: (message: string, data?: unknown) => void;
@@ -300,18 +306,16 @@ export interface Logger {
 }
 
 /**
- * Cria logger com prefixo do webhook
+ * Cria logger com prefixo do webhook (versioned)
+ * 
+ * @param functionName - Nome da função
+ * @param version - Versão da função
  */
 export function createLogger(functionName: string, version: string): Logger {
+  const logger = createCentralLogger(`${functionName}-v${version}`);
   return {
-    info: (message: string, data?: unknown) => {
-      console.log(`[${functionName}] [v${version}] [INFO] ${message}`, data ? JSON.stringify(data) : '');
-    },
-    warn: (message: string, data?: unknown) => {
-      console.warn(`[${functionName}] [v${version}] [WARN] ${message}`, data ? JSON.stringify(data) : '');
-    },
-    error: (message: string, error?: unknown) => {
-      console.error(`[${functionName}] [v${version}] [ERROR] ${message}`, error);
-    },
+    info: logger.info,
+    warn: logger.warn,
+    error: logger.error,
   };
 }
