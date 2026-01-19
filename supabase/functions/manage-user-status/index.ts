@@ -16,6 +16,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("manage-user-status");
 
 Deno.serve(async (req) => {
   // SECURITY: CORS V2 com separação de ambiente (prod/dev)
@@ -39,7 +42,7 @@ Deno.serve(async (req) => {
       corsHeaders
     );
     if (rateLimitResult) {
-      console.warn(`[manage-user-status] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      log.warn(`Rate limit exceeded for IP: ${getClientIP(req)}`);
       return rateLimitResult;
     }
     
@@ -53,7 +56,7 @@ Deno.serve(async (req) => {
 
     // Verificar se é owner
     if (producer.role !== "owner") {
-      console.error("[manage-user-status] Acesso negado. Role:", producer.role);
+      log.error("Acesso negado. Role:", producer.role);
       
       await supabaseAdmin.rpc("log_security_event", {
         p_user_id: producer.id,
@@ -72,7 +75,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action, userId, status, reason, feePercent, productId } = body;
 
-    console.log(`[manage-user-status] Action: ${action} by owner ${producer.id}`);
+    log.info(`Action: ${action} by owner ${producer.id}`);
 
     if (action === "updateStatus") {
       if (!userId || !status) {
@@ -101,7 +104,7 @@ Deno.serve(async (req) => {
         .eq("id", userId);
 
       if (updateError) {
-        console.error("[manage-user-status] Erro ao atualizar status:", updateError);
+        log.error("Erro ao atualizar status:", updateError);
         throw updateError;
       }
 
@@ -114,7 +117,7 @@ Deno.serve(async (req) => {
         p_metadata: { target_user_id: userId, new_status: status, reason },
       });
 
-      console.log(`[manage-user-status] User ${userId} status updated to ${status}`);
+      log.info(`User ${userId} status updated to ${status}`);
       
       return new Response(
         JSON.stringify({ success: true, message: `Status atualizado para ${status}` }),
@@ -145,7 +148,7 @@ Deno.serve(async (req) => {
         .eq("id", userId);
 
       if (updateError) {
-        console.error("[manage-user-status] Erro ao atualizar taxa:", updateError);
+        log.error("Erro ao atualizar taxa:", updateError);
         throw updateError;
       }
 
@@ -162,7 +165,7 @@ Deno.serve(async (req) => {
         },
       });
 
-      console.log(`[manage-user-status] User ${userId} custom fee updated to ${feePercent}`);
+      log.info(`User ${userId} custom fee updated to ${feePercent}`);
       
       return new Response(
         JSON.stringify({ 
@@ -203,7 +206,7 @@ Deno.serve(async (req) => {
         .eq("id", productId);
 
       if (updateError) {
-        console.error("[manage-user-status] Erro ao atualizar produto:", updateError);
+        log.error("Erro ao atualizar produto:", updateError);
         throw updateError;
       }
 
@@ -221,7 +224,7 @@ Deno.serve(async (req) => {
         },
       });
 
-      console.log(`[manage-user-status] Product ${productId} status updated to ${status}`);
+      log.info(`Product ${productId} status updated to ${status}`);
       
       return new Response(
         JSON.stringify({ success: true, message: `Produto atualizado para ${status}` }),
@@ -236,7 +239,7 @@ Deno.serve(async (req) => {
 
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro interno";
-    console.error("[manage-user-status] Erro:", message);
+    log.error("Erro:", message);
     return new Response(
       JSON.stringify({ error: message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

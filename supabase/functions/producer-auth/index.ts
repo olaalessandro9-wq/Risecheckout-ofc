@@ -21,6 +21,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // CORS
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 
+// Logger
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("producer-auth");
+
 // Handlers
 import {
   handleRegister,
@@ -62,7 +67,7 @@ serve(async (req) => {
     const url = new URL(req.url);
     const action = url.pathname.split("/").pop();
 
-    console.log(`[producer-auth] Action: ${action}, Method: ${req.method}`);
+    log.info(`Action: ${action}, Method: ${req.method}`);
 
     // ============================================
     // ROUTE TO HANDLERS
@@ -101,7 +106,7 @@ serve(async (req) => {
     }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[producer-auth] Unexpected error:", errorMessage);
+    log.error("Unexpected error:", errorMessage);
     return errorResponse("Erro interno do servidor", corsHeaders, 500);
   }
 });

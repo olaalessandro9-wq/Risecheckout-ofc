@@ -18,6 +18,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("manage-user-role");
 
 type AppRole = "owner" | "admin" | "user" | "seller";
 
@@ -56,7 +59,7 @@ Deno.serve(async (req: Request) => {
       corsHeaders
     );
     if (rateLimitResult) {
-      console.warn(`[manage-user-role] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      log.warn(`Rate limit exceeded for IP: ${getClientIP(req)}`);
       return rateLimitResult;
     }
 
@@ -71,7 +74,7 @@ Deno.serve(async (req: Request) => {
     const callerRole = producer.role as AppRole;
 
     if (callerRole !== "admin" && callerRole !== "owner") {
-      console.warn(`[manage-user-role] Acesso negado para ${producer.id} (role: ${callerRole})`);
+      log.warn(`Acesso negado para ${producer.id} (role: ${callerRole})`);
       
       await supabaseAdmin.rpc("log_security_event", {
         p_user_id: producer.id,
@@ -108,7 +111,7 @@ Deno.serve(async (req: Request) => {
     }
 
     if (newRole === "owner") {
-      console.warn(`[manage-user-role] TENTATIVA BLOQUEADA de promoção para owner por ${producer.id}`);
+      log.warn(`TENTATIVA BLOQUEADA de promoção para owner por ${producer.id}`);
       
       await supabaseAdmin.rpc("log_security_event", {
         p_user_id: producer.id,
@@ -170,7 +173,7 @@ Deno.serve(async (req: Request) => {
       .eq("user_id", targetUserId);
 
     if (updateError) {
-      console.error("[manage-user-role] Erro ao atualizar role:", updateError);
+      log.error("Erro ao atualizar role:", updateError);
       return new Response(
         JSON.stringify({ error: "Erro ao atualizar role" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -193,7 +196,7 @@ Deno.serve(async (req: Request) => {
       },
     });
 
-    console.log(`[manage-user-role] Role alterado: ${targetUserId} de ${currentRole} para ${newRole} por ${producer.id}`);
+    log.info(`Role alterado: ${targetUserId} de ${currentRole} para ${newRole} por ${producer.id}`);
 
     return new Response(
       JSON.stringify({
@@ -210,7 +213,7 @@ Deno.serve(async (req: Request) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[manage-user-role] Erro inesperado:", errorMessage);
+    log.error("Erro inesperado:", errorMessage);
     return new Response(
       JSON.stringify({ error: "Erro interno do servidor" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

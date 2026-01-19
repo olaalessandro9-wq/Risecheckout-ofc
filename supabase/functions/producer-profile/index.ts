@@ -16,6 +16,9 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("producer-profile");
 
 // ==========================================
 // TYPES
@@ -59,7 +62,7 @@ async function getProfile(
     .single();
 
   if (error) {
-    console.error("[producer-profile] Get profile error:", error);
+    log.error("Get profile error:", error);
     return errorResponse("Perfil não encontrado", "NOT_FOUND", corsHeaders, 404);
   }
 
@@ -110,7 +113,7 @@ async function checkCredentials(
       },
     }, corsHeaders);
   } catch (error: unknown) {
-    console.error("[producer-profile] Check credentials error:", error);
+    log.error("Check credentials error:", error);
     return errorResponse("Erro ao verificar credenciais", "DB_ERROR", corsHeaders, 500);
   }
 }
@@ -162,7 +165,7 @@ async function getGatewayConnections(
       },
     }, corsHeaders);
   } catch (error: unknown) {
-    console.error("[producer-profile] Get gateway connections error:", error);
+    log.error("Get gateway connections error:", error);
     return errorResponse("Erro ao buscar conexões", "DB_ERROR", corsHeaders, 500);
   }
 }
@@ -185,7 +188,7 @@ serve(async (req) => {
     const body = await req.json() as RequestBody;
     const { action, productId } = body;
 
-    console.log(`[producer-profile] Action: ${action}`);
+    log.info(`Action: ${action}`);
 
     // All actions require authentication
     let producer;
@@ -195,7 +198,7 @@ serve(async (req) => {
       return unauthorizedResponse(corsHeaders);
     }
 
-    console.log(`[producer-profile] Producer: ${producer.id}`);
+    log.debug(`Producer: ${producer.id}`);
 
     switch (action) {
       case "get-profile":
@@ -215,7 +218,7 @@ serve(async (req) => {
     }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("[producer-profile] Error:", errorMessage);
+    log.error("Error:", errorMessage);
     return errorResponse("Erro interno do servidor", "INTERNAL_ERROR", corsHeaders, 500);
   }
 });
