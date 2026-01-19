@@ -11,6 +11,9 @@ import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SESSION_DURATION_DAYS } from "./auth-constants.ts";
 import { generateSessionToken } from "./buyer-auth-handlers.ts";
 import { jsonResponse, errorResponse } from "./response-helpers.ts";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("BuyerAuthProducer");
 
 // ============================================
 // CHECK-PRODUCER-BUYER HANDLER
@@ -44,7 +47,7 @@ export async function handleCheckProducerBuyer(
     .single();
 
   if (!buyer && !hasOwnProducts) {
-    console.log(`[buyer-auth] No buyer profile or own products for producer: ${email}`);
+    log.info(`No buyer profile or own products for producer: ${email}`);
     return jsonResponse({ hasBuyerProfile: false, hasOwnProducts: false }, corsHeaders, 200);
   }
 
@@ -61,7 +64,7 @@ export async function handleCheckProducerBuyer(
 
   const shouldShowStudentPanel = hasActiveAccess || hasOwnProducts;
 
-  console.log(`[buyer-auth] Producer buyer check: ${email}, hasAccess: ${hasActiveAccess}, hasOwnProducts: ${hasOwnProducts}`);
+  log.info(`Producer buyer check: ${email}, hasAccess: ${hasActiveAccess}, hasOwnProducts: ${hasOwnProducts}`);
   return jsonResponse({
     hasBuyerProfile: shouldShowStudentPanel,
     hasOwnProducts,
@@ -112,19 +115,19 @@ export async function handleEnsureProducerAccess(
         .single();
 
       if (createError) {
-        console.error("[buyer-auth] Error creating producer buyer profile:", createError);
+        log.error("Error creating producer buyer profile:", createError);
         throw createError;
       }
       buyer = newBuyer;
-      console.log(`[buyer-auth] Created buyer profile for producer: ${email}`);
+      log.info(`Created buyer profile for producer: ${email}`);
     }
 
-    console.log(`[buyer-auth] Producer ${email} has access via product ownership, no buyer_product_access needed`);
+    log.info(`Producer ${email} has access via product ownership, no buyer_product_access needed`);
 
     return jsonResponse({ success: true, buyerId: buyer.id }, corsHeaders, 200);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[buyer-auth] Error ensuring producer access:", errorMessage);
+    log.error("Error ensuring producer access:", errorMessage);
     return errorResponse("Erro ao criar acesso do produtor", corsHeaders, 500);
   }
 }
@@ -150,7 +153,7 @@ export async function handleProducerLogin(
     .single();
 
   if (findError || !buyer) {
-    console.log(`[buyer-auth] Producer login failed - buyer not found: ${email}`);
+    log.info(`Producer login failed - buyer not found: ${email}`);
     return errorResponse("Perfil de comprador não encontrado", corsHeaders, 404);
   }
 
@@ -173,7 +176,7 @@ export async function handleProducerLogin(
     });
 
   if (sessionError) {
-    console.error("[buyer-auth] Error creating producer session:", sessionError);
+    log.error("Error creating producer session:", sessionError);
     return errorResponse("Erro ao criar sessão", corsHeaders, 500);
   }
 
@@ -182,7 +185,7 @@ export async function handleProducerLogin(
     .update({ last_login_at: new Date().toISOString() })
     .eq("id", buyer.id);
 
-  console.log(`[buyer-auth] Producer login successful: ${email}`);
+  log.info(`Producer login successful: ${email}`);
   return jsonResponse({
     success: true,
     sessionToken,

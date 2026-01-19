@@ -9,6 +9,10 @@
  * @version 2.0.0 - Security hardened
  */
 
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("CORS");
+
 /**
  * Lista de origens permitidas para CORS
  * 
@@ -54,7 +58,7 @@ export function getCorsHeaders(origin: string | null): Record<string, string> | 
 
   // Verifica se origem está na lista permitida
   if (!ALLOWED_ORIGINS.includes(origin)) {
-    console.warn(`[CORS] ⚠️ Origem bloqueada: ${origin}`);
+    log.warn(`⚠️ Origem bloqueada: ${origin}`);
     return null; // SECURITY: Retorna null para origens não permitidas
   }
 
