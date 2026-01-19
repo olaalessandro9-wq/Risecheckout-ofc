@@ -5,7 +5,7 @@
  */
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { handleCorsV2, getCorsHeadersV2 } from "../_shared/cors-v2.ts";
 import { 
   rateLimitMiddleware, 
   RATE_LIMIT_CONFIGS,
@@ -15,9 +15,6 @@ import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/u
 import { createLogger } from "../_shared/logger.ts";
 
 const log = createLogger("members-area-groups");
-
-// Use public CORS for members area
-const corsHeaders = PUBLIC_CORS_HEADERS;
 
 // === INTERFACES (Zero any) ===
 
@@ -80,10 +77,12 @@ interface PermissionToInsert {
 // === MAIN HANDLER ===
 
 Deno.serve(async (req) => {
-  // CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  // CORS V2 handler
+  const corsResult = handleCorsV2(req);
+  if (corsResult instanceof Response) {
+    return corsResult;
   }
+  const corsHeaders = corsResult.headers;
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;

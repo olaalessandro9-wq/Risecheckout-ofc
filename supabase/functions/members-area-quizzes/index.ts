@@ -5,7 +5,7 @@
  */
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { handleCorsV2, getCorsHeadersV2 } from "../_shared/cors-v2.ts";
 import { 
   rateLimitMiddleware, 
   RATE_LIMIT_CONFIGS,
@@ -15,9 +15,6 @@ import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/u
 import { createLogger } from "../_shared/logger.ts";
 
 const log = createLogger("members-area-quizzes");
-
-// Use public CORS for members area
-const corsHeaders = PUBLIC_CORS_HEADERS;
 
 // === INTERFACES (Zero any) ===
 
@@ -121,7 +118,8 @@ async function handleQuizSubmit(
   supabase: SupabaseClient,
   quiz_id: string,
   buyer_id: string,
-  answers: Record<string, string>
+  answers: Record<string, string>,
+  corsHeaders: Record<string, string>
 ): Promise<Response> {
   // Buscar quiz com questions e answers corretas
   const { data: quizData, error: quizError } = await supabase
@@ -221,7 +219,8 @@ async function handleQuizSubmit(
 async function handleGetAttempts(
   supabase: SupabaseClient,
   quiz_id: string,
-  buyer_id: string
+  buyer_id: string,
+  corsHeaders: Record<string, string>
 ): Promise<Response> {
   const { data: attempts, error } = await supabase
     .from("buyer_quiz_attempts")
@@ -241,10 +240,12 @@ async function handleGetAttempts(
 // === MAIN HANDLER ===
 
 Deno.serve(async (req) => {
-  // CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  // CORS V2 handler
+  const corsResult = handleCorsV2(req);
+  if (corsResult instanceof Response) {
+    return corsResult;
   }
+  const corsHeaders = corsResult.headers;
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -293,11 +294,11 @@ Deno.serve(async (req) => {
       const buyer_id = session.buyer_id;
 
       if (action === "submit") {
-        return handleQuizSubmit(supabase, quiz_id!, buyer_id, data?.answers || {});
+        return handleQuizSubmit(supabase, quiz_id!, buyer_id, data?.answers || {}, corsHeaders);
       }
 
       if (action === "get-attempts") {
-        return handleGetAttempts(supabase, quiz_id!, buyer_id);
+        return handleGetAttempts(supabase, quiz_id!, buyer_id, corsHeaders);
       }
     }
 
