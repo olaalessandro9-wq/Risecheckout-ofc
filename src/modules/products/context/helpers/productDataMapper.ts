@@ -124,18 +124,30 @@ export function mapOrderBumpRecords(records: OrderBumpRecord[]): OrderBump[] {
 // ============================================================================
 
 export function mapCheckoutRecords(records: CheckoutRecord[]): Checkout[] {
-  return records.map((record) => ({
-    id: record.id,
-    name: record.name,
-    price: 0,
-    visits: record.visits_count ?? 0,
-    offer: "",
-    isDefault: record.is_default,
-    linkId: "",
-    product_id: record.product_id,
-    status: record.status ?? "active",
-    created_at: record.created_at,
-  }));
+  return records.map((record) => {
+    // Extrair dados das relações aninhadas
+    const checkoutLink = record.checkout_links?.[0];
+    const paymentLink = checkoutLink?.payment_links;
+    const offer = paymentLink?.offers;
+    
+    // Prioridade: offer > product > fallback
+    const price = offer?.price ?? record.products?.price ?? 0;
+    const offerName = offer?.name ?? record.products?.name ?? "";
+    const linkId = checkoutLink?.link_id ?? "";
+    
+    return {
+      id: record.id,
+      name: record.name,
+      price,
+      visits: record.visits_count ?? 0,
+      offer: offerName,
+      isDefault: record.is_default,
+      linkId,
+      product_id: record.product_id,
+      status: record.status ?? "active",
+      created_at: record.created_at,
+    };
+  });
 }
 
 // ============================================================================
@@ -143,17 +155,23 @@ export function mapCheckoutRecords(records: CheckoutRecord[]): Checkout[] {
 // ============================================================================
 
 export function mapPaymentLinkRecords(records: PaymentLinkRecord[]): PaymentLink[] {
-  return records.map((record) => ({
-    id: record.id,
-    slug: record.slug,
-    url: `/c/${record.slug}`,
-    offer_name: "",
-    offer_price: 0,
-    is_default: false,
-    status: record.active ? "active" : "inactive",
-    checkouts: [],
-    created_at: record.created_at,
-  }));
+  return records.map((record) => {
+    // Extrair dados das relações aninhadas
+    const offer = record.offers;
+    const isActive = record.status === "active" || record.active === true;
+    
+    return {
+      id: record.id,
+      slug: record.slug,
+      url: record.url ?? `/c/${record.slug}`,
+      offer_name: offer?.name ?? "",
+      offer_price: offer?.price ?? 0,
+      is_default: offer?.is_default ?? false,
+      status: isActive ? "active" : "inactive",
+      checkouts: record.checkouts?.map(c => ({ id: c.id, name: c.name })) ?? [],
+      created_at: record.created_at ?? new Date().toISOString(),
+    };
+  });
 }
 
 // ============================================================================
