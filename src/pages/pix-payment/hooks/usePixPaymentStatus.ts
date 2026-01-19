@@ -12,7 +12,10 @@ import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { getOrderForPaymentRpc } from "@/lib/rpc/rpcProxy";
 import { sendUTMifyConversion, formatDateForUTMify } from "@/lib/utmify-helper";
+import { createLogger } from "@/lib/logger";
 import type { GatewayType, PaymentStatus, OrderDataFromRpc } from "../types";
+
+const log = createLogger("UsePixPaymentStatus");
 
 interface UsePixPaymentStatusProps {
   gateway: GatewayType | null;
@@ -46,25 +49,25 @@ export function usePixPaymentStatus({
 
   const checkStatus = useCallback(async (): Promise<{ paid: boolean }> => {
     if (!orderId) {
-      console.log("[usePixPaymentStatus] ⚠️ Sem orderId para verificar");
+      log.info("Sem orderId para verificar");
       return { paid: false };
     }
 
     setCheckingPayment(true);
 
     try {
-      console.log("[usePixPaymentStatus] 🔍 Verificando status:", { gateway, orderId });
+      log.info("Verificando status:", { gateway, orderId });
       
       // Para Mercado Pago, Asaas ou Stripe: usar RPC proxy
       if (gateway === 'mercadopago' || gateway === 'asaas' || gateway === 'stripe') {
         const { data: order, error } = await getOrderForPaymentRpc(orderId, accessToken || '');
 
         if (error) {
-          console.error(`[usePixPaymentStatus] ❌ Erro ao consultar status (${gateway}):`, error);
+          log.error(`Erro ao consultar status (${gateway}):`, error);
           throw new Error("Erro ao verificar status do pagamento");
         }
 
-        console.log(`[usePixPaymentStatus] 📡 Status do pedido (${gateway}):`, order);
+        log.info(`Status do pedido (${gateway}):`, order);
 
         const orderRecord = order as Record<string, unknown> | null;
         const status = (orderRecord?.status as string)?.toUpperCase();
@@ -85,7 +88,7 @@ export function usePixPaymentStatus({
       
       // Para PushinPay: usar Edge Function
       if (!pixId) {
-        console.log("[usePixPaymentStatus] ⚠️ Sem pixId para verificar (PushinPay)");
+        log.info("Sem pixId para verificar (PushinPay)");
         return { paid: false };
       }
 
@@ -95,20 +98,20 @@ export function usePixPaymentStatus({
         status?: { status: string } 
       }>("pushinpay-get-status", { orderId });
       
-      console.log("[usePixPaymentStatus] 📡 Resposta do pushinpay-get-status:", { data, error });
+      log.info("Resposta do pushinpay-get-status:", { data, error });
 
       if (error) {
-        console.error("[usePixPaymentStatus] ❌ Erro ao consultar status:", error);
+        log.error("Erro ao consultar status:", error);
         throw new Error(error.message || "Erro ao conectar com o servidor");
       }
 
       if (data && data.ok === false) {
-        console.error("[usePixPaymentStatus] ⚠️ Resposta de erro do backend:", data);
+        log.error("Resposta de erro do backend:", data);
         
         const msg = (data.error || "").toString().toLowerCase();
         
         if (msg.includes("could not be found") || msg.includes("não foi gerado") || msg.includes("not found") || msg.includes("pending")) {
-          console.log("[usePixPaymentStatus] ℹ️ PIX não encontrado ou pendente");
+          log.info("PIX não encontrado ou pendente");
           return { paid: false };
         }
         
@@ -130,7 +133,7 @@ export function usePixPaymentStatus({
           
           const productId = orderData.product?.id || orderData.product_id || null;
           
-          console.log("[UTMify] Enviando conversão:", productId, productsArray);
+          log.info("Enviando conversão UTMify:", productId, productsArray);
           
           sendUTMifyConversion(
             orderData.vendor_id,
@@ -163,7 +166,7 @@ export function usePixPaymentStatus({
             "purchase_approved",
             productId
           ).catch(err => {
-            console.error("[UTMify] Não foi possível atualizar status:", err);
+            log.error("Não foi possível atualizar status UTMify:", err);
           });
         }
         
@@ -179,7 +182,7 @@ export function usePixPaymentStatus({
       
       return { paid: false };
     } catch (err: unknown) {
-      console.error("[usePixPaymentStatus] ❌ Erro capturado:", err);
+      log.error("Erro capturado:", err);
       throw err;
     } finally {
       setCheckingPayment(false);
@@ -192,24 +195,24 @@ export function usePixPaymentStatus({
       return;
     }
 
-    console.log("[usePixPaymentStatus] 🔄 Iniciando polling automático");
+    log.info("Iniciando polling automático");
 
     const initialTimeout = setTimeout(() => {
       checkStatus().catch(err => {
-        console.error("[usePixPaymentStatus] Erro no polling inicial:", err);
+        log.error("Erro no polling inicial:", err);
       });
     }, 5000);
 
     const pollingInterval = setInterval(() => {
       checkStatus().catch(err => {
-        console.error("[usePixPaymentStatus] Erro no polling:", err);
+        log.error("Erro no polling:", err);
       });
     }, 5000);
 
     return () => {
       clearTimeout(initialTimeout);
       clearInterval(pollingInterval);
-      console.log("[usePixPaymentStatus] 🛑 Polling parado");
+      log.info("Polling parado");
     };
   }, [paymentStatus, qrCode, timeRemaining, checkStatus]);
 

@@ -11,6 +11,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("ProductCheckoutSettings");
 
 type RequiredFields = {
   name: boolean;
@@ -50,7 +53,7 @@ export function ProductCheckoutSettings({ productId }: { productId: string }) {
         });
 
         if (error) {
-          console.error("[ProductCheckoutSettings] Edge function error:", error);
+          log.error("Edge function error:", error);
           toast.error("Não foi possível carregar as configurações.");
         } else if (response?.settings) {
           const data = response.settings;
@@ -63,11 +66,11 @@ export function ProductCheckoutSettings({ productId }: { productId: string }) {
           });
           setDefaultMethod((data.default_payment_method ?? "pix") as "pix" | "credit_card");
         } else if (response?.error) {
-          console.error("[ProductCheckoutSettings] API error:", response.error);
+          log.error("API error:", response.error);
           toast.error("Não foi possível carregar as configurações.");
         }
       } catch (err) {
-        console.error("[ProductCheckoutSettings] Unexpected error:", err);
+        log.error("Unexpected error:", err);
         toast.error("Não foi possível carregar as configurações.");
       }
       setLoading(false);
@@ -94,20 +97,20 @@ export function ProductCheckoutSettings({ productId }: { productId: string }) {
       });
 
       if (error) {
-        console.error("Error saving via Edge Function:", error);
+        log.error("Error saving via Edge Function:", error);
         toast.error("Erro ao salvar configurações.");
         return;
       }
 
       if (!data?.success) {
-        console.error("API error:", data?.error);
+        log.error("API error:", data?.error);
         toast.error(data?.error || "Erro ao salvar configurações.");
         return;
       }
 
       toast.success("Configurações salvas com sucesso!");
     } catch (error: unknown) {
-      console.error("Unexpected error saving product settings:", error);
+      log.error("Unexpected error saving product settings:", error);
       toast.error("Erro inesperado ao salvar configurações.");
     } finally {
       setSaving(false);

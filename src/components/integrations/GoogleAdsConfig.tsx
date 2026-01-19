@@ -14,6 +14,9 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("GoogleAdsConfig");
 
 interface GoogleAdsConfigResponse {
   integration?: {
@@ -66,7 +69,7 @@ export function GoogleAdsConfig() {
         setActive(data.integration.active || false);
       }
     } catch (error: unknown) {
-      console.error("Error loading Google Ads config:", error);
+      log.error("Error loading Google Ads config:", error);
       toast.error("Erro ao carregar configuração do Google Ads");
     } finally {
       setLoading(false);
@@ -105,7 +108,7 @@ export function GoogleAdsConfig() {
 
       toast.success("Configuração do Google Ads salva com sucesso!");
     } catch (error: unknown) {
-      console.error("Error saving Google Ads config:", error);
+      log.error("Error saving Google Ads config:", error);
       const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
       toast.error("Erro ao salvar configuração: " + errorMessage);
     } finally {
