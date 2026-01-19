@@ -8,6 +8,9 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { jsonResponse, errorResponse } from "../types.ts";
+import { createLogger } from "../../_shared/logger.ts";
+
+const log = createLogger("admin-data/security");
 
 // ==========================================
 // SECURITY LOGS
@@ -26,7 +29,7 @@ export async function getSecurityLogs(
     .maybeSingle();
 
   if (roleError || role?.role !== "owner") {
-    console.warn(`[admin-data] User ${producerId} tried to access security logs without owner role`);
+    log.warn("Access denied: user tried to access security logs without owner role", { producerId });
     return errorResponse("Acesso negado", "FORBIDDEN", corsHeaders, 403);
   }
 
@@ -37,7 +40,7 @@ export async function getSecurityLogs(
     .limit(limit);
 
   if (error) {
-    console.error("[admin-data] Security logs error:", error);
+    log.error("Security logs error", error);
     return errorResponse("Erro ao buscar logs", "DB_ERROR", corsHeaders, 500);
   }
 
@@ -77,7 +80,7 @@ export async function getSecurityAlerts(
   const { data, error } = await query;
 
   if (error) {
-    console.error("[admin-data] Security alerts error:", error);
+    log.error("Security alerts error", error);
     return errorResponse("Erro ao buscar alertas", "DB_ERROR", corsHeaders, 500);
   }
 
@@ -110,7 +113,7 @@ export async function getSecurityBlockedIPs(
     .order("blocked_at", { ascending: false });
 
   if (error) {
-    console.error("[admin-data] Blocked IPs error:", error);
+    log.error("Blocked IPs error", error);
     return errorResponse("Erro ao buscar IPs bloqueados", "DB_ERROR", corsHeaders, 500);
   }
 

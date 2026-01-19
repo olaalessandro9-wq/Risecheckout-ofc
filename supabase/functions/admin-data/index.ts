@@ -12,7 +12,10 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
 import { errorResponse, type RequestBody } from "./types.ts";
+
+const log = createLogger("admin-data");
 
 // Handler imports
 import { getSecurityLogs, getSecurityAlerts, getSecurityBlockedIPs, getSecurityStats } from "./handlers/security.ts";
@@ -49,7 +52,7 @@ serve(async (req) => {
     const body = await req.json() as RequestBody;
     const { action, productId, userId, limit = 100, productName, period = "all" } = body;
 
-    console.log(`[admin-data] Action: ${action}, Producer: ${producer.id}`);
+    log.info(`Action: ${action}`, { producerId: producer.id });
 
     switch (action) {
       // Security handlers
@@ -156,7 +159,7 @@ serve(async (req) => {
     }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("[admin-data] Error:", errorMessage);
+    log.error("Error", { error: errorMessage });
     return errorResponse("Erro interno do servidor", "INTERNAL_ERROR", corsHeaders, 500);
   }
 });
