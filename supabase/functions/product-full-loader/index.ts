@@ -9,7 +9,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { handleCorsV2, PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 import { createLogger } from "../_shared/logger.ts";
 import { fetchProduct } from "./handlers/productHandler.ts";
@@ -20,10 +20,12 @@ import type { ProductFullRequest, ProductFullResponse } from "./types.ts";
 
 const logger = createLogger("product-full-loader");
 
-Deno.serve(async (req: Request) => {
+Deno.serve(async (req: Request): Promise<Response> => {
   // Handle CORS preflight
-  const corsResponse = handleCorsV2(req);
-  if (corsResponse) return corsResponse;
+  const corsResult = handleCorsV2(req);
+  if (corsResult instanceof Response) return corsResult;
+  
+  const corsHeaders = corsResult.headers;
 
   try {
     // Create Supabase client
@@ -40,7 +42,7 @@ Deno.serve(async (req: Request) => {
     } catch (_authError) {
       return new Response(
         JSON.stringify({ success: false, error: "Não autenticado" }),
-        { status: 401, headers: PUBLIC_CORS_HEADERS }
+        { status: 401, headers: corsHeaders }
       );
     }
 
@@ -51,14 +53,14 @@ Deno.serve(async (req: Request) => {
     if (action !== "load-full") {
       return new Response(
         JSON.stringify({ success: false, error: "Invalid action" }),
-        { status: 400, headers: PUBLIC_CORS_HEADERS }
+        { status: 400, headers: corsHeaders }
       );
     }
 
     if (!productId) {
       return new Response(
         JSON.stringify({ success: false, error: "productId is required" }),
-        { status: 400, headers: PUBLIC_CORS_HEADERS }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -90,7 +92,7 @@ Deno.serve(async (req: Request) => {
 
     return new Response(
       JSON.stringify({ success: true, data: response }),
-      { status: 200, headers: PUBLIC_CORS_HEADERS }
+      { status: 200, headers: corsHeaders }
     );
 
   } catch (error) {
@@ -99,7 +101,7 @@ Deno.serve(async (req: Request) => {
 
     return new Response(
       JSON.stringify({ success: false, error: message }),
-      { status: 500, headers: PUBLIC_CORS_HEADERS }
+      { status: 500, headers: corsHeaders }
     );
   }
 });
