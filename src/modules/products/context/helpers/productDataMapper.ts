@@ -105,18 +105,28 @@ export function mapOfferRecords(records: OfferRecord[]): Offer[] {
 
 // ============================================================================
 // ORDER BUMPS MAPPER
+// Mapeia colunas REAIS do banco: custom_title, custom_description, discount_price
 // ============================================================================
 
 export function mapOrderBumpRecords(records: OrderBumpRecord[]): OrderBump[] {
-  return records.map((record) => ({
-    id: record.id,
-    name: record.title,
-    description: record.description,
-    price: record.special_price,
-    image_url: null,
-    bump_product_id: record.bump_product_id,
-    created_at: record.created_at,
-  }));
+  return records.map((record) => {
+    // Extrair dados da relação com produto
+    const product = record.products;
+    
+    return {
+      id: record.id,
+      // Nome: custom_title > nome do produto > fallback
+      name: record.custom_title ?? product?.name ?? "",
+      description: record.custom_description,
+      // Preço: discount_price (se ativo) > preço do produto > 0
+      price: record.discount_enabled && record.discount_price != null 
+        ? record.discount_price 
+        : product?.price ?? 0,
+      image_url: record.show_image ? product?.image_url ?? null : null,
+      bump_product_id: record.product_id,
+      created_at: record.created_at,
+    };
+  });
 }
 
 // ============================================================================

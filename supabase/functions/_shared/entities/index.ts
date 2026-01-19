@@ -29,6 +29,7 @@ export {
 // Order Bumps
 export { 
   fetchProductOrderBumps,
+  fetchProductOrderBumpsWithRelations,
 } from "./orderBumps.ts";
 
 // Checkouts

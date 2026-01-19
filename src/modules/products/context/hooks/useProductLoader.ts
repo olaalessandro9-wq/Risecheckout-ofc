@@ -50,20 +50,35 @@ export interface OfferRecord {
   updated_at: string | null;
 }
 
+/**
+ * OrderBumpRecord - Corresponde EXATAMENTE ao schema order_bumps do banco
+ * 
+ * Colunas reais: id, checkout_id, product_id, offer_id, position, active,
+ * discount_enabled, discount_price, call_to_action, custom_title,
+ * custom_description, show_image, created_at, updated_at
+ */
 export interface OrderBumpRecord {
   id: string;
+  checkout_id: string;
   product_id: string;
-  bump_product_id: string;
-  bump_offer_id: string;
-  title: string;
-  description: string | null;
-  call_to_action: string;
-  display_price: number;
-  special_price: number;
+  offer_id: string | null;
   position: number;
   active: boolean;
+  discount_enabled: boolean | null;
+  discount_price: number | null;
+  call_to_action: string | null;
+  custom_title: string | null;
+  custom_description: string | null;
+  show_image: boolean | null;
   created_at: string;
   updated_at: string | null;
+  // Relação com produto (para exibir nome e imagem)
+  products?: {
+    id: string;
+    name: string;
+    price: number;
+    image_url: string | null;
+  } | null;
 }
 
 export interface CheckoutRecord {

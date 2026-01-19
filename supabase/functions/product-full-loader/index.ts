@@ -15,7 +15,7 @@ import { createLogger } from "../_shared/logger.ts";
 import {
   fetchProduct,
   fetchProductOffers,
-  fetchProductOrderBumps,
+  fetchProductOrderBumpsWithRelations,
   fetchProductCheckoutsWithRelations,
   fetchProductPaymentLinksWithRelations,
   fetchProductCoupons,
@@ -83,7 +83,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     ] = await Promise.all([
       fetchProduct(supabase, productId, vendorId),
       fetchProductOffers(supabase, productId),
-      fetchProductOrderBumps(supabase, productId),
+      fetchProductOrderBumpsWithRelations(supabase, productId),
       fetchProductCheckoutsWithRelations(supabase, productId),
       fetchProductPaymentLinksWithRelations(supabase, productId),
       fetchProductCoupons(supabase, productId),
