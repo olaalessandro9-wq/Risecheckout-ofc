@@ -6,7 +6,7 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { handleCors } from "../_shared/cors.ts";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { getAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 
@@ -22,7 +22,7 @@ import {
 } from "../_shared/integration-handlers.ts";
 
 serve(withSentry("integration-management", async (req) => {
-  const corsResult = handleCors(req);
+  const corsResult = handleCorsV2(req);
   if (corsResult instanceof Response) return corsResult;
   const corsHeaders = corsResult.headers;
 

@@ -1,124 +1,33 @@
 /**
- * CORS Configuration Helper
+ * @deprecated DEPRECATED since 2026-01-19
  * 
- * Centraliza a configuração de CORS para todas as Edge Functions.
+ * ⚠️ USE cors-v2.ts INSTEAD ⚠️
  * 
- * SECURITY FIX (VULN-008): Retorna null para origens inválidas
- * em vez de fallback inseguro para o primeiro domínio.
+ * Este arquivo está DEPRECATED e será removido em versões futuras.
+ * Todas as funções devem usar cors-v2.ts que implementa
+ * separação de ambiente (production/development) via secrets.
  * 
- * @version 2.0.0 - Security hardened
+ * MOTIVO DA DEPRECAÇÃO:
+ * - localhost hardcoded = vulnerabilidade em produção
+ * - Sem separação de ambiente
+ * - Não usa secrets para origens permitidas
+ * 
+ * COMO MIGRAR:
+ * 1. Trocar import de "../_shared/cors.ts" para "../_shared/cors-v2.ts"
+ * 2. Trocar handleCors(req) para handleCorsV2(req)
+ * 3. Trocar getCorsHeaders(origin) para getCorsHeadersV2(origin)
+ * 
+ * @version 3.0.0 - DEPRECATED (re-exports from cors-v2.ts)
+ * @see cors-v2.ts
  */
 
-import { createLogger } from "./logger.ts";
+// Re-export everything from cors-v2 for backwards compatibility
+export { 
+  handleCorsV2 as handleCors,
+  getCorsHeadersV2 as getCorsHeaders,
+  createCorsErrorResponseV2 as createCorsErrorResponse,
+  PUBLIC_CORS_HEADERS,
+} from "./cors-v2.ts";
 
-const log = createLogger("CORS");
-
-/**
- * Lista de origens permitidas para CORS
- * 
- * SECURITY: Apenas domínios explícitos - zero patterns genéricos
- * Atualizado: 2026-01-17 - CORS x-correlation-id fix
- */
-export const ALLOWED_ORIGINS = [
-  // === PRODUÇÃO ===
-  "https://risecheckout.com",
-  "https://www.risecheckout.com",
-  
-  // === STAGING/PREVIEW (Lovable) - DOMÍNIOS ESPECÍFICOS ===
-  "https://biz-bridge-bliss.lovable.app",
-  "https://preview--biz-bridge-bliss.lovable.app",
-  "https://id-preview--ed9257df-d9f6-4a5e-961f-eca053f14944.lovable.app",
-  
-  // === DESENVOLVIMENTO LOCAL ===
-  "http://localhost:5173",
-  "http://localhost:3000",
-  "http://127.0.0.1:5173",
-  "http://127.0.0.1:3000",
-];
-
-/**
- * Retorna os headers CORS se origem for válida, ou null se inválida
- * 
- * SECURITY: Não faz fallback para origens inválidas
- * 
- * @param origin - Header Origin da requisição
- * @returns Headers CORS configurados ou null se origem inválida
- */
-export function getCorsHeaders(origin: string | null): Record<string, string> | null {
-  // Se não há origin (ex: requisições server-to-server), permite
-  if (!origin) {
-    return {
-      "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
-      "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-buyer-session, x-producer-session-token, x-correlation-id",
-      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-      "Access-Control-Allow-Credentials": "true", // CRITICAL: Required for httpOnly cookies
-      "Access-Control-Max-Age": "86400",
-    };
-  }
-
-  // Verifica se origem está na lista permitida
-  if (!ALLOWED_ORIGINS.includes(origin)) {
-    log.warn(`⚠️ Origem bloqueada: ${origin}`);
-    return null; // SECURITY: Retorna null para origens não permitidas
-  }
-
-  return {
-    "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-buyer-session, x-producer-session-token, x-correlation-id",
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "Access-Control-Allow-Credentials": "true", // CRITICAL: Required for httpOnly cookies
-    "Access-Control-Max-Age": "86400",
-  };
-}
-
-/**
- * Cria uma Response 403 para requisições de origens não autorizadas
- */
-export function createCorsErrorResponse(): Response {
-  return new Response(
-    JSON.stringify({ 
-      error: "Forbidden", 
-      message: "Origin not allowed" 
-    }),
-    { 
-      status: 403, 
-      headers: { "Content-Type": "application/json" } 
-    }
-  );
-}
-
-/**
- * Helper para tratar CORS em Edge Functions
- * Retorna Response se origem inválida ou se for preflight
- * Retorna null se deve continuar processando
- */
-export function handleCors(req: Request): { headers: Record<string, string> } | Response {
-  const origin = req.headers.get("origin");
-  const corsHeaders = getCorsHeaders(origin);
-
-  // Origem inválida - retorna 403
-  if (!corsHeaders) {
-    return createCorsErrorResponse();
-  }
-
-  // Preflight request - retorna OK com headers CORS
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
-  // Origem válida - retorna headers para uso
-  return { headers: corsHeaders };
-}
-
-/**
- * Headers CORS para funções que precisam aceitar qualquer origem
- * (ex: webhooks públicos de gateways de pagamento)
- * 
- * USE COM CAUTELA - apenas para endpoints que recebem callbacks externos
- */
-export const PUBLIC_CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-producer-session-token, x-buyer-session, x-correlation-id",
-  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Max-Age": "86400",
-};
+// Legacy export for type compatibility (empty array - use cors-v2.ts for actual origins)
+export const ALLOWED_ORIGINS: string[] = [];

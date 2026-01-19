@@ -13,13 +13,13 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { handleCors } from "../_shared/cors.ts";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 
 Deno.serve(async (req) => {
-  // SECURITY: Validação CORS com bloqueio de origens inválidas
-  const corsResult = handleCors(req);
+  // SECURITY: CORS V2 com separação de ambiente (prod/dev)
+  const corsResult = handleCorsV2(req);
   if (corsResult instanceof Response) {
     return corsResult; // Retorna 403 ou preflight response
   }

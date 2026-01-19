@@ -12,7 +12,7 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { handleCors, PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
+import { handleCorsV2, PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { 
   rateLimitMiddleware, 
   RATE_LIMIT_CONFIGS,
@@ -156,8 +156,8 @@ async function validateSession(
 // ============================================
 
 serve(async (req) => {
-  // CORS handling
-  const corsResult = handleCors(req);
+  // CORS handling (V2 - environment-aware)
+  const corsResult = handleCorsV2(req);
   if (corsResult instanceof Response) {
     return corsResult;
   }

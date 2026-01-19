@@ -10,7 +10,7 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { handleCors } from "../_shared/cors.ts";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { rateLimitMiddleware, getClientIP } from "../_shared/rate-limiting/index.ts";
 import { sendEmail } from "../_shared/zeptomail.ts";
 
@@ -336,8 +336,8 @@ function generateCompletionEmailHtml(summary: { total_records: number; tables_af
 // ============================================================================
 
 serve(async (req: Request) => {
-  // 1. CORS
-  const corsResult = handleCors(req);
+  // 1. CORS (V2 - environment-aware)
+  const corsResult = handleCorsV2(req);
   if (corsResult instanceof Response) {
     return corsResult;
   }

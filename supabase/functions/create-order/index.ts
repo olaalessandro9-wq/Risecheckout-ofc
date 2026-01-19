@@ -23,7 +23,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { rateLimitOnlyMiddleware, getIdentifier, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiting/index.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
-import { handleCors } from "../_shared/cors.ts";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { validateCreateOrderInput, createValidationErrorResponse } from "../_shared/validators.ts";
 import { validateProduct, type ProductValidationResult } from "./handlers/product-validator.ts";
 import { processBumps, type BumpProcessingResult } from "./handlers/bump-processor.ts";
@@ -59,8 +59,8 @@ interface ProductData {
 // === MAIN HANDLER ===
 
 serve(withSentry('create-order', async (req) => {
-  // 0. SECURITY: Validação CORS com bloqueio de origens inválidas
-  const corsResult = handleCors(req);
+  // 0. SECURITY: CORS V2 com separação de ambiente (prod/dev)
+  const corsResult = handleCorsV2(req);
   if (corsResult instanceof Response) {
     return corsResult; // Retorna 403 ou preflight response
   }
