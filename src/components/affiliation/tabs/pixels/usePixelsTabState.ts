@@ -8,6 +8,9 @@
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("UsePixelsTabState");
 import type { AffiliatePixel } from "@/hooks/useAffiliationDetails";
 import { 
   type Platform, 
@@ -145,7 +148,7 @@ export function usePixelsTabState({
       toast.success("Pixels salvos com sucesso!");
       await onRefetch();
     } catch (err: unknown) {
-      console.error("Erro ao salvar pixels:", err);
+      log.error("Erro ao salvar pixels:", err);
       toast.error(err instanceof Error ? err.message : "Erro ao salvar pixels");
     } finally {
       setIsSaving(false);

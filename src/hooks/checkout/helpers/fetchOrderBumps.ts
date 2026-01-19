@@ -6,6 +6,9 @@
  */
 
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("FetchOrderBumps");
 
 interface FetchOrderBumpsResponse {
   success?: boolean;
@@ -55,12 +58,12 @@ export async function fetchOrderBumps(checkoutId: string): Promise<OrderBumpForm
   });
 
   if (error) {
-    console.error('[fetchOrderBumps] Edge function error:', error);
+    log.error("Edge function error:", error);
     return [];
   }
 
   if (!data?.success) {
-    console.error('[fetchOrderBumps] Invalid response:', data);
+    log.error("Invalid response:", data);
     return [];
   }
 

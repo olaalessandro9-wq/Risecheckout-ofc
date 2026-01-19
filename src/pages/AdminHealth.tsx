@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
 import { getSystemHealthSummaryRpc, getUnresolvedErrorsRpc, getWebhookStats24hRpc } from "@/lib/rpc/rpcProxy";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -7,6 +8,8 @@ import { Loader2, AlertCircle, CheckCircle, XCircle, TrendingUp } from "lucide-r
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { toast } from "sonner";
 import type { SystemMetric, UnresolvedError, WebhookStats } from "@/types/admin-health.types";
+
+const log = createLogger("AdminHealth");
 
 interface ResolveErrorResponse {
   success: boolean;
@@ -50,7 +53,7 @@ export default function AdminHealth() {
       setWebhookStats(stats);
 
     } catch (error: unknown) {
-      console.error("Erro ao carregar dados:", error);
+      log.error("Erro ao carregar dados:", error);
     } finally {
       setLoading(false);
     }
@@ -77,7 +80,7 @@ export default function AdminHealth() {
       toast.success("Erro marcado como resolvido");
       loadData();
     } catch (error: unknown) {
-      console.error("Erro ao resolver:", error);
+      log.error("Erro ao resolver:", error);
       toast.error("Erro ao marcar como resolvido");
     } finally {
       setResolvingIds(prev => {

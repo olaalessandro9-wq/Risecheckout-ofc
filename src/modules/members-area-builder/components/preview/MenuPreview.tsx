@@ -10,12 +10,15 @@
 import React, { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { createLogger } from '@/lib/logger';
 import * as Icons from 'lucide-react';
 import { ChevronLeft, ChevronRight, Plus, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { MembersAreaBuilderSettings } from '../../types/builder.types';
+
+const log = createLogger("MenuPreview");
 
 interface ProfileResponse {
   success?: boolean;
@@ -76,12 +79,12 @@ export function MenuPreview({
       });
       
       if (error) {
-        console.error("Error fetching profile:", error);
+        log.error("Error fetching profile:", error);
         return null;
       }
       
       if (!data?.success) {
-        console.error("Error fetching profile:", data?.error);
+        log.error("Error fetching profile:", data?.error);
         return null;
       }
       

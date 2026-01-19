@@ -12,9 +12,12 @@
 
 import { useCallback } from 'react';
 import { api } from '@/lib/api';
+import { createLogger } from '@/lib/logger';
 import { toast } from 'sonner';
 import type { MemberModule } from '../types/builder.types';
 import type { BuilderAction } from '../state/builderReducer';
+
+const log = createLogger("UseMembersAreaModulesEdit");
 
 interface ModuleUpdateResponse {
   success?: boolean;
@@ -54,7 +57,7 @@ export function useMembersAreaModulesEdit({
       
       toast.success('Módulo atualizado');
     } catch (error: unknown) {
-      console.error('[useMembersAreaBuilder] Update module error:', error);
+      log.error("Update module error:", error);
       toast.error('Erro ao atualizar módulo');
     }
   }, [dispatch]);
