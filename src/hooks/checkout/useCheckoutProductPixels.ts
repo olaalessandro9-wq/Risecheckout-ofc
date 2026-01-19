@@ -7,7 +7,10 @@
 
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
 import type { PixelPlatform } from "@/components/pixels/types";
+
+const log = createLogger("UseCheckoutProductPixels");
 
 export interface CheckoutPixel {
   id: string;
@@ -66,19 +69,19 @@ export function useCheckoutProductPixels(productId: string | null): UseCheckoutP
         });
 
         if (fnError) {
-          console.error("[useCheckoutProductPixels] Edge function error:", fnError);
+          log.error("Edge function error:", fnError);
           throw fnError;
         }
 
         if (!data?.success) {
-          console.error("[useCheckoutProductPixels] API error:", data?.error);
+          log.error("API error:", data?.error);
           setPixels([]);
           return;
         }
 
         setPixels(data.data || []);
       } catch (err) {
-        console.error("[useCheckoutProductPixels] Error:", err);
+        log.error("Error:", err);
         setError("Erro ao carregar pixels");
         setPixels([]);
       } finally {

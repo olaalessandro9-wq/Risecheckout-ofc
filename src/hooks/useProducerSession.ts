@@ -16,6 +16,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SUPABASE_URL } from "@/config/supabase";
 import { producerTokenManager } from "@/lib/token-manager";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("UseProducerSession");
 
 // Export query key for use in other hooks
 export const producerSessionQueryKey = ["producer-session"] as const;
@@ -59,7 +62,7 @@ async function validateProducerSession(): Promise<SessionData> {
     producerTokenManager.clearTokens();
     return { valid: false, producer: null };
   } catch (error: unknown) {
-    console.error("Error validating producer session:", error);
+    log.error("Error validating session:", error);
     return { valid: false, producer: null };
   }
 }

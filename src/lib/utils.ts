@@ -1,5 +1,8 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("Utils");
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -30,7 +33,7 @@ export function parseJsonSafely<T>(jsonString: unknown, defaultValue: T): T {
       }
     } catch (e) {
       // Se o parse falhar, loga o erro e retorna o valor padrão
-      console.error("Erro ao parsear JSON:", e, "String:", jsonString);
+      log.error("Erro ao parsear JSON:", e, "String:", jsonString);
       return defaultValue;
     }
   }

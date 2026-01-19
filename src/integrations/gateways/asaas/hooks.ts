@@ -6,6 +6,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger("AsaasHooks");
 import {
   getAsaasSettings,
   saveAsaasSettings,
@@ -69,7 +72,7 @@ export function useAsaasConfig(): UseAsaasConfigReturn {
         });
       }
     } catch (err) {
-      console.error('[useAsaasConfig] Error:', err);
+      log.error("Config error:", err);
       setError('Erro ao carregar configuração');
       setConfig(null);
     } finally {
@@ -233,7 +236,7 @@ export function useAsaasConnectionStatus(): UseAsaasConnectionStatusReturn {
       const connected = await isAsaasConnected(user.id);
       setIsConnected(connected);
     } catch (err) {
-      console.error('[useAsaasConnectionStatus] Error:', err);
+      log.error("Connection status error:", err);
       setIsConnected(false);
     } finally {
       setIsLoading(false);
