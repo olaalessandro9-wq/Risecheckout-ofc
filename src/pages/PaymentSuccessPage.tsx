@@ -10,6 +10,9 @@ import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { CheckCircle2, Mail, MessageCircle, Copy, Check, Package, ShoppingBag, GraduationCap, ArrowRight, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("PaymentSuccessPage");
 
 interface OrderDetailsResponse {
   data?: OrderDetails;
@@ -72,12 +75,12 @@ export const PaymentSuccessPage = () => {
         });
 
         if (error || result?.error) {
-          console.error('[PaymentSuccessPage] Erro ao buscar pedido:', error || result?.error);
+          log.error('Erro ao buscar pedido:', error || result?.error);
         } else if (result?.data) {
           setOrderDetails(result.data as OrderDetails);
         }
       } catch (err) {
-        console.error('[PaymentSuccessPage] Erro:', err);
+        log.error('Erro:', err);
       } finally {
         setLoading(false);
       }
@@ -120,7 +123,7 @@ export const PaymentSuccessPage = () => {
       });
 
       if (error) {
-        console.error('[PaymentSuccessPage] Erro ao gerar acesso:', error);
+        log.error('Erro ao gerar acesso:', error);
         // Fallback: redirecionar para login
         navigate('/minha-conta');
         return;
@@ -134,7 +137,7 @@ export const PaymentSuccessPage = () => {
         navigate('/minha-conta');
       }
     } catch (err) {
-      console.error('[PaymentSuccessPage] Erro:', err);
+      log.error('Erro:', err);
       navigate('/minha-conta');
     } finally {
       setAccessingMembersArea(false);

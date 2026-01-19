@@ -1,4 +1,7 @@
 import DOMPurify from 'dompurify';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger("Security");
 
 // ============================================================================
 // CONFIGURAÇÃO CENTRALIZADA DE SANITIZAÇÃO HTML
@@ -61,7 +64,7 @@ export const sanitizeUrl = (url: unknown): string => {
   
   // Bloqueia protocolos perigosos
   if (/^(javascript|data|vbscript):/i.test(cleaned)) {
-    console.warn('[Security] URL maliciosa bloqueada:', cleaned.substring(0, 50));
+    log.warn('URL maliciosa bloqueada:', cleaned.substring(0, 50));
     return '';
   }
   

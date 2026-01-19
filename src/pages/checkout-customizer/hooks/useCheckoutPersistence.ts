@@ -14,9 +14,12 @@ import { hasPendingUploads, waitForUploadsToFinish, getAllComponentsFromCustomiz
 import { normalizeDesign } from "@/lib/checkout/normalizeDesign";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { createLogger } from "@/lib/logger";
 import type { CheckoutCustomization } from "@/hooks/useCheckoutEditor";
 import type { OrderBump } from "@/types/checkout";
 import type { CheckoutPersistenceState, OrderBumpApiResponse } from "../types";
+
+const log = createLogger("UseCheckoutPersistence");
 
 interface EditorDataResponse {
   success: boolean;
@@ -116,7 +119,7 @@ export function useCheckoutPersistence({
         setOrderBumps([]);
       }
     } catch (error: unknown) {
-      console.error('[useCheckoutPersistence] Load error:', error);
+      log.error('Load error:', error);
       toast({ title: "Erro ao carregar", description: error instanceof Error ? error.message : "Erro desconhecido", variant: "destructive" });
     } finally {
       setLoading(false);
@@ -169,7 +172,7 @@ export function useCheckoutPersistence({
         toast({ title: "Sucesso!", description: "Checkout salvo." });
 
     } catch (error: unknown) {
-        console.error('[useCheckoutPersistence] Save error:', error);
+        log.error('Save error:', error);
         toast({ title: "Erro ao salvar", description: error instanceof Error ? error.message : "Erro desconhecido", variant: "destructive" });
     } finally {
         setIsSaving(false);
