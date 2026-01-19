@@ -3,6 +3,8 @@
  * 
  * Responsabilidade ÚNICA: Processar pagamentos PIX por gateway
  * 
+ * @version 3.0.0 - RISE Protocol V3 - Zero console.log
+ * 
  * Gateways suportados:
  * - PushinPay: Navega direto (QR gerado na página)
  * - Mercado Pago: Chama edge function, navega com QR
@@ -17,7 +19,10 @@ import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { SUPABASE_URL } from "@/config/supabase";
+import { createLogger } from "@/lib/logger";
 import type { PixGateway, PaymentConfig, PixNavigationState } from "./types";
+
+const log = createLogger("PixPayment");
 
 interface MercadoPagoPixResponse {
   success: boolean;
@@ -60,7 +65,7 @@ export function usePixPayment({ config, amount }: UsePixPaymentProps): UsePixPay
     accessToken: string,
     gateway: PixGateway
   ) => {
-    console.log(`[usePixPayment] Processando PIX via ${gateway}...`);
+    log.debug(`Processando PIX via ${gateway}...`);
 
     const navigateToPixPage = (state: PixNavigationState) => {
       navigate(`/pay/pix/${orderId}`, { state });

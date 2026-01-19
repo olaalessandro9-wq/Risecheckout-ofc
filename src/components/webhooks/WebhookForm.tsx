@@ -1,6 +1,7 @@
 /**
  * WebhookForm - Formulário de Webhook
  * 
+ * @version 3.0.0 - RISE Protocol V3 - Zero console.log
  * MIGRATED: Uses Edge Function instead of supabase.from()
  */
 
@@ -13,6 +14,9 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { Checkbox } from "@/components/ui/checkbox";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("WebhookForm");
 
 interface WebhookFormProps {
   webhook?: {
@@ -66,7 +70,7 @@ export function WebhookForm({ webhook, onSave, onCancel }: WebhookFormProps) {
   // Carregar produtos do webhook DEPOIS que a lista de produtos estiver carregada
   useEffect(() => {
     if (products.length > 0 && webhook?.id) {
-      console.log("📦 Produtos carregados, agora carregando seleção do webhook");
+      log.trace("Produtos carregados, agora carregando seleção do webhook");
       loadWebhookProducts(webhook.id);
     } else if (webhook?.product_id) {
       // Fallback para webhooks antigos
@@ -83,7 +87,7 @@ export function WebhookForm({ webhook, onSave, onCancel }: WebhookFormProps) {
    */
   const loadProducts = async () => {
     if (!user?.id) {
-      console.log("User not loaded yet, skipping products load");
+      log.trace("User not loaded yet, skipping products load");
       setLoading(false);
       return;
     }
@@ -102,20 +106,20 @@ export function WebhookForm({ webhook, onSave, onCancel }: WebhookFormProps) {
       });
 
       if (error) {
-        console.error("Error loading products:", error);
+        log.error("Error loading products:", error);
         toast.error("Erro ao carregar produtos");
         return;
       }
       
       if (!data?.success) {
-        console.error("Error loading products:", data?.error);
+        log.error("Error loading products:", data?.error);
         toast.error("Erro ao carregar produtos");
         return;
       }
       
       setProducts(data.products || []);
     } catch (error: unknown) {
-      console.error("Error loading products:", error);
+      log.error("Error loading products:", error);
     } finally {
       setLoading(false);
     }
@@ -139,10 +143,10 @@ export function WebhookForm({ webhook, onSave, onCancel }: WebhookFormProps) {
       });
 
       if (error || !data?.success) {
-        console.error("Error loading webhook products:", error || data?.error);
+        log.warn("Error loading webhook products:", error || data?.error);
         // Fallback: usar product_id do webhook (compatibilidade com webhooks antigos)
         if (webhook?.product_id) {
-          console.log("🔍 Usando product_id do webhook (fallback):", webhook.product_id);
+          log.trace("Usando product_id do webhook (fallback):", webhook.product_id);
           setSelectedProductIds([webhook.product_id]);
         } else {
           setSelectedProductIds([]);
@@ -151,10 +155,10 @@ export function WebhookForm({ webhook, onSave, onCancel }: WebhookFormProps) {
       }
 
       const productIds = data.productIds || [];
-      console.log("🔍 Produtos do webhook carregados:", productIds);
+      log.trace("Produtos do webhook carregados:", productIds);
       setSelectedProductIds(productIds);
     } catch (error: unknown) {
-      console.error("Error loading webhook products:", error);
+      log.error("Error loading webhook products:", error);
       setSelectedProductIds([]);
     }
   };
@@ -218,7 +222,7 @@ export function WebhookForm({ webhook, onSave, onCancel }: WebhookFormProps) {
         product_ids: selectedProductIds,
       });
     } catch (error: unknown) {
-      console.error("Erro ao salvar webhook:", error);
+      log.error("Erro ao salvar webhook:", error);
       toast.error("Erro ao salvar webhook");
     } finally {
       setSaving(false);
@@ -286,7 +290,7 @@ export function WebhookForm({ webhook, onSave, onCancel }: WebhookFormProps) {
                   id={`product-${product.id}`}
                   checked={Array.isArray(selectedProductIds) && selectedProductIds.includes(product.id)}
                   onCheckedChange={() => {
-                    console.log("🔘 Toggle produto:", product.id, "Selecionados:", selectedProductIds);
+                    log.trace("Toggle produto:", product.id, "Selecionados:", selectedProductIds);
                     handleProductToggle(product.id);
                   }}
                 />

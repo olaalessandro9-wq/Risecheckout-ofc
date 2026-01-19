@@ -1,9 +1,18 @@
+/**
+ * CouponField - Campo de cupom de desconto
+ * 
+ * @version 3.0.0 - RISE Protocol V3 - Zero console.log
+ */
+
 import { useState } from "react";
 import { Check, Tag, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { validateCouponRpc } from "@/lib/rpc/rpcProxy";
 import { toast } from "sonner";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("CouponField");
 
 /**
  * Design colors interface para CouponField
@@ -78,13 +87,13 @@ export function CouponField({ productId, design, onCouponApplied }: CouponFieldP
     setIsValidating(true);
 
     try {
-      console.log("[CUPOM] Validando código via RPC Proxy:", couponCode);
+      log.debug("Validando código via RPC Proxy:", couponCode);
 
       // Use rpc-proxy Edge Function for secure RPC calls
       const { data, error } = await validateCouponRpc(couponCode.trim(), productId);
 
       if (error) {
-        console.error("[CUPOM] Erro na RPC:", error);
+        log.error("Erro na RPC:", error);
         toast.error("Erro ao validar cupom. Tente novamente.");
         return;
       }
@@ -92,7 +101,7 @@ export function CouponField({ productId, design, onCouponApplied }: CouponFieldP
       // Cast result to typed interface
       const result = data as unknown as ValidateCouponResult;
 
-      console.log("[CUPOM] Resultado da validação:", result);
+      log.debug("Resultado da validação:", result);
 
       // Check if coupon is valid
       if (!result?.valid) {
@@ -113,9 +122,9 @@ export function CouponField({ productId, design, onCouponApplied }: CouponFieldP
       setAppliedCoupon(appliedCouponData);
       onCouponApplied(appliedCouponData);
       toast.success(`Cupom "${result.code}" aplicado com sucesso!`);
-      console.log("[CUPOM] Cupom aplicado:", appliedCouponData);
+      log.info("Cupom aplicado:", appliedCouponData);
     } catch (error: unknown) {
-      console.error("[CUPOM] Erro ao validar cupom:", error);
+      log.error("Erro ao validar cupom:", error);
       toast.error("Erro ao validar cupom. Tente novamente.");
     } finally {
       setIsValidating(false);

@@ -1,6 +1,7 @@
 /**
  * useCardFormState - Hook para gerenciamento de estado do formulário de cartão
  * 
+ * @version 3.0.0 - RISE Protocol V3 - Zero console.log
  * Responsabilidade única: Estado do formulário (Nome, CPF, Parcelas)
  * Limite: < 100 linhas
  */
@@ -8,6 +9,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { Installment } from '@/types/payment-types';
 import { generateInstallments } from '../../../installments';
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("CardFormState");
 
 export interface CardFormState {
   cardholderName: string;
@@ -56,7 +60,7 @@ export function useCardFormState(amount: number): CardFormStateReturn {
     if (amount > 0) {
       const generatedInstallments = generateInstallments(amount);
       setInstallments(generatedInstallments);
-      console.log('[useCardFormState] Parcelas geradas:', generatedInstallments.length);
+      log.trace("Parcelas geradas:", generatedInstallments.length);
     }
   }, [amount]);
 
