@@ -1,5 +1,7 @@
 /**
  * ContentTab - Aba de gestão de conteúdo (módulos e aulas)
+ * 
+ * @version 2.0.0 - RISE Protocol V3 - Zero console.log
  */
 
 import { useState } from "react";
@@ -11,6 +13,9 @@ import { ModulesList } from "@/modules/products/tabs/members-area/components";
 import { AddModuleDialogNetflix, EditModuleDialogNetflix } from "@/modules/members-area/components/dialogs";
 import type { UseMembersAreaReturn } from "@/hooks/members-area";
 import type { EditingModuleData, ContentType } from "@/modules/members-area/types";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("ContentTab");
 
 interface ContentTabProps {
   membersAreaData: UseMembersAreaReturn;
@@ -72,12 +77,12 @@ export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
         );
 
         if (uploadError) {
-          console.error("[ContentTab] Upload error:", uploadError);
+          log.error("Upload error:", uploadError);
         } else if (publicUrl) {
           coverImageUrl = publicUrl;
         }
       } catch (error: unknown) {
-        console.error("[ContentTab] Error uploading image:", error);
+        log.error("Error uploading image:", error);
       } finally {
         setIsUploading(false);
       }
@@ -106,12 +111,12 @@ export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
         );
 
         if (uploadError) {
-          console.error("[ContentTab] Upload error:", uploadError);
+          log.error("Upload error:", uploadError);
         } else if (publicUrl) {
           coverImageUrl = publicUrl;
         }
       } catch (error: unknown) {
-        console.error("[ContentTab] Error uploading image:", error);
+        log.error("Error uploading image:", error);
       } finally {
         setIsUploading(false);
       }
