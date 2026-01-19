@@ -1,6 +1,15 @@
+/**
+ * usePaymentAccountCheck
+ * 
+ * @version 2.0.0 - RISE Protocol V3 - Zero console.log
+ */
+
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
 import { useAuth } from "@/hooks/useAuth";
+
+const log = createLogger("PaymentAccountCheck");
 
 interface PaymentAccountStatus {
   hasPaymentAccount: boolean | null;
@@ -56,7 +65,7 @@ export function usePaymentAccountCheck(): PaymentAccountStatus {
           isLoading: false,
         });
       } catch (err) {
-        console.error("Erro ao verificar conta de pagamento:", err);
+        log.error("Erro ao verificar conta de pagamento:", err);
         setStatus({
           hasPaymentAccount: false,
           hasMercadoPago: false,

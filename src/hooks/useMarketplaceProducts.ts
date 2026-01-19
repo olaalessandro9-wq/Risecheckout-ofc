@@ -1,3 +1,9 @@
+/**
+ * useMarketplaceProducts
+ * 
+ * @version 2.0.0 - RISE Protocol V3 - Zero console.log
+ */
+
 import { useState, useEffect, useCallback } from "react";
 import {
   fetchMarketplaceProducts,
@@ -5,8 +11,11 @@ import {
   type MarketplaceFilters,
   type MarketplaceProductWithDetails,
 } from "@/services/marketplace";
+import { createLogger } from "@/lib/logger";
 import { useAffiliationStatusCache } from "@/hooks/useAffiliationStatusCache";
 import type { Database } from "@/integrations/supabase/types";
+
+const log = createLogger("MarketplaceProducts");
 
 type MarketplaceCategory = Database["public"]["Tables"]["marketplace_categories"]["Row"];
 
@@ -60,7 +69,7 @@ export function useMarketplaceProducts(): UseMarketplaceProductsReturn {
         const data = await fetchMarketplaceCategories();
         setCategories(data);
       } catch (err) {
-        console.error("[useMarketplaceProducts] Erro ao carregar categorias:", err);
+        log.error("Erro ao carregar categorias:", err);
         // Não bloquear a UI se categorias falharem
       }
     };
@@ -89,7 +98,7 @@ export function useMarketplaceProducts(): UseMarketplaceProductsReturn {
       // Verificar se há mais produtos
       setHasMore(data.length === (currentFilters.limit || DEFAULT_LIMIT));
     } catch (err) {
-      console.error("[useMarketplaceProducts] Erro ao carregar produtos:", err);
+      log.error("Erro ao carregar produtos:", err);
       setError(err instanceof Error ? err : new Error("Erro ao carregar produtos"));
     } finally {
       setIsLoading(false);

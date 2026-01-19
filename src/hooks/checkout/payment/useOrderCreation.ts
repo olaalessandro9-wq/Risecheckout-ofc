@@ -126,7 +126,7 @@ export function useOrderCreation({ config }: UseOrderCreationProps): UseOrderCre
       };
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Erro ao criar pedido";
-      console.error("[useOrderCreation] ❌ Erro:", errorMessage);
+      log.error("❌ Erro:", errorMessage);
       setError(errorMessage);
       return {
         success: false,
