@@ -14,6 +14,9 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("dashboard-orders");
 
 // ==========================================
 // CONSTANTS
@@ -241,7 +244,7 @@ async function handleRecentOrders(
   // Adjust dates for timezone
   const { adjustedStart, adjustedEnd } = adjustDateRangeForTimezone(startDate, endDate, timezone);
   
-  console.log(`[dashboard-orders] Recent: timezone=${timezone}, original=${startDate}/${endDate}, adjusted=${adjustedStart}/${adjustedEnd}`);
+  log.debug(`Recent: timezone=${timezone}, original=${startDate}/${endDate}, adjusted=${adjustedStart}/${adjustedEnd}`);
   
   const { data: orders, error } = await supabase
     .from("orders")
@@ -253,7 +256,7 @@ async function handleRecentOrders(
     .limit(limit);
 
   if (error) {
-    console.error("[dashboard-orders] Recent orders error:", error);
+    log.error("Recent orders error:", error);
     return errorResponse("Erro ao buscar pedidos recentes", "DB_ERROR", corsHeaders, 500);
   }
 
@@ -271,7 +274,7 @@ async function handleChartOrders(
   // Adjust dates for timezone
   const { adjustedStart, adjustedEnd } = adjustDateRangeForTimezone(startDate, endDate, timezone);
   
-  console.log(`[dashboard-orders] Chart: timezone=${timezone}, original=${startDate}/${endDate}, adjusted=${adjustedStart}/${adjustedEnd}`);
+  log.debug(`Chart: timezone=${timezone}, original=${startDate}/${endDate}, adjusted=${adjustedStart}/${adjustedEnd}`);
   
   const { data: orders, error } = await supabase
     .from("orders")
@@ -282,7 +285,7 @@ async function handleChartOrders(
     .order("created_at", { ascending: true });
 
   if (error) {
-    console.error("[dashboard-orders] Chart orders error:", error);
+    log.error("Chart orders error:", error);
     return errorResponse("Erro ao buscar pedidos para gráfico", "DB_ERROR", corsHeaders, 500);
   }
 
@@ -330,11 +333,11 @@ serve(async (req) => {
 
     // Security check: Producer can only access their own data
     if (vendorId !== producer.id) {
-      console.warn(`[dashboard-orders] Producer ${producer.id} tried to access vendor ${vendorId}`);
+      log.warn(`Producer ${producer.id} tried to access vendor ${vendorId}`);
       return errorResponse("Acesso negado", "FORBIDDEN", corsHeaders, 403);
     }
 
-    console.log(`[dashboard-orders] Action: ${action}, Producer: ${producer.id}, Timezone: ${timezone}`);
+    log.info(`Action: ${action}, Producer: ${producer.id}, Timezone: ${timezone}`);
 
     switch (action) {
       case "recent":
@@ -348,7 +351,7 @@ serve(async (req) => {
     }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("[dashboard-orders] Error:", errorMessage);
+    log.error("Error:", errorMessage);
     return errorResponse("Erro interno do servidor", "INTERNAL_ERROR", corsHeaders, 500);
   }
 });

@@ -19,6 +19,9 @@ import {
   getClientIP 
 } from "../_shared/rate-limiting/index.ts";
 import { getBuyerAccessToken } from "../_shared/session-reader.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("buyer-orders");
 
 // ============================================
 // INTERFACES
@@ -180,7 +183,7 @@ serve(async (req) => {
       corsHeaders
     );
     if (rateLimitResult) {
-      console.warn(`[buyer-orders] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      log.warn(`Rate limit exceeded for IP: ${getClientIP(req)}`);
       return rateLimitResult;
     }
 
@@ -199,7 +202,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[buyer-orders] Action: ${action}, Buyer: ${buyer.email}`);
+    log.debug(`Action: ${action}, Buyer: ${buyer.email}`);
 
     // ============================================
     // ORDERS - Listar pedidos do buyer
@@ -227,7 +230,7 @@ serve(async (req) => {
         .order("created_at", { ascending: false });
 
       if (error) {
-        console.error("[buyer-orders] Error fetching orders:", error);
+        log.error("Error fetching orders:", error);
         return new Response(
           JSON.stringify({ error: "Erro ao buscar pedidos" }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -267,7 +270,7 @@ serve(async (req) => {
         .eq("is_active", true);
 
       if (error) {
-        console.error("[buyer-orders] Error fetching access:", error);
+        log.error("Error fetching access:", error);
         return new Response(
           JSON.stringify({ error: "Erro ao buscar acessos" }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -279,12 +282,12 @@ serve(async (req) => {
         .rpc('get_user_id_by_email', { user_email: buyer.email });
 
       if (rpcError) {
-        console.log(`[buyer-orders] RPC error getting producer id for ${buyer.email}:`, rpcError);
+        log.debug(`RPC error getting producer id for ${buyer.email}:`, rpcError);
       }
 
       let ownProducts: AccessItem[] = [];
       if (producerId) {
-        console.log(`[buyer-orders] Found producer id ${producerId} for ${buyer.email}`);
+        log.debug(`Found producer id ${producerId} for ${buyer.email}`);
         const { data: products, error: productsError } = await supabase
           .from("products")
           .select("id, name, description, image_url, members_area_enabled, user_id")
@@ -292,11 +295,11 @@ serve(async (req) => {
           .eq("members_area_enabled", true);
         
         if (productsError) {
-          console.log(`[buyer-orders] Error fetching producer products:`, productsError);
+          log.debug(`Error fetching producer products:`, productsError);
         }
 
         if (products && products.length > 0) {
-          console.log(`[buyer-orders] Found ${products.length} products owned by producer`);
+          log.debug(`Found ${products.length} products owned by producer`);
           ownProducts = products.map((p: OwnProductRow) => ({
             id: `own_${p.id}`,
             product_id: p.id,
@@ -308,7 +311,7 @@ serve(async (req) => {
           }));
         }
       } else {
-        console.log(`[buyer-orders] No producer id found for ${buyer.email}`);
+        log.debug(`No producer id found for ${buyer.email}`);
       }
 
       // 3. Unificar e remover duplicatas (prioriza owner se existir)
@@ -326,7 +329,7 @@ serve(async (req) => {
         }
       }
 
-      console.log(`[buyer-orders] Access for ${buyer.email}: ${uniqueProducts.size} products (${ownProducts.length} own)`);
+      log.info(`Access for ${buyer.email}: ${uniqueProducts.size} products (${ownProducts.length} own)`);
 
       return new Response(
         JSON.stringify({ access: Array.from(uniqueProducts.values()) }),
@@ -381,7 +384,7 @@ serve(async (req) => {
         );
       }
 
-      console.log(`[buyer-orders] Content access for ${buyer.email} to product ${productId}: hasAccess=${!!hasAccess}, isOwner=${isOwner}`);
+      log.debug(`Content access for ${buyer.email} to product ${productId}: hasAccess=${!!hasAccess}, isOwner=${isOwner}`);
 
       // Get product info
       const { data: product } = await supabase
@@ -415,7 +418,7 @@ serve(async (req) => {
         .order("position", { ascending: true });
 
       if (sectionsError) {
-        console.log("[buyer-orders] Error fetching sections (table may not exist):", sectionsError);
+        log.debug("Error fetching sections (table may not exist):", sectionsError);
       }
 
       // Get modules with content
@@ -444,7 +447,7 @@ serve(async (req) => {
         .order("position", { ascending: true });
 
       if (modulesError) {
-        console.error("[buyer-orders] Error fetching modules:", modulesError);
+        log.error("Error fetching modules:", modulesError);
         return new Response(
           JSON.stringify({ error: "Erro ao buscar conteúdo" }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -471,7 +474,7 @@ serve(async (req) => {
           .order("position", { ascending: true });
 
         if (attachments && attachments.length > 0) {
-          console.log(`[buyer-orders] Found ${attachments.length} attachments for ${allContentIds.length} contents`);
+          log.debug(`Found ${attachments.length} attachments for ${allContentIds.length} contents`);
           for (const att of attachments as AttachmentRecord[]) {
             if (!attachmentsMap[att.content_id]) {
               attachmentsMap[att.content_id] = [];
@@ -534,7 +537,7 @@ serve(async (req) => {
     );
 
   } catch (error: unknown) {
-    console.error("[buyer-orders] Error:", error);
+    log.error("Error:", error);
     return new Response(
       JSON.stringify({ error: "Erro interno do servidor" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

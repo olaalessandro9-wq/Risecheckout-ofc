@@ -18,6 +18,9 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("buyer-auth");
 
 // Import handlers - Core (register, login, logout)
 import {
@@ -61,7 +64,7 @@ serve(async (req) => {
     const url = new URL(req.url);
     const action = url.pathname.split("/").pop();
 
-    console.log(`[buyer-auth] Action: ${action}`);
+    log.info(`Action: ${action}`);
 
     // ============================================
     // ROUTE TO HANDLERS
@@ -126,7 +129,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[buyer-auth] Unexpected error:", errorMessage);
+    log.error("Unexpected error:", errorMessage);
     return new Response(
       JSON.stringify({ error: "Erro interno do servidor" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

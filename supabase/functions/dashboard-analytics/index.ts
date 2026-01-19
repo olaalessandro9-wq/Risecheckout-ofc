@@ -12,6 +12,9 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("dashboard-analytics");
 
 // ==========================================
 // TYPES
@@ -187,7 +190,7 @@ serve(async (req) => {
     }
 
     const producerId = producer.id;
-    console.log(`[dashboard-analytics] Producer: ${producerId}`);
+    log.debug(`Producer: ${producerId}`);
 
     // Parse parameters
     const url = new URL(req.url);
@@ -208,7 +211,7 @@ serve(async (req) => {
     }
 
     const startDate = getStartDate(period);
-    console.log(`[dashboard-analytics] Period: ${period}, StartDate: ${startDate.toISOString()}`);
+    log.info(`Period: ${period}, StartDate: ${startDate.toISOString()}`);
 
     // Build orders query
     let ordersQuery = supabase
@@ -224,7 +227,7 @@ serve(async (req) => {
     const { data: ordersData, error: ordersError } = await ordersQuery;
 
     if (ordersError) {
-      console.error("[dashboard-analytics] Orders query error:", ordersError);
+      log.error("Orders query error:", ordersError);
       return errorResponse("Erro ao buscar dados de pedidos", corsHeaders, 500);
     }
 
@@ -256,12 +259,12 @@ serve(async (req) => {
       analytics.topProducts = await fetchTopProducts(supabase, producerId, startDate);
     }
 
-    console.log(`[dashboard-analytics] Response: ${analytics.totalOrders} orders, ${analytics.totalRevenue} revenue`);
+    log.info(`Response: ${analytics.totalOrders} orders, ${analytics.totalRevenue} revenue`);
 
     return jsonResponse(analytics, corsHeaders);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("[dashboard-analytics] Error:", errorMessage);
+    log.error("Error:", errorMessage);
     return errorResponse("Erro interno do servidor", corsHeaders, 500);
   }
 });
