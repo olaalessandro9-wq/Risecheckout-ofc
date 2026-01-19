@@ -406,3 +406,6 @@ verify_jwt = false
 
 [functions.rls-documentation-generator]
 verify_jwt = false
+
+[functions.key-rotation-executor]
+verify_jwt = false
