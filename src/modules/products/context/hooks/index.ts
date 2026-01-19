@@ -24,4 +24,14 @@ export { useProductLoader, productQueryKeys } from "./useProductLoader";
 export { useProductDataMapper } from "./useProductDataMapper";
 
 // Re-export types for external consumption
-export type { ProductFullData, ProductRecord, OfferRecord, OrderBumpRecord, CheckoutRecord, PaymentLinkRecord, CouponRecord } from "./useProductLoader";
+export type { 
+  ProductFullData, 
+  ProductRecord, 
+  OfferRecord, 
+  OrderBumpRecord, 
+  CheckoutRecord, 
+  PaymentLinkRecord, 
+  CouponRecord,
+  UseProductLoaderOptions,
+  UseProductLoaderReturn,
+} from "./useProductLoader";
