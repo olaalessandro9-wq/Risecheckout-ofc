@@ -17,6 +17,9 @@ import { useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("ContentEditorView");
 import {
   TitleSection,
   VideoSection,
@@ -120,7 +123,7 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
       toast.success(isNew ? "Conteúdo criado com sucesso!" : "Conteúdo atualizado com sucesso!");
       onSave();
     } catch (err) {
-      console.error("[ContentEditorView] Save exception:", err);
+      log.error("Save exception:", err);
       toast.error("Erro ao salvar conteúdo");
     }
   }, [canSave, isNew, moduleId, contentId, content, release, attachments, onSave, productId]);

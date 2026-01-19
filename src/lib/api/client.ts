@@ -26,8 +26,10 @@
 import { SUPABASE_URL } from "@/config/supabase";
 import type { ApiResponse, ApiError } from "./types";
 import { parseHttpError, parseNetworkError, createApiError } from "./errors";
-
 import { producerTokenManager } from "@/lib/token-manager";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("API");
 
 // ============================================
 // CONSTANTS
@@ -125,7 +127,7 @@ async function call<T>(
     // Handle non-OK responses
     if (!response.ok) {
       const error = parseHttpError(response.status, responseBody);
-      console.error(`[API] ${functionName} failed:`, {
+      log.error(`${functionName} failed:`, {
         correlationId,
         status: response.status,
         error,
@@ -140,7 +142,7 @@ async function call<T>(
     clearTimeout(timeoutId);
     
     const apiError = parseNetworkError(error);
-    console.error(`[API] ${functionName} network error:`, {
+    log.error(`${functionName} network error:`, {
       correlationId,
       error: apiError,
     });
