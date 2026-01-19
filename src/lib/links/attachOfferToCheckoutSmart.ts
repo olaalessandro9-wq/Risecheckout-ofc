@@ -6,6 +6,9 @@
 
 import { invokeRpc } from "@/lib/rpc/rpcProxy";
 import type { AttachOfferToCheckoutSmartResult } from "@/integrations/supabase/types-extended";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("AttachOfferToCheckoutSmart");
 
 export type AttachOfferResult = AttachOfferToCheckoutSmartResult;
 
@@ -26,7 +29,7 @@ export async function attachOfferToCheckoutSmart(
   );
 
   if (error) {
-    console.error("[attachOfferToCheckoutSmart] RPC failed:", error);
+    log.error("RPC failed:", error);
     throw error;
   }
 

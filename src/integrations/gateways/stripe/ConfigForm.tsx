@@ -10,6 +10,9 @@ import { Loader2, ExternalLink, CheckCircle2, XCircle, RefreshCw } from "lucide-
 import { api } from "@/lib/api/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("StripeConfigForm");
 
 interface StripeConnectResponse {
   connected: boolean;
@@ -73,7 +76,7 @@ export function ConfigForm({ onConnectionChange }: ConfigFormProps) {
       });
 
       if (error) {
-        console.error('[StripeConfig] Error checking status:', error);
+        log.error("Error checking status:", error);
         return;
       }
 
@@ -81,7 +84,7 @@ export function ConfigForm({ onConnectionChange }: ConfigFormProps) {
         setStatus(statusData);
       }
     } catch (error: unknown) {
-      console.error('[StripeConfig] Error checking status:', error);
+      log.error("Error checking status:", error);
     } finally {
       setLoading(false);
     }
