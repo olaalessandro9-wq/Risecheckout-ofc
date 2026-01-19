@@ -1,12 +1,14 @@
 /**
  * Buyer Auth Refresh Handler
  * 
- * PHASE 3: Implements refresh token logic for buyers.
+ * Implements refresh token logic for buyers with token rotation and theft detection.
  * 
- * ENHANCED: Refresh Token Rotation with Theft Detection
- * ENHANCED: httpOnly Cookies for XSS protection
+ * Security Features:
+ * - Refresh Token Rotation: Each refresh generates a NEW refresh token
+ * - Theft Detection: Old token stored as previous_refresh_token for reuse detection
+ * - httpOnly Cookies: Tokens are ONLY read from httpOnly cookies (XSS protection)
  * 
- * RISE Protocol V3 Compliant
+ * RISE Protocol V3 Compliant - Zero Legacy Code
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -56,18 +58,8 @@ export async function handleRefresh(
   const currentIP = getClientIP(req);
   const currentUA = req.headers.get("user-agent");
 
-  // Try to get refresh token from cookie first, then body
-  let refreshToken = getRefreshToken(req, "buyer");
-  
-  // Fallback: try to read from body (legacy)
-  if (!refreshToken) {
-    try {
-      const body = await req.json();
-      refreshToken = body.refreshToken;
-    } catch {
-      // No body provided
-    }
-  }
+  // RISE V3: Read refresh token ONLY from httpOnly cookie (zero legacy code)
+  const refreshToken = getRefreshToken(req, "buyer");
 
   if (!refreshToken) {
     return errorResponse("Refresh token é obrigatório", corsHeaders, 400);
@@ -188,13 +180,11 @@ export async function handleRefresh(
 
   console.log(`[buyer-auth] Token rotated for buyer: ${buyerData.email}`);
 
-  // RISE V3: Set httpOnly cookies for tokens (XSS protection)
+  // RISE V3: Tokens sent ONLY via httpOnly cookies (not in response body)
   const cookies = createAuthCookies("buyer", newAccessToken, newRefreshToken);
 
   return jsonResponseWithCookies({
     success: true,
-    accessToken: newAccessToken,
-    refreshToken: newRefreshToken,
     expiresIn: ACCESS_TOKEN_DURATION_MINUTES * 60,
     expiresAt: accessTokenExpiresAt.toISOString(),
     buyer: {
