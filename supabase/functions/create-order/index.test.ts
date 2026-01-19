@@ -1,6 +1,8 @@
 import { assertEquals, assertExists } from "https://deno.land/std@0.192.0/testing/asserts.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createLogger } from "../_shared/logger.ts";
 
+const log = createLogger("create-order-test");
 const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
 const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 
@@ -38,8 +40,8 @@ Deno.test({
   const data = await response.json();
   
   // Validações
-  console.log("Response status:", response.status);
-  console.log("Response data:", data);
+  log.info("Response status:", { status: response.status });
+  log.info("Response data:", { data });
   
   assertEquals(response.status, 200);
   assertExists(data.order_id);
@@ -65,7 +67,7 @@ Deno.test("create-order: Deve retornar 400 para payload inválido", async () => 
 
   // Consumir o body para evitar leak
   const data = await response.json();
-  console.log("Error response:", data);
+  log.info("Error response:", { data });
 
   assertEquals(response.status, 400);
 });

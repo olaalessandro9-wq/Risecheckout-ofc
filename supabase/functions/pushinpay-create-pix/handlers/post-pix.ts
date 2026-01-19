@@ -8,6 +8,9 @@
 
 import type { PushinPayResponse } from "./pix-builder.ts";
 import type { SmartSplitDecision } from "./smart-split.ts";
+import { createLogger } from "../../_shared/logger.ts";
+
+const log = createLogger("pushinpay-create-pix");
 
 interface UpdateOrderParams {
   supabase: { from: (table: string) => any };
@@ -31,7 +34,7 @@ export async function updateOrderWithPixData(params: UpdateOrderParams): Promise
     .eq('id', orderId);
 
   if (updateError) {
-    console.error(`[${logPrefix}] Erro ao atualizar pedido:`, updateError);
+    log.error(`Erro ao atualizar pedido ${orderId}:`, { error: updateError });
   }
 }
 
@@ -46,12 +49,12 @@ export async function triggerPixGeneratedWebhook(params: TriggerWebhookParams): 
   
   const internalSecret = Deno.env.get('INTERNAL_WEBHOOK_SECRET');
   if (!internalSecret) {
-    console.warn(`[${logPrefix}] INTERNAL_WEBHOOK_SECRET nao configurado - pix_generated nao sera disparado`);
+    log.warn('INTERNAL_WEBHOOK_SECRET nao configurado - pix_generated nao sera disparado');
     return;
   }
 
   try {
-    console.log(`[${logPrefix}] Disparando evento pix_generated para order ${orderId}`);
+    log.info(`Disparando evento pix_generated para order ${orderId}`);
     
     const webhookResponse = await fetch(`${supabaseUrl}/functions/v1/trigger-webhooks`, {
       method: 'POST',
@@ -66,13 +69,13 @@ export async function triggerPixGeneratedWebhook(params: TriggerWebhookParams): 
     });
     
     if (webhookResponse.ok) {
-      console.log(`[${logPrefix}] Evento pix_generated disparado com sucesso`);
+      log.info(`Evento pix_generated disparado com sucesso para order ${orderId}`);
     } else {
       const errorText = await webhookResponse.text();
-      console.warn(`[${logPrefix}] Erro ao disparar pix_generated:`, errorText);
+      log.warn(`Erro ao disparar pix_generated:`, { error: errorText });
     }
   } catch (webhookError) {
-    console.warn(`[${logPrefix}] Excecao ao disparar pix_generated (nao critico):`, webhookError);
+    log.warn('Excecao ao disparar pix_generated (nao critico):', { error: webhookError });
   }
 }
 
