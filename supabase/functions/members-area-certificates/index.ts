@@ -16,12 +16,10 @@ import {
   getClientIP 
 } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
-import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { handleCorsV2, getCorsHeadersV2 } from "../_shared/cors-v2.ts";
 import { createLogger } from "../_shared/logger.ts";
 
 const log = createLogger("members-area-certificates");
-
-const corsHeaders = PUBLIC_CORS_HEADERS;
 
 interface CertificateRequest {
   action: "list-templates" | "get-template" | "create-template" | "update-template" | "delete-template" | "generate" | "verify" | "list-buyer-certificates";
@@ -52,9 +50,12 @@ function generateVerificationCode(): string {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  // CORS V2 handler
+  const corsResult = handleCorsV2(req);
+  if (corsResult instanceof Response) {
+    return corsResult;
   }
+  const corsHeaders = corsResult.headers;
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
