@@ -56,7 +56,7 @@ export function useProductDataMapper() {
     return {
       product: mapProductRecord(data.product),
       upsellSettings: mapUpsellSettings(data.upsellSettings),
-      affiliateSettings: mapAffiliateSettings(data.affiliateSettings),
+      affiliateSettings: mapAffiliateSettings(data.affiliateSettings, data.product),
       offers: mapOfferRecords(data.offers),
       orderBumps: mapOrderBumpRecords(data.orderBumps),
       checkouts: mapCheckoutRecords(data.checkouts),

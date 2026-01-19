@@ -14,6 +14,15 @@ interface ProductHandlerResult {
   affiliateSettings: AffiliateSettings;
 }
 
+/**
+ * Extracts custom page URL from upsell_settings JSONB
+ */
+function parseUpsellCustomUrl(settings: Record<string, unknown> | null): string | null {
+  if (!settings || typeof settings !== "object") return null;
+  const url = settings.customPageUrl;
+  return typeof url === "string" ? url : null;
+}
+
 export async function fetchProduct(
   supabase: SupabaseClient,
   productId: string,
@@ -36,7 +45,7 @@ export async function fetchProduct(
 
   const product = data as ProductRecord;
 
-  // Extract upsell settings
+  // Extract upsell settings with custom page URL from JSONB
   const upsellSettings: UpsellSettings = {
     upsell_enabled: product.upsell_enabled ?? false,
     upsell_product_id: product.upsell_product_id,
@@ -44,6 +53,7 @@ export async function fetchProduct(
     upsell_checkout_id: product.upsell_checkout_id,
     upsell_timer_enabled: product.upsell_timer_enabled ?? false,
     upsell_timer_minutes: product.upsell_timer_minutes ?? 15,
+    upsell_custom_page_url: parseUpsellCustomUrl(product.upsell_settings),
   };
 
   // Extract affiliate settings
