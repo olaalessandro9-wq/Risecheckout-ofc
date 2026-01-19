@@ -10,7 +10,10 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
+import { createLogger } from '@/lib/logger';
 import { uploadViaEdge } from '@/lib/storage/storageProxy';
+
+const log = createLogger("EditMemberModuleDialog");
 import {
   Dialog,
   DialogContent,
@@ -140,7 +143,7 @@ export function EditMemberModuleDialog({
         setFileToCrop(file);
         setCropDialogOpen(true);
       } catch (error: unknown) {
-        console.error('[EditMemberModuleDialog] Error fetching image for crop:', error);
+        log.error("Error fetching image for crop:", error);
         toast.error('Não foi possível carregar a imagem para recorte');
       }
     }
@@ -218,7 +221,7 @@ export function EditMemberModuleDialog({
       toast.success('Módulo atualizado');
       onOpenChange(false);
     } catch (error: unknown) {
-      console.error('[EditMemberModuleDialog] Save error:', error);
+      log.error("Save error:", error);
       toast.error('Erro ao salvar módulo');
     } finally {
       setIsSaving(false);
