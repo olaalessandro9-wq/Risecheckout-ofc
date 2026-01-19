@@ -1,7 +1,7 @@
 # Edge Functions Style Guide
 
 > **RISE ARCHITECT PROTOCOL V3 - Guia de Estilo para Edge Functions**  
-> Última atualização: 2026-01-17  
+> Última atualização: 2026-01-19  
 > Mantenedor: Lead Architect
 
 ---
@@ -103,6 +103,8 @@ await captureException(error, { functionName: "function-name", extra: { ... } })
 
 ### 5. Logging Centralizado: `logger.ts`
 
+**Status:** ✅ 100% COMPLIANT (migração concluída em 2026-01-19)
+
 **OBRIGATÓRIO** em toda Edge Function:
 
 ```typescript
@@ -127,6 +129,19 @@ console.warn("[function] aviso");
 // NÃO USAR - helpers locais
 const logStep = (msg: string) => console.log(msg);
 ```
+
+#### Exceções Permitidas
+
+Os seguintes arquivos são **EXPLICITAMENTE PERMITIDOS** a usar `console.*`:
+
+| Arquivo | Motivo | Tipo |
+|---------|--------|------|
+| `_shared/logger.ts` | Fonte da verdade do sistema de logging | Infraestrutura |
+| `_shared/platform-secrets.ts` | JSDoc (documentação de código) | Documentação |
+| `_shared/payment-gateways/PaymentFactory.ts` | JSDoc (documentação de código) | Documentação |
+| `mercadopago-oauth-callback/templates/html-responses.ts` | JavaScript client-side (navegador) | Frontend embed |
+
+**Validação:** O script `lint-console.sh` exclui automaticamente estes arquivos da verificação.
 
 **Níveis de Log:**
 | Nível | Uso | Visível em Produção |
@@ -167,6 +182,9 @@ import { handleCors } from "../_shared/cors.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 import { jsonResponse, errorResponse } from "../_shared/edge-helpers.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("nome-da-funcao");
 
 serve(withSentry("nome-da-funcao", async (req) => {
   const corsResult = handleCors(req);
@@ -192,7 +210,7 @@ serve(withSentry("nome-da-funcao", async (req) => {
     const body = await req.json();
     const { action } = body;
 
-    console.log(`[nome-da-funcao] Action: ${action}, Producer: ${producerId}`);
+    log.info("Action recebida", { action, producerId });
 
     // Router
     switch (action) {
@@ -206,7 +224,7 @@ serve(withSentry("nome-da-funcao", async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[nome-da-funcao] Unexpected error:", errorMessage);
+    log.error("Erro inesperado", { error: errorMessage });
     await captureException(error instanceof Error ? error : new Error(errorMessage), { functionName: "nome-da-funcao" });
     return errorResponse("Erro interno do servidor", corsHeaders, 500);
   }
@@ -230,6 +248,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared/rate-limiter.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("nome-da-funcao");
 
 serve(withSentry("nome-da-funcao", async (req) => {
   // Handle CORS preflight
@@ -264,7 +285,7 @@ serve(withSentry("nome-da-funcao", async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[nome-da-funcao] Error:", errorMessage);
+    log.error("Erro", { error: errorMessage });
     await captureException(error instanceof Error ? error : new Error(errorMessage), { functionName: "nome-da-funcao" });
     return new Response(
       JSON.stringify({ error: "Erro interno" }),
@@ -313,6 +334,16 @@ if (new Date(session.expires_at) < new Date()) return errorResponse("Expirado");
 // Se seu arquivo tem mais de 300 linhas, extraia handlers para _shared/
 ```
 
+### 5. ❌ Logging Direto
+
+```typescript
+// PROIBIDO - Usar console.log/error/warn diretamente
+console.log("[function] mensagem");
+console.error("[function] erro");
+
+// Use createLogger() em vez disso
+```
+
 ---
 
 ## Checklist de Code Review
@@ -324,7 +355,7 @@ Antes de fazer merge:
 - [ ] Usa `withSentry()` para error tracking
 - [ ] Usa `jsonResponse()` e `errorResponse()` para respostas
 - [ ] Arquivo tem menos de 300 linhas
-- [ ] **Logging via `createLogger()` - console.log PROIBIDO**
+- [ ] **Logging via `createLogger()` - console.log PROIBIDO** ✅
 - [ ] Tipagem completa (zero `any`)
 - [ ] Atualizado no `EDGE_FUNCTIONS_REGISTRY.md`
 
@@ -334,4 +365,5 @@ Antes de fazer merge:
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-19 | Migração de logging 100% completa - exceções documentadas, templates corrigidos |
 | 2026-01-17 | Criação inicial do guia |

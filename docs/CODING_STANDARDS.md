@@ -2,7 +2,7 @@
 
 > **RISE ARCHITECT PROTOCOL V3**  
 > Última atualização: 2026-01-19  
-> Status: OBRIGATÓRIO
+> Status: ✅ 100% COMPLIANT
 
 ---
 
@@ -11,6 +11,17 @@
 ### Regra Absoluta
 
 **PROIBIDO** usar `console.log/error/warn` diretamente em qualquer arquivo.
+
+### 1.1 Status da Migração
+
+| Escopo | Status | Arquivos Migrados |
+|--------|--------|-------------------|
+| Frontend (`src/`) | ✅ Completo | 176+ arquivos |
+| Backend (`supabase/functions/`) | ✅ Completo | 110+ arquivos |
+
+**Data de Conclusão:** 2026-01-19
+
+A migração foi concluída com sucesso em todos os arquivos de produção.
 
 ### Frontend (`src/`)
 
@@ -147,8 +158,24 @@ npm run lint
 
 ---
 
+## 6. Exceções Permitidas (Backend)
+
+Os seguintes arquivos são **EXPLICITAMENTE PERMITIDOS** a usar `console.*`:
+
+| Arquivo | Motivo | Tipo |
+|---------|--------|------|
+| `_shared/logger.ts` | Fonte da verdade do sistema de logging | Infraestrutura |
+| `_shared/platform-secrets.ts` | Uso em JSDoc (documentação de código) | Documentação |
+| `_shared/payment-gateways/PaymentFactory.ts` | Uso em JSDoc (documentação de código) | Documentação |
+| `mercadopago-oauth-callback/templates/html-responses.ts` | JavaScript client-side (executado no navegador) | Frontend embed |
+
+**Nota:** Estas exceções são permanentes e validadas pelo script `lint-console.sh`.
+
+---
+
 ## Changelog
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-19 | Migração de logging 100% completa - documentação de exceções permitidas |
 | 2026-01-19 | Criação do documento com padrões de logging |
