@@ -21,6 +21,9 @@ import {
   jsonResponse,
   errorResponse,
 } from "./producer-auth-helpers.ts";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("ProducerAuthReset");
 
 // ============================================
 // INTERNAL TYPES
@@ -57,7 +60,7 @@ export async function handleRequestPasswordReset(
 ): Promise<Response> {
   const rateLimitResult = await rateLimitMiddleware(supabase, req, PASSWORD_RESET_RATE_LIMIT, corsHeaders);
   if (rateLimitResult) {
-    console.warn(`[producer-auth] Rate limit exceeded for password-reset`);
+    log.warn("Rate limit exceeded for password-reset");
     return rateLimitResult;
   }
 
@@ -77,7 +80,7 @@ export async function handleRequestPasswordReset(
     .single() as { data: ProducerForReset | null; error: unknown };
 
   if (findError || !producer) {
-    console.log(`[producer-auth] Password reset for unknown email: ${email}`);
+    log.info(`Password reset for unknown email: ${email}`);
     return errorResponse("E-mail não encontrado na base de dados", corsHeaders, 404);
   }
 
@@ -91,7 +94,7 @@ export async function handleRequestPasswordReset(
   }).eq("id", producer.id);
 
   if (updateError) {
-    console.error("[producer-auth] Error saving reset token:", updateError);
+    log.error("Error saving reset token", updateError);
     return errorResponse("Erro ao processar solicitação", corsHeaders, 500);
   }
 
@@ -107,13 +110,13 @@ export async function handleRequestPasswordReset(
   });
 
   if (!emailResult.success) {
-    console.error("[producer-auth] Error sending reset email:", emailResult.error);
+    log.error("Error sending reset email", emailResult.error);
     return errorResponse("Erro ao enviar email. Tente novamente.", corsHeaders, 500);
   }
 
   await logAuditEvent(supabase, producer.id, "PASSWORD_RESET_REQUESTED", true, clientIP, userAgent, { email });
 
-  console.log(`[producer-auth] Password reset email sent to: ${email}`);
+  log.info(`Password reset email sent to: ${email}`);
   return jsonResponse({ success: true, message: "Email enviado" }, corsHeaders);
 }
 
@@ -203,7 +206,7 @@ export async function handleResetPassword(
   }).eq("id", producer.id);
 
   if (updateError) {
-    console.error("[producer-auth] Error resetting password:", updateError);
+    log.error("Error resetting password", updateError);
     return errorResponse("Erro ao redefinir senha", corsHeaders, 500);
   }
 
@@ -211,7 +214,7 @@ export async function handleResetPassword(
   try {
     await supabase.auth.admin.updateUserById(producer.id, { password });
   } catch (authError) {
-    console.warn("[producer-auth] Could not sync Supabase Auth password:", authError);
+    log.warn("Could not sync Supabase Auth password", authError);
   }
 
   // Invalidate all sessions
@@ -219,6 +222,6 @@ export async function handleResetPassword(
 
   await logAuditEvent(supabase, producer.id, "PASSWORD_RESET_SUCCESS", true, clientIP, userAgent);
 
-  console.log(`[producer-auth] Password reset for: ${producer.email}`);
+  log.info(`Password reset for: ${producer.email}`);
   return jsonResponse({ success: true, message: "Senha redefinida com sucesso" }, corsHeaders);
 }

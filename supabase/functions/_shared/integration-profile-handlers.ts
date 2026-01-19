@@ -13,6 +13,9 @@ import {
   jsonResponse, 
   errorResponse,
 } from "./integration-handlers.ts";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("IntegrationProfile");
 
 // ============================================================================
 // TYPES
@@ -49,7 +52,7 @@ export async function handleGetStatus(
   const { data, error } = await query;
 
   if (error) {
-    console.error("[integration-management] Status error:", error);
+    log.error("Status error", error);
     return errorResponse("Erro ao buscar status", corsHeaders, 500);
   }
 
@@ -89,11 +92,11 @@ export async function handleSaveProfileWallet(
     .eq("id", producerId);
 
   if (error) {
-    console.error("[integration-management] Save profile wallet error:", error);
+    log.error("Save profile wallet error", error);
     return errorResponse("Erro ao salvar wallet", corsHeaders, 500);
   }
 
-  console.log(`[integration-management] Profile wallet saved for ${producerId}: ${walletId}`);
+  log.info(`Profile wallet saved for ${producerId}: ${walletId}`);
   return jsonResponse({ success: true }, corsHeaders);
 }
 
@@ -112,11 +115,11 @@ export async function handleClearProfileWallet(
     .eq("id", producerId);
 
   if (error) {
-    console.error("[integration-management] Clear profile wallet error:", error);
+    log.error("Clear profile wallet error", error);
     return errorResponse("Erro ao limpar wallet", corsHeaders, 500);
   }
 
-  console.log(`[integration-management] Profile wallet cleared for ${producerId}`);
+  log.info(`Profile wallet cleared for ${producerId}`);
   return jsonResponse({ success: true }, corsHeaders);
 }
 
@@ -164,10 +167,10 @@ export async function handleUpdateProfile(
     .eq("id", producerId);
 
   if (error) {
-    console.error("[integration-management] Update profile error:", error);
+    log.error("Update profile error", error);
     return errorResponse("Erro ao atualizar perfil", corsHeaders, 500);
   }
 
-  console.log(`[integration-management] Profile updated for ${producerId}`);
+  log.info(`Profile updated for ${producerId}`);
   return jsonResponse({ success: true }, corsHeaders);
 }

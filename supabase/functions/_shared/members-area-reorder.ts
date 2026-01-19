@@ -13,6 +13,9 @@ import {
   errorResponse,
   verifyProductOwnership,
 } from "./members-area-handlers.ts";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("MembersAreaReorder");
 
 // ============================================
 // REORDER MODULES
@@ -42,10 +45,10 @@ export async function handleReorderModules(
   const hasError = results.some((r) => r.error);
 
   if (hasError) {
-    console.error("[members-area-modules] Reorder error");
+    log.error("Reorder error");
     return errorResponse("Erro ao reordenar módulos", corsHeaders, 500);
   }
 
-  console.log(`[members-area-modules] Modules reordered by ${producerId}`);
+  log.info(`Modules reordered by ${producerId}`);
   return jsonResponse({ success: true }, corsHeaders);
 }
