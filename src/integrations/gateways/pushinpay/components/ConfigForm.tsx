@@ -10,6 +10,9 @@ import { toast } from "@/components/ui/sonner";
 import { savePushinPaySettings, getPushinPaySettings } from "../api";
 import { api } from "@/lib/api/client";
 import type { PushinPayEnvironment, PushinPaySettings, PushinPayAccountInfo } from "../types";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("PushinPayConfigForm");
 
 interface ValidateTokenResponse {
   valid: boolean;
@@ -89,7 +92,7 @@ export function ConfigForm({ onConnectionChange }: ConfigFormProps) {
         setEnvironment(isAdmin ? configEnv : "production");
       }
     } catch (error: unknown) {
-      console.error("[PushinPay ConfigForm] Erro ao carregar configurações:", error);
+      log.error("Erro ao carregar configurações:", error);
     } finally {
       setLoadingData(false);
     }

@@ -17,6 +17,9 @@ import { api } from "@/lib/api";
 import { useProductContext } from "@/modules/products/context/ProductContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { getGatewayById, isGatewayAvailable } from "@/config/payment-gateways";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("ProductSettingsPanel");
 
 import {
   RequiredFieldsSection,
@@ -80,7 +83,7 @@ export default function ProductSettingsPanel({ productId }: Props) {
         }>('products-crud', { action: 'get-settings', productId });
 
         if (error) {
-          console.error("Error loading settings:", error);
+          log.error("Error loading settings:", error);
           toast.error("Erro ao carregar configurações.");
           return;
         }

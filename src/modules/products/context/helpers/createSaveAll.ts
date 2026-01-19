@@ -10,6 +10,9 @@ import { toast } from "sonner";
 import type { ProductFormDispatch } from "../../types/productForm.types";
 import type { TabValidationMap } from "../../types/tabValidation.types";
 import { formActions } from "../productFormReducer";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("ProductContext");
 
 // ============================================================================
 // TYPES
@@ -107,7 +110,7 @@ export function createSaveAll(deps: SaveAllDependencies): () => Promise<void> {
       formDispatch(formActions.markSaved());
       toast.success("Todas as alterações foram salvas!");
     } catch (error) {
-      console.error("[ProductContext] Error saving all:", error);
+      log.error("Error saving all:", error);
       toast.error("Erro ao salvar alterações");
     } finally {
       setSaving(false);

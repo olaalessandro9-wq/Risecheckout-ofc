@@ -16,6 +16,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SUPABASE_URL } from "@/config/supabase";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("BuyerRecuperarSenha");
 
 type ViewState = "form" | "loading" | "success" | "error";
 
@@ -58,7 +61,7 @@ export default function BuyerRecuperarSenha() {
 
       setViewState("success");
     } catch (error: unknown) {
-      console.error("Error requesting password reset:", error);
+      log.error("Error requesting password reset:", error);
       setErrorMessage("Erro de conexão. Tente novamente.");
       setViewState("form");
     }
