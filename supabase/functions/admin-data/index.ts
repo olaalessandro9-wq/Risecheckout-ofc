@@ -1532,7 +1532,7 @@ async function getMembersAreaModulesWithContents(
 // ==========================================
 
 serve(async (req) => {
-  const corsResult = handleCors(req);
+  const corsResult = handleCorsV2(req);
   if (corsResult instanceof Response) return corsResult;
   const corsHeaders = corsResult.headers;
 

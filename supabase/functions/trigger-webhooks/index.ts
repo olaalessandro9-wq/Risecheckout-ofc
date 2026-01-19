@@ -22,14 +22,10 @@ import {
   type OrderItem,
   type Order,
 } from "../_shared/trigger-webhooks-handlers.ts";
+import { PUBLIC_CORS_HEADERS as CORS_HEADERS } from "../_shared/cors-v2.ts";
 
 const FUNCTION_VERSION = "474";
 const log = createLogger("TriggerWebhooks");
-
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });

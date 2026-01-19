@@ -13,6 +13,8 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { PUBLIC_CORS_HEADERS as CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
 
 // ============================================================================
 // TYPES
@@ -44,32 +46,11 @@ interface MercadoPagoStatus {
 }
 
 // ============================================================================
-// CONSTANTS
+// CONSTANTS & LOGGER
 // ============================================================================
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-internal-secret",
-};
-
-const PREFIX = '[reconcile-mercadopago]';
+const log = createLogger("ReconcileMercadoPago");
 const FUNCTION_VERSION = '2.0.0';
-
-// ============================================================================
-// LOGGER
-// ============================================================================
-
-function logInfo(message: string, data?: unknown): void {
-  console.log(`${PREFIX} [v${FUNCTION_VERSION}] [INFO] ${message}`, data ? JSON.stringify(data) : '');
-}
-
-function logWarn(message: string, data?: unknown): void {
-  console.warn(`${PREFIX} [v${FUNCTION_VERSION}] [WARN] ${message}`, data ? JSON.stringify(data) : '');
-}
-
-function logError(message: string, error?: unknown): void {
-  console.error(`${PREFIX} [v${FUNCTION_VERSION}] [ERROR] ${message}`, error);
-}
 
 // ============================================================================
 // VAULT CREDENTIALS
@@ -112,7 +93,7 @@ async function getMercadoPagoStatus(
     });
 
     if (!response.ok) {
-      logError(`MercadoPago API error: ${response.status}`);
+      log.error(`MercadoPago API error: ${response.status}`);
       return null;
     }
 
@@ -123,7 +104,7 @@ async function getMercadoPagoStatus(
       date_approved: data.date_approved,
     };
   } catch (error) {
-    logError('Erro ao consultar MercadoPago', error);
+    log.error('Erro ao consultar MercadoPago', error);
     return null;
   }
 }
@@ -148,7 +129,7 @@ async function triggerWebhooks(orderId: string, eventType: string): Promise<void
       body: JSON.stringify({ order_id: orderId, event_type: eventType }),
     });
   } catch (error) {
-    logWarn('Erro ao disparar webhooks', { orderId, error });
+    log.warn('Erro ao disparar webhooks', { orderId, error });
   }
 }
 
@@ -178,7 +159,7 @@ async function callGrantMemberAccess(order: PendingOrder): Promise<void> {
       }),
     });
   } catch (error) {
-    logWarn('Erro ao conceder acesso member area', { orderId: order.id, error });
+    log.warn('Erro ao conceder acesso member area', { orderId: order.id, error });
   }
 }
 
@@ -328,7 +309,7 @@ async function reconcileOrder(
       },
     });
 
-    logInfo(`[MODELO HOTMART] Order ${orderId}: mantendo status=${order.status}, technical_status=${technicalStatus}`);
+    log.info(`[MODELO HOTMART] Order ${orderId}: mantendo status=${order.status}, technical_status=${technicalStatus}`);
 
     return {
       order_id: orderId,
@@ -378,7 +359,7 @@ serve(async (req) => {
       );
     }
 
-    logInfo(`Processando ${body.orders.length} pedidos MercadoPago (Modelo Hotmart/Kiwify)`);
+    log.info(`Processando ${body.orders.length} pedidos MercadoPago (Modelo Hotmart/Kiwify)`);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -412,7 +393,7 @@ serve(async (req) => {
 
       const result = await reconcileOrder(supabase, order, accessToken);
       results.push(result);
-      logInfo(`Pedido ${order.id}: ${result.action} - ${result.reason}`);
+      log.info(`Pedido ${order.id}: ${result.action} - ${result.reason}`);
     }
 
     const summary = {
@@ -424,7 +405,7 @@ serve(async (req) => {
       version: FUNCTION_VERSION,
     };
 
-    logInfo('Reconciliação MercadoPago concluída', summary);
+    log.info('Reconciliação MercadoPago concluída', summary);
 
     return new Response(
       JSON.stringify({ success: true, results, summary }),
@@ -432,7 +413,7 @@ serve(async (req) => {
     );
 
   } catch (error: unknown) {
-    logError('Handler error', error);
+    log.error('Handler error', error);
     return new Response(
       JSON.stringify({ success: false, error: 'Internal server error' }),
       { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }

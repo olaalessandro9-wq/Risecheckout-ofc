@@ -23,6 +23,8 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { PUBLIC_CORS_HEADERS as CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
 
 // ============================================================================
 // TYPES
@@ -45,27 +47,10 @@ interface GrantAccessResponse {
 }
 
 // ============================================================================
-// CONSTANTS
+// CONSTANTS & LOGGER
 // ============================================================================
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-internal-secret",
-};
-
-const PREFIX = '[grant-member-access]';
-
-// ============================================================================
-// LOGGER
-// ============================================================================
-
-function logInfo(message: string, data?: unknown): void {
-  console.log(`${PREFIX} [INFO] ${message}`, data ? JSON.stringify(data) : '');
-}
-
-function logError(message: string, error?: unknown): void {
-  console.error(`${PREFIX} [ERROR] ${message}`, error);
-}
+const log = createLogger("GrantMemberAccess");
 
 // ============================================================================
 // CORE LOGIC
@@ -86,12 +71,12 @@ async function grantMemberAccess(
       .single();
 
     if (productError) {
-      logError('Erro ao buscar produto', productError);
+      log.error('Erro ao buscar produto', productError);
       return { success: false, error: `Produto não encontrado: ${productError.message}` };
     }
 
     if (!product?.members_area_enabled) {
-      logInfo('Produto não tem área de membros', { product_id });
+      log.info('Produto não tem área de membros', { product_id });
       return { success: true, skipped: true, reason: 'Produto sem área de membros' };
     }
 
@@ -123,11 +108,11 @@ async function grantMemberAccess(
         .single();
 
       if (createError) {
-        logError('Erro ao criar buyer_profile', createError);
+        log.error('Erro ao criar buyer_profile', createError);
         return { success: false, error: `Erro ao criar perfil: ${createError.message}` };
       }
       buyerId = newBuyer.id;
-      logInfo('Novo buyer_profile criado', { buyerId, email: normalizedEmail });
+      log.info('Novo buyer_profile criado', { buyerId, email: normalizedEmail });
     } else {
       buyerId = existingBuyer.id;
     }
@@ -145,7 +130,7 @@ async function grantMemberAccess(
       }, { onConflict: 'buyer_id,product_id' });
 
     if (accessError) {
-      logError('Erro ao conceder acesso', accessError);
+      log.error('Erro ao conceder acesso', accessError);
       return { success: false, error: `Erro ao conceder acesso: ${accessError.message}` };
     }
 
@@ -168,11 +153,11 @@ async function grantMemberAccess(
         }, { onConflict: 'buyer_id,group_id' });
     }
 
-    logInfo('Acesso à área de membros concedido', { order_id, buyerId, product_id });
+    log.info('Acesso à área de membros concedido', { order_id, buyerId, product_id });
     return { success: true, buyer_id: buyerId };
 
   } catch (error: unknown) {
-    logError('Erro inesperado ao conceder acesso', error);
+    log.error('Erro inesperado ao conceder acesso', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : String(error) 
@@ -195,7 +180,7 @@ serve(async (req) => {
     const expectedSecret = Deno.env.get('INTERNAL_WEBHOOK_SECRET');
 
     if (!internalSecret || internalSecret !== expectedSecret) {
-      logError('Unauthorized: Invalid or missing X-Internal-Secret');
+      log.error('Unauthorized: Invalid or missing X-Internal-Secret');
       return new Response(
         JSON.stringify({ success: false, error: 'Unauthorized' }),
         { status: 401, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
@@ -227,7 +212,7 @@ serve(async (req) => {
     );
 
   } catch (error: unknown) {
-    logError('Handler error', error);
+    log.error('Handler error', error);
     return new Response(
       JSON.stringify({ success: false, error: 'Internal server error' }),
       { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }

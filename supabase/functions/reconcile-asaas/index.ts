@@ -23,6 +23,8 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { PUBLIC_CORS_HEADERS as CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
 
 // ============================================================================
 // TYPES
@@ -52,31 +54,11 @@ interface AsaasCredentials {
 }
 
 // ============================================================================
-// CONSTANTS
+// CONSTANTS & LOGGER
 // ============================================================================
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-internal-secret",
-};
+const log = createLogger("ReconcileAsaas");
 
-const PREFIX = '[reconcile-asaas]';
-
-// ============================================================================
-// LOGGER
-// ============================================================================
-
-function logInfo(message: string, data?: unknown): void {
-  console.log(`${PREFIX} [INFO] ${message}`, data ? JSON.stringify(data) : '');
-}
-
-function logWarn(message: string, data?: unknown): void {
-  console.warn(`${PREFIX} [WARN] ${message}`, data ? JSON.stringify(data) : '');
-}
-
-function logError(message: string, error?: unknown): void {
-  console.error(`${PREFIX} [ERROR] ${message}`, error);
-}
 
 // ============================================================================
 // VAULT CREDENTIALS
@@ -127,7 +109,7 @@ async function getAsaasStatus(
     });
 
     if (!response.ok) {
-      logError(`Asaas API error: ${response.status}`);
+      log.error(`Asaas API error: ${response.status}`);
       return null;
     }
 
@@ -137,7 +119,7 @@ async function getAsaasStatus(
       confirmedDate: data.confirmedDate,
     };
   } catch (error) {
-    logError('Erro ao consultar Asaas', error);
+    log.error('Erro ao consultar Asaas', error);
     return null;
   }
 }
@@ -168,7 +150,7 @@ async function triggerWebhooks(orderId: string, eventType: string): Promise<void
       body: JSON.stringify({ order_id: orderId, event_type: eventType }),
     });
   } catch (error) {
-    logWarn('Erro ao disparar webhooks', { orderId, error });
+    log.warn('Erro ao disparar webhooks', { orderId, error });
   }
 }
 
@@ -198,7 +180,7 @@ async function callGrantMemberAccess(order: PendingOrder): Promise<void> {
       }),
     });
   } catch (error) {
-    logWarn('Erro ao conceder acesso member area', { orderId: order.id, error });
+    log.warn('Erro ao conceder acesso member area', { orderId: order.id, error });
   }
 }
 
@@ -355,7 +337,7 @@ serve(async (req) => {
       );
     }
 
-    logInfo(`Processando ${body.orders.length} pedidos Asaas`);
+    log.info(`Processando ${body.orders.length} pedidos Asaas`);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -389,7 +371,7 @@ serve(async (req) => {
 
       const result = await reconcileOrder(supabase, order, credentials);
       results.push(result);
-      logInfo(`Pedido ${order.id}: ${result.action} - ${result.reason}`);
+      log.info(`Pedido ${order.id}: ${result.action} - ${result.reason}`);
     }
 
     const summary = {
@@ -399,7 +381,7 @@ serve(async (req) => {
       errors: results.filter(r => r.action === 'error').length,
     };
 
-    logInfo('Reconciliação Asaas concluída', summary);
+    log.info('Reconciliação Asaas concluída', summary);
 
     return new Response(
       JSON.stringify({ success: true, results, summary }),
@@ -407,7 +389,7 @@ serve(async (req) => {
     );
 
   } catch (error: unknown) {
-    logError('Handler error', error);
+    log.error('Handler error', error);
     return new Response(
       JSON.stringify({ success: false, error: 'Internal server error' }),
       { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
