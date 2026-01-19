@@ -4,7 +4,7 @@
  * Handlers extraídos do index.ts para manter arquivos < 300 linhas
  * 
  * RISE Protocol V3 Compliant - Uses consolidated rate-limiting
- * @version 3.0.0
+ * @version 3.1.0 - Migrated to centralized logger
  * @refactored 2026-01-18 - jsonResponse signature standardized
  */
 
@@ -20,6 +20,9 @@ import {
   RATE_LIMIT_CONFIGS,
   type RateLimitResult 
 } from "./rate-limiting/index.ts";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("PixelHandlers");
 
 // Re-export rate limiting for backwards compatibility with consolidated module
 export async function checkRateLimit(
@@ -52,7 +55,7 @@ export async function handleList(
   producerId: string,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  console.log("[pixel-management] Listing pixels for producer:", producerId);
+  log.info("Listing pixels for producer", { producerId });
 
   const { data: pixelsData, error: pixelsError } = await supabase
     .from("vendor_pixels")
@@ -62,7 +65,7 @@ export async function handleList(
     .order("name", { ascending: true });
 
   if (pixelsError) {
-    console.error("[pixel-management] Error listing pixels:", pixelsError);
+    log.error("Error listing pixels", pixelsError);
     throw new Error("Erro ao listar pixels");
   }
 
@@ -102,7 +105,7 @@ export async function handleCreate(
   data: PixelData | undefined,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  console.log("[pixel-management] Creating pixel for producer:", producerId);
+  log.info("Creating pixel for producer", { producerId });
 
   if (!data?.platform || !data?.name || !data?.pixel_id) {
     return jsonResponse({ error: "Dados obrigatórios: platform, name, pixel_id" }, corsHeaders, 400);
@@ -127,12 +130,12 @@ export async function handleCreate(
     if (error.code === "23505") {
       return jsonResponse({ error: "Este Pixel ID já está cadastrado para esta plataforma" }, corsHeaders, 409);
     }
-    console.error("[pixel-management] Error creating pixel:", error);
+    log.error("Error creating pixel", error);
     throw new Error("Erro ao criar pixel");
   }
 
   const pixel = newPixel as PixelRecord;
-  console.log("[pixel-management] ✅ Pixel created:", pixel.id);
+  log.info("✅ Pixel created", { pixelId: pixel.id });
 
   return jsonResponse({ success: true, pixel }, corsHeaders, 201);
 }
@@ -144,7 +147,7 @@ export async function handleUpdate(
   data: PixelData | undefined,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  console.log("[pixel-management] Updating pixel:", pixelId);
+  log.info("Updating pixel", { pixelId });
 
   const { data: existing, error: fetchError } = await supabase
     .from("vendor_pixels")
@@ -159,7 +162,7 @@ export async function handleUpdate(
   const existingPixel = existing as Pick<PixelRecord, "id" | "vendor_id">;
 
   if (existingPixel.vendor_id !== producerId) {
-    console.error("[pixel-management] ⚠️ Ownership violation - producer:", producerId, "owner:", existingPixel.vendor_id);
+    log.warn("⚠️ Ownership violation", { producerId, ownerId: existingPixel.vendor_id });
     return jsonResponse({ error: "Acesso negado" }, corsHeaders, 403);
   }
 
@@ -179,11 +182,11 @@ export async function handleUpdate(
     .single();
 
   if (error) {
-    console.error("[pixel-management] Error updating pixel:", error);
+    log.error("Error updating pixel", error);
     throw new Error("Erro ao atualizar pixel");
   }
 
-  console.log("[pixel-management] ✅ Pixel updated:", pixelId);
+  log.info("✅ Pixel updated", { pixelId });
 
   return jsonResponse({ success: true, pixel: updatedPixel }, corsHeaders);
 }
@@ -194,7 +197,7 @@ export async function handleDelete(
   pixelId: string,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  console.log("[pixel-management] Deleting pixel:", pixelId);
+  log.info("Deleting pixel", { pixelId });
 
   const { data: existing, error: fetchError } = await supabase
     .from("vendor_pixels")
@@ -209,7 +212,7 @@ export async function handleDelete(
   const existingPixel = existing as Pick<PixelRecord, "id" | "vendor_id">;
 
   if (existingPixel.vendor_id !== producerId) {
-    console.error("[pixel-management] ⚠️ Ownership violation - producer:", producerId, "owner:", existingPixel.vendor_id);
+    log.warn("⚠️ Ownership violation", { producerId, ownerId: existingPixel.vendor_id });
     return jsonResponse({ error: "Acesso negado" }, corsHeaders, 403);
   }
 
@@ -219,11 +222,11 @@ export async function handleDelete(
     .eq("id", pixelId);
 
   if (error) {
-    console.error("[pixel-management] Error deleting pixel:", error);
+    log.error("Error deleting pixel", error);
     throw new Error("Erro ao excluir pixel");
   }
 
-  console.log("[pixel-management] ✅ Pixel deleted:", pixelId);
+  log.info("✅ Pixel deleted", { pixelId });
 
   return jsonResponse({ success: true }, corsHeaders);
 }

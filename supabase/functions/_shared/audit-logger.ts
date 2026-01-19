@@ -1,10 +1,13 @@
 /**
  * Audit Logger - Helper para registrar eventos de segurança
  * 
- * @version 2.1.0
+ * @version 2.2.0 - Migrated to centralized logger
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("AuditLogger");
 
 // ============================================
 // TYPES
@@ -92,14 +95,14 @@ export async function logSecurityEvent(
     });
 
     if (error) {
-      console.error(`[AuditLogger] Erro ao registrar evento: ${action}`, error);
+      log.error(`Erro ao registrar evento: ${action}`, error);
     } else {
-      console.log(`[AuditLogger] Evento registrado: ${action} (success: ${success})`);
+      log.debug(`Evento registrado: ${action} (success: ${success})`);
     }
   } catch (err: unknown) {
     // Não falhar a operação principal se o log falhar
     const errMessage = err instanceof Error ? err.message : String(err);
-    console.error(`[AuditLogger] Exceção ao registrar evento: ${action}`, errMessage);
+    log.error(`Exceção ao registrar evento: ${action}`, errMessage);
   }
 }
 
