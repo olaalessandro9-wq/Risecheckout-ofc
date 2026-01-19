@@ -8,6 +8,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("OrderBumpTab");
 import { OrderBumpList } from "@/components/products/OrderBumpList";
 import { OrderBumpDialog } from "@/components/products/order-bump-dialog";
 import { useProductContext } from "../context/ProductContext";
@@ -43,7 +46,7 @@ export function OrderBumpTab() {
       if (error) throw new Error(error.message);
       setEditingOrderBump(data?.orderBump || orderBump);
     } catch (error: unknown) {
-      console.error('Erro ao buscar order bump:', error);
+      log.error('Erro ao buscar order bump:', error);
       setEditingOrderBump(orderBump);
     }
     setOrderBumpDialogOpen(true);

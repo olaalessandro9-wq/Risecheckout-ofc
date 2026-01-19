@@ -13,6 +13,9 @@
 
 import { useState, useEffect } from "react";
 import { X, AlertCircle, Loader2 } from "lucide-react";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("CheckoutConfigDialog");
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -109,7 +112,7 @@ export const CheckoutConfigDialog = ({
       const { data, error } = await api.call<{ success?: boolean; error?: string; data?: { checkout?: { id: string; linkId: string } } }>('checkout-crud', payload);
 
       if (error) {
-        console.error('[CHECKOUT] Edge function error:', error);
+        log.error('Edge function error:', error);
         throw new Error(error.message || 'Erro ao salvar checkout');
       }
 
@@ -131,7 +134,7 @@ export const CheckoutConfigDialog = ({
       toast.success('Checkout configurado com sucesso!');
       onOpenChange(false);
     } catch (error: unknown) {
-      console.error('Erro ao salvar checkout:', error);
+      log.error('Erro ao salvar checkout:', error);
       const message = error instanceof Error ? error.message : 'Não foi possível salvar o checkout';
       toast.error(message);
     } finally {

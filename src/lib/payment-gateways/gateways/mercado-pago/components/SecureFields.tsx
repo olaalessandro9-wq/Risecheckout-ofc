@@ -9,6 +9,9 @@
 
 import React, { useState, useRef, useCallback, memo } from 'react';
 import { CardNumber, ExpirationDate, SecurityCode } from '@mercadopago/sdk-react';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger("SecureFields");
 
 export interface SecureFieldsProps {
   onReady: () => void;
@@ -38,7 +41,7 @@ export const SecureFields = memo(({
     setIsCardNumberReady(true);
     if (!readyCalledRef.current) {
       readyCalledRef.current = true;
-      console.log('[SecureFields] CardNumber ready - iframes carregados');
+      log.info('CardNumber ready - iframes carregados');
       onReady();
     }
   }, [onReady]);
@@ -63,7 +66,7 @@ export const SecureFields = memo(({
     }
   };
 
-  console.log('[SecureFields] Montando componente (deve acontecer apenas 1x)');
+  log.debug('Montando componente (deve acontecer apenas 1x)');
 
   return (
     <>
@@ -85,7 +88,7 @@ export const SecureFields = memo(({
             onChange={() => onCardNumberChange?.()}
             onBinChange={(data) => {
               if (data?.bin) {
-                console.log('[SecureFields] BIN detectado:', data.bin);
+                log.debug('BIN detectado:', data.bin);
                 onBinChange?.(data.bin);
               }
             }}
