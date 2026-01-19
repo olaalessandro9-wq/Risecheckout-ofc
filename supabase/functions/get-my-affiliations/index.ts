@@ -10,7 +10,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { getAuthenticatedProducer } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
 
+const log = createLogger("get-my-affiliations");
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
 interface ProductData {
@@ -53,7 +55,7 @@ Deno.serve(async (req) => {
     const producer = await getAuthenticatedProducer(supabaseClient, req);
 
     if (!producer) {
-      console.error("🚨 [get-my-affiliations] Sessão inválida ou não fornecida");
+      log.warn("Sessão inválida ou não fornecida");
       return new Response(
         JSON.stringify({ affiliations: [], error: "Sessão inválida" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -61,7 +63,7 @@ Deno.serve(async (req) => {
     }
 
     const userId = producer.id;
-    console.log(`🔍 [get-my-affiliations] Buscando afiliações para ${producer.email}`);
+    log.info(`Buscando afiliações para ${producer.email}`);
 
     // Buscar todas as afiliações do usuário com detalhes do produto
     const { data: affiliationsData, error: affiliationsError } = await supabaseClient
@@ -81,7 +83,7 @@ Deno.serve(async (req) => {
       .order("created_at", { ascending: false });
 
     if (affiliationsError) {
-      console.error(`🚨 [get-my-affiliations] Erro ao buscar afiliações: ${affiliationsError.message}`);
+      log.error(`Erro ao buscar afiliações: ${affiliationsError.message}`);
       return new Response(
         JSON.stringify({ affiliations: [], error: "Erro ao buscar afiliações" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -104,7 +106,7 @@ Deno.serve(async (req) => {
       };
     });
 
-    console.log(`✅ [get-my-affiliations] Encontradas ${affiliations.length} afiliações`);
+    log.info(`Encontradas ${affiliations.length} afiliações`);
 
     return new Response(
       JSON.stringify({ affiliations }),
@@ -113,7 +115,7 @@ Deno.serve(async (req) => {
 
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro desconhecido";
-    console.error(`🚨 [get-my-affiliations] Erro não tratado: ${message}`);
+    log.error(`Erro não tratado: ${message}`);
     return new Response(
       JSON.stringify({ affiliations: [], error: message }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

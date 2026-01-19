@@ -11,7 +11,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
 
+const log = createLogger("get-all-affiliation-statuses");
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
 // === INTERFACES (Zero any) ===
@@ -59,7 +61,7 @@ Deno.serve(async (req) => {
     }
 
     const userId = producer.id;
-    console.log(`[get-all-affiliation-statuses] Buscando status para usuário: ${userId.substring(0, 8)}...`);
+    log.info(`Buscando status para usuário: ${userId.substring(0, 8)}...`);
 
     // Buscar todas as afiliações do usuário em UMA única query
     const { data: affiliations, error: affiliationsError } = await supabase
@@ -68,7 +70,7 @@ Deno.serve(async (req) => {
       .eq("user_id", userId) as { data: AffiliationRecord[] | null; error: Error | null };
 
     if (affiliationsError) {
-      console.error("[get-all-affiliation-statuses] Erro ao buscar afiliações:", affiliationsError);
+      log.error("Erro ao buscar afiliações:", affiliationsError);
       throw affiliationsError;
     }
 
@@ -84,7 +86,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[get-all-affiliation-statuses] Encontradas ${Object.keys(statuses).length} afiliações`);
+    log.info(`Encontradas ${Object.keys(statuses).length} afiliações`);
 
     const response: StatusResponse = { statuses };
 
@@ -95,7 +97,7 @@ Deno.serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[get-all-affiliation-statuses] Erro:", errorMessage);
+    log.error("Erro:", errorMessage);
     return new Response(
       JSON.stringify({ error: errorMessage || "Erro interno" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

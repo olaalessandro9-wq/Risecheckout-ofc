@@ -14,6 +14,9 @@ import { requireAuthenticatedProducer, ProducerAuth } from "../_shared/unified-a
 import { checkRateLimit, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiting/index.ts";
 import { generateSecureAffiliateCode } from "../_shared/kernel/security/crypto-utils.ts";
 import { maskEmail } from "../_shared/kernel/security/pii-masking.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("request-affiliation");
 
 // ============================================
 // TYPES (Local to this slice)
@@ -94,7 +97,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`📝 [request-affiliation] Solicitação de ${maskEmail(producer.email)} para produto ${product_id}`);
+    log.info(`Solicitação de ${maskEmail(producer.email)} para produto ${product_id}`);
 
     // ============================================
     // RATE LIMITING (usando módulo consolidado)
@@ -106,7 +109,7 @@ serve(async (req) => {
     );
     
     if (!rateLimitResult.allowed) {
-      console.warn(`🚫 [request-affiliation] Rate limit excedido para ${maskEmail(producer.email)}`);
+      log.warn(`Rate limit excedido para ${maskEmail(producer.email)}`);
       return new Response(
         JSON.stringify({
           success: false,
@@ -131,7 +134,7 @@ serve(async (req) => {
 
     const profileData = userProfile as ProfileData | null;
 
-    console.log(`✅ [request-affiliation] Conexões do usuário: Asaas=${!!profileData?.asaas_wallet_id}, MP=${!!profileData?.mercadopago_collector_id}, Stripe=${!!profileData?.stripe_account_id}`);
+    log.info(`Conexões do usuário: Asaas=${!!profileData?.asaas_wallet_id}, MP=${!!profileData?.mercadopago_collector_id}, Stripe=${!!profileData?.stripe_account_id}`);
 
     // ============================================
     // FETCH PRODUCT AND VALIDATE PROGRAM
@@ -152,7 +155,7 @@ serve(async (req) => {
     // SECURITY: BLOCK SELF-AFFILIATION
     // ============================================
     if (typedProduct.user_id === producer.id) {
-      console.warn(`🚫 [request-affiliation] Tentativa de auto-afiliação bloqueada: ${maskEmail(producer.email)}`);
+      log.warn(`Tentativa de auto-afiliação bloqueada: ${maskEmail(producer.email)}`);
       throw new Error("Você não pode se afiliar ao seu próprio produto");
     }
 
@@ -180,8 +183,8 @@ serve(async (req) => {
       (cardAllowed.includes("stripe") && profileData?.stripe_account_id)
     );
 
-    console.log(`ℹ️ [request-affiliation] Gateway status: PIX=${hasAllowedPixGateway}, Card=${hasAllowedCardGateway}`);
-    console.log(`✅ [request-affiliation] Programa ativo para produto: ${typedProduct.name}`);
+    log.info(`Gateway status: PIX=${hasAllowedPixGateway}, Card=${hasAllowedCardGateway}`);
+    log.info(`Programa ativo para produto: ${typedProduct.name}`);
 
     // ============================================
     // VALIDATE EXISTING AFFILIATION
@@ -204,7 +207,7 @@ serve(async (req) => {
         throw new Error("Você foi bloqueado e não pode se afiliar a este produto");
       }
       // status === "rejected" allows resubmission
-      console.log(`🔄 [request-affiliation] Reenviando solicitação previamente recusada`);
+      log.info("Reenviando solicitação previamente recusada");
     }
 
     // ============================================
@@ -250,7 +253,7 @@ serve(async (req) => {
       affiliation = data;
     }
 
-    console.log(`✅ [request-affiliation] Afiliação criada: ${affiliation.id} (status: ${initialStatus})`);
+    log.info(`Afiliação criada: ${affiliation.id} (status: ${initialStatus})`);
 
     // ============================================
     // RETURN RESPONSE
@@ -274,7 +277,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("🚨 [request-affiliation] Erro:", error);
+    log.error("Erro:", error);
     return new Response(
       JSON.stringify({
         success: false,

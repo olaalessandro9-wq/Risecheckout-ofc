@@ -14,6 +14,9 @@ import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 import { generateSecureAffiliateCode } from "../_shared/kernel/security/crypto-utils.ts";
 import { maskEmail } from "../_shared/kernel/security/pii-masking.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("manage-affiliation");
 
 // ============================================
 // TYPES
@@ -77,7 +80,7 @@ serve(async (req) => {
       corsHeaders
     );
     if (rateLimitResult) {
-      console.warn(`[manage-affiliation] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      log.warn(`Rate limit exceeded for IP: ${getClientIP(req)}`);
       return rateLimitResult;
     }
 
@@ -116,7 +119,7 @@ serve(async (req) => {
       req
     );
 
-    console.log(`🔧 [manage-affiliation] ${maskEmail(producer.email || '')} executando ação: ${action} em ${affiliation_id}`);
+    log.info(`${maskEmail(producer.email || '')} executando ação: ${action} em ${affiliation_id}`);
 
     // ============================================
     // FETCH AFFILIATION AND VALIDATE OWNERSHIP
@@ -153,7 +156,7 @@ serve(async (req) => {
       throw new Error("Você não tem permissão para gerenciar este afiliado");
     }
 
-    console.log(`✅ [manage-affiliation] Validação OK. Produto: ${product.name}`);
+    log.info(`Validação OK. Produto: ${product.name}`);
 
     // ============================================
     // EXECUTE ACTION
@@ -188,7 +191,7 @@ serve(async (req) => {
       case "update_commission":
         newStatus = typedAffiliation.status;
         newCommissionRate = commission_rate;
-        console.log(`💰 [manage-affiliation] Atualizando comissão para ${commission_rate}%`);
+        log.info(`Atualizando comissão para ${commission_rate}%`);
         break;
       
       default:
@@ -218,7 +221,7 @@ serve(async (req) => {
       throw updateError;
     }
 
-    console.log(`✅ [manage-affiliation] Status atualizado: ${typedAffiliation.status} → ${newStatus}`);
+    log.info(`Status atualizado: ${typedAffiliation.status} → ${newStatus}`);
 
     // ============================================
     // AUDIT LOG
@@ -236,9 +239,9 @@ serve(async (req) => {
         },
         ip_address: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || null
       });
-      console.log(`📝 [manage-affiliation] Audit log registrado: ${action}`);
+      log.info(`Audit log registrado: ${action}`);
     } catch (auditError: unknown) {
-      console.error(`⚠️ [manage-affiliation] Erro ao registrar audit log:`, auditError);
+      log.warn("Erro ao registrar audit log:", auditError);
     }
 
     // ============================================
@@ -263,7 +266,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("🚨 [manage-affiliation] Erro:", error);
+    log.error("Erro:", error);
     return new Response(
       JSON.stringify({
         success: false,

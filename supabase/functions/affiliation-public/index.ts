@@ -14,7 +14,9 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
 
+const log = createLogger("affiliation-public");
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
 interface RequestBody {
@@ -54,7 +56,7 @@ serve(async (req) => {
       return jsonResponse({ error: "productId required" }, 400);
     }
 
-    console.log(`[affiliation-public] Action: ${action}, Product: ${productId}`);
+    log.info(`Action: ${action}, Product: ${productId}`);
 
     // ===== ACTION: product =====
     if (action === "product") {
@@ -65,7 +67,7 @@ serve(async (req) => {
         .single();
 
       if (error || !data) {
-        console.error("[affiliation-public] Product not found:", error);
+        log.error("Product not found:", error);
         return jsonResponse({ error: "Produto não encontrado" }, 404);
       }
 
@@ -96,7 +98,7 @@ serve(async (req) => {
         .eq("status", "active");
 
       if (error) {
-        console.error("[affiliation-public] Offers error:", error);
+        log.error("Offers error:", error);
         return jsonResponse({ success: true, data: [] });
       }
 
@@ -160,7 +162,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const err = error instanceof Error ? error : new Error(String(error));
-    console.error("[affiliation-public] Error:", err.message);
+    log.error("Error:", err.message);
     return jsonResponse({ error: "Erro interno" }, 500);
   }
 });
