@@ -15,6 +15,9 @@ import {
   checkRateLimit,
   generateSecureNonce,
 } from "./integration-handlers.ts";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("IntegrationOAuth");
 
 // ============================================================================
 // HANDLER: INIT OAUTH
@@ -54,12 +57,12 @@ export async function handleInitOAuth(
     });
 
   if (error) {
-    console.error("[integration-management] OAuth state insert error:", error);
+    log.error("OAuth state insert error", error);
     return errorResponse("Erro ao iniciar autenticação", corsHeaders, 500);
   }
 
   // Rate limit auto-records in consolidated module
 
-  console.log(`[integration-management] OAuth state created for ${integrationType} by ${producerId}`);
+  log.info(`OAuth state created for ${integrationType} by ${producerId}`);
   return jsonResponse({ success: true, state: nonce }, corsHeaders);
 }
