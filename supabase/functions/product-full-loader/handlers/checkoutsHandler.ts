@@ -28,6 +28,7 @@ export async function fetchCheckoutsAndLinks(
       is_default,
       status,
       theme,
+      visits_count,
       created_at,
       updated_at
     `)
