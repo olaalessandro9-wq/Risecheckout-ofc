@@ -18,7 +18,9 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { encodeHex } from "https://deno.land/std@0.224.0/encoding/hex.ts";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
 
+const log = createLogger("ProcessWebhookQueue");
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey);
@@ -68,27 +70,27 @@ serve(async (req) => {
   const expectedSecret = Deno.env.get('INTERNAL_WEBHOOK_SECRET');
 
   if (!internalSecret || internalSecret !== expectedSecret) {
-    console.log("[process-webhook-queue] ❌ Unauthorized: Invalid or missing X-Internal-Secret");
+    log.info("❌ Unauthorized: Invalid or missing X-Internal-Secret");
     return new Response(
       JSON.stringify({ error: 'Unauthorized' }),
       { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 
-  console.log("[process-webhook-queue] ✅ Autenticação validada");
+  log.info("✅ Autenticação validada");
 
   try {
     const payload: WebhookPayload = await req.json();
     const record = payload.record;
 
-    console.log("[process-webhook-queue] Iniciando processamento...", { 
+    log.info("Iniciando processamento...", { 
       hasRecord: !!record,
       recordId: record?.id 
     });
 
     // Validar que é um registro válido para processar
     if (!record || !record.id) {
-      console.log("[process-webhook-queue] Nenhum registro válido recebido");
+      log.info("Nenhum registro válido recebido");
       return new Response(JSON.stringify({ 
         processed: false, 
         reason: "No valid record provided" 
@@ -99,7 +101,7 @@ serve(async (req) => {
 
     // GUARDA: Só processar se status permite retry
     if (record.status === 'success') {
-      console.log("[process-webhook-queue] Registro já processado com sucesso, ignorando");
+      log.info("Registro já processado com sucesso, ignorando");
       return new Response(JSON.stringify({ 
         processed: false, 
         reason: "Already successful" 
@@ -110,7 +112,7 @@ serve(async (req) => {
 
     // GUARDA: Só processar se attempts < 5
     if ((record.attempts || 0) >= 5) {
-      console.log("[process-webhook-queue] Máximo de tentativas atingido, ignorando");
+      log.info("Máximo de tentativas atingido, ignorando");
       return new Response(JSON.stringify({ 
         processed: false, 
         reason: "Max attempts reached" 
@@ -127,7 +129,7 @@ serve(async (req) => {
       .single();
 
     if (deliveryError || !delivery) {
-      console.error("[process-webhook-queue] Delivery não encontrado:", deliveryError);
+      log.error("Delivery não encontrado:", deliveryError);
       return new Response(JSON.stringify({ 
         error: "Delivery not found" 
       }), { 
@@ -146,7 +148,7 @@ serve(async (req) => {
       .single();
 
     if (webhookError || !webhook) {
-      console.error("[process-webhook-queue] Webhook não encontrado:", webhookError);
+      log.error("Webhook não encontrado:", webhookError);
       
       // Marcar como falho permanente
       await supabase
@@ -170,7 +172,7 @@ serve(async (req) => {
 
     // Verificar se webhook está ativo
     if (!typedWebhook.active) {
-      console.log("[process-webhook-queue] Webhook inativo, ignorando");
+      log.info("Webhook inativo, ignorando");
       await supabase
         .from('webhook_deliveries')
         .update({ 
@@ -197,7 +199,7 @@ serve(async (req) => {
       })
       .eq('id', typedDelivery.id);
 
-    console.log(`[process-webhook-queue] 🔄 Reenviando webhook ${typedDelivery.id} para ${typedWebhook.url}`);
+    log.info(`🔄 Reenviando webhook ${typedDelivery.id} para ${typedWebhook.url}`);
 
     // Gerar assinatura HMAC usando Web Crypto API
     const timestamp = Math.floor(Date.now() / 1000).toString();
@@ -227,7 +229,7 @@ serve(async (req) => {
       const responseText = await response.text();
       const isSuccess = response.ok;
 
-      console.log(`[process-webhook-queue] Resposta: ${response.status} - ${isSuccess ? 'SUCESSO' : 'FALHA'}`);
+      log.info(`Resposta: ${response.status} - ${isSuccess ? 'SUCESSO' : 'FALHA'}`);
 
       if (isSuccess) {
         // Sucesso!
@@ -241,7 +243,7 @@ serve(async (req) => {
           })
           .eq('id', typedDelivery.id);
 
-        console.log(`[process-webhook-queue] ✅ Webhook ${typedDelivery.id} entregue com sucesso`);
+        log.info(`✅ Webhook ${typedDelivery.id} entregue com sucesso`);
       } else {
         // Falha - incrementar tentativas
         const nextAttempts = (typedDelivery.attempts || 0) + 1;
@@ -258,7 +260,7 @@ serve(async (req) => {
           })
           .eq('id', typedDelivery.id);
 
-        console.log(`[process-webhook-queue] ❌ Webhook ${typedDelivery.id} falhou (tentativa ${nextAttempts}/5)`);
+        log.info(`❌ Webhook ${typedDelivery.id} falhou (tentativa ${nextAttempts}/5)`);
       }
 
       return new Response(JSON.stringify({ 
@@ -271,7 +273,7 @@ serve(async (req) => {
 
     } catch (fetchError: unknown) {
       const errorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError);
-      console.error(`[process-webhook-queue] Erro de rede:`, fetchError);
+      log.error("Erro de rede:", fetchError);
       
       const nextAttempts = (typedDelivery.attempts || 0) + 1;
       const nextStatus = nextAttempts >= 5 ? 'failed' : 'pending';
@@ -297,7 +299,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[process-webhook-queue] Erro fatal:", error);
+    log.error("Erro fatal:", error);
     return new Response(JSON.stringify({ 
       error: errorMessage 
     }), { 

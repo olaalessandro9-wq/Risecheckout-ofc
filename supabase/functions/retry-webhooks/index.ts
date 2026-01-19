@@ -11,8 +11,10 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
+const log = createLogger("RetryWebhooks");
 
 const MAX_RETRIES = 3;
 
@@ -36,11 +38,11 @@ serve(async (req) => {
       .limit(50);
 
     if (queryError) {
-      console.error('[retry-webhooks] Query error:', queryError);
+      log.error("Query error:", queryError);
       throw queryError;
     }
 
-    console.log(`[retry-webhooks] Found ${failedWebhooks?.length || 0} webhooks to retry`);
+    log.info(`Found ${failedWebhooks?.length || 0} webhooks to retry`);
 
     let successCount = 0;
     let failCount = 0;
@@ -73,7 +75,7 @@ serve(async (req) => {
         }
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`[retry-webhooks] Error retrying webhook ${webhook.id}:`, errorMessage);
+        log.error(`Error retrying webhook ${webhook.id}:`, errorMessage);
         failCount++;
         
         await supabase
@@ -86,7 +88,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`[retry-webhooks] Complete - Success: ${successCount}, Failed: ${failCount}`);
+    log.info(`Complete - Success: ${successCount}, Failed: ${failCount}`);
 
     return new Response(
       JSON.stringify({
@@ -100,7 +102,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[retry-webhooks] Error:', errorMessage);
+    log.error("Error:", errorMessage);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

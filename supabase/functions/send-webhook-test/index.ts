@@ -11,6 +11,9 @@ import {
   RATE_LIMIT_CONFIGS,
   getClientIP 
 } from "../_shared/rate-limiting/index.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("SendWebhookTest");
 
 // === INTERFACES (Zero any) ===
 
@@ -85,7 +88,7 @@ Deno.serve(async (req) => {
       corsHeaders
     );
     if (rateLimitResult) {
-      console.warn(`[send-webhook-test] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      log.warn(`Rate limit exceeded for IP: ${getClientIP(req)}`);
       return rateLimitResult;
     }
 
@@ -96,7 +99,7 @@ Deno.serve(async (req) => {
       throw new Error("webhook_url, event_type and payload are required");
     }
 
-    console.log("[send-webhook-test] Enviando teste:", {
+    log.info("Enviando teste:", {
       webhook_id,
       webhook_url,
       event_type,
@@ -112,7 +115,7 @@ Deno.serve(async (req) => {
         .single() as { data: WebhookRecord | null; error: Error | null };
 
       if (webhookError) {
-        console.error("[send-webhook-test] Error fetching webhook:", webhookError);
+        log.error("Error fetching webhook:", webhookError);
       } else {
         secret = webhook?.secret_encrypted || "";
       }
@@ -140,7 +143,7 @@ Deno.serve(async (req) => {
 
     const responseText = await response.text();
 
-    console.log("[send-webhook-test] Resposta:", {
+    log.info("Resposta:", {
       status: response.status,
       ok: response.ok,
     });
@@ -171,7 +174,7 @@ Deno.serve(async (req) => {
     );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[send-webhook-test] Error:", errorMessage);
+    log.error("Error:", errorMessage);
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

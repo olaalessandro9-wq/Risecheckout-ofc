@@ -10,8 +10,10 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
+const log = createLogger("TestWebhookDispatch");
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -81,7 +83,7 @@ serve(async (req) => {
       responseData = responseText;
     }
 
-    console.log(`[test-webhook-dispatch] Test webhook sent to ${webhookUrl}, status: ${response.status}`);
+    log.info(`Test webhook sent to ${webhookUrl}, status: ${response.status}`);
 
     return new Response(
       JSON.stringify({
@@ -95,7 +97,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[test-webhook-dispatch] Error:', errorMessage);
+    log.error("Error:", errorMessage);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
