@@ -14,6 +14,9 @@
 import { useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import type { Offer, OrderBump, Coupon } from "../../types/product.types";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("useProductEntities");
 
 interface UseProductEntitiesOptions {
   productId: string | null;
@@ -84,7 +87,7 @@ export function useProductEntities({
       if (error) throw new Error(error.message);
       setOffers((data?.offers || []) as unknown as Offer[]);
     } catch (error: unknown) {
-      console.error("[useProductEntities] Error loading offers:", error);
+      log.error("Error loading offers:", error);
     }
   }, [productId]);
 
@@ -104,7 +107,7 @@ export function useProductEntities({
       if (error) throw new Error(error.message);
       setOrderBumps((data?.orderBumps || []) as unknown as OrderBump[]);
     } catch (error: unknown) {
-      console.error("[useProductEntities] Error loading order bumps:", error);
+      log.error("Error loading order bumps:", error);
     }
   }, [productId]);
 
@@ -139,7 +142,7 @@ export function useProductEntities({
         }))
       );
     } catch (error: unknown) {
-      console.error("[useProductEntities] Error loading coupons:", error);
+      log.error("Error loading coupons:", error);
     }
   }, [productId]);
 

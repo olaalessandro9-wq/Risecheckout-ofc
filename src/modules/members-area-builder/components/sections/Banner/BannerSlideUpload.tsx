@@ -10,6 +10,9 @@ import { Button } from '@/components/ui/button';
 import { Upload, X, ImageIcon, Loader2, Crop } from 'lucide-react';
 import { toast } from 'sonner';
 import { uploadViaEdge } from '@/lib/storage/storageProxy';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('BannerSlideUpload');
 import { BannerImageCropDialog } from '../../dialogs/BannerImageCropDialog';
 
 interface BannerSlideUploadProps {
@@ -51,7 +54,7 @@ export function BannerSlideUpload({ imageUrl, onImageChange }: BannerSlideUpload
         toast.success('Imagem enviada com sucesso!');
       }
     } catch (error: unknown) {
-      console.error('Upload error:', error);
+      log.error('Upload error:', error);
       toast.error('Erro ao enviar imagem. Tente novamente.');
     } finally {
       setIsUploading(false);
@@ -122,7 +125,7 @@ export function BannerSlideUpload({ imageUrl, onImageChange }: BannerSlideUpload
       setFileToCrop(file);
       setCropDialogOpen(true);
     } catch (error: unknown) {
-      console.error('Error loading image for re-crop:', error);
+      log.error('Error loading image for re-crop:', error);
       toast.error('Erro ao carregar imagem para recorte.');
     }
   }, [imageUrl]);

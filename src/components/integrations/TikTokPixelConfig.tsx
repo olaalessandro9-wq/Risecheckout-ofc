@@ -14,6 +14,9 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("TikTokPixelConfig");
 
 interface TikTokIntegrationResponse {
   integration?: {
@@ -71,7 +74,7 @@ export function TikTokPixelConfig() {
         setAccessToken("");
       }
     } catch (error: unknown) {
-      console.error("Error loading TikTok config:", error);
+      log.error("Error loading TikTok config:", error);
       toast.error("Erro ao carregar configuração do TikTok");
     } finally {
       setLoading(false);
@@ -121,7 +124,7 @@ export function TikTokPixelConfig() {
 
       toast.success("Configuração do TikTok salva com sucesso!");
     } catch (error: unknown) {
-      console.error("Error saving TikTok config:", error);
+      log.error("Error saving TikTok config:", error);
       const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
       toast.error("Erro ao salvar configuração: " + errorMessage);
     } finally {
