@@ -4,6 +4,7 @@
  * Handlers para gerenciamento de vínculos entre pixels e produtos
  * 
  * @refactored 2026-01-18 - jsonResponse signature standardized
+ * @version 1.1.0 - Migrated to centralized logger
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -13,6 +14,9 @@ import {
   PixelData,
   jsonResponse 
 } from "./pixel-types.ts";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("PixelLinks");
 
 // ============================================================================
 // Product Ownership Verification
@@ -50,7 +54,7 @@ export async function handleListProductLinks(
   productId: string,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  console.log("[pixel-management] Listing product pixel links:", productId);
+  log.info("Listing product pixel links", { productId });
 
   const ownership = await verifyProductOwnership(supabase, productId, producerId);
   if (!ownership.valid) {
@@ -65,7 +69,7 @@ export async function handleListProductLinks(
     .order("name", { ascending: true });
 
   if (pixelsError) {
-    console.error("[pixel-management] Error listing vendor pixels:", pixelsError);
+    log.error("Error listing vendor pixels", pixelsError);
     throw new Error("Erro ao listar pixels");
   }
 
@@ -75,7 +79,7 @@ export async function handleListProductLinks(
     .eq("product_id", productId);
 
   if (linksError) {
-    console.error("[pixel-management] Error listing product links:", linksError);
+    log.error("Error listing product links", linksError);
     throw new Error("Erro ao listar vínculos");
   }
 
@@ -100,7 +104,7 @@ export async function handleLinkToProduct(
   data: PixelData | undefined,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  console.log("[pixel-management] Linking pixel to product:", { pixelId, productId });
+  log.info("Linking pixel to product", { pixelId, productId });
 
   const ownership = await verifyProductOwnership(supabase, productId, producerId);
   if (!ownership.valid) {
@@ -140,11 +144,11 @@ export async function handleLinkToProduct(
     if (insertError.code === "23505") {
       return jsonResponse({ error: "Este pixel já está vinculado ao produto" }, corsHeaders, 409);
     }
-    console.error("[pixel-management] Error linking pixel:", insertError);
+    log.error("Error linking pixel", insertError);
     throw new Error("Erro ao vincular pixel");
   }
 
-  console.log("[pixel-management] ✅ Pixel linked:", newLink.id);
+  log.info("✅ Pixel linked", { linkId: newLink.id });
 
   return jsonResponse({ success: true, link: newLink }, corsHeaders, 201);
 }
@@ -156,7 +160,7 @@ export async function handleUnlinkFromProduct(
   pixelId: string,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  console.log("[pixel-management] Unlinking pixel from product:", { pixelId, productId });
+  log.info("Unlinking pixel from product", { pixelId, productId });
 
   const ownership = await verifyProductOwnership(supabase, productId, producerId);
   if (!ownership.valid) {
@@ -170,11 +174,11 @@ export async function handleUnlinkFromProduct(
     .eq("pixel_id", pixelId);
 
   if (error) {
-    console.error("[pixel-management] Error unlinking pixel:", error);
+    log.error("Error unlinking pixel", error);
     throw new Error("Erro ao desvincular pixel");
   }
 
-  console.log("[pixel-management] ✅ Pixel unlinked");
+  log.info("✅ Pixel unlinked");
 
   return jsonResponse({ success: true }, corsHeaders);
 }
@@ -187,7 +191,7 @@ export async function handleUpdateProductLink(
   data: PixelData | undefined,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  console.log("[pixel-management] Updating product pixel link:", { pixelId, productId });
+  log.info("Updating product pixel link", { pixelId, productId });
 
   const ownership = await verifyProductOwnership(supabase, productId, producerId);
   if (!ownership.valid) {
@@ -211,11 +215,11 @@ export async function handleUpdateProductLink(
     .single();
 
   if (error) {
-    console.error("[pixel-management] Error updating link:", error);
+    log.error("Error updating link", error);
     throw new Error("Erro ao atualizar vínculo");
   }
 
-  console.log("[pixel-management] ✅ Link updated");
+  log.info("✅ Link updated");
 
   return jsonResponse({ success: true, link: updatedLink }, corsHeaders);
 }

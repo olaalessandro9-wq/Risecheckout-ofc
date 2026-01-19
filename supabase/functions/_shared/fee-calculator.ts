@@ -5,11 +5,14 @@
  * Extraído de platform-config.ts para RISE Protocol V2 (< 300 linhas).
  * 
  * @module _shared/fee-calculator
- * @version 1.0.0
+ * @version 1.1.0 - Migrated to centralized logger
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PLATFORM_FEE_PERCENT, PLATFORM_OWNER_USER_ID } from "./platform-constants.ts";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("FeeCalculator");
 
 // ========================================================================
 // HELPER FUNCTIONS
@@ -74,21 +77,21 @@ export async function getVendorFeePercent(
       .single();
 
     if (error) {
-      console.error("[fee-calculator] Erro ao buscar taxa do vendedor:", error);
+      log.error("Erro ao buscar taxa do vendedor", error);
       return PLATFORM_FEE_PERCENT;
     }
 
     const profile = data as VendorFeeProfile | null;
     
     if (profile?.custom_fee_percent != null) {
-      console.log(`[fee-calculator] Vendedor ${vendorId} tem taxa personalizada: ${profile.custom_fee_percent * 100}%`);
+      log.info(`Vendedor ${vendorId} tem taxa personalizada: ${profile.custom_fee_percent * 100}%`);
       return profile.custom_fee_percent;
     }
 
     return PLATFORM_FEE_PERCENT;
   } catch (err: unknown) {
     const errMessage = err instanceof Error ? err.message : String(err);
-    console.error("[fee-calculator] Erro ao buscar taxa:", errMessage);
+    log.error("Erro ao buscar taxa", errMessage);
     return PLATFORM_FEE_PERCENT;
   }
 }
@@ -113,7 +116,7 @@ export async function isVendorOwner(
 ): Promise<boolean> {
   // Fast path: comparar com ID conhecido
   if (vendorId === PLATFORM_OWNER_USER_ID) {
-    console.log(`[fee-calculator] 🏠 OWNER detectado via ID direto`);
+    log.info("🏠 OWNER detectado via ID direto");
     return true;
   }
   
@@ -128,12 +131,12 @@ export async function isVendorOwner(
     const record = data as UserRoleRecord | null;
     const isOwner = record?.role === "owner";
     if (isOwner) {
-      console.log(`[fee-calculator] 🏠 OWNER detectado via user_roles`);
+      log.info("🏠 OWNER detectado via user_roles");
     }
     return isOwner;
   } catch (err: unknown) {
     const errMessage = err instanceof Error ? err.message : String(err);
-    console.error("[fee-calculator] Erro ao verificar owner:", errMessage);
+    log.error("Erro ao verificar owner", errMessage);
     return false;
   }
 }
