@@ -9,6 +9,9 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { jsonResponse, errorResponse } from "../types.ts";
+import { createLogger } from "../../_shared/logger.ts";
+
+const log = createLogger("admin-data/content");
 
 // ==========================================
 // CONTENT EDITOR DATA
@@ -51,7 +54,7 @@ export async function getContentEditorData(
     .single();
 
   if (contentError) {
-    console.error("[admin-data] Content error:", contentError);
+    log.error("Content error", contentError);
     return errorResponse("Conteúdo não encontrado", "NOT_FOUND", corsHeaders, 404);
   }
 
@@ -232,7 +235,7 @@ export async function getMarketplaceCategories(
     .order("display_order", { ascending: true });
 
   if (error) {
-    console.error("[admin-data] Marketplace categories error:", error);
+    log.error("Marketplace categories error", error);
     return errorResponse("Erro ao buscar categorias", "DB_ERROR", corsHeaders, 500);
   }
 
@@ -255,7 +258,7 @@ export async function getMarketplaceStats(
     .single();
 
   if (error) {
-    console.error("[admin-data] Marketplace stats error:", error);
+    log.error("Marketplace stats error", error);
     return errorResponse("Erro ao buscar estatísticas", "DB_ERROR", corsHeaders, 500);
   }
 

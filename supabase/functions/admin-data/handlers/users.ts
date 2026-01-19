@@ -9,6 +9,9 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { jsonResponse, errorResponse } from "../types.ts";
+import { createLogger } from "../../_shared/logger.ts";
+
+const log = createLogger("admin-data/users");
 
 // ==========================================
 // USERS WITH METRICS
@@ -104,7 +107,7 @@ export async function getUserProfile(
     .single();
 
   if (error) {
-    console.error("[admin-data] Profile error:", error);
+    log.error("Profile error", error);
     return errorResponse("Perfil não encontrado", "NOT_FOUND", corsHeaders, 404);
   }
 
@@ -137,7 +140,7 @@ export async function getUserProducts(
     .eq("user_id", targetUserId);
 
   if (productsError) {
-    console.error("[admin-data] Products error:", productsError);
+    log.error("Products error", productsError);
     return errorResponse("Erro ao buscar produtos", "DB_ERROR", corsHeaders, 500);
   }
 
@@ -148,7 +151,7 @@ export async function getUserProducts(
     .in("product_id", productIds);
 
   if (ordersError) {
-    console.error("[admin-data] Orders error:", ordersError);
+    log.error("Orders error", ordersError);
     return errorResponse("Erro ao buscar pedidos", "DB_ERROR", corsHeaders, 500);
   }
 
@@ -227,7 +230,7 @@ export async function getRoleStats(
     .select("role");
 
   if (error) {
-    console.error("[admin-data] Role stats error:", error);
+    log.error("Role stats error", error);
     return errorResponse("Erro ao buscar estatísticas", "DB_ERROR", corsHeaders, 500);
   }
 
@@ -280,7 +283,7 @@ export async function getUserProductsSimple(
     .order("name");
 
   if (error) {
-    console.error("[admin-data] User products simple error:", error);
+    log.error("User products simple error", error);
     return errorResponse("Erro ao buscar produtos", "DB_ERROR", corsHeaders, 500);
   }
 

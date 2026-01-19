@@ -8,6 +8,9 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { jsonResponse, errorResponse, getDateRange } from "../types.ts";
+import { createLogger } from "../../_shared/logger.ts";
+
+const log = createLogger("admin-data/orders");
 
 // ==========================================
 // ADMIN ORDERS
@@ -57,7 +60,7 @@ export async function getAdminOrders(
     .limit(500);
 
   if (error) {
-    console.error("[admin-data] Orders error:", error);
+    log.error("Orders error", error);
     return errorResponse("Erro ao buscar pedidos", "DB_ERROR", corsHeaders, 500);
   }
 

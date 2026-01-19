@@ -9,6 +9,9 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { jsonResponse, errorResponse } from "../types.ts";
+import { createLogger } from "../../_shared/logger.ts";
+
+const log = createLogger("admin-data/members-area");
 
 // ==========================================
 // MEMBERS AREA DATA
@@ -41,7 +44,7 @@ export async function getMembersAreaData(
     .order("position", { ascending: true });
 
   if (sectionsError) {
-    console.error("[admin-data] Sections error:", sectionsError);
+    log.error("Sections error", sectionsError);
     return errorResponse("Erro ao buscar seções", "DB_ERROR", corsHeaders, 500);
   }
 
@@ -82,7 +85,7 @@ export async function getMembersAreaModules(
     .order("position", { ascending: true });
 
   if (error) {
-    console.error("[admin-data] Modules error:", error);
+    log.error("Modules error", error);
     return errorResponse("Erro ao buscar módulos", "DB_ERROR", corsHeaders, 500);
   }
 
@@ -146,7 +149,7 @@ export async function getMembersAreaModulesWithContents(
     .order("position", { ascending: true });
 
   if (error) {
-    console.error("[admin-data] Modules with contents error:", error);
+    log.error("Modules with contents error", error);
     return errorResponse("Erro ao buscar módulos", "DB_ERROR", corsHeaders, 500);
   }
 
