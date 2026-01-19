@@ -24,6 +24,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { RequestBody, jsonResponse } from "../_shared/pixel-types.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("PixelManagement");
 
 // Import handlers
 import {
@@ -72,7 +75,7 @@ Deno.serve(async (req) => {
     const body: RequestBody = await req.json();
     const { action, pixelId, productId, data } = body;
 
-    console.log(`[pixel-management] Action: ${action}, Producer: ${producerId}`);
+    log.info(`Action: ${action}, Producer: ${producerId}`);
 
     // Rate limiting
     const rateLimit = await checkRateLimit(supabase, producerId, action);
@@ -145,7 +148,7 @@ Deno.serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Erro interno";
-    console.error("[pixel-management] ❌ Unhandled error:", errorMessage);
+    log.error("Unhandled error:", errorMessage);
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

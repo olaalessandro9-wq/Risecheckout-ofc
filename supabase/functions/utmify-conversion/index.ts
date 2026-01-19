@@ -10,7 +10,9 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
 
+const log = createLogger("UtmifyConversion");
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
 const UTMIFY_API_URL = 'https://api.utmify.com.br/api/v1/conversion';
@@ -47,7 +49,7 @@ serve(async (req) => {
       .single();
 
     if (orderError || !order) {
-      console.error('[utmify-conversion] Order not found:', orderId);
+      log.error("Order not found:", orderId);
       return new Response(
         JSON.stringify({ error: 'Order not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -66,7 +68,7 @@ serve(async (req) => {
     }
 
     if (!token) {
-      console.log('[utmify-conversion] No UTMify token configured for vendor:', vendorId);
+      log.info("No UTMify token configured for vendor:", vendorId);
       return new Response(
         JSON.stringify({ success: false, reason: 'No UTMify token configured' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -93,14 +95,14 @@ serve(async (req) => {
 
     if (!utmifyResponse.ok) {
       const errorData = await utmifyResponse.text();
-      console.error('[utmify-conversion] UTMify API error:', errorData);
+      log.error("UTMify API error:", errorData);
       return new Response(
         JSON.stringify({ success: false, error: 'UTMify API error' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`[utmify-conversion] Conversion sent for order ${orderId}`);
+    log.info(`Conversion sent for order ${orderId}`);
 
     return new Response(
       JSON.stringify({ success: true }),
@@ -109,7 +111,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[utmify-conversion] Error:', errorMessage);
+    log.error("Error:", errorMessage);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

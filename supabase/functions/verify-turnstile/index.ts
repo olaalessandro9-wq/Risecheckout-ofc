@@ -16,6 +16,9 @@ import {
   TURNSTILE_VERIFY,
   getClientIP 
 } from "../_shared/rate-limiting/index.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("VerifyTurnstile");
 
 // === INTERFACES (Zero any) ===
 
@@ -56,14 +59,14 @@ Deno.serve(async (req) => {
       corsHeaders
     );
     if (rateLimitResult) {
-      console.warn(`[verify-turnstile] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      log.warn(`Rate limit exceeded for IP: ${getClientIP(req)}`);
       return rateLimitResult;
     }
 
     const secretKey = Deno.env.get('TURNSTILE_SECRET_KEY');
     
     if (!secretKey) {
-      console.error('[verify-turnstile] TURNSTILE_SECRET_KEY não configurada');
+      log.error("TURNSTILE_SECRET_KEY não configurada");
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -80,7 +83,7 @@ Deno.serve(async (req) => {
     const { token } = body;
 
     if (!token) {
-      console.warn('[verify-turnstile] Token não fornecido');
+      log.warn("Token não fornecido");
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -104,7 +107,7 @@ Deno.serve(async (req) => {
       formData.append('remoteip', clientIP.split(',')[0].trim());
     }
 
-    console.log('[verify-turnstile] Verificando token com Cloudflare...');
+    log.debug("Verificando token com Cloudflare...");
 
     const verifyResponse = await fetch(
       'https://challenges.cloudflare.com/turnstile/v0/siteverify',
@@ -116,7 +119,7 @@ Deno.serve(async (req) => {
 
     const result: TurnstileVerifyResponse = await verifyResponse.json();
 
-    console.log('[verify-turnstile] Resposta Cloudflare:', {
+    log.debug("Resposta Cloudflare:", {
       success: result.success,
       hostname: result.hostname,
       errorCodes: result['error-codes'],
@@ -147,7 +150,7 @@ Deno.serve(async (req) => {
         errorMessage = 'Requisição mal formada';
       }
 
-      console.warn('[verify-turnstile] Verificação falhou:', errorCodes);
+      log.warn("Verificação falhou:", errorCodes);
 
       return new Response(
         JSON.stringify({ 
@@ -163,7 +166,7 @@ Deno.serve(async (req) => {
     }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[verify-turnstile] Erro:', errorMessage);
+    log.error("Erro:", errorMessage);
     return new Response(
       JSON.stringify({ 
         success: false, 
