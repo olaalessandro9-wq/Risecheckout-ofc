@@ -5,8 +5,8 @@
  * 
  * This service wraps the FSM and provides:
  * - Public methods for auth operations
- * - Automatic timer management
- * - State persistence
+ * - Automatic timer management (via HeartbeatManager)
+ * - State persistence (via persistence module)
  * - Subscriber notifications
  */
 
@@ -16,11 +16,11 @@ import type {
   TokenContext,
   TokenType,
   TokenStateSubscriber,
-  RefreshResponse,
 } from "./types";
-import { STORAGE_KEYS, TOKEN_TIMING } from "./types";
 import { transition, INITIAL_STATE, INITIAL_CONTEXT, needsRefresh, isExpired } from "./machine";
-import { SUPABASE_URL } from "@/config/supabase";
+import { persistTokenState, restoreTokenState, clearPersistedState } from "./persistence";
+import { HeartbeatManager } from "./heartbeat";
+import { executeRefresh } from "./refresh";
 import { createLogger } from "@/lib/logger";
 
 // ============================================
@@ -28,60 +28,48 @@ import { createLogger } from "@/lib/logger";
 // ============================================
 
 export class TokenService {
-  private type: TokenType;
+  private readonly type: TokenType;
   private state: TokenState = INITIAL_STATE;
   private context: TokenContext = { ...INITIAL_CONTEXT };
-  private subscribers: Set<TokenStateSubscriber> = new Set();
-  private heartbeatTimer: number | null = null;
+  private readonly subscribers: Set<TokenStateSubscriber> = new Set();
+  private readonly heartbeat: HeartbeatManager;
   private refreshPromise: Promise<boolean> | null = null;
-  private log;
+  private readonly log;
   
   constructor(type: TokenType) {
     this.type = type;
     this.log = createLogger(`TokenService:${type}`);
+    this.heartbeat = new HeartbeatManager(() => this.checkTokenStatus());
+    
     this.restoreState();
-    this.startHeartbeat();
+    this.heartbeat.start();
   }
   
   // ========== PUBLIC API ==========
   
-  /**
-   * Mark as authenticated after successful login
-   */
+  /** Mark as authenticated after successful login */
   setAuthenticated(expiresIn: number): void {
     this.dispatch({ type: "LOGIN_SUCCESS", expiresIn });
   }
   
-  /**
-   * Get current state
-   */
+  /** Get current state */
   getState(): TokenState {
     return this.state;
   }
   
-  /**
-   * Get current context
-   */
+  /** Get current context (copy) */
   getContext(): TokenContext {
     return { ...this.context };
   }
   
-  /**
-   * Check if authenticated and valid
-   */
+  /** Check if authenticated and valid */
   hasValidToken(): boolean {
-    return (
-      (this.state === "authenticated" || this.state === "expiring" || this.state === "refreshing") &&
-      !isExpired(this.context)
-    );
+    const validStates: TokenState[] = ["authenticated", "expiring", "refreshing"];
+    return validStates.includes(this.state) && !isExpired(this.context);
   }
   
-  /**
-   * Get valid access token (with auto-refresh if needed)
-   * Returns marker string since actual token is in httpOnly cookie
-   */
+  /** Get valid access token (with auto-refresh if needed) */
   async getValidAccessToken(): Promise<string | null> {
-    // Not authenticated at all
     if (this.state === "idle" || this.state === "error") {
       return null;
     }
@@ -97,14 +85,8 @@ export class TokenService {
       this.dispatch({ type: "TIMER_NEAR_EXPIRY" });
     }
     
-    // If now expiring, trigger refresh
-    if (this.state === "expiring") {
-      const success = await this.refresh();
-      return success ? "cookie-authenticated" : null;
-    }
-    
-    // Expired - try one refresh
-    if (this.state === "expired") {
+    // If now expiring or expired, trigger refresh
+    if (this.state === "expiring" || this.state === "expired") {
       const success = await this.refresh();
       return success ? "cookie-authenticated" : null;
     }
@@ -112,16 +94,12 @@ export class TokenService {
     return this.hasValidToken() ? "cookie-authenticated" : null;
   }
   
-  /**
-   * Synchronous token check (no refresh attempt)
-   */
+  /** Synchronous token check (no refresh attempt) */
   getAccessTokenSync(): string | null {
     return this.hasValidToken() ? "cookie-authenticated" : null;
   }
   
-  /**
-   * Trigger token refresh
-   */
+  /** Trigger token refresh */
   async refresh(): Promise<boolean> {
     // Prevent concurrent refreshes
     if (this.refreshPromise) {
@@ -135,38 +113,27 @@ export class TokenService {
     
     this.dispatch({ type: "REFRESH_START" });
     
-    this.refreshPromise = this.doRefresh();
+    this.refreshPromise = this.executeRefreshFlow();
     const result = await this.refreshPromise;
     this.refreshPromise = null;
     
     return result;
   }
   
-  /**
-   * Clear all auth state (logout)
-   */
+  /** Clear all auth state (logout) */
   clearTokens(): void {
     this.dispatch({ type: "LOGOUT" });
+    clearPersistedState(this.type);
   }
   
-  /**
-   * Subscribe to state changes
-   */
+  /** Subscribe to state changes */
   subscribe(callback: TokenStateSubscriber): () => void {
     this.subscribers.add(callback);
-    
-    // Immediately notify of current state
-    callback(this.state, this.context);
-    
-    // Return unsubscribe function
-    return () => {
-      this.subscribers.delete(callback);
-    };
+    callback(this.state, this.context); // Immediate notification
+    return () => this.subscribers.delete(callback);
   }
   
-  /**
-   * Wait for refresh to complete if one is in progress
-   */
+  /** Wait for refresh to complete if one is in progress */
   async waitForRefresh(): Promise<boolean> {
     if (this.refreshPromise) {
       return this.refreshPromise;
@@ -190,127 +157,55 @@ export class TokenService {
     
     this.log.info(`State: ${prevState} → ${this.state}`);
     
-    // Persist state
-    this.persistState();
-    
-    // Notify subscribers
+    persistTokenState(this.type, this.state, this.context);
     this.notifySubscribers();
   }
   
-  private async doRefresh(): Promise<boolean> {
-    try {
-      const endpoint = this.type === "producer"
-        ? "/functions/v1/producer-auth/refresh"
-        : "/functions/v1/buyer-auth/refresh";
-      
-      const response = await fetch(`${SUPABASE_URL}${endpoint}`, {
-        method: "POST",
-        credentials: "include", // CRITICAL: Send httpOnly cookies
-        headers: { "Content-Type": "application/json" },
-      });
-      
-      const data: RefreshResponse = await response.json();
-      
-      if (data.success && data.expiresIn) {
-        this.dispatch({ type: "REFRESH_SUCCESS", expiresIn: data.expiresIn });
-        return true;
-      }
-      
-      this.dispatch({ 
-        type: "REFRESH_FAILED", 
-        error: data.error || "Refresh failed",
-      });
-      return false;
-      
-    } catch (error) {
-      this.log.error("Refresh request failed", error);
-      this.dispatch({ 
-        type: "REFRESH_FAILED", 
-        error: error instanceof Error ? error.message : "Network error",
-      });
-      return false;
-    }
-  }
-  
-  private persistState(): void {
-    const keys = STORAGE_KEYS[this.type];
+  private async executeRefreshFlow(): Promise<boolean> {
+    const result = await executeRefresh(this.type);
     
-    try {
-      if (this.state === "idle") {
-        localStorage.removeItem(keys.state);
-        localStorage.removeItem(keys.expiresAt);
-        localStorage.removeItem(keys.lastRefresh);
-      } else {
-        localStorage.setItem(keys.state, this.state);
-        if (this.context.expiresAt) {
-          localStorage.setItem(keys.expiresAt, String(this.context.expiresAt));
-        }
-        if (this.context.lastRefreshAttempt) {
-          localStorage.setItem(keys.lastRefresh, String(this.context.lastRefreshAttempt));
-        }
-      }
-    } catch (error) {
-      this.log.error("Failed to persist state", error);
+    if (result.success && result.expiresIn) {
+      this.dispatch({ type: "REFRESH_SUCCESS", expiresIn: result.expiresIn });
+      return true;
     }
+    
+    this.dispatch({ type: "REFRESH_FAILED", error: result.error || "Refresh failed" });
+    return false;
   }
   
   private restoreState(): void {
-    const keys = STORAGE_KEYS[this.type];
+    const persisted = restoreTokenState(this.type);
     
-    try {
-      const savedState = localStorage.getItem(keys.state) as TokenState | null;
-      const expiresAt = Number(localStorage.getItem(keys.expiresAt) || 0);
-      const lastRefresh = Number(localStorage.getItem(keys.lastRefresh) || 0);
-      
-      if (!savedState || !expiresAt) {
-        return; // Stay in idle
-      }
-      
-      // Check if expired
-      if (Date.now() >= expiresAt) {
-        this.log.info("Restored session is expired");
-        this.state = "expired";
-        this.context = {
-          ...this.context,
-          expiresAt,
-          lastRefreshAttempt: lastRefresh || null,
-          errorMessage: "Session expired",
-        };
-        return;
-      }
-      
-      // Restore valid session
-      this.state = "authenticated";
+    if (!persisted.state || !persisted.expiresAt) {
+      return; // Stay in idle
+    }
+    
+    // Check if expired
+    if (Date.now() >= persisted.expiresAt) {
+      this.log.info("Restored session is expired");
+      this.state = "expired";
       this.context = {
         ...this.context,
-        expiresAt,
-        lastRefreshAttempt: lastRefresh || null,
+        expiresAt: persisted.expiresAt,
+        lastRefreshAttempt: persisted.lastRefreshAttempt,
+        errorMessage: "Session expired",
       };
-      
-      this.log.info("Session restored", { expiresIn: Math.round((expiresAt - Date.now()) / 1000) });
-      
-    } catch (error) {
-      this.log.error("Failed to restore state", error);
-    }
-  }
-  
-  private startHeartbeat(): void {
-    // Clear any existing timer
-    if (this.heartbeatTimer) {
-      clearInterval(this.heartbeatTimer);
+      return;
     }
     
-    // Check token status periodically
-    this.heartbeatTimer = window.setInterval(() => {
-      this.checkTokenStatus();
-    }, TOKEN_TIMING.HEARTBEAT_INTERVAL_MS);
+    // Restore valid session
+    this.state = "authenticated";
+    this.context = {
+      ...this.context,
+      expiresAt: persisted.expiresAt,
+      lastRefreshAttempt: persisted.lastRefreshAttempt,
+    };
     
-    // Also check immediately
-    this.checkTokenStatus();
+    const expiresIn = Math.round((persisted.expiresAt - Date.now()) / 1000);
+    this.log.info("Session restored", { expiresIn });
   }
   
   private checkTokenStatus(): void {
-    // Only check if authenticated
     if (this.state !== "authenticated") {
       return;
     }
@@ -323,7 +218,6 @@ export class TokenService {
     if (needsRefresh(this.context)) {
       this.log.info("Proactive refresh triggered by heartbeat");
       this.dispatch({ type: "TIMER_NEAR_EXPIRY" });
-      // Auto-trigger refresh
       this.refresh();
     }
   }
