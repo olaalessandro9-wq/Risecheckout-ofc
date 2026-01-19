@@ -14,6 +14,9 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("pushinpay-validate-token");
 
 // PushinPay API URLs por ambiente
 const PUSHINPAY_API_URLS = {
@@ -41,11 +44,7 @@ interface ValidationResult {
   error?: string;
 }
 
-const logStep = (step: string, details?: unknown) => {
-  // Nunca logar o token
-  const safeDetails = details ? JSON.stringify(details) : "";
-  console.log(`[PUSHINPAY-VALIDATE-TOKEN] ${step}${safeDetails ? ` - ${safeDetails}` : ""}`);
-};
+// Helper function removed - using centralized logger
 
 serve(async (req) => {
   // CORS handling via shared module
@@ -70,7 +69,7 @@ serve(async (req) => {
 
     // Validação de entrada
     if (!api_token || typeof api_token !== "string") {
-      logStep("ERROR", { reason: "api_token is required" });
+      log.error('api_token is required');
       return new Response(
         JSON.stringify({ valid: false, error: "API Token é obrigatório" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -78,14 +77,14 @@ serve(async (req) => {
     }
 
     if (!["production", "sandbox"].includes(environment)) {
-      logStep("ERROR", { reason: "invalid environment", environment });
+      log.error('Invalid environment', { environment });
       return new Response(
         JSON.stringify({ valid: false, error: "Ambiente inválido" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    logStep("Validating token", { environment, tokenLength: api_token.length });
+    log.info('Validating token', { environment, tokenLength: api_token.length });
 
     // Chamar API PushinPay
     const apiUrl = PUSHINPAY_API_URLS[environment as PushinPayEnvironment];
@@ -100,7 +99,7 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      logStep("API returned error", { status: response.status });
+      log.error('API returned error', { status: response.status });
       
       // Token inválido ou expirado
       if (response.status === 401 || response.status === 403) {
@@ -126,7 +125,7 @@ serve(async (req) => {
     // Parse response
     const accountData = await response.json();
     
-    logStep("Token validated successfully", { 
+    log.info('Token validated successfully', { 
       accountId: accountData.id,
       hasName: !!accountData.name 
     });
@@ -148,7 +147,7 @@ serve(async (req) => {
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    logStep("ERROR", { error: errorMessage });
+    log.error('Error', { message: errorMessage });
     
     return new Response(
       JSON.stringify({ valid: false, error: "Erro interno ao validar token" }),

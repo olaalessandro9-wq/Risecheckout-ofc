@@ -32,6 +32,9 @@ import { processAffiliate } from "./handlers/affiliate/index.ts";
 import { createOrder } from "./handlers/order-creator.ts";
 import { logSecurityEvent, SecurityAction } from "../_shared/audit-logger.ts";
 import { maskEmail } from "../_shared/kernel/security/pii-masking.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("create-order");
 
 // === INTERFACES ===
 
@@ -80,7 +83,7 @@ serve(withSentry('create-order', async (req) => {
   );
 
   if (rateLimitResponse) {
-    console.log(`[create-order] Rate limit excedido: ${identifier}`);
+    log.warn('Rate limit excedido', { identifier });
     return rateLimitResponse;
   }
 
@@ -95,11 +98,11 @@ serve(withSentry('create-order', async (req) => {
     let body: unknown;
     try {
       const text = await req.text();
-      console.log("[create-order] Request recebida");
+      log.info('Request recebida');
       body = JSON.parse(text);
     } catch (parseError: unknown) {
       const parseMessage = parseError instanceof Error ? parseError.message : String(parseError);
-      console.error("[create-order] JSON inválido:", parseMessage);
+      log.error('JSON inválido', { error: parseMessage });
       return new Response(
         JSON.stringify({ success: false, error: "Payload inválido: O corpo da requisição não é um JSON válido." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -109,7 +112,7 @@ serve(withSentry('create-order', async (req) => {
     // 4. SECURITY: Validação de Schema (VULN-005)
     const validation = validateCreateOrderInput(body);
     if (!validation.success) {
-      console.warn("[create-order] Validação falhou:", validation.errors);
+      log.warn('Validação falhou', { errors: validation.errors });
       return createValidationErrorResponse(validation.errors || ["Dados inválidos"], corsHeaders);
     }
 
@@ -129,7 +132,7 @@ serve(withSentry('create-order', async (req) => {
       affiliate_code
     } = validatedData;
 
-    console.log("[create-order] Processando:", {
+    log.info('Processando', {
       email: maskEmail(customer_email),
       product_id,
       bumps_count: order_bump_ids?.length || 0,
@@ -211,7 +214,7 @@ serve(withSentry('create-order', async (req) => {
     if (orderResult instanceof Response) return orderResult;
 
     // 9. RETORNO SUCESSO
-    console.log(`[create-order] ✅ Pedido criado: ${orderResult.order_id}`);
+    log.info('Pedido criado', { orderId: orderResult.order_id });
     
     // SECURITY: Log payment processing
     await logSecurityEvent(supabase, {
@@ -247,7 +250,7 @@ serve(withSentry('create-order', async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[create-order] Erro Fatal:", errorMessage);
+    log.error('Erro Fatal', { message: errorMessage });
     
     // Enviar para Sentry manualmente (erros tratados)
     await captureException(error instanceof Error ? error : new Error(String(error)), {
