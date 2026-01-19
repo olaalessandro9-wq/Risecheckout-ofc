@@ -7,12 +7,15 @@
  * - Load content, attachments, release settings
  * - Load module contents for after_content selection
  * 
- * @see RISE ARCHITECT PROTOCOL - Extracted for 300-line compliance
+ * @see RISE Protocol V3 - Zero console.log
  */
 
 import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("ContentEditorData");
 import type { ReleaseFormData, ContentAttachment, MemberContent } from "../types";
 
 interface ContentEditorDataResponse {
@@ -96,7 +99,7 @@ export function useContentEditorData({
       });
 
       if (error) {
-        console.error("[useContentEditorData] Error loading content:", error);
+        log.error("Error loading content:", error);
         toast.error("Erro ao carregar conteúdo");
         onBack();
         return;
@@ -137,7 +140,7 @@ export function useContentEditorData({
         });
       }
     } catch (err) {
-      console.error("[useContentEditorData] Exception:", err);
+      log.error("Exception:", err);
       toast.error("Erro ao carregar conteúdo");
     } finally {
       setIsLoading(false);

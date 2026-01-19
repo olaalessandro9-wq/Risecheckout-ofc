@@ -2,7 +2,7 @@
  * useSecurityAlerts - Hook para gerenciamento de alertas de segurança
  * 
  * MIGRATED: Uses api.call() - Unified API Client
- * @see RISE Protocol V3
+ * @see RISE Protocol V3 - Zero console.log
  * 
  * Fornece acesso a:
  * - Lista de alertas de segurança
@@ -15,6 +15,9 @@ import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("SecurityAlerts");
 
 export interface SecurityAlert {
   id: string;
@@ -97,7 +100,7 @@ export function useSecurityAlerts() {
       if (error) throw error;
       setAlerts((data?.alerts || []) as SecurityAlert[]);
     } catch (err: unknown) {
-      console.error("[useSecurityAlerts] Erro ao buscar alertas:", err);
+      log.error("Erro ao buscar alertas:", err);
       setError(err instanceof Error ? err.message : "Erro desconhecido");
     }
   }, []);
@@ -115,7 +118,7 @@ export function useSecurityAlerts() {
       if (error) throw error;
       setBlockedIPs((data?.blockedIPs || []) as BlockedIP[]);
     } catch (err: unknown) {
-      console.error("[useSecurityAlerts] Erro ao buscar IPs bloqueados:", err);
+      log.error("Erro ao buscar IPs bloqueados:", err);
     }
   }, []);
 
@@ -132,7 +135,7 @@ export function useSecurityAlerts() {
       if (error) throw error;
       setStats(data?.stats as SecurityStats);
     } catch (err: unknown) {
-      console.error("[useSecurityAlerts] Erro ao calcular estatísticas:", err);
+      log.error("Erro ao calcular estatísticas:", err);
     }
   }, []);
 
@@ -151,7 +154,7 @@ export function useSecurityAlerts() {
       await fetchAlerts();
       await fetchStats();
     } catch (err: unknown) {
-      console.error("[useSecurityAlerts] Erro ao reconhecer alerta:", err);
+      log.error("Erro ao reconhecer alerta:", err);
       toast.error(err instanceof Error ? err.message : "Erro ao reconhecer alerta");
     }
   }, [fetchAlerts, fetchStats]);
@@ -173,7 +176,7 @@ export function useSecurityAlerts() {
       await fetchBlockedIPs();
       await fetchStats();
     } catch (err: unknown) {
-      console.error("[useSecurityAlerts] Erro ao bloquear IP:", err);
+      log.error("Erro ao bloquear IP:", err);
       toast.error(err instanceof Error ? err.message : "Erro ao bloquear IP");
     }
   }, [fetchBlockedIPs, fetchStats]);
@@ -193,7 +196,7 @@ export function useSecurityAlerts() {
       await fetchBlockedIPs();
       await fetchStats();
     } catch (err: unknown) {
-      console.error("[useSecurityAlerts] Erro ao desbloquear IP:", err);
+      log.error("Erro ao desbloquear IP:", err);
       toast.error(err instanceof Error ? err.message : "Erro ao desbloquear IP");
     }
   }, [fetchBlockedIPs, fetchStats]);

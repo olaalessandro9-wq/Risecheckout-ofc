@@ -3,10 +3,13 @@
  * 
  * MIGRATED: Uses products-crud Edge Function instead of direct database access
  * 
- * @see RISE Protocol V2 - Zero direct database access from frontend
+ * @see RISE Protocol V3 - Zero console.log
  */
 
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("OrderBump");
 
 export type OrderBumpCandidate = {
   id: string;
@@ -40,7 +43,7 @@ export async function fetchOrderBumpCandidates(
     });
 
     if (error) {
-      console.error("[OrderBump] Edge Function error:", error);
+      log.error("Edge Function error:", error);
       throw new Error(error.message);
     }
 
@@ -65,7 +68,7 @@ export async function fetchOrderBumpCandidates(
 
     return products;
   } catch (error) {
-    console.error("[OrderBump] load products failed:", error);
+    log.error("Load products failed:", error);
     throw error;
   }
 }

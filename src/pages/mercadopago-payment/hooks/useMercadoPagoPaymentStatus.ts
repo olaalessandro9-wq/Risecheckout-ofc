@@ -2,7 +2,7 @@
  * useMercadoPagoPaymentStatus - Hook para verificar status do pagamento
  * 
  * Single Responsibility: Polling de status via RPC.
- * RISE Protocol V2 Compliant (~80 linhas).
+ * @see RISE Protocol V3 - Zero console.log
  */
 
 import { useState, useCallback, useEffect } from "react";
@@ -10,6 +10,9 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { getOrderForPaymentRpc } from "@/lib/rpc/rpcProxy";
 import type { PaymentStatus } from "../types";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("MercadoPagoPaymentStatus");
 
 interface UseMercadoPagoPaymentStatusProps {
   orderId: string | undefined;
@@ -32,21 +35,21 @@ export function useMercadoPagoPaymentStatus({
 
   const checkPaymentStatus = useCallback(async (): Promise<{ paid: boolean }> => {
     if (!orderId) {
-      console.log("[useMercadoPagoPaymentStatus] ⚠️ Sem orderId");
+      log.warn("Sem orderId");
       return { paid: false };
     }
 
     setCheckingPayment(true);
 
     try {
-      console.log("[useMercadoPagoPaymentStatus] 🔍 Verificando status:", { orderId });
+      log.debug("Verificando status:", { orderId });
       
       const { data: order, error } = await getOrderForPaymentRpc(orderId, accessToken || '');
       
-      console.log("[useMercadoPagoPaymentStatus] 📡 Status:", { order, error });
+      log.debug("Status recebido:", { order, error });
 
       if (error) {
-        console.error("[useMercadoPagoPaymentStatus] ❌ Erro:", error);
+        log.error("Erro ao verificar status:", error);
         return { paid: false };
       }
 
@@ -57,7 +60,7 @@ export function useMercadoPagoPaymentStatus({
 
       return { paid: false };
     } catch (err: unknown) {
-      console.error("[useMercadoPagoPaymentStatus] ❌ Erro:", err);
+      log.error("Erro ao verificar status:", err);
       return { paid: false };
     } finally {
       setCheckingPayment(false);

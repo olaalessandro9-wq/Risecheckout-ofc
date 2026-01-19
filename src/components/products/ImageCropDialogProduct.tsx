@@ -1,8 +1,13 @@
 /**
  * ImageCropDialogProduct - Modal para recortar imagem do produto na proporção 4:3
+ * 
+ * @version 2.0.0 - RISE Protocol V3 - Zero console.log
  */
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("ImageCropDialogProduct");
 import {
   Dialog,
   DialogContent,
@@ -170,7 +175,7 @@ export function ImageCropDialogProduct({
       onCropComplete(croppedFile);
       onOpenChange(false);
     } catch (error: unknown) {
-      console.error("Error cropping image:", error);
+      log.error("Error cropping image:", error);
     } finally {
       setIsSaving(false);
     }
