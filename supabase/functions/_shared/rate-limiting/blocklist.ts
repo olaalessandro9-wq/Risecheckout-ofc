@@ -8,6 +8,9 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { BlocklistResult } from "./types.ts";
+import { createLogger } from "../logger.ts";
+
+const log = createLogger("Blocklist");
 
 // ============================================================================
 // Types
@@ -44,7 +47,7 @@ export async function checkIPBlocklist(
     });
 
     if (error) {
-      console.error("[blocklist] RPC error:", error.message);
+      log.error("RPC error", error.message);
       // Em caso de erro, permitir a requisição (fail-open)
       return { blocked: false, reason: null, expiresAt: null };
     }
@@ -61,7 +64,7 @@ export async function checkIPBlocklist(
       expiresAt: result.expires_at,
     };
   } catch (err) {
-    console.error("[blocklist] Unexpected error:", err);
+    log.error("Unexpected error", err);
     // Em caso de erro, permitir a requisição (fail-open)
     return { blocked: false, reason: null, expiresAt: null };
   }

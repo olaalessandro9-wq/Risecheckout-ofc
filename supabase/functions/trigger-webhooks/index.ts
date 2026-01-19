@@ -12,10 +12,9 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createLogger } from "../_shared/logger.ts";
 
 import {
-  logInfo,
-  logError,
   sendToExternalWebhook,
   filterRelevantWebhooks,
   buildWebhookPayload,
@@ -25,6 +24,7 @@ import {
 } from "../_shared/trigger-webhooks-handlers.ts";
 
 const FUNCTION_VERSION = "474";
+const log = createLogger("TriggerWebhooks");
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -39,14 +39,14 @@ serve(async (req) => {
     const expectedSecret = Deno.env.get('INTERNAL_WEBHOOK_SECRET');
 
     if (!internalSecret || internalSecret !== expectedSecret) {
-      logError('Unauthorized: Invalid or missing X-Internal-Secret');
+      log.error('Unauthorized: Invalid or missing X-Internal-Secret');
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`[trigger-webhooks] Versão ${FUNCTION_VERSION} iniciada (P0-5 secured)`);
+    log.info(`Versão ${FUNCTION_VERSION} iniciada (P0-5 secured)`);
     
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -55,7 +55,7 @@ serve(async (req) => {
     const { order_id, event_type } = await req.json();
     if (!order_id || !event_type) throw new Error("Campos obrigatórios ausentes");
 
-    logInfo("🚀 Iniciando processamento", { order_id, event_type });
+    log.info("🚀 Iniciando processamento", { order_id, event_type });
 
     const { data: order, error: orderError } = await supabase
       .from("orders").select("*").eq("id", order_id).single();
@@ -64,7 +64,7 @@ serve(async (req) => {
     const { data: items, error: itemsError } = await supabase
       .from("order_items").select("*").eq("order_id", order_id);
     if (itemsError || !items?.length) {
-      logInfo("⚠️ Pedido sem itens, abortando.");
+      log.info("⚠️ Pedido sem itens, abortando.");
       return new Response(JSON.stringify({ message: "No items" }), { headers: CORS_HEADERS });
     }
 
@@ -77,14 +77,14 @@ serve(async (req) => {
     if (webHooksError) throw new Error("Erro ao buscar webhooks: " + webHooksError.message);
     
     if (!webhooks?.length) {
-      logInfo("ℹ️ Nenhum webhook configurado para este vendedor.");
+      log.info("ℹ️ Nenhum webhook configurado para este vendedor.");
       return new Response(JSON.stringify({ message: "No webhooks configured" }), { headers: CORS_HEADERS });
     }
 
     const results = [];
 
     for (const item of items as OrderItem[]) {
-      logInfo(`🔍 Analisando item: ${item.product_name} (${item.product_id})`);
+      log.info(`🔍 Analisando item: ${item.product_name} (${item.product_id})`);
 
       const relevantWebhooks = filterRelevantWebhooks(webhooks as WebhookRecord[], item.product_id, event_type);
 
@@ -106,7 +106,7 @@ serve(async (req) => {
       }
     }
 
-    logInfo("✅ Processamento concluído", { total_webhooks_sent: results.length });
+    log.info("✅ Processamento concluído", { total_webhooks_sent: results.length });
 
     return new Response(JSON.stringify({ success: true, results }), { 
       status: 200, headers: CORS_HEADERS 
@@ -114,7 +114,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const err = error as Error;
-    logError("Erro Fatal", err);
+    log.error("Erro Fatal", err);
     return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: CORS_HEADERS });
   }
 });
