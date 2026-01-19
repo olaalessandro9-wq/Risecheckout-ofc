@@ -5,6 +5,9 @@
  */
 
 import { AsaasSplitRule } from "./split-builder.ts";
+import { createLogger } from "../../_shared/logger.ts";
+
+const log = createLogger("asaas-create-payment");
 
 export interface ChargePayload {
   customer: string;
@@ -56,7 +59,7 @@ export function buildChargePayload(params: {
 
   if (splitRules.length > 0) {
     payload.split = splitRules;
-    console.log(`[asaas-create-payment] 📦 Split: ${JSON.stringify(splitRules)}`);
+    log.info(`Split: ${JSON.stringify(splitRules)}`);
   }
 
   if (paymentMethod === 'credit_card' && cardToken) {
@@ -86,7 +89,7 @@ export async function createAsaasCharge(
   apiKey: string,
   payload: ChargePayload
 ): Promise<ChargeResult> {
-  console.log('[asaas-create-payment] Criando cobrança...');
+  log.info("Creating charge...");
 
   const response = await fetch(`${baseUrl}/payments`, {
     method: 'POST',
@@ -100,12 +103,12 @@ export async function createAsaasCharge(
   const chargeData = await response.json();
 
   if (!response.ok) {
-    console.error('[asaas-create-payment] Erro:', chargeData);
+    log.error("Error:", chargeData);
     const errorMsg = chargeData.errors?.[0]?.description || chargeData.message || 'Erro ao criar cobrança';
     return { success: false, error: errorMsg };
   }
 
-  console.log('[asaas-create-payment] ✅ Cobrança criada:', chargeData.id);
+  log.info(`Charge created: ${chargeData.id}`);
   return { success: true, chargeData };
 }
 
@@ -126,7 +129,7 @@ export async function getPixQrCode(
 
   if (response.ok) {
     const qrData = await response.json();
-    console.log('[asaas-create-payment] QR Code obtido');
+    log.info("QR Code obtained");
     return {
       qrCode: qrData.encodedImage,
       qrCodeText: qrData.payload
@@ -147,7 +150,7 @@ export async function triggerPixGeneratedWebhook(
   try {
     const internalSecret = Deno.env.get('INTERNAL_WEBHOOK_SECRET') || 'default-internal-secret';
     
-    console.log('[asaas-create-payment] Disparando webhook pix_generated...');
+    log.info("Triggering pix_generated webhook...");
     
     const response = await fetch(
       `${supabaseUrl}/functions/v1/trigger-webhooks`,
@@ -166,12 +169,12 @@ export async function triggerPixGeneratedWebhook(
     );
 
     if (response.ok) {
-      console.log('[asaas-create-payment] ✅ Webhook pix_generated disparado');
+      log.info("Webhook pix_generated triggered successfully");
     } else {
       const errorText = await response.text();
-      console.warn('[asaas-create-payment] ⚠️ Webhook pix_generated falhou:', errorText);
+      log.warn("Webhook pix_generated failed:", errorText);
     }
   } catch (error) {
-    console.warn('[asaas-create-payment] ⚠️ Erro ao disparar webhook:', error);
+    log.warn("Error triggering webhook:", error);
   }
 }

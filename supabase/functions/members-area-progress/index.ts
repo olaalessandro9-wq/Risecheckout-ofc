@@ -11,6 +11,9 @@ import {
   MEMBERS_AREA,
   getClientIP 
 } from "../_shared/rate-limiting/index.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("members-area-progress");
 
 // Use public CORS for members area
 const corsHeaders = PUBLIC_CORS_HEADERS;
@@ -94,14 +97,14 @@ Deno.serve(async (req) => {
       corsHeaders
     );
     if (rateLimitResult) {
-      console.warn(`[members-area-progress] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      log.warn(`Rate limit exceeded for IP: ${getClientIP(req)}`);
       return rateLimitResult;
     }
 
     const body: ProgressRequest = await req.json();
     const { action, content_id, module_id, product_id, buyer_token, data } = body;
 
-    console.log(`[members-area-progress] Action: ${action}`);
+    log.info(`Action: ${action}`);
 
     // Validar buyer token
     if (!buyer_token) {
@@ -236,7 +239,7 @@ Deno.serve(async (req) => {
 
         if (error) throw error;
 
-        console.log(`[members-area-progress] Content ${content_id} completed by buyer ${buyer_id}`);
+        log.info(`Content ${content_id} completed by buyer ${buyer_id}`);
 
         return new Response(
           JSON.stringify({ success: true }),
@@ -392,7 +395,7 @@ Deno.serve(async (req) => {
         );
     }
   } catch (error: unknown) {
-    console.error("[members-area-progress] Error:", error);
+    log.error("Error:", error);
     const message = error instanceof Error ? error.message : "Internal server error";
     return new Response(
       JSON.stringify({ error: message }),

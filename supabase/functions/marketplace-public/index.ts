@@ -15,6 +15,9 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("marketplace-public");
 
 // ==========================================
 // TYPES
@@ -134,7 +137,7 @@ async function getMarketplaceProducts(
   const { data, error } = await query;
 
   if (error) {
-    console.error("[marketplace-public] Products error:", error);
+    log.error("Products error:", error);
     return errorResponse("Erro ao buscar produtos", "DB_ERROR", corsHeaders, 500);
   }
 
@@ -153,7 +156,7 @@ async function getMarketplaceProduct(
     .single();
 
   if (error) {
-    console.error("[marketplace-public] Product error:", error);
+    log.error("Product error:", error);
     return errorResponse("Produto não encontrado", "NOT_FOUND", corsHeaders, 404);
   }
 
@@ -171,7 +174,7 @@ async function getMarketplaceCategories(
     .order("display_order", { ascending: true });
 
   if (error) {
-    console.error("[marketplace-public] Categories error:", error);
+    log.error("Categories error:", error);
     return errorResponse("Erro ao buscar categorias", "DB_ERROR", corsHeaders, 500);
   }
 
@@ -196,7 +199,7 @@ serve(async (req) => {
     const body = await req.json() as RequestBody;
     const { action, productId, filters } = body;
 
-    console.log(`[marketplace-public] Action: ${action}`);
+    log.info(`Action: ${action}`);
 
     switch (action) {
       case "get-products":
@@ -216,7 +219,7 @@ serve(async (req) => {
     }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("[marketplace-public] Error:", errorMessage);
+    log.error("Error:", errorMessage);
     return errorResponse("Erro interno do servidor", "INTERNAL_ERROR", corsHeaders, 500);
   }
 });
