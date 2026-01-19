@@ -8,6 +8,9 @@
  */
 
 import { PaymentSplitRule } from "../types.ts";
+import { createLogger } from "../../logger.ts";
+
+const log = createLogger("AsaasPaymentHelper");
 
 // ============================================
 // TYPES
@@ -66,7 +69,7 @@ export async function createPayment(
   payload: Record<string, unknown>
 ): Promise<AsaasPayment & { error?: string } | null> {
   try {
-    console.log(`[AsaasPaymentHelper] Criando cobrança:`, JSON.stringify(payload, null, 2));
+    log.debug("Creating payment:", JSON.stringify(payload, null, 2));
 
     const response = await fetch(`${baseUrl}/payments`, {
       method: 'POST',
@@ -77,17 +80,17 @@ export async function createPayment(
     const data = await response.json();
 
     if (!response.ok) {
-      console.error('[AsaasPaymentHelper] Erro ao criar cobrança:', data);
+      log.error("Error creating payment:", data);
       const asaasError = data as { errors?: Array<{ description?: string }>; message?: string };
       const errorMessage = asaasError.errors?.[0]?.description || asaasError.message || 'Erro desconhecido';
       return { error: errorMessage } as AsaasPayment & { error: string };
     }
 
-    console.log(`[AsaasPaymentHelper] Cobrança criada: ${data.id}`);
+    log.info(`Payment created: ${data.id}`);
     return data;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[AsaasPaymentHelper] Exception createPayment:', errorMessage);
+    log.error("Exception createPayment:", errorMessage);
     return null;
   }
 }
@@ -107,14 +110,14 @@ export async function getPixQrCode(
     );
 
     if (!response.ok) {
-      console.error('[AsaasPaymentHelper] Erro ao obter QR Code');
+      log.error("Error getting QR Code");
       return null;
     }
 
     return await response.json();
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[AsaasPaymentHelper] Exception getPixQrCode:', errorMessage);
+    log.error("Exception getPixQrCode:", errorMessage);
     return null;
   }
 }
@@ -163,7 +166,7 @@ export function buildSplitRules(rules?: PaymentSplitRule[]): AsaasSplitRule[] | 
     
     // Precisa de recipient_id (walletId na Asaas)
     if (!rule.recipient_id) {
-      console.warn(`[AsaasPaymentHelper] Split ignorado para ${rule.role}: sem walletId`);
+      log.warn(`Split ignored for ${rule.role}: no walletId`);
       continue;
     }
 
@@ -182,7 +185,7 @@ export function buildSplitRules(rules?: PaymentSplitRule[]): AsaasSplitRule[] | 
 
   if (asaasSplits.length === 0) return undefined;
 
-  console.log(`[AsaasPaymentHelper] Split configurado com ${asaasSplits.length} recebedor(es)`);
+  log.info(`Split configured with ${asaasSplits.length} recipient(s)`);
   return asaasSplits;
 }
 
