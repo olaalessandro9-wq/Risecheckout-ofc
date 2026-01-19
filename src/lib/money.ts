@@ -1,3 +1,7 @@
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('Money');
+
 /**
  * 💰 BÍBLIA DOS PREÇOS - Arquitetura "Integer First"
  * 
@@ -55,7 +59,7 @@ export function toCents(value: string | number | null | undefined): number {
     const number = parseFloat(normalized);
     
     if (isNaN(number)) {
-      console.warn(`[money.ts] toCents: Valor inválido "${value}", retornando 0`);
+      log.warn(`toCents: Valor inválido "${value}", retornando 0`);
       return 0;
     }
     
@@ -72,7 +76,7 @@ export function toCents(value: string | number | null | undefined): number {
   const number = Number(value);
   
   if (isNaN(number)) {
-    console.warn(`[money.ts] toCents: Valor inválido ${value}, retornando 0`);
+    log.warn(`toCents: Valor inválido ${value}, retornando 0`);
     return 0;
   }
 
@@ -116,7 +120,7 @@ export function parseBRLInput(input: string): number {
   const number = parseFloat(cleaned);
 
   if (isNaN(number)) {
-    console.warn(`[money.ts] parseBRLInput: Valor inválido "${input}", retornando 0`);
+    log.warn(`parseBRLInput: Valor inválido "${input}", retornando 0`);
     return 0;
   }
 
@@ -205,7 +209,7 @@ export function sumCents(...values: (number | null | undefined)[]): number {
  */
 export function applyDiscount(cents: number, discountPercent: number): number {
   if (discountPercent < 0 || discountPercent > 100) {
-    console.warn(`[money.ts] applyDiscount: Percentual inválido ${discountPercent}%, usando 0%`);
+    log.warn(`applyDiscount: Percentual inválido ${discountPercent}%, usando 0%`);
     return cents;
   }
   

@@ -3,6 +3,9 @@ import { toast } from "sonner";
 import { fetchOrderBumpCandidates } from "@/lib/orderBump/fetchCandidates";
 import { fetchOffersByProduct, NormalizedOffer } from "@/services/offers";
 import { OrderBumpProduct } from "../types";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("UseOrderBumpData");
 
 interface UseOrderBumpDataProps {
   open: boolean;
@@ -41,7 +44,7 @@ export function useOrderBumpData({
       .catch((err) => {
         if (!active) return;
         toast.error("Erro ao carregar produtos");
-        console.error("[OrderBump] load products failed:", err);
+        log.error("Load products failed:", err);
         setProducts([]);
       })
       .finally(() => {
@@ -78,7 +81,7 @@ export function useOrderBumpData({
         onOffersLoaded(offersList);
       } catch (error: unknown) {
         if (!active) return;
-        console.error("Error loading offers:", error);
+        log.error("Error loading offers:", error);
         toast.error(`Erro ao carregar ofertas: ${error instanceof Error ? error.message : "erro desconhecido"}`);
       }
     };

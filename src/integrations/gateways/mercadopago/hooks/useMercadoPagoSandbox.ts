@@ -10,6 +10,9 @@
 import { useState, useEffect } from 'react';
 import { toast } from '@/components/ui/sonner';
 import { api } from '@/lib/api';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('UseMercadoPagoSandbox');
 
 interface UseMercadoPagoSandboxProps {
   userId: string | undefined;
@@ -79,7 +82,7 @@ export function useMercadoPagoSandbox({
       });
 
       if (vaultError) {
-        console.error('[useMercadoPagoSandbox] Vault save error:', vaultError);
+        log.error('Vault save error:', vaultError);
         throw new Error(vaultError.message || 'Erro ao salvar credenciais no Vault');
       }
 

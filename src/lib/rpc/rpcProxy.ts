@@ -10,6 +10,9 @@
  */
 
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("RpcProxy");
 
 interface RpcProxyResponse<T> {
   data?: T;
@@ -47,7 +50,7 @@ export async function invokeRpc<T>(
       : await api.call<RpcProxyResponse<T>>("rpc-proxy", { rpc: rpcName, params });
 
     if (error) {
-      console.error(`[rpcProxy] Error invoking ${rpcName}:`, error);
+      log.error(`Error invoking ${rpcName}:`, error);
       return { data: null, error: new Error(error.message) };
     }
 
@@ -58,7 +61,7 @@ export async function invokeRpc<T>(
 
     return { data: data?.data as T, error: null };
   } catch (err) {
-    console.error(`[rpcProxy] Exception invoking ${rpcName}:`, err);
+    log.error(`Exception invoking ${rpcName}:`, err);
     return { data: null, error: err as Error };
   }
 }
