@@ -1,7 +1,7 @@
 /**
  * useMercadoPagoConnection Hook
  * 
- * @version 2.1.0 - RISE Protocol V2 Compliant
+ * @version 2.2.0 - RISE Protocol V3 Compliant - Zero console.log
  * 
  * Gerencia toda a lógica de conexão OAuth do Mercado Pago.
  * Usa integration-management Edge Function como single source of truth.
@@ -11,8 +11,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from '@/components/ui/sonner';
 import { api } from '@/lib/api';
+import { createLogger } from '@/lib/logger';
 import { MERCADOPAGO_CLIENT_ID, MERCADOPAGO_REDIRECT_URI } from '@/config/mercadopago';
 import type { ConnectionMode, IntegrationData } from '../types';
+
+const log = createLogger("UseMercadoPagoConnection");
 
 function generateSecureNonce(): string {
   const array = new Uint8Array(32);
@@ -76,7 +79,7 @@ export function useMercadoPagoConnection({
       });
 
       if (error) {
-        console.error('[useMercadoPagoConnection] Erro ao buscar status:', error);
+        log.error('Erro ao buscar status:', error);
         throw error;
       }
 
@@ -94,16 +97,16 @@ export function useMercadoPagoConnection({
           email: config?.email,
           userId: config?.user_id,
         });
-        console.log('[useMercadoPagoConnection] Status carregado via Edge Function:', mode);
+        log.info('Status carregado via Edge Function:', mode);
       } else {
         setCurrentMode('none');
         setIntegration(null);
-        console.log('[useMercadoPagoConnection] Nenhuma integração encontrada');
+        log.debug('Nenhuma integração encontrada');
       }
       // NOTA: Removido onConnectionChange?.() aqui para evitar chamadas duplicadas
       // O Financeiro.tsx já tem listener global que chama loadAllIntegrations()
     } catch (error) {
-      console.error('[useMercadoPagoConnection] Erro ao carregar:', error);
+      log.error('Erro ao carregar:', error);
       // Em caso de erro, resetar para estado seguro
       setCurrentMode('none');
       setIntegration(null);
@@ -125,7 +128,7 @@ export function useMercadoPagoConnection({
       // Aceitar mensagens de qualquer origin (popup envia com '*' para garantir entrega)
       // Segurança: validamos o tipo da mensagem e o timestamp
       
-      console.log('[useMercadoPagoConnection] postMessage recebido:', {
+      log.debug('postMessage recebido:', {
         origin: event.origin,
         type: event.data?.type,
         attempt: event.data?.attempt,
@@ -145,7 +148,7 @@ export function useMercadoPagoConnection({
         const timeSinceLastProcessed = now - lastProcessedTimestamp.current;
         
         if (timeSinceLastProcessed < 5000 && lastProcessedTimestamp.current > 0) {
-          console.log('[useMercadoPagoConnection] Mensagem duplicada ignorada (debounce):', {
+          log.debug('Mensagem duplicada ignorada (debounce):', {
             timeSinceLastProcessed,
             attempt: event.data?.attempt
           });
@@ -155,13 +158,13 @@ export function useMercadoPagoConnection({
         // Marcar como processado
         lastProcessedTimestamp.current = now;
         
-        console.log('[useMercadoPagoConnection] OAuth success processado!');
+        log.info('OAuth success processado!');
         setConnectingOAuth(false);
         toast.success('Conta do Mercado Pago conectada com sucesso!');
         
         // Delay to ensure database has been updated
         setTimeout(() => {
-          console.log('[useMercadoPagoConnection] Recarregando integração via Edge Function...');
+          log.debug('Recarregando integração via Edge Function...');
           loadIntegration();
         }, 800);
         return;
@@ -169,18 +172,18 @@ export function useMercadoPagoConnection({
       
       // Handle error
       if (messageType === 'mercadopago_oauth_error') {
-        console.error('[useMercadoPagoConnection] OAuth error:', event.data?.reason);
+        log.error('OAuth error:', event.data?.reason);
         setConnectingOAuth(false);
         toast.error('Erro ao conectar Mercado Pago. Tente novamente.');
       }
     };
 
     window.addEventListener('message', handleMessage);
-    console.log('[useMercadoPagoConnection] postMessage listener registrado');
+    log.debug('postMessage listener registrado');
     
     return () => {
       window.removeEventListener('message', handleMessage);
-      console.log('[useMercadoPagoConnection] postMessage listener removido');
+      log.debug('postMessage listener removido');
     };
   }, [loadIntegration]);
 
@@ -201,7 +204,7 @@ export function useMercadoPagoConnection({
       });
 
       if (oauthError || !oauthResult?.success) {
-        console.error('[useMercadoPagoConnection] Erro ao salvar state:', oauthResult?.error || oauthError);
+        log.error('Erro ao salvar state:', oauthResult?.error || oauthError);
         toast.error('Erro ao iniciar autenticação. Tente novamente.');
         setConnectingOAuth(false);
         return;
@@ -247,10 +250,10 @@ export function useMercadoPagoConnection({
           // Isso evita a "piscada extra" ~3s depois da conexão
           const timeSinceLastSuccess = Date.now() - lastProcessedTimestamp.current;
           if (timeSinceLastSuccess > 5000 || lastProcessedTimestamp.current === 0) {
-            console.log('[useMercadoPagoConnection] Popup fechado sem sucesso detectado, recarregando...');
+            log.debug('Popup fechado sem sucesso detectado, recarregando...');
             setTimeout(() => loadIntegration(), 500);
           } else {
-            console.log('[useMercadoPagoConnection] Popup fechado, mas sucesso já processado via postMessage - ignorando reload');
+            log.debug('Popup fechado, mas sucesso já processado via postMessage - ignorando reload');
           }
         } else if (popupCheckCount >= maxChecks) {
           clearInterval(checkPopup);
@@ -259,7 +262,7 @@ export function useMercadoPagoConnection({
         }
       }, 500);
     } catch (error) {
-      console.error('[useMercadoPagoConnection] Erro OAuth:', error);
+      log.error('Erro OAuth:', error);
       toast.error('Erro ao iniciar autenticação');
       setConnectingOAuth(false);
     }
@@ -283,7 +286,7 @@ export function useMercadoPagoConnection({
       setIntegration(null);
       onConnectionChange?.();
     } catch (error) {
-      console.error('[useMercadoPagoConnection] Erro ao desconectar:', error);
+      log.error('Erro ao desconectar:', error);
       toast.error('Erro ao desconectar');
     }
   }, [integration, onConnectionChange]);

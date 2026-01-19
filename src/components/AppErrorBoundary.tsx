@@ -1,6 +1,15 @@
+/**
+ * App Error Boundary
+ * 
+ * @version 2.0.0 - RISE Protocol V3 Compliant - Zero console.log
+ */
+
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import * as Sentry from '@sentry/react';
 import { Button } from '@/components/ui/button';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger("AppErrorBoundary");
 
 interface Props {
   children: ReactNode;
@@ -31,7 +40,7 @@ export class AppErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('[AppErrorBoundary] ❌ Erro capturado:', {
+    log.error('❌ Erro capturado:', {
       error,
       errorInfo,
       componentStack: errorInfo.componentStack,
