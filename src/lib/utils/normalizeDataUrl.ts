@@ -1,9 +1,13 @@
 /**
  * Normaliza Data URLs de imagens base64, removendo duplicações e garantindo formato correto
  */
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger("NormalizeDataUrl");
+
 export function normalizeDataUrl(input: string): string {
   if (!input) {
-    console.warn("⚠️ normalizeDataUrl: input vazio");
+    log.warn("input vazio");
     return '';
   }
   
@@ -33,7 +37,7 @@ export function normalizeDataUrl(input: string): string {
                   normalized.length > 50;
   
   if (!isValid) {
-    console.error("❌ normalizeDataUrl: resultado inválido", {
+    log.error("resultado inválido", {
       startsWithData: normalized.startsWith('data:image/'),
       hasBase64: normalized.includes(';base64,'),
       length: normalized.length,

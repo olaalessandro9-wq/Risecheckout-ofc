@@ -14,6 +14,9 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { usePermissions, AppRole } from "@/hooks/usePermissions";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("AdminUsersTab");
 
 interface UsersWithEmailsResponse {
   emails?: Record<string, string>;
@@ -141,7 +144,7 @@ export function AdminUsersTab() {
     queryFn: async () => {
       const { data, error } = await api.call<UsersWithEmailsResponse>("get-users-with-emails", {});
       if (error) {
-        console.error("Erro ao buscar emails:", error);
+        log.error("Erro ao buscar emails:", error);
         return {};
       }
       return (data?.emails || {}) as Record<string, string>;

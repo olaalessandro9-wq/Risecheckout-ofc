@@ -13,6 +13,9 @@
 import { type PaymentGatewayId, type PixFormProps } from '@/types/payment-types';
 import { PixFormPushinpay } from './gateways/PixFormPushinpay';
 import { PixFormMercadoPago } from './gateways/PixFormMercadoPago';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger("PixGatewayForm");
 
 interface PixGatewayFormProps extends Omit<PixFormProps, 'gatewayId'> {
   gatewayId: PaymentGatewayId;
@@ -31,7 +34,7 @@ export function PixGatewayForm({ gatewayId, ...props }: PixGatewayFormProps) {
     //   return <PixFormPagSeguro {...props} />;
     
     default:
-      console.warn(`[PixGatewayForm] Gateway "${gatewayId}" não suportado para PIX`);
+      log.warn(`Gateway "${gatewayId}" não suportado para PIX`);
       return (
         <div className="p-4 border border-destructive/50 rounded-lg bg-destructive/10">
           <p className="text-sm text-destructive">
