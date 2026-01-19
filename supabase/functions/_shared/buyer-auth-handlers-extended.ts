@@ -28,6 +28,9 @@ import { CURRENT_HASH_VERSION, RESET_TOKEN_EXPIRY_HOURS } from "./buyer-auth-typ
 import { hashPassword, generateResetToken, jsonResponse } from "./buyer-auth-password.ts";
 import { generateResetEmailHtml, generateResetEmailText } from "./buyer-auth-email-templates.ts";
 import { getAccessToken } from "./cookie-helper.ts";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("BuyerAuthExtended");
 
 // ============================================
 // VALIDATE HANDLER (PHASE 1: Strict Session Blocking)
@@ -86,7 +89,7 @@ export async function handleValidate(
 
   // PHASE 1: Strict Session Blocking - Invalidate if IP changes
   if (session.ip_address && session.ip_address !== currentIP) {
-    console.warn(`[buyer-auth] Session hijack attempt blocked - IP mismatch. Session IP: ${session.ip_address}, Current IP: ${currentIP}`);
+    log.warn(`Session hijack attempt blocked - IP mismatch. Session IP: ${session.ip_address}, Current IP: ${currentIP}`);
     await supabase.from("buyer_sessions").update({ is_valid: false }).eq("id", session.id);
     await logSecurityEvent(supabase, {
       userId: buyerData.id,
@@ -105,7 +108,7 @@ export async function handleValidate(
 
   // PHASE 1: Strict Session Blocking - Invalidate if User-Agent changes
   if (session.user_agent && currentUA && session.user_agent !== currentUA) {
-    console.warn(`[buyer-auth] Session hijack attempt blocked - UA mismatch for buyer: ${buyerData.id}`);
+    log.warn(`Session hijack attempt blocked - UA mismatch for buyer: ${buyerData.id}`);
     await supabase.from("buyer_sessions").update({ is_valid: false }).eq("id", session.id);
     await logSecurityEvent(supabase, {
       userId: buyerData.id,
@@ -170,7 +173,7 @@ export async function handleRequestPasswordReset(
     supabase, req, RATE_LIMIT_CONFIGS.BUYER_AUTH_REGISTER, corsHeaders
   );
   if (rateLimitResult) {
-    console.warn(`[buyer-auth] Rate limit exceeded for password reset from IP: ${getClientIP(req)}`);
+    log.warn(`Rate limit exceeded for password reset from IP: ${getClientIP(req)}`);
     return rateLimitResult;
   }
 
@@ -188,7 +191,7 @@ export async function handleRequestPasswordReset(
     .single();
 
   if (findError || !buyer) {
-    console.log(`[buyer-auth] Password reset requested for non-existent email: ${email}`);
+    log.info(`Password reset requested for non-existent email: ${email}`);
     return jsonResponse({ success: true, message: "Se o email existir, você receberá instruções" }, corsHeaders, 200);
   }
 
@@ -209,7 +212,7 @@ export async function handleRequestPasswordReset(
     .eq("id", buyer.id);
 
   if (updateError) {
-    console.error("[buyer-auth] Error setting reset token:", updateError);
+    log.error("Error setting reset token:", updateError);
     return jsonResponse({ error: "Erro ao processar solicitação" }, corsHeaders, 500);
   }
 
@@ -223,11 +226,11 @@ export async function handleRequestPasswordReset(
   });
 
   if (!emailResult.success) {
-    console.error("[buyer-auth] Error sending reset email:", emailResult.error);
+    log.error("Error sending reset email:", emailResult.error);
     return jsonResponse({ error: "Erro ao enviar email. Tente novamente." }, corsHeaders, 500);
   }
 
-  console.log(`[buyer-auth] Password reset email sent to: ${email}`);
+  log.info(`Password reset email sent to: ${email}`);
   return jsonResponse({ success: true, message: "Email enviado" }, corsHeaders, 200);
 }
 
@@ -252,12 +255,12 @@ export async function handleVerifyResetToken(
     .single();
 
   if (findError || !buyer) {
-    console.log(`[buyer-auth] Invalid reset token: ${token.substring(0, 10)}...`);
+    log.info(`Invalid reset token: ${token.substring(0, 10)}...`);
     return jsonResponse({ valid: false, error: "Link inválido ou já utilizado" }, corsHeaders, 400);
   }
 
   if (!buyer.reset_token_expires_at || new Date(buyer.reset_token_expires_at) < new Date()) {
-    console.log(`[buyer-auth] Expired reset token for: ${buyer.email}`);
+    log.info(`Expired reset token for: ${buyer.email}`);
     return jsonResponse({ valid: false, error: "Link expirado. Solicite um novo." }, corsHeaders, 400);
   }
 
@@ -320,7 +323,7 @@ export async function handleResetPassword(
     .eq("id", buyer.id);
 
   if (updateError) {
-    console.error("[buyer-auth] Error updating password:", updateError);
+    log.error("Error updating password:", updateError);
     return jsonResponse({ error: "Erro ao redefinir senha" }, corsHeaders, 500);
   }
 
@@ -333,6 +336,6 @@ export async function handleResetPassword(
     metadata: { email: buyer.email, type: "password_reset" }
   });
 
-  console.log(`[buyer-auth] Password reset successful for: ${buyer.email}`);
+  log.info(`Password reset successful for: ${buyer.email}`);
   return jsonResponse({ success: true, message: "Senha redefinida com sucesso" }, corsHeaders, 200);
 }

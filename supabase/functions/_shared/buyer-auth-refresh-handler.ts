@@ -25,6 +25,9 @@ import {
   jsonResponseWithCookies,
 } from "./cookie-helper.ts";
 import { errorResponse } from "./response-helpers.ts";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("BuyerAuthRefresh");
 
 // ============================================
 // INTERNAL TYPES
@@ -76,7 +79,7 @@ export async function handleRefresh(
 
   if (reusedSession) {
     // TOKEN REUSE DETECTED = POSSIBLE THEFT
-    console.error("[SECURITY] Buyer refresh token reuse detected! Possible theft. Buyer:", reusedSession.buyer_id);
+    log.error("[SECURITY] Buyer refresh token reuse detected! Possible theft. Buyer:", reusedSession.buyer_id);
     
     // Invalidate ALL sessions for this buyer
     await supabase
@@ -132,7 +135,7 @@ export async function handleRefresh(
 
   // PHASE 1 Security: Check IP binding
   if (session.ip_address && session.ip_address !== currentIP) {
-    console.warn(`[buyer-auth] Refresh blocked - IP mismatch. Session IP: ${session.ip_address}, Current IP: ${currentIP}`);
+    log.warn(`Refresh blocked - IP mismatch. Session IP: ${session.ip_address}, Current IP: ${currentIP}`);
     await supabase.from("buyer_sessions").update({ is_valid: false }).eq("id", session.id);
     await logSecurityEvent(supabase, {
       userId: buyerData.id,
@@ -178,7 +181,7 @@ export async function handleRefresh(
     return errorResponse("Erro ao renovar token", corsHeaders, 500);
   }
 
-  console.log(`[buyer-auth] Token rotated for buyer: ${buyerData.email}`);
+  log.info(`Token rotated for buyer: ${buyerData.email}`);
 
   // RISE V3: Tokens sent ONLY via httpOnly cookies (not in response body)
   const cookies = createAuthCookies("buyer", newAccessToken, newRefreshToken);

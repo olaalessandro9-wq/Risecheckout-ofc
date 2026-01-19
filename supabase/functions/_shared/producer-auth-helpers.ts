@@ -12,6 +12,7 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { genSaltSync, hashSync, compareSync } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+import { createLogger } from "./logger.ts";
 
 // Import centralized constants
 export { CURRENT_HASH_VERSION, BCRYPT_COST } from "./auth-constants.ts";
@@ -19,6 +20,8 @@ import { BCRYPT_COST } from "./auth-constants.ts";
 
 // Re-export response helpers for backwards compatibility
 export { jsonResponse, errorResponse } from "./response-helpers.ts";
+
+const log = createLogger("ProducerAuthHelpers");
 
 // ============================================
 // PASSWORD FUNCTIONS
@@ -88,7 +91,7 @@ export async function logAuditEvent(
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[producer-auth] Audit log error:", errorMessage);
+    log.error("Audit log error:", errorMessage);
   }
 }
 

@@ -32,8 +32,11 @@ import {
   PRODUCER_SESSION_DURATION_DAYS,
   AccountStatus,
 } from "./auth-constants.ts";
+import { createLogger } from "./logger.ts";
 
 import type { ProducerProfile, UserRole } from "./supabase-types.ts";
+
+const log = createLogger("ProducerAuth");
 
 // Re-export session handlers
 export { handleLogout, handleValidate } from "./producer-auth-session-handlers.ts";
@@ -121,11 +124,11 @@ export async function handleRegister(
       .eq("id", existingProfile.id);
 
     if (updateError) {
-      console.error("[producer-auth] Error updating password:", updateError);
+      log.error("Error updating password:", updateError);
       return errorResponse("Erro ao definir senha", corsHeaders, 500);
     }
 
-    console.log(`[producer-auth] Password set for existing producer: ${email}`);
+    log.info(`Password set for existing producer: ${email}`);
     return jsonResponse({ success: true, message: "Senha definida com sucesso", producerId: existingProfile.id }, corsHeaders);
   }
 
@@ -138,7 +141,7 @@ export async function handleRegister(
   });
 
   if (signupError) {
-    console.error("[producer-auth] Auth signup error:", signupError);
+    log.error("Auth signup error:", signupError);
     return errorResponse(signupError.message || "Erro ao criar conta", corsHeaders, 400);
   }
 
@@ -164,7 +167,7 @@ export async function handleRegister(
 
   await logAuditEvent(supabase, authData.user.id, "REGISTER", true, clientIP, userAgent, { email });
 
-  console.log(`[producer-auth] New producer created: ${email}`);
+  log.info(`New producer created: ${email}`);
   return jsonResponse({ success: true, producerId: authData.user.id }, corsHeaders);
 }
 
@@ -199,7 +202,7 @@ export async function handleLogin(
     .single() as { data: ProducerProfile | null; error: unknown };
 
   if (findError || !producer) {
-    console.log(`[producer-auth] Login failed - producer not found: ${email}`);
+    log.info(`Login failed - producer not found: ${email}`);
     return errorResponse("Email ou senha inválidos", corsHeaders, 401);
   }
 
@@ -271,7 +274,7 @@ export async function handleLogin(
   });
 
   if (sessionError) {
-    console.error("[producer-auth] Session error:", sessionError);
+    log.error("Session error:", sessionError);
     return errorResponse("Erro ao criar sessão", corsHeaders, 500);
   }
 
@@ -285,7 +288,7 @@ export async function handleLogin(
     .eq("user_id", producer.id)
     .single() as { data: UserRole | null; error: unknown };
 
-  console.log(`[producer-auth] Login successful: ${email}, role: ${roleData?.role || "user"}`);
+  log.info(`Login successful: ${email}, role: ${roleData?.role || "user"}`);
   
   // RISE V3: Set httpOnly cookies for tokens (XSS protection)
   const cookies = createAuthCookies("producer", accessToken, refreshToken);

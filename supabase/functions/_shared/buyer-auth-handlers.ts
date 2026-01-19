@@ -44,6 +44,7 @@ import {
   jsonResponseWithCookies,
   getAccessToken,
 } from "./cookie-helper.ts";
+import { createLogger } from "./logger.ts";
 
 // Import and re-export from password module
 import {
@@ -55,6 +56,8 @@ import {
 } from "./buyer-auth-password.ts";
 
 export { hashPassword, verifyPassword, generateSessionToken, generateResetToken, jsonResponse };
+
+const log = createLogger("BuyerAuth");
 
 // ============================================
 // REGISTER HANDLER
@@ -68,7 +71,7 @@ export async function handleRegister(
     supabase, req, RATE_LIMIT_CONFIGS.BUYER_AUTH_REGISTER, corsHeaders
   );
   if (rateLimitResult) {
-    console.warn(`[buyer-auth] Rate limit exceeded for register from IP: ${getClientIP(req)}`);
+    log.warn(`Rate limit exceeded for register from IP: ${getClientIP(req)}`);
     return rateLimitResult;
   }
 
@@ -118,11 +121,11 @@ export async function handleRegister(
         .eq("id", existingBuyer.id);
 
       if (updateError) {
-        console.error("[buyer-auth] Error updating password:", updateError);
+        log.error("Error updating password:", updateError);
         return jsonResponse({ error: "Erro ao definir senha" }, corsHeaders, 500);
       }
 
-      console.log(`[buyer-auth] Password set with bcrypt for existing buyer: ${email}`);
+      log.info(`Password set with bcrypt for existing buyer: ${email}`);
       return jsonResponse({ success: true, message: "Senha definida com sucesso" }, corsHeaders, 200);
     }
 
@@ -143,11 +146,11 @@ export async function handleRegister(
     .single();
 
   if (createError) {
-    console.error("[buyer-auth] Error creating buyer:", createError);
+    log.error("Error creating buyer:", createError);
     return jsonResponse({ error: "Erro ao criar conta" }, corsHeaders, 500);
   }
 
-  console.log(`[buyer-auth] New buyer created with bcrypt: ${email}`);
+  log.info(`New buyer created with bcrypt: ${email}`);
   return jsonResponse({ success: true, buyerId: newBuyer.id }, corsHeaders, 200);
 }
 
@@ -163,7 +166,7 @@ export async function handleLogin(
     supabase, req, RATE_LIMIT_CONFIGS.BUYER_AUTH_LOGIN, corsHeaders
   );
   if (rateLimitResult) {
-    console.warn(`[buyer-auth] Rate limit exceeded for login from IP: ${getClientIP(req)}`);
+    log.warn(`Rate limit exceeded for login from IP: ${getClientIP(req)}`);
     return rateLimitResult;
   }
 
@@ -182,7 +185,7 @@ export async function handleLogin(
     .single();
 
   if (findError || !buyer) {
-    console.log(`[buyer-auth] Login failed - buyer not found: ${email}`);
+    log.info(`Login failed - buyer not found: ${email}`);
     return jsonResponse({ error: "Email ou senha inválidos" }, corsHeaders, 401);
   }
 
@@ -202,7 +205,7 @@ export async function handleLogin(
   const isValid = verifyPassword(password, buyer.password_hash);
   
   if (!isValid) {
-    console.log(`[buyer-auth] Login failed - wrong password: ${email}`);
+    log.info(`Login failed - wrong password: ${email}`);
     await logSecurityEvent(supabase, {
       userId: buyer.id,
       action: SecurityAction.LOGIN_FAILED,
@@ -231,7 +234,7 @@ export async function handleLogin(
     });
 
   if (sessionError) {
-    console.error("[buyer-auth] Error creating session:", sessionError);
+    log.error("Error creating session:", sessionError);
     return jsonResponse({ error: "Erro ao criar sessão" }, corsHeaders, 500);
   }
 
@@ -249,7 +252,7 @@ export async function handleLogin(
     metadata: { email: buyer.email }
   });
 
-  console.log(`[buyer-auth] Login successful: ${email}`);
+  log.info(`Login successful: ${email}`);
   
   // RISE V3: Set httpOnly cookies for tokens (XSS protection)
   const cookies = createAuthCookies("buyer", accessToken, refreshToken);
@@ -300,6 +303,6 @@ export async function handleLogout(
   // Clear cookies
   const cookies = createLogoutCookies("buyer");
 
-  console.log("[buyer-auth] Logout successful");
+  log.info("Logout successful");
   return jsonResponseWithCookies({ success: true }, corsHeaders, cookies);
 }
