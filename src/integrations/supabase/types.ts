@@ -4390,6 +4390,18 @@ export type Database = {
           stripe_public_key: string
         }[]
       }
+      get_all_policies: {
+        Args: never
+        Returns: {
+          cmd: string
+          permissive: string
+          policyname: string
+          qual: string
+          roles: string[]
+          tablename: string
+          with_check: string
+        }[]
+      }
       get_checkout_by_payment_slug: {
         Args: { p_slug: string }
         Returns: {
@@ -4434,6 +4446,16 @@ export type Database = {
           vendor_id: string
         }[]
       }
+      get_policy_coverage: {
+        Args: never
+        Returns: {
+          delete_policies: number
+          insert_policies: number
+          select_policies: number
+          tablename: string
+          update_policies: number
+        }[]
+      }
       get_producer_affiliates:
         | {
             Args: { p_user_id: string; search_term?: string }
@@ -4472,6 +4494,13 @@ export type Database = {
             }[]
           }
       get_producer_id_from_session: { Args: never; Returns: string }
+      get_rls_status_all_tables: {
+        Args: never
+        Returns: {
+          has_rls: boolean
+          tablename: string
+        }[]
+      }
       get_system_health_summary: {
         Args: never
         Returns: {
@@ -4481,6 +4510,7 @@ export type Database = {
           metric_type: string
         }[]
       }
+      get_tables_without_policies: { Args: never; Returns: string[] }
       get_unresolved_errors: {
         Args: { limit_count?: number; offset_count?: number }
         Returns: {
