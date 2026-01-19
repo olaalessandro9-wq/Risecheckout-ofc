@@ -19,6 +19,9 @@ export { useGlobalValidationHandlers } from "./useGlobalValidationHandlers";
 // Tab Validation - Sistema de validação global
 export { useTabValidation } from "./useTabValidation";
 
-// BFF Product Loader - Substituí 6 chamadas por 1
-export { useProductLoader } from "./useProductLoader";
+// BFF Product Loader - React Query Edition
+export { useProductLoader, productQueryKeys } from "./useProductLoader";
 export { useProductDataMapper } from "./useProductDataMapper";
+
+// Re-export types for external consumption
+export type { ProductFullData, ProductRecord, OfferRecord, OrderBumpRecord, CheckoutRecord, PaymentLinkRecord, CouponRecord } from "./useProductLoader";

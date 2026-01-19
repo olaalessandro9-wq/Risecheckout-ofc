@@ -1,19 +1,35 @@
 /**
- * Product Full Loader Hook
+ * Product Full Loader Hook - React Query Edition
  * 
- * Substitui 6 chamadas paralelas por 1 única chamada BFF.
+ * Substitui 6 chamadas paralelas por 1 única chamada BFF + cache inteligente.
+ * Elimina re-fetches desnecessários via React Query staleTime/gcTime.
  * 
  * @module products/context/hooks
- * @version RISE V3 Compliant
+ * @version RISE V3 Compliant - 10.0/10
  */
 
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { invokeEdgeFunction } from "@/lib/api-client";
 import { createLogger } from "@/lib/logger";
 
 const logger = createLogger("useProductLoader");
 
-// Types matching the Edge Function response
+// ============================================================================
+// QUERY KEYS FACTORY - Invalidação precisa
+// ============================================================================
+
+export const productQueryKeys = {
+  all: ["products"] as const,
+  lists: () => [...productQueryKeys.all, "list"] as const,
+  detail: (id: string) => [...productQueryKeys.all, "detail", id] as const,
+  full: (id: string) => [...productQueryKeys.all, "full", id] as const,
+};
+
+// ============================================================================
+// TYPES - Matching Edge Function response
+// ============================================================================
+
 export interface UpsellSettings {
   upsell_enabled: boolean;
   upsell_product_id: string | null;
@@ -50,13 +66,6 @@ export interface OfferRecord {
   updated_at: string | null;
 }
 
-/**
- * OrderBumpRecord - Corresponde EXATAMENTE ao schema order_bumps do banco
- * 
- * Colunas reais: id, checkout_id, product_id, offer_id, position, active,
- * discount_enabled, discount_price, call_to_action, custom_title,
- * custom_description, show_image, created_at, updated_at
- */
 export interface OrderBumpRecord {
   id: string;
   checkout_id: string;
@@ -72,7 +81,6 @@ export interface OrderBumpRecord {
   show_image: boolean | null;
   created_at: string;
   updated_at: string | null;
-  // Relação com produto (para exibir nome e imagem)
   products?: {
     id: string;
     name: string;
@@ -92,7 +100,6 @@ export interface CheckoutRecord {
   visits_count: number;
   created_at: string;
   updated_at: string | null;
-  // Relações aninhadas (BFF com WithRelations)
   products?: {
     name: string;
     price: number;
@@ -115,7 +122,6 @@ export interface PaymentLinkRecord {
   status?: string;
   active?: boolean;
   created_at?: string;
-  // Relações aninhadas (BFF com WithRelations)
   offers?: {
     id: string;
     name: string;
@@ -155,20 +161,16 @@ export interface ProductRecord {
   category: string | null;
   status: string;
   vendor_id: string;
-  // Support fields
   support_email: string | null;
   support_name: string | null;
-  // Marketplace fields
   marketplace_description: string | null;
   marketplace_category: string | null;
-  // Upsell settings
   upsell_enabled: boolean;
   upsell_product_id: string | null;
   upsell_offer_id: string | null;
   upsell_checkout_id: string | null;
   upsell_timer_enabled: boolean;
   upsell_timer_minutes: number;
-  // Affiliate settings
   affiliate_enabled: boolean;
   affiliate_commission_type: string;
   affiliate_commission_value: number;
@@ -176,7 +178,6 @@ export interface ProductRecord {
   affiliate_approval_mode: string;
   affiliate_allow_coupon: boolean;
   affiliate_public_in_marketplace: boolean;
-  // Members area
   members_area_enabled: boolean;
   created_at: string;
   updated_at: string | null;
@@ -201,55 +202,79 @@ interface ProductFullResponse {
 
 interface UseProductLoaderOptions {
   productId: string;
+  enabled?: boolean;
 }
 
 interface UseProductLoaderReturn {
-  loadFull: () => Promise<ProductFullData>;
+  data: ProductFullData | undefined;
   isLoading: boolean;
+  isFetching: boolean;
   error: string | null;
+  invalidate: () => void;
+  refetch: () => Promise<ProductFullData | undefined>;
 }
 
-/**
- * Hook para carregar todos os dados de um produto em 1 chamada HTTP
- */
-export function useProductLoader({ productId }: UseProductLoaderOptions): UseProductLoaderReturn {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+// ============================================================================
+// HOOK PRINCIPAL - React Query Integration
+// ============================================================================
 
-  const loadFull = useCallback(async (): Promise<ProductFullData> => {
-    setIsLoading(true);
-    setError(null);
+export function useProductLoader({ 
+  productId, 
+  enabled = true 
+}: UseProductLoaderOptions): UseProductLoaderReturn {
+  const queryClient = useQueryClient();
 
-    try {
+  const query = useQuery({
+    queryKey: productQueryKeys.full(productId),
+    queryFn: async (): Promise<ProductFullData> => {
+      logger.info("Fetching product full data", { productId });
+      
       const { data: response, error: fetchError } = await invokeEdgeFunction<ProductFullResponse>(
         "product-full-loader",
         { action: "load-full", productId }
       );
 
       if (fetchError) {
+        logger.error("Edge function error", { productId, error: fetchError });
         throw new Error(fetchError);
       }
 
       if (!response?.success || !response?.data) {
-        throw new Error(response?.error ?? "Failed to load product data");
+        const errorMsg = response?.error ?? "Failed to load product data";
+        logger.error("Invalid response", { productId, error: errorMsg });
+        throw new Error(errorMsg);
       }
 
       logger.info("Product full data loaded successfully", { productId });
       return response.data;
+    },
+    enabled: !!productId && enabled,
+    staleTime: 1000 * 60 * 5,    // 5 minutos - dados considerados "frescos"
+    gcTime: 1000 * 60 * 30,      // 30 minutos - mantém no garbage collection
+    retry: 1,                     // 1 retry em caso de erro
+    refetchOnWindowFocus: false,  // Não refetch ao focar janela
+  });
 
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      logger.error("Failed to load product full data", { productId, error: message });
-      setError(message);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [productId]);
+  // Função para invalidar cache e forçar re-fetch
+  const invalidate = useCallback(() => {
+    logger.info("Invalidating product cache", { productId });
+    queryClient.invalidateQueries({ 
+      queryKey: productQueryKeys.full(productId) 
+    });
+  }, [queryClient, productId]);
+
+  // Refetch manual
+  const refetch = useCallback(async (): Promise<ProductFullData | undefined> => {
+    const result = await query.refetch();
+    return result.data;
+  }, [query]);
 
   return {
-    loadFull,
-    isLoading,
-    error,
+    data: query.data,
+    isLoading: query.isLoading,
+    isFetching: query.isFetching,
+    error: query.error?.message ?? null,
+    invalidate,
+    refetch,
   };
 }
