@@ -390,3 +390,11 @@ verify_jwt = false
 
 [functions.marketplace-public]
 verify_jwt = false
+
+# =====================================================
+# BFF - Backend-for-Frontend Functions
+# verify_jwt DEVE ser false
+# =====================================================
+
+[functions.product-full-loader]
+verify_jwt = false
