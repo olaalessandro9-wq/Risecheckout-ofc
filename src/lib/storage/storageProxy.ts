@@ -10,6 +10,9 @@
  */
 
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("StorageProxy");
 
 // ============================================
 // Utility Functions
@@ -88,7 +91,7 @@ export async function uploadViaEdge(
     });
 
     if (error) {
-      console.error("[storageProxy] Upload error:", error);
+      log.error("Upload error:", error);
       return { publicUrl: null, path: null, error: new Error(error.message) };
     }
 
@@ -102,7 +105,7 @@ export async function uploadViaEdge(
       error: null 
     };
   } catch (err) {
-    console.error("[storageProxy] Upload exception:", err);
+    log.error("Upload exception:", err);
     return { publicUrl: null, path: null, error: err as Error };
   }
 }
@@ -128,7 +131,7 @@ export async function removeViaEdge(
     });
 
     if (error) {
-      console.error("[storageProxy] Remove error:", error);
+      log.error("Remove error:", error);
       return { error: new Error(error.message) };
     }
 
@@ -138,7 +141,7 @@ export async function removeViaEdge(
 
     return { error: null };
   } catch (err) {
-    console.error("[storageProxy] Remove exception:", err);
+    log.error("Remove exception:", err);
     return { error: err as Error };
   }
 }
@@ -162,7 +165,7 @@ export async function listViaEdge(
     });
 
     if (error) {
-      console.error("[storageProxy] List error:", error);
+      log.error("List error:", error);
       return { files: null, error: new Error(error.message) };
     }
 
@@ -172,7 +175,7 @@ export async function listViaEdge(
 
     return { files: data?.files || [], error: null };
   } catch (err) {
-    console.error("[storageProxy] List exception:", err);
+    log.error("List exception:", err);
     return { files: null, error: err as Error };
   }
 }
@@ -196,7 +199,7 @@ export async function copyViaEdge(
     });
 
     if (error) {
-      console.error("[storageProxy] Copy error:", error);
+      log.error("Copy error:", error);
       return { publicUrl: null, error: new Error(error.message) };
     }
 
@@ -206,7 +209,7 @@ export async function copyViaEdge(
 
     return { publicUrl: data?.publicUrl || null, error: null };
   } catch (err) {
-    console.error("[storageProxy] Copy exception:", err);
+    log.error("Copy exception:", err);
     return { publicUrl: null, error: err as Error };
   }
 }
@@ -265,7 +268,7 @@ export async function copyImageFromUrl(
 
     return { publicUrl: result.publicUrl, path: result.path, error: result.error };
   } catch (err) {
-    console.error("[storageProxy] copyImageFromUrl error:", err);
+    log.error("copyImageFromUrl error:", err);
     return { publicUrl: null, path: null, error: err as Error };
   }
 }
