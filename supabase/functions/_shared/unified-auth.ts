@@ -20,6 +20,9 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getProducerAccessToken } from "./session-reader.ts";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("UnifiedAuth");
 
 export interface ProducerAuth {
   id: string;
@@ -44,7 +47,7 @@ export async function getAuthenticatedProducer(
   const sessionToken = getProducerAccessToken(request);
   
   if (!sessionToken) {
-    console.log("[unified-auth] No session token in cookie");
+    log.debug("No session token in cookie");
     return null;
   }
 
@@ -90,7 +93,7 @@ async function validateProducerSessionToken(
       .single();
 
     if (error || !session) {
-      console.log("[unified-auth] Invalid or expired session token");
+      log.debug("Invalid or expired session token");
       return null;
     }
 
@@ -102,7 +105,7 @@ async function validateProducerSessionToken(
       .single();
 
     if (!producer) {
-      console.log("[unified-auth] Producer profile not found");
+      log.debug("Producer profile not found");
       return null;
     }
 
@@ -121,7 +124,7 @@ async function validateProducerSessionToken(
     };
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[unified-auth] Error validating session token:", errorMessage);
+    log.error("Error validating session token:", errorMessage);
     return null;
   }
 }
