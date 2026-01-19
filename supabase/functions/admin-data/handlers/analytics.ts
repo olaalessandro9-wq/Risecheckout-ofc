@@ -8,6 +8,9 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { jsonResponse, errorResponse, getDateRange } from "../types.ts";
+import { createLogger } from "../../_shared/logger.ts";
+
+const log = createLogger("admin-data/analytics");
 
 // ==========================================
 // FINANCIAL ANALYTICS
@@ -38,7 +41,10 @@ export async function getAdminAnalyticsFinancial(
     .gte("paid_at", start.toISOString())
     .lte("paid_at", end.toISOString());
 
-  if (error) throw error;
+  if (error) {
+    log.error("Financial analytics error", error);
+    throw error;
+  }
 
   const data = orders || [];
   const totalPlatformFees = data.reduce((sum, o) => sum + (o.platform_fee_cents || 0), 0);
@@ -84,7 +90,10 @@ export async function getAdminAnalyticsTraffic(
     supabase.from("orders").select("id").eq("status", "paid").gte("paid_at", start.toISOString()).lte("paid_at", end.toISOString()),
   ]);
 
-  if (visitsResult.error) throw visitsResult.error;
+  if (visitsResult.error) {
+    log.error("Traffic analytics error", visitsResult.error);
+    throw visitsResult.error;
+  }
 
   const visits = visitsResult.data || [];
   const uniqueIPs = new Set(visits.map((v) => v.ip_address).filter(Boolean));
@@ -130,7 +139,10 @@ export async function getAdminAnalyticsTopSellers(
     .gte("paid_at", start.toISOString())
     .lte("paid_at", end.toISOString());
 
-  if (error) throw error;
+  if (error) {
+    log.error("Top sellers analytics error", error);
+    throw error;
+  }
 
   const vendorMap = new Map<string, { gmv: number; fees: number; count: number }>();
   (orders || []).forEach((order) => {
