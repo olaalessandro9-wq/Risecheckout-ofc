@@ -33,7 +33,26 @@ export type {
 export { TOKEN_TIMING, STORAGE_KEYS } from "./types";
 
 // Machine (for advanced usage/testing)
-export { transition, canMakeApiCalls, needsRefresh, isExpired, INITIAL_CONTEXT, INITIAL_STATE } from "./machine";
+export { 
+  transition, 
+  canMakeApiCalls, 
+  needsRefresh, 
+  isExpired, 
+  INITIAL_CONTEXT, 
+  INITIAL_STATE,
+} from "./machine";
+
+// Persistence (for advanced usage/testing)
+export type { PersistedState } from "./persistence";
+export { persistTokenState, restoreTokenState, clearPersistedState } from "./persistence";
+
+// Heartbeat (for advanced usage/testing)
+export type { HeartbeatCallback } from "./heartbeat";
+export { HeartbeatManager } from "./heartbeat";
+
+// Refresh (for advanced usage/testing)
+export type { RefreshResult } from "./refresh";
+export { executeRefresh } from "./refresh";
 
 // Service (main API)
 export { 
