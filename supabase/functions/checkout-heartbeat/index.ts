@@ -10,7 +10,9 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
 
+const log = createLogger("checkout-heartbeat");
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
 serve(async (req) => {
@@ -45,11 +47,11 @@ serve(async (req) => {
       });
 
     if (upsertError) {
-      console.error('[checkout-heartbeat] Upsert error:', upsertError);
+      log.error('Upsert error:', upsertError);
       // Don't fail on upsert error, just log it
     }
 
-    console.log(`[checkout-heartbeat] Session ${sessionId} updated, step: ${step}`);
+    log.info(`Session ${sessionId} updated, step: ${step}`);
 
     return new Response(
       JSON.stringify({ success: true }),
@@ -58,7 +60,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[checkout-heartbeat] Error:', errorMessage);
+    log.error('Error:', errorMessage);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

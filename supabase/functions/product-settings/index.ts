@@ -21,6 +21,9 @@ import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 import { jsonResponse, errorResponse } from "../_shared/response-helpers.ts";
 import { verifyProductOwnership } from "../_shared/ownership.ts";
 import { checkRateLimit, PRODUCT_SETTINGS } from "../_shared/rate-limiting/index.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("product-settings");
 import {
   handleUpdateSettings,
   handleUpdateGeneral,
@@ -105,7 +108,7 @@ serve(withSentry("product-settings", async (req) => {
     }
 
     const { action, productId } = body;
-    console.log(`[product-settings] Action: ${action}, ProductId: ${productId}`);
+    log.info(`Action: ${action}, ProductId: ${productId}`);
 
     // Auth via unified-auth
     let producer;
@@ -207,7 +210,7 @@ serve(withSentry("product-settings", async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[product-settings] Unexpected error:", errorMessage);
+    log.error("Unexpected error:", errorMessage);
     await captureException(
       error instanceof Error ? error : new Error(String(error)),
       { functionName: "product-settings" }

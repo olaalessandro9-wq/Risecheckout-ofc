@@ -14,6 +14,9 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("offer-bulk");
 
 // ============================================
 // TYPES
@@ -93,7 +96,7 @@ serve(withSentry("offer-bulk", async (req) => {
     const url = new URL(req.url);
     const action = url.pathname.split("/").pop();
 
-    console.log(`[offer-bulk] Action: ${action}, Method: ${req.method}`);
+    log.info(`Action: ${action}, Method: ${req.method}`);
 
     if (req.method !== "POST") {
       return errorResponse("Método não permitido", corsHeaders, 405);
@@ -202,7 +205,7 @@ serve(withSentry("offer-bulk", async (req) => {
         }
       }
 
-      console.log(`[offer-bulk] Bulk save completed by ${producerId}:`, results);
+      log.info(`Bulk save completed by ${producerId}:`, results);
       return jsonResponse({ success: true, results }, corsHeaders);
     }
 
@@ -210,7 +213,7 @@ serve(withSentry("offer-bulk", async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[offer-bulk] Unexpected error:", errorMessage);
+    log.error("Unexpected error:", errorMessage);
     await captureException(error instanceof Error ? error : new Error(errorMessage), { functionName: "offer-bulk", url: req.url, method: req.method });
     return errorResponse("Erro interno do servidor", corsHeaders, 500);
   }

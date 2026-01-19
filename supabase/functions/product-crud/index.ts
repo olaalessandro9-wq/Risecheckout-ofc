@@ -33,6 +33,9 @@ import {
   handleGetProduct,
 } from "../_shared/product-crud-handlers.ts";
 import type { ProductListParams } from "../_shared/product-crud-handlers.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("product-crud");
 
 // ============================================
 // HELPERS
@@ -64,7 +67,7 @@ serve(withSentry("product-crud", async (req) => {
     }
 
     const { action } = body;
-    console.log(`[product-crud] Action: ${action}, Method: ${req.method}`);
+    log.info(`Action: ${action}, Method: ${req.method}`);
 
     // Auth via unified-auth
     let producerId: string;
@@ -128,7 +131,7 @@ serve(withSentry("product-crud", async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[product-crud] Unexpected error:", errorMessage);
+    log.error("Unexpected error:", errorMessage);
     await captureException(error instanceof Error ? error : new Error(errorMessage), { functionName: "product-crud" });
     return errorResponse("Erro interno do servidor", corsHeaders, 500);
   }

@@ -26,6 +26,9 @@ import {
   verifyProductOwnership,
   duplicateProduct,
 } from "../_shared/product-duplicate-handlers.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("product-duplicate");
 
 // ============================================
 // MAIN HANDLER
@@ -73,7 +76,7 @@ serve(withSentry("product-duplicate", async (req) => {
       producerId
     );
     if (rateLimitResult) {
-      console.warn(`[product-duplicate] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      log.warn(`Rate limit exceeded for IP: ${getClientIP(req)}`);
       return rateLimitResult;
     }
 
@@ -88,7 +91,7 @@ serve(withSentry("product-duplicate", async (req) => {
     }
 
     const srcProduct = ownershipCheck.product;
-    console.log(`[product-duplicate] Duplicating: ${srcProduct.name} (${productId})`);
+    log.info(`Duplicating: ${srcProduct.name} (${productId})`);
 
     const result = await duplicateProduct(supabase, productId, srcProduct, producerId, ensureUniqueName);
 
@@ -108,7 +111,7 @@ serve(withSentry("product-duplicate", async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[product-duplicate] Unexpected error:", errorMessage);
+    log.error("Unexpected error:", errorMessage);
     await captureException(error instanceof Error ? error : new Error(errorMessage), { functionName: "product-duplicate" });
     return errorResponse("Erro interno do servidor", corsHeaders, 500);
   }

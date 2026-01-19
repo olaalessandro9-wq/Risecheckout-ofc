@@ -15,6 +15,9 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("product-entities");
 
 // ==========================================
 // TYPES
@@ -65,7 +68,7 @@ async function getOffers(
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("[product-entities] Offers error:", error);
+    log.error("Offers error:", error);
     return errorResponse("Erro ao buscar ofertas", "DB_ERROR", corsHeaders, 500);
   }
 
@@ -84,7 +87,7 @@ async function getOrderBumps(
     .eq("product_id", productId);
 
   if (checkoutsError) {
-    console.error("[product-entities] Checkouts error:", checkoutsError);
+    log.error("Checkouts error:", checkoutsError);
     return errorResponse("Erro ao buscar checkouts", "DB_ERROR", corsHeaders, 500);
   }
 
@@ -100,7 +103,7 @@ async function getOrderBumps(
     .in("checkout_id", checkoutIds);
 
   if (error) {
-    console.error("[product-entities] Order bumps error:", error);
+    log.error("Order bumps error:", error);
     return errorResponse("Erro ao buscar order bumps", "DB_ERROR", corsHeaders, 500);
   }
 
@@ -122,7 +125,7 @@ async function getCoupons(
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("[product-entities] Coupons error:", error);
+    log.error("Coupons error:", error);
     return errorResponse("Erro ao buscar cupons", "DB_ERROR", corsHeaders, 500);
   }
 
@@ -157,7 +160,7 @@ async function getCheckouts(
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("[product-entities] Checkouts error:", error);
+    log.error("Checkouts detail error:", error);
     return errorResponse("Erro ao buscar checkouts", "DB_ERROR", corsHeaders, 500);
   }
 
@@ -176,7 +179,7 @@ async function getPaymentLinks(
     .eq("product_id", productId);
 
   if (offersError) {
-    console.error("[product-entities] Offers error:", offersError);
+    log.error("Offers for links error:", offersError);
     return errorResponse("Erro ao buscar ofertas", "DB_ERROR", corsHeaders, 500);
   }
 
@@ -205,7 +208,7 @@ async function getPaymentLinks(
     .in("offer_id", offerIds);
 
   if (linksError) {
-    console.error("[product-entities] Links error:", linksError);
+    log.error("Links error:", linksError);
     return errorResponse("Erro ao buscar links", "DB_ERROR", corsHeaders, 500);
   }
 
@@ -277,11 +280,11 @@ serve(async (req) => {
     }
 
     if (product.user_id !== producer.id) {
-      console.warn(`[product-entities] Producer ${producer.id} tried to access product ${productId}`);
+      log.warn(`Producer ${producer.id} tried to access product ${productId}`);
       return errorResponse("Acesso negado", "FORBIDDEN", corsHeaders, 403);
     }
 
-    console.log(`[product-entities] Action: ${action}, Product: ${productId}`);
+    log.info(`Action: ${action}, Product: ${productId}`);
 
     switch (action) {
       case "offers":
@@ -323,7 +326,7 @@ serve(async (req) => {
     }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("[product-entities] Error:", errorMessage);
+    log.error("Error:", errorMessage);
     return errorResponse("Erro interno do servidor", "INTERNAL_ERROR", corsHeaders, 500);
   }
 });
