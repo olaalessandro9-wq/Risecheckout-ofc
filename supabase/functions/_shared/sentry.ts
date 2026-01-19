@@ -12,6 +12,10 @@
  * }));
  */
 
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("Sentry");
+
 const SENTRY_INGEST_URL = 'https://o4510653305126912.ingest.us.sentry.io/api/4510653312401408/envelope/';
 const SENTRY_PUBLIC_KEY = 'e765578f4626da6f4f17cb8841935ee2';
 
@@ -40,7 +44,7 @@ export async function captureException(
   
   // Se SENTRY_DSN não está configurado, apenas logar localmente
   if (!sentryDsn) {
-    console.error(`[Sentry-Local] ${context.functionName}:`, error.message);
+    log.error(`[Local] ${context.functionName}: ${error.message}`);
     return;
   }
 
@@ -103,12 +107,12 @@ export async function captureException(
     });
 
     if (response.ok) {
-      console.log(`[Sentry] ✅ Erro enviado: ${eventId}`);
+      log.info(`✅ Erro enviado: ${eventId}`);
     } else {
-      console.error(`[Sentry] ❌ Falha ao enviar: ${response.status}`);
+      log.error(`❌ Falha ao enviar: ${response.status}`);
     }
   } catch (sendError) {
-    console.error(`[Sentry] ❌ Erro ao enviar:`, sendError);
+    log.error(`❌ Erro ao enviar`, sendError);
   }
 }
 
@@ -154,7 +158,7 @@ export function withSentry(
     } catch (error: unknown) {
       const err = error instanceof Error ? error : new Error(String(error));
       
-      console.error(`[${functionName}] ❌ Erro capturado:`, err.message);
+      log.error(`[${functionName}] ❌ Erro capturado: ${err.message}`);
       
       // Enviar para Sentry
       await captureException(err, {

@@ -14,6 +14,9 @@ import {
   OWNER_GATEWAY_SECRETS, 
   type GatewayType 
 } from "./platform-constants.ts";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("GatewayCredentials");
 
 // ========================================================================
 // INTERFACES
@@ -83,7 +86,7 @@ export async function getGatewayCredentials(
     // CASO 1: OWNER - Buscar de Secrets Globais
     // ========================================================================
     if (isOwner) {
-      console.log(`[gateway-credentials] Buscando credenciais do Owner para ${gateway}`);
+      log.info(`Buscando credenciais do Owner para ${gateway}`);
       
       const credentials: GatewayCredentials = {
         environment: 'production',
@@ -155,7 +158,7 @@ export async function getGatewayCredentials(
     // ========================================================================
     // CASO 2: VENDEDOR COMUM - Buscar de vendor_integrations
     // ========================================================================
-    console.log(`[gateway-credentials] Buscando credenciais do vendedor ${vendorId} para ${gateway}`);
+    log.info(`Buscando credenciais do vendedor ${vendorId} para ${gateway}`);
 
     const integrationTypeMap: Record<GatewayType, string> = {
       asaas: 'ASAAS',
@@ -250,7 +253,7 @@ export async function getGatewayCredentials(
     };
 
   } catch (error) {
-    console.error('[gateway-credentials] Erro ao buscar credenciais:', error);
+    log.error("Erro ao buscar credenciais", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro desconhecido',

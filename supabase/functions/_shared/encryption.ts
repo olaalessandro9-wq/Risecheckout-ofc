@@ -7,6 +7,10 @@
  * Formato do dado criptografado: base64(iv:ciphertext:tag)
  */
 
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("Encryption");
+
 /**
  * Deriva uma chave AES-256 a partir da BUYER_ENCRYPTION_KEY
  */
@@ -37,7 +41,7 @@ export async function encryptValue(plaintext: string | null | undefined): Promis
   
   const encryptionKey = Deno.env.get("BUYER_ENCRYPTION_KEY");
   if (!encryptionKey) {
-    console.error("[encryption] BUYER_ENCRYPTION_KEY não configurada!");
+    log.error("BUYER_ENCRYPTION_KEY não configurada!");
     // SECURITY: Não salvar em texto plano se a chave não existir
     throw new Error("Encryption key not configured");
   }
@@ -66,7 +70,7 @@ export async function encryptValue(plaintext: string | null | undefined): Promis
     return btoa(String.fromCharCode(...combined));
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[encryption] Erro ao criptografar:", errorMessage);
+    log.error(`Erro ao criptografar: ${errorMessage}`);
     throw new Error("Encryption failed");
   }
 }
@@ -82,7 +86,7 @@ export async function decryptValue(encrypted: string | null | undefined): Promis
   
   const encryptionKey = Deno.env.get("BUYER_ENCRYPTION_KEY");
   if (!encryptionKey) {
-    console.error("[encryption] BUYER_ENCRYPTION_KEY não configurada!");
+    log.error("BUYER_ENCRYPTION_KEY não configurada!");
     throw new Error("Encryption key not configured");
   }
   
@@ -107,7 +111,7 @@ export async function decryptValue(encrypted: string | null | undefined): Promis
     return decoder.decode(decrypted);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[encryption] Erro ao descriptografar:", errorMessage);
+    log.error(`Erro ao descriptografar: ${errorMessage}`);
     // Pode ser dado não criptografado (legado) - retornar null
     return null;
   }
