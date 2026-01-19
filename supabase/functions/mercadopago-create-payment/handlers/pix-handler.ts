@@ -6,7 +6,9 @@
  * Version: 2.0.0
  */
 
-import { logInfo, logError } from '../utils/logger.ts';
+import { createLogger } from '../../_shared/logger.ts';
+
+const log = createLogger('mercadopago-pix-handler');
 
 // ============================================
 // INTERFACES
@@ -153,14 +155,14 @@ export async function handlePixPayment(params: PixPaymentParams): Promise<PixPay
   // SPLIT via application_fee (Modelo CAKTO)
   if (applicationFeeCents > 0) {
     pixPayload.application_fee = applicationFeeCents / 100;
-    logInfo('✅ [MP SPLIT PIX] application_fee ADICIONADO', {
+    log.info('application_fee ADICIONADO', {
       cents: applicationFeeCents,
       reais: applicationFeeCents / 100,
       modelo: 'CAKTO'
     });
   }
 
-  logInfo('📦 [PIX] Enviando para Mercado Pago', {
+  log.info('Enviando para Mercado Pago', {
     amount: pixPayload.transaction_amount,
     has_application_fee: applicationFeeCents > 0
   });
@@ -178,7 +180,7 @@ export async function handlePixPayment(params: PixPaymentParams): Promise<PixPay
   const pixData = await pixResponse.json() as MercadoPagoPixResponse;
 
   if (!pixResponse.ok) {
-    logError('Erro na API do Mercado Pago (PIX)', pixData);
+    log.error('Erro na API do Mercado Pago (PIX)', pixData);
     throw { 
       code: 'GATEWAY_API_ERROR', 
       message: pixData.message || 'Erro ao criar PIX', 
@@ -186,7 +188,7 @@ export async function handlePixPayment(params: PixPaymentParams): Promise<PixPay
     };
   }
 
-  logInfo('✅ [PIX] Pagamento criado', { 
+  log.info('Pagamento criado', { 
     id: pixData.id, 
     status: pixData.status 
   });
