@@ -8,6 +8,9 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("useProductsTable");
 import { supabase } from "@/integrations/supabase/client";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
@@ -50,7 +53,7 @@ export function useProductsTable() {
       }
     } catch (error: unknown) {
       toast.error("Erro ao carregar produtos");
-      console.error('[ProductsTable] Load error:', error);
+      log.error("Load error:", error);
     } finally {
       setLoading(false);
     }
@@ -72,7 +75,7 @@ export function useProductsTable() {
       await qc.invalidateQueries({ queryKey: ["products:list"] });
     },
     onError: (err: Error) => {
-      console.error(err);
+      log.error("Falha ao duplicar:", err);
       toast.error(`Falha ao duplicar: ${err?.message ?? "erro desconhecido"}`);
     },
   });

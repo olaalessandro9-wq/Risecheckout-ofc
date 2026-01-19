@@ -16,6 +16,9 @@ import { AffiliationDetails } from "@/hooks/useAffiliationDetails";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
 import { supabase } from "@/integrations/supabase/client";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("OffersTab");
 
 interface OffersTabProps {
   affiliation: AffiliationDetails;
@@ -56,7 +59,7 @@ export function OffersTab({ affiliation }: OffersTabProps) {
 
         setUserHasGateway(data?.hasPaymentAccount || false);
       } catch (err) {
-        console.error("Erro ao verificar gateway:", err);
+        log.error("Erro ao verificar gateway:", err);
         setUserHasGateway(false);
       } finally {
         setLoadingGateway(false);

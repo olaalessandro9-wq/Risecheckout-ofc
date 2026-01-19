@@ -18,7 +18,10 @@ import { Separator } from "@/components/ui/separator";
 import { Store, Eye, MousePointerClick, Info } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { createLogger } from "@/lib/logger";
 import type { Database } from "@/integrations/supabase/types";
+
+const log = createLogger("MarketplaceSettings");
 
 type MarketplaceCategory = Database["public"]["Tables"]["marketplace_categories"]["Row"];
 
@@ -83,7 +86,7 @@ export function MarketplaceSettings({
         
         setCategories(data.data || []);
       } catch (error: unknown) {
-        console.error("[MarketplaceSettings] Erro ao carregar categorias:", error);
+        log.error("Erro ao carregar categorias:", error);
         toast.error("Erro ao carregar categorias");
       } finally {
         setIsLoadingCategories(false);
@@ -116,7 +119,7 @@ export function MarketplaceSettings({
           });
         }
       } catch (error: unknown) {
-        console.error("[MarketplaceSettings] Erro ao carregar estatísticas:", error);
+        log.error("Erro ao carregar estatísticas:", error);
       }
     };
 

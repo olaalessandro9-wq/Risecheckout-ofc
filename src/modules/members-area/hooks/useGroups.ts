@@ -5,6 +5,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
+import { createLogger } from '@/lib/logger';
 import { groupsService, type ProductOffer } from '../services/groups.service';
 import type {
   MemberGroup,
@@ -13,6 +14,8 @@ import type {
   UpdateGroupInput,
   UpdatePermissionsInput,
 } from '../types';
+
+const log = createLogger("useGroups");
 
 interface UseGroupsReturn {
   groups: MemberGroup[];
@@ -61,7 +64,7 @@ export function useGroups(productId: string | undefined): UseGroupsReturn {
     const { data, error: fetchError } = await groupsService.listOffers(productId);
 
     if (fetchError) {
-      console.error('Erro ao carregar ofertas:', fetchError);
+      log.error("Erro ao carregar ofertas:", fetchError);
     } else if (data) {
       setOffers(data);
     }
