@@ -2,12 +2,17 @@
  * usePixOrderData - Hook para buscar dados do pedido via RPC
  * 
  * Responsabilidade ÚNICA: Buscar e retornar dados do pedido
+ * 
+ * @version 3.0.0 - RISE Protocol V3 - Zero console.log
  */
 
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { getOrderForPaymentRpc } from "@/lib/rpc/rpcProxy";
+import { createLogger } from "@/lib/logger";
 import type { OrderDataFromRpc } from "../types";
+
+const log = createLogger("PixOrderData");
 
 interface UsePixOrderDataReturn {
   orderData: OrderDataFromRpc | null;
@@ -26,14 +31,14 @@ export function usePixOrderData(
 
   const fetchOrderData = useCallback(async (retryCount = 0) => {
     if (!accessToken) {
-      console.error("[usePixOrderData] ⚠️ Sem access_token");
+      log.error("⚠️ Sem access_token");
       toast.error("Token de acesso não encontrado");
       setError("Token de acesso não encontrado");
       return;
     }
 
     if (!orderId) {
-      console.error("[usePixOrderData] ⚠️ Sem orderId");
+      log.error("⚠️ Sem orderId");
       return;
     }
 
@@ -41,23 +46,23 @@ export function usePixOrderData(
     setError(null);
 
     try {
-      console.log(`[usePixOrderData] Buscando pedido via RPC (tentativa ${retryCount + 1}):`, orderId);
+      log.debug(`Buscando pedido via RPC (tentativa ${retryCount + 1}):`, orderId);
       
       const { data: order, error: rpcError } = await getOrderForPaymentRpc(orderId, accessToken);
 
       if (rpcError || !order) {
         if (retryCount < 3) {
-          console.log(`[usePixOrderData] Pedido não encontrado, tentando novamente em 1s...`);
+          log.debug(`Pedido não encontrado, tentando novamente em 1s...`);
           await new Promise(resolve => setTimeout(resolve, 1000));
           return fetchOrderData(retryCount + 1);
         }
         throw new Error(rpcError?.message || "Pedido não encontrado ou token inválido");
       }
       
-      console.log("[usePixOrderData] Pedido encontrado via RPC:", order);
+      log.info("Pedido encontrado via RPC:", order);
       setOrderData(order as unknown as OrderDataFromRpc);
     } catch (err: unknown) {
-      console.error("[usePixOrderData] Erro ao buscar pedido:", err);
+      log.error("Erro ao buscar pedido:", err);
       const errorMessage = err instanceof Error ? err.message : "Erro ao carregar dados do pedido";
       setError(errorMessage);
       toast.error(errorMessage);

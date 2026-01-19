@@ -6,11 +6,14 @@
  * 
  * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
  * 
- * @version 2.0.0 - RISE Protocol V2
+ * @version 3.0.0 - RISE Protocol V3 - Zero console.log
  */
 
 import { useEffect, useRef } from "react";
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("VisitTracker");
 
 /**
  * Tracks a checkout visit once per session
@@ -51,7 +54,7 @@ export function useVisitTracker(checkoutId: string | undefined): void {
 
         if (error) {
           // Log error but do NOT fallback to direct database access
-          console.error("[useVisitTracker] Edge function error:", error);
+          log.error("Edge function error:", error);
           // Still mark as tracked to prevent infinite retries
           sessionStorage.setItem(sessionKey, "failed");
           hasTracked.current = true;
@@ -62,9 +65,9 @@ export function useVisitTracker(checkoutId: string | undefined): void {
         sessionStorage.setItem(sessionKey, "true");
         hasTracked.current = true;
 
-        console.log("[useVisitTracker] Visit tracked for checkout:", checkoutId);
+        log.debug("Visit tracked for checkout:", checkoutId);
       } catch (err) {
-        console.error("[useVisitTracker] Error tracking visit:", err);
+        log.error("Error tracking visit:", err);
         // Mark as attempted to prevent infinite retries
         hasTracked.current = true;
       }

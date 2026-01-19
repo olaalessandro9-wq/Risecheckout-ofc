@@ -1,10 +1,13 @@
 /**
  * Duplica um checkout usando a RPC duplicate_checkout_shallow via RPC Proxy
  * 
- * @see RISE Protocol V2 - Zero direct RPC calls from frontend
+ * @version 3.0.0 - RISE Protocol V3 - Zero console.log
  */
 
 import { duplicateCheckoutShallowRpc } from "@/lib/rpc/rpcProxy";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("DuplicateCheckout");
 
 /**
  * Duplica um checkout de um produto usando a RPC duplicate_checkout_shallow.
@@ -15,14 +18,12 @@ export async function duplicateCheckout(checkoutId: string) {
   // Sanitiza caso venha "checkout-<id>" de algum lugar
   const srcId = checkoutId.replace(/^checkout-/, "");
 
-  console.log('[duplicateCheckout] Calling RPC duplicate_checkout_shallow via proxy:', {
-    p_source_checkout_id: srcId,
-  });
+  log.debug('Calling RPC duplicate_checkout_shallow via proxy:', { p_source_checkout_id: srcId });
 
   const { data: newId, error } = await duplicateCheckoutShallowRpc(srcId);
 
   if (error) {
-    console.error('[duplicateCheckout] RPC failed:', error);
+    log.error('RPC failed:', error);
     throw error;
   }
 
@@ -30,7 +31,7 @@ export async function duplicateCheckout(checkoutId: string) {
     throw new Error("RPC não retornou o ID do novo checkout");
   }
 
-  console.log('[duplicateCheckout] RPC succeeded, new checkout ID:', newId);
+  log.info('RPC succeeded, new checkout ID:', newId);
 
   const editUrl = `/dashboard/produtos/checkout/personalizar?id=${newId}`;
   return { id: newId, editUrl };

@@ -1,10 +1,13 @@
 /**
  * UTMify Helper
  * 
- * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
+ * @version 3.0.0 - RISE Protocol V3 - Zero console.log
  */
 
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("UTMifyHelper");
 
 interface UTMifyOrderData {
   orderId: string;
@@ -63,7 +66,7 @@ export async function sendUTMifyConversion(
   productId?: string
 ): Promise<void> {
   try {
-    console.log("[UTMify Helper] Enviando conversão para vendor:", vendorId, "Evento:", eventType, "Produto:", productId);
+    log.debug("Enviando conversão para vendor:", vendorId, "Evento:", eventType, "Produto:", productId);
 
     const { data, error } = await api.publicCall<UTMifyConversionResponse>("utmify-conversion", {
       vendorId,
@@ -73,19 +76,19 @@ export async function sendUTMifyConversion(
     });
 
     if (error) {
-      console.error("[UTMify Helper] Erro ao invocar Edge Function:", error);
+      log.error("Erro ao invocar Edge Function:", error);
       throw error;
     }
 
-    console.log("[UTMify Helper] Resposta da Edge Function:", data);
+    log.trace("Resposta da Edge Function:", data);
 
     if (!data?.success) {
-      console.warn("[UTMify Helper] Conversão não foi enviada:", data?.message);
+      log.warn("Conversão não foi enviada:", data?.message);
     } else {
-      console.log("[UTMify Helper] Conversão enviada com sucesso");
+      log.info("Conversão enviada com sucesso");
     }
   } catch (error: unknown) {
-    console.error("[UTMify Helper] Erro ao enviar conversão:", error);
+    log.error("Erro ao enviar conversão:", error);
     // Não propagar o erro para não interromper o fluxo de checkout
   }
 }

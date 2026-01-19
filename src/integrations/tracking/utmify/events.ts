@@ -2,18 +2,20 @@
  * Lógica de Eventos do UTMify
  * Módulo: src/integrations/tracking/utmify
  * 
- * MIGRATED: Uses api.publicCall() - Unified API Client
- * @see RISE Protocol V3
+ * @version 3.0.0 - RISE Protocol V3 - Zero console.log
  * 
  * Este arquivo contém funções para enviar eventos e conversões ao UTMify.
  */
 
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
 import {
   UTMifyOrderData,
   UTMifyResponse,
   UTMParameters,
 } from "./types";
+
+const log = createLogger("UTMify");
 
 /**
  * Extrai parâmetros UTM da URL
@@ -44,7 +46,7 @@ export function extractUTMParameters(url?: string): UTMParameters {
       utm_term: params.get("utm_term"),
     };
   } catch (error: unknown) {
-    console.warn("[UTMify] Erro ao extrair parâmetros UTM:", error);
+    log.warn("Erro ao extrair parâmetros UTM:", error);
     return {
       src: null,
       sck: null,
@@ -127,7 +129,7 @@ export async function sendUTMifyConversion(
   productId?: string
 ): Promise<UTMifyResponse> {
   try {
-    console.log("[UTMify] 📡 Enviando conversão para vendor:", vendorId, "Evento:", eventType);
+    log.debug("📡 Enviando conversão para vendor:", vendorId, "Evento:", eventType);
 
     interface UTMifyApiResponse {
       success: boolean;
@@ -142,7 +144,7 @@ export async function sendUTMifyConversion(
     });
 
     if (error) {
-      console.error("[UTMify] Erro ao invocar Edge Function:", error);
+      log.error("Erro ao invocar Edge Function:", error);
       return {
         success: false,
         message: "Erro ao invocar Edge Function",
@@ -150,10 +152,10 @@ export async function sendUTMifyConversion(
       };
     }
 
-    console.log("[UTMify] Resposta da Edge Function:", data);
+    log.trace("Resposta da Edge Function:", data);
 
     if (!data?.success) {
-      console.warn("[UTMify] Conversão não foi enviada:", data?.message);
+      log.warn("Conversão não foi enviada:", data?.message);
       return {
         success: false,
         message: data?.message || "Conversão não foi enviada",
@@ -161,14 +163,14 @@ export async function sendUTMifyConversion(
       };
     }
 
-    console.log("[UTMify] ✅ Conversão enviada com sucesso");
+    log.info("✅ Conversão enviada com sucesso");
     return {
       success: true,
       message: "Conversão enviada com sucesso",
       data,
     };
   } catch (error: unknown) {
-    console.error("[UTMify] Erro ao enviar conversão:", error);
+    log.error("Erro ao enviar conversão:", error);
     return {
       success: false,
       message: "Erro ao enviar conversão",

@@ -1,12 +1,13 @@
 /**
  * useCardValidation - Hook para validação de campos do formulário de cartão
  * 
- * Responsabilidade única: Validação e gerenciamento de erros
- * Limite: < 100 linhas
+ * @version 3.0.0 - RISE Protocol V3 - Zero console.log
  */
 
 import { useState, useCallback } from 'react';
+import { createLogger } from '@/lib/logger';
 
+const log = createLogger("CardValidation");
 export interface ValidationErrors {
   cardNumber?: string;
   expirationDate?: string;
@@ -89,7 +90,7 @@ export function useCardValidation(): CardValidationReturn {
         const field = c.field;
         const code = c.code;
         
-        console.log(`[useCardValidation] Erro - Field: ${field}, Code: ${code}`);
+        log.trace(`Erro - Field: ${field}, Code: ${code}`);
 
         if (field === 'cardNumber' || ["205", "E301"].includes(code)) {
           mpErrors.cardNumber = "Obrigatório";
@@ -110,7 +111,7 @@ export function useCardValidation(): CardValidationReturn {
 
     // Fallback: Se o SDK não retornou erros específicos mas falhou
     if (Object.keys(mpErrors).length === 0 && error) {
-      console.log('[useCardValidation] Aplicando fallback de erros para campos vazios');
+      log.trace('Aplicando fallback de erros para campos vazios');
       mpErrors.cardNumber = "Obrigatório";
       mpErrors.expirationDate = "Obrigatório";
       mpErrors.securityCode = "Obrigatório";

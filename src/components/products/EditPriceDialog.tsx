@@ -1,8 +1,7 @@
 /**
  * EditPriceDialog - Diálogo para edição de preço de produto
  * 
- * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
- * @see RISE Protocol V2 - Zero database access from frontend
+ * @version 3.0.0 - RISE Protocol V3 - Zero console.log
  */
 
 import { useState, useEffect } from "react";
@@ -18,8 +17,11 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+
+const log = createLogger("EditPriceDialog");
 
 interface UpdatePriceResponse {
   success: boolean;
@@ -60,7 +62,7 @@ export function EditPriceDialog({
     setIsSaving(true);
 
     try {
-      console.log("[EditPriceDialog] Atualizando preço do produto:", productId, "para:", price);
+      log.debug("Atualizando preço do produto:", productId, "para:", price);
 
       // Atualizar preço via Edge Function (atomicamente atualiza produto + oferta padrão)
       const { data, error } = await api.call<UpdatePriceResponse>("product-settings", {
@@ -70,7 +72,7 @@ export function EditPriceDialog({
       });
 
       if (error) {
-        console.error("[EditPriceDialog] Erro na Edge Function:", error);
+        log.error("Erro na Edge Function:", error);
         throw new Error(error.message || "Erro ao atualizar preço");
       }
 
@@ -78,13 +80,13 @@ export function EditPriceDialog({
         throw new Error(data?.error || "Erro ao atualizar preço");
       }
 
-      console.log("[EditPriceDialog] Preço atualizado com sucesso!");
+      log.info("Preço atualizado com sucesso!");
 
       toast.success("Preço atualizado com sucesso!");
       onPriceUpdated(price);
       onOpenChange(false);
     } catch (error: unknown) {
-      console.error("[EditPriceDialog] Erro:", error);
+      log.error("Erro:", error);
       toast.error(`Erro ao atualizar preço: ${error instanceof Error ? error.message : "Erro desconhecido"}`);
     } finally {
       setIsSaving(false);

@@ -6,10 +6,15 @@
  * - Segurança via validação de ownership
  * - Rate limiting
  * - Logs centralizados
+ * 
+ * @version 3.0.0 - RISE Protocol V3 - Zero console.log
  */
 
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+const log = createLogger("DuplicateProduct");
 
 export async function duplicateProductDeep(
   _supabaseClient: SupabaseClient,  // Mantido para compatibilidade, mas não usado
@@ -19,11 +24,11 @@ export async function duplicateProductDeep(
   const productId = String(rawProductId).trim();
   
   if (!productId || productId === 'undefined' || productId === 'null') {
-    console.error('[duplicateProductDeep] Invalid product ID:', rawProductId);
+    log.error('Invalid product ID:', rawProductId);
     throw new Error("ID do produto inválido");
   }
 
-  console.log('[duplicateProductDeep] Starting duplication via Edge Function for product:', productId);
+  log.debug('Starting duplication via Edge Function for product:', productId);
 
   const { data, error } = await api.call<{
     success?: boolean;
@@ -32,12 +37,12 @@ export async function duplicateProductDeep(
   }>('product-duplicate', { productId });
 
   if (error) {
-    console.error('[duplicateProductDeep] Edge Function error:', error);
+    log.error('Edge Function error:', error);
     throw new Error(error.message || 'Falha ao duplicar produto');
   }
 
   if (!data?.success) {
-    console.error('[duplicateProductDeep] Duplication failed:', data?.error);
+    log.error('Duplication failed:', data?.error);
     throw new Error(data?.error || 'Falha ao duplicar produto');
   }
 
@@ -45,7 +50,7 @@ export async function duplicateProductDeep(
     throw new Error('Resposta inválida: newProductId não encontrado');
   }
 
-  console.log('[duplicateProductDeep] Duplication completed successfully, new product:', data.newProductId);
+  log.info('Duplication completed successfully, new product:', data.newProductId);
   
   return { newProductId: data.newProductId };
 }

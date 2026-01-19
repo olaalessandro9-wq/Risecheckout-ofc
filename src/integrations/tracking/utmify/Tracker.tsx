@@ -1,12 +1,14 @@
 /**
  * Componente UTMify Tracker
- * Módulo: src/integrations/tracking/utmify
  * 
- * Componente React responsável por rastrear eventos do UTMify.
+ * @version 3.0.0 - RISE Protocol V3 - Zero console.log
  */
 
 import { useEffect } from "react";
+import { createLogger } from "@/lib/logger";
 import { UTMifyIntegration } from "./types";
+
+const log = createLogger("UTMify");
 
 interface TrackerProps {
   /** Integração do UTMify */
@@ -26,25 +28,19 @@ export const Tracker = ({ integration }: TrackerProps) => {
   useEffect(() => {
     // Validação: se integração inválida, não fazer nada
     if (!integration || !integration.active) {
-      console.log("[UTMify] Tracker não será ativado (integração inválida ou desativada)");
+      log.debug("Tracker não será ativado (integração inválida ou desativada)");
       return;
     }
 
     try {
-      console.log(
-        "[UTMify] ✅ Tracker inicializado com sucesso",
-        {
-          active: integration.active,
-          selected_products: integration.config?.selected_products?.length || "todos",
-          selected_events: integration.config?.selected_events?.length || "todos",
-        }
-      );
-
-      // Aqui você pode adicionar lógica adicional de rastreamento
-      // Por exemplo: rastrear PageView automaticamente
+      log.info("✅ Tracker inicializado com sucesso", {
+        active: integration.active,
+        selected_products: integration.config?.selected_products?.length || "todos",
+        selected_events: integration.config?.selected_events?.length || "todos",
+      });
       
     } catch (error: unknown) {
-      console.error("[UTMify] Erro ao inicializar tracker:", error);
+      log.error("Erro ao inicializar tracker:", error);
     }
   }, [integration?.id, integration?.active]);
 
