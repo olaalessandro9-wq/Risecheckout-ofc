@@ -14,8 +14,10 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
+const log = createLogger("vendor-integrations");
 
 interface RequestBody {
   action: "get-config" | "get-all";
@@ -42,7 +44,7 @@ serve(async (req) => {
       return jsonResponse({ error: "vendorId required" }, 400);
     }
 
-    console.log(`[vendor-integrations] Action: ${action}, Vendor: ${vendorId}, Type: ${integrationType || "all"}`);
+    log.info(`Action: ${action}, Vendor: ${vendorId}, Type: ${integrationType || "all"}`);
 
     // ===== ACTION: get-config =====
     if (action === "get-config") {
@@ -63,7 +65,7 @@ serve(async (req) => {
         if (error.code === "PGRST116") {
           return jsonResponse({ success: true, data: null });
         }
-        console.error("[vendor-integrations] Error:", error);
+        log.error("Error:", error);
         return jsonResponse({ error: "Erro ao buscar integração" }, 500);
       }
 
@@ -97,7 +99,7 @@ serve(async (req) => {
         .eq("active", true);
 
       if (error) {
-        console.error("[vendor-integrations] Error:", error);
+        log.error("Error:", error);
         return jsonResponse({ error: "Erro ao buscar integrações" }, 500);
       }
 
@@ -118,7 +120,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const err = error instanceof Error ? error : new Error(String(error));
-    console.error("[vendor-integrations] Error:", err.message);
+    log.error("Error:", err.message);
     return jsonResponse({ error: "Erro interno" }, 500);
   }
 });

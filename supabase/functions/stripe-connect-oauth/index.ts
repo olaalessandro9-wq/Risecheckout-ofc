@@ -23,16 +23,14 @@ import { processOAuthCallback } from "./handlers/oauth-callback.ts";
 import { disconnectStripe } from "./handlers/disconnect.ts";
 import { getStripeStatus } from "./handlers/status.ts";
 
+import { createLogger } from "../_shared/logger.ts";
+
 const corsHeaders = PUBLIC_CORS_HEADERS;
+const log = createLogger("stripe-connect-oauth");
 
 interface RequestBody {
   action?: string;
 }
-
-const logStep = (step: string, details?: unknown) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
-  console.log(`[STRIPE-CONNECT-OAUTH] ${step}${detailsStr}`);
-};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -73,7 +71,7 @@ serve(async (req) => {
     }
     
     action = action || "start";
-    logStep("Processing action", { action });
+    log.info("Processing action", { action });
 
     // ========================================
     // ACTION: START
@@ -110,7 +108,7 @@ serve(async (req) => {
       const error = url.searchParams.get("error");
       const errorDescription = url.searchParams.get("error_description");
 
-      logStep("Processing callback", { code: !!code, state, error });
+      log.info("Processing callback", { code: !!code, state, error });
 
       // Verificar se houve erro no OAuth
       if (error) {
@@ -176,7 +174,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR", { message: errorMessage });
+    log.error("ERROR", { message: errorMessage });
 
     return new Response(
       JSON.stringify({ error: errorMessage }),
