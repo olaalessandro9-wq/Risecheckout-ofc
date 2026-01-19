@@ -8,6 +8,9 @@
 import { useState, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('CouponValidation');
 
 interface CouponValidationResponse {
   success?: boolean;
@@ -63,7 +66,7 @@ export function useCouponValidation({ productId }: UseCouponValidationParams): U
     setIsValidating(true);
 
     try {
-      console.log('[useCouponValidation] Validando cupom:', {
+      log.debug('Validando cupom', {
         code: couponCode.trim(),
         productId
       });
@@ -75,7 +78,7 @@ export function useCouponValidation({ productId }: UseCouponValidationParams): U
       });
 
       if (error) {
-        console.error('[useCouponValidation] Edge function error:', error);
+        log.error('Edge function error', error);
         toast.error('Erro ao validar cupom. Tente novamente.');
         return;
       }
@@ -97,7 +100,7 @@ export function useCouponValidation({ productId }: UseCouponValidationParams): U
       setAppliedCoupon(appliedCouponData);
       toast.success(`Cupom "${data.data.code}" aplicado com sucesso!`);
     } catch (error: unknown) {
-      console.error('[useCouponValidation] Erro ao validar cupom:', error);
+      log.error('Erro ao validar cupom', error);
       toast.error('Erro ao validar cupom. Tente novamente.');
     } finally {
       setIsValidating(false);

@@ -15,6 +15,9 @@ import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { getProducerSessionToken } from "@/hooks/useProducerAuth";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("Affiliations");
 
 export interface Affiliation {
   id: string;
@@ -55,7 +58,7 @@ export function useAffiliations(): UseAffiliationsResult {
       setIsLoading(true);
       setError(null);
 
-      console.log("[useAffiliations] Buscando afiliações via Edge Function...");
+      log.debug("Buscando afiliações via Edge Function");
 
       const { data, error: invokeError } = await api.call<{
         error?: string;
@@ -63,17 +66,17 @@ export function useAffiliations(): UseAffiliationsResult {
       }>("get-my-affiliations", {});
 
       if (invokeError) {
-        console.error("[useAffiliations] Erro na Edge Function:", invokeError);
+        log.error("Erro na Edge Function", invokeError);
         throw invokeError;
       }
 
       if (data?.error) {
-        console.error("[useAffiliations] Erro retornado:", data.error);
+        log.error("Erro retornado", { error: data.error });
         throw new Error(data.error);
       }
 
       const fetchedAffiliations = data?.affiliations || [];
-      console.log(`[useAffiliations] ${fetchedAffiliations.length} afiliações encontradas`);
+      log.info(`${fetchedAffiliations.length} afiliações encontradas`);
 
       setAffiliations(fetchedAffiliations);
     } catch (err) {

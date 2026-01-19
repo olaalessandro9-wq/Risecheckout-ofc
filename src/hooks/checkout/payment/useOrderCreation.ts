@@ -9,6 +9,9 @@
 import { useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { getAffiliateCode } from "@/hooks/useAffiliateTracking";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("OrderCreation");
 
 interface CreateOrderResponse {
   success?: boolean;
@@ -80,13 +83,13 @@ export function useOrderCreation({ config }: UseOrderCreationProps): UseOrderCre
       const customerPhone = personalDataOverride?.phone || config.formData.phone;
       const customerCpf = personalDataOverride?.cpf || config.formData.cpf || config.formData.document;
 
-      console.log("[useOrderCreation] Criando pedido...", {
+      log.debug("Criando pedido", {
         gateway,
         paymentMethod,
         bumpsCount: orderBumpIds.length,
         hasCoupon: !!appliedCoupon,
         usingOverride: !!personalDataOverride,
-        customerEmail, // Log para debug
+        customerEmail,
       });
 
       const payload: CreateOrderPayload = {
@@ -114,7 +117,7 @@ export function useOrderCreation({ config }: UseOrderCreationProps): UseOrderCre
         throw new Error(data?.error || "Erro ao criar pedido.");
       }
 
-      console.log("[useOrderCreation] ✅ Pedido criado:", data.order_id);
+      log.info("Pedido criado", { orderId: data.order_id });
 
       return {
         success: true,

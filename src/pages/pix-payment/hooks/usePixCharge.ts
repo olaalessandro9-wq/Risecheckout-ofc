@@ -7,7 +7,10 @@
 import { useState, useCallback, useRef } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { createLogger } from "@/lib/logger";
 import type { OrderDataFromRpc, PixNavigationState } from "../types";
+
+const log = createLogger("PixCharge");
 
 interface PixChargeResponse {
   ok?: boolean;
@@ -47,19 +50,19 @@ export function usePixCharge(
   const createCharge = useCallback(async () => {
     // Se já tem QR code (veio do Mercado Pago/Asaas/Stripe), não criar novamente
     if (qrCode) {
-      console.log("[usePixCharge] QR code já existe, não criando novo");
+      log.debug("QR code já existe, não criando novo");
       return;
     }
     
     if (!orderId || !orderData) {
-      console.log("[usePixCharge] Aguardando dados:", { orderId, orderData: !!orderData });
+      log.debug("Aguardando dados", { orderId, hasOrderData: !!orderData });
       return;
     }
 
     setLoading(true);
 
     try {
-      console.log("[usePixCharge] Criando cobrança PIX via PushinPay:", { 
+      log.debug("Criando cobrança PIX via PushinPay", { 
         orderId, 
         valueInCents: orderData.amount_cents,
       });
@@ -69,25 +72,25 @@ export function usePixCharge(
         valueInCents: orderData.amount_cents,
       });
 
-      console.log("[usePixCharge] Resposta da Edge Function:", { data, error });
+      log.debug("Resposta da Edge Function", { data, error });
 
       if (error) {
-        console.error("[usePixCharge] Erro da Edge Function:", error);
+        log.error("Erro da Edge Function", error);
         throw new Error(error.message || "Erro ao criar cobrança PIX");
       }
 
       if (!data?.ok) {
-        console.error("[usePixCharge] Resposta não OK:", data);
+        log.error("Resposta não OK", data);
         throw new Error(data?.error || "Erro ao criar cobrança PIX");
       }
 
       if (!data?.pix) {
-        console.error("[usePixCharge] Sem dados do PIX:", data);
+        log.error("Sem dados do PIX", data);
         throw new Error("Dados do PIX não retornados");
       }
 
       const { pix } = data;
-      console.log("[usePixCharge] PIX criado com sucesso:", pix);
+      log.info("PIX criado com sucesso", { pixId: pix.id || pix.pix_id });
       
       setPixId(pix.id || pix.pix_id || "");
       setQrCode(pix.qr_code || pix.qrcode || pix.emv || "");
@@ -98,7 +101,7 @@ export function usePixCharge(
       setLoading(false);
       toast.success("QR Code gerado com sucesso!");
     } catch (err: unknown) {
-      console.error("[usePixCharge] Erro ao criar PIX:", err);
+      log.error("Erro ao criar PIX", err);
       toast.error(err instanceof Error ? err.message : "Erro ao gerar QR Code");
       setLoading(false);
     }

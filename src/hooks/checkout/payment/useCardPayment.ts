@@ -16,6 +16,9 @@ import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("CardPayment");
 import { SUPABASE_URL } from "@/config/supabase";
 import type { CreditCardGateway, CardPaymentData, PaymentConfig } from "./types";
 import type { PersonalDataOverride } from "./useOrderCreation";
@@ -68,7 +71,7 @@ export function useCardPayment({ config, amount }: UseCardPaymentProps): UseCard
     const effectiveEmail = personalDataOverride?.email || config.formData.email;
     const effectiveName = personalDataOverride?.name || config.formData.name;
 
-    console.log(`[useCardPayment] Processando cartão via ${gateway}...`, {
+    log.debug(`Processando cartão via ${gateway}`, {
       hasToken: !!cardData.token,
       installments: cardData.installments,
       hasHolderDocument: !!cardData.holderDocument,
@@ -114,7 +117,7 @@ export function useCardPayment({ config, amount }: UseCardPaymentProps): UseCard
         // CRÍTICO: holderDocument (CPF do cartão) vem DIRETAMENTE do MercadoPagoCardForm
         const payerDocumentFinal = cardData.holderDocument?.replace(/\D/g, '') || null;
         
-        console.log('[useCardPayment] CPF do cartão para MP:', {
+        log.debug('CPF do cartão para MP', {
           holderDocument: cardData.holderDocument || '(vazio)',
           payerDocumentFinal: payerDocumentFinal || '(NULL)'
         });
