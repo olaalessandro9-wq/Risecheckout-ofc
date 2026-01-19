@@ -12,7 +12,10 @@
 
 import { memo, useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import { INPUT_BASE_CLASS, INPUT_ERROR_CLASS } from '../../core/constants';
+import { createLogger } from '@/lib/logger';
 import type { MercadoPagoInstallment, MercadoPagoCallbackError, MercadoPagoPaymentMethod, MercadoPagoInstallmentsResponse } from '@/types/mercadopago-sdk.types';
+
+const log = createLogger("MercadoPagoFields");
 
 /**
  * Interface para instância do CardForm do Mercado Pago SDK
@@ -202,7 +205,7 @@ const MercadoPagoFieldsComponent = forwardRef<MercadoPagoFieldsRef, MercadoPagoF
     useEffect(() => {
       if (!publicKey || !window.MercadoPago) return;
       if (cardFormRef.current || isMountingRef.current) {
-        console.log('[MercadoPagoFields] Instância já existe ou está montando');
+        log.debug('Instância já existe ou está montando');
         return;
       }
       
@@ -210,7 +213,7 @@ const MercadoPagoFieldsComponent = forwardRef<MercadoPagoFieldsRef, MercadoPagoF
       if (!formElement) return;
 
       isMountingRef.current = true;
-      console.log('[MercadoPagoFields] Inicializando SDK...');
+      log.debug('Inicializando SDK...');
 
       const initBrick = async () => {
         try {
@@ -228,7 +231,7 @@ const MercadoPagoFieldsComponent = forwardRef<MercadoPagoFieldsRef, MercadoPagoF
               onInstallmentsChange?.(installmentData[0].payer_costs);
             }
           } catch (e) {
-            console.warn("[MercadoPagoFields] Erro ao buscar parcelas:", e);
+            log.warn("Erro ao buscar parcelas:", e);
           }
 
           const cardForm = mp.cardForm({
@@ -261,7 +264,7 @@ const MercadoPagoFieldsComponent = forwardRef<MercadoPagoFieldsRef, MercadoPagoF
             callbacks: {
               onFormMounted: (error: MercadoPagoCallbackError) => {
                 if (error) {
-                  console.warn("[MercadoPagoFields] Erro ao montar:", error);
+                  log.warn("Erro ao montar:", error);
                   isMountingRef.current = false;
                   setIsReady(false);
                   onError?.('Erro ao carregar formulário de pagamento');
@@ -291,7 +294,7 @@ const MercadoPagoFieldsComponent = forwardRef<MercadoPagoFieldsRef, MercadoPagoF
 
           cardFormRef.current = cardForm;
         } catch (error: unknown) {
-          console.error('[MercadoPagoFields] Erro fatal:', error);
+          log.error('Erro fatal:', error);
           onError?.('Falha ao inicializar sistema de pagamento');
           setIsReady(false);
           isMountingRef.current = false;
@@ -302,14 +305,14 @@ const MercadoPagoFieldsComponent = forwardRef<MercadoPagoFieldsRef, MercadoPagoF
       initBrick();
 
       return () => {
-        console.log('[MercadoPagoFields] Desmontando...');
+        log.debug('Desmontando...');
         if (cardFormRef.current) {
           try {
             if (typeof cardFormRef.current.unmount === 'function') {
               cardFormRef.current.unmount();
             }
           } catch (e) {
-            console.log('Erro ao desmontar:', e);
+            log.debug('Erro ao desmontar:', e);
           }
           cardFormRef.current = null;
         }
@@ -335,7 +338,7 @@ const MercadoPagoFieldsComponent = forwardRef<MercadoPagoFieldsRef, MercadoPagoF
             }
           });
         } catch (e) {
-          console.warn('Erro ao recalcular parcelas:', e);
+          log.warn('Erro ao recalcular parcelas:', e);
         }
       }, 500);
       

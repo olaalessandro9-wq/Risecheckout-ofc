@@ -11,8 +11,11 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { createLogger } from "@/lib/logger";
 import { api } from "@/lib/api/client";
 import { useAuth } from "@/hooks/useAuth";
+
+const log = createLogger("FacebookPixelConfig");
 
 interface VendorIntegrationResponse {
   integration?: {
@@ -69,7 +72,7 @@ export function FacebookPixelConfig() {
         setAccessToken("");
       }
     } catch (error: unknown) {
-      console.error("Error loading config:", error);
+      log.error("Error loading config:", error);
       toast.error("Erro ao carregar configuração");
     } finally {
       setLoading(false);
@@ -123,7 +126,7 @@ export function FacebookPixelConfig() {
 
       toast.success("Configuração salva com sucesso!");
     } catch (error: unknown) {
-      console.error("Error saving config:", error);
+      log.error("Error saving config:", error);
       const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
       toast.error("Erro ao salvar configuração: " + errorMessage);
     } finally {

@@ -13,10 +13,13 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "@/components/ui/sonner";
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
 import { useAuth } from "@/hooks/useAuth";
 import { getPushinPaySettings, savePushinPaySettings } from "@/integrations/gateways/pushinpay/api";
 import type { PushinPayEnvironment } from "@/integrations/gateways/pushinpay/types";
 import type { PaymentGateway, FinanceiroState, FinanceiroActions } from "../types";
+
+const log = createLogger("UseFinanceiro");
 
 interface UseFinanceiroReturn {
   state: FinanceiroState;
@@ -72,7 +75,7 @@ export function useFinanceiro(): UseFinanceiroReturn {
       });
 
       if (error) {
-        console.error('[useFinanceiro] Erro ao buscar status de integrações:', error);
+        log.error('Erro ao buscar status de integrações:', error);
         return;
       }
 
@@ -90,7 +93,7 @@ export function useFinanceiro(): UseFinanceiroReturn {
         setAsaasConnected(false);
       }
     } catch (error: unknown) {
-      console.error("Erro ao carregar dados:", error);
+      log.error("Erro ao carregar dados:", error);
     } finally {
       setLoadingData(false);
     }
