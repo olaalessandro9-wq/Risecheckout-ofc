@@ -9,6 +9,9 @@
 
 import React, { useRef, useEffect, memo } from 'react';
 import { SecureFields, SecureFieldsProps } from './SecureFields';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('SecureFieldsPortal');
 
 // Flag GLOBAL para controle de montagem
 const secureFieldsGlobalState = {
@@ -19,7 +22,7 @@ const secureFieldsGlobalState = {
 
 // Função para resetar o estado global
 export const resetSecureFieldsState = () => {
-  console.log('[SecureFieldsPortal] Resetando estado global');
+  log.debug('Resetando estado global');
   secureFieldsGlobalState.mounted = false;
   secureFieldsGlobalState.containerElement = null;
   secureFieldsGlobalState.currentPath = null;
@@ -37,7 +40,7 @@ export const SecureFieldsPortal = memo((props: SecureFieldsProps) => {
     if (secureFieldsGlobalState.currentPath && 
         secureFieldsGlobalState.currentPath !== currentPath &&
         !currentPath.includes('/pay/')) {
-      console.log('[SecureFieldsPortal] Página mudou, resetando estado');
+      log.debug('Página mudou, resetando estado');
       resetSecureFieldsState();
     }
     
@@ -45,7 +48,7 @@ export const SecureFieldsPortal = memo((props: SecureFieldsProps) => {
 
     // Se já existe uma instância montada, reutilizar
     if (secureFieldsGlobalState.mounted && !isThisInstanceOwner.current) {
-      console.log('[SecureFieldsPortal] Já existe instância global, reutilizando');
+      log.debug('Já existe instância global, reutilizando');
       
       requestAnimationFrame(() => {
         const existingContainer = secureFieldsGlobalState.containerElement;
@@ -98,7 +101,7 @@ export const SecureFieldsPortal = memo((props: SecureFieldsProps) => {
 
       if (cardSlot?.hasChildNodes() && expSlot?.hasChildNodes() && secSlot?.hasChildNodes()) {
         movedRef.current = true;
-        console.log('[SecureFieldsPortal] Iframes movidos para os slots');
+        log.debug('Iframes movidos para os slots');
       }
     };
 
@@ -120,7 +123,7 @@ export const SecureFieldsPortal = memo((props: SecureFieldsProps) => {
     return () => {
       observer.disconnect();
       if (isThisInstanceOwner.current) {
-        console.log('[SecureFieldsPortal] Componente desmontando, resetando estado');
+        log.debug('Componente desmontando, resetando estado');
         resetSecureFieldsState();
         isThisInstanceOwner.current = false;
         movedRef.current = false;

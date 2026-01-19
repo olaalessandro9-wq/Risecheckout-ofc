@@ -13,6 +13,9 @@ import { useCallback } from "react";
 import { toast } from "sonner";
 import type { BuyerWithGroups, StudentFilters } from "@/modules/members-area/types";
 import { studentsService } from "../services/students.service";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("useStudentsActions");
 
 interface UseStudentsActionsProps {
   productId?: string;
@@ -49,7 +52,7 @@ export function useStudentsActions({
       toast.success('Grupos atualizados');
       onRefresh();
     } catch (error: unknown) {
-      console.error('Error assigning groups:', error);
+      log.error('Error assigning groups:', error);
       toast.error('Erro ao atualizar grupos');
     }
   }, [productId, onRefresh]);
@@ -65,7 +68,7 @@ export function useStudentsActions({
       toast.success('Acesso revogado');
       onRefresh();
     } catch (error: unknown) {
-      console.error('Error revoking access:', error);
+      log.error('Error revoking access:', error);
       toast.error('Erro ao revogar acesso');
     }
   }, [productId, onRefresh]);

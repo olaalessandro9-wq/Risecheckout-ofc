@@ -14,6 +14,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { SUPABASE_URL } from "@/config/supabase";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("StripePix");
 
 interface OrderPaymentStatusResponse {
   status?: string;
@@ -61,7 +64,7 @@ export function StripePix({ orderId, amount, onPaymentConfirmed, onError }: Stri
         });
 
         if (error) {
-          console.error("[StripePix] Polling error:", error);
+          log.error("Polling error:", error);
           return;
         }
 
@@ -71,7 +74,7 @@ export function StripePix({ orderId, amount, onPaymentConfirmed, onError }: Stri
           clearInterval(interval);
         }
       } catch (err) {
-        console.error("[StripePix] Polling error:", err);
+        log.error("Polling error:", err);
       }
     }, 3000);
 
@@ -127,7 +130,7 @@ export function StripePix({ orderId, amount, onPaymentConfirmed, onError }: Stri
         payment_intent_id: data.payment_intent_id,
       });
     } catch (err) {
-      console.error("[StripePix] Error:", err);
+      log.error("Error:", err);
       onError?.(err instanceof Error ? err : new Error(String(err)));
     } finally {
       setLoading(false);
