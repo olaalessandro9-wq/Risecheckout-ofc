@@ -10,7 +10,10 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Loader2, Send } from "lucide-react";
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
 import { toast } from "sonner";
+
+const log = createLogger("TestWebhookDialog");
 
 interface WebhookTestResponse {
   success?: boolean;
@@ -219,7 +222,7 @@ export function TestWebhookDialog({
         toast.error(`Erro ao enviar: ${result?.error || 'Erro desconhecido'}`);
       }
     } catch (error: unknown) {
-      console.error("Error sending test event:", error);
+      log.error("Error sending test event:", error);
       toast.error("Erro ao enviar evento de teste");
     } finally {
       setSending(false);

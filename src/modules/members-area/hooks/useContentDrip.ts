@@ -7,7 +7,10 @@
 
 import { useState, useCallback } from 'react';
 import { api } from '@/lib/api';
+import { createLogger } from '@/lib/logger';
 import type { ContentReleaseSettings, ContentAccessStatus, ReleaseType } from '../types';
+
+const log = createLogger("UseContentDrip");
 
 interface DripSettingsResponse {
   settings?: Array<{
@@ -61,7 +64,7 @@ export function useContentDrip(): UseContentDripReturn {
         });
       });
     } catch (error) {
-      console.error("[useContentDrip] Error fetching settings:", error);
+      log.error("Error fetching settings:", error);
     }
 
     setIsLoading(false);
@@ -124,7 +127,7 @@ export function useContentDrip(): UseContentDripReturn {
 
       return data as ContentAccessStatus;
     } catch (error) {
-      console.error("[useContentDrip] Error checking access:", error);
+      log.error("Error checking access:", error);
       return {
         content_id: contentId,
         is_accessible: true,
