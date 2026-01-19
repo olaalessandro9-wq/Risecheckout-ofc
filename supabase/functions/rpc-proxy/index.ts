@@ -13,7 +13,9 @@
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2, PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { getAuthenticatedProducer } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
 
+const log = createLogger("rpc-proxy");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -78,14 +80,14 @@ async function getVendorTimezone(
       .single();
     
     if (error || !profile) {
-      console.log(`[rpc-proxy] No timezone for vendor ${vendorId}, using default`);
+      log.info(`No timezone for vendor ${vendorId}, using default`);
       return DEFAULT_TIMEZONE;
     }
     
     const tz = (profile as { timezone?: string }).timezone;
     return tz || DEFAULT_TIMEZONE;
   } catch {
-    console.log(`[rpc-proxy] Error fetching timezone, using default`);
+    log.info("Error fetching timezone, using default");
     return DEFAULT_TIMEZONE;
   }
 }
@@ -160,20 +162,20 @@ Deno.serve(async (req) => {
         // Inject p_user_id
         if (needsUserId) {
           enrichedParams.p_user_id = producer.id;
-          console.log(`[rpc-proxy] Injecting p_user_id=${producer.id} for RPC ${rpc}`);
+          log.info(`Injecting p_user_id=${producer.id} for RPC ${rpc}`);
         }
         
         // Inject p_timezone
         if (needsTimezone) {
           const timezone = await getVendorTimezone(supabase, producer.id);
           enrichedParams.p_timezone = timezone;
-          console.log(`[rpc-proxy] Injecting p_timezone=${timezone} for RPC ${rpc}`);
+          log.info(`Injecting p_timezone=${timezone} for RPC ${rpc}`);
         }
         
         const { data, error } = await supabase.rpc(rpc as never, enrichedParams);
         
         if (error) {
-          console.error(`[rpc-proxy] RPC ${rpc} failed:`, error);
+          log.error(`RPC ${rpc} failed:`, error);
           return new Response(
             JSON.stringify({ error: error.message }),
             { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -191,7 +193,7 @@ Deno.serve(async (req) => {
     const { data, error } = await supabase.rpc(rpc as never, params || {});
 
     if (error) {
-      console.error(`[rpc-proxy] RPC ${rpc} failed:`, error);
+      log.error(`RPC ${rpc} failed:`, error);
       return new Response(
         JSON.stringify({ error: error.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -203,7 +205,7 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
-    console.error("[rpc-proxy] Exception:", err);
+    log.error("Exception:", err);
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...PUBLIC_CORS_HEADERS, "Content-Type": "application/json" } }
