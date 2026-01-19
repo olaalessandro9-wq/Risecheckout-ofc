@@ -12,7 +12,10 @@
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { checkRateLimit } from "../../_shared/rate-limiting/index.ts";
 import { encryptValue } from "../../_shared/encryption.ts";
+import { createLogger } from "../../_shared/logger.ts";
 import type { OrderItem } from "./bump-processor.ts";
+
+const log = createLogger("order-creator");
 
 export interface OrderCreationResult {
   order_id: string;
@@ -120,7 +123,7 @@ export async function createOrder(
 
   if (existingOrders && existingOrders.length > 0) {
     const existing = existingOrders[0] as ExistingOrder;
-    console.log(`[order-creator] Pedido duplicado: ${existing.id}`);
+    log.info(`Pedido duplicado: ${existing.id}`);
 
     return new Response(
       JSON.stringify({
@@ -146,9 +149,9 @@ export async function createOrder(
   try {
     encryptedPhone = await encryptValue(customer_phone);
     encryptedCpf = await encryptValue(customer_cpf);
-    console.log("[order-creator] ✅ CPF/telefone criptografados com AES-256-GCM");
+    log.info("✅ CPF/telefone criptografados com AES-256-GCM");
   } catch (encryptError) {
-    console.error("[order-creator] ❌ Falha na criptografia:", encryptError);
+    log.error("❌ Falha na criptografia:", encryptError);
     // SECURITY: Não prosseguir sem criptografia
     return new Response(
       JSON.stringify({ 
@@ -188,12 +191,12 @@ export async function createOrder(
     .single();
 
   if (orderError) {
-    console.error("[order-creator] Erro ao criar order:", orderError);
+    log.error("Erro ao criar order:", orderError);
     throw orderError;
   }
 
   const createdOrder = order as CreatedOrder;
-  console.log(`[order-creator] Pedido criado: ${createdOrder.id}`);
+  log.info(`Pedido criado: ${createdOrder.id}`);
 
   // Inserir itens
   const itemsToInsert = allOrderItems.map(item => ({
@@ -202,7 +205,7 @@ export async function createOrder(
   }));
 
   await supabase.from("order_items").insert(itemsToInsert);
-  console.log(`[order-creator] ${itemsToInsert.length} itens inseridos`);
+  log.info(`${itemsToInsert.length} itens inseridos`);
 
   // Atualizar contador de vendas do afiliado
   if (affiliateId) {
@@ -223,7 +226,7 @@ async function updateAffiliateStats(
   affiliateId: string,
   amountInCents: number
 ): Promise<void> {
-  console.log(`[order-creator] Atualizando contadores: ${affiliateId}`);
+  log.info(`Atualizando contadores: ${affiliateId}`);
 
   try {
     // Tentar RPC atômico primeiro
@@ -234,7 +237,7 @@ async function updateAffiliateStats(
 
     if (rpcError) {
       // Fallback: UPDATE síncrono
-      console.log("[order-creator] RPC indisponível, usando UPDATE");
+      log.info("RPC indisponível, usando UPDATE");
 
       const { data: current } = await supabase
         .from("affiliates")
@@ -254,16 +257,16 @@ async function updateAffiliateStats(
           .eq("id", affiliateId);
 
         if (updateError) {
-          console.error("[order-creator] Erro ao atualizar afiliado:", updateError);
+          log.error("Erro ao atualizar afiliado:", updateError);
         } else {
-          console.log("[order-creator] Contadores atualizados via UPDATE");
+          log.info("Contadores atualizados via UPDATE");
         }
       }
     } else {
-      console.log("[order-creator] Contadores atualizados via RPC");
+      log.info("Contadores atualizados via RPC");
     }
   } catch (err: unknown) {
     const errMessage = err instanceof Error ? err.message : String(err);
-    console.error("[order-creator] Erro inesperado:", errMessage);
+    log.error("Erro inesperado:", errMessage);
   }
 }

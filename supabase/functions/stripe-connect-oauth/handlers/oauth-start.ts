@@ -7,6 +7,9 @@
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createLogger } from "../../_shared/logger.ts";
+
+const log = createLogger("stripe-oauth-start");
 
 export interface OAuthStartResult {
   success: boolean;
@@ -23,14 +26,14 @@ export async function startOAuthFlow(
   supabase: SupabaseClient,
   vendorId: string
 ): Promise<OAuthStartResult> {
-  console.log('[OAuth Start] Iniciando OAuth para vendor:', vendorId);
+  log.info('Iniciando OAuth para vendor:', vendorId);
 
   // Validar STRIPE_CLIENT_ID
   const stripeClientId = Deno.env.get("STRIPE_CLIENT_ID");
-  console.log('[OAuth Start] STRIPE_CLIENT_ID presente:', !!stripeClientId, 'valor:', stripeClientId?.substring(0, 10) + '...');
+  log.info('STRIPE_CLIENT_ID presente:', { present: !!stripeClientId, preview: stripeClientId?.substring(0, 10) + '...' });
   
   if (!stripeClientId || stripeClientId.trim() === "" || stripeClientId.includes("PLACEHOLDER")) {
-    console.error('[OAuth Start] STRIPE_CLIENT_ID não configurado ou inválido');
+    log.error('STRIPE_CLIENT_ID não configurado ou inválido');
     return {
       success: false,
       error: "Stripe não está configurado corretamente. STRIPE_CLIENT_ID ausente ou inválido.",
@@ -40,10 +43,10 @@ export async function startOAuthFlow(
 
   // Validar STRIPE_REDIRECT_URL
   const redirectUri = Deno.env.get("STRIPE_REDIRECT_URL");
-  console.log('[OAuth Start] STRIPE_REDIRECT_URL:', redirectUri);
+  log.info('STRIPE_REDIRECT_URL:', redirectUri);
   
   if (!redirectUri || redirectUri.trim() === "" || redirectUri.includes("PLACEHOLDER")) {
-    console.error('[OAuth Start] STRIPE_REDIRECT_URL não configurado');
+    log.error('STRIPE_REDIRECT_URL não configurado');
     return {
       success: false,
       error: "Stripe não está configurado corretamente. STRIPE_REDIRECT_URL ausente.",
@@ -71,7 +74,7 @@ export async function startOAuthFlow(
     stripeConnectUrl.searchParams.set("state", state);
     stripeConnectUrl.searchParams.set("stripe_user[country]", "BR");
 
-    console.log('[OAuth Start] URL gerada com sucesso');
+    log.info('URL gerada com sucesso');
 
     return {
       success: true,
@@ -80,7 +83,7 @@ export async function startOAuthFlow(
     };
 
   } catch (error) {
-    console.error('[OAuth Start] Exception:', error);
+    log.error('Exception:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro ao iniciar OAuth'

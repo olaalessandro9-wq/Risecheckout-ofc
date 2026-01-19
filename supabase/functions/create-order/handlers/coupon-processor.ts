@@ -7,6 +7,9 @@
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createLogger } from "../../_shared/logger.ts";
+
+const log = createLogger("coupon-processor");
 
 export interface CouponResult {
   discountAmount: number;
@@ -60,7 +63,7 @@ export async function processCoupon(
     return { discountAmount, couponCode };
   }
 
-  console.log("[coupon-processor] Validando cupom:", coupon_id);
+  log.info("Validando cupom:", coupon_id);
 
   // Buscar cupom ativo
   const { data: coupon, error: couponError } = await supabase
@@ -71,7 +74,7 @@ export async function processCoupon(
     .maybeSingle();
 
   if (couponError || !coupon) {
-    console.warn("[coupon-processor] Cupom inválido:", coupon_id);
+    log.warn("Cupom inválido:", coupon_id);
     return { discountAmount, couponCode };
   }
 
@@ -86,7 +89,7 @@ export async function processCoupon(
     .maybeSingle();
 
   if (!couponProduct) {
-    console.warn("[coupon-processor] Cupom não vinculado ao produto:", coupon_id);
+    log.warn("Cupom não vinculado ao produto:", coupon_id);
     return { discountAmount, couponCode };
   }
 
@@ -97,7 +100,7 @@ export async function processCoupon(
     (!couponData.expires_at || new Date(couponData.expires_at) > now);
 
   if (!validDate) {
-    console.warn("[coupon-processor] Cupom fora do período válido");
+    log.warn("Cupom fora do período válido");
     return { discountAmount, couponCode };
   }
 
@@ -115,7 +118,7 @@ export async function processCoupon(
     .maybeSingle();
 
   if (!updatedCoupon) {
-    console.warn("[coupon-processor] Cupom esgotado (race condition prevenida)");
+    log.warn("Cupom esgotado (race condition prevenida)");
     return { discountAmount, couponCode };
   }
 
@@ -133,7 +136,7 @@ export async function processCoupon(
   discountAmount = Math.min(discountAmount, totalAmount);
   couponCode = couponData.code;
 
-  console.log("[coupon-processor] Cupom aplicado:", {
+  log.info("Cupom aplicado:", {
     code: couponData.code,
     discount_amount: discountAmount
   });

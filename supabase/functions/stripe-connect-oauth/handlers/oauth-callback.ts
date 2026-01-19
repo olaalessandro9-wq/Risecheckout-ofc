@@ -9,6 +9,9 @@
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@14.14.0";
 import { saveCredentialsToVault } from "../../_shared/vault-credentials.ts";
+import { createLogger } from "../../_shared/logger.ts";
+
+const log = createLogger("stripe-oauth-callback");
 
 interface StateRecord {
   vendor_id: string;
@@ -33,7 +36,7 @@ export async function processOAuthCallback(
   code: string,
   state: string
 ): Promise<OAuthCallbackResult> {
-  console.log('[OAuth Callback] Processando callback...');
+  log.info('Processando callback...');
 
   try {
     // Validar state (CSRF protection)
@@ -58,7 +61,7 @@ export async function processOAuthCallback(
     }
 
     const vendorId = stateRecord.vendor_id;
-    console.log('[OAuth Callback] State validado, vendor:', vendorId);
+    log.info('State validado, vendor:', vendorId);
 
     // Marcar state como usado
     await supabase
@@ -72,7 +75,7 @@ export async function processOAuthCallback(
       code,
     });
 
-    console.log('[OAuth Callback] Token exchange bem-sucedido:', {
+    log.info('Token exchange bem-sucedido:', {
       accountId: tokenResponse.stripe_user_id,
       livemode: tokenResponse.livemode
     });
@@ -84,7 +87,7 @@ export async function processOAuthCallback(
 
     // Buscar informações da conta conectada
     const account = await stripe.accounts.retrieve(stripeAccountId!);
-    console.log('[OAuth Callback] Info da conta:', { email: account.email });
+    log.info('Info da conta:', { email: account.email });
 
     // Salvar tokens no Vault
     const vaultResult = await saveCredentialsToVault(supabase, vendorId, 'STRIPE', {
@@ -93,10 +96,10 @@ export async function processOAuthCallback(
     });
     
     if (!vaultResult.success) {
-      console.error('[OAuth Callback] Erro ao salvar no Vault:', vaultResult.error);
+      log.error('Erro ao salvar no Vault:', vaultResult.error);
       return { success: false, error: "Failed to save credentials securely" };
     }
-    console.log('[OAuth Callback] Credenciais salvas no Vault');
+    log.info('Credenciais salvas no Vault');
 
     // Salvar integração em vendor_integrations (APENAS metadados públicos)
     const integrationConfig = {
@@ -122,11 +125,11 @@ export async function processOAuthCallback(
       });
 
     if (upsertError) {
-      console.error('[OAuth Callback] Erro ao salvar integração:', upsertError);
+      log.error('Erro ao salvar integração:', upsertError);
       return { success: false, error: "Failed to save Stripe integration" };
     }
 
-    console.log('[OAuth Callback] ✅ Integração salva com sucesso');
+    log.info('✅ Integração salva com sucesso');
 
     // Construir URL de redirect
     const frontendUrl = Deno.env.get("FRONTEND_URL") || "https://risecheckout.com";
@@ -140,7 +143,7 @@ export async function processOAuthCallback(
     };
 
   } catch (error) {
-    console.error('[OAuth Callback] Exception:', error);
+    log.error('Exception:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro ao processar callback'
