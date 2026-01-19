@@ -11,8 +11,10 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
+const log = createLogger("detect-abandoned-checkouts");
 
 // Checkout is considered abandoned after X minutes of inactivity
 const ABANDONMENT_THRESHOLD_MINUTES = 30;
@@ -40,11 +42,11 @@ serve(async (req) => {
       .is('order_id', null);
 
     if (queryError) {
-      console.error('[detect-abandoned-checkouts] Query error:', queryError);
+      log.error('Query error:', queryError);
       throw queryError;
     }
 
-    console.log(`[detect-abandoned-checkouts] Found ${abandonedSessions?.length || 0} abandoned sessions`);
+    log.info(`Found ${abandonedSessions?.length || 0} abandoned sessions`);
 
     // Update status to abandoned
     if (abandonedSessions && abandonedSessions.length > 0) {
@@ -56,7 +58,7 @@ serve(async (req) => {
         .in('id', sessionIds);
 
       if (updateError) {
-        console.error('[detect-abandoned-checkouts] Update error:', updateError);
+        log.error('Update error:', updateError);
       }
 
       // TODO: Trigger recovery actions (email, webhook, etc.)
@@ -73,7 +75,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[detect-abandoned-checkouts] Error:', errorMessage);
+    log.error('Error:', errorMessage);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

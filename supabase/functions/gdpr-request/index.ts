@@ -13,6 +13,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { rateLimitMiddleware, getClientIP } from "../_shared/rate-limiting/index.ts";
 import { sendEmail } from "../_shared/zeptomail.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("gdpr-request");
 
 // ============================================================================
 // TYPES
@@ -214,7 +217,7 @@ serve(async (req: Request) => {
       .rpc("check_gdpr_request_limit", { p_email: email });
 
     if (limitError) {
-      console.error("[gdpr-request] Erro ao verificar limite:", limitError);
+      log.error("Erro ao verificar limite:", limitError);
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -252,7 +255,7 @@ serve(async (req: Request) => {
       .single();
 
     if (insertError) {
-      console.error("[gdpr-request] Erro ao criar solicitação:", insertError);
+      log.error("Erro ao criar solicitação:", insertError);
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -290,7 +293,7 @@ Rise Checkout - Proteção de Dados Pessoais
     });
 
     if (!emailResult.success) {
-      console.error("[gdpr-request] Erro ao enviar email:", emailResult.error);
+      log.error("Erro ao enviar email:", emailResult.error);
       
       // Marcar solicitação como rejeitada
       await supabase
@@ -323,7 +326,7 @@ Rise Checkout - Proteção de Dados Pessoais
         }
       });
 
-    console.log(`[gdpr-request] Solicitação criada: ${gdprRequest.id} para ${email}`);
+    log.info(`Solicitação criada: ${gdprRequest.id} para ${email}`);
 
     // 12. Resposta de sucesso
     const response: GdprRequestResponse = {
@@ -338,7 +341,7 @@ Rise Checkout - Proteção de Dados Pessoais
     );
 
   } catch (error: unknown) {
-    console.error("[gdpr-request] Erro inesperado:", error);
+    log.error("Erro inesperado:", error);
     return new Response(
       JSON.stringify({ 
         success: false,

@@ -9,6 +9,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { getAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("integration-management");
 
 import {
   handleSaveCredentials,
@@ -44,7 +47,7 @@ serve(withSentry("integration-management", async (req) => {
       return errorResponse("Ação não informada (use body.action ou path)", corsHeaders, 400);
     }
 
-    console.log(`[integration-management] Action: ${action} (from ${bodyAction ? "body" : "url"}), Method: ${req.method}`);
+    log.info(`Action: ${action} (from ${bodyAction ? "body" : "url"}), Method: ${req.method}`);
 
     // ✅ RISE V3: unified-auth.ts
     const producer = await getAuthenticatedProducer(supabase, req);
@@ -53,7 +56,7 @@ serve(withSentry("integration-management", async (req) => {
     }
 
     const producerId = producer.id;
-    console.log(`[integration-management] Authenticated producer: ${producerId}`);
+    log.info(`Authenticated producer: ${producerId}`);
 
     if (action === "save-credentials" && req.method === "POST") {
       return handleSaveCredentials(supabase, producerId, body as { integrationType?: "MERCADOPAGO" | "STRIPE" | "ASAAS" | "PUSHINPAY"; config?: Record<string, unknown> }, corsHeaders);
@@ -88,7 +91,7 @@ serve(withSentry("integration-management", async (req) => {
 
   } catch (error: unknown) {
     const err = error instanceof Error ? error : new Error(String(error));
-    console.error("[integration-management] Unexpected error:", err.message);
+    log.error("Unexpected error:", err.message);
     await captureException(err, { functionName: "integration-management", url: req.url, method: req.method });
     return errorResponse("Erro interno do servidor", corsHeaders, 500);
   }

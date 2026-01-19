@@ -2,6 +2,9 @@
 // Edge Function de Diagnóstico - Verifica status de todas as secrets do sistema
 
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("check-secrets");
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
@@ -111,7 +114,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     categories,
   };
 
-  console.log(`[check-secrets] Report generated: ${configuredCount}/${total} secrets configured (${percentage}%)`);
+  log.info(`Report generated: ${configuredCount}/${total} secrets configured (${percentage}%)`);
 
   return new Response(
     JSON.stringify(report, null, 2),
