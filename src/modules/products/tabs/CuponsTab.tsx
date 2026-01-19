@@ -16,8 +16,11 @@ import { CouponsTable } from "@/components/products/CouponsTable";
 import { CouponDialog, type CouponFormData, type CouponSaveResult } from "@/components/products/CouponDialog";
 import { useProductContext } from "../context/ProductContext";
 import { toast } from "sonner";
+import { createLogger } from "@/lib/logger";
 import { api } from "@/lib/api";
 import { useConfirmDelete } from "@/components/common/ConfirmDelete";
+
+const log = createLogger("CuponsTab");
 
 // Tipo Coupon para a tabela
 interface Coupon {
@@ -88,7 +91,7 @@ export function CuponsTab() {
 
       setCoupons(transformedCoupons);
     } catch (error: unknown) {
-      console.error("Error loading coupons:", error);
+      log.error("Error loading coupons:", error);
       toast.error("Não foi possível carregar os cupons");
     } finally {
       setLoading(false);
@@ -146,7 +149,7 @@ export function CuponsTab() {
       setEditingCoupon(formData);
       setDialogOpen(true);
     } catch (error: unknown) {
-      console.error("Error loading coupon details:", error);
+      log.error("Error loading coupon details:", error);
       toast.error("Não foi possível carregar os detalhes do cupom");
     }
   };
