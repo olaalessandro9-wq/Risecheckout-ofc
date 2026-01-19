@@ -22,9 +22,12 @@ import type { TabValidationMap } from "../types/tabValidation.types";
 import { productFormReducer, INITIAL_FORM_STATE, formActions } from "./productFormReducer";
 
 // Hooks especializados
-import { useProductCore, useProductEntities, useProductCheckouts, useGlobalValidationHandlers, useTabValidation } from "./hooks";
+import { useProductCore, useProductEntities, useProductCheckouts, useGlobalValidationHandlers, useTabValidation, useProductLoader, useProductDataMapper } from "./hooks";
 import { useProductSettings as useProductSettingsAdapter } from "./hooks/useProductSettingsAdapter";
 import { useSaveRegistry } from "./hooks/useSaveRegistry";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("ProductContext");
 
 // Helpers
 import {
@@ -114,6 +117,10 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
 
   const entities = useProductEntities({ productId });
   const checkoutsHook = useProductCheckouts({ productId });
+  
+  // BFF Loader - 1 chamada substitui 6
+  const { loadFull, isLoading: bffLoading } = useProductLoader({ productId: productId ?? "" });
+  const { mapFullData } = useProductDataMapper();
 
   // ✅ SOLUÇÃO C: Usa settings diretamente do core (elimina race condition)
   useEffect(() => {
@@ -144,9 +151,41 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     }
   }, [core.product, core.upsellSettings, core.affiliateSettings, entities.offers]);
 
+  // ============================================================================
+  // REFRESH ALL - BFF (1 chamada substitui 6)
+  // ============================================================================
+
   const refreshAll = useCallback(async () => {
+    if (!productId || !user) return;
+    
     setLoading(true);
     try {
+      const rawData = await loadFull();
+      const mapped = mapFullData(rawData);
+      
+      // Injetar produto no core
+      core.setProduct(mapped.product);
+      
+      // Injetar entidades nos hooks
+      entities.setOffers(mapped.offers);
+      entities.setOrderBumps(mapped.orderBumps);
+      entities.setCoupons(mapped.coupons);
+      checkoutsHook.setCheckouts(mapped.checkouts);
+      checkoutsHook.setPaymentLinks(mapped.paymentLinks);
+      
+      // Dispatch para o reducer (form state)
+      formDispatch(formActions.initFromServer({
+        product: mapped.product,
+        upsellSettings: mapped.upsellSettings,
+        affiliateSettings: mapped.affiliateSettings,
+        offers: mapped.offers,
+      }));
+      
+      log.info("Product data loaded via BFF", { productId });
+    } catch (error) {
+      log.error("Error loading product via BFF, falling back to parallel calls", error);
+      
+      // Fallback: chamadas paralelas (compatibilidade)
       await Promise.all([
         core.refreshProduct(),
         entities.refreshOffers(),
@@ -158,7 +197,7 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     } finally {
       setLoading(false);
     }
-  }, [core, entities, checkoutsHook]);
+  }, [productId, user, loadFull, mapFullData, core, entities, checkoutsHook, formDispatch]);
 
   useEffect(() => {
     if (productId && user) refreshAll();
