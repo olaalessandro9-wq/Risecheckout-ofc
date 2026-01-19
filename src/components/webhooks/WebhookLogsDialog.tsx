@@ -9,6 +9,9 @@ import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("WebhookLogsDialog");
 import type { Json } from "@/integrations/supabase/types";
 import {
   Dialog,
@@ -80,7 +83,7 @@ export function WebhookLogsDialog({
       });
 
       if (error) {
-        console.error('Error loading logs:', error);
+        log.error('Error loading logs:', error);
         toast.error('Erro ao carregar logs');
         return;
       }
@@ -92,7 +95,7 @@ export function WebhookLogsDialog({
         setSelectedLog(logsData[0]);
       }
     } catch (error: unknown) {
-      console.error("Error loading logs:", error);
+      log.error("Error loading logs:", error);
       toast.error("Erro ao carregar logs");
     } finally {
       setLoading(false);

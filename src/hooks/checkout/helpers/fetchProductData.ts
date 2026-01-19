@@ -6,6 +6,9 @@
  */
 
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("FetchProductData");
 
 export interface ProductRawData {
   id: string;
@@ -37,12 +40,12 @@ export async function fetchProductData(productId: string): Promise<ProductRawDat
   });
 
   if (error) {
-    console.error('[fetchProductData] Edge function error:', error);
+    log.error('Edge function error:', error);
     throw new Error("Produto não encontrado");
   }
 
   if (!data?.success || !data?.data) {
-    console.error('[fetchProductData] Invalid response:', data);
+    log.error('Invalid response:', data);
     throw new Error(data?.error || "Produto não encontrado");
   }
 

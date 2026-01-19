@@ -4,6 +4,9 @@
 
 import { useState } from "react";
 import { UserPlus, Mail, User, Loader2 } from "lucide-react";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("AddStudentDialog");
 import {
   Dialog,
   DialogContent,
@@ -75,7 +78,7 @@ export function AddStudentDialog({
         throw new Error(data?.error || "Erro ao enviar convite");
       }
     } catch (err) {
-      console.error("Error inviting student:", err);
+      log.error("Error inviting student:", err);
       toast.error(err instanceof Error ? err.message : "Erro ao enviar convite");
     } finally {
       setIsSubmitting(false);
