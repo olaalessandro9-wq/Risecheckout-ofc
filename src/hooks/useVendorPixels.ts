@@ -2,7 +2,7 @@
  * Hook: useVendorPixels
  * Gerencia CRUD de pixels do vendedor (biblioteca)
  * 
- * @version 3.0.0 - Migrado para api.call() - Unified API Client
+ * @version 3.1.0 - RISE Protocol V3 - Zero console.log
  * @security Todas as operações via backend com validação de ownership
  */
 
@@ -10,6 +10,9 @@ import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import type { VendorPixel, PixelFormData, PixelPlatform } from "@/components/pixels/types";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("UseVendorPixels");
 
 interface PixelsResponse {
   pixels?: VendorPixel[];
@@ -57,7 +60,7 @@ export function useVendorPixels(): UseVendorPixelsReturn {
 
       setPixels(enrichedPixels);
     } catch (err) {
-      console.error("[useVendorPixels] Fetch error:", err);
+      log.error("Fetch error:", err);
       setError("Erro ao carregar pixels");
       toast.error("Erro ao carregar pixels");
     } finally {
@@ -96,7 +99,7 @@ export function useVendorPixels(): UseVendorPixelsReturn {
       await fetchPixels();
       return true;
     } catch (err) {
-      console.error("[useVendorPixels] Create error:", err);
+      log.error("Create error:", err);
       toast.error("Erro ao cadastrar pixel");
       return false;
     } finally {
@@ -131,7 +134,7 @@ export function useVendorPixels(): UseVendorPixelsReturn {
       await fetchPixels();
       return true;
     } catch (err) {
-      console.error("[useVendorPixels] Update error:", err);
+      log.error("Update error:", err);
       toast.error("Erro ao atualizar pixel");
       return false;
     } finally {
@@ -158,7 +161,7 @@ export function useVendorPixels(): UseVendorPixelsReturn {
       await fetchPixels();
       return true;
     } catch (err) {
-      console.error("[useVendorPixels] Delete error:", err);
+      log.error("Delete error:", err);
       toast.error("Erro ao excluir pixel");
       return false;
     } finally {

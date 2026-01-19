@@ -2,11 +2,14 @@
  * Hook para carregar dados do produto e ofertas para página de afiliação
  * 
  * MIGRATED: Uses affiliation-public Edge Function
- * @see RISE Protocol V2 - Zero database access from frontend
+ * @see RISE Protocol V3 - Zero console.log
  */
 
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("UseAffiliationProduct");
 
 interface AffiliationProductResponse {
   success?: boolean;
@@ -81,7 +84,7 @@ export function useAffiliationProduct(productId: string | undefined): UseAffilia
         setProduct(data.data!.product);
         setOffers(data.data!.offers || []);
       } catch (err) {
-        console.error("Erro ao carregar produto:", err);
+        log.error("Erro ao carregar produto:", err);
         const message = err instanceof Error ? err.message : "Produto não encontrado ou programa de afiliados desativado.";
         setError(message);
       } finally {

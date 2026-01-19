@@ -1,7 +1,7 @@
 /**
  * OrderBumpList - Order Bump Management Component
  * 
- * MIGRATED: Uses Edge Function instead of supabase.from()
+ * @version 2.0.0 - RISE Protocol V3 - Zero console.log
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -33,6 +33,9 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("OrderBumpList");
 
 interface OrderBump {
   id: string;
@@ -236,7 +239,7 @@ export function OrderBumpList({ productId, onAdd, onEdit, maxOrderBumps = 5 }: O
 
       setOrderBumps(mappedBumps);
     } catch (error: unknown) {
-      console.error("Error loading order bumps:", error);
+      log.error("Error loading order bumps:", error);
       toast.error("Erro ao carregar order bumps");
     } finally {
       setLoading(false);
@@ -284,7 +287,7 @@ export function OrderBumpList({ productId, onAdd, onEdit, maxOrderBumps = 5 }: O
       
       toast.success('Ordem atualizada com sucesso!');
     } catch (error: unknown) {
-      console.error('Erro ao atualizar ordem:', error);
+      log.error("Erro ao atualizar ordem:", error);
       toast.error(error instanceof Error ? error.message : 'Erro ao salvar nova ordem');
       loadOrderBumps();
     } finally {
@@ -311,7 +314,7 @@ export function OrderBumpList({ productId, onAdd, onEdit, maxOrderBumps = 5 }: O
       toast.success("Order bump removido com sucesso");
       loadOrderBumps();
     } catch (error: unknown) {
-      console.error("Error removing order bump:", error);
+      log.error("Error removing order bump:", error);
       toast.error(error instanceof Error ? error.message : "Erro ao remover order bump");
     }
   };

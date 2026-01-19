@@ -2,10 +2,13 @@
  * Offers Service
  * 
  * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
- * @see RISE Protocol V2 - Zero direct database access from frontend
+ * @see RISE Protocol V3 - Zero console.log
  */
 
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("OffersService");
 
 export type NormalizedOffer = {
   id: string;
@@ -36,7 +39,7 @@ export async function fetchOffersByProduct(productId: string): Promise<Normalize
   });
 
   if (error) {
-    console.error("[Offers] load offers failed:", error);
+    log.error("load offers failed:", error);
     throw new Error(error.message);
   }
 

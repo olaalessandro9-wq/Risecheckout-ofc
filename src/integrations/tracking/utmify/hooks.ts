@@ -3,12 +3,15 @@
  * Módulo: src/integrations/tracking/utmify
  * 
  * MIGRATED: Uses Edge Function instead of direct database access
- * @see RISE Protocol V2 - Zero direct database access from frontend
+ * @see RISE Protocol V3 - Zero console.log
  */
 
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
 import { UTMifyIntegration } from "./types";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("UTMifyHooks");
 
 interface VendorIntegrationResponse {
   integration?: UTMifyIntegration;
@@ -27,7 +30,7 @@ export function useUTMifyConfig(vendorId?: string) {
     queryFn: async (): Promise<UTMifyIntegration | null> => {
       // Validação: se não tem vendorId, retorna null
       if (!vendorId) {
-        console.warn("[UTMify] vendorId não fornecido para useUTMifyConfig");
+        log.warn("vendorId não fornecido para useUTMifyConfig");
         return null;
       }
 
@@ -41,21 +44,21 @@ export function useUTMifyConfig(vendorId?: string) {
 
         // Tratamento de erro
         if (error) {
-          console.error("[UTMify] Erro ao carregar configuração:", error);
+          log.error("Erro ao carregar configuração:", error);
           return null;
         }
 
         // Validação: dados vazios ou integração inativa
         if (!data?.integration || !data.integration.active) {
-          console.log("[UTMify] Integração não encontrada ou desativada para vendor:", vendorId);
+          log.debug("Integração não encontrada ou desativada para vendor:", vendorId);
           return null;
         }
 
-        console.log("[UTMify] Configuração carregada com sucesso para vendor:", vendorId);
+        log.info("Configuração carregada com sucesso para vendor:", vendorId);
 
         return data.integration;
       } catch (error: unknown) {
-        console.error("[UTMify] Erro inesperado ao carregar config:", error);
+        log.error("Erro inesperado ao carregar config:", error);
         return null;
       }
     },
@@ -102,8 +105,8 @@ export function shouldRunUTMify(
   const shouldRun = selectedProducts.includes(productId);
 
   if (!shouldRun) {
-    console.log(
-      `[UTMify] UTMify não vai rodar para produto ${productId}. Produtos selecionados:`,
+    log.debug(
+      `UTMify não vai rodar para produto ${productId}. Produtos selecionados:`,
       selectedProducts
     );
   }
