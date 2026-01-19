@@ -1,9 +1,10 @@
 /**
  * Mercado Pago Create Payment - Edge Function
  * 
- * @version 4.0.0 - RISE Protocol V3 Compliance
+ * @version 5.0.0 - RISE Protocol V3 Compliance
  * - Uses handleCorsV2 from _shared/cors-v2.ts
  * - Uses PUBLIC_CORS_HEADERS for checkout (public endpoint)
+ * - Uses createLogger from _shared/logger.ts
  */
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
@@ -14,7 +15,9 @@ import { getVendorCredentials } from '../_shared/vault-credentials.ts';
 import { processPostPaymentActions } from '../_shared/webhook-post-payment.ts';
 import { handlePixPayment, PixPaymentResult } from './handlers/pix-handler.ts';
 import { handleCardPayment, CardPaymentResult } from './handlers/card-handler.ts';
-import { logInfo, logError } from './utils/logger.ts';
+import { createLogger } from '../_shared/logger.ts';
+
+const log = createLogger("mercadopago-create-payment");
 
 // === TYPES ===
 interface OrderRecord {
@@ -77,12 +80,10 @@ function createSuccessResponse(data: unknown, headers: Record<string, string>): 
 }
 
 async function fetchCredentials(supabase: SupabaseClient, vendorId: string) {
-  // Tentar Vault primeiro
   const vaultResult = await getVendorCredentials(supabase, vendorId, 'mercadopago');
   if (vaultResult.success && vaultResult.credentials?.access_token) {
     return { accessToken: vaultResult.credentials.access_token, isOwner: false };
   }
-  // Fallback: Platform credentials
   const platformToken = Deno.env.get('MERCADOPAGO_ACCESS_TOKEN');
   if (platformToken) {
     return { accessToken: platformToken, isOwner: true };
@@ -96,7 +97,6 @@ async function calculateSplit(
 ): Promise<{ effectiveAccessToken: string; applicationFeeCents: number }> {
   if (isOwner) return { effectiveAccessToken: accessToken, applicationFeeCents: 0 };
   
-  // Buscar config de split
   const { data: splitConfig } = await supabase
     .from('mercadopago_split_config')
     .select('split_type, percentage_amount, fixed_amount')
@@ -117,22 +117,18 @@ async function calculateSplit(
 
 // === MAIN HANDLER ===
 serve(async (req) => {
-  // Use handleCorsV2 for origin validation, fallback to PUBLIC_CORS_HEADERS for checkout
   const corsResult = handleCorsV2(req);
   
   let corsHeaders: Record<string, string>;
   if (corsResult instanceof Response) {
-    // If preflight, return it
     if (req.method === 'OPTIONS') {
       return corsResult;
     }
-    // For non-preflight blocked origins, use PUBLIC for checkout (anonymous clients)
     corsHeaders = PUBLIC_CORS_HEADERS;
   } else {
     corsHeaders = corsResult.headers;
   }
 
-  // Handle OPTIONS separately
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -145,12 +141,10 @@ serve(async (req) => {
     );
     
     const rateLimitResponse = await rateLimitOnlyMiddleware(
-      supabase,
-      req,
-      RATE_LIMIT_CONFIGS.CREATE_PIX,
-      corsHeaders
+      supabase, req, RATE_LIMIT_CONFIGS.CREATE_PIX, corsHeaders
     );
     if (rateLimitResponse) return rateLimitResponse;
+    
     const body: RequestBody | null = await req.json().catch(() => null);
     if (!body) return createErrorResponse(ERROR_CODES.INVALID_REQUEST, 'JSON inválido', 400, corsHeaders);
 
@@ -159,7 +153,6 @@ serve(async (req) => {
       return createErrorResponse(ERROR_CODES.INVALID_REQUEST, 'Campos obrigatórios faltando', 400, corsHeaders);
     }
 
-    // Buscar order e items
     const { data: order } = await supabase.from('orders')
       .select(`*, affiliate:affiliates(id, user_id, commission_rate)`)
       .eq('id', orderId).maybeSingle() as { data: OrderRecord | null };
@@ -172,7 +165,6 @@ serve(async (req) => {
 
     const calculatedTotalCents = items.reduce((sum, i) => sum + i.amount_cents * i.quantity, 0);
 
-    // Credentials & Split
     let credentials;
     try { credentials = await fetchCredentials(supabase, order.vendor_id); }
     catch (e: unknown) { 
@@ -184,7 +176,6 @@ serve(async (req) => {
       supabase, order, credentials.isOwner, calculatedTotalCents, credentials.accessToken
     );
 
-    // Process payment
     const firstItem = items[0];
     let paymentResult: PixPaymentResult | CardPaymentResult;
 
@@ -211,7 +202,6 @@ serve(async (req) => {
       return createErrorResponse(err.code || ERROR_CODES.GATEWAY_API_ERROR, err.message, 502, corsHeaders, err.details);
     }
 
-    // Update order
     const updateData: Record<string, unknown> = {
       gateway: 'mercadopago', gateway_payment_id: paymentResult.transactionId,
       status: paymentResult.status === 'approved' ? 'paid' : (order.status?.toLowerCase() || 'pending'),
@@ -226,17 +216,14 @@ serve(async (req) => {
     }
     await supabase.from('orders').update(updateData).eq('id', orderId);
 
-    // Post-payment actions (if approved)
     if (paymentResult.status === 'approved') {
-      const logger = { info: logInfo, warn: logError, error: logError };
       await processPostPaymentActions(supabase, {
         orderId, customerEmail: order.customer_email, customerName: order.customer_name,
         productId: order.product_id, productName: order.product_name,
         amountCents: calculatedTotalCents, paymentMethod, vendorId: order.vendor_id
-      }, 'payment.approved', logger);
+      }, 'payment.approved', log);
     }
 
-    // Success response
     const responseData: Record<string, unknown> = { paymentId: paymentResult.transactionId, status: paymentResult.status };
     if (paymentMethod === 'pix' && 'qrCode' in paymentResult && paymentResult.qrCode) {
       responseData.pix = { qrCode: paymentResult.qrCodeText || '', qrCodeBase64: paymentResult.qrCode };
@@ -245,7 +232,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logError('Erro fatal', { message: errorMessage });
+    log.error('Erro fatal', { message: errorMessage });
     return createErrorResponse(ERROR_CODES.INTERNAL_ERROR, 'Erro interno', 500, PUBLIC_CORS_HEADERS);
   }
 });

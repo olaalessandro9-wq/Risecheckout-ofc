@@ -3,25 +3,10 @@
  * ALERT-STUCK-ORDERS EDGE FUNCTION
  * ============================================================================
  * 
- * @version 2.0.0
+ * @version 3.0.0 - RISE Protocol V3 Compliant
  * 
  * Alerta sobre pedidos presos há mais de 15 minutos.
  * Envia notificação via Telegram para o admin.
- * 
- * ============================================================================
- * COMPORTAMENTO
- * ============================================================================
- * 
- * 1. Busca pedidos PENDING com created_at < 15 minutos
- * 2. Se encontrar, monta mensagem com detalhes
- * 3. Envia via Telegram Bot API
- * 
- * ============================================================================
- * SECRETS NECESSÁRIOS
- * ============================================================================
- * 
- * - TELEGRAM_BOT_TOKEN: Token do bot do Telegram
- * - TELEGRAM_CHAT_ID: ID do chat/grupo para enviar alertas
  * 
  * ============================================================================
  */
@@ -29,10 +14,9 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
 
-const FUNCTION_VERSION = "2.0.0";
-
-const CORS_HEADERS = PUBLIC_CORS_HEADERS;
+const log = createLogger("alert-stuck-orders");
 
 // Configurações
 const STUCK_THRESHOLD_MINUTES = 15;
@@ -63,22 +47,6 @@ interface AlertResponse {
 }
 
 // ============================================================================
-// LOGGING
-// ============================================================================
-
-function logInfo(message: string, data?: unknown) {
-  console.log(`[alert-stuck-orders] [INFO] ${message}`, data ? JSON.stringify(data) : '');
-}
-
-function logWarn(message: string, data?: unknown) {
-  console.warn(`[alert-stuck-orders] [WARN] ${message}`, data ? JSON.stringify(data) : '');
-}
-
-function logError(message: string, error?: unknown) {
-  console.error(`[alert-stuck-orders] [ERROR] ${message}`, error);
-}
-
-// ============================================================================
 // TELEGRAM API
 // ============================================================================
 
@@ -90,9 +58,7 @@ async function sendTelegramAlert(
   try {
     const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chat_id: chatId,
         text: message,
@@ -102,14 +68,14 @@ async function sendTelegramAlert(
 
     if (!response.ok) {
       const error = await response.text();
-      logError('Telegram API error', { status: response.status, error });
+      log.error('Telegram API error', { status: response.status, error });
       return false;
     }
 
-    logInfo('Alerta enviado via Telegram');
+    log.info('Alerta enviado via Telegram');
     return true;
   } catch (error: unknown) {
-    logError('Erro ao enviar Telegram', error);
+    log.error('Erro ao enviar Telegram', error);
     return false;
   }
 }
@@ -175,23 +141,23 @@ function buildAlertMessage(orders: StuckOrder[]): string {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: CORS_HEADERS });
+    return new Response(null, { headers: PUBLIC_CORS_HEADERS });
   }
 
   const startTime = Date.now();
 
   try {
-    logInfo(`Versão ${FUNCTION_VERSION} iniciada`);
+    log.info('Versão 3.0.0 iniciada');
 
     // Validar autenticação
     const internalSecret = req.headers.get('X-Internal-Secret');
     const expectedSecret = Deno.env.get('INTERNAL_WEBHOOK_SECRET');
 
     if (!internalSecret || internalSecret !== expectedSecret) {
-      logError('Unauthorized: Invalid or missing X-Internal-Secret');
+      log.error('Unauthorized: Invalid or missing X-Internal-Secret');
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+        { status: 401, headers: { ...PUBLIC_CORS_HEADERS, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -200,7 +166,7 @@ serve(async (req) => {
     const telegramChatId = Deno.env.get('TELEGRAM_CHAT_ID');
 
     if (!telegramBotToken || !telegramChatId) {
-      logWarn('TELEGRAM_BOT_TOKEN ou TELEGRAM_CHAT_ID não configurados');
+      log.warn('TELEGRAM_BOT_TOKEN ou TELEGRAM_CHAT_ID não configurados');
       const response: AlertResponse = {
         success: false,
         message: 'Telegram não configurado',
@@ -208,7 +174,7 @@ serve(async (req) => {
       };
       return new Response(
         JSON.stringify(response),
-        { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+        { headers: { ...PUBLIC_CORS_HEADERS, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -235,7 +201,7 @@ serve(async (req) => {
     }
 
     if (!stuckOrders || stuckOrders.length === 0) {
-      logInfo('Nenhum pedido preso encontrado');
+      log.info('Nenhum pedido preso encontrado');
       const response: AlertResponse = {
         success: true,
         message: 'Nenhum pedido preso',
@@ -244,12 +210,12 @@ serve(async (req) => {
       };
       return new Response(
         JSON.stringify(response),
-        { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+        { headers: { ...PUBLIC_CORS_HEADERS, 'Content-Type': 'application/json' } }
       );
     }
 
     const typedOrders = stuckOrders as StuckOrder[];
-    logInfo(`Encontrados ${typedOrders.length} pedidos presos`);
+    log.info(`Encontrados ${typedOrders.length} pedidos presos`);
 
     // Construir e enviar alerta
     const alertMessage = buildAlertMessage(typedOrders);
@@ -265,11 +231,11 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify(response),
-      { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+      { headers: { ...PUBLIC_CORS_HEADERS, 'Content-Type': 'application/json' } }
     );
 
   } catch (error: unknown) {
-    logError('Erro fatal', error);
+    log.error('Erro fatal', error);
     const response: AlertResponse = {
       success: false,
       message: 'Erro fatal',
@@ -278,7 +244,7 @@ serve(async (req) => {
     };
     return new Response(
       JSON.stringify(response),
-      { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...PUBLIC_CORS_HEADERS, 'Content-Type': 'application/json' } }
     );
   }
 });

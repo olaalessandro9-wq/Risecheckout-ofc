@@ -19,7 +19,8 @@ import { getSecurityLogs, getSecurityAlerts, getSecurityBlockedIPs, getSecurityS
 import { getMembersAreaData, getMembersAreaModules, getMembersAreaSettings, getMembersAreaModulesWithContents } from "./handlers/members-area.ts";
 import { getUsersWithMetrics, getUserProfile, getUserProducts, getUserGatewayStatus, getRoleStats, getUserProfileName, getUserProductsSimple } from "./handlers/users.ts";
 import { getAdminOrders } from "./handlers/orders.ts";
-import { checkUniqueName, getAdminProducts, getAdminProductsGlobal, getProductOffers, getOrderBumps, getOrderBumpDetail, getGatewayConnections, checkUniqueCheckoutName, getProductDetailAdmin } from "./handlers/products.ts";
+import { checkUniqueName, getAdminProducts, getAdminProductsGlobal, getProductOffers, getOrderBumps } from "./handlers/products.ts";
+import { getOrderBumpDetail, getGatewayConnections, checkUniqueCheckoutName, getProductDetailAdmin } from "./handlers/products-detail.ts";
 import { getAdminAnalyticsFinancial, getAdminAnalyticsTraffic, getAdminAnalyticsTopSellers } from "./handlers/analytics.ts";
 import { getContentEditorData, getContentDripSettings, checkContentAccess, getVendorIntegration, getMarketplaceCategories, getMarketplaceStats } from "./handlers/content.ts";
 
