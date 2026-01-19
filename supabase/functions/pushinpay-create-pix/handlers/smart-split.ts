@@ -19,6 +19,9 @@ import {
   getGatewayCredentials,
   validateCredentials
 } from "../../_shared/platform-config.ts";
+import { createLogger } from "../../_shared/logger.ts";
+
+const log = createLogger("pushinpay-create-pix");
 
 // Limite máximo de split da PushinPay (50%)
 export const PUSHINPAY_MAX_SPLIT_PERCENT = 0.50;
@@ -55,7 +58,7 @@ export async function determineSmartSplit(
   // Valor líquido do produtor = Total - Taxa Plataforma - Comissão Afiliado
   const vendorNetCents = valueInCents - platformFeeCents - affiliateCommissionCents;
   
-  console.log(`[${logPrefix}] 📊 Distribuição: Produtor=${vendorNetCents}c, Afiliado=${affiliateCommissionCents}c, Plataforma=${platformFeeCents}c`);
+  log.info(`📊 Distribuição: Produtor=${vendorNetCents}c, Afiliado=${affiliateCommissionCents}c, Plataforma=${platformFeeCents}c`);
   
   // 2. Buscar credenciais do produtor (sempre precisamos)
   let producerCredentials;
@@ -83,7 +86,7 @@ export async function determineSmartSplit(
   // 3. Verificar se tem afiliado com maior parte
   const affiliateHasLargerShare = order.affiliate_id && affiliateCommissionCents > vendorNetCents;
   
-  console.log(`[${logPrefix}] Afiliado tem maior parte? ${affiliateHasLargerShare ? 'SIM' : 'NÃO'}`);
+  log.info(`Afiliado tem maior parte? ${affiliateHasLargerShare ? 'SIM' : 'NÃO'}`);
   
   // 4. Se afiliado tem maior parte, tentar usar credenciais dele
   if (affiliateHasLargerShare && order.affiliate_id) {
@@ -116,7 +119,7 @@ async function tryAffiliatePixCreation(
   logPrefix: string
 ): Promise<SmartSplitDecision | null> {
   
-  console.log(`[${logPrefix}] 🔄 Tentando usar token do AFILIADO...`);
+  log.info(`🔄 Tentando usar token do AFILIADO...`);
   
   const { data: affiliate } = await supabase
     .from('affiliates')
@@ -133,25 +136,25 @@ async function tryAffiliatePixCreation(
     .single();
   
   if (!affiliateSettings?.token_encrypted || !affiliateSettings?.pushinpay_account_id) {
-    console.warn(`[${logPrefix}] ⚠️ Afiliado sem credenciais PushinPay - fallback para produtor`);
+    log.warn(`⚠️ Afiliado sem credenciais PushinPay - fallback para produtor`);
     return null;
   }
   
-  console.log(`[${logPrefix}] ✅ Afiliado tem credenciais PushinPay - criando PIX pelo AFILIADO`);
+  log.info(`✅ Afiliado tem credenciais PushinPay - criando PIX pelo AFILIADO`);
   
   const splitRules: Array<{value: number, account_id: string}> = [];
   
   // A. Valor líquido do produtor
   if (vendorNetCents > 0 && producerAccountId) {
     splitRules.push({ value: vendorNetCents, account_id: producerAccountId });
-    console.log(`[${logPrefix}] Split para produtor: ${vendorNetCents}c → ${producerAccountId}`);
+    log.info(`Split para produtor: ${vendorNetCents}c → ${producerAccountId}`);
   }
   
   // B. Taxa da plataforma (se não for owner)
   const platformAccountId = PLATFORM_PUSHINPAY_ACCOUNT_ID || Deno.env.get('PUSHINPAY_PLATFORM_ACCOUNT_ID');
   if (!isProducerOwner && platformFeeCents > 0 && platformAccountId) {
     splitRules.push({ value: platformFeeCents, account_id: platformAccountId });
-    console.log(`[${logPrefix}] Split para plataforma: ${platformFeeCents}c → ${platformAccountId}`);
+    log.info(`Split para plataforma: ${platformFeeCents}c → ${platformAccountId}`);
   }
   
   // Validar limite de 50%
@@ -170,7 +173,7 @@ async function tryAffiliatePixCreation(
     };
   }
   
-  console.warn(`[${logPrefix}] ⚠️ Split ${totalSplitCents}c excede limite ${maxSplitCents}c mesmo com afiliado criando PIX`);
+  log.warn(`⚠️ Split ${totalSplitCents}c excede limite ${maxSplitCents}c mesmo com afiliado criando PIX`);
   return null; // Fallback para produtor
 }
 
@@ -187,7 +190,7 @@ async function createProducerSplit(
   logPrefix: string
 ): Promise<SmartSplitDecision> {
   
-  console.log(`[${logPrefix}] 📌 Produtor criará o PIX`);
+  log.info(`📌 Produtor criará o PIX`);
   
   const splitRules: Array<{value: number, account_id: string}> = [];
   const platformAccountId = PLATFORM_PUSHINPAY_ACCOUNT_ID || Deno.env.get('PUSHINPAY_PLATFORM_ACCOUNT_ID');
@@ -195,7 +198,7 @@ async function createProducerSplit(
   // A. Taxa da plataforma (se não for owner)
   if (!isProducerOwner && platformFeeCents > 0 && platformAccountId) {
     splitRules.push({ value: platformFeeCents, account_id: platformAccountId });
-    console.log(`[${logPrefix}] Split plataforma: ${platformFeeCents}c → ${platformAccountId}`);
+    log.info(`Split plataforma: ${platformFeeCents}c → ${platformAccountId}`);
   }
   
   // B. Comissão do afiliado
@@ -203,7 +206,7 @@ async function createProducerSplit(
     const affiliateAccountId = await getAffiliateAccountId(supabase, order.affiliate_id, logPrefix);
     if (affiliateAccountId) {
       splitRules.push({ value: affiliateCommissionCents, account_id: affiliateAccountId });
-      console.log(`[${logPrefix}] Split afiliado: ${affiliateCommissionCents}c → ${affiliateAccountId}`);
+      log.info(`Split afiliado: ${affiliateCommissionCents}c → ${affiliateAccountId}`);
     }
   }
   
@@ -243,7 +246,7 @@ async function getAffiliateAccountId(
     .single();
   
   if (!affiliateSettings?.pushinpay_account_id) {
-    console.warn(`[${logPrefix}] ⚠️ Afiliado sem pushinpay_account_id, comissão manual`);
+    log.warn(`⚠️ Afiliado sem pushinpay_account_id, comissão manual`);
     return null;
   }
   
@@ -263,7 +266,7 @@ function validateAndAdjustSplit(
     return { adjustedRules: splitRules, adjustedSplit: false, manualPaymentNeeded: 0 };
   }
   
-  console.warn(`[${logPrefix}] ⚠️ Split ${totalSplitCents}c excede limite ${maxSplitCents}c - AJUSTANDO PROPORCIONALMENTE`);
+  log.warn(`⚠️ Split ${totalSplitCents}c excede limite ${maxSplitCents}c - AJUSTANDO PROPORCIONALMENTE`);
   
   const manualPaymentNeeded = totalSplitCents - maxSplitCents;
   const reductionRatio = maxSplitCents / totalSplitCents;
@@ -271,11 +274,11 @@ function validateAndAdjustSplit(
   const adjustedRules = splitRules.map(rule => {
     const originalValue = rule.value;
     const adjustedValue = Math.floor(rule.value * reductionRatio);
-    console.log(`[${logPrefix}] Ajustado: ${originalValue}c → ${adjustedValue}c`);
+    log.info(`Ajustado: ${originalValue}c → ${adjustedValue}c`);
     return { value: adjustedValue, account_id: rule.account_id };
   });
   
-  console.log(`[${logPrefix}] ⚠️ PAGAMENTO MANUAL NECESSÁRIO: ${manualPaymentNeeded}c`);
+  log.info(`⚠️ PAGAMENTO MANUAL NECESSÁRIO: ${manualPaymentNeeded}c`);
   
   return { adjustedRules, adjustedSplit: true, manualPaymentNeeded };
 }

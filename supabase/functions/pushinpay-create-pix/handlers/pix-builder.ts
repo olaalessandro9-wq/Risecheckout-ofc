@@ -6,6 +6,10 @@
  * @author RiseCheckout Team
  */
 
+import { createLogger } from "../../_shared/logger.ts";
+
+const log = createLogger("pushinpay-create-pix");
+
 export const PUSHINPAY_URLS = {
   sandbox: 'https://api-sandbox.pushinpay.com.br/api/pix/cashIn',
   production: 'https://api.pushinpay.com.br/api/pix/cashIn'
@@ -63,7 +67,7 @@ export async function callPushinPayApi(params: CallPushinPayParams): Promise<Pus
     ? PUSHINPAY_URLS.sandbox 
     : PUSHINPAY_URLS.production;
 
-  console.log(`[${logPrefix}] Payload para PushinPay:`, JSON.stringify(payload));
+  log.info(`Payload para PushinPay: ${JSON.stringify(payload)}`);
 
   const response = await fetch(apiUrl, {
     method: 'POST',
@@ -76,10 +80,10 @@ export async function callPushinPayApi(params: CallPushinPayParams): Promise<Pus
   });
 
   const responseText = await response.text();
-  console.log(`[${logPrefix}] Status: ${response.status}, Response: ${responseText}`);
+  log.info(`Status: ${response.status}, Response: ${responseText}`);
 
   if (!response.ok) {
-    console.error(`[${logPrefix}] Erro na API PushinPay:`, responseText);
+    log.error(`Erro na API PushinPay: ${responseText}`);
     
     await supabase.from('edge_function_errors').insert({
       function_name: logPrefix,
@@ -93,7 +97,7 @@ export async function callPushinPayApi(params: CallPushinPayParams): Promise<Pus
   }
 
   const pixData: PushinPayResponse = JSON.parse(responseText);
-  console.log(`[${logPrefix}] PIX criado com sucesso, id=${pixData.id}`);
+  log.info(`PIX criado com sucesso, id=${pixData.id}`);
   
   return pixData;
 }

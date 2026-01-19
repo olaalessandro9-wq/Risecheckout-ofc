@@ -8,6 +8,9 @@ import {
   calculatePlatformFeeCents,
   PLATFORM_FEE_PERCENT 
 } from "../../_shared/platform-config.ts";
+import { createLogger } from "../../_shared/logger.ts";
+
+const log = createLogger("asaas-create-payment");
 
 export interface AsaasSplitRule {
   walletId: string;
@@ -59,18 +62,18 @@ export function buildSplitRules(
       affiliateCommissionCents = Math.floor(netAfterFee * (splitData.affiliateCommissionPercent / 100));
       vendorNetCents = netAfterFee - affiliateCommissionCents;
       
-      console.log(`[asaas-create-payment] 🏠 OWNER + AFILIADO: Split ${adjustedAffiliatePercent.toFixed(2)}%`);
+      log.info(`🏠 OWNER + AFILIADO: Split ${adjustedAffiliatePercent.toFixed(2)}%`);
       
     } else if (splitData.hasAffiliate && !splitData.affiliateWalletId) {
-      console.warn(`[asaas-create-payment] ⚠️ Afiliado sem wallet! Venda sem split.`);
+      log.warn(`⚠️ Afiliado sem wallet! Venda sem split.`);
     } else {
-      console.log(`[asaas-create-payment] 🏠 OWNER DIRETO: 100% RiseCheckout`);
+      log.info(`🏠 OWNER DIRETO: 100% RiseCheckout`);
     }
     
   } else {
     // Cenário 3: Vendedor comum (96% vendedor, 4% plataforma)
     if (!splitData.vendorWalletId) {
-      console.error(`[asaas-create-payment] ❌ Vendedor sem asaas_wallet_id!`);
+      log.error(`❌ Vendedor sem asaas_wallet_id!`);
       return {
         splitRules: [],
         platformFeeCents: 0,
@@ -88,7 +91,7 @@ export function buildSplitRules(
     platformFeeCents = calculatePlatformFeeCents(amountCents);
     vendorNetCents = amountCents - platformFeeCents;
     
-    console.log(`[asaas-create-payment] 👤 VENDEDOR: 96% → ${splitData.vendorWalletId.substring(0, 15)}...`);
+    log.info(`👤 VENDEDOR: 96% → ${splitData.vendorWalletId.substring(0, 15)}...`);
   }
 
   return {

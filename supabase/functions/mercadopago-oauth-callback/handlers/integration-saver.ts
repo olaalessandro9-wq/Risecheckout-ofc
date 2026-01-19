@@ -8,6 +8,9 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { saveCredentialsToVault } from "../../_shared/vault-credentials.ts";
+import { createLogger } from "../../_shared/logger.ts";
+
+const log = createLogger("mercadopago-oauth-callback");
 
 export interface IntegrationData {
   vendorId: string;
@@ -34,7 +37,7 @@ export async function saveOAuthIntegration(
 
   try {
     // 1. Atualizar tabela profiles com dados OAuth
-    console.log('[Integration Saver] Salvando dados OAuth em profiles...');
+    log.info('Salvando dados OAuth em profiles...');
     
     const { error: profileError } = await supabase
       .from('profiles')
@@ -46,14 +49,13 @@ export async function saveOAuthIntegration(
       .eq('id', vendorId);
 
     if (profileError) {
-      console.error('[Integration Saver] Erro ao atualizar profiles:', profileError);
-      // Continuar mesmo com erro, pois o principal é salvar a integração
+      log.error('Erro ao atualizar profiles:', profileError);
     } else {
-      console.log('[Integration Saver] ✅ Profiles atualizado com sucesso');
+      log.info('✅ Profiles atualizado com sucesso');
     }
 
     // 2. Salvar credenciais no VAULT
-    console.log('[Integration Saver] Salvando credenciais no Supabase Vault...');
+    log.info('Salvando credenciais no Supabase Vault...');
     
     const vaultResult = await saveCredentialsToVault(supabase, vendorId, 'MERCADOPAGO', {
       access_token: accessToken,
@@ -61,16 +63,16 @@ export async function saveOAuthIntegration(
     });
     
     if (!vaultResult.success) {
-      console.error('[Integration Saver] Erro ao salvar no Vault:', vaultResult.error);
+      log.error('Erro ao salvar no Vault:', vaultResult.error);
       return {
         success: false,
         error: 'Erro ao salvar credenciais de forma segura.'
       };
     }
-    console.log('[Integration Saver] ✅ Credenciais salvas no Vault');
+    log.info('✅ Credenciais salvas no Vault');
 
     // 3. Salvar/atualizar vendor_integrations (APENAS metadados públicos)
-    console.log('[Integration Saver] Salvando metadados em vendor_integrations...');
+    log.info('Salvando metadados em vendor_integrations...');
     
     const integrationConfig = {
       public_key: publicKey || null,
@@ -90,7 +92,6 @@ export async function saveOAuthIntegration(
       .maybeSingle();
 
     if (existingIntegration) {
-      // Atualizar existente
       const { error: updateError } = await supabase
         .from('vendor_integrations')
         .update({
@@ -101,15 +102,14 @@ export async function saveOAuthIntegration(
         .eq('id', existingIntegration.id);
 
       if (updateError) {
-        console.error('[Integration Saver] Erro ao atualizar integração:', updateError);
+        log.error('Erro ao atualizar integração:', updateError);
         return {
           success: false,
           error: 'Erro ao salvar integração.'
         };
       }
-      console.log('[Integration Saver] ✅ Integração atualizada');
+      log.info('✅ Integração atualizada');
     } else {
-      // Criar nova
       const { error: insertError } = await supabase
         .from('vendor_integrations')
         .insert({
@@ -120,19 +120,19 @@ export async function saveOAuthIntegration(
         });
 
       if (insertError) {
-        console.error('[Integration Saver] Erro ao criar integração:', insertError);
+        log.error('Erro ao criar integração:', insertError);
         return {
           success: false,
           error: 'Erro ao salvar integração.'
         };
       }
-      console.log('[Integration Saver] ✅ Integração criada');
+      log.info('✅ Integração criada');
     }
 
     return { success: true };
 
   } catch (error) {
-    console.error('[Integration Saver] Exception:', error);
+    log.error('Exception:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro ao salvar integração'

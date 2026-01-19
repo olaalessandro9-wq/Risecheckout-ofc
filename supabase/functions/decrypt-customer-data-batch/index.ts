@@ -16,6 +16,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP, RateLimitConfig } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("decrypt-customer-data-batch");
 
 const MAX_ORDER_IDS = 20;
 
@@ -91,12 +94,12 @@ serve(async (req) => {
       corsHeaders
     );
     if (rateLimitResult) {
-      console.warn(`[decrypt-customer-data-batch] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      log.warn(`Rate limit exceeded for IP: ${getClientIP(req)}`);
       return rateLimitResult;
     }
     
     if (!encryptionKey) {
-      console.error("[decrypt-batch] BUYER_ENCRYPTION_KEY not configured");
+      log.error("BUYER_ENCRYPTION_KEY not configured");
       throw new Error("BUYER_ENCRYPTION_KEY not configured");
     }
 
@@ -105,7 +108,7 @@ serve(async (req) => {
     try {
       producer = await requireAuthenticatedProducer(supabaseAdmin, req);
     } catch {
-      console.error("[decrypt-batch] Authentication failed");
+      log.error("Authentication failed");
       return unauthorizedResponse(corsHeaders);
     }
 
@@ -126,7 +129,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[decrypt-batch] Producer ${producer.id} requesting ${order_ids.length} orders`);
+    log.info(`Producer ${producer.id} requesting ${order_ids.length} orders`);
 
     // Buscar todos os pedidos de uma vez
     const { data: orders, error: ordersError } = await supabaseAdmin
@@ -143,7 +146,7 @@ serve(async (req) => {
       .in("id", order_ids);
 
     if (ordersError) {
-      console.error("[decrypt-batch] Error fetching orders:", ordersError.message);
+      log.error("Error fetching orders:", ordersError.message);
       throw new Error("Failed to fetch orders");
     }
 
@@ -198,7 +201,7 @@ serve(async (req) => {
       });
     }
 
-    console.log(`[decrypt-batch] Decrypted ${decryptedIds.length} orders, denied ${denied.length}`);
+    log.info(`Decrypted ${decryptedIds.length} orders, denied ${denied.length}`);
 
     return new Response(
       JSON.stringify({
@@ -210,7 +213,7 @@ serve(async (req) => {
     );
 
   } catch (error: unknown) {
-    console.error("[decrypt-batch] Error:", error);
+    log.error("Error:", error);
     const message = error instanceof Error ? error.message : "Internal error";
     return new Response(
       JSON.stringify({ error: message }),
