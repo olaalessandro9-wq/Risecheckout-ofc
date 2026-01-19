@@ -1591,6 +1591,48 @@ export type Database = {
         }
         Relationships: []
       }
+      encryption_key_versions: {
+        Row: {
+          activated_at: string | null
+          algorithm: string
+          created_at: string
+          deprecated_at: string | null
+          expires_at: string | null
+          id: number
+          key_identifier: string
+          metadata: Json | null
+          revoked_at: string | null
+          status: string
+          version: number
+        }
+        Insert: {
+          activated_at?: string | null
+          algorithm?: string
+          created_at?: string
+          deprecated_at?: string | null
+          expires_at?: string | null
+          id?: number
+          key_identifier: string
+          metadata?: Json | null
+          revoked_at?: string | null
+          status?: string
+          version: number
+        }
+        Update: {
+          activated_at?: string | null
+          algorithm?: string
+          created_at?: string
+          deprecated_at?: string | null
+          expires_at?: string | null
+          id?: number
+          key_identifier?: string
+          metadata?: Json | null
+          revoked_at?: string | null
+          status?: string
+          version?: number
+        }
+        Relationships: []
+      }
       gateway_webhook_dlq: {
         Row: {
           attempts: number | null
@@ -1788,6 +1830,48 @@ export type Database = {
           metadata?: Json | null
           reason?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      key_rotation_log: {
+        Row: {
+          action: string
+          completed_at: string | null
+          error_message: string | null
+          from_version: number | null
+          id: string
+          metadata: Json | null
+          records_failed: number | null
+          records_processed: number | null
+          started_at: string
+          status: string
+          to_version: number
+        }
+        Insert: {
+          action: string
+          completed_at?: string | null
+          error_message?: string | null
+          from_version?: number | null
+          id?: string
+          metadata?: Json | null
+          records_failed?: number | null
+          records_processed?: number | null
+          started_at?: string
+          status?: string
+          to_version: number
+        }
+        Update: {
+          action?: string
+          completed_at?: string | null
+          error_message?: string | null
+          from_version?: number | null
+          id?: string
+          metadata?: Json | null
+          records_failed?: number | null
+          records_processed?: number | null
+          started_at?: string
+          status?: string
+          to_version?: number
         }
         Relationships: []
       }
@@ -4207,6 +4291,7 @@ export type Database = {
       }
     }
     Functions: {
+      activate_key_version: { Args: { p_version: number }; Returns: Json }
       attach_offer_to_checkout_smart: {
         Args: { p_checkout_id: string; p_offer_id: string }
         Returns: Json
@@ -4241,6 +4326,10 @@ export type Database = {
       }
       clone_checkout_layout: {
         Args: { p_source_checkout_id: string; p_target_checkout_id: string }
+        Returns: undefined
+      }
+      complete_key_rotation: {
+        Args: { p_error?: string; p_log_id: string; p_success: boolean }
         Returns: undefined
       }
       create_order_with_items: {
@@ -4291,6 +4380,7 @@ export type Database = {
         Args: { p_offer_id: string }
         Returns: string
       }
+      get_active_key_version: { Args: never; Returns: number }
       get_affiliate_checkout_info: {
         Args: { p_affiliate_code: string; p_product_id: string }
         Returns: {
@@ -4501,6 +4591,14 @@ export type Database = {
         Args: { p_product_id: string }
         Returns: boolean
       }
+      register_key_version: {
+        Args: {
+          p_algorithm?: string
+          p_key_identifier: string
+          p_version: number
+        }
+        Returns: Json
+      }
       save_gateway_credentials: {
         Args: {
           p_credentials: Json
@@ -4516,6 +4614,14 @@ export type Database = {
         Returns: string
       }
       slugify: { Args: { txt: string }; Returns: string }
+      start_key_rotation_log: {
+        Args: { p_from_version: number; p_to_version: number }
+        Returns: string
+      }
+      update_key_rotation_progress: {
+        Args: { p_failed: number; p_log_id: string; p_processed: number }
+        Returns: undefined
+      }
       validate_coupon: {
         Args: { p_code: string; p_product_id: string }
         Returns: Json
