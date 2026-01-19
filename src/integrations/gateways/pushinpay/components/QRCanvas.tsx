@@ -2,13 +2,15 @@
  * QRCanvas - Componente de QR Code em Canvas
  * Módulo: src/integrations/gateways/pushinpay
  * 
+ * @version 2.0.0 - RISE Protocol V3 Compliant - Zero console.log
  * Renderiza QR Code PIX usando canvas HTML5.
- * 
- * Migrado de: src/components/pix/QRCanvas.tsx
  */
 
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("QRCanvas");
 
 interface QRCanvasProps {
   value: string;
@@ -26,8 +28,7 @@ export const QRCanvas = ({ value, size = 256, className = "" }: QRCanvasProps) =
       return;
     }
 
-    console.log("[QRCanvas] v2.7 ativo");
-    console.log("[QRCanvas] Gerando QR Code:", {
+    log.trace("Gerando QR Code", {
       valueLength: value.length,
       valuePreview: value.substring(0, 50),
     });
@@ -42,10 +43,10 @@ export const QRCanvas = ({ value, size = 256, className = "" }: QRCanvasProps) =
       },
       (err) => {
         if (err) {
-          console.error("[QRCanvas] Erro ao gerar QR:", err);
+          log.error("Erro ao gerar QR", err);
           setError(true);
         } else {
-          console.log("[QRCanvas] ✅ QR gerado com sucesso");
+          log.debug("QR gerado com sucesso");
           setError(false);
         }
       }

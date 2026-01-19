@@ -2,8 +2,8 @@
  * useMercadoPagoBrick - Hook para gerenciar formulário de cartão customizado
  * 
  * Módulo: src/integrations/gateways/mercadopago/hooks/useMercadoPagoBrick.ts
- * RISE ARCHITECT PROTOCOL V2 - Refatorado para < 200 linhas
  * 
+ * @version 2.0.0 - RISE Protocol V3 Compliant - Zero console.log
  * Responsabilidade única: Gerenciar Card Form API do Mercado Pago
  */
 
@@ -18,6 +18,9 @@ import {
   getFallbackErrors, 
   FieldErrors 
 } from './brick-error-mapper';
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("MercadoPago");
 
 export interface UseMercadoPagoBrickProps {
   amount: number;
@@ -112,7 +115,7 @@ export function useMercadoPagoBrick({
   useEffect(() => {
     if (!publicKey || !window.MercadoPago) return;
     if (cardFormRef.current || isMountingRef.current) {
-      console.log('[MercadoPago] Instância já existe ou está montando.');
+      log.debug("Instância já existe ou está montando");
       return;
     }
     
@@ -120,7 +123,7 @@ export function useMercadoPagoBrick({
     if (!formElement) return;
 
     isMountingRef.current = true;
-    console.log('[useMercadoPagoBrick] Inicializando SDK...');
+    log.debug("Inicializando SDK...");
 
     const initBrick = async () => {
       try {
@@ -129,7 +132,7 @@ export function useMercadoPagoBrick({
           amount: amountRef.current,
           onFormMounted: (error) => {
             if (error) {
-              console.warn("Erro mount:", error);
+              log.warn("Erro mount", error);
               isMountingRef.current = false;
               setIsReady(false);
               return;
@@ -155,7 +158,7 @@ export function useMercadoPagoBrick({
 
         cardFormRef.current = cardForm;
       } catch (error: unknown) {
-        console.error('[useMercadoPagoBrick] Erro fatal:', error);
+        log.error("Erro fatal ao inicializar", error);
         onFormError?.('Falha ao inicializar sistema de pagamento');
         setIsReady(false);
         isMountingRef.current = false;
@@ -166,9 +169,13 @@ export function useMercadoPagoBrick({
     initBrick();
 
     return () => {
-      console.log('[useMercadoPagoBrick] Desmontando...');
+      log.debug("Desmontando...");
       if (cardFormRef.current?.unmount) {
-        try { cardFormRef.current.unmount(); } catch(e) { console.log('Erro ao desmontar brick:', e); }
+        try { 
+          cardFormRef.current.unmount(); 
+        } catch(e) { 
+          log.warn("Erro ao desmontar brick", e); 
+        }
       }
       cardFormRef.current = null;
       isMountingRef.current = false;
@@ -218,7 +225,7 @@ export function useMercadoPagoBrick({
       if (Object.keys(mappedErrors).length > 0) {
         setFieldErrors(mappedErrors);
       } else {
-        console.warn("⚠️ [FALLBACK] SDK falhou sem lista de erros.");
+        log.warn("SDK falhou sem lista de erros (fallback ativado)");
         setFieldErrors(getFallbackErrors());
       }
       throw error;
