@@ -37,7 +37,7 @@ import {
   VAULT_SAVE,
   getClientIP 
 } from '../_shared/rate-limiting/index.ts';
-import { handleCors } from '../_shared/cors.ts';
+import { handleCorsV2 } from '../_shared/cors-v2.ts';
 import { requireAuthenticatedProducer, unauthorizedResponse } from '../_shared/unified-auth.ts';
 import { createLogger } from '../_shared/logger.ts';
 
@@ -118,7 +118,7 @@ function separateCredentials(
 
 Deno.serve(async (req) => {
   // SECURITY: Validar CORS no início
-  const corsResult = handleCors(req);
+  const corsResult = handleCorsV2(req);
   if (corsResult instanceof Response) {
     return corsResult; // Retorna 403 ou preflight OK
   }

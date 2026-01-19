@@ -11,7 +11,7 @@
  */
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { handleCors, PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
+import { handleCorsV2, PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { getAuthenticatedProducer } from "../_shared/unified-auth.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -92,7 +92,7 @@ async function getVendorTimezone(
 
 Deno.serve(async (req) => {
   // Handle CORS
-  const corsResult = handleCors(req);
+  const corsResult = handleCorsV2(req);
   if (corsResult instanceof Response) {
     return corsResult;
   }

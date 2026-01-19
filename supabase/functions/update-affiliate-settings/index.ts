@@ -16,7 +16,7 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { handleCors } from "../_shared/cors.ts";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 import { 
   rateLimitMiddleware, 
@@ -81,7 +81,7 @@ const VALID_CC_GATEWAYS = ["mercadopago", "stripe", "asaas", null];
 
 serve(async (req) => {
   // CORS handling
-  const corsResult = handleCors(req);
+  const corsResult = handleCorsV2(req);
   if (corsResult instanceof Response) {
     return corsResult;
   }

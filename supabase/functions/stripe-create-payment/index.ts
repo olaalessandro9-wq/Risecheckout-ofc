@@ -15,7 +15,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.14.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { handleCors, PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
+import { handleCorsV2, PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { rateLimitOnlyMiddleware, getIdentifier, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiting/index.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { loadOrder, getVendorStripeConfig } from "./handlers/order-loader.ts";
@@ -35,8 +35,8 @@ interface CreatePaymentRequest {
 }
 
 serve(withSentry('stripe-create-payment', async (req) => {
-  // Use handleCors for origin validation, fallback to PUBLIC_CORS_HEADERS for checkout
-  const corsResult = handleCors(req);
+  // Use handleCorsV2 for origin validation, fallback to PUBLIC_CORS_HEADERS for checkout
+  const corsResult = handleCorsV2(req);
   
   // For checkout endpoints, we allow the request but use validated headers if available
   let corsHeaders: Record<string, string>;

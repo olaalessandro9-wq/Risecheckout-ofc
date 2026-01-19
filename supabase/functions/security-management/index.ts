@@ -15,7 +15,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { handleCors } from "../_shared/cors.ts";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 import { createLogger } from "../_shared/logger.ts";
 
@@ -39,7 +39,7 @@ interface SecurityRequest {
 
 Deno.serve(async (req) => {
   // CORS handling
-  const corsResult = handleCors(req);
+  const corsResult = handleCorsV2(req);
   if (corsResult instanceof Response) {
     return corsResult;
   }
