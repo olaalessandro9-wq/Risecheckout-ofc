@@ -24,8 +24,11 @@ import {
   createAuthCookies,
   jsonResponseWithCookies,
 } from "./cookie-helper.ts";
+import { createLogger } from "./logger.ts";
 
 import type { ProducerProfile, UserRole } from "./supabase-types.ts";
+
+const log = createLogger("ProducerAuthRefresh");
 
 // ============================================
 // INTERNAL TYPES
@@ -76,7 +79,7 @@ export async function handleRefresh(
 
   if (reusedSession) {
     // TOKEN REUSE DETECTED = POSSIBLE THEFT
-    console.error("[SECURITY] Producer refresh token reuse detected! Possible theft. Producer:", reusedSession.producer_id);
+    log.error("[SECURITY] Producer refresh token reuse detected! Possible theft. Producer:", reusedSession.producer_id);
     
     // Invalidate ALL sessions for this producer
     await supabase
@@ -116,7 +119,7 @@ export async function handleRefresh(
     .single() as { data: RefreshSessionResult | null; error: unknown };
 
   if (!session) {
-    console.warn("[producer-auth] Refresh failed - token not found or invalid");
+    log.warn("Refresh failed - token not found or invalid");
     return errorResponse("Refresh token inválido", corsHeaders, 401);
   }
 
@@ -129,13 +132,13 @@ export async function handleRefresh(
   // Check refresh token expiration
   if (session.refresh_token_expires_at && new Date(session.refresh_token_expires_at) < new Date()) {
     await supabase.from("producer_sessions").update({ is_valid: false }).eq("id", session.id);
-    console.warn("[producer-auth] Refresh failed - token expired");
+    log.warn("Refresh failed - token expired");
     return errorResponse("Refresh token expirado", corsHeaders, 401);
   }
 
   // PHASE 1 Security: Check IP binding
   if (session.ip_address && session.ip_address !== currentIP) {
-    console.warn(`[producer-auth] Refresh blocked - IP mismatch. Session IP: ${session.ip_address}, Current IP: ${currentIP}`);
+    log.warn(`Refresh blocked - IP mismatch. Session IP: ${session.ip_address}, Current IP: ${currentIP}`);
     await supabase.from("producer_sessions").update({ is_valid: false }).eq("id", session.id);
     await logAuditEvent(supabase, producerData.id, "REFRESH_BLOCKED_IP", false, currentIP, currentUA, {
       reason: "ip_mismatch",
@@ -171,7 +174,7 @@ export async function handleRefresh(
     .eq("id", session.id);
 
   if (updateError) {
-    console.error("[producer-auth] Error updating session:", updateError);
+    log.error("Error updating session:", updateError);
     return errorResponse("Erro ao renovar token", corsHeaders, 500);
   }
 
@@ -182,7 +185,7 @@ export async function handleRefresh(
     .eq("user_id", producerData.id)
     .single() as { data: UserRole | null; error: unknown };
 
-  console.log(`[producer-auth] Token rotated for producer: ${producerData.email}`);
+  log.info(`Token rotated for producer: ${producerData.email}`);
 
   // RISE V3: Set httpOnly cookies for tokens (XSS protection)
   const cookies = createAuthCookies("producer", newAccessToken, newRefreshToken);
