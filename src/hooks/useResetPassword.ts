@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
+import { createLogger } from "@/lib/logger";
 import type { ViewState, PasswordValidation, ResetPasswordConfig } from "@/components/auth/reset-password/types";
+
+const log = createLogger("UseResetPassword");
 
 interface UseResetPasswordReturn {
   viewState: ViewState;
@@ -55,7 +58,7 @@ export function useResetPassword(config: ResetPasswordConfig): UseResetPasswordR
         setEmail(data.email || "");
         setViewState("form");
       } catch (error: unknown) {
-        console.error("Error validating token:", error);
+        log.error("Error validating token:", error);
         setErrorMessage("Erro ao validar link. Tente novamente.");
         setViewState("invalid");
       }
@@ -102,7 +105,7 @@ export function useResetPassword(config: ResetPasswordConfig): UseResetPasswordR
 
       setViewState("success");
     } catch (error: unknown) {
-      console.error("Error resetting password:", error);
+      log.error("Error resetting password:", error);
       setErrorMessage("Erro de conexão. Tente novamente.");
       setViewState("form");
     }

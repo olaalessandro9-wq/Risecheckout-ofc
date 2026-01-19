@@ -7,6 +7,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("UseDecryptCustomerData");
 
 interface DecryptCustomerDataResponse {
   success?: boolean;
@@ -72,7 +75,7 @@ export function useDecryptCustomerData(
       setDecryptedData(data.data);
       setAccessType(data.access_type || null);
     } catch (err: unknown) {
-      console.error("[useDecryptCustomerData] Error:", err);
+      log.error("Error:", err);
       setError(err instanceof Error ? err.message : "Erro ao acessar dados");
     } finally {
       setIsLoading(false);
