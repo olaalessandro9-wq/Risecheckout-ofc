@@ -17,6 +17,9 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { api } from "@/lib/api";
 import { getProducerSessionToken } from "@/hooks/useProducerAuth";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger('AffiliationStatusCache');
 
 interface AffiliationStatusesResponse {
   statuses?: Record<string, { status: string; affiliationId: string }>;
@@ -104,12 +107,12 @@ export function useAffiliationStatusCache(): UseAffiliationStatusCacheReturn {
 
     globalCache.loadPromise = (async () => {
       try {
-        console.log("[useAffiliationStatusCache] Carregando status de afiliação...");
+        log.debug('Carregando status de afiliação...');
 
         const { data, error } = await api.call<AffiliationStatusesResponse>("get-all-affiliation-statuses", {});
 
         if (error) {
-          console.error("[useAffiliationStatusCache] Erro ao carregar:", error);
+          log.error('Erro ao carregar', error);
           throw new Error(error.message);
         }
 
@@ -123,12 +126,12 @@ export function useAffiliationStatusCache(): UseAffiliationStatusCacheReturn {
               affiliationId: typedStatus.affiliationId,
             });
           }
-          console.log(`[useAffiliationStatusCache] Cache populado com ${globalCache.statuses.size} afiliações`);
+          log.info(`Cache populado com ${globalCache.statuses.size} afiliações`);
         }
 
         globalCache.isLoaded = true;
       } catch (err) {
-        console.error("[useAffiliationStatusCache] Erro ao carregar cache:", err);
+        log.error('Erro ao carregar cache', err);
         // Mesmo com erro, marcamos como carregado para não bloquear a UI
         globalCache.isLoaded = true;
       } finally {
@@ -156,7 +159,7 @@ export function useAffiliationStatusCache(): UseAffiliationStatusCacheReturn {
    * Atualiza status localmente após nova afiliação (sem refetch)
    */
   const updateStatus = useCallback((productId: string, status: string, affiliationId?: string) => {
-    console.log(`[useAffiliationStatusCache] Atualizando cache: ${productId} -> ${status}`);
+    log.debug(`Atualizando cache: ${productId} -> ${status}`);
     globalCache.statuses.set(productId, {
       status: status as AffiliationStatus["status"],
       affiliationId: affiliationId || "",
@@ -170,7 +173,7 @@ export function useAffiliationStatusCache(): UseAffiliationStatusCacheReturn {
    * Invalida o cache (ao deslogar)
    */
   const invalidate = useCallback(() => {
-    console.log("[useAffiliationStatusCache] Invalidando cache");
+    log.debug('Invalidando cache');
     globalCache.statuses.clear();
     globalCache.isLoaded = false;
     globalCache.isLoading = false;

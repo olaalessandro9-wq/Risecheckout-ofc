@@ -5,6 +5,9 @@
  */
 
 import { cloneCheckoutLayoutRpc } from "@/lib/rpc/rpcProxy";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger('CloneCheckoutDeep');
 
 /**
  * Clona o layout completo de um checkout para outro usando a RPC clone_checkout_layout.
@@ -17,7 +20,7 @@ export async function cloneCheckoutDeep(
   srcCheckoutId: string,
   dstCheckoutId: string
 ): Promise<void> {
-  console.log('[cloneCheckoutDeep] Calling RPC clone_checkout_layout via proxy:', {
+  log.debug('Chamando RPC clone_checkout_layout', {
     p_source_checkout_id: srcCheckoutId,
     p_target_checkout_id: dstCheckoutId,
   });
@@ -25,9 +28,9 @@ export async function cloneCheckoutDeep(
   const { error } = await cloneCheckoutLayoutRpc(srcCheckoutId, dstCheckoutId);
 
   if (error) {
-    console.error("[cloneCheckoutDeep] RPC failed:", error);
+    log.error('RPC falhou', error);
     throw error;
   }
 
-  console.log('[cloneCheckoutDeep] RPC succeeded');
+  log.debug('RPC concluída com sucesso');
 }

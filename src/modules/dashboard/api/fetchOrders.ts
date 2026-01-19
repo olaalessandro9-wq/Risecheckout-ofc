@@ -7,7 +7,10 @@
 
 import { api } from "@/lib/api";
 import { timezoneService, DEFAULT_TIMEZONE } from "@/lib/timezone";
+import { createLogger } from "@/lib/logger";
 import type { Order } from "../types";
+
+const log = createLogger('FetchOrders');
 
 /**
  * Busca pedidos recentes via Edge Function (limitado a 50 para a tabela)
@@ -23,7 +26,7 @@ export async function fetchRecentOrders(
   const startOfDay = timezoneService.toStartOfDay(startDate);
   const endOfDay = timezoneService.toEndOfDay(endDate);
   
-  console.log(`[fetchRecentOrders] Timezone: ${timezoneService.timezone}, Start: ${startOfDay}, End: ${endOfDay}`);
+  log.trace('Buscando pedidos recentes', { timezone: timezoneService.timezone, startOfDay, endOfDay });
   
   const { data, error } = await api.call<{ orders: Order[] }>(
     "dashboard-orders",
@@ -38,10 +41,7 @@ export async function fetchRecentOrders(
   );
 
   if (error) {
-    console.error(
-      "[fetchRecentOrders] Erro ao buscar pedidos:",
-      error.message
-    );
+    log.error('Erro ao buscar pedidos recentes', error.message);
     throw new Error(error.message);
   }
 
@@ -62,7 +62,7 @@ export async function fetchChartOrders(
   const startOfDay = timezoneService.toStartOfDay(startDate);
   const endOfDay = timezoneService.toEndOfDay(endDate);
   
-  console.log(`[fetchChartOrders] Timezone: ${timezoneService.timezone}, Start: ${startOfDay}, End: ${endOfDay}`);
+  log.trace('Buscando pedidos para gráfico', { timezone: timezoneService.timezone, startOfDay, endOfDay });
   
   const { data, error } = await api.call<{ orders: Order[] }>(
     "dashboard-orders",
@@ -76,10 +76,7 @@ export async function fetchChartOrders(
   );
 
   if (error) {
-    console.error(
-      "[fetchChartOrders] Erro ao buscar pedidos para gráfico:",
-      error.message
-    );
+    log.error('Erro ao buscar pedidos para gráfico', error.message);
     throw new Error(error.message);
   }
 

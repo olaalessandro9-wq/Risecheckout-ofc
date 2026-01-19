@@ -7,7 +7,10 @@
 
 import { getDashboardMetricsRpc } from "@/lib/rpc/rpcProxy";
 import { timezoneService } from "@/lib/timezone";
+import { createLogger } from "@/lib/logger";
 import type { RpcDashboardMetrics } from "../types";
+
+const log = createLogger('FetchMetrics');
 
 /**
  * Busca métricas agregadas do banco via RPC Proxy
@@ -24,7 +27,7 @@ export async function fetchAggregatedMetrics(
   const startOfDay = timezoneService.toStartOfDay(startDate);
   const endOfDay = timezoneService.toEndOfDay(endDate);
   
-  console.log(`[fetchAggregatedMetrics] Timezone: ${timezoneService.timezone}, Start: ${startOfDay}, End: ${endOfDay}`);
+  log.trace('Buscando métricas', { timezone: timezoneService.timezone, startOfDay, endOfDay });
   
   const { data, error } = await getDashboardMetricsRpc(
     vendorId,
@@ -33,7 +36,7 @@ export async function fetchAggregatedMetrics(
   );
 
   if (error) {
-    console.error("[fetchAggregatedMetrics] Erro ao buscar métricas:", error);
+    log.error('Erro ao buscar métricas', error);
     throw error;
   }
 

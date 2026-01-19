@@ -6,6 +6,9 @@
  */
 
 import { api } from "@/lib/api/client";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger('OwnerSettings');
 
 export type GatewayType = 'asaas' | 'mercadopago' | 'pushinpay' | 'stripe';
 export type GatewayEnvironment = 'sandbox' | 'production';
@@ -42,18 +45,18 @@ export async function getOwnerGatewayEnvironments(): Promise<OwnerGatewayEnviron
     );
 
     if (error) {
-      console.error('[owner/settings] Erro ao buscar ambientes via Edge Function:', error);
+      log.error('Erro ao buscar ambientes via Edge Function', error);
       return DEFAULT_ENVIRONMENTS;
     }
 
     if (!data?.success || !data.environments) {
-      console.error('[owner/settings] Resposta inválida:', data?.error);
+      log.error('Resposta inválida', { error: data?.error });
       return DEFAULT_ENVIRONMENTS;
     }
 
     return data.environments;
   } catch (error: unknown) {
-    console.error('[owner/settings] Erro inesperado:', error);
+    log.error('Erro inesperado ao buscar ambientes', error);
     return DEFAULT_ENVIRONMENTS;
   }
 }
@@ -78,7 +81,7 @@ export async function setOwnerGatewayEnvironment(
     );
 
     if (error) {
-      console.error('[owner/settings] Erro ao atualizar ambiente:', error);
+      log.error('Erro ao atualizar ambiente', error);
       return { ok: false, error: error.message };
     }
 
@@ -86,10 +89,10 @@ export async function setOwnerGatewayEnvironment(
       return { ok: false, error: data?.error || "Erro ao atualizar ambiente" };
     }
 
-    console.log(`[owner/settings] Gateway ${gateway} alterado para ${environment}`);
+    log.info(`Gateway ${gateway} alterado para ${environment}`);
     return { ok: true };
   } catch (error: unknown) {
-    console.error('[owner/settings] Erro inesperado:', error);
+    log.error('Erro inesperado ao atualizar ambiente', error);
     return { ok: false, error: String(error) };
   }
 }

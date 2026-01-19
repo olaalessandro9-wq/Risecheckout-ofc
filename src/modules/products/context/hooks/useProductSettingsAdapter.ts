@@ -12,12 +12,15 @@
 import { useCallback } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { createLogger } from "@/lib/logger";
 import type {
   PaymentSettings,
   CheckoutFields,
   UpsellSettings,
   AffiliateSettings,
 } from "../../types/product.types";
+
+const log = createLogger('ProductSettings');
 
 // ============================================================================
 // TYPES
@@ -97,7 +100,7 @@ export function useProductSettings({
       const settings = settingsToSave || upsellSettings;
 
       try {
-        console.log("[useProductSettings] Salvando upsell_settings:", settings);
+        log.debug('Salvando upsell_settings', settings);
 
         // ✅ RISE V3: Use dedicated action for upsell_settings JSONB column
         const { data, error } = await api.call<ProductSettingsResponse>('product-settings', {
@@ -109,9 +112,9 @@ export function useProductSettings({
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
 
-        console.log("[useProductSettings] upsell_settings salvo com sucesso!");
+        log.info('upsell_settings salvo com sucesso');
       } catch (error: unknown) {
-        console.error("[useProductSettings] Error saving upsell settings:", error);
+        log.error('Erro ao salvar upsell settings', error);
         throw error;
       }
     },
@@ -129,7 +132,7 @@ export function useProductSettings({
       const settings = settingsToSave || affiliateSettings;
 
       try {
-        console.log("[useProductSettings] Salvando affiliate_settings:", settings);
+        log.debug('Salvando affiliate_settings', settings);
 
         const { data, error } = await api.call<ProductSettingsResponse>('product-settings', {
           action: 'update-settings',
@@ -142,9 +145,9 @@ export function useProductSettings({
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
 
-        console.log("[useProductSettings] affiliate_settings salvo com sucesso!");
+        log.info('affiliate_settings salvo com sucesso');
       } catch (error: unknown) {
-        console.error("[useProductSettings] Error saving affiliate settings:", error);
+        log.error('Erro ao salvar affiliate settings', error);
         throw error;
       }
     },

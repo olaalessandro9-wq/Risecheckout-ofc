@@ -15,7 +15,10 @@
  * - Outros (futuro)
  */
 
-import { useState, useRef, forwardRef, useImperativeHandle, memo } from 'react';
+import { useState, useRef, forwardRef, useImperativeHandle, memo, useCallback } from 'react';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('CreditCardForm');
 import { toast } from 'sonner';
 import { validateDocument, maskDocument } from '@/lib/validation';
 import { syncMercadoPagoHiddenFields, updateMercadoPagoInstallmentsSelect } from '@/lib/payment-gateways/helpers';
@@ -234,7 +237,7 @@ const CreditCardFormComponent = forwardRef<CreditCardFormRef, CreditCardFormProp
           throw new Error(`Gateway ${gateway} não implementado`);
         }
       } catch (error: unknown) {
-        console.error('[CreditCardForm] Erro ao criar token:', error);
+        log.error('Erro ao criar token', error);
         toast.error('Verifique os dados do cartão');
         if (formContainerRef.current) {
           formContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -281,7 +284,7 @@ const CreditCardFormComponent = forwardRef<CreditCardFormRef, CreditCardFormProp
               publicKey={publicKey}
               amount={amount}
               payerEmail={payerEmail}
-              onReady={() => console.log('[CreditCardForm] Mercado Pago pronto')}
+              onReady={() => log.info('Mercado Pago pronto')}
               onError={onError}
               onInstallmentsChange={handleInstallmentsReceived}
             />
