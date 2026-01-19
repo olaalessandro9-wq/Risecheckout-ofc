@@ -7,7 +7,8 @@
  * All database operations MUST go through Edge Functions.
  * 
  * Features:
- * - Automatic X-Producer-Session-Token injection
+ * - httpOnly cookies for authentication
+ * - Automatic 401 retry with token refresh
  * - Standardized error handling
  * - Request timeout
  * - Correlation ID for tracing
@@ -26,7 +27,7 @@
 import { SUPABASE_URL } from "@/config/supabase";
 import type { ApiResponse, ApiError } from "./types";
 import { parseHttpError, parseNetworkError, createApiError } from "./errors";
-import { producerTokenManager } from "@/lib/token-manager";
+import { producerTokenService } from "@/lib/token-manager";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("API");
@@ -50,13 +51,6 @@ function generateCorrelationId(): string {
   return `${timestamp}-${random}`;
 }
 
-/**
- * Gets a valid producer session token (with auto-refresh)
- */
-async function getSessionToken(): Promise<string | null> {
-  return producerTokenManager.getValidAccessToken();
-}
-
 // ============================================
 // REQUEST OPTIONS
 // ============================================
@@ -68,6 +62,30 @@ export interface ApiCallOptions {
   public?: boolean;
   /** Custom headers to include */
   headers?: Record<string, string>;
+  /** Skip automatic retry on 401 (internal use) */
+  _skipRetry?: boolean;
+}
+
+// ============================================
+// INTERNAL FETCH LOGIC
+// ============================================
+
+/**
+ * Core fetch logic - separated for retry capability
+ */
+async function doFetch(
+  url: string,
+  headers: Record<string, string>,
+  body: unknown | undefined,
+  signal: AbortSignal
+): Promise<Response> {
+  return fetch(url, {
+    method: "POST",
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    signal,
+    credentials: 'include',
+  });
 }
 
 // ============================================
@@ -76,6 +94,7 @@ export interface ApiCallOptions {
 
 /**
  * Makes an authenticated request to a Supabase Edge Function
+ * Automatically retries once on 401 after refreshing tokens
  * 
  * @param functionName - Name of the Edge Function
  * @param body - Request body (will be JSON stringified)
@@ -87,7 +106,12 @@ async function call<T>(
   body?: unknown,
   options: ApiCallOptions = {}
 ): Promise<ApiResponse<T>> {
-  const { timeout = DEFAULT_TIMEOUT, public: isPublic = false, headers: customHeaders = {} } = options;
+  const { 
+    timeout = DEFAULT_TIMEOUT, 
+    public: isPublic = false, 
+    headers: customHeaders = {},
+    _skipRetry = false,
+  } = options;
   
   const correlationId = generateCorrelationId();
   const controller = new AbortController();
@@ -100,20 +124,10 @@ async function call<T>(
     ...customHeaders,
   };
   
-  // RISE V3: Cookies httpOnly - não precisa mais adicionar header
-  // O browser envia automaticamente com credentials: include
+  const url = `${SUPABASE_URL}/functions/v1/${functionName}`;
   
   try {
-    const url = `${SUPABASE_URL}/functions/v1/${functionName}`;
-    
-    const response = await fetch(url, {
-      method: "POST",
-      headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-      signal: controller.signal,
-      credentials: 'include',
-    });
-    
+    const response = await doFetch(url, headers, body, controller.signal);
     clearTimeout(timeoutId);
     
     // Parse response body
@@ -122,6 +136,22 @@ async function call<T>(
       responseBody = await response.json();
     } catch {
       responseBody = null;
+    }
+    
+    // Handle 401 with automatic retry (only once, only for authenticated calls)
+    if (response.status === 401 && !isPublic && !_skipRetry) {
+      log.info("Got 401, attempting token refresh...");
+      
+      // Try to refresh token using FSM
+      const refreshed = await producerTokenService.refresh();
+      
+      if (refreshed) {
+        log.info("Token refreshed, retrying request...");
+        // Retry the request with fresh token
+        return call<T>(functionName, body, { ...options, _skipRetry: true });
+      }
+      
+      log.warn("Token refresh failed, returning auth error");
     }
     
     // Handle non-OK responses

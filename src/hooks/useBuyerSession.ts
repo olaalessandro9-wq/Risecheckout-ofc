@@ -12,7 +12,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SUPABASE_URL } from "@/config/supabase";
 import { createLogger } from "@/lib/logger";
-import { buyerTokenManager } from "@/lib/token-manager";
+import { buyerTokenService } from "@/lib/token-manager";
 
 const log = createLogger("BuyerSession");
 
@@ -36,8 +36,8 @@ export const buyerSessionQueryKey = ["buyer-session"] as const;
 
 // Função de validação de sessão
 async function validateBuyerSession(): Promise<SessionValidation> {
-  // Use TokenManager to check auth state (auto-refresh if needed)
-  const token = await buyerTokenManager.getValidAccessToken();
+  // Use TokenService FSM to check auth state (auto-refresh if needed)
+  const token = await buyerTokenService.getValidAccessToken();
   
   if (!token) {
     return { valid: false, buyer: null };
@@ -57,7 +57,7 @@ async function validateBuyerSession(): Promise<SessionValidation> {
     }
     
     // Token inválido - limpar
-    buyerTokenManager.clearTokens();
+    buyerTokenService.clearTokens();
     return { valid: false, buyer: null };
   } catch (error: unknown) {
     log.error("Error validating session", error);
@@ -97,7 +97,7 @@ export function useBuyerSession() {
 
   // Limpar sessão completamente
   const clearSession = () => {
-    buyerTokenManager.clearTokens();
+    buyerTokenService.clearTokens();
     queryClient.setQueryData(buyerSessionQueryKey, { valid: false, buyer: null });
   };
 
@@ -111,9 +111,9 @@ export function useBuyerSession() {
   };
 }
 
-// Helpers para token - delegam para TokenManager
+// Helpers para token - delegam para TokenService FSM
 export function getBuyerSessionToken(): string | null {
-  return buyerTokenManager.getAccessTokenSync();
+  return buyerTokenService.getAccessTokenSync();
 }
 
 export function setBuyerSessionToken(token: string): void {
@@ -122,5 +122,5 @@ export function setBuyerSessionToken(token: string): void {
 }
 
 export function clearBuyerSessionToken(): void {
-  buyerTokenManager.clearTokens();
+  buyerTokenService.clearTokens();
 }
