@@ -1,19 +1,14 @@
 /**
  * Producer Auth Refresh Handler
  * 
- * PHASE 3: Implements refresh token logic for producers.
- * Allows clients to obtain new access tokens using long-lived refresh tokens.
+ * Implements refresh token logic for producers with token rotation and theft detection.
  * 
- * ENHANCED: Refresh Token Rotation with Theft Detection
- * - Each refresh generates a NEW refresh token
- * - Old token is stored as previous_refresh_token
- * - If previous token is reused, ALL sessions are invalidated (theft detected)
+ * Security Features:
+ * - Refresh Token Rotation: Each refresh generates a NEW refresh token
+ * - Theft Detection: Old token stored as previous_refresh_token for reuse detection
+ * - httpOnly Cookies: Tokens are ONLY read from httpOnly cookies (XSS protection)
  * 
- * ENHANCED: httpOnly Cookies for XSS protection
- * - Tokens set as httpOnly cookies (invisible to JavaScript)
- * - Fallback to body for backwards compatibility
- * 
- * RISE Protocol V3 Compliant
+ * RISE Protocol V3 Compliant - Zero Legacy Code
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -63,18 +58,8 @@ export async function handleRefresh(
   const currentIP = getClientIP(req);
   const currentUA = req.headers.get("user-agent");
 
-  // Try to get refresh token from cookie first, then body
-  let refreshToken = getRefreshToken(req, "producer");
-  
-  // Fallback: try to read from body (legacy)
-  if (!refreshToken) {
-    try {
-      const body = await req.json();
-      refreshToken = body.refreshToken;
-    } catch {
-      // No body provided
-    }
-  }
+  // RISE V3: Read refresh token ONLY from httpOnly cookie (zero legacy code)
+  const refreshToken = getRefreshToken(req, "producer");
 
   if (!refreshToken) {
     return errorResponse("Refresh token é obrigatório", corsHeaders, 400);
@@ -202,11 +187,9 @@ export async function handleRefresh(
   // RISE V3: Set httpOnly cookies for tokens (XSS protection)
   const cookies = createAuthCookies("producer", newAccessToken, newRefreshToken);
 
+  // RISE V3: Tokens sent ONLY via httpOnly cookies (not in response body)
   return jsonResponseWithCookies({
     success: true,
-    // MIGRATION: Still return tokens in body for backwards compatibility
-    accessToken: newAccessToken,
-    refreshToken: newRefreshToken,
     expiresIn: ACCESS_TOKEN_DURATION_MINUTES * 60,
     expiresAt: accessTokenExpiresAt.toISOString(),
     producer: {
