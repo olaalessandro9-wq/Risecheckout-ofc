@@ -12,6 +12,7 @@ import {
   isVendorOwner
 } from "../../_shared/platform-config.ts";
 import type { OrderData } from "./order-loader.ts";
+import { Logger } from "../../_shared/logger.ts";
 
 export interface BuildIntentParams {
   order: OrderData;
@@ -27,7 +28,7 @@ export interface BuildIntentParams {
 export async function buildPaymentIntentParams(
   supabase: SupabaseClient,
   params: BuildIntentParams,
-  logStep: (step: string, details?: unknown) => void
+  log: Logger
 ): Promise<Stripe.PaymentIntentCreateParams> {
   const { order, paymentMethod, paymentMethodId, returnUrl, connectedAccountId } = params;
 
@@ -71,7 +72,7 @@ export async function buildPaymentIntentParams(
       order,
       connectedAccountId,
       intentParams,
-      logStep
+      log
     );
   }
 
@@ -86,12 +87,12 @@ async function configureConnectSplit(
   order: OrderData,
   connectedAccountId: string,
   intentParams: Stripe.PaymentIntentCreateParams,
-  logStep: (step: string, details?: unknown) => void
+  log: Logger
 ): Promise<void> {
   const isOwner = await isVendorOwner(supabase, order.vendor_id);
   
   if (isOwner) {
-    logStep("🏠 OWNER detectado - Skip application_fee (100% para Owner)");
+    log.info("OWNER detectado - Skip application_fee (100% para Owner)");
     intentParams.transfer_data = {
       destination: connectedAccountId,
     };
@@ -110,7 +111,7 @@ async function configureConnectSplit(
     destination: connectedAccountId,
   };
 
-  logStep("MODELO CAKTO - Split configured", { 
+  log.info("MODELO CAKTO - Split configured", { 
     vendorFeePercent: `${vendorFeePercent * 100}%`,
     isCustomFee: vendorFeePercent !== PLATFORM_FEE_PERCENT,
     platformFee, 

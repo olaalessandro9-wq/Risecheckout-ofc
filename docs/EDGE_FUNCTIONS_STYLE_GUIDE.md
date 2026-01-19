@@ -101,7 +101,42 @@ serve(withSentry("function-name", async (req) => {
 await captureException(error, { functionName: "function-name", extra: { ... } });
 ```
 
-### 5. Response Helpers: `edge-helpers.ts`
+### 5. Logging Centralizado: `logger.ts`
+
+**OBRIGATÓRIO** em toda Edge Function:
+
+```typescript
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("nome-da-funcao");
+
+// Uso correto:
+log.debug("Dados detalhados", { data });  // Apenas em dev (LOG_LEVEL=debug)
+log.info("Operação iniciada", { orderId });
+log.warn("Situação inesperada", { details });
+log.error("Erro crítico", error);
+```
+
+**❌ PROIBIDO:**
+```typescript
+// NÃO USAR - logging não centralizado
+console.log("[function] mensagem");
+console.error("[function] erro");
+console.warn("[function] aviso");
+
+// NÃO USAR - helpers locais
+const logStep = (msg: string) => console.log(msg);
+```
+
+**Níveis de Log:**
+| Nível | Uso | Visível em Produção |
+|-------|-----|---------------------|
+| debug | Debug de desenvolvimento | Não (default) |
+| info | Operações normais | Sim (LOG_LEVEL=info) |
+| warn | Situações inesperadas | Sim |
+| error | Erros críticos | Sempre |
+
+### 6. Response Helpers: `edge-helpers.ts`
 
 ```typescript
 import { jsonResponse, errorResponse } from "../_shared/edge-helpers.ts";
@@ -289,7 +324,7 @@ Antes de fazer merge:
 - [ ] Usa `withSentry()` para error tracking
 - [ ] Usa `jsonResponse()` e `errorResponse()` para respostas
 - [ ] Arquivo tem menos de 300 linhas
-- [ ] Logging adequado com `console.log()` / `console.error()`
+- [ ] **Logging via `createLogger()` - console.log PROIBIDO**
 - [ ] Tipagem completa (zero `any`)
 - [ ] Atualizado no `EDGE_FUNCTIONS_REGISTRY.md`
 

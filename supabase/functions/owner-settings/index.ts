@@ -18,7 +18,9 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2, PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
 
+const log = createLogger("owner-settings");
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
 type GatewayType = 'asaas' | 'mercadopago' | 'pushinpay' | 'stripe';
@@ -69,7 +71,7 @@ serve(async (req) => {
       .single();
 
     if (!profile || profile.role !== "owner") {
-      console.warn(`[owner-settings] Acesso negado para user ${user.id} com role ${profile?.role}`);
+      log.warn(`Acesso negado para user ${user.id} com role ${profile?.role}`);
       return new Response(
         JSON.stringify({ success: false, error: "Acesso restrito ao owner" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -92,7 +94,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`[owner-settings] Action: ${action}, User: ${user.id}`);
+    log.info(`Action: ${action}, User: ${user.id}`);
 
     // === ACTION: GET GATEWAY ENVIRONMENTS ===
     if (action === "get-gateway-environments" && (req.method === "GET" || req.method === "POST")) {
@@ -104,7 +106,7 @@ serve(async (req) => {
         .in("key", keys);
 
       if (error) {
-        console.error("[owner-settings] Erro ao buscar ambientes:", error);
+        log.error("Erro ao buscar ambientes:", error);
         return new Response(
           JSON.stringify({ success: false, error: "Erro ao buscar ambientes" }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -161,14 +163,14 @@ serve(async (req) => {
         .eq("key", key);
 
       if (error) {
-        console.error("[owner-settings] Erro ao atualizar ambiente:", error);
+        log.error("Erro ao atualizar ambiente:", error);
         return new Response(
           JSON.stringify({ success: false, error: "Erro ao atualizar ambiente" }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      console.log(`[owner-settings] Gateway ${gateway} alterado para ${environment} por ${user.id}`);
+      log.info(`Gateway ${gateway} alterado para ${environment} por ${user.id}`);
       return new Response(
         JSON.stringify({ success: true, gateway, environment }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -182,7 +184,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[owner-settings] Erro não tratado:", errorMessage);
+    log.error("Erro não tratado:", errorMessage);
     return new Response(
       JSON.stringify({ success: false, error: "Erro interno do servidor" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

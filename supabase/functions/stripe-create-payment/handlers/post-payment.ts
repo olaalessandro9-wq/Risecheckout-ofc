@@ -5,6 +5,7 @@
 import Stripe from "https://esm.sh/stripe@14.14.0";
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import type { OrderData } from "./order-loader.ts";
+import { Logger } from "../../_shared/logger.ts";
 
 /**
  * Processa comissão de afiliado via Stripe Transfer
@@ -14,7 +15,7 @@ export async function processAffiliateCommission(
   supabase: SupabaseClient,
   order: OrderData,
   orderId: string,
-  logStep: (step: string, details?: unknown) => void
+  log: Logger
 ): Promise<void> {
   if (!order.affiliate_id || !order.commission_cents || order.commission_cents <= 0) {
     return;
@@ -36,7 +37,7 @@ export async function processAffiliateCommission(
     const affiliateStripeAccountId = affiliateProfile?.stripe_account_id;
 
     if (!affiliateStripeAccountId) {
-      logStep("Affiliate has no Stripe account connected - skipping transfer", {
+      log.warn("Affiliate has no Stripe account connected - skipping transfer", {
         affiliate_id: order.affiliate_id,
         affiliate_user_id: affiliateUserId,
       });
@@ -59,7 +60,7 @@ export async function processAffiliateCommission(
       },
     });
 
-    logStep("MODELO CAKTO - Affiliate commission transferred", {
+    log.info("MODELO CAKTO - Affiliate commission transferred", {
       affiliate_id: order.affiliate_id,
       commission_cents: order.commission_cents,
       transfer_id: transfer.id,
@@ -68,7 +69,7 @@ export async function processAffiliateCommission(
     });
   } catch (transferError) {
     // Não falhar o pagamento se a transferência falhar
-    logStep("ERROR transferring affiliate commission", { 
+    log.error("Error transferring affiliate commission", { 
       error: transferError instanceof Error ? transferError.message : String(transferError),
       affiliate_id: order.affiliate_id,
     });
@@ -81,7 +82,7 @@ export async function processAffiliateCommission(
 export async function triggerWebhook(
   eventType: string,
   orderId: string,
-  logStep: (step: string, details?: unknown) => void
+  log: Logger
 ): Promise<void> {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -99,9 +100,9 @@ export async function triggerWebhook(
       })
     });
     
-    logStep(`Webhook ${eventType} disparado`, { order_id: orderId });
+    log.info(`Webhook ${eventType} disparado`, { order_id: orderId });
   } catch (webhookError) {
-    logStep(`Erro ao disparar ${eventType} (não crítico)`, { error: webhookError });
+    log.warn(`Erro ao disparar ${eventType} (não crítico)`, { error: webhookError });
   }
 }
 
@@ -114,7 +115,7 @@ export async function processPixPayment(
   paymentIntent: Stripe.PaymentIntent,
   order: OrderData,
   orderId: string,
-  logStep: (step: string, details?: unknown) => void
+  log: Logger
 ): Promise<Record<string, unknown>> {
   // Confirmar para gerar QR Code
   const confirmedIntent = await stripe.paymentIntents.confirm(paymentIntent.id, {
@@ -127,7 +128,7 @@ export async function processPixPayment(
     },
   });
 
-  logStep("PIX Payment Intent confirmed", { 
+  log.info("PIX Payment Intent confirmed", { 
     status: confirmedIntent.status,
     hasNextAction: !!confirmedIntent.next_action 
   });
@@ -151,7 +152,7 @@ export async function processPixPayment(
     .eq("id", orderId);
 
   // Disparar webhook pix_generated
-  await triggerWebhook('pix_generated', orderId, logStep);
+  await triggerWebhook('pix_generated', orderId, log);
 
   return {
     status: confirmedIntent.status,

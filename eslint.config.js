@@ -21,6 +21,15 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
+      // RISE V3: Bloqueia console.log/error/warn - use createLogger de src/lib/logger.ts
+      "no-console": ["error", { allow: [] }],
+    },
+  },
+  // Override: Permitir console apenas no logger centralizado
+  {
+    files: ["src/lib/logger.ts"],
+    rules: {
+      "no-console": "off",
     },
   },
 );

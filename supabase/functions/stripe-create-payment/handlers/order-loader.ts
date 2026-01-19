@@ -3,6 +3,7 @@
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Logger } from "../../_shared/logger.ts";
 
 export interface OrderData {
   id: string;
@@ -42,9 +43,9 @@ export interface LoadOrderError {
 export async function loadOrder(
   supabase: SupabaseClient,
   orderId: string,
-  logStep: (step: string, details?: unknown) => void
+  log: Logger
 ): Promise<LoadOrderResult | LoadOrderError> {
-  logStep("Loading order", { order_id: orderId });
+  log.info("Loading order", { order_id: orderId });
 
   const { data: order, error: orderError } = await supabase
     .from("orders")
@@ -61,11 +62,11 @@ export async function loadOrder(
     .maybeSingle();
 
   if (orderError || !order) {
-    logStep("Order not found", { order_id: orderId, error: orderError });
+    log.warn("Order not found", { order_id: orderId, error: orderError });
     return { success: false, error: "Order not found" };
   }
 
-  logStep("Order found", { 
+  log.info("Order found", { 
     amount: order.amount_cents, 
     vendor_id: order.vendor_id,
     status: order.status,
@@ -86,7 +87,7 @@ export async function loadOrder(
 export async function getVendorStripeConfig(
   supabase: SupabaseClient,
   vendorId: string,
-  logStep: (step: string, details?: unknown) => void
+  log: Logger
 ): Promise<string | undefined> {
   const { data: stripeIntegration } = await supabase
     .from("vendor_integrations")
@@ -97,10 +98,10 @@ export async function getVendorStripeConfig(
 
   if (stripeIntegration?.active && stripeIntegration?.config?.stripe_account_id) {
     const connectedAccountId = stripeIntegration.config.stripe_account_id;
-    logStep("Using Stripe Connect", { connectedAccountId });
+    log.info("Using Stripe Connect", { connectedAccountId });
     return connectedAccountId;
   }
 
-  logStep("Using platform Stripe account");
+  log.info("Using platform Stripe account");
   return undefined;
 }

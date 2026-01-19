@@ -21,11 +21,9 @@ import { withSentry, captureException } from "../_shared/sentry.ts";
 import { loadOrder, getVendorStripeConfig } from "./handlers/order-loader.ts";
 import { buildPaymentIntentParams } from "./handlers/intent-builder.ts";
 import { processAffiliateCommission, triggerWebhook, processPixPayment } from "./handlers/post-payment.ts";
+import { createLogger } from "../_shared/logger.ts";
 
-const logStep = (step: string, details?: unknown) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
-  console.log(`[STRIPE-CREATE-PAYMENT] ${step}${detailsStr}`);
-};
+const log = createLogger("stripe-create-payment");
 
 interface CreatePaymentRequest {
   order_id: string;
@@ -70,7 +68,7 @@ serve(withSentry('stripe-create-payment', async (req) => {
   );
 
   if (rateLimitResponse) {
-    logStep("Rate limit exceeded", { identifier: getIdentifier(req) });
+    log.warn("Rate limit exceeded", { identifier: getIdentifier(req) });
     return rateLimitResponse;
   }
 
@@ -81,21 +79,21 @@ serve(withSentry('stripe-create-payment', async (req) => {
     const body: CreatePaymentRequest = JSON.parse(rawBody);
     const { order_id, payment_method, payment_method_id, return_url } = body;
 
-    logStep("Request received", { order_id, payment_method });
+    log.info("Request received", { order_id, payment_method });
 
     if (!order_id) {
       throw new Error("order_id is required");
     }
 
     // 2. CARREGAR PEDIDO
-    const orderResult = await loadOrder(supabase, order_id, logStep);
+    const orderResult = await loadOrder(supabase, order_id, log);
     if (!orderResult.success) {
       throw new Error(orderResult.error);
     }
     const { order } = orderResult;
 
     // 3. BUSCAR CONFIG STRIPE DO VENDEDOR
-    const connectedAccountId = await getVendorStripeConfig(supabase, order.vendor_id, logStep);
+    const connectedAccountId = await getVendorStripeConfig(supabase, order.vendor_id, log);
 
     const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeSecretKey) {
@@ -111,11 +109,11 @@ serve(withSentry('stripe-create-payment', async (req) => {
       paymentMethodId: payment_method_id,
       returnUrl: return_url,
       connectedAccountId,
-    }, logStep);
+    }, log);
 
     // 5. CRIAR PAYMENT INTENT
     const paymentIntent = await stripe.paymentIntents.create(intentParams);
-    logStep("Payment Intent created", { id: paymentIntent.id, status: paymentIntent.status });
+    log.info("Payment Intent created", { id: paymentIntent.id, status: paymentIntent.status });
 
     // 6. PREPARAR CAMPOS PARA ATUALIZAÇÃO - Normalizar para lowercase
     const updateFields: Record<string, unknown> = {
@@ -129,13 +127,13 @@ serve(withSentry('stripe-create-payment', async (req) => {
     if (paymentIntent.status === "succeeded") {
       updateFields.status = "paid";
       updateFields.paid_at = new Date().toISOString();
-      logStep("Payment succeeded immediately - updating order to paid");
+      log.info("Payment succeeded immediately - updating order to paid");
 
       // Transferir comissão do afiliado
-      await processAffiliateCommission(stripe, supabase, order, order_id, logStep);
+      await processAffiliateCommission(stripe, supabase, order, order_id, log);
       
       // Disparar webhook purchase_approved
-      await triggerWebhook('purchase_approved', order_id, logStep);
+      await triggerWebhook('purchase_approved', order_id, log);
     }
 
     // 8. ATUALIZAR PEDIDO
@@ -151,11 +149,11 @@ serve(withSentry('stripe-create-payment', async (req) => {
 
     // 10. PROCESSAR PIX (confirmar e extrair QR Code)
     if (payment_method === "pix") {
-      const pixData = await processPixPayment(stripe, supabase, paymentIntent, order, order_id, logStep);
+      const pixData = await processPixPayment(stripe, supabase, paymentIntent, order, order_id, log);
       responseData = { ...responseData, ...pixData };
     }
 
-    logStep("Payment created successfully", { order_id, payment_method });
+    log.info("Payment created successfully", { order_id, payment_method });
 
     return new Response(
       JSON.stringify(responseData),
@@ -164,7 +162,7 @@ serve(withSentry('stripe-create-payment', async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR", { message: errorMessage });
+    log.error("Payment creation failed", { message: errorMessage });
 
     await captureException(error instanceof Error ? error : new Error(String(error)), {
       functionName: 'stripe-create-payment',

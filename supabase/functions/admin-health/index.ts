@@ -16,6 +16,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("admin-health");
 
 interface ResolveErrorPayload {
   action: string;
@@ -39,7 +42,7 @@ Deno.serve(async (req) => {
     try {
       producer = await requireAuthenticatedProducer(supabase, req);
     } catch {
-      console.warn("[admin-health] Autenticação falhou");
+      log.warn("Autenticação falhou");
       return unauthorizedResponse(corsHeaders);
     }
 
@@ -51,7 +54,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (roleError || !userRole || (userRole.role !== "admin" && userRole.role !== "owner")) {
-      console.warn(`[admin-health] Acesso negado para producer ${producer.id} com role ${userRole?.role || 'não encontrada'}`);
+      log.warn(`Acesso negado para producer ${producer.id} com role ${userRole?.role || 'não encontrada'}`);
       return new Response(
         JSON.stringify({ success: false, error: "Acesso restrito a administradores" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -73,7 +76,7 @@ Deno.serve(async (req) => {
 
     const { action, errorId, notes } = body as unknown as ResolveErrorPayload;
 
-    console.log(`[admin-health] Action: ${action}, Producer: ${producer.id}`);
+    log.info(`Action: ${action}, Producer: ${producer.id}`);
 
     // Handle actions
     if (action === "resolve-error" && req.method === "POST") {
@@ -100,14 +103,14 @@ Deno.serve(async (req) => {
         .eq("id", errorId);
 
       if (error) {
-        console.error("[admin-health] Erro ao resolver:", error);
+        log.error("Erro ao resolver:", error);
         return new Response(
           JSON.stringify({ success: false, error: "Erro ao marcar como resolvido" }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      console.log(`[admin-health] Error ${errorId} resolved by ${producer.id}`);
+      log.info(`Error ${errorId} resolved by ${producer.id}`);
       return new Response(
         JSON.stringify({ success: true }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -121,7 +124,7 @@ Deno.serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[admin-health] Erro não tratado:", errorMessage);
+    log.error("Erro não tratado:", errorMessage);
     return new Response(
       JSON.stringify({ success: false, error: "Erro interno do servidor" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
