@@ -1,6 +1,7 @@
 /**
  * Hook para lógica do AddProductDialog
  * 
+ * @version 2.0.0 - RISE Protocol V3 Compliant - Zero console.log
  * @see RISE ARCHITECT PROTOCOL V3 - Separação de Lógica e UI
  */
 
@@ -8,8 +9,11 @@ import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
 import { productSchema, deliveryUrlSchema } from "./types";
 import type { AddProductFormData } from "./types";
+
+const log = createLogger("AddProductDialog");
 
 interface UseAddProductProps {
   onOpenChange: (open: boolean) => void;
@@ -99,7 +103,7 @@ export function useAddProduct({ onOpenChange, onProductAdded }: UseAddProductPro
       });
 
       if (error) {
-        console.error("[AddProductDialog] Edge function error:", error);
+        log.error("Edge function error:", error);
         throw new Error(error.message || "Erro ao criar produto");
       }
 
@@ -116,7 +120,7 @@ export function useAddProduct({ onOpenChange, onProductAdded }: UseAddProductPro
       navigate(`/dashboard/produtos/editar?id=${data.product?.id}`);
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Erro ao criar produto");
-      console.error("[AddProductDialog] Error:", error);
+      log.error("Error:", error);
     } finally {
       setLoading(false);
     }
