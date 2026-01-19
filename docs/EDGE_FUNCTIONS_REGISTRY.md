@@ -10,8 +10,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 109 |
-| **No código local** | 109 |
+| **Total de Funções** | 110 |
+| **No código local** | 110 |
 | **Apenas deployadas** | 0 |
 | **Operações Diretas Frontend** | 0 ✅ |
 | **Funções com verify_jwt=true** | 0 ✅ |
@@ -382,13 +382,15 @@
 
 ### Dashboard & Data
 
-| Nome | URL | No Repo? | Auth |
-|------|-----|----------|------|
-| `admin-data` | `.../admin-data` | ✅ | producer_sessions |
-| `dashboard-orders` | `.../dashboard-orders` | ✅ | producer_sessions |
-| `product-entities` | `.../product-entities` | ✅ | producer_sessions |
-| `products-crud` | `.../products-crud` | ✅ | producer_sessions |
-| `vendor-integrations` | `.../vendor-integrations` | ✅ | producer_sessions |
+| Nome | URL | No Repo? | Auth | Descrição |
+|------|-----|----------|------|-----------|
+| `admin-data` | `.../admin-data` | ✅ | producer_sessions | Dados administrativos |
+| `dashboard-orders` | `.../dashboard-orders` | ✅ | producer_sessions | Ordens do dashboard |
+| `dashboard-analytics` | `.../dashboard-analytics` | ✅ | producer_sessions | Métricas do dashboard (modular, RISE V3) |
+| `product-entities` | `.../product-entities` | ✅ | producer_sessions | Entidades do produto |
+| `product-full-loader` | `.../product-full-loader` | ✅ | producer_sessions | **BFF**: 1 chamada substitui 6 (offers, bumps, checkouts, links, coupons, product) |
+| `products-crud` | `.../products-crud` | ✅ | producer_sessions | CRUD de produtos |
+| `vendor-integrations` | `.../vendor-integrations` | ✅ | producer_sessions | Integrações do vendor |
 
 ### Public Endpoints
 

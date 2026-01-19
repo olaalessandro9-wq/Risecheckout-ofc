@@ -26,6 +26,9 @@ interface UseProductCheckoutsReturn {
   paymentLinks: PaymentLink[];
   refreshCheckouts: () => Promise<void>;
   refreshPaymentLinks: () => Promise<void>;
+  // Setters para injeção de dados do BFF
+  setCheckouts: React.Dispatch<React.SetStateAction<Checkout[]>>;
+  setPaymentLinks: React.Dispatch<React.SetStateAction<PaymentLink[]>>;
 }
 
 interface CheckoutRecord {
@@ -153,5 +156,8 @@ export function useProductCheckouts({
     paymentLinks,
     refreshCheckouts,
     refreshPaymentLinks,
+    // Setters para injeção de dados do BFF
+    setCheckouts,
+    setPaymentLinks,
   };
 }

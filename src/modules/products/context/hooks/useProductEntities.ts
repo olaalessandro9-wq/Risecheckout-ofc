@@ -29,6 +29,10 @@ interface UseProductEntitiesReturn {
   refreshOffers: () => Promise<void>;
   refreshOrderBumps: () => Promise<void>;
   refreshCoupons: () => Promise<void>;
+  // Setters para injeção de dados do BFF
+  setOffers: React.Dispatch<React.SetStateAction<Offer[]>>;
+  setOrderBumps: React.Dispatch<React.SetStateAction<OrderBump[]>>;
+  setCoupons: React.Dispatch<React.SetStateAction<Coupon[]>>;
 }
 
 interface OfferRecord {
@@ -153,5 +157,9 @@ export function useProductEntities({
     refreshOffers,
     refreshOrderBumps,
     refreshCoupons,
+    // Setters para injeção de dados do BFF
+    setOffers,
+    setOrderBumps,
+    setCoupons,
   };
 }

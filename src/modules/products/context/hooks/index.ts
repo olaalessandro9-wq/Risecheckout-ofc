@@ -18,3 +18,7 @@ export { useGlobalValidationHandlers } from "./useGlobalValidationHandlers";
 
 // Tab Validation - Sistema de validação global
 export { useTabValidation } from "./useTabValidation";
+
+// BFF Product Loader - Substituí 6 chamadas por 1
+export { useProductLoader } from "./useProductLoader";
+export { useProductDataMapper } from "./useProductDataMapper";
