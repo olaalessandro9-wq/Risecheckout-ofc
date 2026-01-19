@@ -23,6 +23,9 @@ import {
   RATE_LIMIT_CONFIGS,
   getClientIP 
 } from "../_shared/rate-limiting/index.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("update-affiliate-settings");
 
 // === INTERFACES (Zero any) ===
 
@@ -101,7 +104,7 @@ serve(async (req) => {
       corsHeaders
     );
     if (rateLimitResult) {
-      console.warn(`[update-affiliate-settings] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      log.warn(`Rate limit exceeded for IP: ${getClientIP(req)}`);
       return rateLimitResult;
     }
 
@@ -111,7 +114,7 @@ serve(async (req) => {
       producer = await requireAuthenticatedProducer(supabaseAdmin, req);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error("[update-affiliate-settings] Erro de autenticação:", errorMessage);
+      log.error("Erro de autenticação:", errorMessage);
       return new Response(
         JSON.stringify({ error: "Usuário não autenticado" }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -119,7 +122,7 @@ serve(async (req) => {
     }
 
     const userId = producer.id;
-    console.log(`[update-affiliate-settings] Usuário: ${userId.substring(0, 8)}...`);
+    log.info(`Usuário: ${userId.substring(0, 8)}...`);
 
     // 2. Criar cliente Supabase para queries com RLS
     const supabase: SupabaseClient = createClient(
@@ -146,7 +149,7 @@ serve(async (req) => {
       .single() as { data: AffiliateRecord | null; error: Error | null };
 
     if (fetchError || !affiliate) {
-      console.error("[update-affiliate-settings] Afiliação não encontrada:", fetchError?.message);
+      log.error("Afiliação não encontrada:", fetchError?.message);
       return new Response(
         JSON.stringify({ error: "Afiliação não encontrada" }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -154,7 +157,7 @@ serve(async (req) => {
     }
 
     if (affiliate.user_id !== userId) {
-      console.error(`[update-affiliate-settings] ACESSO NEGADO: User ${userId.substring(0, 8)} tentou acessar afiliação de ${affiliate.user_id.substring(0, 8)}`);
+      log.error(`ACESSO NEGADO: User ${userId.substring(0, 8)} tentou acessar afiliação de ${affiliate.user_id.substring(0, 8)}`);
       return new Response(
         JSON.stringify({ error: "Você não tem permissão para modificar esta afiliação" }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -221,14 +224,14 @@ serve(async (req) => {
           .eq("id", affiliate_id);
 
         if (updateError) {
-          console.error("[update-affiliate-settings] Erro no UPDATE:", updateError.message);
+          log.error("Erro no UPDATE:", updateError.message);
           return new Response(
             JSON.stringify({ error: "Erro ao atualizar gateways" }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
 
-        console.log(`[update-affiliate-settings] Gateways atualizados para afiliação ${affiliate_id.substring(0, 8)}`);
+        log.info(`Gateways atualizados para afiliação ${affiliate_id.substring(0, 8)}`);
         return new Response(
           JSON.stringify({ success: true, message: "Gateways atualizados" }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -254,7 +257,7 @@ serve(async (req) => {
           .eq("id", affiliate_id);
 
         if (cancelError) {
-          console.error("[update-affiliate-settings] Erro ao cancelar:", cancelError.message);
+          log.error("Erro ao cancelar:", cancelError.message);
           return new Response(
             JSON.stringify({ error: "Erro ao cancelar afiliação" }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -272,7 +275,7 @@ serve(async (req) => {
         };
         await supabaseAdmin.from("affiliate_audit_log").insert(auditEntry);
 
-        console.log(`[update-affiliate-settings] Afiliação ${affiliate_id.substring(0, 8)} cancelada pelo usuário`);
+        log.info(`Afiliação ${affiliate_id.substring(0, 8)} cancelada pelo usuário`);
         return new Response(
           JSON.stringify({ success: true, message: "Afiliação cancelada" }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -288,7 +291,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[update-affiliate-settings] Erro não tratado:", errorMessage);
+    log.error("Erro não tratado:", errorMessage);
     return new Response(
       JSON.stringify({ error: "Erro interno do servidor" }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

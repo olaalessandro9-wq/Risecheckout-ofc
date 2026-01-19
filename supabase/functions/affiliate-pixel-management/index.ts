@@ -13,6 +13,9 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse, ProducerAuth } from "../_shared/unified-auth.ts";
 import { verifyAffiliateOwnership } from "../_shared/ownership.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("affiliate-pixel-management");
 
 // ============================================
 // TYPES
@@ -114,7 +117,7 @@ async function handleSaveAll(
       }
     }
 
-    console.log(`[affiliate-pixel-management] Saved ${pixels?.length || 0} pixels for affiliate ${affiliate_id}`);
+    log.info(`Saved ${pixels?.length || 0} pixels for affiliate ${affiliate_id}`);
 
     return new Response(
       JSON.stringify({ 
@@ -125,7 +128,7 @@ async function handleSaveAll(
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
-    console.error("[affiliate-pixel-management] Save error:", error);
+    log.error("Save error:", error);
     const message = error instanceof Error ? error.message : "Erro ao salvar pixels";
     return new Response(
       JSON.stringify({ error: message }),
@@ -162,7 +165,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action, ...payload } = body;
 
-    console.log(`[affiliate-pixel-management] Action: ${action}, User: ${producer.id}`);
+    log.info(`Action: ${action}, User: ${producer.id}`);
 
     switch (action) {
       case "save-all":
@@ -175,7 +178,7 @@ Deno.serve(async (req) => {
         );
     }
   } catch (error: unknown) {
-    console.error("[affiliate-pixel-management] Unhandled error:", error);
+    log.error("Unhandled error:", error);
     const message = error instanceof Error ? error.message : "Erro interno";
     return new Response(
       JSON.stringify({ error: message }),
