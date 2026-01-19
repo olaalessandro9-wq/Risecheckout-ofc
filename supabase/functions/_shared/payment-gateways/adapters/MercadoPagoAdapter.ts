@@ -7,6 +7,9 @@ import { IPaymentGateway } from "../IPaymentGateway.ts";
 import { PaymentRequest, PaymentResponse, PaymentSplitRule } from "../types.ts";
 import { CircuitBreaker, CircuitOpenError, GATEWAY_CIRCUIT_CONFIGS } from "../../circuit-breaker.ts";
 import type { MercadoPagoPayload, MercadoPagoDisbursement, MercadoPagoResponse } from "./mercadopago-types.ts";
+import { createLogger } from "../../logger.ts";
+
+const log = createLogger("MercadoPagoAdapter");
 
 export class MercadoPagoAdapter implements IPaymentGateway {
   readonly providerName = "mercadopago";
@@ -25,13 +28,13 @@ export class MercadoPagoAdapter implements IPaymentGateway {
       return await this.circuitBreaker.execute(async () => {
         const mpPayload = this.buildPixPayload(request);
         this.attachDisbursements(mpPayload, request.split_rules);
-        console.log(`[MercadoPagoAdapter] Criando PIX para pedido ${request.order_id}`);
+        log.info(`Creating PIX for order ${request.order_id}`);
 
         const response = await this.callApi(mpPayload, request.order_id);
         const data = await response.json() as MercadoPagoResponse;
 
         if (!response.ok) {
-          console.error('[MercadoPagoAdapter] Erro na API:', data);
+          log.error("API error:", data);
           return this.errorResponse(data.message || 'Erro ao processar pagamento PIX', data);
         }
 
@@ -57,13 +60,13 @@ export class MercadoPagoAdapter implements IPaymentGateway {
       return await this.circuitBreaker.execute(async () => {
         const mpPayload = this.buildCardPayload(request);
         this.attachDisbursements(mpPayload, request.split_rules);
-        console.log(`[MercadoPagoAdapter] Criando pagamento cartão para pedido ${request.order_id}`);
+        log.info(`Creating credit card payment for order ${request.order_id}`);
 
         const response = await this.callApi(mpPayload, request.order_id);
         const data = await response.json() as MercadoPagoResponse;
 
         if (!response.ok) {
-          console.error('[MercadoPagoAdapter] Erro na API:', data);
+          log.error("API error:", data);
           return this.errorResponse(data.message || 'Erro ao processar cartão', data);
         }
 
@@ -136,9 +139,9 @@ export class MercadoPagoAdapter implements IPaymentGateway {
     
     if (disbursements.length > 0) {
       payload.disbursements = disbursements;
-      console.log(`[MercadoPagoAdapter] Split ativo: ${disbursements.length} destinatário(s)`);
+      log.info(`Split active: ${disbursements.length} recipient(s)`);
     } else if (rules.length > 0) {
-      console.warn('[MercadoPagoAdapter] Split solicitado mas sem collector_id válido');
+      log.warn("Split requested but no valid collector_id found");
     }
   }
 
@@ -160,11 +163,11 @@ export class MercadoPagoAdapter implements IPaymentGateway {
 
   private handleError(error: unknown, method: string): PaymentResponse {
     if (error instanceof CircuitOpenError) {
-      console.warn(`[MercadoPagoAdapter] Circuit breaker OPEN: ${error.message}`);
+      log.warn(`Circuit breaker OPEN: ${error.message}`);
       return this.errorResponse('Gateway temporariamente indisponível', { circuit_breaker: 'open' });
     }
     const msg = error instanceof Error ? error.message : 'Erro desconhecido';
-    console.error(`[MercadoPagoAdapter] Exception (${method}):`, error);
+    log.error(`Exception (${method}):`, error);
     return this.errorResponse(msg || `Erro ao processar ${method}`, { error: msg });
   }
 

@@ -35,6 +35,9 @@ import { GatewayCredentials } from "./types.ts";
 import { MercadoPagoAdapter } from "./adapters/MercadoPagoAdapter.ts";
 import { PushinPayAdapter } from "./adapters/PushinPayAdapter.ts";
 import { AsaasAdapter } from "./adapters/AsaasAdapter.ts";
+import { createLogger } from "../logger.ts";
+
+const log = createLogger("PaymentFactory");
 
 export class PaymentFactory {
   /**
@@ -55,7 +58,7 @@ export class PaymentFactory {
   static create(gatewayName: string, credentials: GatewayCredentials): IPaymentGateway {
     const normalizedName = gatewayName.toLowerCase().trim();
     
-    console.log(`[PaymentFactory] Criando gateway: ${normalizedName}`);
+    log.info(`Creating gateway: ${normalizedName}`);
 
     switch (normalizedName) {
       case 'mercadopago':
