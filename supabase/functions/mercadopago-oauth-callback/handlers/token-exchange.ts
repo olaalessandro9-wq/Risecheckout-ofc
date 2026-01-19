@@ -6,6 +6,10 @@
  * @module mercadopago-oauth-callback/handlers/token-exchange
  */
 
+import { createLogger } from "../../_shared/logger.ts";
+
+const log = createLogger("mercadopago-oauth-callback");
+
 export interface TokenResponse {
   access_token: string;
   refresh_token: string;
@@ -27,10 +31,10 @@ const MERCADOPAGO_REDIRECT_URI = Deno.env.get('MERCADOPAGO_REDIRECT_URI') || '';
  * Troca o authorization code por tokens de acesso
  */
 export async function exchangeCodeForToken(code: string): Promise<TokenExchangeResult> {
-  console.log('[Token Exchange] Iniciando troca de code por access_token...');
-  console.log('[Token Exchange] Client ID:', MERCADOPAGO_CLIENT_ID);
-  console.log('[Token Exchange] Redirect URI:', MERCADOPAGO_REDIRECT_URI);
-  console.log('[Token Exchange] Client Secret presente:', !!MERCADOPAGO_CLIENT_SECRET);
+  log.info('Iniciando troca de code por access_token...');
+  log.info(`Client ID: ${MERCADOPAGO_CLIENT_ID}`);
+  log.info(`Redirect URI: ${MERCADOPAGO_REDIRECT_URI}`);
+  log.info(`Client Secret presente: ${!!MERCADOPAGO_CLIENT_SECRET}`);
 
   try {
     const tokenResponse = await fetch('https://api.mercadopago.com/oauth/token', {
@@ -50,7 +54,7 @@ export async function exchangeCodeForToken(code: string): Promise<TokenExchangeR
 
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text();
-      console.error('[Token Exchange] Erro ao trocar code:', tokenResponse.status, errorData);
+      log.error(`Erro ao trocar code: ${tokenResponse.status} ${errorData}`);
       return {
         success: false,
         error: 'Erro ao obter token do Mercado Pago.'
@@ -58,11 +62,10 @@ export async function exchangeCodeForToken(code: string): Promise<TokenExchangeR
     }
 
     const tokenData = await tokenResponse.json() as TokenResponse;
-    console.log('[Token Exchange] Token obtido. User ID:', tokenData.user_id);
+    log.info(`Token obtido. User ID: ${tokenData.user_id}`);
 
-    // Validar que user_id é numérico (segurança)
     if (!tokenData.user_id || typeof tokenData.user_id !== 'number') {
-      console.error('[Token Exchange] user_id inválido:', tokenData.user_id);
+      log.error(`user_id inválido: ${tokenData.user_id}`);
       return {
         success: false,
         error: 'Dados inválidos retornados pelo Mercado Pago.'
@@ -75,7 +78,7 @@ export async function exchangeCodeForToken(code: string): Promise<TokenExchangeR
     };
 
   } catch (error) {
-    console.error('[Token Exchange] Exception:', error);
+    log.error('Exception:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro desconhecido'

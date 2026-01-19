@@ -5,6 +5,9 @@
  */
 
 import { PUBLIC_CORS_HEADERS } from "../../_shared/cors-v2.ts";
+import { createLogger } from "../../_shared/logger.ts";
+
+const log = createLogger("asaas-create-payment");
 
 export const corsHeaders = PUBLIC_CORS_HEADERS;
 
@@ -54,7 +57,7 @@ export function createSuccessResponse(data: {
     rawResponse: data.rawResponse
   };
 
-  console.log('[asaas-create-payment] ✅ Sucesso');
+  log.info('✅ Sucesso');
 
   return new Response(
     JSON.stringify(response),

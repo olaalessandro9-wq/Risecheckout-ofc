@@ -7,6 +7,9 @@
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CustomerData } from "../../_shared/asaas-customer.ts";
 import { checkRateLimit, RATE_LIMIT_CONFIGS } from "../../_shared/rate-limiting/index.ts";
+import { createLogger } from "../../_shared/logger.ts";
+
+const log = createLogger("asaas-create-payment");
 
 // Use config from consolidated rate-limiting module
 
@@ -85,7 +88,7 @@ export async function resolveVendorId(
     return { vendorId: providedVendorId };
   }
 
-  console.log('[asaas-create-payment] vendorId não fornecido, buscando da order...');
+  log.info('vendorId não fornecido, buscando da order...');
   
   const { data: orderData, error: orderError } = await supabase
     .from('orders')
@@ -94,10 +97,10 @@ export async function resolveVendorId(
     .maybeSingle();
 
   if (orderError || !orderData) {
-    console.error('[asaas-create-payment] Erro ao buscar order:', orderError);
+    log.error('Erro ao buscar order:', orderError);
     return { error: 'Pedido não encontrado' };
   }
 
-  console.log('[asaas-create-payment] ✅ vendorId obtido da order:', orderData.vendor_id);
+  log.info('✅ vendorId obtido da order:', orderData.vendor_id);
   return { vendorId: orderData.vendor_id };
 }

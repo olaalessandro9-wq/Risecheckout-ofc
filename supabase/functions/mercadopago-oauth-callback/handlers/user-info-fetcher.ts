@@ -7,6 +7,9 @@
  */
 
 import { maskEmail } from "../../_shared/kernel/security/pii-masking.ts";
+import { createLogger } from "../../_shared/logger.ts";
+
+const log = createLogger("mercadopago-oauth-callback");
 
 export interface UserInfoResponse {
   email: string;
@@ -23,7 +26,7 @@ export async function fetchMercadoPagoUserInfo(
   userId: number,
   accessToken: string
 ): Promise<UserInfoResult> {
-  console.log('[User Info Fetcher] Buscando informações do usuário MP...');
+  log.info('Buscando informações do usuário MP...');
 
   try {
     const userInfoResponse = await fetch(`https://api.mercadopago.com/users/${userId}`, {
@@ -33,19 +36,19 @@ export async function fetchMercadoPagoUserInfo(
     });
 
     if (!userInfoResponse.ok) {
-      console.warn('[User Info Fetcher] Não foi possível buscar email do MP');
+      log.warn('Não foi possível buscar email do MP');
       return { email: null };
     }
 
     const userInfo = await userInfoResponse.json() as UserInfoResponse;
     const email = userInfo.email || null;
     
-    console.log('[User Info Fetcher] Email MP:', maskEmail(email || ''));
+    log.info(`Email MP: ${maskEmail(email || '')}`);
     
     return { email };
 
   } catch (error) {
-    console.warn('[User Info Fetcher] Erro ao buscar info:', error);
+    log.warn('Erro ao buscar info:', error);
     return { email: null };
   }
 }
