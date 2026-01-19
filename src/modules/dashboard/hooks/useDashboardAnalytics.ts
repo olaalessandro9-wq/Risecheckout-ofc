@@ -2,16 +2,16 @@
  * Hook principal para analytics do Dashboard
  * 
  * @module dashboard/hooks
- * @version RISE V3 Compliant
+ * @version RISE V3 Compliant - BFF Pattern
  * 
- * Este hook orquestra as chamadas de API e cálculos de métricas.
+ * Este hook usa a action "full" do dashboard-analytics para buscar
+ * todos os dados em 1 única chamada HTTP (antes eram 4).
  */
 
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
-import type { DashboardData, DateRange } from "../types";
-import { fetchAggregatedMetrics } from "../api/fetchMetrics";
-import { fetchRecentOrders, fetchChartOrders } from "../api/fetchOrders";
+import { invokeEdgeFunction } from "@/lib/api-client";
+import type { DashboardData, DateRange, RpcDashboardMetrics, Order } from "../types";
 import {
   calculateMetricsFromRpc,
   calculateChartData,
@@ -19,8 +19,22 @@ import {
   formatRecentCustomers,
 } from "../utils";
 
+const DEFAULT_TIMEZONE = "America/Sao_Paulo";
+
+interface DashboardFullResponse {
+  success: boolean;
+  data?: {
+    currentMetrics: RpcDashboardMetrics;
+    previousMetrics: RpcDashboardMetrics;
+    chartOrders: Order[];
+    recentOrders: Order[];
+  };
+  error?: string;
+}
+
 /**
  * Hook para buscar e calcular métricas do dashboard
+ * Usa BFF pattern: 1 HTTP call em vez de 4
  */
 export function useDashboardAnalytics(dateRange: DateRange) {
   const { user } = useAuth();
@@ -38,30 +52,34 @@ export function useDashboardAnalytics(dateRange: DateRange) {
         throw new Error("Usuário não autenticado");
       }
 
-      const vendorId = user.id;
-
-      // Calcular período anterior
-      const daysDiff = Math.ceil(
-        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+      // 1 única chamada BFF (antes eram 4 paralelas)
+      const { data: response, error: fetchError } = await invokeEdgeFunction<DashboardFullResponse>(
+        "dashboard-analytics",
+        {
+          action: "full",
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          timezone: DEFAULT_TIMEZONE,
+        }
       );
-      const previousStartDate = new Date(startDate);
-      previousStartDate.setDate(previousStartDate.getDate() - daysDiff);
-      const previousEndDate = new Date(startDate);
-      previousEndDate.setDate(previousEndDate.getDate() - 1);
 
-      // Buscar todos os dados em paralelo
-      const [currentMetrics, previousMetrics, chartOrders, recentOrders] =
-        await Promise.all([
-          fetchAggregatedMetrics(vendorId, startDate, endDate),
-          fetchAggregatedMetrics(vendorId, previousStartDate, previousEndDate),
-          fetchChartOrders(vendorId, startDate, endDate),
-          fetchRecentOrders(vendorId, startDate, endDate),
-        ]);
+      if (fetchError) {
+        throw new Error(fetchError);
+      }
+
+      if (!response?.success || !response?.data) {
+        throw new Error(response?.error ?? "Failed to load dashboard data");
+      }
+
+      const { currentMetrics, previousMetrics, chartOrders, recentOrders } = response.data;
 
       // Calcular métricas
       const metrics = calculateMetricsFromRpc(currentMetrics, previousMetrics);
 
       // Detectar se é período de 1 dia
+      const daysDiff = Math.ceil(
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
       const isSingleDay = daysDiff <= 1;
 
       // Calcular dados dos gráficos
