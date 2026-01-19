@@ -4,10 +4,13 @@
  * Extracted handlers for smoke-test edge function.
  * 
  * RISE Protocol Compliant - < 300 linhas
- * @version 2.0.0 - Zero `any` compliance
+ * @version 3.0.0 - Centralized Logger
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("SmokeTest");
 
 // ============================================================================
 // TYPES
@@ -36,18 +39,6 @@ interface PostgrestError {
   details?: string;
   hint?: string;
   code?: string;
-}
-
-// ============================================================================
-// LOGGING
-// ============================================================================
-
-export function logInfo(message: string, data?: unknown) {
-  console.log(`[smoke-test] [INFO] ${message}`, data ? JSON.stringify(data) : '');
-}
-
-export function logError(message: string, error?: unknown) {
-  console.error(`[smoke-test] [ERROR] ${message}`, error);
 }
 
 // ============================================================================
@@ -240,19 +231,19 @@ export async function testVaultAndRPC(supabase: SupabaseClient): Promise<TestRes
 export async function runAllTests(supabase: SupabaseClient): Promise<TestResult[]> {
   const allTests: TestResult[] = [];
 
-  logInfo('Executando testes de secrets...');
+  log.info('Executando testes de secrets...');
   const secretTests = await testSecrets();
   allTests.push(...secretTests);
 
-  logInfo('Executando testes de tabelas...');
+  log.info('Executando testes de tabelas...');
   const tableTests = await testTables(supabase);
   allTests.push(...tableTests);
 
-  logInfo('Executando testes de edge functions...');
+  log.info('Executando testes de edge functions...');
   const edgeFunctionTests = await testEdgeFunctions();
   allTests.push(...edgeFunctionTests);
 
-  logInfo('Executando testes de Vault/RPC...');
+  log.info('Executando testes de Vault/RPC...');
   const vaultTests = await testVaultAndRPC(supabase);
   allTests.push(...vaultTests);
 
