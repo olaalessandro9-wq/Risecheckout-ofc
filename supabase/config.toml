@@ -415,3 +415,6 @@ verify_jwt = false
 
 [functions.session-manager]
 verify_jwt = false
+
+[functions.data-retention-executor]
+verify_jwt = false

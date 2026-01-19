@@ -1468,36 +1468,75 @@ export type Database = {
       }
       data_retention_log: {
         Row: {
+          buyer_rate_limits_deleted: number | null
+          buyer_sessions_deleted: number | null
           checkout_visits_deleted: number | null
+          cleanup_version: string | null
+          encryption_keys_deleted: number | null
           executed_at: string | null
           execution_time_ms: number | null
           gateway_webhook_dlq_deleted: number | null
+          gdpr_audit_log_deleted: number | null
+          gdpr_requests_deleted: number | null
           id: number
+          key_rotation_log_deleted: number | null
+          oauth_states_deleted: number | null
           order_events_deleted: number | null
+          producer_sessions_deleted: number | null
+          rate_limit_attempts_deleted: number | null
           security_audit_log_deleted: number | null
+          security_events_deleted: number | null
+          total_rows_deleted: number | null
           trigger_debug_logs_deleted: number | null
+          vault_access_log_deleted: number | null
           webhook_deliveries_deleted: number | null
         }
         Insert: {
+          buyer_rate_limits_deleted?: number | null
+          buyer_sessions_deleted?: number | null
           checkout_visits_deleted?: number | null
+          cleanup_version?: string | null
+          encryption_keys_deleted?: number | null
           executed_at?: string | null
           execution_time_ms?: number | null
           gateway_webhook_dlq_deleted?: number | null
+          gdpr_audit_log_deleted?: number | null
+          gdpr_requests_deleted?: number | null
           id?: number
+          key_rotation_log_deleted?: number | null
+          oauth_states_deleted?: number | null
           order_events_deleted?: number | null
+          producer_sessions_deleted?: number | null
+          rate_limit_attempts_deleted?: number | null
           security_audit_log_deleted?: number | null
+          security_events_deleted?: number | null
+          total_rows_deleted?: number | null
           trigger_debug_logs_deleted?: number | null
+          vault_access_log_deleted?: number | null
           webhook_deliveries_deleted?: number | null
         }
         Update: {
+          buyer_rate_limits_deleted?: number | null
+          buyer_sessions_deleted?: number | null
           checkout_visits_deleted?: number | null
+          cleanup_version?: string | null
+          encryption_keys_deleted?: number | null
           executed_at?: string | null
           execution_time_ms?: number | null
           gateway_webhook_dlq_deleted?: number | null
+          gdpr_audit_log_deleted?: number | null
+          gdpr_requests_deleted?: number | null
           id?: number
+          key_rotation_log_deleted?: number | null
+          oauth_states_deleted?: number | null
           order_events_deleted?: number | null
+          producer_sessions_deleted?: number | null
+          rate_limit_attempts_deleted?: number | null
           security_audit_log_deleted?: number | null
+          security_events_deleted?: number | null
+          total_rows_deleted?: number | null
           trigger_debug_logs_deleted?: number | null
+          vault_access_log_deleted?: number | null
           webhook_deliveries_deleted?: number | null
         }
         Relationships: []
@@ -4305,8 +4344,38 @@ export type Database = {
           reason: string
         }[]
       }
+      cleanup_all_data_v2: {
+        Args: never
+        Returns: {
+          category: string
+          rows_deleted: number
+          table_name: string
+        }[]
+      }
+      cleanup_all_data_v2_with_log: { Args: never; Returns: undefined }
+      cleanup_buyer_rate_limits: { Args: never; Returns: number }
+      cleanup_by_category: {
+        Args: { p_category: string }
+        Returns: {
+          rows_deleted: number
+          table_name: string
+        }[]
+      }
+      cleanup_dry_run: {
+        Args: never
+        Returns: {
+          category: string
+          rows_to_delete: number
+          table_name: string
+        }[]
+      }
       cleanup_expired_blocks: { Args: never; Returns: number }
       cleanup_expired_buyer_sessions: { Args: never; Returns: number }
+      cleanup_expired_producer_sessions: { Args: never; Returns: number }
+      cleanup_gdpr_audit_log: { Args: never; Returns: number }
+      cleanup_gdpr_requests: { Args: never; Returns: number }
+      cleanup_key_rotation_log: { Args: never; Returns: number }
+      cleanup_oauth_states: { Args: never; Returns: number }
       cleanup_old_data: {
         Args: never
         Returns: {
@@ -4315,7 +4384,11 @@ export type Database = {
         }[]
       }
       cleanup_old_data_with_log: { Args: never; Returns: undefined }
+      cleanup_old_encryption_keys: { Args: never; Returns: number }
       cleanup_old_rate_limits: { Args: never; Returns: number }
+      cleanup_rate_limit_attempts: { Args: never; Returns: number }
+      cleanup_security_events: { Args: never; Returns: number }
+      cleanup_vault_access_log: { Args: never; Returns: number }
       clone_checkout_deep: {
         Args: { dst_checkout_id: string; src_checkout_id: string }
         Returns: undefined
