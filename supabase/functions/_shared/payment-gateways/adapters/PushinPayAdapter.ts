@@ -25,6 +25,9 @@
 import { IPaymentGateway } from "../IPaymentGateway.ts";
 import { PaymentRequest, PaymentResponse } from "../types.ts";
 import { CircuitBreaker, CircuitOpenError, GATEWAY_CIRCUIT_CONFIGS } from "../../circuit-breaker.ts";
+import { createLogger } from "../../logger.ts";
+
+const log = createLogger("PushinPayAdapter");
 
 // URLs corretas conforme documentação oficial
 const PUSHINPAY_API_URLS = {
@@ -102,9 +105,8 @@ export class PushinPayAdapter implements IPaymentGateway {
           webhook_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/pushinpay-webhook`
         };
 
-        console.log(`[PushinPayAdapter] Criando PIX para pedido ${request.order_id}`);
-        console.log(`[PushinPayAdapter] URL: ${apiUrl}`);
-        console.log(`[PushinPayAdapter] Valor em centavos: ${request.amount_cents}`);
+        log.info(`Creating PIX for order ${request.order_id}`);
+        log.debug(`URL: ${apiUrl}, amount_cents: ${request.amount_cents}`);
 
         // Fazer requisição à API do PushinPay
         const response = await fetch(apiUrl, {
@@ -118,11 +120,11 @@ export class PushinPayAdapter implements IPaymentGateway {
         });
 
         const responseText = await response.text();
-        console.log(`[PushinPayAdapter] Status: ${response.status}`);
+        log.debug(`Response status: ${response.status}`);
 
         // Verificar erros
         if (!response.ok) {
-          console.error('[PushinPayAdapter] Erro na API:', responseText);
+          log.error("API error:", responseText);
           return {
             success: false,
             transaction_id: '',
@@ -148,7 +150,7 @@ export class PushinPayAdapter implements IPaymentGateway {
     } catch (error: unknown) {
       // Circuit Breaker aberto
       if (error instanceof CircuitOpenError) {
-        console.warn(`[PushinPayAdapter] Circuit breaker OPEN: ${error.message}`);
+        log.warn(`Circuit breaker OPEN: ${error.message}`);
         return {
           success: false,
           transaction_id: '',
@@ -159,7 +161,7 @@ export class PushinPayAdapter implements IPaymentGateway {
       }
 
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-      console.error('[PushinPayAdapter] Exception:', error);
+      log.error("Exception:", error);
       return {
         success: false,
         transaction_id: '',
@@ -179,8 +181,8 @@ export class PushinPayAdapter implements IPaymentGateway {
     try {
       const apiUrl = `${this.baseUrl}/transactions/${pixId}`;
       
-      console.log(`[PushinPayAdapter] Consultando status do PIX: ${pixId}`);
-      console.log(`[PushinPayAdapter] URL: ${apiUrl}`);
+      log.info(`Checking PIX status: ${pixId}`);
+      log.debug(`URL: ${apiUrl}`);
 
       const response = await fetch(apiUrl, {
         method: 'GET',
@@ -191,10 +193,10 @@ export class PushinPayAdapter implements IPaymentGateway {
       });
 
       const responseText = await response.text();
-      console.log(`[PushinPayAdapter] Status: ${response.status}`);
+      log.debug(`Response status: ${response.status}`);
 
       if (!response.ok) {
-        console.error('[PushinPayAdapter] Erro ao consultar status:', responseText);
+        log.error("Error fetching status:", responseText);
         throw new Error(`Erro ao consultar PIX: ${response.status}`);
       }
 
@@ -208,7 +210,7 @@ export class PushinPayAdapter implements IPaymentGateway {
 
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-      console.error('[PushinPayAdapter] Erro ao consultar status:', errorMessage);
+      log.error("Error fetching status:", errorMessage);
       throw error;
     }
   }
@@ -219,7 +221,7 @@ export class PushinPayAdapter implements IPaymentGateway {
    * PushinPay não suporta cartão de crédito.
    */
   async createCreditCard(_request: PaymentRequest): Promise<PaymentResponse> {
-    console.warn('[PushinPayAdapter] Cartão de crédito não é suportado pelo PushinPay');
+    log.warn("Credit card is not supported by PushinPay");
     return {
       success: false,
       transaction_id: '',
