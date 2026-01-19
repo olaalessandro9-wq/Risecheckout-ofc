@@ -8,6 +8,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { MercadoPagoIntegration } from "../types";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("UseMercadoPagoConfig");
 
 interface MercadoPagoConfigResponse {
   success?: boolean;
@@ -26,7 +29,7 @@ export function useMercadoPagoConfig(vendorId?: string) {
     queryKey: ["mercadopago-config", vendorId],
     queryFn: async (): Promise<MercadoPagoIntegration | null> => {
       if (!vendorId) {
-        console.warn("[MercadoPago] vendorId não fornecido para useMercadoPagoConfig");
+        log.warn("vendorId não fornecido para useMercadoPagoConfig");
         return null;
       }
 
@@ -38,19 +41,19 @@ export function useMercadoPagoConfig(vendorId?: string) {
         });
 
         if (error) {
-          console.error("[MercadoPago] Edge function error:", error);
+          log.error("Edge function error:", error);
           return null;
         }
 
         if (!data?.success || !data?.data) {
-          console.log("[MercadoPago] Integração não encontrada para vendor:", vendorId);
+          log.debug("Integração não encontrada para vendor:", vendorId);
           return null;
         }
 
-        console.log("[MercadoPago] Configuração carregada com sucesso para vendor:", vendorId);
+        log.info("Configuração carregada com sucesso para vendor:", vendorId);
         return data.data;
       } catch (error: unknown) {
-        console.error("[MercadoPago] Erro inesperado ao carregar config:", error);
+        log.error("Erro inesperado ao carregar config:", error);
         return null;
       }
     },

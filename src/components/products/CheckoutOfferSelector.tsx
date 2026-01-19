@@ -6,6 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatCentsToBRL as formatBRL } from "@/lib/money";
 import { AlertCircle } from "lucide-react";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("CheckoutOfferSelector");
 
 type Offer = { 
   id: string; 
@@ -53,7 +56,7 @@ export function CheckoutOfferSelector({
       );
     } catch (e: unknown) {
       const errorMessage = e instanceof Error ? e.message : "Erro desconhecido";
-      console.error("[CheckoutOfferSelector] Erro ao associar oferta:", errorMessage);
+      log.error("Erro ao associar oferta:", errorMessage);
       toast.error("Falha ao associar oferta ao checkout");
     } finally {
       setProcessingOfferId(null);

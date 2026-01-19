@@ -5,6 +5,9 @@ import { ComponentData } from "../../types";
 import { uploadViaEdge } from "@/lib/storage/storageProxy";
 import type { ImageContent } from "@/types/checkout-components.types";
 import type { CheckoutDesign } from "@/types/checkoutEditor";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("ImageEditor");
 
 interface ImageEditorProps {
   component: ComponentData;
@@ -83,7 +86,7 @@ export const ImageEditor = ({ component, onChange }: ImageEditorProps) => {
       }, 2000);
 
     } catch (err: unknown) {
-      console.error("Upload da imagem falhou:", err);
+      log.error("Upload da imagem falhou:", err);
       onChange({
         ...content,
         _uploading: false,
