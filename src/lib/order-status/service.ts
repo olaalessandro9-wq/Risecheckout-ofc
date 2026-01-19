@@ -2,7 +2,7 @@
  * Order Status Service - Centralized Status Operations
  * 
  * @module lib/order-status
- * @version RISE V3 Compliant - Modelo Hotmart/Kiwify
+ * @version 2.0.0 - RISE V3 Compliant - Zero console.log
  * 
  * PADRÃO DE MERCADO: Uma venda pendente NUNCA vira "cancelada".
  * Status expired, cancelled, failed do gateway = 'pending' na UI.
@@ -24,8 +24,9 @@ import {
   isCanonicalStatus,
   CANONICAL_STATUSES,
 } from './types';
+import { createLogger } from "@/lib/logger";
 
-// ============================================================================
+const log = createLogger("OrderStatusService");
 // GATEWAY STATUS MAPPING
 // ============================================================================
 
@@ -111,7 +112,7 @@ class OrderStatusService {
     }
     
     // Status desconhecido = Pendente (padrão mercado: não existe "desconhecido")
-    console.warn(`[OrderStatusService] Unknown status: "${status}" → defaulting to "Pendente"`);
+    log.warn(`Unknown status: "${status}" → defaulting to "Pendente"`);
     return 'Pendente';
   }
 

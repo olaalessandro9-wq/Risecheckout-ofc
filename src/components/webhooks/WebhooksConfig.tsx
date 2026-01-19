@@ -1,7 +1,7 @@
 /**
  * WebhooksConfig - Configuração de Webhooks
  * 
- * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
+ * @version 2.0.0 - RISE Protocol V3 - Zero console.log
  */
 
 import { useState, useEffect } from "react";
@@ -27,6 +27,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("WebhooksConfig");
 
 interface WebhookCrudResponse {
   success?: boolean;
@@ -87,7 +90,7 @@ export function WebhooksConfig() {
       setProducts(data.products || []);
       setWebhooks(data.webhooks || []);
     } catch (error: unknown) {
-      console.error("Error loading data:", error);
+      log.error("Error loading data:", error);
       toast.error("Erro ao carregar dados");
     } finally {
       setLoading(false);
@@ -142,7 +145,7 @@ export function WebhooksConfig() {
       setEditingWebhook(null);
       loadData();
     } catch (error: unknown) {
-      console.error("Error saving webhook:", error);
+      log.error("Error saving webhook:", error);
       throw error;
     }
   };
@@ -166,7 +169,7 @@ export function WebhooksConfig() {
       toast.success("Webhook excluído com sucesso!");
       loadData();
     } catch (error: unknown) {
-      console.error("Error deleting webhook:", error);
+      log.error("Error deleting webhook:", error);
       toast.error("Erro ao excluir webhook");
       throw error;
     }

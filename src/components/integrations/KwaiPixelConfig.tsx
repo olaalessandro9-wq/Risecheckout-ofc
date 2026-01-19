@@ -1,7 +1,7 @@
 /**
  * KwaiPixelConfig
  * 
- * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
+ * @version 2.0.0 - RISE Protocol V3 - Zero console.log
  */
 
 import { useState, useEffect } from "react";
@@ -13,6 +13,9 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("KwaiPixelConfig");
 
 interface KwaiIntegrationResponse {
   integration?: {
@@ -64,7 +67,7 @@ export function KwaiPixelConfig() {
         setActive(integration.active || false);
       }
     } catch (error: unknown) {
-      console.error("Error loading Kwai config:", error);
+      log.error("Error loading Kwai config:", error);
       toast.error("Erro ao carregar configuração do Kwai");
     } finally {
       setLoading(false);
@@ -106,7 +109,7 @@ export function KwaiPixelConfig() {
 
       toast.success("Configuração do Kwai salva com sucesso!");
     } catch (error: unknown) {
-      console.error("Error saving Kwai config:", error);
+      log.error("Error saving Kwai config:", error);
       const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
       toast.error("Erro ao salvar configuração: " + errorMessage);
     } finally {
