@@ -8,7 +8,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
 import type { VendorPixel, ProductPixel, ProductPixelLinkData, PixelPlatform } from "@/components/pixels/types";
+
+const log = createLogger("UseProductPixels");
 
 interface LinkedPixel extends VendorPixel {
   link: ProductPixel;
@@ -48,22 +51,22 @@ export function useProductPixels(productId: string): UseProductPixelsReturn {
       });
 
       if (error) {
-        console.error("[useProductPixels] Fetch error:", error);
+        log.error("Fetch error:", error);
         return;
       }
 
       if (!data?.success) {
-        console.error("[useProductPixels] API error:", data?.error);
+        log.error("API error:", data?.error);
         return;
       }
 
       if (error) {
-        console.error("[useProductPixels] Fetch error:", error);
+        log.error("Fetch error:", error);
         return;
       }
 
       if (!data.success) {
-        console.error("[useProductPixels] API error:", data.error);
+        log.error("API error:", data.error);
         return;
       }
 
@@ -101,7 +104,7 @@ export function useProductPixels(productId: string): UseProductPixelsReturn {
 
       setLinkedPixels(linked);
     } catch (err) {
-      console.error("[useProductPixels] Fetch error:", err);
+      log.error("Fetch error:", err);
     } finally {
       setIsLoading(false);
     }
@@ -130,19 +133,19 @@ export function useProductPixels(productId: string): UseProductPixelsReturn {
       });
 
       if (error) {
-        console.error("[useProductPixels] Link error:", error);
+        log.error("Link error:", error);
         return false;
       }
 
       if (!result.success) {
-        console.error("[useProductPixels] API error:", result.error);
+        log.error("API error:", result.error);
         return false;
       }
 
       await fetchData();
       return true;
     } catch (err) {
-      console.error("[useProductPixels] Link error:", err);
+      log.error("Link error:", err);
       return false;
     } finally {
       setIsSaving(false);
@@ -160,19 +163,19 @@ export function useProductPixels(productId: string): UseProductPixelsReturn {
       });
 
       if (error) {
-        console.error("[useProductPixels] Unlink error:", error);
+        log.error("Unlink error:", error);
         return false;
       }
 
       if (!result.success) {
-        console.error("[useProductPixels] API error:", result.error);
+        log.error("API error:", result.error);
         return false;
       }
 
       await fetchData();
       return true;
     } catch (err) {
-      console.error("[useProductPixels] Unlink error:", err);
+      log.error("Unlink error:", err);
       return false;
     } finally {
       setIsSaving(false);
@@ -198,19 +201,19 @@ export function useProductPixels(productId: string): UseProductPixelsReturn {
       });
 
       if (error) {
-        console.error("[useProductPixels] Update link error:", error);
+        log.error("Update link error:", error);
         return false;
       }
 
       if (!result.success) {
-        console.error("[useProductPixels] API error:", result.error);
+        log.error("API error:", result.error);
         return false;
       }
 
       await fetchData();
       return true;
     } catch (err) {
-      console.error("[useProductPixels] Update link error:", err);
+      log.error("Update link error:", err);
       return false;
     } finally {
       setIsSaving(false);

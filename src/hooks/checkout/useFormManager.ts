@@ -97,7 +97,7 @@ function loadFromStorage(storageKey: string): CheckoutFormData | null {
       cpf: "",      // Não carregar CPF do localStorage
     };
   } catch (e) {
-    console.warn("[useFormManager] Erro ao carregar dados do localStorage:", e);
+    log.warn("Erro ao carregar dados do localStorage:", e);
     return null;
   }
 }
@@ -127,7 +127,7 @@ function saveToStorage(storageKey: string, formData: CheckoutFormData): void {
     
     localStorage.setItem(storageKey, JSON.stringify(dataToSave));
   } catch (e) {
-    console.warn("[useFormManager] Erro ao salvar dados no localStorage:", e);
+    log.warn("Erro ao salvar dados no localStorage:", e);
   }
 }
 

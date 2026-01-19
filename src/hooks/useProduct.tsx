@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
 import { uploadViaEdge } from "@/lib/storage/storageProxy";
+
+const log = createLogger("UseProduct");
 
 export interface ProductData {
   id?: string;
@@ -78,7 +81,7 @@ export const useProduct = () => {
       });
     } catch (error: unknown) {
       toast.error("Erro ao carregar produto");
-      console.error("Error loading product:", error);
+      log.error("Error loading product:", error);
     } finally {
       if (showLoading) {
         setLoading(false);
@@ -105,7 +108,7 @@ export const useProduct = () => {
       return publicUrl;
     } catch (error: unknown) {
       toast.error("Erro ao fazer upload da imagem");
-      console.error("Error uploading image:", error);
+      log.error("Error uploading image:", error);
       return null;
     }
   };
@@ -114,7 +117,7 @@ export const useProduct = () => {
     // Validar se o usuário está autenticado
     if (!user) {
       toast.error("Você precisa estar autenticado para salvar produtos");
-      console.error("User not authenticated");
+      log.error("User not authenticated");
       return;
     }
 
@@ -155,7 +158,7 @@ export const useProduct = () => {
         });
 
         if (error) {
-          console.error("Error updating product:", error);
+          log.error("Error updating product:", error);
           throw new Error(error.message);
         }
 
@@ -181,7 +184,7 @@ export const useProduct = () => {
         });
 
         if (error) {
-          console.error("Error creating product:", error);
+          log.error("Error creating product:", error);
           throw new Error(error.message);
         }
 
@@ -215,7 +218,7 @@ export const useProduct = () => {
       } else {
         toast.error(`Erro ao salvar produto: ${errorMessage}`);
       }
-      console.error("Error saving product:", error);
+      log.error("Error saving product:", error);
       throw error;
     }
   };
@@ -230,7 +233,7 @@ export const useProduct = () => {
       });
 
       if (error) {
-        console.error("Error deleting product:", error);
+        log.error("Error deleting product:", error);
         toast.error("Erro ao excluir produto", { description: error.message });
         return false;
       }
