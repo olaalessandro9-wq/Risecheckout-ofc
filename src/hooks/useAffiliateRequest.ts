@@ -4,6 +4,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
 import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 import { useAffiliationStatusCache } from "@/hooks/useAffiliationStatusCache";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("AffiliateRequest");
 
 interface AffiliationResponse {
   success?: boolean;
@@ -76,7 +79,7 @@ export function useAffiliateRequest(): UseAffiliateRequestReturn & { isCheckingS
         setError(null);
         setSuccess(null);
 
-        console.log("[useAffiliateRequest] Chamando Edge Function request-affiliation");
+        log.debug("Chamando Edge Function request-affiliation");
         
         const { data, error: fnError } = await api.call<AffiliationResponse>("request-affiliation", {
           product_id: productId,
@@ -84,7 +87,7 @@ export function useAffiliateRequest(): UseAffiliateRequestReturn & { isCheckingS
 
         if (fnError) {
           const errorMessage = fnError.message || "Erro ao solicitar afiliação. Tente novamente.";
-          console.error("[useAffiliateRequest] Erro na Edge Function:", fnError);
+          log.error("Erro na Edge Function", fnError);
           
           // Se o erro indica que já existe solicitação pendente, atualizar status ao invés de mostrar erro
           if (errorMessage.toLowerCase().includes("pendente") || errorMessage.toLowerCase().includes("pending")) {
@@ -93,7 +96,7 @@ export function useAffiliateRequest(): UseAffiliateRequestReturn & { isCheckingS
               status: "pending",
             });
             setSuccess("Você já possui uma solicitação pendente para este produto.");
-            console.log("[useAffiliateRequest] Solicitação já pendente detectada via erro");
+            log.debug("Solicitação já pendente detectada via erro");
             return;
           }
           
@@ -116,7 +119,7 @@ export function useAffiliateRequest(): UseAffiliateRequestReturn & { isCheckingS
           // NOVO: Atualizar cache global imediatamente
           updateCacheStatus(productId, newStatus, data.affiliationId);
           
-          console.log("[useAffiliateRequest] Afiliação processada:", { 
+          log.debug("Afiliação processada", { 
             status: newStatus, 
             hasCode: !!data.affiliate_code 
           });
@@ -129,14 +132,14 @@ export function useAffiliateRequest(): UseAffiliateRequestReturn & { isCheckingS
               status: "pending",
             });
             setSuccess("Você já possui uma solicitação pendente para este produto.");
-            console.log("[useAffiliateRequest] Solicitação já pendente detectada via resposta");
+            log.debug("Solicitação já pendente detectada via resposta");
             return;
           }
           
           setError(errorMessage || "Erro desconhecido ao solicitar afiliação.");
         }
       } catch (err: unknown) {
-        console.error("[useAffiliateRequest] Erro ao solicitar afiliação:", err);
+        log.error("Erro ao solicitar afiliação", err);
         setError(err instanceof Error ? err.message : "Erro ao solicitar afiliação. Tente novamente.");
       } finally {
         setIsLoading(false);
@@ -162,8 +165,7 @@ export function useAffiliateRequest(): UseAffiliateRequestReturn & { isCheckingS
       try {
         const status = await checkAffiliationStatus(productId, user.id);
         setAffiliationStatus(status);
-      } catch (err) {
-        console.error("[useAffiliateRequest] Erro ao verificar status:", err);
+      } catch {
         setAffiliationStatus({ isAffiliate: false });
       } finally {
         setIsCheckingStatus(false);

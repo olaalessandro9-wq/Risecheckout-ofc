@@ -48,12 +48,7 @@ export function useMarketplaceTracking(): UseMarketplaceTrackingReturn {
     trackingTimeout.current = setTimeout(async () => {
       try {
         await trackProductView(productId);
-        
-        if (import.meta.env.DEV) {
-          console.log(`[Marketplace] Visualização rastreada: ${productId}`);
-        }
       } catch (error: unknown) {
-        console.error("[Marketplace] Erro ao rastrear visualização:", error);
         // Remover do set para permitir retry
         trackedViews.current.delete(productId);
       }
@@ -67,12 +62,7 @@ export function useMarketplaceTracking(): UseMarketplaceTrackingReturn {
   const trackClick = useCallback(async (productId: string) => {
     try {
       await trackProductClick(productId);
-      
-      if (import.meta.env.DEV) {
-        console.log(`[Marketplace] Clique rastreado: ${productId}`);
-      }
-    } catch (error: unknown) {
-      console.error("[Marketplace] Erro ao rastrear clique:", error);
+    } catch {
       // Não lançar erro para não bloquear a UI
     }
   }, []);

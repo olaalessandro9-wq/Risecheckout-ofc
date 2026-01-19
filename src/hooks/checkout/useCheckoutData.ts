@@ -12,7 +12,10 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { parseJsonSafely } from "@/lib/utils";
 import { normalizeDesign } from "@/lib/checkout/normalizeDesign";
+import { createLogger } from "@/lib/logger";
 import type { ThemePreset } from "@/lib/checkout/themePresets";
+
+const log = createLogger("CheckoutData");
 
 // Helpers modulares
 import {
@@ -109,7 +112,7 @@ export function useCheckoutData(): UseCheckoutDataReturn {
       setIsLoading(true);
       setIsError(false);
 
-      console.log('[useCheckoutData V3] Carregando checkout:', slug);
+      log.debug('Carregando checkout', { slug });
 
       // 1. Resolver slug → IDs
       const { checkoutId, productId } = await resolveCheckoutSlug(slug);
@@ -183,10 +186,10 @@ export function useCheckoutData(): UseCheckoutDataReturn {
       setDesign(normalizeDesign(fullCheckout as unknown as Parameters<typeof normalizeDesign>[0]));
       setOrderBumps(bumps);
 
-      console.log('[useCheckoutData V3] ✅ Checkout carregado com sucesso');
+      log.info('Checkout carregado com sucesso');
 
     } catch (error: unknown) {
-      console.error('[useCheckoutData V3] Erro ao carregar checkout:', error);
+      log.error('Erro ao carregar checkout', error);
       setIsError(true);
     } finally {
       setIsLoading(false);

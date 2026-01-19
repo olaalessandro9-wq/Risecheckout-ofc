@@ -18,6 +18,9 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { Loader2 } from "lucide-react";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("PaymentLinkRedirect");
 
 // Interface para tipagem do linkData retornado
 interface PaymentLinkWithOffers {
@@ -42,12 +45,8 @@ const PaymentLinkRedirect = () => {
   const [isInactive, setIsInactive] = useState(false);
 
   useEffect(() => {
-    console.log("[PaymentLinkRedirect] v3.0 MIGRATED - slug:", slug);
+    log.debug("v3.0 MIGRATED - slug:", slug);
     
-    /**
-     * Process payment link via Edge Function
-     * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
-     */
     const processPaymentLink = async () => {
       if (!slug) {
         setError("Link inválido");
@@ -64,45 +63,39 @@ const PaymentLinkRedirect = () => {
         });
 
         if (fetchError) {
-          console.error("Erro ao buscar link:", fetchError);
-          // Fallback: redirecionar direto para /pay/:slug (compatibilidade com slugs antigos de checkout)
+          log.error("Erro ao buscar link", fetchError);
           navigate(`/pay/${slug}?build=v3_0`, { replace: true });
           return;
         }
 
         if (!data?.success || !data?.data) {
-          console.error("Link não encontrado");
-          // Fallback: ainda tentar abrir diretamente no /pay/:slug
+          log.error("Link não encontrado");
           navigate(`/pay/${slug}?build=v3_0`, { replace: true });
           return;
         }
 
-        console.log("[PaymentLinkRedirect] Link encontrado:", data.data);
+        log.debug("Link encontrado", data.data);
         
         const typedLinkData = data.data;
 
-        // 2. Verificar se o link está ativo
         if (typedLinkData.status === "inactive") {
-          console.log("[PaymentLinkRedirect] Link desativado");
+          log.debug("Link desativado");
           setIsInactive(true);
           setError("Produto não disponível, inativo ou bloqueado. Contate o suporte para mais informações.");
           return;
         }
 
-        // 3. Verificar se o produto está ativo
         const product = typedLinkData.offers?.products;
         if (product && product.status === "blocked") {
-          console.log("[PaymentLinkRedirect] Produto bloqueado");
+          log.debug("Produto bloqueado");
           setIsInactive(true);
           setError("Produto não disponível, inativo ou bloqueado. Contate o suporte para mais informações.");
           return;
         }
 
-        // 4. Redirecionar para /pay/:slug (usando o slug do payment_link)
         navigate(`/pay/${typedLinkData.slug}?build=v3_0`, { replace: true });
       } catch (err) {
-        console.error("Erro ao processar link:", err);
-        // Fallback: redirecionar direto para /pay/:slug
+        log.error("Erro ao processar link", err);
         navigate(`/pay/${slug}?build=v3_0`, { replace: true });
         return;
       }

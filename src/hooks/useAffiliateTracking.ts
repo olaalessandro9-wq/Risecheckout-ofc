@@ -148,10 +148,6 @@ const savePendingAffiliateCode = (code: string): void => {
   };
 
   sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(pendingData));
-
-  if (import.meta.env.DEV) {
-    console.log(`[Affiliate] Código capturado temporariamente: ${code}`);
-  }
 };
 
 /**
@@ -170,9 +166,6 @@ export const persistAffiliateCode = (
   const existingCode = getAffiliateCode();
   
   if (existingCode && attributionModel === 'first_click') {
-    if (import.meta.env.DEV) {
-      console.log(`[Affiliate] Primeiro clique: mantendo código ${existingCode}`);
-    }
     clearPendingAffiliateCode();
     return false;
   }
@@ -193,10 +186,6 @@ export const persistAffiliateCode = (
 
   // Limpa sessionStorage após persistência
   clearPendingAffiliateCode();
-
-  if (import.meta.env.DEV) {
-    console.log(`[Affiliate] Código persistido: ${code} (duração: ${cookieDuration} dias, modelo: ${attributionModel})`);
-  }
 
   return true;
 };

@@ -17,6 +17,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import { createCardToken } from '@mercadopago/sdk-react';
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("PaymentOrchestrator");
 import type { PaymentMethod, OrderBump, CheckoutFormData } from "@/types/checkout";
 import { useOrderCreation, type PersonalDataOverride } from "./useOrderCreation";
 import { usePixPayment } from "./usePixPayment";
@@ -171,12 +174,12 @@ export function usePaymentOrchestrator({
     script.async = true;
     script.onload = () => {
       if (window.MercadoPago) {
-        console.log("[PaymentOrchestrator] ✅ SDK carregada");
+        log.info("SDK carregada");
         setIsSDKLoaded(true);
       }
     };
     script.onerror = () => {
-      console.error("[PaymentOrchestrator] ❌ Erro ao carregar SDK");
+      log.error("Erro ao carregar SDK");
       toast.error("Erro ao carregar o sistema de pagamento");
     };
     document.head.appendChild(script);
@@ -227,12 +230,12 @@ export function usePaymentOrchestrator({
       const effectiveName = personalDataOverride?.name || formData.name;
       const effectiveEmail = personalDataOverride?.email || formData.email;
 
-      console.log("[PaymentOrchestrator] Iniciando...", {
+      log.debug("Iniciando pagamento", {
         method: actualPaymentMethod,
         gateway: activeGateway,
         hasToken: !!token,
         usingOverride: !!personalDataOverride,
-        effectiveEmail, // Log para debug
+        effectiveEmail,
       });
 
       // Validações básicas usando dados efetivos
@@ -289,7 +292,7 @@ export function usePaymentOrchestrator({
         );
       }
     } catch (error: unknown) {
-      console.error("[PaymentOrchestrator] Erro:", error);
+      log.error("Erro no pagamento", error);
       toast.error(error instanceof Error ? error.message : "Não foi possível processar seu pagamento.");
     } finally {
       setIsProcessing(false);

@@ -68,7 +68,6 @@ export const useCheckoutEditor = () => {
   // --- AÇÕES ---
 
   const handleUpdateDesign = useCallback((design: CheckoutDesign) => {
-    if (import.meta.env.DEV) console.log('🎨 [useCheckoutEditor] Updating design');
     setCustomization((prev) => ({ ...prev, design }));
     touch();
   }, [touch]);

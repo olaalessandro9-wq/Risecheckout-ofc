@@ -9,6 +9,9 @@
 
 import { useRef, useState, useMemo } from "react";
 import { toast } from "sonner";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("CheckoutController");
 
 // Hooks V2
 import { useCheckoutData } from "@/hooks/checkout/useCheckoutData";
@@ -152,14 +155,14 @@ function getRequiredFieldsArray(requiredFields: RequiredFieldsConfig | string[] 
       isCardValid = result.isValid;
       
       if (!result.isValid) {
-        console.log("Erros do Cartão detectados:", result.errors);
+        log.debug("Erros do Cartão detectados", result.errors);
       }
     }
 
     // 3. Bloqueio Final
     // Se qualquer um dos dois falhar, paramos TUDO aqui.
     if (!isPersonalDataValid || !isCardValid) {
-      console.log("Bloqueio de compra: Campos inválidos detectados.");
+      log.debug("Bloqueio de compra: Campos inválidos detectados");
       
       // Feedback visual extra para o usuário
       if (!isPersonalDataValid) {
@@ -179,7 +182,7 @@ function getRequiredFieldsArray(requiredFields: RequiredFieldsConfig | string[] 
     try {
       await paymentGateway.submitPayment();
     } catch (error: unknown) {
-      console.error('[ControllerV2] Erro no submit:', error);
+      log.error('Erro no submit', error);
       formManager.setProcessing(false);
     }
   };

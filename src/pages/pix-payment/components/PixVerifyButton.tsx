@@ -5,6 +5,9 @@
 import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("PixVerifyButton");
 
 interface PixVerifyButtonProps {
   checkingPayment: boolean;
@@ -13,20 +16,20 @@ interface PixVerifyButtonProps {
 
 export function PixVerifyButton({ checkingPayment, onCheckStatus }: PixVerifyButtonProps) {
   const handleClick = async () => {
-    console.log("[PixVerifyButton] 🔍 Botão verificar agora clicado");
+    log.debug("Botão verificar agora clicado");
     
     try {
       const result = await onCheckStatus();
       
       if (!result.paid) {
-        console.log("[PixVerifyButton] ⏳ Pagamento ainda não confirmado");
+        log.debug("Pagamento ainda não confirmado");
         toast.info(
           "Pagamento ainda não confirmado. Aguarde alguns segundos após pagar.",
           { duration: 4000 }
         );
       }
     } catch (err: unknown) {
-      console.error("[PixVerifyButton] ❌ Erro ao verificar pagamento:", err);
+      log.error("Erro ao verificar pagamento", err);
       const errorMsg = err instanceof Error ? err.message : "Erro ao verificar pagamento. Tente novamente.";
       toast.error(errorMsg, { duration: 5000 });
     }
