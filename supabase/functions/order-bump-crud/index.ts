@@ -18,6 +18,9 @@ import { handleCors } from "../_shared/cors.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 import { checkRateLimit, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiting/index.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("order-bump-crud");
 
 // ============================================
 // INTERFACES
@@ -199,7 +202,7 @@ serve(withSentry("order-bump-crud", async (req) => {
     }
     const producerId = producer.id;
 
-    console.log(`[order-bump-crud] Action: ${action}, Producer: ${producerId}`);
+    log.info(`Action: ${action}, Producer: ${producerId}`);
 
     // ========== CREATE ==========
     if (action === "create" && req.method === "POST") {

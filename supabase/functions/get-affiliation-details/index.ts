@@ -11,6 +11,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 import { maskId } from "../_shared/kernel/security/pii-masking.ts";
+import { createLogger } from "../_shared/logger.ts";
 import {
   fetchAffiliationWithValidation,
   fetchProductData,
@@ -25,6 +26,8 @@ import {
   type ProducerRecord,
   type MarketplaceProduct,
 } from "../_shared/affiliation-queries/index.ts";
+
+const log = createLogger("get-affiliation-details");
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
@@ -55,7 +58,7 @@ Deno.serve(async (req) => {
     }
 
     const userId = producer.id;
-    console.log(`[get-affiliation-details] User: ${maskId(producer.id)}`);
+    log.info(`User: ${maskId(producer.id)}`);
 
     // Get affiliation_id from body
     const body = await req.json() as RequestBody;
@@ -140,7 +143,7 @@ Deno.serve(async (req) => {
       allowed_gateways: extractGatewaySettings(product),
     };
 
-    console.log(`[get-affiliation-details] Success for ${maskId(affiliation_id)}`);
+    log.info(`Success for ${maskId(affiliation_id)}`);
 
     return new Response(
       JSON.stringify({ affiliation: affiliationResponse, otherProducts }),
@@ -148,7 +151,7 @@ Deno.serve(async (req) => {
     );
 
   } catch (error: unknown) {
-    console.error("[get-affiliation-details] Unexpected error:", error);
+    log.error("Unexpected error:", error);
     return new Response(
       JSON.stringify({ error: "Erro interno do servidor" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

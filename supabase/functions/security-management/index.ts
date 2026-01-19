@@ -17,6 +17,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors } from "../_shared/cors.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("security-management");
 
 // ============================================
 // TYPES
@@ -65,7 +68,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (roleError || !userRole) {
-      console.error("[security-management] Role não encontrada:", roleError);
+      log.error("Role not found:", roleError);
       return new Response(
         JSON.stringify({ success: false, error: "Permissão não encontrada" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -74,7 +77,7 @@ Deno.serve(async (req) => {
 
     const role = userRole.role as string;
     if (role !== "admin" && role !== "owner") {
-      console.warn(`[security-management] Acesso negado para role: ${role}`);
+      log.warn(`Access denied for role: ${role}`);
       return new Response(
         JSON.stringify({ success: false, error: "Acesso negado. Requer role admin ou owner." }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -85,7 +88,7 @@ Deno.serve(async (req) => {
     const body: SecurityRequest = await req.json();
     const { action, alertId, ipAddress, reason, expiresInDays } = body;
 
-    console.log(`[security-management] Action: ${action} by ${producer.id}`);
+    log.info(`Action: ${action} by ${producer.id}`);
 
     // Route to handler
     switch (action) {
@@ -107,7 +110,7 @@ Deno.serve(async (req) => {
           .eq("id", alertId);
 
         if (error) {
-          console.error("[security-management] Erro ao reconhecer alerta:", error);
+          log.error("Error acknowledging alert:", error);
           return new Response(
             JSON.stringify({ success: false, error: "Erro ao reconhecer alerta" }),
             { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -126,7 +129,7 @@ Deno.serve(async (req) => {
           p_metadata: { alertId },
         });
 
-        console.log(`[security-management] Alerta ${alertId} reconhecido por ${producer.id}`);
+        log.info(`Alert ${alertId} acknowledged by ${producer.id}`);
         return new Response(
           JSON.stringify({ success: true, alertId }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -160,7 +163,7 @@ Deno.serve(async (req) => {
           );
 
         if (error) {
-          console.error("[security-management] Erro ao bloquear IP:", error);
+          log.error("Error blocking IP:", error);
           return new Response(
             JSON.stringify({ success: false, error: "Erro ao bloquear IP" }),
             { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -179,7 +182,7 @@ Deno.serve(async (req) => {
           p_metadata: { ipAddress, reason, expiresInDays },
         });
 
-        console.log(`[security-management] IP ${ipAddress} bloqueado por ${producer.id}`);
+        log.info(`IP ${ipAddress} blocked by ${producer.id}`);
         return new Response(
           JSON.stringify({ success: true, ipAddress, expiresAt }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -203,7 +206,7 @@ Deno.serve(async (req) => {
           .eq("ip_address", ipAddress);
 
         if (error) {
-          console.error("[security-management] Erro ao desbloquear IP:", error);
+          log.error("Error unblocking IP:", error);
           return new Response(
             JSON.stringify({ success: false, error: "Erro ao desbloquear IP" }),
             { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -222,7 +225,7 @@ Deno.serve(async (req) => {
           p_metadata: { ipAddress },
         });
 
-        console.log(`[security-management] IP ${ipAddress} desbloqueado por ${producer.id}`);
+        log.info(`IP ${ipAddress} unblocked by ${producer.id}`);
         return new Response(
           JSON.stringify({ success: true, ipAddress }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -237,7 +240,7 @@ Deno.serve(async (req) => {
     }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Erro interno";
-    console.error("[security-management] Error:", errorMessage);
+    log.error("Error:", errorMessage);
     
     return new Response(
       JSON.stringify({ 
