@@ -16,8 +16,8 @@ import {
   fetchProduct,
   fetchProductOffers,
   fetchProductOrderBumps,
-  fetchProductCheckouts,
-  fetchProductPaymentLinks,
+  fetchProductCheckoutsWithRelations,
+  fetchProductPaymentLinksWithRelations,
   fetchProductCoupons,
 } from "../_shared/entities/index.ts";
 
@@ -72,7 +72,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Fetch all data in parallel using shared handlers
+    // Fetch all data in parallel using shared handlers WITH RELATIONS
     const [
       productResult,
       offers,
@@ -84,8 +84,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       fetchProduct(supabase, productId, vendorId),
       fetchProductOffers(supabase, productId),
       fetchProductOrderBumps(supabase, productId),
-      fetchProductCheckouts(supabase, productId),
-      fetchProductPaymentLinks(supabase, productId),
+      fetchProductCheckoutsWithRelations(supabase, productId),
+      fetchProductPaymentLinksWithRelations(supabase, productId),
       fetchProductCoupons(supabase, productId),
     ]);
 

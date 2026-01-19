@@ -77,15 +77,41 @@ export interface CheckoutRecord {
   visits_count: number;
   created_at: string;
   updated_at: string | null;
+  // Relações aninhadas (BFF com WithRelations)
+  products?: {
+    name: string;
+    price: number;
+  } | null;
+  checkout_links?: Array<{
+    link_id: string;
+    payment_links?: {
+      offers?: {
+        name: string;
+        price: number;
+      } | null;
+    } | null;
+  }>;
 }
 
 export interface PaymentLinkRecord {
   id: string;
-  checkout_id: string;
-  offer_id: string;
   slug: string;
-  active: boolean;
-  created_at: string;
+  url?: string;
+  status?: string;
+  active?: boolean;
+  created_at?: string;
+  // Relações aninhadas (BFF com WithRelations)
+  offers?: {
+    id: string;
+    name: string;
+    price: number;
+    is_default: boolean;
+    product_id: string;
+  } | null;
+  checkouts?: Array<{
+    id: string;
+    name: string;
+  }>;
 }
 
 export interface CouponRecord {
