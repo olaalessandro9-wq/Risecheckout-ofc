@@ -13,6 +13,9 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { rateLimitMiddleware, getClientIP } from "../_shared/rate-limiting/index.ts";
 import { sendEmail } from "../_shared/zeptomail.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("gdpr-forget");
 
 // ============================================================================
 // TYPES
@@ -102,7 +105,7 @@ async function anonymizeOrders(
     .in("id", orderIds);
 
   if (updateError) {
-    console.error("[gdpr-forget] Erro ao anonimizar orders:", updateError);
+    log.error("Erro ao anonimizar orders:", updateError);
     throw new Error(`Falha ao anonimizar orders: ${updateError.message}`);
   }
 
@@ -146,7 +149,7 @@ async function anonymizeBuyerProfiles(
     .in("id", profileIds);
 
   if (updateError) {
-    console.error("[gdpr-forget] Erro ao anonimizar buyer_profiles:", updateError);
+    log.error("Erro ao anonimizar buyer_profiles:", updateError);
     throw new Error(`Falha ao anonimizar buyer_profiles: ${updateError.message}`);
   }
 
@@ -201,7 +204,7 @@ async function anonymizeBuyerSessions(
     .in("id", sessions.map(s => s.id));
 
   if (updateError) {
-    console.error("[gdpr-forget] Erro ao anonimizar buyer_sessions:", updateError);
+    log.error("Erro ao anonimizar buyer_sessions:", updateError);
   }
 
   return {
@@ -240,7 +243,7 @@ async function anonymizeCheckoutVisits(
     .in("id", visits.map(v => v.id));
 
   if (updateError) {
-    console.error("[gdpr-forget] Erro ao anonimizar checkout_visits:", updateError);
+    log.error("Erro ao anonimizar checkout_visits:", updateError);
   }
 
   return {
@@ -492,7 +495,7 @@ serve(async (req: Request) => {
       results.push(visitsResult);
 
     } catch (anonError: unknown) {
-      console.error("[gdpr-forget] Erro durante anonimização:", anonError);
+      log.error("Erro durante anonimização:", anonError);
       
       await supabase
         .from("gdpr_requests")
@@ -555,7 +558,7 @@ serve(async (req: Request) => {
       type: "transactional"
     });
 
-    console.log(`[gdpr-forget] Anonimização concluída: ${totalRecords} registros em ${results.filter(r => r.records_affected > 0).length} tabelas`);
+    log.info(`Anonimização concluída: ${totalRecords} registros em ${results.filter(r => r.records_affected > 0).length} tabelas`);
 
     // 18. Resposta de sucesso
     const response: GdprForgetResponse = {
@@ -570,7 +573,7 @@ serve(async (req: Request) => {
     );
 
   } catch (error: unknown) {
-    console.error("[gdpr-forget] Erro inesperado:", error);
+    log.error("Erro inesperado:", error);
     return new Response(
       JSON.stringify({ 
         success: false,

@@ -10,8 +10,10 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
+const log = createLogger("facebook-conversion-api");
 
 const FB_API_VERSION = 'v18.0';
 const FB_API_BASE = `https://graph.facebook.com/${FB_API_VERSION}`;
@@ -95,14 +97,14 @@ serve(async (req) => {
     const fbResult = await fbResponse.json();
 
     if (!fbResponse.ok) {
-      console.error('[facebook-conversion-api] FB API error:', fbResult);
+      log.error('FB API error:', fbResult);
       return new Response(
         JSON.stringify({ success: false, error: fbResult }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`[facebook-conversion-api] Event ${eventName} sent to pixel ${pixelId}`);
+    log.info(`Event ${eventName} sent to pixel ${pixelId}`);
 
     return new Response(
       JSON.stringify({ success: true, result: fbResult }),
@@ -111,7 +113,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[facebook-conversion-api] Error:', errorMessage);
+    log.error('Error:', errorMessage);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

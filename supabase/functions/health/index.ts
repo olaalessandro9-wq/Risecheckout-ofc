@@ -1,7 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
+const log = createLogger("health");
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
