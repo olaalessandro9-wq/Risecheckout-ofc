@@ -19,7 +19,7 @@
  * ============================================================================
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { createLogger } from "../_shared/logger.ts";
 import {
@@ -29,6 +29,7 @@ import {
   getEncryptedVersion,
   isEncrypted,
   DEFAULT_ROTATION_CONFIG,
+  KeyProvider,
 } from "../_shared/kms/index.ts";
 
 const log = createLogger("KeyRotationExecutor");
@@ -36,6 +37,9 @@ const log = createLogger("KeyRotationExecutor");
 // ============================================================================
 // TYPES
 // ============================================================================
+
+// deno-lint-ignore no-explicit-any
+type SupabaseClientAny = SupabaseClient<any, any, any>;
 
 interface StatusResponse {
   activeVersion: number;
@@ -52,6 +56,27 @@ interface RotationStatus {
   recordsFailed: number;
   startedAt: string;
   completedAt: string | null;
+}
+
+interface KeyVersionRow {
+  version: number;
+  status: string;
+}
+
+interface RotationLogRow {
+  id: string;
+  from_version: number;
+  to_version: number;
+  status: string;
+  records_processed: number;
+  records_failed: number;
+  started_at: string;
+  completed_at: string | null;
+}
+
+interface ActivateResponse {
+  success: boolean;
+  error?: string;
 }
 
 // ============================================================================
@@ -73,7 +98,7 @@ Deno.serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    const supabase: SupabaseClientAny = createClient(supabaseUrl, serviceRoleKey);
 
     const body = await req.json();
     const { action } = body;
@@ -115,7 +140,7 @@ Deno.serve(async (req: Request) => {
 // ============================================================================
 
 async function handleStatus(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClientAny,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
   const provider = getDefaultKeyProvider();
@@ -125,19 +150,19 @@ async function handleStatus(
   const { data: versions } = await supabase
     .from("encryption_key_versions")
     .select("version, status")
-    .order("version", { ascending: false });
+    .order("version", { ascending: false }) as { data: KeyVersionRow[] | null };
 
   // Buscar rotações pendentes
   const { data: rotations } = await supabase
     .from("key_rotation_log")
     .select("*")
     .in("status", ["running"])
-    .order("started_at", { ascending: false });
+    .order("started_at", { ascending: false }) as { data: RotationLogRow[] | null };
 
   const response: StatusResponse = {
     activeVersion,
-    availableVersions: (versions || []).map(v => v.version),
-    pendingRotations: (rotations || []).map(r => ({
+    availableVersions: (versions || []).map((v: KeyVersionRow) => v.version),
+    pendingRotations: (rotations || []).map((r: RotationLogRow) => ({
       id: r.id,
       fromVersion: r.from_version,
       toVersion: r.to_version,
@@ -156,7 +181,7 @@ async function handleStatus(
 }
 
 async function handlePrepare(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClientAny,
   body: { newVersion: number; keyIdentifier?: string },
   corsHeaders: Record<string, string>
 ): Promise<Response> {
@@ -182,7 +207,7 @@ async function handlePrepare(
   }
 
   // Registrar versão
-  const { data, error } = await supabase.rpc("register_key_version", {
+  const { error } = await supabase.rpc("register_key_version", {
     p_version: newVersion,
     p_key_identifier: keyIdentifier,
     p_algorithm: "AES-256-GCM",
@@ -204,7 +229,7 @@ async function handlePrepare(
 }
 
 async function handleRotate(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClientAny,
   body: { targetVersion: number; batchSize?: number },
   corsHeaders: Record<string, string>
 ): Promise<Response> {
@@ -226,7 +251,7 @@ async function handleRotate(
   const { data: logId } = await supabase.rpc("start_key_rotation_log", {
     p_from_version: fromVersion,
     p_to_version: targetVersion,
-  });
+  }) as { data: string | null };
 
   let totalProcessed = 0;
   let totalFailed = 0;
@@ -293,7 +318,7 @@ async function handleRotate(
 }
 
 async function handleActivate(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClientAny,
   body: { version: number },
   corsHeaders: Record<string, string>
 ): Promise<Response> {
@@ -301,7 +326,7 @@ async function handleActivate(
 
   const { data, error } = await supabase.rpc("activate_key_version", {
     p_version: version,
-  });
+  }) as { data: ActivateResponse | null; error: Error | null };
 
   if (error) {
     return new Response(
@@ -310,7 +335,7 @@ async function handleActivate(
     );
   }
 
-  if (!data.success) {
+  if (data && !data.success) {
     return new Response(
       JSON.stringify({ error: data.error }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -329,15 +354,20 @@ async function handleActivate(
 // TABLE ROTATION
 // ============================================================================
 
+interface RotateTableResult {
+  processed: number;
+  failed: number;
+}
+
 async function rotateTable(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClientAny,
   tableName: string,
   columns: string[],
   primaryKey: string,
   targetVersion: number,
   batchSize: number,
-  provider: ReturnType<typeof getDefaultKeyProvider>
-): Promise<{ processed: number; failed: number }> {
+  provider: KeyProvider
+): Promise<RotateTableResult> {
   let processed = 0;
   let failed = 0;
   let lastId: string | null = null;
@@ -356,7 +386,8 @@ async function rotateTable(
       query = query.gt(primaryKey, lastId);
     }
 
-    const { data: rows, error } = await query;
+    // deno-lint-ignore no-explicit-any
+    const { data: rows, error } = await query as { data: any[] | null; error: Error | null };
 
     if (error) {
       throw new Error(`Error fetching ${tableName}: ${error.message}`);
