@@ -8,6 +8,9 @@
  */
 
 import { MercadoPagoInstallment } from './useMercadoPagoBrick';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger("BrickSdkInit");
 
 export interface CardFormConfig {
   publicKey: string;
@@ -48,7 +51,7 @@ export async function initCardForm(config: CardFormConfig): Promise<CardFormInst
       config.onInstallmentsReceived(null, installmentData);
     }
   } catch (e) {
-    console.warn("[Installments] Erro simul:", e);
+    log.warn("Erro simul:", e);
   }
 
   const cardForm = mp.cardForm({
@@ -111,7 +114,7 @@ export async function recalculateInstallments(
     
     return data?.[0]?.payer_costs || null;
   } catch (err) {
-    console.warn('[MercadoPago] Erro ao recalcular parcelas:', err);
+    log.warn('Erro ao recalcular parcelas:', err);
     return null;
   }
 }

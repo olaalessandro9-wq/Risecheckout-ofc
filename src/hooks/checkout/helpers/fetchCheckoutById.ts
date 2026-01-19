@@ -6,6 +6,9 @@
  */
 
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("FetchCheckoutById");
 
 export interface CheckoutRawData {
   id: string;
@@ -45,12 +48,12 @@ export async function fetchCheckoutById(checkoutId: string): Promise<CheckoutRaw
   });
 
   if (error) {
-    console.error('[fetchCheckoutById] Edge function error:', error);
+    log.error('Edge function error:', error);
     throw new Error("Checkout não encontrado");
   }
 
   if (!data?.success || !data?.data) {
-    console.error('[fetchCheckoutById] Invalid response:', data);
+    log.error('Invalid response:', data);
     throw new Error(data?.error || "Checkout não encontrado");
   }
 
