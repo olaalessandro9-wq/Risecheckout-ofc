@@ -9,6 +9,9 @@
 
 import React from "react";
 import { toast } from "sonner";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("PublicCheckoutV2Content");
 import { CheckoutProvider } from "@/contexts/CheckoutContext";
 import { TrackingManager } from "@/components/checkout/v2/TrackingManager";
 import { SharedCheckoutLayout } from "@/components/checkout/shared";
@@ -99,7 +102,7 @@ export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, desi
     try {
       fireInitiateCheckout(selectedBumps, orderBumps);
       if (selectedPayment === 'pix') await submitPayment(undefined, undefined, undefined, undefined, undefined, snapshot);
-    } catch (error: unknown) { console.error("[PublicCheckoutV2] Erro:", error); }
+    } catch (error: unknown) { log.error("Erro:", error); }
     finally { setProcessing(false); }
   }, [formData, validateForm, updateMultipleFields, setProcessing, fireInitiateCheckout, selectedBumps, orderBumps, selectedPayment, submitPayment]);
 
@@ -112,7 +115,7 @@ export const PublicCheckoutV2Content: React.FC<ContentProps> = ({ checkout, desi
     try {
       fireInitiateCheckout(selectedBumps, orderBumps);
       await submitPayment(token, installments, paymentMethodId, issuerId, holderDocument, snapshot);
-    } catch (error: unknown) { console.error("[PublicCheckoutV2] Erro cartão:", error); }
+    } catch (error: unknown) { log.error("Erro cartão:", error); }
     finally { setProcessing(false); }
   }, [formData, validateForm, updateMultipleFields, setProcessing, fireInitiateCheckout, selectedBumps, orderBumps, submitPayment]);
 

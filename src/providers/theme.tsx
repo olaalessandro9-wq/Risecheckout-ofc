@@ -1,4 +1,7 @@
 import * as React from 'react';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger("ThemeProvider");
 
 type Theme = 'light' | 'dark';
 
@@ -30,7 +33,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       // Salvar no localStorage
       localStorage.setItem('theme', theme);
     } catch (e) {
-      console.warn('Theme apply error:', e);
+      log.warn('Theme apply error:', e);
     }
   }, [theme]);
 
