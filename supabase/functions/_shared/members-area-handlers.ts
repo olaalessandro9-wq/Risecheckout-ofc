@@ -17,6 +17,9 @@ import {
   verifyProductOwnership as verifyOwnership,
   verifyModuleOwnership as verifyModule,
 } from "./edge-helpers.ts";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("MembersAreaHandlers");
 
 // ============================================
 // TYPES
@@ -110,7 +113,7 @@ export async function handleListModules(
     .order("position", { ascending: true });
 
   if (error) {
-    console.error("[members-area-modules] List error:", error);
+    log.error("List error", error);
     return errorResponse("Erro ao listar módulos", corsHeaders, 500);
   }
 
@@ -165,7 +168,7 @@ export async function handleCreateModule(
     .single();
 
   if (insertError) {
-    console.error("[members-area-modules] Create error:", insertError);
+    log.error("Create error", insertError);
     await captureException(new Error(insertError.message), {
       functionName: "members-area-modules",
       extra: { action: "create", producerId, productId },
@@ -173,7 +176,7 @@ export async function handleCreateModule(
     return errorResponse("Erro ao criar módulo", corsHeaders, 500);
   }
 
-  console.log(`[members-area-modules] Module created: ${newModule.id} by ${producerId}`);
+  log.info(`Module created: ${newModule.id} by ${producerId}`);
   return jsonResponse({ success: true, module: { ...newModule, contents: [] } }, corsHeaders);
 }
 
@@ -222,11 +225,11 @@ export async function handleUpdateModule(
     .single();
 
   if (updateError) {
-    console.error("[members-area-modules] Update error:", updateError);
+    log.error("Update error", updateError);
     return errorResponse("Erro ao atualizar módulo", corsHeaders, 500);
   }
 
-  console.log(`[members-area-modules] Module updated: ${moduleId} by ${producerId}`);
+  log.info(`Module updated: ${moduleId} by ${producerId}`);
   return jsonResponse({ success: true, module: updatedModule }, corsHeaders);
 }
 
@@ -251,11 +254,11 @@ export async function handleDeleteModule(
     .eq("id", moduleId);
 
   if (deleteError) {
-    console.error("[members-area-modules] Delete error:", deleteError);
+    log.error("Delete error", deleteError);
     return errorResponse("Erro ao excluir módulo", corsHeaders, 500);
   }
 
-  console.log(`[members-area-modules] Module deleted: ${moduleId} by ${producerId}`);
+  log.info(`Module deleted: ${moduleId} by ${producerId}`);
   return jsonResponse({ success: true, deletedId: moduleId }, corsHeaders);
 }
 
