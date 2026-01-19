@@ -1,7 +1,7 @@
 # Rise Checkout - Edge Functions Registry
 
 > **🔴 FONTE DA VERDADE MÁXIMA** - Este documento lista TODAS as Edge Functions deployadas no Supabase.  
-> Última atualização: 2026-01-18 (RISE V3 products-crud Refactoring)  
+> Última atualização: 2026-01-19 (RISE V3 Security Infrastructure)  
 > Mantenedor: AI Assistant + User
 
 ---
@@ -10,8 +10,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 110 |
-| **No código local** | 110 |
+| **Total de Funções** | 115 |
+| **No código local** | 115 |
 | **Apenas deployadas** | 0 |
 | **Operações Diretas Frontend** | 0 ✅ |
 | **Funções com verify_jwt=true** | 0 ✅ |
@@ -141,6 +141,12 @@
 | `test-deploy` | public | false | Deploy test |
 | `admin-health` | producer_sessions | false | unified-auth |
 | `owner-settings` | producer_sessions | false | unified-auth, owner only |
+| **Security Infrastructure (RISE V3)** | | | |
+| `rls-documentation-generator` | internal | false | Gera documentação RLS automática |
+| `key-rotation-executor` | internal | false | Gerenciamento de rotação de chaves de criptografia |
+| `rls-security-tester` | internal | false | Framework de testes de segurança RLS |
+| `session-manager` | producer_sessions | false | Gerenciamento de sessões (list, revoke, logout) |
+| `data-retention-executor` | internal | false | Executa limpeza de dados automatizada |
 | **RISE Protocol V2** | | | |
 | `rpc-proxy` | producer_sessions | false | unified-auth |
 | `storage-management` | producer_sessions | false | unified-auth |
@@ -174,12 +180,13 @@
 9. [Members Area](#members-area)
 10. [Email](#email)
 11. [Security & Crypto](#security--crypto)
-12. [User Management](#user-management)
-13. [Affiliates](#affiliates)
-14. [Pixels](#pixels)
-15. [LGPD/GDPR](#lgpdgdpr)
-16. [Vault & Credentials](#vault--credentials)
-17. [Health & Diagnostics](#health--diagnostics)
+12. [Security Infrastructure (RISE V3)](#security-infrastructure-rise-v3)
+13. [User Management](#user-management)
+14. [Affiliates](#affiliates)
+15. [Pixels](#pixels)
+16. [LGPD/GDPR](#lgpdgdpr)
+17. [Vault & Credentials](#vault--credentials)
+18. [Health & Diagnostics](#health--diagnostics)
 
 ---
 
@@ -305,6 +312,16 @@
 | `encrypt-token` | `.../encrypt-token` | ✅ | producer_sessions |
 | `security-management` | `.../security-management` | ✅ | producer_sessions |
 | `verify-turnstile` | `.../verify-turnstile` | ✅ | public |
+
+### Security Infrastructure (RISE V3)
+
+| Nome | URL | No Repo? | Auth | Descrição |
+|------|-----|----------|------|-----------|
+| `rls-documentation-generator` | `.../rls-documentation-generator` | ✅ | internal | Gera documentação RLS automática (SQL → Markdown) |
+| `key-rotation-executor` | `.../key-rotation-executor` | ✅ | internal | Gerenciamento de rotação de chaves de criptografia |
+| `rls-security-tester` | `.../rls-security-tester` | ✅ | internal | Framework automatizado de testes de segurança RLS |
+| `session-manager` | `.../session-manager` | ✅ | producer_sessions | Gerenciamento de sessões (list, revoke, logout-all) |
+| `data-retention-executor` | `.../data-retention-executor` | ✅ | internal | Executa limpeza de dados automatizada (16 tabelas) |
 
 ### User Management
 
@@ -438,6 +455,13 @@
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-19 | **RISE V3 SECURITY INFRASTRUCTURE** - Adicionadas 5 Edge Functions de segurança |
+| 2026-01-19 | Criada `rls-documentation-generator` (geração automática de documentação RLS) |
+| 2026-01-19 | Criada `key-rotation-executor` (gerenciamento de rotação de chaves) |
+| 2026-01-19 | Criada `rls-security-tester` (framework de testes de segurança RLS) |
+| 2026-01-19 | Criada `session-manager` (gerenciamento de sessões de produtores) |
+| 2026-01-19 | Criada `data-retention-executor` (limpeza automatizada de 16 tabelas) |
+| 2026-01-19 | Total de funções: 110 → 115 |
 | 2026-01-18 | **RISE V3 products-crud REFACTORING** - Dividida em 4 Edge Functions |
 | 2026-01-18 | Criada `producer-profile` (get-profile, check-credentials, get-gateway-connections) |
 | 2026-01-18 | Criada `coupon-read` (get-coupon) |
