@@ -16,6 +16,9 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("WebhookCrud");
 
 // ============================================
 // INTERFACES
@@ -137,7 +140,7 @@ async function listWebhooksWithProducts(
     .order("created_at", { ascending: false });
 
   if (webhooksError) {
-    console.error("[webhook-crud] List error:", webhooksError);
+    log.error("List error:", webhooksError);
     return errorResponse("Erro ao listar webhooks", corsHeaders, 500);
   }
 
@@ -177,7 +180,7 @@ async function listUserProducts(
     .order("name");
 
   if (error) {
-    console.error("[webhook-crud] Products error:", error);
+    log.error("Products error:", error);
     return errorResponse("Erro ao listar produtos", corsHeaders, 500);
   }
 
@@ -201,7 +204,7 @@ async function getWebhookProducts(
     .eq("webhook_id", webhookId);
 
   if (error) {
-    console.error("[webhook-crud] Get webhook products error:", error);
+    log.error("Get webhook products error:", error);
     const { data: webhookData } = await supabase
       .from("outbound_webhooks")
       .select("product_id")
@@ -241,7 +244,7 @@ serve(withSentry("webhook-crud", async (req) => {
 
     const { action, webhookId, data } = body;
 
-    console.log(`[webhook-crud] Action: ${action}`);
+    log.info(`Action: ${action}`);
 
     // ============================================
     // AUTHENTICATION via unified-auth.ts
@@ -297,7 +300,7 @@ serve(withSentry("webhook-crud", async (req) => {
         .single();
 
       if (insertError) {
-        console.error("[webhook-crud] Create error:", insertError);
+        log.error("Create error:", insertError);
         return errorResponse("Erro ao criar webhook", corsHeaders, 500);
       }
 
@@ -312,11 +315,11 @@ serve(withSentry("webhook-crud", async (req) => {
           );
 
         if (linkError) {
-          console.warn("[webhook-crud] Link products error:", linkError);
+          log.warn("Link products error:", linkError);
         }
       }
 
-      console.log(`[webhook-crud] Webhook created: ${(newWebhook as WebhookRecord).id} by ${vendorId}`);
+      log.info(`Webhook created: ${(newWebhook as WebhookRecord).id} by ${vendorId}`);
       return jsonResponse({ success: true, webhook: newWebhook as WebhookRecord }, corsHeaders);
     }
 
@@ -346,7 +349,7 @@ serve(withSentry("webhook-crud", async (req) => {
         .eq("id", webhookId);
 
       if (updateError) {
-        console.error("[webhook-crud] Update error:", updateError);
+        log.error("Update error:", updateError);
         return errorResponse("Erro ao atualizar webhook", corsHeaders, 500);
       }
 
@@ -365,7 +368,7 @@ serve(withSentry("webhook-crud", async (req) => {
         }
       }
 
-      console.log(`[webhook-crud] Webhook updated: ${webhookId} by ${vendorId}`);
+      log.info(`Webhook updated: ${webhookId} by ${vendorId}`);
       return jsonResponse({ success: true }, corsHeaders);
     }
 
@@ -388,18 +391,18 @@ serve(withSentry("webhook-crud", async (req) => {
         .eq("id", webhookId);
 
       if (deleteError) {
-        console.error("[webhook-crud] Delete error:", deleteError);
+        log.error("Delete error:", deleteError);
         return errorResponse("Erro ao excluir webhook", corsHeaders, 500);
       }
 
-      console.log(`[webhook-crud] Webhook deleted: ${webhookId} by ${vendorId}`);
+      log.info(`Webhook deleted: ${webhookId} by ${vendorId}`);
       return jsonResponse({ success: true, deletedId: webhookId }, corsHeaders);
     }
 
     return errorResponse(`Ação desconhecida: ${action}`, corsHeaders, 400);
 
   } catch (error: unknown) {
-    console.error("[webhook-crud] Unexpected error:", error);
+    log.error("Unexpected error:", error);
     await captureException(error instanceof Error ? error : new Error(String(error)), {
       functionName: "webhook-crud",
       url: req.url,

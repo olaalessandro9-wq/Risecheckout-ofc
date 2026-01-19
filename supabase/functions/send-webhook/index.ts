@@ -9,8 +9,10 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
+const log = createLogger("SendWebhook");
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -44,7 +46,7 @@ serve(async (req) => {
       responseData = responseText;
     }
 
-    console.log(`[send-webhook] ${method} ${url} - Status: ${response.status}`);
+    log.info(`${method} ${url} - Status: ${response.status}`);
 
     return new Response(
       JSON.stringify({
@@ -57,7 +59,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[send-webhook] Error:', errorMessage);
+    log.error("Error:", errorMessage);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

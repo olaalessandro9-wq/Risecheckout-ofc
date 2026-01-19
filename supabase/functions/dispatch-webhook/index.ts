@@ -10,8 +10,10 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
+const log = createLogger("DispatchWebhook");
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -52,7 +54,7 @@ serve(async (req) => {
         .single();
 
       if (!webhookConfig) {
-        console.log(`[dispatch-webhook] No webhook configured for ${eventType}`);
+        log.info(`No webhook configured for ${eventType}`);
         return new Response(
           JSON.stringify({ success: false, reason: 'No webhook configured' }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -112,7 +114,7 @@ serve(async (req) => {
       success: response.ok,
     });
 
-    console.log(`[dispatch-webhook] Webhook ${eventType} sent to ${targetUrl}, status: ${response.status}`);
+    log.info(`Webhook ${eventType} sent to ${targetUrl}, status: ${response.status}`);
 
     return new Response(
       JSON.stringify({ 
@@ -124,7 +126,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[dispatch-webhook] Error:', errorMessage);
+    log.error("Error:", errorMessage);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

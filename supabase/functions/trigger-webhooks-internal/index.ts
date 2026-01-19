@@ -11,8 +11,10 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
+const log = createLogger("TriggerWebhooksInternal");
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -48,12 +50,12 @@ serve(async (req) => {
       .or(`event_type.eq.${eventType},event_type.eq.*`);
 
     if (configError) {
-      console.error('[trigger-webhooks-internal] Config query error:', configError);
+      log.error("Config query error:", configError);
       throw configError;
     }
 
     if (!webhookConfigs || webhookConfigs.length === 0) {
-      console.log(`[trigger-webhooks-internal] No webhooks configured for ${eventType}`);
+      log.info(`No webhooks configured for ${eventType}`);
       return new Response(
         JSON.stringify({ success: true, webhooksTriggered: 0 }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -124,12 +126,12 @@ serve(async (req) => {
         }
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`[trigger-webhooks-internal] Error sending to ${config.url}:`, errorMessage);
+        log.error(`Error sending to ${config.url}:`, errorMessage);
         failCount++;
       }
     }
 
-    console.log(`[trigger-webhooks-internal] ${eventType} - Success: ${successCount}, Failed: ${failCount}`);
+    log.info(`${eventType} - Success: ${successCount}, Failed: ${failCount}`);
 
     return new Response(
       JSON.stringify({
@@ -143,7 +145,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[trigger-webhooks-internal] Error:', errorMessage);
+    log.error("Error:", errorMessage);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
