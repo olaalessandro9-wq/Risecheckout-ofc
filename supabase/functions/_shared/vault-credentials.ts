@@ -9,11 +9,12 @@
  * Naming Convention: gateway_{integration_type}_{vendor_id}
  * Exemplo: gateway_mercadopago_abc-123-def
  * 
- * NOTA DE TIPAGEM:
- * Usamos um tipo genérico para o cliente Supabase para evitar conflitos
- * de versão entre diferentes Edge Functions. O tipo exige apenas o método
- * `rpc` que é o único utilizado neste módulo.
+ * AUDIT LOGGING:
+ * Todas as operações são registradas em `vault_access_log` automaticamente
+ * pelas RPCs do banco de dados. O módulo passa IP e User-Agent quando disponíveis.
  * 
+ * ============================================================================
+ * @version 2.0.0 - RISE Protocol V3 Compliant (Audit Logging)
  * ============================================================================
  */
 
@@ -27,10 +28,6 @@ const log = createLogger("VaultCredentials");
 
 /**
  * Interface minimalista para o cliente Supabase
- * 
- * Usamos `unknown` para máxima compatibilidade entre diferentes
- * configurações de cliente Supabase usadas nas Edge Functions.
- * O tipo é validado em runtime pelo método `rpc`.
  */
 type SupabaseRpcClient = {
   rpc: (fn: string, params?: Record<string, unknown>) => PromiseLike<{ 
@@ -52,13 +49,50 @@ export interface VaultResult {
   error?: string;
   credentials?: VaultCredentials;
   source?: string;
+  auditLogId?: string;
 }
 
-// Interface para resposta do RPC get_gateway_credentials
+/**
+ * Contexto de auditoria para logging
+ */
+export interface AuditContext {
+  ipAddress?: string;
+  userAgent?: string;
+}
+
+// Interface para resposta do RPC
 interface VaultRpcResponse {
   success: boolean;
   error?: string;
   credentials?: VaultCredentials;
+  audit_log_id?: string;
+}
+
+// ========================================================================
+// HELPER: Extract Audit Context from Request
+// ========================================================================
+
+/**
+ * Extrai IP e User-Agent de uma Request para auditoria
+ * 
+ * @param request - Request HTTP (opcional)
+ * @returns Contexto de auditoria
+ */
+export function extractAuditContext(request?: Request): AuditContext {
+  if (!request) {
+    return {};
+  }
+
+  // Tenta extrair IP de vários headers (Cloudflare, X-Forwarded-For, etc.)
+  const ipAddress = 
+    request.headers.get('cf-connecting-ip') ||
+    request.headers.get('x-real-ip') ||
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    undefined;
+
+  const userAgent = request.headers.get('user-agent') || undefined;
+
+  return { ipAddress, userAgent };
 }
 
 // ========================================================================
@@ -68,19 +102,20 @@ interface VaultRpcResponse {
 /**
  * Salva credenciais OAuth no Supabase Vault
  * 
- * @param supabase - Cliente Supabase com service role (requer método rpc)
+ * @param supabase - Cliente Supabase com service role
  * @param vendorId - ID do vendedor
  * @param gateway - Tipo de gateway (MERCADOPAGO, STRIPE, etc.)
  * @param credentials - Credenciais a serem salvas
+ * @param auditContext - Contexto para logging de auditoria
  * @returns Resultado da operação
  */
 export async function saveCredentialsToVault(
   supabase: SupabaseRpcClient,
   vendorId: string,
   gateway: string,
-  credentials: VaultCredentials
+  credentials: VaultCredentials,
+  auditContext?: AuditContext
 ): Promise<VaultResult> {
-  // Type assertion para acesso ao método rpc
   const client = supabase as { rpc: (fn: string, params?: Record<string, unknown>) => PromiseLike<{ data: unknown; error: { message: string } | null }> };
   
   const gatewayLower = gateway.toLowerCase();
@@ -89,15 +124,17 @@ export async function saveCredentialsToVault(
     vendorId,
     gateway: gatewayLower,
     hasAccessToken: !!credentials.access_token,
-    hasRefreshToken: !!credentials.refresh_token
+    hasRefreshToken: !!credentials.refresh_token,
+    hasAuditContext: !!auditContext
   });
 
   try {
-    // Chamar RPC function para salvar no Vault
     const { data, error } = await client.rpc('save_gateway_credentials', {
       p_vendor_id: vendorId,
       p_gateway: gatewayLower,
-      p_credentials: credentials
+      p_credentials: credentials,
+      p_ip_address: auditContext?.ipAddress ?? null,
+      p_user_agent: auditContext?.userAgent ?? null
     });
 
     if (error) {
@@ -108,11 +145,16 @@ export async function saveCredentialsToVault(
       };
     }
 
-    log.info("✅ Credenciais salvas com sucesso", data);
+    const rpcData = data as VaultRpcResponse;
+    
+    log.info("✅ Credenciais salvas com sucesso", {
+      auditLogId: rpcData.audit_log_id
+    });
     
     return {
       success: true,
-      source: 'vault'
+      source: 'vault',
+      auditLogId: rpcData.audit_log_id
     };
 
   } catch (err: unknown) {
@@ -132,31 +174,34 @@ export async function saveCredentialsToVault(
 /**
  * Busca credenciais OAuth do Supabase Vault
  * 
- * @param supabase - Cliente Supabase com service role (requer método rpc)
+ * @param supabase - Cliente Supabase com service role
  * @param vendorId - ID do vendedor
  * @param gateway - Tipo de gateway (MERCADOPAGO, STRIPE, etc.)
+ * @param auditContext - Contexto para logging de auditoria
  * @returns Credenciais ou erro
  */
 export async function getVendorCredentials(
   supabase: SupabaseRpcClient,
   vendorId: string,
-  gateway: string
+  gateway: string,
+  auditContext?: AuditContext
 ): Promise<VaultResult> {
-  // Type assertion para acesso ao método rpc
   const client = supabase as { rpc: (fn: string, params?: Record<string, unknown>) => PromiseLike<{ data: unknown; error: { message: string } | null }> };
   
   const gatewayLower = gateway.toLowerCase();
   
   log.info("🔍 Buscando credenciais do Vault", {
     vendorId,
-    gateway: gatewayLower
+    gateway: gatewayLower,
+    hasAuditContext: !!auditContext
   });
 
   try {
-    // Chamar RPC function para buscar do Vault
     const { data, error } = await client.rpc('get_gateway_credentials', {
       p_vendor_id: vendorId,
-      p_gateway: gatewayLower
+      p_gateway: gatewayLower,
+      p_ip_address: auditContext?.ipAddress ?? null,
+      p_user_agent: auditContext?.userAgent ?? null
     });
 
     if (error) {
@@ -167,7 +212,6 @@ export async function getVendorCredentials(
       };
     }
 
-    // RPC retorna JSONB com { success, credentials?, error? }
     if (!data || typeof data !== 'object') {
       log.error("❌ Resposta inválida do Vault", data);
       return {
@@ -176,7 +220,6 @@ export async function getVendorCredentials(
       };
     }
 
-    // Cast para tipo conhecido
     const rpcData = data as VaultRpcResponse;
 
     if (!rpcData.success) {
@@ -191,7 +234,6 @@ export async function getVendorCredentials(
       };
     }
 
-    // Validar que credentials contém access_token
     if (!rpcData.credentials || !rpcData.credentials.access_token) {
       log.error("❌ Credenciais incompletas no Vault", rpcData.credentials);
       return {
@@ -204,13 +246,15 @@ export async function getVendorCredentials(
       vendorId,
       gateway: gatewayLower,
       hasAccessToken: !!rpcData.credentials.access_token,
-      hasRefreshToken: !!rpcData.credentials.refresh_token
+      hasRefreshToken: !!rpcData.credentials.refresh_token,
+      auditLogId: rpcData.audit_log_id
     });
 
     return {
       success: true,
       credentials: rpcData.credentials,
-      source: 'vault'
+      source: 'vault',
+      auditLogId: rpcData.audit_log_id
     };
 
   } catch (err: unknown) {
@@ -224,37 +268,40 @@ export async function getVendorCredentials(
 }
 
 // ========================================================================
-// DELETE CREDENTIALS FROM VAULT (Opcional, para desconexão)
+// DELETE CREDENTIALS FROM VAULT
 // ========================================================================
 
 /**
  * Remove credenciais OAuth do Supabase Vault
  * 
- * @param supabase - Cliente Supabase com service role (requer método rpc)
+ * @param supabase - Cliente Supabase com service role
  * @param vendorId - ID do vendedor
  * @param gateway - Tipo de gateway (MERCADOPAGO, STRIPE, etc.)
+ * @param auditContext - Contexto para logging de auditoria
  * @returns Resultado da operação
  */
 export async function deleteCredentialsFromVault(
   supabase: SupabaseRpcClient,
   vendorId: string,
-  gateway: string
+  gateway: string,
+  auditContext?: AuditContext
 ): Promise<VaultResult> {
-  // Type assertion para acesso ao método rpc
   const client = supabase as { rpc: (fn: string, params?: Record<string, unknown>) => PromiseLike<{ data: unknown; error: { message: string } | null }> };
   
   const gatewayLower = gateway.toLowerCase();
   
   log.info("🗑️ Removendo credenciais do Vault", {
     vendorId,
-    gateway: gatewayLower
+    gateway: gatewayLower,
+    hasAuditContext: !!auditContext
   });
 
   try {
-    // Chamar RPC function para deletar do Vault
     const { data, error } = await client.rpc('delete_gateway_credentials', {
       p_vendor_id: vendorId,
-      p_gateway: gatewayLower
+      p_gateway: gatewayLower,
+      p_ip_address: auditContext?.ipAddress ?? null,
+      p_user_agent: auditContext?.userAgent ?? null
     });
 
     if (error) {
@@ -265,11 +312,16 @@ export async function deleteCredentialsFromVault(
       };
     }
 
-    log.info("✅ Credenciais removidas com sucesso", data);
+    const rpcData = data as VaultRpcResponse;
+
+    log.info("✅ Credenciais removidas com sucesso", {
+      auditLogId: rpcData.audit_log_id
+    });
     
     return {
       success: true,
-      source: 'vault'
+      source: 'vault',
+      auditLogId: rpcData.audit_log_id
     };
 
   } catch (err: unknown) {

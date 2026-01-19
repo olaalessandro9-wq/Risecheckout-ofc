@@ -3762,6 +3762,45 @@ export type Database = {
         }
         Relationships: []
       }
+      vault_access_log: {
+        Row: {
+          action: string
+          created_at: string
+          error_message: string | null
+          gateway: string
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          success: boolean
+          user_agent: string | null
+          vendor_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          error_message?: string | null
+          gateway: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          success?: boolean
+          user_agent?: string | null
+          vendor_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          error_message?: string | null
+          gateway?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          success?: boolean
+          user_agent?: string | null
+          vendor_id?: string
+        }
+        Relationships: []
+      }
       vendor_integrations: {
         Row: {
           active: boolean
@@ -4224,7 +4263,12 @@ export type Database = {
         Returns: string
       }
       delete_gateway_credentials: {
-        Args: { p_gateway: string; p_vendor_id: string }
+        Args: {
+          p_gateway: string
+          p_ip_address?: string
+          p_user_agent?: string
+          p_vendor_id: string
+        }
         Returns: Json
       }
       duplicate_checkout_shallow: {
@@ -4266,7 +4310,12 @@ export type Database = {
         Returns: Json
       }
       get_gateway_credentials: {
-        Args: { p_gateway: string; p_vendor_id: string }
+        Args: {
+          p_gateway: string
+          p_ip_address?: string
+          p_user_agent?: string
+          p_vendor_id: string
+        }
         Returns: Json
       }
       get_internal_webhook_secret: { Args: never; Returns: string }
@@ -4424,6 +4473,19 @@ export type Database = {
         }
         Returns: string
       }
+      log_vault_access: {
+        Args: {
+          p_action: string
+          p_error_message?: string
+          p_gateway: string
+          p_ip_address?: string
+          p_metadata?: Json
+          p_success?: boolean
+          p_user_agent?: string
+          p_vendor_id: string
+        }
+        Returns: string
+      }
       offer_is_exposed_via_active_link: {
         Args: { p_offer_id: string }
         Returns: boolean
@@ -4433,7 +4495,13 @@ export type Database = {
         Returns: boolean
       }
       save_gateway_credentials: {
-        Args: { p_credentials: Json; p_gateway: string; p_vendor_id: string }
+        Args: {
+          p_credentials: Json
+          p_gateway: string
+          p_ip_address?: string
+          p_user_agent?: string
+          p_vendor_id: string
+        }
         Returns: Json
       }
       save_vault_secret: {
