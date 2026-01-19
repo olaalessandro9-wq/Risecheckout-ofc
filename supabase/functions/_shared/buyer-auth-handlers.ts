@@ -254,13 +254,10 @@ export async function handleLogin(
   // RISE V3: Set httpOnly cookies for tokens (XSS protection)
   const cookies = createAuthCookies("buyer", accessToken, refreshToken);
   
+  // RISE V3: Tokens sent ONLY via httpOnly cookies (not in response body)
   return jsonResponseWithCookies({
     success: true,
-    // MIGRATION: Still return tokens in body for backwards compatibility
-    // TODO: Remove after frontend fully migrated to cookies
-    accessToken,
-    refreshToken,
-    expiresIn: ACCESS_TOKEN_DURATION_MINUTES * 60, // seconds
+    expiresIn: ACCESS_TOKEN_DURATION_MINUTES * 60,
     expiresAt: accessTokenExpiresAt.toISOString(),
     buyer: { id: buyer.id, email: buyer.email, name: buyer.name },
   }, corsHeaders, cookies);
