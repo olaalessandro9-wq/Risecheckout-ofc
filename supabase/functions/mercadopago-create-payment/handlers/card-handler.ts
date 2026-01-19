@@ -5,7 +5,9 @@
  * @version 2.0.0 - RISE Protocol V2 Compliance (Zero any)
  */
 
-import { logInfo, logError } from '../utils/logger.ts';
+import { createLogger } from '../../_shared/logger.ts';
+
+const log = createLogger('mercadopago-card-handler');
 
 // === INTERFACES (Zero any) ===
 
@@ -102,7 +104,7 @@ export async function handleCardPayment(params: CardPaymentParams): Promise<Card
 
   // Validação crítica - paymentMethodId é OBRIGATÓRIO
   if (!paymentMethodId) {
-    logError('❌ [CARTÃO] paymentMethodId não foi fornecido!', { orderId });
+    log.error('paymentMethodId não foi fornecido', { orderId });
     throw { 
       code: 'INVALID_REQUEST', 
       message: 'Bandeira do cartão (paymentMethodId) não identificada. Verifique o número do cartão.' 
@@ -167,14 +169,14 @@ export async function handleCardPayment(params: CardPaymentParams): Promise<Card
   // SPLIT via application_fee (Modelo CAKTO)
   if (applicationFeeCents > 0) {
     cardPayload.application_fee = applicationFeeCents / 100;
-    logInfo('✅ [MP SPLIT CARTÃO] application_fee ADICIONADO', {
+    log.info('application_fee ADICIONADO', {
       cents: applicationFeeCents,
       reais: applicationFeeCents / 100,
       modelo: 'CAKTO'
     });
   }
 
-  logInfo('📦 [CARTÃO] Enviando para Mercado Pago', {
+  log.info('Enviando para Mercado Pago', {
     amount: cardPayload.transaction_amount,
     installments: cardPayload.installments,
     payment_method_id: cardPayload.payment_method_id,
@@ -196,7 +198,7 @@ export async function handleCardPayment(params: CardPaymentParams): Promise<Card
   const cardData: MercadoPagoCardResponse = await cardResponse.json();
 
   if (!cardResponse.ok) {
-    logError('Erro na API do Mercado Pago (Cartão)', {
+    log.error('Erro na API do Mercado Pago (Cartão)', {
       message: cardData.message,
       status: cardData.status,
       cause: cardData.cause,
@@ -210,7 +212,7 @@ export async function handleCardPayment(params: CardPaymentParams): Promise<Card
     };
   }
 
-  logInfo('✅ [CARTÃO] Pagamento criado', { 
+  log.info('Pagamento criado', { 
     id: cardData.id, 
     status: cardData.status 
   });
