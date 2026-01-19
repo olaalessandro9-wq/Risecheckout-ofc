@@ -17,6 +17,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("GdprRequest");
 
 interface GdprResponse {
   success: boolean;
@@ -63,7 +66,7 @@ export default function GdprRequest() {
       toast.success("Solicitação enviada com sucesso!");
 
     } catch (err: unknown) {
-      console.error("[GdprRequest] Error:", err);
+      log.error("Error:", err);
       const message = err instanceof Error ? err.message : "Erro ao processar solicitação";
       toast.error(message);
     } finally {
