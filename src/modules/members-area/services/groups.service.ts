@@ -7,6 +7,9 @@
 
 import { SUPABASE_URL } from '@/config/supabase';
 import { getProducerSessionToken } from '@/hooks/useProducerAuth';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger("GroupsService");
 import type {
   MemberGroup,
   GroupWithPermissions,
@@ -48,13 +51,13 @@ async function invokeGroupsFunction<T>(
     try {
       data = JSON.parse(text);
     } catch {
-      console.error(`[groups.service] Failed to parse response: ${text.slice(0, 300)}`);
+      log.error(`Failed to parse response: ${text.slice(0, 300)}`);
       return { data: null, error: `HTTP ${response.status}: Invalid JSON response` };
     }
 
     if (!response.ok) {
       const errorMessage = (data?.error as string) || `HTTP ${response.status}`;
-      console.error(`[groups.service] Error ${action}:`, errorMessage);
+      log.error(`Error ${action}:`, errorMessage);
       return { data: null, error: errorMessage };
     }
 
@@ -76,7 +79,7 @@ async function invokeGroupsFunction<T>(
     return { data: data as T, error: null };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error(`[groups.service] Exception in ${action}:`, message);
+    log.error(`Exception in ${action}:`, message);
     return { data: null, error: message };
   }
 }

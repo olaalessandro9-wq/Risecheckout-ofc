@@ -8,6 +8,9 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("Perfil");
 import { api } from "@/lib/api/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -84,7 +87,7 @@ export default function Perfil() {
       });
       
       if (error) {
-        console.error("Error fetching profile:", error);
+        log.error("Error fetching profile:", error);
         return null;
       }
       
@@ -133,7 +136,7 @@ export default function Perfil() {
       queryClient.invalidateQueries({ queryKey: ["user-profile-full"] });
     },
     onError: (error) => {
-      console.error("Error updating profile:", error);
+      log.error("Error updating profile:", error);
       toast.error("Erro ao atualizar perfil");
     },
   });
