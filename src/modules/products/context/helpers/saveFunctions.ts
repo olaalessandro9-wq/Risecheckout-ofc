@@ -9,8 +9,11 @@
 
 import { api } from "@/lib/api";
 import { uploadViaEdge } from "@/lib/storage/storageProxy";
+import { createLogger } from "@/lib/logger";
 import type { GeneralFormData } from "../../types/productForm.types";
 import type { Offer } from "../../types/product.types";
+
+const log = createLogger("SaveFunctions");
 
 // ============================================================================
 // IMAGE UPLOAD
@@ -71,7 +74,7 @@ export async function saveDeletedOffers({
     });
     
     if (error) {
-      console.error('[saveFunctions] Error deleting offer:', error);
+      log.error('Error deleting offer:', error);
       throw new Error(error.message);
     }
     if (!data?.success) {
@@ -111,7 +114,7 @@ export async function saveOffers({
   });
   
   if (error) {
-    console.error('[saveFunctions] Error saving offers:', error);
+    log.error('Error saving offers:', error);
     throw new Error(error.message);
   }
   if (!data?.success) {

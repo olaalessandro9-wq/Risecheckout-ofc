@@ -14,6 +14,9 @@ import React from 'react';
 import { MercadoPagoCardForm, type CardTokenResult } from '@/lib/payment-gateways';
 import { StripeCardForm } from '@/lib/payment-gateways/gateways/stripe';
 import { getGatewayById, isGatewayAvailable } from '@/config/payment-gateways';
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("GatewayCardForm");
 
 // ============================================
 // TIPOS
@@ -56,7 +59,7 @@ export const GatewayCardForm: React.FC<GatewayCardFormProps> = ({
   const gatewayConfig = getGatewayById(gateway);
   
   if (!gatewayConfig) {
-    console.error(`[GatewayCardForm] Gateway "${gateway}" não encontrado no registry`);
+    log.error(`Gateway "${gateway}" não encontrado no registry`);
     return (
       <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
         <p className="text-sm text-red-600">
@@ -67,7 +70,7 @@ export const GatewayCardForm: React.FC<GatewayCardFormProps> = ({
   }
 
   if (!isGatewayAvailable(gateway)) {
-    console.error(`[GatewayCardForm] Gateway "${gateway}" não está disponível`);
+    log.error(`Gateway "${gateway}" não está disponível`);
     return (
       <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
         <p className="text-sm text-yellow-600">
@@ -130,7 +133,7 @@ export const GatewayCardForm: React.FC<GatewayCardFormProps> = ({
       return <GatewayComingSoon name={gatewayConfig.displayName} />;
 
     default:
-      console.warn(`[GatewayCardForm] Gateway "${gateway}" não implementado`);
+      log.warn(`Gateway "${gateway}" não implementado`);
       return <GatewayComingSoon name={gateway} />;
   }
 };
