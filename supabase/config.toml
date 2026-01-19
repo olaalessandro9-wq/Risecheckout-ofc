@@ -398,3 +398,11 @@ verify_jwt = false
 
 [functions.product-full-loader]
 verify_jwt = false
+
+# =====================================================
+# INTERNAL - Security & Documentation
+# verify_jwt DEVE ser false
+# =====================================================
+
+[functions.rls-documentation-generator]
+verify_jwt = false

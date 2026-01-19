@@ -4280,6 +4280,13 @@ export type Database = {
         Args: { offer_name?: string; offer_price?: number }
         Returns: string
       }
+      generate_rls_documentation: {
+        Args: never
+        Returns: {
+          content: string
+          section: string
+        }[]
+      }
       generate_unique_payment_slug: {
         Args: { p_offer_id: string }
         Returns: string
