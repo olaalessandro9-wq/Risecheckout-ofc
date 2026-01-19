@@ -25,6 +25,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/api-client";
 import { toast } from "sonner";
 import { getProducerAffiliatesRpc } from "@/lib/rpc/rpcProxy";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("Afiliados");
 
 import {
   AffiliatesMetrics,
@@ -95,7 +98,7 @@ const Afiliados = () => {
 
       setAffiliates(filteredData);
     } catch (error: unknown) {
-      console.error("Erro ao buscar afiliados:", error);
+      log.error("Erro ao buscar afiliados:", error);
       toast.error("Erro ao carregar lista de afiliados.");
     } finally {
       setLoading(false);
@@ -124,7 +127,7 @@ const Afiliados = () => {
       toast.success(data.message || "Ação realizada com sucesso!");
       fetchAffiliates();
     } catch (error: unknown) {
-      console.error("[handleAction] Erro:", error);
+      log.error("handleAction Erro:", error);
       toast.error(error instanceof Error ? error.message : "Erro ao processar ação");
     } finally {
       setActionLoading(null);

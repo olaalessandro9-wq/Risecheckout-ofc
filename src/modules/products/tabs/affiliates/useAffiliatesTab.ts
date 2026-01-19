@@ -13,6 +13,9 @@ import { formActions } from "../../context/productFormReducer";
 import type { AffiliateSettings } from "../../types/product.types";
 import type { AffiliateGatewaySettingsData } from "../../components/AffiliateGatewaySettings";
 import type { AffiliateSettingValue } from "./types";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("useAffiliatesTab");
 
 // ============================================================================
 // DEFAULT VALUES
@@ -159,7 +162,7 @@ export function useAffiliatesTab() {
       
       toast.success("Configurações de afiliados salvas com sucesso");
     } catch (error: unknown) {
-      console.error("Erro ao salvar afiliados:", error);
+      log.error("Erro ao salvar afiliados:", error);
       toast.error("Não foi possível salvar as configurações");
     }
   }, [localSettings, gatewaySettings, product?.id, saveAffiliateSettings, dispatchForm]);
