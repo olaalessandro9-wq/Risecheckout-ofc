@@ -24,6 +24,7 @@ import { findOrCreateCustomer } from "../_shared/asaas-customer.ts";
 import { calculateMarketplaceSplitData } from "../_shared/asaas-split-calculator.ts";
 import { getIdentifier } from "../_shared/rate-limiting/index.ts";
 import { logSecurityEvent, SecurityAction } from "../_shared/audit-logger.ts";
+import { createLogger } from "../_shared/logger.ts";
 
 // Handlers locais
 import { 
@@ -36,6 +37,8 @@ import {
 import { buildSplitRules } from "./handlers/split-builder.ts";
 import { buildChargePayload, createAsaasCharge, getPixQrCode, triggerPixGeneratedWebhook } from "./handlers/charge-creator.ts";
 import { corsHeaders, createSuccessResponse, createErrorResponse, createRateLimitResponse } from "./handlers/response-builder.ts";
+
+const log = createLogger("asaas-create-payment");
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -51,22 +54,20 @@ serve(async (req) => {
   // Rate Limiting
   const rateLimitResult = await checkPaymentRateLimit(supabase, identifier);
   if (!rateLimitResult.allowed) {
-    console.warn('[asaas-create-payment] Rate limit exceeded:', identifier);
+    log.warn('Rate limit exceeded', { identifier });
     return createRateLimitResponse(rateLimitResult.retryAfter);
   }
 
   try {
     const payload: PaymentRequest = await req.json();
     
-    console.log('[asaas-create-payment] ========================================');
-    console.log('[asaas-create-payment] 🏪 MODELO MARKETPLACE ASAAS');
-    console.log('[asaas-create-payment] Payload:', JSON.stringify({
+    log.info('MODELO MARKETPLACE ASAAS', {
       orderId: payload.orderId,
       vendorId: payload.vendorId,
       amountCents: payload.amountCents,
       paymentMethod: payload.paymentMethod,
       hasCardToken: !!payload.cardToken
-    }, null, 2));
+    });
 
     // Validação do payload
     const validation = validatePaymentPayload(payload);
@@ -86,14 +87,14 @@ serve(async (req) => {
     // Buscar credenciais
     const credResult = await getGatewayCredentials(supabase, vendorId, 'asaas');
     if (!credResult.success || !credResult.credentials) {
-      console.error('[asaas-create-payment] ❌ Falha ao buscar credenciais:', credResult.error);
+      log.error('Falha ao buscar credenciais', { error: credResult.error });
       await recordPaymentAttempt(supabase, identifier, false);
       return createErrorResponse(credResult.error || 'Credenciais não encontradas', 500);
     }
     const { credentials, isOwner } = credResult;
     const credValidation = validateCredentials('asaas', credentials);
     if (!credValidation.valid) {
-      console.error('[asaas-create-payment] ❌ Credenciais inválidas:', credValidation.missingFields);
+      log.error('Credenciais inválidas', { missingFields: credValidation.missingFields });
       await recordPaymentAttempt(supabase, identifier, false);
       return createErrorResponse(`Credenciais Asaas faltando: ${credValidation.missingFields.join(', ')}`, 500);
     }
@@ -103,12 +104,14 @@ serve(async (req) => {
       : 'https://api.asaas.com/v3';
     const apiKey = credentials.apiKey || credentials.api_key || '';
 
-    console.log(`[asaas-create-payment] 🔑 Credenciais: ${isOwner ? 'Owner' : 'Vendor'}`);
-    console.log(`[asaas-create-payment] 🌐 Ambiente: ${credentials.environment.toUpperCase()}`);
+    log.info('Credenciais obtidas', { 
+      type: isOwner ? 'Owner' : 'Vendor', 
+      environment: credentials.environment 
+    });
 
     // Calcular split
     const splitData = await calculateMarketplaceSplitData(supabase, payload.orderId, vendorId);
-    console.log('[asaas-create-payment] SPLIT:', JSON.stringify(splitData));
+    log.info('Split calculado', splitData);
 
     // Criar customer
     const asaasCustomer = await findOrCreateCustomer(baseUrl, apiKey, payload.customer);
@@ -202,7 +205,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Erro interno';
-    console.error('[asaas-create-payment] Exception:', errorMessage);
+    log.error('Exception', { message: errorMessage });
     await recordPaymentAttempt(supabase, identifier, false);
     return createErrorResponse(errorMessage, 500);
   }

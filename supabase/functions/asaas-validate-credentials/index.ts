@@ -13,8 +13,10 @@
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
+const log = createLogger("asaas-validate-credentials");
 
 interface ValidateRequest {
   apiKey: string;
@@ -34,19 +36,18 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const functionName = 'asaas-validate-credentials';
-  console.log(`[${functionName}] Iniciando validação...`);
+  log.info('Iniciando validação');
 
   try {
     // 1. Parse request body
     const body: ValidateRequest = await req.json();
     const { apiKey, environment } = body;
 
-    console.log(`[${functionName}] Ambiente: ${environment}`);
+    log.info('Ambiente', { environment });
 
     // 2. Validações básicas
     if (!apiKey || !apiKey.trim()) {
-      console.error(`[${functionName}] API Key não fornecida`);
+      log.error('API Key não fornecida');
       return new Response(
         JSON.stringify({
           valid: false,
@@ -60,7 +61,7 @@ Deno.serve(async (req) => {
     }
 
     if (!environment || !['sandbox', 'production'].includes(environment)) {
-      console.error(`[${functionName}] Ambiente inválido: ${environment}`);
+      log.error('Ambiente inválido', { environment });
       return new Response(
         JSON.stringify({
           valid: false,
@@ -78,7 +79,7 @@ Deno.serve(async (req) => {
       ? 'https://sandbox.asaas.com/api/v3'
       : 'https://api.asaas.com/v3';
 
-    console.log(`[${functionName}] Base URL: ${baseUrl}`);
+    log.debug('Base URL', { baseUrl });
 
     // 4. Fazer requisição de teste ao endpoint /myAccount
     // Este endpoint retorna informações da conta e serve para validar a API Key
@@ -90,18 +91,18 @@ Deno.serve(async (req) => {
       },
     });
 
-    console.log(`[${functionName}] Status da resposta /myAccount: ${response.status}`);
+    log.info('Status da resposta /myAccount', { status: response.status });
 
     // 5. Processar resposta
     if (!response.ok) {
       // API Key inválida ou sem permissões
-      console.error(`[${functionName}] Credenciais inválidas. Status: ${response.status}`);
+      log.error('Credenciais inválidas', { status: response.status });
       
       let errorMessage = 'API Key inválida ou sem permissões';
       
       try {
         const errorData = await response.json();
-        console.error(`[${functionName}] Erro da API:`, errorData);
+        log.error('Erro da API', errorData);
         
         if (errorData.errors && errorData.errors.length > 0) {
           errorMessage = errorData.errors[0].description || errorMessage;
@@ -109,7 +110,7 @@ Deno.serve(async (req) => {
           errorMessage = errorData.message;
         }
       } catch (e) {
-        console.error(`[${functionName}] Erro ao parsear resposta de erro:`, e);
+        log.error('Erro ao parsear resposta de erro', e);
       }
 
       return new Response(
@@ -127,18 +128,16 @@ Deno.serve(async (req) => {
     // 6. Credenciais válidas - extrair informações da conta
     const accountData = await response.json();
     
-    console.log(`[${functionName}] Conta validada com sucesso`);
-    console.log(`[${functionName}] Nome da conta: ${accountData.name || 'N/A'}`);
-    console.log(`[${functionName}] Dados da conta:`, JSON.stringify(accountData));
+    log.info('Conta validada com sucesso', { name: accountData.name || 'N/A' });
 
     // 7. Tentar obter o walletId de diferentes formas
     let walletId = accountData.walletId || accountData.id || null;
     
-    console.log(`[${functionName}] WalletId do /myAccount: ${walletId || 'N/A'}`);
+    log.debug('WalletId do /myAccount', { walletId: walletId || 'N/A' });
 
     // 8. Se não veio walletId do /myAccount, tentar endpoint específico /walletId
     if (!walletId) {
-      console.log(`[${functionName}] WalletId não encontrado em /myAccount, tentando /walletId...`);
+      log.info('WalletId não encontrado em /myAccount, tentando /walletId...');
       
       try {
         const walletResponse = await fetch(`${baseUrl}/walletId`, {
@@ -149,24 +148,24 @@ Deno.serve(async (req) => {
           },
         });
 
-        console.log(`[${functionName}] Status da resposta /walletId: ${walletResponse.status}`);
+        log.info('Status da resposta /walletId', { status: walletResponse.status });
 
         if (walletResponse.ok) {
           const walletData = await walletResponse.json();
-          console.log(`[${functionName}] Dados do /walletId:`, JSON.stringify(walletData));
+          log.debug('Dados do /walletId', walletData);
           
           // O endpoint pode retornar diferentes formatos
           walletId = walletData.id || walletData.walletId || walletData.wallet_id || null;
           
           if (walletId) {
-            console.log(`[${functionName}] WalletId obtido via /walletId: ${walletId}`);
+            log.info('WalletId obtido via /walletId', { walletId });
           }
         } else {
           const walletError = await walletResponse.text();
-          console.log(`[${functionName}] Erro ao buscar /walletId: ${walletError}`);
+          log.warn('Erro ao buscar /walletId', { error: walletError });
         }
       } catch (walletErr) {
-        console.error(`[${functionName}] Exceção ao buscar /walletId:`, walletErr);
+        log.error('Exceção ao buscar /walletId', walletErr);
       }
     }
 
@@ -176,11 +175,11 @@ Deno.serve(async (req) => {
       walletId = accountData.wallet?.id || accountData.accountId || null;
       
       if (walletId) {
-        console.log(`[${functionName}] WalletId obtido via campos alternativos: ${walletId}`);
+        log.info('WalletId obtido via campos alternativos', { walletId });
       }
     }
 
-    console.log(`[${functionName}] WalletId final: ${walletId || 'NÃO ENCONTRADO'}`);
+    log.info('WalletId final', { walletId: walletId || 'NÃO ENCONTRADO' });
 
     return new Response(
       JSON.stringify({
@@ -196,7 +195,7 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
-    console.error(`[${functionName}] Erro inesperado:`, error);
+    log.error('Erro inesperado', error);
     
     return new Response(
       JSON.stringify({

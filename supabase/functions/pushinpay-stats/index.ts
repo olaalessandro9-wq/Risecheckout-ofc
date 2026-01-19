@@ -10,8 +10,10 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
+const log = createLogger("pushinpay-stats");
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -62,7 +64,7 @@ serve(async (req) => {
     const { data: orders, error } = await query;
 
     if (error) {
-      console.error('[pushinpay-stats] Query error:', error);
+      log.error('Query error', error);
       return new Response(
         JSON.stringify({ error: 'Failed to fetch stats' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -76,7 +78,7 @@ serve(async (req) => {
       pendingOrders: orders?.filter(o => o.status === 'pending').length || 0,
     };
 
-    console.log(`[pushinpay-stats] Stats for user ${user.id}:`, stats);
+    log.info('Stats', { userId: user.id, ...stats });
 
     return new Response(
       JSON.stringify(stats),
@@ -85,7 +87,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[pushinpay-stats] Error:', errorMessage);
+    log.error('Error', { message: errorMessage });
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

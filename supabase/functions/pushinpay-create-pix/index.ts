@@ -21,12 +21,14 @@ import {
   RATE_LIMIT_CONFIGS,
   getClientIP 
 } from "../_shared/rate-limiting/index.ts";
+import { createLogger } from "../_shared/logger.ts";
 import { determineSmartSplit } from "./handlers/smart-split.ts";
 import { buildPixPayload, callPushinPayApi, type PushinPayResponse } from "./handlers/pix-builder.ts";
 import { updateOrderWithPixData, triggerPixGeneratedWebhook, logManualPaymentIfNeeded } from "./handlers/post-pix.ts";
 
 // Use public CORS for checkout/payment endpoints
 const corsHeaders = PUBLIC_CORS_HEADERS;
+const log = createLogger("pushinpay-create-pix");
 
 // === INTERFACES (Zero any) ===
 
@@ -81,8 +83,7 @@ Deno.serve(withSentry('pushinpay-create-pix', async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const functionName = 'pushinpay-create-pix';
-  console.log(`[${functionName}] Iniciando Smart Split v4.0...`);
+  log.info('Iniciando Smart Split v4.0');
 
   try {
     // 1. Criar cliente Supabase
@@ -98,7 +99,7 @@ Deno.serve(withSentry('pushinpay-create-pix', async (req) => {
       corsHeaders
     );
     if (rateLimitResult) {
-      console.warn(`[${functionName}] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      log.warn('Rate limit exceeded', { ip: getClientIP(req) });
       return rateLimitResult;
     }
 
@@ -106,7 +107,7 @@ Deno.serve(withSentry('pushinpay-create-pix', async (req) => {
     const body: CreatePixRequest = await req.json();
     const { orderId, valueInCents, webhookUrl } = body;
 
-    console.log(`[${functionName}] orderId=${orderId}, valueInCents=${valueInCents}`);
+    log.info('Request', { orderId, valueInCents });
 
     // 3. Validações
     if (!orderId) throw new Error('orderId é obrigatório');
@@ -120,19 +121,22 @@ Deno.serve(withSentry('pushinpay-create-pix', async (req) => {
       .single() as { data: OrderRecord | null; error: Error | null };
 
     if (orderError || !order) {
-      console.error(`[${functionName}] Pedido não encontrado:`, orderError);
+      log.error('Pedido não encontrado', { orderId, error: orderError });
       throw new Error(`Pedido ${orderId} não encontrado`);
     }
 
-    console.log(`[${functionName}] Pedido encontrado, vendor_id=${order.vendor_id}, affiliate_id=${order.affiliate_id || 'nenhum'}`);
+    log.info('Pedido encontrado', { vendor_id: order.vendor_id, affiliate_id: order.affiliate_id || 'nenhum' });
 
     // 5. Validação de segurança: valor frontend vs banco
     if (valueInCents !== order.amount_cents) {
-      console.error(`[${functionName}] ⛔ ALERTA DE SEGURANÇA: Valor divergente! Frontend=${valueInCents}, Banco=${order.amount_cents}`);
+      log.error('ALERTA DE SEGURANÇA: Valor divergente', { 
+        frontend: valueInCents, 
+        database: order.amount_cents 
+      });
       
       const securityEvent: SecurityEventEntry = {
         event_type: 'value_mismatch',
-        resource: functionName,
+        resource: 'pushinpay-create-pix',
         identifier: orderId,
         metadata: {
           frontend_value: valueInCents,
@@ -147,15 +151,19 @@ Deno.serve(withSentry('pushinpay-create-pix', async (req) => {
       throw new Error(`Valor inválido: esperado ${order.amount_cents} centavos, recebido ${valueInCents}. Possível tentativa de manipulação.`);
     }
     
-    console.log(`[${functionName}] ✅ Validação de valor OK: ${valueInCents} centavos`);
+    log.info('Validação de valor OK', { valueInCents });
 
     // 6. SMART SPLIT: Determinar quem cria o PIX
-    const smartSplit = await determineSmartSplit(supabase, order, valueInCents, functionName);
+    const smartSplit = await determineSmartSplit(supabase, order, valueInCents, 'pushinpay-create-pix');
 
-    console.log(`[${functionName}] 🎯 SMART SPLIT: PIX criado por ${smartSplit.pixCreatedBy.toUpperCase()}`);
-    console.log(`[${functionName}] 🎯 Split rules: ${smartSplit.splitRules.length} destinatário(s)`);
+    log.info('SMART SPLIT', { 
+      pixCreatedBy: smartSplit.pixCreatedBy, 
+      splitRulesCount: smartSplit.splitRules.length 
+    });
     if (smartSplit.adjustedSplit) {
-      console.warn(`[${functionName}] ⚠️ Split ajustado - ${smartSplit.manualPaymentNeeded} centavos precisam pagamento manual`);
+      log.warn('Split ajustado - pagamento manual necessário', { 
+        manualPaymentNeeded: smartSplit.manualPaymentNeeded 
+      });
     }
 
     // 7. Montar payload e chamar API
@@ -172,17 +180,17 @@ Deno.serve(withSentry('pushinpay-create-pix', async (req) => {
       payload,
       orderId,
       supabase,
-      logPrefix: functionName
+      logPrefix: 'pushinpay-create-pix'
     });
 
     // 8. Atualizar pedido
-    await updateOrderWithPixData({ supabase, orderId, pixData, logPrefix: functionName });
+    await updateOrderWithPixData({ supabase, orderId, pixData, logPrefix: 'pushinpay-create-pix' });
 
     // 9. Disparar webhook
-    await triggerPixGeneratedWebhook({ supabaseUrl, orderId, logPrefix: functionName });
+    await triggerPixGeneratedWebhook({ supabaseUrl, orderId, logPrefix: 'pushinpay-create-pix' });
 
     // 10. Logar pagamento manual se necessário
-    await logManualPaymentIfNeeded({ supabase, orderId, smartSplit, logPrefix: functionName });
+    await logManualPaymentIfNeeded({ supabase, orderId, smartSplit, logPrefix: 'pushinpay-create-pix' });
 
     // 11. Retornar resposta
     const responseData: PixResponseData = {
@@ -209,7 +217,7 @@ Deno.serve(withSentry('pushinpay-create-pix', async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`[pushinpay-create-pix] Erro:`, errorMessage);
+    log.error('Erro', { message: errorMessage });
     
     await captureException(error instanceof Error ? error : new Error(String(error)), {
       functionName: 'pushinpay-create-pix',
