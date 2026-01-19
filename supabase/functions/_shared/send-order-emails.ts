@@ -17,6 +17,9 @@ import {
   getPurchaseConfirmationTextTemplate, 
   type PurchaseConfirmationData 
 } from './email-templates.ts';
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("SendOrderEmails");
 
 // ============================================================================
 // TYPES
@@ -57,21 +60,10 @@ interface ProductDeliveryInfo {
   external_delivery: boolean | null;
 }
 
-// ============================================================================
-// LOGGING HELPERS
-// ============================================================================
-
-function logInfo(message: string, data?: Record<string, unknown>) {
-  console.log(`[send-order-emails] [INFO] ${message}`, data ? JSON.stringify(data) : '');
-}
-
-function logWarn(message: string, data?: Record<string, unknown>) {
-  console.warn(`[send-order-emails] [WARN] ${message}`, data ? JSON.stringify(data) : '');
-}
-
-function logError(message: string, error?: unknown) {
-  console.error(`[send-order-emails] [ERROR] ${message}`, error);
-}
+// Note: Local logging helpers removed - using centralized createLogger
+const logInfo = (message: string, data?: Record<string, unknown>) => log.info(message, data);
+const logWarn = (message: string, data?: Record<string, unknown>) => log.warn(message, data);
+const logError = (message: string, error?: unknown) => log.error(message, error);
 
 // ============================================================================
 // MAIN FUNCTION

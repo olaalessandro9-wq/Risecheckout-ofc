@@ -9,6 +9,9 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { ensureUniqueSlug } from "./edge-helpers.ts";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("ProductDuplicateCloner");
 
 // ============================================
 // TYPES
@@ -68,7 +71,7 @@ export async function cloneCheckoutLinks(
     }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.log("[product-duplicate] No checkout_links found, trying payment_links:", errorMessage);
+    log.debug("No checkout_links found, trying payment_links:", errorMessage);
   }
 
   try {
@@ -89,7 +92,7 @@ export async function cloneCheckoutLinks(
     }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.log("[product-duplicate] No payment_links found:", errorMessage);
+    log.debug("No payment_links found:", errorMessage);
   }
 }
 
@@ -122,7 +125,7 @@ export async function cloneCheckoutDeep(
       .single();
 
     if (rowError || !newRow) {
-      console.error("[product-duplicate] Failed to clone row:", rowError);
+      log.error("Failed to clone row:", rowError);
       continue;
     }
 
