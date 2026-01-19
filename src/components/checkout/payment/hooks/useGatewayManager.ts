@@ -17,6 +17,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { PaymentGatewayId as PaymentGatewayType } from '@/types/payment-types';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('GatewayManager');
 
 // ============================================
 // INTERFACES
@@ -62,7 +65,7 @@ async function loadMercadoPagoSDK(publicKey: string): Promise<boolean> {
   return new Promise((resolve, reject) => {
     // Verifica se já está carregado
     if (window.MercadoPago) {
-      console.log('[GatewayManager] Mercado Pago SDK já carregado');
+      log.debug('Mercado Pago SDK já carregado');
       resolve(true);
       return;
     }
@@ -77,10 +80,10 @@ async function loadMercadoPagoSDK(publicKey: string): Promise<boolean> {
         try {
           // Inicializa SDK
           new window.MercadoPago(publicKey, { locale: 'pt-BR' });
-          console.log('[GatewayManager] ✅ Mercado Pago SDK carregado e inicializado');
+          log.info('✅ Mercado Pago SDK carregado e inicializado');
           resolve(true);
         } catch (error: unknown) {
-          console.error('[GatewayManager] Erro ao inicializar Mercado Pago:', error);
+          log.error('Erro ao inicializar Mercado Pago:', error);
           reject(new Error('Erro ao inicializar Mercado Pago'));
         }
       } else {
@@ -89,7 +92,7 @@ async function loadMercadoPagoSDK(publicKey: string): Promise<boolean> {
     };
     
     script.onerror = () => {
-      console.error('[GatewayManager] Erro ao carregar SDK do Mercado Pago');
+      log.error('Erro ao carregar SDK do Mercado Pago');
       reject(new Error('Erro ao carregar SDK do Mercado Pago'));
     };
     
@@ -102,7 +105,7 @@ async function loadMercadoPagoSDK(publicKey: string): Promise<boolean> {
  * TODO: Implementar quando adicionar Stripe
  */
 async function loadStripeSDK(publicKey: string): Promise<boolean> {
-  console.warn('[GatewayManager] Stripe ainda não implementado');
+  log.warn('Stripe ainda não implementado');
   return Promise.reject(new Error('Stripe ainda não implementado'));
 }
 
@@ -111,7 +114,7 @@ async function loadStripeSDK(publicKey: string): Promise<boolean> {
  * TODO: Implementar quando adicionar PagSeguro
  */
 async function loadPagSeguroSDK(publicKey: string): Promise<boolean> {
-  console.warn('[GatewayManager] PagSeguro ainda não implementado');
+  log.warn('PagSeguro ainda não implementado');
   return Promise.reject(new Error('PagSeguro ainda não implementado'));
 }
 
@@ -162,7 +165,7 @@ export function useGatewayManager({
       return;
     }
 
-    console.log(`[GatewayManager] Carregando gateway: ${gateway}`);
+    log.debug(`Carregando gateway: ${gateway}`);
     setIsLoading(true);
     setError(null);
 
@@ -177,10 +180,10 @@ export function useGatewayManager({
       
       setIsReady(true);
       setError(null);
-      console.log(`[GatewayManager] ✅ Gateway ${gateway} pronto`);
+      log.info(`✅ Gateway ${gateway} pronto`);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Erro ao carregar gateway';
-      console.error(`[GatewayManager] ❌ Erro ao carregar ${gateway}:`, err);
+      log.error(`❌ Erro ao carregar ${gateway}:`, err);
       setError(errorMessage);
       setIsReady(false);
     } finally {
