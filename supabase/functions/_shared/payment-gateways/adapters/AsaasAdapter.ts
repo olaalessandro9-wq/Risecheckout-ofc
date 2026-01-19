@@ -33,6 +33,7 @@
 import { IPaymentGateway } from "../IPaymentGateway.ts";
 import { PaymentRequest, PaymentResponse } from "../types.ts";
 import { CircuitBreaker, CircuitOpenError, GATEWAY_CIRCUIT_CONFIGS } from "../../circuit-breaker.ts";
+import { createLogger } from "../../logger.ts";
 
 // Importar helpers modulares - UNIFICADO para RISE Protocol V2
 import { findOrCreateCustomer, type AsaasCustomer } from "../../asaas-customer.ts";
@@ -45,6 +46,8 @@ import {
   mapAsaasStatus,
   type AsaasPaymentStatus 
 } from "./asaas-payment-helper.ts";
+
+const log = createLogger("AsaasAdapter");
 
 // ============================================
 // ADAPTER IMPLEMENTATION
@@ -85,7 +88,7 @@ export class AsaasAdapter implements IPaymentGateway {
    */
   async createPix(request: PaymentRequest): Promise<PaymentResponse> {
     try {
-      console.log(`[AsaasAdapter] Criando PIX para pedido ${request.order_id}`);
+      log.info(`Creating PIX payment for order ${request.order_id}`);
 
       return await this.circuitBreaker.execute(async () => {
         // 1. Criar ou buscar customer
@@ -142,7 +145,7 @@ export class AsaasAdapter implements IPaymentGateway {
    */
   async createCreditCard(request: PaymentRequest): Promise<PaymentResponse> {
     try {
-      console.log(`[AsaasAdapter] Criando pagamento cartão para pedido ${request.order_id}`);
+      log.info(`Creating credit card payment for order ${request.order_id}`);
 
       if (!request.card_token) {
         return this.errorResponse('Token do cartão é obrigatório');
@@ -236,7 +239,7 @@ export class AsaasAdapter implements IPaymentGateway {
    */
   private handleError(error: unknown, method: string): PaymentResponse {
     if (error instanceof CircuitOpenError) {
-      console.warn(`[AsaasAdapter] Circuit breaker OPEN: ${error.message}`);
+      log.warn(`Circuit breaker OPEN: ${error.message}`);
       return {
         success: false,
         transaction_id: '',
@@ -246,8 +249,8 @@ export class AsaasAdapter implements IPaymentGateway {
       };
     }
 
-    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-    console.error(`[AsaasAdapter] Exception ${method}:`, error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    log.error(`Exception in ${method}:`, error);
     return this.errorResponse(errorMessage);
   }
 

@@ -12,6 +12,10 @@
  * @version 2.0.0 - Unificado para RISE Protocol V2
  */
 
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("AsaasCustomer");
+
 // ============================================
 // TYPES
 // ============================================
@@ -63,7 +67,7 @@ export async function findOrCreateCustomer(
   if (document) {
     const existing = await findCustomerByDocument(baseUrl, headers, document);
     if (existing) {
-      console.log(`[asaas-customer] Cliente encontrado: ${existing.id}`);
+      log.info(`Customer found: ${existing.id}`);
       return existing;
     }
   }
@@ -93,7 +97,7 @@ async function findCustomerByDocument(
     return data.data?.[0] || null;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[asaas-customer] Erro ao buscar cliente:', errorMessage);
+    log.error("Error fetching customer:", errorMessage);
     return null;
   }
 }
@@ -117,7 +121,7 @@ async function createCustomer(
       notificationDisabled: false
     };
 
-    console.log(`[asaas-customer] Criando customer: ${customerData.email}`);
+    log.info(`Creating customer: ${customerData.email}`);
 
     const response = await fetch(`${baseUrl}/customers`, {
       method: 'POST',
@@ -127,16 +131,16 @@ async function createCustomer(
 
     if (!response.ok) {
       const error = await response.json();
-      console.error('[asaas-customer] Erro ao criar cliente:', error);
+      log.error("Error creating customer:", error);
       return null;
     }
 
     const newCustomer = await response.json();
-    console.log(`[asaas-customer] Cliente criado: ${newCustomer.id}`);
+    log.info(`Customer created: ${newCustomer.id}`);
     return newCustomer;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[asaas-customer] Exceção ao criar cliente:', errorMessage);
+    log.error("Exception creating customer:", errorMessage);
     return null;
   }
 }
