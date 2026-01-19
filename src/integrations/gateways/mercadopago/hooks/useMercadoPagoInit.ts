@@ -1,11 +1,14 @@
 /**
  * useMercadoPagoInit - Hook para inicializar SDK do Mercado Pago
  * 
+ * @version 2.0.0 - RISE Protocol V3 Compliant - Zero console.log
  * Responsabilidade única: Carregar e inicializar script da SDK
- * Limite: < 80 linhas
  */
 
 import { useState, useEffect } from "react";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("MercadoPago");
 
 /**
  * Hook para inicializar o Mercado Pago no frontend
@@ -43,12 +46,12 @@ export function useMercadoPagoInit(publicKey?: string): boolean {
               new window.MercadoPago(publicKey, {
                 locale: "pt-BR",
               });
-              console.log("[MercadoPago] ✅ SDK carregada e inicializada");
+              log.info("SDK carregada e inicializada");
               setIsInitialized(true);
             }
           };
           script.onerror = () => {
-            console.error("[MercadoPago] Erro ao carregar SDK");
+            log.error("Erro ao carregar SDK");
             setIsInitialized(false);
           };
           document.head.appendChild(script);
@@ -57,11 +60,11 @@ export function useMercadoPagoInit(publicKey?: string): boolean {
           new window.MercadoPago(publicKey, {
             locale: "pt-BR",
           });
-          console.log("[MercadoPago] SDK já estava carregada");
+          log.debug("SDK já estava carregada");
           setIsInitialized(true);
         }
       } catch (error: unknown) {
-        console.error("[MercadoPago] Erro ao inicializar:", error);
+        log.error("Erro ao inicializar", error);
         setIsInitialized(false);
       }
     };

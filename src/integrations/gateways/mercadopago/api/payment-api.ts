@@ -2,8 +2,8 @@
  * Chamadas de API de Pagamento - Mercado Pago Gateway
  * 
  * Módulo: src/integrations/gateways/mercadopago/api/payment-api.ts
- * RISE ARCHITECT PROTOCOL V2 - Single Responsibility
  * 
+ * @version 2.0.0 - RISE Protocol V3 Compliant - Zero console.log
  * Contém funções para criar preferências e processar pagamentos.
  */
 
@@ -13,6 +13,9 @@ import {
   MercadoPagoPaymentResponse,
   MercadoPagoResponse,
 } from '../types';
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("MercadoPago");
 
 /**
  * Cria uma preferência de pagamento no Mercado Pago
@@ -44,20 +47,20 @@ export async function createPreference(
 
     if (!response.ok) {
       const error = await response.json();
-      console.error("[MercadoPago] Erro ao criar preferência:", error);
+      log.error("Erro ao criar preferência", error);
       return { success: false, message: "Erro ao criar preferência", error: error.error };
     }
 
     const data = (await response.json()) as MercadoPagoPreferenceResponse;
 
-    console.log("[MercadoPago] ✅ Preferência criada com sucesso", {
+    log.info("Preferência criada com sucesso", {
       preference_id: data.id,
       vendor_id: vendorId,
     });
 
     return { success: true, message: "Preferência criada com sucesso", data };
   } catch (error: unknown) {
-    console.error("[MercadoPago] Erro ao criar preferência:", error);
+    log.error("Erro ao criar preferência", error);
     return {
       success: false,
       message: "Erro ao criar preferência",
@@ -114,13 +117,13 @@ export async function processPayment(
 
     if (!response.ok) {
       const error = await response.json();
-      console.error("[MercadoPago] Erro ao processar pagamento:", error);
+      log.error("Erro ao processar pagamento", error);
       return { success: false, message: "Erro ao processar pagamento", error: error.error };
     }
 
     const data = (await response.json()) as MercadoPagoPaymentResponse;
 
-    console.log("[MercadoPago] ✅ Pagamento processado", {
+    log.info("Pagamento processado", {
       payment_id: data.id,
       status: data.status,
       vendor_id: vendorId,
@@ -128,7 +131,7 @@ export async function processPayment(
 
     return { success: true, message: `Pagamento ${data.status}`, data };
   } catch (error: unknown) {
-    console.error("[MercadoPago] Erro ao processar pagamento:", error);
+    log.error("Erro ao processar pagamento", error);
     return {
       success: false,
       message: "Erro ao processar pagamento",
@@ -163,7 +166,7 @@ export async function getPayment(
 
     if (!response.ok) {
       const error = await response.json();
-      console.error("[MercadoPago] Erro ao obter pagamento:", error);
+      log.error("Erro ao obter pagamento", error);
       return { success: false, message: "Erro ao obter pagamento", error: error.error };
     }
 
@@ -171,7 +174,7 @@ export async function getPayment(
 
     return { success: true, message: "Pagamento obtido com sucesso", data };
   } catch (error: unknown) {
-    console.error("[MercadoPago] Erro ao obter pagamento:", error);
+    log.error("Erro ao obter pagamento", error);
     return {
       success: false,
       message: "Erro ao obter pagamento",

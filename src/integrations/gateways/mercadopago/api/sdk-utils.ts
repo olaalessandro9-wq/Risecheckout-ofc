@@ -2,10 +2,14 @@
  * Utilitários do SDK - Mercado Pago Gateway
  * 
  * Módulo: src/integrations/gateways/mercadopago/api/sdk-utils.ts
- * RISE ARCHITECT PROTOCOL V2 - Single Responsibility
  * 
+ * @version 2.0.0 - RISE Protocol V3 Compliant - Zero console.log
  * Contém funções de validação e inicialização do SDK.
  */
+
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("MercadoPago");
 
 /**
  * Valida se a configuração do Mercado Pago é válida
@@ -15,17 +19,17 @@
  * 
  * @example
  * if (!isValidConfig(publicKey)) {
- *   console.error("Configuração inválida");
+ *   log.error("Configuração inválida");
  * }
  */
 export function isValidConfig(publicKey?: string): boolean {
   if (!publicKey) {
-    console.warn("[MercadoPago] Public Key não configurada");
+    log.warn("Public Key não configurada");
     return false;
   }
 
   if (!publicKey.startsWith("APP_USR-")) {
-    console.warn("[MercadoPago] Public Key inválida");
+    log.warn("Public Key inválida");
     return false;
   }
 
@@ -51,7 +55,7 @@ export function initializeMercadoPago(publicKey: string): boolean {
 
     // Verificar se MercadoPago já foi inicializado
     if (typeof window !== "undefined" && window.MercadoPago) {
-      console.log("[MercadoPago] MercadoPago já foi inicializado");
+      log.debug("MercadoPago já foi inicializado");
       return true;
     }
 
@@ -63,14 +67,14 @@ export function initializeMercadoPago(publicKey: string): boolean {
       if (typeof mpConstructor.setPublishableKey === 'function') {
         mpConstructor.setPublishableKey(publicKey);
       }
-      console.log("[MercadoPago] ✅ MercadoPago inicializado com sucesso");
+      log.info("MercadoPago inicializado com sucesso");
       return true;
     }
 
-    console.warn("[MercadoPago] MercadoPago SDK não carregado");
+    log.warn("MercadoPago SDK não carregado");
     return false;
   } catch (error: unknown) {
-    console.error("[MercadoPago] Erro ao inicializar:", error);
+    log.error("Erro ao inicializar", error);
     return false;
   }
 }

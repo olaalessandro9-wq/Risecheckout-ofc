@@ -4,10 +4,15 @@
  * 
  * Componente React responsável por renderizar o formulário de cartão (Brick)
  * do Mercado Pago.
+ * 
+ * @version 2.0.0 - RISE Protocol V3 Compliant - Zero console.log
  */
 
 import React, { useEffect, useRef } from "react";
 import { MercadoPagoIntegration, BrickConfig } from "./types";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("MercadoPago");
 
 interface BrickProps {
   integration: MercadoPagoIntegration | null;
@@ -33,7 +38,7 @@ export const Brick = ({
 
   useEffect(() => {
     if (!integration || !integration.active || !integration.config?.public_key) {
-      console.log("[MercadoPago] Brick não será renderizado (integração inválida)");
+      log.debug("Brick não será renderizado (integração inválida)");
       return;
     }
 
@@ -41,7 +46,7 @@ export const Brick = ({
       try {
         // Verificar se MercadoPago está disponível
         if (!window.MercadoPago) {
-          console.warn("[MercadoPago] MercadoPago SDK não está carregada");
+          log.warn("MercadoPago SDK não está carregada");
           return;
         }
 
@@ -62,19 +67,19 @@ export const Brick = ({
           },
           callbacks: {
             onReady: () => {
-              console.log("[MercadoPago] Brick está pronto");
+              log.info("Brick está pronto");
               onPaymentReady?.();
             },
             onSubmit: (data: unknown) => {
-              console.log("[MercadoPago] Pagamento submetido", data);
+              log.info("Pagamento submetido", data);
               onPaymentSubmit?.(data as Record<string, unknown>);
             },
             onError: (error: unknown) => {
-              console.error("[MercadoPago] Erro no Brick", error);
+              log.error("Erro no Brick", error);
               onPaymentError?.(error);
             },
             onFieldChange: (field: unknown) => {
-              console.log("[MercadoPago] Campo alterado", field);
+              log.trace("Campo alterado", field);
             },
           },
           customizations: {
@@ -97,14 +102,11 @@ export const Brick = ({
 
         brickInstanceRef.current = brickInstance as BrickInstance;
 
-        console.log(
-          "[MercadoPago] ✅ Brick renderizado com sucesso",
-          {
-            public_key: integration.config.public_key,
-          }
-        );
+        log.info("Brick renderizado com sucesso", {
+          public_key: integration.config.public_key,
+        });
       } catch (error: unknown) {
-        console.error("[MercadoPago] Erro ao renderizar Brick:", error);
+        log.error("Erro ao renderizar Brick", error);
         onPaymentError?.(error);
       }
     };

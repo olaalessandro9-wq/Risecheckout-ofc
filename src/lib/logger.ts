@@ -5,6 +5,8 @@
  * Em PRODUÇÃO: Apenas errors são exibidos (para monitoramento)
  * 
  * INTEGRAÇÃO SENTRY: Erros são enviados automaticamente para o Sentry
+ * 
+ * @version 3.0.0 - RISE Protocol V3 Compliant
  */
 
 import * as Sentry from "@sentry/react";
@@ -12,7 +14,7 @@ import * as Sentry from "@sentry/react";
 const isDev = import.meta.env.DEV;
 const LOG_PREFIX = '[Rise]';
 
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error';
 
 interface LoggerConfig {
   enabledLevels: LogLevel[];
@@ -20,7 +22,7 @@ interface LoggerConfig {
 }
 
 const config: LoggerConfig = {
-  enabledLevels: isDev ? ['debug', 'info', 'warn', 'error'] : ['error'],
+  enabledLevels: isDev ? ['trace', 'debug', 'info', 'warn', 'error'] : ['error'],
   prefix: LOG_PREFIX,
 };
 
@@ -28,6 +30,12 @@ const config: LoggerConfig = {
  * Logger principal com contexto obrigatório
  */
 export const logger = {
+  trace: (context: string, message: string, ...args: unknown[]) => {
+    if (config.enabledLevels.includes('trace')) {
+      console.debug(`🔍 ${config.prefix}[${context}] ${message}`, ...args);
+    }
+  },
+
   debug: (context: string, message: string, ...args: unknown[]) => {
     if (config.enabledLevels.includes('debug')) {
       console.debug(`🐛 ${config.prefix}[${context}] ${message}`, ...args);
@@ -72,10 +80,14 @@ export const logger = {
  * 
  * @example
  * const log = createLogger('CouponField');
- * log.info('Validando cupom', couponCode);
+ * log.trace('Dados detalhados', data); // Muito verboso, apenas dev
+ * log.debug('Iniciando validação');
+ * log.info('Cupom validado com sucesso');
+ * log.warn('Cupom próximo de expirar');
  * log.error('Falha na validação', error);
  */
 export const createLogger = (context: string) => ({
+  trace: (message: string, ...args: unknown[]) => logger.trace(context, message, ...args),
   debug: (message: string, ...args: unknown[]) => logger.debug(context, message, ...args),
   info: (message: string, ...args: unknown[]) => logger.info(context, message, ...args),
   warn: (message: string, ...args: unknown[]) => logger.warn(context, message, ...args),

@@ -1,11 +1,13 @@
 /**
  * Asaas Gateway API
  * 
+ * @version 2.0.0 - RISE Protocol V3 Compliant - Zero console.log
  * MIGRATED: Uses Edge Functions for all operations
  * @see RISE Protocol V2 - Zero database access from frontend
  */
 
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
 import type {
   AsaasEnvironment,
   AsaasPaymentRequest,
@@ -13,6 +15,8 @@ import type {
   AsaasValidationResult,
   AsaasIntegrationConfig,
 } from "./types";
+
+const log = createLogger("Asaas");
 
 interface AsaasValidationApiResponse {
   valid?: boolean;
@@ -70,7 +74,7 @@ export async function validateAsaasCredentials(
     });
 
     if (error) {
-      console.error('[Asaas] Validation error:', error);
+      log.error("Validation error", error);
       return {
         valid: false,
         message: error.message || 'Erro ao validar credenciais',
@@ -84,7 +88,7 @@ export async function validateAsaasCredentials(
       walletId: data?.walletId,
     };
   } catch (err) {
-    console.error('[Asaas] Validation exception:', err);
+    log.error("Validation exception", err);
     return {
       valid: false,
       message: 'Erro de conexão ao validar credenciais',
@@ -109,7 +113,7 @@ export async function createAsaasPixPayment(
     });
 
     if (error) {
-      console.error('[Asaas] PIX payment error:', error);
+      log.error("PIX payment error", error);
       return {
         success: false,
         errorMessage: error.message || 'Erro ao criar pagamento PIX',
@@ -126,7 +130,7 @@ export async function createAsaasPixPayment(
       errorMessage: data?.errorMessage,
     };
   } catch (err) {
-    console.error('[Asaas] PIX payment exception:', err);
+    log.error("PIX payment exception", err);
     return {
       success: false,
       errorMessage: 'Erro de conexão ao criar pagamento PIX',
@@ -147,7 +151,7 @@ export async function createAsaasCreditCardPayment(
     });
 
     if (error) {
-      console.error('[Asaas] Credit card payment error:', error);
+      log.error("Credit card payment error", error);
       return {
         success: false,
         errorMessage: error.message || 'Erro ao criar pagamento com cartão',
@@ -161,7 +165,7 @@ export async function createAsaasCreditCardPayment(
       errorMessage: data?.errorMessage,
     };
   } catch (err) {
-    console.error('[Asaas] Credit card payment exception:', err);
+    log.error("Credit card payment exception", err);
     return {
       success: false,
       errorMessage: 'Erro de conexão ao criar pagamento com cartão',
@@ -187,7 +191,7 @@ export async function getAsaasSettings(
     });
 
     if (error) {
-      console.error('[Asaas] Get settings error:', error);
+      log.error("Get settings error", error);
       return null;
     }
 
@@ -206,7 +210,7 @@ export async function getAsaasSettings(
       _has_api_key: config?.has_api_key,
     } as AsaasIntegrationConfig;
   } catch (err) {
-    console.error('[Asaas] Get settings exception:', err);
+    log.error("Get settings exception", err);
     return null;
   }
 }
@@ -233,7 +237,7 @@ export async function saveAsaasSettings(
     });
 
     if (error || !result?.success) {
-      console.error('[Asaas] Save settings error:', result?.error || error);
+      log.error("Save settings error", result?.error || error);
       return { success: false, error: result?.error || error?.message || 'Erro ao salvar configurações' };
     }
 
@@ -245,15 +249,15 @@ export async function saveAsaasSettings(
       });
 
       if (walletError) {
-        console.warn('[Asaas] Erro ao atualizar profiles.asaas_wallet_id:', walletError);
+        log.warn("Erro ao atualizar profiles.asaas_wallet_id", walletError);
       } else {
-        console.log('[Asaas] profiles.asaas_wallet_id atualizado:', config.wallet_id);
+        log.info("profiles.asaas_wallet_id atualizado", { wallet_id: config.wallet_id });
       }
     }
 
     return { success: true };
   } catch (err) {
-    console.error('[Asaas] Save settings exception:', err);
+    log.error("Save settings exception", err);
     return {
       success: false,
       error: 'Erro ao salvar configurações',
@@ -275,7 +279,7 @@ export async function disconnectAsaas(
     });
 
     if (error || !result?.success) {
-      console.error('[Asaas] Disconnect error:', result?.error || error);
+      log.error("Disconnect error", result?.error || error);
       return { success: false, error: result?.error || error?.message };
     }
 
@@ -284,10 +288,10 @@ export async function disconnectAsaas(
       action: 'clear-profile-wallet',
     });
 
-    console.log('[Asaas] Desconectado e wallet_id limpo para vendor:', vendorId);
+    log.info("Desconectado e wallet_id limpo", { vendorId });
     return { success: true };
   } catch (err) {
-    console.error('[Asaas] Disconnect exception:', err);
+    log.error("Disconnect exception", err);
     return {
       success: false,
       error: 'Erro ao desconectar',
