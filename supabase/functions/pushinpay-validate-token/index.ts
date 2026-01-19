@@ -13,7 +13,7 @@
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { handleCors, getCorsHeaders } from "../_shared/cors.ts";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
 
 // PushinPay API URLs por ambiente
 const PUSHINPAY_API_URLS = {
@@ -49,7 +49,7 @@ const logStep = (step: string, details?: unknown) => {
 
 serve(async (req) => {
   // CORS handling via shared module
-  const corsResult = handleCors(req);
+  const corsResult = handleCorsV2(req);
   if (corsResult instanceof Response) {
     return corsResult;
   }

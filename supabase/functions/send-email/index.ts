@@ -10,7 +10,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { sendEmail, type EmailType, type EmailRecipient } from '../_shared/zeptomail.ts';
-import { handleCors } from '../_shared/cors.ts';
+import { handleCorsV2 } from '../_shared/cors-v2.ts';
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from '../_shared/rate-limiting/index.ts';
 import { requireAuthenticatedProducer } from '../_shared/unified-auth.ts';
 
@@ -27,7 +27,7 @@ interface SendEmailRequest {
 
 serve(async (req: Request) => {
   // SECURITY: Validar CORS no início
-  const corsResult = handleCors(req);
+  const corsResult = handleCorsV2(req);
   if (corsResult instanceof Response) {
     return corsResult; // Retorna 403 ou preflight OK
   }

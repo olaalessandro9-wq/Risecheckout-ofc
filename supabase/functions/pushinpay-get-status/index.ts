@@ -15,7 +15,7 @@ import {
   getGatewayCredentials,
   validateCredentials
 } from "../_shared/platform-config.ts";
-import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
+import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { 
   rateLimitMiddleware, 
   RATE_LIMIT_CONFIGS,

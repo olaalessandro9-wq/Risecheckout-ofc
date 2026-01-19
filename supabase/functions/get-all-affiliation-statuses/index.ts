@@ -9,7 +9,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
+import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;

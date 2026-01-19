@@ -1,7 +1,7 @@
 // supabase/functions/check-secrets/index.ts
 // Edge Function de Diagnóstico - Verifica status de todas as secrets do sistema
 
-import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
+import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
 

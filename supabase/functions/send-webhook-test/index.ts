@@ -5,7 +5,7 @@
  */
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { handleCors, getCorsHeaders, PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
+import { handleCorsV2, PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { 
   rateLimitMiddleware, 
   RATE_LIMIT_CONFIGS,
@@ -62,8 +62,7 @@ async function generateSignature(payload: string, secret: string): Promise<strin
 
 Deno.serve(async (req) => {
   // CORS handling
-  const origin = req.headers.get("origin");
-  const corsResult = handleCors(req);
+  const corsResult = handleCorsV2(req);
   
   // If it's a Response (preflight or error), return it
   if (corsResult instanceof Response) {
