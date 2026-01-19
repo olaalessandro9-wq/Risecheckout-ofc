@@ -14,6 +14,9 @@ import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { getAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 import { checkRateLimit, type RateLimitConfig } from "../_shared/rate-limiting/index.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("checkout-editor");
 
 // ============================================
 // RATE LIMIT CONFIG
@@ -169,7 +172,7 @@ serve(withSentry("checkout-editor", async (req) => {
     // ✅ RISE V3: Action comes from body, not URL pathname
     const action = body.action;
     if (!action) {
-      console.error("[checkout-editor] Missing action in request body");
+      log.error("Missing action in request body");
       return errorResponse("Ação é obrigatória", corsHeaders, 400);
     }
 
@@ -180,7 +183,7 @@ serve(withSentry("checkout-editor", async (req) => {
     }
 
     const producerId = producer.id;
-    console.log(`[checkout-editor] Action: ${action}, Producer: ${producerId}`);
+    log.info(`Action: ${action}, Producer: ${producerId}`);
 
     // ========== GET-EDITOR-DATA ==========
     if (action === "get-editor-data" && (req.method === "POST" || req.method === "GET")) {

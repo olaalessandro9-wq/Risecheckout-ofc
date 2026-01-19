@@ -32,6 +32,9 @@ import {
   handleGetOffer,
 } from "../_shared/offer-crud-handlers.ts";
 import type { OfferListParams } from "../_shared/offer-crud-handlers.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("offer-crud");
 
 // ============================================
 // HELPERS
@@ -74,7 +77,7 @@ serve(withSentry("offer-crud", async (req) => {
       return errorResponse("Ação não informada (use body.action ou path)", corsHeaders, 400);
     }
 
-    console.log(`[offer-crud] Action: ${action} (from ${bodyAction ? "body" : "url"}), Method: ${req.method}`);
+    log.info(`Action: ${action} (from ${bodyAction ? "body" : "url"}), Method: ${req.method}`);
 
     // Auth via unified-auth
     let producerId: string;
@@ -82,7 +85,7 @@ serve(withSentry("offer-crud", async (req) => {
       const producer = await requireAuthenticatedProducer(supabase, req);
       producerId = producer.id;
     } catch {
-      console.warn("[offer-crud] Auth failed");
+      log.warn("Auth failed");
       return unauthorizedResponse(corsHeaders);
     }
 
@@ -129,7 +132,7 @@ serve(withSentry("offer-crud", async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[offer-crud] Unexpected error:", errorMessage);
+    log.error("Unexpected error:", errorMessage);
     await captureException(error instanceof Error ? error : new Error(errorMessage), { functionName: "offer-crud", url: req.url, method: req.method });
     return errorResponse("Erro interno do servidor", corsHeaders, 500);
   }

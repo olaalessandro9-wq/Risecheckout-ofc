@@ -24,6 +24,9 @@ import {
   verifyProductOwnership,
 } from "../_shared/checkout-crud-helpers.ts";
 import { managePaymentLink } from "../_shared/checkout-link-handlers.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("checkout-crud");
 
 // ==========================================
 // TYPES
@@ -93,7 +96,7 @@ serve(withSentry("checkout-crud", async (req) => {
     }
     const baseUrl = req.headers.get("origin") || "https://risecheckout.com";
 
-    console.log(`[checkout-crud] Action: ${action}, Producer: ${producerId}`);
+    log.info(`Action: ${action}, Producer: ${producerId}`);
 
     // ========== CREATE ==========
     if (action === "create" && req.method === "POST") {
