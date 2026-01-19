@@ -1,6 +1,7 @@
 /**
  * Hooks para o TikTok Pixel
  * 
+ * @version 2.0.0 - RISE Protocol V3 Compliant - Zero console.log
  * MIGRATED: Uses api.call() with vendor-integrations Edge Function
  * @see RISE Protocol V3 - Unified API Client
  */
@@ -8,6 +9,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { TikTokIntegration } from "./types";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("TikTok");
 
 interface TikTokConfigResponse {
   success: boolean;
@@ -23,7 +27,7 @@ export function useTikTokConfig(vendorId?: string) {
     queryKey: ["tiktok-config", vendorId],
     queryFn: async (): Promise<TikTokIntegration | null> => {
       if (!vendorId) {
-        console.warn("[TikTok] vendorId não fornecido para useTikTokConfig");
+        log.warn("vendorId não fornecido para useTikTokConfig");
         return null;
       }
 
@@ -35,19 +39,19 @@ export function useTikTokConfig(vendorId?: string) {
         });
 
         if (error) {
-          console.error("[TikTok] Edge function error:", error);
+          log.error("Edge function error", error);
           return null;
         }
 
         if (!data?.success || !data?.data) {
-          console.log("[TikTok] Integração não encontrada para vendor:", vendorId);
+          log.debug("Integração não encontrada", { vendorId });
           return null;
         }
 
-        console.log("[TikTok] Configuração carregada com sucesso para vendor:", vendorId);
+        log.info("Configuração carregada com sucesso", { vendorId });
         return data.data;
       } catch (error: unknown) {
-        console.error("[TikTok] Erro inesperado ao carregar config:", error);
+        log.error("Erro inesperado ao carregar config", error);
         return null;
       }
     },
@@ -80,10 +84,9 @@ export function shouldRunTikTok(
   const shouldRun = selectedProducts.includes(productId);
 
   if (!shouldRun) {
-    console.log(
-      `[TikTok] TikTok Pixel não vai rodar para produto ${productId}. Produtos selecionados:`,
-      selectedProducts
-    );
+    log.debug(`Pixel não vai rodar para produto ${productId}`, {
+      selected_products: selectedProducts,
+    });
   }
 
   return shouldRun;

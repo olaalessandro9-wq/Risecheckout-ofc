@@ -2,6 +2,7 @@
  * Lógica de Eventos do TikTok Pixel
  * Módulo: src/integrations/tracking/tiktok
  * 
+ * @version 2.0.0 - RISE Protocol V3 Compliant - Zero console.log
  * Este arquivo contém funções para enviar eventos ao TikTok Pixel.
  * TikTok usa a biblioteca ttq (em vez de fbq do Facebook).
  */
@@ -13,22 +14,20 @@ import {
   TikTokItem,
   TikTokCustomer,
 } from "./types";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("TikTok");
 
 /**
  * Valida se a configuração do TikTok Pixel é válida
  * 
  * @param config - Configuração do TikTok Pixel
  * @returns true se válida, false caso contrário
- * 
- * @example
- * if (!isValidTikTokConfig(config)) {
- *   console.error("Configuração inválida");
- * }
  */
 export function isValidTikTokConfig(config: TikTokConfig): boolean {
   // Precisa ter Pixel ID
   if (!config.pixel_id) {
-    console.warn("[TikTok] Pixel ID não configurado");
+    log.warn("Pixel ID não configurado");
     return false;
   }
 
@@ -42,9 +41,6 @@ export function isValidTikTokConfig(config: TikTokConfig): boolean {
  * @param eventName - Nome do evento (ex: "Purchase", "ViewContent")
  * @param eventData - Dados do evento
  * @returns Resposta da operação
- * 
- * @example
- * const result = await sendTikTokEvent(pixelId, "Purchase", eventData);
  */
 export async function sendTikTokEvent(
   pixelId: string,
@@ -62,7 +58,7 @@ export async function sendTikTokEvent(
 
     // Verificar se ttq está disponível
     if (typeof window === "undefined" || !window.ttq) {
-      console.warn("[TikTok] ttq não está disponível");
+      log.warn("ttq não está disponível");
       return {
         success: false,
         message: "ttq não está disponível",
@@ -99,21 +95,18 @@ export async function sendTikTokEvent(
     // Enviar evento via ttq
     window.ttq.track(eventName, eventParams);
 
-    console.log(
-      `[TikTok] ✅ Evento ${eventName} enviado com sucesso`,
-      {
-        pixel_id: pixelId,
-        value: eventData.value,
-        event_type: eventData.event_type,
-      }
-    );
+    log.info(`Evento ${eventName} enviado com sucesso`, {
+      pixel_id: pixelId,
+      value: eventData.value,
+      event_type: eventData.event_type,
+    });
 
     return {
       success: true,
       message: `Evento ${eventName} enviado com sucesso`,
     };
   } catch (error: unknown) {
-    console.error("[TikTok] Erro ao enviar evento:", error);
+    log.error("Erro ao enviar evento", error);
     return {
       success: false,
       message: "Erro ao enviar evento",
@@ -124,16 +117,6 @@ export async function sendTikTokEvent(
 
 /**
  * Rastreia uma compra/conversão de compra
- * 
- * @param config - Configuração do TikTok Pixel
- * @param orderId - ID do pedido
- * @param value - Valor da compra em reais
- * @param items - Items da compra
- * @param customer - Dados do cliente (opcional)
- * @returns Resposta da operação
- * 
- * @example
- * await trackPurchase(config, orderId, 41.87, items, customer);
  */
 export async function trackPurchase(
   config: TikTokConfig,
@@ -158,13 +141,6 @@ export async function trackPurchase(
 
 /**
  * Rastreia uma visualização de conteúdo/produto
- * 
- * @param config - Configuração do TikTok Pixel
- * @param item - Produto visualizado
- * @returns Resposta da operação
- * 
- * @example
- * await trackViewContent(config, product);
  */
 export async function trackViewContent(
   config: TikTokConfig,
@@ -184,14 +160,6 @@ export async function trackViewContent(
 
 /**
  * Rastreia adição ao carrinho
- * 
- * @param config - Configuração do TikTok Pixel
- * @param items - Items adicionados
- * @param value - Valor total em reais
- * @returns Resposta da operação
- * 
- * @example
- * await trackAddToCart(config, items, 41.87);
  */
 export async function trackAddToCart(
   config: TikTokConfig,
@@ -212,12 +180,6 @@ export async function trackAddToCart(
 
 /**
  * Rastreia visualização de página
- * 
- * @param config - Configuração do TikTok Pixel
- * @returns Resposta da operação
- * 
- * @example
- * await trackPageView(config);
  */
 export async function trackPageView(
   config: TikTokConfig
@@ -235,13 +197,6 @@ export async function trackPageView(
 
 /**
  * Rastreia um lead
- * 
- * @param config - Configuração do TikTok Pixel
- * @param customer - Dados do cliente
- * @returns Resposta da operação
- * 
- * @example
- * await trackLead(config, customer);
  */
 export async function trackLead(
   config: TikTokConfig,
@@ -261,14 +216,6 @@ export async function trackLead(
 
 /**
  * Rastreia um checkout iniciado
- * 
- * @param config - Configuração do TikTok Pixel
- * @param items - Items no carrinho
- * @param value - Valor total em reais
- * @returns Resposta da operação
- * 
- * @example
- * await trackInitiateCheckout(config, items, 41.87);
  */
 export async function trackInitiateCheckout(
   config: TikTokConfig,
@@ -289,14 +236,6 @@ export async function trackInitiateCheckout(
 
 /**
  * Rastreia um reembolso
- * 
- * @param config - Configuração do TikTok Pixel
- * @param orderId - ID do pedido
- * @param value - Valor do reembolso em reais
- * @returns Resposta da operação
- * 
- * @example
- * await trackRefund(config, orderId, 41.87);
  */
 export async function trackRefund(
   config: TikTokConfig,
