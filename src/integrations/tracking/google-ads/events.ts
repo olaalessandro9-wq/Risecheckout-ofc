@@ -2,9 +2,11 @@
  * Lógica de Eventos do Google Ads
  * Módulo: src/integrations/tracking/google-ads
  * 
+ * @version 3.0.0 - RISE Protocol V3 - Zero console.log
  * Este arquivo contém funções para enviar eventos e conversões ao Google Ads.
  */
 
+import { createLogger } from "@/lib/logger";
 import {
   GoogleAdsConversionData,
   GoogleAdsResponse,
@@ -54,9 +56,11 @@ export function getConversionLabel(
  * }
  */
 export function isValidGoogleAdsConfig(config: GoogleAdsConfig): boolean {
+  const log = createLogger("GoogleAds");
+  
   // Precisa ter Conversion ID
   if (!config.conversion_id) {
-    console.warn("[Google Ads] Conversion ID não configurado");
+    log.warn("Conversion ID não configurado");
     return false;
   }
 
@@ -65,7 +69,7 @@ export function isValidGoogleAdsConfig(config: GoogleAdsConfig): boolean {
   const hasEventLabels = config.event_labels?.some((el) => el.label);
 
   if (!hasGlobalLabel && !hasEventLabels) {
-    console.warn("[Google Ads] Nenhum label de conversão configurado");
+    log.warn("Nenhum label de conversão configurado");
     return false;
   }
 
@@ -86,6 +90,8 @@ export async function sendGoogleAdsConversion(
   config: GoogleAdsConfig,
   conversionData: GoogleAdsConversionData
 ): Promise<GoogleAdsResponse> {
+  const log = createLogger("GoogleAds");
+  
   try {
     // Validação
     if (!isValidGoogleAdsConfig(config)) {
@@ -97,7 +103,7 @@ export async function sendGoogleAdsConversion(
 
     // Verificar se gtag está disponível
     if (typeof window === "undefined" || !window.gtag) {
-      console.warn("[Google Ads] gtag não está disponível");
+      log.warn("gtag não está disponível");
       return {
         success: false,
         message: "gtag não está disponível",
@@ -161,22 +167,19 @@ export async function sendGoogleAdsConversion(
       ...conversionParams,
     });
 
-    console.log(
-      `[Google Ads] ✅ Conversão enviada com sucesso`,
-      {
-        conversion_id: config.conversion_id,
-        label: conversionData.conversionLabel,
-        value: conversionData.conversionValue,
-        event_type: conversionData.eventType,
-      }
-    );
+    log.info("Conversão enviada com sucesso", {
+      conversion_id: config.conversion_id,
+      label: conversionData.conversionLabel,
+      value: conversionData.conversionValue,
+      event_type: conversionData.eventType,
+    });
 
     return {
       success: true,
       message: "Conversão enviada com sucesso",
     };
   } catch (error: unknown) {
-    console.error("[Google Ads] Erro ao enviar conversão:", error);
+    log.error("Erro ao enviar conversão", error);
     return {
       success: false,
       message: "Erro ao enviar conversão",
@@ -279,6 +282,8 @@ export async function trackLead(
 export async function trackPageView(
   config: GoogleAdsConfig
 ): Promise<GoogleAdsResponse> {
+  const log = createLogger("GoogleAds");
+  
   try {
     if (typeof window === "undefined" || !window.gtag) {
       return {
@@ -293,14 +298,14 @@ export async function trackPageView(
       send_to: config.conversion_id,
     });
 
-    console.log("[Google Ads] ✅ PageView rastreado");
+    log.debug("PageView rastreado");
 
     return {
       success: true,
       message: "PageView rastreado com sucesso",
     };
   } catch (error: unknown) {
-    console.error("[Google Ads] Erro ao rastrear PageView:", error);
+    log.error("Erro ao rastrear PageView", error);
     return {
       success: false,
       message: "Erro ao rastrear PageView",
@@ -325,6 +330,8 @@ export async function trackAddToCart(
   items: GoogleAdsItem[],
   value: number
 ): Promise<GoogleAdsResponse> {
+  const log = createLogger("GoogleAds");
+  
   try {
     if (typeof window === "undefined" || !window.gtag) {
       return {
@@ -345,14 +352,14 @@ export async function trackAddToCart(
       })),
     });
 
-    console.log("[Google Ads] ✅ AddToCart rastreado");
+    log.debug("AddToCart rastreado");
 
     return {
       success: true,
       message: "AddToCart rastreado com sucesso",
     };
   } catch (error: unknown) {
-    console.error("[Google Ads] Erro ao rastrear AddToCart:", error);
+    log.error("Erro ao rastrear AddToCart", error);
     return {
       success: false,
       message: "Erro ao rastrear AddToCart",
@@ -375,6 +382,8 @@ export async function trackViewItem(
   config: GoogleAdsConfig,
   item: GoogleAdsItem
 ): Promise<GoogleAdsResponse> {
+  const log = createLogger("GoogleAds");
+  
   try {
     if (typeof window === "undefined" || !window.gtag) {
       return {
@@ -395,14 +404,14 @@ export async function trackViewItem(
       ],
     });
 
-    console.log("[Google Ads] ✅ ViewItem rastreado");
+    log.debug("ViewItem rastreado");
 
     return {
       success: true,
       message: "ViewItem rastreado com sucesso",
     };
   } catch (error: unknown) {
-    console.error("[Google Ads] Erro ao rastrear ViewItem:", error);
+    log.error("Erro ao rastrear ViewItem", error);
     return {
       success: false,
       message: "Erro ao rastrear ViewItem",

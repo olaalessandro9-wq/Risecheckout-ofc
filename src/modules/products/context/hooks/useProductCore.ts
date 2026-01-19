@@ -1,6 +1,8 @@
 /**
  * useProductCore - Gerenciamento do Produto Principal
  * 
+ * @version 3.0.0 - RISE Protocol V3 - Zero console.log
+ * 
  * Responsável por:
  * - Estado do produto (product)
  * - Carregamento inicial
@@ -14,11 +16,14 @@
 import { useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { createLogger } from "@/lib/logger";
 import type { 
   ProductData, 
   UpsellSettings, 
   AffiliateSettings 
 } from "../../types/product.types";
+
+const log = createLogger("ProductCore");
 
 interface UseProductCoreOptions {
   productId: string | null;
@@ -145,7 +150,7 @@ export function useProductCore({
         marketplaceCategory: data.marketplace_category || "",
       });
     } catch (error: unknown) {
-      console.error("[useProductCore] Error loading product:", error);
+      log.error("Error loading product:", error);
       toast.error("Erro ao carregar produto");
     }
   }, [productId, userId]);
@@ -199,13 +204,13 @@ export function useProductCore({
       });
 
       if (error) {
-        console.error("[useProductCore] Edge Function error:", error);
+        log.error("Edge Function error:", error);
         toast.error("Erro ao salvar produto");
         throw error;
       }
 
       if (!data?.success) {
-        console.error("[useProductCore] API error:", data?.error);
+        log.error("API error:", data?.error);
         toast.error(data?.error || "Erro ao salvar produto");
         throw new Error(data?.error || "Erro ao salvar produto");
       }
@@ -214,7 +219,7 @@ export function useProductCore({
       // Isso evita toasts duplicados (RISE PROTOCOL V3 - Fase 4)
       await refreshProduct();
     } catch (error: unknown) {
-      console.error("[useProductCore] Error saving product:", error);
+      log.error("Error saving product:", error);
       throw error;
     }
   }, [product, productId, userId, refreshProduct]);
@@ -233,22 +238,22 @@ export function useProductCore({
       });
 
       if (error) {
-        console.error("[useProductCore] Edge Function error:", error);
+        log.error("Edge Function error:", error);
         // Sem toast - ConfirmDeleteDialog gerencia as mensagens
         return false;
       }
 
       if (!data?.success) {
-        console.error("[useProductCore] API error:", data?.error);
+        log.error("API error:", data?.error);
         // Sem toast - ConfirmDeleteDialog gerencia as mensagens
         return false;
       }
 
-      console.log(`[useProductCore] Product deleted successfully: ${data.type}`);
+      log.info(`Product deleted successfully: ${data.type}`);
       // Sem toast - ConfirmDeleteDialog gerencia as mensagens
       return true;
     } catch (error: unknown) {
-      console.error("[useProductCore] Error deleting product:", error);
+      log.error("Error deleting product:", error);
       toast.error(error instanceof Error ? error.message : "Erro ao excluir produto");
       return false;
     }

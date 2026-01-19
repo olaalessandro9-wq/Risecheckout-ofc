@@ -2,12 +2,16 @@
  * Marketplace Service
  * 
  * MIGRATED: Uses api.call() and api.publicCall()
+ * @version 3.0.0 - RISE Protocol V3 - Zero console.log
  * @see RISE Protocol V2 - Zero direct database access from frontend
  */
 
 import type { Database } from "@/integrations/supabase/types";
 import { api } from "@/lib/api";
 import { incrementMarketplaceViewRpc, incrementMarketplaceClickRpc } from "@/lib/rpc/rpcProxy";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("Marketplace");
 
 // Types
 type MarketplaceProduct = Database["public"]["Views"]["marketplace_products"]["Row"];
@@ -63,13 +67,13 @@ export async function fetchMarketplaceProducts(
     });
 
     if (error) {
-      console.error("[Marketplace] Erro ao buscar produtos:", error);
+      log.error("Erro ao buscar produtos:", error);
       throw new Error(error.message);
     }
 
     return data?.products || [];
   } catch (error: unknown) {
-    console.error("[Marketplace] Erro ao buscar produtos:", error);
+    log.error("Erro ao buscar produtos:", error);
     throw error;
   }
 }
@@ -88,13 +92,13 @@ export async function fetchProductDetails(
     });
 
     if (error) {
-      console.error("[Marketplace] Erro ao buscar detalhes do produto:", error);
+      log.error("Erro ao buscar detalhes do produto:", error);
       throw new Error(error.message);
     }
 
     return data?.product || null;
   } catch (error: unknown) {
-    console.error("[Marketplace] Erro ao buscar detalhes do produto:", error);
+    log.error("Erro ao buscar detalhes do produto:", error);
     throw error;
   }
 }
@@ -110,13 +114,13 @@ export async function fetchMarketplaceCategories(): Promise<MarketplaceCategory[
     });
 
     if (error) {
-      console.error("[Marketplace] Erro ao buscar categorias:", error);
+      log.error("Erro ao buscar categorias:", error);
       throw new Error(error.message);
     }
 
     return data?.categories || [];
   } catch (error: unknown) {
-    console.error("[Marketplace] Erro ao buscar categorias:", error);
+    log.error("Erro ao buscar categorias:", error);
     throw error;
   }
 }
@@ -129,11 +133,11 @@ export async function trackProductView(productId: string): Promise<void> {
     const { error } = await incrementMarketplaceViewRpc(productId);
 
     if (error) {
-      console.error("[Marketplace] Erro ao rastrear visualização:", error);
+      log.warn("Erro ao rastrear visualização:", error);
       // Não lançar erro para não bloquear a UI
     }
   } catch (error: unknown) {
-    console.error("[Marketplace] Erro ao rastrear visualização:", error);
+    log.warn("Erro ao rastrear visualização:", error);
     // Não lançar erro para não bloquear a UI
   }
 }
@@ -146,11 +150,11 @@ export async function trackProductClick(productId: string): Promise<void> {
     const { error } = await incrementMarketplaceClickRpc(productId);
 
     if (error) {
-      console.error("[Marketplace] Erro ao rastrear clique:", error);
+      log.warn("Erro ao rastrear clique:", error);
       // Não lançar erro para não bloquear a UI
     }
   } catch (error: unknown) {
-    console.error("[Marketplace] Erro ao rastrear clique:", error);
+    log.warn("Erro ao rastrear clique:", error);
     // Não lançar erro para não bloquear a UI
   }
 }
@@ -181,10 +185,10 @@ export async function checkAffiliationStatus(
     if (error) {
       // Se não autenticado, retorna não afiliado
       if (error.code === "UNAUTHORIZED") {
-        console.log("[Marketplace] Sem token de sessão - usuário não logado");
+        log.debug("Sem token de sessão - usuário não logado");
         return { isAffiliate: false };
       }
-      console.error("[Marketplace] Erro ao verificar status de afiliação:", error);
+      log.error("Erro ao verificar status de afiliação:", error);
       return { isAffiliate: false };
     }
 
@@ -194,7 +198,7 @@ export async function checkAffiliationStatus(
       affiliationId: data?.affiliationId,
     };
   } catch (error: unknown) {
-    console.error("[Marketplace] Erro ao verificar status de afiliação:", error);
+    log.error("Erro ao verificar status de afiliação:", error);
     return { isAffiliate: false };
   }
 }

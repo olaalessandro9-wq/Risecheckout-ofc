@@ -1,6 +1,8 @@
 /**
  * useSaveRegistry - Registry Pattern para Save Handlers (Estendido)
  * 
+ * @version 3.0.0 - RISE Protocol V3 - Zero console.log
+ * 
  * Implementa Open/Closed Principle:
  * - Cada aba registra seu próprio handler de salvamento
  * - saveAll itera sobre todos os handlers registrados
@@ -15,6 +17,7 @@
  */
 
 import { useRef, useCallback } from "react";
+import { createLogger } from "@/lib/logger";
 import type { 
   SaveHandler, 
   ValidationHandler,
@@ -28,6 +31,8 @@ import type {
   ValidationResultExtended,
 } from "../../types/tabValidation.types";
 import { TAB_ORDER } from "../../types/tabValidation.types";
+
+const log = createLogger("SaveRegistry");
 
 // ============================================================================
 // HOOK
@@ -55,12 +60,12 @@ export function useSaveRegistry() {
     };
 
     registryRef.current.set(key, entry);
-    console.log(`[SaveRegistry] Registered handler: ${key} (order: ${entry.order}, tab: ${entry.tabKey || 'N/A'})`);
+    log.trace(`Registered handler: ${key} (order: ${entry.order}, tab: ${entry.tabKey || 'N/A'})`);
 
     // Retorna cleanup function
     return () => {
       registryRef.current.delete(key);
-      console.log(`[SaveRegistry] Unregistered handler: ${key}`);
+      log.trace(`Unregistered handler: ${key}`);
     };
   }, []);
 
@@ -70,7 +75,7 @@ export function useSaveRegistry() {
   const unregisterSaveHandler = useCallback((key: string): void => {
     const existed = registryRef.current.delete(key);
     if (existed) {
-      console.log(`[SaveRegistry] Manually unregistered: ${key}`);
+      log.trace(`Manually unregistered: ${key}`);
     }
   }, []);
 
@@ -123,11 +128,11 @@ export function useSaveRegistry() {
       .sort((a, b) => a.order - b.order);
 
     if (entries.length === 0) {
-      console.log("[SaveRegistry] No handlers registered, nothing to save");
+      log.trace("No handlers registered, nothing to save");
       return { success: true };
     }
 
-    console.log(`[SaveRegistry] Executing ${entries.length} handlers:`, 
+    log.trace(`Executing ${entries.length} handlers:`, 
       entries.map(e => `${e.key}(${e.order})`).join(", "));
 
     // Fase 1: Validação - coleta TODOS os erros
@@ -142,7 +147,7 @@ export function useSaveRegistry() {
         
         if (!result.isValid) {
           hasAnyError = true;
-          console.warn(`[SaveRegistry] Validation failed for: ${entry.key} (tab: ${entry.tabKey})`);
+          log.warn(`Validation failed for: ${entry.key} (tab: ${entry.tabKey})`);
           
           // Registra erros para esta tab
           if (entry.tabKey) {
@@ -174,8 +179,8 @@ export function useSaveRegistry() {
 
     // Se houver erros, retorna sem executar saves
     if (hasAnyError) {
-      console.warn(`[SaveRegistry] Validation failed. First failed tab: ${firstFailedTabKey}`);
-      console.warn(`[SaveRegistry] Tab errors:`, tabErrors);
+      log.warn(`Validation failed. First failed tab: ${firstFailedTabKey}`);
+      log.warn("Tab errors:", tabErrors);
       
       return {
         success: false,
@@ -185,15 +190,15 @@ export function useSaveRegistry() {
       };
     }
 
-    console.log("[SaveRegistry] All validations passed, executing saves...");
+    log.trace("All validations passed, executing saves...");
 
     // Fase 2: Execução em paralelo
     try {
       await Promise.all(entries.map(entry => entry.save()));
-      console.log("[SaveRegistry] All handlers executed successfully");
+      log.debug("All handlers executed successfully");
       return { success: true };
     } catch (error) {
-      console.error("[SaveRegistry] Error during save:", error);
+      log.error("Error during save:", error);
       return {
         success: false,
         error: error instanceof Error ? error : new Error(String(error)),

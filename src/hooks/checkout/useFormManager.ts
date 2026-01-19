@@ -4,6 +4,8 @@
  * Responsabilidade Única: Gerenciar o estado do formulário de dados pessoais,
  * validações, cupons e order bumps.
  * 
+ * @version 3.0.0 - RISE Protocol V3 - Zero console.log
+ * 
  * ✅ REFATORADO (RISE ARCHITECT PROTOCOL):
  * - Usa validators do domain (Single Source of Truth)
  * - Aceita snapshot override para resolver autofill
@@ -17,6 +19,9 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { CheckoutFormData, CheckoutFormErrors, OrderBump } from "@/types/checkout";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("FormManager");
 import {
   validatePersonalData,
   parseRequiredFields,
@@ -77,7 +82,7 @@ function loadFromStorage(storageKey: string): CheckoutFormData | null {
       const now = Date.now();
       const expirationTime = EXPIRATION_DAYS * 24 * 60 * 60 * 1000;
       if ((now - parsed.timestamp) > expirationTime) {
-        console.log('[useFormManager] Dados expirados, removendo...');
+        log.debug("Dados expirados, removendo...");
         localStorage.removeItem(storageKey);
         return null;
       }
@@ -113,11 +118,11 @@ function saveToStorage(storageKey: string, formData: CheckoutFormData): void {
       timestamp: Date.now()
     };
     
-    console.log('[useFormManager] Salvando no localStorage:', {
+    log.trace("Salvando no localStorage:", {
       storageKey,
       name: safeData.name,
       email: safeData.email,
-      phone: safeData.phone, // DEBUG: Verificar se phone está sendo salvo
+      phone: safeData.phone,
     });
     
     localStorage.setItem(storageKey, JSON.stringify(dataToSave));
@@ -160,15 +165,15 @@ export function useFormManager({
     const savedData = loadFromStorage(storageKey);
     
     if (savedData) {
-      console.log('[useFormManager] Hidratando do localStorage:', {
+      log.trace("Hidratando do localStorage:", {
         checkoutId,
         name: savedData.name,
         email: savedData.email,
-        phone: savedData.phone, // DEBUG: Verificar se phone está sendo carregado
+        phone: savedData.phone,
       });
       setFormData(savedData);
     } else {
-      console.log('[useFormManager] Sem dados salvos para:', checkoutId);
+      log.trace("Sem dados salvos para:", checkoutId);
     }
 
     // Marca como hidratado para este checkoutId
