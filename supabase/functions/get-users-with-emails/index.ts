@@ -16,6 +16,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("get-users-with-emails");
 
 Deno.serve(async (req: Request) => {
   // SECURITY: Validação CORS com bloqueio de origens inválidas
@@ -39,7 +42,7 @@ Deno.serve(async (req: Request) => {
       corsHeaders
     );
     if (rateLimitResult) {
-      console.warn(`[get-users-with-emails] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      log.warn(`Rate limit exceeded for IP: ${getClientIP(req)}`);
       return rateLimitResult;
     }
 
@@ -56,7 +59,7 @@ Deno.serve(async (req: Request) => {
 
     // Apenas owner pode ver emails
     if (producer.role !== "owner") {
-      console.log(`[get-users-with-emails] Acesso negado para ${producer.id} (role: ${producer.role})`);
+      log.info(`Acesso negado para ${producer.id} (role: ${producer.role})`);
       return new Response(
         JSON.stringify({ emails: {} }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -67,7 +70,7 @@ Deno.serve(async (req: Request) => {
     const { data: authUsers, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
 
     if (usersError) {
-      console.error("[get-users-with-emails] Erro ao buscar usuários:", usersError);
+      log.error("Erro ao buscar usuários:", usersError);
       return new Response(
         JSON.stringify({ error: "Erro ao buscar emails", emails: {} }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -82,7 +85,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    console.log(`[get-users-with-emails] Owner ${producer.id} buscou ${Object.keys(emails).length} emails`);
+    log.info(`Owner ${producer.id} buscou ${Object.keys(emails).length} emails`);
 
     return new Response(
       JSON.stringify({ emails }),
@@ -91,7 +94,7 @@ Deno.serve(async (req: Request) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[get-users-with-emails] Erro inesperado:", errorMessage);
+    log.error("Erro inesperado:", errorMessage);
     return new Response(
       JSON.stringify({ error: "Erro interno do servidor", emails: {} }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

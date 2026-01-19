@@ -24,6 +24,9 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("products-crud");
 
 // ==========================================
 // TYPES
@@ -79,7 +82,7 @@ async function listProducts(
   const { data, error } = await query;
 
   if (error) {
-    console.error("[products-crud] List error:", error);
+    log.error("List error:", error);
     return errorResponse("Erro ao listar produtos", "DB_ERROR", corsHeaders, 500);
   }
 
@@ -99,13 +102,13 @@ async function getProduct(
     .single();
 
   if (error) {
-    console.error("[products-crud] Get error:", error);
+    log.error("Get error:", error);
     return errorResponse("Produto não encontrado", "NOT_FOUND", corsHeaders, 404);
   }
 
   // Verify ownership
   if (data.user_id !== producerId) {
-    console.warn(`[products-crud] Producer ${producerId} tried to access product ${productId}`);
+    log.warn(`Producer ${producerId} tried to access product ${productId}`);
     return errorResponse("Acesso negado", "FORBIDDEN", corsHeaders, 403);
   }
 
@@ -125,7 +128,7 @@ async function getProductSettings(
     .maybeSingle();
 
   if (error) {
-    console.error("[products-crud] Get settings error:", error);
+    log.error("Get settings error:", error);
     return errorResponse("Erro ao buscar configurações", "DB_ERROR", corsHeaders, 500);
   }
 
@@ -135,7 +138,7 @@ async function getProductSettings(
 
   // Verify ownership
   if (data.user_id !== producerId) {
-    console.warn(`[products-crud] Producer ${producerId} tried to access product ${productId}`);
+    log.warn(`Producer ${producerId} tried to access product ${productId}`);
     return errorResponse("Acesso negado", "FORBIDDEN", corsHeaders, 403);
   }
 
@@ -170,7 +173,7 @@ async function getOffers(
     .order("updated_at", { ascending: false });
 
   if (error) {
-    console.error("[products-crud] Get offers error:", error);
+    log.error("Get offers error:", error);
     return errorResponse("Erro ao buscar ofertas", "DB_ERROR", corsHeaders, 500);
   }
 
@@ -191,12 +194,12 @@ async function getCheckouts(
     .single();
 
   if (productError || !product) {
-    console.error("[products-crud] Get checkouts - product error:", productError);
+    log.error("Get checkouts - product error:", productError);
     return errorResponse("Produto não encontrado", "NOT_FOUND", corsHeaders, 404);
   }
 
   if (product.user_id !== producerId) {
-    console.warn(`[products-crud] Producer ${producerId} tried to access checkouts for product ${productId}`);
+    log.warn(`Producer ${producerId} tried to access checkouts for product ${productId}`);
     return errorResponse("Acesso negado", "FORBIDDEN", corsHeaders, 403);
   }
 
@@ -208,7 +211,7 @@ async function getCheckouts(
     .order("created_at", { ascending: true });
 
   if (error) {
-    console.error("[products-crud] Get checkouts error:", error);
+    log.error("Get checkouts error:", error);
     return errorResponse("Erro ao buscar checkouts", "DB_ERROR", corsHeaders, 500);
   }
 
@@ -233,7 +236,7 @@ serve(async (req) => {
     const body = await req.json() as RequestBody;
     const { action, productId, excludeDeleted = true } = body;
 
-    console.log(`[products-crud] Action: ${action}`);
+    log.info(`Action: ${action}`);
 
     // All actions require authentication
     let producer;
@@ -243,7 +246,7 @@ serve(async (req) => {
       return unauthorizedResponse(corsHeaders);
     }
 
-    console.log(`[products-crud] Producer: ${producer.id}`);
+    log.info(`Producer: ${producer.id}`);
 
     switch (action) {
       case "list":
@@ -278,7 +281,7 @@ serve(async (req) => {
     }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("[products-crud] Error:", errorMessage);
+    log.error("Error:", errorMessage);
     return errorResponse("Erro interno do servidor", "INTERNAL_ERROR", corsHeaders, 500);
   }
 });

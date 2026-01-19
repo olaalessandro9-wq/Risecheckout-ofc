@@ -1,6 +1,8 @@
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
+const log = createLogger("test-deploy");
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
@@ -8,7 +10,7 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  console.log('[test-deploy] Request received:', req.method);
+  log.info("Request received:", req.method);
 
   try {
     const response = {
@@ -22,7 +24,7 @@ Deno.serve(async (req) => {
       },
     };
 
-    console.log('[test-deploy] Returning success response');
+    log.info("Returning success response");
 
     return new Response(
       JSON.stringify(response, null, 2),
@@ -33,7 +35,7 @@ Deno.serve(async (req) => {
     );
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-    console.error('[test-deploy] Error:', errorMessage);
+    log.error("Error:", errorMessage);
 
     return new Response(
       JSON.stringify({
