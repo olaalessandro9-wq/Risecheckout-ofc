@@ -11,6 +11,9 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 import { handleCorsV2, PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("content-save");
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
@@ -194,7 +197,7 @@ Deno.serve(async (req) => {
     const body = await req.json() as RequestBody;
     const { action, moduleId, contentId, content, release, attachments } = body;
 
-    console.log(`[content-save] Action: ${action}`);
+    log.info(`Action: ${action}`);
 
     // Require authentication
     let producer;
@@ -251,7 +254,7 @@ Deno.serve(async (req) => {
             .single();
 
           if (createError) {
-            console.error("[content-save] create error:", createError);
+            log.error("create error:", createError);
             return jsonResponse({ success: false, error: "Erro ao criar conteúdo" }, 500);
           }
 
@@ -276,7 +279,7 @@ Deno.serve(async (req) => {
             .eq("id", contentId);
 
           if (updateError) {
-            console.error("[content-save] update error:", updateError);
+            log.error("update error:", updateError);
             return jsonResponse({ success: false, error: "Erro ao atualizar conteúdo" }, 500);
           }
         }
@@ -305,14 +308,14 @@ Deno.serve(async (req) => {
         if (savedContentId && release) {
           const dripSaved = await saveDripSettings(supabase, savedContentId, release as ReleaseData);
           if (!dripSaved) {
-            console.warn("[content-save] Failed to save drip settings");
+            log.warn("Failed to save drip settings");
           }
         }
 
-        console.log(`[content-save] Content save-full: ${savedContentId} by ${producer.id}`);
+        log.info(`Content save-full: ${savedContentId} by ${producer.id}`);
         return jsonResponse({ success: true, contentId: savedContentId, isNew });
       } catch (err: unknown) {
-        console.error("[content-save] save-full exception:", err);
+        log.error("save-full exception:", err);
         return jsonResponse({ success: false, error: "Erro ao salvar conteúdo" }, 500);
       }
     }
@@ -320,7 +323,7 @@ Deno.serve(async (req) => {
     return jsonResponse({ success: false, error: `Ação desconhecida: ${action}` }, 400);
 
   } catch (error: unknown) {
-    console.error("[content-save] Error:", error);
+    log.error("Error:", error);
     return jsonResponse({ error: error instanceof Error ? error.message : "Internal server error" }, 500);
   }
 });

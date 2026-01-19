@@ -12,6 +12,9 @@ import {
   getClientIP 
 } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("members-area-quizzes");
 
 // Use public CORS for members area
 const corsHeaders = PUBLIC_CORS_HEADERS;
@@ -198,7 +201,7 @@ async function handleQuizSubmit(
 
   if (attemptError) throw attemptError;
 
-  console.log(`[members-area-quizzes] Quiz ${quiz_id} submitted by buyer ${buyer_id}: ${score}% (${passed ? "PASSED" : "FAILED"})`);
+  log.info(`Quiz ${quiz_id} submitted by buyer ${buyer_id}: ${score}% (${passed ? "PASSED" : "FAILED"})`);
 
   return new Response(
     JSON.stringify({ 
@@ -256,14 +259,14 @@ Deno.serve(async (req) => {
       corsHeaders
     );
     if (rateLimitResult) {
-      console.warn(`[members-area-quizzes] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      log.warn(`Rate limit exceeded for IP: ${getClientIP(req)}`);
       return rateLimitResult;
     }
 
     const body: QuizRequest = await req.json();
     const { action, content_id, quiz_id, buyer_token, data } = body;
 
-    console.log(`[members-area-quizzes] Action: ${action}`);
+    log.info(`Action: ${action}`);
 
     // Para ações de buyer (submit, get-attempts), validar buyer token
     if (action === "submit" || action === "get-attempts") {
@@ -426,7 +429,7 @@ Deno.serve(async (req) => {
           }
         }
 
-        console.log(`[members-area-quizzes] Created quiz: ${quiz?.id}`);
+        log.info(`Created quiz: ${quiz?.id}`);
 
         return new Response(
           JSON.stringify({ success: true, quiz }),
@@ -524,7 +527,7 @@ Deno.serve(async (req) => {
         );
     }
   } catch (error: unknown) {
-    console.error("[members-area-quizzes] Error:", error);
+    log.error("Error:", error);
     const message = error instanceof Error ? error.message : "Internal server error";
     return new Response(
       JSON.stringify({ error: message }),

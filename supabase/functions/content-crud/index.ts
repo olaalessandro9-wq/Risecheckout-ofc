@@ -15,6 +15,9 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("content-crud");
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
@@ -170,7 +173,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action, moduleId, contentId, data, orderedIds } = body;
 
-    console.log(`[content-crud] Action: ${action}`);
+    log.info(`Action: ${action}`);
 
     // Require authentication
     let producer;
@@ -224,11 +227,11 @@ Deno.serve(async (req) => {
         .single();
 
       if (insertError) {
-        console.error("[content-crud] Create error:", insertError);
+        log.error("Create error:", insertError);
         return jsonResponse({ success: false, error: "Erro ao criar conteúdo" }, 500);
       }
 
-      console.log(`[content-crud] Content created: ${(newContent as ContentRecord).id} by ${producer.id}`);
+      log.info(`Content created: ${(newContent as ContentRecord).id} by ${producer.id}`);
       return jsonResponse({ success: true, data: newContent as ContentRecord });
     }
 
@@ -271,11 +274,11 @@ Deno.serve(async (req) => {
         .single();
 
       if (updateError) {
-        console.error("[content-crud] Update error:", updateError);
+        log.error("Update error:", updateError);
         return jsonResponse({ success: false, error: "Erro ao atualizar conteúdo" }, 500);
       }
 
-      console.log(`[content-crud] Content updated: ${contentId} by ${producer.id}`);
+      log.info(`Content updated: ${contentId} by ${producer.id}`);
       return jsonResponse({ success: true, data: updatedContent as ContentRecord });
     }
 
@@ -296,11 +299,11 @@ Deno.serve(async (req) => {
         .eq("id", contentId);
 
       if (deleteError) {
-        console.error("[content-crud] Delete error:", deleteError);
+        log.error("Delete error:", deleteError);
         return jsonResponse({ success: false, error: "Erro ao excluir conteúdo" }, 500);
       }
 
-      console.log(`[content-crud] Content deleted: ${contentId} by ${producer.id}`);
+      log.info(`Content deleted: ${contentId} by ${producer.id}`);
       return jsonResponse({ success: true, deletedId: contentId });
     }
 
@@ -331,18 +334,18 @@ Deno.serve(async (req) => {
       const hasError = results.some((r) => r.error);
 
       if (hasError) {
-        console.error("[content-crud] Reorder error");
+        log.error("Reorder error");
         return jsonResponse({ success: false, error: "Erro ao reordenar conteúdos" }, 500);
       }
 
-      console.log(`[content-crud] Contents reordered by ${producer.id}`);
+      log.info(`Contents reordered by ${producer.id}`);
       return jsonResponse({ success: true });
     }
 
     return jsonResponse({ success: false, error: `Ação desconhecida: ${action}` }, 400);
 
   } catch (error: unknown) {
-    console.error("[content-crud] Error:", error);
+    log.error("Error:", error);
     return jsonResponse({ error: error instanceof Error ? error.message : "Internal server error" }, 500);
   }
 });

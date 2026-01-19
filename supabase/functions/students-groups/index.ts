@@ -13,6 +13,9 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 import { handleCorsV2, PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("students-groups");
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
@@ -74,7 +77,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action, buyer_id, group_id, group_ids, product_id } = body;
 
-    console.log(`[students-groups] Action: ${action}`);
+    log.info(`Action: ${action}`);
 
     // Require authentication
     let producer;
@@ -118,7 +121,7 @@ Deno.serve(async (req) => {
 
       if (error) throw error;
 
-      console.log(`[students-groups] Added buyer ${buyer_id} to group ${group_id}`);
+      log.info(`Added buyer ${buyer_id} to group ${group_id}`);
       return jsonResponse({ success: true });
     }
 
@@ -136,7 +139,7 @@ Deno.serve(async (req) => {
 
       if (error) throw error;
 
-      console.log(`[students-groups] Removed buyer ${buyer_id} from group ${group_id}`);
+      log.info(`Removed buyer ${buyer_id} from group ${group_id}`);
       return jsonResponse({ success: true });
     }
 
@@ -170,7 +173,7 @@ Deno.serve(async (req) => {
         if (insertError) throw insertError;
       }
 
-      console.log(`[students-groups] Assigned ${group_ids.length} groups to buyer ${buyer_id}`);
+      log.info(`Assigned ${group_ids.length} groups to buyer ${buyer_id}`);
       return jsonResponse({ success: true, groups_count: group_ids.length });
     }
 
@@ -188,14 +191,14 @@ Deno.serve(async (req) => {
 
       if (error) throw error;
 
-      console.log(`[students-groups] Listed ${groups?.length || 0} groups for product ${product_id}`);
+      log.info(`Listed ${groups?.length || 0} groups for product ${product_id}`);
       return jsonResponse({ success: true, groups: groups as ProductMemberGroup[] });
     }
 
     return jsonResponse({ error: "Invalid action" }, 400);
 
   } catch (error: unknown) {
-    console.error("[students-groups] Error:", error);
+    log.error("Error:", error);
     return jsonResponse({ error: error instanceof Error ? error.message : "Internal server error" }, 500);
   }
 });

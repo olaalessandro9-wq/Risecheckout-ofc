@@ -12,6 +12,9 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("students-list");
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
@@ -127,7 +130,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action, product_id, buyer_id } = body;
 
-    console.log(`[students-list] Action: ${action}`);
+    log.info(`Action: ${action}`);
 
     // Require authentication
     let producer;
@@ -389,7 +392,7 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Invalid action" }, 400);
 
   } catch (error: unknown) {
-    console.error("[students-list] Error:", error);
+    log.error("Error:", error);
     return jsonResponse({ error: error instanceof Error ? error.message : "Internal server error" }, 500);
   }
 });
