@@ -17,6 +17,10 @@
  * ============================================================================
  */
 
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("VaultCredentials");
+
 // ========================================================================
 // TYPES
 // ========================================================================
@@ -81,7 +85,7 @@ export async function saveCredentialsToVault(
   
   const gatewayLower = gateway.toLowerCase();
   
-  console.log(`[vault-credentials] 💾 Salvando credenciais no Vault`, {
+  log.info("💾 Salvando credenciais no Vault", {
     vendorId,
     gateway: gatewayLower,
     hasAccessToken: !!credentials.access_token,
@@ -97,14 +101,14 @@ export async function saveCredentialsToVault(
     });
 
     if (error) {
-      console.error(`[vault-credentials] ❌ Erro ao salvar no Vault:`, error);
+      log.error("❌ Erro ao salvar no Vault", error);
       return {
         success: false,
         error: `Erro ao salvar credenciais: ${error.message}`
       };
     }
 
-    console.log(`[vault-credentials] ✅ Credenciais salvas com sucesso`, data);
+    log.info("✅ Credenciais salvas com sucesso", data);
     
     return {
       success: true,
@@ -113,7 +117,7 @@ export async function saveCredentialsToVault(
 
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    console.error(`[vault-credentials] ❌ Exceção ao salvar no Vault:`, err);
+    log.error("❌ Exceção ao salvar no Vault", err);
     return {
       success: false,
       error: `Exceção ao salvar credenciais: ${errorMessage}`
@@ -143,7 +147,7 @@ export async function getVendorCredentials(
   
   const gatewayLower = gateway.toLowerCase();
   
-  console.log(`[vault-credentials] 🔍 Buscando credenciais do Vault`, {
+  log.info("🔍 Buscando credenciais do Vault", {
     vendorId,
     gateway: gatewayLower
   });
@@ -156,7 +160,7 @@ export async function getVendorCredentials(
     });
 
     if (error) {
-      console.error(`[vault-credentials] ❌ Erro ao buscar do Vault:`, error);
+      log.error("❌ Erro ao buscar do Vault", error);
       return {
         success: false,
         error: `Erro ao buscar credenciais: ${error.message}`
@@ -165,7 +169,7 @@ export async function getVendorCredentials(
 
     // RPC retorna JSONB com { success, credentials?, error? }
     if (!data || typeof data !== 'object') {
-      console.error(`[vault-credentials] ❌ Resposta inválida do Vault:`, data);
+      log.error("❌ Resposta inválida do Vault", data);
       return {
         success: false,
         error: 'Resposta inválida do Vault'
@@ -176,7 +180,7 @@ export async function getVendorCredentials(
     const rpcData = data as VaultRpcResponse;
 
     if (!rpcData.success) {
-      console.warn(`[vault-credentials] ⚠️ Credenciais não encontradas no Vault`, {
+      log.warn("⚠️ Credenciais não encontradas no Vault", {
         vendorId,
         gateway: gatewayLower,
         error: rpcData.error
@@ -189,14 +193,14 @@ export async function getVendorCredentials(
 
     // Validar que credentials contém access_token
     if (!rpcData.credentials || !rpcData.credentials.access_token) {
-      console.error(`[vault-credentials] ❌ Credenciais incompletas no Vault`, rpcData.credentials);
+      log.error("❌ Credenciais incompletas no Vault", rpcData.credentials);
       return {
         success: false,
         error: 'Credenciais incompletas (falta access_token)'
       };
     }
 
-    console.log(`[vault-credentials] ✅ Credenciais recuperadas com sucesso`, {
+    log.info("✅ Credenciais recuperadas com sucesso", {
       vendorId,
       gateway: gatewayLower,
       hasAccessToken: !!rpcData.credentials.access_token,
@@ -211,7 +215,7 @@ export async function getVendorCredentials(
 
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    console.error(`[vault-credentials] ❌ Exceção ao buscar do Vault:`, err);
+    log.error("❌ Exceção ao buscar do Vault", err);
     return {
       success: false,
       error: `Exceção ao buscar credenciais: ${errorMessage}`
@@ -241,7 +245,7 @@ export async function deleteCredentialsFromVault(
   
   const gatewayLower = gateway.toLowerCase();
   
-  console.log(`[vault-credentials] 🗑️ Removendo credenciais do Vault`, {
+  log.info("🗑️ Removendo credenciais do Vault", {
     vendorId,
     gateway: gatewayLower
   });
@@ -254,14 +258,14 @@ export async function deleteCredentialsFromVault(
     });
 
     if (error) {
-      console.error(`[vault-credentials] ❌ Erro ao deletar do Vault:`, error);
+      log.error("❌ Erro ao deletar do Vault", error);
       return {
         success: false,
         error: `Erro ao deletar credenciais: ${error.message}`
       };
     }
 
-    console.log(`[vault-credentials] ✅ Credenciais removidas com sucesso`, data);
+    log.info("✅ Credenciais removidas com sucesso", data);
     
     return {
       success: true,
@@ -270,7 +274,7 @@ export async function deleteCredentialsFromVault(
 
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    console.error(`[vault-credentials] ❌ Exceção ao deletar do Vault:`, err);
+    log.error("❌ Exceção ao deletar do Vault", err);
     return {
       success: false,
       error: `Exceção ao deletar credenciais: ${errorMessage}`

@@ -16,6 +16,10 @@
  * ============================================================================
  */
 
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("CircuitBreaker");
+
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -118,7 +122,7 @@ export class CircuitBreaker {
         circuit.state = 'HALF_OPEN';
         circuit.successes = 0;
         circuit.lastStateChange = now;
-        console.log(`[CircuitBreaker:${this.config.name}] OPEN → HALF_OPEN (${timeSinceOpen}ms)`);
+        log.info(`[${this.config.name}] OPEN → HALF_OPEN (${timeSinceOpen}ms)`);
       } else {
         // Ainda em período de bloqueio
         const retryAfter = this.config.timeout - timeSinceOpen;
@@ -142,7 +146,7 @@ export class CircuitBreaker {
   private onSuccess(circuit: CircuitInternalState, now: number): void {
     if (circuit.state === 'HALF_OPEN') {
       circuit.successes++;
-      console.log(`[CircuitBreaker:${this.config.name}] HALF_OPEN: sucesso ${circuit.successes}/${this.config.successThreshold}`);
+      log.info(`[${this.config.name}] HALF_OPEN: sucesso ${circuit.successes}/${this.config.successThreshold}`);
       
       if (circuit.successes >= this.config.successThreshold) {
         // Serviço recuperado, fechar circuit
@@ -150,7 +154,7 @@ export class CircuitBreaker {
         circuit.failures = 0;
         circuit.successes = 0;
         circuit.lastStateChange = now;
-        console.log(`[CircuitBreaker:${this.config.name}] HALF_OPEN → CLOSED ✅ (recuperado)`);
+        log.info(`[${this.config.name}] HALF_OPEN → CLOSED ✅ (recuperado)`);
       }
     } else if (circuit.state === 'CLOSED') {
       // Reset contador de falhas em sucesso
@@ -174,14 +178,14 @@ export class CircuitBreaker {
       // Falhou durante teste de recuperação
       circuit.state = 'OPEN';
       circuit.lastStateChange = now;
-      console.log(`[CircuitBreaker:${this.config.name}] HALF_OPEN → OPEN ❌ (falhou no teste)`);
+      log.warn(`[${this.config.name}] HALF_OPEN → OPEN ❌ (falhou no teste)`);
     } else if (circuit.state === 'CLOSED' && circuit.failures >= this.config.failureThreshold) {
       // Atingiu threshold de falhas
       circuit.state = 'OPEN';
       circuit.lastStateChange = now;
-      console.log(`[CircuitBreaker:${this.config.name}] CLOSED → OPEN ❌ (${circuit.failures} falhas)`);
+      log.warn(`[${this.config.name}] CLOSED → OPEN ❌ (${circuit.failures} falhas)`);
     } else if (circuit.state === 'CLOSED') {
-      console.log(`[CircuitBreaker:${this.config.name}] Falha ${circuit.failures}/${this.config.failureThreshold}`);
+      log.debug(`[${this.config.name}] Falha ${circuit.failures}/${this.config.failureThreshold}`);
     }
   }
 
@@ -202,7 +206,7 @@ export class CircuitBreaker {
     circuit.failures = 0;
     circuit.successes = 0;
     circuit.lastStateChange = Date.now();
-    console.log(`[CircuitBreaker:${this.config.name}] Reset manual → CLOSED`);
+    log.info(`[${this.config.name}] Reset manual → CLOSED`);
   }
 
   /**
