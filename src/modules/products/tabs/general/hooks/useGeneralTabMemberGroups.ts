@@ -6,7 +6,10 @@
 
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
 import type { MemberGroupOption } from "@/components/products/OffersManager";
+
+const log = createLogger("UseGeneralTabMemberGroups");
 
 interface UseGeneralTabMemberGroupsProps {
   productId: string | undefined;
@@ -44,7 +47,7 @@ export function useGeneralTabMemberGroups({ productId, membersAreaEnabled }: Use
             })));
           }
         } catch (err) {
-          console.error('[useGeneralTabMemberGroups] Error fetching groups:', err);
+          log.error('Error fetching groups:', err);
         }
       };
       

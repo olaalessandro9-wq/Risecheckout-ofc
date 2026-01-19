@@ -6,6 +6,9 @@
  */
 
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("FetchOfferData");
 
 export interface OfferData {
   offerId: string;
@@ -26,12 +29,12 @@ export async function fetchOfferData(checkoutId: string): Promise<OfferData> {
   });
 
   if (error) {
-    console.error('[fetchOfferData] API error:', error);
+    log.error('API error:', error);
     throw new Error("Oferta não encontrada");
   }
 
   if (!data?.success || !data?.data) {
-    console.error('[fetchOfferData] Invalid response:', data);
+    log.error('Invalid response:', data);
     throw new Error(data?.error || "Oferta não encontrada");
   }
 

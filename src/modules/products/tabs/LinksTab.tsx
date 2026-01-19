@@ -10,8 +10,11 @@ import { useState, useEffect } from "react";
 import { useProductContext } from "../context/ProductContext";
 import { LinksTable, PaymentLink } from "@/components/products/LinksTable";
 import { api } from "@/lib/api";
+import { createLogger } from "@/lib/logger";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+
+const log = createLogger("LinksTab");
 
 export function LinksTab() {
   const { product, paymentLinks, refreshPaymentLinks } = useProductContext();
@@ -57,7 +60,7 @@ export function LinksTab() {
       // Atualizar links via contexto
       await refreshPaymentLinks();
     } catch (error: unknown) {
-      console.error('Erro ao alterar status:', error);
+      log.error('Erro ao alterar status:', error);
       toast.error('Não foi possível alterar o status do link');
     }
   };

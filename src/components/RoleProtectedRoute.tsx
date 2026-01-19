@@ -18,6 +18,9 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { usePermissions, AppRole, Permissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/hooks/useAuth";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("RoleProtectedRoute");
 
 interface RoleProtectedRouteProps {
   children: React.ReactNode;
@@ -84,8 +87,8 @@ export function RoleProtectedRoute({
   // Sem acesso
   if (!hasAccess) {
     // Log de tentativa de acesso (para auditoria client-side)
-    console.warn(
-      `[RoleProtectedRoute] Acesso negado: ${permissions.role} tentou acessar rota que requer ${requiredRole || requiredPermission}`,
+    log.warn(
+      `Acesso negado: ${permissions.role} tentou acessar rota que requer ${requiredRole || requiredPermission}`,
       { path: location.pathname }
     );
 
