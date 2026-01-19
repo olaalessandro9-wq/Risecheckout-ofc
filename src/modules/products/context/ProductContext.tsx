@@ -203,9 +203,10 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
   // REFRESH ALL - Invalidação do cache React Query
   // ============================================================================
 
-  const refreshAll = useCallback(async (): Promise<void> => {
+  const refreshAll = useCallback((): Promise<void> => {
     log.info("Invalidating product cache via React Query", { productId });
     invalidateProductCache();
+    return Promise.resolve();
   }, [invalidateProductCache, productId]);
 
   // Global Validation Handlers - SEMPRE REGISTRADOS

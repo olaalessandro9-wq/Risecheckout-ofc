@@ -6,6 +6,7 @@
  * 
  * @module products/context/hooks
  * @version RISE V3 Compliant - 10.0/10
+ * @updated 2026-01-19 - Exported interfaces for type safety
  */
 
 import { useCallback } from "react";
@@ -200,12 +201,12 @@ interface ProductFullResponse {
   error?: string;
 }
 
-interface UseProductLoaderOptions {
+export interface UseProductLoaderOptions {
   productId: string;
   enabled?: boolean;
 }
 
-interface UseProductLoaderReturn {
+export interface UseProductLoaderReturn {
   data: ProductFullData | undefined;
   isLoading: boolean;
   isFetching: boolean;
