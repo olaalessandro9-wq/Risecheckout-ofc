@@ -12,7 +12,7 @@
  */
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
+import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 
 const corsHeaders = PUBLIC_CORS_HEADERS;
 

@@ -15,7 +15,7 @@
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { withSentry, captureException } from "../_shared/sentry.ts";
-import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
+import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { 
   rateLimitMiddleware, 
   RATE_LIMIT_CONFIGS,

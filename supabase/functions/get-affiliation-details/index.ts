@@ -8,7 +8,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
+import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 import { maskId } from "../_shared/kernel/security/pii-masking.ts";
 import { createLogger } from "../_shared/logger.ts";

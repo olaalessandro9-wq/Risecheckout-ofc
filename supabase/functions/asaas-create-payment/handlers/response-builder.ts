@@ -4,7 +4,7 @@
  * Responsável por construir respostas padronizadas
  */
 
-import { PUBLIC_CORS_HEADERS } from "../../_shared/cors.ts";
+import { PUBLIC_CORS_HEADERS } from "../../_shared/cors-v2.ts";
 
 export const corsHeaders = PUBLIC_CORS_HEADERS;
 
