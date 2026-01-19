@@ -2,12 +2,16 @@
  * Lógica de Disparo de Eventos do Facebook Pixel
  * Módulo: src/integrations/tracking/facebook
  * 
+ * @version 2.0.0 - RISE Protocol V3 Compliant - Zero console.log
  * Este arquivo contém funções para disparar eventos do Facebook Pixel
  * e helpers específicos para o checkout do RiseCheckout.
  */
 
 import { FacebookEventParams } from "./types";
 import type { TrackableProduct, TrackableBump } from "@/types/tracking.types";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("Facebook");
 
 /**
  * Verifica se o objeto fbq está disponível no window
@@ -18,13 +22,13 @@ import type { TrackableProduct, TrackableBump } from "@/types/tracking.types";
 const ensureFbq = (): boolean => {
   // Verificar se estamos no navegador (não SSR)
   if (typeof window === "undefined") {
-    console.warn("[Facebook] SSR detectado, fbq não disponível");
+    log.warn("SSR detectado, fbq não disponível");
     return false;
   }
 
   // Verificar se fbq foi inicializado
   if (!window.fbq) {
-    console.warn("[Facebook] fbq não inicializado. Verifique se o Pixel foi carregado.");
+    log.warn("fbq não inicializado. Verifique se o Pixel foi carregado.");
     return false;
   }
 
@@ -49,10 +53,10 @@ export const trackEvent = (eventName: string, params?: FacebookEventParams): voi
   if (!ensureFbq()) return;
 
   try {
-    console.log(`[Facebook] 📡 Disparando evento: ${eventName}`, params);
+    log.info(`Disparando evento: ${eventName}`, params);
     window.fbq!("track", eventName, params);
   } catch (error: unknown) {
-    console.error(`[Facebook] Erro ao disparar evento ${eventName}:`, error);
+    log.error(`Erro ao disparar evento ${eventName}`, error);
   }
 };
 
@@ -72,10 +76,10 @@ export const trackCustomEvent = (eventName: string, params?: FacebookEventParams
   if (!ensureFbq()) return;
 
   try {
-    console.log(`[Facebook] 📡 Disparando evento customizado: ${eventName}`, params);
+    log.info(`Disparando evento customizado: ${eventName}`, params);
     window.fbq!("trackCustom", eventName, params);
   } catch (error: unknown) {
-    console.error(`[Facebook] Erro ao disparar evento customizado ${eventName}:`, error);
+    log.error(`Erro ao disparar evento customizado ${eventName}`, error);
   }
 };
 
@@ -87,7 +91,7 @@ export const trackCustomEvent = (eventName: string, params?: FacebookEventParams
  */
 export const trackViewContent = (product: TrackableProduct): void => {
   if (!product) {
-    console.warn("[Facebook] Produto inválido para trackViewContent");
+    log.warn("Produto inválido para trackViewContent");
     return;
   }
 
@@ -114,7 +118,7 @@ export const trackInitiateCheckout = (
   itemsCount: number
 ): void => {
   if (!product) {
-    console.warn("[Facebook] Produto inválido para trackInitiateCheckout");
+    log.warn("Produto inválido para trackInitiateCheckout");
     return;
   }
 
@@ -143,7 +147,7 @@ export const trackPurchase = (
   additionalParams?: FacebookEventParams
 ): void => {
   if (!orderId || !product) {
-    console.warn("[Facebook] Dados inválidos para trackPurchase");
+    log.warn("Dados inválidos para trackPurchase");
     return;
   }
 
@@ -169,7 +173,7 @@ export const trackPurchase = (
  */
 export const trackAddToCart = (bump: TrackableBump, cartValue: number): void => {
   if (!bump) {
-    console.warn("[Facebook] Bump inválido para trackAddToCart");
+    log.warn("Bump inválido para trackAddToCart");
     return;
   }
 
@@ -190,7 +194,7 @@ export const trackAddToCart = (bump: TrackableBump, cartValue: number): void => 
  */
 export const trackCompleteRegistration = (email: string, phone?: string): void => {
   if (!email) {
-    console.warn("[Facebook] Email inválido para trackCompleteRegistration");
+    log.warn("Email inválido para trackCompleteRegistration");
     return;
   }
 
@@ -217,7 +221,7 @@ export const trackPageView = (): void => {
  */
 export const trackLead = (email: string, source?: string): void => {
   if (!email) {
-    console.warn("[Facebook] Email inválido para trackLead");
+    log.warn("Email inválido para trackLead");
     return;
   }
 

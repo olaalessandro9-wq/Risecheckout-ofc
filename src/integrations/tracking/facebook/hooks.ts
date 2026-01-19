@@ -2,15 +2,16 @@
  * Hooks para o Facebook Pixel
  * Módulo: src/integrations/tracking/facebook
  * 
+ * @version 2.0.0 - RISE Protocol V3 Compliant - Zero console.log
  * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
- * 
- * Este arquivo contém hooks React para carregar e gerenciar
- * a configuração do Facebook Pixel do banco de dados.
  */
 
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { FacebookPixelConfig } from "./types";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("Facebook");
 
 interface FacebookConfigResponse {
   config?: {
@@ -37,7 +38,7 @@ export function useFacebookConfig(vendorId?: string) {
     queryFn: async (): Promise<FacebookPixelConfig | null> => {
       // Validação: se não tem vendorId, retorna null
       if (!vendorId) {
-        console.warn("[Facebook] vendorId não fornecido para useFacebookConfig");
+        log.warn("vendorId não fornecido para useFacebookConfig");
         return null;
       }
 
@@ -50,12 +51,12 @@ export function useFacebookConfig(vendorId?: string) {
         });
 
         if (error) {
-          console.error("[Facebook] Erro ao chamar Edge Function:", error);
+          log.error("Erro ao chamar Edge Function", error);
           return null;
         }
 
         if (data?.error || !data?.config) {
-          console.log("[Facebook] Integração não encontrada ou desativada para vendor:", vendorId);
+          log.debug("Integração não encontrada ou desativada", { vendorId });
           return null;
         }
 
@@ -63,7 +64,7 @@ export function useFacebookConfig(vendorId?: string) {
 
         // Validação: pixel_id obrigatório
         if (!config?.pixel_id) {
-          console.warn("[Facebook] pixel_id não encontrado na configuração");
+          log.warn("pixel_id não encontrado na configuração");
           return null;
         }
 
@@ -76,7 +77,7 @@ export function useFacebookConfig(vendorId?: string) {
           fire_purchase_on_pix: config.fire_purchase_on_pix ?? true,
         };
 
-        console.log("[Facebook] Configuração carregada com sucesso:", {
+        log.info("Configuração carregada com sucesso", {
           pixel_id: facebookConfig.pixel_id,
           enabled: facebookConfig.enabled,
           selected_products: facebookConfig.selected_products?.length || "todos",
@@ -84,7 +85,7 @@ export function useFacebookConfig(vendorId?: string) {
 
         return facebookConfig;
       } catch (error: unknown) {
-        console.error("[Facebook] Erro inesperado ao carregar config:", error);
+        log.error("Erro inesperado ao carregar config", error);
         return null;
       }
     },
@@ -106,14 +107,6 @@ export function useFacebookConfig(vendorId?: string) {
  * @param config - Configuração do Facebook Pixel
  * @param productId - ID do produto (opcional)
  * @returns true se o pixel deve rodar, false caso contrário
- * 
- * @example
- * const { data: fbConfig } = useFacebookConfig(vendorId);
- * const shouldRun = shouldRunPixel(fbConfig, productId);
- * 
- * if (shouldRun) {
- *   return <Pixel config={fbConfig} />;
- * }
  */
 export function shouldRunPixel(
   config: FacebookPixelConfig | null | undefined,
@@ -139,10 +132,9 @@ export function shouldRunPixel(
   const shouldRun = config.selected_products.includes(productId);
 
   if (!shouldRun) {
-    console.log(
-      `[Facebook] Pixel não vai rodar para produto ${productId}. Produtos selecionados:`,
-      config.selected_products
-    );
+    log.debug(`Pixel não vai rodar para produto ${productId}`, {
+      selected_products: config.selected_products,
+    });
   }
 
   return shouldRun;
@@ -155,13 +147,6 @@ export function shouldRunPixel(
  * @param vendorId - ID do vendedor
  * @param productId - ID do produto
  * @returns true se o pixel deve rodar
- * 
- * @example
- * const shouldRunPixel = usePixelForProduct(vendorId, productId);
- * 
- * if (shouldRunPixel) {
- *   return <Pixel config={fbConfig} />;
- * }
  */
 export function usePixelForProduct(vendorId?: string, productId?: string): boolean {
   const { data: fbConfig } = useFacebookConfig(vendorId);
