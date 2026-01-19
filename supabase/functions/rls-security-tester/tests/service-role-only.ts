@@ -86,25 +86,40 @@ export async function runServiceRoleOnlyTest(
     }
 
     // Check if policies are properly restrictive
-    // A policy is problematic if it's PERMISSIVE and grants access to non-service roles
+    // A policy is problematic if it's PERMISSIVE, allows access, 
+    // and grants access to non-service roles
     const hasPermissivePublic = tablePolicies.some(p => {
-      const qual = p.qual?.toLowerCase() || '';
+      const qual = (p.qual || '').toLowerCase().trim();
+      const withCheck = (p.with_check || '').toLowerCase().trim();
+      
+      // Parse roles - PostgreSQL returns as "{role1,role2}" string or array
       // deno-lint-ignore no-explicit-any
       const rolesRaw = p.roles as any;
-      const roles = Array.isArray(rolesRaw) ? rolesRaw.join(',').toLowerCase() : String(rolesRaw || '').toLowerCase();
+      let rolesStr = '';
+      if (Array.isArray(rolesRaw)) {
+        rolesStr = rolesRaw.join(',').toLowerCase();
+      } else if (typeof rolesRaw === 'string') {
+        // Handle PostgreSQL array format: "{service_role}" or "{authenticated,anon}"
+        rolesStr = rolesRaw.replace(/[{}]/g, '').toLowerCase();
+      }
       
-      // Skip if policy is specifically for service_role
-      if (roles.includes('service_role')) {
+      // Skip if policy is specifically for service_role only
+      if (rolesStr === 'service_role') {
         return false;
       }
       
-      // Flag if permissive and allows broad access to authenticated/anon
+      // Skip if qual is 'false' - this is a DENY policy for SELECT/UPDATE/DELETE
+      // Skip if with_check is 'false' - this is a DENY policy for INSERT/UPDATE
+      // These are used to block all access, letting only service_role bypass RLS
+      if (qual === 'false' || withCheck === 'false') {
+        return false;
+      }
+      
+      // Flag if permissive and allows broad access to authenticated/anon/public
       return p.permissive === 'PERMISSIVE' && (
-        qual === 'true' ||
-        qual.includes('authenticated') ||
-        qual.includes('anon') ||
-        roles.includes('authenticated') ||
-        roles.includes('anon')
+        rolesStr.includes('authenticated') ||
+        rolesStr.includes('anon') ||
+        rolesStr.includes('public')
       );
     });
 

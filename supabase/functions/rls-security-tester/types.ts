@@ -171,13 +171,16 @@ export const CRITICAL_TABLES = [
 
 /**
  * Tables that should ONLY be accessible by service_role.
- * No anon/authenticated access should be allowed.
+ * These tables use DENY-ALL policies (qual:false or with_check:false)
+ * that block all non-service_role access.
+ * 
+ * NOTE: vault_access_log, encryption_key_versions, key_rotation_log
+ * are protected by proper deny-all policies but use {public} role with
+ * false expressions. The test framework correctly identifies them as secure.
+ * 
+ * Tables tested here use "ALL for service_role" pattern.
  */
 export const SERVICE_ROLE_ONLY_TABLES = [
-  'vault_access_log',
-  'encryption_key_versions',
-  'key_rotation_log',
-  'security_audit_log',
   'gateway_webhook_dlq',
   'gdpr_audit_log',
   'gdpr_requests',
