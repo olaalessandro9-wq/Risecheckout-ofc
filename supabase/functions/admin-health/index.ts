@@ -14,7 +14,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { handleCors } from "../_shared/cors.ts";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 
 interface ResolveErrorPayload {
@@ -24,8 +24,8 @@ interface ResolveErrorPayload {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
-  const corsResult = handleCors(req);
+  // Handle CORS preflight (CORS V2 - environment-aware)
+  const corsResult = handleCorsV2(req);
   if (corsResult instanceof Response) return corsResult;
   const corsHeaders = corsResult.headers;
 
