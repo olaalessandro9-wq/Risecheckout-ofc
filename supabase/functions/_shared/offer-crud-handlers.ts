@@ -6,11 +6,14 @@
  * 
  * RISE Protocol Compliant - Zero `any` (uses typed interfaces)
  * 
- * @version 2.0.0 - Added LIST and GET handlers
+ * @version 2.1.0 - Migrated to centralized logger
  */
 
 import { SupabaseClient } from "./supabase-types.ts";
 import { captureException } from "./sentry.ts";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("OfferCrud");
 
 // ============================================
 // TYPES
@@ -206,7 +209,7 @@ export async function handleListOffers(
     const { data: offers, error, count } = await query;
 
     if (error) {
-      console.error("[offer-crud] List error:", error);
+      log.error("List error", error);
       return new Response(JSON.stringify({ success: false, error: "Erro ao listar ofertas" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -222,7 +225,7 @@ export async function handleListOffers(
       hasMore: offset + pageSize < total,
     };
 
-    console.log(`[offer-crud] Listed ${offers?.length || 0} offers for producer ${producerId}`);
+    log.info(`Listed ${offers?.length || 0} offers for producer ${producerId}`);
 
     return new Response(JSON.stringify({ success: true, data: result }), {
       status: 200,
@@ -230,7 +233,7 @@ export async function handleListOffers(
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[offer-crud] List error:", errorMessage);
+    log.error("List error", errorMessage);
     return new Response(JSON.stringify({ success: false, error: "Erro ao listar ofertas" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -260,7 +263,7 @@ export async function handleGetOffer(
       .maybeSingle();
 
     if (error) {
-      console.error("[offer-crud] Get error:", error);
+      log.error("Get error", error);
       return new Response(JSON.stringify({ success: false, error: "Erro ao buscar oferta" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -274,7 +277,7 @@ export async function handleGetOffer(
       });
     }
 
-    console.log(`[offer-crud] Got offer ${offerId} for producer ${producerId}`);
+    log.info(`Got offer ${offerId} for producer ${producerId}`);
 
     return new Response(JSON.stringify({ success: true, data: offer }), {
       status: 200,
@@ -282,7 +285,7 @@ export async function handleGetOffer(
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[offer-crud] Get error:", errorMessage);
+    log.error("Get error", errorMessage);
     return new Response(JSON.stringify({ success: false, error: "Erro ao buscar oferta" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -322,7 +325,7 @@ export async function handleCreateOffer(
     .single();
 
   if (insertError) {
-    console.error("[offer-crud] Insert error:", insertError);
+    log.error("Insert error", insertError);
     await captureException(new Error(insertError.message), { functionName: "offer-crud", extra: { action: "create", producerId } });
     return new Response(JSON.stringify({ success: false, error: "Erro ao criar oferta" }), {
       status: 500,
@@ -330,7 +333,7 @@ export async function handleCreateOffer(
     });
   }
 
-  console.log(`[offer-crud] Offer created: ${(newOffer as OfferRecord).id}`);
+  log.info(`Offer created: ${(newOffer as OfferRecord).id}`);
   return new Response(JSON.stringify({ success: true, offer: newOffer }), {
     status: 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -364,7 +367,7 @@ export async function handleUpdateOffer(
     .single();
 
   if (updateError) {
-    console.error("[offer-crud] Update error:", updateError);
+    log.error("Update error", updateError);
     await captureException(new Error(updateError.message), { functionName: "offer-crud", extra: { action: "update", producerId } });
     return new Response(JSON.stringify({ success: false, error: "Erro ao atualizar oferta" }), {
       status: 500,
@@ -372,7 +375,7 @@ export async function handleUpdateOffer(
     });
   }
 
-  console.log(`[offer-crud] Offer updated: ${offerId}`);
+  log.info(`Offer updated: ${offerId}`);
   return new Response(JSON.stringify({ success: true, offer: updatedOffer }), {
     status: 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -405,7 +408,7 @@ export async function handleDeleteOffer(
     .eq("id", offerId);
 
   if (deleteError) {
-    console.error("[offer-crud] Delete error:", deleteError);
+    log.error("Delete error", deleteError);
     await captureException(new Error(deleteError.message), { functionName: "offer-crud", extra: { action: "delete", producerId } });
     return new Response(JSON.stringify({ success: false, error: "Erro ao excluir oferta" }), {
       status: 500,
@@ -413,7 +416,7 @@ export async function handleDeleteOffer(
     });
   }
 
-  console.log(`[offer-crud] Offer deleted: ${offerId}`);
+  log.info(`Offer deleted: ${offerId}`);
   return new Response(JSON.stringify({ success: true }), {
     status: 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" }
