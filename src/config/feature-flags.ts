@@ -6,6 +6,9 @@
  * RISE Protocol V3: Flags obsoletas foram removidas na auditoria de código morto.
  */
 
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger('FeatureFlags');
 const isDevelopment = import.meta.env.DEV;
 
 export const FEATURE_FLAGS = {
@@ -24,7 +27,7 @@ export const FEATURE_FLAGS = {
 
 export function debugLog(message: string, data?: unknown): void {
   if (FEATURE_FLAGS.DEBUG_MODE) {
-    console.log(`[DEBUG] ${message}`, data ?? '');
+    log.debug(message, data);
   }
 }
 

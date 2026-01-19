@@ -13,6 +13,9 @@
  */
 
 import { useState, useEffect } from "react";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger('CheckoutTab');
 import { useNavigate } from "react-router-dom";
 import { CheckoutTable } from "@/components/products/CheckoutTable";
 import { CheckoutConfigDialog } from "@/components/products/CheckoutConfigDialog";
@@ -90,7 +93,7 @@ export function CheckoutTab() {
       );
       setAvailableOffers(activeOffers);
     } catch (error: unknown) {
-      console.error('Erro ao carregar ofertas:', error);
+      log.error('Erro ao carregar ofertas', error);
     }
   };
 
@@ -115,7 +118,7 @@ export function CheckoutTab() {
         "Duplicando checkout..."
       );
     } catch (error: unknown) {
-      console.error("Error duplicating checkout:", error);
+      log.error('Erro ao duplicar checkout', error);
       toast.error("Não foi possível duplicar o checkout");
     }
   };
@@ -126,7 +129,7 @@ export function CheckoutTab() {
         resourceType: "Checkout",
         resourceName: name,
         onConfirm: async () => {
-          console.log("[CHECKOUT DEBUG] Deletando checkout via Edge Function:", id);
+          log.debug('Deletando checkout via Edge Function', { id });
           
           const { data, error } = await api.call<CheckoutCrudResponse>('checkout-crud', {
             action: 'delete',
@@ -134,12 +137,12 @@ export function CheckoutTab() {
           });
           
           if (error) {
-            console.error("[CHECKOUT DEBUG] Edge Function error:", error);
+            log.error('Edge Function retornou erro', error);
             throw new Error(error.message);
           }
           
           if (!data?.success) {
-            console.error("[CHECKOUT DEBUG] Delete failed:", data?.error);
+            log.error('Falha ao deletar', { error: data?.error });
             throw new Error(data?.error || 'Falha ao deletar checkout');
           }
 
@@ -148,7 +151,7 @@ export function CheckoutTab() {
         },
       });
     } catch (error: unknown) {
-      console.error("Error deleting checkout:", error);
+      log.error('Erro ao deletar checkout', error);
       // Não mostrar erro se o usuário cancelou
       if (error instanceof Error && error.message !== "User cancelled") {
         toast.error("Não foi possível excluir o checkout");
@@ -171,13 +174,13 @@ export function CheckoutTab() {
       });
 
       if (error) {
-        console.error("Error loading checkout offer:", error);
+        log.error('Erro ao carregar oferta do checkout', error);
         setCurrentOfferId("");
       } else {
         setCurrentOfferId(data?.offerId || "");
       }
     } catch (error: unknown) {
-      console.error("Error loading checkout offer:", error);
+      log.error('Erro ao carregar oferta do checkout', error);
       setCurrentOfferId("");
     }
     

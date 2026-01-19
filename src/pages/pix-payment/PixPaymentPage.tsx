@@ -8,6 +8,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { createLogger } from "@/lib/logger";
 
 import { usePixOrderData, usePixCharge, usePixPaymentStatus, usePixTimer } from "./hooks";
 import { 
@@ -17,6 +18,8 @@ import {
   PixWaitingState 
 } from "./components";
 import type { GatewayType, PixNavigationState } from "./types";
+
+const log = createLogger('PixPaymentPage');
 
 export function PixPaymentPage() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -56,11 +59,11 @@ export function PixPaymentPage() {
     if (hasInitialized.current) return;
     hasInitialized.current = true;
 
-    console.log("[PixPaymentPage] Inicializando...", { navState, orderId });
+    log.debug('Inicializando', { navState, orderId });
 
     if (navState?.qrCode || navState?.qrCodeText) {
       const gatewayType = navState.gateway || 'mercadopago';
-      console.log(`[PixPaymentPage] ✅ QR Code recebido via navigation state (${gatewayType})`);
+      log.info(`QR Code recebido via navigation state (${gatewayType})`);
       
       if (gatewayType === 'asaas') {
         setQrCode(navState.qrCodeText || '');
@@ -78,7 +81,7 @@ export function PixPaymentPage() {
       toast.success("QR Code gerado com sucesso!");
       fetchOrderData();
     } else {
-      console.log("[PixPaymentPage] Sem QR code no state, buscando dados do pedido...");
+      log.debug('Sem QR code no state, buscando dados do pedido...');
       setGateway('pushinpay');
       fetchOrderData();
     }

@@ -11,11 +11,14 @@
  */
 
 import { useState, useCallback, useMemo } from "react";
+import { createLogger } from "@/lib/logger";
 import type { 
   TabValidationMap, 
   TabNavigationState,
 } from "../../types/tabValidation.types";
 import { TAB_ORDER } from "../../types/tabValidation.types";
+
+const log = createLogger('TabValidation');
 
 // ============================================================================
 // HOOK INTERFACE
@@ -71,14 +74,14 @@ export function useTabValidation(initialTab: string = "geral"): UseTabValidation
   // Navega para primeira aba com erro
   const navigateToFirstError = useCallback(() => {
     if (firstTabWithError) {
-      console.log(`[TabValidation] Navigating to first error tab: ${firstTabWithError}`);
+      log.debug(`Navegando para primeira aba com erro: ${firstTabWithError}`);
       setActiveTab(firstTabWithError);
     }
   }, [firstTabWithError]);
 
   // Limpa todos os erros
   const clearTabErrors = useCallback(() => {
-    console.log("[TabValidation] Clearing all tab errors");
+    log.debug('Limpando todos os erros de validação');
     setTabErrors({});
   }, []);
 

@@ -7,6 +7,9 @@
  */
 
 import { getAffiliateCheckoutInfoRpc } from "@/lib/rpc/rpcProxy";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger('FetchAffiliateInfo');
 
 export interface AffiliateInfo {
   pixGateway: string | null;
@@ -41,18 +44,18 @@ export async function fetchAffiliateInfo(
     return defaultInfo;
   }
 
-  console.log('[fetchAffiliateInfo] Buscando info para:', affiliateCode);
+  log.debug('Buscando info para', affiliateCode);
 
   const { data, error } = await getAffiliateCheckoutInfoRpc(affiliateCode, productId);
 
   if (error) {
-    console.warn('[fetchAffiliateInfo] Erro:', error.message);
+    log.warn('Erro ao buscar info', error.message);
     return defaultInfo;
   }
 
   if (data && data.length > 0) {
     const info = data[0];
-    console.log('[fetchAffiliateInfo] ✅ Info encontrada:', {
+    log.info('Info encontrada', {
       pix: info.pix_gateway,
       card: info.credit_card_gateway,
     });

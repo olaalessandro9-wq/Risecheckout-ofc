@@ -7,7 +7,10 @@
  */
 
 import { useEffect } from "react";
+import { createLogger } from "@/lib/logger";
 import { GoogleAdsIntegration } from "./types";
+
+const log = createLogger('GoogleAdsTracker');
 
 interface TrackerProps {
   /** Integração do Google Ads */
@@ -19,22 +22,19 @@ interface TrackerProps {
  * 
  * Este componente é invisível (retorna null) e funciona apenas
  * para carregar o script e inicializar o gtag global.
- * 
- * @param integration - Integração do Google Ads
- * @returns null (componente invisível)
  */
 export const Tracker = ({ integration }: TrackerProps) => {
   useEffect(() => {
     // Validação: se integração inválida, não fazer nada
     if (!integration || !integration.active || !integration.config?.conversion_id) {
-      console.log("[Google Ads] Tracker não será ativado (integração inválida ou desativada)");
+      log.debug('Tracker não será ativado (integração inválida ou desativada)');
       return;
     }
 
     const loadTracker = () => {
       // Se gtag já foi carregado, não carregar novamente
       if (window.gtag) {
-        console.log("[Google Ads] gtag já foi carregado anteriormente");
+        log.debug('gtag já foi carregado anteriormente');
         return;
       }
 
@@ -55,10 +55,10 @@ export const Tracker = ({ integration }: TrackerProps) => {
         script.async = true;
         script.src = `https://www.googletagmanager.com/gtag/js?id=${integration.config.conversion_id}`;
         script.onerror = () => {
-          console.error("[Google Ads] Erro ao carregar script do Google Ads");
+          log.error('Erro ao carregar script do Google Ads');
         };
         script.onload = () => {
-          console.log("[Google Ads] Script do Google Ads carregado com sucesso");
+          log.debug('Script do Google Ads carregado com sucesso');
         };
 
         // Injetar script no head
@@ -75,16 +75,13 @@ export const Tracker = ({ integration }: TrackerProps) => {
           allow_ad_personalization_signals: true,
         });
 
-        console.log(
-          `[Google Ads] ✅ Tracker ${integration.config.conversion_id} inicializado com sucesso`,
-          {
-            active: integration.active,
-            selected_products: integration.config.selected_products?.length || "todos",
-            event_labels: integration.config.event_labels?.length || 0,
-          }
-        );
+        log.info(`Tracker ${integration.config.conversion_id} inicializado com sucesso`, {
+          active: integration.active,
+          selected_products: integration.config.selected_products?.length || "todos",
+          event_labels: integration.config.event_labels?.length || 0,
+        });
       } catch (error: unknown) {
-        console.error("[Google Ads] Erro ao carregar tracker:", error);
+        log.error('Erro ao carregar tracker', error);
       }
     };
 

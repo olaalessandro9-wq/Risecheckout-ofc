@@ -25,7 +25,7 @@ export default function AppShell() {
   const effectiveWidth = isMobile ? 0 : navigation.currentWidth;
 
   const handleNotificationsClick = () => {
-    console.log("Notificações clicadas");
+    // TODO: Implementar painel de notificações
   };
 
   return (

@@ -6,6 +6,9 @@
  */
 
 import React, { useEffect, useRef, useCallback } from 'react';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('TurnstileWidget');
 
 // Site Key do Turnstile (pública - pode ficar no código)
 const TURNSTILE_SITE_KEY = '0x4AAAAAACLZrBR0ZDwzXbEG';
@@ -65,7 +68,7 @@ export const TurnstileWidget: React.FC<TurnstileWidgetProps> = ({
       try {
         window.turnstile.remove(widgetIdRef.current);
       } catch (e) {
-        console.warn('[TurnstileWidget] Erro ao remover widget anterior:', e);
+        log.warn('Erro ao remover widget anterior', e);
       }
     }
 
@@ -74,24 +77,24 @@ export const TurnstileWidget: React.FC<TurnstileWidgetProps> = ({
       widgetIdRef.current = window.turnstile.render(containerRef.current, {
         sitekey: TURNSTILE_SITE_KEY,
         callback: (token: string) => {
-          console.log('[TurnstileWidget] Token recebido');
+          log.info('Token recebido');
           onVerify(token);
         },
         'error-callback': (error: string) => {
-          console.error('[TurnstileWidget] Erro:', error);
+          log.error('Erro no Turnstile', error);
           onError?.(error);
         },
         'expired-callback': () => {
-          console.warn('[TurnstileWidget] Token expirado');
+          log.warn('Token expirado');
           onExpire?.();
         },
         theme,
         size,
       });
 
-      console.log('[TurnstileWidget] Widget renderizado:', widgetIdRef.current);
+      log.debug('Widget renderizado', widgetIdRef.current);
     } catch (error: unknown) {
-      console.error('[TurnstileWidget] Erro ao renderizar:', error);
+      log.error('Erro ao renderizar', error);
       onError?.('Erro ao carregar captcha');
     }
   }, [onVerify, onError, onExpire, theme, size]);
