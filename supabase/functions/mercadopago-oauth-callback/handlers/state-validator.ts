@@ -7,6 +7,9 @@
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createLogger } from "../../_shared/logger.ts";
+
+const log = createLogger("mercadopago-oauth-callback");
 
 export interface OAuthStateRecord {
   state: string;
@@ -32,7 +35,7 @@ export async function validateOAuthState(
   supabase: SupabaseClient,
   state: string
 ): Promise<StateValidationResult> {
-  console.log('[State Validator] Validando state na tabela oauth_states...');
+  log.info('Validando state na tabela oauth_states...');
 
   try {
     // Buscar state válido (não usado e não expirado)
@@ -45,7 +48,7 @@ export async function validateOAuthState(
       .single();
 
     if (stateError || !oauthState) {
-      console.error('[State Validator] State inválido, expirado ou já usado:', state);
+      log.error('State inválido, expirado ou já usado:', { state });
       return {
         valid: false,
         error: 'Sessão expirada ou inválida. Por favor, tente novamente.'
@@ -54,7 +57,7 @@ export async function validateOAuthState(
 
     const stateRecord = oauthState as OAuthStateRecord;
     const vendorId = stateRecord.vendor_id;
-    console.log('[State Validator] State validado! Vendor ID:', vendorId);
+    log.info('State validado!', { vendorId });
 
     // Marcar state como usado IMEDIATAMENTE (previne replay attack)
     const { error: updateStateError } = await supabase
@@ -63,7 +66,7 @@ export async function validateOAuthState(
       .eq('state', state);
 
     if (updateStateError) {
-      console.warn('[State Validator] Erro ao marcar state como usado:', updateStateError);
+      log.warn('Erro ao marcar state como usado:', { error: updateStateError });
       // Continuar mesmo assim, pois a validação já passou
     }
 
@@ -73,7 +76,7 @@ export async function validateOAuthState(
     };
 
   } catch (error) {
-    console.error('[State Validator] Exception:', error);
+    log.error('Exception ao validar state:', { error });
     return {
       valid: false,
       error: error instanceof Error ? error.message : 'Erro ao validar sessão'
