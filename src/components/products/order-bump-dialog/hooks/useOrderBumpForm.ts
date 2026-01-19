@@ -1,9 +1,18 @@
+/**
+ * useOrderBumpForm - Order Bump Form Hook
+ * 
+ * @version 2.0.0 - RISE Protocol V3 - Zero console.log
+ */
+
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { parseBRLInput } from "@/lib/money";
 import { NormalizedOffer } from "@/services/offers";
 import { OrderBumpFormData, OrderBumpProduct, DEFAULT_FORM_VALUES, EditOrderBump } from "../types";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("UseOrderBumpForm");
 
 interface UseOrderBumpFormProps {
   open: boolean;
@@ -86,7 +95,7 @@ export function useOrderBumpForm({
           setSelectedOfferId(parsed.selectedOfferId);
         }
       } catch (e) {
-        console.error("Error loading saved form data:", e);
+        log.error("Error loading saved form data:", e);
       }
     }
   }, [open, editOrderBump, STORAGE_KEY, setSelectedProductId, setSelectedOfferId]);
@@ -238,7 +247,7 @@ export function useOrderBumpForm({
       onSuccess();
       onClose();
     } catch (error: unknown) {
-      console.error("Erro ao salvar order_bumps:", error);
+      log.error("Erro ao salvar order_bumps:", error);
       const errObj = error as { code?: string; message?: string };
 
       if (errObj.code === "23505" || errObj.message?.includes("já está configurado")) {

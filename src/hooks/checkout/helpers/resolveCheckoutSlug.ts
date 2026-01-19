@@ -3,10 +3,13 @@
  * 
  * Resolve slug de checkout para checkout_id e product_id via RPC Proxy
  * 
- * @see RISE Protocol V2 - Zero direct RPC calls from frontend
+ * @see RISE Protocol V3 - Zero console.log
  */
 
 import { getCheckoutBySlugRpc } from "@/lib/rpc/rpcProxy";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("ResolveCheckoutSlug");
 
 export interface SlugResolution {
   checkoutId: string;
@@ -17,7 +20,7 @@ export async function resolveCheckoutSlug(slug: string): Promise<SlugResolution>
   const { data, error } = await getCheckoutBySlugRpc(slug);
 
   if (error || !data || data.length === 0 || !data[0]?.checkout_id) {
-    console.error('[resolveCheckoutSlug] Erro:', error);
+    log.error("Erro:", error);
     throw new Error("Checkout não encontrado via RPC");
   }
 

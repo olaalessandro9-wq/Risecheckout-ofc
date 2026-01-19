@@ -1,7 +1,7 @@
 /**
  * API do PushinPay Gateway
  * 
- * MIGRATED: Uses Edge Function instead of supabase.from()
+ * @version 2.0.0 - RISE Protocol V3 - Zero console.log
  */
 
 import { api } from "@/lib/api/client";
@@ -14,6 +14,9 @@ import type {
   PushinPayStats,
   PushinPayAccountInfo,
 } from "./types";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("PushinPayApi");
 
 const PUSHINPAY_API_URLS = {
   sandbox: "https://api-sandbox.pushinpay.com.br/api",
@@ -37,7 +40,7 @@ export async function fetchPushinPayAccountInfo(
     });
     
     if (!response.ok) {
-      console.error("[PushinPay] Erro ao buscar conta:", response.status, await response.text());
+      log.error("Erro ao buscar conta:", response.status, await response.text());
       return null;
     }
     
@@ -49,7 +52,7 @@ export async function fetchPushinPayAccountInfo(
       email: data.email,
     };
   } catch (error: unknown) {
-    console.error("[PushinPay] Erro ao buscar conta:", error);
+    log.error("Erro ao buscar conta:", error);
     return null;
   }
 }
@@ -80,7 +83,7 @@ export async function savePushinPaySettings(
     });
 
     if (error) {
-      console.error("[PushinPay] Erro ao salvar via Edge Function:", error);
+      log.error("Erro ao salvar via Edge Function:", error);
       return { ok: false, error: error.message };
     }
 
@@ -90,7 +93,7 @@ export async function savePushinPaySettings(
     
     return { ok: true };
   } catch (e) {
-    console.error("[PushinPay] Erro inesperado:", e);
+    log.error("Erro inesperado:", e);
     return { ok: false, error: String(e) };
   }
 }
@@ -134,7 +137,7 @@ export async function getPushinPaySettings(userId: string): Promise<PushinPaySet
       environment: (config.environment as PushinPayEnvironment) || "production",
     };
   } catch (error) {
-    console.error("[PushinPay] Erro ao buscar configurações:", error);
+    log.error("Erro ao buscar configurações:", error);
     return null;
   }
 }
