@@ -38,11 +38,20 @@ export async function fetchMetrics(
     throw new Error(`Failed to fetch metrics: ${error.message}`);
   }
 
-  if (!data || data.length === 0) {
+  // A RPC get_dashboard_metrics retorna um objeto JSON único, não um array
+  // Tratamos ambos os casos para robustez
+  if (!data) {
     return DEFAULT_METRICS;
   }
 
-  const row = data[0];
+  // Se for array (caso a RPC mude no futuro), pega o primeiro elemento
+  // Se for objeto único (comportamento atual), usa diretamente
+  const row = Array.isArray(data) ? data[0] : data;
+  
+  if (!row) {
+    return DEFAULT_METRICS;
+  }
+
   return {
     paid_count: Number(row.paid_count) || 0,
     pending_count: Number(row.pending_count) || 0,
