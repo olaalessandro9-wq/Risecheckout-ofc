@@ -2403,6 +2403,65 @@ export type Database = {
           },
         ]
       }
+      payment_attempts: {
+        Row: {
+          client_ip: string | null
+          completed_at: string | null
+          created_at: string
+          error_data: Json | null
+          gateway: string
+          id: string
+          idempotency_key: string
+          order_id: string | null
+          payment_method: string | null
+          processing_started_at: string | null
+          request_hash: string
+          response_data: Json | null
+          status: string
+          user_agent: string | null
+        }
+        Insert: {
+          client_ip?: string | null
+          completed_at?: string | null
+          created_at?: string
+          error_data?: Json | null
+          gateway: string
+          id?: string
+          idempotency_key: string
+          order_id?: string | null
+          payment_method?: string | null
+          processing_started_at?: string | null
+          request_hash: string
+          response_data?: Json | null
+          status?: string
+          user_agent?: string | null
+        }
+        Update: {
+          client_ip?: string | null
+          completed_at?: string | null
+          created_at?: string
+          error_data?: Json | null
+          gateway?: string
+          id?: string
+          idempotency_key?: string
+          order_id?: string | null
+          payment_method?: string | null
+          processing_started_at?: string | null
+          request_hash?: string
+          response_data?: Json | null
+          status?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_attempts_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_gateway_settings: {
         Row: {
           created_at: string | null
