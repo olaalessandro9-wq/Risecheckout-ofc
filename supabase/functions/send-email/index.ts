@@ -13,6 +13,9 @@ import { sendEmail, type EmailType, type EmailRecipient } from '../_shared/zepto
 import { handleCorsV2 } from '../_shared/cors-v2.ts';
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from '../_shared/rate-limiting/index.ts';
 import { requireAuthenticatedProducer } from '../_shared/unified-auth.ts';
+import { createLogger } from '../_shared/logger.ts';
+
+const log = createLogger("SendEmail");
 
 interface SendEmailRequest {
   to: EmailRecipient | EmailRecipient[];
@@ -54,7 +57,7 @@ serve(async (req: Request) => {
       corsHeaders
     );
     if (rateLimitResult) {
-      console.warn(`[send-email] Rate limit exceeded for IP: ${getClientIP(req)}`);
+      log.warn(`Rate limit exceeded for IP: ${getClientIP(req)}`);
       return rateLimitResult;
     }
 
@@ -63,14 +66,14 @@ serve(async (req: Request) => {
     try {
       producer = await requireAuthenticatedProducer(supabase, req);
     } catch {
-      console.warn('[send-email] Tentativa de acesso não autenticado');
+      log.warn("Tentativa de acesso não autenticado");
       return new Response(
         JSON.stringify({ error: 'Não autorizado' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`[send-email] Request from producer ${producer.id} (role: ${producer.role})`);
+    log.info(`Request from producer ${producer.id} (role: ${producer.role})`);
 
     const body: SendEmailRequest = await req.json();
 
@@ -109,7 +112,7 @@ serve(async (req: Request) => {
     });
 
     if (!result.success) {
-      console.error('[send-email] Failed to send:', result.error);
+      log.error("Failed to send:", result.error);
       return new Response(
         JSON.stringify({
           success: false,
@@ -120,7 +123,7 @@ serve(async (req: Request) => {
       );
     }
 
-    console.log(`[send-email] Email sent successfully by producer ${producer.id}:`, result.messageId);
+    log.info(`Email sent successfully by producer ${producer.id}:`, result.messageId);
 
     return new Response(
       JSON.stringify({
@@ -130,7 +133,7 @@ serve(async (req: Request) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error: unknown) {
-    console.error('[send-email] Unexpected error:', error);
+    log.error("Unexpected error:", error);
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : 'Internal server error',

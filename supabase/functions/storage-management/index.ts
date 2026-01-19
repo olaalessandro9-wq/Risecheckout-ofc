@@ -12,6 +12,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2, PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { getAuthenticatedProducer } from "../_shared/unified-auth.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("StorageManagement");
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -125,7 +128,7 @@ Deno.serve(async (req) => {
           });
 
         if (error) {
-          console.error("[storage-management] Upload error:", error);
+          log.error("Upload error:", error);
           return new Response(
             JSON.stringify({ error: error.message }),
             { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -171,7 +174,7 @@ Deno.serve(async (req) => {
         const { error } = await supabase.storage.from(bucket!).remove(paths);
 
         if (error) {
-          console.error("[storage-management] Remove error:", error);
+          log.error("Remove error:", error);
           return new Response(
             JSON.stringify({ error: error.message }),
             { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -210,7 +213,7 @@ Deno.serve(async (req) => {
           .list(prefix, { limit, offset });
 
         if (error) {
-          console.error("[storage-management] List error:", error);
+          log.error("List error:", error);
           return new Response(
             JSON.stringify({ error: error.message }),
             { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -249,7 +252,7 @@ Deno.serve(async (req) => {
           .copy(sourcePath, destPath);
 
         if (error) {
-          console.error("[storage-management] Copy error:", error);
+          log.error("Copy error:", error);
           return new Response(
             JSON.stringify({ error: error.message }),
             { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -272,7 +275,7 @@ Deno.serve(async (req) => {
         );
     }
   } catch (err) {
-    console.error("[storage-management] Exception:", err);
+    log.error("Exception:", err);
 
     return new Response(
       JSON.stringify({ error: "Internal server error" }),

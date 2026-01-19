@@ -10,7 +10,9 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
 
+const log = createLogger("SendConfirmationEmail");
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
 serve(async (req) => {
@@ -25,7 +27,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     if (!resendApiKey) {
-      console.error('[send-confirmation-email] RESEND_API_KEY not configured');
+      log.error("RESEND_API_KEY not configured");
       return new Response(
         JSON.stringify({ error: 'Email service not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -56,7 +58,7 @@ serve(async (req) => {
       .single();
 
     if (orderError || !order) {
-      console.error('[send-confirmation-email] Order not found:', orderId);
+      log.error("Order not found:", orderId);
       return new Response(
         JSON.stringify({ error: 'Order not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -116,14 +118,14 @@ serve(async (req) => {
 
     if (!resendResponse.ok) {
       const errorData = await resendResponse.text();
-      console.error('[send-confirmation-email] Resend error:', errorData);
+      log.error("Resend error:", errorData);
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to send email' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`[send-confirmation-email] Email sent for order ${orderId}`);
+    log.info(`Email sent for order ${orderId}`);
 
     return new Response(
       JSON.stringify({ success: true }),
@@ -132,7 +134,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[send-confirmation-email] Error:', errorMessage);
+    log.error("Error:", errorMessage);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

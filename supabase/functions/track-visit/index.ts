@@ -9,7 +9,9 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
 
+const log = createLogger("TrackVisit");
 const corsHeaders = PUBLIC_CORS_HEADERS;
 
 interface TrackVisitPayload {
@@ -68,7 +70,7 @@ Deno.serve(async (req: Request) => {
       });
 
     if (insertError) {
-      console.error("[track-visit] Insert error:", insertError);
+      log.error("Insert error:", insertError);
       return new Response(
         JSON.stringify({ error: insertError.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -81,17 +83,17 @@ Deno.serve(async (req: Request) => {
     });
 
     if (rpcError) {
-      console.warn("[track-visit] RPC increment error (non-fatal):", rpcError);
+      log.warn("RPC increment error (non-fatal):", rpcError);
     }
 
-    console.log(`[track-visit] Visit tracked: checkout=${checkoutId}, ip=${ip}`);
+    log.debug(`Visit tracked: checkout=${checkoutId}, ip=${ip}`);
 
     return new Response(
       JSON.stringify({ success: true }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
-    console.error("[track-visit] Error:", err);
+    log.error("Error:", err);
     return new Response(
       JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
