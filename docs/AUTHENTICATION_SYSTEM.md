@@ -1,17 +1,17 @@
 # 🔐 Sistema de Autenticação - RiseCheckout
 
-**Última Atualização:** 19 de Janeiro de 2026  
+**Última Atualização:** 20 de Janeiro de 2026  
 **Status:** ✅ PRONTO PARA PRODUÇÃO  
 **RISE ARCHITECT PROTOCOL V3:** 10.0/10 - Conformidade Total  
-**Versão:** 5.0.0
+**Versão:** 5.1.0
 
 ---
 
 ## 📋 Sumário
 
 1. [Visão Geral](#visão-geral)
-2. [Por Que Não Usamos Supabase Auth?](#por-que-não-usamos-supabase-auth)
-3. [Arquitetura](#arquitetura)
+2. [Arquitetura Híbrida Detalhada](#arquitetura-híbrida-detalhada)
+3. [Por Que Este Modelo Híbrido?](#por-que-este-modelo-híbrido)
 4. [Fluxo de Autenticação](#fluxo-de-autenticação)
 5. [Módulo unified-auth.ts](#módulo-unified-authts)
 6. [Edge Functions Protegidas](#edge-functions-protegidas)
@@ -22,7 +22,23 @@
 
 ## Visão Geral
 
-RiseCheckout utiliza um **sistema de autenticação customizado** baseado em `producer_sessions`, completamente independente do Supabase Auth.
+RiseCheckout utiliza um **sistema de autenticação híbrido**:
+
+| Domínio | Registro | Armazenamento de Senha | Sessões |
+|---------|----------|------------------------|---------|
+| **Producer** | `auth.users` (Supabase) | `profiles.password_hash` (bcrypt) | `producer_sessions` (customizado) |
+| **Buyer** | `buyer_profiles` | `buyer_profiles.password_hash` (bcrypt) | `buyer_sessions` (customizado) |
+
+### ⚠️ IMPORTANTE: Modelo Híbrido (NÃO é "totalmente independente")
+
+O sistema **PRODUCER** usa Supabase Auth **parcialmente**:
+- ✅ `supabase.auth.admin.createUser()` para registro
+- ✅ `supabase.auth.admin.updateUserById()` para reset de senha
+- ✅ Trigger `handle_new_user` cria profile automaticamente
+- ❌ **NÃO** usa JWT do Supabase para sessões
+- ❌ **NÃO** usa `supabase.auth.signInWithPassword()`
+
+O sistema **BUYER** é **completamente independente** do Supabase Auth.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -34,7 +50,7 @@ RiseCheckout utiliza um **sistema de autenticação customizado** baseado em `pr
 │  │   (Login)    │    │  Edge Function   │    │    (Tabela)      │   │
 │  └──────────────┘    └──────────────────┘    └──────────────────┘   │
 │         │                                            │               │
-│         │ Armazena session_token                     │               │
+│         │ Cookies httpOnly                           │               │
 │         ▼                                            │               │
 │  ┌──────────────┐    ┌──────────────────┐            │               │
 │  │   Frontend   │───▶│  Edge Function   │────────────┘               │
@@ -46,24 +62,71 @@ RiseCheckout utiliza um **sistema de autenticação customizado** baseado em `pr
 
 ---
 
-## Por Que Não Usamos Supabase Auth?
+## Arquitetura Híbrida Detalhada
 
-| Aspecto | Supabase Auth | producer_sessions |
-|---------|---------------|-------------------|
-| **Controle de Sessão** | Limitado | Total |
-| **Expiração** | JWT padrão | Customizável (7 dias) |
-| **Invalidação** | Complexa | Simples (`is_valid = false`) |
-| **Separação Buyer/Producer** | Difícil | Natural |
-| **Auditoria** | Limitada | Completa |
-| **Multi-sessão** | Automático | Controlado |
+### Uso Real do Supabase Auth
 
-### Benefícios da Implementação Customizada
+| Componente | Usa Supabase Auth? | Função/Método | Arquivo |
+|------------|-------------------|---------------|---------|
+| **Registro de Producer** | ✅ SIM | `auth.admin.createUser()` | `producer-auth-register-handler.ts` |
+| **Trigger handle_new_user** | ✅ SIM | Cria profile automaticamente | Database trigger |
+| **Login de Producer** | ❌ NÃO | Valida `profiles.password_hash` | `producer-auth-handlers.ts` |
+| **Sessões de Producer** | ❌ NÃO | Usa `producer_sessions` | `producer-auth-handlers.ts` |
+| **Reset de Senha Producer** | ✅ SIM | `auth.admin.updateUserById()` | `producer-auth-password-handler.ts` |
+| **Sincronização Órfãos** | ✅ SIM | `get_auth_user_by_email()` RPC | `user-sync.ts` |
+| **Buyer (todo fluxo)** | ❌ NÃO | Sistema independente | `buyer-auth-*.ts` |
 
-1. **Maior controle sobre sessões** - Podemos invalidar, rastrear e gerenciar
-2. **Expiração customizável** - 7 dias padrão, extensível
-3. **Separação clara** - Compradores (`buyer_sessions`) vs Produtores (`producer_sessions`)
-4. **Auditoria completa** - Todas as ações de auth são logadas
-5. **Simplicidade** - Sem dependência de JWTs complexos
+### Diagrama de Fluxo de Dados
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                           PRODUCER                                   │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  REGISTRO:                                                           │
+│  ┌─────────┐    ┌──────────────────┐    ┌───────────────┐           │
+│  │ Frontend│───▶│auth.admin.create │───▶│  auth.users   │           │
+│  └─────────┘    └──────────────────┘    └───────┬───────┘           │
+│                                                  │                   │
+│                        TRIGGER: handle_new_user  │                   │
+│                                                  ▼                   │
+│                                          ┌─────────────┐             │
+│                                          │  profiles   │             │
+│                                          └─────────────┘             │
+│                                                                      │
+│  LOGIN:                                                              │
+│  ┌─────────┐    ┌──────────────────┐    ┌─────────────┐             │
+│  │ Frontend│───▶│ bcrypt.verify()  │───▶│  profiles   │             │
+│  └─────────┘    │ (password_hash)  │    │.password_hash│            │
+│       │         └──────────────────┘    └─────────────┘             │
+│       │                                                              │
+│       │         ┌──────────────────┐    ┌─────────────────┐         │
+│       └────────▶│ Cria Sessão      │───▶│producer_sessions│         │
+│                 └──────────────────┘    └─────────────────┘         │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Por Que Este Modelo Híbrido?
+
+### Vantagens do Modelo Atual
+
+| Aspecto | Benefício |
+|---------|-----------|
+| **Registro via Supabase** | Trigger `handle_new_user` cria profile automaticamente |
+| **Senha local (bcrypt)** | Controle total sobre hashing e validação |
+| **Sessões customizadas** | Invalidação granular, auditoria completa |
+| **Separação Buyer/Producer** | Domínios completamente isolados |
+
+### Por Que NÃO Usamos JWT do Supabase para Sessões?
+
+1. **Controle de Sessão:** `producer_sessions` permite `is_valid = false` instantâneo
+2. **Expiração Customizada:** 30 dias padrão, extensível por uso
+3. **Auditoria:** Todas as sessões são rastreadas com IP e User-Agent
+4. **Multi-dispositivo:** Controle granular por sessão
+5. **Separação Buyer/Producer:** Tabelas distintas para domínios distintos
 
 ---
 

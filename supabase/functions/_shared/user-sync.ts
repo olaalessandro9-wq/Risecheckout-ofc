@@ -83,12 +83,53 @@ export async function checkAuthUserExists(
 }
 
 // ============================================================================
+// HELPERS
+// ============================================================================
+
+/**
+ * Extrai um nome amigável do email
+ * 
+ * Exemplos:
+ * - "joao.silva@email.com" → "Joao Silva"
+ * - "rdgsandro1@gmail.com" → "Rdgsandro"
+ * - "maria_santos123@hotmail.com" → "Maria Santos"
+ * - "123456@test.com" → "Usuário"
+ * 
+ * @param email - Email do usuário
+ * @returns Nome extraído ou "Usuário" como fallback
+ */
+function extractNameFromEmail(email: string): string {
+  const localPart = email.split("@")[0];
+
+  // Remove números e caracteres especiais, substitui pontos/underscores por espaços
+  const cleaned = localPart
+    .replace(/[0-9]/g, "")
+    .replace(/[._-]/g, " ")
+    .trim();
+
+  if (!cleaned) {
+    return "Usuário";
+  }
+
+  // Capitaliza cada palavra
+  return cleaned
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
+// ============================================================================
 // CREATE ORPHANED PROFILE
 // ============================================================================
 
 /**
  * Cria um profile para um usuário que existe em auth.users
  * mas não tem profile correspondente
+ * 
+ * RISE Protocol V3 Compliant:
+ * - Garante que name nunca seja null (profiles.name é NOT NULL)
+ * - Extrai nome do email se não fornecido via metadata
  * 
  * @param supabase - Cliente Supabase
  * @param email - Email do usuário
@@ -103,10 +144,14 @@ export async function createOrphanedUserProfile(
   metadata?: { name?: string; phone?: string }
 ): Promise<boolean> {
   try {
+    // RISE V3: Garantir name nunca seja null (profiles.name é NOT NULL)
+    const extractedName = extractNameFromEmail(email);
+    const finalName = metadata?.name || extractedName;
+
     const { error } = await supabase.from("profiles").insert({
       id: authUserId,
       email: email.toLowerCase().trim(),
-      name: metadata?.name || null,
+      name: finalName, // NUNCA será null
       created_at: new Date().toISOString(),
       // password_hash será null, forçando recuperação de senha
       password_hash: null,
@@ -123,7 +168,7 @@ export async function createOrphanedUserProfile(
       return false;
     }
 
-    log.info(`Orphaned profile created for: ${email}`);
+    log.info(`Orphaned profile created for: ${email} with name: ${finalName}`);
     return true;
   } catch (err) {
     log.error("Unexpected error creating orphaned profile:", err);
