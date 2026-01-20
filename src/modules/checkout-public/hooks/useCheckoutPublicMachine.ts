@@ -13,7 +13,7 @@ import { useMachine } from "@xstate/react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useEffect, useCallback, useMemo } from "react";
 import { checkoutPublicMachine } from "../machines";
-import type { FormData, CouponData, PaymentData, NavigationData, CardFormData } from "../machines";
+import type { FormData, CouponData, PaymentData, NavigationData, CardFormData } from "../machines/checkoutPublicMachine.types";
 import { getAffiliateCode } from "@/hooks/checkout/helpers";
 
 // ============================================================================
@@ -55,7 +55,9 @@ export interface UseCheckoutPublicMachineReturn {
   
   // === Payment State ===
   orderId: string | null;
+  accessToken: string | null;
   paymentData: PaymentData | null;
+  navigationData: NavigationData | null;
   
   // === Actions ===
   load: (slug: string, affiliateCode?: string) => void;
@@ -67,8 +69,8 @@ export interface UseCheckoutPublicMachineReturn {
   setPaymentMethod: (method: 'pix' | 'credit_card') => void;
   applyCoupon: (coupon: CouponData) => void;
   removeCoupon: () => void;
-  submit: (snapshot?: Partial<FormData>) => void;
-  notifyPaymentSuccess: (orderId: string, paymentData: PaymentData) => void;
+  submit: (snapshot?: Partial<FormData>, cardData?: CardFormData) => void;
+  notifyPaymentSuccess: (orderId: string, paymentData: PaymentData, navigationData: NavigationData) => void;
   notifyPaymentError: (error: string) => void;
   notifyPaymentConfirmed: () => void;
   notifyPaymentFailed: (error: string) => void;
@@ -145,12 +147,12 @@ export function useCheckoutPublicMachine(): UseCheckoutPublicMachineReturn {
     send({ type: "REMOVE_COUPON" });
   }, [send]);
   
-  const submit = useCallback((snapshot?: Partial<FormData>) => {
-    send({ type: "SUBMIT", snapshot });
+  const submit = useCallback((snapshot?: Partial<FormData>, cardData?: CardFormData) => {
+    send({ type: "SUBMIT", snapshot, cardData });
   }, [send]);
   
-  const notifyPaymentSuccess = useCallback((orderId: string, paymentData: PaymentData) => {
-    send({ type: "SUBMIT_SUCCESS", orderId, paymentData });
+  const notifyPaymentSuccess = useCallback((orderId: string, paymentData: PaymentData, navigationData: NavigationData) => {
+    send({ type: "SUBMIT_SUCCESS", orderId, paymentData, navigationData });
   }, [send]);
   
   const notifyPaymentError = useCallback((error: string) => {
@@ -205,7 +207,9 @@ export function useCheckoutPublicMachine(): UseCheckoutPublicMachineReturn {
     
     // Payment State
     orderId: state.context.orderId,
+    accessToken: state.context.accessToken,
     paymentData: state.context.paymentData,
+    navigationData: state.context.navigationData,
     
     // Actions
     load,
