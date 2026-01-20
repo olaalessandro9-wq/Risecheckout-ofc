@@ -71,6 +71,7 @@ O RiseCheckout está **100% completo** e pronto para produção. Todas as funcio
 |-----------|-----------|
 | **[CODING_STANDARDS.md](./CODING_STANDARDS.md)** | Padrões de código frontend |
 | **[EDGE_FUNCTIONS_STYLE_GUIDE.md](./EDGE_FUNCTIONS_STYLE_GUIDE.md)** | Padrões de Edge Functions |
+| **[RATE_LIMITING_SYSTEM.md](./RATE_LIMITING_SYSTEM.md)** | Sistema de Rate Limiting (28 configs) |
 | **[RISE_PROTOCOL_EXCEPTIONS.md](./RISE_PROTOCOL_EXCEPTIONS.md)** | Exceções documentadas ao RISE V3 |
 
 ### Arquivo (Histórico)
