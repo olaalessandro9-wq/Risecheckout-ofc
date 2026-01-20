@@ -21,7 +21,7 @@ const log = createLogger("vendor-integrations");
 interface RequestBody {
   action: "get-config" | "get-all";
   vendorId: string;
-  integrationType?: "MERCADOPAGO" | "PUSHINPAY" | "STRIPE" | "ASAAS" | "TIKTOK_PIXEL" | "FACEBOOK_PIXEL" | "GOOGLE_ADS" | "UTMIFY";
+  integrationType?: "MERCADOPAGO" | "PUSHINPAY" | "STRIPE" | "ASAAS" | "TIKTOK_PIXEL" | "FACEBOOK_PIXEL" | "GOOGLE_ADS" | "UTMIFY" | "KWAI_PIXEL";
 }
 
 // Variable to hold corsHeaders in scope for helper functions
@@ -180,6 +180,12 @@ function sanitizeConfig(config: Record<string, unknown> | unknown, integrationTy
       return {
         api_token: cfg.api_token ? "configured" : null,
         selected_products: cfg.selected_products,
+      };
+    case "KWAI_PIXEL":
+      return {
+        pixel_id: cfg.pixel_id,
+        selected_products: cfg.selected_products,
+        selected_events: cfg.selected_events,
       };
     default:
       return {};
