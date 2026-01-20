@@ -35,53 +35,15 @@ interface UseProductEntitiesReturn {
   setCoupons: React.Dispatch<React.SetStateAction<Coupon[]>>;
 }
 
-/**
- * OfferRecord - Estrutura do banco de dados
- * Importado de useProductLoader para Single Source of Truth
- */
-interface OfferRecord {
-  id: string;
-  product_id: string;
-  name: string;
-  price: number;
-  status: string;
-  is_default: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-/**
- * OrderBumpRecord - Estrutura do banco de dados
- * Campos reais: custom_title, custom_description, discount_price
- * @see memory/domain/order-bumps-schema-mapping
- */
-interface OrderBumpRecord {
-  id: string;
-  checkout_id: string;
-  custom_title: string | null;
-  custom_description: string | null;
-  discount_price: number | null;
-  show_image: boolean;
-  product_id: string | null;
-  products?: {
-    id: string;
-    name: string;
-    price: number;
-    image_url: string | null;
-  } | null;
-}
-
-interface CouponRecord {
-  id: string;
-  code: string;
-  discount_value: number;
-  discount_type: string;
-  created_at: string;
-  expires_at: string | null;
-  uses_count: number | null;
-  max_uses: number | null;
-  coupon_products: Array<{ product_id: string }>;
-}
+// ============================================================================
+// TIPOS IMPORTADOS DO SINGLE SOURCE OF TRUTH
+// @see memory/architecture/product-module-ssot
+// ============================================================================
+import type { 
+  OfferRecord, 
+  OrderBumpRecord, 
+  CouponRecord 
+} from "./useProductLoader";
 
 export function useProductEntities({
   productId,
@@ -137,16 +99,16 @@ export function useProductEntities({
 
       if (error) throw new Error(error.message);
       
-      // Mapeamento seguro: OrderBumpRecord -> OrderBump
+      // Mapeamento seguro: OrderBumpRecord (SSOT) -> OrderBump (UI)
       // @see memory/domain/order-bumps-schema-mapping
       const mappedOrderBumps: OrderBump[] = (data?.orderBumps || []).map((record) => ({
         id: record.id,
         name: record.custom_title || record.products?.name || "Order Bump",
         description: record.custom_description || null,
         price: record.discount_price ?? record.products?.price ?? 0,
-        image_url: record.show_image ? record.products?.image_url ?? null : null,
+        image_url: record.show_image !== false ? record.products?.image_url ?? null : null,
         bump_product_id: record.product_id,
-        created_at: undefined,
+        created_at: record.created_at,
       }));
       
       setOrderBumps(mappedOrderBumps);

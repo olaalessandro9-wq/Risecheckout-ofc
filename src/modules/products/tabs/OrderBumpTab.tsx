@@ -13,7 +13,7 @@ import { Sparkles } from "lucide-react";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("OrderBumpTab");
-import { OrderBumpList } from "@/components/products/OrderBumpList";
+import { OrderBumpList } from "@/components/products/order-bump-list";
 import { OrderBumpDialog } from "@/components/products/order-bump-dialog";
 import { useProductContext } from "../context/ProductContext";
 import { api } from "@/lib/api";
