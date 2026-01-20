@@ -71,6 +71,44 @@ export interface CardPaymentData {
 export type PaymentData = PixPaymentData | CardPaymentData;
 
 // ============================================================================
+// NAVIGATION DATA TYPES (for reactive navigation)
+// ============================================================================
+
+export interface PixNavigationData {
+  type: 'pix';
+  orderId: string;
+  accessToken: string;
+  gateway: 'pushinpay' | 'mercadopago' | 'stripe' | 'asaas';
+  amount: number;
+  qrCode?: string;
+  qrCodeBase64?: string;
+  qrCodeText?: string;
+}
+
+export interface CardNavigationData {
+  type: 'card';
+  orderId: string;
+  accessToken: string;
+  status: 'approved' | 'pending' | 'rejected';
+  requires3DS?: boolean;
+  threeDSClientSecret?: string;
+}
+
+export type NavigationData = PixNavigationData | CardNavigationData;
+
+// ============================================================================
+// CARD FORM DATA (for credit card submission)
+// ============================================================================
+
+export interface CardFormData {
+  token: string;
+  installments: number;
+  paymentMethodId?: string;
+  issuerId?: string;
+  holderDocument?: string;
+}
+
+// ============================================================================
 // ERROR TYPES
 // ============================================================================
 
@@ -118,7 +156,12 @@ export interface CheckoutPublicContext {
   
   // === Payment State ===
   orderId: string | null;
+  accessToken: string | null;
   paymentData: PaymentData | null;
+  navigationData: NavigationData | null;
+  
+  // === Card Form Data (for credit card submission) ===
+  cardFormData: CardFormData | null;
   
   // === Error State ===
   error: CheckoutError | null;
@@ -152,9 +195,9 @@ export type CheckoutPublicEvent =
   | { type: 'APPLY_COUPON'; coupon: CouponData }
   | { type: 'REMOVE_COUPON' }
   
-  // Submit
-  | { type: 'SUBMIT'; snapshot?: Partial<FormData> }
-  | { type: 'SUBMIT_SUCCESS'; orderId: string; paymentData: PaymentData }
+  // Submit (with optional card data for credit card payments)
+  | { type: 'SUBMIT'; snapshot?: Partial<FormData>; cardData?: CardFormData }
+  | { type: 'SUBMIT_SUCCESS'; orderId: string; paymentData: PaymentData; navigationData: NavigationData }
   | { type: 'SUBMIT_ERROR'; error: string }
   
   // Payment
