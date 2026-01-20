@@ -2,23 +2,21 @@
  * useNavigation - Hook Principal de Navegação
  * 
  * Centraliza TODO o estado e lógica de navegação:
- * - Reducer como Single Source of Truth
+ * - State Machine XState como Single Source of Truth
  * - Persistência localStorage automática
  * - Filtro de permissões
  * - Inicialização de grupos ativos
  * - Actions memoizadas
  * 
- * @see RISE ARCHITECT PROTOCOL V3 - Reducer + Hooks
+ * @see RISE ARCHITECT PROTOCOL V3 - XState 10.0/10
  */
 
-import { useReducer, useEffect, useCallback, useMemo, useRef } from "react";
+import { useEffect, useCallback, useMemo, useRef } from "react";
 import { useLocation } from "react-router-dom";
+import { useMachine } from "@xstate/react";
 import { usePermissions } from "@/hooks/usePermissions";
-import {
-  navigationReducer,
-  INITIAL_NAVIGATION_STATE,
-  type NavigationAction,
-} from "../state/navigationReducer";
+import { navigationMachine } from "../machines/navigationMachine";
+import type { NavigationMachineEvent } from "../machines/navigationMachine.types";
 import {
   type NavigationState,
   type NavItemConfig,
@@ -36,13 +34,6 @@ import {
   filterByPermissions,
   extractNavigationPermissions,
 } from "../utils/permissionFilters";
-
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
-/** Tempo para fechar menus antes de remover hover (ms) */
-const MENU_CLOSE_DELAY = 250;
 
 // ============================================================================
 // RETURN TYPE
@@ -71,7 +62,7 @@ export interface UseNavigationReturn {
   handleMouseLeave: () => void;
 
   // Dispatch direto (para casos avançados)
-  dispatch: React.Dispatch<NavigationAction>;
+  dispatch: (event: NavigationMachineEvent) => void;
 }
 
 // ============================================================================
@@ -81,24 +72,31 @@ export interface UseNavigationReturn {
 export function useNavigation(): UseNavigationReturn {
   const location = useLocation();
   const permissions = usePermissions();
-  const collapseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const initializedRef = useRef(false);
 
   // ========================================
-  // REDUCER
+  // STATE MACHINE
   // ========================================
 
-  const [state, dispatch] = useReducer(navigationReducer, INITIAL_NAVIGATION_STATE);
+  const [machineState, send] = useMachine(navigationMachine);
+
+  // Mapear context da máquina para NavigationState
+  const state: NavigationState = useMemo(() => ({
+    sidebarState: machineState.context.sidebarState,
+    isHovering: machineState.context.isHovering,
+    mobileOpen: machineState.context.mobileOpen,
+    expandedGroups: machineState.context.expandedGroups,
+  }), [machineState.context]);
 
   // ========================================
-  // INICIALIZAÇÃO (localStorage + grupos ativos)
+  // INICIALIZAÇÃO (localStorage)
   // ========================================
 
   // Restaura estado do localStorage na montagem
   useEffect(() => {
     const storedState = getStoredSidebarState(SIDEBAR_STORAGE_KEY);
     if (storedState !== state.sidebarState) {
-      dispatch({ type: "RESTORE_FROM_STORAGE", sidebarState: storedState });
+      send({ type: "RESTORE_FROM_STORAGE", sidebarState: storedState });
     }
     // Executar apenas uma vez na montagem
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -128,22 +126,10 @@ export function useNavigation(): UseNavigationReturn {
 
     const activeGroups = findActiveGroups(visibleItems, location.pathname);
     if (activeGroups.length > 0) {
-      dispatch({ type: "INITIALIZE_ACTIVE_GROUPS", activeGroupIds: activeGroups });
+      send({ type: "INIT_ACTIVE_GROUPS", groupIds: activeGroups });
     }
     initializedRef.current = true;
-  }, [visibleItems, location.pathname]);
-
-  // ========================================
-  // CLEANUP
-  // ========================================
-
-  useEffect(() => {
-    return () => {
-      if (collapseTimeoutRef.current) {
-        clearTimeout(collapseTimeoutRef.current);
-      }
-    };
-  }, []);
+  }, [visibleItems, location.pathname, send]);
 
   // ========================================
   // VALORES DERIVADOS
@@ -164,20 +150,20 @@ export function useNavigation(): UseNavigationReturn {
   // ========================================
 
   const cycleSidebarState = useCallback(() => {
-    dispatch({ type: "CYCLE_SIDEBAR_STATE" });
-  }, []);
+    send({ type: "CYCLE_SIDEBAR" });
+  }, [send]);
 
   const setMobileOpen = useCallback((open: boolean) => {
-    dispatch({ type: "SET_MOBILE_OPEN", isOpen: open });
-  }, []);
+    send({ type: "SET_MOBILE_OPEN", isOpen: open });
+  }, [send]);
 
   const handleMobileNavigate = useCallback(() => {
-    dispatch({ type: "SET_MOBILE_OPEN", isOpen: false });
-  }, []);
+    send({ type: "SET_MOBILE_OPEN", isOpen: false });
+  }, [send]);
 
   const toggleGroup = useCallback((groupId: string) => {
-    dispatch({ type: "TOGGLE_GROUP", groupId });
-  }, []);
+    send({ type: "TOGGLE_GROUP", groupId });
+  }, [send]);
 
   const isGroupExpanded = useCallback(
     (groupId: string) => state.expandedGroups.has(groupId),
@@ -185,40 +171,24 @@ export function useNavigation(): UseNavigationReturn {
   );
 
   // ========================================
-  // HOVER HANDLERS (com animação em cascata)
+  // HOVER HANDLERS
   // ========================================
 
   const handleMouseEnter = useCallback(() => {
-    if (state.sidebarState !== "collapsed") return;
-
-    // Cancela timeout de colapso se existir
-    if (collapseTimeoutRef.current) {
-      clearTimeout(collapseTimeoutRef.current);
-      collapseTimeoutRef.current = null;
-    }
-
-    dispatch({ type: "SET_HOVERING", isHovering: true });
-  }, [state.sidebarState]);
+    send({ type: "MOUSE_ENTER" });
+  }, [send]);
 
   const handleMouseLeave = useCallback(() => {
-    if (state.sidebarState !== "collapsed") return;
+    send({ type: "MOUSE_LEAVE" });
+  }, [send]);
 
-    const hasExpandedGroups = state.expandedGroups.size > 0;
+  // ========================================
+  // DISPATCH WRAPPER
+  // ========================================
 
-    if (hasExpandedGroups) {
-      // Primeiro fecha os menus
-      dispatch({ type: "COLLAPSE_ALL_GROUPS" });
-
-      // Depois remove hover (aguarda animação do menu fechar)
-      collapseTimeoutRef.current = setTimeout(() => {
-        dispatch({ type: "SET_HOVERING", isHovering: false });
-        collapseTimeoutRef.current = null;
-      }, MENU_CLOSE_DELAY);
-    } else {
-      // Sem menus abertos, remove hover imediatamente
-      dispatch({ type: "SET_HOVERING", isHovering: false });
-    }
-  }, [state.sidebarState, state.expandedGroups.size]);
+  const dispatch = useCallback((event: NavigationMachineEvent) => {
+    send(event);
+  }, [send]);
 
   // ========================================
   // RETURN

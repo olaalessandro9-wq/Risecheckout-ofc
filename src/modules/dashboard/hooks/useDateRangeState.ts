@@ -2,19 +2,33 @@
  * Hook para estado do DateRange
  * 
  * @module dashboard/hooks
- * @version RISE V3 Compliant - Solution C (9.9 score)
+ * @version RISE V3 Compliant - XState 10.0/10
  * 
- * Encapsula useReducer e expõe actions como funções tipadas.
+ * Encapsula State Machine XState e expõe actions como funções tipadas.
  * Usa DateRangeService para calcular ranges com São Paulo como base.
  */
 
-import { useReducer, useMemo } from "react";
-import { dateRangeReducer, createInitialDateRangeState } from "../state/dateRangeReducer";
+import { useMemo, useCallback } from "react";
+import { useMachine } from "@xstate/react";
+import { dateRangeMachine } from "../machines/dateRangeMachine";
 import { dateRangeService, type DateRangeOutput } from "@/lib/date-range";
-import type { 
-  DateRangeState, 
-  DateRangePreset,
-} from "../types/dashboard.types";
+import type { DateRangePreset } from "../types/dashboard.types";
+
+// ============================================================================
+// STATE INTERFACE (Mantém compatibilidade com código existente)
+// ============================================================================
+
+export interface DateRangeState {
+  readonly preset: DateRangePreset;
+  readonly dropdownOpen: boolean;
+  readonly calendarOpen: boolean;
+  readonly leftDate: Date | undefined;
+  readonly rightDate: Date | undefined;
+  readonly leftMonth: Date;
+  readonly rightMonth: Date;
+  readonly savedRange: { from: Date; to: Date } | undefined;
+  readonly hasError: boolean;
+}
 
 // ============================================================================
 // ACTIONS INTERFACE
@@ -36,7 +50,7 @@ export interface DateRangeActions {
 }
 
 // ============================================================================
-// HOOK RETURN TYPE (Updated)
+// HOOK RETURN TYPE
 // ============================================================================
 
 export interface UseDateRangeStateReturn {
@@ -54,7 +68,7 @@ export interface UseDateRangeStateReturn {
 // ============================================================================
 
 /**
- * Hook que encapsula todo o estado do DateRange
+ * Hook que encapsula todo o estado do DateRange via XState
  * 
  * IMPORTANTE: Todos os cálculos de datas usam São Paulo como timezone base.
  * O dateRange.startISO e dateRange.endISO estão em UTC, mas representam
@@ -71,39 +85,48 @@ export interface UseDateRangeStateReturn {
  * });
  */
 export function useDateRangeState(): UseDateRangeStateReturn {
-  const [state, dispatch] = useReducer(
-    dateRangeReducer,
-    undefined,
-    createInitialDateRangeState
-  );
+  const [machineState, send] = useMachine(dateRangeMachine);
+
+  // Mapear estado da máquina para DateRangeState (compatibilidade)
+  const state: DateRangeState = useMemo(() => ({
+    preset: machineState.context.preset,
+    dropdownOpen: machineState.matches("dropdownOpen"),
+    calendarOpen: machineState.matches("calendarOpen"),
+    leftDate: machineState.context.leftDate,
+    rightDate: machineState.context.rightDate,
+    leftMonth: machineState.context.leftMonth,
+    rightMonth: machineState.context.rightMonth,
+    savedRange: machineState.context.savedRange,
+    hasError: machineState.context.hasError,
+  }), [machineState]);
 
   // Actions memoizadas
   const actions: DateRangeActions = useMemo(() => ({
     setPreset: (preset: DateRangePreset) => 
-      dispatch({ type: "SET_PRESET", payload: preset }),
+      send({ type: "SELECT_PRESET", preset }),
     openDropdown: () => 
-      dispatch({ type: "OPEN_DROPDOWN" }),
+      send({ type: "OPEN_DROPDOWN" }),
     closeDropdown: () => 
-      dispatch({ type: "CLOSE_DROPDOWN" }),
+      send({ type: "CLOSE_DROPDOWN" }),
     openCalendar: () => 
-      dispatch({ type: "OPEN_CALENDAR" }),
+      send({ type: "OPEN_CALENDAR" }),
     closeCalendar: () => 
-      dispatch({ type: "CLOSE_CALENDAR" }),
+      send({ type: "CLOSE_CALENDAR" }),
     setLeftDate: (date: Date | undefined) => 
-      dispatch({ type: "SET_LEFT_DATE", payload: date }),
+      send({ type: "SET_LEFT_DATE", date }),
     setRightDate: (date: Date | undefined) => 
-      dispatch({ type: "SET_RIGHT_DATE", payload: date }),
+      send({ type: "SET_RIGHT_DATE", date }),
     setLeftMonth: (date: Date) => 
-      dispatch({ type: "SET_LEFT_MONTH", payload: date }),
+      send({ type: "SET_LEFT_MONTH", month: date }),
     setRightMonth: (date: Date) => 
-      dispatch({ type: "SET_RIGHT_MONTH", payload: date }),
+      send({ type: "SET_RIGHT_MONTH", month: date }),
     applyCustomRange: () => 
-      dispatch({ type: "APPLY_CUSTOM_RANGE" }),
+      send({ type: "APPLY_CUSTOM_RANGE" }),
     cancel: () => 
-      dispatch({ type: "CANCEL" }),
+      send({ type: "CANCEL" }),
     restoreSaved: () => 
-      dispatch({ type: "RESTORE_SAVED" }),
-  }), []);
+      send({ type: "RESTORE_SAVED" }),
+  }), [send]);
 
   // Calcular dateRange usando o DateRangeService (São Paulo timezone)
   const dateRange = useMemo((): DateRangeOutput => {

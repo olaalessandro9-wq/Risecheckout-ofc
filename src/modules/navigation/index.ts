@@ -4,7 +4,7 @@
  * Este é o ponto de entrada único para o módulo de navegação.
  * Exporta apenas o que é necessário para uso externo.
  * 
- * @see RISE ARCHITECT PROTOCOL V3 - Modularização
+ * @see RISE ARCHITECT PROTOCOL V3 - XState 10.0/10
  */
 
 // Types
@@ -28,13 +28,16 @@ export {
 // Config
 export { NAVIGATION_CONFIG } from "./config/navigationConfig";
 
-// State
+// Machines (XState)
 export {
-  navigationReducer,
-  INITIAL_NAVIGATION_STATE,
-} from "./state/navigationReducer";
+  navigationMachine,
+  createInitialNavigationContext,
+} from "./machines";
 
-export type { NavigationAction } from "./state/navigationReducer";
+export type { 
+  NavigationMachineEvent,
+  NavigationMachineContext,
+} from "./machines";
 
 // Hooks
 export { useNavigation } from "./hooks/useNavigation";
