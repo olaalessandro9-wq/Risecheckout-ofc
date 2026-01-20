@@ -41,18 +41,16 @@ function ProductEditInner() {
   // Layout padrão do produto
   return (
     <UnsavedChangesGuard isDirty={hasUnsavedChanges}>
-      <div className="flex flex-col min-h-[calc(100vh-4rem)]">
-        <div className="flex-1 max-w-7xl mx-auto w-full space-y-6 p-6 pb-24">
-          {/* Cabeçalho com botões de ação */}
-          <ProductHeader />
-          
-          {/* Abas de edição */}
-          <ProductTabs />
-        </div>
+      <div className="max-w-7xl mx-auto w-full space-y-6 p-6 pb-20">
+        {/* Cabeçalho com botões de ação */}
+        <ProductHeader />
         
-        {/* Footer fixo estilo Cakto */}
-        <ProductFooter />
+        {/* Abas de edição */}
+        <ProductTabs />
       </div>
+      
+      {/* Footer fixo estilo Cakto - fora do container */}
+      <ProductFooter />
     </UnsavedChangesGuard>
   );
 }

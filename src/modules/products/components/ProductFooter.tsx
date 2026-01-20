@@ -36,8 +36,8 @@ export function ProductFooter() {
   };
   
   return (
-    <div className="sticky bottom-0 z-40 bg-card border-t border-border py-4 px-6">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
+    <div className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none pb-4 px-6">
+      <div className="max-w-7xl mx-auto flex items-center justify-between pointer-events-auto">
         {/* Excluir Produto - Esquerda */}
         <ConfirmDeleteDialog
           resourceType="Produto"
@@ -46,7 +46,7 @@ export function ProductFooter() {
         >
           <Button 
             variant="destructive" 
-            className="gap-2"
+            className="gap-2 shadow-lg"
           >
             <Trash2 className="w-4 h-4" />
             Excluir Produto
@@ -57,7 +57,7 @@ export function ProductFooter() {
         <Button 
           onClick={saveAll}
           disabled={saving || !hasUnsavedChanges}
-          className="bg-primary hover:bg-primary/90"
+          className="bg-primary hover:bg-primary/90 shadow-lg"
         >
           {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
           {saving ? "Salvando..." : "Salvar Produto"}
