@@ -272,3 +272,9 @@ Hooks que precisam salvar dados recebem:
 | 2026-01-20 | Lovable | Refatoração useProductCore → useProductDelete (Single Responsibility) |
 | 2026-01-20 | Lovable | Atualização comentários "Reducer" → "State Machine" |
 | 2026-01-20 | Lovable | ✅ XSTATE 10.0/10 RISE V3 COMPLIANCE ATINGIDA |
+| 2026-01-20 | Lovable | Deleção de `membersAreaReducer.ts` (~350 linhas) - Migrado para XState |
+| 2026-01-20 | Lovable | Deleção de `builderReducer.ts` (~420 linhas) - Migrado para XState |
+| 2026-01-20 | Lovable | Deleção de `navigationReducer.ts` (~180 linhas) - Migrado para XState |
+| 2026-01-20 | Lovable | Criação `membersAreaMachine.ts` (XState State Machine) |
+| 2026-01-20 | Lovable | Criação `builderMachine.ts` (XState State Machine) |
+| 2026-01-20 | Lovable | Criação `navigationMachine.ts` (XState State Machine) |

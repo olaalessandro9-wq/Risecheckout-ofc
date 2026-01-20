@@ -1,3 +1,8 @@
+> **📅 DOCUMENTO HISTÓRICO**  
+> Este documento foi criado em Outubro de 2025.  
+> Algumas informações técnicas podem estar desatualizadas.  
+> Para a arquitetura atual, consulte `docs/ARCHITECTURE.md` e `docs/STATUS_ATUAL.md`.
+
 # Integração Utmify - Correções Aplicadas
 
 ## ✅ Correções Implementadas (Commit d6b76ae)

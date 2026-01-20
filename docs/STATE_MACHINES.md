@@ -369,19 +369,20 @@ loading: {
 
 ## Debugging
 
-### Console Logging
+### Logging com Logger Centralizado
 
 ```typescript
 // Em desenvolvimento
 import { useEffect } from "react";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("XStateDebug");
 
 function useDebugMachine() {
   const [state] = useMachine(productFormMachine);
   
   useEffect(() => {
-    if (import.meta.env.DEV) {
-      console.log("[XState]", state.value, state.context);
-    }
+    log.debug("State change", { value: state.value, context: state.context });
   }, [state]);
 }
 ```

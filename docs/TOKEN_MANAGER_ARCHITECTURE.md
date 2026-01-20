@@ -403,8 +403,11 @@ log.error("Max retries exceeded", { state: "error" });
 ```typescript
 // No console do browser (apenas dev)
 import { producerTokenService } from "@/lib/token-manager";
+import { createLogger } from "@/lib/logger";
 
-console.log({
+const log = createLogger("TokenDebug");
+
+log.debug("Token state inspection", {
   state: producerTokenService.getState(),
   hasValidToken: producerTokenService.hasValidToken(),
 });
