@@ -1,5 +1,10 @@
 # Relatório de Validação: Sincronização Automática Mercado Pago
 
+> **📅 DOCUMENTO HISTÓRICO**  
+> Este documento foi criado em Dezembro de 2025.  
+> A correção documentada aqui foi aplicada com sucesso e está em produção.  
+> Para a arquitetura atual, consulte `docs/ARCHITECTURE.md`.
+
 **Data:** 17 de Dezembro de 2025  
 **Validado por:** Manus AI  
 **Status:** ✅ **APROVADO**

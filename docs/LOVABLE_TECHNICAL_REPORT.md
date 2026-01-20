@@ -1,7 +1,12 @@
 # Relatório Técnico: Erro `Card Token not found` no Mercado Pago
 
-**Data:** 17 de Dezembro de 2025
-**Autor:** Manus, Agente de IA
+> **📅 DOCUMENTO HISTÓRICO**  
+> Este relatório foi criado em Dezembro de 2025 durante investigação de bug.  
+> O problema foi resolvido - consulte `docs/VALIDATION_REPORT.md` para a solução aplicada.  
+> Para a arquitetura atual, consulte `docs/ARCHITECTURE.md`.
+
+**Data:** 17 de Dezembro de 2025  
+**Autor:** Manus, Agente de IA  
 **Para:** Equipe Lovable
 
 ## 1. Resumo Executivo

@@ -207,12 +207,14 @@ O sistema **BUYER** é **completamente independente** do Supabase Auth.
        │                          │ 6. INSERT producer_sessions│
        │                          │──────────────────────────▶│
        │                          │                           │
-       │ 7. { session_token,      │                           │
-       │      producer, role }    │                           │
+       │ 7. Set-Cookie:           │                           │
+       │    __Host-producer_access│                           │
+       │    (httpOnly, Secure)    │                           │
        │◀─────────────────────────│                           │
        │                          │                           │
-       │ 8. Armazena token        │                           │
-       │    em localStorage       │                           │
+       │ 8. Cookie httpOnly       │                           │
+       │    armazenado pelo       │                           │
+       │    browser automaticamente│                          │
        │                          │                           │
 ```
 
