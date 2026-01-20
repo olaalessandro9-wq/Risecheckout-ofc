@@ -13,10 +13,13 @@
  * Seguindo RISE ARCHITECT PROTOCOL V3 e padrão Cakto
  */
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { useProductContext } from "../context/ProductContext";
 import { useConfirmDelete } from "@/components/common/ConfirmDelete";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 export function ProductTabFooter() {
   const { 
@@ -25,25 +28,36 @@ export function ProductTabFooter() {
     saving, 
     hasUnsavedChanges,
     deleteProduct,
-    deleting
   } = useProductContext();
   
+  const navigate = useNavigate();
+  const [isDeleting, setIsDeleting] = useState(false);
   const { confirm, Bridge: ConfirmDeleteBridge } = useConfirmDelete();
 
   // Handler de exclusão com confirmação
   const handleDelete = async () => {
     if (!product) return;
     
-    const confirmed = await confirm({
-      title: "Excluir Produto",
+    await confirm({
+      resourceType: "Produto",
+      resourceName: product.name,
       description: `Tem certeza que deseja excluir o produto "${product.name}"? Esta ação não pode ser desfeita.`,
-      confirmText: "Excluir",
-      cancelText: "Cancelar",
+      confirmLabel: "Excluir",
+      onConfirm: async () => {
+        setIsDeleting(true);
+        try {
+          const success = await deleteProduct();
+          if (success) {
+            toast.success("Produto excluído com sucesso!");
+            navigate("/products");
+          } else {
+            toast.error("Erro ao excluir produto");
+          }
+        } finally {
+          setIsDeleting(false);
+        }
+      },
     });
-
-    if (confirmed) {
-      await deleteProduct();
-    }
   };
 
   return (
@@ -56,11 +70,11 @@ export function ProductTabFooter() {
           <Button
             variant="destructive"
             onClick={handleDelete}
-            disabled={deleting || !product}
+            disabled={isDeleting || !product}
             className="w-full sm:w-auto"
           >
             <Trash2 className="mr-2 h-4 w-4" />
-            {deleting ? "Excluindo..." : "Excluir Produto"}
+            {isDeleting ? "Excluindo..." : "Excluir Produto"}
           </Button>
 
           {/* Botão Salvar à direita */}
