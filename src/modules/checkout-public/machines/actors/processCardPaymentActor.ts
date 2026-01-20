@@ -26,6 +26,33 @@ interface CardNavigationData {
 const log = createLogger("ProcessCardPaymentActor");
 
 // ============================================================================
+// MERCADOPAGO REJECTION REASON MAPPER
+// ============================================================================
+
+/**
+ * Maps MercadoPago status_detail codes to user-friendly Portuguese messages.
+ * @see https://www.mercadopago.com.br/developers/pt/docs/checkout-api/response-handling/collection-results
+ */
+function mapMercadoPagoRejectionReason(statusDetail?: string): string {
+  const reasons: Record<string, string> = {
+    'cc_rejected_bad_filled_security_code': 'CVV inválido. Verifique o código de segurança.',
+    'cc_rejected_bad_filled_card_number': 'Número do cartão inválido.',
+    'cc_rejected_bad_filled_date': 'Data de validade inválida.',
+    'cc_rejected_bad_filled_other': 'Dados do cartão inválidos. Verifique as informações.',
+    'cc_rejected_insufficient_amount': 'Saldo insuficiente no cartão.',
+    'cc_rejected_call_for_authorize': 'Ligue para sua operadora para autorizar este pagamento.',
+    'cc_rejected_card_disabled': 'Cartão desabilitado. Entre em contato com seu banco.',
+    'cc_rejected_duplicated_payment': 'Pagamento duplicado. Já existe uma transação similar.',
+    'cc_rejected_high_risk': 'Pagamento recusado por segurança. Tente outro cartão.',
+    'cc_rejected_max_attempts': 'Limite de tentativas excedido. Aguarde e tente novamente.',
+    'cc_rejected_card_type_not_allowed': 'Tipo de cartão não aceito para esta compra.',
+    'cc_rejected_blacklist': 'Cartão bloqueado. Entre em contato com seu banco.',
+    'cc_rejected_other_reason': 'Pagamento recusado pelo banco. Tente outro cartão.',
+  };
+  return reasons[statusDetail || ''] || 'Pagamento recusado. Verifique os dados ou use outro cartão.';
+}
+
+// ============================================================================
 // TYPES
 // ============================================================================
 
@@ -88,10 +115,23 @@ async function processMercadoPago(input: ProcessCardInput): Promise<ProcessCardO
   }
 
   const status = data.data?.status;
-  const mappedStatus = status === 'approved' ? 'approved' : 
-                       status === 'rejected' ? 'rejected' : 'pending';
+  const statusDetail = data.data?.status_detail;
 
-  log.info("MercadoPago card payment result", { status: mappedStatus });
+  log.info("MercadoPago card payment result", { status, statusDetail });
+
+  // CRITICAL: Rejected payments should return success: false
+  // This ensures the state machine returns to the form with an error message
+  if (status === 'rejected') {
+    const userFriendlyError = mapMercadoPagoRejectionReason(statusDetail);
+    log.warn("Card payment rejected", { statusDetail, userFriendlyError });
+    return {
+      success: false,
+      error: userFriendlyError,
+    };
+  }
+
+  // Only approved and pending statuses reach here
+  const mappedStatus = status === 'approved' ? 'approved' : 'pending';
 
   return {
     success: true,
