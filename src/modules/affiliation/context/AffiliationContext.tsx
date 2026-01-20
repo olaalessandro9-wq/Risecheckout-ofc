@@ -13,7 +13,6 @@ import { useMachine } from "@xstate/react";
 import { 
   affiliationMachine, 
   type AffiliationTabId,
-  type AffiliationMachineContext,
 } from "../machines";
 import type { AffiliationDetails, OtherProducerProduct } from "@/hooks/useAffiliationDetails";
 
@@ -38,7 +37,7 @@ interface AffiliationContextValue {
   setActiveTab: (tab: AffiliationTabId) => void;
   setTabError: (tab: AffiliationTabId, hasError: boolean) => void;
   clearTabErrors: () => void;
-  refetch: () => Promise<void>;
+  refetch: () => Promise<void>; // Explicitly returns Promise<void>
 }
 
 // ============================================================================
@@ -92,7 +91,7 @@ export function AffiliationProvider({ affiliationId, children }: AffiliationProv
     setActiveTab: (tab) => send({ type: "SET_TAB", tab }),
     setTabError: (tab, hasError) => send({ type: "SET_TAB_ERROR", tab, hasError }),
     clearTabErrors: () => send({ type: "CLEAR_TAB_ERRORS" }),
-    refetch: async () => {
+    refetch: (): Promise<void> => {
       if (affiliationId) {
         send({ type: "REFRESH" });
       }
