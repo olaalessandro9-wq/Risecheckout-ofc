@@ -99,22 +99,29 @@ O RiseCheckout implementa uma infraestrutura de segurança enterprise-grade comp
 
 ## Fluxos de Segurança
 
-### 1. Autenticação Producer (Dashboard)
+### 1. Autenticação Producer (Dashboard) - Cookies httpOnly
 
 ```
-Request → Edge Function → X-Producer-Session-Token Header
+Browser (credentials: include)
+         ↓
+Request → Edge Function → Cookie: __Host-producer_access (httpOnly)
                                ↓
-                    unified-auth.ts (requireAuthenticatedProducer)
+                    session-reader.ts (getProducerAccessToken)
                                ↓
                     Validate Session → producer_sessions table
                                ↓
                     Return producer_id for RLS context
 ```
 
-### 2. Autenticação Buyer (Área de Membros)
+> **Nota:** O header `X-Producer-Session-Token` é usado internamente pelo api-client 
+> após extração do cookie. O frontend nunca acessa o token diretamente (proteção XSS).
+
+### 2. Autenticação Buyer (Área de Membros) - Cookies httpOnly
 
 ```
-Request → Edge Function → __Host-buyer_access Cookie
+Browser (credentials: include)
+         ↓
+Request → Edge Function → Cookie: __Host-buyer_access (httpOnly)
                                ↓
                     session-reader.ts (getBuyerAccessToken)
                                ↓

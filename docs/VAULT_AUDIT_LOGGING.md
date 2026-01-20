@@ -88,8 +88,8 @@ export async function handler(req: Request) {
     auditContext  // <-- Passa o contexto
   );
   
-  // O auditLogId está disponível no resultado
-  console.log("Audit Log ID:", result.auditLogId);
+  // Use o logger centralizado, não console.log
+  log.debug("Audit Log ID:", result.auditLogId);
 }
 ```
 

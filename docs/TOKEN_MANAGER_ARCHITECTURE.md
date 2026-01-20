@@ -304,26 +304,37 @@ async function authenticatedFetch(url: string, options: RequestInit) {
 
 ## 10. Persistência
 
-### 10.1 Keys no localStorage
+### 10.1 Tokens em Cookies httpOnly (Primário)
+
+Os tokens de sessão são armazenados em **cookies httpOnly** gerenciados pelo backend:
+
+| Cookie | Descrição |
+|--------|-----------|
+| `__Host-producer_access` | Token de acesso Producer |
+| `__Host-producer_refresh` | Refresh token Producer |
+| `__Host-buyer_access` | Token de acesso Buyer |
+| `__Host-buyer_refresh` | Refresh token Buyer |
+
+> **IMPORTANTE:** O JavaScript **NÃO** tem acesso aos tokens (proteção XSS total).
+> O TokenService gerencia apenas o **estado da FSM**, não os tokens em si.
+
+### 10.2 Estado da FSM no localStorage
+
+O TokenService persiste apenas metadados (não tokens) para restaurar estado entre reloads:
 
 ```typescript
-// Producer
-"rise_producer_token_state"      // Estado atual
-"rise_producer_token_expires"    // Timestamp de expiração
+// Metadados (NÃO contêm tokens)
+"rise_producer_token_state"      // Estado atual da FSM
+"rise_producer_token_expires"    // Timestamp de expiração estimado
 "rise_producer_last_refresh"     // Última tentativa de refresh
-
-// Buyer
-"rise_buyer_token_state"
-"rise_buyer_token_expires"
-"rise_buyer_last_refresh"
 ```
 
-### 10.2 Restauração no Boot
+### 10.3 Restauração no Boot
 
 ```typescript
 // Acontece automaticamente no constructor do TokenService
 constructor(type: TokenType) {
-  this.restoreState(); // Lê localStorage e reconstrói estado
+  this.restoreState(); // Lê metadados e reconstrói estado da FSM
   this.heartbeat.start(); // Inicia verificação periódica
 }
 ```
@@ -440,18 +451,23 @@ export const TOKEN_TIMING = {
 **Sintoma:** Usuário perde sessão ao recarregar página.
 
 **Causas Possíveis:**
-1. localStorage bloqueado (modo privado)
-2. Estado não restaurado corretamente
-3. Cookie expirou no backend
+1. Cookies de terceiros bloqueados pelo browser
+2. Estado da FSM não restaurado corretamente
+3. Cookie httpOnly expirou no backend
 
 **Debug:**
 ```typescript
-// Verificar localStorage
-console.log(localStorage.getItem("rise_producer_token_state"));
+import { createLogger } from "@/lib/logger";
+const log = createLogger("TokenDebug");
 
-// Verificar estado
-console.log(producerTokenService.getState());
+// Verificar estado da FSM (metadados, não tokens)
+log.debug("Token state:", localStorage.getItem("rise_producer_token_state"));
+
+// Verificar estado do serviço
+log.debug("Service state:", producerTokenService.getState());
 ```
+
+> **Nota:** Não é possível verificar os cookies httpOnly via JavaScript (isso é intencional - proteção XSS).
 
 ### 14.2 Refresh Loop Infinito
 

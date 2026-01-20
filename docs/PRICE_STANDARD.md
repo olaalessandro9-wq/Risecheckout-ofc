@@ -359,10 +359,15 @@ const response = await fetch('https://api.pushinpay.com.br/api/pix', {
 // 2. CurrencyInput retorna: 2990 (centavos)
 const [price, setPrice] = useState(0);
 
-// 3. Salvar no banco
-await supabase.from('products').insert({
-  name: 'Produto Teste',
-  price: price  // 2990 (centavos)
+// 3. Salvar via Edge Function (RISE Protocol V3)
+await supabase.functions.invoke('product-crud', {
+  body: {
+    action: 'create',
+    data: {
+      name: 'Produto Teste',
+      price: price  // 2990 (centavos)
+    }
+  }
 });
 
 // 4. Exibir na lista

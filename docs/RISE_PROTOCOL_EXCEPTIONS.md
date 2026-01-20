@@ -191,25 +191,26 @@ O sistema possuía DOIS fluxos de salvamento paralelos com ~83 linhas duplicadas
 
 ## 7. Padrões Adotados
 
-### 7.1 Arquitetura State Management
+### 7.1 Arquitetura State Management (100% XState)
 
-**Products Module (XState 10.0/10):**
+**TODOS os módulos** usam XState State Machine como fonte única da verdade (10.0/10):
+
 ```
-useMachine(productFormMachine)
+useMachine({module}Machine)
     └── send() (único ponto de transição)
          ├── Estados explícitos (idle, loading, ready, saving, error)
          ├── Transições tipadas
          └── Actors para operações async
 ```
 
-**Outros Módulos (useReducer 9.5/10):**
-```
-useReducer (Single Source of Truth)
-    └── dispatch (único ponto de mutação)
-         ├── Hook A (usa dispatch)
-         ├── Hook B (usa dispatch)
-         └── Hook C (usa dispatch)
-```
+**Módulos com XState:**
+- `productFormMachine` - Gerenciamento de produtos
+- `membersAreaMachine` - Configurações da área de membros
+- `builderMachine` - Builder da área de membros
+- `navigationMachine` - Sidebar/navegação
+- `affiliationMachine` - Afiliações
+- `dateRangeMachine` - Seleção de datas
+- `checkoutPublicMachine` - Checkout público
 
 ### 7.2 Separação de Responsabilidades
 

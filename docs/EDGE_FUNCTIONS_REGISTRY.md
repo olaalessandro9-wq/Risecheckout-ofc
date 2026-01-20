@@ -22,13 +22,16 @@
 ## 🔐 Mecanismos de Autenticação (RISE V3)
 
 > **REGRA ABSOLUTA**: Todas as funções usam `verify_jwt = false` no `supabase/config.toml`.
-> A autenticação é feita no código via producer_sessions ou buyer_token.
+> A autenticação é feita no código via cookies httpOnly + producer_sessions ou buyer_sessions.
 
-| Mecanismo | Header | Validação | Funções |
-|-----------|--------|-----------|---------|
-| **producer_sessions** | `X-Producer-Session-Token` | `unified-auth.ts` | Dashboard, User Mgmt, Affiliates, Vault, Security |
-| **buyer_token** | `X-Buyer-Session` | `buyer-auth.ts` | Members Area, Buyer Portal |
+| Mecanismo | Cookie/Header | Validação | Funções |
+|-----------|---------------|-----------|---------|
+| **producer_sessions** | Cookie: `__Host-producer_access` → Header interno: `X-Producer-Session-Token` | `unified-auth.ts` | Dashboard, User Mgmt, Affiliates, Vault, Security |
+| **buyer_sessions** | Cookie: `__Host-buyer_access` → Header interno: `X-Buyer-Session` | `buyer-auth.ts` | Members Area, Buyer Portal |
 | **webhook/public** | N/A | Signature/payload | Webhooks, Checkout, Auth endpoints |
+
+> **Nota (Jan 2026):** Os headers são usados internamente pelo api-client após extração dos cookies httpOnly.
+> O frontend usa `credentials: 'include'` e nunca acessa tokens diretamente (proteção XSS total).
 
 ### Tabela de Auth por Função
 

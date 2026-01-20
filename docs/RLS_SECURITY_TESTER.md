@@ -123,9 +123,13 @@ export const SERVICE_ROLE_ONLY_TABLES = [
 
 ## Exemplo de Execução
 
-### Request
+### Request (via Dashboard Autenticado)
+
+> **Nota:** Em produção, o acesso é feito via dashboard autenticado com cookies httpOnly.
+> O header `X-Producer-Session-Token` é gerenciado internamente pelo api-client.
 
 ```bash
+# Para testes locais/desenvolvimento apenas:
 curl -X POST https://[project].supabase.co/functions/v1/rls-security-tester \
   -H "Content-Type: application/json" \
   -H "X-Producer-Session-Token: [token]" \
