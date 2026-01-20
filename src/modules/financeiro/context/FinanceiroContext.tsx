@@ -73,7 +73,7 @@ export function FinanceiroProvider({ children }: FinanceiroProviderProps) {
     }
   }, [state, searchParams, setSearchParams, send]);
 
-  // OAuth message listener
+  // OAuth message listener - uses BACKGROUND_REFRESH to avoid full-screen spinner
   useEffect(() => {
     const handleOAuthMessage = (event: MessageEvent) => {
       const messageType = event.data?.type;
@@ -83,9 +83,10 @@ export function FinanceiroProvider({ children }: FinanceiroProviderProps) {
         messageType === "asaas_oauth_success" ||
         messageType === "oauth_success";
 
-      if (isOAuthSuccess && state.matches("ready")) {
+      if (isOAuthSuccess && (state.matches("ready") || state.matches("backgroundRefreshing"))) {
         // Delay para garantir que o backend processou
-        setTimeout(() => send({ type: "REFRESH" }), 800);
+        // Usa BACKGROUND_REFRESH para não bloquear a UI com spinner
+        setTimeout(() => send({ type: "BACKGROUND_REFRESH" }), 800);
       }
     };
 

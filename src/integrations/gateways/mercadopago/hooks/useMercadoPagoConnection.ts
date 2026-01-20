@@ -122,20 +122,10 @@ export function useMercadoPagoConnection({
     }
   }, [userId, loadIntegration]);
 
-  // OAuth success/error listener com debounce para evitar processar mensagens duplicadas (retry do popup)
+  // OAuth success/error listener - apenas UI feedback local
+  // O refresh de dados é gerenciado pelo FinanceiroContext (Single Source of Truth)
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      // Aceitar mensagens de qualquer origin (popup envia com '*' para garantir entrega)
-      // Segurança: validamos o tipo da mensagem e o timestamp
-      
-      log.debug('postMessage recebido:', {
-        origin: event.origin,
-        type: event.data?.type,
-        attempt: event.data?.attempt,
-        timestamp: event.data?.timestamp
-      });
-      
-      // Handle success
       const messageType = event.data?.type;
       const isSuccess = 
         messageType === 'mercadopago_oauth_success' ||
@@ -143,34 +133,22 @@ export function useMercadoPagoConnection({
         messageType === 'oauth_success';
       
       if (isSuccess) {
-        // DEBOUNCE: usar Date.now() local para consistência (ignora timestamp do evento)
+        // DEBOUNCE: evitar processar mensagens duplicadas
         const now = Date.now();
         const timeSinceLastProcessed = now - lastProcessedTimestamp.current;
         
         if (timeSinceLastProcessed < 5000 && lastProcessedTimestamp.current > 0) {
-          log.debug('Mensagem duplicada ignorada (debounce):', {
-            timeSinceLastProcessed,
-            attempt: event.data?.attempt
-          });
           return;
         }
         
-        // Marcar como processado
         lastProcessedTimestamp.current = now;
-        
-        log.info('OAuth success processado!');
         setConnectingOAuth(false);
-        toast.success('Conta do Mercado Pago conectada com sucesso!');
         
-        // Delay to ensure database has been updated
-        setTimeout(() => {
-          log.debug('Recarregando integração via Edge Function...');
-          loadIntegration();
-        }, 800);
+        // Atualiza estado local do hook
+        setTimeout(() => loadIntegration(), 800);
         return;
       }
       
-      // Handle error
       if (messageType === 'mercadopago_oauth_error') {
         log.error('OAuth error:', event.data?.reason);
         setConnectingOAuth(false);
@@ -179,12 +157,7 @@ export function useMercadoPagoConnection({
     };
 
     window.addEventListener('message', handleMessage);
-    log.debug('postMessage listener registrado');
-    
-    return () => {
-      window.removeEventListener('message', handleMessage);
-      log.debug('postMessage listener removido');
-    };
+    return () => window.removeEventListener('message', handleMessage);
   }, [loadIntegration]);
 
   const handleConnectOAuth = useCallback(async () => {

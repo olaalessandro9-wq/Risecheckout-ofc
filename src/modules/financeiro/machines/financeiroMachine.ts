@@ -36,6 +36,17 @@ export const financeiroMachine = setup({
       loadError: () => null,
       lastRefreshAt: () => Date.now(),
     }),
+    assignBackgroundStatuses: assign({
+      connectionStatuses: (_, params: LoadGatewayStatusesOutput) => params.statuses,
+      lastRefreshAt: () => Date.now(),
+      isBackgroundRefreshing: () => false,
+    }),
+    setBackgroundRefreshing: assign({
+      isBackgroundRefreshing: () => true,
+    }),
+    clearBackgroundRefreshing: assign({
+      isBackgroundRefreshing: () => false,
+    }),
     assignLoadError: assign({
       loadError: (_, params: { message: string }) => params.message,
     }),
@@ -125,6 +136,26 @@ export const financeiroMachine = setup({
           },
         },
         REFRESH: { target: "loading" },
+        BACKGROUND_REFRESH: { target: "backgroundRefreshing" },
+      },
+    },
+
+    backgroundRefreshing: {
+      entry: "setBackgroundRefreshing",
+      invoke: {
+        id: "backgroundLoadGatewayStatuses",
+        src: "loadGatewayStatuses",
+        onDone: {
+          target: "ready",
+          actions: {
+            type: "assignBackgroundStatuses",
+            params: ({ event }) => event.output,
+          },
+        },
+        onError: {
+          target: "ready",
+          actions: "clearBackgroundRefreshing",
+        },
       },
     },
 
