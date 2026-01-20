@@ -253,15 +253,51 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
   }, [send]);
   
   // === Save Handlers ===
+  
+  /**
+   * Mapeia tabKey para section de validationErrors
+   * tabKey usa português (geral, configuracoes, upsell, afiliados)
+   * section usa inglês (general, checkoutSettings, upsell, affiliate)
+   */
+  const tabKeyToSection = (tabKey: string): string => {
+    const mapping: Record<string, string> = {
+      geral: "general",
+      configuracoes: "checkoutSettings",
+      upsell: "upsell",
+      afiliados: "affiliate",
+    };
+    return mapping[tabKey] ?? tabKey;
+  };
+  
   const saveAll = useCallback(async () => {
+    // Limpa erros de validação anteriores antes de tentar salvar
+    send({ type: "CLEAR_VALIDATION_ERRORS" });
+    
     // Execute registry saves first
     const result = await executeRegistrySaves();
     
     // Check for errors
     if (!result.success) {
-      // Set tab errors from registry result
+      // Set tab errors from registry result (para toast/navegação)
       if (result.tabErrors) {
         send({ type: "SET_TAB_ERRORS", errors: result.tabErrors });
+        
+        // NOVO: Propagar erros para validationErrors (para campos ficarem vermelhos)
+        Object.entries(result.tabErrors).forEach(([tabKey, tabState]) => {
+          if (tabState.errors) {
+            const section = tabKeyToSection(tabKey);
+            Object.entries(tabState.errors).forEach(([field, error]) => {
+              if (error) {
+                send({ 
+                  type: "SET_VALIDATION_ERROR", 
+                  section,
+                  field,
+                  error,
+                });
+              }
+            });
+          }
+        });
       }
       
       // Navigate to first failed tab if available
