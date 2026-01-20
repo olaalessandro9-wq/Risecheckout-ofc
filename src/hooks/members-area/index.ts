@@ -10,9 +10,9 @@ export { useMembersAreaSettings } from "./useMembersAreaSettings";
 export { useMembersAreaModules } from "./useMembersAreaModules";
 export { useMembersAreaContents } from "./useMembersAreaContents";
 
-// Reducer (for advanced usage)
-export { membersAreaReducer, INITIAL_MEMBERS_AREA_STATE } from "./membersAreaReducer";
-export type { MembersAreaState, MembersAreaAction } from "./membersAreaReducer";
+// State Machine (replaces Reducer)
+export { membersAreaMachine, initialMembersAreaContext } from "./machines";
+export type { MembersAreaMachineContext, MembersAreaMachineEvent } from "./machines";
 
 // Types
 export * from "./types";
