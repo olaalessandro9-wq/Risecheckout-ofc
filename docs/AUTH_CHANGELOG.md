@@ -1,7 +1,60 @@
 # 📝 Auth System Changelog
 
 **Projeto:** RiseCheckout  
-**Última Atualização:** 19 de Janeiro de 2026
+**Última Atualização:** 20 de Janeiro de 2026
+
+---
+
+## [5.1.0] - 2026-01-20
+
+### 📚 Correção de Documentação + Bug Fix
+
+#### Documentação Corrigida
+
+Correção de afirmações incorretas sobre a arquitetura de autenticação.
+
+##### Afirmações Anteriores (INCORRETAS)
+
+- ❌ "Sistema completamente independente do Supabase Auth"
+- ❌ "Evitar Dual-Auth: Combinar auth.users com tabelas customizadas gera complexidade"
+
+##### Realidade do Código (Documentada Agora)
+
+O sistema **PRODUCER** usa Supabase Auth para:
+- ✅ `supabase.auth.admin.createUser()` no registro
+- ✅ `supabase.auth.admin.updateUserById()` no reset de senha
+- ✅ Trigger `handle_new_user` para criar profiles automaticamente
+- ✅ RPC `get_auth_user_by_email()` para sincronização de órfãos
+
+O sistema **BUYER** é completamente independente.
+
+##### Arquivos Atualizados
+
+| Arquivo | Mudança |
+|---------|---------|
+| `docs/AUTHENTICATION_SYSTEM.md` | Corrigida visão geral, adicionada seção "Arquitetura Híbrida" |
+| `docs/AUTH_SYSTEM.md` | Adicionada seção "Modelo Híbrido Detalhado" |
+
+#### Bug Fix: Sincronização de Usuários Órfãos
+
+**Problema:** A função `createOrphanedUserProfile` em `user-sync.ts` tentava inserir `name: null`, 
+violando a constraint `NOT NULL` da coluna `profiles.name`.
+
+**Evidência dos Logs:**
+```
+Found orphaned auth user: rdgsandro1@gmail.com, syncing...
+Failed to create orphaned profile: null value in column "name" of relation "profiles" violates not-null constraint
+```
+
+**Solução:** 
+- Adicionada função `extractNameFromEmail()` que extrai nome amigável do email
+- Exemplos:
+  - `joao.silva@email.com` → "Joao Silva"
+  - `rdgsandro1@gmail.com` → "Rdgsandro"
+  - `maria_santos123@hotmail.com` → "Maria Santos"
+  - `123456@test.com` → "Usuário" (fallback)
+
+**Arquivo Modificado:** `supabase/functions/_shared/user-sync.ts`
 
 ---
 

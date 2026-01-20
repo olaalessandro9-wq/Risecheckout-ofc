@@ -1,7 +1,7 @@
 # 🔐 Sistema de Autenticação - RiseCheckout
 
-**Data:** 19 de Janeiro de 2026  
-**Versão:** 5.0.0  
+**Data:** 20 de Janeiro de 2026  
+**Versão:** 5.1.0  
 **Status:** ✅ RISE V3 10.0/10 | PRONTO PARA PRODUÇÃO
 
 ---
@@ -9,67 +9,132 @@
 ## 📋 Sumário
 
 1. [Visão Geral da Arquitetura](#-visão-geral-da-arquitetura)
-2. [Estrutura de Arquivos](#-estrutura-de-arquivos)
-3. [Fluxos de Autenticação](#-fluxos-de-autenticação)
-4. [Estrutura do Banco de Dados](#-estrutura-do-banco-de-dados)
-5. [Segurança](#-segurança)
-6. [Constantes Centralizadas](#-constantes-centralizadas)
-7. [Response Helpers](#-response-helpers)
-8. [API Endpoints](#-api-endpoints)
-9. [Frontend Hooks](#-frontend-hooks)
-10. [Decisões Arquiteturais](#-decisões-arquiteturais)
-11. [Score RISE V3](#-score-rise-v3)
+2. [Modelo Híbrido Detalhado](#-modelo-híbrido-detalhado)
+3. [Estrutura de Arquivos](#-estrutura-de-arquivos)
+4. [Fluxos de Autenticação](#-fluxos-de-autenticação)
+5. [Estrutura do Banco de Dados](#-estrutura-do-banco-de-dados)
+6. [Segurança](#-segurança)
+7. [Constantes Centralizadas](#-constantes-centralizadas)
+8. [Response Helpers](#-response-helpers)
+9. [API Endpoints](#-api-endpoints)
+10. [Frontend Hooks](#-frontend-hooks)
+11. [Decisões Arquiteturais](#-decisões-arquiteturais)
+12. [Score RISE V3](#-score-rise-v3)
 
 ---
 
 ## 🏗️ Visão Geral da Arquitetura
 
-### Dual-Domain Authentication
+### Sistema Híbrido (Supabase Auth + Custom Sessions)
 
-O RiseCheckout implementa um sistema de autenticação **dual-domain** com domínios completamente separados:
+O RiseCheckout implementa um **modelo híbrido** que combina Supabase Auth para operações administrativas com sessões customizadas para autenticação:
 
-| Domínio | Tabela de Perfil | Tabela de Sessão | Propósito |
-|---------|------------------|------------------|-----------|
-| **Producer** | `profiles` | `producer_sessions` | Vendedores/Produtores do SaaS |
-| **Buyer** | `buyer_profiles` | `buyer_sessions` | Compradores/Clientes finais |
+| Domínio | Registro | Senha | Sessões | Supabase Auth |
+|---------|----------|-------|---------|---------------|
+| **Producer** | `auth.users` | `profiles.password_hash` | `producer_sessions` | Parcial |
+| **Buyer** | `buyer_profiles` | `buyer_profiles.password_hash` | `buyer_sessions` | Nenhum |
 
-### Por que NÃO usamos Supabase Auth JWT?
+### ⚠️ ESCLARECIMENTO ARQUITETURAL IMPORTANTE
 
-O sistema foi projetado com **tokens de sessão customizados** ao invés do Supabase Auth padrão por razões arquiteturais:
+O sistema **NÃO é "completamente independente" do Supabase Auth** para Producers:
 
-1. **Separação de Domínios:** Produtores e Compradores são entidades completamente distintas com fluxos diferentes
-2. **Evitar "Dual-Auth":** Combinar `auth.users` com tabelas customizadas gera complexidade desnecessária
-3. **Controle Total:** Tokens customizados permitem expiração, revogação e auditoria granular
-4. **RLS Simplificado:** A função SQL `get_producer_id_from_session()` resolve o producer_id sem dependência do JWT
+| Operação | Usa Supabase Auth? | Método/Função |
+|----------|-------------------|---------------|
+| Registro de Producer | ✅ **SIM** | `auth.admin.createUser()` |
+| Trigger handle_new_user | ✅ **SIM** | Cria profile automaticamente |
+| Login de Producer | ❌ NÃO | Valida `profiles.password_hash` |
+| Sessões de Producer | ❌ NÃO | Usa `producer_sessions` |
+| Reset de Senha | ✅ **SIM** | `auth.admin.updateUserById()` |
+| Sincronização Órfãos | ✅ **SIM** | `get_auth_user_by_email()` RPC |
+
+O sistema **Buyer é completamente independente** do Supabase Auth.
+
+---
+
+## 🔄 Modelo Híbrido Detalhado
+
+### Por Que Este Modelo Existe?
+
+1. **Trigger `handle_new_user`:** Ao criar usuário em `auth.users`, um trigger cria automaticamente o `profile`
+2. **Senhas Locais:** `profiles.password_hash` permite bcrypt customizado e controle total
+3. **Sessões Customizadas:** `producer_sessions` oferece invalidação granular impossível com JWT
+
+### Diagrama da Arquitetura Real
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    ARQUITETURA DE AUTH                          │
+│                    ARQUITETURA HÍBRIDA                          │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│   ┌─────────────┐                    ┌─────────────┐           │
-│   │  PRODUCER   │                    │   BUYER     │           │
-│   │   Domain    │                    │   Domain    │           │
-│   └──────┬──────┘                    └──────┬──────┘           │
-│          │                                  │                   │
-│          ▼                                  ▼                   │
-│   ┌─────────────┐                    ┌─────────────┐           │
-│   │  profiles   │                    │buyer_profiles│           │
-│   │    table    │                    │    table    │           │
-│   └──────┬──────┘                    └──────┬──────┘           │
-│          │                                  │                   │
-│          ▼                                  ▼                   │
-│   ┌─────────────┐                    ┌─────────────┐           │
-│   │  producer_  │                    │   buyer_    │           │
-│   │  sessions   │                    │  sessions   │           │
-│   └──────┬──────┘                    └──────┬──────┘           │
-│          │                                  │                   │
-│          ▼                                  ▼                   │
-│   ┌─────────────┐                    ┌─────────────┐           │
-│   │producer-auth│                    │ buyer-auth  │           │
-│   │Edge Function│                    │Edge Function│           │
-│   └─────────────┘                    └─────────────┘           │
+│   ┌─────────────────────────────────────────────────────────┐   │
+│   │                      PRODUCER                            │   │
+│   ├─────────────────────────────────────────────────────────┤   │
+│   │                                                          │   │
+│   │  REGISTRO:        auth.admin.createUser() ──▶ auth.users │   │
+│   │                            │                             │   │
+│   │                   TRIGGER: handle_new_user               │   │
+│   │                            │                             │   │
+│   │                            ▼                             │   │
+│   │                       ┌─────────┐                        │   │
+│   │                       │profiles │                        │   │
+│   │                       └─────────┘                        │   │
+│   │                                                          │   │
+│   │  LOGIN:           bcrypt.verify(profiles.password_hash)  │   │
+│   │                            │                             │   │
+│   │                            ▼                             │   │
+│   │                  ┌─────────────────────┐                 │   │
+│   │                  │ producer_sessions   │                 │   │
+│   │                  └─────────────────────┘                 │   │
+│   │                                                          │   │
+│   └─────────────────────────────────────────────────────────┘   │
 │                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐   │
+│   │                       BUYER                              │   │
+│   ├─────────────────────────────────────────────────────────┤   │
+│   │                                                          │   │
+│   │  REGISTRO:        INSERT buyer_profiles (independente)   │   │
+│   │                                                          │   │
+│   │  LOGIN:           bcrypt.verify(buyer_profiles.password) │   │
+│   │                            │                             │   │
+│   │                            ▼                             │   │
+│   │                  ┌─────────────────────┐                 │   │
+│   │                  │   buyer_sessions    │                 │   │
+│   │                  └─────────────────────┘                 │   │
+│   │                                                          │   │
+│   │  ⚠️ COMPLETAMENTE INDEPENDENTE DO SUPABASE AUTH         │   │
+│   │                                                          │   │
+│   └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Sincronização de Usuários Órfãos
+
+Quando um usuário existe em `auth.users` mas não em `profiles` (falha parcial no registro):
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                 SINCRONIZAÇÃO DE ÓRFÃOS                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. Usuário tenta login/reset com email                          │
+│                     │                                            │
+│                     ▼                                            │
+│  2. Profile não encontrado em `profiles`                         │
+│                     │                                            │
+│                     ▼                                            │
+│  3. RPC: get_auth_user_by_email() ──▶ Busca em auth.users       │
+│                     │                                            │
+│                     ▼                                            │
+│  4. Se encontrado: createOrphanedUserProfile()                   │
+│     - Cria profile com id = auth.users.id                        │
+│     - name = extraído do email (ex: "joao.silva" → "Joao Silva")│
+│     - password_hash = null (força reset de senha)               │
+│     - account_status = "pending_setup"                           │
+│                     │                                            │
+│                     ▼                                            │
+│  5. Usuário recebe email de recuperação de senha                 │
+│                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
