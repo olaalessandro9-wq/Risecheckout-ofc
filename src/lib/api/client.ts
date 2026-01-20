@@ -24,7 +24,7 @@
  * ```
  */
 
-import { SUPABASE_URL } from "@/config/supabase";
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/config/supabase";
 import type { ApiResponse, ApiError } from "./types";
 import { parseHttpError, parseNetworkError, createApiError } from "./errors";
 import { producerTokenService } from "@/lib/token-manager";
@@ -118,11 +118,12 @@ async function call<T>(
   const timeoutId = setTimeout(() => controller.abort(), timeout);
   
   // Build headers
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    "X-Correlation-Id": correlationId,
-    ...customHeaders,
-  };
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "X-Correlation-Id": correlationId,
+      "apikey": SUPABASE_ANON_KEY,
+      ...customHeaders,
+    };
   
   const url = `${SUPABASE_URL}/functions/v1/${functionName}`;
   
