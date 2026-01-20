@@ -78,12 +78,12 @@ export const createOrderActor = fromPromise<CreateOrderOutput, CreateOrderInput>
     }>("create-order", payload);
 
     if (error) {
-      log.error("API error creating order", { error: error.message });
+      log.error("API error creating order", { error: error?.message ?? "Unknown error" });
       return {
         success: false,
         orderId: '',
         accessToken: '',
-        error: error.message || "Erro de rede ao criar pedido",
+        error: error?.message ?? "Erro de rede ao criar pedido",
       };
     }
 
