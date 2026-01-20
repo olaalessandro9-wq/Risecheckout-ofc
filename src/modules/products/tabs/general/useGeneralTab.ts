@@ -1,16 +1,14 @@
 /**
  * useGeneralTab - Hook Orquestrador (View Only)
  * 
- * Refatorado seguindo RISE ARCHITECT PROTOCOL V3:
- * - Estado de formulário centralizado no ProductContext via Reducer
+ * Refatorado para XState State Machine:
+ * - Estado de formulário centralizado no ProductContext via State Machine
  * - Tabs são Pure Views - consomem estado do Context
  * - Zero estado local de formulário
  * - Single Source of Truth
  * - Salvamento unificado via botão global "Salvar Produto" (useGlobalValidationHandlers)
  * 
- * NOTA: useGeneralTabSave foi DELETADO - salvamento unificado no header
- * 
- * @see RISE ARCHITECT PROTOCOL V3 - Zero Duplicação
+ * @see RISE ARCHITECT PROTOCOL V3 - XState 10.0/10
  */
 
 import { useMemo, useCallback, useState } from "react";
@@ -35,35 +33,36 @@ export function useGeneralTab() {
     formErrors,
   } = useProductContext();
 
-  // Form state vem do Context (reducer) - NÃO do useState local
+  // Form state vem do Context (state machine) - NÃO do useState local
   const form = formState.editedData.general;
-  const isInitialized = formState.isInitialized;
 
-  // Setter que dispara action para o reducer
+  // Setter que dispara action para a state machine
   const setForm = useCallback((updater: GeneralFormData | ((prev: GeneralFormData) => GeneralFormData)) => {
     if (typeof updater === 'function') {
       const newForm = updater(form);
-      dispatchForm({ type: 'UPDATE_GENERAL', payload: newForm });
+      dispatchForm({ type: 'EDIT_GENERAL', payload: newForm });
     } else {
-      dispatchForm({ type: 'UPDATE_GENERAL', payload: updater });
+      dispatchForm({ type: 'EDIT_GENERAL', payload: updater });
     }
   }, [form, dispatchForm]);
 
   // Errors vem do formState - mapear para tipo correto
   const errors: GeneralFormErrors = {
-    name: formErrors.general.name || "",
-    description: formErrors.general.description || "",
-    price: formErrors.general.price || "",
-    support_name: formErrors.general.support_name || "",
-    support_email: formErrors.general.support_email || "",
-    delivery_url: formErrors.general.delivery_url || "",
+    name: formErrors.general?.name || "",
+    description: formErrors.general?.description || "",
+    price: formErrors.general?.price || "",
+    support_name: formErrors.general?.support_name || "",
+    support_email: formErrors.general?.support_email || "",
+    delivery_url: formErrors.general?.delivery_url || "",
   };
 
   // Clear error - dispara action
   const clearError = useCallback((field: keyof GeneralFormErrors) => {
     dispatchForm({ 
       type: 'SET_VALIDATION_ERROR', 
-      payload: { section: 'general', field, error: undefined } 
+      section: 'general',
+      field,
+      error: undefined,
     });
   }, [dispatchForm]);
 
@@ -93,7 +92,7 @@ export function useGeneralTab() {
 
   // Detect changes - compara editedData com serverData
   const hasChanges = useMemo(() => {
-    if (!isInitialized || !product) return false;
+    if (!product) return false;
 
     // Compara os dados editados com os dados do servidor
     const serverGeneral = formState.serverData.general;
@@ -112,7 +111,7 @@ export function useGeneralTab() {
     const imageChanged = image.imageFile !== null || image.pendingRemoval;
 
     return formChanged || imageChanged || offersModified || deletedOfferIds.length > 0;
-  }, [formState, product, image, offersModified, deletedOfferIds, isInitialized]);
+  }, [formState, product, image, offersModified, deletedOfferIds]);
 
   // Delete handler - único handler local mantido
   const handleDelete = useCallback(async () => {

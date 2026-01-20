@@ -23,6 +23,7 @@ import { createLogger } from "@/lib/logger";
 // State Machine
 import { productFormMachine, initialContext } from "../machines";
 import type { ProductFormContext, ProductFormEvent } from "../machines";
+import { calculateDirtyFlags } from "../machines/productFormMachine.guards";
 
 // Types
 import type { ProductProviderProps, Offer } from "../types/product.types";
@@ -38,7 +39,7 @@ import type { TabValidationMap } from "../types/tabValidation.types";
 // Hooks que ainda precisamos
 import { useSaveRegistry } from "./hooks/useSaveRegistry";
 import { useGlobalValidationHandlers } from "./hooks/useGlobalValidationHandlers";
-import { useProductSettingsAdapter } from "./hooks/useProductSettingsAdapter";
+import { useProductSettings } from "./hooks/useProductSettingsAdapter";
 
 // Helpers
 import { validateGeneralForm } from "./productFormValidation";
@@ -126,6 +127,7 @@ interface ProductContextValue {
     isDirty: boolean;
     validation: ProductFormContext["validationErrors"];
     isCheckoutSettingsInitialized: boolean;
+    dirtyFlags: ReturnType<typeof calculateDirtyFlags>;
   };
   formDispatch: (event: ProductFormEvent) => void;
   dispatchForm: (event: ProductFormEvent) => void;
@@ -134,23 +136,6 @@ interface ProductContextValue {
   machineState: string;
   send: (event: ProductFormEvent) => void;
 }
-
-// ============================================================================
-// DEFAULT VALUES
-// ============================================================================
-
-const defaultPaymentSettings = {
-  pixEnabled: true,
-  creditCardEnabled: true,
-  defaultPaymentMethod: "credit_card" as const,
-};
-
-const defaultCheckoutFields = {
-  fullName: true,
-  phone: true,
-  email: true,
-  cpf: false,
-};
 
 // ============================================================================
 // CONTEXT
@@ -179,8 +164,8 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
   const { registerSaveHandler, executeAll: executeRegistrySaves } = useSaveRegistry();
   
   // === Settings Adapter (para operações de save específicas) ===
-  const settingsAdapter = useProductSettingsAdapter({
-    productId,
+  const settingsAdapter = useProductSettings({
+    productId: productId ?? null,
     userId: user?.id,
     upsellSettings: context.editedData.upsell,
     affiliateSettings: context.editedData.affiliate,
@@ -191,13 +176,13 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
   // === Load Data on Mount/ProductId Change ===
   useMemo(() => {
     if (productId && user?.id && state.matches("idle")) {
-      send({ type: "LOAD_DATA", productId });
+      send({ type: "LOAD_DATA", productId, userId: user.id });
     }
   }, [productId, user?.id, state, send]);
   
   // === Global Validation Handlers ===
   useGlobalValidationHandlers({
-    productId,
+    productId: productId ?? null,
     userId: user?.id,
     registerSaveHandler,
     generalForm: context.editedData.general,
@@ -210,8 +195,7 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     resetImage: () => send({ type: "EDIT_IMAGE", payload: { imageFile: null, pendingRemoval: false } }),
     resetOffers: () => send({ type: "EDIT_OFFERS", payload: { modified: false, deletedOfferIds: [] } }),
     checkoutSettingsForm: context.editedData.checkoutSettings,
-    isCheckoutSettingsInitialized: context.editedData.checkoutSettings.pixGateway !== "" || 
-                                    context.editedData.checkoutSettings.creditCardGateway !== "",
+    isCheckoutSettingsInitialized: context.isCheckoutSettingsInitialized,
     formDispatch: send,
     upsellSettings: context.editedData.upsell,
     saveUpsellSettings: settingsAdapter.saveUpsellSettings,
@@ -222,7 +206,7 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
   // === Derived State ===
   const loading = state.matches("loading");
   const saving = state.matches("saving");
-  const hasUnsavedChanges = state.matches("ready.dirty");
+  const hasUnsavedChanges = state.matches({ ready: "dirty" });
   
   // === Form Handlers ===
   const updateGeneralField = useCallback(<K extends keyof GeneralFormData>(field: K, value: GeneralFormData[K]) => {
@@ -375,8 +359,8 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
       serverData: context.serverData,
       isDirty: hasUnsavedChanges,
       validation: context.validationErrors,
-      isCheckoutSettingsInitialized: context.editedData.checkoutSettings.pixGateway !== "" || 
-                                      context.editedData.checkoutSettings.creditCardGateway !== "",
+      isCheckoutSettingsInitialized: context.isCheckoutSettingsInitialized,
+      dirtyFlags: calculateDirtyFlags(context),
     },
     formDispatch: send,
     dispatchForm: send,

@@ -1,11 +1,11 @@
 /**
  * UpsellTab - Aba de Configurações de Upsell/Downsell
  * 
- * Refatorado seguindo RISE ARCHITECT PROTOCOL V3:
- * - Estado vem do Context via Reducer
+ * Refatorado para XState State Machine:
+ * - Estado vem do Context via State Machine
  * - Tab é Pure View - consome estado do Context
  * 
- * @see RISE ARCHITECT PROTOCOL V3
+ * @see RISE ARCHITECT PROTOCOL V3 - XState 10.0/10
  */
 
 import { useCallback, useMemo, useState } from "react";
@@ -15,7 +15,6 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Loader2 } from "lucide-react";
 import { useProductContext } from "../context/ProductContext";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export function UpsellTab() {
@@ -28,10 +27,9 @@ export function UpsellTab() {
     hasUnsavedChanges
   } = useProductContext();
 
-  // Estado vem do reducer
+  // Estado vem do state machine
   const localSettings = formState.editedData.upsell;
   const serverSettings = formState.serverData.upsell;
-  const isInitialized = formState.isInitialized;
 
   // URL error (UI state, não form data)
   const [urlError, setUrlError] = useState<string | null>(null);
@@ -48,13 +46,12 @@ export function UpsellTab() {
 
   // Detectar mudanças comparando com serverData
   const hasChanges = useMemo(() => {
-    if (!isInitialized) return false;
     return JSON.stringify(localSettings) !== JSON.stringify(serverSettings);
-  }, [localSettings, serverSettings, isInitialized]);
+  }, [localSettings, serverSettings]);
   
   const handleChange = useCallback((field: 'hasCustomThankYouPage' | 'customPageUrl' | 'redirectIgnoringOrderBumpFailures', value: string | boolean) => {
     dispatchForm({ 
-      type: 'UPDATE_UPSELL', 
+      type: 'EDIT_UPSELL', 
       payload: { [field]: value } 
     });
     if (field === 'customPageUrl') {

@@ -1,15 +1,15 @@
 /**
  * useAffiliatesTab - Hook de lógica para AffiliatesTab
  * 
- * Encapsula toda lógica de negócio, handlers e side effects.
+ * Refatorado para XState State Machine:
+ * - Encapsula toda lógica de negócio, handlers e side effects.
  * 
- * @see RISE ARCHITECT PROTOCOL V3 - Modularização
+ * @see RISE ARCHITECT PROTOCOL V3 - XState 10.0/10
  */
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { useProductContext } from "../../context/ProductContext";
-import { formActions } from "../../context/productFormReducer";
 import type { AffiliateSettings } from "../../types/product.types";
 import type { AffiliateGatewaySettingsData } from "../../components/AffiliateGatewaySettings";
 import type { AffiliateSettingValue } from "./types";
@@ -56,7 +56,7 @@ export function useAffiliatesTab() {
   } = useProductContext();
 
   // ---------------------------------------------------------------------------
-  // DERIVED STATE FROM REDUCER
+  // DERIVED STATE FROM STATE MACHINE
   // ---------------------------------------------------------------------------
 
   const localSettings = useMemo(() => {
@@ -68,7 +68,7 @@ export function useAffiliatesTab() {
   }, [formState.serverData.affiliateSettings]);
 
   // ---------------------------------------------------------------------------
-  // LOCAL STATE (Gateway Settings - ainda não migrado para reducer)
+  // LOCAL STATE (Gateway Settings - ainda não migrado para state machine)
   // ---------------------------------------------------------------------------
 
   const [gatewaySettings, setGatewaySettings] = useState<AffiliateGatewaySettingsData>(DEFAULT_GATEWAY_SETTINGS);
@@ -84,7 +84,7 @@ export function useAffiliatesTab() {
   // CHANGE DETECTION
   // ---------------------------------------------------------------------------
 
-  const hasAffiliateChanges = formState.dirtyFlags.affiliate;
+  const hasAffiliateChanges = formState.dirtyFlags?.affiliate ?? false;
   const hasGatewayChanges = JSON.stringify(gatewaySettings) !== gatewaySnapshot;
   const hasChanges = hasAffiliateChanges || hasGatewayChanges;
 
@@ -93,7 +93,7 @@ export function useAffiliatesTab() {
   // ---------------------------------------------------------------------------
 
   const handleChange = useCallback((field: keyof AffiliateSettings, value: AffiliateSettingValue) => {
-    dispatchForm(formActions.updateAffiliate({ [field]: value }));
+    dispatchForm({ type: "EDIT_AFFILIATE", payload: { [field]: value } });
   }, [dispatchForm]);
 
   const handleGatewaySettingsChange = useCallback((settings: AffiliateGatewaySettingsData) => {
@@ -158,7 +158,9 @@ export function useAffiliatesTab() {
       await saveAffiliateSettings(localSettings);
       
       setGatewaySnapshot(JSON.stringify(gatewaySettings));
-      dispatchForm(formActions.markSaved());
+      
+      // Dispatch SAVE_SUCCESS to transition machine back to pristine
+      dispatchForm({ type: "SAVE_SUCCESS" });
       
       toast.success("Configurações de afiliados salvas com sucesso");
     } catch (error: unknown) {

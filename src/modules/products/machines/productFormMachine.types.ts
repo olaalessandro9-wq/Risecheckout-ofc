@@ -10,34 +10,7 @@
  * @module products/machines/types
  */
 
-// Re-export tipos existentes para manter compatibilidade
-export type {
-  ProductData as MachineProduct,
-  Offer as MachineOffer,
-  OrderBump as MachineOrderBump,
-  Checkout as MachineCheckout,
-  PaymentLink as MachinePaymentLink,
-  Coupon as MachineCoupon,
-  UpsellSettings,
-  AffiliateSettings,
-} from "../types/product.types";
-
-export type {
-  GeneralFormData,
-  ImageFormState,
-  OffersFormState,
-  CheckoutSettingsFormData,
-  GatewayCredentials,
-  GatewayCredentialStatus,
-  ServerDataSnapshot,
-  EditedFormData,
-} from "../types/formData.types";
-
-export type {
-  TabValidationMap,
-} from "../types/tabValidation.types";
-
-// Import para uso interno
+// Import tipos existentes (não re-exportar com alias para evitar conflito)
 import type { 
   ProductData, 
   Offer, 
@@ -59,11 +32,32 @@ import type {
 } from "../types/formData.types";
 import type { TabValidationMap } from "../types/tabValidation.types";
 
+// Re-export tipos para uso externo
+export type {
+  UpsellSettings,
+  AffiliateSettings,
+} from "../types/product.types";
+
+export type {
+  GeneralFormData,
+  ImageFormState,
+  OffersFormState,
+  CheckoutSettingsFormData,
+  GatewayCredentials,
+  GatewayCredentialStatus,
+  ServerDataSnapshot,
+  EditedFormData,
+} from "../types/formData.types";
+
+export type {
+  TabValidationMap,
+} from "../types/tabValidation.types";
+
 // ============================================================================
 // ENTITY TYPES (aliases para compatibilidade)
 // ============================================================================
 
-// Aliases mantidos para compatibilidade com código existente na state machine
+// Aliases para uso interno da state machine
 export type MachineProduct = ProductData;
 export type MachineOffer = Offer;
 export type MachineOrderBump = OrderBump;
@@ -102,10 +96,10 @@ export interface MappedProductData {
 // ============================================================================
 
 export interface ValidationErrors {
-  general?: Record<string, string>;
-  image?: Record<string, string>;
-  offers?: Record<string, string>;
-  checkout?: Record<string, string>;
+  general: Record<string, string>;
+  upsell: Record<string, string>;
+  affiliate: Record<string, string>;
+  checkoutSettings: Record<string, string>;
   [key: string]: Record<string, string> | undefined;
 }
 
@@ -165,7 +159,7 @@ export interface ProductFormContext {
   // Entidades relacionadas
   entities: ProductEntities;
   
-  // Credentials
+  // Credentials para gateways
   credentials: GatewayCredentials;
   
   // Erros
@@ -180,6 +174,9 @@ export interface ProductFormContext {
   // Tab state
   activeTab: string;
   tabErrors: TabValidationMap;
+  
+  // Initialization flags
+  isCheckoutSettingsInitialized: boolean;
 }
 
 // ============================================================================
@@ -190,6 +187,7 @@ export interface ProductFormContext {
 export interface LoadDataEvent {
   type: "LOAD_DATA";
   productId: string;
+  userId?: string;
 }
 
 export interface ReceiveDataEvent {
@@ -242,6 +240,18 @@ export interface InitCheckoutSettingsEvent {
   type: "INIT_CHECKOUT_SETTINGS";
   settings: CheckoutSettingsFormData;
   credentials: GatewayCredentials;
+}
+
+// Validation Events
+export interface SetValidationErrorEvent {
+  type: "SET_VALIDATION_ERROR";
+  section: string;
+  field: string;
+  error: string | undefined;
+}
+
+export interface ClearValidationErrorsEvent {
+  type: "CLEAR_VALIDATION_ERRORS";
 }
 
 // Action Events
@@ -297,6 +307,8 @@ export type ProductFormEvent =
   | EditAffiliateEvent
   | EditCheckoutSettingsEvent
   | InitCheckoutSettingsEvent
+  | SetValidationErrorEvent
+  | ClearValidationErrorsEvent
   | SaveAllEvent
   | SaveSuccessEvent
   | SaveErrorEvent

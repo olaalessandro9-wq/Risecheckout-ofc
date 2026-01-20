@@ -11,7 +11,6 @@
 import { setup, assign } from "xstate";
 import type { ProductFormContext, ProductFormEvent, MappedProductData } from "./productFormMachine.types";
 import { loadProductActor, saveAllActor } from "./productFormMachine.actors";
-import { calculateDirtyFlags } from "./productFormMachine.guards";
 
 // ============================================================================
 // INITIAL CONTEXT
@@ -65,7 +64,7 @@ export const initialContext: ProductFormContext = {
     },
   },
   entities: { orderBumps: [], checkouts: [], paymentLinks: [], coupons: [] },
-  checkoutCredentials: {},
+  credentials: {},
   productId: null,
   userId: undefined,
   validationErrors: { general: {}, upsell: {}, affiliate: {}, checkoutSettings: {} },
@@ -168,11 +167,27 @@ export const productFormMachine = setup({
         SET_TAB: { actions: assign({ activeTab: ({ event }) => event.tab }) },
         SET_TAB_ERRORS: { actions: assign({ tabErrors: ({ event }) => event.errors }) },
         CLEAR_TAB_ERRORS: { actions: assign({ tabErrors: () => ({}) }) },
+        SET_VALIDATION_ERROR: {
+          actions: assign(({ context, event }) => ({
+            validationErrors: {
+              ...context.validationErrors,
+              [event.section]: {
+                ...context.validationErrors[event.section],
+                [event.field]: event.error,
+              },
+            },
+          })),
+        },
+        CLEAR_VALIDATION_ERRORS: {
+          actions: assign(() => ({
+            validationErrors: { general: {}, upsell: {}, affiliate: {}, checkoutSettings: {} },
+          })),
+        },
         INIT_CHECKOUT_SETTINGS: {
           actions: assign(({ context, event }) => ({
             editedData: { ...context.editedData, checkoutSettings: event.settings },
             serverData: { ...context.serverData, checkoutSettings: event.settings },
-            checkoutCredentials: event.credentials,
+            credentials: event.credentials,
             isCheckoutSettingsInitialized: true,
           })),
         },
