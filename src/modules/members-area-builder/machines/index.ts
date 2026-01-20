@@ -27,3 +27,6 @@ export { isDirty, canSave, hasSelectedSection, hasProduct } from "./builderMachi
 
 // Actors
 export { loadBuilderActor, saveBuilderActor } from "./builderMachine.actors";
+
+// Actions
+export * from "./builderMachine.actions";
