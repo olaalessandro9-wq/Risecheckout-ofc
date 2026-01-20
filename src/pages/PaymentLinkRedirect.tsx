@@ -27,6 +27,7 @@ interface PaymentLinkWithOffers {
   id: string;
   slug: string;
   status: string | null;
+  checkout_slug?: string | null;
   offers?: {
     id: string;
     product_id: string;
@@ -93,7 +94,9 @@ const PaymentLinkRedirect = () => {
           return;
         }
 
-        navigate(`/pay/${typedLinkData.slug}?build=v3_0`, { replace: true });
+        // Usa checkout_slug (slug do checkout) em vez do slug do payment_link
+        const targetSlug = typedLinkData.checkout_slug || typedLinkData.slug;
+        navigate(`/pay/${targetSlug}?build=v3_0`, { replace: true });
       } catch (err) {
         log.error("Erro ao processar link", err);
         navigate(`/pay/${slug}?build=v3_0`, { replace: true });

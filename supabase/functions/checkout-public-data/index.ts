@@ -805,6 +805,14 @@ serve(async (req) => {
               status,
               support_email
             )
+          ),
+          checkout_links (
+            checkout_id,
+            checkouts (
+              id,
+              slug,
+              status
+            )
           )
         `)
         .eq("slug", slug)
@@ -819,7 +827,24 @@ serve(async (req) => {
         return jsonResponse({ success: true, data: null });
       }
 
-      return jsonResponse({ success: true, data });
+      // Extrair checkout_slug do JOIN
+      const checkoutLinks = data.checkout_links as Array<{
+        checkout_id: string;
+        checkouts: { id: string; slug: string; status: string } | null;
+      }> | null;
+      
+      const checkoutSlug = checkoutLinks?.[0]?.checkouts?.slug || null;
+
+      return jsonResponse({ 
+        success: true, 
+        data: {
+          id: data.id,
+          slug: data.slug,
+          status: data.status,
+          offers: data.offers,
+          checkout_slug: checkoutSlug,
+        }
+      });
     }
 
     // ===== ACTION: check-order-payment-status (for Stripe PIX polling) =====
