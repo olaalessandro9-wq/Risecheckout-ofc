@@ -115,8 +115,8 @@ export const STORAGE_KEYS: Record<TokenType, StorageKeys> = {
  * These define when state transitions occur.
  */
 export const TOKEN_TIMING = {
-  /** Start refresh when this many ms remain before expiry */
-  REFRESH_THRESHOLD_MS: 2 * 60 * 1000, // 2 minutes
+  /** Start refresh when this many ms remain before expiry (10 minutes before expiry) */
+  REFRESH_THRESHOLD_MS: 10 * 60 * 1000, // 10 minutes (aligned with 60-min access token)
   
   /** Maximum time to wait for refresh before timing out */
   REFRESH_TIMEOUT_MS: 10 * 1000, // 10 seconds
