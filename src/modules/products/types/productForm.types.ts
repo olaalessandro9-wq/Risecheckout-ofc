@@ -1,10 +1,9 @@
 /**
  * Tipos do Sistema Centralizado de Form State
  * 
- * Este arquivo é um barrel export para manter compatibilidade.
- * Os tipos foram modularizados em arquivos separados.
+ * MIGRADO PARA XSTATE - Sistema legado de Reducer removido.
  * 
- * @see RISE ARCHITECT PROTOCOL V3 - Nota 10/10
+ * @see RISE ARCHITECT PROTOCOL V3 - Nota 10.0/10
  */
 
 // Re-export de formData.types.ts
@@ -20,26 +19,11 @@ export type {
   FormValidationErrors,
 } from "./formData.types";
 
-// Re-export de formActions.types.ts
+// Re-export de XState events (substitui formActions.types.ts)
 export type {
-  InitFromServerAction,
-  UpdateGeneralAction,
-  UpdateImageAction,
-  UpdateOffersAction,
-  AddDeletedOfferAction,
-  UpdateUpsellAction,
-  UpdateAffiliateAction,
-  UpdateCheckoutSettingsAction,
-  InitCheckoutSettingsAction,
-  ResetToServerAction,
-  MarkSavedAction,
-  SetValidationErrorAction,
-  ClearValidationErrorsAction,
-  ResetImageAction,
-  ResetOffersAction,
-  MarkUserInteractionAction,
-  ProductFormAction,
-} from "./formActions.types";
+  ProductFormEvent,
+  ProductFormContext,
+} from "../machines/productFormMachine.types";
 
 // Re-export de formState.types.ts
 export type {

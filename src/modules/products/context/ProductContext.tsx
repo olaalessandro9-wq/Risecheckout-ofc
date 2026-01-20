@@ -36,10 +36,11 @@ import type {
 import type { RegisterSaveHandler } from "../types/saveRegistry.types";
 import type { TabValidationMap } from "../types/tabValidation.types";
 
-// Hooks que ainda precisamos
+// Hooks
 import { useSaveRegistry } from "./hooks/useSaveRegistry";
 import { useGlobalValidationHandlers } from "./hooks/useGlobalValidationHandlers";
 import { useProductSettings } from "./hooks/useProductSettingsAdapter";
+import { useProductCore } from "./hooks/useProductCore";
 
 // Helpers
 import { validateGeneralForm } from "./productFormValidation";
@@ -163,6 +164,12 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
   // === Save Registry (para tabs que registram handlers) ===
   const { registerSaveHandler, executeAll: executeRegistrySaves } = useSaveRegistry();
   
+  // === Product Core (delete operation) ===
+  const { deleteProduct } = useProductCore({
+    productId: productId ?? null,
+    userId: user?.id,
+  });
+  
   // === Settings Adapter (para operações de save específicas) ===
   const settingsAdapter = useProductSettings({
     productId: productId ?? null,
@@ -269,8 +276,9 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     send({ type: "SAVE_SUCCESS" });
   }, [send, executeRegistrySaves]);
   
-  const refreshAll = useCallback(async () => {
+  const refreshAll = useCallback(async (): Promise<void> => {
     send({ type: "REFRESH" });
+    return Promise.resolve();
   }, [send]);
   
   // === Context Value ===
@@ -317,9 +325,8 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     saveUpsellSettings: settingsAdapter.saveUpsellSettings,
     saveAffiliateSettings: settingsAdapter.saveAffiliateSettings,
     deleteProduct: async () => {
-      // TODO: Implement via state machine actor
-      log.warn("deleteProduct not yet implemented in XState");
-      return false;
+      const result = await deleteProduct();
+      return result;
     },
     
     // Refresh Individual (delegated to machine refresh)
@@ -384,6 +391,7 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     saveAll,
     refreshAll,
     settingsAdapter,
+    deleteProduct,
     registerSaveHandler,
     state.value,
     send,
