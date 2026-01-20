@@ -4519,6 +4519,20 @@ export type Database = {
           vendor_id: string
         }[]
       }
+      get_payment_link_with_checkout_slug: {
+        Args: { p_slug: string }
+        Returns: {
+          checkout_slug: string
+          checkout_status: string
+          id: string
+          offer_id: string
+          product_id: string
+          product_status: string
+          product_support_email: string
+          slug: string
+          status: string
+        }[]
+      }
       get_policy_coverage: {
         Args: never
         Returns: {

@@ -791,35 +791,14 @@ serve(async (req) => {
         return jsonResponse({ error: "slug required" }, 400);
       }
 
+      // Usar RPC dedicada que faz JOINs explícitos no banco
+      // Resolve o problema de relacionamento reverso que PostgREST não consegue fazer
       const { data, error } = await supabase
-        .from("payment_links")
-        .select(`
-          id,
-          slug,
-          status,
-          offers (
-            id,
-            product_id,
-            products (
-              id,
-              status,
-              support_email
-            )
-          ),
-          checkout_links (
-            checkout_id,
-            checkouts (
-              id,
-              slug,
-              status
-            )
-          )
-        `)
-        .eq("slug", slug)
+        .rpc("get_payment_link_with_checkout_slug", { p_slug: slug })
         .maybeSingle();
 
       if (error) {
-        log.error("Payment link error:", error);
+        log.error("Payment link RPC error:", error);
         return jsonResponse({ error: "Link não encontrado" }, 404);
       }
 
@@ -827,13 +806,11 @@ serve(async (req) => {
         return jsonResponse({ success: true, data: null });
       }
 
-      // Extrair checkout_slug do JOIN
-      const checkoutLinks = data.checkout_links as Array<{
-        checkout_id: string;
-        checkouts: { id: string; slug: string; status: string } | null;
-      }> | null;
-      
-      const checkoutSlug = checkoutLinks?.[0]?.checkouts?.slug || null;
+      log.debug("Payment link data via RPC:", {
+        slug: data.slug,
+        checkout_slug: data.checkout_slug,
+        product_status: data.product_status,
+      });
 
       return jsonResponse({ 
         success: true, 
@@ -841,8 +818,16 @@ serve(async (req) => {
           id: data.id,
           slug: data.slug,
           status: data.status,
-          offers: data.offers,
-          checkout_slug: checkoutSlug,
+          checkout_slug: data.checkout_slug,
+          offers: {
+            id: data.offer_id,
+            product_id: data.product_id,
+            products: {
+              id: data.product_id,
+              status: data.product_status,
+              support_email: data.product_support_email,
+            }
+          }
         }
       });
     }

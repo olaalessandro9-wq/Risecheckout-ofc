@@ -94,9 +94,22 @@ const PaymentLinkRedirect = () => {
           return;
         }
 
-        // Usa checkout_slug (slug do checkout) em vez do slug do payment_link
-        const targetSlug = typedLinkData.checkout_slug || typedLinkData.slug;
-        navigate(`/pay/${targetSlug}?build=v3_0`, { replace: true });
+        // Verificar se checkout_slug existe (RPC retorna via JOIN explícito)
+        if (!typedLinkData.checkout_slug) {
+          log.error("Payment link sem checkout associado", { 
+            slug, 
+            linkId: typedLinkData.id 
+          });
+          setIsInactive(true);
+          setError("Este link ainda não possui um checkout configurado. Contate o suporte.");
+          return;
+        }
+
+        // Redirecionar para o checkout_slug correto
+        log.debug("Redirecionando para checkout", { 
+          checkout_slug: typedLinkData.checkout_slug 
+        });
+        navigate(`/pay/${typedLinkData.checkout_slug}?build=v3_0`, { replace: true });
       } catch (err) {
         log.error("Erro ao processar link", err);
         navigate(`/pay/${slug}?build=v3_0`, { replace: true });
