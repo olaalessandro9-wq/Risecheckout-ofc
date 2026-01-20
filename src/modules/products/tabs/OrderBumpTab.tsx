@@ -1,11 +1,13 @@
 /**
  * OrderBumpTab - Aba de Order Bumps do Produto
  * 
- * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
- * @see RISE Protocol V2 - Zero database access from frontend
+ * OTIMIZADO: Usa dados do cache React Query via ProductContext
+ * Não faz fetch próprio - dados já vêm do product-full-loader (BFF)
+ * 
+ * @see RISE Protocol V3 - Cache Hit Pattern
  */
 
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
 import { createLogger } from "@/lib/logger";
@@ -21,22 +23,55 @@ interface OrderBumpDetailResponse {
   orderBump?: EditOrderBump;
 }
 
+/**
+ * Mapeia OrderBump do contexto para formato do OrderBumpList
+ */
+interface OrderBumpListItem {
+  id: string;
+  checkout_id: string;
+  product_id: string;
+  offer_id: string | null;
+  position: number;
+  active: boolean;
+  product_name: string;
+  product_price: number;
+  product_image?: string;
+  offer_name?: string;
+  offer_price?: number;
+}
+
 export function OrderBumpTab() {
-  const { product } = useProductContext();
+  const { product, orderBumps, refreshOrderBumps, loading } = useProductContext();
   const [orderBumpDialogOpen, setOrderBumpDialogOpen] = useState(false);
   const [editingOrderBump, setEditingOrderBump] = useState<EditOrderBump | null>(null);
-  const [orderBumpKey, setOrderBumpKey] = useState(0);
 
-  const handleAddOrderBump = () => {
+  /**
+   * Transforma orderBumps do contexto para o formato esperado pelo OrderBumpList
+   * Memoizado para evitar re-renders desnecessários
+   */
+  const mappedOrderBumps: OrderBumpListItem[] = useMemo(() => {
+    return orderBumps.map((ob, index) => ({
+      id: ob.id,
+      checkout_id: "", // Será preenchido pela lista se necessário
+      product_id: ob.bump_product_id || "",
+      offer_id: null,
+      position: index,
+      active: true,
+      product_name: ob.name,
+      product_price: ob.price,
+      product_image: ob.image_url || undefined,
+    }));
+  }, [orderBumps]);
+
+  const handleAddOrderBump = useCallback(() => {
     setEditingOrderBump(null);
     setOrderBumpDialogOpen(true);
-  };
+  }, []);
 
   /**
    * Handle edit order bump via Edge Function
-   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
    */
-  const handleEditOrderBump = async (orderBump: EditOrderBump) => {
+  const handleEditOrderBump = useCallback(async (orderBump: EditOrderBump) => {
     try {
       const { data, error } = await api.call<OrderBumpDetailResponse>("admin-data", {
         action: "order-bump-detail",
@@ -50,12 +85,17 @@ export function OrderBumpTab() {
       setEditingOrderBump(orderBump);
     }
     setOrderBumpDialogOpen(true);
-  };
+  }, []);
 
-  const handleOrderBumpSuccess = () => {
-    setOrderBumpKey(prev => prev + 1);
+  const handleOrderBumpSuccess = useCallback(async () => {
     setEditingOrderBump(null);
-  };
+    // Atualiza via cache React Query
+    await refreshOrderBumps();
+  }, [refreshOrderBumps]);
+
+  const handleRefresh = useCallback(async () => {
+    await refreshOrderBumps();
+  }, [refreshOrderBumps]);
 
   if (!product?.id) {
     return (
@@ -82,10 +122,11 @@ export function OrderBumpTab() {
         </div>
         
         <OrderBumpList 
-          key={orderBumpKey}
           productId={product.id}
+          initialOrderBumps={loading ? undefined : mappedOrderBumps}
           onAdd={handleAddOrderBump}
           onEdit={handleEditOrderBump}
+          onRefresh={handleRefresh}
         />
       </div>
 
