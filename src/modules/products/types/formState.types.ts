@@ -12,7 +12,7 @@ import type {
   EditedFormData,
   FormValidationErrors,
 } from "./formData.types";
-import type { ProductFormAction } from "./formActions.types";
+import type { ProductFormEvent } from "../machines/productFormMachine.types";
 
 // ============================================================================
 // PRODUCT FORM STATE (Estado Completo do Reducer)
@@ -57,9 +57,10 @@ export interface ProductFormState {
 // ============================================================================
 
 /**
- * Tipo para dispatch function do reducer
+ * Tipo para dispatch function (XState send)
+ * @see RISE V3 - Migrado de Reducer para XState
  */
-export type ProductFormDispatch = React.Dispatch<ProductFormAction>;
+export type ProductFormDispatch = (event: ProductFormEvent) => void;
 
 /**
  * Props para o hook useProductFormContext

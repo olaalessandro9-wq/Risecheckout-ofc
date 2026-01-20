@@ -1,18 +1,24 @@
 /**
  * Helpers Index - Re-exporta todos os helpers
  * 
- * @see RISE ARCHITECT PROTOCOL V3 - Modularização
+ * @see RISE ARCHITECT PROTOCOL V3 - Migração XState Completa
  */
 
-export { createUpdateGeneralField } from "./formHelpers";
-export { createUpdateImageState } from "./formHelpers";
-export { createUpdateLocalOffers } from "./formHelpers";
-export { createMarkOfferDeleted } from "./formHelpers";
-export { createSetOffersModified } from "./formHelpers";
-export { createUpdateCheckoutSettingsField } from "./formHelpers";
-export { createInitCheckoutSettings } from "./formHelpers";
-export { createSaveProduct } from "./saveWrappers";
-export { createSaveAll } from "./createSaveAll";
+// Context value factory
+export { createContextValue } from "./createContextValue";
+export type { ContextValueDependencies } from "./createContextValue";
+
+// Data mappers
+export {
+  mapProductRecord,
+  mapUpsellSettings,
+  mapAffiliateSettings,
+  mapOfferRecords,
+  mapOrderBumpRecords,
+  mapCheckoutRecords,
+  mapPaymentLinkRecords,
+  mapCouponRecords,
+} from "./productDataMapper";
 
 // Pure save functions (for useGlobalValidationHandlers)
 export {
@@ -22,9 +28,10 @@ export {
   saveGeneralProduct,
 } from "./saveFunctions";
 
+// Validation handler configs
 export {
-  createUpdateProduct,
-  createUpdateProductBulk,
-  createUpdateUpsellSettings,
-  createUpdateAffiliateSettings,
-} from "./updateWrappers";
+  createGeneralValidation,
+  createCheckoutSettingsValidation,
+  createUpsellValidation,
+  createAffiliateValidation,
+} from "./validationHandlerConfigs";
