@@ -1,26 +1,23 @@
 /**
- * ConfigForm - Formulário de Configuração do Mercado Pago (Refatorado)
+ * ConfigForm - Formulário de Configuração do Mercado Pago
  * 
- * Componente orquestrador que compõe os sub-componentes:
- * - ConnectionStatusBadge
- * - ActiveModeCard
- * - ProductionModeCard
- * - SandboxModeCard
- * - FeedbackMessage
+ * @version 4.0.0 - RISE Protocol V3 - SSOT Architecture
  * 
- * Hooks:
- * - useMercadoPagoConnection
- * - useMercadoPagoSandbox
+ * SSOT (Single Source of Truth):
+ * - O estado de conexão vem do FinanceiroContext via prop connectionStatus
+ * - Este componente NÃO faz fetch de dados - apenas renderiza
+ * - Os hooks são usados APENAS para ações (connect, disconnect)
  * 
- * @version 3.0.0 - Refatorado para RISE Protocol (<300 linhas)
+ * Resultado: Zero piscadas, UI estável
  */
 
-import { Loader2, CreditCard, Info, RefreshCw } from 'lucide-react';
+import { CreditCard, Info, RefreshCw } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
+import type { GatewayConfigFormProps, GatewayConnectionStatus } from '@/config/gateways/types';
 
-// Hooks
+// Hooks - apenas para AÇÕES
 import { useMercadoPagoConnection } from '../hooks/useMercadoPagoConnection';
 import { useMercadoPagoSandbox } from '../hooks/useMercadoPagoSandbox';
 
@@ -31,22 +28,47 @@ import { ProductionModeCard } from './ProductionModeCard';
 import { SandboxModeCard } from './SandboxModeCard';
 import { FeedbackMessage } from './FeedbackMessage';
 
-interface ConfigFormProps {
-  onConnectionChange?: () => void;
+// Types
+import type { ConnectionMode, IntegrationData } from '../types';
+
+// ============================================================================
+// HELPER: Deriva currentMode e integration do connectionStatus (SSOT)
+// ============================================================================
+
+function deriveStateFromConnectionStatus(
+  connectionStatus: GatewayConnectionStatus | null | undefined
+): { currentMode: ConnectionMode; integration: IntegrationData | null } {
+  if (!connectionStatus?.connected) {
+    return { currentMode: 'none', integration: null };
+  }
+
+  const mode: ConnectionMode = connectionStatus.mode === 'sandbox' ? 'sandbox' : 'production';
+  
+  return {
+    currentMode: mode,
+    integration: {
+      id: connectionStatus.id,
+      mode,
+      isTest: connectionStatus.mode === 'sandbox',
+    },
+  };
 }
 
-export function ConfigForm({ onConnectionChange }: ConfigFormProps) {
+// ============================================================================
+// COMPONENT
+// ============================================================================
+
+export function ConfigForm({ onConnectionChange, connectionStatus }: GatewayConfigFormProps) {
   const { user } = useAuth();
   const { role } = usePermissions();
   const isAdmin = role === 'admin';
 
-  // Connection hook
+  // Deriva estado do connectionStatus (SSOT do FinanceiroContext)
+  const { currentMode, integration } = deriveStateFromConnectionStatus(connectionStatus);
+
+  // Hook de conexão - APENAS para ações, sem estado local
   const {
-    currentMode,
-    integration,
-    loading,
     connectingOAuth,
-    loadIntegration,
     handleConnectOAuth,
     handleDisconnect,
   } = useMercadoPagoConnection({
@@ -54,21 +76,18 @@ export function ConfigForm({ onConnectionChange }: ConfigFormProps) {
     onConnectionChange,
   });
 
-  // Sandbox hook - apenas dispara refresh global, sem duplicação
+  // Sandbox hook - apenas para ações de sandbox
   const sandbox = useMercadoPagoSandbox({
     userId: user?.id,
     onSuccess: () => {
-      onConnectionChange?.(); // Único ponto de refresh - evita piscadas duplicadas
+      onConnectionChange?.();
     },
   });
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  // Handler de disconnect que passa o integrationId
+  const onDisconnect = async () => {
+    await handleDisconnect(integration?.id);
+  };
 
   return (
     <div className="space-y-6">
@@ -90,11 +109,11 @@ export function ConfigForm({ onConnectionChange }: ConfigFormProps) {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              {/* Refresh button */}
+              {/* Refresh button - dispara BACKGROUND_REFRESH via Context */}
               <button
                 onClick={() => {
                   toast.info('Atualizando status...');
-                  loadIntegration();
+                  onConnectionChange?.();
                 }}
                 className="p-2 rounded-lg hover:bg-white/10 transition-colors"
                 title="Atualizar status"
@@ -111,7 +130,7 @@ export function ConfigForm({ onConnectionChange }: ConfigFormProps) {
           <ActiveModeCard
             mode={currentMode}
             integration={integration}
-            onDisconnect={handleDisconnect}
+            onDisconnect={onDisconnect}
           />
 
           {/* Exclusivity message */}
