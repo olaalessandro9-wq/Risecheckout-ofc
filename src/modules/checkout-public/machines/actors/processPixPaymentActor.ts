@@ -12,7 +12,18 @@
 import { fromPromise } from "xstate";
 import { api } from "@/lib/api";
 import { createLogger } from "@/lib/logger";
-import type { PixNavigationData } from "@/modules/checkout-public/machines/checkoutPublicMachine.types";
+
+// Type imported from parent directory's types file
+interface PixNavigationData {
+  type: 'pix';
+  orderId: string;
+  accessToken: string;
+  gateway: 'pushinpay' | 'mercadopago' | 'stripe' | 'asaas';
+  amount: number;
+  qrCode?: string;
+  qrCodeBase64?: string;
+  qrCodeText?: string;
+}
 
 const log = createLogger("ProcessPixPaymentActor");
 
