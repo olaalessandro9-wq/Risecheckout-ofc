@@ -54,12 +54,11 @@ export function ConfigForm({ onConnectionChange }: ConfigFormProps) {
     onConnectionChange,
   });
 
-  // Sandbox hook
+  // Sandbox hook - apenas dispara refresh global, sem duplicação
   const sandbox = useMercadoPagoSandbox({
     userId: user?.id,
     onSuccess: () => {
-      loadIntegration();
-      onConnectionChange?.();
+      onConnectionChange?.(); // Único ponto de refresh - evita piscadas duplicadas
     },
   });
 
