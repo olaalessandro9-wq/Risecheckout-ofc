@@ -21,6 +21,11 @@ function AffiliationDetailsContent() {
     tabErrors,
   } = useAffiliationContext();
 
+  // Wrapper to ensure Promise<void> return type compatibility
+  const handleRefetch = async (): Promise<void> => {
+    await refetch();
+  };
+
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center min-h-[400px]">
@@ -46,17 +51,17 @@ function AffiliationDetailsContent() {
       case "offers":
         return <OffersTab affiliation={affiliation} />;
       case "gateways":
-        return <GatewaysTab affiliation={affiliation} onRefetch={refetch} />;
+        return <GatewaysTab affiliation={affiliation} onRefetch={handleRefetch} />;
       case "pixels":
         return (
           <PixelsTab
             affiliationId={affiliation.id}
             initialPixels={affiliation.pixels}
-            onRefetch={refetch}
+            onRefetch={handleRefetch}
           />
         );
       case "details":
-        return <DetailsTab affiliation={affiliation} onRefetch={refetch} />;
+        return <DetailsTab affiliation={affiliation} onRefetch={handleRefetch} />;
       case "other-products":
         return (
           <OtherProductsTab

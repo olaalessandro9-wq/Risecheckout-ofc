@@ -2,7 +2,8 @@ import { Package, BarChart3, Info, ShoppingBag, CreditCard, AlertCircle } from "
 import { cn } from "@/lib/utils";
 import type { AffiliationTabId } from "@/modules/affiliation";
 
-interface AffiliationSidebarProps {
+// Props interface with explicit tabErrors support
+export interface AffiliationSidebarProps {
   activeTab: AffiliationTabId;
   onTabChange: (tab: AffiliationTabId) => void;
   hasOtherProducts: boolean;
