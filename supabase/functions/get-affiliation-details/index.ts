@@ -8,7 +8,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 import { maskId } from "../_shared/kernel/security/pii-masking.ts";
 import { createLogger } from "../_shared/logger.ts";
@@ -29,16 +29,19 @@ import {
 
 const log = createLogger("get-affiliation-details");
 
-const corsHeaders = PUBLIC_CORS_HEADERS;
-
 interface RequestBody {
   affiliation_id: string;
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  // Handle CORS with dynamic origin validation
+  const corsResult = handleCorsV2(req);
+  
+  if (corsResult instanceof Response) {
+    return corsResult; // Preflight or blocked origin
   }
+  
+  const corsHeaders = corsResult.headers;
 
   try {
     const supabase = createClient(
