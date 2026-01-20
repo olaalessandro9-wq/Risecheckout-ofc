@@ -76,17 +76,45 @@ const corsHeaders = {
 };
 ```
 
-### 3. Rate Limiting: `rate-limiter.ts`
+### 3. Rate Limiting: `rate-limiting/index.ts` (Centralizado)
+
+> **ATUALIZADO 2026-01-20:** Sistema consolidado com 28 configs específicas por ação.
 
 ```typescript
-import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared/rate-limiter.ts";
+import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared/rate-limiting/index.ts";
 
-// Aplicar rate limiting
-const clientIP = getClientIP(req);
-const rateLimitResult = await rateLimitMiddleware(supabase, clientIP, "action_name", RATE_LIMIT_CONFIGS.standard);
-if (!rateLimitResult.allowed) {
-  return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429 });
+// Aplicar rate limiting (usar config específica)
+const rateLimitResult = await rateLimitMiddleware(
+  supabase,
+  req,
+  RATE_LIMIT_CONFIGS.MERCADOPAGO_CREATE_PAYMENT,  // Config específica
+  corsHeaders
+);
+if (rateLimitResult) {
+  return rateLimitResult;  // Já retorna Response formatada
 }
+```
+
+**Configs Disponíveis (RATE_LIMIT_CONFIGS):**
+| Config | maxAttempts/min | Uso |
+|--------|-----------------|-----|
+| BUYER_AUTH_LOGIN | 10 | Login de compradores |
+| PRODUCER_AUTH_LOGIN | 15 | Login de produtores |
+| PRODUCER_AUTH_RESET | 5 | Reset de senha |
+| CREATE_ORDER | 60 | Criação de pedidos |
+| CREATE_PIX | 60 | Pagamento PIX |
+| STRIPE_CREATE_PAYMENT | 60 | Pagamento Stripe |
+| MERCADOPAGO_CREATE_PAYMENT | 60 | Pagamento MercadoPago |
+| ASAAS_CREATE_PAYMENT | 60 | Pagamento Asaas |
+| WEBHOOK | 300 | Webhooks de gateways |
+| GDPR_REQUEST | 5 | Solicitações LGPD |
+| GDPR_FORGET | 5 | Anonimização LGPD |
+| DEFAULT | 60 | Ações não especificadas |
+
+**❌ PROIBIDO - Configs Hardcoded:**
+```typescript
+// NUNCA faça isso - viola RISE V3 SSOT
+const RATE_LIMIT = { action: "x", maxAttempts: 10, ... };
 ```
 
 ### 4. Sentry: `sentry.ts`
@@ -249,7 +277,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
-import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared/rate-limiter.ts";
+import { rateLimitMiddleware, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiting/index.ts";
 import { createLogger } from "../_shared/logger.ts";
 
 const log = createLogger("nome-da-funcao");
@@ -266,14 +294,15 @@ serve(withSentry("nome-da-funcao", async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Rate limiting
-    const clientIP = getClientIP(req);
-    const rateLimitResult = await rateLimitMiddleware(supabase, clientIP, "nome-da-funcao", RATE_LIMIT_CONFIGS.strict);
-    if (!rateLimitResult.allowed) {
-      return new Response(
-        JSON.stringify({ error: "Muitas requisições" }),
-        { status: 429, headers: { ...PUBLIC_CORS_HEADERS, "Content-Type": "application/json" } }
-      );
+    // Rate limiting (RISE V3 - Config centralizada específica)
+    const rateLimitResult = await rateLimitMiddleware(
+      supabase,
+      req,
+      RATE_LIMIT_CONFIGS.DEFAULT,  // Usar config específica para a ação
+      PUBLIC_CORS_HEADERS
+    );
+    if (rateLimitResult) {
+      return rateLimitResult;  // Já retorna Response formatada com 429
     }
 
     // Logic
@@ -367,5 +396,6 @@ Antes de fazer merge:
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-20 | Rate limiting atualizado para usar `_shared/rate-limiting/index.ts` com configs centralizadas |
 | 2026-01-19 | Migração de logging 100% completa - exceções documentadas, templates corrigidos |
 | 2026-01-17 | Criação inicial do guia |
