@@ -9,14 +9,12 @@
  */
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 import { createLogger } from "../_shared/logger.ts";
 
 const log = createLogger("students-list");
-
-const corsHeaders = PUBLIC_CORS_HEADERS;
 
 // ============================================
 // INTERFACES
@@ -103,7 +101,7 @@ interface StudentDetail {
 // HELPERS
 // ============================================
 
-function jsonResponse(data: JsonResponseData, status = 200): Response {
+function jsonResponse(data: JsonResponseData, status = 200, corsHeaders: Record<string, string>): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -115,9 +113,10 @@ function jsonResponse(data: JsonResponseData, status = 200): Response {
 // ============================================
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  // CORS V2 - Dynamic origin validation
+  const corsResult = handleCorsV2(req);
+  if (corsResult instanceof Response) return corsResult;
+  const corsHeaders = corsResult.headers;
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -137,7 +136,7 @@ Deno.serve(async (req) => {
     try {
       producer = await requireAuthenticatedProducer(supabase, req);
     } catch {
-      return jsonResponse({ error: "Authorization required" }, 401);
+      return jsonResponse({ error: "Authorization required" }, 401, corsHeaders);
     }
 
     // Verify product ownership
@@ -149,14 +148,14 @@ Deno.serve(async (req) => {
         .single();
 
       if (productError || !product || product.user_id !== producer.id) {
-        return jsonResponse({ error: "Product not found or access denied" }, 403);
+        return jsonResponse({ error: "Product not found or access denied" }, 403, corsHeaders);
       }
     }
 
     // ========== LIST ==========
     if (action === "list") {
       if (!product_id) {
-        return jsonResponse({ error: "product_id required" }, 400);
+        return jsonResponse({ error: "product_id required" }, 400, corsHeaders);
       }
 
       const pageNum = body.page ?? 1;
@@ -182,7 +181,7 @@ Deno.serve(async (req) => {
       if (accessError) throw accessError;
 
       if (!accessData || accessData.length === 0) {
-        return jsonResponse({ students: [], total: 0, page: pageNum, limit: limitNum });
+        return jsonResponse({ students: [], total: 0, page: pageNum, limit: limitNum }, 200, corsHeaders);
       }
 
       const buyerIds = [...new Set((accessData as AccessRecord[]).map(a => a.buyer_id))];
@@ -327,13 +326,13 @@ Deno.serve(async (req) => {
         page: pageNum,
         limit: limitNum,
         stats: { totalStudents: total, averageProgress, completionRate },
-      });
+      }, 200, corsHeaders);
     }
 
     // ========== GET ==========
     if (action === "get") {
       if (!buyer_id || !product_id) {
-        return jsonResponse({ error: "buyer_id and product_id required" }, 400);
+        return jsonResponse({ error: "buyer_id and product_id required" }, 400, corsHeaders);
       }
 
       const { data: student, error } = await supabase
@@ -349,13 +348,13 @@ Deno.serve(async (req) => {
 
       if (error) throw error;
 
-      return jsonResponse({ success: true, student: student as StudentDetail });
+      return jsonResponse({ success: true, student: student as StudentDetail }, 200, corsHeaders);
     }
 
     // ========== GET-PRODUCER-INFO ==========
     if (action === "get-producer-info") {
       if (!product_id) {
-        return jsonResponse({ error: "product_id required" }, 400);
+        return jsonResponse({ error: "product_id required" }, 400, corsHeaders);
       }
 
       // Get product owner
@@ -366,7 +365,7 @@ Deno.serve(async (req) => {
         .single();
 
       if (productError || !product) {
-        return jsonResponse({ error: "Product not found" }, 404);
+        return jsonResponse({ error: "Product not found" }, 404, corsHeaders);
       }
 
       // Get profile info
@@ -386,13 +385,13 @@ Deno.serve(async (req) => {
           name: profile?.name || null,
           email: emailData || null,
         }
-      });
+      }, 200, corsHeaders);
     }
 
-    return jsonResponse({ error: "Invalid action" }, 400);
+    return jsonResponse({ error: "Invalid action" }, 400, corsHeaders);
 
   } catch (error: unknown) {
     log.error("Error:", error);
-    return jsonResponse({ error: error instanceof Error ? error.message : "Internal server error" }, 500);
+    return jsonResponse({ error: error instanceof Error ? error.message : "Internal server error" }, 500, corsHeaders);
   }
 });
