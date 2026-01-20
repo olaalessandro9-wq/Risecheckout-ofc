@@ -2,7 +2,7 @@
  * Dashboard Module - Barrel Export
  * 
  * @module dashboard
- * @version RISE V3 Compliant
+ * @version RISE V3 Compliant - XState 10.0/10
  * 
  * Exportação centralizada de todo o módulo Dashboard.
  * 
@@ -15,7 +15,7 @@ export { Dashboard } from "./pages";
 
 // Hooks
 export { useDashboard, useDateRangeState, useDashboardAnalytics } from "./hooks";
-export type { DateRangeActions } from "./hooks";
+export type { DateRangeActions, DateRangeState } from "./hooks";
 
 // Components
 export {
@@ -39,13 +39,20 @@ export {
   getOverviewColorClasses,
 } from "./config";
 
-// State
-export { dateRangeReducer, createInitialDateRangeState } from "./state";
+// Machines (XState)
+export { 
+  dateRangeMachine, 
+  createInitialDateRangeContext,
+} from "./machines";
+
+export type {
+  DateRangeMachineEvent,
+  DateRangeMachineContext,
+} from "./machines";
 
 // Types
 export type {
   DateRangePreset,
-  DateRangeState,
   DateRangeAction,
   DateRange,
   DatePresetConfig,

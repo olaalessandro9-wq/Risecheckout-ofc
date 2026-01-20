@@ -5,5 +5,5 @@
  */
 
 export { useDashboard } from "./useDashboard";
-export { useDateRangeState, type DateRangeActions } from "./useDateRangeState";
+export { useDateRangeState, type DateRangeActions, type DateRangeState } from "./useDateRangeState";
 export { useDashboardAnalytics } from "./useDashboardAnalytics";
