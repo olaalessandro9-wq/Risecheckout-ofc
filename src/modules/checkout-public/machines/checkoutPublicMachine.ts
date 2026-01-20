@@ -23,20 +23,26 @@ import { setup, assign } from "xstate";
 import type { CheckoutPublicContext, CheckoutPublicEvent } from "./checkoutPublicMachine.types";
 import { fetchCheckoutDataActor } from "./checkoutPublicMachine.actors";
 import { canRetry, isDataValid, hasRequiredFormFields } from "./checkoutPublicMachine.guards";
-import { validateResolveAndLoadResponse } from "../contracts";
-import { mapResolveAndLoad } from "../mappers";
+import {
+  getValidatedContextData,
+  toggleBumpInArray,
+  removeFieldError,
+  createFetchError,
+  createNetworkError,
+  createValidationError,
+  createSubmitError,
+  createPaymentError,
+  createPaymentTimeoutError,
+} from "./checkoutPublicMachine.actions";
 
 // ============================================================================
 // INITIAL CONTEXT
 // ============================================================================
 
 export const initialCheckoutContext: CheckoutPublicContext = {
-  // Slug and Raw Data
   slug: null,
   affiliateCode: null,
   rawData: null,
-  
-  // Loaded Data
   checkout: null,
   product: null,
   offer: null,
@@ -49,22 +55,14 @@ export const initialCheckoutContext: CheckoutPublicContext = {
     mercadoPagoPublicKey: null,
     stripePublicKey: null,
   },
-  
-  // Form State
   formData: { name: '', email: '', phone: '', cpf: '', document: '' },
   formErrors: {},
   selectedBumps: [],
   appliedCoupon: null,
   selectedPaymentMethod: 'pix',
-  
-  // Payment State
   orderId: null,
   paymentData: null,
-  
-  // Error State
   error: null,
-  
-  // Metadata
   loadedAt: null,
   retryCount: 0,
 };
@@ -92,9 +90,6 @@ export const checkoutPublicMachine = setup({
   context: initialCheckoutContext,
 
   states: {
-    // =========================================================================
-    // IDLE - Waiting for LOAD event
-    // =========================================================================
     idle: {
       on: {
         LOAD: {
@@ -108,9 +103,6 @@ export const checkoutPublicMachine = setup({
       },
     },
 
-    // =========================================================================
-    // LOADING - Fetching data from BFF
-    // =========================================================================
     loading: {
       invoke: {
         src: "fetchCheckoutData",
@@ -122,78 +114,34 @@ export const checkoutPublicMachine = setup({
           {
             guard: ({ event }) => event.output.success === true,
             target: "validating",
-            actions: assign({
-              rawData: ({ event }) => event.output.data,
-            }),
+            actions: assign({ rawData: ({ event }) => event.output.data }),
           },
           {
             target: "error",
-            actions: assign({
-              error: ({ event }) => ({
-                reason: 'FETCH_FAILED' as const,
-                message: event.output.error || "Erro ao carregar checkout",
-              }),
-            }),
+            actions: assign({ error: ({ event }) => createFetchError(event.output.error || "") }),
           },
         ],
         onError: {
           target: "error",
-          actions: assign({
-            error: ({ event }) => ({
-              reason: 'NETWORK_ERROR' as const,
-              message: String(event.error) || "Erro de rede",
-            }),
-          }),
+          actions: assign({ error: ({ event }) => createNetworkError(event.error) }),
         },
       },
     },
 
-    // =========================================================================
-    // VALIDATING - Validating BFF response with Zod
-    // =========================================================================
     validating: {
       always: [
         {
           guard: "isDataValid",
           target: "ready",
-          actions: assign(({ context }) => {
-            const validation = validateResolveAndLoadResponse(context.rawData);
-            if (!validation.success) {
-              // This shouldn't happen due to guard, but TypeScript needs it
-              return {};
-            }
-            
-            const mapped = mapResolveAndLoad(validation.data);
-            
-            return {
-              checkout: mapped.checkout,
-              product: mapped.product,
-              offer: mapped.offer,
-              orderBumps: mapped.orderBumps,
-              affiliate: mapped.affiliate,
-              design: mapped.design,
-              resolvedGateways: mapped.resolvedGateways,
-              selectedPaymentMethod: mapped.product.default_payment_method,
-              loadedAt: Date.now(),
-              retryCount: 0,
-            };
-          }),
+          actions: assign(({ context }) => getValidatedContextData(context)),
         },
         {
           target: "error",
-          actions: assign({
-            error: () => ({
-              reason: 'VALIDATION_FAILED' as const,
-              message: "Dados do checkout inválidos",
-            }),
-          }),
+          actions: assign({ error: () => createValidationError() }),
         },
       ],
     },
 
-    // =========================================================================
-    // READY - User can interact with the form
-    // =========================================================================
     ready: {
       initial: "form",
       states: {
@@ -202,9 +150,7 @@ export const checkoutPublicMachine = setup({
             UPDATE_FIELD: {
               actions: assign(({ context, event }) => ({
                 formData: { ...context.formData, [event.field]: event.value },
-                formErrors: Object.fromEntries(
-                  Object.entries(context.formErrors).filter(([k]) => k !== event.field)
-                ),
+                formErrors: removeFieldError(context.formErrors, event.field),
               })),
             },
             UPDATE_MULTIPLE_FIELDS: {
@@ -213,38 +159,24 @@ export const checkoutPublicMachine = setup({
               })),
             },
             TOGGLE_BUMP: {
-              actions: assign(({ context, event }) => {
-                const currentBumps = new Set(context.selectedBumps);
-                if (currentBumps.has(event.bumpId)) {
-                  currentBumps.delete(event.bumpId);
-                } else {
-                  currentBumps.add(event.bumpId);
-                }
-                return { selectedBumps: Array.from(currentBumps) };
-              }),
+              actions: assign(({ context, event }) => ({
+                selectedBumps: toggleBumpInArray(context.selectedBumps, event.bumpId),
+              })),
             },
             SET_PAYMENT_METHOD: {
-              actions: assign({
-                selectedPaymentMethod: ({ event }) => event.method,
-              }),
+              actions: assign({ selectedPaymentMethod: ({ event }) => event.method }),
             },
             APPLY_COUPON: {
-              actions: assign({
-                appliedCoupon: ({ event }) => event.coupon,
-              }),
+              actions: assign({ appliedCoupon: ({ event }) => event.coupon }),
             },
             REMOVE_COUPON: {
-              actions: assign({
-                appliedCoupon: () => null,
-              }),
+              actions: assign({ appliedCoupon: () => null }),
             },
             SUBMIT: {
               target: "#checkoutPublic.submitting",
               guard: "hasRequiredFormFields",
               actions: assign(({ context, event }) => ({
-                formData: event.snapshot
-                  ? { ...context.formData, ...event.snapshot }
-                  : context.formData,
+                formData: event.snapshot ? { ...context.formData, ...event.snapshot } : context.formData,
               })),
             },
           },
@@ -252,9 +184,6 @@ export const checkoutPublicMachine = setup({
       },
     },
 
-    // =========================================================================
-    // SUBMITTING - Payment is being processed
-    // =========================================================================
     submitting: {
       on: {
         SUBMIT_SUCCESS: {
@@ -266,55 +195,27 @@ export const checkoutPublicMachine = setup({
         },
         SUBMIT_ERROR: {
           target: "ready.form",
-          actions: assign({
-            error: ({ event }) => ({
-              reason: 'SUBMIT_FAILED' as const,
-              message: event.error,
-            }),
-          }),
+          actions: assign({ error: ({ event }) => createSubmitError(event.error) }),
         },
       },
     },
 
-    // =========================================================================
-    // PAYMENT PENDING - Waiting for payment confirmation
-    // =========================================================================
     paymentPending: {
       on: {
-        PAYMENT_CONFIRMED: {
-          target: "success",
-        },
+        PAYMENT_CONFIRMED: { target: "success" },
         PAYMENT_FAILED: {
           target: "ready.form",
-          actions: assign({
-            error: ({ event }) => ({
-              reason: 'PAYMENT_FAILED' as const,
-              message: event.error,
-            }),
-          }),
+          actions: assign({ error: ({ event }) => createPaymentError(event.error) }),
         },
         PAYMENT_TIMEOUT: {
           target: "ready.form",
-          actions: assign({
-            error: () => ({
-              reason: 'PAYMENT_FAILED' as const,
-              message: "Tempo de pagamento expirado",
-            }),
-          }),
+          actions: assign({ error: () => createPaymentTimeoutError() }),
         },
       },
     },
 
-    // =========================================================================
-    // SUCCESS - Payment confirmed
-    // =========================================================================
-    success: {
-      type: "final",
-    },
+    success: { type: "final" },
 
-    // =========================================================================
-    // ERROR - An error occurred
-    // =========================================================================
     error: {
       on: {
         RETRY: {
@@ -325,9 +226,7 @@ export const checkoutPublicMachine = setup({
             error: () => null,
           }),
         },
-        GIVE_UP: {
-          // Stay in error state, user gave up
-        },
+        GIVE_UP: {},
       },
     },
   },

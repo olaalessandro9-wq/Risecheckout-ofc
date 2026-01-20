@@ -25,7 +25,7 @@ import { useAffiliateTracking } from "@/hooks/useAffiliateTracking";
 import { useCheckoutProductPixels } from "@/hooks/checkout/useCheckoutProductPixels";
 import { useVisitTracker } from "@/hooks/checkout/useVisitTracker";
 import { usePaymentOrchestrator } from "@/hooks/checkout/payment/usePaymentOrchestrator";
-import { getSubmitSnapshot, parseRequiredFields } from "@/features/checkout/personal-data";
+import { getSubmitSnapshot } from "@/features/checkout/personal-data";
 import * as UTMify from "@/integrations/tracking/utmify";
 import type { OrderBump, CheckoutFormData } from "@/types/checkout";
 import type { UseCheckoutPublicMachineReturn } from "../hooks";
@@ -81,9 +81,6 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
   // UTMify (único tracking que ainda não migrou para product_pixels)
   const { data: utmifyConfig } = UTMify.useUTMifyConfig(vendorId);
 
-  // Form setup
-  parseRequiredFields(product.required_fields);
-
   // Coupon state for form manager compatibility
   const [localAppliedCoupon, setLocalAppliedCoupon] = React.useState<typeof appliedCoupon>(appliedCoupon);
 
@@ -114,14 +111,14 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     return total;
   }, [product.price, selectedBumps, orderBumps, localAppliedCoupon]);
 
-  // Form data with document field for compatibility with usePaymentOrchestrator
-  // Explicitly typed as CheckoutFormData to ensure type safety
-  const formDataWithDocument = React.useMemo<CheckoutFormData>(() => ({
+  // Form data adapter: Machine FormData -> CheckoutFormData (legacy interface)
+  // Explicitly creates a CheckoutFormData with all required fields
+  const formDataForOrchestrator: CheckoutFormData = React.useMemo(() => ({
     name: formData.name,
     email: formData.email,
-    phone: formData.phone,
+    phone: formData.phone || '',
     document: formData.cpf || formData.document || '',
-  }), [formData]);
+  }), [formData.name, formData.email, formData.phone, formData.cpf, formData.document]);
 
   // Payment Gateway
   const { selectedPayment, setSelectedPayment, submitPayment } = usePaymentOrchestrator({
@@ -133,7 +130,7 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     productPrice: product.price,
     publicKey: resolvedGateways.mercadoPagoPublicKey || null,
     amount: calculateTotal(),
-    formData: formDataWithDocument,
+    formData: formDataForOrchestrator,
     selectedBumps: selectedBumpsSet,
     orderBumps: orderBumps as OrderBump[],
     appliedCoupon: localAppliedCoupon,
@@ -243,7 +240,7 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
           selectedBumps={selectedBumpsSet}
           onToggleBump={toggleBump}
           mode="public"
-          formData={formDataWithDocument}
+          formData={formDataForOrchestrator}
           formErrors={formErrors}
           onFieldChange={updateField}
           requiredFields={product.required_fields}
