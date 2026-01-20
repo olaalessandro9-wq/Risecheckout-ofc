@@ -1,18 +1,14 @@
 /**
- * Re-exportação dos hooks especializados do ProductContext
+ * Re-exportação dos hooks do ProductContext
  * 
  * MIGRADO para XState State Machine
- * Hooks legados mantidos para compatibilidade durante transição
  * 
  * @see RISE Protocol V3 - State Machine Edition
  */
 
-// === LEGACY HOOKS (mantidos para compatibilidade) ===
-// Estes hooks ainda são usados por alguns componentes
-// Serão removidos em fases futuras após migração completa
-export { useProductCore } from "./useProductCore";
-export { useProductEntities } from "./useProductEntities";
-export { useProductCheckouts } from "./useProductCheckouts";
+// === DELETE OPERATION ===
+// Single Responsibility: Apenas deleção de produto
+export { useProductDelete } from "./useProductDelete";
 
 // === ADAPTERS ===
 // Adapter puro (zero useState) - bridge para State Machine

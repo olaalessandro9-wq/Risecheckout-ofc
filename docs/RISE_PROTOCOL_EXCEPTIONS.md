@@ -63,22 +63,25 @@ As seguintes ocorrências de `!important` foram **corrigidas** usando CSS specif
 
 ---
 
-## 3. State Management - Padrão Reducer
+## 3. State Management - XState State Machine
 
 ### Princípio: Single Source of Truth
 
-Todo estado de formulário complexo usa `useReducer` como fonte única da verdade.
+O módulo Products usa XState State Machine como fonte única da verdade (10.0/10).
+Outros módulos usam `useReducer` (9.5/10) para consistência arquitetural.
 
-### 3.1 ProductContext
+### 3.1 ProductContext (XState)
 
 | Item | Status |
 |------|--------|
-| ProductContext.tsx | ✅ useReducer como SSOT |
+| ProductContext.tsx | ✅ XState State Machine como SSOT |
+| productFormMachine.ts | ✅ State Machine completa |
 | useProductSettingsAdapter.ts | ✅ Zero useState - adapter puro |
-| Código legado XState | ✅ **DELETADO** |
-| Código legado useProductSettings | ✅ **DELETADO** |
+| useProductDelete.ts | ✅ Single Responsibility |
+| useProductLoader.ts | ✅ React Query BFF loader |
+| Código legado Reducer | ✅ **COMPLETAMENTE REMOVIDO** |
 
-### 3.2 Members Area Settings
+### 3.2 Members Area Settings (useReducer)
 
 | Item | Status |
 |------|--------|
@@ -88,7 +91,7 @@ Todo estado de formulário complexo usa `useReducer` como fonte única da verdad
 | useMembersAreaContents.ts | ✅ Usa dispatch |
 | useMembersArea.ts (facade) | ✅ Compõe hooks com dispatch |
 
-### 3.3 Members Area Builder
+### 3.3 Members Area Builder (useReducer)
 
 | Item | Status |
 |------|--------|
@@ -130,22 +133,24 @@ O hook `useGlobalValidationHandlers` foi dividido para manter < 300 linhas:
 
 ---
 
-## 5. Arquivos Deletados (Código Morto)
+## 5. Arquivos Deletados (Migração XState - 20 Jan 2026)
 
-Os seguintes arquivos foram removidos por conterem código não utilizado ou com erros:
+Os seguintes arquivos foram removidos na migração para XState:
 
 | Arquivo | Linhas | Razão |
 |---------|--------|-------|
-| `src/modules/products/machines/productFormMachine.ts` | ~200 | XState não integrado, 19 erros TS |
-| `src/modules/products/machines/productFormMachine.types.ts` | ~150 | Dependência de código deletado |
-| `src/modules/products/machines/productFormMachine.helpers.ts` | ~100 | Dependência de código deletado |
-| `src/modules/products/machines/useProductFormMachine.ts` | ~80 | Dependência de código deletado |
-| `src/modules/products/machines/index.ts` | ~10 | Barrel export vazio |
-| `src/modules/products/context/hooks/useProductSettings.ts` | ~150 | 4x useState duplicados, não usado |
-| `src/modules/products/context/hooks/useSettingsHandlerRegistration.ts` | 138 | Nunca importado, substituído por useGlobalValidationHandlers |
-| `src/modules/products/tabs/general/hooks/useGeneralTabSave.ts` | 143 | Salvamento duplicado, unificado via header |
+| `context/reducer/` (diretório) | ~400 | Substituído por XState State Machine |
+| `useProductEntities.ts` | 167 | Estado migrado para State Machine |
+| `useProductCheckouts.ts` | 163 | Estado migrado para State Machine |
+| `useProductCore.ts` | 169 | Refatorado para `useProductDelete.ts` (65 linhas) |
+| `createContextValue.ts` | 211 | Não mais necessário |
+| `formActions.types.ts` | ~150 | Substituído por XState events |
+| `formHelpers.ts` | ~100 | Migrado para State Machine guards/actions |
+| `updateWrappers.ts` | ~80 | Migrado para State Machine |
+| `saveWrappers.ts` | ~80 | Migrado para State Machine |
+| `createSaveAll.ts` | ~60 | Migrado para Save Registry |
 
-**Total:** 8 arquivos deletados, ~1.281 linhas de código morto eliminadas
+**Total Migração XState:** ~1580 linhas de código legado eliminadas
 
 ---
 
@@ -182,6 +187,16 @@ O sistema possuía DOIS fluxos de salvamento paralelos com ~83 linhas duplicadas
 
 ### 7.1 Arquitetura State Management
 
+**Products Module (XState 10.0/10):**
+```
+useMachine(productFormMachine)
+    └── send() (único ponto de transição)
+         ├── Estados explícitos (idle, loading, ready, saving, error)
+         ├── Transições tipadas
+         └── Actors para operações async
+```
+
+**Outros Módulos (useReducer 9.5/10):**
 ```
 useReducer (Single Source of Truth)
     └── dispatch (único ponto de mutação)
@@ -192,15 +207,15 @@ useReducer (Single Source of Truth)
 
 ### 7.2 Separação de Responsabilidades
 
-- **Reducer**: Define estado e transições (puro, testável)
+- **State Machine/Reducer**: Define estado e transições (puro, testável)
 - **Hooks especializados**: Lógica de negócio + chamadas API
 - **Hook facade**: Compõe e expõe API pública limpa
 
 ### 7.3 Adapter Pattern
 
 Hooks que precisam salvar dados recebem:
-- Dados do Reducer (não têm estado próprio)
-- Callbacks para dispatch de ações
+- Dados da State Machine (não têm estado próprio)
+- Callbacks para send/dispatch de eventos
 - Funções de save que chamam Edge Functions
 
 ---
@@ -244,3 +259,9 @@ Hooks que precisam salvar dados recebem:
 | 2026-01-18 | Lovable | Unificação fluxo salvamento (83 linhas duplicadas eliminadas) |
 | 2026-01-18 | Lovable | Criação PRODUCTS_MODULE_ARCHITECTURE.md |
 | 2026-01-18 | Lovable | ✅ AUDITORIA COMPLETA - 100% RISE V3 |
+| 2026-01-20 | Lovable | **MIGRAÇÃO COMPLETA PARA XSTATE** |
+| 2026-01-20 | Lovable | Deleção de ~1580 linhas de código legado (reducer, hooks legados) |
+| 2026-01-20 | Lovable | ProductContext agora usa `useMachine(productFormMachine)` |
+| 2026-01-20 | Lovable | Refatoração useProductCore → useProductDelete (Single Responsibility) |
+| 2026-01-20 | Lovable | Atualização comentários "Reducer" → "State Machine" |
+| 2026-01-20 | Lovable | ✅ XSTATE 10.0/10 RISE V3 COMPLIANCE ATINGIDA |

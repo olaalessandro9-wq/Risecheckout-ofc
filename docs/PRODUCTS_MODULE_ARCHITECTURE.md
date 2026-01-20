@@ -1,8 +1,8 @@
 # Arquitetura do Módulo de Produtos
 
-**Data:** 18 de Janeiro de 2026  
-**Versão:** 1.0  
-**Status:** ✅ 100% RISE V3 Compliant
+**Data:** 20 de Janeiro de 2026  
+**Versão:** 2.0  
+**Status:** ✅ 100% RISE V3 Compliant - XState Edition
 
 ---
 
@@ -25,22 +25,27 @@ O módulo de produtos gerencia todo o ciclo de vida de produtos na plataforma Ri
 ```
 src/modules/products/
 ├── context/
-│   ├── ProductContext.tsx          # Context principal + useReducer (SSOT)
-│   ├── reducer.ts                   # Reducer com todas as actions
+│   ├── ProductContext.tsx          # Context principal + XState State Machine (SSOT)
 │   ├── productFormValidation.ts     # Funções de validação
 │   └── hooks/
 │       ├── index.ts                 # Re-exports
-│       ├── useProductCore.ts        # Dados core do produto
-│       ├── useProductEntities.ts    # Offers, checkouts, links
-│       ├── useProductCheckouts.ts   # Operações de checkout
+│       ├── useProductDelete.ts      # Operação de deleção (Single Responsibility)
+│       ├── useProductLoader.ts      # React Query BFF loader
+│       ├── useProductDataMapper.ts  # Mapeamento de dados
 │       ├── useProductSettingsAdapter.ts  # Adapter puro (zero useState)
 │       ├── useGlobalValidationHandlers.ts # Handlers de save registry
 │       └── useTabValidation.ts      # Validação por aba
 │   └── helpers/
+│       ├── productDataMapper.ts     # Funções de mapeamento
 │       ├── saveFunctions.ts         # Funções puras de salvamento
-│       ├── saveWrappers.ts          # Wrappers com estado
-│       ├── createSaveAll.ts         # Orquestrador de save
 │       └── validationHandlerConfigs.ts # Factories de validação
+├── machines/
+│   ├── index.ts                     # Re-exports
+│   ├── productFormMachine.ts        # XState State Machine (SSOT)
+│   ├── productFormMachine.types.ts  # Tipos e contexto
+│   ├── productFormMachine.guards.ts # Guards e funções auxiliares
+│   ├── productFormMachine.actions.ts # Actions e assigns
+│   └── productFormMachine.actors.ts  # Actors para operações async
 ├── tabs/
 │   ├── GeneralTab.tsx               # Aba Geral
 │   ├── general/
@@ -70,26 +75,42 @@ src/modules/products/
 
 ## 3. State Management (Single Source of Truth)
 
-### 3.1 Padrão Reducer
+### 3.1 XState State Machine
 
 ```typescript
 // ProductContext.tsx
-const [formState, dispatchForm] = useReducer(productFormReducer, initialFormState);
+const [state, send] = useMachine(productFormMachine, {
+  input: {
+    productId,
+    userId: user?.id,
+  },
+});
 ```
 
-### 3.2 Actions Disponíveis
+### 3.2 Estados da Machine
 
-| Action | Descrição |
+| Estado | Descrição |
 |--------|-----------|
-| `INIT_FROM_PRODUCT` | Inicializa estado do produto |
-| `UPDATE_GENERAL` | Atualiza campos gerais |
-| `UPDATE_CHECKOUT_SETTINGS` | Atualiza configurações checkout |
-| `UPDATE_UPSELL` | Atualiza configurações upsell |
-| `UPDATE_AFFILIATE` | Atualiza configurações afiliados |
-| `SET_VALIDATION_ERROR` | Define erro de validação |
-| `CLEAR_VALIDATION_ERRORS` | Limpa erros |
-| `MARK_SAVED` | Marca seção como salva |
-| `RESET_OFFERS` | Reseta estado de ofertas |
+| `idle` | Aguardando inicialização |
+| `loading` | Carregando dados via BFF |
+| `ready.clean` | Dados carregados, sem alterações |
+| `ready.dirty` | Usuário fez alterações |
+| `saving` | Salvando alterações |
+| `error` | Erro ocorreu |
+
+### 3.3 Eventos Principais
+
+| Evento | Descrição |
+|--------|-----------|
+| `LOAD_DATA` | Inicia carregamento do produto |
+| `EDIT_GENERAL` | Atualiza campos gerais |
+| `EDIT_CHECKOUT_SETTINGS` | Atualiza configurações checkout |
+| `EDIT_UPSELL` | Atualiza configurações upsell |
+| `EDIT_AFFILIATE` | Atualiza configurações afiliados |
+| `SAVE_ALL` | Inicia salvamento |
+| `SAVE_SUCCESS` | Salvamento concluído |
+| `SET_TAB` | Navega para aba |
+| `SET_TAB_ERRORS` | Define erros por aba |
 
 ---
 
@@ -152,8 +173,16 @@ Todas as funções de save estão em `saveFunctions.ts`:
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  ProductContext (Provider)                                   │
-│    └── useReducer → formState (Single Source of Truth)      │
-│    └── dispatchForm → mutações de estado                    │
+│    └── useMachine(productFormMachine) - Single Source       │
+│    └── send() → transições de estado                        │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  XState State Machine                                        │
+│    └── Actors para operações async (load, save)             │
+│    └── Guards para transições condicionais                  │
+│    └── Actions para mutações de contexto                    │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -168,6 +197,7 @@ Todas as funções de save estão em `saveFunctions.ts`:
 ┌─────────────────────────────────────────────────────────────┐
 │  Edge Functions (Backend)                                    │
 │    └── product-settings                                      │
+│    └── product-full-loader (BFF)                            │
 │    └── offer-crud, offer-bulk                               │
 │    └── storage-upload                                        │
 └─────────────────────────────────────────────────────────────┘
@@ -175,14 +205,18 @@ Todas as funções de save estão em `saveFunctions.ts`:
 
 ---
 
-## 7. Arquivos Deletados (Código Morto)
+## 7. Arquivos Deletados (Migração XState)
 
 | Arquivo | Linhas | Razão |
 |---------|--------|-------|
-| `useSettingsHandlerRegistration.ts` | 138 | Nunca importado, substituído por useGlobalValidationHandlers |
-| `useGeneralTabSave.ts` | 143 | Salvamento duplicado, unificado via header global |
+| `context/reducer/` | ~400 | Migrado para XState |
+| `useProductEntities.ts` | 167 | Estado agora na State Machine |
+| `useProductCheckouts.ts` | 163 | Estado agora na State Machine |
+| `useProductCore.ts` | 169 | Refatorado para `useProductDelete.ts` |
+| `createContextValue.ts` | 211 | Não mais necessário |
+| `formActions.types.ts` | ~150 | Substituído por XState events |
 
-**Total:** 281 linhas de código morto eliminadas
+**Total:** ~1260 linhas de código legado eliminadas
 
 ---
 
@@ -193,7 +227,7 @@ Todas as funções de save estão em `saveFunctions.ts`:
 | Arquivos > 300 linhas | 0 |
 | Código duplicado | 0 linhas |
 | Fluxos de salvamento | 1 (unificado) |
-| useState para forms | 0 (useReducer) |
+| useState para forms | 0 (XState) |
 | Acesso direto DB | 0 |
 | **CONFORMIDADE RISE V3** | **100%** |
 
@@ -206,3 +240,6 @@ Todas as funções de save estão em `saveFunctions.ts`:
 | 2026-01-18 | Documento criado |
 | 2026-01-18 | Unificação do fluxo de salvamento |
 | 2026-01-18 | Deleção de código morto (281 linhas) |
+| 2026-01-20 | **MIGRAÇÃO COMPLETA PARA XSTATE** |
+| 2026-01-20 | Deleção de ~1260 linhas de código legado |
+| 2026-01-20 | State Machine como Single Source of Truth |

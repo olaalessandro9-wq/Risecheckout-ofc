@@ -1,13 +1,13 @@
 /**
  * useGeneralTabImage - Lógica de Imagem (View Only)
  * 
- * REFATORADO para usar estado do ProductContext via reducer.
+ * REFATORADO para usar estado do ProductContext via State Machine.
  * Não mantém estado local - usa formState.editedData.image.
  * 
  * NOTA: uploadImage foi REMOVIDO
  * Motivo: Upload unificado via useGlobalValidationHandlers + saveFunctions.ts
  * 
- * @see RISE ARCHITECT PROTOCOL V3 - Zero Duplicação
+ * @see RISE ARCHITECT PROTOCOL V3 - XState State Machine Edition
  */
 
 import { useCallback } from "react";
