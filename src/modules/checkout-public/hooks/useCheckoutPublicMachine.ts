@@ -13,7 +13,7 @@ import { useMachine } from "@xstate/react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useEffect, useCallback, useMemo } from "react";
 import { checkoutPublicMachine } from "../machines";
-import type { FormData, CouponData, PaymentData } from "../machines";
+import type { FormData, CouponData, PaymentData, NavigationData, CardFormData } from "../machines";
 import { getAffiliateCode } from "@/hooks/checkout/helpers";
 
 // ============================================================================
