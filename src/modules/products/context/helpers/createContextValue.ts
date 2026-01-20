@@ -7,7 +7,16 @@
  * @see RISE ARCHITECT PROTOCOL V3 - Modularização
  */
 
-import type { ProductData, Offer, AffiliateSettings, UpsellSettings } from "../../types/product.types";
+import type { 
+  ProductData, 
+  Offer, 
+  OrderBump,
+  Checkout,
+  PaymentLink,
+  Coupon,
+  AffiliateSettings, 
+  UpsellSettings 
+} from "../../types/product.types";
 import type { 
   GeneralFormData, 
   ImageFormState, 
@@ -35,15 +44,15 @@ export interface ContextValueDependencies {
   };
   entities: {
     offers: Offer[];
-    orderBumps: unknown[];
-    coupons: unknown[];
+    orderBumps: OrderBump[];
+    coupons: Coupon[];
     refreshOffers: () => Promise<void>;
     refreshOrderBumps: () => Promise<void>;
     refreshCoupons: () => Promise<void>;
   };
   checkoutsHook: {
-    checkouts: unknown[];
-    paymentLinks: unknown[];
+    checkouts: Checkout[];
+    paymentLinks: PaymentLink[];
     refreshCheckouts: () => Promise<void>;
     refreshPaymentLinks: () => Promise<void>;
   };
