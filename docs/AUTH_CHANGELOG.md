@@ -323,9 +323,10 @@ Todas as constantes de autenticação foram centralizadas em um único arquivo:
 | `BUYER_SESSION_DURATION_DAYS` | 30 | Duração da sessão buyer |
 | `SESSION_DURATION_DAYS` | 30 | Alias para backwards compatibility |
 | `RESET_TOKEN_EXPIRY_HOURS` | 1 | Expiração do token de reset |
-| `PASSWORD_REQUIRES_RESET` | "REQUIRES_RESET" | Marker para reset obrigatório |
-| `PASSWORD_PENDING_SETUP` | "PENDING_PASSWORD_SETUP" | Marker para setup pendente |
-| `PASSWORD_OWNER_NO_PASSWORD` | "OWNER_NO_PASSWORD" | Marker para owner sem senha |
+
+> **NOTA HISTÓRICA (2026-01-20):** Os antigos Password Markers (`PASSWORD_REQUIRES_RESET`, 
+> `PASSWORD_PENDING_SETUP`, `PASSWORD_OWNER_NO_PASSWORD`) foram **ELIMINADOS** nesta versão.
+> O estado da conta agora é controlado exclusivamente pelo enum `account_status` na tabela `profiles`.
 
 ---
 

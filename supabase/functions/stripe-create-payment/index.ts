@@ -1,8 +1,8 @@
 /**
  * stripe-create-payment/index.ts - Orquestrador Principal
  * 
- * @version 3.0.0 - RISE Protocol V3 Compliant
- * - Uses handleCors from _shared/cors.ts
+ * @version 3.0.1 - RISE Protocol V3 Compliant
+ * - Uses handleCorsV2 from _shared/cors-v2.ts
  * - Uses PUBLIC_CORS_HEADERS for checkout (public endpoint)
  * 
  * Estrutura:

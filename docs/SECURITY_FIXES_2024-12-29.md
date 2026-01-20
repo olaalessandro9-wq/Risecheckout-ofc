@@ -99,25 +99,26 @@ curl -X POST \
 
 ### 3.1 Helper CORS Compartilhado
 
-**Arquivo:** `supabase/functions/_shared/cors.ts`
+> **ATUALIZADO 2026-01-20:** O arquivo `cors.ts` foi migrado para `cors-v2.ts` com 
+> validação dinâmica de origens via Supabase Secrets (`CORS_ALLOWED_ORIGINS`).
+
+**Arquivo:** `supabase/functions/_shared/cors-v2.ts`
 
 **Funcionalidades:**
-- Lista centralizada de origens permitidas
-- Função `getCorsHeaders(origin)` que valida origem
+- Origens permitidas gerenciadas via Supabase Secrets (não hardcoded)
+- Função `handleCorsV2(req)` que valida origem dinamicamente
 - Constante `PUBLIC_CORS_HEADERS` para webhooks públicos
 
-**Domínios Permitidos:**
-```typescript
-const ALLOWED_ORIGINS = [
-  "https://risecheckout.com",
-  "https://www.risecheckout.com",
-  "https://risecheckout-84776.lovable.app",
-  "https://prime-checkout-hub.lovable.app",
-  "http://localhost:5173",
-  "http://localhost:3000",
-  "http://127.0.0.1:5173",
-  "http://127.0.0.1:3000",
-];
+**Configuração de Origens (via Supabase Secrets):**
+
+Os domínios permitidos são configurados via secrets do Supabase:
+- `CORS_ALLOWED_ORIGINS` - Domínios de produção (comma-separated)
+- `CORS_ALLOWED_ORIGINS_DEV` - Domínios de desenvolvimento (localhost, etc.)
+
+Exemplo de configuração:
+```
+CORS_ALLOWED_ORIGINS=https://risecheckout.com,https://www.risecheckout.com
+CORS_ALLOWED_ORIGINS_DEV=http://localhost:5173,http://localhost:3000
 ```
 
 ### 3.2 Edge Functions Atualizadas
@@ -138,7 +139,7 @@ supabase/
 │   └── 20251229_security_vault_permissions_rls.sql  [NOVO]
 └── functions/
     ├── _shared/
-    │   └── cors.ts  [NOVO]
+    │   └── cors-v2.ts  [NOVO → Migrado de cors.ts em 2026-01-20]
     ├── vault-migration/
     │   └── index.ts  [ATUALIZADO]
     ├── vault-save/

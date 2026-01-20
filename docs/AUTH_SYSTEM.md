@@ -414,7 +414,9 @@ O campo `account_status` na tabela `profiles` é a **ÚNICA fonte de verdade** p
 | `owner_no_password` | Conta de proprietário (sem senha) | ❌ Contatar suporte |
 
 **NOTA HISTÓRICA (Eliminado em 2026-01-20):**  
-Os antigos "Password Markers" (`REQUIRES_RESET`, `PENDING_PASSWORD_SETUP`, etc.) 
+Os antigos "Password Markers" (`REQUIRES_RESET`, `PENDING_PASSWORD_SETUP`, `OWNER_NO_PASSWORD`, `PENDING_MIGRATION`) 
+foram **COMPLETAMENTE ELIMINADOS** do sistema. O estado da conta é controlado exclusivamente pelo enum `account_status`. 
+Veja `docs/AUTH_CHANGELOG.md` para detalhes da migração.
 foram eliminados do código. O sistema agora usa **exclusivamente** `account_status`.
 
 ### Rate Limiting

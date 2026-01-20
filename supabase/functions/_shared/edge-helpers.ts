@@ -33,14 +33,6 @@ export {
 } from "./rate-limiting/index.ts";
 
 // ============================================================================
-// Session Validation (DEPRECATED - Use unified-auth.ts instead)
-// ============================================================================
-// NOTE: This is kept for backwards compatibility with legacy code.
-// New code should use requireAuthenticatedProducer from unified-auth.ts
-// 
-// @deprecated Use unified-auth.ts for authentication
-
-// ============================================================================
 // Ownership Verification
 // ============================================================================
 

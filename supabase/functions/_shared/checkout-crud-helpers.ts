@@ -75,13 +75,6 @@ export async function checkRateLimit(
 }
 
 // ============================================
-// SESSION VALIDATION (DEPRECATED)
-// ============================================
-// NOTE: Use unified-auth.ts instead for authentication
-// This is kept for backwards compatibility only
-// @deprecated Use requireAuthenticatedProducer from unified-auth.ts
-
-// ============================================
 // OWNERSHIP VERIFICATION
 // ============================================
 
