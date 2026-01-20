@@ -33,11 +33,14 @@ export interface ValidationResult {
 /**
  * Verifica rate limiting
  */
+/**
+ * Verifica rate limiting (RISE V3 - Config específica por gateway)
+ */
 export async function checkPaymentRateLimit(
   supabase: SupabaseClient,
   identifier: string
 ): Promise<{ allowed: boolean; retryAfter?: string }> {
-  return await checkRateLimit(supabase, identifier, RATE_LIMIT_CONFIGS.CREATE_PIX);
+  return await checkRateLimit(supabase, identifier, RATE_LIMIT_CONFIGS.ASAAS_CREATE_PAYMENT);
 }
 
 /**

@@ -59,11 +59,11 @@ serve(withSentry('stripe-create-payment', async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
   );
 
-  // 1. Rate Limiting
+  // 1. Rate Limiting (RISE V3 - Config específica por gateway)
   const rateLimitResponse = await rateLimitOnlyMiddleware(
     supabase,
     req,
-    RATE_LIMIT_CONFIGS.CREATE_PIX,
+    RATE_LIMIT_CONFIGS.STRIPE_CREATE_PAYMENT,
     corsHeaders
   );
 

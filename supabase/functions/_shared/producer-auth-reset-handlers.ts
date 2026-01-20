@@ -7,7 +7,7 @@
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { rateLimitMiddleware, getClientIP } from "./rate-limiting/index.ts";
+import { rateLimitMiddleware, getClientIP, RATE_LIMIT_CONFIGS } from "./rate-limiting/index.ts";
 import { validatePassword, formatPasswordError } from "./password-policy.ts";
 import { sanitizeEmail } from "./sanitizer.ts";
 import { sendEmail } from "./zeptomail.ts";
@@ -43,13 +43,7 @@ interface ProducerWithToken {
   reset_token_expires_at: string | null;
 }
 
-// Rate limit config for password reset
-const PASSWORD_RESET_RATE_LIMIT = {
-  action: "producer_password_reset",
-  maxAttempts: 3,
-  windowMinutes: 60,
-  blockDurationMinutes: 60,
-};
+// Rate limit - usando config centralizada (RISE V3 SSOT)
 
 // ============================================
 // REQUEST PASSWORD RESET
@@ -60,7 +54,7 @@ export async function handleRequestPasswordReset(
   req: Request,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  const rateLimitResult = await rateLimitMiddleware(supabase, req, PASSWORD_RESET_RATE_LIMIT, corsHeaders);
+  const rateLimitResult = await rateLimitMiddleware(supabase, req, RATE_LIMIT_CONFIGS.PRODUCER_AUTH_RESET, corsHeaders);
   if (rateLimitResult) {
     log.warn("Rate limit exceeded for password-reset");
     return rateLimitResult;

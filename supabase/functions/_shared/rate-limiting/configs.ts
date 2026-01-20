@@ -243,6 +243,22 @@ export const GDPR_REQUEST: RateLimitConfig = {
   blockDurationMinutes: 60,
 };
 
+/** GDPR forget (anonimização) - limite muito restritivo */
+export const GDPR_FORGET: RateLimitConfig = {
+  action: "gdpr_forget",
+  maxAttempts: 5,
+  windowMinutes: 60,
+  blockDurationMinutes: 120,
+};
+
+/** Producer Password Reset - recuperação de senha de produtor */
+export const PRODUCER_AUTH_RESET: RateLimitConfig = {
+  action: "producer_password_reset",
+  maxAttempts: 5,
+  windowMinutes: 60,
+  blockDurationMinutes: 60,
+};
+
 // ============================================================================
 // Default Config
 // ============================================================================
@@ -270,6 +286,7 @@ export const RATE_LIMIT_CONFIGS = {
   BUYER_AUTH_REGISTER,
   BUYER_AUTH_RESET,
   PRODUCER_AUTH_LOGIN,
+  PRODUCER_AUTH_RESET,
   
   // Payments
   CREATE_ORDER,
@@ -305,7 +322,10 @@ export const RATE_LIMIT_CONFIGS = {
   
   // CRUD
   CRUD_DEFAULT,
+  
+  // GDPR
   GDPR_REQUEST,
+  GDPR_FORGET,
   
   // Default
   DEFAULT,

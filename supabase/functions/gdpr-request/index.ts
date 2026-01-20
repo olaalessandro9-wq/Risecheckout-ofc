@@ -11,7 +11,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
-import { rateLimitMiddleware, getClientIP } from "../_shared/rate-limiting/index.ts";
+import { rateLimitMiddleware, getClientIP, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiting/index.ts";
 import { sendEmail } from "../_shared/zeptomail.ts";
 import { createLogger } from "../_shared/logger.ts";
 
@@ -138,16 +138,7 @@ function generateConfirmationEmailHtml(verificationUrl: string): string {
 `;
 }
 
-// ============================================================================
-// RATE LIMIT CONFIG
-// ============================================================================
-
-const GDPR_REQUEST_RATE_LIMIT = {
-  action: "gdpr_request",
-  maxAttempts: 3,          // Máximo 3 solicitações
-  windowMinutes: 60,       // Por hora
-  blockDurationMinutes: 60 // Bloqueia por 1 hora se exceder
-};
+// Rate limit - usando config centralizada (RISE V3 SSOT)
 
 // ============================================================================
 // MAIN HANDLER
@@ -175,11 +166,11 @@ serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // 4. Rate limiting
+    // 4. Rate limiting (RISE V3 - Config centralizada)
     const rateLimitResult = await rateLimitMiddleware(
       supabase,
       req,
-      GDPR_REQUEST_RATE_LIMIT,
+      RATE_LIMIT_CONFIGS.GDPR_REQUEST,
       corsHeaders
     );
     if (rateLimitResult) {

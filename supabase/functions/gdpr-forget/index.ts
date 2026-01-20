@@ -11,7 +11,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
-import { rateLimitMiddleware, getClientIP } from "../_shared/rate-limiting/index.ts";
+import { rateLimitMiddleware, getClientIP, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiting/index.ts";
 import { sendEmail } from "../_shared/zeptomail.ts";
 import { createLogger } from "../_shared/logger.ts";
 
@@ -49,13 +49,7 @@ const ANONYMIZED_EMAIL_DOMAIN = "@anonimizado.lgpd";
 const ANONYMIZED_NAME = "Usuário Anonimizado";
 const ANONYMIZED_IP = "0.0.0.0";
 
-// Rate limit específico para forget (muito restritivo)
-const GDPR_FORGET_RATE_LIMIT = {
-  action: "gdpr_forget",
-  maxAttempts: 5,
-  windowMinutes: 60,
-  blockDurationMinutes: 120
-};
+// Rate limit - usando config centralizada (RISE V3 SSOT)
 
 // ============================================================================
 // ANONYMIZATION FUNCTIONS
@@ -360,11 +354,11 @@ serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // 4. Rate limiting
+    // 4. Rate limiting (RISE V3 - Config centralizada)
     const rateLimitResult = await rateLimitMiddleware(
       supabase,
       req,
-      GDPR_FORGET_RATE_LIMIT,
+      RATE_LIMIT_CONFIGS.GDPR_FORGET,
       corsHeaders
     );
     if (rateLimitResult) {
