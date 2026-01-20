@@ -12,15 +12,13 @@
  */
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { handleCorsV2, PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { rateLimitMiddleware, MEMBERS_AREA } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 import { genSaltSync, hashSync, compareSync } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 import { createLogger } from "../_shared/logger.ts";
 
 const log = createLogger("students-invite");
-
-const corsHeaders = PUBLIC_CORS_HEADERS;
 
 // ============================================
 // INTERFACES
@@ -97,7 +95,7 @@ function generateSessionToken(): string {
   return Array.from(array, b => b.toString(16).padStart(2, "0")).join("");
 }
 
-function jsonResponse(data: JsonResponseData, status = 200): Response {
+function jsonResponse(data: JsonResponseData, status = 200, corsHeaders: Record<string, string>): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -109,11 +107,30 @@ function jsonResponse(data: JsonResponseData, status = 200): Response {
 // ============================================
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
+  // Clone request for body parsing (needed to determine action before CORS)
+  const clonedReq = req.clone();
+  
   try {
+    const body = await clonedReq.json();
+    const { action } = body;
+    
+    // PUBLIC actions use wildcard CORS (tokens accessed from external links)
+    const isPublicAction = ["validate-invite-token", "use-invite-token", "generate-purchase-access"].includes(action);
+    
+    let corsHeaders: Record<string, string>;
+    
+    if (isPublicAction) {
+      if (req.method === "OPTIONS") {
+        return new Response(null, { headers: PUBLIC_CORS_HEADERS });
+      }
+      corsHeaders = PUBLIC_CORS_HEADERS;
+    } else {
+      // Authenticated actions use dynamic CORS validation
+      const corsResult = handleCorsV2(req);
+      if (corsResult instanceof Response) return corsResult;
+      corsHeaders = corsResult.headers;
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -121,15 +138,12 @@ Deno.serve(async (req) => {
     const rateLimitResult = await rateLimitMiddleware(supabase, req, MEMBERS_AREA, corsHeaders);
     if (rateLimitResult) return rateLimitResult;
 
-    const body = await req.json();
-    const { action } = body;
-
     log.info(`Action: ${action}`);
 
     // ========== VALIDATE-INVITE-TOKEN (public) ==========
     if (action === "validate-invite-token") {
       const { token } = body;
-      if (!token) return jsonResponse({ error: "token required" }, 400);
+      if (!token) return jsonResponse({ error: "token required" }, 400, corsHeaders);
 
       const tokenHash = await hashToken(token);
       const { data: tokenData, error: tokenError } = await supabase
@@ -139,15 +153,15 @@ Deno.serve(async (req) => {
         .single();
 
       if (tokenError || !tokenData) {
-        return jsonResponse({ valid: false, reason: "Token inválido ou expirado" });
+        return jsonResponse({ valid: false, reason: "Token inválido ou expirado" }, 200, corsHeaders);
       }
 
       if (tokenData.is_used) {
-        return jsonResponse({ valid: false, reason: "Este link já foi utilizado", redirect: "/minha-conta" });
+        return jsonResponse({ valid: false, reason: "Este link já foi utilizado", redirect: "/minha-conta" }, 200, corsHeaders);
       }
 
       if (new Date(tokenData.expires_at) < new Date()) {
-        return jsonResponse({ valid: false, reason: "Este link expirou" });
+        return jsonResponse({ valid: false, reason: "Este link expirou" }, 200, corsHeaders);
       }
 
       const typedTokenData = tokenData as unknown as TokenData;
@@ -171,13 +185,13 @@ Deno.serve(async (req) => {
         product_image: typedProduct?.image_url || null,
         buyer_email: buyer?.email || "",
         buyer_name: buyer?.name || "",
-      });
+      }, 200, corsHeaders);
     }
 
     // ========== USE-INVITE-TOKEN (public) ==========
     if (action === "use-invite-token") {
       const { token, password } = body;
-      if (!token) return jsonResponse({ error: "token required" }, 400);
+      if (!token) return jsonResponse({ error: "token required" }, 400, corsHeaders);
 
       const tokenHash = await hashToken(token);
       const { data: tokenData, error: tokenError } = await supabase
@@ -186,9 +200,9 @@ Deno.serve(async (req) => {
         .eq("token_hash", tokenHash)
         .single();
 
-      if (tokenError || !tokenData) return jsonResponse({ success: false, error: "Token inválido" }, 400);
-      if (tokenData.is_used) return jsonResponse({ success: false, error: "Este link já foi utilizado" }, 400);
-      if (new Date(tokenData.expires_at) < new Date()) return jsonResponse({ success: false, error: "Este link expirou" }, 400);
+      if (tokenError || !tokenData) return jsonResponse({ success: false, error: "Token inválido" }, 400, corsHeaders);
+      if (tokenData.is_used) return jsonResponse({ success: false, error: "Este link já foi utilizado" }, 400, corsHeaders);
+      if (new Date(tokenData.expires_at) < new Date()) return jsonResponse({ success: false, error: "Este link expirou" }, 400, corsHeaders);
 
       const { data: buyer } = await supabase
         .from("buyer_profiles")
@@ -196,14 +210,14 @@ Deno.serve(async (req) => {
         .eq("id", tokenData.buyer_id)
         .single();
 
-      if (!buyer) return jsonResponse({ success: false, error: "Perfil não encontrado" }, 400);
+      if (!buyer) return jsonResponse({ success: false, error: "Perfil não encontrado" }, 400, corsHeaders);
 
       const typedBuyer = buyer as BuyerProfile;
       const needsPasswordSetup = !typedBuyer.password_hash || typedBuyer.password_hash === "PENDING_PASSWORD_SETUP";
 
       if (needsPasswordSetup) {
         if (!password || password.length < 6) {
-          return jsonResponse({ success: false, error: "Senha deve ter pelo menos 6 caracteres" }, 400);
+          return jsonResponse({ success: false, error: "Senha deve ter pelo menos 6 caracteres" }, 400, corsHeaders);
         }
         const passwordHash = hashPassword(password);
         await supabase
@@ -226,13 +240,13 @@ Deno.serve(async (req) => {
         sessionToken, 
         buyer: { id: typedBuyer.id, email: typedBuyer.email, name: typedBuyer.name }, 
         product_id: tokenData.product_id 
-      });
+      }, 200, corsHeaders);
     }
 
     // ========== GENERATE-PURCHASE-ACCESS (public) ==========
     if (action === "generate-purchase-access") {
       const { order_id, customer_email, product_id } = body;
-      if (!order_id || !customer_email || !product_id) return jsonResponse({ error: "order_id, customer_email and product_id required" }, 400);
+      if (!order_id || !customer_email || !product_id) return jsonResponse({ error: "order_id, customer_email and product_id required" }, 400, corsHeaders);
 
       const { data: order, error: orderError } = await supabase
         .from("orders")
@@ -240,17 +254,17 @@ Deno.serve(async (req) => {
         .eq("id", order_id)
         .single();
 
-      if (orderError || !order) return jsonResponse({ error: "Pedido não encontrado" }, 404);
-      if (order.status?.toLowerCase() !== "paid") return jsonResponse({ error: "Pedido ainda não foi pago" }, 400);
+      if (orderError || !order) return jsonResponse({ error: "Pedido não encontrado" }, 404, corsHeaders);
+      if (order.status?.toLowerCase() !== "paid") return jsonResponse({ error: "Pedido ainda não foi pago" }, 400, corsHeaders);
 
       const normalizedEmail = customer_email.toLowerCase().trim();
       if (order.customer_email?.toLowerCase().trim() !== normalizedEmail) {
-        return jsonResponse({ error: "Email não corresponde ao pedido" }, 403);
+        return jsonResponse({ error: "Email não corresponde ao pedido" }, 403, corsHeaders);
       }
 
       const { data: product } = await supabase.from("products").select("id, name, members_area_enabled, user_id").eq("id", product_id).single();
       const typedProduct = product as ProductData | null;
-      if (!typedProduct?.members_area_enabled) return jsonResponse({ error: "Produto não tem área de membros" }, 400);
+      if (!typedProduct?.members_area_enabled) return jsonResponse({ error: "Produto não tem área de membros" }, 400, corsHeaders);
 
       let buyerResult = await supabase.from("buyer_profiles").select("id, email, password_hash").eq("email", normalizedEmail).single();
       let buyer = buyerResult.data as BuyerProfile | null;
@@ -261,7 +275,7 @@ Deno.serve(async (req) => {
           .insert({ email: normalizedEmail, password_hash: "PENDING_PASSWORD_SETUP", is_active: true })
           .select("id, email, password_hash")
           .single();
-        if (createError) return jsonResponse({ error: "Erro ao criar perfil" }, 500);
+        if (createError) return jsonResponse({ error: "Erro ao criar perfil" }, 500, corsHeaders);
         buyer = newBuyer as BuyerProfile;
       }
 
@@ -291,10 +305,10 @@ Deno.serve(async (req) => {
           expires_at: expiresAt.toISOString(),
         });
 
-        return jsonResponse({ success: true, needsPasswordSetup: true, accessUrl: `${baseUrl}/minha-conta/setup-acesso?token=${rawToken}` });
+        return jsonResponse({ success: true, needsPasswordSetup: true, accessUrl: `${baseUrl}/minha-conta/setup-acesso?token=${rawToken}` }, 200, corsHeaders);
       }
 
-      return jsonResponse({ success: true, needsPasswordSetup: false, accessUrl: `${baseUrl}/minha-conta` });
+      return jsonResponse({ success: true, needsPasswordSetup: false, accessUrl: `${baseUrl}/minha-conta` }, 200, corsHeaders);
     }
 
     // ========== INVITE (authenticated) ==========
@@ -303,16 +317,16 @@ Deno.serve(async (req) => {
       try {
         producer = await requireAuthenticatedProducer(supabase, req);
       } catch {
-        return jsonResponse({ error: "Authorization required" }, 401);
+        return jsonResponse({ error: "Authorization required" }, 401, corsHeaders);
       }
 
       const { product_id, email, name, group_ids } = body;
-      if (!product_id || !email) return jsonResponse({ error: "product_id and email required" }, 400);
+      if (!product_id || !email) return jsonResponse({ error: "product_id and email required" }, 400, corsHeaders);
 
       const { data: product, error: productError } = await supabase.from("products").select("id, user_id, name, image_url").eq("id", product_id).single();
       const typedProduct = product as ProductData & { user_id: string } | null;
       if (productError || !typedProduct || typedProduct.user_id !== producer.id) {
-        return jsonResponse({ error: "Product not found or access denied" }, 403);
+        return jsonResponse({ error: "Product not found or access denied" }, 403, corsHeaders);
       }
 
       const normalizedEmail = email.toLowerCase().trim();
@@ -327,7 +341,7 @@ Deno.serve(async (req) => {
           .insert({ email: normalizedEmail, name: name || null, password_hash: "PENDING_PASSWORD_SETUP", is_active: true })
           .select("id, email, name")
           .single();
-        if (createError) return jsonResponse({ error: "Erro ao criar perfil do aluno" }, 500);
+        if (createError) return jsonResponse({ error: "Erro ao criar perfil do aluno" }, 500, corsHeaders);
         buyerId = (newBuyer as BuyerProfile).id;
         isNewBuyer = true;
       } else {
@@ -383,13 +397,13 @@ Deno.serve(async (req) => {
         log.error("Email error:", emailErr);
       }
 
-      return jsonResponse({ success: true, buyer_id: buyerId, is_new_buyer: isNewBuyer, email_sent: true });
+      return jsonResponse({ success: true, buyer_id: buyerId, is_new_buyer: isNewBuyer, email_sent: true }, 200, corsHeaders);
     }
 
-    return jsonResponse({ error: "Invalid action" }, 400);
+    return jsonResponse({ error: "Invalid action" }, 400, corsHeaders);
 
   } catch (error: unknown) {
     log.error("Error:", error);
-    return jsonResponse({ error: error instanceof Error ? error.message : "Internal server error" }, 500);
+    return jsonResponse({ error: error instanceof Error ? error.message : "Internal server error" }, 500, PUBLIC_CORS_HEADERS);
   }
 });
