@@ -54,16 +54,14 @@ export const SecureFields = memo(({
     setIsSecurityCodeReady(true);
   }, []);
 
-  // Estilo para os iframes do MP
+  // Estilo para os iframes do MP (conforme documentação oficial do SDK)
   const secureFieldStyle = {
     height: '100%',
     padding: '0',
     fontSize: '14px',
     fontFamily: 'inherit',
     color: textColor,
-    '::placeholder': {
-      color: placeholderColor,
-    }
+    placeholderColor: placeholderColor,
   };
 
   log.debug('Montando componente (deve acontecer apenas 1x)');
