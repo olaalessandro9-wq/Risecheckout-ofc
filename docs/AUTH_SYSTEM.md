@@ -402,6 +402,20 @@ const resetToken = Array.from(crypto.getRandomValues(new Uint8Array(32)))
     .join('');
 ```
 
+### Armazenamento de Tokens (httpOnly Cookies)
+
+Desde Janeiro 2026, os tokens são armazenados exclusivamente em **cookies httpOnly**:
+
+| Cookie | Propósito | Flags |
+|--------|-----------|-------|
+| `__Host-producer_access` | Token de acesso Producer | httpOnly, Secure, SameSite=None, Partitioned |
+| `__Host-producer_refresh` | Refresh token Producer | httpOnly, Secure, SameSite=None, Partitioned |
+| `__Host-buyer_access` | Token de acesso Buyer | httpOnly, Secure, SameSite=None, Partitioned |
+| `__Host-buyer_refresh` | Refresh token Buyer | httpOnly, Secure, SameSite=None, Partitioned |
+
+> **IMPORTANTE:** O `localStorage` **NÃO** é mais usado para armazenar tokens de sessão.
+> Isso garante proteção total contra XSS.
+
 ### Account Status (Fonte de Verdade)
 
 O campo `account_status` na tabela `profiles` é a **ÚNICA fonte de verdade** para o estado da conta:

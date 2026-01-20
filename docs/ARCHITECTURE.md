@@ -81,27 +81,28 @@ RiseCheckout utiliza autenticação customizada via `producer_sessions`, indepen
 | `producer-auth` | Edge Function de login/logout |
 | `unified-auth.ts` | Módulo compartilhado de validação |
 
-### Fluxo
+### Fluxo (Cookies httpOnly)
 
 ```
 ┌────────────┐     ┌──────────────────┐     ┌─────────────────┐
 │  Frontend  │────▶│  producer-auth   │────▶│producer_sessions│
 │   Login    │     │  Edge Function   │     │    (tabela)     │
 └────────────┘     └──────────────────┘     └─────────────────┘
-       │                                            │
-       │ Recebe session_token                       │
-       ▼                                            │
+       │                    │                       │
+       │ Set-Cookie: __Host-producer_access (httpOnly)
+       ▼                    │                       │
 ┌────────────┐     ┌──────────────────┐             │
 │  Frontend  │────▶│  Edge Function   │─────────────┘
 │   Request  │     │   (protegida)    │ Valida via unified-auth.ts
+│ credentials:include      │            (extrai token do cookie)
 └────────────┘     └──────────────────┘
 ```
 
-### Header de Autenticação
+### Autenticação
 
-```
-X-Producer-Session-Token: <token_64_caracteres>
-```
+Desde Janeiro 2026, a autenticação usa **cookies httpOnly** para máxima segurança:
+- `__Host-producer_access`: Token de sessão (httpOnly, Secure, SameSite=None)
+- O header `X-Producer-Session-Token` é usado internamente pelo api-client após extração do cookie
 
 ### RISE ARCHITECT PROTOCOL
 

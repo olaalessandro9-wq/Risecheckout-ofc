@@ -1,5 +1,9 @@
 # Integração do Heartbeat de Checkout
 
+> **⚠️ NOTA ARQUITETURAL:** Os exemplos de código neste documento são **CONCEITUAIS**.  
+> Na implementação real, o frontend **NÃO** acessa o banco diretamente.  
+> Todas as operações passam por Edge Functions conforme o RISE Protocol V3.
+
 ## 📋 Objetivo
 
 Detectar checkouts abandonados enviando pings periódicos do frontend para o backend.
@@ -94,10 +98,10 @@ const PublicCheckout = () => {
       if (sessionError) throw sessionError;
 
       setSessionId(session.id);
-      console.log('[Session] Created:', session.id);
+      logger.debug('[Session] Created:', session.id);
 
     } catch (error) {
-      console.error('[Session] Error:', error);
+      logger.error('[Session] Error:', error);
     }
   };
 
@@ -134,7 +138,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     // Continuar com pagamento...
     
   } catch (error) {
-    console.error('[Order] Error:', error);
+    logger.error('[Order] Error:', error);
     toast.error('Erro ao processar pedido');
   }
 };
@@ -160,10 +164,10 @@ const createPayment = async () => {
       })
       .eq('id', sessionId);
 
-    console.log('[Session] Completed');
+    logger.debug('[Session] Completed');
 
   } catch (error) {
-    console.error('[Payment] Error:', error);
+    logger.error('[Payment] Error:', error);
   }
 };
 ```

@@ -151,7 +151,7 @@ if (normalizedEvent.event_type === 'payment.approved') {
       }
     );
     
-    console.log('Utmify notification sent:', await utmifyResponse.text());
+    log.info('Utmify notification sent:', await utmifyResponse.text());
   } catch (error) {
     console.error('Failed to send Utmify notification:', error);
     // Não falha o webhook principal se Utmify falhar

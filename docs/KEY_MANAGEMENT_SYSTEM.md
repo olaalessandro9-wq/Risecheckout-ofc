@@ -115,9 +115,12 @@ const safe = await safeDecrypt(encrypted);
 ### Verificar Versão
 
 ```typescript
+import { createLogger } from "../_shared/logger.ts";
+const log = createLogger("KMS");
+
 if (isEncrypted(value)) {
   const version = getEncryptedVersion(value);
-  console.log(`Encrypted with version: ${version}`);
+  log.debug(`Encrypted with version: ${version}`);
 }
 ```
 
