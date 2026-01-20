@@ -350,26 +350,26 @@ X-Producer-Session-Token: <token_de_64_caracteres>
 
 ## Frontend Integration
 
-### Hook: useProducerAuth
+### Arquitetura httpOnly Cookies (V5.0)
 
-O frontend gerencia autenticação via hook customizado que:
+O frontend gerencia autenticação via **cookies httpOnly** que são:
 
-1. **Armazena token** em `localStorage`
-2. **Envia header** `X-Producer-Session-Token` em todas as requisições
-3. **Valida sessão** no carregamento da página
-4. **Limpa sessão** no logout
+1. **Armazenados automaticamente** pelo browser (100% XSS-proof)
+2. **Enviados automaticamente** via `credentials: 'include'`
+3. **Validados no backend** via `unified-auth.ts`
+4. **Rotacionados** a cada refresh para detectar roubo de token
 
 ### Exemplo de Chamada
 
 ```typescript
-// O hook adiciona automaticamente o header
+// Cookies são enviados automaticamente - NÃO envie tokens manualmente
 const response = await supabase.functions.invoke("manage-affiliation", {
-  body: { action: "approve", affiliateId: "..." },
-  headers: {
-    "X-Producer-Session-Token": sessionToken
-  }
+  body: { action: "approve", affiliateId: "..." }
+  // credentials: 'include' é adicionado pelo api-client
 });
 ```
+
+> **NOTA:** Headers manuais como `X-Producer-Session-Token` foram **ELIMINADOS** em Janeiro de 2026.
 
 ---
 

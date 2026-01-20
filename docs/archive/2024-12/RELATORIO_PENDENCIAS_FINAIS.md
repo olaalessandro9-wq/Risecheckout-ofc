@@ -1,3 +1,8 @@
+> **⚠️ DOCUMENTO DE ARQUIVO**  
+> Este documento é um registro histórico de Dezembro de 2024.  
+> Muitas informações podem estar desatualizadas (ex: `cors.ts` → `cors-v2.ts`).  
+> Para a documentação atual, consulte a pasta `docs/` principal.
+
 # Relatório de Pendências Finais - Implementação de Segurança
 
 **Data:** 29 de dezembro de 2024  

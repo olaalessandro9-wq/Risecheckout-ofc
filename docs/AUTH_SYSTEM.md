@@ -207,8 +207,8 @@ sequenceDiagram
     alt Senha válida
         EF->>EF: crypto.randomUUID() → token
         EF->>DB: INSERT INTO producer_sessions
-        EF-->>FE: { success: true, token, profile }
-        FE->>FE: localStorage.setItem('producer_session_token', token)
+        EF-->>FE: Set-Cookie: __Host-producer_session (httpOnly, Secure)
+        Note over FE: Cookies armazenados automaticamente pelo browser
         FE-->>U: Redirect para Dashboard
     else Senha inválida
         EF-->>FE: { success: false, error: 'Credenciais inválidas' }
@@ -463,13 +463,9 @@ export const SESSION_DURATION_DAYS = BUYER_SESSION_DURATION_DAYS; // alias
 // Password Reset
 export const RESET_TOKEN_EXPIRY_HOURS = 1;
 
-// Password Markers
-export const PASSWORD_REQUIRES_RESET = "REQUIRES_RESET";
-export const PASSWORD_PENDING_SETUP = "PENDING_PASSWORD_SETUP";
-export const PASSWORD_OWNER_NO_PASSWORD = "OWNER_NO_PASSWORD";
-
-// Legacy (deprecated)
-export const PENDING_MIGRATION = "PENDING_MIGRATION";
+// NOTA HISTÓRICA (2026-01-20):
+// Os Password Markers foram ELIMINADOS e substituídos pelo enum AccountStatus.
+// Ver seção "Password Markers (ELIMINADOS)" acima para contexto histórico.
 ```
 
 ---

@@ -63,12 +63,12 @@ As seguintes ocorrências de `!important` foram **corrigidas** usando CSS specif
 
 ---
 
-## 3. State Management - XState State Machine
+## 3. State Management - XState State Machine (100% Migrado)
 
 ### Princípio: Single Source of Truth
 
-O módulo Products usa XState State Machine como fonte única da verdade (10.0/10).
-Outros módulos usam `useReducer` (9.5/10) para consistência arquitetural.
+**TODOS** os módulos do projeto usam XState State Machine como fonte única da verdade (10.0/10).
+A migração de `useReducer` para XState foi **100% concluída** em Janeiro de 2026.
 
 ### 3.1 ProductContext (XState)
 
@@ -81,27 +81,33 @@ Outros módulos usam `useReducer` (9.5/10) para consistência arquitetural.
 | useProductLoader.ts | ✅ React Query BFF loader |
 | Código legado Reducer | ✅ **COMPLETAMENTE REMOVIDO** |
 
-### 3.2 Members Area Settings (useReducer)
+### 3.2 Members Area Settings (XState)
 
 | Item | Status |
 |------|--------|
-| membersAreaReducer.ts | ✅ 11 action types criados |
-| useMembersAreaSettings.ts | ✅ Migrado para useReducer + dispatch |
-| useMembersAreaModules.ts | ✅ Usa dispatch |
-| useMembersAreaContents.ts | ✅ Usa dispatch |
-| useMembersArea.ts (facade) | ✅ Compõe hooks com dispatch |
+| membersAreaMachine.ts | ✅ XState State Machine |
+| membersAreaMachine.types.ts | ✅ Tipos separados |
+| membersAreaMachine.actions.ts | ✅ Ações modulares |
+| Código legado useReducer | ✅ **COMPLETAMENTE REMOVIDO** |
 
-### 3.3 Members Area Builder (useReducer)
+### 3.3 Members Area Builder (XState)
 
 | Item | Status |
 |------|--------|
-| builderReducer.ts | ✅ 18 action types criados |
-| useMembersAreaState.ts | ✅ Migrado para useReducer + dispatch |
-| useMembersAreaSections.ts | ✅ Usa dispatch |
-| useMembersAreaPersistence.ts | ✅ Usa dispatch |
-| useMembersAreaView.ts | ✅ Usa dispatch |
-| useMembersAreaModulesEdit.ts | ✅ Usa dispatch |
-| useMembersAreaBuilder.ts (facade) | ✅ Compõe hooks com dispatch |
+| builderMachine.ts | ✅ XState State Machine |
+| builderMachine.types.ts | ✅ Tipos separados |
+| builderMachine.actions.ts | ✅ Ações modulares |
+| builderMachine.actors.ts | ✅ Actors para async |
+| builderMachine.guards.ts | ✅ Guards tipados |
+| Código legado useReducer | ✅ **COMPLETAMENTE REMOVIDO** |
+
+### 3.4 Navigation Sidebar (XState)
+
+| Item | Status |
+|------|--------|
+| navigationMachine.ts | ✅ XState State Machine |
+| Estados: hidden, collapsed, expanded, hovering, mobileOpen | ✅ Modelados como states |
+| Código legado useReducer | ✅ **COMPLETAMENTE REMOVIDO** |
 
 ---
 
