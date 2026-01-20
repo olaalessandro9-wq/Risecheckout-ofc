@@ -1,0 +1,8 @@
+/**
+ * Shared Gateway Exports
+ * 
+ * @module integrations/gateways/_shared
+ * @version 1.0.0
+ */
+
+export * from './types';

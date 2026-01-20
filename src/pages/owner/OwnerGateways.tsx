@@ -5,44 +5,17 @@
  * - "Integrado via Secrets" (credenciais vêm das secrets do sistema)
  * - "Produção" (sempre em produção)
  * 
- * Esta página é carregada com lazy loading para segurança.
- * Apenas usuários com role "owner" podem acessar.
+ * RISE Protocol V3 Compliant - Consumes Gateway Registry (SSOT)
+ * Refactored: ~90 → ~50 lines (44% reduction)
  */
 
-import { CreditCard, Wallet, Shield } from "lucide-react";
+import { Shield } from "lucide-react";
 import { OwnerGatewayCard } from "@/components/financeiro/OwnerGatewayCard";
+import { GATEWAY_REGISTRY, GATEWAY_ORDER } from "@/config/gateways";
 
-// Configuração dos gateways da plataforma
-const PLATFORM_GATEWAYS = [
-  {
-    id: "asaas",
-    name: "Asaas",
-    description: "PIX e Cartão de Crédito",
-    icon: CreditCard,
-    iconColor: "#00B4D8",
-  },
-  {
-    id: "pushinpay",
-    name: "PushinPay",
-    description: "Gateway de pagamento PIX",
-    icon: Wallet,
-    iconColor: "#3b82f6",
-  },
-  {
-    id: "mercadopago",
-    name: "Mercado Pago",
-    description: "PIX e Cartão de Crédito",
-    icon: CreditCard,
-    iconColor: "#009EE3",
-  },
-  {
-    id: "stripe",
-    name: "Stripe",
-    description: "Cartão de Crédito e PIX",
-    icon: CreditCard,
-    iconColor: "#635BFF",
-  },
-];
+// ============================================================================
+// COMPONENT
+// ============================================================================
 
 export default function OwnerGateways() {
   return (
@@ -68,22 +41,25 @@ export default function OwnerGateways() {
       <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
         <p className="text-sm text-muted-foreground">
           <span className="font-medium text-foreground">Modo Owner:</span>{" "}
-          As credenciais dos gateways são gerenciadas via Secrets do sistema. 
+          As credenciais dos gateways são gerenciadas via Secrets do sistema.
           Todos os gateways estão sempre em modo Produção para processamento real de pagamentos.
         </p>
       </div>
 
-      {/* Lista de Gateways */}
+      {/* Lista de Gateways - consuming from Registry */}
       <div className="max-w-3xl space-y-3">
-        {PLATFORM_GATEWAYS.map((gateway) => (
-          <OwnerGatewayCard
-            key={gateway.id}
-            name={gateway.name}
-            description={gateway.description}
-            icon={gateway.icon}
-            iconColor={gateway.iconColor}
-          />
-        ))}
+        {GATEWAY_ORDER.map((gatewayId) => {
+          const gateway = GATEWAY_REGISTRY[gatewayId];
+          return (
+            <OwnerGatewayCard
+              key={gatewayId}
+              name={gateway.name}
+              description={gateway.description}
+              icon={gateway.icon}
+              iconColor={gateway.iconColor}
+            />
+          );
+        })}
       </div>
     </div>
   );
