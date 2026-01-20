@@ -17,7 +17,7 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { createLogger } from "../_shared/logger.ts";
 
 const log = createLogger("buyer-auth");
@@ -48,13 +48,11 @@ import {
 // PHASE 3: Refresh token handler
 import { handleRefresh } from "../_shared/buyer-auth-refresh-handler.ts";
 
-const corsHeaders = PUBLIC_CORS_HEADERS;
-
 serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  // CORS V2 - Dynamic origin validation for credentials: include
+  const corsResult = handleCorsV2(req);
+  if (corsResult instanceof Response) return corsResult;
+  const corsHeaders = corsResult.headers;
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
