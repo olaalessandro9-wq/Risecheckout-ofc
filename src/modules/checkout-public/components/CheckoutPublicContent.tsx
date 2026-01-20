@@ -24,7 +24,7 @@ import { useAffiliateTracking } from "@/hooks/useAffiliateTracking";
 import { useCheckoutProductPixels } from "@/hooks/checkout/useCheckoutProductPixels";
 import { useVisitTracker } from "@/hooks/checkout/useVisitTracker";
 import { usePaymentOrchestrator } from "@/hooks/checkout/payment/usePaymentOrchestrator";
-import { getSubmitSnapshot, requiredFieldsToArray, parseRequiredFields } from "@/features/checkout/personal-data";
+import { getSubmitSnapshot, parseRequiredFields } from "@/features/checkout/personal-data";
 import * as UTMify from "@/integrations/tracking/utmify";
 import type { OrderBump } from "@/types/checkout";
 import type { UseCheckoutPublicMachineReturn } from "../hooks";
@@ -51,7 +51,6 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     updateMultipleFields,
     toggleBump,
     setPaymentMethod,
-    notifyPaymentSuccess,
     notifyPaymentError,
   } = machine;
 
@@ -82,11 +81,13 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
   const { data: utmifyConfig } = UTMify.useUTMifyConfig(vendorId);
 
   // Form setup
-  const requiredFieldsConfig = parseRequiredFields(product.required_fields);
-  const requiredFieldsArray = requiredFieldsToArray(requiredFieldsConfig);
+  parseRequiredFields(product.required_fields);
 
   // Coupon state for form manager compatibility
   const [localAppliedCoupon, setLocalAppliedCoupon] = React.useState<typeof appliedCoupon>(appliedCoupon);
+
+  // Convert selectedBumps array to Set for compatibility with legacy components
+  const selectedBumpsSet = React.useMemo(() => new Set(selectedBumps), [selectedBumps]);
 
   // Calculate total price
   const calculateTotal = React.useCallback(() => {
@@ -112,12 +113,12 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     return total;
   }, [product.price, selectedBumps, orderBumps, localAppliedCoupon]);
 
-  // Convert selectedBumps array to Set for compatibility
-  const selectedBumpsSet = React.useMemo(() => new Set(selectedBumps), [selectedBumps]);
-  
-  // Form data with document field for compatibility
+  // Form data with document field for compatibility with legacy components
   const formDataWithDocument = React.useMemo(() => ({
-    ...formData,
+    name: formData.name,
+    email: formData.email,
+    phone: formData.phone,
+    cpf: formData.cpf,
     document: formData.cpf || formData.document || '',
   }), [formData]);
 
@@ -151,7 +152,7 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     setSelectedPayment(method);
   }, [setPaymentMethod, setSelectedPayment]);
 
-  const handleTotalChange = React.useCallback((total: number, coupon: typeof localAppliedCoupon) => {
+  const handleTotalChange = React.useCallback((_total: number, coupon: typeof localAppliedCoupon) => {
     setLocalAppliedCoupon(coupon);
   }, []);
 
@@ -189,7 +190,7 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
       log.error("Erro:", error);
       notifyPaymentError(String(error));
     }
-  }, [formData, updateMultipleFields, fireInitiateCheckout, selectedBumps, orderBumps, selectedPaymentMethod, submitPayment, notifyPaymentSuccess, notifyPaymentError]);
+  }, [formData, updateMultipleFields, fireInitiateCheckout, selectedBumpsSet, orderBumps, selectedPaymentMethod, submitPayment, notifyPaymentError]);
 
   const handleCardSubmit = React.useCallback(async (token: string, installments: number, paymentMethodId: string, issuerId: string, holderDocument?: string) => {
     const snapshot = getSubmitSnapshot(null, formData);
