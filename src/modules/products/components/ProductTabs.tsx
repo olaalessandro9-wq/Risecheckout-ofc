@@ -7,6 +7,7 @@
  * Estendido para suportar:
  * - Indicadores visuais de erro por aba
  * - Navegação controlada via Context
+ * - Barra de ações (Excluir/Salvar) no final de cada aba
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - Sistema de Validação Global
  */
@@ -21,6 +22,7 @@ import { CheckoutTab } from "../tabs/CheckoutTab";
 import { CuponsTab } from "../tabs/CuponsTab";
 import { LinksTab } from "../tabs/LinksTab";
 import { MembersAreaTab } from "../tabs/MembersAreaTab";
+import { ProductTabFooter } from "./ProductTabFooter";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useProductContext } from "../context/ProductContext";
 import { Loader2, AlertCircle } from "lucide-react";
@@ -35,6 +37,30 @@ function TabLoader() {
     <div className="flex items-center justify-center py-12">
       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
     </div>
+  );
+}
+
+// ============================================================================
+// TAB CONTENT WITH FOOTER - Wrapper que adiciona a barra de ações
+// ============================================================================
+
+interface TabContentWithFooterProps {
+  value: string;
+  children: React.ReactNode;
+}
+
+/**
+ * Wrapper que envolve o conteúdo de cada aba e adiciona
+ * automaticamente a barra de ações (ProductTabFooter) no final.
+ * 
+ * Isso garante consistência e evita repetição de código.
+ */
+function TabContentWithFooter({ value, children }: TabContentWithFooterProps) {
+  return (
+    <TabsContent value={value} className="space-y-6">
+      {children}
+      <ProductTabFooter />
+    </TabsContent>
   );
 }
 
@@ -123,54 +149,54 @@ export function ProductTabs() {
         </TabTriggerWithError>
       </TabsList>
       
-      {/* ABA GERAL - Renderiza apenas quando ativa */}
-      <TabsContent value="geral" className="space-y-6">
+      {/* ABA GERAL */}
+      <TabContentWithFooter value="geral">
         <GeneralTab />
-      </TabsContent>
+      </TabContentWithFooter>
       
-      {/* ABA CONFIGURAÇÕES - Renderiza apenas quando ativa */}
-      <TabsContent value="configuracoes" className="space-y-6">
+      {/* ABA CONFIGURAÇÕES */}
+      <TabContentWithFooter value="configuracoes">
         <ConfiguracoesTab />
-      </TabsContent>
+      </TabContentWithFooter>
       
-      {/* ABA ORDER BUMP - Renderiza apenas quando ativa */}
-      <TabsContent value="order-bump" className="space-y-6">
+      {/* ABA ORDER BUMP */}
+      <TabContentWithFooter value="order-bump">
         <OrderBumpTab />
-      </TabsContent>
+      </TabContentWithFooter>
       
-      {/* ABA UPSELL/DOWNSELL - Renderiza apenas quando ativa */}
-      <TabsContent value="upsell" className="space-y-6">
+      {/* ABA UPSELL/DOWNSELL */}
+      <TabContentWithFooter value="upsell">
         <UpsellTab />
-      </TabsContent>
+      </TabContentWithFooter>
       
-      {/* ABA CHECKOUT - Renderiza apenas quando ativa */}
-      <TabsContent value="checkout" className="space-y-6">
+      {/* ABA CHECKOUT */}
+      <TabContentWithFooter value="checkout">
         <CheckoutTab />
-      </TabsContent>
+      </TabContentWithFooter>
       
-      {/* ABA CUPONS - Renderiza apenas quando ativa */}
-      <TabsContent value="cupons" className="space-y-6">
+      {/* ABA CUPONS */}
+      <TabContentWithFooter value="cupons">
         <CuponsTab />
-      </TabsContent>
+      </TabContentWithFooter>
       
-      {/* ABA AFILIADOS - Renderiza apenas quando ativa (com lazy loading) */}
+      {/* ABA AFILIADOS (com lazy loading) */}
       {canHaveAffiliates && (
-        <TabsContent value="afiliados" className="space-y-6">
+        <TabContentWithFooter value="afiliados">
           <Suspense fallback={<TabLoader />}>
             <AffiliatesTab />
           </Suspense>
-        </TabsContent>
+        </TabContentWithFooter>
       )}
       
-      {/* ABA LINKS - Renderiza apenas quando ativa */}
-      <TabsContent value="links" className="space-y-6">
+      {/* ABA LINKS */}
+      <TabContentWithFooter value="links">
         <LinksTab />
-      </TabsContent>
+      </TabContentWithFooter>
 
-      {/* ABA ÁREA DE MEMBROS - Renderiza apenas quando ativa */}
-      <TabsContent value="membros" className="space-y-6">
+      {/* ABA ÁREA DE MEMBROS */}
+      <TabContentWithFooter value="membros">
         <MembersAreaTab />
-      </TabsContent>
+      </TabContentWithFooter>
     </Tabs>
   );
 }

@@ -8,13 +8,13 @@
  * - Sincronização automática entre abas
  * - Proteção contra navegação com alterações não salvas
  * - Suporte a sub-seções dedicadas (Área de Membros)
+ * - Barra de ações (Excluir/Salvar) no final de cada aba
  */
 
 import { useSearchParams } from "react-router-dom";
 import { ProductProvider, useProductContext } from "@/modules/products";
 import { ProductHeader } from "@/modules/products";
 import { ProductTabs } from "@/modules/products";
-import { ProductFooter } from "@/modules/products/components/ProductFooter";
 import { UnsavedChangesGuard } from "@/providers/UnsavedChangesGuard";
 import { MembersAreaLayout } from "@/modules/members-area";
 
@@ -41,16 +41,13 @@ function ProductEditInner() {
   // Layout padrão do produto
   return (
     <UnsavedChangesGuard isDirty={hasUnsavedChanges}>
-      <div className="max-w-7xl mx-auto w-full space-y-6 p-6 pb-20">
+      <div className="max-w-7xl mx-auto w-full space-y-6 p-6">
         {/* Cabeçalho com botões de ação */}
         <ProductHeader />
         
-        {/* Abas de edição */}
+        {/* Abas de edição (cada aba tem sua própria barra de ações no final) */}
         <ProductTabs />
       </div>
-      
-      {/* Footer fixo estilo Cakto - fora do container */}
-      <ProductFooter />
     </UnsavedChangesGuard>
   );
 }
