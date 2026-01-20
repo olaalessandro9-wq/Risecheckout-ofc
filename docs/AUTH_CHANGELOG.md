@@ -199,7 +199,7 @@ Migração completa do armazenamento de tokens para **cookies httpOnly**, elimin
 |---------|---------|
 | `_shared/cookie-helper.ts` | ✅ Criado - Helpers para cookies seguros |
 | `_shared/session-reader.ts` | ✅ Criado - Leitura híbrida (cookie/header) |
-| `_shared/cors.ts` | ✅ Adicionado `Access-Control-Allow-Credentials` |
+| `_shared/cors-v2.ts` | ✅ CORS com credentials (migrado de cors.ts em 2026-01-20) |
 | `_shared/producer-auth-handlers.ts` | ✅ Set-Cookie no login |
 | `_shared/buyer-auth-handlers.ts` | ✅ Set-Cookie no login/logout |
 | `_shared/producer-auth-refresh-handler.ts` | ✅ Lê/escreve cookies |

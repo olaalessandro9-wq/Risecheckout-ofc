@@ -79,7 +79,7 @@ Este documento registra a refatoração massiva das Edge Functions do RiseChecko
 Todos os `index.ts` agora seguem este padrão:
 
 ```typescript
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { jsonResponse, errorResponse } from "../_shared/edge-helpers.ts";
@@ -88,7 +88,7 @@ import * as handlers from "../_shared/[nome]-handlers.ts";
 serve(async (req: Request) => {
   // 1. CORS preflight
   if (req.method === "OPTIONS") {
-    return handleCors(req);
+    return handleCorsV2(req);
   }
 
   try {
