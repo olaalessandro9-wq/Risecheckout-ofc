@@ -72,7 +72,7 @@ export const initialContext: ProductFormContext = {
   loadError: null,
   lastLoadedAt: null,
   lastSavedAt: null,
-  activeTab: "general",
+  activeTab: "geral",
   tabErrors: {},
   isCheckoutSettingsInitialized: false,
 };
