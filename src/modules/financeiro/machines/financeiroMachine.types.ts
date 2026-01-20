@@ -23,6 +23,9 @@ export interface FinanceiroMachineContext {
   
   /** Timestamp do último refresh */
   readonly lastRefreshAt: number | null;
+  
+  /** Flag para indicar refresh em background (sem bloquear UI) */
+  readonly isBackgroundRefreshing: boolean;
 }
 
 // ============================================================================
@@ -32,6 +35,7 @@ export interface FinanceiroMachineContext {
 export type FinanceiroMachineEvent =
   | { type: "LOAD" }
   | { type: "REFRESH" }
+  | { type: "BACKGROUND_REFRESH" }
   | { type: "RETRY" }
   | { type: "SELECT_GATEWAY"; gatewayId: GatewayId }
   | { type: "DESELECT_GATEWAY" }
@@ -67,4 +71,5 @@ export const initialFinanceiroContext: FinanceiroMachineContext = {
   selectedGateway: null,
   loadError: null,
   lastRefreshAt: null,
+  isBackgroundRefreshing: false,
 };

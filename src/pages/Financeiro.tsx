@@ -31,6 +31,7 @@ function FinanceiroContent() {
     send,
   } = useFinanceiroContext();
 
+  // Só mostra loading fullscreen no carregamento inicial, não no background refresh
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-12">
