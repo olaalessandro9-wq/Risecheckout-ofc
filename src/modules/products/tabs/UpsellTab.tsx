@@ -9,11 +9,9 @@
  */
 
 import { useCallback, useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Loader2 } from "lucide-react";
 import { useProductContext } from "../context/ProductContext";
 import { cn } from "@/lib/utils";
 
@@ -22,9 +20,6 @@ export function UpsellTab() {
     product,
     formState,
     dispatchForm,
-    saving,
-    saveAll,
-    hasUnsavedChanges
   } = useProductContext();
 
   // Estado vem do state machine
@@ -119,18 +114,6 @@ export function UpsellTab() {
             )}
           </div>
         </div>
-      </div>
-
-      <div className="flex justify-between items-center pt-6 border-t border-border">
-        <div />
-        <Button 
-          onClick={saveAll}
-          disabled={saving || !hasUnsavedChanges}
-          className="bg-primary hover:bg-primary/90"
-        >
-          {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-          {saving ? "Salvando..." : "Salvar Produto"}
-        </Button>
       </div>
     </div>
   );

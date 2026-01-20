@@ -9,7 +9,6 @@
  * @see RISE ARCHITECT PROTOCOL V3 - Modularização
  */
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Loader2 } from "lucide-react";
@@ -39,7 +38,7 @@ export function AffiliatesTab() {
     handleGatewaySettingsChange,
   } = useAffiliatesTab();
   
-  const { saveAll, saving, hasUnsavedChanges } = useProductContext();
+  const { saving } = useProductContext();
 
   // Loading state
   if (!product?.id) {
@@ -113,18 +112,6 @@ export function AffiliatesTab() {
               />
             </>
           )}
-
-          {/* Save Button */}
-          <div className="flex justify-end pt-4 border-t">
-            <Button 
-              onClick={saveAll}
-              disabled={saving || !hasUnsavedChanges}
-              className="bg-primary hover:bg-primary/90"
-            >
-              {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {saving ? "Salvando..." : "Salvar Produto"}
-            </Button>
-          </div>
 
         </CardContent>
       </Card>

@@ -117,11 +117,13 @@ export function validateUpsellSettings(data: UpsellSettings): ValidationResult {
 
 export function validateAffiliateSettings(data: AffiliateSettings | null): ValidationResult {
   const errors: FormValidationErrors["affiliate"] = {};
-  let isValid = true;
 
-  if (!data) {
+  // ✅ RISE V3 Fix: Se não há dados OU o programa está desativado, não há nada para validar
+  if (!data || !data.enabled) {
     return { isValid: true, errors: {} };
   }
+  
+  let isValid = true;
 
   // Comissão padrão (1-90%)
   if (data.defaultRate < 1 || data.defaultRate > 90) {

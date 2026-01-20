@@ -14,6 +14,7 @@ import { useSearchParams } from "react-router-dom";
 import { ProductProvider, useProductContext } from "@/modules/products";
 import { ProductHeader } from "@/modules/products";
 import { ProductTabs } from "@/modules/products";
+import { ProductFooter } from "@/modules/products/components/ProductFooter";
 import { UnsavedChangesGuard } from "@/providers/UnsavedChangesGuard";
 import { MembersAreaLayout } from "@/modules/members-area";
 
@@ -40,12 +41,17 @@ function ProductEditInner() {
   // Layout padrão do produto
   return (
     <UnsavedChangesGuard isDirty={hasUnsavedChanges}>
-      <div className="max-w-7xl mx-auto space-y-6 p-6">
-        {/* Cabeçalho com botões de ação */}
-        <ProductHeader />
+      <div className="flex flex-col min-h-[calc(100vh-4rem)]">
+        <div className="flex-1 max-w-7xl mx-auto w-full space-y-6 p-6 pb-24">
+          {/* Cabeçalho com botões de ação */}
+          <ProductHeader />
+          
+          {/* Abas de edição */}
+          <ProductTabs />
+        </div>
         
-        {/* Abas de edição */}
-        <ProductTabs />
+        {/* Footer fixo estilo Cakto */}
+        <ProductFooter />
       </div>
     </UnsavedChangesGuard>
   );
