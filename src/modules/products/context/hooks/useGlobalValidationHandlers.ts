@@ -9,7 +9,7 @@
 
 import { useEffect, useRef } from "react";
 import type { RegisterSaveHandler } from "../../types/saveRegistry.types";
-import type { GeneralFormData, CheckoutSettingsFormData } from "../../types/productForm.types";
+import type { GeneralFormData, CheckoutSettingsFormData, GatewayCredentials } from "../../types/productForm.types";
 import type { UpsellSettings, AffiliateSettings, ProductData, Offer } from "../../types/product.types";
 import {
   uploadProductImage,
@@ -24,7 +24,7 @@ import {
   createUpsellValidation,
   createAffiliateValidation,
 } from "../helpers/validationHandlerConfigs";
-import type { ProductFormAction } from "../../types/formActions.types";
+import type { ProductFormEvent } from "../../machines/productFormMachine.types";
 
 // ============================================================================
 // TYPES
@@ -50,7 +50,7 @@ interface UseGlobalValidationHandlersOptions {
   // Checkout Settings
   checkoutSettingsForm: CheckoutSettingsFormData;
   isCheckoutSettingsInitialized: boolean;
-  formDispatch: React.Dispatch<ProductFormAction>;
+  formDispatch: (event: ProductFormEvent) => void;
   // Upsell
   upsellSettings: UpsellSettings;
   saveUpsellSettings: (settings: UpsellSettings) => Promise<void>;
@@ -197,10 +197,11 @@ export function useGlobalValidationHandlers(options: UseGlobalValidationHandlers
             checkoutSettings: currentSettings,
           });
           
-          // Disparar action para atualizar serverData e limpar dirty flag
+          // Re-inicializar checkout settings para atualizar serverData e limpar dirty flag
           formDispatch({
-            type: 'MARK_CHECKOUT_SETTINGS_SAVED',
-            payload: { settings: currentSettings }
+            type: 'INIT_CHECKOUT_SETTINGS',
+            settings: currentSettings,
+            credentials: {} as GatewayCredentials, // Credentials já estão configurados, mantemos o padrão
           });
         },
         {

@@ -155,7 +155,7 @@ export function useAffiliatesTab() {
         throw new Error(result?.error || gatewayError?.message || "Erro ao salvar gateway settings");
       }
 
-      await saveAffiliateSettings(localSettings);
+      await saveAffiliateSettings();
       
       setGatewaySnapshot(JSON.stringify(gatewaySettings));
       

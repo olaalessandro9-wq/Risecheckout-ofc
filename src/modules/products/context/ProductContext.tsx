@@ -248,26 +248,25 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
   // === Save Handlers ===
   const saveAll = useCallback(async () => {
     // Execute registry saves first
-    const results = await executeRegistrySaves();
+    const result = await executeRegistrySaves();
     
-    // Check for tab errors
-    const tabErrors: TabValidationMap = {};
-    let hasErrors = false;
-    
-    for (const result of results) {
-      if (!result.success && result.tabId && result.errors) {
-        tabErrors[result.tabId] = result.errors;
-        hasErrors = true;
+    // Check for errors
+    if (!result.success) {
+      // Set tab errors from registry result
+      if (result.tabErrors) {
+        send({ type: "SET_TAB_ERRORS", errors: result.tabErrors });
       }
-    }
-    
-    if (hasErrors) {
-      send({ type: "SET_TAB_ERRORS", errors: tabErrors });
+      
+      // Navigate to first failed tab if available
+      if (result.firstFailedTabKey) {
+        send({ type: "SET_TAB", tab: result.firstFailedTabKey });
+      }
+      
       return;
     }
     
-    // Trigger machine save
-    send({ type: "SAVE_ALL" });
+    // Trigger machine save success
+    send({ type: "SAVE_SUCCESS" });
   }, [send, executeRegistrySaves]);
   
   const refreshAll = useCallback(async () => {
