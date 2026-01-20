@@ -1,5 +1,10 @@
 # Documentação de Segurança: Webhook do Mercado Pago
 
+> **📅 DOCUMENTO HISTÓRICO**  
+> Este documento foi criado em Dezembro de 2025.  
+> A validação HMAC documentada aqui está ativa em produção.  
+> Para o registry atual de Edge Functions, consulte `docs/EDGE_FUNCTIONS_REGISTRY.md`.
+
 **Autor:** Manus AI  
 **Data:** 12 de Dezembro de 2025  
 **Versão da Função:** 144+  

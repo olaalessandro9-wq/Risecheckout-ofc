@@ -1,6 +1,11 @@
 # Relatório Técnico Final: Webhooks do PushinPay
 
-**Data:** 17 de Dezembro de 2025
+> **📅 DOCUMENTO HISTÓRICO**  
+> Este relatório foi criado em Dezembro de 2025.  
+> Os webhooks do PushinPay estão implementados e funcionando.  
+> Para o registry atual, consulte `docs/EDGE_FUNCTIONS_REGISTRY.md`.
+
+**Data:** 17 de Dezembro de 2025  
 **Autor:** Manus AI
 
 ## 1. Resumo Executivo

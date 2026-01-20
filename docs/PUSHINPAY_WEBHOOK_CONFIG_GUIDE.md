@@ -1,5 +1,10 @@
 # Guia de Configuração: Webhook do PushinPay
 
+> **📅 DOCUMENTO HISTÓRICO**  
+> Este guia foi criado em Dezembro de 2025.  
+> A configuração do webhook PushinPay está em produção.  
+> Para o registry de Edge Functions, consulte `docs/EDGE_FUNCTIONS_REGISTRY.md`.
+
 **Data:** 17 de Dezembro de 2025  
 **Status:** ✅ Edge Function Deployada e Ativa
 

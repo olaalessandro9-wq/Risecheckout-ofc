@@ -1,5 +1,10 @@
 # 📧 Integração ZeptoMail - RiseCheckout
 
+> **📅 DOCUMENTO HISTÓRICO**  
+> Este documento foi criado em Dezembro de 2025.  
+> A integração ZeptoMail está ativa. Verifique os secrets antes de usar.  
+> Para o registry de Edge Functions, consulte `docs/EDGE_FUNCTIONS_REGISTRY.md`.
+
 **Data:** 25 de Dezembro de 2025  
 **Status:** ✅ Implementado
 

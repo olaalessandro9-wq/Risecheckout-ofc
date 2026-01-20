@@ -1,5 +1,10 @@
 # Relatório de Implementações: Prioridades 1 e 2
 
+> **📅 DOCUMENTO HISTÓRICO**  
+> Este relatório foi criado em Dezembro de 2025.  
+> As implementações listadas foram aplicadas e estão em produção.  
+> Para a arquitetura atual, consulte `docs/ARCHITECTURE.md`.
+
 **Data:** 17 de Dezembro de 2025  
 **Autor:** Manus AI  
 **Status:** ✅ Concluído

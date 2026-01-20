@@ -48,6 +48,11 @@ src/lib/token-manager/
 | `service.ts` | Orquestração e API pública | ~210 |
 | `index.ts` | Re-exports e instâncias singleton | ~57 |
 
+> **⚠️ NOTA IMPORTANTE (2026-01-20):**  
+> O `persistence.ts` gerencia apenas **metadados de estado da FSM** (ex: `lastRefresh`, `expiresAt`), **não os tokens em si**.  
+> Os tokens de sessão são armazenados em **cookies httpOnly** (`__Host-producer_access` / `__Host-buyer_access`),  
+> inacessíveis via JavaScript, protegendo contra XSS. O browser envia os cookies automaticamente em cada requisição.
+
 ---
 
 ## 3. Diagrama da FSM

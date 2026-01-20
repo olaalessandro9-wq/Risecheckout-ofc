@@ -1,5 +1,10 @@
 # Implementação Final: PushinPay Webhook
 
+> **📅 DOCUMENTO HISTÓRICO**  
+> Este documento foi criado em Dezembro de 2025.  
+> A Edge Function documentada aqui está em produção.  
+> Para o registry atual de Edge Functions, consulte `docs/EDGE_FUNCTIONS_REGISTRY.md`.
+
 **Data:** 17 de Dezembro de 2025  
 **Autor:** Manus AI  
 **Status:** ✅ Implementado e Pronto para Deploy

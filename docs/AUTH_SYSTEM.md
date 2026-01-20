@@ -622,13 +622,6 @@ const {
 } = useBuyerSession();
 ```
 
-### Armazenamento de Tokens
-
-| Domínio | localStorage Key |
-|---------|------------------|
-| Producer | `producer_session_token` |
-| Buyer | `buyer_session_token` |
-
 ---
 
 ## 🎯 Decisões Arquiteturais
