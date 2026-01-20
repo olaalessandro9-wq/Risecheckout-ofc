@@ -1,19 +1,25 @@
-import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { Loader2, AlertCircle } from "lucide-react";
-import { useAffiliationDetails } from "@/hooks/useAffiliationDetails";
+import { AffiliationProvider, useAffiliationContext } from "@/modules/affiliation";
 import { AffiliationHeader } from "@/components/affiliation/AffiliationHeader";
-import { AffiliationSidebar, AffiliationTab } from "@/components/affiliation/AffiliationSidebar";
+import { AffiliationSidebar } from "@/components/affiliation/AffiliationSidebar";
 import { OffersTab } from "@/components/affiliation/tabs/OffersTab";
 import { GatewaysTab } from "@/components/affiliation/tabs/GatewaysTab";
 import { PixelsTab } from "@/components/affiliation/tabs/pixels";
 import { DetailsTab } from "@/components/affiliation/tabs/DetailsTab";
 import { OtherProductsTab } from "@/components/affiliation/tabs/OtherProductsTab";
 
-export default function AffiliationDetails() {
-  const { affiliationId } = useParams<{ affiliationId: string }>();
-  const { affiliation, otherProducts, isLoading, error, refetch } = useAffiliationDetails(affiliationId);
-  const [activeTab, setActiveTab] = useState<AffiliationTab>("offers");
+function AffiliationDetailsContent() {
+  const { 
+    activeTab, 
+    setActiveTab, 
+    affiliation, 
+    otherProducts, 
+    isLoading, 
+    error,
+    refetch,
+    tabErrors,
+  } = useAffiliationContext();
 
   if (isLoading) {
     return (
@@ -75,6 +81,7 @@ export default function AffiliationDetails() {
           activeTab={activeTab}
           onTabChange={setActiveTab}
           hasOtherProducts={otherProducts.length > 0}
+          tabErrors={tabErrors}
         />
 
         {/* Conteúdo da Tab */}
@@ -83,5 +90,15 @@ export default function AffiliationDetails() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AffiliationDetails() {
+  const { affiliationId } = useParams<{ affiliationId: string }>();
+
+  return (
+    <AffiliationProvider affiliationId={affiliationId}>
+      <AffiliationDetailsContent />
+    </AffiliationProvider>
   );
 }

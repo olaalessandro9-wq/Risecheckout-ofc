@@ -1,26 +1,26 @@
 /**
  * Members Area Builder - State Management Hook
  * 
- * Responsible for:
- * - useReducer as Single Source of Truth
- * - State refs for comparison during save
+ * Uses XState State Machine as Single Source of Truth.
  * 
- * REFACTORED: Uses useReducer instead of useState
- * 
- * @see RISE ARCHITECT PROTOCOL V3 - State Management via Reducer
+ * @see RISE ARCHITECT PROTOCOL V3 - Solution 10.0/10
  */
 
-import { useReducer, useRef } from 'react';
+import { useEffect, useCallback } from 'react';
+import { useMachine } from '@xstate/react';
+import { toast } from 'sonner';
+import { builderMachine, type BuilderMachineContext } from '../machines';
 import type { 
   Section,
+  SectionType,
+  SectionSettings,
   MembersAreaBuilderSettings,
+  ViewMode,
+  MemberModule,
+  BuilderState,
+  BuilderActions,
 } from '../types/builder.types';
-import { DEFAULT_BUILDER_SETTINGS } from '../types/builder.types';
-import { 
-  builderReducer, 
-  INITIAL_BUILDER_STATE,
-  type BuilderAction,
-} from '../state/builderReducer';
+import { createDefaultSection } from './useMembersAreaSections';
 
 /** Valid section types for type guard */
 export const VALID_SECTION_TYPES = ['banner', 'modules', 'courses', 'continue_watching', 'text', 'spacer'] as const;
@@ -30,19 +30,6 @@ export function isSectionType(type: string): type is typeof VALID_SECTION_TYPES[
   return VALID_SECTION_TYPES.includes(type as typeof VALID_SECTION_TYPES[number]);
 }
 
-/** Raw section row from database */
-export interface RawSectionRow {
-  id: string;
-  product_id: string;
-  type: string;
-  title: string | null;
-  position: number;
-  settings: Record<string, unknown> | null;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
 /** Check if ID is temporary (not yet in DB) */
 export function isTemporaryId(id: string): boolean {
   return id.startsWith('temp_');
@@ -50,27 +37,161 @@ export function isTemporaryId(id: string): boolean {
 
 /** Hook return type */
 export interface UseMembersAreaStateReturn {
-  state: ReturnType<typeof builderReducer>;
-  dispatch: React.Dispatch<BuilderAction>;
-  originalSectionsRef: React.MutableRefObject<Section[]>;
-  originalSettingsRef: React.MutableRefObject<MembersAreaBuilderSettings>;
+  state: BuilderState;
+  actions: BuilderActions;
 }
 
 /**
- * State management hook for Members Area Builder
- * Uses useReducer for Single Source of Truth
+ * State management hook using XState State Machine
  */
-export function useMembersAreaState(): UseMembersAreaStateReturn {
-  const [state, dispatch] = useReducer(builderReducer, INITIAL_BUILDER_STATE);
-  
-  // Store original sections from DB for comparison during save
-  const originalSectionsRef = useRef<Section[]>([]);
-  const originalSettingsRef = useRef<MembersAreaBuilderSettings>(DEFAULT_BUILDER_SETTINGS);
+export function useMembersAreaState(productId: string | undefined): UseMembersAreaStateReturn {
+  const [snapshot, send] = useMachine(builderMachine);
 
-  return {
-    state,
-    dispatch,
-    originalSectionsRef,
-    originalSettingsRef,
+  // Load data when productId changes
+  useEffect(() => {
+    if (productId) {
+      send({ type: 'LOAD', productId });
+    }
+  }, [productId, send]);
+
+  // Derive BuilderState from machine context
+  const context = snapshot.context;
+  const state: BuilderState = {
+    sections: context.sections,
+    settings: context.settings,
+    selectedSectionId: context.selectedSectionId,
+    selectedMenuItemId: context.selectedMenuItemId,
+    viewMode: context.viewMode,
+    isPreviewMode: context.isPreviewMode,
+    isMenuCollapsed: context.isMenuCollapsed,
+    isDirty: snapshot.matches({ ready: 'dirty' }),
+    isLoading: snapshot.matches('loading'),
+    isSaving: snapshot.matches('saving'),
+    modules: context.modules,
+    selectedModuleId: context.selectedModuleId,
+    isEditingModule: context.isEditingModule,
   };
+
+  // Create actions
+  const addSection = useCallback(async (type: SectionType, position?: number): Promise<Section | null> => {
+    if (!productId) return null;
+    const section = createDefaultSection(productId, type, position ?? state.sections.length);
+    send({ type: 'ADD_SECTION', section });
+    return section;
+  }, [productId, state.sections.length, send]);
+
+  const updateSection = useCallback(async (id: string, updates: Partial<Section>) => {
+    send({ type: 'UPDATE_SECTION', id, updates });
+  }, [send]);
+
+  const updateSectionSettings = useCallback(async (id: string, settings: Partial<SectionSettings>) => {
+    send({ type: 'UPDATE_SECTION_SETTINGS', id, settings });
+  }, [send]);
+
+  const deleteSection = useCallback(async (id: string) => {
+    send({ type: 'DELETE_SECTION', id });
+  }, [send]);
+
+  const reorderSections = useCallback(async (orderedIds: string[]) => {
+    send({ type: 'REORDER_SECTIONS', orderedIds });
+  }, [send]);
+
+  const duplicateSection = useCallback(async (id: string): Promise<Section | null> => {
+    const original = state.sections.find(s => s.id === id);
+    if (!original || !productId) return null;
+    
+    const duplicate: Section = {
+      ...original,
+      id: `temp_${crypto.randomUUID()}`,
+      position: original.position + 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    
+    send({ type: 'DUPLICATE_SECTION', original, duplicate });
+    return duplicate;
+  }, [state.sections, productId, send]);
+
+  const selectSection = useCallback((id: string | null) => {
+    send({ type: 'SELECT_SECTION', id });
+  }, [send]);
+
+  const selectMenuItem = useCallback((id: string | null) => {
+    send({ type: 'SELECT_MENU_ITEM', id });
+  }, [send]);
+
+  const setViewMode = useCallback((mode: ViewMode) => {
+    send({ type: 'SET_VIEW_MODE', mode });
+  }, [send]);
+
+  const togglePreviewMode = useCallback(() => {
+    send({ type: 'TOGGLE_PREVIEW_MODE' });
+  }, [send]);
+
+  const toggleMenuCollapse = useCallback(() => {
+    send({ type: 'TOGGLE_MENU_COLLAPSE' });
+  }, [send]);
+
+  const updateSettings = useCallback(async (settings: Partial<MembersAreaBuilderSettings>) => {
+    send({ type: 'UPDATE_SETTINGS', settings });
+  }, [send]);
+
+  const save = useCallback(async (): Promise<boolean> => {
+    send({ type: 'SAVE' });
+    return true; // The machine handles the async
+  }, [send]);
+
+  const load = useCallback(async () => {
+    if (productId) {
+      send({ type: 'LOAD', productId });
+    }
+  }, [productId, send]);
+
+  const discard = useCallback(() => {
+    send({ type: 'DISCARD_CHANGES' });
+    toast.info('Alterações descartadas');
+  }, [send]);
+
+  const loadModules = useCallback(async () => {
+    // Modules are loaded with LOAD event
+    if (productId) {
+      send({ type: 'REFRESH' });
+    }
+  }, [productId, send]);
+
+  const updateModule = useCallback(async (id: string, data: Partial<MemberModule>) => {
+    send({ type: 'UPDATE_MODULE', id, data });
+  }, [send]);
+
+  const selectModule = useCallback((id: string | null) => {
+    send({ type: 'SELECT_MODULE', id });
+  }, [send]);
+
+  const setEditingModule = useCallback((isEditing: boolean) => {
+    send({ type: 'SET_EDITING_MODULE', isEditing });
+  }, [send]);
+
+  const actions: BuilderActions = {
+    addSection,
+    updateSection,
+    updateSectionSettings,
+    deleteSection,
+    reorderSections,
+    duplicateSection,
+    selectSection,
+    selectMenuItem,
+    setViewMode,
+    togglePreviewMode,
+    toggleMenuCollapse,
+    updateSettings,
+    save,
+    load,
+    discard,
+    loadModules,
+    updateModule,
+    selectModule,
+    setEditingModule,
+  };
+
+  return { state, actions };
 }
