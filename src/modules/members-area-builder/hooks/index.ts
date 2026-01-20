@@ -1,7 +1,10 @@
 /**
  * Members Area Builder Hooks - Barrel Export
  * 
- * @see RISE ARCHITECT PROTOCOL V3
+ * Uses XState State Machine as Single Source of Truth.
+ * Legacy Reducer and hooks have been removed.
+ * 
+ * @see RISE ARCHITECT PROTOCOL V3 - Solution 10.0/10
  */
 
 export { useMembersAreaBuilder } from './useMembersAreaBuilder';
@@ -13,10 +16,6 @@ export {
   createDefaultSection,
 } from './useMembersAreaState';
 export type { RawSectionRow, UseMembersAreaStateReturn } from './useMembersAreaState';
-export { useMembersAreaSections } from './useMembersAreaSections';
-export { useMembersAreaPersistence } from './useMembersAreaPersistence';
-export { useMembersAreaView } from './useMembersAreaView';
-export { useMembersAreaModulesEdit } from './useMembersAreaModulesEdit';
 export { parseSections, parseSettings } from './useMembersAreaParsers';
 
 // State Machine exports (replaces Reducer)

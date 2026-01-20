@@ -16,10 +16,18 @@ import type {
   SaveBuilderOutput,
   SaveBuilderInput,
 } from "./builderMachine.types";
-import type { SectionSettings } from "../types/builder.types";
 import { DEFAULT_BUILDER_SETTINGS } from "../types/builder.types";
 import { loadBuilderActor, saveBuilderActor } from "./builderMachine.actors";
 import { canSave } from "./builderMachine.guards";
+import {
+  addSectionToList,
+  updateSectionInList,
+  updateSectionSettingsInList,
+  deleteSectionFromList,
+  reorderSectionsInList,
+  duplicateSectionInList,
+  getSelectedSectionAfterDelete,
+} from "./builderMachine.actions";
 
 // ============================================================================
 // INITIAL CONTEXT
@@ -107,121 +115,57 @@ export const builderMachine = setup({
     ready: {
       initial: "pristine",
       on: {
-        REFRESH: {
-          target: "loading",
-          actions: assign({ loadError: () => null }),
-        },
-        // View actions (don't affect dirty state)
-        SET_VIEW_MODE: {
-          actions: assign({ viewMode: ({ event }) => event.mode }),
-        },
-        TOGGLE_PREVIEW_MODE: {
-          actions: assign({ isPreviewMode: ({ context }) => !context.isPreviewMode }),
-        },
-        TOGGLE_MENU_COLLAPSE: {
-          actions: assign({ isMenuCollapsed: ({ context }) => !context.isMenuCollapsed }),
-        },
-        // Selection actions (don't affect dirty state)
-        SELECT_SECTION: {
-          actions: assign({ 
-            selectedSectionId: ({ event }) => event.id,
-            selectedMenuItemId: () => null,
-          }),
-        },
-        SELECT_MENU_ITEM: {
-          actions: assign({ 
-            selectedMenuItemId: ({ event }) => event.id,
-            selectedSectionId: () => null,
-          }),
-        },
-        // Module actions
-        SET_MODULES: {
-          actions: assign({ modules: ({ event }) => event.modules }),
-        },
-        SELECT_MODULE: {
-          actions: assign({ 
-            selectedModuleId: ({ event }) => event.id,
-            isEditingModule: ({ event }) => event.id !== null,
-          }),
-        },
-        SET_EDITING_MODULE: {
-          actions: assign({
-            isEditingModule: ({ event }) => event.isEditing,
-            selectedModuleId: ({ context, event }) => event.isEditing ? context.selectedModuleId : null,
-          }),
-        },
-        UPDATE_MODULE: {
-          actions: assign({
-            modules: ({ context, event }) => 
-              context.modules.map(m => m.id === event.id ? { ...m, ...event.data } : m),
-          }),
-        },
+        REFRESH: { target: "loading", actions: assign({ loadError: () => null }) },
+        SET_VIEW_MODE: { actions: assign({ viewMode: ({ event }) => event.mode }) },
+        TOGGLE_PREVIEW_MODE: { actions: assign({ isPreviewMode: ({ context }) => !context.isPreviewMode }) },
+        TOGGLE_MENU_COLLAPSE: { actions: assign({ isMenuCollapsed: ({ context }) => !context.isMenuCollapsed }) },
+        SELECT_SECTION: { actions: assign({ selectedSectionId: ({ event }) => event.id, selectedMenuItemId: () => null }) },
+        SELECT_MENU_ITEM: { actions: assign({ selectedMenuItemId: ({ event }) => event.id, selectedSectionId: () => null }) },
+        SET_MODULES: { actions: assign({ modules: ({ event }) => event.modules }) },
+        SELECT_MODULE: { actions: assign({ selectedModuleId: ({ event }) => event.id, isEditingModule: ({ event }) => event.id !== null }) },
+        SET_EDITING_MODULE: { actions: assign({ isEditingModule: ({ event }) => event.isEditing, selectedModuleId: ({ context, event }) => event.isEditing ? context.selectedModuleId : null }) },
+        UPDATE_MODULE: { actions: assign({ modules: ({ context, event }) => context.modules.map(m => m.id === event.id ? { ...m, ...event.data } : m) }) },
       },
 
       states: {
         pristine: {
           on: {
-            // Section mutations → dirty
             ADD_SECTION: {
               target: "dirty",
               actions: assign({
-                sections: ({ context, event }) => 
-                  [...context.sections, event.section].sort((a, b) => a.position - b.position),
+                sections: ({ context, event }) => addSectionToList(context.sections, event.section),
                 selectedSectionId: ({ event }) => event.section.id,
               }),
             },
             UPDATE_SECTION: {
               target: "dirty",
               actions: assign({
-                sections: ({ context, event }) =>
-                  context.sections.map(s =>
-                    s.id === event.id
-                      ? { ...s, ...event.updates, updated_at: new Date().toISOString() }
-                      : s
-                  ),
+                sections: ({ context, event }) => updateSectionInList(context.sections, event.id, event.updates),
               }),
             },
             UPDATE_SECTION_SETTINGS: {
               target: "dirty",
               actions: assign({
-                sections: ({ context, event }) =>
-                  context.sections.map(s => {
-                    if (s.id !== event.id) return s;
-                    const mergedSettings = { ...s.settings, ...event.settings } as SectionSettings;
-                    return { ...s, settings: mergedSettings, updated_at: new Date().toISOString() };
-                  }),
+                sections: ({ context, event }) => updateSectionSettingsInList(context.sections, event.id, event.settings),
               }),
             },
             DELETE_SECTION: {
               target: "dirty",
               actions: assign({
-                sections: ({ context, event }) => context.sections.filter(s => s.id !== event.id),
-                selectedSectionId: ({ context, event }) => 
-                  context.selectedSectionId === event.id ? null : context.selectedSectionId,
+                sections: ({ context, event }) => deleteSectionFromList(context.sections, event.id),
+                selectedSectionId: ({ context, event }) => getSelectedSectionAfterDelete(context.selectedSectionId, event.id),
               }),
             },
             REORDER_SECTIONS: {
               target: "dirty",
               actions: assign({
-                sections: ({ context, event }) => {
-                  const sectionMap = new Map(context.sections.map(s => [s.id, s]));
-                  return event.orderedIds.map((id, index) => ({
-                    ...sectionMap.get(id)!,
-                    position: index,
-                    updated_at: new Date().toISOString(),
-                  }));
-                },
+                sections: ({ context, event }) => reorderSectionsInList(context.sections, event.orderedIds),
               }),
             },
             DUPLICATE_SECTION: {
               target: "dirty",
               actions: assign({
-                sections: ({ context, event }) => {
-                  const updated = context.sections.map(s =>
-                    s.position > event.original.position ? { ...s, position: s.position + 1 } : s
-                  );
-                  return [...updated, event.duplicate].sort((a, b) => a.position - b.position);
-                },
+                sections: ({ context, event }) => duplicateSectionInList(context.sections, event.original, event.duplicate),
                 selectedSectionId: ({ event }) => event.duplicate.id,
               }),
             },
@@ -236,61 +180,36 @@ export const builderMachine = setup({
 
         dirty: {
           on: {
-            // Same mutations, stay dirty
             ADD_SECTION: {
               actions: assign({
-                sections: ({ context, event }) => 
-                  [...context.sections, event.section].sort((a, b) => a.position - b.position),
+                sections: ({ context, event }) => addSectionToList(context.sections, event.section),
                 selectedSectionId: ({ event }) => event.section.id,
               }),
             },
             UPDATE_SECTION: {
               actions: assign({
-                sections: ({ context, event }) =>
-                  context.sections.map(s =>
-                    s.id === event.id
-                      ? { ...s, ...event.updates, updated_at: new Date().toISOString() }
-                      : s
-                  ),
+                sections: ({ context, event }) => updateSectionInList(context.sections, event.id, event.updates),
               }),
             },
             UPDATE_SECTION_SETTINGS: {
               actions: assign({
-                sections: ({ context, event }) =>
-                  context.sections.map(s => {
-                    if (s.id !== event.id) return s;
-                    const mergedSettings = { ...s.settings, ...event.settings } as SectionSettings;
-                    return { ...s, settings: mergedSettings, updated_at: new Date().toISOString() };
-                  }),
+                sections: ({ context, event }) => updateSectionSettingsInList(context.sections, event.id, event.settings),
               }),
             },
             DELETE_SECTION: {
               actions: assign({
-                sections: ({ context, event }) => context.sections.filter(s => s.id !== event.id),
-                selectedSectionId: ({ context, event }) => 
-                  context.selectedSectionId === event.id ? null : context.selectedSectionId,
+                sections: ({ context, event }) => deleteSectionFromList(context.sections, event.id),
+                selectedSectionId: ({ context, event }) => getSelectedSectionAfterDelete(context.selectedSectionId, event.id),
               }),
             },
             REORDER_SECTIONS: {
               actions: assign({
-                sections: ({ context, event }) => {
-                  const sectionMap = new Map(context.sections.map(s => [s.id, s]));
-                  return event.orderedIds.map((id, index) => ({
-                    ...sectionMap.get(id)!,
-                    position: index,
-                    updated_at: new Date().toISOString(),
-                  }));
-                },
+                sections: ({ context, event }) => reorderSectionsInList(context.sections, event.orderedIds),
               }),
             },
             DUPLICATE_SECTION: {
               actions: assign({
-                sections: ({ context, event }) => {
-                  const updated = context.sections.map(s =>
-                    s.position > event.original.position ? { ...s, position: s.position + 1 } : s
-                  );
-                  return [...updated, event.duplicate].sort((a, b) => a.position - b.position);
-                },
+                sections: ({ context, event }) => duplicateSectionInList(context.sections, event.original, event.duplicate),
                 selectedSectionId: ({ event }) => event.duplicate.id,
               }),
             },
@@ -299,12 +218,7 @@ export const builderMachine = setup({
                 settings: ({ context, event }) => ({ ...context.settings, ...event.settings }),
               }),
             },
-            // Save
-            SAVE: {
-              target: "#builder.saving",
-              guard: "canSave",
-            },
-            // Discard
+            SAVE: { target: "#builder.saving", guard: "canSave" },
             DISCARD_CHANGES: {
               target: "pristine",
               actions: assign(({ context }) => ({
@@ -343,9 +257,7 @@ export const builderMachine = setup({
         },
         onError: {
           target: "ready.dirty",
-          actions: assign({
-            saveError: ({ event }) => String(event.error),
-          }),
+          actions: assign({ saveError: ({ event }) => String(event.error) }),
         },
       },
     },
