@@ -8,7 +8,7 @@
  * Usa DateRangeService para calcular ranges com São Paulo como base.
  */
 
-import { useMemo, useCallback } from "react";
+import { useMemo } from "react";
 import { useMachine } from "@xstate/react";
 import { dateRangeMachine } from "../machines/dateRangeMachine";
 import { dateRangeService, type DateRangeOutput } from "@/lib/date-range";
