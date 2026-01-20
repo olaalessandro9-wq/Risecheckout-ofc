@@ -17,11 +17,7 @@ import { useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { createLogger } from "@/lib/logger";
-import type { 
-  ProductData, 
-  UpsellSettings, 
-  AffiliateSettings 
-} from "../../types/product.types";
+import type { ProductData } from "../../types/product.types";
 
 const log = createLogger("ProductCore");
 
@@ -32,8 +28,6 @@ interface UseProductCoreOptions {
 
 interface UseProductCoreReturn {
   product: ProductData | null;
-  upsellSettings: UpsellSettings | null;
-  affiliateSettings: AffiliateSettings | null;
   setProduct: React.Dispatch<React.SetStateAction<ProductData | null>>;
   refreshProduct: () => Promise<void>;
   updateProduct: (field: keyof ProductData, value: ProductData[keyof ProductData]) => void;
@@ -46,114 +40,18 @@ export function useProductCore({
   productId,
   userId,
 }: UseProductCoreOptions): UseProductCoreReturn {
+  // Estado local apenas para product (settings vêm do React Query mapper)
   const [product, setProduct] = useState<ProductData | null>(null);
-  const [upsellSettings, setUpsellSettings] = useState<UpsellSettings | null>(null);
-  const [affiliateSettings, setAffiliateSettings] = useState<AffiliateSettings | null>(null);
 
   // ---------------------------------------------------------------------------
-  // REFRESH - Carregar via Edge Function + Extrair Settings
-  // MIGRADO: Uses api.call instead of supabase.functions.invoke
+  // REFRESH - REMOVIDO: React Query é o Single Source of Truth
+  // O useProductLoader já gerencia cache e re-fetch automaticamente
   // ---------------------------------------------------------------------------
 
   const refreshProduct = useCallback(async (): Promise<void> => {
-    if (!productId || !userId) return;
-
-    try {
-      const { data: response, error } = await api.call<{
-        product?: {
-          id: string;
-          name: string;
-          description: string;
-          price: number;
-          image_url: string | null;
-          support_name: string;
-          support_email: string;
-          status: string;
-          user_id: string;
-          created_at: string;
-          updated_at: string;
-          delivery_url: string | null;
-          external_delivery: boolean;
-          upsell_settings?: Record<string, unknown>;
-          affiliate_settings?: Record<string, unknown>;
-          show_in_marketplace?: boolean;
-          marketplace_description?: string;
-          marketplace_category?: string;
-        };
-        error?: string;
-      }>('products-crud', {
-        action: 'get',
-        productId,
-      });
-
-      if (error) throw error;
-      if (response?.error) throw new Error(response.error);
-      
-      const data = response?.product;
-      if (!data) throw new Error("Produto não encontrado");
-
-      // Atualizar produto
-      setProduct({
-        id: data.id,
-        name: data.name || "",
-        description: data.description || "",
-        price: data.price || 0,
-        image_url: data.image_url,
-        support_name: data.support_name || "",
-        support_email: data.support_email || "",
-        status: data.status as "active" | "blocked",
-        user_id: data.user_id,
-        created_at: data.created_at,
-        updated_at: data.updated_at,
-        delivery_url: data.delivery_url,
-        external_delivery: data.external_delivery ?? false,
-      });
-
-      // Extrair upsell_settings como estado (elimina race condition)
-      const upsell = (data.upsell_settings as {
-        hasCustomThankYouPage?: boolean;
-        customPageUrl?: string;
-        redirectIgnoringOrderBumpFailures?: boolean;
-      }) || {};
-      setUpsellSettings({
-        hasCustomThankYouPage: upsell.hasCustomThankYouPage || false,
-        customPageUrl: upsell.customPageUrl || "",
-        redirectIgnoringOrderBumpFailures: upsell.redirectIgnoringOrderBumpFailures || false,
-      });
-
-      // Extrair affiliate_settings como estado (elimina race condition)
-      const affiliate = (data.affiliate_settings as {
-        enabled?: boolean;
-        defaultRate?: number;
-        commission?: number;
-        requireApproval?: boolean;
-        commissionOnOrderBump?: boolean;
-        commissionOnUpsell?: boolean;
-        allowUpsells?: boolean;
-        supportEmail?: string;
-        publicDescription?: string;
-        attributionModel?: "last_click" | "first_click";
-        cookieDuration?: number;
-      }) || {};
-      setAffiliateSettings({
-        enabled: affiliate.enabled || false,
-        defaultRate: affiliate.defaultRate || affiliate.commission || 50,
-        requireApproval: affiliate.requireApproval || false,
-        commissionOnOrderBump: affiliate.commissionOnOrderBump ?? affiliate.allowUpsells ?? false,
-        commissionOnUpsell: affiliate.commissionOnUpsell ?? affiliate.allowUpsells ?? false,
-        supportEmail: affiliate.supportEmail || "",
-        publicDescription: affiliate.publicDescription || "",
-        attributionModel: affiliate.attributionModel || "last_click",
-        cookieDuration: affiliate.cookieDuration || 30,
-        showInMarketplace: data.show_in_marketplace || false,
-        marketplaceDescription: data.marketplace_description || "",
-        marketplaceCategory: data.marketplace_category || "",
-      });
-    } catch (error: unknown) {
-      log.error("Error loading product:", error);
-      toast.error("Erro ao carregar produto");
-    }
-  }, [productId, userId]);
+    // NO-OP: React Query invalidation handles this now
+    log.info("refreshProduct called - delegated to React Query invalidation");
+  }, []);
 
   // ---------------------------------------------------------------------------
   // UPDATE LOCAL - Sem salvar no banco
@@ -261,8 +159,6 @@ export function useProductCore({
 
   return {
     product,
-    upsellSettings,
-    affiliateSettings,
     setProduct,
     refreshProduct,
     updateProduct,
