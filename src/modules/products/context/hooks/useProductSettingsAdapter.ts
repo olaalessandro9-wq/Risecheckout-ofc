@@ -3,10 +3,10 @@
  * 
  * REFATORADO: Zero estado local (useState removidos)
  * Agora é um adapter puro que:
- * - Recebe dados do Reducer (Single Source of Truth)
+ * - Recebe dados da State Machine (Single Source of Truth)
  * - Executa saves via Edge Function
  * 
- * @see RISE ARCHITECT PROTOCOL V3 - Eliminação de duplicidade de estado
+ * @see RISE ARCHITECT PROTOCOL V3 - XState State Machine Edition
  */
 
 import { useCallback } from "react";

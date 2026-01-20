@@ -40,7 +40,7 @@ import type { TabValidationMap } from "../types/tabValidation.types";
 import { useSaveRegistry } from "./hooks/useSaveRegistry";
 import { useGlobalValidationHandlers } from "./hooks/useGlobalValidationHandlers";
 import { useProductSettings } from "./hooks/useProductSettingsAdapter";
-import { useProductCore } from "./hooks/useProductCore";
+import { useProductDelete } from "./hooks/useProductDelete";
 
 // Helpers
 import { validateGeneralForm } from "./productFormValidation";
@@ -164,8 +164,8 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
   // === Save Registry (para tabs que registram handlers) ===
   const { registerSaveHandler, executeAll: executeRegistrySaves } = useSaveRegistry();
   
-  // === Product Core (delete operation) ===
-  const { deleteProduct } = useProductCore({
+  // === Product Delete (delete operation) ===
+  const { deleteProduct } = useProductDelete({
     productId: productId ?? null,
     userId: user?.id,
   });

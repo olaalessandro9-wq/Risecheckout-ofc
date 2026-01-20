@@ -1,12 +1,8 @@
 /**
  * Helpers Index - Re-exporta todos os helpers
  * 
- * @see RISE ARCHITECT PROTOCOL V3 - Migração XState Completa
+ * @see RISE ARCHITECT PROTOCOL V3 - XState State Machine Edition
  */
-
-// Context value factory
-export { createContextValue } from "./createContextValue";
-export type { ContextValueDependencies } from "./createContextValue";
 
 // Data mappers
 export {

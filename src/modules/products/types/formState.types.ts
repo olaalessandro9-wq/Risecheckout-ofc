@@ -1,10 +1,10 @@
 /**
- * Tipos de Estado do Reducer
+ * Tipos de Estado da State Machine
  * 
  * Define o estado completo do sistema de Form State.
- * Parte do sistema centralizado de Form State.
+ * Parte do sistema XState State Machine.
  * 
- * @see RISE ARCHITECT PROTOCOL V3 - Modularização de Tipos
+ * @see RISE ARCHITECT PROTOCOL V3 - XState State Machine Edition
  */
 
 import type {
