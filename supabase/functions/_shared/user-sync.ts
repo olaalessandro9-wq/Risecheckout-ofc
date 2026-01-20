@@ -38,7 +38,10 @@ interface SyncResult {
 /**
  * Verifica se um email existe em auth.users
  * 
- * @param supabase - Cliente Supabase com acesso admin
+ * RISE Protocol V3 Compliant - Query direta via RPC function
+ * Performance O(1) - Não depende de paginação
+ * 
+ * @param supabase - Cliente Supabase com acesso service_role
  * @param email - Email a verificar
  * @returns Dados do usuário ou null se não existe
  */
@@ -46,29 +49,24 @@ export async function checkAuthUserExists(
   supabase: SupabaseClient,
   email: string
 ): Promise<AuthUserInfo | null> {
+  const normalizedEmail = email.toLowerCase().trim();
+
   try {
-    // Usar listUsers para buscar por email
-    const { data, error } = await supabase.auth.admin.listUsers({
-      perPage: 1,
-      // Supabase não suporta filtro direto, vamos buscar e filtrar
+    // Query direta via RPC function - Performance O(1)
+    const { data, error } = await supabase.rpc("get_auth_user_by_email", {
+      user_email: normalizedEmail,
     });
 
     if (error) {
-      log.error("Error listing auth users:", error.message);
+      log.error("Error querying auth user by email:", error.message);
       return null;
     }
 
-    if (!data?.users) {
-      return null;
-    }
-
-    // Buscar usuário pelo email (case-insensitive)
-    const normalizedEmail = email.toLowerCase().trim();
-    const user = data.users.find(
-      u => u.email?.toLowerCase().trim() === normalizedEmail
-    );
+    // RPC retorna array, pegar primeiro resultado
+    const user = Array.isArray(data) ? data[0] : data;
 
     if (user && user.email) {
+      log.debug(`Found user in auth.users: ${user.email}`);
       return {
         id: user.id,
         email: user.email,
@@ -76,10 +74,7 @@ export async function checkAuthUserExists(
       };
     }
 
-    // Se não encontrou na primeira página, pode haver mais usuários
-    // Em produção com muitos usuários, pode precisar paginação
-    // Por ora, assumimos que o usuário não existe
-    log.debug(`User not found in auth.users: ${email}`);
+    log.debug(`User not found in auth.users: ${normalizedEmail}`);
     return null;
   } catch (err) {
     log.error("Unexpected error checking auth user:", err);
