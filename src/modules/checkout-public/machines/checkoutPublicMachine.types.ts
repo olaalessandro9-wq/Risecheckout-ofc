@@ -27,7 +27,7 @@ export interface FormData {
   email: string;
   phone: string;
   cpf: string;
-  document: string;
+  document: string; // Alias for CPF, required by usePaymentOrchestrator
 }
 
 export interface FormErrors {
