@@ -122,43 +122,35 @@ export function useMercadoPagoConnection({
     }
   }, [userId, loadIntegration]);
 
-  // OAuth success/error listener - apenas UI feedback local
-  // O refresh de dados é gerenciado pelo FinanceiroContext (Single Source of Truth)
+  // NOTA: OAuth postMessage listener REMOVIDO - FinanceiroContext é Single Source of Truth
+  // O Context escuta postMessage e dispara BACKGROUND_REFRESH uma única vez
+  // Este hook apenas precisa reagir ao fechamento do popup como fallback
+
+  // Listener para erro de OAuth (apenas feedback de UI)
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      const messageType = event.data?.type;
-      const isSuccess = 
-        messageType === 'mercadopago_oauth_success' ||
-        messageType === 'mercadopago-connected' ||
-        messageType === 'oauth_success';
-      
-      if (isSuccess) {
-        // DEBOUNCE: evitar processar mensagens duplicadas
-        const now = Date.now();
-        const timeSinceLastProcessed = now - lastProcessedTimestamp.current;
-        
-        if (timeSinceLastProcessed < 5000 && lastProcessedTimestamp.current > 0) {
-          return;
-        }
-        
-        lastProcessedTimestamp.current = now;
-        setConnectingOAuth(false);
-        
-        // Atualiza estado local do hook
-        setTimeout(() => loadIntegration(), 800);
-        return;
-      }
-      
-      if (messageType === 'mercadopago_oauth_error') {
+      if (event.data?.type === 'mercadopago_oauth_error') {
         log.error('OAuth error:', event.data?.reason);
         setConnectingOAuth(false);
         toast.error('Erro ao conectar Mercado Pago. Tente novamente.');
+      }
+      
+      // Para sucesso, apenas atualizamos o timestamp para o debounce do popup.closed
+      const isSuccess = 
+        event.data?.type === 'mercadopago_oauth_success' ||
+        event.data?.type === 'mercadopago-connected' ||
+        event.data?.type === 'oauth_success';
+      
+      if (isSuccess) {
+        lastProcessedTimestamp.current = Date.now();
+        setConnectingOAuth(false);
+        // NÃO chamamos loadIntegration aqui - FinanceiroContext é responsável
       }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [loadIntegration]);
+  }, []);
 
   const handleConnectOAuth = useCallback(async () => {
     if (!userId) {
@@ -222,11 +214,12 @@ export function useMercadoPagoConnection({
           // CORREÇÃO: Só recarrega se NÃO processamos sucesso via postMessage recentemente
           // Isso evita a "piscada extra" ~3s depois da conexão
           const timeSinceLastSuccess = Date.now() - lastProcessedTimestamp.current;
-          if (timeSinceLastSuccess > 5000 || lastProcessedTimestamp.current === 0) {
+          // Debounce aumentado para 10s para evitar conflito com BACKGROUND_REFRESH do Context
+          if (timeSinceLastSuccess > 10000 || lastProcessedTimestamp.current === 0) {
             log.debug('Popup fechado sem sucesso detectado, recarregando...');
             setTimeout(() => loadIntegration(), 500);
           } else {
-            log.debug('Popup fechado, mas sucesso já processado via postMessage - ignorando reload');
+            log.debug('Popup fechado, mas sucesso já processado - ignorando reload');
           }
         } else if (popupCheckCount >= maxChecks) {
           clearInterval(checkPopup);

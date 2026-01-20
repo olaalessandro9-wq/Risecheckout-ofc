@@ -84,9 +84,9 @@ export function FinanceiroProvider({ children }: FinanceiroProviderProps) {
         messageType === "oauth_success";
 
       if (isOAuthSuccess && (state.matches("ready") || state.matches("backgroundRefreshing"))) {
-        // Delay para garantir que o backend processou
+        // Delay aumentado para garantir que o backend processou completamente
         // Usa BACKGROUND_REFRESH para não bloquear a UI com spinner
-        setTimeout(() => send({ type: "BACKGROUND_REFRESH" }), 800);
+        setTimeout(() => send({ type: "BACKGROUND_REFRESH" }), 1200);
       }
     };
 
