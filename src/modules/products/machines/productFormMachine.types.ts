@@ -1,169 +1,100 @@
 /**
  * ProductFormMachine Types
  * 
- * Tipos TypeScript para a State Machine XState do módulo de Produtos.
- * Define Context, Events e todos os sub-tipos necessários.
+ * Re-exporta e estende tipos existentes para a State Machine XState.
+ * 
+ * IMPORTANTE: Esta State Machine REUTILIZA os tipos do módulo Products
+ * para garantir compatibilidade com o código existente.
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - Solução 10.0/10
- * @module products/machines
+ * @module products/machines/types
  */
 
-import type { PaymentMethod } from "@/config/payment-gateways";
+// Re-export tipos existentes para manter compatibilidade
+export type {
+  ProductData as MachineProduct,
+  Offer as MachineOffer,
+  OrderBump as MachineOrderBump,
+  Checkout as MachineCheckout,
+  PaymentLink as MachinePaymentLink,
+  Coupon as MachineCoupon,
+  UpsellSettings,
+  AffiliateSettings,
+} from "../types/product.types";
+
+export type {
+  GeneralFormData,
+  ImageFormState,
+  OffersFormState,
+  CheckoutSettingsFormData,
+  GatewayCredentials,
+  GatewayCredentialStatus,
+  ServerDataSnapshot,
+  EditedFormData,
+} from "../types/formData.types";
+
+export type {
+  TabValidationMap,
+} from "../types/tabValidation.types";
+
+// Import para uso interno
+import type { 
+  ProductData, 
+  Offer, 
+  OrderBump, 
+  Checkout, 
+  PaymentLink, 
+  Coupon,
+  UpsellSettings,
+  AffiliateSettings 
+} from "../types/product.types";
+import type {
+  GeneralFormData,
+  ImageFormState,
+  OffersFormState,
+  CheckoutSettingsFormData,
+  GatewayCredentials,
+  ServerDataSnapshot,
+  EditedFormData,
+} from "../types/formData.types";
+import type { TabValidationMap } from "../types/tabValidation.types";
 
 // ============================================================================
-// BASIC FORM DATA TYPES
+// ENTITY TYPES (aliases para compatibilidade)
 // ============================================================================
 
-export interface GeneralFormData {
-  name: string;
-  description: string;
-  price: number;
-  support_name: string;
-  support_email: string;
-  delivery_url: string;
-  external_delivery: boolean;
-}
-
-export interface ImageFormState {
-  imageFile: File | null;
-  imageUrl: string;
-  pendingRemoval: boolean;
-}
-
-export interface OffersFormState {
-  localOffers: MachineOffer[];
-  deletedOfferIds: string[];
-  modified: boolean;
-}
-
-export interface CheckoutSettingsFormData {
-  required_fields: {
-    name: boolean;
-    email: boolean;
-    phone: boolean;
-    cpf: boolean;
-  };
-  default_payment_method: PaymentMethod;
-  pix_gateway: string;
-  credit_card_gateway: string;
-}
-
-export interface GatewayCredentialStatus {
-  configured: boolean;
-  viaSecrets?: boolean;
-}
-
-export interface GatewayCredentials {
-  mercadopago?: GatewayCredentialStatus;
-  pushinpay?: GatewayCredentialStatus;
-  stripe?: GatewayCredentialStatus;
-  asaas?: GatewayCredentialStatus;
-  [key: string]: GatewayCredentialStatus | undefined;
-}
+// Aliases mantidos para compatibilidade com código existente na state machine
+export type MachineProduct = ProductData;
+export type MachineOffer = Offer;
+export type MachineOrderBump = OrderBump;
+export type MachineCheckout = Checkout;
+export type MachineCoupon = Coupon;
+export type MachinePaymentLink = PaymentLink;
 
 // ============================================================================
-// SETTINGS TYPES
+// PRODUCT ENTITIES (Entidades relacionadas ao produto)
 // ============================================================================
 
-export interface UpsellSettings {
-  hasCustomThankYouPage: boolean;
-  customPageUrl: string;
-  redirectIgnoringOrderBumpFailures: boolean;
-}
-
-export interface AffiliateSettings {
-  enabled: boolean;
-  defaultRate: number;
-  requireApproval: boolean;
-  commissionOnOrderBump?: boolean;
-  commissionOnUpsell?: boolean;
-  supportEmail?: string;
-  publicDescription?: string;
-  attributionModel: "last_click" | "first_click";
-  cookieDuration: number;
-  showInMarketplace?: boolean;
-  marketplaceDescription?: string;
-  marketplaceCategory?: string;
+export interface ProductEntities {
+  orderBumps: OrderBump[];
+  checkouts: Checkout[];
+  paymentLinks: PaymentLink[];
+  coupons: Coupon[];
 }
 
 // ============================================================================
-// ENTITY TYPES (Read-only from BFF)
+// MAPPED DATA (Dados mapeados do BFF)
 // ============================================================================
 
-export interface MachineOffer {
-  id: string;
-  product_id: string;
-  name: string;
-  price: number;
-  is_default: boolean;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface MachineOrderBump {
-  id: string;
-  name: string;
-  description: string | null;
-  price: number;
-  image_url: string | null;
-  bump_product_id: string | null;
-  created_at?: string;
-}
-
-export interface MachineCheckout {
-  id: string;
-  name: string;
-  price: number;
-  visits: number;
-  offer: string;
-  isDefault: boolean;
-  linkId: string;
-  product_id?: string;
-  status?: string;
-  created_at?: string;
-}
-
-export interface MachineCoupon {
-  id: string;
-  code: string;
-  discount: number;
-  discount_type?: "percentage" | "fixed";
-  startDate: Date;
-  endDate: Date;
-  usageCount: number;
-  max_uses?: number | null;
-  applyToOrderBumps: boolean;
-  created_at?: string;
-  expires_at?: string;
-}
-
-export interface MachinePaymentLink {
-  id: string;
-  slug: string;
-  url: string;
-  offer_name: string;
-  offer_price: number;
-  is_default: boolean;
-  status: "active" | "inactive";
-  checkouts: Array<{ id: string; name: string }>;
-  created_at?: string;
-}
-
-export interface MachineProduct {
-  id?: string;
-  name: string;
-  description: string;
-  price: number;
-  image_url: string | null;
-  support_name: string;
-  support_email: string;
-  status: "active" | "blocked";
-  user_id?: string;
-  created_at?: string;
-  updated_at?: string;
-  delivery_url?: string | null;
-  external_delivery?: boolean;
-  members_area_enabled?: boolean;
+export interface MappedProductData {
+  product: ProductData;
+  offers: Offer[];
+  orderBumps: OrderBump[];
+  checkouts: Checkout[];
+  paymentLinks: PaymentLink[];
+  coupons: Coupon[];
+  upsellSettings: UpsellSettings;
+  affiliateSettings: AffiliateSettings | null;
 }
 
 // ============================================================================
@@ -171,174 +102,189 @@ export interface MachineProduct {
 // ============================================================================
 
 export interface ValidationErrors {
-  general: {
-    name?: string;
-    description?: string;
-    price?: string;
-    support_name?: string;
-    support_email?: string;
-    delivery_url?: string;
+  general?: Record<string, string>;
+  image?: Record<string, string>;
+  offers?: Record<string, string>;
+  checkout?: Record<string, string>;
+  [key: string]: Record<string, string> | undefined;
+}
+
+// ============================================================================
+// ACTOR INPUT TYPES
+// ============================================================================
+
+export interface LoadProductInput {
+  productId: string | null;
+  userId?: string;
+}
+
+export interface SaveAllInput {
+  productId: string | null;
+  userId?: string;
+  editedData: EditedFormData;
+  serverData: ServerDataSnapshot;
+}
+
+export interface SaveHandlerRegistry {
+  [handlerId: string]: () => Promise<{ success: boolean; errors?: string[] }>;
+}
+
+// ============================================================================
+// COMPUTED TYPES
+// ============================================================================
+
+export interface ComputedValues {
+  isDirty: boolean;
+  isValid: boolean;
+  canSave: boolean;
+  dirtyFlags: {
+    general: boolean;
+    image: boolean;
+    offers: boolean;
+    upsell: boolean;
+    affiliate: boolean;
+    checkoutSettings: boolean;
   };
-  upsell: {
-    customPageUrl?: string;
-  };
-  affiliate: {
-    defaultRate?: string;
-    cookieDuration?: string;
-    supportEmail?: string;
-    marketplaceDescription?: string;
-    marketplaceCategory?: string;
-  };
-  checkoutSettings: {
-    pix_gateway?: string;
-    credit_card_gateway?: string;
-  };
 }
 
 // ============================================================================
-// SERVER DATA SNAPSHOT (Immutable after load)
-// ============================================================================
-
-export interface ServerDataSnapshot {
-  product: MachineProduct | null;
-  general: GeneralFormData;
-  upsell: UpsellSettings;
-  affiliateSettings: AffiliateSettings | null;
-  offers: MachineOffer[];
-  checkoutSettings: CheckoutSettingsFormData;
-}
-
-// ============================================================================
-// EDITED DATA (Mutable via events)
-// ============================================================================
-
-export interface EditedFormData {
-  general: GeneralFormData;
-  image: ImageFormState;
-  offers: OffersFormState;
-  upsell: UpsellSettings;
-  affiliate: AffiliateSettings | null;
-  checkoutSettings: CheckoutSettingsFormData;
-}
-
-// ============================================================================
-// ENTITIES (Read-only, populated from BFF)
-// ============================================================================
-
-export interface ProductEntities {
-  orderBumps: MachineOrderBump[];
-  checkouts: MachineCheckout[];
-  paymentLinks: MachinePaymentLink[];
-  coupons: MachineCoupon[];
-}
-
-// ============================================================================
-// MAPPED DATA (Output from useProductDataMapper)
-// ============================================================================
-
-export interface MappedProductData {
-  product: MachineProduct;
-  upsellSettings: UpsellSettings;
-  affiliateSettings: AffiliateSettings | null;
-  offers: MachineOffer[];
-  orderBumps: MachineOrderBump[];
-  checkouts: MachineCheckout[];
-  paymentLinks: MachinePaymentLink[];
-  coupons: MachineCoupon[];
-}
-
-// ============================================================================
-// MACHINE CONTEXT (Internal state)
+// CONTEXT (Estado interno da máquina)
 // ============================================================================
 
 export interface ProductFormContext {
-  // Dados originais do servidor (imutáveis até novo load)
+  // IDs
+  productId: string | null;
+  userId: string | undefined;
+  
+  // Dados do servidor (imutáveis até novo load)
   serverData: ServerDataSnapshot;
   
   // Dados editados pelo usuário
   editedData: EditedFormData;
   
-  // Entidades relacionadas (read-only, vêm do BFF)
+  // Entidades relacionadas
   entities: ProductEntities;
   
-  // Credenciais de gateway (carregadas separadamente)
-  checkoutCredentials: GatewayCredentials;
-  
-  // Metadados
-  productId: string | null;
-  userId: string | undefined;
+  // Credentials
+  credentials: GatewayCredentials;
   
   // Erros
   validationErrors: ValidationErrors;
   saveError: string | null;
   loadError: string | null;
   
-  // Timestamps para controle
+  // Timestamps
   lastLoadedAt: number | null;
   lastSavedAt: number | null;
   
-  // Tab ativa (para UI)
+  // Tab state
   activeTab: string;
-  
-  // Tab errors (para validação global)
-  tabErrors: Record<string, string[]>;
-  
-  // Flag de checkout settings inicializadas
-  isCheckoutSettingsInitialized: boolean;
+  tabErrors: TabValidationMap;
 }
 
 // ============================================================================
-// EVENTS (User/System actions)
+// EVENTS (Ações que podem ocorrer)
 // ============================================================================
 
-// Lifecycle events
-export type LoadDataEvent = { type: "LOAD_DATA"; productId: string; userId?: string };
-export type ReceiveDataEvent = { type: "RECEIVE_DATA"; data: MappedProductData };
-export type LoadErrorEvent = { type: "LOAD_ERROR"; error: string };
+// Lifecycle Events
+export interface LoadDataEvent {
+  type: "LOAD_DATA";
+  productId: string;
+}
 
-// Edit events - General
-export type EditGeneralEvent = { type: "EDIT_GENERAL"; payload: Partial<GeneralFormData> };
+export interface ReceiveDataEvent {
+  type: "RECEIVE_DATA";
+  data: MappedProductData;
+}
 
-// Edit events - Image
-export type EditImageEvent = { type: "EDIT_IMAGE"; payload: Partial<ImageFormState> };
+export interface LoadErrorEvent {
+  type: "LOAD_ERROR";
+  error: string;
+}
 
-// Edit events - Offers
-export type EditOffersEvent = { type: "EDIT_OFFERS"; payload: Partial<OffersFormState> };
-export type AddDeletedOfferEvent = { type: "ADD_DELETED_OFFER"; offerId: string };
+// Edit Events
+export interface EditGeneralEvent {
+  type: "EDIT_GENERAL";
+  payload: Partial<GeneralFormData>;
+}
 
-// Edit events - Settings
-export type EditUpsellEvent = { type: "EDIT_UPSELL"; payload: Partial<UpsellSettings> };
-export type EditAffiliateEvent = { type: "EDIT_AFFILIATE"; payload: Partial<AffiliateSettings> };
-export type EditCheckoutSettingsEvent = { type: "EDIT_CHECKOUT_SETTINGS"; payload: Partial<CheckoutSettingsFormData> };
-export type InitCheckoutSettingsEvent = { type: "INIT_CHECKOUT_SETTINGS"; settings: CheckoutSettingsFormData; credentials: GatewayCredentials };
+export interface EditImageEvent {
+  type: "EDIT_IMAGE";
+  payload: Partial<ImageFormState>;
+}
 
-// Save events
-export type SaveAllEvent = { type: "SAVE_ALL" };
-export type SaveSuccessEvent = { type: "SAVE_SUCCESS" };
-export type SaveErrorEvent = { type: "SAVE_ERROR"; error: string };
+export interface EditOffersEvent {
+  type: "EDIT_OFFERS";
+  payload: Partial<OffersFormState>;
+}
 
-// Discard events
-export type DiscardChangesEvent = { type: "DISCARD_CHANGES" };
+export interface AddDeletedOfferEvent {
+  type: "ADD_DELETED_OFFER";
+  offerId: string;
+}
 
-// Refresh events
-export type RefreshEvent = { type: "REFRESH" };
+export interface EditUpsellEvent {
+  type: "EDIT_UPSELL";
+  payload: Partial<UpsellSettings>;
+}
 
-// Navigation events
-export type AttemptNavigationEvent = { type: "ATTEMPT_NAVIGATION"; to: string };
-export type ConfirmNavigationEvent = { type: "CONFIRM_NAVIGATION" };
-export type CancelNavigationEvent = { type: "CANCEL_NAVIGATION" };
+export interface EditAffiliateEvent {
+  type: "EDIT_AFFILIATE";
+  payload: Partial<AffiliateSettings>;
+}
 
-// Validation events
-export type ValidateEvent = { type: "VALIDATE" };
-export type SetValidationErrorEvent = { type: "SET_VALIDATION_ERROR"; section: keyof ValidationErrors; field: string; error: string };
-export type ClearValidationErrorsEvent = { type: "CLEAR_VALIDATION_ERRORS" };
+export interface EditCheckoutSettingsEvent {
+  type: "EDIT_CHECKOUT_SETTINGS";
+  payload: Partial<CheckoutSettingsFormData>;
+}
 
-// Tab events
-export type SetTabEvent = { type: "SET_TAB"; tab: string };
-export type SetTabErrorsEvent = { type: "SET_TAB_ERRORS"; errors: Record<string, string[]> };
-export type ClearTabErrorsEvent = { type: "CLEAR_TAB_ERRORS" };
+export interface InitCheckoutSettingsEvent {
+  type: "INIT_CHECKOUT_SETTINGS";
+  settings: CheckoutSettingsFormData;
+  credentials: GatewayCredentials;
+}
 
-// Union type of all events
+// Action Events
+export interface SaveAllEvent {
+  type: "SAVE_ALL";
+}
+
+export interface SaveSuccessEvent {
+  type: "SAVE_SUCCESS";
+}
+
+export interface SaveErrorEvent {
+  type: "SAVE_ERROR";
+  error: string;
+}
+
+export interface DiscardChangesEvent {
+  type: "DISCARD_CHANGES";
+}
+
+export interface RefreshEvent {
+  type: "REFRESH";
+}
+
+// Tab Events
+export interface SetTabEvent {
+  type: "SET_TAB";
+  tab: string;
+}
+
+export interface SetTabErrorsEvent {
+  type: "SET_TAB_ERRORS";
+  errors: TabValidationMap;
+}
+
+export interface ClearTabErrorsEvent {
+  type: "CLEAR_TAB_ERRORS";
+}
+
+// ============================================================================
+// UNION TYPE
+// ============================================================================
+
 export type ProductFormEvent =
   | LoadDataEvent
   | ReceiveDataEvent
@@ -356,48 +302,6 @@ export type ProductFormEvent =
   | SaveErrorEvent
   | DiscardChangesEvent
   | RefreshEvent
-  | AttemptNavigationEvent
-  | ConfirmNavigationEvent
-  | CancelNavigationEvent
-  | ValidateEvent
-  | SetValidationErrorEvent
-  | ClearValidationErrorsEvent
   | SetTabEvent
   | SetTabErrorsEvent
   | ClearTabErrorsEvent;
-
-// ============================================================================
-// ACTOR INPUT TYPES
-// ============================================================================
-
-export interface LoadProductInput {
-  productId: string | null;
-  userId: string | undefined;
-}
-
-export interface SaveAllInput {
-  context: ProductFormContext;
-  handlers: SaveHandlerRegistry;
-}
-
-export interface SaveHandlerRegistry {
-  executeAll: () => Promise<{ success: boolean; failedTabs: string[] }>;
-}
-
-// ============================================================================
-// COMPUTED VALUES (Derived from context)
-// ============================================================================
-
-export interface ComputedValues {
-  isDirty: boolean;
-  dirtyFlags: {
-    general: boolean;
-    image: boolean;
-    offers: boolean;
-    upsell: boolean;
-    affiliate: boolean;
-    checkoutSettings: boolean;
-  };
-  isValid: boolean;
-  canSave: boolean;
-}

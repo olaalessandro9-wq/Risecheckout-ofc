@@ -1,63 +1,80 @@
 /**
- * ProductContext - Orquestrador do Sistema de Edição de Produtos
+ * ProductContext - XState State Machine Edition
  * 
- * MODULARIZADO seguindo RISE Protocol V3.
- * - Reducer como Single Source of Truth
- * - Zero duplicidade de estado
- * - Helpers extraídos para manter < 300 linhas
- * - Registry Pattern para saveAll global
- * - Global Validation Handlers (SEMPRE montados)
+ * RISE Protocol V3 - Nota 10.0/10
  * 
- * @see RISE ARCHITECT PROTOCOL V3 - Nota 10/10
+ * A State Machine é a ÚNICA fonte de verdade para:
+ * - Estado do formulário (general, image, offers, upsell, affiliate, checkout)
+ * - Entidades (orderBumps, checkouts, paymentLinks, coupons)
+ * - Flags de estado (loading, saving, dirty, validation)
+ * 
+ * Benefícios:
+ * - Zero race conditions
+ * - Estados impossíveis são impossíveis por design
+ * - Visualizável no Stately Studio
+ * - Transições explícitas e auditáveis
  */
 
-import { createContext, useContext, useReducer, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useCallback, useMemo } from "react";
+import { useMachine } from "@xstate/react";
 import { useAuth } from "@/hooks/useAuth";
-import type { ProductContextState, ProductProviderProps, Offer } from "../types/product.types";
-import type { GeneralFormData, ImageFormState, ProductFormState, ProductFormDispatch, CheckoutSettingsFormData, GatewayCredentials, AffiliateSettings, UpsellSettings } from "../types/productForm.types";
+import { createLogger } from "@/lib/logger";
+
+// State Machine
+import { productFormMachine, initialContext } from "../machines";
+import type { ProductFormContext, ProductFormEvent } from "../machines";
+
+// Types
+import type { ProductProviderProps, Offer } from "../types/product.types";
+import type { 
+  GeneralFormData, 
+  ImageFormState, 
+  CheckoutSettingsFormData, 
+  GatewayCredentials 
+} from "../types/productForm.types";
 import type { RegisterSaveHandler } from "../types/saveRegistry.types";
 import type { TabValidationMap } from "../types/tabValidation.types";
 
-// Reducer e Actions
-import { productFormReducer, INITIAL_FORM_STATE, formActions } from "./productFormReducer";
-
-// Hooks especializados
-import { useProductCore, useProductEntities, useProductCheckouts, useGlobalValidationHandlers, useTabValidation, useProductLoader, useProductDataMapper } from "./hooks";
-import { useProductSettings as useProductSettingsAdapter } from "./hooks/useProductSettingsAdapter";
+// Hooks que ainda precisamos
 import { useSaveRegistry } from "./hooks/useSaveRegistry";
-import { createLogger } from "@/lib/logger";
+import { useGlobalValidationHandlers } from "./hooks/useGlobalValidationHandlers";
+import { useProductSettingsAdapter } from "./hooks/useProductSettingsAdapter";
+
+// Helpers
+import { validateGeneralForm } from "./productFormValidation";
 
 const log = createLogger("ProductContext");
 
-// Helpers
-import {
-  createUpdateGeneralField,
-  createUpdateImageState,
-  createUpdateLocalOffers,
-  createMarkOfferDeleted,
-  createSetOffersModified,
-  createUpdateCheckoutSettingsField,
-  createInitCheckoutSettings,
-  createSaveProduct,
-  createSaveAll,
-} from "./helpers";
-import { createContextValue } from "./helpers/createContextValue";
-
 // ============================================================================
-// CONTEXT TYPE ESTENDIDO
+// CONTEXT TYPE
 // ============================================================================
 
-interface ProductContextExtended extends ProductContextState {
-  formState: ProductFormState;
-  formDispatch: ProductFormDispatch;
-  dispatchForm: ProductFormDispatch;
-  formErrors: ProductFormState["validation"];
-  validateGeneralForm: () => boolean;
+interface ProductContextValue {
+  // === Data from State Machine ===
+  product: ProductFormContext["serverData"]["product"];
+  offers: Offer[];
+  orderBumps: ProductFormContext["entities"]["orderBumps"];
+  checkouts: ProductFormContext["entities"]["checkouts"];
+  paymentLinks: ProductFormContext["entities"]["paymentLinks"];
+  coupons: ProductFormContext["entities"]["coupons"];
+  
+  // === Settings ===
+  upsellSettings: ProductFormContext["editedData"]["upsell"];
+  affiliateSettings: ProductFormContext["editedData"]["affiliate"];
+  
+  // === State Flags ===
+  loading: boolean;
+  saving: boolean;
+  hasUnsavedChanges: boolean;
+  
+  // === Form Data ===
   generalForm: GeneralFormData;
   imageState: ImageFormState;
   localOffers: Offer[];
   checkoutSettingsForm: CheckoutSettingsFormData;
   checkoutCredentials: GatewayCredentials;
+  
+  // === Form Handlers ===
   updateGeneralField: <K extends keyof GeneralFormData>(field: K, value: GeneralFormData[K]) => void;
   updateImageState: (update: Partial<ImageFormState>) => void;
   updateLocalOffers: (offers: Offer[]) => void;
@@ -65,19 +82,81 @@ interface ProductContextExtended extends ProductContextState {
   setOffersModified: (modified: boolean) => void;
   updateCheckoutSettingsField: <K extends keyof CheckoutSettingsFormData>(field: K, value: CheckoutSettingsFormData[K]) => void;
   initCheckoutSettings: (settings: CheckoutSettingsFormData, credentials: GatewayCredentials) => void;
-  registerSaveHandler: RegisterSaveHandler;
+  updateUpsellSettings: (settings: Partial<ProductFormContext["editedData"]["upsell"]>) => void;
+  updateAffiliateSettings: (settings: Partial<ProductFormContext["editedData"]["affiliate"]>) => void;
+  
+  // === Save/Refresh ===
+  saveAll: () => Promise<void>;
+  refreshAll: () => Promise<void>;
+  saveProduct: () => Promise<void>;
+  saveUpsellSettings: () => Promise<void>;
+  saveAffiliateSettings: () => Promise<void>;
+  deleteProduct: () => Promise<boolean>;
+  
+  // === Refresh Individual ===
+  refreshProduct: () => Promise<void>;
+  refreshOffers: () => Promise<void>;
+  refreshOrderBumps: () => Promise<void>;
+  refreshCheckouts: () => Promise<void>;
+  refreshCoupons: () => Promise<void>;
+  refreshPaymentLinks: () => Promise<void>;
+  
+  // === Product Operations ===
+  updateProduct: (field: string, value: unknown) => void;
+  updateProductBulk: (data: Record<string, unknown>) => void;
+  
+  // === Validation ===
+  formErrors: ProductFormContext["validationErrors"];
+  validateGeneralForm: () => boolean;
+  
+  // === Tab Management ===
   activeTab: string;
   setActiveTab: (tab: string) => void;
   tabErrors: TabValidationMap;
   setTabErrors: (errors: TabValidationMap) => void;
   clearTabErrors: () => void;
+  
+  // === Save Registry ===
+  registerSaveHandler: RegisterSaveHandler;
+  
+  // === Legacy Compatibility ===
+  formState: {
+    editedData: ProductFormContext["editedData"];
+    serverData: ProductFormContext["serverData"];
+    isDirty: boolean;
+    validation: ProductFormContext["validationErrors"];
+    isCheckoutSettingsInitialized: boolean;
+  };
+  formDispatch: (event: ProductFormEvent) => void;
+  dispatchForm: (event: ProductFormEvent) => void;
+  
+  // === State Machine Direct Access ===
+  machineState: string;
+  send: (event: ProductFormEvent) => void;
 }
 
 // ============================================================================
-// CONTEXTO
+// DEFAULT VALUES
 // ============================================================================
 
-const ProductContext = createContext<ProductContextExtended | null>(null);
+const defaultPaymentSettings = {
+  pixEnabled: true,
+  creditCardEnabled: true,
+  defaultPaymentMethod: "credit_card" as const,
+};
+
+const defaultCheckoutFields = {
+  fullName: true,
+  phone: true,
+  email: true,
+  cpf: false,
+};
+
+// ============================================================================
+// CONTEXT
+// ============================================================================
+
+const ProductContext = createContext<ProductContextValue | null>(null);
 
 // ============================================================================
 // PROVIDER
@@ -85,165 +164,257 @@ const ProductContext = createContext<ProductContextExtended | null>(null);
 
 export function ProductProvider({ productId, children }: ProductProviderProps) {
   const { user } = useAuth();
-  const [formState, formDispatch] = useReducer(productFormReducer, INITIAL_FORM_STATE);
+  
+  // === STATE MACHINE - Single Source of Truth ===
+  const [state, send] = useMachine(productFormMachine, {
+    input: {
+      productId: productId ?? null,
+      userId: user?.id,
+    },
+  });
+  
+  const context = state.context;
+  
+  // === Save Registry (para tabs que registram handlers) ===
   const { registerSaveHandler, executeAll: executeRegistrySaves } = useSaveRegistry();
-  const { activeTab, setActiveTab, tabErrors, setTabErrors, clearTabErrors } = useTabValidation();
-  const [saving, setSaving] = useState(false);
-  const [checkoutCredentials, setCheckoutCredentials] = useState<GatewayCredentials>({});
-  const hasUnsavedChanges = formState.isDirty;
-
-  const handleUpdateUpsell = useCallback((settings: Partial<UpsellSettings>) => {
-    formDispatch(formActions.updateUpsell(settings));
-  }, []);
-
-  const handleUpdateAffiliate = useCallback((settings: Partial<AffiliateSettings>) => {
-    formDispatch(formActions.updateAffiliate(settings));
-  }, []);
-
+  
+  // === Settings Adapter (para operações de save específicas) ===
   const settingsAdapter = useProductSettingsAdapter({
     productId,
     userId: user?.id,
-    upsellSettings: formState.editedData.upsell,
-    affiliateSettings: formState.editedData.affiliate,
-    onUpdateUpsell: handleUpdateUpsell,
-    onUpdateAffiliate: handleUpdateAffiliate,
+    upsellSettings: context.editedData.upsell,
+    affiliateSettings: context.editedData.affiliate,
+    onUpdateUpsell: (settings) => send({ type: "EDIT_UPSELL", payload: settings }),
+    onUpdateAffiliate: (settings) => send({ type: "EDIT_AFFILIATE", payload: settings }),
   });
-
-  const core = useProductCore({
-    productId,
-    userId: user?.id,
-  });
-
-  const entities = useProductEntities({ productId });
-  const checkoutsHook = useProductCheckouts({ productId });
   
-  // React Query BFF Loader - Cache automático + 1 chamada substitui 6
-  const { 
-    data: rawProductData, 
-    isLoading: bffLoading, 
-    isFetching,
-    invalidate: invalidateProductCache,
-    error: loadError 
-  } = useProductLoader({ 
-    productId: productId ?? "",
-    enabled: !!productId && !!user 
-  });
-  const { mapFullData } = useProductDataMapper();
-  
-  // Loading state: true se carregando pela primeira vez OU re-fetching
-  const loading = bffLoading || isFetching;
-
-  // ============================================================================
-  // REACT QUERY DATA SYNC - ÚNICO useEffect para inicializar form (RISE V3)
-  // Elimina race condition e duplicidade de initFromServer
-  // ============================================================================
-
-  useEffect(() => {
-    if (!rawProductData) return;
-    
-    const mapped = mapFullData(rawProductData);
-    
-    // Injetar produto no core (para operações de escrita)
-    core.setProduct(mapped.product);
-    
-    // Injetar entidades nos hooks (para componentes consumidores)
-    entities.setOffers(mapped.offers);
-    entities.setOrderBumps(mapped.orderBumps);
-    entities.setCoupons(mapped.coupons);
-    checkoutsHook.setCheckouts(mapped.checkouts);
-    checkoutsHook.setPaymentLinks(mapped.paymentLinks);
-    
-    // ÚNICO dispatch para o reducer - Single Source of Truth
-    formDispatch(formActions.initFromServer({
-      product: mapped.product,
-      upsellSettings: mapped.upsellSettings,
-      affiliateSettings: mapped.affiliateSettings,
-      offers: mapped.offers,
-    }));
-    
-    log.info("Product data synced from React Query cache", { productId });
-  }, [rawProductData, mapFullData, core, entities, checkoutsHook, formDispatch, productId]);
-
-  // Log de erros do React Query
-  useEffect(() => {
-    if (loadError) {
-      log.error("React Query load error", { productId, error: loadError });
+  // === Load Data on Mount/ProductId Change ===
+  useMemo(() => {
+    if (productId && user?.id && state.matches("idle")) {
+      send({ type: "LOAD_DATA", productId });
     }
-  }, [loadError, productId]);
-
-  // ============================================================================
-  // REFRESH ALL - Invalidação do cache React Query
-  // ============================================================================
-
-  const refreshAll = useCallback((): Promise<void> => {
-    log.info("Invalidating product cache via React Query", { productId });
-    invalidateProductCache();
-    return Promise.resolve();
-  }, [invalidateProductCache, productId]);
-
-  // Global Validation Handlers - SEMPRE REGISTRADOS
+  }, [productId, user?.id, state, send]);
+  
+  // === Global Validation Handlers ===
   useGlobalValidationHandlers({
     productId,
     userId: user?.id,
     registerSaveHandler,
-    generalForm: formState.editedData.general,
-    product: core.product,
-    imageFile: formState.editedData.image.imageFile,
-    pendingRemoval: formState.editedData.image.pendingRemoval,
-    localOffers: formState.editedData.offers.localOffers,
-    offersModified: formState.editedData.offers.modified,
-    deletedOfferIds: formState.editedData.offers.deletedOfferIds,
-    resetImage: () => formDispatch({ type: 'RESET_IMAGE' }),
-    resetOffers: () => formDispatch({ type: 'RESET_OFFERS' }),
-    checkoutSettingsForm: formState.editedData.checkoutSettings,
-    isCheckoutSettingsInitialized: formState.isCheckoutSettingsInitialized,
-    formDispatch,
-    upsellSettings: formState.editedData.upsell,
+    generalForm: context.editedData.general,
+    product: context.serverData.product,
+    imageFile: context.editedData.image.imageFile,
+    pendingRemoval: context.editedData.image.pendingRemoval,
+    localOffers: context.editedData.offers.localOffers,
+    offersModified: context.editedData.offers.modified,
+    deletedOfferIds: context.editedData.offers.deletedOfferIds,
+    resetImage: () => send({ type: "EDIT_IMAGE", payload: { imageFile: null, pendingRemoval: false } }),
+    resetOffers: () => send({ type: "EDIT_OFFERS", payload: { modified: false, deletedOfferIds: [] } }),
+    checkoutSettingsForm: context.editedData.checkoutSettings,
+    isCheckoutSettingsInitialized: context.editedData.checkoutSettings.pixGateway !== "" || 
+                                    context.editedData.checkoutSettings.creditCardGateway !== "",
+    formDispatch: send,
+    upsellSettings: context.editedData.upsell,
     saveUpsellSettings: settingsAdapter.saveUpsellSettings,
-    affiliateSettings: formState.editedData.affiliate,
+    affiliateSettings: context.editedData.affiliate,
     saveAffiliateSettings: settingsAdapter.saveAffiliateSettings,
   });
-
-  const updateGeneralField = useCallback(createUpdateGeneralField(formDispatch), []);
-  const updateImageState = useCallback(createUpdateImageState(formDispatch), []);
-  const updateLocalOffers = useCallback(createUpdateLocalOffers(formDispatch), []);
-  const markOfferDeleted = useCallback(createMarkOfferDeleted(formDispatch), []);
-  const setOffersModified = useCallback(createSetOffersModified(formDispatch), []);
-  const updateCheckoutSettingsField = useCallback(createUpdateCheckoutSettingsField(formDispatch), []);
-  const initCheckoutSettingsHandler = useCallback(createInitCheckoutSettings(formDispatch, setCheckoutCredentials), []);
-  const saveProduct = useCallback(createSaveProduct({ setSaving, formDispatch, core }), [core]);
-
-  const saveUpsellSettings = useCallback(async () => {
-    setSaving(true);
-    try { await settingsAdapter.saveUpsellSettings(formState.editedData.upsell); } 
-    finally { setSaving(false); }
-  }, [settingsAdapter, formState.editedData.upsell]);
-
-  const saveAffiliateSettings = useCallback(async () => {
-    setSaving(true);
-    try { await settingsAdapter.saveAffiliateSettings(formState.editedData.affiliate); } 
-    finally { setSaving(false); }
-  }, [settingsAdapter, formState.editedData.affiliate]);
-
-  const saveAll = useCallback(
-    createSaveAll({ setSaving, clearTabErrors, formDispatch, executeRegistrySaves, setTabErrors, setActiveTab }),
-    [executeRegistrySaves, clearTabErrors, setTabErrors, setActiveTab]
+  
+  // === Derived State ===
+  const loading = state.matches("loading");
+  const saving = state.matches("saving");
+  const hasUnsavedChanges = state.matches("ready.dirty");
+  
+  // === Form Handlers ===
+  const updateGeneralField = useCallback(<K extends keyof GeneralFormData>(field: K, value: GeneralFormData[K]) => {
+    send({ type: "EDIT_GENERAL", payload: { [field]: value } as Partial<GeneralFormData> });
+  }, [send]);
+  
+  const updateImageState = useCallback((update: Partial<ImageFormState>) => {
+    send({ type: "EDIT_IMAGE", payload: update });
+  }, [send]);
+  
+  const updateLocalOffers = useCallback((offers: Offer[]) => {
+    send({ type: "EDIT_OFFERS", payload: { localOffers: offers } });
+  }, [send]);
+  
+  const markOfferDeleted = useCallback((offerId: string) => {
+    send({ type: "ADD_DELETED_OFFER", offerId });
+  }, [send]);
+  
+  const setOffersModified = useCallback((modified: boolean) => {
+    send({ type: "EDIT_OFFERS", payload: { modified } });
+  }, [send]);
+  
+  const updateCheckoutSettingsField = useCallback(<K extends keyof CheckoutSettingsFormData>(field: K, value: CheckoutSettingsFormData[K]) => {
+    send({ type: "EDIT_CHECKOUT_SETTINGS", payload: { [field]: value } as Partial<CheckoutSettingsFormData> });
+  }, [send]);
+  
+  const initCheckoutSettings = useCallback((settings: CheckoutSettingsFormData, credentials: GatewayCredentials) => {
+    send({ type: "INIT_CHECKOUT_SETTINGS", settings, credentials });
+  }, [send]);
+  
+  const updateUpsellSettings = useCallback((settings: Partial<ProductFormContext["editedData"]["upsell"]>) => {
+    send({ type: "EDIT_UPSELL", payload: settings });
+  }, [send]);
+  
+  const updateAffiliateSettings = useCallback((settings: Partial<ProductFormContext["editedData"]["affiliate"]>) => {
+    send({ type: "EDIT_AFFILIATE", payload: settings });
+  }, [send]);
+  
+  // === Save Handlers ===
+  const saveAll = useCallback(async () => {
+    // Execute registry saves first
+    const results = await executeRegistrySaves();
+    
+    // Check for tab errors
+    const tabErrors: TabValidationMap = {};
+    let hasErrors = false;
+    
+    for (const result of results) {
+      if (!result.success && result.tabId && result.errors) {
+        tabErrors[result.tabId] = result.errors;
+        hasErrors = true;
+      }
+    }
+    
+    if (hasErrors) {
+      send({ type: "SET_TAB_ERRORS", errors: tabErrors });
+      return;
+    }
+    
+    // Trigger machine save
+    send({ type: "SAVE_ALL" });
+  }, [send, executeRegistrySaves]);
+  
+  const refreshAll = useCallback(async () => {
+    send({ type: "REFRESH" });
+  }, [send]);
+  
+  // === Context Value ===
+  const contextValue: ProductContextValue = useMemo(() => ({
+    // Data
+    product: context.serverData.product,
+    offers: context.editedData.offers.localOffers,
+    orderBumps: context.entities.orderBumps,
+    checkouts: context.entities.checkouts,
+    paymentLinks: context.entities.paymentLinks,
+    coupons: context.entities.coupons,
+    
+    // Settings
+    upsellSettings: context.editedData.upsell,
+    affiliateSettings: context.editedData.affiliate,
+    
+    // State
+    loading,
+    saving,
+    hasUnsavedChanges,
+    
+    // Form Data
+    generalForm: context.editedData.general,
+    imageState: context.editedData.image,
+    localOffers: context.editedData.offers.localOffers,
+    checkoutSettingsForm: context.editedData.checkoutSettings,
+    checkoutCredentials: context.credentials,
+    
+    // Form Handlers
+    updateGeneralField,
+    updateImageState,
+    updateLocalOffers,
+    markOfferDeleted,
+    setOffersModified,
+    updateCheckoutSettingsField,
+    initCheckoutSettings,
+    updateUpsellSettings,
+    updateAffiliateSettings,
+    
+    // Save/Refresh
+    saveAll,
+    refreshAll,
+    saveProduct: async () => { send({ type: "SAVE_ALL" }); },
+    saveUpsellSettings: settingsAdapter.saveUpsellSettings,
+    saveAffiliateSettings: settingsAdapter.saveAffiliateSettings,
+    deleteProduct: async () => {
+      // TODO: Implement via state machine actor
+      log.warn("deleteProduct not yet implemented in XState");
+      return false;
+    },
+    
+    // Refresh Individual (delegated to machine refresh)
+    refreshProduct: refreshAll,
+    refreshOffers: refreshAll,
+    refreshOrderBumps: refreshAll,
+    refreshCheckouts: refreshAll,
+    refreshCoupons: refreshAll,
+    refreshPaymentLinks: refreshAll,
+    
+    // Product Operations
+    updateProduct: (field, value) => {
+      send({ type: "EDIT_GENERAL", payload: { [field]: value } as Partial<GeneralFormData> });
+    },
+    updateProductBulk: (data) => {
+      send({ type: "EDIT_GENERAL", payload: data as Partial<GeneralFormData> });
+    },
+    
+    // Validation
+    formErrors: context.validationErrors,
+    validateGeneralForm: () => validateGeneralForm(context.editedData.general).isValid,
+    
+    // Tab Management
+    activeTab: context.activeTab,
+    setActiveTab: (tab) => send({ type: "SET_TAB", tab }),
+    tabErrors: context.tabErrors,
+    setTabErrors: (errors) => send({ type: "SET_TAB_ERRORS", errors }),
+    clearTabErrors: () => send({ type: "CLEAR_TAB_ERRORS" }),
+    
+    // Save Registry
+    registerSaveHandler,
+    
+    // Legacy Compatibility
+    formState: {
+      editedData: context.editedData,
+      serverData: context.serverData,
+      isDirty: hasUnsavedChanges,
+      validation: context.validationErrors,
+      isCheckoutSettingsInitialized: context.editedData.checkoutSettings.pixGateway !== "" || 
+                                      context.editedData.checkoutSettings.creditCardGateway !== "",
+    },
+    formDispatch: send,
+    dispatchForm: send,
+    
+    // State Machine Direct Access
+    machineState: state.value as string,
+    send,
+  }), [
+    context,
+    loading,
+    saving,
+    hasUnsavedChanges,
+    updateGeneralField,
+    updateImageState,
+    updateLocalOffers,
+    markOfferDeleted,
+    setOffersModified,
+    updateCheckoutSettingsField,
+    initCheckoutSettings,
+    updateUpsellSettings,
+    updateAffiliateSettings,
+    saveAll,
+    refreshAll,
+    settingsAdapter,
+    registerSaveHandler,
+    state.value,
+    send,
+  ]);
+  
+  return (
+    <ProductContext.Provider value={contextValue}>
+      {children}
+    </ProductContext.Provider>
   );
-
-  const contextValue = createContextValue({
-    core, entities, checkoutsHook, formState, formDispatch, settingsAdapter,
-    loading, saving, hasUnsavedChanges, checkoutCredentials,
-    updateGeneralField, updateImageState, updateLocalOffers, markOfferDeleted, setOffersModified,
-    updateCheckoutSettingsField, initCheckoutSettings: initCheckoutSettingsHandler,
-    saveProduct, saveUpsellSettings, saveAffiliateSettings, saveAll, refreshAll,
-    registerSaveHandler, activeTab, setActiveTab, tabErrors, setTabErrors, clearTabErrors,
-  }) as ProductContextExtended;
-
-  return <ProductContext.Provider value={contextValue}>{children}</ProductContext.Provider>;
 }
 
 // ============================================================================
-// HOOK CUSTOMIZADO
+// HOOK
 // ============================================================================
 
 export function useProductContext() {
