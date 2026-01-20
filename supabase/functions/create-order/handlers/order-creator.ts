@@ -11,7 +11,7 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { checkRateLimit } from "../../_shared/rate-limiting/index.ts";
-import { encryptValue } from "../../_shared/encryption.ts";
+import { encrypt } from "../../_shared/kms/index.ts";
 import { createLogger } from "../../_shared/logger.ts";
 import type { OrderItem } from "./bump-processor.ts";
 
@@ -147,9 +147,9 @@ export async function createOrder(
   let encryptedCpf: string | null = null;
   
   try {
-    encryptedPhone = await encryptValue(customer_phone);
-    encryptedCpf = await encryptValue(customer_cpf);
-    log.info("✅ CPF/telefone criptografados com AES-256-GCM");
+    encryptedPhone = await encrypt(customer_phone);
+    encryptedCpf = await encrypt(customer_cpf);
+    log.info("✅ CPF/telefone criptografados com AES-256-GCM (KMS)");
   } catch (encryptError) {
     log.error("❌ Falha na criptografia:", encryptError);
     // SECURITY: Não prosseguir sem criptografia
