@@ -3,7 +3,7 @@
  * 
  * @see RISE ARCHITECT PROTOCOL V3
  * 
- * NOTA: useGeneralTabForm foi REMOVIDO - estado agora vive no ProductContext via Reducer
+ * NOTA: useGeneralTabForm foi REMOVIDO - estado agora vive no ProductContext via XState State Machine
  * NOTA: useGeneralTabSave foi DELETADO - salvamento unificado via useGlobalValidationHandlers
  */
 

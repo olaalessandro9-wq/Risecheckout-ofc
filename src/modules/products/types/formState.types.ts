@@ -15,11 +15,11 @@ import type {
 import type { ProductFormEvent } from "../machines/productFormMachine.types";
 
 // ============================================================================
-// PRODUCT FORM STATE (Estado Completo do Reducer)
+// PRODUCT FORM STATE (Estado Completo da State Machine)
 // ============================================================================
 
 /**
- * Estado completo do Reducer
+ * Estado completo da State Machine
  * Single Source of Truth para todos os formulários
  */
 export interface ProductFormState {

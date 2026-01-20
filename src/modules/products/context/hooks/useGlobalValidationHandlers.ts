@@ -34,13 +34,13 @@ interface UseGlobalValidationHandlersOptions {
   productId: string | null;
   userId: string | undefined;
   registerSaveHandler: RegisterSaveHandler;
-  // General Form Data (from reducer)
+  // General Form Data (from State Machine)
   generalForm: GeneralFormData;
   product: ProductData | null;
-  // Image Data (from reducer)
+  // Image Data (from State Machine)
   imageFile: File | null;
   pendingRemoval: boolean;
-  // Offers Data (from reducer)
+  // Offers Data (from State Machine)
   localOffers: Offer[];
   offersModified: boolean;
   deletedOfferIds: string[];

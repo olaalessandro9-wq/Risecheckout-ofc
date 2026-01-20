@@ -33,11 +33,11 @@ interface UseProductSettingsOptions {
   productId: string | null;
   userId: string | undefined;
   
-  // Dados vêm do Reducer (Single Source of Truth)
+  // Dados vêm da State Machine (Single Source of Truth)
   upsellSettings: UpsellSettings;
   affiliateSettings: AffiliateSettings | null;
   
-  // Callbacks para atualizar o Reducer
+  // Callbacks para atualizar a State Machine
   onUpdateUpsell: (settings: Partial<UpsellSettings>) => void;
   onUpdateAffiliate: (settings: Partial<AffiliateSettings>) => void;
 }
@@ -47,7 +47,7 @@ interface UseProductSettingsReturn {
   saveUpsellSettings: (settings?: UpsellSettings) => Promise<void>;
   saveAffiliateSettings: (settings?: AffiliateSettings | null) => Promise<void>;
   
-  // Updates que delegam ao Reducer
+  // Updates que delegam à State Machine
   updateUpsellSettings: (settings: Partial<UpsellSettings>) => void;
   updateAffiliateSettings: (settings: Partial<AffiliateSettings>) => void;
 }
@@ -66,7 +66,7 @@ export function useProductSettings({
 }: UseProductSettingsOptions): UseProductSettingsReturn {
 
   // ---------------------------------------------------------------------------
-  // UPDATES (delegam ao Reducer via callbacks)
+  // UPDATES (delegam à State Machine via callbacks)
   // ---------------------------------------------------------------------------
 
   const updateUpsellSettings = useCallback(
@@ -94,7 +94,7 @@ export function useProductSettings({
         return;
       }
 
-      // Usa dados passados ou os do Reducer
+      // Usa dados passados ou os da State Machine
       const settings = settingsToSave || upsellSettings;
 
       try {
@@ -126,7 +126,7 @@ export function useProductSettings({
         return;
       }
 
-      // Usa dados passados ou os do Reducer
+      // Usa dados passados ou os da State Machine
       const settings = settingsToSave || affiliateSettings;
 
       try {
@@ -153,7 +153,7 @@ export function useProductSettings({
   );
 
   return {
-    // Updates (delegam ao Reducer)
+    // Updates (delegam à State Machine)
     updateUpsellSettings,
     updateAffiliateSettings,
 
