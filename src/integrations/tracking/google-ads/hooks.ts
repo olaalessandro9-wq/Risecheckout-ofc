@@ -38,7 +38,7 @@ export function useGoogleAdsConfig(vendorId?: string) {
       try {
         // Query via Edge Function (public) using api.publicCall
         const { data, error } = await api.publicCall<VendorIntegrationResponse>("vendor-integrations", {
-          action: "get",
+          action: "get-config",
           vendorId,
           integrationType: "GOOGLE_ADS",
         });

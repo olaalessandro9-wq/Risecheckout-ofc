@@ -24,7 +24,7 @@ export function useKwaiConfig(vendorId?: string) {
         return null;
       }
       try {
-        const { data, error } = await api.publicCall<KwaiConfigResponse>("vendor-integrations", { action: "get", vendorId, integrationType: "KWAI_PIXEL" });
+        const { data, error } = await api.publicCall<KwaiConfigResponse>("vendor-integrations", { action: "get-config", vendorId, integrationType: "KWAI_PIXEL" });
         if (error) { log.error("Erro ao carregar configuração", error); return null; }
         if (!data?.integration || !data.integration.active) { log.debug("Integração não encontrada ou desativada", { vendorId }); return null; }
         log.info("Configuração carregada com sucesso", { vendorId });

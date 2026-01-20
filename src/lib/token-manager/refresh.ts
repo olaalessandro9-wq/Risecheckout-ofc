@@ -14,6 +14,27 @@ import { createLogger } from "@/lib/logger";
 const log = createLogger("TokenRefresh");
 
 // ============================================
+// PUBLIC ROUTES (No token refresh needed)
+// ============================================
+
+const PUBLIC_ROUTE_PATTERNS = [
+  /^\/pay\//,
+  /^\/checkout\//,
+  /^\/c\//,
+  /^\/p\//,
+  /^\/thank-you/,
+  /^\/pix-payment/,
+] as const;
+
+/**
+ * Check if current route is public (no auth needed)
+ */
+function isPublicRoute(): boolean {
+  const path = window.location.pathname;
+  return PUBLIC_ROUTE_PATTERNS.some((pattern) => pattern.test(path));
+}
+
+// ============================================
 // TYPES
 // ============================================
 
@@ -41,8 +62,18 @@ const REFRESH_ENDPOINTS: Record<TokenType, string> = {
  * 
  * Makes HTTP POST with credentials (httpOnly cookies)
  * to the appropriate auth endpoint.
+ * 
+ * GUARD: Skips refresh on public routes (checkout, pay, etc.)
  */
 export async function executeRefresh(type: TokenType): Promise<RefreshResult> {
+  // GUARD: Skip producer token refresh on public routes
+  if (type === "producer" && isPublicRoute()) {
+    log.debug("Skipping producer refresh on public route", { 
+      path: window.location.pathname 
+    });
+    return { success: false, error: "Public route - refresh skipped" };
+  }
+  
   const endpoint = REFRESH_ENDPOINTS[type];
   const url = `${SUPABASE_URL}${endpoint}`;
   
