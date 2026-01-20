@@ -9,7 +9,8 @@
 import { useEffect, useCallback } from 'react';
 import { useMachine } from '@xstate/react';
 import { toast } from 'sonner';
-import { builderMachine, type BuilderMachineContext } from '../machines';
+import { builderMachine } from '../machines';
+import { getSectionDefaults } from '../registry';
 import type { 
   Section,
   SectionType,
@@ -20,7 +21,55 @@ import type {
   BuilderState,
   BuilderActions,
 } from '../types/builder.types';
-import { createDefaultSection } from './useMembersAreaSections';
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+/** Raw database row type for sections */
+export interface RawSectionRow {
+  id: string;
+  product_id: string;
+  type: string;
+  title: string | null;
+  position: number;
+  settings: unknown;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Create a new section with defaults */
+export function createDefaultSection(
+  productId: string, 
+  type: SectionType, 
+  position: number,
+  modules: MemberModule[] = []
+): Section {
+  const defaults = getSectionDefaults(type);
+  
+  let settings = { type, ...defaults } as SectionSettings;
+  
+  if (type === 'modules') {
+    const currentModuleOrder = modules.map(m => m.id);
+    settings = {
+      ...settings,
+      module_order: currentModuleOrder,
+    } as SectionSettings;
+  }
+  
+  return {
+    id: `temp_${crypto.randomUUID()}`,
+    product_id: productId,
+    type,
+    title: null,
+    position,
+    settings,
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+}
 
 /** Valid section types for type guard */
 export const VALID_SECTION_TYPES = ['banner', 'modules', 'courses', 'continue_watching', 'text', 'spacer'] as const;
@@ -75,10 +124,10 @@ export function useMembersAreaState(productId: string | undefined): UseMembersAr
   // Create actions
   const addSection = useCallback(async (type: SectionType, position?: number): Promise<Section | null> => {
     if (!productId) return null;
-    const section = createDefaultSection(productId, type, position ?? state.sections.length);
+    const section = createDefaultSection(productId, type, position ?? state.sections.length, state.modules);
     send({ type: 'ADD_SECTION', section });
     return section;
-  }, [productId, state.sections.length, send]);
+  }, [productId, state.sections.length, state.modules, send]);
 
   const updateSection = useCallback(async (id: string, updates: Partial<Section>) => {
     send({ type: 'UPDATE_SECTION', id, updates });
