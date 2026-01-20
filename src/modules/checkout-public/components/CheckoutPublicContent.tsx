@@ -7,10 +7,14 @@
  * The main checkout UI that receives state from the XState machine.
  * This component focuses purely on rendering - all state logic is in the machine.
  * 
+ * IMPORTANT: Payment flow is now fully controlled by the XState machine.
+ * Navigation is REACTIVE based on machine state (navigationData).
+ * 
  * @module checkout-public/components
  */
 
-import React from "react";
+import React, { useEffect, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { createLogger } from "@/lib/logger";
 
@@ -24,17 +28,19 @@ import { useTrackingService } from "@/hooks/checkout/useTrackingService";
 import { useAffiliateTracking } from "@/hooks/useAffiliateTracking";
 import { useCheckoutProductPixels } from "@/hooks/checkout/useCheckoutProductPixels";
 import { useVisitTracker } from "@/hooks/checkout/useVisitTracker";
-import { usePaymentOrchestrator } from "@/hooks/checkout/payment/usePaymentOrchestrator";
 import { getSubmitSnapshot } from "@/features/checkout/personal-data";
 import * as UTMify from "@/integrations/tracking/utmify";
 import type { OrderBump, CheckoutFormData } from "@/types/checkout";
 import type { UseCheckoutPublicMachineReturn } from "../hooks";
+import type { CardFormData } from "../machines/checkoutPublicMachine.types";
 
 interface CheckoutPublicContentProps {
   machine: UseCheckoutPublicMachineReturn;
 }
 
 export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ machine }) => {
+  const navigate = useNavigate();
+  
   const {
     checkout,
     product,
@@ -48,14 +54,43 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     appliedCoupon,
     selectedPaymentMethod,
     isSubmitting,
+    isPaymentPending,
+    isSuccess,
+    navigationData,
     updateField,
     updateMultipleFields,
     toggleBump,
     setPaymentMethod,
-    notifyPaymentError,
+    submit,
   } = machine;
 
-  // Ensure we have required data
+  // ============================================================================
+  // REACTIVE NAVIGATION (based on XState machine state)
+  // ============================================================================
+  
+  useEffect(() => {
+    if (!navigationData) return;
+
+    if (isPaymentPending && navigationData.type === 'pix') {
+      log.info("Navigating to PIX page", { orderId: navigationData.orderId });
+      navigate(`/pay/pix/${navigationData.orderId}`, {
+        state: navigationData,
+        replace: true,
+      });
+    }
+
+    if (isSuccess && navigationData.type === 'card' && navigationData.status === 'approved') {
+      log.info("Navigating to success page", { orderId: navigationData.orderId });
+      navigate(`/success/${navigationData.orderId}`, {
+        replace: true,
+      });
+    }
+  }, [navigationData, isPaymentPending, isSuccess, navigate]);
+
+  // ============================================================================
+  // EARLY RETURN - requires data
+  // ============================================================================
+
   if (!checkout || !product || !design) {
     return null;
   }
@@ -85,10 +120,10 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
   const [localAppliedCoupon, setLocalAppliedCoupon] = React.useState<typeof appliedCoupon>(appliedCoupon);
 
   // Convert selectedBumps array to Set for compatibility with legacy components
-  const selectedBumpsSet = React.useMemo(() => new Set(selectedBumps), [selectedBumps]);
+  const selectedBumpsSet = useMemo(() => new Set(selectedBumps), [selectedBumps]);
 
   // Calculate total price
-  const calculateTotal = React.useCallback(() => {
+  const calculateTotal = useCallback(() => {
     let total = product.price;
     
     // Add selected bumps
@@ -112,45 +147,19 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
   }, [product.price, selectedBumps, orderBumps, localAppliedCoupon]);
 
   // Form data adapter: Machine FormData -> CheckoutFormData (legacy interface)
-  // Uses generic type parameter in useMemo for correct typing
-  const formDataForOrchestrator = React.useMemo<CheckoutFormData>(() => ({
+  const formDataForLegacy = useMemo<CheckoutFormData>(() => ({
     name: formData.name,
     email: formData.email,
     phone: formData.phone || '',
     document: formData.cpf || formData.document || '',
   }), [formData.name, formData.email, formData.phone, formData.cpf, formData.document]);
 
-  // Payment Gateway
-  const { selectedPayment, setSelectedPayment, submitPayment } = usePaymentOrchestrator({
-    vendorId: null,
-    checkoutId,
-    productId: product.id, 
-    offerId: offer?.offerId || null,
-    productName: product.name,
-    productPrice: product.price,
-    publicKey: resolvedGateways.mercadoPagoPublicKey || null,
-    amount: calculateTotal(),
-    formData: formDataForOrchestrator,
-    selectedBumps: selectedBumpsSet,
-    orderBumps: orderBumps as OrderBump[],
-    appliedCoupon: localAppliedCoupon,
-    pixGateway: resolvedGateways.pix,
-    creditCardGateway: resolvedGateways.creditCard,
-  });
-
-  // Sync payment method with machine
-  React.useEffect(() => {
-    if (selectedPayment !== selectedPaymentMethod) {
-      setSelectedPayment(selectedPaymentMethod);
-    }
-  }, [selectedPaymentMethod, selectedPayment, setSelectedPayment]);
-
-  const handlePaymentChange = React.useCallback((method: 'pix' | 'credit_card') => {
+  // Payment method handler
+  const handlePaymentChange = useCallback((method: 'pix' | 'credit_card') => {
     setPaymentMethod(method);
-    setSelectedPayment(method);
-  }, [setPaymentMethod, setSelectedPayment]);
+  }, [setPaymentMethod]);
 
-  const handleTotalChange = React.useCallback((_total: number, coupon: typeof localAppliedCoupon) => {
+  const handleTotalChange = useCallback((_total: number, coupon: typeof localAppliedCoupon) => {
     setLocalAppliedCoupon(coupon);
   }, []);
 
@@ -163,10 +172,14 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
   });
 
   // Calculate memoized amount
-  const memoizedAmount = React.useMemo(() => calculateTotal(), [calculateTotal]);
+  const memoizedAmount = useMemo(() => calculateTotal(), [calculateTotal]);
+
+  // ============================================================================
+  // SUBMIT HANDLERS - Send events to XState machine
+  // ============================================================================
 
   // Submit handler for PIX payments
-  const handleSubmit = React.useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = useCallback((e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
     const snapshot = getSubmitSnapshot(e.currentTarget, formData);
@@ -179,26 +192,23 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     
     updateMultipleFields(snapshot);
     
-    try {
-      fireInitiateCheckout(selectedBumpsSet, orderBumps as OrderBump[]);
-      
-      if (selectedPaymentMethod === 'pix') {
-        await submitPayment(undefined, undefined, undefined, undefined, undefined, snapshot);
-      }
-    } catch (error: unknown) {
-      log.error("Erro:", error);
-      notifyPaymentError(String(error));
+    // Fire tracking event
+    fireInitiateCheckout(selectedBumpsSet, orderBumps as OrderBump[]);
+    
+    // Submit to machine (PIX flow)
+    if (selectedPaymentMethod === 'pix') {
+      submit(snapshot);
     }
-  }, [formData, updateMultipleFields, fireInitiateCheckout, selectedBumpsSet, orderBumps, selectedPaymentMethod, submitPayment, notifyPaymentError]);
+  }, [formData, updateMultipleFields, fireInitiateCheckout, selectedBumpsSet, orderBumps, selectedPaymentMethod, submit]);
 
   // Submit handler for Credit Card payments
-  const handleCardSubmit = React.useCallback(async (
+  const handleCardSubmit = useCallback(async (
     token: string, 
     installments: number, 
     paymentMethodId: string, 
     issuerId: string, 
     holderDocument?: string
-  ) => {
+  ): Promise<void> => {
     const snapshot = getSubmitSnapshot(null, formData);
     
     if (!snapshot.name?.trim() || !snapshot.email?.trim()) {
@@ -208,16 +218,26 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     
     updateMultipleFields(snapshot);
     
-    try {
-      fireInitiateCheckout(selectedBumpsSet, orderBumps as OrderBump[]);
-      await submitPayment(token, installments, paymentMethodId, issuerId, holderDocument, snapshot);
-    } catch (error: unknown) {
-      log.error("Erro cartão:", error);
-      notifyPaymentError(String(error));
-    }
-  }, [formData, updateMultipleFields, fireInitiateCheckout, selectedBumpsSet, orderBumps, submitPayment, notifyPaymentError]);
+    // Fire tracking event
+    fireInitiateCheckout(selectedBumpsSet, orderBumps as OrderBump[]);
+    
+    // Build card data for machine
+    const cardData: CardFormData = {
+      token,
+      installments,
+      paymentMethodId,
+      issuerId,
+      holderDocument,
+    };
+    
+    // Submit to machine with card data
+    submit(snapshot, cardData);
+  }, [formData, updateMultipleFields, fireInitiateCheckout, selectedBumpsSet, orderBumps, submit]);
 
-  // Render data
+  // ============================================================================
+  // RENDER
+  // ============================================================================
+
   const productData = {
     id: product.id,
     name: product.name,
@@ -248,7 +268,7 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
           selectedBumps={selectedBumpsSet}
           onToggleBump={toggleBump}
           mode="public"
-          formData={formDataForOrchestrator}
+          formData={formDataForLegacy}
           formErrors={formErrors}
           onFieldChange={updateField}
           requiredFields={product.required_fields}

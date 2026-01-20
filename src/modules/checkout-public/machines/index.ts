@@ -22,6 +22,10 @@ export type {
   PixPaymentData,
   CardPaymentData,
   PaymentData,
+  PixNavigationData,
+  CardNavigationData,
+  NavigationData,
+  CardFormData,
   ErrorReason,
   CheckoutError,
   FetchCheckoutInput,
@@ -44,8 +48,23 @@ export {
 // Actors
 export {
   fetchCheckoutDataActor,
-  submitPaymentActor,
 } from "./checkoutPublicMachine.actors";
+
+// Payment Actors
+export {
+  createOrderActor,
+  processPixPaymentActor,
+  processCardPaymentActor,
+} from "./actors";
+
+export type {
+  CreateOrderInput,
+  CreateOrderOutput,
+  ProcessPixInput,
+  ProcessPixOutput,
+  ProcessCardInput,
+  ProcessCardOutput,
+} from "./actors";
 
 // Action Helpers
 export {
