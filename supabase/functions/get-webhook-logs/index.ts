@@ -9,16 +9,20 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { createLogger } from "../_shared/logger.ts";
 
-const corsHeaders = PUBLIC_CORS_HEADERS;
 const log = createLogger("GetWebhookLogs");
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+  // Handle CORS with dynamic origin validation
+  const corsResult = handleCorsV2(req);
+  
+  if (corsResult instanceof Response) {
+    return corsResult; // Preflight or blocked origin
   }
+  
+  const corsHeaders = corsResult.headers;
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;

@@ -8,12 +8,11 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { getAuthenticatedProducer } from "../_shared/unified-auth.ts";
 import { createLogger } from "../_shared/logger.ts";
 
 const log = createLogger("get-my-affiliations");
-const corsHeaders = PUBLIC_CORS_HEADERS;
 
 interface ProductData {
   id: string;
@@ -39,10 +38,14 @@ interface FormattedAffiliation {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  // Handle CORS with dynamic origin validation
+  const corsResult = handleCorsV2(req);
+  
+  if (corsResult instanceof Response) {
+    return corsResult; // Preflight or blocked origin
   }
+  
+  const corsHeaders = corsResult.headers;
 
   try {
     // Criar cliente Supabase com service_role para bypass de RLS

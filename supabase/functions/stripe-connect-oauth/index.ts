@@ -15,7 +15,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.14.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
-import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
 
 // Handlers
 import { startOAuthFlow } from "./handlers/oauth-start.ts";
@@ -25,7 +25,6 @@ import { getStripeStatus } from "./handlers/status.ts";
 
 import { createLogger } from "../_shared/logger.ts";
 
-const corsHeaders = PUBLIC_CORS_HEADERS;
 const log = createLogger("stripe-connect-oauth");
 
 interface RequestBody {
@@ -33,9 +32,14 @@ interface RequestBody {
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  // Handle CORS with dynamic origin validation
+  const corsResult = handleCorsV2(req);
+  
+  if (corsResult instanceof Response) {
+    return corsResult; // Preflight or blocked origin
   }
+  
+  const corsHeaders = corsResult.headers;
 
   const supabaseClient = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",

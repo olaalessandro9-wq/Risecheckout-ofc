@@ -13,10 +13,9 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { createLogger } from "../_shared/logger.ts";
 
-const corsHeaders = PUBLIC_CORS_HEADERS;
 const log = createLogger("vendor-integrations");
 
 interface RequestBody {
@@ -25,11 +24,19 @@ interface RequestBody {
   integrationType?: "MERCADOPAGO" | "PUSHINPAY" | "STRIPE" | "ASAAS" | "TIKTOK_PIXEL" | "FACEBOOK_PIXEL" | "GOOGLE_ADS" | "UTMIFY";
 }
 
+// Variable to hold corsHeaders in scope for helper functions
+let currentCorsHeaders: Record<string, string> = {};
+
 serve(async (req) => {
-  // CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  // Handle CORS with dynamic origin validation
+  const corsResult = handleCorsV2(req);
+  
+  if (corsResult instanceof Response) {
+    return corsResult; // Preflight or blocked origin
   }
+  
+  const corsHeaders = corsResult.headers;
+  currentCorsHeaders = corsHeaders;
 
   try {
     const supabase = createClient(
@@ -182,6 +189,6 @@ function sanitizeConfig(config: Record<string, unknown> | unknown, integrationTy
 function jsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...currentCorsHeaders, "Content-Type": "application/json" },
   });
 }
