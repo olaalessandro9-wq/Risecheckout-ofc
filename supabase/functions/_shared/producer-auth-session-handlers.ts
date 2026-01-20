@@ -121,27 +121,29 @@ export async function handleValidate(
     return jsonResponse({ valid: false }, corsHeaders);
   }
 
-  // PHASE 1: Strict Session Blocking - Invalidate if IP changes
+  // ============================================
+  // DEVICE TRUST SYSTEM (RISE V3 - 2026-01-20)
+  // ============================================
+  // IP/UA changes are LOGGED but do NOT invalidate session.
+  // Rationale:
+  // - Dynamic IPs are common (mobile, ISP reassignment)
+  // - User-Agents change with browser updates, extensions, etc.
+  // - Security is maintained via refresh token rotation + theft detection
+  // ============================================
+
   if (session.ip_address && session.ip_address !== currentIP) {
-    log.warn(`Session hijack attempt blocked - IP mismatch. Session IP: ${session.ip_address}, Current IP: ${currentIP}`);
-    await supabase.from("producer_sessions").update({ is_valid: false }).eq("id", session.id);
-    await logAuditEvent(supabase, producerData.id, "SESSION_HIJACK_BLOCKED", false, currentIP, currentUA, {
-      reason: "ip_mismatch",
-      session_ip: session.ip_address,
+    // Log IP change for audit purposes only (no session invalidation)
+    log.info(`IP change detected for producer: ${producerData.id}. Old: ${session.ip_address}, New: ${currentIP}`);
+    await logAuditEvent(supabase, producerData.id, "IP_CHANGE_DETECTED", true, currentIP, currentUA, {
+      previous_ip: session.ip_address,
       current_ip: currentIP,
+      action: "session_continued",
     });
-    return jsonResponse({ valid: false, reason: "session_invalidated" }, corsHeaders);
   }
 
-  // PHASE 1: Strict Session Blocking - Invalidate if User-Agent changes
-  if (session.user_agent && currentUA && session.user_agent !== currentUA) {
-    log.warn(`Session hijack attempt blocked - UA mismatch for producer: ${producerData.id}`);
-    await supabase.from("producer_sessions").update({ is_valid: false }).eq("id", session.id);
-    await logAuditEvent(supabase, producerData.id, "SESSION_HIJACK_BLOCKED", false, currentIP, currentUA, {
-      reason: "user_agent_mismatch",
-    });
-    return jsonResponse({ valid: false, reason: "session_invalidated" }, corsHeaders);
-  }
+  // NOTE: User-Agent binding REMOVED entirely (RISE V3).
+  // UA is unreliable: changes with browser updates, extensions, CDN normalization.
+  // Theft detection via refresh token rotation is the authoritative mechanism.
 
   // Update last activity
   await supabase.from("producer_sessions").update({ last_activity_at: new Date().toISOString() }).eq("id", session.id);

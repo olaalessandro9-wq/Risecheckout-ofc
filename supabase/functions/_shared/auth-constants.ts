@@ -45,9 +45,20 @@ export const SESSION_DURATION_DAYS = BUYER_SESSION_DURATION_DAYS;
 // ============================================
 
 /**
- * Access token duration in minutes (short-lived for security)
+ * Access token duration in minutes
+ * 
+ * RISE V3 2026-01-20: Increased from 15 to 60 minutes.
+ * Rationale: 15 min was causing excessive re-authentication due to:
+ * - Browser tab sleeping/background throttling
+ * - Slow refresh races during network latency
+ * - Combined with strict IP/UA binding = frequent logouts
+ * 
+ * Security maintained via:
+ * - Refresh token rotation (theft detection)
+ * - httpOnly cookies (XSS protection)
+ * - 30-day refresh token expiry unchanged
  */
-export const ACCESS_TOKEN_DURATION_MINUTES = 15;
+export const ACCESS_TOKEN_DURATION_MINUTES = 60;
 
 /**
  * Refresh token duration in days (long-lived for convenience)

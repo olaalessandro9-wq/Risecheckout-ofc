@@ -136,16 +136,20 @@ export async function handleRefresh(
     return errorResponse("Refresh token expirado", corsHeaders, 401);
   }
 
-  // PHASE 1 Security: Check IP binding
+  // ============================================
+  // DEVICE TRUST SYSTEM (RISE V3 - 2026-01-20)
+  // ============================================
+  // IP changes during refresh are LOGGED but do NOT block the refresh.
+  // Security is maintained via refresh token rotation + theft detection.
+  // ============================================
+
   if (session.ip_address && session.ip_address !== currentIP) {
-    log.warn(`Refresh blocked - IP mismatch. Session IP: ${session.ip_address}, Current IP: ${currentIP}`);
-    await supabase.from("producer_sessions").update({ is_valid: false }).eq("id", session.id);
-    await logAuditEvent(supabase, producerData.id, "REFRESH_BLOCKED_IP", false, currentIP, currentUA, {
-      reason: "ip_mismatch",
-      session_ip: session.ip_address,
+    log.info(`IP change during refresh for producer: ${producerData.id}. Old: ${session.ip_address}, New: ${currentIP}`);
+    await logAuditEvent(supabase, producerData.id, "REFRESH_IP_CHANGE", true, currentIP, currentUA, {
+      previous_ip: session.ip_address,
       current_ip: currentIP,
+      action: "refresh_continued",
     });
-    return errorResponse("Sessão invalidada por segurança", corsHeaders, 401);
   }
 
   // ============================================
