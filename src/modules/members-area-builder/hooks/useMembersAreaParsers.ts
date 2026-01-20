@@ -14,7 +14,27 @@ import type {
   MembersAreaBuilderSettings,
 } from '../types/builder.types';
 import { DEFAULT_BUILDER_SETTINGS } from '../types/builder.types';
-import { isSectionType, type RawSectionRow } from './useMembersAreaState';
+
+/** Valid section types for type guard */
+const VALID_SECTION_TYPES = ['banner', 'modules', 'courses', 'continue_watching', 'text', 'spacer'] as const;
+
+/** Type guard for SectionType */
+function isSectionType(type: string): type is typeof VALID_SECTION_TYPES[number] {
+  return VALID_SECTION_TYPES.includes(type as typeof VALID_SECTION_TYPES[number]);
+}
+
+/** Raw database row type for sections */
+interface RawSectionRow {
+  id: string;
+  product_id: string;
+  type: string;
+  title: string | null;
+  position: number;
+  settings: unknown;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 /**
  * Parse raw database sections into typed Section array
