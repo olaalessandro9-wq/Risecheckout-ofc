@@ -12,7 +12,7 @@
 import { fromPromise } from "xstate";
 import { api } from "@/lib/api";
 import { createLogger } from "@/lib/logger";
-import type { PixNavigationData } from "../checkoutPublicMachine.types";
+import type { PixNavigationData } from "@/modules/checkout-public/machines/checkoutPublicMachine.types";
 
 const log = createLogger("ProcessPixPaymentActor");
 

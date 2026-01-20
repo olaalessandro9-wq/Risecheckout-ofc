@@ -11,10 +11,10 @@
  * - loading: Fetching data from BFF
  * - validating: Validating BFF response with Zod
  * - ready.form: User can fill the form
- * - submitting: Payment is being processed (hierarchical: creatingOrder → processingPayment)
- * - paymentPending: Waiting for payment confirmation (PIX)
+ * - submitting: Payment processing (hierarchical)
+ * - paymentPending: Waiting for confirmation
  * - success: Payment confirmed
- * - error: An error occurred (with retry capability)
+ * - error: Error occurred (with retry)
  * 
  * @module checkout-public/machines
  */
@@ -35,6 +35,7 @@ import {
   createPaymentError,
   createPaymentTimeoutError,
 } from "./checkoutPublicMachine.actions";
+import { createOrderInput, processPixInput, processCardInput } from "./checkoutPublicMachine.inputs";
 
 // ============================================================================
 // INITIAL CONTEXT
@@ -70,35 +71,6 @@ export const initialCheckoutContext: CheckoutPublicContext = {
   loadedAt: null,
   retryCount: 0,
 };
-
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-/**
- * Calculates total amount from context (product price + order bumps - coupon)
- */
-function calculateTotalFromContext(context: CheckoutPublicContext): number {
-  const basePrice = context.offer?.offerPrice ?? context.product?.price ?? 0;
-  
-  const bumpsTotal = context.selectedBumps.reduce((sum, bumpId) => {
-    const bump = context.orderBumps.find(b => b.id === bumpId);
-    return sum + (bump?.price ?? 0);
-  }, 0);
-  
-  let total = basePrice + bumpsTotal;
-  
-  // Apply coupon discount
-  if (context.appliedCoupon) {
-    if (context.appliedCoupon.discount_type === 'percentage') {
-      total = total * (1 - context.appliedCoupon.discount_value / 100);
-    } else {
-      total = Math.max(0, total - context.appliedCoupon.discount_value);
-    }
-  }
-  
-  return Math.round(total * 100); // Convert to cents
-}
 
 // ============================================================================
 // STATE MACHINE
@@ -148,10 +120,7 @@ export const checkoutPublicMachine = setup({
     loading: {
       invoke: {
         src: "fetchCheckoutData",
-        input: ({ context }) => ({
-          slug: context.slug!,
-          affiliateCode: context.affiliateCode || undefined,
-        }),
+        input: ({ context }) => ({ slug: context.slug!, affiliateCode: context.affiliateCode || undefined }),
         onDone: [
           {
             guard: ({ event }) => event.output.success === true,
@@ -177,10 +146,7 @@ export const checkoutPublicMachine = setup({
           target: "ready",
           actions: assign(({ context }) => getValidatedContextData(context)),
         },
-        {
-          target: "error",
-          actions: assign({ error: () => createValidationError() }),
-        },
+        { target: "error", actions: assign({ error: () => createValidationError() }) },
       ],
     },
 
@@ -208,19 +174,13 @@ export const checkoutPublicMachine = setup({
             SET_PAYMENT_METHOD: {
               actions: assign({ selectedPaymentMethod: ({ event }) => event.method }),
             },
-            APPLY_COUPON: {
-              actions: assign({ appliedCoupon: ({ event }) => event.coupon }),
-            },
-            REMOVE_COUPON: {
-              actions: assign({ appliedCoupon: () => null }),
-            },
+            APPLY_COUPON: { actions: assign({ appliedCoupon: ({ event }) => event.coupon }) },
+            REMOVE_COUPON: { actions: assign({ appliedCoupon: () => null }) },
             SUBMIT: {
               target: "#checkoutPublic.submitting",
               guard: "hasRequiredFormFields",
               actions: assign(({ context, event }) => ({
-                formData: event.snapshot 
-                  ? { ...context.formData, ...event.snapshot } 
-                  : context.formData,
+                formData: event.snapshot ? { ...context.formData, ...event.snapshot } : context.formData,
                 cardFormData: event.cardData || null,
               })),
             },
@@ -234,25 +194,8 @@ export const checkoutPublicMachine = setup({
       states: {
         creatingOrder: {
           invoke: {
-            id: "createOrder",
             src: "createOrder",
-            input: ({ context }) => ({
-              productId: context.product!.id,
-              checkoutId: context.checkout!.id,
-              offerId: context.offer?.offerId || null,
-              formData: {
-                name: context.formData.name,
-                email: context.formData.email,
-                phone: context.formData.phone || undefined,
-                cpf: context.formData.cpf || undefined,
-              },
-              selectedBumps: context.selectedBumps,
-              couponId: context.appliedCoupon?.id || null,
-              gateway: context.selectedPaymentMethod === 'pix' 
-                ? context.resolvedGateways.pix 
-                : context.resolvedGateways.creditCard,
-              paymentMethod: context.selectedPaymentMethod,
-            }),
+            input: ({ context }) => createOrderInput(context),
             onDone: [
               {
                 guard: ({ event }) => event.output.success === true,
@@ -264,16 +207,12 @@ export const checkoutPublicMachine = setup({
               },
               {
                 target: "#checkoutPublic.ready.form",
-                actions: assign({ 
-                  error: ({ event }) => createSubmitError(event.output.error || "Erro ao criar pedido"),
-                }),
+                actions: assign({ error: ({ event }) => createSubmitError(event.output.error || "Erro ao criar pedido") }),
               },
             ],
             onError: {
               target: "#checkoutPublic.ready.form",
-              actions: assign({ 
-                error: ({ event }) => createNetworkError(event.error),
-              }),
+              actions: assign({ error: ({ event }) => createNetworkError(event.error) }),
             },
           },
         },
@@ -287,92 +226,49 @@ export const checkoutPublicMachine = setup({
 
         processingPix: {
           invoke: {
-            id: "processPixPayment",
             src: "processPixPayment",
-            input: ({ context }) => ({
-              orderId: context.orderId!,
-              accessToken: context.accessToken!,
-              gateway: context.resolvedGateways.pix,
-              amount: calculateTotalFromContext(context),
-              formData: {
-                name: context.formData.name,
-                email: context.formData.email,
-                cpf: context.formData.cpf || undefined,
-                phone: context.formData.phone || undefined,
-              },
-            }),
+            input: ({ context }) => processPixInput(context),
             onDone: [
               {
                 guard: ({ event }) => event.output.success === true,
                 target: "#checkoutPublic.paymentPending",
-                actions: assign({
-                  navigationData: ({ event }) => event.output.navigationData,
-                }),
+                actions: assign({ navigationData: ({ event }) => event.output.navigationData }),
               },
               {
                 target: "#checkoutPublic.ready.form",
-                actions: assign({ 
-                  error: ({ event }) => createPaymentError(event.output.error || "Erro ao processar PIX"),
-                }),
+                actions: assign({ error: ({ event }) => createPaymentError(event.output.error || "Erro PIX") }),
               },
             ],
             onError: {
               target: "#checkoutPublic.ready.form",
-              actions: assign({ 
-                error: ({ event }) => createNetworkError(event.error),
-              }),
+              actions: assign({ error: ({ event }) => createNetworkError(event.error) }),
             },
           },
         },
 
         processingCard: {
           invoke: {
-            id: "processCardPayment",
             src: "processCardPayment",
-            input: ({ context }) => ({
-              orderId: context.orderId!,
-              accessToken: context.accessToken!,
-              gateway: context.resolvedGateways.creditCard,
-              amount: calculateTotalFromContext(context),
-              formData: {
-                name: context.formData.name,
-                email: context.formData.email,
-                cpf: context.formData.cpf || undefined,
-                phone: context.formData.phone || undefined,
-              },
-              cardToken: context.cardFormData?.token || '',
-              installments: context.cardFormData?.installments || 1,
-              paymentMethodId: context.cardFormData?.paymentMethodId,
-              issuerId: context.cardFormData?.issuerId,
-              holderDocument: context.cardFormData?.holderDocument,
-            }),
+            input: ({ context }) => processCardInput(context),
             onDone: [
               {
                 guard: "isCardApproved",
                 target: "#checkoutPublic.success",
-                actions: assign({
-                  navigationData: ({ event }) => event.output.navigationData,
-                }),
+                actions: assign({ navigationData: ({ event }) => event.output.navigationData }),
               },
               {
                 guard: ({ event }) => event.output.success === true,
                 target: "#checkoutPublic.paymentPending",
-                actions: assign({
-                  navigationData: ({ event }) => event.output.navigationData,
-                }),
+                actions: assign({ navigationData: ({ event }) => event.output.navigationData }),
               },
               {
                 target: "#checkoutPublic.ready.form",
-                actions: assign({ 
-                  error: ({ event }) => createPaymentError(event.output.error || "Pagamento recusado"),
-                }),
+                actions: assign({ error: ({ event }) => createPaymentError(event.output.error || "Recusado") }),
               },
             ],
             onError: {
               target: "#checkoutPublic.ready.form",
-              actions: assign({ 
-                error: ({ event }) => createNetworkError(event.error),
-              }),
+              actions: assign({ error: ({ event }) => createNetworkError(event.error) }),
             },
           },
         },
@@ -400,10 +296,7 @@ export const checkoutPublicMachine = setup({
         RETRY: {
           target: "loading",
           guard: "canRetry",
-          actions: assign({
-            retryCount: ({ context }) => context.retryCount + 1,
-            error: () => null,
-          }),
+          actions: assign({ retryCount: ({ context }) => context.retryCount + 1, error: () => null }),
         },
         GIVE_UP: {},
       },

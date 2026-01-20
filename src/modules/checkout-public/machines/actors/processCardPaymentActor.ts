@@ -12,7 +12,7 @@
 import { fromPromise } from "xstate";
 import { api } from "@/lib/api";
 import { createLogger } from "@/lib/logger";
-import type { CardNavigationData } from "../checkoutPublicMachine.types";
+import type { CardNavigationData } from "@/modules/checkout-public/machines/checkoutPublicMachine.types";
 
 const log = createLogger("ProcessCardPaymentActor");
 
