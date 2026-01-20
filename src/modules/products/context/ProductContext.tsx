@@ -133,37 +133,9 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
   // Loading state: true se carregando pela primeira vez OU re-fetching
   const loading = bffLoading || isFetching;
 
-  // ✅ SOLUÇÃO C: Usa settings diretamente do core (elimina race condition)
-  useEffect(() => {
-    if (core.product && entities.offers !== undefined) {
-      formDispatch(formActions.initFromServer({
-        product: core.product,
-        upsellSettings: core.upsellSettings || {
-          hasCustomThankYouPage: false,
-          customPageUrl: "",
-          redirectIgnoringOrderBumpFailures: false,
-        },
-        affiliateSettings: core.affiliateSettings || {
-          enabled: false,
-          defaultRate: 50,
-          requireApproval: false,
-          commissionOnOrderBump: false,
-          commissionOnUpsell: false,
-          supportEmail: "",
-          publicDescription: "",
-          attributionModel: "last_click",
-          cookieDuration: 30,
-          showInMarketplace: false,
-          marketplaceDescription: "",
-          marketplaceCategory: "",
-        },
-        offers: entities.offers,
-      }));
-    }
-  }, [core.product, core.upsellSettings, core.affiliateSettings, entities.offers]);
-
   // ============================================================================
-  // REACT QUERY DATA SYNC - Sincroniza dados do cache com hooks de entidade
+  // REACT QUERY DATA SYNC - ÚNICO useEffect para inicializar form (RISE V3)
+  // Elimina race condition e duplicidade de initFromServer
   // ============================================================================
 
   useEffect(() => {
@@ -171,17 +143,17 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     
     const mapped = mapFullData(rawProductData);
     
-    // Injetar produto no core
+    // Injetar produto no core (para operações de escrita)
     core.setProduct(mapped.product);
     
-    // Injetar entidades nos hooks
+    // Injetar entidades nos hooks (para componentes consumidores)
     entities.setOffers(mapped.offers);
     entities.setOrderBumps(mapped.orderBumps);
     entities.setCoupons(mapped.coupons);
     checkoutsHook.setCheckouts(mapped.checkouts);
     checkoutsHook.setPaymentLinks(mapped.paymentLinks);
     
-    // Dispatch para o reducer (form state)
+    // ÚNICO dispatch para o reducer - Single Source of Truth
     formDispatch(formActions.initFromServer({
       product: mapped.product,
       upsellSettings: mapped.upsellSettings,
