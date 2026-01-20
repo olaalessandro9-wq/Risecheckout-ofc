@@ -216,7 +216,7 @@ Todas as funções de save estão em `saveFunctions.ts`:
 | `createContextValue.ts` | 211 | Não mais necessário |
 | `formActions.types.ts` | ~150 | Substituído por XState events |
 
-**Total:** ~1260 linhas de código legado eliminadas
+**Total:** ~1580 linhas de código legado eliminadas
 
 ---
 
