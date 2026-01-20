@@ -27,13 +27,7 @@ import {
   createAuthCookies,
   jsonResponseWithCookies,
 } from "./cookie-helper.ts";
-import {
-  PASSWORD_REQUIRES_RESET,
-  PASSWORD_PENDING_SETUP,
-  PASSWORD_OWNER_NO_PASSWORD,
-  PRODUCER_SESSION_DURATION_DAYS,
-  AccountStatus,
-} from "./auth-constants.ts";
+import { AccountStatus } from "./auth-constants.ts";
 import { createLogger } from "./logger.ts";
 
 import type { ProducerProfile, UserRole } from "./supabase-types.ts";
@@ -104,16 +98,12 @@ export async function handleRegister(
     .single() as { data: ExistingProfileResult | null; error: unknown };
 
   if (existingProfile) {
-    // Check if profile already has a valid password (not a placeholder marker)
-    const isPlaceholder = existingProfile.password_hash === PASSWORD_REQUIRES_RESET ||
-                          existingProfile.password_hash === PASSWORD_PENDING_SETUP ||
-                          existingProfile.password_hash === PASSWORD_OWNER_NO_PASSWORD;
-    
-    if (existingProfile.password_hash && !isPlaceholder) {
+    // RISE V3: Se já tem password_hash válido, conta já existe
+    if (existingProfile.password_hash) {
       return errorResponse("Este email já está cadastrado", corsHeaders, 409);
     }
 
-    // Migration case - set password for existing user with placeholder
+    // Caso sem senha - permite definir senha
     const passwordHash = hashPassword(password);
     const { error: updateError } = await supabase
       .from("profiles")
@@ -226,16 +216,15 @@ export async function handleLogin(
     return errorResponse("Conta desativada", corsHeaders, 403);
   }
 
-  // RISE V3: Check account_status first (Phase 2 migration)
-  // Fallback to password_hash markers for backwards compatibility during migration
+  // RISE V3: account_status é a ÚNICA fonte de verdade
   const accountStatus = producer.account_status;
-  const isPlaceholderByStatus = accountStatus === AccountStatus.PENDING_SETUP || 
-                                 accountStatus === AccountStatus.RESET_REQUIRED;
-  const isPlaceholderByHash = !producer.password_hash ||
-                               producer.password_hash === PASSWORD_REQUIRES_RESET ||
-                               producer.password_hash === PASSWORD_PENDING_SETUP;
   
-  if (isPlaceholderByStatus || isPlaceholderByHash) {
+  // Verificar se precisa configurar senha
+  const needsPasswordSetup = accountStatus === AccountStatus.PENDING_SETUP || 
+                             accountStatus === AccountStatus.RESET_REQUIRED ||
+                             !producer.password_hash;
+  
+  if (needsPasswordSetup) {
     await logAuditEvent(supabase, producer.id, "LOGIN_FAILED", false, clientIP, userAgent, { 
       email, 
       reason: "password_not_set",
@@ -248,11 +237,8 @@ export async function handleLogin(
     );
   }
   
-  // RISE V3: Check for owner accounts using account_status first
-  const isOwnerByStatus = accountStatus === AccountStatus.OWNER_NO_PASSWORD;
-  const isOwnerByHash = producer.password_hash === PASSWORD_OWNER_NO_PASSWORD;
-  
-  if (isOwnerByStatus || isOwnerByHash) {
+  // Verificar conta de proprietário (sem acesso direto)
+  if (accountStatus === AccountStatus.OWNER_NO_PASSWORD) {
     await logAuditEvent(supabase, producer.id, "LOGIN_FAILED", false, clientIP, userAgent, { 
       email, 
       reason: "owner_no_password",

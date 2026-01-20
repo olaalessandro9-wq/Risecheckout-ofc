@@ -402,22 +402,20 @@ const resetToken = Array.from(crypto.getRandomValues(new Uint8Array(32)))
     .join('');
 ```
 
-### Password Markers (Marcadores Especiais)
+### Account Status (Fonte de Verdade)
 
-Usados para estados especiais de senha sem hash real:
+O campo `account_status` na tabela `profiles` é a **ÚNICA fonte de verdade** para o estado da conta:
 
-| Marker | Propósito |
-|--------|-----------|
-| `REQUIRES_RESET` | Conta requer redefinição de senha |
-| `PENDING_PASSWORD_SETUP` | Conta nova, senha não configurada |
-| `OWNER_NO_PASSWORD` | Conta de proprietário (login via producer auth) |
+| Status | Descrição | Pode Fazer Login? |
+|--------|-----------|-------------------|
+| `active` | Conta ativa com senha configurada | ✅ Sim |
+| `pending_setup` | Conta nova, senha não configurada | ❌ Precisa reset |
+| `reset_required` | Conta requer redefinição de senha | ❌ Precisa reset |
+| `owner_no_password` | Conta de proprietário (sem senha) | ❌ Contatar suporte |
 
-```typescript
-// supabase/functions/_shared/auth-constants.ts
-export const PASSWORD_REQUIRES_RESET = "REQUIRES_RESET";
-export const PASSWORD_PENDING_SETUP = "PENDING_PASSWORD_SETUP";
-export const PASSWORD_OWNER_NO_PASSWORD = "OWNER_NO_PASSWORD";
-```
+**NOTA HISTÓRICA (Eliminado em 2026-01-20):**  
+Os antigos "Password Markers" (`REQUIRES_RESET`, `PENDING_PASSWORD_SETUP`, etc.) 
+foram eliminados do código. O sistema agora usa **exclusivamente** `account_status`.
 
 ### Rate Limiting
 
