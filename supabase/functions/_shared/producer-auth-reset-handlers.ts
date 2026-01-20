@@ -229,6 +229,7 @@ export async function handleResetPassword(
   const { error: updateError } = await supabase.from("profiles").update({
     password_hash: passwordHash,
     password_hash_version: CURRENT_HASH_VERSION,
+    account_status: "active", // RISE V3: Garantir que conta está ativa após reset
     reset_token: null,
     reset_token_expires_at: null,
   }).eq("id", producer.id);
