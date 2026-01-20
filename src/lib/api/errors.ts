@@ -86,18 +86,19 @@ export function parseNetworkError(error: unknown): ApiError {
 
 /**
  * User-friendly error messages by code
+ * RISE V3: Todas as mensagens em português brasileiro amigável
  */
 const ERROR_MESSAGES: Record<ApiErrorCode, string> = {
   UNAUTHORIZED: "Sua sessão expirou. Faça login novamente.",
   FORBIDDEN: "Você não tem permissão para realizar esta ação.",
   NOT_FOUND: "O recurso solicitado não foi encontrado.",
-  VALIDATION_ERROR: "Os dados informados são inválidos.",
-  CONFLICT: "Esta operação conflita com dados existentes.",
-  RATE_LIMITED: "Muitas requisições. Aguarde um momento.",
-  INTERNAL_ERROR: "Erro interno do servidor. Tente novamente.",
-  NETWORK_ERROR: "Erro de conexão. Verifique sua internet.",
-  TIMEOUT: "A requisição demorou muito. Tente novamente.",
-  UNKNOWN: "Ocorreu um erro inesperado.",
+  VALIDATION_ERROR: "Os dados informados são inválidos. Verifique e tente novamente.",
+  CONFLICT: "Este dado já existe no sistema.",
+  RATE_LIMITED: "Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.",
+  INTERNAL_ERROR: "Erro interno do servidor. Tente novamente em alguns minutos.",
+  NETWORK_ERROR: "Erro de conexão. Verifique sua internet e tente novamente.",
+  TIMEOUT: "A conexão demorou muito. Verifique sua internet e tente novamente.",
+  UNKNOWN: "Ocorreu um erro inesperado. Tente novamente.",
 };
 
 /**

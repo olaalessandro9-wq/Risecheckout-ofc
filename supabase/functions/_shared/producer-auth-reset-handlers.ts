@@ -11,6 +11,8 @@ import { rateLimitMiddleware, getClientIP } from "./rate-limiting/index.ts";
 import { validatePassword, formatPasswordError } from "./password-policy.ts";
 import { sanitizeEmail } from "./sanitizer.ts";
 import { sendEmail } from "./zeptomail.ts";
+import { translateNotFoundError } from "./error-translator.ts";
+import { syncOrphanedAuthUser } from "./user-sync.ts";
 import {
   CURRENT_HASH_VERSION,
   hashPassword,
@@ -73,15 +75,41 @@ export async function handleRequestPasswordReset(
     return errorResponse("Email é obrigatório", corsHeaders, 400);
   }
 
-  const { data: producer, error: findError } = await supabase
+  let { data: producer, error: findError } = await supabase
     .from("profiles")
     .select("id, email, name")
     .eq("email", email.toLowerCase())
     .single() as { data: ProducerForReset | null; error: unknown };
 
+  // RISE V3: Se não encontrou em profiles, verificar se é usuário órfão
   if (findError || !producer) {
-    log.info(`Password reset for unknown email: ${email}`);
-    return errorResponse("E-mail não encontrado na base de dados", corsHeaders, 404);
+    log.info(`Password reset for unknown email, checking orphaned: ${email}`);
+    
+    // Tentar sincronizar usuário órfão (existe em auth.users mas não em profiles)
+    const syncResult = await syncOrphanedAuthUser(supabase, email);
+    
+    if (syncResult.success && syncResult.profileId) {
+      // Buscar o profile recém-criado
+      const { data: syncedProducer } = await supabase
+        .from("profiles")
+        .select("id, email, name")
+        .eq("id", syncResult.profileId)
+        .single() as { data: ProducerForReset | null; error: unknown };
+      
+      if (syncedProducer) {
+        log.info(`Orphaned user synced successfully: ${email}`);
+        producer = syncedProducer;
+      }
+    }
+    
+    // Se ainda não encontrou, retornar erro amigável
+    if (!producer) {
+      return errorResponse(
+        translateNotFoundError("email"),
+        corsHeaders,
+        404
+      );
+    }
   }
 
   const resetToken = generateResetToken();

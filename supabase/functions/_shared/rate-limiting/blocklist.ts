@@ -9,6 +9,7 @@
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { BlocklistResult } from "./types.ts";
 import { createLogger } from "../logger.ts";
+import { translateBlocklistError } from "../error-translator.ts";
 
 const log = createLogger("Blocklist");
 
@@ -85,16 +86,13 @@ export function createBlocklistResponse(
   result: BlocklistResult,
   corsHeaders: Record<string, string>
 ): Response {
-  const message = result.expiresAt
-    ? `IP temporariamente bloqueado até ${result.expiresAt}`
-    : "IP bloqueado permanentemente";
+  // Usar mensagem amigável em português
+  const message = translateBlocklistError(result.expiresAt, result.reason);
 
   return new Response(
     JSON.stringify({
       success: false,
       error: message,
-      reason: result.reason,
-      expiresAt: result.expiresAt,
     }),
     {
       status: 403,
