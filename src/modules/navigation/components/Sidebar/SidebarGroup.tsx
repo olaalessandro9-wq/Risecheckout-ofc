@@ -2,11 +2,12 @@
  * SidebarGroup - Grupo Expansível de Navegação
  * 
  * Renderiza um item com sub-itens (children) usando Collapsible.
+ * Usa GuardedLink para navegação segura com proteção de alterações não salvas.
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - Componentes Type-Safe
  */
 
-import { Link, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { ChevronDown } from "lucide-react";
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
@@ -15,6 +16,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { GuardedLink } from "@/components/navigation/GuardedLink";
 import { isActivePath, hasActiveChild } from "../../utils/navigationHelpers";
 import type { NavItemConfig, NavItemGroupVariant } from "../../types/navigation.types";
 
@@ -148,7 +150,7 @@ function SidebarGroupChild({ item, showLabels, onNavigate }: SidebarGroupChildPr
 
   return (
     <li>
-      <Link
+      <GuardedLink
         to={item.variant.path}
         className={cn(
           "group/child relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all duration-200 outline-none",
@@ -177,7 +179,7 @@ function SidebarGroupChild({ item, showLabels, onNavigate }: SidebarGroupChildPr
         {isChildActive && (
           <div className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-0.5 bg-primary rounded-r-full" />
         )}
-      </Link>
+      </GuardedLink>
     </li>
   );
 }

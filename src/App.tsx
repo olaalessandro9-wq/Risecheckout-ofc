@@ -13,6 +13,7 @@ import {
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { RoleProtectedRoute } from "@/components/RoleProtectedRoute";
 import { ThemeProvider } from "@/providers/theme";
+import { NavigationGuardProvider } from "@/providers/NavigationGuardProvider";
 import { BusyProvider } from "@/components/BusyProvider";
 import { HelmetProvider } from "react-helmet-async";
 import { AppErrorBoundary } from "@/components/AppErrorBoundary";
@@ -115,20 +116,50 @@ function RootLayout() {
 }
 
 // ============================================================================
-// DASHBOARD LAYOUT - Com AppShell
+// DASHBOARD LAYOUT - Com AppShell e NavigationGuard
 // ============================================================================
 function DashboardLayout() {
   return (
     <ProtectedRoute>
       <ThemeProvider>
-        <AppShell />
+        <NavigationGuardProvider>
+          <AppShell />
+        </NavigationGuardProvider>
       </ThemeProvider>
     </ProtectedRoute>
   );
 }
 
 // ============================================================================
-// ROUTER - createBrowserRouter para suporte a useBlocker
+// MEMBERS AREA BUILDER LAYOUT - Full screen com NavigationGuard
+// ============================================================================
+function MembersAreaBuilderLayout() {
+  return (
+    <ProtectedRoute>
+      <NavigationGuardProvider>
+        <Suspense fallback={<PageLoader />}>
+          <MembersAreaBuilderPage />
+        </Suspense>
+      </NavigationGuardProvider>
+    </ProtectedRoute>
+  );
+}
+
+// ============================================================================
+// CHECKOUT CUSTOMIZER LAYOUT - Full screen com NavigationGuard
+// ============================================================================
+function CheckoutCustomizerLayout() {
+  return (
+    <ProtectedRoute>
+      <NavigationGuardProvider>
+        <CheckoutCustomizer />
+      </NavigationGuardProvider>
+    </ProtectedRoute>
+  );
+}
+
+// ============================================================================
+// ROUTER - createBrowserRouter (mantido para compatibilidade)
 // ============================================================================
 const router = createBrowserRouter([
   {
@@ -191,29 +222,19 @@ const router = createBrowserRouter([
       { path: "/minha-conta/produto/:productId/aula/:contentId", element: <LessonViewer /> },
 
       // ============================================================
-      // CHECKOUT BUILDER - Full screen (Protegido)
+      // CHECKOUT BUILDER - Full screen (Protegido com NavigationGuard)
       // ============================================================
       {
         path: "/dashboard/produtos/checkout/personalizar",
-        element: (
-          <ProtectedRoute>
-            <CheckoutCustomizer />
-          </ProtectedRoute>
-        ),
+        element: <CheckoutCustomizerLayout />,
       },
       
       // ============================================================
-      // MEMBERS AREA BUILDER - Full screen (Protegido)
+      // MEMBERS AREA BUILDER - Full screen (Protegido com NavigationGuard)
       // ============================================================
       {
         path: "/dashboard/produtos/:productId/members-area/builder",
-        element: (
-          <ProtectedRoute>
-            <Suspense fallback={<PageLoader />}>
-              <MembersAreaBuilderPage />
-            </Suspense>
-          </ProtectedRoute>
-        ),
+        element: <MembersAreaBuilderLayout />,
       },
 
       // ============================================================

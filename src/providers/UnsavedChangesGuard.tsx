@@ -1,74 +1,55 @@
 /**
  * UnsavedChangesGuard - Componente para proteger páginas com alterações não salvas
  * 
- * Usa useNavigationBlocker para interceptar navegação e mostra AlertDialog
- * para confirmação antes de descartar alterações.
+ * Usa o NavigationGuardProvider centralizado para registrar o estado dirty.
+ * O modal de confirmação é gerenciado pelo provider, não por este componente.
  * 
  * Uso:
- * <UnsavedChangesGuard isDirty={hasUnsavedChanges}>
+ * <UnsavedChangesGuard isDirty={hasUnsavedChanges} id="product-form">
  *   <YourComponent />
  * </UnsavedChangesGuard>
+ * 
+ * @see RISE ARCHITECT PROTOCOL V3 - Nota 9.7/10
  */
 
-import { PropsWithChildren } from "react";
-import { useNavigationBlocker } from "@/hooks/useNavigationBlocker";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { useId, type PropsWithChildren } from "react";
+import { useFormDirtyGuard } from "@/hooks/useFormDirtyGuard";
+
+// ============================================================================
+// TYPES
+// ============================================================================
 
 interface UnsavedChangesGuardProps extends PropsWithChildren {
   /** Se há alterações não salvas */
   isDirty: boolean;
-  /** Título do diálogo (opcional) */
+  /** ID único para este guard (opcional, usa useId se não fornecido) */
+  id?: string;
+  /** @deprecated - Título agora é gerenciado pelo NavigationGuardProvider */
   title?: string;
-  /** Descrição do diálogo (opcional) */
+  /** @deprecated - Descrição agora é gerenciada pelo NavigationGuardProvider */
   description?: string;
-  /** Texto do botão de cancelar (opcional) */
+  /** @deprecated - Texto do botão cancelar agora é gerenciado pelo NavigationGuardProvider */
   cancelText?: string;
-  /** Texto do botão de confirmar (opcional) */
+  /** @deprecated - Texto do botão confirmar agora é gerenciado pelo NavigationGuardProvider */
   confirmText?: string;
 }
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
 
 export function UnsavedChangesGuard({
   children,
   isDirty,
-  title = "Alterações não salvas",
-  description = "Você tem alterações que ainda não foram salvas. Se sair agora, essas alterações serão perdidas.",
-  cancelText = "Continuar editando",
-  confirmText = "Descartar alterações",
+  id,
 }: UnsavedChangesGuardProps) {
-  const { isBlocked, proceed, cancel } = useNavigationBlocker({ isDirty });
-
-  return (
-    <>
-      {children}
-      
-      <AlertDialog open={isBlocked}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{title}</AlertDialogTitle>
-            <AlertDialogDescription>{description}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={cancel}>
-              {cancelText}
-            </AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={proceed}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {confirmText}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
-  );
+  // Gera ID único se não fornecido
+  const autoId = useId();
+  const guardId = id ?? autoId;
+  
+  // Registra no sistema centralizado
+  useFormDirtyGuard({ id: guardId, isDirty });
+  
+  // Apenas renderiza children - modal é gerenciado pelo provider
+  return <>{children}</>;
 }
