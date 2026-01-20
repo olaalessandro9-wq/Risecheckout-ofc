@@ -95,10 +95,10 @@ async function processMercadoPago(input: ProcessPixInput): Promise<ProcessPixOut
   });
 
   if (error || !data?.success) {
-    log.error("MercadoPago PIX creation failed", { error: error?.message || data?.error });
+    log.error("MercadoPago PIX creation failed", { error: error?.message ?? data?.error ?? "Unknown error" });
     return { 
       success: false, 
-      error: data?.error || error?.message || "Erro ao gerar QR Code do MercadoPago" 
+      error: data?.error ?? error?.message ?? "Erro ao gerar QR Code do MercadoPago" 
     };
   }
 
@@ -140,10 +140,10 @@ async function processAsaas(input: ProcessPixInput): Promise<ProcessPixOutput> {
   });
 
   if (error || !data?.success) {
-    log.error("Asaas PIX creation failed", { error: error?.message || data?.error });
+    log.error("Asaas PIX creation failed", { error: error?.message ?? data?.error ?? "Unknown error" });
     return { 
       success: false, 
-      error: data?.error || error?.message || "Erro ao gerar QR Code do Asaas" 
+      error: data?.error ?? error?.message ?? "Erro ao gerar QR Code do Asaas" 
     };
   }
 
