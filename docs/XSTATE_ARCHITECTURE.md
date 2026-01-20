@@ -34,7 +34,7 @@ Este projeto utiliza **XState State Machines** como o **ÚNICO** padrão de gere
 
 ---
 
-## 2. Módulos Migrados (6/6 - 100%)
+## 2. Módulos Migrados (7/7 - 100%)
 
 | # | Módulo | Arquivo Principal | Estados | Linhas |
 |---|--------|-------------------|---------|--------|
@@ -44,8 +44,9 @@ Este projeto utiliza **XState State Machines** como o **ÚNICO** padrão de gere
 | 4 | **Members Area Builder** | `src/modules/members-area-builder/machines/builderMachine.ts` | 6 | 279 |
 | 5 | **Affiliation** | `src/modules/affiliation/machines/affiliationMachine.ts` | 4 | 139 |
 | 6 | **Members Area Settings** | `src/hooks/members-area/machines/membersAreaMachine.ts` | 4 | 289 |
+| 7 | **Financeiro** | `src/modules/financeiro/machines/financeiroMachine.ts` | 4 | 139 |
 
-**Total de Linhas XState:** ~1.299 linhas  
+**Total de Linhas XState:** ~1.438 linhas  
 **Conformidade 300-Line Rule:** ✅ 100%
 
 ---
@@ -196,6 +197,40 @@ stateDiagram-v2
 ```
 
 **Responsabilidade:** Gerencia configurações da área de membros (enabled, modules).
+
+---
+
+### 3.7 FinanceiroMachine
+
+```mermaid
+stateDiagram-v2
+    [*] --> idle
+    idle --> loading: LOAD
+    loading --> ready: onDone(loadGatewayStatuses)
+    loading --> error: onError
+    
+    state ready {
+        [*] --> active
+        active --> active: SELECT_GATEWAY
+        active --> active: DESELECT_GATEWAY
+        active --> active: GATEWAY_CONNECTED
+        active --> active: GATEWAY_DISCONNECTED
+    }
+    
+    ready --> loading: REFRESH
+    error --> loading: RETRY
+```
+
+**Responsabilidade:** Gerencia status de conexão dos gateways de pagamento (Asaas, PushinPay, Mercado Pago, Stripe) e abertura/fechamento do sheet de configuração.
+
+**Eventos:**
+- `LOAD` - Carrega status de todos os gateways via Edge Function
+- `SELECT_GATEWAY` - Abre sheet de configuração do gateway selecionado
+- `DESELECT_GATEWAY` - Fecha sheet de configuração
+- `GATEWAY_CONNECTED` - Atualiza status local após conexão bem-sucedida
+- `GATEWAY_DISCONNECTED` - Atualiza status local após desconexão
+- `REFRESH` - Recarrega dados do backend (pós-OAuth)
+- `RETRY` - Tenta novamente após erro
 
 ---
 
@@ -445,6 +480,7 @@ Copie a definição da máquina para [stately.ai/viz](https://stately.ai/viz) pa
 | 2026-01-20 | Convenções de nomenclatura definidas |
 | 2026-01-20 | Guia de migração para futuros módulos |
 | 2026-01-20 | Checklist de conformidade RISE V3 |
+| 2026-01-20 | Adicionado **financeiroMachine** (7ª máquina) |
 
 ---
 
@@ -460,8 +496,9 @@ Copie a definição da máquina para [stately.ai/viz](https://stately.ai/viz) pa
 │  ✅ Members Area Builder    → builderMachine                 │
 │  ✅ Affiliation Module      → affiliationMachine             │
 │  ✅ Members Area Settings   → membersAreaMachine             │
+│  ✅ Financeiro Module       → financeiroMachine              │
 │                                                              │
-│  TOTAL: 6/6 MÓDULOS (100%)                                  │
+│  TOTAL: 7/7 MÓDULOS (100%)                                  │
 │  RISE V3 SCORE: 10.0/10                                     │
 │  REDUCER LEGACY: 0 ARQUIVOS                                 │
 │                                                              │
