@@ -44,20 +44,22 @@ const { data: session } = await supabase
   .eq("session_token", sessionToken);
 ```
 
-### 2. CORS: `cors.ts`
+### 2. CORS: `cors-v2.ts`
+
+> **ATUALIZADO 2026-01-20:** Migrado de `cors.ts` para `cors-v2.ts`
 
 **Para funções de dashboard (origins específicas):**
 ```typescript
-import { handleCors } from "../_shared/cors.ts";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
 
-const corsResult = handleCors(req);
+const corsResult = handleCorsV2(req);
 if (corsResult instanceof Response) return corsResult;
 const corsHeaders = corsResult.headers;
 ```
 
 **Para funções públicas (webhooks, checkout):**
 ```typescript
-import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
+import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 
 // Use PUBLIC_CORS_HEADERS diretamente
 return new Response(JSON.stringify(data), {
@@ -178,7 +180,7 @@ return errorResponse("Mensagem de erro", corsHeaders, 400);
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { handleCors } from "../_shared/cors.ts";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 import { jsonResponse, errorResponse } from "../_shared/edge-helpers.ts";
@@ -187,7 +189,7 @@ import { createLogger } from "../_shared/logger.ts";
 const log = createLogger("nome-da-funcao");
 
 serve(withSentry("nome-da-funcao", async (req) => {
-  const corsResult = handleCors(req);
+  const corsResult = handleCorsV2(req);
   if (corsResult instanceof Response) return corsResult;
   const corsHeaders = corsResult.headers;
 
@@ -245,7 +247,7 @@ serve(withSentry("nome-da-funcao", async (req) => {
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { PUBLIC_CORS_HEADERS } from "../_shared/cors.ts";
+import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared/rate-limiter.ts";
 import { createLogger } from "../_shared/logger.ts";
@@ -351,7 +353,7 @@ console.error("[function] erro");
 Antes de fazer merge:
 
 - [ ] Usa `unified-auth.ts` para autenticação (dashboard)
-- [ ] Usa `handleCors()` ou `PUBLIC_CORS_HEADERS` para CORS
+- [ ] Usa `handleCorsV2()` ou `PUBLIC_CORS_HEADERS` de `cors-v2.ts` para CORS
 - [ ] Usa `withSentry()` para error tracking
 - [ ] Usa `jsonResponse()` e `errorResponse()` para respostas
 - [ ] Arquivo tem menos de 300 linhas

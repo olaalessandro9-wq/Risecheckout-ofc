@@ -1,5 +1,15 @@
 # Guia de Implementação de Segurança P1 e P2
 
+> **NOTA HISTÓRICA (2026-01-20):**  
+> Este guia foi originalmente criado em 2024. Desde então:
+> - A criptografia foi migrada de `_shared/encryption.ts` para `_shared/kms/index.ts`
+> - O CORS foi migrado de `_shared/cors.ts` para `_shared/cors-v2.ts`
+> - A autenticação de producers usa `unified-auth.ts` em vez de `supabase.auth.getUser()`
+> 
+> Os exemplos de código abaixo foram **ATUALIZADOS** para refletir a arquitetura atual.
+
+---
+
 ## P1: Configurar Content Security Policy (CSP) no Cloudflare
 
 **Tempo estimado:** 30 minutos  
@@ -81,165 +91,72 @@ openssl rand -base64 32
    - Nome: `ENCRYPTION_KEY`
    - Valor: (a chave gerada)
 
-### Passo 2: Criar Funções de Criptografia (Edge Function Shared)
+### Passo 2: Usar o Módulo KMS Existente
 
-Crie o arquivo `supabase/functions/_shared/encryption.ts`:
+> **ATUALIZADO 2026-01-20:** O módulo de criptografia foi consolidado em `_shared/kms/index.ts`
 
-```typescript
-const ALGORITHM = 'AES-GCM';
-const KEY_LENGTH = 256;
-
-async function getKey(): Promise<CryptoKey> {
-  const keyBase64 = Deno.env.get('ENCRYPTION_KEY');
-  if (!keyBase64) throw new Error('ENCRYPTION_KEY not configured');
-  
-  const keyBytes = Uint8Array.from(atob(keyBase64), c => c.charCodeAt(0));
-  return crypto.subtle.importKey(
-    'raw',
-    keyBytes,
-    { name: ALGORITHM, length: KEY_LENGTH },
-    false,
-    ['encrypt', 'decrypt']
-  );
-}
-
-export async function encrypt(plaintext: string): Promise<string> {
-  const key = await getKey();
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const encoder = new TextEncoder();
-  
-  const encrypted = await crypto.subtle.encrypt(
-    { name: ALGORITHM, iv },
-    key,
-    encoder.encode(plaintext)
-  );
-  
-  // Format: base64(iv):base64(ciphertext)
-  const ivBase64 = btoa(String.fromCharCode(...iv));
-  const cipherBase64 = btoa(String.fromCharCode(...new Uint8Array(encrypted)));
-  
-  return `${ivBase64}:${cipherBase64}`;
-}
-
-export async function decrypt(ciphertext: string): Promise<string> {
-  const key = await getKey();
-  const [ivBase64, cipherBase64] = ciphertext.split(':');
-  
-  const iv = Uint8Array.from(atob(ivBase64), c => c.charCodeAt(0));
-  const cipher = Uint8Array.from(atob(cipherBase64), c => c.charCodeAt(0));
-  
-  const decrypted = await crypto.subtle.decrypt(
-    { name: ALGORITHM, iv },
-    key,
-    cipher
-  );
-  
-  return new TextDecoder().decode(decrypted);
-}
-
-// Hash para busca (não reversível)
-export async function hash(value: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(value);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-```
-
-### Passo 3: Atualizar Schema do Banco
-
-Execute esta migration:
-
-```sql
--- Adicionar colunas criptografadas
-ALTER TABLE orders 
-ADD COLUMN customer_document_encrypted TEXT,
-ADD COLUMN customer_document_hash TEXT,
-ADD COLUMN customer_phone_encrypted TEXT,
-ADD COLUMN customer_phone_hash TEXT;
-
--- Criar índices para busca por hash
-CREATE INDEX idx_orders_document_hash ON orders(customer_document_hash);
-CREATE INDEX idx_orders_phone_hash ON orders(customer_phone_hash);
-
--- Comentário de documentação
-COMMENT ON COLUMN orders.customer_document_encrypted IS 'CPF criptografado com AES-256-GCM';
-COMMENT ON COLUMN orders.customer_document_hash IS 'SHA-256 do CPF para busca';
-```
-
-### Passo 4: Atualizar Edge Function create-order
-
-No arquivo `supabase/functions/create-order/index.ts`, adicione:
+O sistema já possui um módulo KMS completo. Use-o:
 
 ```typescript
-import { encrypt, hash } from '../_shared/encryption.ts';
+import { encrypt, decrypt } from '../_shared/kms/index.ts';
+
+// Criptografar
+const encryptedCpf = await encrypt(customerDocument);
+const encryptedPhone = await encrypt(customerPhone);
+
+// Decriptografar
+const decryptedCpf = await decrypt(encryptedCpf);
+const decryptedPhone = await decrypt(encryptedPhone);
+```
+
+### Passo 3: Atualizar Edge Function create-order
+
+No arquivo `supabase/functions/create-order/handlers/order-creator.ts`, a criptografia já está implementada:
+
+```typescript
+import { encrypt } from '../../_shared/kms/index.ts';
 
 // Dentro da função, antes de inserir a order:
-const documentEncrypted = customerDocument 
-  ? await encrypt(customerDocument) 
-  : null;
-const documentHash = customerDocument 
-  ? await hash(customerDocument) 
-  : null;
-const phoneEncrypted = customerPhone 
-  ? await encrypt(customerPhone) 
-  : null;
-const phoneHash = customerPhone 
-  ? await hash(customerPhone) 
-  : null;
-
-// Na inserção, use:
-const { data: order, error } = await supabase
-  .from('orders')
-  .insert({
-    // ... outros campos
-    customer_document: null, // Não salvar mais em texto plano
-    customer_document_encrypted: documentEncrypted,
-    customer_document_hash: documentHash,
-    customer_phone: null, // Não salvar mais em texto plano
-    customer_phone_encrypted: phoneEncrypted,
-    customer_phone_hash: phoneHash,
-  });
+const encryptedPhone = await encrypt(customer_phone);
+const encryptedCpf = await encrypt(customer_cpf);
 ```
 
-### Passo 5: Criar Edge Function para Decriptografia
+### Passo 4: Criar Edge Function para Decriptografia
+
+> **ATUALIZADO 2026-01-20:** Use `handleCorsV2` e `requireAuthenticatedProducer`
 
 Crie `supabase/functions/decrypt-order-data/index.ts`:
 
 ```typescript
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { decrypt } from '../_shared/encryption.ts';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { decrypt } from '../_shared/kms/index.ts';
+import { handleCorsV2 } from '../_shared/cors-v2.ts';
+import { requireAuthenticatedProducer, unauthorizedResponse } from '../_shared/unified-auth.ts';
+import { jsonResponse, errorResponse } from '../_shared/response-helpers.ts';
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsResult = handleCorsV2(req);
+  if (corsResult instanceof Response) return corsResult;
+  const corsHeaders = corsResult.headers;
 
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Verificar se é vendor autenticado
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // Verificar autenticação via producer session
+    let producerId: string;
+    try {
+      const producer = await requireAuthenticatedProducer(supabase, req);
+      producerId = producer.id;
+    } catch {
+      return unauthorizedResponse(corsHeaders);
     }
 
     const { orderId } = await req.json();
     
-    // Buscar order (RLS garante que só pega orders do vendor)
+    // Buscar order (verificar ownership)
     const { data: order, error } = await supabase
       .from('orders')
       .select('customer_document_encrypted, customer_phone_encrypted, vendor_id')
@@ -247,18 +164,12 @@ Deno.serve(async (req) => {
       .single();
 
     if (error || !order) {
-      return new Response(JSON.stringify({ error: 'Order not found' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return errorResponse('Order not found', corsHeaders, 404);
     }
 
     // Verificar ownership
-    if (order.vendor_id !== user.id) {
-      return new Response(JSON.stringify({ error: 'Forbidden' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    if (order.vendor_id !== producerId) {
+      return errorResponse('Forbidden', corsHeaders, 403);
     }
 
     // Decriptografar
@@ -269,155 +180,40 @@ Deno.serve(async (req) => {
       ? await decrypt(order.customer_phone_encrypted) 
       : null;
 
-    return new Response(JSON.stringify({
+    return jsonResponse({
       customerDocument,
       customerPhone,
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    }, corsHeaders);
 
   } catch (error) {
-    console.error('Decrypt error:', error);
-    return new Response(JSON.stringify({ error: 'Internal error' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return errorResponse('Internal error', corsHeaders, 500);
   }
 });
 ```
 
-### Passo 6: Script de Migração de Dados Existentes
-
-Crie `supabase/functions/migrate-encrypt-orders/index.ts`:
-
-```typescript
-// Esta função deve ser executada UMA VEZ para migrar dados existentes
-// Depois de executada, pode ser deletada
-
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { encrypt, hash } from '../_shared/encryption.ts';
-
-Deno.serve(async (req) => {
-  // Verificar secret de admin
-  const adminSecret = req.headers.get('x-admin-secret');
-  if (adminSecret !== Deno.env.get('ADMIN_MIGRATION_SECRET')) {
-    return new Response('Unauthorized', { status: 401 });
-  }
-
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  );
-
-  // Buscar orders com dados não criptografados
-  const { data: orders, error } = await supabase
-    .from('orders')
-    .select('id, customer_document, customer_phone')
-    .not('customer_document', 'is', null)
-    .is('customer_document_encrypted', null)
-    .limit(100); // Processar em lotes
-
-  if (error) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
-  }
-
-  let processed = 0;
-  let failed = 0;
-
-  for (const order of orders || []) {
-    try {
-      const updates: Record<string, string | null> = {};
-      
-      if (order.customer_document) {
-        updates.customer_document_encrypted = await encrypt(order.customer_document);
-        updates.customer_document_hash = await hash(order.customer_document);
-        updates.customer_document = null; // Limpar texto plano
-      }
-      
-      if (order.customer_phone) {
-        updates.customer_phone_encrypted = await encrypt(order.customer_phone);
-        updates.customer_phone_hash = await hash(order.customer_phone);
-        updates.customer_phone = null; // Limpar texto plano
-      }
-
-      await supabase
-        .from('orders')
-        .update(updates)
-        .eq('id', order.id);
-
-      processed++;
-    } catch (e) {
-      console.error(`Failed to process order ${order.id}:`, e);
-      failed++;
-    }
-  }
-
-  return new Response(JSON.stringify({
-    processed,
-    failed,
-    remaining: (orders?.length || 0) === 100 ? 'More batches needed' : 'Complete'
-  }), {
-    headers: { 'Content-Type': 'application/json' }
-  });
-});
-```
-
-### Passo 7: Atualizar Frontend para Usar Decriptação
-
-No componente que exibe detalhes do pedido:
-
-```typescript
-// hooks/useDecryptedOrderData.ts
-import { supabase } from '@/integrations/supabase/client';
-
-export async function getDecryptedOrderData(orderId: string) {
-  const { data, error } = await supabase.functions.invoke('decrypt-order-data', {
-    body: { orderId }
-  });
-  
-  if (error) throw error;
-  return data;
-}
-```
-
-### Passo 8: Checklist de Validação
+### Passo 5: Checklist de Validação
 
 - [ ] Secret `ENCRYPTION_KEY` adicionado no Lovable
-- [ ] Secret `ADMIN_MIGRATION_SECRET` adicionado (temporário)
-- [ ] Migration do banco executada
-- [ ] Edge function `create-order` atualizada
-- [ ] Edge function `decrypt-order-data` criada
-- [ ] Edge function `migrate-encrypt-orders` criada
-- [ ] Executar migração de dados existentes
+- [ ] Migration do banco executada (se necessário)
+- [ ] Edge function `create-order` usa `kms/index.ts`
+- [ ] Edge function `decrypt-order-data` criada (se necessário)
 - [ ] Testar criação de nova order (dados criptografados)
 - [ ] Testar visualização de order (dados decriptografados)
-- [ ] Remover edge function `migrate-encrypt-orders`
-- [ ] Remover colunas antigas após confirmação (opcional)
-
-### Rollback
-
-Se algo der errado:
-
-```sql
--- Restaurar dados (se ainda existirem nas colunas originais)
-UPDATE orders 
-SET customer_document = customer_document_backup,
-    customer_phone = customer_phone_backup
-WHERE customer_document_backup IS NOT NULL;
-```
 
 ---
 
 ## Ordem de Execução Recomendada
 
 1. ✅ **Hoje (30 min):** Configurar CSP no Cloudflare
-2. 📅 **Próxima sessão (2h):** Implementar funções de criptografia
-3. 📅 **Próxima sessão (2h):** Atualizar create-order e criar decrypt
-4. 📅 **Próxima sessão (2h):** Migrar dados existentes e testar
-5. 📅 **Final (1h):** Cleanup e validação completa
+2. ✅ **Próxima sessão (2h):** Verificar criptografia existente em `kms/index.ts`
+3. 📅 **Se necessário:** Criar Edge Function de decriptografia
+4. 📅 **Final (1h):** Cleanup e validação completa
 
 ---
 
 ## Suporte
 
-Se tiver dúvidas durante a implementação, me pergunte com o contexto específico do passo que está executando.
+Se tiver dúvidas durante a implementação, consulte:
+- `docs/EDGE_FUNCTIONS_STYLE_GUIDE.md` - Padrões de Edge Functions
+- `docs/AUTH_SYSTEM.md` - Sistema de autenticação
+- `supabase/functions/_shared/kms/` - Módulo de criptografia

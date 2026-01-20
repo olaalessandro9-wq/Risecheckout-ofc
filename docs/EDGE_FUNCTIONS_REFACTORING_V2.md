@@ -81,7 +81,7 @@ Todos os `index.ts` agora seguem este padrão:
 ```typescript
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { handleCors, corsHeaders } from "../_shared/cors.ts";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { jsonResponse, errorResponse } from "../_shared/edge-helpers.ts";
 import * as handlers from "../_shared/[nome]-handlers.ts";
 
@@ -193,7 +193,7 @@ supabase/functions/
 │   │── [TIPOS E HELPERS]
 │   ├── supabase-types.ts          # 222 linhas - Tipos centralizados
 │   ├── edge-helpers.ts            # 275 linhas - Helpers reutilizáveis
-│   ├── cors.ts                    # ~50 linhas - CORS handler
+│   ├── cors-v2.ts                 # ~80 linhas - CORS handler (v2)
 │   │
 │   │── [AUTENTICAÇÃO - PRODUCER]
 │   ├── producer-auth-handlers.ts       # 379 linhas - Register, Login, Logout, Validate
@@ -240,7 +240,7 @@ supabase/functions/
 ```typescript
 // Em qualquer index.ts de Edge Function:
 import { SupabaseClient } from "../_shared/supabase-types.ts";
-import { handleCors, corsHeaders } from "../_shared/cors.ts";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { jsonResponse, errorResponse } from "../_shared/edge-helpers.ts";
 import * as handlers from "../_shared/[nome]-handlers.ts";
 ```
