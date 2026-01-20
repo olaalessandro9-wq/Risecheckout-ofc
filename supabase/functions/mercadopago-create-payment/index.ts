@@ -140,8 +140,9 @@ serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
     
+    // Rate Limiting (RISE V3 - Config específica por gateway)
     const rateLimitResponse = await rateLimitOnlyMiddleware(
-      supabase, req, RATE_LIMIT_CONFIGS.CREATE_PIX, corsHeaders
+      supabase, req, RATE_LIMIT_CONFIGS.MERCADOPAGO_CREATE_PAYMENT, corsHeaders
     );
     if (rateLimitResponse) return rateLimitResponse;
     
