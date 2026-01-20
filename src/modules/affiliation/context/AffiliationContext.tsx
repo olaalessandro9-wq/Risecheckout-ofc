@@ -91,11 +91,10 @@ export function AffiliationProvider({ affiliationId, children }: AffiliationProv
     setActiveTab: (tab) => send({ type: "SET_TAB", tab }),
     setTabError: (tab, hasError) => send({ type: "SET_TAB_ERROR", tab, hasError }),
     clearTabErrors: () => send({ type: "CLEAR_TAB_ERRORS" }),
-    refetch: (): Promise<void> => {
+    refetch: async (): Promise<void> => {
       if (affiliationId) {
         send({ type: "REFRESH" });
       }
-      return Promise.resolve();
     },
   };
 
