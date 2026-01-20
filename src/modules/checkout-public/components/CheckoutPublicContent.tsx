@@ -118,7 +118,6 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     name: formData.name,
     email: formData.email,
     phone: formData.phone,
-    cpf: formData.cpf,
     document: formData.cpf || formData.document || '',
   }), [formData]);
 
