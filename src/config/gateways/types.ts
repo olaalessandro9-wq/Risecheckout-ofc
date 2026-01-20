@@ -174,4 +174,6 @@ export interface GatewayWithStatus extends GatewayDefinition {
  */
 export interface GatewayConfigFormProps {
   readonly onConnectionChange?: () => void;
+  /** Status de conexão do gateway (SSOT do FinanceiroContext) */
+  readonly connectionStatus?: GatewayConnectionStatus | null;
 }

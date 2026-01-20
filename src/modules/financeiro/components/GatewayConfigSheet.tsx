@@ -2,10 +2,10 @@
  * GatewayConfigSheet Component
  * 
  * @module modules/financeiro/components
- * @version 1.0.0 - RISE Protocol V3 Compliant
+ * @version 2.0.0 - RISE Protocol V3 Compliant - SSOT Architecture
  * 
  * Sheet lateral para configuração de gateway.
- * Renderiza o ConfigForm apropriado baseado no gateway selecionado.
+ * Renderiza o ConfigForm apropriado e passa connectionStatus como SSOT.
  */
 
 import {
@@ -16,7 +16,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { GATEWAY_REGISTRY } from "@/config/gateways";
-import type { GatewayId } from "@/config/gateways/types";
+import type { GatewayId, GatewayConnectionStatus } from "@/config/gateways/types";
+import { useFinanceiroContext } from "../context/FinanceiroContext";
 
 // Gateway ConfigForms
 import * as PushinPay from "@/integrations/gateways/pushinpay";
@@ -41,17 +42,18 @@ interface GatewayConfigSheetProps {
 
 function renderGatewayContent(
   gatewayId: GatewayId | null,
-  onConnectionChange: () => void
+  onConnectionChange: () => void,
+  connectionStatus: GatewayConnectionStatus | null
 ) {
   switch (gatewayId) {
     case "asaas":
-      return <Asaas.ConfigForm onConnectionChange={onConnectionChange} />;
+      return <Asaas.ConfigForm onConnectionChange={onConnectionChange} connectionStatus={connectionStatus} />;
     case "pushinpay":
-      return <PushinPay.ConfigForm onConnectionChange={onConnectionChange} />;
+      return <PushinPay.ConfigForm onConnectionChange={onConnectionChange} connectionStatus={connectionStatus} />;
     case "mercadopago":
-      return <MercadoPago.ConfigForm onConnectionChange={onConnectionChange} />;
+      return <MercadoPago.ConfigForm onConnectionChange={onConnectionChange} connectionStatus={connectionStatus} />;
     case "stripe":
-      return <Stripe.ConfigForm onConnectionChange={onConnectionChange} />;
+      return <Stripe.ConfigForm onConnectionChange={onConnectionChange} connectionStatus={connectionStatus} />;
     default:
       return null;
   }
@@ -67,7 +69,9 @@ export function GatewayConfigSheet({
   onClose,
   onConnectionChange,
 }: GatewayConfigSheetProps) {
+  const { connectionStatuses } = useFinanceiroContext();
   const gateway = gatewayId ? GATEWAY_REGISTRY[gatewayId] : null;
+  const connectionStatus = gatewayId ? connectionStatuses[gatewayId] : null;
 
   return (
     <Sheet open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -76,7 +80,7 @@ export function GatewayConfigSheet({
           <SheetTitle>{gateway?.name ?? ""}</SheetTitle>
           <SheetDescription>{gateway?.description ?? ""}</SheetDescription>
         </SheetHeader>
-        {renderGatewayContent(gatewayId, onConnectionChange)}
+        {renderGatewayContent(gatewayId, onConnectionChange, connectionStatus)}
       </SheetContent>
     </Sheet>
   );

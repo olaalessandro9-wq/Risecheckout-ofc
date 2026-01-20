@@ -2,12 +2,13 @@
  * Financeiro Context
  * 
  * @module modules/financeiro/context
- * @version 1.0.0 - RISE Protocol V3 Compliant
+ * @version 2.0.0 - RISE Protocol V3 Compliant - SSOT Architecture
  * 
  * React Context que integra a financeiroMachine com a UI.
+ * Single Source of Truth para todos os estados de conexão de gateways.
  */
 
-import { createContext, useContext, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
 import { useMachine } from "@xstate/react";
 import { useSearchParams } from "react-router-dom";
 import { financeiroMachine } from "../machines";
@@ -52,6 +53,9 @@ interface FinanceiroProviderProps {
 export function FinanceiroProvider({ children }: FinanceiroProviderProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [state, send] = useMachine(financeiroMachine);
+  
+  // Debounce ref para evitar processar múltiplos postMessages
+  const lastOAuthMessageTime = useRef<number>(0);
 
   // Auto-load on mount
   useEffect(() => {
@@ -73,20 +77,28 @@ export function FinanceiroProvider({ children }: FinanceiroProviderProps) {
     }
   }, [state, searchParams, setSearchParams, send]);
 
-  // OAuth message listener - uses BACKGROUND_REFRESH to avoid full-screen spinner
+  // OAuth message listener - SSOT: único local que dispara refresh
   useEffect(() => {
     const handleOAuthMessage = (event: MessageEvent) => {
       const messageType = event.data?.type;
       const isOAuthSuccess =
         messageType === "mercadopago_oauth_success" ||
+        messageType === "mercadopago-connected" ||
         messageType === "stripe_oauth_success" ||
         messageType === "asaas_oauth_success" ||
         messageType === "oauth_success";
 
       if (isOAuthSuccess && (state.matches("ready") || state.matches("backgroundRefreshing"))) {
-        // Delay aumentado para garantir que o backend processou completamente
+        // DEBOUNCE: ignorar mensagens duplicadas em < 5s
+        const now = Date.now();
+        if (now - lastOAuthMessageTime.current < 5000) {
+          return; // Ignorar duplicata
+        }
+        lastOAuthMessageTime.current = now;
+        
+        // Delay para garantir que o backend processou completamente
         // Usa BACKGROUND_REFRESH para não bloquear a UI com spinner
-        setTimeout(() => send({ type: "BACKGROUND_REFRESH" }), 1200);
+        setTimeout(() => send({ type: "BACKGROUND_REFRESH" }), 1500);
       }
     };
 

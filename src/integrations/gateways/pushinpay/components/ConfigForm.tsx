@@ -30,11 +30,9 @@ import { EnvironmentSelector } from "./EnvironmentSelector";
 import { FeedbackMessage } from "./FeedbackMessage";
 import { SaveButton } from "./SaveButton";
 
-interface ConfigFormProps {
-  onConnectionChange?: () => void;
-}
+import type { GatewayConfigFormProps } from "@/config/gateways/types";
 
-export function ConfigForm({ onConnectionChange }: ConfigFormProps) {
+export function ConfigForm({ onConnectionChange }: GatewayConfigFormProps) {
   const { role } = usePermissions();
   const { user } = useAuth();
   const isAdmin = role === 'admin';

@@ -20,7 +20,7 @@ import {
 import { ConnectionStatus } from "./ConnectionStatus";
 import { ConnectButton } from "./ConnectButton";
 import { InfoCard } from "./InfoCard";
-import type { GatewayConfigFormProps } from "@/config/gateways";
+import type { GatewayConfigFormProps } from "@/config/gateways/types";
 
 export function ConfigForm({ onConnectionChange }: GatewayConfigFormProps) {
   // Hooks

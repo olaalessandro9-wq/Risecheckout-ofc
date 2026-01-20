@@ -25,11 +25,9 @@ import { WalletIdInput } from './WalletIdInput';
 import { ValidationResult } from './ValidationResult';
 import { ActionButtons } from './ActionButtons';
 
-interface ConfigFormProps {
-  onConnectionChange?: () => void;
-}
+import type { GatewayConfigFormProps } from "@/config/gateways/types";
 
-export function ConfigForm({ onConnectionChange }: ConfigFormProps) {
+export function ConfigForm({ onConnectionChange }: GatewayConfigFormProps) {
   const { toast } = useToast();
   const { config, isLoading: isLoadingConfig, refetch } = useAsaasConfig();
   const { validate, isValidating, lastResult } = useAsaasValidation();
