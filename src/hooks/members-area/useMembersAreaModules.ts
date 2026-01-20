@@ -2,9 +2,9 @@
  * Members Area Modules Hook
  * Handles CRUD operations for modules
  * 
- * REFACTORED: Uses dispatch from Reducer for state management
+ * REFACTORED: Uses XState dispatch for state management
  * 
- * @see RISE Protocol V3 - Single Source of Truth
+ * @see RISE Protocol V3 - Single Source of Truth via XState
  */
 
 import { useCallback, useRef } from "react";
@@ -12,14 +12,14 @@ import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { createLogger } from "@/lib/logger";
 import type { MemberModule, MemberModuleWithContents } from "./types";
-import type { MembersAreaAction } from "./membersAreaReducer";
+import type { MembersAreaMachineEvent } from "./machines";
 
 const log = createLogger("MembersAreaModules");
 
 interface UseMembersAreaModulesProps {
   productId: string | undefined;
   modules: MemberModuleWithContents[];
-  dispatch: React.Dispatch<MembersAreaAction>;
+  dispatch: (event: MembersAreaMachineEvent) => void;
 }
 
 interface UseMembersAreaModulesReturn {

@@ -2,9 +2,9 @@
  * Members Area Contents Hook
  * Handles CRUD operations for content items within modules via Edge Function
  * 
- * REFACTORED: Uses dispatch from Reducer for state management
+ * REFACTORED: Uses XState dispatch for state management
  * 
- * @see RISE Protocol V3 - Single Source of Truth
+ * @see RISE Protocol V3 - Single Source of Truth via XState
  */
 
 import { useCallback, useRef } from "react";
@@ -13,13 +13,13 @@ import { toast } from "sonner";
 import { createLogger } from "@/lib/logger";
 import { normalizeContentType } from "@/modules/members-area/utils";
 import type { MemberContent, MemberModuleWithContents } from "./types";
-import type { MembersAreaAction } from "./membersAreaReducer";
+import type { MembersAreaMachineEvent } from "./machines";
 
 const log = createLogger("MembersAreaContents");
 
 interface UseMembersAreaContentsProps {
   modules: MemberModuleWithContents[];
-  dispatch: React.Dispatch<MembersAreaAction>;
+  dispatch: (event: MembersAreaMachineEvent) => void;
 }
 
 interface UseMembersAreaContentsReturn {

@@ -5,11 +5,12 @@
  * OPTIMIZED V3: Backend now handles all enable logic in single call
  * Frontend reduced from 5 sequential calls to 1 call
  * 
- * @see RISE Protocol V3 - State Management via Reducer
+ * @see RISE Protocol V3 - State Management via XState
  */
 
-import { useReducer, useCallback, useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMachine } from "@xstate/react";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("MembersAreaSettings");
@@ -19,11 +20,7 @@ import { useAuth } from "@/hooks/useAuth";
 import type { Json } from "@/integrations/supabase/types";
 import type { MembersAreaSettings, MemberModuleWithContents, MemberContent } from "./types";
 import { normalizeContentType } from "@/modules/members-area/utils";
-import { 
-  membersAreaReducer, 
-  INITIAL_MEMBERS_AREA_STATE,
-  type MembersAreaAction 
-} from "./membersAreaReducer";
+import { membersAreaMachine, initialMembersAreaContext, type MembersAreaMachineEvent } from "./machines";
 
 interface SettingsResponse {
   success: boolean;
@@ -97,7 +94,7 @@ interface UseMembersAreaSettingsReturn {
   isSaving: boolean;
   settings: MembersAreaSettings;
   modules: MemberModuleWithContents[];
-  dispatch: React.Dispatch<MembersAreaAction>;
+  dispatch: (event: MembersAreaMachineEvent) => void;
   updateSettings: (enabled: boolean, settings?: Json) => Promise<void>;
   fetchData: () => Promise<void>;
 }
@@ -106,8 +103,8 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
   const queryClient = useQueryClient();
   const { user } = useAuth();
   
-  // Single Source of Truth via Reducer
-  const [state, dispatch] = useReducer(membersAreaReducer, INITIAL_MEMBERS_AREA_STATE);
+  // Single Source of Truth via XState
+  const [state, send] = useMachine(membersAreaMachine);
 
   // Query para settings
   const settingsQuery = useQuery({
@@ -129,15 +126,15 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
 
   // Reset modules quando productId muda
   useEffect(() => {
-    dispatch({ type: 'RESET', modules: [] });
-  }, [productId]);
+    send({ type: 'RESET', modules: [] });
+  }, [productId, send]);
 
-  // Sincronizar modules do React Query com Reducer
+  // Sincronizar modules do React Query com State Machine
   useEffect(() => {
     if (modulesQuery.data && modulesQuery.data.length > 0) {
-      dispatch({ type: 'SET_MODULES', modules: modulesQuery.data });
+      send({ type: 'SET_MODULES', modules: modulesQuery.data });
     }
-  }, [modulesQuery.data]);
+  }, [modulesQuery.data, send]);
 
   // Mutation para atualizar settings via Edge Function
   // OPTIMIZED V3: Backend agora faz tudo em uma única chamada quando enabled=true
@@ -175,15 +172,15 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
       toast.error("Erro ao atualizar configurações");
     },
     onSettled: () => {
-      dispatch({ type: 'SET_SAVING', isSaving: false });
+      send({ type: 'SET_SAVING', isSaving: false });
     },
   });
 
   const updateSettings = useCallback(async (enabled: boolean, newSettings?: Json) => {
     if (!productId) return;
-    dispatch({ type: 'SET_SAVING', isSaving: true });
+    send({ type: 'SET_SAVING', isSaving: true });
     await updateMutation.mutateAsync({ enabled, newSettings });
-  }, [productId, updateMutation]);
+  }, [productId, updateMutation, send]);
 
   const fetchData = useCallback(async () => {
     if (!productId) return;
@@ -193,11 +190,16 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
     ]);
   }, [productId, queryClient]);
 
+  // Adapter: map send to dispatch for backwards compatibility
+  const dispatch = useCallback((event: MembersAreaMachineEvent) => {
+    send(event);
+  }, [send]);
+
   return {
     isLoading: settingsQuery.isLoading || modulesQuery.isLoading,
-    isSaving: state.isSaving,
+    isSaving: state.context.isSaving,
     settings: settingsQuery.data ?? { enabled: false, settings: null },
-    modules: state.modules,
+    modules: state.context.modules,
     dispatch,
     updateSettings,
     fetchData,
