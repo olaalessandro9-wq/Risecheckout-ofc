@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
-    allowedHosts: [".manusvm.computer"],
+    allowedHosts: [".manusvm.computer", ".manus.computer"],
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   // Remove console.log/warn/debug e debugger statements em produção
