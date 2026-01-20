@@ -24,6 +24,9 @@ export const CheckoutPublicLoader: React.FC = () => {
     isValidating,
     isError,
     isReady,
+    isSubmitting,
+    isPaymentPending,
+    isSuccess,
     errorReason,
     errorMessage,
     canRetry,
@@ -35,7 +38,7 @@ export const CheckoutPublicLoader: React.FC = () => {
     design,
   } = machine;
 
-  // Loading state
+  // Loading state (initial load only)
   if (isIdle || isLoading || isValidating) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -47,7 +50,7 @@ export const CheckoutPublicLoader: React.FC = () => {
     );
   }
 
-  // Error state
+  // Error state (machine error, not payment error)
   if (isError) {
     return (
       <CheckoutErrorDisplay
@@ -61,19 +64,24 @@ export const CheckoutPublicLoader: React.FC = () => {
     );
   }
 
-  // Ready state - validate we have all required data
-  if (!isReady || !checkout || !product || !design) {
-    return (
-      <CheckoutErrorDisplay
-        errorReason="CHECKOUT_NOT_FOUND"
-        errorMessage="Checkout não encontrado"
-        canRetry={false}
-        retryCount={0}
-        onRetry={() => {}}
-      />
-    );
+  // CRITICAL: Keep content mounted during ALL processing states
+  // This includes: ready, submitting, paymentPending, success
+  // The spinner/loading UI is handled INSIDE CheckoutPublicContent
+  const shouldShowContent = isReady || isSubmitting || isPaymentPending || isSuccess;
+  
+  if (shouldShowContent && checkout && product && design) {
+    return <CheckoutPublicContent machine={machine} />;
   }
 
-  // Render the checkout content with all machine data
-  return <CheckoutPublicContent machine={machine} />;
+  // Fallback: Only show error if we truly have no data
+  // This should rarely happen - only for invalid slugs or network failures
+  return (
+    <CheckoutErrorDisplay
+      errorReason="CHECKOUT_NOT_FOUND"
+      errorMessage="Checkout não encontrado"
+      canRetry={false}
+      retryCount={0}
+      onRetry={() => {}}
+    />
+  );
 };
