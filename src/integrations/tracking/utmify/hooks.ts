@@ -37,7 +37,7 @@ export function useUTMifyConfig(vendorId?: string) {
       try {
         // Query via Edge Function using api.publicCall (vendor-integrations is public)
         const { data, error } = await api.publicCall<VendorIntegrationResponse>("vendor-integrations", {
-          action: "get",
+          action: "get-config",
           vendorId,
           integrationType: "UTMIFY",
         });
