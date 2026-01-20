@@ -1,7 +1,7 @@
 /**
  * ProductSettingsPanel - Painel de Configurações do Produto
  * 
- * MIGRADO para usar ProductContext (Reducer Pattern)
+ * MIGRADO para XState State Machine
  * - Consome estado de formState.editedData.checkoutSettings
  * - Dispara actions via formDispatch
  * - Zero estado local duplicado
@@ -158,9 +158,13 @@ export default function ProductSettingsPanel({ productId }: Props) {
       throw new Error(data?.error || "Erro ao salvar configurações.");
     }
 
-    // Usar action específica que não tem guard - força atualização do serverData
-    formDispatch({ type: "MARK_CHECKOUT_SETTINGS_SAVED", payload: { settings: form } });
-  }, [form, productId, formDispatch]);
+    // Re-init with new settings to update serverData
+    formDispatch({ 
+      type: "INIT_CHECKOUT_SETTINGS", 
+      settings: form,
+      credentials: checkoutCredentials,
+    });
+  }, [form, productId, formDispatch, checkoutCredentials]);
 
   // Handler para o botão local
   const handleSave = useCallback(async () => {

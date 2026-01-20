@@ -118,10 +118,10 @@ export function isValid({ context }: { context: ProductFormContext }): boolean {
   const { validationErrors } = context;
   
   // Verificar erros em cada seção
-  const hasGeneralErrors = Object.values(validationErrors.general).some(Boolean);
-  const hasUpsellErrors = Object.values(validationErrors.upsell).some(Boolean);
-  const hasAffiliateErrors = Object.values(validationErrors.affiliate).some(Boolean);
-  const hasCheckoutErrors = Object.values(validationErrors.checkoutSettings).some(Boolean);
+  const hasGeneralErrors = validationErrors.general ? Object.values(validationErrors.general).some(Boolean) : false;
+  const hasUpsellErrors = validationErrors.upsell ? Object.values(validationErrors.upsell).some(Boolean) : false;
+  const hasAffiliateErrors = validationErrors.affiliate ? Object.values(validationErrors.affiliate).some(Boolean) : false;
+  const hasCheckoutErrors = validationErrors.checkoutSettings ? Object.values(validationErrors.checkoutSettings).some(Boolean) : false;
   
   return !hasGeneralErrors && !hasUpsellErrors && !hasAffiliateErrors && !hasCheckoutErrors;
 }

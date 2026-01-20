@@ -16,7 +16,7 @@ export { useProductCheckouts } from "./useProductCheckouts";
 
 // === ADAPTERS ===
 // Adapter puro (zero useState) - bridge para State Machine
-export { useProductSettingsAdapter, useProductSettings } from "./useProductSettingsAdapter";
+export { useProductSettings, useProductSettingsAdapter } from "./useProductSettingsAdapter";
 
 // === VALIDATION ===
 // Global Validation Handlers - TODOS os handlers de validação centralizados

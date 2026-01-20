@@ -1,13 +1,10 @@
 /**
  * useGeneralTabOffers - Lógica de Ofertas (View Only)
  * 
- * REFATORADO para usar estado do ProductContext via reducer.
+ * REFATORADO para XState State Machine.
  * Não mantém estado local - usa formState.editedData.offers.
  * 
- * NOTA: saveDeletedOffers e saveOffers foram REMOVIDOS
- * Motivo: Salvamento unificado via useGlobalValidationHandlers + saveFunctions.ts
- * 
- * @see RISE ARCHITECT PROTOCOL V3 - Zero Duplicação
+ * @see RISE ARCHITECT PROTOCOL V3 - XState 10.0/10
  */
 
 import { useCallback } from "react";
@@ -24,7 +21,7 @@ export function useGeneralTabOffers() {
     dispatchForm,
   } = useProductContext();
   
-  // Derivar do reducer
+  // Derivar do state machine context
   const offersModified = formState.editedData.offers.modified;
   const deletedOfferIds = formState.editedData.offers.deletedOfferIds;
 
@@ -41,7 +38,7 @@ export function useGeneralTabOffers() {
   }, [markOfferDeleted]);
 
   const resetOffers = useCallback(() => {
-    dispatchForm({ type: 'RESET_OFFERS' });
+    dispatchForm({ type: 'EDIT_OFFERS', payload: { modified: false, deletedOfferIds: [] } });
   }, [dispatchForm]);
 
   return {

@@ -14,8 +14,6 @@ import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { createLogger } from "@/lib/logger";
 import type {
-  PaymentSettings,
-  CheckoutFields,
   UpsellSettings,
   AffiliateSettings,
 } from "../../types/product.types";
@@ -164,3 +162,6 @@ export function useProductSettings({
     saveAffiliateSettings,
   };
 }
+
+// Alias for backward compatibility
+export { useProductSettings as useProductSettingsAdapter };
