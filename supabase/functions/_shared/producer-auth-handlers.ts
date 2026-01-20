@@ -12,6 +12,8 @@ import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "./rate-limiting/index.ts";
 import { validatePassword, formatPasswordError } from "./password-policy.ts";
 import { sanitizeEmail, sanitizeName, sanitizePhone } from "./sanitizer.ts";
+import { translateSupabaseAuthError } from "./error-translator.ts";
+import { checkEmailForRegistration } from "./user-sync.ts";
 import {
   CURRENT_HASH_VERSION,
   hashPassword,
@@ -132,6 +134,18 @@ export async function handleRegister(
     return jsonResponse({ success: true, message: "Senha definida com sucesso", producerId: existingProfile.id }, corsHeaders);
   }
 
+  // RISE V3: Verificar se email pode ser registrado (inclui sync de usuários órfãos)
+  const registrationCheck = await checkEmailForRegistration(supabase, email);
+  
+  if (!registrationCheck.canRegister) {
+    log.info(`Registration blocked - email already exists: ${email}`);
+    return errorResponse(
+      registrationCheck.message || "Este email já está cadastrado.",
+      corsHeaders,
+      409
+    );
+  }
+
   // Create new producer via Supabase Auth
   const { data: authData, error: signupError } = await supabase.auth.admin.createUser({
     email: email.toLowerCase(),
@@ -142,7 +156,9 @@ export async function handleRegister(
 
   if (signupError) {
     log.error("Auth signup error:", signupError);
-    return errorResponse(signupError.message || "Erro ao criar conta", corsHeaders, 400);
+    // Traduzir mensagem de erro para português amigável
+    const translatedError = translateSupabaseAuthError(signupError.message);
+    return errorResponse(translatedError, corsHeaders, 400);
   }
 
   // Update profile with password hash

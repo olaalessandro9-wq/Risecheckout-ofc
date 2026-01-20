@@ -9,6 +9,7 @@
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { RateLimitConfig, RateLimitResult, RateLimitRecord } from "./types.ts";
 import { createLogger } from "../logger.ts";
+import { translateRateLimitError } from "../error-translator.ts";
 
 const log = createLogger("RateLimitService");
 
@@ -129,7 +130,7 @@ export async function checkRateLimit(
           allowed: false,
           remaining: 0,
           retryAfter: record.blocked_until,
-          error: `Rate limit excedido. Tente novamente após ${blockedUntil.toISOString()}`,
+          error: translateRateLimitError(record.blocked_until),
         };
       }
       // Bloqueio expirou, resetar
@@ -151,11 +152,12 @@ export async function checkRateLimit(
       const blockedUntil = new Date(
         now.getTime() + config.blockDurationMinutes * 60 * 1000
       );
+      const blockedUntilISO = blockedUntil.toISOString();
 
       await supabase
         .from("buyer_rate_limits")
         .update({
-          blocked_until: blockedUntil.toISOString(),
+          blocked_until: blockedUntilISO,
           last_attempt_at: now.toISOString(),
         })
         .eq("id", record.id);
@@ -163,8 +165,8 @@ export async function checkRateLimit(
       return {
         allowed: false,
         remaining: 0,
-        retryAfter: blockedUntil.toISOString(),
-        error: `Rate limit excedido. Tente novamente após ${blockedUntil.toISOString()}`,
+        retryAfter: blockedUntilISO,
+        error: translateRateLimitError(blockedUntilISO),
       };
     }
 
