@@ -6,26 +6,24 @@
  * para manter sincronia automática com a aba Geral.
  */
 
-import { useState, useEffect } from "react";
 import { useProductContext } from "../context/ProductContext";
 import { LinksTable, PaymentLink } from "@/components/products/LinksTable";
 import { api } from "@/lib/api";
 import { createLogger } from "@/lib/logger";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
 
 const log = createLogger("LinksTab");
 
+/**
+ * LinksTab - Otimizado para usar cache do ProductContext
+ * 
+ * Dados já vêm carregados via product-full-loader (BFF).
+ * Não faz fetch próprio - apenas refreshPaymentLinks após operações CRUD.
+ * 
+ * @see RISE Protocol V3 - Cache Hit Pattern
+ */
 export function LinksTab() {
-  const { product, paymentLinks, refreshPaymentLinks } = useProductContext();
-  const [loading, setLoading] = useState(true);
-
-  // Carregar links na primeira vez
-  useEffect(() => {
-    if (product?.id) {
-      refreshPaymentLinks().finally(() => setLoading(false));
-    }
-  }, [product?.id]);
+  const { product, paymentLinks, refreshPaymentLinks, loading } = useProductContext();
 
   // Mapear paymentLinks do contexto para o formato da LinksTable
   // Mostra TODOS os links (ativos e inativos) para permitir reativação
@@ -73,11 +71,12 @@ export function LinksTab() {
     );
   }
 
-  if (loading) {
+  // Se ainda estiver carregando os dados iniciais do BFF
+  if (loading && paymentLinks.length === 0) {
     return (
       <div className="bg-card border border-border rounded-lg p-8">
         <div className="flex items-center justify-center gap-2">
-          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+          <div className="w-5 h-5 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
           <p className="text-muted-foreground">Carregando links...</p>
         </div>
       </div>

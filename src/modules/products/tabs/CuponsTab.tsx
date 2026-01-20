@@ -11,7 +11,7 @@
  * - Cupons são específicos por produto
  */
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { CouponsTable } from "@/components/products/CouponsTable";
 import { CouponDialog, type CouponFormData, type CouponSaveResult } from "@/components/products/CouponDialog";
 import { useProductContext } from "../context/ProductContext";
@@ -22,8 +22,8 @@ import { useConfirmDelete } from "@/components/common/ConfirmDelete";
 
 const log = createLogger("CuponsTab");
 
-// Tipo Coupon para a tabela
-interface Coupon {
+// Tipo Coupon para a tabela (formato do componente CouponsTable)
+interface TableCoupon {
   id: string;
   code: string;
   discount: number;
@@ -34,76 +34,41 @@ interface Coupon {
   usageCount: number;
 }
 
+/**
+ * CuponsTab - Otimizado para usar cache do ProductContext
+ * 
+ * Dados já vêm carregados via product-full-loader (BFF).
+ * Não faz fetch próprio - apenas refreshCoupons após operações CRUD.
+ * 
+ * @see RISE Protocol V3 - Cache Hit Pattern
+ */
 export function CuponsTab() {
-  const { product } = useProductContext();
+  const { product, coupons: contextCoupons, refreshCoupons, loading } = useProductContext();
   const { confirm, Bridge } = useConfirmDelete();
 
-  const [coupons, setCoupons] = useState<Coupon[]>([]);
-  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<CouponFormData | null>(null);
 
-  // Carregar cupons do produto
-  useEffect(() => {
-    if (product?.id) {
-      loadCoupons();
-    }
-  }, [product?.id]);
-
-  const loadCoupons = async () => {
-    if (!product?.id) return;
-
-    try {
-      setLoading(true);
-
-      // Buscar cupons via Edge Function
-      const { data, error } = await api.call<{ coupons?: Array<CouponResponse>; error?: string }>('coupon-management', {
-        action: 'list',
-        productId: product.id,
-      });
-
-      if (error) throw new Error(error.message);
-      if (data?.error) throw new Error(data.error);
-
-      // Tipo para dados retornados pela Edge Function
-      interface CouponResponse {
-        id: string;
-        code?: string;
-        discount_value?: number;
-        discount_type?: string;
-        start_date?: string;
-        expires_at?: string;
-        apply_to_order_bumps?: boolean;
-        uses_count?: number;
-      }
-
-      // Transformar dados para o formato da tabela
-      const transformedCoupons: Coupon[] = (data?.coupons || []).map((c: CouponResponse) => ({
-        id: c.id,
-        code: c.code || "",
-        discount: c.discount_value || 0,
-        discountType: (c.discount_type as "percentage" | "fixed") || "percentage",
-        startDate: c.start_date ? new Date(c.start_date) : new Date(),
-        endDate: c.expires_at ? new Date(c.expires_at) : new Date(),
-        applyToOrderBumps: c.apply_to_order_bumps ?? true,
-        usageCount: c.uses_count || 0,
-      }));
-
-      setCoupons(transformedCoupons);
-    } catch (error: unknown) {
-      log.error("Error loading coupons:", error);
-      toast.error("Não foi possível carregar os cupons");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Transformar coupons do contexto para formato da tabela (memoizado)
+  const tableCoupons: TableCoupon[] = useMemo(() => {
+    return contextCoupons.map((c) => ({
+      id: c.id,
+      code: c.code,
+      discount: c.discount,
+      discountType: c.discount_type || "percentage",
+      startDate: c.startDate instanceof Date ? c.startDate : new Date(c.startDate || Date.now()),
+      endDate: c.endDate instanceof Date ? c.endDate : new Date(c.endDate || Date.now()),
+      applyToOrderBumps: c.applyToOrderBumps ?? true,
+      usageCount: c.usageCount ?? 0,
+    }));
+  }, [contextCoupons]);
 
   const handleAddCoupon = () => {
     setEditingCoupon(null);
     setDialogOpen(true);
   };
 
-  const handleEditCoupon = async (coupon: Coupon) => {
+  const handleEditCoupon = async (coupon: TableCoupon) => {
     // Buscar dados completos do cupom via Edge Function
     try {
       const { data, error } = await api.call<{ coupon?: Record<string, unknown>; error?: string }>('coupon-read', {
@@ -189,7 +154,8 @@ export function CuponsTab() {
         };
       }
 
-      await loadCoupons();
+      // Atualizar via contexto (invalidação do cache React Query)
+      await refreshCoupons();
       return { success: true };
     } catch (error: unknown) {
       return { success: false, error: error instanceof Error ? error.message : 'Erro desconhecido' };
@@ -199,7 +165,7 @@ export function CuponsTab() {
   const handleDeleteCoupon = async (id: string) => {
     await confirm({
       resourceType: "Cupom",
-      resourceName: coupons.find(c => c.id === id)?.code || "",
+      resourceName: tableCoupons.find(c => c.id === id)?.code || "",
       onConfirm: async () => {
         try {
           const { data, error } = await api.call<{ error?: string }>('coupon-management', {
@@ -211,7 +177,8 @@ export function CuponsTab() {
           if (error) throw new Error(error.message);
           if (data?.error) throw new Error(data.error);
 
-          await loadCoupons();
+          // Atualizar via contexto (invalidação do cache React Query)
+          await refreshCoupons();
         } catch (error: unknown) {
           throw new Error(`Não foi possível excluir o cupom: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
         }
@@ -237,13 +204,14 @@ export function CuponsTab() {
           </p>
         </div>
 
-        {loading ? (
+        {loading && tableCoupons.length === 0 ? (
           <div className="text-center py-12">
+            <div className="w-5 h-5 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent mx-auto mb-2" />
             <p className="text-muted-foreground">Carregando cupons...</p>
           </div>
         ) : (
           <CouponsTable
-            coupons={coupons}
+            coupons={tableCoupons}
             onAdd={handleAddCoupon}
             onEdit={handleEditCoupon}
             onDelete={handleDeleteCoupon}

@@ -53,9 +53,13 @@ interface OrderBump {
 
 interface OrderBumpListProps {
   productId: string;
+  /** Dados iniciais do cache - evita fetch se disponíveis */
+  initialOrderBumps?: OrderBump[];
   onAdd: () => void;
   onEdit?: (orderBump: OrderBump) => void;
   maxOrderBumps?: number;
+  /** Callback para refresh após operações CRUD */
+  onRefresh?: () => Promise<void>;
 }
 
 interface SortableOrderBumpItemProps {
@@ -160,9 +164,17 @@ function SortableOrderBumpItem({ orderBump, index, onEdit, onRemove }: SortableO
   );
 }
 
-export function OrderBumpList({ productId, onAdd, onEdit, maxOrderBumps = 5 }: OrderBumpListProps) {
-  const [orderBumps, setOrderBumps] = useState<OrderBump[]>([]);
-  const [loading, setLoading] = useState(true);
+export function OrderBumpList({ 
+  productId, 
+  initialOrderBumps,
+  onAdd, 
+  onEdit, 
+  maxOrderBumps = 5,
+  onRefresh,
+}: OrderBumpListProps) {
+  // Se temos dados iniciais do cache, usamos diretamente (cache hit)
+  const [orderBumps, setOrderBumps] = useState<OrderBump[]>(initialOrderBumps || []);
+  const [loading, setLoading] = useState(!initialOrderBumps);
   const [isSaving, setIsSaving] = useState(false);
 
   const sensors = useSensors(
@@ -246,9 +258,20 @@ export function OrderBumpList({ productId, onAdd, onEdit, maxOrderBumps = 5 }: O
     }
   }, [productId]);
 
+  // Só carrega se não tiver dados iniciais
   useEffect(() => {
-    loadOrderBumps();
-  }, [loadOrderBumps]);
+    if (!initialOrderBumps) {
+      loadOrderBumps();
+    }
+  }, [initialOrderBumps, loadOrderBumps]);
+
+  // Atualiza quando dados iniciais mudam (refresh via contexto)
+  useEffect(() => {
+    if (initialOrderBumps) {
+      setOrderBumps(initialOrderBumps);
+      setLoading(false);
+    }
+  }, [initialOrderBumps]);
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -286,10 +309,17 @@ export function OrderBumpList({ productId, onAdd, onEdit, maxOrderBumps = 5 }: O
       }
       
       toast.success('Ordem atualizada com sucesso!');
+      // Notifica o pai para atualizar o cache se disponível
+      if (onRefresh) await onRefresh();
     } catch (error: unknown) {
       log.error("Erro ao atualizar ordem:", error);
       toast.error(error instanceof Error ? error.message : 'Erro ao salvar nova ordem');
-      loadOrderBumps();
+      // Fallback: reload local se falhar
+      if (onRefresh) {
+        await onRefresh();
+      } else {
+        loadOrderBumps();
+      }
     } finally {
       setIsSaving(false);
     }
@@ -312,7 +342,12 @@ export function OrderBumpList({ productId, onAdd, onEdit, maxOrderBumps = 5 }: O
       }
 
       toast.success("Order bump removido com sucesso");
-      loadOrderBumps();
+      // Notifica o pai para atualizar o cache se disponível
+      if (onRefresh) {
+        await onRefresh();
+      } else {
+        loadOrderBumps();
+      }
     } catch (error: unknown) {
       log.error("Error removing order bump:", error);
       toast.error(error instanceof Error ? error.message : "Erro ao remover order bump");
