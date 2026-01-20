@@ -1,21 +1,23 @@
 /**
  * ProductHeader - Cabeçalho da página de edição de produto
  * 
- * A proteção contra navegação com alterações não salvas é feita pelo
- * UnsavedChangesGuard no ProductEdit.tsx (cobre qualquer navegação).
+ * Usa NavigationGuardProvider para exibir modal de alterações não salvas.
+ * 
+ * @see RISE ARCHITECT PROTOCOL V3 - Navigation Guard System
  */
 
-import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useProductContext } from "../context/ProductContext";
+import { useNavigationGuard } from "@/providers/NavigationGuardProvider";
 
 export function ProductHeader() {
-  const navigate = useNavigate();
+  const { attemptNavigation } = useNavigationGuard();
   const { saveAll, saving, hasUnsavedChanges } = useProductContext();
   
   const handleBack = () => {
-    navigate("/dashboard/produtos");
+    // Usa attemptNavigation para verificar dirty state e exibir modal
+    attemptNavigation("/dashboard/produtos");
   };
   
   return (
