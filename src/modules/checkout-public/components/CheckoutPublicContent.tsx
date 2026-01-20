@@ -112,8 +112,8 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
   }, [product.price, selectedBumps, orderBumps, localAppliedCoupon]);
 
   // Form data adapter: Machine FormData -> CheckoutFormData (legacy interface)
-  // Explicitly creates a CheckoutFormData with all required fields
-  const formDataForOrchestrator: CheckoutFormData = React.useMemo(() => ({
+  // Uses generic type parameter in useMemo for correct typing
+  const formDataForOrchestrator = React.useMemo<CheckoutFormData>(() => ({
     name: formData.name,
     email: formData.email,
     phone: formData.phone || '',
@@ -162,9 +162,10 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     trackingConfig: { utmifyConfig },
   });
 
-  // Submit handler
+  // Calculate memoized amount
   const memoizedAmount = React.useMemo(() => calculateTotal(), [calculateTotal]);
 
+  // Submit handler for PIX payments
   const handleSubmit = React.useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
@@ -190,7 +191,14 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     }
   }, [formData, updateMultipleFields, fireInitiateCheckout, selectedBumpsSet, orderBumps, selectedPaymentMethod, submitPayment, notifyPaymentError]);
 
-  const handleCardSubmit = React.useCallback(async (token: string, installments: number, paymentMethodId: string, issuerId: string, holderDocument?: string) => {
+  // Submit handler for Credit Card payments
+  const handleCardSubmit = React.useCallback(async (
+    token: string, 
+    installments: number, 
+    paymentMethodId: string, 
+    issuerId: string, 
+    holderDocument?: string
+  ) => {
     const snapshot = getSubmitSnapshot(null, formData);
     
     if (!snapshot.name?.trim() || !snapshot.email?.trim()) {
@@ -209,7 +217,7 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     }
   }, [formData, updateMultipleFields, fireInitiateCheckout, selectedBumpsSet, orderBumps, submitPayment, notifyPaymentError]);
 
-  // Render
+  // Render data
   const productData = {
     id: product.id,
     name: product.name,
