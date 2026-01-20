@@ -2,19 +2,8 @@
  * Checkout Public State Machine
  * 
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
- * 
  * XState v5 State Machine for the public checkout flow.
  * This is the SINGLE SOURCE OF TRUTH for all checkout state.
- * 
- * States:
- * - idle: Initial state, waiting for LOAD
- * - loading: Fetching data from BFF
- * - validating: Validating BFF response with Zod
- * - ready.form: User can fill the form
- * - submitting: Payment processing (hierarchical)
- * - paymentPending: Waiting for confirmation
- * - success: Payment confirmed
- * - error: Error occurred (with retry)
  * 
  * @module checkout-public/machines
  */
@@ -93,10 +82,8 @@ export const checkoutPublicMachine = setup({
     hasRequiredFormFields,
     isPixPayment: ({ context }) => context.selectedPaymentMethod === 'pix',
     isCardPayment: ({ context }) => context.selectedPaymentMethod === 'credit_card',
-    isCardApproved: (_, params: { output?: { navigationData?: NavigationData } }) => {
-      return params?.output?.navigationData?.type === 'card' && 
-             params.output.navigationData.status === 'approved';
-    },
+    isCardApproved: (_, params: { output?: { navigationData?: NavigationData } }) => 
+      params?.output?.navigationData?.type === 'card' && params.output.navigationData.status === 'approved',
   },
 }).createMachine({
   id: "checkoutPublic",

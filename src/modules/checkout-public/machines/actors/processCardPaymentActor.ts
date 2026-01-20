@@ -12,7 +12,16 @@
 import { fromPromise } from "xstate";
 import { api } from "@/lib/api";
 import { createLogger } from "@/lib/logger";
-import type { CardNavigationData } from "@/modules/checkout-public/machines/checkoutPublicMachine.types";
+
+// Type defined locally to avoid circular import issues
+interface CardNavigationData {
+  type: 'card';
+  orderId: string;
+  accessToken: string;
+  status: 'approved' | 'pending' | 'rejected';
+  requires3DS?: boolean;
+  threeDSClientSecret?: string;
+}
 
 const log = createLogger("ProcessCardPaymentActor");
 
