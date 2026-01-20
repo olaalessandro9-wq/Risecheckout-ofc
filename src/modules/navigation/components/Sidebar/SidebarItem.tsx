@@ -2,15 +2,15 @@
  * SidebarItem - Item de Navegação Simples
  * 
  * Renderiza um item de navegação sem sub-itens.
- * Suporta rotas internas e links externos.
+ * Suporta rotas internas (com GuardedLink) e links externos.
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - Componentes Type-Safe
  */
 
-import { Link } from "react-router-dom";
 import { useLocation } from "react-router-dom";
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { GuardedLink } from "@/components/navigation/GuardedLink";
 import { isActivePath } from "../../utils/navigationHelpers";
 import type { NavItemConfig } from "../../types/navigation.types";
 
@@ -84,14 +84,14 @@ export function SidebarItem({ item, showLabels, onNavigate }: SidebarItemProps) 
     case "route":
       return (
         <li>
-          <Link
+          <GuardedLink
             to={item.variant.path}
             className={commonClasses}
             title={!showLabels ? item.label : undefined}
             onClick={onNavigate}
           >
             {content}
-          </Link>
+          </GuardedLink>
         </li>
       );
 
