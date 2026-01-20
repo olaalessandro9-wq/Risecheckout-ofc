@@ -1,3 +1,8 @@
+> **📅 DOCUMENTO HISTÓRICO**  
+> Este documento foi criado em 26/10/2025.  
+> Algumas informações técnicas podem estar desatualizadas.  
+> Para a arquitetura atual, consulte `docs/ARCHITECTURE.md` e `docs/STATUS_ATUAL.md`.
+
 # Relatório Técnico: Implementação do Tema Eagle Vision
 
 **Data:** 26/10/2025  

@@ -206,8 +206,6 @@ function MyComponent() {
   const priceText = formatPrice(2990);           // "R$ 29,90"
   const priceNumeric = formatPriceNumeric(2990); // "29,90"
   
-  console.log(priceText);
-  
   return <div>{priceText}</div>;
 }
 ```

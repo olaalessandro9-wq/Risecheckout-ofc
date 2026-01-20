@@ -1,3 +1,8 @@
+> **📅 DOCUMENTO HISTÓRICO**  
+> Este documento foi criado em Dezembro de 2025.  
+> Algumas informações técnicas podem estar desatualizadas.  
+> Para a arquitetura atual, consulte `docs/ARCHITECTURE.md` e `docs/STATUS_ATUAL.md`.
+
 # Análise Comparativa de Checkouts - RiseCheckout vs Mercado
 
 ## 🎯 Objetivo

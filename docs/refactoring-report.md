@@ -1,3 +1,8 @@
+> **📅 DOCUMENTO HISTÓRICO**  
+> Este documento foi criado em 08/12/2025.  
+> Algumas informações técnicas podem estar desatualizadas.  
+> Para a arquitetura atual, consulte `docs/ARCHITECTURE.md` e `docs/STATUS_ATUAL.md`.
+
 # Relatório de Refatoração: Unificação da Arquitetura de Checkout
 
 **Data:** 08 de dezembro de 2025  
