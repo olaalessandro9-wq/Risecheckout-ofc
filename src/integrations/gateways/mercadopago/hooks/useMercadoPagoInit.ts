@@ -43,9 +43,11 @@ export function useMercadoPagoInit(publicKey?: string): boolean {
           script.async = true;
           script.onload = () => {
             if (window.MercadoPago) {
-              new window.MercadoPago(publicKey, {
-                locale: "pt-BR",
-              });
+              try {
+                new window.MercadoPago(publicKey, { locale: "pt-BR" });
+              } catch {
+                // SDK initialization may throw in some cases, but still work
+              }
               log.info("SDK carregada e inicializada");
               setIsInitialized(true);
             }
@@ -57,9 +59,11 @@ export function useMercadoPagoInit(publicKey?: string): boolean {
           document.head.appendChild(script);
         } else {
           // SDK já carregada
-          new window.MercadoPago(publicKey, {
-            locale: "pt-BR",
-          });
+          try {
+            new window.MercadoPago(publicKey, { locale: "pt-BR" });
+          } catch {
+            // SDK initialization may throw in some cases, but still work
+          }
           log.debug("SDK já estava carregada");
           setIsInitialized(true);
         }
