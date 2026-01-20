@@ -8,14 +8,12 @@
  */
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { handleCorsV2, PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 import { createLogger } from "../_shared/logger.ts";
 
 const log = createLogger("content-save");
-
-const corsHeaders = PUBLIC_CORS_HEADERS;
 
 // ============================================
 // INTERFACES
@@ -81,15 +79,8 @@ interface ContentPosition {
 }
 
 // ============================================
-// HELPERS
+// OWNERSHIP VERIFICATION
 // ============================================
-
-function jsonResponse(data: JsonResponseData, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
 
 async function verifyModuleOwnership(
   supabase: SupabaseClient,
@@ -182,8 +173,21 @@ async function saveDripSettings(
 // ============================================
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  // Handle CORS with dynamic origin validation
+  const corsResult = handleCorsV2(req);
+  
+  if (corsResult instanceof Response) {
+    return corsResult; // Preflight or blocked origin
+  }
+  
+  const corsHeaders = corsResult.headers;
+  
+  // Helper inside handler to capture corsHeaders
+  function jsonResponse(data: JsonResponseData, status = 200): Response {
+    return new Response(JSON.stringify(data), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   try {
