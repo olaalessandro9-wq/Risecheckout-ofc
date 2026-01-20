@@ -75,29 +75,9 @@ export enum AccountStatus {
 }
 
 // ============================================
-// PASSWORD MARKERS (DEPRECATED)
+// PASSWORD MARKERS (REMOVED)
 // ============================================
-
-/**
- * @deprecated Use AccountStatus.RESET_REQUIRED instead.
- * Kept for backwards compatibility during migration.
- */
-export const PASSWORD_REQUIRES_RESET = "REQUIRES_RESET";
-
-/**
- * @deprecated Use AccountStatus.PENDING_SETUP instead.
- * Kept for backwards compatibility during migration.
- */
-export const PASSWORD_PENDING_SETUP = "PENDING_PASSWORD_SETUP";
-
-/**
- * @deprecated Use AccountStatus.OWNER_NO_PASSWORD instead.
- * Kept for backwards compatibility during migration.
- */
-export const PASSWORD_OWNER_NO_PASSWORD = "OWNER_NO_PASSWORD";
-
-/**
- * @deprecated Use AccountStatus instead.
- * Kept for migration detection only.
- */
-export const PENDING_MIGRATION = "PENDING_MIGRATION";
+// RISE V3: Eliminados em 2026-01-20.
+// A fonte de verdade é EXCLUSIVAMENTE o campo `account_status`.
+// Constantes PASSWORD_REQUIRES_RESET, PASSWORD_PENDING_SETUP, 
+// PASSWORD_OWNER_NO_PASSWORD e PENDING_MIGRATION foram removidas.
