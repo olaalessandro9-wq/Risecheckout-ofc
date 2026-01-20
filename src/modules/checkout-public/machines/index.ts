@@ -12,6 +12,9 @@
 export { checkoutPublicMachine, initialCheckoutContext } from "./checkoutPublicMachine";
 export type { CheckoutPublicMachine } from "./checkoutPublicMachine";
 
+// Input Factories (extracted for 300-line compliance)
+export { calculateTotalFromContext, createOrderInput, processPixInput, processCardInput } from "./checkoutPublicMachine.inputs";
+
 // Types
 export type {
   CheckoutPublicContext,
