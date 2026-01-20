@@ -1,7 +1,7 @@
 # 📚 Documentação - RiseCheckout
 
-**Última atualização:** 19 de Janeiro de 2026  
-**Versão:** 3.2  
+**Última atualização:** 20 de Janeiro de 2026  
+**Versão:** 3.3  
 **Status:** ✅ 100% Completo - Pronto para Produção  
 **RISE Protocol V3:** 10.0/10
 
@@ -30,7 +30,7 @@ O RiseCheckout está **100% completo** e pronto para produção. Todas as funcio
 
 | Documento | Descrição |
 |-----------|-----------|
-| **[STATUS_ATUAL.md](./STATUS_ATUAL.md)** | Status detalhado do projeto (v3.0) |
+| **[STATUS_ATUAL.md](./STATUS_ATUAL.md)** | Status detalhado do projeto (v3.5) |
 | **[EXECUTIVE_REPORT.md](./EXECUTIVE_REPORT.md)** | Relatório executivo |
 | **[CHANGELOG.md](./CHANGELOG.md)** | Histórico de versões |
 
@@ -39,6 +39,9 @@ O RiseCheckout está **100% completo** e pronto para produção. Todas as funcio
 | Documento | Descrição |
 |-----------|-----------|
 | **[ARCHITECTURE.md](./ARCHITECTURE.md)** | Arquitetura do sistema |
+| **[ARCHITECTURE_DECISIONS.md](./ARCHITECTURE_DECISIONS.md)** | Decisões arquiteturais (XState) |
+| **[STATE_MACHINES.md](./STATE_MACHINES.md)** | Guia de XState State Machines |
+| **[PRODUCTS_MODULE_ARCHITECTURE.md](./PRODUCTS_MODULE_ARCHITECTURE.md)** | Arquitetura do módulo Products |
 | **[MODELO_NEGOCIO.md](./MODELO_NEGOCIO.md)** | Modelo de negócio Owner=Plataforma |
 | **[EDGE_FUNCTIONS_REGISTRY.md](./EDGE_FUNCTIONS_REGISTRY.md)** | Registro de 115 Edge Functions |
 | **[AUTHENTICATION_SYSTEM.md](./AUTHENTICATION_SYSTEM.md)** | Sistema de autenticação |
@@ -68,6 +71,7 @@ O RiseCheckout está **100% completo** e pronto para produção. Todas as funcio
 |-----------|-----------|
 | **[CODING_STANDARDS.md](./CODING_STANDARDS.md)** | Padrões de código frontend |
 | **[EDGE_FUNCTIONS_STYLE_GUIDE.md](./EDGE_FUNCTIONS_STYLE_GUIDE.md)** | Padrões de Edge Functions |
+| **[RISE_PROTOCOL_EXCEPTIONS.md](./RISE_PROTOCOL_EXCEPTIONS.md)** | Exceções documentadas ao RISE V3 |
 
 ### Arquivo (Histórico)
 
@@ -144,7 +148,14 @@ src/
 ├── config/              # Configurações (gateways, feature-flags)
 ├── hooks/               # Custom hooks
 ├── lib/                 # Utilitários e serviços
-├── modules/             # Módulos independentes (Dashboard, Products, Navigation)
+├── modules/             # Módulos independentes
+│   ├── dashboard/       # Dashboard financeiro
+│   ├── navigation/      # Navegação/Sidebar
+│   └── products/        # Gerenciamento de produtos (XState)
+│       ├── machines/    # XState State Machine (SSOT)
+│       ├── context/     # ProductContext + hooks
+│       ├── tabs/        # Pure Views
+│       └── types/       # Tipos de domínio
 ├── pages/               # Páginas da aplicação
 ├── providers/           # Context providers
 └── integrations/        # Integrações (Supabase)

@@ -1,8 +1,9 @@
 # Guia de State Machines - XState
 
-**Última Atualização:** 17 de Janeiro de 2026  
+**Última Atualização:** 20 de Janeiro de 2026  
 **Versão XState:** 5.x  
-**Versão @xstate/react:** 4.x
+**Versão @xstate/react:** 4.x  
+**Status:** ✅ Migração 100% Completa - Products Module
 
 ---
 
@@ -25,224 +26,244 @@ npm install xstate@5 @xstate/react@4
 
 ---
 
-## Estrutura de uma Machine
+## productFormMachine (Produção)
 
-### 1. Tipos (machine.types.ts)
+### Diagrama Visual
 
-```typescript
-// Contexto - dados gerenciados pela máquina
-interface MyContext {
-  items: Item[];
-  selectedId: string | null;
-  error: string | null;
-}
-
-// Eventos - ações que causam transições
-type MyEvent =
-  | { type: "LOAD" }
-  | { type: "LOAD_SUCCESS"; items: Item[] }
-  | { type: "LOAD_ERROR"; error: string }
-  | { type: "SELECT"; id: string };
+```mermaid
+stateDiagram-v2
+    [*] --> idle
+    idle --> loading: LOAD_DATA
+    loading --> ready.pristine: RECEIVE_DATA
+    loading --> error: LOAD_ERROR
+    
+    state ready {
+        pristine --> dirty: EDIT_*
+        dirty --> dirty: EDIT_*
+        dirty --> pristine: DISCARD_CHANGES
+    }
+    
+    ready.dirty --> saving: SAVE_ALL
+    saving --> ready.pristine: SAVE_SUCCESS
+    saving --> ready.dirty: SAVE_ERROR
+    error --> loading: LOAD_DATA
 ```
 
-### 2. Helpers (machine.helpers.ts)
+### Localização
+
+**Diretório:** `src/modules/products/machines/`
+
+| Arquivo | Responsabilidade |
+|---------|-----------------|
+| `productFormMachine.ts` | Definição da State Machine |
+| `productFormMachine.types.ts` | Contexto, eventos e tipos |
+| `productFormMachine.guards.ts` | Guards e helpers de dirty checking |
+| `productFormMachine.actions.ts` | Actions e assigns |
+| `productFormMachine.actors.ts` | Actors para operações async |
+| `index.ts` | Re-exports públicos |
+
+### Estados
+
+| Estado | Descrição |
+|--------|-----------|
+| `idle` | Aguardando inicialização (productId) |
+| `loading` | Carregando dados via BFF `product-full-loader` |
+| `ready.pristine` | Dados carregados, sem alterações pendentes |
+| `ready.dirty` | Usuário fez alterações não salvas |
+| `saving` | Salvando alterações via Save Registry |
+| `error` | Erro de carregamento ocorreu |
+
+### Tabela Completa de Eventos
+
+#### Lifecycle Events
+
+| Evento | Payload | Descrição |
+|--------|---------|-----------|
+| `LOAD_DATA` | `{ productId, userId }` | Inicia carregamento |
+| `RECEIVE_DATA` | `MappedProductData` | Dados carregados com sucesso |
+| `LOAD_ERROR` | `{ error: string }` | Erro no carregamento |
+
+#### Editing Events
+
+| Evento | Payload | Descrição |
+|--------|---------|-----------|
+| `EDIT_GENERAL` | `Partial<GeneralFormData>` | Atualiza campos gerais |
+| `EDIT_IMAGE` | `{ file?, url?, pendingRemoval? }` | Atualiza estado da imagem |
+| `EDIT_OFFERS` | `{ offers, modified }` | Atualiza ofertas |
+| `ADD_DELETED_OFFER` | `{ offerId }` | Marca oferta para deleção |
+| `EDIT_UPSELL` | `Partial<UpsellSettings>` | Atualiza configurações upsell |
+| `EDIT_AFFILIATE` | `Partial<AffiliateSettings>` | Atualiza configurações afiliados |
+| `EDIT_CHECKOUT_SETTINGS` | `Partial<CheckoutSettings>` | Atualiza config checkout |
+| `INIT_CHECKOUT_SETTINGS` | `CheckoutSettings` | Inicializa config checkout (não marca dirty) |
+
+#### Validation Events
+
+| Evento | Payload | Descrição |
+|--------|---------|-----------|
+| `SET_VALIDATION_ERROR` | `{ field, message }` | Define erro de validação |
+| `CLEAR_VALIDATION_ERRORS` | `{ fields? }` | Limpa erros |
+| `SET_TAB_ERRORS` | `{ tabKey, errors }` | Erros por aba |
+| `CLEAR_TAB_ERRORS` | `{ tabKey }` | Limpa erros da aba |
+
+#### Action Events
+
+| Evento | Payload | Descrição |
+|--------|---------|-----------|
+| `SAVE_ALL` | - | Inicia salvamento global |
+| `SAVE_SUCCESS` | `{ timestamp }` | Salvamento concluído |
+| `SAVE_ERROR` | `{ error }` | Erro no salvamento |
+| `DISCARD_CHANGES` | - | Descarta alterações |
+| `REFRESH` | - | Recarrega dados do servidor |
+| `SET_TAB` | `{ tabKey }` | Navega para aba |
+
+### Actors (Operações Async)
+
+| Actor | Descrição |
+|-------|-----------|
+| `loadProductActor` | Carrega dados via BFF `product-full-loader` |
+| `saveAllActor` | Executa salvamento via Save Registry |
+
+### Context
 
 ```typescript
-// Funções puras para cálculos
-export function createInitialContext(): MyContext {
-  return {
-    items: [],
-    selectedId: null,
-    error: null,
+interface ProductFormContext {
+  // IDs
+  productId: string | null;
+  userId: string | null;
+  
+  // Dados do servidor (snapshot imutável)
+  serverData: {
+    product: ProductData | null;
+    offers: Offer[];
+    entities: ProductEntities;
   };
-}
-
-export function findItemById(items: Item[], id: string): Item | undefined {
-  return items.find(item => item.id === id);
-}
-```
-
-### 3. Machine (machine.ts)
-
-```typescript
-import { createMachine, assign } from "xstate";
-
-export const myMachine = createMachine({
-  id: "myMachine",
-  initial: "idle",
-  context: createInitialContext(),
-  types: {} as {
-    context: MyContext;
-    events: MyEvent;
-  },
   
-  states: {
-    idle: {
-      on: {
-        LOAD: { target: "loading" },
-      },
-    },
-    
-    loading: {
-      on: {
-        LOAD_SUCCESS: {
-          target: "ready",
-          actions: assign({
-            items: ({ event }) => event.items,
-            error: () => null,
-          }),
-        },
-        LOAD_ERROR: {
-          target: "error",
-          actions: assign({
-            error: ({ event }) => event.error,
-          }),
-        },
-      },
-    },
-    
-    ready: {
-      on: {
-        SELECT: {
-          actions: assign({
-            selectedId: ({ event }) => event.id,
-          }),
-        },
-        LOAD: { target: "loading" },
-      },
-    },
-    
-    error: {
-      on: {
-        LOAD: { target: "loading" },
-      },
-    },
-  },
-});
+  // Dados editados (mutável via eventos)
+  editedData: {
+    general: GeneralFormData;
+    image: ImageFormData;
+    offers: Offer[];
+    deletedOfferIds: string[];
+    offersModified: boolean;
+    upsell: UpsellSettings;
+    affiliate: AffiliateSettings | null;
+    checkoutSettings: CheckoutSettings | null;
+  };
+  
+  // Validação
+  validationErrors: ValidationErrors;
+  tabErrors: Record<string, TabValidationError[]>;
+  
+  // Metadata
+  currentTab: string;
+  lastSavedAt: number | null;
+  errorMessage: string | null;
+}
 ```
 
-### 4. Hook (useMachine.ts)
+---
+
+## Integração com ProductContext
 
 ```typescript
+// ProductContext.tsx
 import { useMachine } from "@xstate/react";
-import { useCallback } from "react";
-import { myMachine } from "./machine";
+import { productFormMachine } from "../machines";
 
-export function useMyMachine() {
-  const [snapshot, send] = useMachine(myMachine);
+export function ProductProvider({ children, productId }) {
+  const { user } = useAuth();
   
-  const context = snapshot.context;
-  const stateValue = snapshot.value as string;
+  // XState State Machine - Single Source of Truth
+  const [state, send] = useMachine(productFormMachine, {
+    input: {
+      productId,
+      userId: user?.id,
+    },
+  });
   
-  // Helpers de status
-  const isLoading = stateValue === "loading";
-  const isReady = stateValue === "ready";
-  const isError = stateValue === "error";
+  // Estado derivado
+  const product = state.context.serverData.product;
+  const offers = state.context.editedData.offers;
+  const isDirty = state.matches("ready.dirty");
+  const isSaving = state.matches("saving");
   
   // Actions tipadas
-  const load = useCallback(() => {
-    send({ type: "LOAD" });
+  const updateGeneral = useCallback((data: Partial<GeneralFormData>) => {
+    send({ type: "EDIT_GENERAL", ...data });
   }, [send]);
   
-  const select = useCallback((id: string) => {
-    send({ type: "SELECT", id });
+  const saveAll = useCallback(async () => {
+    send({ type: "SAVE_ALL" });
   }, [send]);
   
-  return {
-    // Estado
-    items: context.items,
-    selectedId: context.selectedId,
-    error: context.error,
-    
-    // Status
-    isLoading,
-    isReady,
-    isError,
-    
-    // Actions
-    load,
-    select,
-  };
+  return (
+    <ProductContext.Provider value={{
+      product,
+      offers,
+      isDirty,
+      isSaving,
+      updateGeneral,
+      saveAll,
+      // ... outras props
+    }}>
+      {children}
+    </ProductContext.Provider>
+  );
+}
+```
+
+### Consumo em Componentes
+
+```typescript
+// Qualquer componente filho
+function ProductNameField() {
+  const { product, updateGeneral, formErrors } = useProductContext();
+  
+  return (
+    <Input
+      value={product?.name || ""}
+      onChange={(e) => updateGeneral({ name: e.target.value })}
+      error={formErrors.name}
+    />
+  );
 }
 ```
 
 ---
 
-## Padrões Utilizados
+## Guards (Dirty Checking)
 
-### Guards (Condições)
-
-```typescript
-// Inline guard
-error: {
-  on: {
-    RETRY: {
-      target: "loading",
-      guard: ({ context }) => context.retryCount < 3,
-    },
-  },
-},
-```
-
-### Actions com assign
+O arquivo `productFormMachine.guards.ts` contém funções puras para detectar alterações:
 
 ```typescript
-// Atualização de contexto
-actions: assign({
-  // Valor estático
-  isLoading: () => true,
-  
-  // Usando evento
-  items: ({ event }) => event.items,
-  
-  // Usando contexto + evento
-  items: ({ context, event }) => [...context.items, event.newItem],
-}),
-```
+// Verifica se qualquer seção foi modificada
+export function isDirty({ context }: { context: ProductFormContext }): boolean {
+  return (
+    isGeneralDirty(context) ||
+    isImageDirty(context) ||
+    isOffersDirty(context) ||
+    isUpsellDirty(context) ||
+    isAffiliateDirty(context) ||
+    isCheckoutSettingsDirty(context)
+  );
+}
 
-### Transições Múltiplas
+// Flags granulares por seção
+export function calculateDirtyFlags(context: ProductFormContext) {
+  return {
+    general: isGeneralDirty(context),
+    image: isImageDirty(context),
+    offers: isOffersDirty(context),
+    upsell: isUpsellDirty(context),
+    affiliate: isAffiliateDirty(context),
+    checkoutSettings: isCheckoutSettingsDirty(context),
+  };
+}
 
-```typescript
-// Múltiplas transições baseadas em guards
-SUBMIT: [
-  {
-    guard: ({ context }) => context.isValid,
-    target: "submitting",
-  },
-  {
-    target: "invalid",
-  },
-],
-```
-
----
-
-## Machines do Projeto
-
-### productFormMachine
-
-**Localização:** `src/modules/products/machines/`
-
-**Estados:**
-- `idle` - Aguardando inicialização
-- `loading` - Carregando dados do servidor
-- `editing` - Usuário editando formulário
-- `validating` - Validando antes de salvar
-- `saving` - Salvando no servidor
-- `saved` - Salvo com sucesso
-- `error` - Erro ocorreu
-
-**Uso:**
-```typescript
-import { useProductFormMachine } from "@/modules/products/machines";
-
-const {
-  isEditing,
-  isDirty,
-  editedData,
-  updateGeneral,
-  requestSave,
-} = useProductFormMachine();
+// Guard para permitir salvamento
+export function canSave({ context }: { context: ProductFormContext }): boolean {
+  return isDirty({ context }) && isValid({ context });
+}
 ```
 
 ---
@@ -256,8 +277,14 @@ const {
 states: {
   idle: {},
   loading: {},
-  editing: {},
+  ready: {
+    states: {
+      pristine: {},
+      dirty: {},
+    }
+  },
   saving: {},
+  error: {},
 }
 
 // ❌ RUIM - estados como verbos
@@ -268,74 +295,89 @@ states: {
 }
 ```
 
-### 2. Eventos como Verbos/Ações
+### 2. Eventos como Ações
 
 ```typescript
 // ✅ BOM - eventos descrevem "o que aconteceu"
 type Events =
-  | { type: "LOAD_REQUESTED" }
-  | { type: "DATA_RECEIVED"; data: Data }
-  | { type: "SAVE_CLICKED" };
+  | { type: "LOAD_DATA"; productId: string }
+  | { type: "RECEIVE_DATA"; data: ProductData }
+  | { type: "EDIT_GENERAL"; name?: string; description?: string }
+  | { type: "SAVE_ALL" };
 
-// ❌ RUIM - eventos muito genéricos
+// ❌ RUIM - eventos genéricos
 type Events =
   | { type: "UPDATE" }
   | { type: "SET_DATA" };
 ```
 
-### 3. Contexto Mínimo
+### 3. Contexto Mínimo (Não Derivável)
 
 ```typescript
 // ✅ BOM - apenas dados necessários
 interface Context {
-  items: Item[];
-  error: string | null;
+  offers: Offer[];
+  deletedOfferIds: string[];
 }
 
 // ❌ RUIM - dados deriváveis
 interface Context {
-  items: Item[];
-  itemCount: number; // Derivável: items.length
-  hasItems: boolean; // Derivável: items.length > 0
+  offers: Offer[];
+  offerCount: number;      // Derivável: offers.length
+  hasOffers: boolean;      // Derivável: offers.length > 0
+  activeOffers: Offer[];   // Derivável: offers.filter(o => o.status === 'active')
 }
 ```
 
-### 4. Guards Descritivos
+### 4. Actors para Side Effects
 
 ```typescript
-// ✅ BOM - guard com nome claro
-guard: ({ context }) => context.saveAttempts < 3,
-// Ou extraído:
-guard: "canRetry",
+// ✅ BOM - operações async em actors
+const loadProductActor = fromPromise(async ({ input }) => {
+  const response = await api.call("product-full-loader", { productId: input.productId });
+  return mapFullData(response);
+});
 
-// ❌ RUIM - lógica complexa inline
-guard: ({ context }) => 
-  context.x > 0 && context.y < 100 && context.z !== null,
+// Na máquina:
+loading: {
+  invoke: {
+    src: loadProductActor,
+    input: ({ context }) => ({ productId: context.productId }),
+    onDone: { target: "ready.pristine", actions: "assignServerData" },
+    onError: { target: "error", actions: "assignError" },
+  },
+},
 ```
 
 ---
 
 ## Debugging
 
-### XState Inspector
+### Console Logging
+
+```typescript
+// Em desenvolvimento
+import { useEffect } from "react";
+
+function useDebugMachine() {
+  const [state] = useMachine(productFormMachine);
+  
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.log("[XState]", state.value, state.context);
+    }
+  }, [state]);
+}
+```
+
+### XState Inspector (Opcional)
 
 ```typescript
 import { inspect } from "@xstate/inspect";
 
-// Em desenvolvimento
 if (import.meta.env.DEV) {
   inspect({ iframe: false });
 }
-```
-
-### Console Logging
-
-```typescript
-const [snapshot, send] = useMachine(myMachine);
-
-useEffect(() => {
-  console.log("[Machine State]", snapshot.value, snapshot.context);
-}, [snapshot]);
 ```
 
 ---
@@ -345,3 +387,18 @@ useEffect(() => {
 - [XState Documentation](https://stately.ai/docs)
 - [XState Visualizer](https://stately.ai/viz)
 - [XState TypeScript Guide](https://stately.ai/docs/typescript)
+
+---
+
+## Changelog
+
+| Data | Alteração |
+|------|-----------|
+| 2026-01-17 | Criação da estrutura XState |
+| 2026-01-17 | Documentação inicial |
+| 2026-01-20 | **MIGRAÇÃO COMPLETA PARA XSTATE** |
+| 2026-01-20 | Adicionado diagrama Mermaid |
+| 2026-01-20 | Tabela completa de eventos |
+| 2026-01-20 | Documentação de Actors |
+| 2026-01-20 | Integração com ProductContext |
+| 2026-01-20 | Guards de dirty checking |
