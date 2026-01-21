@@ -61,7 +61,7 @@ function AffiliationDetailsContent() {
           />
         );
       case "details":
-        return <DetailsTab affiliation={affiliation} onRefetch={handleRefetch} />;
+        return <DetailsTab affiliation={affiliation} />;
       case "other-products":
         return (
           <OtherProductsTab

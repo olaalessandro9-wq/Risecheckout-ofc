@@ -4,7 +4,6 @@ import { AffiliationDetails } from "@/hooks/useAffiliationDetails";
 
 interface DetailsTabProps {
   affiliation: AffiliationDetails;
-  onRefetch: () => Promise<void>;
 }
 
 export function DetailsTab({ affiliation }: DetailsTabProps) {
