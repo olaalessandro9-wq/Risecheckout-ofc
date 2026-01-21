@@ -106,9 +106,22 @@ export async function getAdminAnalyticsTraffic(
 
   const { start, end } = getDateRange(period);
 
+  // Usar count: "exact" para obter total real (sem limite 1000)
+  // Incluir user_agent para contagem híbrida de visitantes únicos
   const [visitsResult, ordersResult] = await Promise.all([
-    supabase.from("checkout_visits").select("id, ip_address, checkout_id, visited_at, utm_source").gte("visited_at", start.toISOString()).lte("visited_at", end.toISOString()),
-    supabase.from("orders").select("id").eq("status", "paid").gte("paid_at", start.toISOString()).lte("paid_at", end.toISOString()),
+    supabase
+      .from("checkout_visits")
+      .select("id, ip_address, user_agent, checkout_id, visited_at, utm_source", { count: "exact" })
+      .gte("visited_at", start.toISOString())
+      .lte("visited_at", end.toISOString())
+      .limit(50000), // Remove teto padrão de 1000
+    supabase
+      .from("orders")
+      .select("id", { count: "exact" })
+      .eq("status", "paid")
+      .gte("paid_at", start.toISOString())
+      .lte("paid_at", end.toISOString())
+      .limit(50000),
   ]);
 
   if (visitsResult.error) {
@@ -117,10 +130,21 @@ export async function getAdminAnalyticsTraffic(
   }
 
   const visits = visitsResult.data || [];
-  const uniqueIPs = new Set(visits.map((v) => v.ip_address).filter(Boolean));
+  const totalVisitsCount = visitsResult.count ?? visits.length;
   const uniqueCheckouts = new Set(visits.map((v) => v.checkout_id));
-  const paidOrders = (ordersResult.data || []).length;
-  const conversionRate = visits.length > 0 ? (paidOrders / visits.length) * 100 : 0;
+  const paidOrdersCount = ordersResult.count ?? (ordersResult.data || []).length;
+  const conversionRate = totalVisitsCount > 0 ? (paidOrdersCount / totalVisitsCount) * 100 : 0;
+
+  // Contagem de visitantes únicos usando hash híbrido (IP + User-Agent + Data)
+  // Isso resolve o problema de 98.9% dos IPs sendo NULL
+  const uniqueVisitorHashes = new Set<string>();
+  visits.forEach((v) => {
+    const date = v.visited_at?.split("T")[0] || "";
+    // Hash: combinar IP (se disponível) + User-Agent + Data
+    // Isso agrupa visitas do mesmo dispositivo no mesmo dia
+    const hash = `${v.ip_address || "unknown"}-${(v.user_agent || "unknown").substring(0, 50)}-${date}`;
+    uniqueVisitorHashes.add(hash);
+  });
 
   // Agregar visitas por dia (mesmo padrão de dailyRevenue)
   const dailyMap = new Map<string, number>();
@@ -136,7 +160,7 @@ export async function getAdminAnalyticsTraffic(
   // Agregar top sources (UTM) - top 10
   const sourceMap = new Map<string, number>();
   visits.forEach((visit) => {
-    const source = visit.utm_source || "direto";
+    const source = visit.utm_source || "Direto";
     sourceMap.set(source, (sourceMap.get(source) || 0) + 1);
   });
 
@@ -147,8 +171,8 @@ export async function getAdminAnalyticsTraffic(
 
   return jsonResponse({
     metrics: {
-      totalVisits: visits.length,
-      uniqueVisitors: uniqueIPs.size,
+      totalVisits: totalVisitsCount,
+      uniqueVisitors: uniqueVisitorHashes.size,
       activeCheckouts: uniqueCheckouts.size,
       globalConversionRate: Math.round(conversionRate * 100) / 100,
     },
