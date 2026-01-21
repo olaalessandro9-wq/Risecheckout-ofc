@@ -130,6 +130,7 @@ export interface AdminOrder {
   paymentMethod: string | null;
   createdAt: string;
   fullCreatedAt: string;
+  createdAtISO: string;
 }
 
 // ============================================

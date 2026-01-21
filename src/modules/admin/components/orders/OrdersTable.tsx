@@ -17,8 +17,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Eye, ArrowUpDown } from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import type { AdminOrder, OrderSortField, SortDirection } from "@/modules/admin/types/admin.types";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from "@/modules/admin/types/admin.types";
 
@@ -111,7 +109,7 @@ export function OrdersTable({
             </TableCell>
             <TableCell className="font-medium">{order.amount}</TableCell>
             <TableCell>
-              {format(new Date(order.createdAt), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+              {order.fullCreatedAt}
             </TableCell>
             <TableCell className="text-right">
               <Button

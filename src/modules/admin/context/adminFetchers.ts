@@ -118,7 +118,8 @@ export async function fetchOrders(
     if (error) throw new Error(error.message);
 
     const orders: AdminOrder[] = (data?.orders ?? []).map(order => {
-      const createdAt = order.created_at ? new Date(order.created_at) : new Date();
+      const createdAtRaw = order.created_at || new Date().toISOString();
+      const createdAt = new Date(createdAtRaw);
       return {
         id: order.id,
         orderId: order.id.slice(0, 8).toUpperCase(),
@@ -136,6 +137,7 @@ export async function fetchOrders(
         paymentMethod: order.payment_method || null,
         createdAt: format(createdAt, "dd/MM/yyyy", { locale: ptBR }),
         fullCreatedAt: format(createdAt, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }),
+        createdAtISO: createdAtRaw,
       };
     });
 
