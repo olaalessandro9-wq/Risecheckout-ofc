@@ -46,7 +46,7 @@ O RiseCheckout está **100% completo** e pronto para produção. Todas as funcio
 | **[STATE_MACHINES.md](./STATE_MACHINES.md)** | Guia de XState State Machines |
 | **[PRODUCTS_MODULE_ARCHITECTURE.md](./PRODUCTS_MODULE_ARCHITECTURE.md)** | Arquitetura do módulo Products |
 | **[MODELO_NEGOCIO.md](./MODELO_NEGOCIO.md)** | Modelo de negócio Owner=Plataforma |
-| **[EDGE_FUNCTIONS_REGISTRY.md](./EDGE_FUNCTIONS_REGISTRY.md)** | Registro de 115 Edge Functions |
+| **[EDGE_FUNCTIONS_REGISTRY.md](./EDGE_FUNCTIONS_REGISTRY.md)** | Registro de 114 Edge Functions |
 | **[AUTHENTICATION_SYSTEM.md](./AUTHENTICATION_SYSTEM.md)** | Sistema de autenticação |
 | **[LGPD_IMPLEMENTATION.md](./LGPD_IMPLEMENTATION.md)** | Implementação LGPD |
 
@@ -169,7 +169,7 @@ src/
 └── integrations/        # Integrações (Supabase)
 
 supabase/
-├── functions/           # 115 Edge Functions
+├── functions/           # 114 Edge Functions
 │   └── _shared/         # Módulos compartilhados
 └── migrations/          # Migrações do banco
 

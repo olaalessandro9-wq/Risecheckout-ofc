@@ -67,7 +67,7 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 #### Conformidade RISE V3
 - **Seção 6.4 (Limite 300 linhas):** ✅ Todas funções < 300 linhas
 - **Single Responsibility Principle:** ✅ 1 domínio por função
-- **Total Edge Functions:** 115 (+3)
+- **Total Edge Functions:** 114 (após consolidação webhooks)
 
 ---
 
