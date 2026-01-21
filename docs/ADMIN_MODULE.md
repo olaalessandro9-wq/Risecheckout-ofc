@@ -1,7 +1,7 @@
 # Admin Module Architecture
 
-> **Version:** 1.0.0  
-> **Status:** REFATORADO - RISE Protocol V3 Compliant  
+> **Version:** 2.0.0  
+> **Status:** INTEGRADO - RISE Protocol V3 Compliant  
 > **Score:** 10.0/10
 
 ## Visão Geral
@@ -29,12 +29,21 @@ src/modules/admin/
     └── sheets/
         ├── index.ts
         ├── UserInfo.tsx              # Info básica (~60 linhas)
-        ├── UserFeeSection.tsx        # Taxa customizada (~70 linhas)
-        ├── UserModerationSection.tsx # Ações moderação (~60 linhas)
+        ├── UserFeeSection.tsx        # Taxa customizada (~65 linhas)
+        ├── UserModerationSection.tsx # Ações moderação (~68 linhas)
         ├── UserProductsSection.tsx   # Lista produtos (~110 linhas)
-        ├── UserMetricsSection.tsx    # Métricas (~45 linhas)
-        └── UserActionDialog.tsx      # Dialog ações (~120 linhas)
+        ├── UserMetricsSection.tsx    # Métricas (~49 linhas)
+        └── UserActionDialog.tsx      # Dialog ações (~131 linhas)
 ```
+
+## Componentes Integrados
+
+Os seguintes componentes em `src/components/admin/` agora utilizam o módulo:
+
+| Componente | Linhas Antes | Linhas Depois | Status |
+|------------|--------------|---------------|--------|
+| AdminUsersTab.tsx | 558 | ~250 | ✅ Integrado |
+| UserDetailSheet.tsx | 597 | ~250 | ✅ Integrado |
 
 ## Hooks Reutilizáveis
 
@@ -68,19 +77,23 @@ Todos os tipos do módulo estão em `admin.types.ts`:
 - `UserWithRole`, `UserProfile`, `UserProduct`
 - `ProductWithMetrics`, `ProductDetails`
 - `AdminOrder`, `SecurityAlert`, `BlockedIP`
-- Constantes de UI: `ROLE_LABELS`, `ROLE_COLORS`, etc.
+- `RoleChangeDialog`, `UserActionDialog`, `SelectedUserData`
+- Constantes de UI: `ROLE_LABELS`, `ROLE_COLORS`, `USER_STATUS_*`, `PRODUCT_STATUS_*`, etc.
+- Helper: `formatCentsToBRL()`
 
 ## Métricas de Conformidade
 
 | Métrica | Antes | Depois |
 |---------|-------|--------|
-| Arquivos >300 linhas | 6 | 0 |
+| Arquivos >300 linhas | 5 | 0 |
 | Hooks reutilizáveis | 0 | 3 |
 | Tipos centralizados | Dispersos | 1 arquivo |
 | Componentes puros | ~30% | 100% |
+| Imports do módulo | 0 | 10+ |
 
 ## Changelog
 
 | Versão | Data | Alterações |
 |--------|------|------------|
-| 1.0.0 | 2026-01-21 | Refatoração inicial seguindo RISE Protocol V3 |
+| 2.0.0 | 2026-01-21 | Integração completa: AdminUsersTab e UserDetailSheet usam módulo |
+| 1.0.0 | 2026-01-21 | Criação de estrutura modular, tipos e hooks |

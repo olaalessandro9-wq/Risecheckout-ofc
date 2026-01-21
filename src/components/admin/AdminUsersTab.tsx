@@ -1,13 +1,11 @@
 /**
  * AdminUsersTab - Aba de gerenciamento de usuários
  * 
- * Permite listar usuários e promover/rebaixar roles
+ * RISE Protocol V3 Compliant - Uses modular components from admin module
  * 
  * Regras:
  * - Owner vê todos exceto ele mesmo, com emails
  * - Admin vê apenas sellers e users, sem emails
- * - Owner pode promover: seller ↔ user ↔ admin (nunca para owner)
- * - Admin pode promover: seller ↔ user apenas
  */
 
 import { useState, useMemo } from "react";
@@ -15,6 +13,28 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { usePermissions, AppRole } from "@/hooks/usePermissions";
 import { createLogger } from "@/lib/logger";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import { Search, Shield, UserCog } from "lucide-react";
+
+// Import from admin module
+import { 
+  UsersTable, 
+  RoleChangeDialog 
+} from "@/modules/admin/components";
+import { 
+  useAdminFilters, 
+  useAdminSort, 
+  createUserComparator 
+} from "@/modules/admin/hooks";
+import { 
+  type UserWithRole,
+  type RoleChangeDialog as RoleChangeDialogType,
+  type SelectedUserData,
+} from "@/modules/admin/types/admin.types";
+
+import { UserDetailSheet } from "./UserDetailSheet";
 
 const log = createLogger("AdminUsersTab");
 
@@ -31,114 +51,17 @@ interface ManageUserRoleResponse {
   success?: boolean;
   error?: string;
 }
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
-import { Search, Shield, UserCog, ArrowUpDown, Eye } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { UserDetailSheet } from "./UserDetailSheet";
-
-interface UserWithRole {
-  user_id: string;
-  role: AppRole;
-  profile: {
-    name: string;
-  } | null;
-  email?: string;
-  total_gmv: number;
-  total_fees: number;
-  orders_count: number;
-  registration_source?: string;
-}
-
-type SortField = "name" | "gmv" | "orders";
-type SortDirection = "asc" | "desc";
-
-const formatCentsToBRL = (cents: number): string => {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(cents / 100);
-};
-
-const ROLE_LABELS: Record<AppRole, string> = {
-  owner: "Owner",
-  admin: "Admin",
-  user: "Usuário",
-  seller: "Seller",
-};
-
-const ROLE_COLORS: Record<AppRole, string> = {
-  owner: "bg-amber-500/10 text-amber-500 border-amber-500/20",
-  admin: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-  user: "bg-green-500/10 text-green-500 border-green-500/20",
-  seller: "bg-purple-500/10 text-purple-500 border-purple-500/20",
-};
-
-const SOURCE_LABELS: Record<string, string> = {
-  producer: "Produtor",
-  affiliate: "Afiliado",
-  buyer: "Comprador",
-};
-
-const SOURCE_COLORS: Record<string, string> = {
-  producer: "bg-purple-500/10 text-purple-500 border-purple-500/20",
-  affiliate: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
-  buyer: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-};
 
 export function AdminUsersTab() {
   const { role: callerRole, canManageUsers } = usePermissions();
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
-  const [sortField, setSortField] = useState<SortField>("gmv");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
-  const [confirmDialog, setConfirmDialog] = useState<{
-    open: boolean;
-    userId: string;
-    userName: string;
-    currentRole: AppRole;
-    newRole: AppRole;
-  } | null>(null);
-  const [selectedUser, setSelectedUser] = useState<{
-    userId: string;
-    userName: string;
-    userEmail?: string;
-    userRole: AppRole;
-    totalGmv: number;
-    totalFees: number;
-    ordersCount: number;
-  } | null>(null);
+  
+  const [confirmDialog, setConfirmDialog] = useState<RoleChangeDialogType | null>(null);
+  const [selectedUser, setSelectedUser] = useState<SelectedUserData | null>(null);
 
   const isOwner = callerRole === "owner";
 
-  // Buscar usuários com emails (via edge function para owner)
+  // Fetch user emails (owner only)
   const { data: usersWithEmails } = useQuery({
     queryKey: ["admin-users-emails"],
     queryFn: async () => {
@@ -152,34 +75,29 @@ export function AdminUsersTab() {
     enabled: isOwner,
   });
 
-  // Buscar usuários com seus roles e métricas financeiras
+  // Fetch users with metrics
   const { data: users, isLoading } = useQuery({
     queryKey: ["admin-users-with-metrics"],
     queryFn: async () => {
       const { data, error } = await api.call<AdminUsersResponse>("admin-data", {
         action: "users-with-metrics",
       });
-
       if (error) throw new Error(String(error));
       if (data?.error) throw new Error(data.error);
-
       return data?.users || [];
     },
   });
 
-  // Filtrar usuários baseado no role do caller
+  // Filter users based on caller role
   const visibleUsers = useMemo(() => {
     if (!users) return [];
     
-    // Sempre ocultar owners da lista
     let filtered = users.filter((u) => u.role !== "owner");
     
-    // Admin só vê sellers e users (não vê outros admins)
     if (callerRole === "admin") {
       filtered = filtered.filter((u) => u.role === "seller" || u.role === "user");
     }
 
-    // Adicionar emails se for owner
     if (isOwner && usersWithEmails) {
       filtered = filtered.map((u) => ({
         ...u,
@@ -190,17 +108,34 @@ export function AdminUsersTab() {
     return filtered;
   }, [users, callerRole, isOwner, usersWithEmails]);
 
-  // Mutation para alterar role
+  // Use modular hooks
+  const { filteredItems, searchTerm, setSearchTerm } = useAdminFilters(
+    visibleUsers,
+    (user) => [
+      user.profile?.name || "",
+      user.user_id,
+      user.role,
+      user.email || "",
+    ],
+    {}
+  );
+
+  const { sortedItems, toggleSort } = useAdminSort(
+    filteredItems,
+    "gmv" as const,
+    "desc",
+    createUserComparator()
+  );
+
+  // Role change mutation
   const changeRoleMutation = useMutation({
     mutationFn: async ({ userId, newRole }: { userId: string; newRole: AppRole }) => {
       const { data, error } = await api.call<ManageUserRoleResponse>("manage-user-role", {
         targetUserId: userId,
         newRole,
       });
-
       if (error) throw new Error(String(error));
       if (data?.error) throw new Error(data.error);
-
       return data;
     },
     onSuccess: () => {
@@ -215,62 +150,16 @@ export function AdminUsersTab() {
     },
   });
 
-  // Filtrar usuários pela busca
-  const filteredUsers = useMemo(() => {
-    let result = visibleUsers.filter((user) => {
-      if (!search) return true;
-      const searchLower = search.toLowerCase();
-      return (
-        user.profile?.name?.toLowerCase().includes(searchLower) ||
-        user.user_id.toLowerCase().includes(searchLower) ||
-        user.role.toLowerCase().includes(searchLower) ||
-        user.email?.toLowerCase().includes(searchLower)
-      );
-    });
-
-    // Ordenar
-    result.sort((a, b) => {
-      let comparison = 0;
-      switch (sortField) {
-        case "name":
-          comparison = (a.profile?.name || "").localeCompare(b.profile?.name || "");
-          break;
-        case "gmv":
-          comparison = a.total_gmv - b.total_gmv;
-          break;
-        case "orders":
-          comparison = a.orders_count - b.orders_count;
-          break;
-      }
-      return sortDirection === "desc" ? -comparison : comparison;
-    });
-
-    return result;
-  }, [visibleUsers, search, sortField, sortDirection]);
-
-  const toggleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDirection("desc");
-    }
-  };
-
-  // Obter roles disponíveis para seleção
+  // Get available roles for selection
   const getAvailableRoles = (currentRole: AppRole): AppRole[] => {
-    // Owner: pode promover para seller, user, admin (NUNCA owner)
     if (callerRole === "owner") {
       const ownerOptions: AppRole[] = ["seller", "user", "admin"];
       return ownerOptions.filter((r) => r !== currentRole);
     }
-    
-    // Admin: pode apenas alternar entre seller e user
     if (callerRole === "admin") {
       const adminOptions: AppRole[] = ["seller", "user"];
       return adminOptions.filter((r) => r !== currentRole);
     }
-    
     return [];
   };
 
@@ -289,6 +178,18 @@ export function AdminUsersTab() {
     changeRoleMutation.mutate({
       userId: confirmDialog.userId,
       newRole: confirmDialog.newRole,
+    });
+  };
+
+  const handleSelectUser = (user: UserWithRole) => {
+    setSelectedUser({
+      userId: user.user_id,
+      userName: user.profile?.name || "Sem nome",
+      userEmail: user.email,
+      userRole: user.role,
+      totalGmv: user.total_gmv,
+      totalFees: user.total_fees,
+      ordersCount: user.orders_count,
     });
   };
 
@@ -325,221 +226,44 @@ export function AdminUsersTab() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Busca */}
+        {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder={isOwner ? "Buscar por nome, email ou ID..." : "Buscar por nome ou ID..."}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
           />
         </div>
 
-        {/* Tabela */}
-        <div className="rounded-md border overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="-ml-3 h-8"
-                    onClick={() => toggleSort("name")}
-                  >
-                    Usuário
-                    <ArrowUpDown className="ml-1 h-3 w-3" />
-                  </Button>
-                </TableHead>
-                {isOwner && <TableHead>Email</TableHead>}
-                {isOwner && <TableHead>Origem</TableHead>}
-                <TableHead>Role</TableHead>
-                <TableHead>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="-ml-3 h-8"
-                    onClick={() => toggleSort("gmv")}
-                  >
-                    GMV Total
-                    <ArrowUpDown className="ml-1 h-3 w-3" />
-                  </Button>
-                </TableHead>
-                <TableHead>Taxa Paga</TableHead>
-                <TableHead>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="-ml-3 h-8"
-                    onClick={() => toggleSort("orders")}
-                  >
-                    Pedidos
-                    <ArrowUpDown className="ml-1 h-3 w-3" />
-                  </Button>
-                </TableHead>
-                <TableHead>Alterar Role</TableHead>
-                {isOwner && <TableHead className="w-[60px]">Detalhes</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={isOwner ? 9 : 6} className="text-center py-8">
-                    Carregando...
-                  </TableCell>
-                </TableRow>
-              ) : filteredUsers.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={isOwner ? 9 : 6} className="text-center py-8 text-muted-foreground">
-                    Nenhum usuário encontrado
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredUsers.map((user) => {
-                  const availableRoles = getAvailableRoles(user.role);
-                  
-                  return (
-                    <TableRow key={user.user_id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">
-                            {user.profile?.name || "Sem nome"}
-                          </p>
-                          <p className="text-xs text-muted-foreground font-mono">
-                            {user.user_id.slice(0, 8)}...
-                          </p>
-                        </div>
-                      </TableCell>
-                      {isOwner && (
-                        <TableCell>
-                          <span className="text-sm text-muted-foreground">
-                            {user.email || "-"}
-                          </span>
-                        </TableCell>
-                      )}
-                      {isOwner && (
-                        <TableCell>
-                          <Badge variant="outline" className={SOURCE_COLORS[user.registration_source || "producer"]}>
-                            {SOURCE_LABELS[user.registration_source || "producer"]}
-                          </Badge>
-                        </TableCell>
-                      )}
-                      <TableCell>
-                        <Badge variant="outline" className={ROLE_COLORS[user.role]}>
-                          {ROLE_LABELS[user.role]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <span className={user.total_gmv > 0 ? "text-emerald-500 font-medium" : "text-muted-foreground"}>
-                          {formatCentsToBRL(user.total_gmv)}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className={user.total_fees > 0 ? "text-blue-500 font-medium" : "text-muted-foreground"}>
-                          {formatCentsToBRL(user.total_fees)}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className={user.orders_count > 0 ? "font-medium" : "text-muted-foreground"}>
-                          {user.orders_count}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        {availableRoles.length > 0 ? (
-                          <Select
-                            onValueChange={(value) =>
-                              handleRoleChange(
-                                user.user_id,
-                                user.profile?.name || "Usuário",
-                                user.role,
-                                value
-                              )
-                            }
-                          >
-                            <SelectTrigger className="w-[140px]">
-                              <SelectValue placeholder="Alterar..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {availableRoles.map((r) => (
-                                <SelectItem key={r} value={r}>
-                                  {ROLE_LABELS[r]}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            Sem permissão
-                          </span>
-                        )}
-                      </TableCell>
-                      {isOwner && (
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => setSelectedUser({
-                              userId: user.user_id,
-                              userName: user.profile?.name || "Sem nome",
-                              userEmail: user.email,
-                              userRole: user.role,
-                              totalGmv: user.total_gmv,
-                              totalFees: user.total_fees,
-                              ordersCount: user.orders_count,
-                            })}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
+        {/* Table - Pure Component */}
+        <UsersTable
+          users={sortedItems}
+          isLoading={isLoading}
+          isOwner={isOwner}
+          callerRole={callerRole}
+          onToggleSort={toggleSort}
+          onRoleChange={handleRoleChange}
+          onViewDetails={handleSelectUser}
+          getAvailableRoles={getAvailableRoles}
+        />
       </CardContent>
 
-      {/* Dialog de Confirmação */}
-      <AlertDialog
-        open={confirmDialog?.open}
-        onOpenChange={(open) => !open && setConfirmDialog(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar alteração de role</AlertDialogTitle>
-            <AlertDialogDescription>
-              Você está prestes a alterar o role de{" "}
-              <strong>{confirmDialog?.userName}</strong> de{" "}
-              <Badge variant="outline" className={ROLE_COLORS[confirmDialog?.currentRole || "seller"]}>
-                {ROLE_LABELS[confirmDialog?.currentRole || "seller"]}
-              </Badge>{" "}
-              para{" "}
-              <Badge variant="outline" className={ROLE_COLORS[confirmDialog?.newRole || "seller"]}>
-                {ROLE_LABELS[confirmDialog?.newRole || "seller"]}
-              </Badge>
-              .
-              <br />
-              <br />
-              Esta ação será registrada no log de segurança.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmRoleChange}
-              disabled={changeRoleMutation.isPending}
-            >
-              {changeRoleMutation.isPending ? "Alterando..." : "Confirmar"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Role Change Dialog - Pure Component */}
+      {confirmDialog && (
+        <RoleChangeDialog
+          open={confirmDialog.open}
+          userName={confirmDialog.userName}
+          currentRole={confirmDialog.currentRole}
+          newRole={confirmDialog.newRole}
+          isPending={changeRoleMutation.isPending}
+          onConfirm={confirmRoleChange}
+          onCancel={() => setConfirmDialog(null)}
+        />
+      )}
 
-      {/* Modal de Detalhes do Usuário */}
+      {/* User Detail Sheet */}
       {selectedUser && (
         <UserDetailSheet
           open={!!selectedUser}
