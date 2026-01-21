@@ -39,7 +39,7 @@ export type UTMifyMachineEvent =
   | { type: "TOGGLE_ACTIVE" }
   | { type: "TOGGLE_PRODUCT"; productId: string }
   | { type: "TOGGLE_EVENT"; eventId: string }
-  | { type: "SAVE" }
+  | { type: "SAVE"; vendorId: string }
   | { type: "SAVE_SUCCESS" }
   | { type: "SAVE_ERROR"; error: string }
   | { type: "RESET" };

@@ -363,6 +363,7 @@ CREATE TABLE vendor_integrations (
 
 | Data | Versão | Alteração |
 |------|--------|-----------|
+| 2026-01-21 | 1.1.0 | Refatoração RISE V3: removido import não utilizado, substituído ícone deprecated, centralizado save no XState |
 | 2026-01-21 | 1.0.0 | Criação do documento (consolidação Pixels + UTMify) |
 
 ---
