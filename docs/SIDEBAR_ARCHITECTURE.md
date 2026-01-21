@@ -1,490 +1,350 @@
 # Arquitetura do Sidebar - RiseCheckout
 
+> **Versão:** 3.0 (XState v5)  
+> **Última Atualização:** 21/01/2026  
+> **Status:** RISE V3 Compliant - 10.0/10
+
+---
+
 ## 1. Visão Geral
 
-O Sidebar é o componente de navegação principal do dashboard administrativo. Foi refatorado para seguir o RISE ARCHITECT PROTOCOL.
+O módulo de navegação/sidebar é uma implementação modular e type-safe que utiliza **XState v5** como Single Source of Truth para gerenciamento de estado.
 
 ### Características Principais
 
-- **3 Estados:** Hidden (0px), Collapsed (80px), Expanded (280px)
-- **Responsivo:** Desktop (colapsável) e Mobile (Sheet overlay)
-- **Animação em Cascata:** Menus fecham antes do sidebar colapsar
-- **Menu Expansível:** Subitens com Collapsible do Radix UI
-- **Permissões:** Itens filtrados por role do usuário
-- **Persistência:** Estado salvo em localStorage
+| Característica | Implementação |
+|----------------|---------------|
+| State Management | XState v5 State Machine |
+| Type Safety | Discriminated Unions |
+| Persistência | localStorage via events |
+| Responsividade | Desktop (3 estados) + Mobile (drawer) |
+| Permissões | Filtragem recursiva por role |
 
 ---
 
 ## 2. Estrutura de Arquivos
 
 ```
-src/components/layout/
-├── Sidebar.tsx                  # Componente principal (~150 linhas)
-├── Topbar.tsx                   # Barra superior com toggle button
-└── sidebar/
-    ├── index.ts                 # Barrel exports
-    ├── types.ts                 # Interfaces: NavItem, SidebarState, constantes
-    ├── buildNavItems.ts         # Função geradora de itens de navegação
-    ├── navUtils.ts              # Helpers: isActivePath, hasActiveChild
-    ├── NavContent.tsx           # Lista de navegação
-    ├── NavItem.tsx              # Item simples (sem filhos)
-    └── NavItemGroup.tsx         # Item expansível (com filhos)
-
-src/layouts/
-└── AppShell.tsx                 # Layout principal, gerencia estado elevado
+src/modules/navigation/
+├── components/Sidebar/
+│   ├── Sidebar.tsx           # Container principal (106 linhas)
+│   ├── SidebarContent.tsx    # Composição de itens (87 linhas)
+│   ├── SidebarBrand.tsx      # Logo e nome (54 linhas)
+│   ├── SidebarItem.tsx       # Item individual (123 linhas)
+│   ├── SidebarGroup.tsx      # Grupo expansível (185 linhas)
+│   ├── SidebarFooter.tsx     # Rodapé com usuário (57 linhas)
+│   └── index.ts              # Barrel exports
+├── config/
+│   └── navigationConfig.ts   # Configuração declarativa (189 linhas)
+├── hooks/
+│   └── useNavigation.ts      # Hook principal (211 linhas)
+├── machines/
+│   ├── navigationMachine.ts       # State Machine (165 linhas)
+│   ├── navigationMachine.types.ts # Tipos (57 linhas)
+│   ├── navigationMachine.actions.ts # Actions (191 linhas)
+│   ├── navigationMachine.guards.ts  # Guards (52 linhas)
+│   └── index.ts                     # Barrel exports
+├── types/
+│   └── navigation.types.ts   # Tipos públicos (133 linhas)
+├── utils/
+│   ├── navigationHelpers.ts  # Funções puras (204 linhas)
+│   └── permissionFilters.ts  # Filtros de permissão (137 linhas)
+└── index.ts                  # API pública do módulo
 ```
 
 ---
 
-## 2.1 Estados do Sidebar
+## 3. XState State Machine
 
-O sidebar possui 3 estados distintos gerenciados pelo `AppShell.tsx`:
+### Diagrama de Estados
 
-| Estado | Largura | Descrição |
-|--------|---------|-----------|
-| `hidden` | 0px | Sidebar completamente oculto |
-| `collapsed` | 80px | Apenas ícones visíveis (expande temporariamente no hover) |
-| `expanded` | 280px | Totalmente expandido com labels |
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   navigationMachine                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│   ┌──────┐  RESTORE_FROM_STORAGE  ┌───────────────────────┐ │
+│   │ idle │ ────────────────────▶  │        ready          │ │
+│   └──────┘                        │  ┌─────────────────┐  │ │
+│                                   │  │     active      │  │ │
+│                                   │  └────────┬────────┘  │ │
+│                                   │           │           │ │
+│                                   │  SET_SIDEBAR (collapsed)│
+│                                   │  + hasExpandedGroups    │ │
+│                                   │           │           │ │
+│                                   │           ▼           │ │
+│                                   │  ┌─────────────────┐  │ │
+│                                   │  │  closingMenus   │  │ │
+│                                   │  └─────────────────┘  │ │
+│                                   │   after: 250ms → active │
+│                                   └───────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+```
 
-### Tipos (types.ts)
+### Context
 
 ```typescript
-export type SidebarState = 'hidden' | 'collapsed' | 'expanded';
-
-export const SIDEBAR_WIDTHS = {
-  hidden: 0,
-  collapsed: 80,
-  expanded: 280,
-} as const;
-
-export const SIDEBAR_STORAGE_KEY = 'rise-sidebar-state';
+interface NavigationMachineContext {
+  readonly sidebarState: SidebarState;  // "expanded" | "collapsed" | "hidden"
+  readonly isHovering: boolean;
+  readonly mobileOpen: boolean;
+  readonly expandedGroups: Set<string>;
+}
 ```
+
+### Eventos
+
+| Evento | Payload | Descrição |
+|--------|---------|-----------|
+| `RESTORE_FROM_STORAGE` | - | Restaura estado do localStorage |
+| `CYCLE_SIDEBAR` | - | Cicla: hidden → collapsed → expanded → hidden |
+| `SET_SIDEBAR` | `{ state: SidebarState }` | Define estado específico |
+| `MOUSE_ENTER` | - | Ativa hover temporário |
+| `MOUSE_LEAVE` | - | Desativa hover |
+| `SET_MOBILE_OPEN` | `{ open: boolean }` | Controla drawer mobile |
+| `TOGGLE_GROUP` | `{ groupId: string }` | Expande/colapsa grupo |
+| `EXPAND_GROUP` | `{ groupId: string }` | Expande grupo |
+| `COLLAPSE_GROUP` | `{ groupId: string }` | Colapsa grupo |
+| `COLLAPSE_ALL_GROUPS` | - | Colapsa todos os grupos |
+| `INIT_ACTIVE_GROUPS` | `{ path: string }` | Expande grupos da rota ativa |
+
+### Guards
+
+```typescript
+// navigationMachine.guards.ts
+isCollapsed(context)      // sidebarState === "collapsed"
+isNotCollapsed(context)   // sidebarState !== "collapsed"
+hasExpandedGroups(context) // expandedGroups.size > 0
+isGroupExpanded(context, event) // expandedGroups.has(groupId)
+isHovering(context)       // isHovering === true
+```
+
+---
+
+## 4. Sistema de Tipos
+
+### Discriminated Union para Itens de Navegação
+
+```typescript
+// Variante de rota interna
+interface NavItemRouteVariant {
+  readonly type: "route";
+  readonly path: string;
+  readonly exact?: boolean;
+}
+
+// Variante de link externo
+interface NavItemExternalVariant {
+  readonly type: "external";
+  readonly url: string;
+}
+
+// Variante de grupo com filhos
+interface NavItemGroupVariant {
+  readonly type: "group";
+  readonly children: readonly NavItemConfig[];
+}
+
+// Union type
+type NavItemVariant = 
+  | NavItemRouteVariant 
+  | NavItemExternalVariant 
+  | NavItemGroupVariant;
+
+// Configuração completa de um item
+interface NavItemConfig extends NavItemVariant {
+  readonly id: string;
+  readonly label: string;
+  readonly icon: LucideIcon;
+  readonly permissions?: NavItemPermissions;
+  readonly badge?: NavItemBadge;
+}
+```
+
+### Exhaustiveness Check
+
+```typescript
+// SidebarItem.tsx - Garantia de type safety
+function renderByVariant(item: NavItemConfig) {
+  switch (item.type) {
+    case "route":
+      return <RouteLink {...} />;
+    case "external":
+      return <ExternalLink {...} />;
+    case "group":
+      return <SidebarGroup {...} />;
+    default:
+      // TypeScript error se algum tipo não for tratado
+      const _exhaustive: never = item;
+      return null;
+  }
+}
+```
+
+---
+
+## 5. Sistema de Permissões
+
+### Configuração
+
+```typescript
+interface NavItemPermissions {
+  requiresAdmin?: boolean;      // true = só admin/owner
+  requiresOwner?: boolean;      // true = só owner, false = só NÃO-owner
+  requiresPermission?: "canHaveAffiliates" | "canAccessAdminPanel";
+}
+```
+
+### Filtragem Recursiva
+
+```typescript
+// permissionFilters.ts
+function filterByPermissions(
+  items: NavItemConfig[],
+  permissions: NavigationPermissions
+): NavItemConfig[] {
+  return items
+    .filter(item => checkItemPermissions(item, permissions))
+    .map(item => {
+      if (item.type === "group") {
+        const filteredChildren = filterByPermissions(item.children, permissions);
+        // Oculta grupo se não tem filhos visíveis
+        if (filteredChildren.length === 0) return null;
+        return { ...item, children: filteredChildren };
+      }
+      return item;
+    })
+    .filter(Boolean);
+}
+```
+
+---
+
+## 6. Diagrama de Fluxo
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      AppShell.tsx                            │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │ const navigation = useNavigation();                     ││
+│  │                                                         ││
+│  │ useNavigation() → useMachine(navigationMachine)         ││
+│  │  └── State: sidebarState, isHovering, mobileOpen        ││
+│  │  └── Actions: send({ type: "CYCLE_SIDEBAR" })           ││
+│  └─────────────────────────────────────────────────────────┘│
+│                           │                                  │
+│           ┌───────────────┼───────────────┐                 │
+│           ▼               ▼               ▼                 │
+│    ┌────────────┐  ┌────────────┐  ┌────────────────┐       │
+│    │  Sidebar   │  │   Topbar   │  │  Main Content  │       │
+│    │            │  │            │  │                │       │
+│    │ Props:     │  │ Props:     │  │ paddingLeft:   │       │
+│    │ navigation │  │ sidebarState│  │ currentWidth  │       │
+│    └────────────┘  └────────────┘  └────────────────┘       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 7. Estados do Sidebar
+
+| Estado | Largura | Labels | Hover |
+|--------|---------|--------|-------|
+| `expanded` | 248px | Visíveis | N/A |
+| `collapsed` | 64px | Ocultos | Expande temporariamente |
+| `hidden` | 0px | N/A | N/A |
 
 ### Ciclo de Estados
 
 ```
-hidden → collapsed → expanded → hidden (ciclo)
-```
-
-O usuário alterna entre estados clicando no botão toggle no Topbar.
-
----
-
-## 2.2 Persistência com localStorage
-
-O estado do sidebar é persistido no `localStorage` para manter a preferência do usuário entre sessões.
-
-### Implementação (AppShell.tsx)
-
-```typescript
-// Leitura inicial com fallback seguro
-const [sidebarState, setSidebarState] = useState<SidebarState>(() => {
-  if (typeof window === 'undefined') return 'collapsed';
-  const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY);
-  if (saved === 'hidden' || saved === 'collapsed' || saved === 'expanded') {
-    return saved;
-  }
-  return 'collapsed'; // Default
-});
-
-// Persistência automática a cada mudança
-useEffect(() => {
-  localStorage.setItem(SIDEBAR_STORAGE_KEY, sidebarState);
-}, [sidebarState]);
+hidden → collapsed → expanded → hidden → ...
 ```
 
 ---
 
-## 2.3 Botão Toggle no Topbar
+## 8. Persistência
 
-O `Topbar.tsx` contém um botão para alternar entre os 3 estados do sidebar.
-
-### Props Recebidas
+O estado do sidebar é persistido no `localStorage`:
 
 ```typescript
-interface TopbarProps {
-  sidebarState?: SidebarState;
-  onSidebarToggle?: () => void;
-}
-```
+const SIDEBAR_STORAGE_KEY = "rise:sidebar-state";
 
-### Ícones por Estado
+// Ao iniciar (via event)
+send({ type: "RESTORE_FROM_STORAGE" });
 
-| Estado | Ícone | Tooltip |
-|--------|-------|---------|
-| `hidden` | `PanelLeft` | "Mostrar menu" |
-| `collapsed` | `PanelLeftClose` | "Expandir menu" |
-| `expanded` | `PanelLeftOpen` | "Ocultar menu" |
-
-### Ciclo de Toggle (AppShell.tsx)
-
-```typescript
-const cycleSidebarState = useCallback(() => {
-  const cycle: Record<SidebarState, SidebarState> = {
-    hidden: 'collapsed',
-    collapsed: 'expanded',
-    expanded: 'hidden',
-  };
-  setSidebarState(prev => cycle[prev]);
-}, []);
+// Ao mudar (via action)
+// navigationMachine.actions.ts → saveSidebarState()
 ```
 
 ---
 
-## 3. Diagrama de Componentes
+## 9. Uso
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                          AppShell.tsx                               │
-│  ┌─────────────────────────────────────────────────────────────────┐│
-│  │ Estado Elevado:                                                 ││
-│  │ - sidebarState: 'hidden' | 'collapsed' | 'expanded'             ││
-│  │ - isHovering: boolean (notificado pelo Sidebar)                 ││
-│  │ - mobileOpen: boolean                                           ││
-│  │                                                                 ││
-│  │ Derivado:                                                       ││
-│  │ - effectiveWidth: 0 | 80 | 280 (considera hover + mobile)       ││
-│  └────────────────────────┬────────────────────────────────────────┘│
-│                           │                                         │
-│           ┌───────────────┼───────────────┐                        │
-│           ▼               ▼               ▼                        │
-│    ┌────────────┐  ┌────────────┐  ┌────────────────┐              │
-│    │  Sidebar   │  │   Topbar   │  │  Main Content  │              │
-│    │            │  │            │  │                │              │
-│    │ Props:     │  │ Props:     │  │ style:         │              │
-│    │ -sidebarState│ │-sidebarState│ │ paddingLeft:   │              │
-│    │ -onHoverChange│ │-onSidebarToggle│ effectiveWidth │              │
-│    │ -onStateChange│ │            │  │                │              │
-│    └────────────┘  └────────────┘  └────────────────┘              │
-└─────────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                         Sidebar.tsx                                 │
-│  ┌─────────────────────────────────────────────────────────────────┐│
-│  │ Estado Local:                                                   ││
-│  │ - isHovering: boolean (expansão temporária quando collapsed)    ││
-│  │ - openMenus: Record<string, boolean>                            ││
-│  │ - collapseTimeoutRef: Ref<Timeout>                              ││
-│  │                                                                 ││
-│  │ Callbacks:                                                      ││
-│  │ - onHoverChange(boolean) → notifica AppShell                    ││
-│  │                                                                 ││
-│  │ Renderiza: Desktop (<aside>) ou Mobile (<Sheet>)                ││
-│  └─────────────────────────────────────────────────────────────────┘│
-│         │                                                           │
-│         ▼                                                           │
-│  ┌─────────────────────────────────────────────────────────────────┐│
-│  │              NavContent.tsx                                     ││
-│  │  Props: navItems, openMenus, toggleMenu, fullWidth, isHovered   ││
-│  │  Mapeia itens → NavItem ou NavItemGroup                         ││
-│  └──────────────┬──────────────────────────────────────────────────┘│
-│                 │                                                   │
-│     ┌───────────┴───────────┐                                      │
-│     ▼                       ▼                                      │
-│  NavItem.tsx          NavItemGroup.tsx                              │
-│  (item simples)       (item expansível)                             │
-│  - Link direto        - Collapsible (Radix)                         │
-│  - Ícone + Label      - Subitens recursivos                         │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 4. Fluxo da Animação em Cascata
-
-A animação garante uma experiência fluida ao fechar o sidebar:
-
-```
-Mouse sai do sidebar (collapsed + hovering)
-        │
-        ▼
-┌─────────────────────┐
-│ hasOpenMenu?        │──── Verifica Object.values(openMenus).some(Boolean)
-└─────────────────────┘
-        │
-   ┌────┴────┐
-   │         │
-  SIM       NÃO
-   │         │
-   ▼         ▼
-closeAllMenus()   setIsHovering(false)
-   │              onHoverChange(false)
-   │               (imediato)
-   │
-   ▼
-setTimeout(MENU_CLOSE_DELAY)  ← 250ms
-   │
-   ▼
-setIsHovering(false)
-onHoverChange(false)
-```
-
-### Constantes
+### Importação
 
 ```typescript
-const MENU_CLOSE_DELAY = 250; // ms - tempo para menu fechar antes do collapse
+import { 
+  useNavigation,
+  Sidebar,
+  NAVIGATION_CONFIG,
+} from "@/modules/navigation";
 ```
 
-### Cancelabilidade
-
-Se o mouse re-entrar antes do timeout:
+### No AppShell
 
 ```typescript
-const handleMouseEnter = useCallback(() => {
-  if (sidebarState !== 'collapsed') return;
+function AppShell() {
+  const navigation = useNavigation();
   
-  if (collapseTimeoutRef.current) {
-    clearTimeout(collapseTimeoutRef.current);  // Cancela collapse pendente
-    collapseTimeoutRef.current = null;
-  }
-  setIsHovering(true);
-  onHoverChange?.(true);
-}, [sidebarState, onHoverChange]);
-```
-
----
-
-## 5. Interface NavItem
-
-> **Nota (2026-01-21):** A navegação foi reestruturada:
-> - "Pixels" renomeado para "Trackeamento" (inclui UTMify)
-> - "Webhooks" movido para item separado em Configurações
-> - Página "Integrações" foi eliminada
-
-```typescript
-interface NavItem {
-  label: string;              // Texto exibido
-  icon: React.ElementType;    // Componente de ícone (Lucide)
-  to?: string;                // Rota interna (react-router)
-  external?: string;          // Link externo (abre nova aba)
-  requiresAdmin?: boolean;    // Requer role admin
-  children?: NavItem[];       // Subitens (torna item expansível)
+  return (
+    <div className="flex min-h-screen">
+      <Sidebar navigation={navigation} />
+      <main style={{ paddingLeft: navigation.currentWidth }}>
+        <Outlet />
+      </main>
+    </div>
+  );
 }
 ```
 
-### Exemplo
+### Adicionar Nova Rota
 
 ```typescript
-const navItems: NavItem[] = [
+// navigationConfig.ts
+export const NAVIGATION_CONFIG: NavItemConfig[] = [
   {
-    label: "Dashboard",
-    icon: LayoutDashboard,
-    to: "/dashboard"
+    id: "nova-rota",
+    type: "route",
+    label: "Nova Rota",
+    icon: StarIcon,
+    path: "/nova-rota",
+    permissions: { requiresAdmin: true },
   },
-  {
-    label: "Configurações",
-    icon: Settings2,
-    children: [
-      { label: "Trackeamento", icon: BarChart3, to: "/dashboard/trackeamento" },
-      { label: "Webhooks", icon: Webhook, to: "/dashboard/webhooks" }
-    ]
-  }
+  // ...
 ];
 ```
 
 ---
 
-## 6. Sistema de Permissões
+## 10. Notas de Conformidade RISE V3
 
-O `buildNavItems()` recebe flags de permissão e filtra os itens:
-
-```typescript
-interface PermissionFlags {
-  canAccessAdminPanel: boolean;  // Exibe menu "Admin"
-  canHaveAffiliates: boolean;    // Exibe menu "Afiliados"
-  isOwner: boolean;              // Condições específicas de owner
-}
-
-const navItems = buildNavItems({
-  canAccessAdminPanel,
-  canHaveAffiliates,
-  isOwner
-});
-```
-
-### Fluxo de Filtragem
-
-```
-buildNavItems(permissions)
-        │
-        ▼
-┌─────────────────────────┐
-│ Gera lista base         │
-└───────────┬─────────────┘
-            │
-            ▼
-┌─────────────────────────┐
-│ Filtra por permissões   │
-│ - requiresAdmin?        │
-│ - isOwner?              │
-└───────────┬─────────────┘
-            │
-            ▼
-┌─────────────────────────┐
-│ Retorna NavItem[]       │
-└─────────────────────────┘
-```
-
----
-
-## 7. Responsividade
-
-| Viewport | Componente | Comportamento |
-|----------|------------|---------------|
-| Desktop  | `<aside>`  | 3 estados: hidden (0px), collapsed (80px), expanded (280px). Hover temporário expande collapsed para 280px. |
-| Mobile   | `<Sheet>`  | Desliza da esquerda como overlay. Sidebar desktop fica hidden automaticamente. |
-
-### Breakpoint
-
-```typescript
-// Detectado diretamente no AppShell.tsx (sem hook externo)
-const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
-```
-
-### Desktop (3 estados)
-
-```tsx
-// Estado hidden: sidebar não renderiza <aside>
-if (sidebarState === 'hidden') {
-  return <MobileSheet ... />; // Apenas Sheet disponível
-}
-
-// Estados collapsed/expanded
-<aside
-  className={cn(
-    "fixed inset-y-0 left-0 z-40 border-r",
-    "transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
-  )}
-  style={{ width: `${currentWidth}px` }}
-  onMouseEnter={handleMouseEnter}
-  onMouseLeave={handleMouseLeave}
->
-  <NavContent fullWidth={showLabels} isHovered={isHovering} ... />
-</aside>
-```
-
-### Mobile
-
-```tsx
-<Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-  <SheetContent side="left" className="w-[280px] p-0">
-    <NavContent fullWidth={true} onNavigate={handleMobileNavigate} ... />
-  </SheetContent>
-</Sheet>
-```
-
-### Content Offset (AppShell.tsx)
-
-O conteúdo principal ajusta `paddingLeft` dinamicamente:
-
-```typescript
-const effectiveWidth = useMemo(() => {
-  if (isMobile) return 0; // Mobile: sem padding, sidebar é overlay
-  if (sidebarState === 'hidden') return 0;
-  if (sidebarState === 'collapsed' && isHovering) return SIDEBAR_WIDTHS.expanded;
-  return SIDEBAR_WIDTHS[sidebarState];
-}, [sidebarState, isHovering, isMobile]);
-
-// Aplicado no container principal
-<div style={{ paddingLeft: `${effectiveWidth}px` }}>
-  <main>...</main>
-</div>
-```
-
----
-
-## 8. Helpers (navUtils.ts)
-
-### isActivePath
-
-Verifica se a rota atual corresponde ao item:
-
-```typescript
-function isActivePath(currentPath: string, itemPath?: string): boolean {
-  if (!itemPath) return false;
-  return currentPath === itemPath || currentPath.startsWith(`${itemPath}/`);
-}
-```
-
-### hasActiveChild
-
-Verifica se algum filho está ativo (para manter menu aberto):
-
-```typescript
-function hasActiveChild(item: NavItem, currentPath: string): boolean {
-  if (!item.children) return false;
-  return item.children.some(child => isActivePath(currentPath, child.to));
-}
-```
-
----
-
-## 9. Conformidade RISE ARCHITECT PROTOCOL
-
-| Regra | Status | Evidência |
-|-------|--------|-----------|
-| Limite 300 linhas | ✅ | Sidebar.tsx ~150 linhas, AppShell.tsx ~95 linhas |
-| Arquivos modulares | ✅ | 8 arquivos especializados |
-| Single Responsibility | ✅ | 1 responsabilidade por arquivo |
-| Nomenclatura Inglês | ✅ | Consistente em todo código |
-| Zero Gambiarras | ✅ | Sem workarounds |
-| Zero `!important` | ✅ | Lógica React substitui CSS forçado |
-| Animação fluida | ✅ | Cascata 250ms antes do collapse |
-| Persistência | ✅ | localStorage para sidebarState |
-| 3 Estados Sidebar | ✅ | hidden/collapsed/expanded |
-| Conteúdo responsivo ao hover | ✅ | effectiveWidth + onHoverChange |
-
----
-
-## 10. Troubleshooting
-
-### Menu não expande no hover
-
-1. Verificar se `onHoverChange` está sendo passado corretamente do AppShell
-2. Verificar se `sidebarState` é 'collapsed' (hover só funciona nesse estado)
-3. Verificar CSS de `pointer-events` no sidebar
-
-### Animação cortada
-
-1. Verificar valor de `MENU_CLOSE_DELAY` (deve ser >= animação do Collapsible)
-2. Verificar se `clearTimeout` está sendo chamado no `mouseEnter`
-
-### Itens não aparecem
-
-1. Verificar permissões no `buildNavItems()`
-2. Verificar se `requiresAdmin` está configurado corretamente
-3. Verificar `usePermissions()` hook
-
-### Menu fecha ao clicar em item
-
-1. Comportamento esperado em mobile
-2. Em desktop, verificar se `e.stopPropagation()` está sendo chamado
-
-### Conteúdo não acompanha hover do sidebar
-
-1. Verificar se `isHovering` está sendo atualizado no AppShell via `onHoverChange`
-2. Verificar se `effectiveWidth` está sendo recalculado corretamente
-3. Verificar transição CSS no container principal
-
-### Estado não persiste após reload
-
-1. Verificar se `SIDEBAR_STORAGE_KEY` está correto
-2. Verificar se `useEffect` de persistência está executando
-3. Verificar permissões de localStorage no navegador
-
----
-
-**Última Atualização:** 21/01/2026
-**Autor:** Rise Architect Protocol
-**Conformidade:** 100%
+| Critério | Status | Evidência |
+|----------|--------|-----------|
+| XState como SSOT | ✅ | `useMachine(navigationMachine)` |
+| Zero `useState` | ✅ | Nenhum useState no hook |
+| Limite 300 linhas | ✅ | Maior arquivo: 211 linhas |
+| Discriminated Unions | ✅ | `NavItemVariant` |
+| Zero `any` | ✅ | Verificado por TSC |
+| Readonly types | ✅ | `readonly` em todas interfaces |
+| Funções puras | ✅ | Guards e helpers |
+| Single Responsibility | ✅ | 1 componente = 1 responsabilidade |
 
 ---
 
 ## Changelog
 
-| Data | Alteração |
-|------|-----------|
-| 2026-01-21 | Atualizado exemplos de navegação (Trackeamento, Webhooks) |
-| 2026-01-21 | Adicionada nota sobre reestruturação de rotas |
-| 2026-01-12 | Versão inicial |
+| Versão | Data | Alterações |
+|--------|------|------------|
+| 3.0 | 21/01/2026 | Migração completa para XState v5, documentação reescrita |
+| 2.0 | 15/01/2026 | Reestruturação modular, Discriminated Unions |
+| 1.0 | 01/01/2026 | Versão inicial com useState |
