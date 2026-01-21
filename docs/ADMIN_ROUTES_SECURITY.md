@@ -265,9 +265,12 @@ Estas rotas usam apenas `ProtectedRoute` (autenticação), sem validação de ro
 - `/dashboard/marketplace` - Marketplace
 - `/dashboard/minhas-afiliacoes` - Minhas afiliações
 - `/dashboard/financeiro` - Financeiro
-- `/dashboard/integracoes` - Integrações
+- `/dashboard/trackeamento` - Trackeamento (Pixels + UTMify)
+- `/dashboard/webhooks` - Webhooks
 - `/dashboard/config` - Configurações
 - `/dashboard/ajuda` - Ajuda
+
+> **Nota (2026-01-21):** A rota `/dashboard/integracoes` foi removida. As funcionalidades foram reorganizadas em `/dashboard/trackeamento` (Pixels + UTMify) e `/dashboard/webhooks`.
 
 ---
 

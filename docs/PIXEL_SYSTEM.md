@@ -1,5 +1,7 @@
 # Sistema de Pixels - RiseCheckout
 
+> **Nota:** Para visão geral do sistema de Trackeamento (Pixels + UTMify), consulte [`TRACKING_MODULE.md`](./TRACKING_MODULE.md).
+
 ## 1. Visão Geral
 
 O Sistema de Pixels permite rastreamento de conversões multi-plataforma para vendedores do RiseCheckout. Suporta as principais plataformas de anúncios do mercado brasileiro.
@@ -54,15 +56,23 @@ O Sistema de Pixels permite rastreamento de conversões multi-plataforma para ve
 
 ### 2.2 Estrutura de Arquivos
 
+> **Nota (2026-01-21):** A estrutura foi migrada para `src/modules/pixels/` com XState como SSOT.
+
 ```
 src/
-├── components/pixels/           # UI Components
-│   ├── index.ts                 # Barrel export
-│   ├── types.ts                 # Types: VendorPixel, ProductPixel, etc.
-│   ├── PixelLibrary.tsx         # Página principal da biblioteca
-│   ├── PixelCard.tsx            # Card de exibição de pixel
-│   ├── PixelForm.tsx            # Formulário de criação/edição
-│   └── PlatformIcon.tsx         # Ícones das plataformas
+├── modules/pixels/              # Módulo de Pixels (XState SSOT)
+│   ├── machines/                
+│   │   ├── pixelsMachine.ts     # State Machine principal
+│   │   └── index.ts             
+│   ├── context/                 
+│   │   ├── PixelsContext.tsx    # Provider + hook
+│   │   └── index.ts             
+│   ├── components/              
+│   │   ├── PixelLibrary.tsx     # Lista de pixels
+│   │   ├── PixelCard.tsx        # Card individual
+│   │   ├── PixelForm.tsx        # Formulário CRUD
+│   │   └── index.ts             
+│   └── types.ts                 
 │
 ├── hooks/
 │   ├── useVendorPixels.ts       # CRUD da biblioteca de pixels
@@ -77,6 +87,11 @@ src/
     ├── kwai/
     └── utmify/
 ```
+
+### 2.3 Navegação
+
+- **Rota:** `/dashboard/trackeamento` (Tab: Pixels)
+- **Grupo de Navegação:** Configurações
 
 ---
 

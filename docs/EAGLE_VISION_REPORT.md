@@ -1,7 +1,8 @@
 > **📅 DOCUMENTO HISTÓRICO**  
 > Este documento foi criado em 26/10/2025.  
 > Algumas informações técnicas podem estar desatualizadas.  
-> Para a arquitetura atual, consulte `docs/ARCHITECTURE.md` e `docs/STATUS_ATUAL.md`.
+> Rotas mencionadas (como `/integracoes`, `/pixels`) foram reestruturadas para `/trackeamento`.  
+> Para a arquitetura atual, consulte `docs/ARCHITECTURE.md`, `docs/TRACKING_MODULE.md` e `docs/SIDEBAR_ARCHITECTURE.md`.
 
 # Relatório Técnico: Implementação do Tema Eagle Vision
 

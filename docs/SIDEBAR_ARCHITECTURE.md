@@ -247,6 +247,11 @@ const handleMouseEnter = useCallback(() => {
 
 ## 5. Interface NavItem
 
+> **Nota (2026-01-21):** A navegação foi reestruturada:
+> - "Pixels" renomeado para "Trackeamento" (inclui UTMify)
+> - "Webhooks" movido para item separado em Configurações
+> - Página "Integrações" foi eliminada
+
 ```typescript
 interface NavItem {
   label: string;              // Texto exibido
@@ -269,10 +274,10 @@ const navItems: NavItem[] = [
   },
   {
     label: "Configurações",
-    icon: Settings,
+    icon: Settings2,
     children: [
-      { label: "Perfil", icon: User, to: "/dashboard/profile" },
-      { label: "Pixels", icon: Zap, to: "/dashboard/pixels" }
+      { label: "Trackeamento", icon: BarChart3, to: "/dashboard/trackeamento" },
+      { label: "Webhooks", icon: Webhook, to: "/dashboard/webhooks" }
     ]
   }
 ];
@@ -470,6 +475,16 @@ function hasActiveChild(item: NavItem, currentPath: string): boolean {
 
 ---
 
-**Última Atualização:** 12/01/2026
+**Última Atualização:** 21/01/2026
 **Autor:** Rise Architect Protocol
 **Conformidade:** 100%
+
+---
+
+## Changelog
+
+| Data | Alteração |
+|------|-----------|
+| 2026-01-21 | Atualizado exemplos de navegação (Trackeamento, Webhooks) |
+| 2026-01-21 | Adicionada nota sobre reestruturação de rotas |
+| 2026-01-12 | Versão inicial |

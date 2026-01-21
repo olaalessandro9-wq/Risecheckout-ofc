@@ -34,7 +34,7 @@ Este projeto utiliza **XState State Machines** como o **ÚNICO** padrão de gere
 
 ---
 
-## 2. Módulos Migrados (7/7 - 100%)
+## 2. Módulos Migrados (9/9 - 100%)
 
 | # | Módulo | Arquivo Principal | Estados | Linhas |
 |---|--------|-------------------|---------|--------|
@@ -45,8 +45,10 @@ Este projeto utiliza **XState State Machines** como o **ÚNICO** padrão de gere
 | 5 | **Affiliation** | `src/modules/affiliation/machines/affiliationMachine.ts` | 4 | 139 |
 | 6 | **Members Area Settings** | `src/hooks/members-area/machines/membersAreaMachine.ts` | 4 | 289 |
 | 7 | **Financeiro** | `src/modules/financeiro/machines/financeiroMachine.ts` | 4 | 139 |
+| 8 | **Pixels** | `src/modules/pixels/machines/pixelsMachine.ts` | 6 | ~180 |
+| 9 | **UTMify** | `src/modules/utmify/machines/utmifyMachine.ts` | 5 | ~160 |
 
-**Total de Linhas XState:** ~1.438 linhas  
+**Total de Linhas XState:** ~1.778 linhas  
 **Conformidade 300-Line Rule:** ✅ 100%
 
 ---
@@ -231,6 +233,87 @@ stateDiagram-v2
 - `GATEWAY_DISCONNECTED` - Atualiza status local após desconexão
 - `REFRESH` - Recarrega dados do backend (pós-OAuth)
 - `RETRY` - Tenta novamente após erro
+
+---
+
+### 3.8 PixelsMachine
+
+```mermaid
+stateDiagram-v2
+    [*] --> idle
+    idle --> loading: LOAD
+    loading --> ready: onDone
+    loading --> error: onError
+    
+    state ready {
+        [*] --> viewing
+        viewing --> formOpen: OPEN_FORM
+        formOpen --> viewing: CLOSE_FORM
+    }
+    
+    ready --> saving: SAVE_PIXEL
+    ready --> deleting: CONFIRM_DELETE
+    
+    saving --> ready: onDone
+    saving --> error: onError
+    
+    deleting --> ready: onDone
+    deleting --> error: onError
+    
+    error --> loading: RETRY
+```
+
+**Responsabilidade:** Gerencia CRUD de pixels de rastreamento (Facebook, TikTok, Google Ads, Kwai).
+
+**Estados:**
+- `idle` - Estado inicial
+- `loading` - Carregando pixels do backend
+- `ready.viewing` - Exibindo lista de pixels
+- `ready.formOpen` - Formulário aberto (criar/editar)
+- `saving` - Salvando pixel
+- `deleting` - Deletando pixel
+- `error` - Estado de erro
+
+---
+
+### 3.9 UTMifyMachine
+
+```mermaid
+stateDiagram-v2
+    [*] --> idle
+    idle --> loading: LOAD
+    loading --> ready: onDone
+    loading --> error: onError
+    
+    ready --> saving: SAVE
+    ready --> ready: UPDATE_TOKEN
+    ready --> ready: TOGGLE_ACTIVE
+    ready --> ready: TOGGLE_PRODUCT
+    ready --> ready: TOGGLE_EVENT
+    
+    saving --> ready: onDone
+    saving --> error: onError
+    
+    error --> loading: RETRY
+```
+
+**Responsabilidade:** Gerencia configuração da integração UTMify (token, produtos, eventos).
+
+**Estados:**
+- `idle` - Estado inicial
+- `loading` - Carregando configuração
+- `ready` - Pronto para interação
+- `saving` - Salvando configuração
+- `error` - Estado de erro
+
+**Eventos:**
+- `LOAD` - Carregar configuração
+- `UPDATE_TOKEN` - Atualizar API token
+- `TOGGLE_ACTIVE` - Ativar/desativar integração
+- `TOGGLE_PRODUCT` - Selecionar/deselecionar produto
+- `TOGGLE_EVENT` - Selecionar/deselecionar evento
+- `SAVE` - Salvar configuração
+- `RESET` - Resetar para idle
 
 ---
 
@@ -481,6 +564,8 @@ Copie a definição da máquina para [stately.ai/viz](https://stately.ai/viz) pa
 | 2026-01-20 | Guia de migração para futuros módulos |
 | 2026-01-20 | Checklist de conformidade RISE V3 |
 | 2026-01-20 | Adicionado **financeiroMachine** (7ª máquina) |
+| 2026-01-21 | Adicionado **pixelsMachine** (8ª máquina) |
+| 2026-01-21 | Adicionado **utmifyMachine** (9ª máquina) |
 
 ---
 
@@ -497,6 +582,8 @@ Copie a definição da máquina para [stately.ai/viz](https://stately.ai/viz) pa
 │  ✅ Affiliation Module      → affiliationMachine             │
 │  ✅ Members Area Settings   → membersAreaMachine             │
 │  ✅ Financeiro Module       → financeiroMachine              │
+│  ✅ Pixels Module           → pixelsMachine                  │
+│  ✅ UTMify Module           → utmifyMachine                  │
 │                                                              │
 │  TOTAL: 7/7 MÓDULOS (100%)                                  │
 │  RISE V3 SCORE: 10.0/10                                     │
