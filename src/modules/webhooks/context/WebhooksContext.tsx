@@ -2,7 +2,7 @@
  * Webhooks Context
  * 
  * @module modules/webhooks/context
- * @version 1.0.0 - RISE Protocol V3 Compliant
+ * @version 1.1.0 - RISE Protocol V3 Compliant
  */
 
 import { createContext, useContext, useEffect, type ReactNode } from "react";
@@ -10,20 +10,6 @@ import { useMachine } from "@xstate/react";
 import { webhooksMachine } from "../machines/webhooksMachine";
 import type { WebhooksMachineContext, WebhooksMachineEvent } from "../machines/webhooksMachine.types";
 import type { Webhook, WebhookProduct, WebhookFormData, WebhookDelivery } from "../types";
-
-// ============================================================================
-// STATE TYPES
-// ============================================================================
-
-type WebhooksStateValue = 
-  | "idle" 
-  | "loading" 
-  | "ready" 
-  | "loadingWebhookProducts" 
-  | "saving" 
-  | "deleting" 
-  | "loadingLogs" 
-  | "error";
 
 // ============================================================================
 // CONTEXT TYPE
@@ -34,7 +20,6 @@ interface WebhooksContextValue {
   readonly state: {
     readonly value: string;
     readonly context: WebhooksMachineContext;
-    readonly matches: (state: WebhooksStateValue) => boolean;
   };
   
   // Send
@@ -98,17 +83,22 @@ interface WebhooksProviderProps {
 export function WebhooksProvider({ children }: WebhooksProviderProps) {
   const [state, send] = useMachine(webhooksMachine);
 
+  // Derive state value as string for matching
+  const stateValue = typeof state.value === "string" 
+    ? state.value 
+    : Object.keys(state.value)[0] || "";
+
   // Auto-load on mount
   useEffect(() => {
-    if (state.matches("idle")) {
+    if (stateValue === "idle") {
       send({ type: "LOAD" });
     }
-  }, [state, send]);
+  }, [stateValue, send]);
 
-  // Derived flags
-  const isLoading = state.matches("loading") || state.matches("loadingWebhookProducts");
-  const isReady = state.matches("ready");
-  const isError = state.matches("error");
+  // Derived flags using string comparison (type-safe)
+  const isLoading = stateValue === "loading" || stateValue === "loadingWebhookProducts";
+  const isReady = stateValue === "ready";
+  const isError = stateValue === "error";
   const isSaving = state.context.isSaving;
   const isLoadingLogs = state.context.isLoadingLogs;
 
@@ -137,9 +127,8 @@ export function WebhooksProvider({ children }: WebhooksProviderProps) {
   const value: WebhooksContextValue = {
     // State
     state: {
-      value: String(state.value),
+      value: stateValue,
       context: state.context,
-      matches: (s: WebhooksStateValue) => state.matches(s),
     },
     send,
 
