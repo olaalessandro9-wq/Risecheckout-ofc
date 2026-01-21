@@ -48,9 +48,9 @@ Este projeto utiliza **XState State Machines** como o **ÚNICO** padrão de gere
 | 8 | **Pixels** | `src/modules/pixels/machines/pixelsMachine.ts` | 6 | ~180 |
 | 9 | **UTMify** | `src/modules/utmify/machines/utmifyMachine.ts` | 5 | ~160 |
 | 10 | **Webhooks** | `src/modules/webhooks/machines/webhooksMachine.ts` | 7 | 157 |
-| 11 | **Admin** | `src/modules/admin/machines/adminMachine.ts` | Parallel (4 regions) | ~240 |
+| 11 | **Admin** | `src/modules/admin/machines/adminMachine.ts` | Event-based (4 regions) | ~112 |
 
-**Total de Linhas XState:** ~2.175 linhas  
+**Total de Linhas XState:** ~2.533 linhas (incluindo types)  
 **Conformidade 300-Line Rule:** ✅ 100%
 
 ---
@@ -376,6 +376,61 @@ stateDiagram-v2
 
 ---
 
+### 3.11 AdminMachine
+
+```mermaid
+stateDiagram-v2
+    [*] --> active
+    
+    state active {
+        note right of active
+            Event-based architecture
+            4 logical regions in context:
+            - Users
+            - Products  
+            - Orders
+            - Security
+        end note
+        
+        active --> active: Navigation (CHANGE_TAB, SET_PERIOD)
+        active --> active: Users (LOAD_USERS, USERS_LOADED, SELECT_USER, ...)
+        active --> active: Products (LOAD_PRODUCTS, PRODUCTS_LOADED, ...)
+        active --> active: Orders (LOAD_ORDERS, ORDERS_LOADED, ...)
+        active --> active: Security (LOAD_SECURITY, SECURITY_LOADED, BLOCK_IP, ...)
+    }
+```
+
+**Responsabilidade:** Gerencia todo o estado do painel administrativo.
+
+**Arquitetura Event-Based Simplificada:**
+- Machine única com estado `active` que processa todos os eventos
+- Context dividido em 4 regions lógicas (Users, Products, Orders, Security)
+- Fetchers e handlers modularizados externamente
+
+**Arquivos:**
+
+| Arquivo | Linhas | Responsabilidade |
+|---------|--------|-----------------|
+| `adminMachine.ts` | ~112 | Machine principal |
+| `adminMachine.types.ts` | ~246 | Types do context e events |
+| `adminFetchers.ts` | ~175 | Data fetching functions |
+| `adminHandlers.ts` | ~155 | Action handlers |
+| `AdminContext.tsx` | ~184 | React provider e hook |
+
+**Total:** ~872 linhas (todos < 300)
+
+**Events por Region:**
+
+| Region | Events |
+|--------|--------|
+| Navigation | `CHANGE_TAB`, `SET_PERIOD` |
+| Users | `LOAD_USERS`, `USERS_LOADED`, `USERS_ERROR`, `SELECT_USER`, `CLEAR_SELECTED_USER`, `CHANGE_USER_ROLE`, `USER_ROLE_CHANGED` |
+| Products | `LOAD_PRODUCTS`, `PRODUCTS_LOADED`, `PRODUCTS_ERROR`, `TOGGLE_MARKETPLACE`, `REJECT_PRODUCT` |
+| Orders | `LOAD_ORDERS`, `ORDERS_LOADED`, `ORDERS_ERROR`, `SET_ORDER_SORT` |
+| Security | `LOAD_SECURITY`, `SECURITY_LOADED`, `SECURITY_ERROR`, `SET_ALERT_FILTERS`, `BLOCK_IP`, `IP_BLOCKED`, `TOGGLE_AUTO_REFRESH`, `DISMISS_ALERT` |
+
+---
+
 ## 4. Convenções de Nomenclatura
 
 ### 4.1 Estrutura de Arquivos
@@ -626,6 +681,7 @@ Copie a definição da máquina para [stately.ai/viz](https://stately.ai/viz) pa
 | 2026-01-21 | Adicionado **pixelsMachine** (8ª máquina) |
 | 2026-01-21 | Adicionado **utmifyMachine** (9ª máquina) |
 | 2026-01-21 | Adicionado **webhooksMachine** (10ª máquina) |
+| 2026-01-21 | Adicionado **adminMachine** (11ª máquina) - Event-based com 4 regions |
 
 ---
 
@@ -645,8 +701,9 @@ Copie a definição da máquina para [stately.ai/viz](https://stately.ai/viz) pa
 │  ✅ Pixels Module           → pixelsMachine                  │
 │  ✅ UTMify Module           → utmifyMachine                  │
 │  ✅ Webhooks Module         → webhooksMachine                │
+│  ✅ Admin Module            → adminMachine                   │
 │                                                              │
-│  TOTAL: 10/10 MÓDULOS (100%)                                │
+│  TOTAL: 11/11 MÓDULOS (100%)                                │
 │  RISE V3 SCORE: 10.0/10                                     │
 │  REDUCER LEGACY: 0 ARQUIVOS                                 │
 │                                                              │
