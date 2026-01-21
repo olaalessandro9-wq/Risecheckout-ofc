@@ -26,14 +26,9 @@ export function CategoryFilter({
 }: CategoryFilterProps) {
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <Label htmlFor="category" className="text-xs font-medium">
-          Categoria
-        </Label>
-        <button className="text-xs text-primary hover:underline">
-          (Selecionar todos)
-        </button>
-      </div>
+      <Label htmlFor="category" className="text-xs font-medium">
+        Categoria
+      </Label>
       <Select
         value={filters.category || "all"}
         onValueChange={(value) =>
