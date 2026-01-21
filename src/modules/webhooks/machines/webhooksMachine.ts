@@ -12,7 +12,6 @@ import type {
   LoadWebhooksOutput,
   LoadWebhookProductsOutput,
   LoadLogsOutput,
-  WebhookMachineFormData,
   SaveWebhookInput,
 } from "./webhooksMachine.types";
 import { initialWebhooksContext } from "./webhooksMachine.types";
@@ -117,10 +116,16 @@ export const webhooksMachine = setup({
       exit: assign({ isSaving: false }),
       invoke: {
         src: "saveWebhook",
-        input: ({ context }): SaveWebhookInput => ({
-          editingWebhookId: context.editingWebhook?.id || null,
-          data: context.savingData as WebhookMachineFormData,
-        }),
+        input: ({ context }): SaveWebhookInput => {
+          const data = context.savingData;
+          if (!data) {
+            throw new Error("savingData is required for saving state");
+          }
+          return {
+            editingWebhookId: context.editingWebhook?.id || null,
+            data,
+          };
+        },
         onDone: { target: "loading", actions: assign({ editingWebhook: null, editingProductIds: [], isFormOpen: false, savingData: null }) },
         onError: { target: "ready", actions: assign({ error: ({ event }) => (event.error as Error).message, savingData: null }) },
       },

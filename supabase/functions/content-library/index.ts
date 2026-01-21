@@ -2,13 +2,12 @@
  * Content Library Edge Function
  * 
  * RISE Protocol V3 - Single Responsibility
- * Handles video library and webhook logs
+ * Handles video library for member area
  * 
  * Actions:
  * - get-video-library: Retorna biblioteca de vídeos do produto
- * - get-webhook-logs: Retorna logs de webhook
  * 
- * @version 1.0.0 - Extracted from products-crud
+ * @version 2.0.0 - Removed duplicate webhook logs (now in webhook-crud)
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
@@ -23,12 +22,11 @@ const log = createLogger("content-library");
 // TYPES
 // ==========================================
 
-type Action = "get-video-library" | "get-webhook-logs";
+type Action = "get-video-library";
 
 interface RequestBody {
   action: Action;
   productId?: string;
-  webhookId?: string;
   excludeContentId?: string;
 }
 
@@ -116,49 +114,6 @@ async function getVideoLibrary(
   return jsonResponse({ videos }, corsHeaders);
 }
 
-async function getWebhookLogs(
-  supabase: SupabaseClient,
-  webhookId: string,
-  producerId: string,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  // First verify webhook ownership via product
-  const { data: webhook, error: webhookError } = await supabase
-    .from("product_webhooks")
-    .select("product_id")
-    .eq("id", webhookId)
-    .single();
-
-  if (webhookError || !webhook) {
-    return errorResponse("Webhook não encontrado", "NOT_FOUND", corsHeaders, 404);
-  }
-
-  // Verify product ownership
-  const { data: product } = await supabase
-    .from("products")
-    .select("user_id")
-    .eq("id", webhook.product_id)
-    .single();
-
-  if (!product || product.user_id !== producerId) {
-    return errorResponse("Acesso negado", "FORBIDDEN", corsHeaders, 403);
-  }
-
-  const { data, error } = await supabase
-    .from("webhook_deliveries")
-    .select("*")
-    .eq("webhook_id", webhookId)
-    .order("created_at", { ascending: false })
-    .limit(50);
-
-  if (error) {
-    log.error("Get webhook logs error:", error);
-    return errorResponse("Erro ao buscar logs", "DB_ERROR", corsHeaders, 500);
-  }
-
-  return jsonResponse({ logs: data || [] }, corsHeaders);
-}
-
 // ==========================================
 // MAIN HANDLER
 // ==========================================
@@ -175,7 +130,7 @@ serve(async (req) => {
     );
 
     const body = await req.json() as RequestBody;
-    const { action, productId, webhookId, excludeContentId } = body;
+    const { action, productId, excludeContentId } = body;
 
     log.info(`Action: ${action}`);
 
@@ -195,12 +150,6 @@ serve(async (req) => {
           return errorResponse("productId é obrigatório", "VALIDATION_ERROR", corsHeaders, 400);
         }
         return getVideoLibrary(supabase, productId, producer.id, excludeContentId, corsHeaders);
-
-      case "get-webhook-logs":
-        if (!webhookId) {
-          return errorResponse("webhookId é obrigatório", "VALIDATION_ERROR", corsHeaders, 400);
-        }
-        return getWebhookLogs(supabase, webhookId, producer.id, corsHeaders);
 
       default:
         return errorResponse(`Ação desconhecida: ${action}`, "INVALID_ACTION", corsHeaders, 400);
