@@ -45,13 +45,20 @@ export function ImageCropDialogProduct({
 
   // Load image URL and reset crop area when imageFile changes
   useEffect(() => {
-    if (imageFile && open) {
-      const url = URL.createObjectURL(imageFile);
-      setImageUrl(url);
-      // Reset crop area for fresh calculation
-      setCropArea({ x: 0, y: 0, width: 0, height: 0 });
-      return () => URL.revokeObjectURL(url);
+    if (!imageFile || !open) {
+      setImageUrl(null);
+      return;
     }
+    
+    const url = URL.createObjectURL(imageFile);
+    setImageUrl(url);
+    setCropArea({ x: 0, y: 0, width: 0, height: 0 });
+    
+    // Cleanup: delay revocation to ensure browser finishes using the URL
+    return () => {
+      const urlToRevoke = url;
+      setTimeout(() => URL.revokeObjectURL(urlToRevoke), 100);
+    };
   }, [imageFile, open]);
 
   // Calculate initial crop area when image loads

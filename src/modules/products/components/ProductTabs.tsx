@@ -22,7 +22,6 @@ import { CheckoutTab } from "../tabs/CheckoutTab";
 import { CuponsTab } from "../tabs/CuponsTab";
 import { LinksTab } from "../tabs/LinksTab";
 import { MembersAreaTab } from "../tabs/MembersAreaTab";
-import { ProductTabFooter } from "./ProductTabFooter";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useProductContext } from "../context/ProductContext";
 import { Loader2, AlertCircle } from "lucide-react";
@@ -37,30 +36,6 @@ function TabLoader() {
     <div className="flex items-center justify-center py-12">
       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
     </div>
-  );
-}
-
-// ============================================================================
-// TAB CONTENT WITH FOOTER - Wrapper que adiciona a barra de ações
-// ============================================================================
-
-interface TabContentWithFooterProps {
-  value: string;
-  children: React.ReactNode;
-}
-
-/**
- * Wrapper que envolve o conteúdo de cada aba e adiciona
- * automaticamente a barra de ações (ProductTabFooter) no final.
- * 
- * Isso garante consistência e evita repetição de código.
- */
-function TabContentWithFooter({ value, children }: TabContentWithFooterProps) {
-  return (
-    <TabsContent value={value} className="space-y-6">
-      {children}
-      <ProductTabFooter />
-    </TabsContent>
   );
 }
 
@@ -150,53 +125,53 @@ export function ProductTabs() {
       </TabsList>
       
       {/* ABA GERAL */}
-      <TabContentWithFooter value="geral">
+      <TabsContent value="geral" className="space-y-6">
         <GeneralTab />
-      </TabContentWithFooter>
+      </TabsContent>
       
       {/* ABA CONFIGURAÇÕES */}
-      <TabContentWithFooter value="configuracoes">
+      <TabsContent value="configuracoes" className="space-y-6">
         <ConfiguracoesTab />
-      </TabContentWithFooter>
+      </TabsContent>
       
       {/* ABA ORDER BUMP */}
-      <TabContentWithFooter value="order-bump">
+      <TabsContent value="order-bump" className="space-y-6">
         <OrderBumpTab />
-      </TabContentWithFooter>
+      </TabsContent>
       
       {/* ABA UPSELL/DOWNSELL */}
-      <TabContentWithFooter value="upsell">
+      <TabsContent value="upsell" className="space-y-6">
         <UpsellTab />
-      </TabContentWithFooter>
+      </TabsContent>
       
       {/* ABA CHECKOUT */}
-      <TabContentWithFooter value="checkout">
+      <TabsContent value="checkout" className="space-y-6">
         <CheckoutTab />
-      </TabContentWithFooter>
+      </TabsContent>
       
       {/* ABA CUPONS */}
-      <TabContentWithFooter value="cupons">
+      <TabsContent value="cupons" className="space-y-6">
         <CuponsTab />
-      </TabContentWithFooter>
+      </TabsContent>
       
       {/* ABA AFILIADOS (com lazy loading) */}
       {canHaveAffiliates && (
-        <TabContentWithFooter value="afiliados">
+        <TabsContent value="afiliados" className="space-y-6">
           <Suspense fallback={<TabLoader />}>
             <AffiliatesTab />
           </Suspense>
-        </TabContentWithFooter>
+        </TabsContent>
       )}
       
       {/* ABA LINKS */}
-      <TabContentWithFooter value="links">
+      <TabsContent value="links" className="space-y-6">
         <LinksTab />
-      </TabContentWithFooter>
+      </TabsContent>
 
       {/* ABA ÁREA DE MEMBROS */}
-      <TabContentWithFooter value="membros">
+      <TabsContent value="membros" className="space-y-6">
         <MembersAreaTab />
-      </TabContentWithFooter>
+      </TabsContent>
     </Tabs>
   );
 }
