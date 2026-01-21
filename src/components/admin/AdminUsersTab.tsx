@@ -50,12 +50,8 @@ export function AdminUsersTab() {
   const isOwner = callerRole === "owner";
   const usersContext = context.users;
 
-  // Load users on mount if not loaded
-  useEffect(() => {
-    if (usersContext.items.length === 0 && !isUsersLoading && !usersContext.error) {
-      loadUsers();
-    }
-  }, [usersContext.items.length, isUsersLoading, usersContext.error, loadUsers]);
+  // REMOVED: Duplicate loading useEffect - AdminContext manages initial loading
+  // This prevents race conditions and duplicate requests
 
   // Filter users based on caller role
   const visibleUsers = useMemo(() => {

@@ -108,11 +108,40 @@ export function AdminProvider({ children }: AdminProviderProps) {
   const doFetchOrders = useCallback(() => fetchOrders(state.context.period, send), [state.context.period, send]);
   const doFetchSecurity = useCallback(() => fetchSecurity(send), [send]);
 
-  // Initial data loading
-  useEffect(() => { if (state.context.usersLoading && state.context.users.items.length === 0) doFetchUsers(); }, [state.context.usersLoading, state.context.users.items.length, doFetchUsers]);
-  useEffect(() => { if (state.context.productsLoading && state.context.products.items.length === 0) doFetchProducts(); }, [state.context.productsLoading, state.context.products.items.length, doFetchProducts]);
-  useEffect(() => { if (state.context.ordersLoading && state.context.orders.items.length === 0) doFetchOrders(); }, [state.context.ordersLoading, state.context.orders.items.length, doFetchOrders]);
-  useEffect(() => { if (state.context.securityLoading && state.context.security.alerts.length === 0) doFetchSecurity(); }, [state.context.securityLoading, state.context.security.alerts.length, doFetchSecurity]);
+  // Initial data loading - using refs to prevent loops
+  // CRITICAL: Do NOT use items.length in dependencies - causes infinite loop when fetch returns 0 items
+  const usersLoadedRef = useRef(false);
+  const productsLoadedRef = useRef(false);
+  const ordersLoadedRef = useRef(false);
+  const securityLoadedRef = useRef(false);
+
+  useEffect(() => {
+    if (state.context.usersLoading && !usersLoadedRef.current) {
+      usersLoadedRef.current = true;
+      doFetchUsers();
+    }
+  }, [state.context.usersLoading, doFetchUsers]);
+
+  useEffect(() => {
+    if (state.context.productsLoading && !productsLoadedRef.current) {
+      productsLoadedRef.current = true;
+      doFetchProducts();
+    }
+  }, [state.context.productsLoading, doFetchProducts]);
+
+  useEffect(() => {
+    if (state.context.ordersLoading && !ordersLoadedRef.current) {
+      ordersLoadedRef.current = true;
+      doFetchOrders();
+    }
+  }, [state.context.ordersLoading, doFetchOrders]);
+
+  useEffect(() => {
+    if (state.context.securityLoading && !securityLoadedRef.current) {
+      securityLoadedRef.current = true;
+      doFetchSecurity();
+    }
+  }, [state.context.securityLoading, doFetchSecurity]);
 
   // Period change reactivity - reload data when period changes
   // CRITICAL: Do NOT include items.length in dependencies - causes infinite loop

@@ -73,12 +73,8 @@ export function AdminProductsTab() {
   const productsContext = context.products;
   const products = productsContext.items;
 
-  // Load products on mount if not loaded
-  useEffect(() => {
-    if (products.length === 0 && !isProductsLoading && !productsContext.error && isOwner) {
-      loadProducts();
-    }
-  }, [products.length, isProductsLoading, productsContext.error, isOwner, loadProducts]);
+  // REMOVED: Duplicate loading useEffect - AdminContext manages initial loading
+  // This prevents race conditions and duplicate requests
 
   // Hooks modulares
   const { filteredItems, searchTerm, setSearchTerm } = useAdminFilters(
