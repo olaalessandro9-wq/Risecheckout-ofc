@@ -203,7 +203,7 @@ export async function handleLogin(
 
   const { data: producer, error: findError } = await supabase
     .from("profiles")
-    .select("id, email, name, password_hash, password_hash_version, is_active, account_status")
+    .select("id, email, name, password_hash, password_hash_version, is_active, account_status, status, status_reason")
     .eq("email", email.toLowerCase())
     .single() as { data: ProducerProfile | null; error: unknown };
 
@@ -214,6 +214,35 @@ export async function handleLogin(
 
   if (producer.is_active === false) {
     return errorResponse("Conta desativada", corsHeaders, 403);
+  }
+
+  // RISE V3: Verificar status de moderação (banned/suspended)
+  const moderationStatus = producer.status;
+  if (moderationStatus === "banned") {
+    await logAuditEvent(supabase, producer.id, "LOGIN_BLOCKED", false, clientIP, userAgent, {
+      email,
+      reason: "account_banned",
+    });
+    return errorResponse(
+      "Sua conta foi permanentemente banida. Entre em contato com o suporte.",
+      corsHeaders,
+      403
+    );
+  }
+  
+  if (moderationStatus === "suspended") {
+    await logAuditEvent(supabase, producer.id, "LOGIN_BLOCKED", false, clientIP, userAgent, {
+      email,
+      reason: "account_suspended",
+      status_reason: producer.status_reason,
+    });
+    return errorResponse(
+      producer.status_reason 
+        ? `Sua conta está suspensa: ${producer.status_reason}`
+        : "Sua conta está suspensa. Entre em contato com o suporte.",
+      corsHeaders,
+      403
+    );
   }
 
   // RISE V3: account_status é a ÚNICA fonte de verdade

@@ -39,10 +39,19 @@ export interface ProducerProfile {
   password_hash_version: number | null;
   is_active: boolean;
   account_status?: AccountStatusType;
+  // RISE V3: Campos de moderação
+  status?: ModerationStatusType;
+  status_reason?: string | null;
   last_login_at?: string | null;
   reset_token?: string | null;
   reset_token_expires_at?: string | null;
 }
+
+// ============================================
+// MODERATION STATUS TYPE
+// ============================================
+
+export type ModerationStatusType = "active" | "suspended" | "banned";
 
 export interface ProducerSession {
   id: string;
