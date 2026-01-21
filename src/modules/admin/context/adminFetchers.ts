@@ -76,7 +76,7 @@ export async function fetchUsers(
 // ============================================================================
 
 export async function fetchProducts(
-  period: PeriodFilter,
+  _period: PeriodFilter,
   send: SendFn
 ): Promise<void> {
   try {

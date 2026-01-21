@@ -275,28 +275,3 @@ export const PERIOD_OPTIONS: { value: PeriodFilter; label: string }[] = [
   { value: "all", label: "Todo período" },
 ];
 
-// ============================================
-// ORDER STATUS CONSTANTS (DEPRECATED - Use orderStatusService)
-// ============================================
-
-/**
- * @deprecated Use orderStatusService.getDisplayLabel() instead
- * Kept for backward compatibility only
- */
-export const ORDER_STATUS_LABELS: Record<CanonicalOrderStatus, string> = {
-  pending: "Pendente",
-  paid: "Pago",
-  refunded: "Reembolsado",
-  chargeback: "Chargeback",
-};
-
-/**
- * @deprecated Use orderStatusService.getColorScheme() instead
- * Kept for backward compatibility only
- */
-export const ORDER_STATUS_COLORS: Record<CanonicalOrderStatus, string> = {
-  pending: "bg-amber-500/10 text-amber-500 border-amber-500/20",
-  paid: "bg-green-500/10 text-green-500 border-green-500/20",
-  refunded: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-  chargeback: "bg-red-500/10 text-red-500 border-red-500/20",
-};

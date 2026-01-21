@@ -25,7 +25,7 @@ import { useAdminFilters, useAdminPagination } from "@/modules/admin/hooks";
 import { useAdmin } from "@/modules/admin/context";
 import { orderStatusService } from "@/lib/order-status/service";
 import type { CustomerDisplayStatus } from "@/modules/dashboard/types";
-import type { OrderSortField, SortDirection, AdminOrder } from "@/modules/admin/types/admin.types";
+import type { OrderSortField, SortDirection } from "@/modules/admin/types/admin.types";
 
 const STATUS_OPTIONS = [
   { value: "all", label: "Todos os Status" },
