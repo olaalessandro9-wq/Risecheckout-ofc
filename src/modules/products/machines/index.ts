@@ -11,7 +11,10 @@
 export { productFormMachine, initialContext } from "./productFormMachine";
 export type { ProductFormMachine } from "./productFormMachine";
 
-// Types
+// Initial Context (modularizado)
+export { initialContext as productFormInitialContext } from "./productFormMachine.context";
+
+// Types (modularizado em types/)
 export type {
   // Context e Events
   ProductFormContext,
@@ -87,7 +90,7 @@ export {
   isCheckoutSettingsInitialized,
 } from "./productFormMachine.guards";
 
-// Actions (for external use if needed) - Modularized
+// Actions (Modularized in actions/)
 export {
   // Lifecycle
   assignServerData,
