@@ -87,11 +87,17 @@ export {
   isCheckoutSettingsInitialized,
 } from "./productFormMachine.guards";
 
-// Actions (for external use if needed)
+// Actions (for external use if needed) - Modularized
 export {
+  // Lifecycle
   assignServerData,
   assignLoadError,
   assignProductId,
+  markSaved,
+  assignSaveError,
+  clearSaveError,
+  resetToServer,
+  // Edit
   assignEditGeneral,
   assignEditImage,
   assignEditOffers,
@@ -100,12 +106,10 @@ export {
   assignEditAffiliate,
   assignEditCheckoutSettings,
   assignInitCheckoutSettings,
-  markSaved,
-  assignSaveError,
-  clearSaveError,
-  resetToServer,
+  // Validation
   assignValidationError,
   clearValidationErrors,
+  // Tab
   assignActiveTab,
   assignTabErrors,
   clearTabErrors,

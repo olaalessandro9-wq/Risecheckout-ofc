@@ -19,10 +19,9 @@ import { createContext, useContext, useCallback, useMemo } from "react";
 import { toast } from "@/hooks/use-toast";
 import { useMachine } from "@xstate/react";
 import { useAuth } from "@/hooks/useAuth";
-import { createLogger } from "@/lib/logger";
 
 // State Machine
-import { productFormMachine, initialContext } from "../machines";
+import { productFormMachine } from "../machines";
 import type { ProductFormContext, ProductFormEvent } from "../machines";
 import { calculateDirtyFlags } from "../machines/productFormMachine.guards";
 
@@ -45,8 +44,6 @@ import { useProductDelete } from "./hooks/useProductDelete";
 
 // Helpers
 import { validateGeneralForm } from "./productFormValidation";
-
-const log = createLogger("ProductContext");
 
 // ============================================================================
 // CONTEXT TYPE
