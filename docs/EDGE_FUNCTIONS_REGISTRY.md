@@ -10,8 +10,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 115 |
-| **No código local** | 115 |
+| **Total de Funções** | 114 |
+| **No código local** | 114 |
 | **Apenas deployadas** | 0 |
 | **Operações Diretas Frontend** | 0 ✅ |
 | **Funções com verify_jwt=true** | 0 ✅ |
@@ -466,10 +466,12 @@
 | 2026-01-19 | Criada `session-manager` (gerenciamento de sessões de produtores) |
 | 2026-01-19 | Criada `data-retention-executor` (limpeza automatizada de 16 tabelas) |
 | 2026-01-19 | Total de funções: 110 → 115 |
+| 2026-01-21 | **CONSOLIDAÇÃO WEBHOOKS** - `get-webhook-logs` DELETADA, consolidada em `webhook-crud` action=get-logs |
+| 2026-01-21 | Total de funções: 115 → 114 |
 | 2026-01-18 | **RISE V3 products-crud REFACTORING** - Dividida em 4 Edge Functions |
 | 2026-01-18 | Criada `producer-profile` (get-profile, check-credentials, get-gateway-connections) |
 | 2026-01-18 | Criada `coupon-read` (get-coupon) |
-| 2026-01-18 | Criada `content-library` (get-video-library, get-webhook-logs) |
+| 2026-01-18 | Criada `content-library` (get-video-library) |
 | 2026-01-18 | `products-crud` reduzida de 597 para 268 linhas |
 | 2026-01-18 | **RISE V3 MARKETPLACE SEPARATION** - Criada `marketplace-public` Edge Function |
 | 2026-01-18 | Separados endpoints públicos do marketplace de `products-crud` |
