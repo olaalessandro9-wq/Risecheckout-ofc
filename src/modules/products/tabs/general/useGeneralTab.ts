@@ -11,8 +11,7 @@
  * @see RISE ARCHITECT PROTOCOL V3 - XState 10.0/10
  */
 
-import { useMemo, useCallback, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useMemo, useCallback } from "react";
 import { useProductContext } from "../../context/ProductContext";
 import {
   useGeneralTabImage,
@@ -22,12 +21,8 @@ import {
 import type { GeneralFormData, GeneralFormErrors } from "./types";
 
 export function useGeneralTab() {
-  const navigate = useNavigate();
-  const [isDeleting, setIsDeleting] = useState(false);
-  
   const {
     product,
-    deleteProduct,
     formState,
     dispatchForm,
     formErrors,
@@ -113,20 +108,6 @@ export function useGeneralTab() {
     return formChanged || imageChanged || offersModified || deletedOfferIds.length > 0;
   }, [formState, product, image, offersModified, deletedOfferIds]);
 
-  // Delete handler - único handler local mantido
-  const handleDelete = useCallback(async () => {
-    setIsDeleting(true);
-    try {
-      const success = await deleteProduct();
-      if (!success) {
-        throw new Error("Falha ao excluir produto");
-      }
-      navigate("/dashboard/produtos");
-    } finally {
-      setIsDeleting(false);
-    }
-  }, [deleteProduct, navigate]);
-
   return {
     // State
     product,
@@ -137,12 +118,10 @@ export function useGeneralTab() {
     image,
     localOffers,
     hasChanges,
-    isDeleting,
     memberGroups,
     hasMembersArea,
 
     // Handlers
-    handleDelete,
     handleImageFileChange,
     handleImageUrlChange,
     handleRemoveImage,

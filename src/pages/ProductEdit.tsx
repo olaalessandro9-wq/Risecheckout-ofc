@@ -44,7 +44,7 @@ function ProductEditInner() {
         {/* Cabeçalho com botões de ação */}
         <ProductHeader />
         
-        {/* Abas de edição (cada aba tem sua própria barra de ações no final) */}
+        {/* Abas de edição */}
         <ProductTabs />
       </div>
     </UnsavedChangesGuard>
