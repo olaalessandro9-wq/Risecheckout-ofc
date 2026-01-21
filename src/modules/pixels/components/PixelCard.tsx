@@ -1,24 +1,34 @@
 /**
- * Componente: PixelCard
- * Card individual para exibir um pixel na biblioteca
+ * PixelCard Component
+ * 
+ * @module modules/pixels/components
+ * @version 1.0.0 - RISE Protocol V3 Compliant
+ * 
+ * Card individual para exibir um pixel na biblioteca.
  */
 
 import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PlatformIcon } from "./PlatformIcon";
-import type { VendorPixel } from "./types";
-import { PLATFORM_INFO } from "./types";
+import { PLATFORM_INFO } from "../types";
+import type { VendorPixel } from "../types";
+
+// ============================================================================
+// TYPES
+// ============================================================================
 
 interface PixelCardProps {
-  pixel: VendorPixel;
-  onEdit: (pixel: VendorPixel) => void;
-  onDelete: (pixel: VendorPixel) => void;
+  readonly pixel: VendorPixel;
+  readonly onEdit: (pixel: VendorPixel) => void;
+  readonly onDelete: (pixel: VendorPixel) => void;
 }
 
+// ============================================================================
+// COMPONENT
+// ============================================================================
+
 export function PixelCard({ pixel, onEdit, onDelete }: PixelCardProps) {
-  const platformInfo = PLATFORM_INFO[pixel.platform];
-  
   return (
     <div className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-accent/5 transition-colors">
       <div className="flex items-center gap-4">

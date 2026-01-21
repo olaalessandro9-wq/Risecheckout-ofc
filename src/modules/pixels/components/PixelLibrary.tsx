@@ -1,10 +1,14 @@
 /**
- * Componente: PixelLibrary
- * Biblioteca de pixels do vendedor - lista, adiciona, edita e exclui pixels
+ * PixelLibrary Component
+ * 
+ * @module modules/pixels/components
+ * @version 1.0.0 - RISE Protocol V3 Compliant
+ * 
+ * Biblioteca de pixels do vendedor - lista, adiciona, edita e exclui pixels.
+ * Consome estado do PixelsContext (SSOT).
  */
 
-import { useState } from "react";
-import { Plus, RefreshCw, Info } from "lucide-react";
+import { Plus, RefreshCw, Info, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -20,65 +24,57 @@ import {
 import { PixelCard } from "./PixelCard";
 import { PixelForm } from "./PixelForm";
 import { PlatformIcon } from "./PlatformIcon";
-import { useVendorPixels } from "@/hooks/useVendorPixels";
-import type { VendorPixel, PixelFormData, PixelPlatform } from "./types";
-import { PLATFORM_INFO } from "./types";
+import { usePixelsContext } from "../context/PixelsContext";
+import { PLATFORM_INFO, PIXEL_PLATFORMS } from "../types";
+import type { VendorPixel, PixelPlatform } from "../types";
 
-const PLATFORMS: PixelPlatform[] = ['facebook', 'tiktok', 'google_ads', 'kwai'];
+// ============================================================================
+// COMPONENT
+// ============================================================================
 
 export function PixelLibrary() {
-  const { pixels, isLoading, isSaving, refetch, createPixel, updatePixel, deletePixel } = useVendorPixels();
-  
-  const [formOpen, setFormOpen] = useState(false);
-  const [editingPixel, setEditingPixel] = useState<VendorPixel | null>(null);
-  const [deletingPixel, setDeletingPixel] = useState<VendorPixel | null>(null);
+  const { 
+    pixels, 
+    isLoading, 
+    isError,
+    error,
+    deletingPixel,
+    openForm, 
+    requestDelete,
+    cancelDelete,
+    confirmDelete,
+    refresh,
+  } = usePixelsContext();
 
   // Agrupar pixels por plataforma
-  const pixelsByPlatform = PLATFORMS.reduce((acc, platform) => {
+  const pixelsByPlatform = PIXEL_PLATFORMS.reduce((acc, platform) => {
     acc[platform] = pixels.filter(p => p.platform === platform);
     return acc;
   }, {} as Record<PixelPlatform, VendorPixel[]>);
 
-  const handleAddClick = () => {
-    setEditingPixel(null);
-    setFormOpen(true);
-  };
-
-  const handleEditClick = (pixel: VendorPixel) => {
-    setEditingPixel(pixel);
-    setFormOpen(true);
-  };
-
-  const handleDeleteClick = (pixel: VendorPixel) => {
-    setDeletingPixel(pixel);
-  };
-
-  const handleSave = async (data: PixelFormData) => {
-    let success: boolean;
-    
-    if (editingPixel) {
-      success = await updatePixel(editingPixel.id, data);
-    } else {
-      success = await createPixel(data);
-    }
-
-    if (success) {
-      setFormOpen(false);
-      setEditingPixel(null);
-    }
-  };
-
-  const handleConfirmDelete = async () => {
-    if (deletingPixel) {
-      await deletePixel(deletingPixel.id);
-      setDeletingPixel(null);
-    }
-  };
-
+  // ========================================================================
+  // LOADING STATE
+  // ========================================================================
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // ========================================================================
+  // ERROR STATE
+  // ========================================================================
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 gap-4">
+        <AlertTriangle className="h-8 w-8 text-destructive" />
+        <p className="text-sm text-muted-foreground">{error ?? "Erro ao carregar pixels"}</p>
+        <Button variant="outline" onClick={refresh}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Tentar novamente
+        </Button>
       </div>
     );
   }
@@ -94,7 +90,7 @@ export function PixelLibrary() {
             Cadastre seus pixels uma vez e vincule aos produtos.
           </p>
         </div>
-        <Button onClick={handleAddClick} size="sm">
+        <Button onClick={() => openForm()} size="sm">
           <Plus className="h-4 w-4 mr-2" />
           Adicionar Pixel
         </Button>
@@ -114,7 +110,7 @@ export function PixelLibrary() {
           <p className="text-muted-foreground mb-4">
             Você ainda não tem nenhum pixel cadastrado.
           </p>
-          <Button onClick={handleAddClick} variant="outline">
+          <Button onClick={() => openForm()} variant="outline">
             <Plus className="h-4 w-4 mr-2" />
             Cadastrar primeiro pixel
           </Button>
@@ -124,7 +120,7 @@ export function PixelLibrary() {
       {/* Pixels agrupados por plataforma */}
       {hasAnyPixels && (
         <div className="space-y-6">
-          {PLATFORMS.map((platform) => {
+          {PIXEL_PLATFORMS.map((platform) => {
             const platformPixels = pixelsByPlatform[platform];
             if (platformPixels.length === 0) return null;
 
@@ -143,8 +139,8 @@ export function PixelLibrary() {
                     <PixelCard
                       key={pixel.id}
                       pixel={pixel}
-                      onEdit={handleEditClick}
-                      onDelete={handleDeleteClick}
+                      onEdit={openForm}
+                      onDelete={requestDelete}
                     />
                   ))}
                 </div>
@@ -154,17 +150,11 @@ export function PixelLibrary() {
         </div>
       )}
 
-      {/* Form Dialog */}
-      <PixelForm
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        pixel={editingPixel}
-        onSave={handleSave}
-        isSaving={isSaving}
-      />
+      {/* Form Dialog - controlled by context */}
+      <PixelForm />
 
       {/* Delete Confirmation */}
-      <AlertDialog open={!!deletingPixel} onOpenChange={() => setDeletingPixel(null)}>
+      <AlertDialog open={!!deletingPixel} onOpenChange={() => cancelDelete()}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir Pixel</AlertDialogTitle>
@@ -179,9 +169,9 @@ export function PixelLibrary() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel onClick={cancelDelete}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleConfirmDelete}
+              onClick={confirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Excluir

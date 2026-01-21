@@ -16,9 +16,9 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { toast } from "sonner";
-import { PlatformIcon, PLATFORM_INFO } from "@/components/pixels";
+import { PlatformIcon, PLATFORM_INFO } from "@/modules/pixels";
 import { useProductPixels } from "@/hooks/useProductPixels";
-import type { VendorPixel } from "@/components/pixels/types";
+import type { VendorPixel } from "@/modules/pixels";
 
 interface ProductPixelsSelectorProps {
   productId: string;

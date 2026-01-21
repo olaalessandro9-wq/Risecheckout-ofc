@@ -2,15 +2,15 @@
  * Hook: useVendorPixels
  * Gerencia CRUD de pixels do vendedor (biblioteca)
  * 
- * @version 3.1.0 - RISE Protocol V3 - Zero console.log
+ * @version 3.2.0 - RISE Protocol V3 - Migrado para usar tipos do módulo pixels
  * @security Todas as operações via backend com validação de ownership
  */
 
 import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import type { VendorPixel, PixelFormData, PixelPlatform } from "@/components/pixels/types";
 import { createLogger } from "@/lib/logger";
+import type { VendorPixel, PixelFormData, PixelPlatform } from "@/modules/pixels";
 
 const log = createLogger("UseVendorPixels");
 
