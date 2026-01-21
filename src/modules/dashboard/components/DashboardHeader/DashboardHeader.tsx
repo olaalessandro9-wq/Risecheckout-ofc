@@ -8,8 +8,7 @@
  */
 
 import { DateRangeFilter } from "../DateRangeFilter";
-import type { DateRangeState } from "../../types";
-import type { DateRangeActions } from "../../hooks/useDateRangeState";
+import type { DateRangeState, DateRangeActions } from "../../hooks/useDateRangeState";
 
 interface DashboardHeaderProps {
   readonly state: DateRangeState;

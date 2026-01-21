@@ -12,8 +12,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { DateRangeDropdown } from "./DateRangeDropdown";
 import { DateRangeCalendar } from "./DateRangeCalendar";
-import type { DateRangeState } from "../../types";
-import type { DateRangeActions } from "../../hooks/useDateRangeState";
+import type { DateRangeState, DateRangeActions } from "../../hooks/useDateRangeState";
 import { getPresetLabel } from "../../config";
 
 interface DateRangeFilterProps {
