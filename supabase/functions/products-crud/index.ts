@@ -14,10 +14,11 @@
  * Other endpoints moved to specialized functions:
  * - producer-profile: get-profile, check-credentials, get-gateway-connections
  * - coupon-read: get-coupon
- * - content-library: get-video-library, get-webhook-logs
+ * - content-library: get-video-library
  * - marketplace-public: marketplace endpoints (public)
+ * - webhook-crud: all webhook operations including logs
  * 
- * @version 3.0.0 - RISE V3 Single Responsibility
+ * @version 3.1.0 - Updated comments (webhook-logs consolidated)
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";

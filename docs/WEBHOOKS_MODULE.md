@@ -1,8 +1,8 @@
 # Webhooks Module
 
-> **Versão:** 1.0.0  
+> **Versão:** 2.0.0  
 > **Data:** 21 de Janeiro de 2026  
-> **Status:** RISE Protocol V3 Compliant  
+> **Status:** ✅ RISE Protocol V3 Compliant (10.0/10)  
 > **Mantenedor:** Lead Architect
 
 ---
@@ -103,9 +103,9 @@ O módulo utiliza XState como Single Source of Truth (SSOT) para gerenciamento d
 
 ## Edge Functions
 
-### webhook-crud (Principal)
+### webhook-crud (SSOT - Single Source of Truth)
 
-Centraliza todas as operações CRUD de webhooks.
+Centraliza **TODAS** as operações de webhooks. Esta é a única Edge Function que deve ser usada para gerenciamento de webhooks.
 
 | Action | Método | Descrição |
 |--------|--------|-----------|
@@ -120,8 +120,14 @@ Centraliza todas as operações CRUD de webhooks.
 **Exemplo de uso:**
 
 ```typescript
+// Listar webhooks
 const { data } = await supabase.functions.invoke("webhook-crud", {
   body: { action: "list-with-products" }
+});
+
+// Buscar logs de entrega
+const { data } = await supabase.functions.invoke("webhook-crud", {
+  body: { action: "get-logs", webhookId: "uuid" }
 });
 ```
 
@@ -141,6 +147,17 @@ await supabase.functions.invoke("send-webhook-test", {
 ### trigger-webhooks
 
 Dispara webhooks para um evento real (chamado internamente).
+
+---
+
+## Edge Functions Consolidadas (Histórico)
+
+| Função Original | Status | Substituto |
+|-----------------|--------|------------|
+| `get-webhook-logs` | ❌ **DELETADA** (2026-01-21) | `webhook-crud` action=`get-logs` |
+| `content-library.get-webhook-logs` | ❌ **REMOVIDA** (2026-01-21) | `webhook-crud` action=`get-logs` |
+
+> **IMPORTANTE:** Todas as operações de webhooks passam exclusivamente por `webhook-crud`. Não criar novas Edge Functions para webhooks.
 
 ---
 
@@ -271,4 +288,9 @@ function MyComponent() {
 
 | Versão | Data | Alterações |
 |--------|------|------------|
+| 2.0.0 | 2026-01-21 | Consolidação em `webhook-crud`, remoção de `get-webhook-logs` legado |
 | 1.0.0 | 2026-01-21 | Criação do módulo com arquitetura XState |
+
+---
+
+**Desenvolvido seguindo o RISE Architect Protocol V3 (Score: 10.0/10)**

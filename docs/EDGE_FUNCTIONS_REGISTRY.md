@@ -161,7 +161,7 @@
 | `products-crud` | producer_sessions | false | Core: list, get, get-settings, get-offers, get-checkouts (RISE V3) |
 | `producer-profile` | producer_sessions | false | get-profile, check-credentials, get-gateway-connections (RISE V3) |
 | `coupon-read` | producer_sessions | false | get-coupon (RISE V3) |
-| `content-library` | producer_sessions | false | get-video-library, get-webhook-logs (RISE V3) |
+| `content-library` | producer_sessions | false | get-video-library (RISE V3) |
 | `vendor-integrations` | producer_sessions | false | unified-auth |
 | **Public Endpoints** | | | |
 | `affiliation-public` | public | false | Dados públicos de afiliação |
@@ -267,10 +267,11 @@
 | `send-webhook` | `.../send-webhook` | ✅ | internal |
 | `retry-webhooks` | `.../retry-webhooks` | ✅ | internal |
 | `send-webhook-test` | `.../send-webhook-test` | ✅ | producer_sessions |
-| `get-webhook-logs` | `.../get-webhook-logs` | ✅ | producer_sessions |
 | `test-webhook-dispatch` | `.../test-webhook-dispatch` | ✅ | producer_sessions |
 | `trigger-webhooks-internal` | `.../trigger-webhooks-internal` | ✅ | internal |
-| `webhook-crud` | `.../webhook-crud` | ✅ | producer_sessions |
+| `webhook-crud` | `.../webhook-crud` | ✅ | producer_sessions | **SSOT para CRUD + logs** |
+
+> **NOTA:** `get-webhook-logs` foi consolidada em `webhook-crud` action=`get-logs` (2026-01-21)
 
 ### Buyer Portal
 
