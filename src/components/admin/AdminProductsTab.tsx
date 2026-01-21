@@ -1,26 +1,17 @@
 /**
- * AdminProductsTab - Aba global de produtos da plataforma
+ * AdminProductsTab - Gerenciamento de Produtos
  * 
- * MIGRATED: Uses Edge Function instead of supabase.from()
+ * RISE Protocol V3 Compliant - Refatorado para usar componentes e hooks modulares
  * 
- * Permite visualizar, filtrar e moderar todos os produtos
- * Ações: ativar, bloquear, remover (soft delete)
+ * @version 2.0.0
  */
 
-import { useState, useMemo } from "react";
+import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { usePermissions } from "@/hooks/usePermissions";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
@@ -29,71 +20,47 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis,
+} from "@/components/ui/pagination";
+import { Package, Search } from "lucide-react";
 import { toast } from "sonner";
-import { Search, Package, ArrowUpDown, MoreHorizontal, CheckCircle, XCircle, Trash2, Eye } from "lucide-react";
 import { ProductDetailSheet } from "./ProductDetailSheet";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import {
+  ProductsTable,
+  ProductActionDialog,
+} from "@/modules/admin/components/products";
+import {
+  useAdminFilters,
+  useAdminSort,
+  useAdminPagination,
+  createProductComparator,
+} from "@/modules/admin/hooks";
+import type {
+  ProductWithMetrics,
+  ProductSortField,
+  ProductStatusFilter,
+} from "@/modules/admin/types/admin.types";
 
-interface ProductWithMetrics {
-  id: string;
-  name: string;
-  price: number;
-  status: string | null;
-  created_at: string | null;
-  user_id: string | null;
-  vendor_name: string | null;
-  total_gmv: number;
-  orders_count: number;
-}
-
-type SortField = "name" | "gmv" | "orders" | "price" | "date";
-type SortDirection = "asc" | "desc";
-type StatusFilter = "all" | "active" | "blocked" | "deleted";
-
-const formatCentsToBRL = (cents: number): string => {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(cents / 100);
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  active: "Ativo",
-  blocked: "Bloqueado",
-  deleted: "Removido",
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  active: "bg-green-500/10 text-green-500 border-green-500/20",
-  blocked: "bg-red-500/10 text-red-500 border-red-500/20",
-  deleted: "bg-muted text-muted-foreground border-muted",
-};
+const STATUS_OPTIONS: { value: ProductStatusFilter; label: string }[] = [
+  { value: "all", label: "Todos os Status" },
+  { value: "active", label: "Ativos" },
+  { value: "blocked", label: "Bloqueados" },
+  { value: "deleted", label: "Removidos" },
+];
 
 export function AdminProductsTab() {
   const { role: callerRole } = usePermissions();
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [sortField, setSortField] = useState<SortField>("gmv");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const isOwner = callerRole === "owner";
+
+  // State
+  const [statusFilter, setStatusFilter] = useState<ProductStatusFilter>("all");
   const [actionDialog, setActionDialog] = useState<{
     open: boolean;
     productId: string;
@@ -102,18 +69,14 @@ export function AdminProductsTab() {
   } | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
-  const isOwner = callerRole === "owner";
-
-  /**
-   * Fetch products with metrics via Edge Function
-   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
-   */
-  const { data: products, isLoading } = useQuery({
+  // Fetch products
+  const { data: products = [], isLoading } = useQuery({
     queryKey: ["admin-products-global"],
     queryFn: async () => {
-      const { data, error } = await api.call<{ error?: string; products?: ProductWithMetrics[] }>("admin-data", {
-        action: "admin-products-global",
-      });
+      const { data, error } = await api.call<{ error?: string; products?: ProductWithMetrics[] }>(
+        "admin-data",
+        { action: "admin-products-global" }
+      );
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -148,349 +111,175 @@ export function AdminProductsTab() {
     },
   });
 
-  // Filtrar e ordenar produtos
-  const filteredProducts = useMemo(() => {
-    if (!products) return [];
+  // Hooks modulares
+  const { filteredItems, searchTerm, setSearchTerm } = useAdminFilters(
+    products,
+    (product) => [product.name, product.vendor_name || "", product.id],
+    {}
+  );
 
-    let result = products.filter((product) => {
-      // Filtro de status
-      if (statusFilter !== "all" && product.status !== statusFilter) {
-        return false;
-      }
+  // Filtro por status
+  const statusFilteredProducts = statusFilter === "all"
+    ? filteredItems
+    : filteredItems.filter((p) => p.status === statusFilter);
 
-      // Filtro de busca
-      if (search) {
-        const searchLower = search.toLowerCase();
-        return (
-          product.name.toLowerCase().includes(searchLower) ||
-          product.vendor_name?.toLowerCase().includes(searchLower) ||
-          product.id.toLowerCase().includes(searchLower)
-        );
-      }
+  const { sortedItems, sortField, sortDirection, toggleSort } = useAdminSort<
+    ProductWithMetrics,
+    ProductSortField
+  >(statusFilteredProducts, "gmv", "desc", createProductComparator());
 
-      return true;
-    });
+  const {
+    paginatedItems,
+    currentPage,
+    totalPages,
+    pageNumbers,
+    goToPage,
+    goToPrevious,
+    goToNext,
+  } = useAdminPagination(sortedItems, 15);
 
-    // Ordenar
-    result.sort((a, b) => {
-      let comparison = 0;
-      switch (sortField) {
-        case "name":
-          comparison = a.name.localeCompare(b.name);
-          break;
-        case "gmv":
-          comparison = a.total_gmv - b.total_gmv;
-          break;
-        case "orders":
-          comparison = a.orders_count - b.orders_count;
-          break;
-        case "price":
-          comparison = a.price - b.price;
-          break;
-        case "date":
-          comparison = new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
-          break;
-      }
-      return sortDirection === "desc" ? -comparison : comparison;
-    });
+  // Handlers
+  const handleViewDetails = useCallback((productId: string) => {
+    setSelectedProductId(productId);
+  }, []);
 
-    return result;
-  }, [products, search, statusFilter, sortField, sortDirection]);
+  const handleActivate = useCallback((productId: string, productName: string) => {
+    setActionDialog({ open: true, productId, productName, action: "activate" });
+  }, []);
 
-  const toggleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDirection("desc");
-    }
-  };
+  const handleBlock = useCallback((productId: string, productName: string) => {
+    setActionDialog({ open: true, productId, productName, action: "block" });
+  }, []);
 
-  const handleAction = (productId: string, productName: string, action: "activate" | "block" | "delete") => {
-    setActionDialog({ open: true, productId, productName, action });
-  };
+  const handleDelete = useCallback((productId: string, productName: string) => {
+    setActionDialog({ open: true, productId, productName, action: "delete" });
+  }, []);
 
-  const confirmAction = () => {
+  const handleConfirmAction = useCallback(() => {
     if (!actionDialog) return;
-    
+
     const statusMap = {
       activate: "active",
       block: "blocked",
       delete: "deleted",
     };
-    
+
     updateProductMutation.mutate({
       productId: actionDialog.productId,
       newStatus: statusMap[actionDialog.action],
     });
-  };
-
-  const getActionLabel = (action: string) => {
-    const labels: Record<string, string> = {
-      activate: "ativar",
-      block: "bloquear",
-      delete: "remover",
-    };
-    return labels[action] || action;
-  };
-
-  if (!isOwner) {
-    return (
-      <Card>
-        <CardContent className="py-8 text-center">
-          <Package className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-          <p className="text-muted-foreground">
-            Apenas owners podem gerenciar produtos globalmente.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+  }, [actionDialog, updateProductMutation]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Package className="h-5 w-5" />
-          Produtos da Plataforma
-        </CardTitle>
-        <CardDescription>
-          Visualize e gerencie todos os produtos cadastrados na plataforma.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Filtros */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nome, vendedor ou ID..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10"
-            />
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Gerenciar Produtos
+            </CardTitle>
           </div>
-          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="active">Ativos</SelectItem>
-              <SelectItem value="blocked">Bloqueados</SelectItem>
-              <SelectItem value="deleted">Removidos</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
 
-        {/* Tabela */}
-        <div className="rounded-md border overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="-ml-3 h-8"
-                    onClick={() => toggleSort("name")}
-                  >
-                    Produto
-                    <ArrowUpDown className="ml-1 h-3 w-3" />
-                  </Button>
-                </TableHead>
-                <TableHead>Vendedor</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="-ml-3 h-8"
-                    onClick={() => toggleSort("price")}
-                  >
-                    Preço
-                    <ArrowUpDown className="ml-1 h-3 w-3" />
-                  </Button>
-                </TableHead>
-                <TableHead>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="-ml-3 h-8"
-                    onClick={() => toggleSort("gmv")}
-                  >
-                    GMV
-                    <ArrowUpDown className="ml-1 h-3 w-3" />
-                  </Button>
-                </TableHead>
-                <TableHead>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="-ml-3 h-8"
-                    onClick={() => toggleSort("orders")}
-                  >
-                    Pedidos
-                    <ArrowUpDown className="ml-1 h-3 w-3" />
-                  </Button>
-                </TableHead>
-                <TableHead>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="-ml-3 h-8"
-                    onClick={() => toggleSort("date")}
-                  >
-                    Criado em
-                    <ArrowUpDown className="ml-1 h-3 w-3" />
-                  </Button>
-                </TableHead>
-                <TableHead className="w-[60px]">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">
-                    Carregando...
-                  </TableCell>
-                </TableRow>
-              ) : filteredProducts.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                    Nenhum produto encontrado
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredProducts.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{product.name}</p>
-                        <p className="text-xs text-muted-foreground font-mono">
-                          {product.id.slice(0, 8)}...
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm">{product.vendor_name}</span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={STATUS_COLORS[product.status || "active"]}>
-                        {STATUS_LABELS[product.status || "active"]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <span className="font-medium">
-                        {formatCentsToBRL(product.price)}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className={product.total_gmv > 0 ? "text-emerald-500 font-medium" : "text-muted-foreground"}>
-                        {formatCentsToBRL(product.total_gmv)}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className={product.orders_count > 0 ? "font-medium" : "text-muted-foreground"}>
-                        {product.orders_count}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm text-muted-foreground">
-                        {product.created_at 
-                          ? format(new Date(product.created_at), "dd/MM/yyyy", { locale: ptBR })
-                          : "-"
-                        }
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setSelectedProductId(product.id)}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            Ver Detalhes
-                          </DropdownMenuItem>
-                          {product.status !== "active" && (
-                            <DropdownMenuItem onClick={() => handleAction(product.id, product.name, "activate")}>
-                              <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-                              Ativar
-                            </DropdownMenuItem>
-                          )}
-                          {product.status !== "blocked" && (
-                            <DropdownMenuItem onClick={() => handleAction(product.id, product.name, "block")}>
-                              <XCircle className="mr-2 h-4 w-4 text-red-500" />
-                              Bloquear
-                            </DropdownMenuItem>
-                          )}
-                          {product.status !== "deleted" && (
-                            <DropdownMenuItem 
-                              onClick={() => handleAction(product.id, product.name, "delete")}
-                              className="text-destructive"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Remover
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+          <div className="flex flex-wrap gap-4 pt-4">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome, ID ou vendedor..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
 
-        {/* Contagem */}
-        <p className="text-sm text-muted-foreground">
-          {filteredProducts.length} produto(s) encontrado(s)
-        </p>
-      </CardContent>
-
-      {/* Dialog de Confirmação */}
-      <AlertDialog
-        open={actionDialog?.open}
-        onOpenChange={(open) => !open && setActionDialog(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Confirmar ação
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Você tem certeza que deseja {actionDialog && getActionLabel(actionDialog.action)} o produto{" "}
-              <strong>{actionDialog?.productName}</strong>?
-              {actionDialog?.action === "delete" && (
-                <>
-                  <br />
-                  <span className="text-destructive">Esta ação não pode ser desfeita.</span>
-                </>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmAction}
-              className={actionDialog?.action === "delete" ? "bg-destructive hover:bg-destructive/90" : ""}
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => setStatusFilter(v as ProductStatusFilter)}
             >
-              Confirmar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
 
-      {/* Sheet de Detalhes */}
-      <ProductDetailSheet
-        productId={selectedProductId}
-        open={!!selectedProductId}
-        onOpenChange={(open) => !open && setSelectedProductId(null)}
-      />
-    </Card>
+        <CardContent>
+          <ProductsTable
+            products={paginatedItems}
+            isLoading={isLoading}
+            sortField={sortField}
+            sortDirection={sortDirection}
+            onSort={toggleSort}
+            onViewDetails={handleViewDetails}
+            onActivate={handleActivate}
+            onBlock={handleBlock}
+            onDelete={handleDelete}
+          />
+
+          {totalPages > 1 && (
+            <div className="mt-4">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={goToPrevious}
+                      className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+
+                  {pageNumbers.map((page, index) => (
+                    <PaginationItem key={index}>
+                      {page === "ellipsis" ? (
+                        <PaginationEllipsis />
+                      ) : (
+                        <PaginationLink
+                          onClick={() => goToPage(page as number)}
+                          isActive={currentPage === page}
+                          className="cursor-pointer"
+                        >
+                          {page}
+                        </PaginationLink>
+                      )}
+                    </PaginationItem>
+                  ))}
+
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={goToNext}
+                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {actionDialog && (
+        <ProductActionDialog
+          open={actionDialog.open}
+          productName={actionDialog.productName}
+          action={actionDialog.action}
+          onConfirm={handleConfirmAction}
+          onCancel={() => setActionDialog(null)}
+        />
+      )}
+
+      {selectedProductId && (
+        <ProductDetailSheet
+          productId={selectedProductId}
+          open={!!selectedProductId}
+          onOpenChange={(open) => !open && setSelectedProductId(null)}
+        />
+      )}
+    </div>
   );
 }
