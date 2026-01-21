@@ -24,6 +24,17 @@ const log = createLogger("WebhookCrud");
 // INTERFACES
 // ============================================
 
+interface WebhookLogEntry {
+  id: string;
+  webhook_id: string;
+  event_type: string;
+  payload: unknown;
+  response_status: number | null;
+  response_body: string | null;
+  success: boolean;
+  created_at: string;
+}
+
 interface JsonResponseData {
   success?: boolean;
   error?: string;
@@ -32,6 +43,7 @@ interface JsonResponseData {
   products?: { id: string; name: string }[];
   productIds?: string[];
   deletedId?: string;
+  logs?: WebhookLogEntry[];
 }
 
 interface WebhookWithProduct {
@@ -221,6 +233,36 @@ async function getWebhookProducts(
 }
 
 // ============================================
+// GET WEBHOOK LOGS
+// ============================================
+
+async function getWebhookLogs(
+  supabase: SupabaseClient,
+  webhookId: string,
+  vendorId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const ownership = await verifyWebhookOwnership(supabase, webhookId, vendorId);
+  if (!ownership.valid) {
+    return errorResponse(ownership.error!, corsHeaders, 403);
+  }
+
+  const { data: logs, error } = await supabase
+    .from("webhook_deliveries")
+    .select("id, webhook_id, event_type, payload, response_status, response_body, success, created_at")
+    .eq("webhook_id", webhookId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (error) {
+    log.error("Get logs error:", error);
+    return errorResponse("Erro ao buscar logs", corsHeaders, 500);
+  }
+
+  return jsonResponse({ success: true, logs: (logs || []) as WebhookLogEntry[] }, corsHeaders);
+}
+
+// ============================================
 // MAIN HANDLER
 // ============================================
 
@@ -274,6 +316,13 @@ serve(withSentry("webhook-crud", async (req) => {
         return errorResponse("webhookId é obrigatório", corsHeaders, 400);
       }
       return getWebhookProducts(supabase, webhookId, vendorId, corsHeaders);
+    }
+
+    if (action === "get-logs") {
+      if (!webhookId) {
+        return errorResponse("webhookId é obrigatório", corsHeaders, 400);
+      }
+      return getWebhookLogs(supabase, webhookId, vendorId, corsHeaders);
     }
 
     // ============================================

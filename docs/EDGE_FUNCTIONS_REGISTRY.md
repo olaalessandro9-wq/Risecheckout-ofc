@@ -103,8 +103,8 @@
 | `send-webhook` | internal | false | Chamada interna |
 | `retry-webhooks` | internal | false | Chamada interna |
 | `send-webhook-test` | producer_sessions | false | unified-auth |
-| `get-webhook-logs` | producer_sessions | false | unified-auth |
-| `webhook-crud` | producer_sessions | false | unified-auth |
+| `get-webhook-logs` | ⚠️ DEPRECATED | false | Use webhook-crud action=get-logs |
+| `webhook-crud` | producer_sessions | false | unified-auth (CRUD + logs) |
 | `test-webhook-dispatch` | producer_sessions | false | unified-auth |
 | `trigger-webhooks-internal` | internal | false | Chamada interna |
 | **OAuth Callbacks** | | | |
