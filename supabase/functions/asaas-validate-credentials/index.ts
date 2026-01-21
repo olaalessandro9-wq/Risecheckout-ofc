@@ -12,10 +12,9 @@
  */
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { createLogger } from "../_shared/logger.ts";
 
-const corsHeaders = PUBLIC_CORS_HEADERS;
 const log = createLogger("asaas-validate-credentials");
 
 interface ValidateRequest {
@@ -31,10 +30,15 @@ interface ValidateResponse {
 }
 
 Deno.serve(async (req) => {
-  // CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+  // CORS com validação de origin (suporta credentials: 'include')
+  const corsResult = handleCorsV2(req);
+  
+  // Se for preflight (OPTIONS), retorna imediatamente
+  if (corsResult instanceof Response) {
+    return corsResult;
   }
+  
+  const corsHeaders = corsResult.headers;
 
   log.info('Iniciando validação');
 
