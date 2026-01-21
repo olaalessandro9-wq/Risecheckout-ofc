@@ -1,14 +1,13 @@
 /**
  * AdminProductsTab - Gerenciamento de Produtos
  * 
- * RISE Protocol V3 Compliant - Refatorado para usar componentes e hooks modulares
+ * RISE Protocol V3 - XState Unified Architecture
+ * Consome estado do AdminContext (Single Source of Truth)
  * 
- * @version 2.0.0
+ * @version 3.0.0
  */
 
-import { useState, useCallback } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { useCallback, useEffect } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -41,8 +40,8 @@ import {
   useAdminPagination,
   createProductComparator,
 } from "@/modules/admin/hooks";
+import { useAdmin } from "@/modules/admin/context";
 import type {
-  ProductWithMetrics,
   ProductSortField,
   ProductStatusFilter,
 } from "@/modules/admin/types/admin.types";
@@ -56,60 +55,30 @@ const STATUS_OPTIONS: { value: ProductStatusFilter; label: string }[] = [
 
 export function AdminProductsTab() {
   const { role: callerRole } = usePermissions();
-  const queryClient = useQueryClient();
   const isOwner = callerRole === "owner";
 
-  // State
-  const [statusFilter, setStatusFilter] = useState<ProductStatusFilter>("all");
-  const [actionDialog, setActionDialog] = useState<{
-    open: boolean;
-    productId: string;
-    productName: string;
-    action: "activate" | "block" | "delete";
-  } | null>(null);
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const {
+    context,
+    isProductsLoading,
+    loadProducts,
+    selectProduct,
+    deselectProduct,
+    setProductsSearch,
+    setProductsStatusFilter,
+    openProductAction,
+    confirmProductAction,
+    cancelProductAction,
+  } = useAdmin();
 
-  // Fetch products
-  const { data: products = [], isLoading } = useQuery({
-    queryKey: ["admin-products-global"],
-    queryFn: async () => {
-      const { data, error } = await api.call<{ error?: string; products?: ProductWithMetrics[] }>(
-        "admin-data",
-        { action: "admin-products-global" }
-      );
+  const productsContext = context.products;
+  const products = productsContext.items;
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      return data?.products || [];
-    },
-    enabled: isOwner,
-  });
-
-  // Mutation para alterar status do produto
-  const updateProductMutation = useMutation({
-    mutationFn: async ({ productId, newStatus }: { productId: string; newStatus: string }) => {
-      const { data, error } = await api.call<{ error?: string }>("manage-user-status", {
-        action: "updateProductStatus",
-        productId,
-        status: newStatus,
-      });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-products-global"] });
-      toast.success("Produto atualizado com sucesso!");
-      setActionDialog(null);
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || "Erro ao atualizar produto");
-      setActionDialog(null);
-    },
-  });
+  // Load products on mount if not loaded
+  useEffect(() => {
+    if (products.length === 0 && !isProductsLoading && !productsContext.error && isOwner) {
+      loadProducts();
+    }
+  }, [products.length, isProductsLoading, productsContext.error, isOwner, loadProducts]);
 
   // Hooks modulares
   const { filteredItems, searchTerm, setSearchTerm } = useAdminFilters(
@@ -119,12 +88,12 @@ export function AdminProductsTab() {
   );
 
   // Filtro por status
-  const statusFilteredProducts = statusFilter === "all"
+  const statusFilteredProducts = productsContext.statusFilter === "all"
     ? filteredItems
-    : filteredItems.filter((p) => p.status === statusFilter);
+    : filteredItems.filter((p) => p.status === productsContext.statusFilter);
 
   const { sortedItems, sortField, sortDirection, toggleSort } = useAdminSort<
-    ProductWithMetrics,
+    typeof products[0],
     ProductSortField
   >(statusFilteredProducts, "gmv", "desc", createProductComparator());
 
@@ -138,37 +107,38 @@ export function AdminProductsTab() {
     goToNext,
   } = useAdminPagination(sortedItems, 15);
 
+  // Sync search with context
+  useEffect(() => {
+    if (searchTerm !== productsContext.searchTerm) {
+      setProductsSearch(searchTerm);
+    }
+  }, [searchTerm, productsContext.searchTerm, setProductsSearch]);
+
   // Handlers
   const handleViewDetails = useCallback((productId: string) => {
-    setSelectedProductId(productId);
-  }, []);
+    selectProduct(productId);
+  }, [selectProduct]);
 
   const handleActivate = useCallback((productId: string, productName: string) => {
-    setActionDialog({ open: true, productId, productName, action: "activate" });
-  }, []);
+    openProductAction({ open: true, productId, productName, action: "activate" });
+  }, [openProductAction]);
 
   const handleBlock = useCallback((productId: string, productName: string) => {
-    setActionDialog({ open: true, productId, productName, action: "block" });
-  }, []);
+    openProductAction({ open: true, productId, productName, action: "block" });
+  }, [openProductAction]);
 
   const handleDelete = useCallback((productId: string, productName: string) => {
-    setActionDialog({ open: true, productId, productName, action: "delete" });
-  }, []);
+    openProductAction({ open: true, productId, productName, action: "delete" });
+  }, [openProductAction]);
 
-  const handleConfirmAction = useCallback(() => {
-    if (!actionDialog) return;
-
-    const statusMap = {
-      activate: "active",
-      block: "blocked",
-      delete: "deleted",
-    };
-
-    updateProductMutation.mutate({
-      productId: actionDialog.productId,
-      newStatus: statusMap[actionDialog.action],
-    });
-  }, [actionDialog, updateProductMutation]);
+  const handleConfirmAction = useCallback(async () => {
+    try {
+      await confirmProductAction();
+      toast.success("Produto atualizado com sucesso!");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao atualizar produto");
+    }
+  }, [confirmProductAction]);
 
   return (
     <div className="space-y-6">
@@ -193,8 +163,8 @@ export function AdminProductsTab() {
             </div>
 
             <Select
-              value={statusFilter}
-              onValueChange={(v) => setStatusFilter(v as ProductStatusFilter)}
+              value={productsContext.statusFilter}
+              onValueChange={(v) => setProductsStatusFilter(v as ProductStatusFilter)}
             >
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Status" />
@@ -213,7 +183,7 @@ export function AdminProductsTab() {
         <CardContent>
           <ProductsTable
             products={paginatedItems}
-            isLoading={isLoading}
+            isLoading={isProductsLoading}
             sortField={sortField}
             sortDirection={sortDirection}
             onSort={toggleSort}
@@ -263,21 +233,21 @@ export function AdminProductsTab() {
         </CardContent>
       </Card>
 
-      {actionDialog && (
+      {productsContext.actionDialog && (
         <ProductActionDialog
-          open={actionDialog.open}
-          productName={actionDialog.productName}
-          action={actionDialog.action}
+          open={productsContext.actionDialog.open}
+          productName={productsContext.actionDialog.productName}
+          action={productsContext.actionDialog.action}
           onConfirm={handleConfirmAction}
-          onCancel={() => setActionDialog(null)}
+          onCancel={cancelProductAction}
         />
       )}
 
-      {selectedProductId && (
+      {productsContext.selectedProductId && (
         <ProductDetailSheet
-          productId={selectedProductId}
-          open={!!selectedProductId}
-          onOpenChange={(open) => !open && setSelectedProductId(null)}
+          productId={productsContext.selectedProductId}
+          open={!!productsContext.selectedProductId}
+          onOpenChange={(open) => !open && deselectProduct()}
         />
       )}
     </div>
