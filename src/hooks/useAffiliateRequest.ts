@@ -145,7 +145,7 @@ export function useAffiliateRequest(): UseAffiliateRequestReturn & { isCheckingS
         setIsLoading(false);
       }
     },
-    [user, session]
+    [user, session, updateCacheStatus]
   );
 
   /**
