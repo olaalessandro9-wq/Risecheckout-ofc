@@ -71,9 +71,19 @@ export function ConfigForm({ onConnectionChange }: GatewayConfigFormProps) {
   }, [apiKey, environment, walletId, config]);
 
   /**
+   * Valida formato UUID
+   */
+  const isValidUUID = (value: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(value);
+  };
+
+  /**
    * Handler unificado: Valida + Salva em uma ação
+   * Wallet ID é OBRIGATÓRIO (auto-detectado ou manual)
    */
   const handleConnect = async () => {
+    // Validação 1: API Key obrigatória
     if (!apiKey.trim()) {
       toast({
         title: 'Erro',
@@ -83,11 +93,10 @@ export function ConfigForm({ onConnectionChange }: GatewayConfigFormProps) {
       return;
     }
 
-    // Passo 1: Validar credenciais
+    // Passo 1: Validar API Key (pode retornar walletId automaticamente)
     const validationResult = await validate(apiKey, environment);
 
     if (!validationResult.valid) {
-      // Erro de validação - NÃO salva
       toast({
         title: 'Credenciais inválidas',
         description: validationResult.message || 'Verifique sua API Key e tente novamente',
@@ -96,13 +105,37 @@ export function ConfigForm({ onConnectionChange }: GatewayConfigFormProps) {
       return;
     }
 
-    // Passo 2: Credenciais válidas - Salvar automaticamente
-    const walletIdToSave = validationResult.walletId || walletId?.trim();
-    
+    // Passo 2: Determinar walletId final
+    // PRIORIDADE: API detectou > Usuário preencheu > Erro
+    const detectedWalletId = validationResult.walletId;
+    const manualWalletId = walletId?.trim();
+    const finalWalletId = detectedWalletId || manualWalletId;
+
+    // Validação 2: Wallet ID obrigatório
+    if (!finalWalletId) {
+      toast({
+        title: 'Wallet ID obrigatório',
+        description: 'O Wallet ID não foi detectado automaticamente. Por favor, insira manualmente.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validação 3: Formato UUID (apenas se foi preenchido manualmente)
+    if (!detectedWalletId && manualWalletId && !isValidUUID(manualWalletId)) {
+      toast({
+        title: 'Formato inválido',
+        description: 'Wallet ID deve estar no formato UUID (ex: 12345678-abcd-1234-efgh-123456789012)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Passo 3: Salvar configuração
     const saveResult = await save({
       api_key: apiKey,
       environment,
-      wallet_id: walletIdToSave,
+      wallet_id: finalWalletId,
       validated_at: new Date().toISOString(),
       account_name: validationResult.accountName,
     });
@@ -115,9 +148,7 @@ export function ConfigForm({ onConnectionChange }: GatewayConfigFormProps) {
           : 'Configuração salva com sucesso',
       });
       setHasChanges(false);
-      if (walletIdToSave) {
-        setWalletId(walletIdToSave);
-      }
+      setWalletId(finalWalletId);
       onConnectionChange?.();
       refetch();
     } else {
