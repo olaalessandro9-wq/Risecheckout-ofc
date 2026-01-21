@@ -122,6 +122,29 @@ export async function getAdminAnalyticsTraffic(
   const paidOrders = (ordersResult.data || []).length;
   const conversionRate = visits.length > 0 ? (paidOrders / visits.length) * 100 : 0;
 
+  // Agregar visitas por dia (mesmo padrão de dailyRevenue)
+  const dailyMap = new Map<string, number>();
+  visits.forEach((visit) => {
+    const date = visit.visited_at?.split("T")[0] || "unknown";
+    dailyMap.set(date, (dailyMap.get(date) || 0) + 1);
+  });
+
+  const dailyVisits = Array.from(dailyMap.entries())
+    .map(([date, count]) => ({ date, visits: count }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  // Agregar top sources (UTM) - top 10
+  const sourceMap = new Map<string, number>();
+  visits.forEach((visit) => {
+    const source = visit.utm_source || "direto";
+    sourceMap.set(source, (sourceMap.get(source) || 0) + 1);
+  });
+
+  const topSources = Array.from(sourceMap.entries())
+    .map(([source, count]) => ({ source, visits: count }))
+    .sort((a, b) => b.visits - a.visits)
+    .slice(0, 10);
+
   return jsonResponse({
     metrics: {
       totalVisits: visits.length,
@@ -129,8 +152,8 @@ export async function getAdminAnalyticsTraffic(
       activeCheckouts: uniqueCheckouts.size,
       globalConversionRate: Math.round(conversionRate * 100) / 100,
     },
-    dailyVisits: [],
-    topSources: [],
+    dailyVisits,
+    topSources,
   }, corsHeaders);
 }
 
