@@ -54,12 +54,14 @@ export async function getAdminAnalyticsFinancial(
   const uniqueVendors = new Set(data.map((o) => o.vendor_id));
 
   return jsonResponse({
-    totalPlatformFees,
-    totalGMV,
-    totalPaidOrders,
-    averageTicket,
-    activeSellers: uniqueVendors.size,
-    orders: data,
+    metrics: {
+      totalPlatformFees,
+      totalGMV,
+      totalPaidOrders,
+      averageTicket,
+      activeSellers: uniqueVendors.size,
+    },
+    dailyRevenue: [], // TODO: Adicionar agregação por dia
   }, corsHeaders);
 }
 
@@ -102,11 +104,14 @@ export async function getAdminAnalyticsTraffic(
   const conversionRate = visits.length > 0 ? (paidOrders / visits.length) * 100 : 0;
 
   return jsonResponse({
-    totalVisits: visits.length,
-    uniqueVisitors: uniqueIPs.size,
-    activeCheckouts: uniqueCheckouts.size,
-    globalConversionRate: Math.round(conversionRate * 100) / 100,
-    visits,
+    metrics: {
+      totalVisits: visits.length,
+      uniqueVisitors: uniqueIPs.size,
+      activeCheckouts: uniqueCheckouts.size,
+      globalConversionRate: Math.round(conversionRate * 100) / 100,
+    },
+    dailyVisits: [],
+    topSources: [],
   }, corsHeaders);
 }
 
