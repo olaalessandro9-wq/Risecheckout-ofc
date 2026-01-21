@@ -6,7 +6,28 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
-## [3.5.1] - 2026-01-21
+## [3.5.2] - 2026-01-21
+
+### 🧹 Auditoria Módulo de Afiliados (RISE V3)
+
+#### Removido
+- **Import morto `supabase`** em `OffersTab.tsx` - nunca era utilizado
+- **Arquivo deprecated `PixelsTab.tsx`** - re-export legado desnecessário (import correto já era `from "./pixels"`)
+- **Prop não utilizado `onRefetch`** em `DetailsTab.tsx` - declarado mas nunca consumido
+
+#### Arquivos Afetados
+- `src/components/affiliation/tabs/OffersTab.tsx` (-1 linha)
+- `src/components/affiliation/tabs/PixelsTab.tsx` (DELETADO)
+- `src/components/affiliation/tabs/DetailsTab.tsx` (-1 linha)
+- `src/pages/AffiliationDetails.tsx` (-1 prop)
+
+#### Conformidade RISE V3
+- **Zero código morto:** ✅ 100%
+- **Zero arquivos deprecated:** ✅ 100%
+- **Zero props não utilizados:** ✅ 100%
+- **Limite 300 linhas:** ✅ Todos arquivos < 300 linhas
+
+
 
 ### 🧹 Auditoria Marketplace Module (RISE V3)
 

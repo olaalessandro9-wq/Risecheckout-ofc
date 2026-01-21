@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { AffiliationDetails } from "@/hooks/useAffiliationDetails";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
-import { supabase } from "@/integrations/supabase/client";
+
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("OffersTab");
