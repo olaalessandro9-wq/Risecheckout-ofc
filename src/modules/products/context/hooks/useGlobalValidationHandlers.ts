@@ -138,7 +138,7 @@ export function useGlobalValidationHandlers(options: UseGlobalValidationHandlers
         const currentProduct = productRef.current;
 
         // Determinar URL final da imagem
-        let finalImageUrl = currentProduct?.image_url || null;
+        let finalImageUrl: string | null = currentProduct?.image_url || null;
 
         if (currentImageFile) {
           finalImageUrl = await uploadProductImage({
@@ -150,6 +150,9 @@ export function useGlobalValidationHandlers(options: UseGlobalValidationHandlers
         } else if (currentPendingRemoval) {
           finalImageUrl = null;
         }
+
+        // CRÍTICO: Disparar UPDATE_SERVER_IMAGE_URL para sincronizar a URL no serverData
+        formDispatch({ type: 'UPDATE_SERVER_IMAGE_URL', imageUrl: finalImageUrl });
 
         // Salvar produto
         await saveGeneralProduct({
