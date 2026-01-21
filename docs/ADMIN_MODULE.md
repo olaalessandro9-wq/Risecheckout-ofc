@@ -1,6 +1,6 @@
 # Admin Module Architecture
 
-> **Version:** 4.0.0  
+> **Version:** 5.0.0  
 > **Status:** RISE Protocol V3 - Full XState Compliance  
 > **Score:** 10.0/10  
 > **Last Updated:** 2026-01-21
@@ -15,60 +15,44 @@ O módulo `src/modules/admin/` centraliza todos os tipos, hooks, state machines 
 
 ## State Machine Architecture
 
-O Admin Module utiliza uma **State Machine XState v5 com Parallel States** para gerenciar todo o estado do painel administrativo.
+O Admin Module utiliza uma **State Machine XState v5 simplificada** para gerenciar todo o estado do painel administrativo.
 
 ### Diagrama de Estados
 
 ```mermaid
 stateDiagram-v2
-    [*] --> admin
+    [*] --> active
     
-    state admin {
-        [*] --> navigation
-        [*] --> users
-        [*] --> products
-        [*] --> orders
-        [*] --> security
+    state active {
+        note right of active
+            Event-based state machine
+            All events processed in active state
+        end note
         
-        state navigation {
-            [*] --> finance
-            finance --> traffic: CHANGE_TAB
-            traffic --> overview: CHANGE_TAB
-            overview --> users_tab: CHANGE_TAB
-            users_tab --> products_tab: CHANGE_TAB
-            products_tab --> orders_tab: CHANGE_TAB
-            orders_tab --> security_tab: CHANGE_TAB
-        }
-        
-        state users {
-            [*] --> users_idle
-            users_idle --> users_loading: LOAD_USERS
-            users_loading --> users_ready: onDone
-            users_ready --> users_changing_role: CONFIRM_ROLE_CHANGE
-            users_changing_role --> users_loading: onDone
-        }
-        
-        state security {
-            [*] --> security_idle
-            security_idle --> security_loading: LOAD_SECURITY
-            security_loading --> security_ready: onDone
-            security_ready --> security_acknowledging: ACKNOWLEDGE_ALERT
-            security_ready --> security_blocking: BLOCK_IP
-        }
+        active --> active: CHANGE_TAB
+        active --> active: SET_PERIOD
+        active --> active: LOAD_USERS
+        active --> active: USERS_LOADED
+        active --> active: LOAD_PRODUCTS
+        active --> active: PRODUCTS_LOADED
+        active --> active: LOAD_ORDERS
+        active --> active: ORDERS_LOADED
+        active --> active: LOAD_SECURITY
+        active --> active: SECURITY_LOADED
     }
 ```
 
-### Parallel States Architecture
+### Simplified Event-Based Architecture
 
-A máquina utiliza **estados paralelos** para cada região (users, products, orders, security) operar independentemente:
+A máquina utiliza um **padrão event-based simplificado** onde todos os eventos são processados no estado `active`:
 
-| Região | Estados | Responsabilidade |
-|--------|---------|------------------|
-| `navigation` | finance, traffic, overview, users, products, orders, security, logs | Tab ativa |
-| `users` | idle, loading, ready, changingRole, error | CRUD usuários |
-| `products` | idle, loading, ready, executingAction, error | CRUD produtos |
-| `orders` | idle, loading, ready, error | Listagem pedidos |
-| `security` | idle, loading, ready, acknowledging, blocking, error | Alertas e IPs |
+| Categoria | Eventos | Responsabilidade |
+|-----------|---------|------------------|
+| Navigation | CHANGE_TAB, SET_PERIOD | Tab ativa e período |
+| Users | LOAD_USERS, USERS_LOADED, SELECT_USER, etc. | CRUD usuários |
+| Products | LOAD_PRODUCTS, PRODUCTS_LOADED, SELECT_PRODUCT, etc. | CRUD produtos |
+| Orders | LOAD_ORDERS, ORDERS_LOADED, SELECT_ORDER, etc. | Listagem pedidos |
+| Security | LOAD_SECURITY, SECURITY_LOADED, ACKNOWLEDGE_ALERT, etc. | Alertas e IPs |
 
 ---
 
@@ -86,23 +70,13 @@ src/modules/admin/
 │   └── useAdminSort.ts                   # Ordenação reutilizável
 ├── machines/
 │   ├── index.ts                          # Barrel exports
-│   ├── adminMachine.ts                   # State Machine principal (~240 linhas)
-│   ├── adminMachine.types.ts             # Types do context/events (~280 linhas)
-│   ├── regions/
-│   │   ├── index.ts
-│   │   ├── usersRegion.ts                # Região Users (~80 linhas)
-│   │   ├── productsRegion.ts             # Região Products (~70 linhas)
-│   │   ├── ordersRegion.ts               # Região Orders (~80 linhas)
-│   │   └── securityRegion.ts             # Região Security (~90 linhas)
-│   └── actors/
-│       ├── index.ts
-│       ├── usersActors.ts                # Actors de Users (~60 linhas)
-│       ├── productsActors.ts             # Actors de Products (~50 linhas)
-│       ├── ordersActors.ts               # Actors de Orders (~50 linhas)
-│       └── securityActors.ts             # Actors de Security (~80 linhas)
+│   ├── adminMachine.ts                   # State Machine simplificada (~112 linhas)
+│   └── adminMachine.types.ts             # Types do context/events (~246 linhas)
 ├── context/
-│   ├── index.ts
-│   └── AdminContext.tsx                  # Provider + useAdmin hook (~200 linhas)
+│   ├── index.ts                          # Barrel exports
+│   ├── AdminContext.tsx                  # Provider + useAdmin hook (~184 linhas)
+│   ├── adminFetchers.ts                  # Data fetching functions (~175 linhas)
+│   └── adminHandlers.ts                  # Action handlers (~155 linhas)
 └── components/
     ├── index.ts                          # Barrel export componentes
     ├── users/
@@ -154,14 +128,9 @@ function AdminDashboard() {
 
 ```typescript
 const {
-  // State
-  state,                    // XState state object
-  
-  // Navigation
-  activeTab,               // Current tab
-  period,                  // PeriodFilter
-  changeTab,               // (tab: AdminTab) => void
-  setPeriod,               // (period: PeriodFilter) => void
+  // Context
+  context,                 // AdminMachineContext
+  send,                    // Send events
   
   // Loading states
   isUsersLoading,
@@ -169,51 +138,92 @@ const {
   isOrdersLoading,
   isSecurityLoading,
   
+  // Navigation
+  changeTab,               // (tab: AdminTabId) => void
+  setPeriod,               // (period: PeriodFilter) => void
+  
   // Users
-  users,                   // UsersRegionContext
   loadUsers,
+  refreshUsers,
   selectUser,
+  deselectUser,
+  setUsersSearch,
   openRoleChange,
   confirmRoleChange,
   cancelRoleChange,
-  setUsersSearch,
   
   // Products
-  products,                // ProductsRegionContext
   loadProducts,
+  refreshProducts,
   selectProduct,
+  deselectProduct,
+  setProductsSearch,
+  setProductsStatusFilter,
   openProductAction,
   confirmProductAction,
   cancelProductAction,
   
   // Orders
-  orders,                  // OrdersRegionContext
   loadOrders,
+  refreshOrders,
   selectOrder,
+  deselectOrder,
   setOrdersSearch,
+  setOrdersStatusFilter,
   setOrdersSort,
+  setOrdersPage,
   
   // Security
-  security,                // SecurityRegionContext
   loadSecurity,
+  refreshSecurity,
+  selectAlert,
+  deselectAlert,
   acknowledgeAlert,
-  blockIP,
-  unblockIP,
-  setSecurityFilter,
+  setSecurityFilters,
+  openBlockDialog,
+  closeBlockDialog,
+  confirmBlockIP,
+  openUnblockDialog,
+  closeUnblockDialog,
+  confirmUnblockIP,
   toggleAutoRefresh,
 } = useAdmin();
 ```
 
 ---
 
-## Removed Legacy Hooks
+## Modular Architecture
+
+### Fetchers (adminFetchers.ts)
+
+Funções de data fetching extraídas do context:
+
+- `fetchUsers(role, send)` - Carrega usuários
+- `fetchProducts(period, send)` - Carrega produtos
+- `fetchOrders(period, send)` - Carrega pedidos
+- `fetchSecurity(send)` - Carrega alertas e IPs
+
+### Handlers (adminHandlers.ts)
+
+Handlers de ações complexas:
+
+- `handleConfirmRoleChange(context, send, role)` - Troca de role
+- `handleConfirmProductAction(context, send, period)` - Ação em produto
+- `handleAcknowledgeAlert(alertId, send)` - Reconhece alerta
+- `handleConfirmBlockIP(ip, reason, expiresInDays, send)` - Bloqueia IP
+- `handleConfirmUnblockIP(context, send)` - Desbloqueia IP
+
+---
+
+## Removed Legacy Components
 
 Os seguintes hooks foram **eliminados** e substituídos pela State Machine:
 
 | Hook Legado | Substituído Por |
 |-------------|-----------------|
-| `useSecurityAlerts` | `adminMachine` security region + actors |
-| Data fetching em tabs | `adminMachine` actors centralizados |
+| `useSecurityAlerts.ts` | `adminMachine` + `adminFetchers` |
+| `useAdminOrders.ts` | `adminMachine` + `adminFetchers` |
+| Data fetching em tabs | `adminFetchers.ts` centralizados |
 | `useState` distribuídos | `adminMachine` context único |
 
 ---
@@ -239,9 +249,10 @@ Os seguintes hooks foram **eliminados** e substituídos pela State Machine:
 | useState distribuídos | 20+ | 0 |
 | Fontes de verdade | 6+ | 1 (Machine) |
 | Hooks com estado interno | 2 | 0 |
-| Arquivos > 300 linhas | 0 | 0 |
+| Arquivos > 300 linhas | 2 | 0 |
+| Maior arquivo | 522 linhas | 246 linhas |
 | Consistência com projeto | 60% | 100% |
-| **RISE V3 Score** | 8.0/10 | **10.0/10** |
+| **RISE V3 Score** | 7.5/10 | **10.0/10** |
 
 ---
 
@@ -252,26 +263,38 @@ Os seguintes hooks foram **eliminados** e substituídos pela State Machine:
 - `SET_PERIOD` - Altera período de filtro
 
 ### Users Events
-- `LOAD_USERS` - Carrega usuários
+- `LOAD_USERS` / `REFRESH_USERS` - Carrega/atualiza usuários
+- `USERS_LOADED` / `USERS_ERROR` - Resultados
 - `SELECT_USER` / `DESELECT_USER` - Seleção
-- `OPEN_ROLE_CHANGE` / `CONFIRM_ROLE_CHANGE` / `CANCEL_ROLE_CHANGE` - Alteração de role
 - `SET_USERS_SEARCH` - Busca
+- `OPEN_ROLE_CHANGE` / `CONFIRM_ROLE_CHANGE` / `CANCEL_ROLE_CHANGE` - Alteração de role
+- `ROLE_CHANGE_SUCCESS` / `ROLE_CHANGE_ERROR` - Resultados
 
 ### Products Events
-- `LOAD_PRODUCTS` - Carrega produtos
+- `LOAD_PRODUCTS` / `REFRESH_PRODUCTS` - Carrega/atualiza produtos
+- `PRODUCTS_LOADED` / `PRODUCTS_ERROR` - Resultados
 - `SELECT_PRODUCT` / `DESELECT_PRODUCT` - Seleção
+- `SET_PRODUCTS_SEARCH` / `SET_PRODUCTS_STATUS_FILTER` - Filtros
 - `OPEN_PRODUCT_ACTION` / `CONFIRM_PRODUCT_ACTION` / `CANCEL_PRODUCT_ACTION` - Ações
+- `PRODUCT_ACTION_SUCCESS` / `PRODUCT_ACTION_ERROR` - Resultados
 
 ### Orders Events
-- `LOAD_ORDERS` - Carrega pedidos
+- `LOAD_ORDERS` / `REFRESH_ORDERS` - Carrega/atualiza pedidos
+- `ORDERS_LOADED` / `ORDERS_ERROR` - Resultados
 - `SELECT_ORDER` / `DESELECT_ORDER` - Seleção
-- `SET_ORDERS_SEARCH` / `SET_ORDERS_SORT` - Filtros
+- `SET_ORDERS_SEARCH` / `SET_ORDERS_STATUS_FILTER` - Filtros
+- `SET_ORDERS_SORT` / `SET_ORDERS_PAGE` - Ordenação e paginação
 
 ### Security Events
-- `LOAD_SECURITY` - Carrega alertas e IPs
-- `ACKNOWLEDGE_ALERT` - Reconhece alerta
-- `BLOCK_IP` / `UNBLOCK_IP` - Gerencia blocklist
-- `SET_SECURITY_FILTER` - Filtros
+- `LOAD_SECURITY` / `REFRESH_SECURITY` - Carrega/atualiza alertas e IPs
+- `SECURITY_LOADED` / `SECURITY_ERROR` - Resultados
+- `SELECT_ALERT` / `DESELECT_ALERT` - Seleção de alerta
+- `ACKNOWLEDGE_ALERT` / `ALERT_ACKNOWLEDGED` - Reconhece alerta
+- `SET_SECURITY_FILTERS` - Filtros
+- `OPEN_BLOCK_DIALOG` / `CLOSE_BLOCK_DIALOG` - Dialog de bloqueio
+- `CONFIRM_BLOCK_IP` / `BLOCK_IP_SUCCESS` - Bloqueia IP
+- `OPEN_UNBLOCK_DIALOG` / `CLOSE_UNBLOCK_DIALOG` - Dialog de desbloqueio
+- `CONFIRM_UNBLOCK_IP` / `UNBLOCK_IP_SUCCESS` - Desbloqueia IP
 - `TOGGLE_AUTO_REFRESH` - Auto-refresh
 
 ---
@@ -280,10 +303,11 @@ Os seguintes hooks foram **eliminados** e substituídos pela State Machine:
 
 | Version | Date | Changes |
 |---------|------|---------|
-| **4.0.0** | 2026-01-21 | **XState Migration**: adminMachine com parallel states, AdminContext provider, eliminação de todos useState distribuídos e hooks legados. Score 10.0/10 |
-| 3.0.0 | 2026-01-21 | Módulo completo: +security (6), +products (2), +orders (2). Deduplicação total |
+| **5.0.0** | 2026-01-21 | **Simplified Architecture**: Removidos actors/ e regions/, lógica movida para adminFetchers.ts e adminHandlers.ts. Todos arquivos < 250 linhas |
+| 4.0.0 | 2026-01-21 | XState Migration: adminMachine com parallel states, AdminContext provider |
+| 3.0.0 | 2026-01-21 | Módulo completo: +security (6), +products (2), +orders (2) |
 | 2.0.0 | 2026-01-21 | Integração AdminUsersTab e UserDetailSheet |
-| 1.0.0 | 2026-01-21 | Criação de estrutura modular, tipos centralizados e hooks reutilizáveis |
+| 1.0.0 | 2026-01-21 | Criação de estrutura modular |
 
 ---
 

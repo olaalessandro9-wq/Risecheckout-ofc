@@ -25,6 +25,9 @@ import type {
   ProductStatusFilter,
 } from "../types/admin.types";
 
+// Re-export for convenience
+export type { AdminTabId, PeriodFilter } from "../types/admin.types";
+
 // ============================================================================
 // REGION CONTEXTS
 // ============================================================================

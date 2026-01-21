@@ -10,7 +10,6 @@ import { api } from "@/lib/api";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { AppRole } from "@/hooks/usePermissions";
-import type { AdminMachineEvent } from "../machines/adminMachine.types";
 import type { 
   PeriodFilter,
   AdminOrder,
@@ -20,6 +19,9 @@ import type {
   UserWithRole,
   ProductWithMetrics,
 } from "../types/admin.types";
+
+// Send function type (generic to avoid circular dependency)
+type SendFn = (event: { type: string; [key: string]: unknown }) => void;
 
 // ============================================================================
 // HELPERS
@@ -38,7 +40,7 @@ function formatCentsToBRL(cents: number): string {
 
 export async function fetchUsers(
   role: AppRole,
-  send: (event: AdminMachineEvent) => void
+  send: SendFn
 ): Promise<void> {
   try {
     const [usersRes, emailsRes] = await Promise.all([
@@ -70,7 +72,7 @@ export async function fetchUsers(
 
 export async function fetchProducts(
   period: PeriodFilter,
-  send: (event: AdminMachineEvent) => void
+  send: SendFn
 ): Promise<void> {
   try {
     const { data, error } = await api.call<{ products: ProductWithMetrics[] }>(
@@ -105,7 +107,7 @@ interface RawOrder {
 
 export async function fetchOrders(
   period: PeriodFilter,
-  send: (event: AdminMachineEvent) => void
+  send: SendFn
 ): Promise<void> {
   try {
     const { data, error } = await api.call<{ orders: RawOrder[] }>(
@@ -148,7 +150,7 @@ export async function fetchOrders(
 // ============================================================================
 
 export async function fetchSecurity(
-  send: (event: AdminMachineEvent) => void
+  send: SendFn
 ): Promise<void> {
   try {
     const [alertsRes, blockedRes, statsRes] = await Promise.all([
