@@ -89,9 +89,9 @@ src/
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                        CAMADA DE ESTADO (XState)                         │
 ├─────────────────────────────────────────────────────────────────────────┤
-│  PixelsContext          │   UTMifyContext         │   (Future)          │
-│  ├─ pixelsMachine       │   ├─ utmifyMachine      │   webhooksMachine   │
-│  └─ usePixels()         │   └─ useUTMifyContext() │                     │
+│  PixelsContext          │   UTMifyContext         │   WebhooksContext   │
+│  ├─ pixelsMachine       │   ├─ utmifyMachine      │   ├─ webhooksMachine│
+│  └─ usePixels()         │   └─ useUTMifyContext() │   └─ useWebhooks()  │
 └────────────────────────────────┬────────────────────────────────────────┘
                                  │
                                  ▼

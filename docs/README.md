@@ -1,7 +1,7 @@
 # 📚 Documentação - RiseCheckout
 
-**Última atualização:** 20 de Janeiro de 2026  
-**Versão:** 3.3  
+**Última atualização:** 21 de Janeiro de 2026  
+**Versão:** 3.4  
 **Status:** ✅ 100% Completo - Pronto para Produção  
 **RISE Protocol V3:** 10.0/10
 
@@ -14,13 +14,14 @@ O RiseCheckout está **100% completo** e pronto para produção. Todas as funcio
 | Métrica | Valor |
 |---------|-------|
 | Completude | 100% |
-| Edge Functions | 115 |
+| Edge Functions | 114 |
 | Tipos `any` | 0 |
 | Testes Automatizados | ✅ |
 | LGPD Compliance | ✅ |
 | Zero DB Access (Frontend) | ✅ |
 | Tabelas com RLS | 75 |
 | Testes de Segurança | 107 |
+| Módulos XState | 10 |
 
 ---
 

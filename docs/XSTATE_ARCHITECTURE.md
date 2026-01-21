@@ -34,7 +34,7 @@ Este projeto utiliza **XState State Machines** como o **ÚNICO** padrão de gere
 
 ---
 
-## 2. Módulos Migrados (9/9 - 100%)
+## 2. Módulos Migrados (10/10 - 100%)
 
 | # | Módulo | Arquivo Principal | Estados | Linhas |
 |---|--------|-------------------|---------|--------|
@@ -47,8 +47,9 @@ Este projeto utiliza **XState State Machines** como o **ÚNICO** padrão de gere
 | 7 | **Financeiro** | `src/modules/financeiro/machines/financeiroMachine.ts` | 4 | 139 |
 | 8 | **Pixels** | `src/modules/pixels/machines/pixelsMachine.ts` | 6 | ~180 |
 | 9 | **UTMify** | `src/modules/utmify/machines/utmifyMachine.ts` | 5 | ~160 |
+| 10 | **Webhooks** | `src/modules/webhooks/machines/webhooksMachine.ts` | 7 | 157 |
 
-**Total de Linhas XState:** ~1.778 linhas  
+**Total de Linhas XState:** ~1.935 linhas  
 **Conformidade 300-Line Rule:** ✅ 100%
 
 ---
@@ -317,6 +318,63 @@ stateDiagram-v2
 
 ---
 
+### 3.10 WebhooksMachine
+
+```mermaid
+stateDiagram-v2
+    [*] --> idle
+    idle --> loading: LOAD
+    loading --> ready: onDone
+    loading --> error: onError
+    
+    state ready {
+        [*] --> active
+        active --> active: OPEN_FORM / CLOSE_FORM
+        active --> active: OPEN_DELETE / CANCEL_DELETE
+        active --> active: OPEN_TEST / CLOSE_TEST
+        active --> active: OPEN_LOGS / CLOSE_LOGS
+    }
+    
+    ready --> loadingWebhookProducts: OPEN_FORM (edit)
+    loadingWebhookProducts --> ready: onDone (isFormOpen=true)
+    
+    ready --> saving: SAVE_WEBHOOK
+    saving --> loading: onDone (refresh)
+    saving --> ready: onError
+    
+    ready --> deleting: CONFIRM_DELETE
+    deleting --> loading: onDone (refresh)
+    deleting --> ready: onError
+    
+    ready --> loadingLogs: OPEN_LOGS
+    loadingLogs --> ready: onDone (logs populated)
+    
+    error --> loading: RETRY
+```
+
+**Responsabilidade:** Gerencia CRUD de webhooks outbound (configurações, testes, logs de entrega).
+
+**Estados:**
+- `idle` - Estado inicial
+- `loading` - Carregando webhooks do backend
+- `ready` - Pronto para interação
+- `loadingWebhookProducts` - Carregando produtos vinculados para edição
+- `saving` - Salvando webhook (create/update)
+- `deleting` - Deletando webhook
+- `loadingLogs` - Carregando logs de entrega
+- `error` - Estado de erro
+
+**Eventos:**
+- `LOAD` - Carregar webhooks
+- `OPEN_FORM` / `CLOSE_FORM` - Abrir/fechar formulário
+- `SAVE_WEBHOOK` - Salvar webhook
+- `OPEN_DELETE` / `CONFIRM_DELETE` / `CANCEL_DELETE` - Fluxo de exclusão
+- `OPEN_TEST` / `CLOSE_TEST` - Teste de webhook
+- `OPEN_LOGS` / `CLOSE_LOGS` - Visualização de logs
+- `RETRY` - Tentar novamente após erro
+
+---
+
 ## 4. Convenções de Nomenclatura
 
 ### 4.1 Estrutura de Arquivos
@@ -566,6 +624,7 @@ Copie a definição da máquina para [stately.ai/viz](https://stately.ai/viz) pa
 | 2026-01-20 | Adicionado **financeiroMachine** (7ª máquina) |
 | 2026-01-21 | Adicionado **pixelsMachine** (8ª máquina) |
 | 2026-01-21 | Adicionado **utmifyMachine** (9ª máquina) |
+| 2026-01-21 | Adicionado **webhooksMachine** (10ª máquina) |
 
 ---
 
@@ -584,8 +643,9 @@ Copie a definição da máquina para [stately.ai/viz](https://stately.ai/viz) pa
 │  ✅ Financeiro Module       → financeiroMachine              │
 │  ✅ Pixels Module           → pixelsMachine                  │
 │  ✅ UTMify Module           → utmifyMachine                  │
+│  ✅ Webhooks Module         → webhooksMachine                │
 │                                                              │
-│  TOTAL: 7/7 MÓDULOS (100%)                                  │
+│  TOTAL: 10/10 MÓDULOS (100%)                                │
 │  RISE V3 SCORE: 10.0/10                                     │
 │  REDUCER LEGACY: 0 ARQUIVOS                                 │
 │                                                              │

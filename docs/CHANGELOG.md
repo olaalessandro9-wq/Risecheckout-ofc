@@ -6,6 +6,41 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
+## [3.4.0] - 2026-01-21
+
+### 🎯 Refatoração Webhooks Module (RISE V3 10.0/10)
+
+#### Adicionado
+- **Módulo XState `webhooksMachine`** (157 linhas):
+  - State machine completa para gerenciamento de webhooks outbound
+  - Estados: `idle`, `loading`, `ready`, `saving`, `deleting`, `loadingLogs`, `error`
+  - Actors para operações async: `loadWebhooks`, `saveWebhook`, `deleteWebhook`, `loadLogs`
+
+- **Componentes modulares** em `src/modules/webhooks/`:
+  - `WebhooksManager.tsx` - Container principal com Provider
+  - `WebhooksList.tsx` - Lista com filtros e busca
+  - `WebhookForm.tsx` - Formulário de criação/edição
+  - `WebhookFormSheet.tsx` - Sheet wrapper
+  - `WebhookDeleteDialog.tsx` - Confirmação de exclusão
+  - `TestWebhookDialog.tsx` - Envio de evento teste
+  - `WebhookLogsDialog.tsx` - Visualização de logs
+
+- **Action `get-logs` em `webhook-crud`**: Centraliza busca de logs de entrega
+
+#### Removido
+- **Edge Function `get-webhook-logs`**: Consolidada em `webhook-crud` action=`get-logs`
+- **Handler `get-webhook-logs` de `content-library`**: Movido para `webhook-crud`
+- **Componentes legados**: `src/components/webhooks/` (5 arquivos deletados)
+
+#### Conformidade RISE V3
+- **XState SSOT:** ✅ `webhooksMachine` como fonte única de verdade
+- **Zero `any` types:** ✅ 100%
+- **Zero `console.log`:** ✅ Usa `createLogger()`
+- **Limite 300 linhas:** ✅ Todos arquivos < 160 linhas
+- **Total Edge Functions:** 114 (-1, consolidação)
+
+---
+
 ## [3.3.1] - 2026-01-18
 
 ### 🔧 Refatoração products-crud (RISE V3 Seção 6.4)
@@ -19,9 +54,8 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 - **Edge Function `coupon-read`** (125 linhas):
   - `get-coupon`: Retorna cupom específico para edição
 
-- **Edge Function `content-library`** (200 linhas):
+- **Edge Function `content-library`** (160 linhas):
   - `get-video-library`: Biblioteca de vídeos do produto
-  - `get-webhook-logs`: Logs de webhook
 
 #### Alterado
 - **products-crud:** Reduzida de 597 para 268 linhas (-55%)
@@ -29,12 +63,11 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
   - `Perfil.tsx` → `producer-profile`
   - `CuponsTab.tsx` → `coupon-read`
   - `useVideoLibrary.ts` → `content-library`
-  - `WebhookLogsDialog.tsx` → `content-library`
 
 #### Conformidade RISE V3
 - **Seção 6.4 (Limite 300 linhas):** ✅ Todas funções < 300 linhas
 - **Single Responsibility Principle:** ✅ 1 domínio por função
-- **Total Edge Functions:** 110 (+3)
+- **Total Edge Functions:** 115 (+3)
 
 ---
 
