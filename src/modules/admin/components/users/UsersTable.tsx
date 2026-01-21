@@ -31,8 +31,8 @@ import {
   ROLE_COLORS,
   SOURCE_LABELS,
   SOURCE_COLORS,
-  formatCentsToBRL,
 } from "../../types/admin.types";
+import { formatCentsToBRL } from "@/lib/money";
 
 interface UsersTableProps {
   users: UserWithRole[];

@@ -18,7 +18,8 @@ import {
 } from "@/components/ui/table";
 import { Package, CheckCircle, XCircle, Trash2 } from "lucide-react";
 import type { UserProduct } from "../../types/admin.types";
-import { PRODUCT_STATUS_COLORS, formatCentsToBRL } from "../../types/admin.types";
+import { PRODUCT_STATUS_COLORS } from "../../types/admin.types";
+import { formatCentsToBRL } from "@/lib/money";
 
 interface UserProductsSectionProps {
   products: UserProduct[];

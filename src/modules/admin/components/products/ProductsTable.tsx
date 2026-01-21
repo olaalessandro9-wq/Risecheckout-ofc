@@ -31,8 +31,8 @@ import {
   type SortDirection,
   PRODUCT_STATUS_LABELS,
   PRODUCT_STATUS_COLORS,
-  formatCentsToBRL,
 } from "@/modules/admin/types/admin.types";
+import { formatCentsToBRL } from "@/lib/money";
 
 interface ProductsTableProps {
   products: ProductWithMetrics[];

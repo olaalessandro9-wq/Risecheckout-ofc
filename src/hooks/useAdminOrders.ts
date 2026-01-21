@@ -1,8 +1,10 @@
 /**
  * useAdminOrders
  * 
- * @version 2.0.0 - RISE Protocol V3 - Zero console.log
+ * @version 3.0.0 - RISE Protocol V3 - Zero duplicações
  * MIGRATED: Uses api.call() instead of supabase.functions.invoke
+ * MIGRATED: Uses centralized AdminOrder type from admin.types
+ * MIGRATED: Uses orderStatusService for status translation
  */
 
 import { useQuery } from "@tanstack/react-query";
@@ -10,27 +12,10 @@ import { api } from "@/lib/api";
 import { createLogger } from "@/lib/logger";
 import { PeriodFilter } from "@/hooks/useAdminAnalytics";
 import { formatCentsToBRL } from "@/lib/money";
+import { orderStatusService } from "@/lib/order-status";
+import type { AdminOrder } from "@/modules/admin/types/admin.types";
 
 const log = createLogger("AdminOrders");
-
-export interface AdminOrder {
-  id: string;
-  orderId: string;
-  customerName: string;
-  customerEmail: string;
-  customerPhone: string;
-  customerDocument: string;
-  productName: string;
-  productImageUrl: string;
-  productOwnerId: string;
-  vendorId: string;
-  amount: string;
-  amountCents: number;
-  status: "Pago" | "Pendente" | "Reembolso" | "Chargeback";
-  paymentMethod: string | null;
-  createdAt: string;
-  fullCreatedAt: string;
-}
 
 interface AdminOrdersResponse {
   orders?: Array<Record<string, unknown>>;
@@ -46,16 +31,6 @@ function formatDate(dateString: string): string {
     hour: '2-digit',
     minute: '2-digit'
   });
-}
-
-function translateStatus(status: string): "Pago" | "Pendente" | "Reembolso" | "Chargeback" {
-  const statusMap: Record<string, "Pago" | "Pendente" | "Reembolso" | "Chargeback"> = {
-    'paid': 'Pago',
-    'pending': 'Pendente',
-    'refunded': 'Reembolso',
-    'chargeback': 'Chargeback'
-  };
-  return statusMap[status?.toLowerCase()] || 'Pendente';
 }
 
 export function useAdminOrders(period: PeriodFilter) {
@@ -92,7 +67,7 @@ export function useAdminOrders(period: PeriodFilter) {
           vendorId: order.vendor_id as string,
           amount: formatCentsToBRL((order.amount_cents as number) || 0),
           amountCents: (order.amount_cents as number) || 0,
-          status: translateStatus(order.status as string),
+          status: orderStatusService.getDisplayLabel(order.status as string),
           paymentMethod: order.payment_method as string | null,
           createdAt: formatDate(order.created_at as string),
           fullCreatedAt: order.created_at as string,
@@ -102,3 +77,6 @@ export function useAdminOrders(period: PeriodFilter) {
     staleTime: 1000 * 60 * 2,
   });
 }
+
+// Re-export AdminOrder type for backward compatibility
+export type { AdminOrder };
