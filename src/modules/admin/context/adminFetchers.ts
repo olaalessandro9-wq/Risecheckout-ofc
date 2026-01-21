@@ -3,13 +3,16 @@
  * 
  * RISE Protocol V3 - Modularized from AdminContext
  * 
- * @version 1.0.0
+ * @version 2.0.0 - Canonical Order Status via orderStatusService
  */
 
 import { api } from "@/lib/api";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { AppRole } from "@/hooks/usePermissions";
+import { orderStatusService } from "@/lib/order-status/service";
+import { createLogger } from "@/lib/logger";
+import type { CanonicalOrderStatus } from "@/lib/order-status/types";
 import type { 
   PeriodFilter,
   AdminOrder,
@@ -19,6 +22,8 @@ import type {
   UserWithRole,
   ProductWithMetrics,
 } from "../types/admin.types";
+
+const log = createLogger("AdminFetchers");
 
 // Send function type (generic to avoid circular dependency)
 type SendFn = (event: { type: string; [key: string]: unknown }) => void;
@@ -117,9 +122,29 @@ export async function fetchOrders(
 
     if (error) throw new Error(error.message);
 
-    const orders: AdminOrder[] = (data?.orders ?? []).map(order => {
+    const rawOrders = data?.orders ?? [];
+    
+    // === INSTRUMENTATION: Log status distribution from backend ===
+    const statusDistribution = rawOrders.reduce((acc, o) => {
+      const key = o.status ?? "NULL";
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    log.info("Backend status distribution", statusDistribution);
+
+    const orders: AdminOrder[] = rawOrders.map(order => {
       const createdAtRaw = order.created_at || new Date().toISOString();
       const createdAt = new Date(createdAtRaw);
+      
+      // === CANONICAL NORMALIZATION via orderStatusService ===
+      const rawStatus = order.status;
+      const normalizedStatus: CanonicalOrderStatus = orderStatusService.normalize(rawStatus);
+      
+      // Log anomaly if status was empty/null (should be investigated upstream)
+      if (!rawStatus) {
+        log.warn(`Order ${order.id} has null/empty status, normalized to "${normalizedStatus}"`);
+      }
+      
       return {
         id: order.id,
         orderId: order.id.slice(0, 8).toUpperCase(),
@@ -133,13 +158,20 @@ export async function fetchOrders(
         vendorId: order.vendor_id || "",
         amount: formatCentsToBRL(order.amount_cents || 0),
         amountCents: order.amount_cents || 0,
-        status: order.status || "pending",
+        status: normalizedStatus,
         paymentMethod: order.payment_method || null,
         createdAt: format(createdAt, "dd/MM/yyyy", { locale: ptBR }),
         fullCreatedAt: format(createdAt, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }),
         createdAtISO: createdAtRaw,
       };
     });
+
+    // === POST-NORMALIZATION: Log mapped distribution ===
+    const mappedDistribution = orders.reduce((acc, o) => {
+      acc[o.status] = (acc[o.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    log.info("Mapped status distribution", mappedDistribution);
 
     send({ type: "ORDERS_LOADED", data: orders });
   } catch (error) {

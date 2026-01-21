@@ -2,8 +2,9 @@
  * OrdersTable - Tabela de Pedidos Admin
  * 
  * Componente puro que exibe a tabela de pedidos com ações.
+ * Usa orderStatusService como Single Source of Truth para status.
  * 
- * @version 1.1.0 - RISE V3 Compliant
+ * @version 2.0.0 - RISE V3 Compliant - Canonical Status
  */
 
 import { Badge } from "@/components/ui/badge";
@@ -17,14 +18,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Eye, ArrowUpDown } from "lucide-react";
-import type { AdminOrder, OrderSortField, SortDirection } from "@/modules/admin/types/admin.types";
-import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from "@/modules/admin/types/admin.types";
+import { orderStatusService } from "@/lib/order-status/service";
+import type { AdminOrder, OrderSortField } from "@/modules/admin/types/admin.types";
 
 interface OrdersTableProps {
   orders: AdminOrder[];
   isLoading: boolean;
   sortField: OrderSortField;
-  sortDirection: SortDirection;
+  sortDirection: "asc" | "desc";
   onSort: (field: OrderSortField) => void;
   onViewDetails: (orderId: string) => void;
 }
@@ -33,7 +34,6 @@ export function OrdersTable({
   orders,
   isLoading,
   sortField,
-  sortDirection,
   onSort,
   onViewDetails,
 }: OrdersTableProps) {
@@ -85,43 +85,49 @@ export function OrdersTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {orders.map((order) => (
-          <TableRow key={order.id}>
-            <TableCell className="font-mono text-sm">
-              {order.orderId.slice(0, 8)}...
-            </TableCell>
-            <TableCell>
-              <div>
-                <p className="font-medium">{order.customerName}</p>
-                <p className="text-sm text-muted-foreground">{order.customerEmail}</p>
-              </div>
-            </TableCell>
-            <TableCell className="max-w-[150px] truncate">
-              {order.productName}
-            </TableCell>
-            <TableCell>
-              <Badge
-                variant="outline"
-                className={ORDER_STATUS_COLORS[order.status] || "bg-muted"}
-              >
-                {ORDER_STATUS_LABELS[order.status] || order.status}
-              </Badge>
-            </TableCell>
-            <TableCell className="font-medium">{order.amount}</TableCell>
-            <TableCell>
-              {order.fullCreatedAt}
-            </TableCell>
-            <TableCell className="text-right">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onViewDetails(order.id)}
-              >
-                <Eye className="h-4 w-4" />
-              </Button>
-            </TableCell>
-          </TableRow>
-        ))}
+        {orders.map((order) => {
+          // Use orderStatusService as Single Source of Truth
+          const colorScheme = orderStatusService.getColorScheme(order.status);
+          const displayLabel = orderStatusService.getDisplayLabel(order.status);
+          
+          return (
+            <TableRow key={order.id}>
+              <TableCell className="font-mono text-sm">
+                {order.orderId.slice(0, 8)}...
+              </TableCell>
+              <TableCell>
+                <div>
+                  <p className="font-medium">{order.customerName}</p>
+                  <p className="text-sm text-muted-foreground">{order.customerEmail}</p>
+                </div>
+              </TableCell>
+              <TableCell className="max-w-[150px] truncate">
+                {order.productName}
+              </TableCell>
+              <TableCell>
+                <Badge
+                  variant="outline"
+                  className={`${colorScheme.bg} ${colorScheme.text} ${colorScheme.border}`}
+                >
+                  {displayLabel}
+                </Badge>
+              </TableCell>
+              <TableCell className="font-medium">{order.amount}</TableCell>
+              <TableCell>
+                {order.fullCreatedAt}
+              </TableCell>
+              <TableCell className="text-right">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onViewDetails(order.id)}
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          );
+        })}
       </TableBody>
     </Table>
   );
