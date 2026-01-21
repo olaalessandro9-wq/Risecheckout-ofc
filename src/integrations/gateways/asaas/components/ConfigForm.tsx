@@ -2,7 +2,7 @@
  * Asaas ConfigForm Component (Refatorado)
  * 
  * Orquestrador que compõe os sub-componentes do formulário.
- * Mantém a lógica de estado e delega UI para componentes filhos.
+ * Usa ação unificada: Conectar = Validar + Salvar em um só clique.
  */
 
 import { useState, useEffect } from 'react';
@@ -22,7 +22,6 @@ import { ConnectionStatus } from './ConnectionStatus';
 import { EnvironmentSelector } from './EnvironmentSelector';
 import { ApiKeyInput } from './ApiKeyInput';
 import { WalletIdInput } from './WalletIdInput';
-import { ValidationResult } from './ValidationResult';
 import { ActionButtons } from './ActionButtons';
 
 import type { GatewayConfigFormProps } from "@/config/gateways/types";
@@ -30,7 +29,7 @@ import type { GatewayConfigFormProps } from "@/config/gateways/types";
 export function ConfigForm({ onConnectionChange }: GatewayConfigFormProps) {
   const { toast } = useToast();
   const { config, isLoading: isLoadingConfig, refetch } = useAsaasConfig();
-  const { validate, isValidating, lastResult } = useAsaasValidation();
+  const { validate, isValidating } = useAsaasValidation();
   const { save, isSaving } = useAsaasSaveConfig();
   const { disconnect, isDisconnecting } = useAsaasDisconnect();
   const { role } = usePermissions();
@@ -40,7 +39,6 @@ export function ConfigForm({ onConnectionChange }: GatewayConfigFormProps) {
   // Form state
   const [apiKey, setApiKey] = useState('');
   const [environment, setEnvironment] = useState<AsaasEnvironment>('production');
-  const [isValidated, setIsValidated] = useState(false);
   const [walletId, setWalletId] = useState<string | undefined>();
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -50,7 +48,6 @@ export function ConfigForm({ onConnectionChange }: GatewayConfigFormProps) {
       setApiKey(config.apiKey || '');
       const configEnv = config.environment || 'production';
       setEnvironment(isAdmin ? configEnv : 'production');
-      setIsValidated(config.isConfigured);
       setWalletId(config.walletId);
     }
   }, [config, isAdmin]);
@@ -70,13 +67,13 @@ export function ConfigForm({ onConnectionChange }: GatewayConfigFormProps) {
         environment !== config.environment ||
         (walletId || '') !== (config.walletId || '');
       setHasChanges(changed);
-      if (apiKey !== config.apiKey || environment !== config.environment) {
-        setIsValidated(false);
-      }
     }
   }, [apiKey, environment, walletId, config]);
 
-  const handleValidate = async () => {
+  /**
+   * Handler unificado: Valida + Salva em uma ação
+   */
+  const handleConnect = async () => {
     if (!apiKey.trim()) {
       toast({
         title: 'Erro',
@@ -86,63 +83,47 @@ export function ConfigForm({ onConnectionChange }: GatewayConfigFormProps) {
       return;
     }
 
-    const result = await validate(apiKey, environment);
+    // Passo 1: Validar credenciais
+    const validationResult = await validate(apiKey, environment);
 
-    if (result.valid) {
-      setIsValidated(true);
-      if (result.walletId) {
-        setWalletId(result.walletId);
-      }
-      toast({
-        title: 'Credenciais válidas',
-        description: result.accountName
-          ? `Conta: ${result.accountName}`
-          : 'API Key validada com sucesso',
-      });
-    } else {
-      setIsValidated(false);
+    if (!validationResult.valid) {
+      // Erro de validação - NÃO salva
       toast({
         title: 'Credenciais inválidas',
-        description: result.message || 'Verifique sua API Key e tente novamente',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleSave = async () => {
-    if (!isValidated) {
-      toast({
-        title: 'Validação necessária',
-        description: 'Valide suas credenciais antes de salvar',
+        description: validationResult.message || 'Verifique sua API Key e tente novamente',
         variant: 'destructive',
       });
       return;
     }
 
-    const walletIdToSave = walletId?.trim() || lastResult?.walletId;
-
-    const result = await save({
+    // Passo 2: Credenciais válidas - Salvar automaticamente
+    const walletIdToSave = validationResult.walletId || walletId?.trim();
+    
+    const saveResult = await save({
       api_key: apiKey,
       environment,
       wallet_id: walletIdToSave,
       validated_at: new Date().toISOString(),
-      account_name: lastResult?.accountName,
+      account_name: validationResult.accountName,
     });
 
-    if (result.success) {
+    if (saveResult.success) {
       toast({
-        title: 'Configuração salva',
-        description: walletIdToSave 
-          ? `Asaas configurado com Wallet ID: ${walletIdToSave}`
-          : 'Asaas configurado com sucesso',
+        title: 'Asaas conectado!',
+        description: validationResult.accountName
+          ? `Conta: ${validationResult.accountName}`
+          : 'Configuração salva com sucesso',
       });
       setHasChanges(false);
+      if (walletIdToSave) {
+        setWalletId(walletIdToSave);
+      }
       onConnectionChange?.();
       refetch();
     } else {
       toast({
         title: 'Erro ao salvar',
-        description: result.error || 'Tente novamente',
+        description: saveResult.error || 'Tente novamente',
         variant: 'destructive',
       });
     }
@@ -157,8 +138,7 @@ export function ConfigForm({ onConnectionChange }: GatewayConfigFormProps) {
         description: 'Asaas foi desconectado',
       });
       setApiKey('');
-      setEnvironment('sandbox');
-      setIsValidated(false);
+      setEnvironment('production');
       onConnectionChange?.();
       refetch();
     } else {
@@ -179,6 +159,7 @@ export function ConfigForm({ onConnectionChange }: GatewayConfigFormProps) {
   }
 
   const isConnected = config?.isConfigured && !hasChanges;
+  const isConnecting = isValidating || isSaving;
 
   return (
     <div className="space-y-6">
@@ -195,28 +176,23 @@ export function ConfigForm({ onConnectionChange }: GatewayConfigFormProps) {
       <ApiKeyInput
         apiKey={apiKey}
         onApiKeyChange={setApiKey}
-        isValidated={isValidated}
+        isValidated={isConnected}
         hasChanges={hasChanges}
       />
 
       <WalletIdInput
         walletId={walletId}
         onWalletIdChange={setWalletId}
-        isValidated={isValidated}
+        isValidated={isConnected}
       />
 
-      <ValidationResult lastResult={lastResult} hasChanges={hasChanges} />
-
       <ActionButtons
-        onValidate={handleValidate}
-        onSave={handleSave}
+        onConnect={handleConnect}
         onDisconnect={handleDisconnect}
-        isValidating={isValidating}
-        isSaving={isSaving}
+        isConnecting={isConnecting}
         isDisconnecting={isDisconnecting}
         isConnected={isConnected}
-        apiKey={apiKey}
-        isValidated={isValidated}
+        apiKeyEmpty={!apiKey.trim()}
       />
     </div>
   );
