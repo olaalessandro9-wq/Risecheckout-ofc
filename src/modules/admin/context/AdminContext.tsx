@@ -115,21 +115,30 @@ export function AdminProvider({ children }: AdminProviderProps) {
   useEffect(() => { if (state.context.securityLoading && state.context.security.alerts.length === 0) doFetchSecurity(); }, [state.context.securityLoading, state.context.security.alerts.length, doFetchSecurity]);
 
   // Period change reactivity - reload data when period changes
+  // CRITICAL: Do NOT include items.length in dependencies - causes infinite loop
   const prevPeriodRef = useRef(state.context.period);
+  const isReloadingRef = useRef(false);
+  
   useEffect(() => {
+    // Only execute if period actually changed
     if (prevPeriodRef.current !== state.context.period) {
       prevPeriodRef.current = state.context.period;
-      // Reload orders and products when period changes
-      if (state.context.orders.items.length > 0) {
-        send({ type: "REFRESH_ORDERS" });
-        doFetchOrders();
-      }
-      if (state.context.products.items.length > 0) {
-        send({ type: "REFRESH_PRODUCTS" });
-        doFetchProducts();
-      }
+      
+      // Prevent duplicate concurrent requests
+      if (isReloadingRef.current) return;
+      isReloadingRef.current = true;
+      
+      // Always reload orders when period changes (regardless of current items count)
+      send({ type: "REFRESH_ORDERS" });
+      doFetchOrders().finally(() => {
+        isReloadingRef.current = false;
+      });
+      
+      // Also reload products
+      send({ type: "REFRESH_PRODUCTS" });
+      doFetchProducts();
     }
-  }, [state.context.period, state.context.orders.items.length, state.context.products.items.length, send, doFetchOrders, doFetchProducts]);
+  }, [state.context.period, send, doFetchOrders, doFetchProducts]);
 
   useEffect(() => {
     if (!state.context.security.autoRefresh) return;
