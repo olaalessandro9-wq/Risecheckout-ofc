@@ -11,7 +11,6 @@ import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PlatformIcon } from "./PlatformIcon";
-import { PLATFORM_INFO } from "../types";
 import type { VendorPixel } from "../types";
 
 // ============================================================================

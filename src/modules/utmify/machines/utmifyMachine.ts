@@ -196,14 +196,20 @@ export const utmifyMachine = setup({
     saving: {
       invoke: {
         src: "saveActor",
-        input: ({ context }) => ({
-          vendorId: "", // Will be injected by context
-          token: context.token,
-          active: context.active,
-          selectedProducts: context.selectedProducts,
-          selectedEvents: context.selectedEvents,
-          hasExistingToken: context.config?.hasToken || false,
-        }),
+        input: ({ context, event }) => {
+          // TypeScript narrowing: garantir que event é SAVE
+          if (event.type !== "SAVE") {
+            throw new Error("Invalid event type for saving state");
+          }
+          return {
+            vendorId: event.vendorId,
+            token: context.token,
+            active: context.active,
+            selectedProducts: context.selectedProducts,
+            selectedEvents: context.selectedEvents,
+            hasExistingToken: context.config?.hasToken || false,
+          };
+        },
         onDone: {
           target: "ready",
           actions: assign(({ context }) => ({

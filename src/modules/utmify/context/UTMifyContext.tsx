@@ -4,16 +4,15 @@
  * Wraps XState machine and exposes state + actions to components.
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - Context Pattern
+ * @version 1.1.0 - Lógica de save centralizada no XState
  */
 
-import { createContext, useContext, useEffect, useMemo } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef } from "react";
 import { useMachine } from "@xstate/react";
 import { utmifyMachine } from "../machines";
 import type { UTMifyStateValue } from "../machines";
 import type { Product } from "../types";
 import { useAuth } from "@/hooks/useAuth";
-import { api } from "@/lib/api/client";
-import type { VaultSaveResponse } from "../types";
 import { toast } from "sonner";
 
 // ============================================================================
@@ -41,7 +40,7 @@ interface UTMifyContextValue {
   readonly toggleActive: () => void;
   readonly toggleProduct: (productId: string) => void;
   readonly toggleEvent: (eventId: string) => void;
-  readonly save: () => Promise<void>;
+  readonly save: () => void;
   readonly refresh: () => void;
   
   // Machine state check
@@ -65,6 +64,9 @@ interface UTMifyProviderProps {
 export function UTMifyProvider({ children }: UTMifyProviderProps) {
   const { user } = useAuth();
   const [state, send] = useMachine(utmifyMachine);
+  
+  // Track previous state for transition detection
+  const prevStateRef = useRef<string | null>(null);
 
   // Auto-load on mount when user is available
   useEffect(() => {
@@ -73,57 +75,53 @@ export function UTMifyProvider({ children }: UTMifyProviderProps) {
     }
   }, [user, state, send]);
 
+  // Toast notifications based on machine transitions
+  useEffect(() => {
+    const currentState = state.value as string;
+    const prevState = prevStateRef.current;
+    
+    // Save succeeded: transitioned from saving to ready
+    if (prevState === "saving" && currentState === "ready" && !state.context.error) {
+      toast.success("Integração UTMify salva com sucesso!");
+      // Reload para sincronizar estado
+      send({ type: "LOAD" });
+    }
+    
+    // Save failed: error after saving
+    if (prevState === "saving" && state.context.error) {
+      toast.error("Erro ao salvar: " + state.context.error);
+    }
+    
+    prevStateRef.current = currentState;
+  }, [state, send]);
+
   // Derived states
   const isLoading = state.matches("loading");
   const isReady = state.matches("ready");
   const isSaving = state.matches("saving");
   const isError = state.matches("error");
 
-  // Save handler with vendor ID injection
-  const save = async () => {
+  /**
+   * Save handler - delega toda lógica ao XState saveActor
+   * 
+   * Validações simples (user/token) são feitas aqui.
+   * Lógica complexa de persistência está centralizada no machine.
+   */
+  const save = () => {
     if (!user?.id) {
       toast.error("Usuário não autenticado");
       return;
     }
 
-    const { token, active, selectedProducts, selectedEvents, config } = state.context;
+    const { token, config } = state.context;
     
     if (!token.trim() && !config?.hasToken) {
       toast.error("API Token é obrigatório");
       return;
     }
 
-    try {
-      const shouldActivate = !config?.hasToken && !active && token.trim();
-      const activeStatus = shouldActivate ? true : active;
-
-      const credentials: Record<string, unknown> = {
-        selected_products: selectedProducts,
-        selected_events: selectedEvents,
-        has_token: true,
-      };
-
-      if (token.trim()) {
-        credentials.api_token = token.trim();
-      }
-
-      const { data, error } = await api.call<VaultSaveResponse>("vault-save", {
-        vendor_id: user.id,
-        integration_type: "UTMIFY",
-        credentials,
-        active: activeStatus,
-      });
-
-      if (error) throw new Error(error.message || "Erro ao salvar credenciais");
-      if (!data?.success) throw new Error(data?.error || "Erro ao salvar credenciais");
-
-      // Update local state after successful save
-      send({ type: "LOAD" }); // Reload to get fresh state
-      toast.success("Integração UTMify salva com sucesso!");
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Erro desconhecido";
-      toast.error("Erro ao salvar: " + errorMessage);
-    }
+    // Delega ao XState - toda lógica de save está no saveActor
+    send({ type: "SAVE", vendorId: user.id });
   };
 
   // Context value
