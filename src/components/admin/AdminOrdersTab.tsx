@@ -51,12 +51,8 @@ export function AdminOrdersTab() {
   const ordersContext = context.orders;
   const orders = ordersContext.items;
 
-  // Load orders on mount if not loaded
-  useEffect(() => {
-    if (orders.length === 0 && !isOrdersLoading && !ordersContext.error) {
-      loadOrders();
-    }
-  }, [orders.length, isOrdersLoading, ordersContext.error, loadOrders]);
+  // REMOVED: Duplicate loading useEffect - AdminContext manages initial loading
+  // This prevents race conditions and duplicate requests
 
   const { filteredItems, searchTerm, setSearchTerm } = useAdminFilters(
     orders,

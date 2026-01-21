@@ -54,10 +54,8 @@ export function AdminSecurityAlertsTab() {
   // Local tab state (UI only)
   const [activeTab, setActiveTab] = useState<"alerts" | "blocked">("alerts");
 
-  // Load security data on mount
-  useEffect(() => {
-    loadSecurity();
-  }, [loadSecurity]);
+  // REMOVED: Duplicate loading useEffect - AdminContext manages initial loading
+  // This prevents race conditions and duplicate requests
 
   // Handlers
   const handleFilterChange = useCallback((key: "severity" | "type" | "acknowledged", value: string) => {
