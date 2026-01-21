@@ -23,6 +23,7 @@ import type {
   SortDirection,
   OrderSortField,
   ProductStatusFilter,
+  UserStatusFilter,
 } from "../types/admin.types";
 
 // Re-export for convenience
@@ -38,6 +39,7 @@ export interface UsersRegionContext {
   selectedUser: SelectedUserData | null;
   roleChangeDialog: RoleChangeDialog | null;
   searchTerm: string;
+  statusFilter: UserStatusFilter;
   error: string | null;
   isChangingRole: boolean;
 }
@@ -118,6 +120,7 @@ type UsersEvent =
   | { type: "SELECT_USER"; user: SelectedUserData }
   | { type: "DESELECT_USER" }
   | { type: "SET_USERS_SEARCH"; term: string }
+  | { type: "SET_USERS_STATUS_FILTER"; filter: UserStatusFilter }
   | { type: "OPEN_ROLE_CHANGE"; dialog: RoleChangeDialog }
   | { type: "CONFIRM_ROLE_CHANGE" }
   | { type: "ROLE_CHANGE_SUCCESS" }
@@ -192,6 +195,7 @@ export const initialUsersContext: UsersRegionContext = {
   selectedUser: null,
   roleChangeDialog: null,
   searchTerm: "",
+  statusFilter: "all",
   error: null,
   isChangingRole: false,
 };

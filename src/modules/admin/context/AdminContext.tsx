@@ -30,6 +30,7 @@ import type {
   OrderSortField,
   SortDirection,
   ProductStatusFilter,
+  UserStatusFilter,
 } from "../types/admin.types";
 import { fetchUsers, fetchProducts, fetchOrders, fetchSecurity } from "./adminFetchers";
 import { 
@@ -58,6 +59,7 @@ export interface AdminContextValue {
   selectUser: (user: SelectedUserData) => void;
   deselectUser: () => void;
   setUsersSearch: (term: string) => void;
+  setUsersStatusFilter: (filter: UserStatusFilter) => void;
   openRoleChange: (dialog: RoleChangeDialog) => void;
   confirmRoleChange: () => Promise<void>;
   cancelRoleChange: () => void;
@@ -191,6 +193,7 @@ export function AdminProvider({ children }: AdminProviderProps) {
     selectUser: (user) => send({ type: "SELECT_USER", user }),
     deselectUser: () => send({ type: "DESELECT_USER" }),
     setUsersSearch: (term) => send({ type: "SET_USERS_SEARCH", term }),
+    setUsersStatusFilter: (filter) => send({ type: "SET_USERS_STATUS_FILTER", filter }),
     openRoleChange: (dialog) => send({ type: "OPEN_ROLE_CHANGE", dialog }),
     confirmRoleChange,
     cancelRoleChange: () => send({ type: "CANCEL_ROLE_CHANGE" }),

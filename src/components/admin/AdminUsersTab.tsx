@@ -16,6 +16,13 @@ import { useMemo, useEffect } from "react";
 import { usePermissions, AppRole } from "@/hooks/usePermissions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { Search, Shield, UserCog } from "lucide-react";
 
@@ -29,7 +36,8 @@ import {
   createUserComparator 
 } from "@/modules/admin/hooks";
 import { useAdmin } from "@/modules/admin/context";
-import type { UserWithRole, SelectedUserData } from "@/modules/admin/types/admin.types";
+import type { UserWithRole, SelectedUserData, UserStatusFilter } from "@/modules/admin/types/admin.types";
+import { USER_STATUS_OPTIONS } from "@/modules/admin/types/admin.types";
 
 import { UserDetailSheet } from "./UserDetailSheet";
 
@@ -42,6 +50,7 @@ export function AdminUsersTab() {
     selectUser,
     deselectUser,
     setUsersSearch,
+    setUsersStatusFilter,
     openRoleChange,
     confirmRoleChange,
     cancelRoleChange,
@@ -85,6 +94,13 @@ export function AdminUsersTab() {
     "desc",
     createUserComparator()
   );
+
+  // Apply status filter
+  const statusFilteredUsers = useMemo(() => {
+    const statusFilter = usersContext.statusFilter;
+    if (statusFilter === "all") return sortedItems;
+    return sortedItems.filter((u) => (u.status || "active") === statusFilter);
+  }, [sortedItems, usersContext.statusFilter]);
 
   // Sync search term with context
   useEffect(() => {
@@ -171,20 +187,38 @@ export function AdminUsersTab() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder={isOwner ? "Buscar por nome, email ou ID..." : "Buscar por nome ou ID..."}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+        {/* Search and Filters */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder={isOwner ? "Buscar por nome, email ou ID..." : "Buscar por nome ou ID..."}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          
+          <Select
+            value={usersContext.statusFilter}
+            onValueChange={(value) => setUsersStatusFilter(value as UserStatusFilter)}
+          >
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Filtrar por status" />
+            </SelectTrigger>
+            <SelectContent>
+              {USER_STATUS_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Table - Pure Component */}
         <UsersTable
-          users={sortedItems}
+          users={statusFilteredUsers}
           isLoading={isUsersLoading}
           isOwner={isOwner}
           callerRole={callerRole}

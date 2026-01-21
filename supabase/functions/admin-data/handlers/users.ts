@@ -40,7 +40,7 @@ export async function getUsersWithMetrics(
 
   const { data: profilesData, error: profilesError } = await supabase
     .from("profiles")
-    .select("id, name, registration_source");
+    .select("id, name, registration_source, status");
 
   if (profilesError) throw profilesError;
 
@@ -70,6 +70,7 @@ export async function getUsersWithMetrics(
       user_id: roleRow.user_id,
       role: roleRow.role,
       profile: profile ? { name: profile.name || "Sem nome" } : null,
+      status: profile?.status || "active",
       total_gmv: metrics.gmv,
       total_fees: metrics.fees,
       orders_count: metrics.count,
