@@ -13,7 +13,7 @@
 
 import { useState, useMemo } from "react";
 import { CouponsTable } from "@/components/products/CouponsTable";
-import { CouponDialog, type CouponFormData, type CouponSaveResult } from "@/components/products/CouponDialog";
+import { CouponDialog, type CouponFormData, type CouponSaveResult } from "@/components/products/coupon-dialog";
 import { useProductContext } from "../context/ProductContext";
 import { toast } from "sonner";
 import { createLogger } from "@/lib/logger";
