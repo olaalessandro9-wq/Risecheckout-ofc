@@ -9,7 +9,7 @@
  * @version 2.0.0 - Refatorado para <300 linhas
  */
 
-import { createContext, useContext, useEffect, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { useMachine } from "@xstate/react";
 import { adminMachine } from "../machines/adminMachine";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -108,10 +108,28 @@ export function AdminProvider({ children }: AdminProviderProps) {
   const doFetchOrders = useCallback(() => fetchOrders(state.context.period, send), [state.context.period, send]);
   const doFetchSecurity = useCallback(() => fetchSecurity(send), [send]);
 
+  // Initial data loading
   useEffect(() => { if (state.context.usersLoading && state.context.users.items.length === 0) doFetchUsers(); }, [state.context.usersLoading, state.context.users.items.length, doFetchUsers]);
   useEffect(() => { if (state.context.productsLoading && state.context.products.items.length === 0) doFetchProducts(); }, [state.context.productsLoading, state.context.products.items.length, doFetchProducts]);
   useEffect(() => { if (state.context.ordersLoading && state.context.orders.items.length === 0) doFetchOrders(); }, [state.context.ordersLoading, state.context.orders.items.length, doFetchOrders]);
   useEffect(() => { if (state.context.securityLoading && state.context.security.alerts.length === 0) doFetchSecurity(); }, [state.context.securityLoading, state.context.security.alerts.length, doFetchSecurity]);
+
+  // Period change reactivity - reload data when period changes
+  const prevPeriodRef = useRef(state.context.period);
+  useEffect(() => {
+    if (prevPeriodRef.current !== state.context.period) {
+      prevPeriodRef.current = state.context.period;
+      // Reload orders and products when period changes
+      if (state.context.orders.items.length > 0) {
+        send({ type: "REFRESH_ORDERS" });
+        doFetchOrders();
+      }
+      if (state.context.products.items.length > 0) {
+        send({ type: "REFRESH_PRODUCTS" });
+        doFetchProducts();
+      }
+    }
+  }, [state.context.period, state.context.orders.items.length, state.context.products.items.length, send, doFetchOrders, doFetchProducts]);
 
   useEffect(() => {
     if (!state.context.security.autoRefresh) return;
