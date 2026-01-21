@@ -142,7 +142,8 @@ O RiseCheckout utiliza o **modelo Hotmart/Kiwify** com arquitetura dual-layer:
 ## 📖 Documentação Relacionada
 
 ### Arquitetura de Componentes
-- [Sistema de Pixels](./PIXEL_SYSTEM.md) - Tracking multi-plataforma
+- [Módulo de Trackeamento](./TRACKING_MODULE.md) - Pixels + UTMify (XState)
+- [Sistema de Pixels](./PIXEL_SYSTEM.md) - Detalhes técnicos de pixels
 - [Arquitetura do Sidebar](./SIDEBAR_ARCHITECTURE.md) - Navegação responsiva
 - [Sistema de Status](./ORDER_STATUS_MODEL.md) - Modelo Hotmart/Kiwify
 

@@ -39,6 +39,7 @@ O RiseCheckout está **100% completo** e pronto para produção. Todas as funcio
 | Documento | Descrição |
 |-----------|-----------|
 | **[ARCHITECTURE.md](./ARCHITECTURE.md)** | Arquitetura do sistema |
+| **[TRACKING_MODULE.md](./TRACKING_MODULE.md)** | Módulo de Trackeamento (Pixels + UTMify) |
 | **[ARCHITECTURE_DECISIONS.md](./ARCHITECTURE_DECISIONS.md)** | Decisões arquiteturais (XState) |
 | **[STATE_MACHINES.md](./STATE_MACHINES.md)** | Guia de XState State Machines |
 | **[PRODUCTS_MODULE_ARCHITECTURE.md](./PRODUCTS_MODULE_ARCHITECTURE.md)** | Arquitetura do módulo Products |
@@ -103,6 +104,7 @@ O RiseCheckout está **100% completo** e pronto para produção. Todas as funcio
 - ✅ Webhooks (HMAC-SHA256)
 - ✅ Rate Limiting ativo
 - ✅ Persistência de configurações
+- ✅ Trackeamento multi-plataforma (Pixels + UTMify)
 
 ### Segurança & Compliance
 - ✅ LGPD Compliance completo
@@ -152,6 +154,8 @@ src/
 ├── modules/             # Módulos independentes
 │   ├── dashboard/       # Dashboard financeiro
 │   ├── navigation/      # Navegação/Sidebar
+│   ├── pixels/          # Pixels de rastreamento (XState)
+│   ├── utmify/          # Integração UTMify (XState)
 │   └── products/        # Gerenciamento de produtos (XState)
 │       ├── machines/    # XState State Machine (SSOT)
 │       ├── context/     # ProductContext + hooks
