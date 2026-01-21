@@ -34,7 +34,7 @@ Este projeto utiliza **XState State Machines** como o **ÚNICO** padrão de gere
 
 ---
 
-## 2. Módulos Migrados (10/10 - 100%)
+## 2. Módulos Migrados (11/11 - 100%)
 
 | # | Módulo | Arquivo Principal | Estados | Linhas |
 |---|--------|-------------------|---------|--------|
@@ -48,8 +48,9 @@ Este projeto utiliza **XState State Machines** como o **ÚNICO** padrão de gere
 | 8 | **Pixels** | `src/modules/pixels/machines/pixelsMachine.ts` | 6 | ~180 |
 | 9 | **UTMify** | `src/modules/utmify/machines/utmifyMachine.ts` | 5 | ~160 |
 | 10 | **Webhooks** | `src/modules/webhooks/machines/webhooksMachine.ts` | 7 | 157 |
+| 11 | **Admin** | `src/modules/admin/machines/adminMachine.ts` | Parallel (4 regions) | ~240 |
 
-**Total de Linhas XState:** ~1.935 linhas  
+**Total de Linhas XState:** ~2.175 linhas  
 **Conformidade 300-Line Rule:** ✅ 100%
 
 ---
