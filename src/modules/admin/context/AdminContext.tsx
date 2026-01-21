@@ -108,66 +108,62 @@ export function AdminProvider({ children }: AdminProviderProps) {
   const doFetchOrders = useCallback(() => fetchOrders(state.context.period, send), [state.context.period, send]);
   const doFetchSecurity = useCallback(() => fetchSecurity(send), [send]);
 
-  // Initial data loading - using refs to prevent loops
-  // CRITICAL: Do NOT use items.length in dependencies - causes infinite loop when fetch returns 0 items
-  const usersLoadedRef = useRef(false);
-  const productsLoadedRef = useRef(false);
-  const ordersLoadedRef = useRef(false);
-  const securityLoadedRef = useRef(false);
-
-  useEffect(() => {
-    if (state.context.usersLoading && !usersLoadedRef.current) {
-      usersLoadedRef.current = true;
-      doFetchUsers();
-    }
-  }, [state.context.usersLoading, doFetchUsers]);
-
-  useEffect(() => {
-    if (state.context.productsLoading && !productsLoadedRef.current) {
-      productsLoadedRef.current = true;
-      doFetchProducts();
-    }
-  }, [state.context.productsLoading, doFetchProducts]);
-
-  useEffect(() => {
-    if (state.context.ordersLoading && !ordersLoadedRef.current) {
-      ordersLoadedRef.current = true;
-      doFetchOrders();
-    }
-  }, [state.context.ordersLoading, doFetchOrders]);
-
-  useEffect(() => {
-    if (state.context.securityLoading && !securityLoadedRef.current) {
-      securityLoadedRef.current = true;
-      doFetchSecurity();
-    }
-  }, [state.context.securityLoading, doFetchSecurity]);
-
-  // Period change reactivity - reload data when period changes
-  // CRITICAL: Do NOT include items.length in dependencies - causes infinite loop
+  // Tab-based lazy loading - fetch data when tab becomes active for the first time
+  // CRITICAL: This replaces the old loading flag approach which failed on initial load
+  const loadedTabsRef = useRef<Set<string>>(new Set());
   const prevPeriodRef = useRef(state.context.period);
-  const isReloadingRef = useRef(false);
-  
+
+  // Load data when tab becomes active (lazy loading per tab)
   useEffect(() => {
-    // Only execute if period actually changed
-    if (prevPeriodRef.current !== state.context.period) {
-      prevPeriodRef.current = state.context.period;
-      
-      // Prevent duplicate concurrent requests
-      if (isReloadingRef.current) return;
-      isReloadingRef.current = true;
-      
-      // Always reload orders when period changes (regardless of current items count)
+    const tab = state.context.activeTab;
+    
+    // Skip if already loaded this tab in current period
+    if (loadedTabsRef.current.has(tab)) return;
+    loadedTabsRef.current.add(tab);
+    
+    // Load data based on active tab
+    switch (tab) {
+      case "users":
+        send({ type: "LOAD_USERS" });
+        doFetchUsers();
+        break;
+      case "products":
+        send({ type: "LOAD_PRODUCTS" });
+        doFetchProducts();
+        break;
+      case "orders":
+        send({ type: "LOAD_ORDERS" });
+        doFetchOrders();
+        break;
+      case "security":
+        send({ type: "LOAD_SECURITY" });
+        doFetchSecurity();
+        break;
+      // finance, traffic, overview tabs don't need special data fetching
+    }
+  }, [state.context.activeTab, send, doFetchUsers, doFetchProducts, doFetchOrders, doFetchSecurity]);
+
+  // Period change reactivity - reset period-dependent tabs and reload current tab
+  useEffect(() => {
+    if (prevPeriodRef.current === state.context.period) return;
+    prevPeriodRef.current = state.context.period;
+    
+    // Remove period-dependent tabs from loaded set to force reload
+    loadedTabsRef.current.delete("orders");
+    loadedTabsRef.current.delete("products");
+    
+    // Immediately reload if current tab depends on period
+    const tab = state.context.activeTab;
+    if (tab === "orders") {
+      loadedTabsRef.current.add("orders");
       send({ type: "REFRESH_ORDERS" });
-      doFetchOrders().finally(() => {
-        isReloadingRef.current = false;
-      });
-      
-      // Also reload products
+      doFetchOrders();
+    } else if (tab === "products") {
+      loadedTabsRef.current.add("products");
       send({ type: "REFRESH_PRODUCTS" });
       doFetchProducts();
     }
-  }, [state.context.period, send, doFetchOrders, doFetchProducts]);
+  }, [state.context.period, state.context.activeTab, send, doFetchOrders, doFetchProducts]);
 
   useEffect(() => {
     if (!state.context.security.autoRefresh) return;
