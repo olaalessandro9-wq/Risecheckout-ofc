@@ -1,42 +1,17 @@
 /**
- * ProductFormMachine Types
+ * Types Barrel Export
  * 
- * Barrel export para todos os tipos da State Machine.
- * Os tipos estão modularizados em src/modules/products/machines/types/
+ * Re-exporta todos os tipos da State Machine de forma modular.
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - Modularização
  * @module products/machines/types
  */
 
-// Re-export de tipos de produto (compatibilidade)
-export type {
-  UpsellSettings,
-  AffiliateSettings,
-} from "../types/product.types";
+// Context
+export type { ProductFormContext } from "./context.types";
 
-// Re-export de tipos de formulário (compatibilidade)
+// Entities
 export type {
-  GeneralFormData,
-  ImageFormState,
-  OffersFormState,
-  CheckoutSettingsFormData,
-  GatewayCredentials,
-  GatewayCredentialStatus,
-  ServerDataSnapshot,
-  EditedFormData,
-} from "../types/formData.types";
-
-// Re-export de tipos de tab validation
-export type {
-  TabValidationMap,
-} from "../types/tabValidation.types";
-
-// Re-export de tipos modularizados
-export type {
-  // Context
-  ProductFormContext,
-  
-  // Entities
   MachineProduct,
   MachineOffer,
   MachineOrderBump,
@@ -47,8 +22,10 @@ export type {
   MappedProductData,
   ValidationErrors,
   ComputedValues,
-  
-  // Events
+} from "./entities.types";
+
+// Events
+export type {
   ProductFormEvent,
   LoadDataEvent,
   ReceiveDataEvent,
@@ -72,9 +49,11 @@ export type {
   SetTabErrorsEvent,
   ClearTabErrorsEvent,
   UpdateServerImageUrlEvent,
-  
-  // Actors
+} from "./events.types";
+
+// Actors
+export type {
   LoadProductInput,
   SaveAllInput,
   SaveHandlerRegistry,
-} from "./types";
+} from "./actors.types";

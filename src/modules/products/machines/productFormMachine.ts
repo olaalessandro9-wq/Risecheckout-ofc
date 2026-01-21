@@ -11,72 +11,10 @@
 import { setup, assign } from "xstate";
 import type { ProductFormContext, ProductFormEvent, MappedProductData } from "./productFormMachine.types";
 import { loadProductActor, saveAllActor } from "./productFormMachine.actors";
+import { initialContext } from "./productFormMachine.context";
 
-// ============================================================================
-// INITIAL CONTEXT
-// ============================================================================
-
-export const initialContext: ProductFormContext = {
-  serverData: {
-    product: null,
-    general: {
-      name: "",
-      description: "",
-      price: 0,
-      support_name: "",
-      support_email: "",
-      delivery_url: "",
-      external_delivery: false,
-    },
-    upsell: {
-      hasCustomThankYouPage: false,
-      customPageUrl: "",
-      redirectIgnoringOrderBumpFailures: false,
-    },
-    affiliateSettings: null,
-    offers: [],
-    checkoutSettings: {
-      required_fields: { name: true, email: true, phone: true, cpf: false },
-      default_payment_method: "credit_card",
-      pix_gateway: "",
-      credit_card_gateway: "",
-    },
-  },
-  editedData: {
-    general: {
-      name: "",
-      description: "",
-      price: 0,
-      support_name: "",
-      support_email: "",
-      delivery_url: "",
-      external_delivery: false,
-    },
-    image: { imageFile: null, imageUrl: "", pendingRemoval: false },
-    offers: { localOffers: [], deletedOfferIds: [], modified: false },
-    upsell: { hasCustomThankYouPage: false, customPageUrl: "", redirectIgnoringOrderBumpFailures: false },
-    affiliate: null,
-    checkoutSettings: {
-      required_fields: { name: true, email: true, phone: true, cpf: false },
-      default_payment_method: "credit_card",
-      pix_gateway: "",
-      credit_card_gateway: "",
-    },
-  },
-  entities: { orderBumps: [], checkouts: [], paymentLinks: [], coupons: [] },
-  credentials: {},
-  productId: null,
-  userId: undefined,
-  validationErrors: { general: {}, upsell: {}, affiliate: {}, checkoutSettings: {} },
-  saveError: null,
-  loadError: null,
-  lastLoadedAt: null,
-  lastSavedAt: null,
-  activeTab: "geral",
-  tabErrors: {},
-  isCheckoutSettingsInitialized: false,
-  pendingImageUrl: null,
-};
+// Re-export initialContext for external use
+export { initialContext } from "./productFormMachine.context";
 
 // ============================================================================
 // STATE MACHINE
@@ -250,7 +188,6 @@ export const productFormMachine = setup({
               affiliateSettings: context.editedData.affiliate ? { ...context.editedData.affiliate } : null,
               offers: [...context.editedData.offers.localOffers],
               checkoutSettings: { ...context.editedData.checkoutSettings },
-              // CRÍTICO: Atualizar image_url do produto com a URL pendente
               product: context.serverData.product ? {
                 ...context.serverData.product,
                 image_url: context.pendingImageUrl !== null 
@@ -260,18 +197,12 @@ export const productFormMachine = setup({
             },
             editedData: {
               ...context.editedData,
-              image: { 
-                imageFile: null, 
-                // CRÍTICO: Atualizar imageUrl com a URL pendente para exibição
-                imageUrl: context.pendingImageUrl ?? "", 
-                pendingRemoval: false 
-              },
+              image: { imageFile: null, imageUrl: context.pendingImageUrl ?? "", pendingRemoval: false },
               offers: { ...context.editedData.offers, deletedOfferIds: [], modified: false },
             },
             lastSavedAt: Date.now(),
             saveError: null,
             pendingImageUrl: null,
-            // Limpar erros de validação após salvamento bem-sucedido
             tabErrors: {},
             validationErrors: { general: {}, upsell: {}, affiliate: {}, checkoutSettings: {} },
           })),
@@ -280,19 +211,11 @@ export const productFormMachine = setup({
           target: "ready.dirty",
           actions: assign({ saveError: ({ event }) => event.error }),
         },
-        // Evento para armazenar URL da imagem durante salvamento
         UPDATE_SERVER_IMAGE_URL: {
-          actions: assign(({ event }) => ({
-            pendingImageUrl: event.imageUrl,
-          })),
+          actions: assign(({ event }) => ({ pendingImageUrl: event.imageUrl })),
         },
-        // Eventos permitidos durante salvamento (para tratamento de erros de validação)
-        SET_TAB_ERRORS: { 
-          actions: assign({ tabErrors: ({ event }) => event.errors }) 
-        },
-        SET_TAB: { 
-          actions: assign({ activeTab: ({ event }) => event.tab }) 
-        },
+        SET_TAB_ERRORS: { actions: assign({ tabErrors: ({ event }) => event.errors }) },
+        SET_TAB: { actions: assign({ activeTab: ({ event }) => event.tab }) },
         SET_VALIDATION_ERROR: {
           actions: assign(({ context, event }) => ({
             validationErrors: {
