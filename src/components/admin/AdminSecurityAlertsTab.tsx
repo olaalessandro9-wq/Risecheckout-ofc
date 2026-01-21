@@ -1,19 +1,19 @@
 /**
  * AdminSecurityAlertsTab - Gerenciamento de Segurança
  * 
- * RISE Protocol V3 Compliant - Refatorado para usar componentes modulares
+ * RISE Protocol V3 Compliant - XState via AdminContext
  * 
- * @version 2.0.0
+ * @version 3.0.0
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ShieldAlert, RefreshCw } from "lucide-react";
-import { useSecurityAlerts } from "@/hooks/useSecurityAlerts";
 import { toast } from "sonner";
+import { useAdmin } from "@/modules/admin/context";
 import {
   SecurityStats,
   AlertsList,
@@ -23,71 +23,54 @@ import {
   type SecurityAlert,
 } from "@/modules/admin/components/security";
 
-interface AlertFilters {
-  severity: string;
-  type: string;
-  acknowledged: string;
-}
-
 export function AdminSecurityAlertsTab() {
-  // State
-  const [activeTab, setActiveTab] = useState<"alerts" | "blocked">("alerts");
-  const [filters, setFilters] = useState<AlertFilters>({
-    severity: "all",
-    type: "all",
-    acknowledged: "all",
-  });
-  const [blockDialogOpen, setBlockDialogOpen] = useState(false);
-  const [selectedAlert, setSelectedAlert] = useState<SecurityAlert | null>(null);
-  const [autoRefresh, setAutoRefresh] = useState(true);
+  const {
+    context,
+    isSecurityLoading,
+    loadSecurity,
+    refreshSecurity,
+    acknowledgeAlert,
+    confirmBlockIP,
+    confirmUnblockIP,
+    setSecurityFilters,
+    toggleAutoRefresh,
+    openBlockDialog,
+    closeBlockDialog,
+    selectAlert,
+    deselectAlert,
+    openUnblockDialog,
+  } = useAdmin();
 
-  // Hook de segurança
   const {
     alerts,
     blockedIPs,
     stats,
-    isLoading,
-    fetchAlerts,
-    fetchBlockedIPs,
-    refresh,
-    acknowledgeAlert,
-    blockIP,
-    unblockIP,
-  } = useSecurityAlerts();
+    filters,
+    autoRefresh,
+    blockDialogOpen,
+    selectedAlert,
+  } = context.security;
 
-  // Auto-refresh a cada 30 segundos
+  // Local tab state (UI only)
+  const [activeTab, setActiveTab] = useState<"alerts" | "blocked">("alerts");
+
+  // Load security data on mount
   useEffect(() => {
-    if (!autoRefresh) return;
-    
-    const interval = setInterval(() => {
-      refresh();
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [autoRefresh, refresh]);
+    loadSecurity();
+  }, [loadSecurity]);
 
   // Handlers
-  const handleFilterChange = useCallback((key: keyof AlertFilters, value: string) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
-    
-    const newFilters: { severity?: string; type?: string; acknowledged?: boolean } = {};
-    if (key === "severity" && value !== "all") newFilters.severity = value;
-    if (key === "type" && value !== "all") newFilters.type = value;
-    if (key === "acknowledged") {
-      if (value === "pending") newFilters.acknowledged = false;
-      if (value === "acknowledged") newFilters.acknowledged = true;
-    }
-    
-    fetchAlerts(Object.keys(newFilters).length > 0 ? newFilters : undefined);
-  }, [fetchAlerts]);
+  const handleFilterChange = useCallback((key: "severity" | "type" | "acknowledged", value: string) => {
+    setSecurityFilters({ ...filters, [key]: value });
+  }, [setSecurityFilters, filters]);
 
   const handleRefreshAlerts = useCallback(() => {
-    refresh();
-  }, [refresh]);
+    refreshSecurity();
+  }, [refreshSecurity]);
 
   const handleRefreshBlockedIPs = useCallback(() => {
-    fetchBlockedIPs();
-  }, [fetchBlockedIPs]);
+    refreshSecurity();
+  }, [refreshSecurity]);
 
   const handleAcknowledge = useCallback(async (alertId: string) => {
     try {
@@ -100,26 +83,31 @@ export function AdminSecurityAlertsTab() {
 
   const handleBlockIP = useCallback(async (ipAddress: string, reason: string, expiresInDays?: number) => {
     try {
-      await blockIP(ipAddress, reason, expiresInDays);
+      await confirmBlockIP(ipAddress, reason, expiresInDays);
       toast.success(`IP ${ipAddress} bloqueado com sucesso`);
-      setBlockDialogOpen(false);
+      closeBlockDialog();
     } catch {
       toast.error("Erro ao bloquear IP");
     }
-  }, [blockIP]);
+  }, [confirmBlockIP, closeBlockDialog]);
 
   const handleUnblockIP = useCallback(async (ipAddress: string) => {
     try {
-      await unblockIP(ipAddress);
-      toast.success(`IP ${ipAddress} desbloqueado com sucesso`);
+      // Find the blocked IP and open unblock dialog, then confirm
+      const blocked = blockedIPs.find(b => b.ip_address === ipAddress);
+      if (blocked) {
+        openUnblockDialog(blocked);
+        await confirmUnblockIP();
+        toast.success(`IP ${ipAddress} desbloqueado com sucesso`);
+      }
     } catch {
       toast.error("Erro ao desbloquear IP");
     }
-  }, [unblockIP]);
+  }, [blockedIPs, openUnblockDialog, confirmUnblockIP]);
 
   const handleViewDetails = useCallback((alert: SecurityAlert) => {
-    setSelectedAlert(alert);
-  }, []);
+    selectAlert(alert);
+  }, [selectAlert]);
 
   // Transform alerts to match component interface
   const transformedAlerts: SecurityAlert[] = alerts.map((alert) => ({
@@ -134,11 +122,11 @@ export function AdminSecurityAlertsTab() {
 
   // Transform stats
   const statsData = {
-    criticalAlerts24h: stats.criticalAlerts24h,
-    blockedIPsActive: stats.blockedIPsActive,
-    bruteForceAttempts: stats.bruteForceAttempts,
-    rateLimitExceeded: stats.rateLimitExceeded,
-    unacknowledgedAlerts: stats.unacknowledgedAlerts,
+    criticalAlerts24h: stats?.criticalAlerts24h ?? 0,
+    blockedIPsActive: stats?.blockedIPsActive ?? 0,
+    bruteForceAttempts: stats?.bruteForceAttempts ?? 0,
+    rateLimitExceeded: stats?.rateLimitExceeded ?? 0,
+    unacknowledgedAlerts: stats?.unacknowledgedAlerts ?? 0,
   };
 
   return (
@@ -159,20 +147,20 @@ export function AdminSecurityAlertsTab() {
             <Switch
               id="auto-refresh"
               checked={autoRefresh}
-              onCheckedChange={setAutoRefresh}
+              onCheckedChange={toggleAutoRefresh}
             />
             <Label htmlFor="auto-refresh" className="text-sm">
               Auto-refresh
             </Label>
           </div>
-          <Button variant="outline" size="sm" onClick={handleRefreshAlerts} disabled={isLoading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
+          <Button variant="outline" size="sm" onClick={handleRefreshAlerts} disabled={isSecurityLoading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isSecurityLoading ? "animate-spin" : ""}`} />
             Atualizar
           </Button>
         </div>
       </div>
 
-      <SecurityStats stats={statsData} isLoading={isLoading} />
+      <SecurityStats stats={statsData} isLoading={isSecurityLoading} />
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "alerts" | "blocked")}>
         <TabsList>
@@ -184,7 +172,7 @@ export function AdminSecurityAlertsTab() {
           <AlertsList
             alerts={transformedAlerts}
             filters={filters}
-            isLoading={isLoading}
+            isLoading={isSecurityLoading}
             onFilterChange={handleFilterChange}
             onRefresh={handleRefreshAlerts}
             onAcknowledge={handleAcknowledge}
@@ -195,9 +183,9 @@ export function AdminSecurityAlertsTab() {
         <TabsContent value="blocked" className="mt-4">
           <BlockedIPsList
             blockedIPs={blockedIPs}
-            isLoading={isLoading}
+            isLoading={isSecurityLoading}
             onUnblock={handleUnblockIP}
-            onOpenBlockDialog={() => setBlockDialogOpen(true)}
+            onOpenBlockDialog={() => openBlockDialog()}
             onRefresh={handleRefreshBlockedIPs}
           />
         </TabsContent>
@@ -205,15 +193,15 @@ export function AdminSecurityAlertsTab() {
 
       <BlockIPDialog
         open={blockDialogOpen}
-        onOpenChange={setBlockDialogOpen}
+        onOpenChange={(open) => open ? openBlockDialog() : closeBlockDialog()}
         onBlock={handleBlockIP}
-        isLoading={isLoading}
+        isLoading={isSecurityLoading}
       />
 
       <AlertDetailDialog
         alert={selectedAlert}
         open={!!selectedAlert}
-        onOpenChange={(open) => !open && setSelectedAlert(null)}
+        onOpenChange={(open) => !open && deselectAlert()}
       />
     </div>
   );
