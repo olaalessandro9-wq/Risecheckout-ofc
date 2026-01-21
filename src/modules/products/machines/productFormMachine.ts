@@ -263,6 +263,29 @@ export const productFormMachine = setup({
           target: "ready.dirty",
           actions: assign({ saveError: ({ event }) => event.error }),
         },
+        // Eventos permitidos durante salvamento (para tratamento de erros de validação)
+        SET_TAB_ERRORS: { 
+          actions: assign({ tabErrors: ({ event }) => event.errors }) 
+        },
+        SET_TAB: { 
+          actions: assign({ activeTab: ({ event }) => event.tab }) 
+        },
+        SET_VALIDATION_ERROR: {
+          actions: assign(({ context, event }) => ({
+            validationErrors: {
+              ...context.validationErrors,
+              [event.section]: {
+                ...context.validationErrors[event.section],
+                [event.field]: event.error,
+              },
+            },
+          })),
+        },
+        CLEAR_VALIDATION_ERRORS: {
+          actions: assign(() => ({
+            validationErrors: { general: {}, upsell: {}, affiliate: {}, checkoutSettings: {} },
+          })),
+        },
       },
     },
     
