@@ -4,6 +4,7 @@
  * Handles: admin-orders
  * 
  * @see RISE Protocol V3 - Limite 300 linhas por arquivo
+ * @version 2.0.0 - Added status distribution instrumentation
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -63,6 +64,18 @@ export async function getAdminOrders(
     log.error("Orders error", error);
     return errorResponse("Erro ao buscar pedidos", "DB_ERROR", corsHeaders, 500);
   }
+
+  // === INSTRUMENTATION: Log status distribution for debugging ===
+  const statusDistribution: Record<string, number> = {};
+  for (const order of orders || []) {
+    const key = order.status ?? "NULL";
+    statusDistribution[key] = (statusDistribution[key] || 0) + 1;
+  }
+  log.info("Orders status distribution from DB", { 
+    period, 
+    total: orders?.length ?? 0,
+    distribution: statusDistribution 
+  });
 
   return jsonResponse({ orders: orders || [] }, corsHeaders);
 }

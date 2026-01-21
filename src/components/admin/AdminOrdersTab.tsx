@@ -72,7 +72,8 @@ export function AdminOrdersTab() {
     return [...statusFilteredOrders].sort((a, b) => {
       const direction = ordersContext.sortDirection === "asc" ? 1 : -1;
       switch (ordersContext.sortField) {
-        case "date": return direction * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        // CRITICAL: Use ISO date for reliable sorting (not formatted string)
+        case "date": return direction * (new Date(a.createdAtISO).getTime() - new Date(b.createdAtISO).getTime());
         case "amount": return direction * (a.amountCents - b.amountCents);
         case "customer": return direction * a.customerName.localeCompare(b.customerName);
         default: return 0;

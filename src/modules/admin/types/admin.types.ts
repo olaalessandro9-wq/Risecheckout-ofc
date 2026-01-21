@@ -3,10 +3,11 @@
  * 
  * RISE Protocol V3 - Single Source of Truth para tipos do módulo Admin
  * 
- * @version 1.0.0
+ * @version 2.0.0 - Canonical Order Status via orderStatusService
  */
 
 import type { AppRole } from "@/hooks/usePermissions";
+import type { CanonicalOrderStatus } from "@/lib/order-status/types";
 
 // ============================================
 // ENUMS E CONSTANTES
@@ -126,7 +127,8 @@ export interface AdminOrder {
   vendorId: string;
   amount: string;
   amountCents: number;
-  status: string;
+  /** Canonical status - ONLY 4 values: paid, pending, refunded, chargeback */
+  status: CanonicalOrderStatus;
   paymentMethod: string | null;
   createdAt: string;
   fullCreatedAt: string;
@@ -274,21 +276,27 @@ export const PERIOD_OPTIONS: { value: PeriodFilter; label: string }[] = [
 ];
 
 // ============================================
-// ORDER STATUS CONSTANTS
+// ORDER STATUS CONSTANTS (DEPRECATED - Use orderStatusService)
 // ============================================
 
-export const ORDER_STATUS_LABELS: Record<string, string> = {
+/**
+ * @deprecated Use orderStatusService.getDisplayLabel() instead
+ * Kept for backward compatibility only
+ */
+export const ORDER_STATUS_LABELS: Record<CanonicalOrderStatus, string> = {
   pending: "Pendente",
   paid: "Pago",
-  cancelled: "Cancelado",
   refunded: "Reembolsado",
-  expired: "Expirado",
+  chargeback: "Chargeback",
 };
 
-export const ORDER_STATUS_COLORS: Record<string, string> = {
+/**
+ * @deprecated Use orderStatusService.getColorScheme() instead
+ * Kept for backward compatibility only
+ */
+export const ORDER_STATUS_COLORS: Record<CanonicalOrderStatus, string> = {
   pending: "bg-amber-500/10 text-amber-500 border-amber-500/20",
   paid: "bg-green-500/10 text-green-500 border-green-500/20",
-  cancelled: "bg-red-500/10 text-red-500 border-red-500/20",
   refunded: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-  expired: "bg-muted text-muted-foreground border-muted",
+  chargeback: "bg-red-500/10 text-red-500 border-red-500/20",
 };
