@@ -1,12 +1,11 @@
 /**
  * Webhooks - Página de gerenciamento de Webhooks
  * 
- * Layout com edição inline à direita.
- * 
- * @see RISE ARCHITECT PROTOCOL V3 - Configurações
+ * @version 2.0.0 - RISE Protocol V3 Compliant (XState)
+ * @see docs/WEBHOOKS_MODULE.md
  */
 
-import { WebhooksConfig } from "@/components/webhooks/WebhooksConfig";
+import { WebhooksManager } from "@/modules/webhooks";
 
 const Webhooks = () => {
   return (
@@ -21,8 +20,8 @@ const Webhooks = () => {
         </p>
       </div>
 
-      {/* Conteúdo principal */}
-      <WebhooksConfig />
+      {/* Conteúdo principal via XState */}
+      <WebhooksManager />
     </div>
   );
 };

@@ -164,7 +164,8 @@ async function listWebhooksWithProducts(
     product: webhook.product_id ? { name: productMap.get(webhook.product_id) || "Produto não encontrado" } : null,
   }));
 
-  return jsonResponse({ success: true, webhooks: webhooksWithProducts }, corsHeaders);
+  // Also fetch products for the response
+  return jsonResponse({ success: true, webhooks: webhooksWithProducts, products: productsData || [] }, corsHeaders);
 }
 
 async function listUserProducts(
@@ -260,11 +261,11 @@ serve(withSentry("webhook-crud", async (req) => {
     // ============================================
     // LIST ACTIONS (no webhookId required)
     // ============================================
-    if (action === "list") {
+    if (action === "list" || action === "list-with-products") {
       return listWebhooksWithProducts(supabase, vendorId, corsHeaders);
     }
 
-    if (action === "list-products") {
+    if (action === "list-products" || action === "list-user-products") {
       return listUserProducts(supabase, vendorId, corsHeaders);
     }
 
