@@ -10,7 +10,7 @@
  * - Salvamento unificado via botão global "Salvar Produto" (header)
  */
 
-import { useConfirmDelete } from "@/components/common/ConfirmDelete";
+
 import {
   useGeneralTab,
   ProductInfoSection,
@@ -18,11 +18,9 @@ import {
   ProductOffersSection,
   ProductSupportSection,
   ProductDeliverySection,
-  GeneralTabActions,
 } from "./general";
 
 export function GeneralTab() {
-  const { confirm, Bridge: ConfirmDeleteBridge } = useConfirmDelete();
 
   const {
     product,
@@ -32,10 +30,8 @@ export function GeneralTab() {
     clearError,
     image,
     localOffers,
-    isDeleting,
     memberGroups,
     hasMembersArea,
-    handleDelete,
     handleImageFileChange,
     handleImageUrlChange,
     handleRemoveImage,
@@ -43,20 +39,6 @@ export function GeneralTab() {
     handleOffersModifiedChange,
     handleOfferDeleted,
   } = useGeneralTab();
-
-  // Handler de exclusão com confirmação
-  const onDeleteClick = () => {
-    if (!product) return;
-
-    confirm({
-      resourceType: "Produto",
-      resourceName: product.name,
-      requireTypeToConfirm: true,
-      description:
-        "Esta ação não pode ser desfeita. Todos os checkouts e links associados serão removidos ou desativados.",
-      onConfirm: handleDelete,
-    });
-  };
 
   if (!product) {
     return (
@@ -108,14 +90,7 @@ export function GeneralTab() {
           errors={errors}
           clearError={clearError}
         />
-
-        <GeneralTabActions
-          isDeleting={isDeleting}
-          onDelete={onDeleteClick}
-        />
       </div>
-
-      <ConfirmDeleteBridge />
     </>
   );
 }

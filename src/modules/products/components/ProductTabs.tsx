@@ -7,7 +7,6 @@
  * Estendido para suportar:
  * - Indicadores visuais de erro por aba
  * - Navegação controlada via Context
- * - Barra de ações (Excluir/Salvar) no final de cada aba
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - Sistema de Validação Global
  */

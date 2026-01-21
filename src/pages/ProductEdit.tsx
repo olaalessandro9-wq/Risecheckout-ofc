@@ -8,7 +8,6 @@
  * - Sincronização automática entre abas
  * - Proteção contra navegação com alterações não salvas
  * - Suporte a sub-seções dedicadas (Área de Membros)
- * - Barra de ações (Excluir/Salvar) no final de cada aba
  */
 
 import { useSearchParams } from "react-router-dom";
