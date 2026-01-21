@@ -53,6 +53,25 @@ export async function getAdminAnalyticsFinancial(
   const averageTicket = totalPaidOrders > 0 ? totalGMV / totalPaidOrders : 0;
   const uniqueVendors = new Set(data.map((o) => o.vendor_id));
 
+  // Agregar pedidos por dia
+  const dailyMap = new Map<string, { gmv: number; platformFee: number }>();
+  data.forEach((order) => {
+    const date = order.paid_at?.split("T")[0] || "unknown";
+    const current = dailyMap.get(date) || { gmv: 0, platformFee: 0 };
+    dailyMap.set(date, {
+      gmv: current.gmv + (order.amount_cents || 0),
+      platformFee: current.platformFee + (order.platform_fee_cents || 0),
+    });
+  });
+
+  const dailyRevenue = Array.from(dailyMap.entries())
+    .map(([date, values]) => ({
+      date,
+      gmv: values.gmv,
+      platformFee: values.platformFee,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
   return jsonResponse({
     metrics: {
       totalPlatformFees,
@@ -61,7 +80,7 @@ export async function getAdminAnalyticsFinancial(
       averageTicket,
       activeSellers: uniqueVendors.size,
     },
-    dailyRevenue: [], // TODO: Adicionar agregação por dia
+    dailyRevenue,
   }, corsHeaders);
 }
 
