@@ -3,7 +3,7 @@
  * 
  * RISE Protocol V3 - XState State Machine Types
  * 
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 import type { AppRole } from "@/hooks/usePermissions";
@@ -24,9 +24,6 @@ import type {
   OrderSortField,
   ProductStatusFilter,
 } from "../types/admin.types";
-
-// Re-export for convenience
-export type { AdminTabId, PeriodFilter } from "../types/admin.types";
 
 // ============================================================================
 // REGION CONTEXTS
@@ -87,7 +84,7 @@ export interface AdminMachineContext {
   period: PeriodFilter;
   callerRole: AppRole;
   
-  // Loading states (simpler than parallel)
+  // Loading states
   usersLoading: boolean;
   productsLoading: boolean;
   ordersLoading: boolean;
@@ -105,12 +102,12 @@ export interface AdminMachineContext {
 // ============================================================================
 
 // Navigation events
-export type NavigationEvent =
+type NavigationEvent =
   | { type: "CHANGE_TAB"; tab: AdminTabId }
   | { type: "SET_PERIOD"; period: PeriodFilter };
 
 // Users region events
-export type UsersEvent =
+type UsersEvent =
   | { type: "LOAD_USERS" }
   | { type: "REFRESH_USERS" }
   | { type: "USERS_LOADED"; data: { users: UserWithRole[]; emails: Record<string, string> } }
@@ -125,7 +122,7 @@ export type UsersEvent =
   | { type: "CANCEL_ROLE_CHANGE" };
 
 // Products region events
-export type ProductsEvent =
+type ProductsEvent =
   | { type: "LOAD_PRODUCTS" }
   | { type: "REFRESH_PRODUCTS" }
   | { type: "PRODUCTS_LOADED"; data: ProductWithMetrics[] }
@@ -141,7 +138,7 @@ export type ProductsEvent =
   | { type: "CANCEL_PRODUCT_ACTION" };
 
 // Orders region events
-export type OrdersEvent =
+type OrdersEvent =
   | { type: "LOAD_ORDERS" }
   | { type: "REFRESH_ORDERS" }
   | { type: "ORDERS_LOADED"; data: AdminOrder[] }
@@ -154,7 +151,7 @@ export type OrdersEvent =
   | { type: "SET_ORDERS_PAGE"; page: number };
 
 // Security region events
-export type SecurityEvent =
+type SecurityEvent =
   | { type: "LOAD_SECURITY" }
   | { type: "REFRESH_SECURITY" }
   | { type: "SECURITY_LOADED"; data: { alerts: SecurityAlert[]; blockedIPs: BlockedIP[]; stats: SecurityStats | null } }
@@ -181,61 +178,6 @@ export type AdminMachineEvent =
   | ProductsEvent
   | OrdersEvent
   | SecurityEvent;
-
-// ============================================================================
-// ACTOR INPUT TYPES
-// ============================================================================
-
-export interface LoadUsersInput {
-  callerRole: AppRole;
-}
-
-export interface LoadUsersOutput {
-  users: UserWithRole[];
-  emails: Record<string, string>;
-}
-
-export interface ChangeRoleInput {
-  userId: string;
-  newRole: AppRole;
-}
-
-export interface LoadProductsInput {
-  period: PeriodFilter;
-}
-
-export interface ProductActionInput {
-  productId: string;
-  action: "activate" | "block" | "delete";
-}
-
-export interface LoadOrdersInput {
-  period: PeriodFilter;
-}
-
-export interface LoadSecurityInput {
-  period?: PeriodFilter;
-}
-
-export interface LoadSecurityOutput {
-  alerts: SecurityAlert[];
-  blockedIPs: BlockedIP[];
-  stats: SecurityStats | null;
-}
-
-export interface AcknowledgeAlertInput {
-  alertId: string;
-}
-
-export interface BlockIPInput {
-  ip: string;
-  reason: string;
-  expiresInDays?: number;
-}
-
-export interface UnblockIPInput {
-  ip: string;
-}
 
 // ============================================================================
 // INITIAL CONTEXT
