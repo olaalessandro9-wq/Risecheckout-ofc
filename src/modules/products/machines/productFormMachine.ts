@@ -270,7 +270,10 @@ export const productFormMachine = setup({
             },
             lastSavedAt: Date.now(),
             saveError: null,
-            pendingImageUrl: null, // Limpar após usar
+            pendingImageUrl: null,
+            // Limpar erros de validação após salvamento bem-sucedido
+            tabErrors: {},
+            validationErrors: { general: {}, upsell: {}, affiliate: {}, checkoutSettings: {} },
           })),
         },
         SAVE_ERROR: {
