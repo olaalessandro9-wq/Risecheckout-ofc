@@ -1,384 +1,290 @@
 /**
- * AdminOrdersTab - Tab de todas as vendas da plataforma (apenas owner)
+ * AdminOrdersTab - Gerenciamento de Pedidos
  * 
- * Exibe TODAS as vendas com:
- * - Lazy loading e paginação
- * - Dados sensíveis mascarados por padrão (clique para ver)
- * - Auditoria de acesso a dados sensíveis
+ * RISE Protocol V3 Compliant - Refatorado para usar componentes e hooks modulares
+ * 
+ * @version 2.0.0
  */
 
-import { useState, useMemo } from "react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { useState, useMemo, useCallback } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, RefreshCw, Download, Eye, ChevronLeft, ChevronRight, ShoppingCart } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis,
+} from "@/components/ui/pagination";
+import { ShoppingCart, Search, RefreshCw, Download } from "lucide-react";
 import { OrderDetailsDialog } from "@/components/dashboard/OrderDetailsDialog";
 import { useAdminOrders, AdminOrder } from "@/hooks/useAdminOrders";
 import { PeriodFilter } from "@/hooks/useAdminAnalytics";
+import {
+  OrdersTable,
+  OrderStats,
+  type OrderStatsData,
+} from "@/modules/admin/components/orders";
+import {
+  useAdminFilters,
+  useAdminPagination,
+} from "@/modules/admin/hooks";
+import type { OrderSortField, SortDirection } from "@/modules/admin/types/admin.types";
 
 interface AdminOrdersTabProps {
   period: PeriodFilter;
 }
 
-const ITEMS_PER_PAGE = 15;
+const STATUS_OPTIONS = [
+  { value: "all", label: "Todos os Status" },
+  { value: "Pendente", label: "Pendentes" },
+  { value: "Pago", label: "Pagos" },
+  { value: "Cancelado", label: "Cancelados" },
+  { value: "Reembolsado", label: "Reembolsados" },
+  { value: "Expirado", label: "Expirados" },
+];
 
 export function AdminOrdersTab({ period }: AdminOrdersTabProps) {
   const { data: orders = [], isLoading, refetch } = useAdminOrders(period);
+
+  // State
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [sortField, setSortField] = useState<OrderSortField>("date");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [searchTerm, setSearchTerm] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Filtrar pedidos por termo de busca
-  const filteredOrders = useMemo(() => {
-    if (!searchTerm) return orders;
+  // Hooks modulares
+  const { filteredItems, searchTerm, setSearchTerm } = useAdminFilters(
+    orders,
+    (order) => [order.orderId, order.customerName, order.customerEmail, order.productName],
+    {}
+  );
 
-    const term = searchTerm.toLowerCase();
-    return orders.filter(order =>
-      order.id.toLowerCase().includes(term) ||
-      order.customerName.toLowerCase().includes(term) ||
-      order.customerEmail.toLowerCase().includes(term) ||
-      order.productName.toLowerCase().includes(term)
-    );
-  }, [orders, searchTerm]);
+  // Filtro por status
+  const statusFilteredOrders = statusFilter === "all"
+    ? filteredItems
+    : filteredItems.filter((o) => o.status === statusFilter);
 
-  // Calcular total de páginas
-  const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
-
-  // Obter pedidos da página atual
-  const paginatedOrders = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    return filteredOrders.slice(startIndex, endIndex);
-  }, [filteredOrders, currentPage]);
-
-  // Calcular range de páginas a exibir
-  const pageNumbers = useMemo(() => {
-    const pages: (number | string)[] = [];
-    const maxPagesToShow = 5;
-
-    if (totalPages <= maxPagesToShow) {
-      for (let i = 1; i <= totalPages; i++) pages.push(i);
-    } else if (totalPages <= 8) {
-      for (let i = 1; i <= totalPages; i++) pages.push(i);
-    } else {
-      if (currentPage <= 3) {
-        for (let i = 1; i <= maxPagesToShow; i++) pages.push(i);
-        pages.push('ellipsis');
-        pages.push(totalPages);
-      } else if (currentPage >= totalPages - 2) {
-        pages.push(1);
-        pages.push('ellipsis');
-        for (let i = totalPages - maxPagesToShow + 1; i <= totalPages; i++) pages.push(i);
-      } else {
-        pages.push(1);
-        pages.push('ellipsis');
-        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
-        pages.push('ellipsis');
-        pages.push(totalPages);
+  // Ordenação
+  const sortedOrders = useMemo(() => {
+    return [...statusFilteredOrders].sort((a, b) => {
+      const direction = sortDirection === "asc" ? 1 : -1;
+      
+      switch (sortField) {
+        case "date":
+          return direction * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        case "amount":
+          return direction * (a.amountCents - b.amountCents);
+        case "customer":
+          return direction * a.customerName.localeCompare(b.customerName);
+        default:
+          return 0;
       }
+    });
+  }, [statusFilteredOrders, sortField, sortDirection]);
+
+  const {
+    paginatedItems,
+    currentPage,
+    totalPages,
+    pageNumbers,
+    goToPage,
+    goToPrevious,
+    goToNext,
+  } = useAdminPagination(sortedOrders, 15);
+
+  // Estatísticas
+  const stats: OrderStatsData = useMemo(() => ({
+    totalOrders: orders.length,
+    totalRevenue: orders
+      .filter((o) => o.status === "Pago")
+      .reduce((sum, o) => sum + o.amountCents, 0),
+    pendingOrders: orders.filter((o) => o.status === "Pendente").length,
+    completedOrders: orders.filter((o) => o.status === "Pago").length,
+  }), [orders]);
+
+  // Transform orders for OrdersTable
+  const transformedOrders = paginatedItems.map((order) => ({
+    ...order,
+    id: order.id,
+    orderId: order.orderId,
+    status: order.status.toLowerCase(),
+  }));
+
+  // Handlers
+  const handleSort = useCallback((field: OrderSortField) => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDirection("desc");
     }
-    return pages;
-  }, [currentPage, totalPages]);
+  }, [sortField]);
 
-  const handleViewDetails = (order: AdminOrder) => {
-    setSelectedOrder(order);
-    setIsDialogOpen(true);
-  };
+  const handleViewDetails = useCallback((orderId: string) => {
+    const order = orders.find((o) => o.id === orderId);
+    if (order) {
+      setSelectedOrder(order);
+      setIsDialogOpen(true);
+    }
+  }, [orders]);
 
-  const handleSearchChange = (value: string) => {
-    setSearchTerm(value);
-    setCurrentPage(1);
-  };
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await refetch();
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [refetch]);
 
-  const handleExportExcel = () => {
-    const headers = ['ID', 'Produto', 'Cliente', 'Email', 'Valor', 'Status', 'Data'];
-    const rows = filteredOrders.map(order => [
+  const handleExportExcel = useCallback(() => {
+    const headers = ["ID", "Produto", "Cliente", "Email", "Valor", "Status", "Data"];
+    const rows = filteredItems.map((order) => [
       order.orderId,
       order.productName,
       order.customerName,
       order.customerEmail,
       order.amount,
       order.status,
-      order.createdAt
+      order.createdAt,
     ]);
-    const csvContent = [headers.join(','), ...rows.map(row => row.map(cell => `"${cell}"`).join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+    ].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `vendas_plataforma_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `vendas_plataforma_${new Date().toISOString().split("T")[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      await refetch();
-      await new Promise(resolve => setTimeout(resolve, 500));
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  // Estatísticas rápidas
-  const stats = useMemo(() => {
-    const paid = filteredOrders.filter(o => o.status === "Pago");
-    const pending = filteredOrders.filter(o => o.status === "Pendente");
-    const totalRevenue = paid.reduce((sum, o) => sum + o.amountCents, 0);
-    
-    return {
-      total: filteredOrders.length,
-      paid: paid.length,
-      pending: pending.length,
-      revenue: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalRevenue / 100)
-    };
-  }, [filteredOrders]);
+  }, [filteredItems]);
 
   return (
-    <>
-      <OrderDetailsDialog
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        orderData={selectedOrder ? {
-          id: selectedOrder.orderId,
-          customerName: selectedOrder.customerName,
-          customerEmail: selectedOrder.customerEmail,
-          customerPhone: selectedOrder.customerPhone,
-          customerDocument: selectedOrder.customerDocument,
-          productName: selectedOrder.productName,
-          productImageUrl: selectedOrder.productImageUrl,
-          amount: selectedOrder.amount,
-          status: selectedOrder.status,
-          createdAt: selectedOrder.createdAt,
-        } : null}
-        productOwnerId={selectedOrder?.productOwnerId}
-      />
+    <div className="space-y-6">
+      <OrderStats stats={stats} isLoading={isLoading} />
 
-      <div className="space-y-4">
-        {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total de Vendas</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Pagas</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-emerald-600">{stats.paid}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Pendentes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-amber-600">{stats.pending}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Receita (Pagas)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.revenue}</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Tabela */}
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <ShoppingCart className="h-5 w-5" />
-                  Todas as Vendas da Plataforma
-                </CardTitle>
-                <CardDescription>
-                  Visualize todas as transações. Clique em "Ver" para acessar dados sensíveis com auditoria.
-                </CardDescription>
-              </div>
-              
-              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                <div className="relative flex-1 sm:flex-none">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input
-                    type="text"
-                    placeholder="Buscar..."
-                    value={searchTerm}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  />
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRefresh}
-                  disabled={isLoading || isRefreshing}
-                >
-                  <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                  Atualizar
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExportExcel}
-                  disabled={filteredOrders.length === 0}
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Exportar
-                </Button>
-              </div>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5" />
+              Gerenciar Pedidos
+            </CardTitle>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleExportExcel}>
+                <Download className="h-4 w-4 mr-2" />
+                Exportar CSV
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+                Atualizar
+              </Button>
             </div>
-          </CardHeader>
-          
-          <CardContent>
-            <div className="border rounded-lg overflow-hidden overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Produto</TableHead>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Valor</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    Array.from({ length: 5 }).map((_, i) => (
-                      <TableRow key={i}>
-                        <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                        <TableCell><Skeleton className="h-6 w-16" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                        <TableCell><Skeleton className="h-8 w-16 ml-auto" /></TableCell>
-                      </TableRow>
-                    ))
-                  ) : filteredOrders.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-12">
-                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                          <ShoppingCart className="w-8 h-8 opacity-50" />
-                          <p>{searchTerm ? "Nenhum resultado encontrado" : "Nenhuma venda no período"}</p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    paginatedOrders.map((order) => (
-                      <TableRow key={order.orderId} className="hover:bg-muted/30">
-                        <TableCell className="font-mono text-xs">{order.id}</TableCell>
-                        <TableCell className="font-medium max-w-[200px] truncate">{order.productName}</TableCell>
-                        <TableCell>{order.customerName}</TableCell>
-                        <TableCell className="text-muted-foreground text-sm">{order.customerEmail}</TableCell>
-                        <TableCell className="font-semibold">{order.amount}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={order.status === "Pago" ? "default" : "secondary"}
-                            className={
-                              order.status === "Pago"
-                                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                                : order.status === "Pendente"
-                                ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                                : "bg-red-500/10 text-red-600 border-red-500/20"
-                            }
-                          >
-                            {order.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-sm">{order.createdAt}</TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleViewDetails(order)}
-                          >
-                            <Eye className="w-4 h-4 mr-1" />
-                            Ver
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+          </div>
+
+          <div className="flex flex-wrap gap-4 pt-4">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por ID, cliente ou produto..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
             </div>
 
-            {/* Paginação */}
-            {!isLoading && filteredOrders.length > 0 && (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 text-sm text-muted-foreground">
-                <span>
-                  Mostrando {((currentPage - 1) * ITEMS_PER_PAGE) + 1} a {Math.min(currentPage * ITEMS_PER_PAGE, filteredOrders.length)} de {filteredOrders.length}
-                </span>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(p => p - 1)}
-                    className="h-8 w-8"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </Button>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
 
-                  <div className="flex items-center gap-1 mx-2">
-                    {pageNumbers.map((page, index) => {
-                      if (page === 'ellipsis') return <span key={`ellipsis-${index}`} className="px-2">...</span>;
+        <CardContent>
+          <OrdersTable
+            orders={transformedOrders}
+            isLoading={isLoading}
+            sortField={sortField}
+            sortDirection={sortDirection}
+            onSort={handleSort}
+            onViewDetails={handleViewDetails}
+          />
 
-                      return (
-                        <Button
-                          key={page}
-                          variant={page === currentPage ? "default" : "ghost"}
-                          size="sm"
-                          onClick={() => setCurrentPage(page as number)}
-                          className="h-8 w-8 p-0"
+          {totalPages > 1 && (
+            <div className="mt-4">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={goToPrevious}
+                      className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+
+                  {pageNumbers.map((page, index) => (
+                    <PaginationItem key={index}>
+                      {page === "ellipsis" ? (
+                        <PaginationEllipsis />
+                      ) : (
+                        <PaginationLink
+                          onClick={() => goToPage(page as number)}
+                          isActive={currentPage === page}
+                          className="cursor-pointer"
                         >
                           {page}
-                        </Button>
-                      );
-                    })}
-                  </div>
+                        </PaginationLink>
+                      )}
+                    </PaginationItem>
+                  ))}
 
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage(p => p + 1)}
-                    className="h-8 w-8"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </>
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={goToNext}
+                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <OrderDetailsDialog
+        order={selectedOrder}
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+      />
+    </div>
   );
 }
