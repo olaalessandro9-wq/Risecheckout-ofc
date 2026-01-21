@@ -129,7 +129,7 @@ export const NAVIGATION_CONFIG: readonly NavItemConfig[] = [
       children: [
         {
           id: "tracking",
-          label: "Rastreamento",
+          label: "Trackeamento",
           icon: BarChart3,
           variant: {
             type: "route",
