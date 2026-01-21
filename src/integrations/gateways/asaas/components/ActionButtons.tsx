@@ -1,73 +1,50 @@
 /**
  * ActionButtons - Botões de ação do formulário Asaas
+ * Botão único "Conectar Asaas" que valida + salva em uma ação
  */
 
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 
 interface ActionButtonsProps {
-  onValidate: () => void;
-  onSave: () => void;
+  onConnect: () => void;
   onDisconnect: () => void;
-  isValidating: boolean;
-  isSaving: boolean;
+  isConnecting: boolean;
   isDisconnecting: boolean;
   isConnected: boolean;
-  apiKey: string;
-  isValidated: boolean;
+  apiKeyEmpty: boolean;
 }
 
 export function ActionButtons({
-  onValidate,
-  onSave,
+  onConnect,
   onDisconnect,
-  isValidating,
-  isSaving,
+  isConnecting,
   isDisconnecting,
   isConnected,
-  apiKey,
-  isValidated,
+  apiKeyEmpty,
 }: ActionButtonsProps) {
   return (
-    <>
-      <div className="flex flex-col gap-3 sm:flex-row">
-        {/* Validate button */}
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onValidate}
-          disabled={isValidating || !apiKey.trim()}
-          className="flex-1"
-        >
-          {isValidating ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Validando...
-            </>
-          ) : (
-            'Validar Credenciais'
-          )}
-        </Button>
+    <div className="flex flex-col gap-3">
+      {/* Botão único de conexão */}
+      <Button
+        type="button"
+        onClick={onConnect}
+        disabled={isConnecting || apiKeyEmpty}
+        className="w-full"
+      >
+        {isConnecting ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Conectando...
+          </>
+        ) : isConnected ? (
+          'Atualizar Conexão'
+        ) : (
+          'Conectar Asaas'
+        )}
+      </Button>
 
-        {/* Save button */}
-        <Button
-          type="button"
-          onClick={onSave}
-          disabled={isSaving || !isValidated}
-          className="flex-1"
-        >
-          {isSaving ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Salvando...
-            </>
-          ) : (
-            'Salvar Configuração'
-          )}
-        </Button>
-      </div>
-
-      {/* Disconnect button (only if connected) */}
+      {/* Botão de desconexão (só se conectado) */}
       {isConnected && (
         <Button
           type="button"
@@ -86,6 +63,6 @@ export function ActionButtons({
           )}
         </Button>
       )}
-    </>
+    </div>
   );
 }
