@@ -25,37 +25,9 @@ export type DateRangePreset =
   | "max" 
   | "custom";
 
-/**
- * Estado do reducer de DateRange
- */
-export interface DateRangeState {
-  readonly preset: DateRangePreset;
-  readonly dropdownOpen: boolean;
-  readonly calendarOpen: boolean;
-  readonly leftDate: Date | undefined;
-  readonly rightDate: Date | undefined;
-  readonly leftMonth: Date;
-  readonly rightMonth: Date;
-  readonly savedRange: { from: Date; to: Date } | undefined;
-  readonly hasError: boolean;
-}
-
-/**
- * Ações do reducer de DateRange (Discriminated Union)
- */
-export type DateRangeAction =
-  | { type: "SET_PRESET"; payload: DateRangePreset }
-  | { type: "OPEN_DROPDOWN" }
-  | { type: "CLOSE_DROPDOWN" }
-  | { type: "OPEN_CALENDAR" }
-  | { type: "CLOSE_CALENDAR" }
-  | { type: "SET_LEFT_DATE"; payload: Date | undefined }
-  | { type: "SET_RIGHT_DATE"; payload: Date | undefined }
-  | { type: "SET_LEFT_MONTH"; payload: Date }
-  | { type: "SET_RIGHT_MONTH"; payload: Date }
-  | { type: "APPLY_CUSTOM_RANGE" }
-  | { type: "CANCEL" }
-  | { type: "RESTORE_SAVED" };
+// NOTA: DateRangeState e DateRangeAction foram removidos (legado do reducer).
+// O estado agora é gerenciado pelo XState dateRangeMachine.
+// Tipos da máquina estão em: machines/dateRangeMachine.types.ts
 
 /**
  * Interface para intervalo de datas calculado

@@ -53,7 +53,6 @@ export type {
 // Types
 export type {
   DateRangePreset,
-  DateRangeAction,
   DateRange,
   DatePresetConfig,
   TrendData,
@@ -82,9 +81,3 @@ export {
   calculateHourlyChartData,
 } from "./utils";
 
-// API
-export {
-  fetchAggregatedMetrics,
-  fetchRecentOrders,
-  fetchChartOrders,
-} from "./api";
