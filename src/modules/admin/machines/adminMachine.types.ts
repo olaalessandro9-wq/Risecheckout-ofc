@@ -39,6 +39,7 @@ export interface UsersRegionContext {
   roleChangeDialog: RoleChangeDialog | null;
   searchTerm: string;
   error: string | null;
+  isChangingRole: boolean;
 }
 
 export interface ProductsRegionContext {
@@ -247,6 +248,7 @@ export const initialUsersContext: UsersRegionContext = {
   roleChangeDialog: null,
   searchTerm: "",
   error: null,
+  isChangingRole: false,
 };
 
 export const initialProductsContext: ProductsRegionContext = {
@@ -275,7 +277,7 @@ export const initialSecurityContext: SecurityRegionContext = {
   blockedIPs: [],
   stats: null,
   selectedAlert: null,
-  filters: {},
+  filters: { type: "all", severity: "all", acknowledged: "all" },
   blockDialogOpen: false,
   blockDialogIP: "",
   unblockDialogOpen: false,

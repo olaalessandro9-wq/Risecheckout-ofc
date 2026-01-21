@@ -1,7 +1,7 @@
 /**
  * AdminDashboard - Painel de Administração Principal
  * 
- * MIGRATED: Uses Edge Function instead of supabase.from()
+ * RISE Protocol V3 - XState Unified Architecture
  * 
  * Hub central para administradores e owners gerenciarem:
  * - Visão geral do sistema
@@ -10,9 +10,10 @@
  * - Usuários e roles
  * - Health check do sistema
  * - Logs de segurança (apenas owner)
+ * 
+ * @version 3.0.0
  */
 
-import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,7 +30,8 @@ import { AdminOrdersTab } from "@/components/admin/AdminOrdersTab";
 import { AdminSecurityAlertsTab } from "@/components/admin/AdminSecurityAlertsTab";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { PeriodFilter } from "@/hooks/useAdminAnalytics";
+import { AdminProvider, useAdmin } from "@/modules/admin/context";
+import type { PeriodFilter, AdminTabId } from "@/modules/admin/types/admin.types";
 
 interface RoleStats {
   role: string;
@@ -44,14 +46,10 @@ const PERIOD_OPTIONS: { value: PeriodFilter; label: string }[] = [
   { value: "all", label: "Todo período" },
 ];
 
-export default function AdminDashboard() {
-  const { canViewSecurityLogs, canManageUsers, role } = usePermissions();
-  const [period, setPeriod] = useState<PeriodFilter>("7days");
+function AdminDashboardContent() {
+  const { canViewSecurityLogs, role } = usePermissions();
+  const { context, changeTab, setPeriod } = useAdmin();
 
-  /**
-   * Fetch role stats via Edge Function
-   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
-   */
   const { data: roleStats, isLoading: statsLoading } = useQuery({
     queryKey: ["admin-role-stats"],
     queryFn: async () => {
@@ -66,24 +64,28 @@ export default function AdminDashboard() {
 
   const totalUsers = roleStats?.reduce((acc, curr) => acc + curr.count, 0) || 0;
 
-  const getRoleLabel = (role: string) => {
+  const getRoleLabel = (roleValue: string) => {
     const labels: Record<string, string> = {
       owner: "Owners",
       admin: "Admins",
       user: "Usuários",
       seller: "Sellers",
     };
-    return labels[role] || role;
+    return labels[roleValue] || roleValue;
   };
 
-  const getRoleColor = (role: string) => {
+  const getRoleColor = (roleValue: string) => {
     const colors: Record<string, string> = {
       owner: "text-amber-500",
       admin: "text-blue-500",
       user: "text-green-500",
       seller: "text-purple-500",
     };
-    return colors[role] || "text-muted-foreground";
+    return colors[roleValue] || "text-muted-foreground";
+  };
+
+  const handleTabChange = (value: string) => {
+    changeTab(value as AdminTabId);
   };
 
   return (
@@ -95,7 +97,7 @@ export default function AdminDashboard() {
             Gerencie usuários, monitore o sistema e visualize logs de segurança.
           </p>
         </div>
-        <Select value={period} onValueChange={(v) => setPeriod(v as PeriodFilter)}>
+        <Select value={context.period} onValueChange={(v) => setPeriod(v as PeriodFilter)}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Selecionar período" />
           </SelectTrigger>
@@ -109,7 +111,11 @@ export default function AdminDashboard() {
         </Select>
       </div>
 
-      <Tabs defaultValue="finance" className="space-y-4">
+      <Tabs 
+        value={context.activeTab} 
+        onValueChange={handleTabChange} 
+        className="space-y-4"
+      >
         <TabsList>
           <TabsTrigger value="finance" className="gap-2">
             <DollarSign className="h-4 w-4" />
@@ -157,20 +163,16 @@ export default function AdminDashboard() {
           )}
         </TabsList>
 
-        {/* Tab: Financeiro */}
         <TabsContent value="finance">
-          <AdminFinanceTab period={period} />
+          <AdminFinanceTab period={context.period} />
         </TabsContent>
 
-        {/* Tab: Tráfego */}
         <TabsContent value="traffic">
-          <AdminTrafficTab period={period} />
+          <AdminTrafficTab period={context.period} />
         </TabsContent>
 
-        {/* Tab: Visão Geral */}
         <TabsContent value="overview" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {/* Card: Total de Usuários */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total de Usuários</CardTitle>
@@ -186,7 +188,6 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
 
-            {/* Cards por Role */}
             {roleStats?.map((stat) => (
               <Card key={stat.role}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -206,7 +207,6 @@ export default function AdminDashboard() {
             ))}
           </div>
 
-          {/* Info sobre seu role */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -228,26 +228,22 @@ export default function AdminDashboard() {
           </Card>
         </TabsContent>
 
-        {/* Tab: Usuários */}
         <TabsContent value="users">
           <AdminUsersTab />
         </TabsContent>
 
-        {/* Tab: Produtos (apenas owner) */}
         {role === "owner" && (
           <TabsContent value="products">
             <AdminProductsTab />
           </TabsContent>
         )}
 
-        {/* Tab: Pedidos (apenas owner) */}
         {role === "owner" && (
           <TabsContent value="orders">
-            <AdminOrdersTab period={period} />
+            <AdminOrdersTab />
           </TabsContent>
         )}
 
-        {/* Tab: Sistema */}
         <TabsContent value="system" className="space-y-4">
           <Card>
             <CardHeader>
@@ -272,14 +268,12 @@ export default function AdminDashboard() {
           </Card>
         </TabsContent>
 
-        {/* Tab: Segurança (apenas owner) */}
         {role === "owner" && (
           <TabsContent value="security">
             <AdminSecurityAlertsTab />
           </TabsContent>
         )}
 
-        {/* Tab: Logs (apenas owner) */}
         {canViewSecurityLogs && (
           <TabsContent value="logs">
             <AdminLogsTab />
@@ -287,5 +281,13 @@ export default function AdminDashboard() {
         )}
       </Tabs>
     </div>
+  );
+}
+
+export default function AdminDashboard() {
+  return (
+    <AdminProvider>
+      <AdminDashboardContent />
+    </AdminProvider>
   );
 }

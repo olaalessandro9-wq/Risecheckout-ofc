@@ -1,24 +1,24 @@
 /**
  * AdminUsersTab - Aba de gerenciamento de usuários
  * 
- * RISE Protocol V3 Compliant - Uses modular components from admin module
+ * RISE Protocol V3 - XState Unified Architecture
+ * 
+ * Consome estado do AdminContext (Single Source of Truth)
  * 
  * Regras:
  * - Owner vê todos exceto ele mesmo, com emails
  * - Admin vê apenas sellers e users, sem emails
+ * 
+ * @version 3.0.0
  */
 
-import { useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { useMemo, useEffect } from "react";
 import { usePermissions, AppRole } from "@/hooks/usePermissions";
-import { createLogger } from "@/lib/logger";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Search, Shield, UserCog } from "lucide-react";
 
-// Import from admin module
 import { 
   UsersTable, 
   RoleChangeDialog 
@@ -28,69 +28,39 @@ import {
   useAdminSort, 
   createUserComparator 
 } from "@/modules/admin/hooks";
-import { 
-  type UserWithRole,
-  type RoleChangeDialog as RoleChangeDialogType,
-  type SelectedUserData,
-} from "@/modules/admin/types/admin.types";
+import { useAdmin } from "@/modules/admin/context";
+import type { UserWithRole, SelectedUserData } from "@/modules/admin/types/admin.types";
 
 import { UserDetailSheet } from "./UserDetailSheet";
 
-const log = createLogger("AdminUsersTab");
-
-interface UsersWithEmailsResponse {
-  emails?: Record<string, string>;
-}
-
-interface AdminUsersResponse {
-  error?: string;
-  users?: UserWithRole[];
-}
-
-interface ManageUserRoleResponse {
-  success?: boolean;
-  error?: string;
-}
-
 export function AdminUsersTab() {
   const { role: callerRole, canManageUsers } = usePermissions();
-  const queryClient = useQueryClient();
-  
-  const [confirmDialog, setConfirmDialog] = useState<RoleChangeDialogType | null>(null);
-  const [selectedUser, setSelectedUser] = useState<SelectedUserData | null>(null);
+  const { 
+    context,
+    isUsersLoading,
+    loadUsers,
+    selectUser,
+    deselectUser,
+    setUsersSearch,
+    openRoleChange,
+    confirmRoleChange,
+    cancelRoleChange,
+  } = useAdmin();
 
   const isOwner = callerRole === "owner";
+  const usersContext = context.users;
 
-  // Fetch user emails (owner only)
-  const { data: usersWithEmails } = useQuery({
-    queryKey: ["admin-users-emails"],
-    queryFn: async () => {
-      const { data, error } = await api.call<UsersWithEmailsResponse>("get-users-with-emails", {});
-      if (error) {
-        log.error("Erro ao buscar emails:", error);
-        return {};
-      }
-      return (data?.emails || {}) as Record<string, string>;
-    },
-    enabled: isOwner,
-  });
-
-  // Fetch users with metrics
-  const { data: users, isLoading } = useQuery({
-    queryKey: ["admin-users-with-metrics"],
-    queryFn: async () => {
-      const { data, error } = await api.call<AdminUsersResponse>("admin-data", {
-        action: "users-with-metrics",
-      });
-      if (error) throw new Error(String(error));
-      if (data?.error) throw new Error(data.error);
-      return data?.users || [];
-    },
-  });
+  // Load users on mount if not loaded
+  useEffect(() => {
+    if (usersContext.items.length === 0 && !isUsersLoading && !usersContext.error) {
+      loadUsers();
+    }
+  }, [usersContext.items.length, isUsersLoading, usersContext.error, loadUsers]);
 
   // Filter users based on caller role
   const visibleUsers = useMemo(() => {
-    if (!users) return [];
+    const users = usersContext.items;
+    if (!users.length) return [];
     
     let filtered = users.filter((u) => u.role !== "owner");
     
@@ -98,17 +68,10 @@ export function AdminUsersTab() {
       filtered = filtered.filter((u) => u.role === "seller" || u.role === "user");
     }
 
-    if (isOwner && usersWithEmails) {
-      filtered = filtered.map((u) => ({
-        ...u,
-        email: usersWithEmails[u.user_id] || undefined,
-      }));
-    }
-
     return filtered;
-  }, [users, callerRole, isOwner, usersWithEmails]);
+  }, [usersContext.items, callerRole]);
 
-  // Use modular hooks
+  // Use modular hooks for filtering and sorting
   const { filteredItems, searchTerm, setSearchTerm } = useAdminFilters(
     visibleUsers,
     (user) => [
@@ -127,28 +90,12 @@ export function AdminUsersTab() {
     createUserComparator()
   );
 
-  // Role change mutation
-  const changeRoleMutation = useMutation({
-    mutationFn: async ({ userId, newRole }: { userId: string; newRole: AppRole }) => {
-      const { data, error } = await api.call<ManageUserRoleResponse>("manage-user-role", {
-        targetUserId: userId,
-        newRole,
-      });
-      if (error) throw new Error(String(error));
-      if (data?.error) throw new Error(data.error);
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-role-stats"] });
-      toast.success("Role atualizado com sucesso!");
-      setConfirmDialog(null);
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || "Erro ao atualizar role");
-      setConfirmDialog(null);
-    },
-  });
+  // Sync search term with context
+  useEffect(() => {
+    if (searchTerm !== usersContext.searchTerm) {
+      setUsersSearch(searchTerm);
+    }
+  }, [searchTerm, usersContext.searchTerm, setUsersSearch]);
 
   // Get available roles for selection
   const getAvailableRoles = (currentRole: AppRole): AppRole[] => {
@@ -164,7 +111,7 @@ export function AdminUsersTab() {
   };
 
   const handleRoleChange = (userId: string, userName: string, currentRole: AppRole, newRole: string) => {
-    setConfirmDialog({
+    openRoleChange({
       open: true,
       userId,
       userName,
@@ -173,16 +120,17 @@ export function AdminUsersTab() {
     });
   };
 
-  const confirmRoleChange = () => {
-    if (!confirmDialog) return;
-    changeRoleMutation.mutate({
-      userId: confirmDialog.userId,
-      newRole: confirmDialog.newRole,
-    });
+  const handleConfirmRoleChange = async () => {
+    try {
+      await confirmRoleChange();
+      toast.success("Role atualizado com sucesso!");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao atualizar role");
+    }
   };
 
   const handleSelectUser = (user: UserWithRole) => {
-    setSelectedUser({
+    const userData: SelectedUserData = {
       userId: user.user_id,
       userName: user.profile?.name || "Sem nome",
       userEmail: user.email,
@@ -190,7 +138,8 @@ export function AdminUsersTab() {
       totalGmv: user.total_gmv,
       totalFees: user.total_fees,
       ordersCount: user.orders_count,
-    });
+    };
+    selectUser(userData);
   };
 
   if (!canManageUsers && callerRole !== "admin") {
@@ -240,7 +189,7 @@ export function AdminUsersTab() {
         {/* Table - Pure Component */}
         <UsersTable
           users={sortedItems}
-          isLoading={isLoading}
+          isLoading={isUsersLoading}
           isOwner={isOwner}
           callerRole={callerRole}
           onToggleSort={toggleSort}
@@ -251,30 +200,30 @@ export function AdminUsersTab() {
       </CardContent>
 
       {/* Role Change Dialog - Pure Component */}
-      {confirmDialog && (
+      {usersContext.roleChangeDialog && (
         <RoleChangeDialog
-          open={confirmDialog.open}
-          userName={confirmDialog.userName}
-          currentRole={confirmDialog.currentRole}
-          newRole={confirmDialog.newRole}
-          isPending={changeRoleMutation.isPending}
-          onConfirm={confirmRoleChange}
-          onCancel={() => setConfirmDialog(null)}
+          open={usersContext.roleChangeDialog.open}
+          userName={usersContext.roleChangeDialog.userName}
+          currentRole={usersContext.roleChangeDialog.currentRole}
+          newRole={usersContext.roleChangeDialog.newRole}
+          isPending={usersContext.isChangingRole || false}
+          onConfirm={handleConfirmRoleChange}
+          onCancel={cancelRoleChange}
         />
       )}
 
       {/* User Detail Sheet */}
-      {selectedUser && (
+      {usersContext.selectedUser && (
         <UserDetailSheet
-          open={!!selectedUser}
-          onOpenChange={(open) => !open && setSelectedUser(null)}
-          userId={selectedUser.userId}
-          userName={selectedUser.userName}
-          userEmail={selectedUser.userEmail}
-          userRole={selectedUser.userRole}
-          totalGmv={selectedUser.totalGmv}
-          totalFees={selectedUser.totalFees}
-          ordersCount={selectedUser.ordersCount}
+          open={!!usersContext.selectedUser}
+          onOpenChange={(open) => !open && deselectUser()}
+          userId={usersContext.selectedUser.userId}
+          userName={usersContext.selectedUser.userName}
+          userEmail={usersContext.selectedUser.userEmail}
+          userRole={usersContext.selectedUser.userRole}
+          totalGmv={usersContext.selectedUser.totalGmv}
+          totalFees={usersContext.selectedUser.totalFees}
+          ordersCount={usersContext.selectedUser.ordersCount}
         />
       )}
     </Card>

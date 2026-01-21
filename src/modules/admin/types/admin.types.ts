@@ -164,9 +164,9 @@ export interface SecurityStats {
 }
 
 export interface AlertFilters {
-  type?: string;
-  severity?: string;
-  acknowledged?: boolean;
+  type: string;
+  severity: string;
+  acknowledged: string;
 }
 
 // ============================================
