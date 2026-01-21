@@ -6,6 +6,23 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
+## [3.5.1] - 2026-01-21
+
+### 🧹 Auditoria Marketplace Module (RISE V3)
+
+#### Removido
+- **Botão morto `(Selecionar todos)`** em `CategoryFilter.tsx` - redundante com opção "Todas as categorias" no Select
+
+#### Corrigido
+- **Dependência faltando** em `useAffiliateRequest.ts` - `updateCacheStatus` adicionado ao array de dependências do `useCallback`
+
+#### Conformidade RISE V3
+- **Zero código morto:** ✅ 100%
+- **Zero dependências faltando:** ✅ 100%
+- **Limite 300 linhas:** ✅ Todos arquivos < 300 linhas
+
+---
+
 ## [3.4.0] - 2026-01-21
 
 ### 🎯 Refatoração Webhooks Module (RISE V3 10.0/10)
