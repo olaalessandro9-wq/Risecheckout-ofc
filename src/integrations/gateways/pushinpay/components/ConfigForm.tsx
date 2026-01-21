@@ -1,15 +1,24 @@
 /**
- * ConfigForm - Formulário de Configuração da PushinPay (Refatorado)
+ * ConfigForm - Formulário de Configuração da PushinPay
  * 
- * Orquestrador que compõe os sub-componentes do formulário.
+ * @module integrations/gateways/pushinpay/components
+ * @version 3.0.0 - RISE Protocol V3 - SSOT Architecture
+ * 
+ * SSOT (Single Source of Truth):
+ * - O estado de conexão vem do FinanceiroContext via prop connectionStatus
+ * - Este componente NÃO faz fetch de status inicial - apenas renderiza
+ * - Os hooks são usados APENAS para ações (save, validate)
+ * 
+ * Resultado: Zero piscadas, UI estável
  */
 
 import { useState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
-import { savePushinPaySettings, getPushinPaySettings } from "../api";
+import { savePushinPaySettings } from "../api";
 import { api } from "@/lib/api/client";
 import type { PushinPayEnvironment, PushinPaySettings, PushinPayAccountInfo } from "../types";
+import type { GatewayConfigFormProps, GatewayConnectionStatus } from "@/config/gateways/types";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("PushinPayConfigForm");
@@ -19,6 +28,7 @@ interface ValidateTokenResponse {
   error?: string;
   account?: PushinPayAccountInfo;
 }
+
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -30,32 +40,67 @@ import { EnvironmentSelector } from "./EnvironmentSelector";
 import { FeedbackMessage } from "./FeedbackMessage";
 import { SaveButton } from "./SaveButton";
 
-import type { GatewayConfigFormProps } from "@/config/gateways/types";
+// ============================================================================
+// HELPER: Deriva estado do connectionStatus (SSOT)
+// ============================================================================
 
-export function ConfigForm({ onConnectionChange }: GatewayConfigFormProps) {
+interface DerivedState {
+  readonly hasExistingToken: boolean;
+  readonly existingAccountId: string | null;
+  readonly currentEnvironment: PushinPayEnvironment;
+}
+
+function deriveStateFromConnectionStatus(
+  connectionStatus: GatewayConnectionStatus | null | undefined,
+  isAdmin: boolean
+): DerivedState {
+  if (!connectionStatus?.connected) {
+    return {
+      hasExistingToken: false,
+      existingAccountId: null,
+      currentEnvironment: 'production',
+    };
+  }
+
+  const env: PushinPayEnvironment = connectionStatus.mode === 'sandbox' ? 'sandbox' : 'production';
+  
+  // Extrai accountId dos detalhes se disponível
+  const details = (connectionStatus as { details?: Record<string, unknown> }).details;
+  const accountId = (details?.account_id as string) ?? null;
+  
+  return {
+    hasExistingToken: true,
+    existingAccountId: accountId,
+    currentEnvironment: isAdmin ? env : 'production',
+  };
+}
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
+
+export function ConfigForm({ onConnectionChange, connectionStatus }: GatewayConfigFormProps) {
   const { role } = usePermissions();
   const { user } = useAuth();
   const isAdmin = role === 'admin';
 
-  // Estados
+  // Deriva estado inicial do connectionStatus (SSOT)
+  const derivedState = deriveStateFromConnectionStatus(connectionStatus, isAdmin);
+
+  // Estados locais apenas para formulário (não para status de conexão)
   const [apiToken, setApiToken] = useState("");
   const [accountInfo, setAccountInfo] = useState<PushinPayAccountInfo | null>(null);
   const [showToken, setShowToken] = useState(false);
-  const [hasExistingToken, setHasExistingToken] = useState(false);
-  const [existingAccountId, setExistingAccountId] = useState<string | null>(null);
-  const [environment, setEnvironment] = useState<PushinPayEnvironment>("production");
+  const [environment, setEnvironment] = useState<PushinPayEnvironment>(derivedState.currentEnvironment);
   const [loading, setLoading] = useState(false);
   const [validatingToken, setValidatingToken] = useState(false);
-  const [loadingData, setLoadingData] = useState(true);
   const [message, setMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
   const [isUpdateSectionOpen, setIsUpdateSectionOpen] = useState(false);
 
-  // Carregar configuração existente ao montar
+  // Sincroniza environment quando connectionStatus muda
   useEffect(() => {
-    if (user?.id) {
-      loadSettings();
-    }
-  }, [user?.id]);
+    setEnvironment(derivedState.currentEnvironment);
+  }, [derivedState.currentEnvironment]);
 
   // Forçar produção se não for admin
   useEffect(() => {
@@ -72,32 +117,14 @@ export function ConfigForm({ onConnectionChange }: GatewayConfigFormProps) {
     }
   }, [message]);
 
-  const loadSettings = async () => {
-    if (!user?.id) return;
-    try {
-      setLoadingData(true);
-      const settings = await getPushinPaySettings(user.id);
-      
-      if (settings) {
-        if (settings.pushinpay_token === "••••••••") {
-          setHasExistingToken(true);
-          setApiToken("");
-        } else {
-          setApiToken(settings.pushinpay_token ?? "");
-        }
-        setExistingAccountId(settings.pushinpay_account_id ?? null);
-        const configEnv = settings.environment ?? "production";
-        setEnvironment(isAdmin ? configEnv : "production");
-      }
-    } catch (error: unknown) {
-      log.error("Erro ao carregar configurações:", error);
-    } finally {
-      setLoadingData(false);
-    }
+  // Handle refresh - dispara BACKGROUND_REFRESH via Context
+  const handleRefresh = () => {
+    toast.info('Atualizando status...');
+    onConnectionChange?.();
   };
 
   const onSave = async () => {
-    if (!hasExistingToken && !apiToken.trim()) {
+    if (!derivedState.hasExistingToken && !apiToken.trim()) {
       setMessage({ type: "error", text: "Por favor, informe o API Token" });
       return;
     }
@@ -109,7 +136,7 @@ export function ConfigForm({ onConnectionChange }: GatewayConfigFormProps) {
     setAccountInfo(null);
 
     try {
-      let accountIdToSave = existingAccountId;
+      let accountIdToSave = derivedState.existingAccountId;
 
       if (tokenToSave) {
         setValidatingToken(true);
@@ -149,12 +176,10 @@ export function ConfigForm({ onConnectionChange }: GatewayConfigFormProps) {
         setMessage({ type: "success", text: successMsg });
         toast.success(successMsg);
         if (tokenToSave) {
-          setHasExistingToken(true);
           setApiToken("");
-          setExistingAccountId(accountIdToSave);
         }
         setIsUpdateSectionOpen(false);
-        // Notificar parent para atualizar sidebar
+        // Notificar parent para atualizar via SSOT
         onConnectionChange?.();
       } else {
         setMessage({ type: "error", text: `Erro ao salvar: ${result.error}` });
@@ -170,31 +195,32 @@ export function ConfigForm({ onConnectionChange }: GatewayConfigFormProps) {
     }
   };
 
-  if (loadingData) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6 mt-6">
-      {/* Descrição */}
-      <p className="text-sm leading-relaxed" style={{ color: 'var(--subtext)' }}>
-        Conecte sua conta PushinPay informando apenas o <strong>API Token</strong>. 
-        O ID da conta será obtido automaticamente.
-        {isAdmin && (
-          <> Você pode solicitar acesso ao <em>Sandbox</em> direto no suporte deles.</>
-        )}
-      </p>
+      {/* Header com Refresh */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm leading-relaxed" style={{ color: 'var(--subtext)' }}>
+          Conecte sua conta PushinPay informando apenas o <strong>API Token</strong>. 
+          O ID da conta será obtido automaticamente.
+          {isAdmin && (
+            <> Você pode solicitar acesso ao <em>Sandbox</em> direto no suporte deles.</>
+          )}
+        </p>
+        <button
+          onClick={handleRefresh}
+          className="p-2 rounded-lg hover:bg-white/10 transition-colors flex-shrink-0"
+          title="Atualizar status"
+        >
+          <RefreshCw className="h-4 w-4 text-muted-foreground" />
+        </button>
+      </div>
 
-      <IntegrationStatus isActive={hasExistingToken} accountId={existingAccountId} />
+      <IntegrationStatus isActive={derivedState.hasExistingToken} accountId={derivedState.existingAccountId} />
       
       <AccountInfoCard accountInfo={accountInfo} />
 
       {/* Formulário: Atualizar Token ou Novo Token */}
-      {hasExistingToken ? (
+      {derivedState.hasExistingToken ? (
         <UpdateTokenSection
           isOpen={isUpdateSectionOpen}
           onOpenChange={setIsUpdateSectionOpen}
@@ -224,7 +250,7 @@ export function ConfigForm({ onConnectionChange }: GatewayConfigFormProps) {
         onClick={onSave}
         loading={loading}
         validatingToken={validatingToken}
-        disabled={loading || (!hasExistingToken && !apiToken)}
+        disabled={loading || (!derivedState.hasExistingToken && !apiToken)}
       />
     </div>
   );
