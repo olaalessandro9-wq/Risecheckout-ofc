@@ -1,12 +1,12 @@
 /**
- * Rastreamento - Página unificada de Pixels + UTMify
+ * Trackeamento - Página unificada de Pixels + UTMify
  * 
- * @see RISE ARCHITECT PROTOCOL V3 - Módulo de Rastreamento
+ * @see RISE ARCHITECT PROTOCOL V3 - Módulo de Trackeamento
  */
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PixelsProvider, PixelLibrary } from "@/modules/pixels";
-import { UTMifyConfig } from "@/components/integrations/UTMifyConfig";
+import { UTMifyProvider, UTMifyForm } from "@/modules/utmify";
 import { BarChart3, TrendingUp } from "lucide-react";
 
 const Rastreamento = () => {
@@ -44,7 +44,9 @@ const Rastreamento = () => {
 
         {/* Tab UTMify */}
         <TabsContent value="utmify" className="mt-6">
-          <UTMifyConfig />
+          <UTMifyProvider>
+            <UTMifyForm />
+          </UTMifyProvider>
         </TabsContent>
       </Tabs>
     </div>
