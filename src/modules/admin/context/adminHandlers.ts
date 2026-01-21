@@ -9,11 +9,13 @@
 import { api } from "@/lib/api";
 import type { 
   AdminMachineContext,
-  AdminMachineEvent,
 } from "../machines/adminMachine.types";
 import type { PeriodFilter } from "../types/admin.types";
 import { fetchUsers, fetchProducts, fetchSecurity } from "./adminFetchers";
 import type { AppRole } from "@/hooks/usePermissions";
+
+// Send function type (generic to avoid circular dependency)
+type SendFn = (event: { type: string; [key: string]: unknown }) => void;
 
 // ============================================================================
 // ROLE CHANGE HANDLER
@@ -21,7 +23,7 @@ import type { AppRole } from "@/hooks/usePermissions";
 
 export async function handleConfirmRoleChange(
   context: AdminMachineContext,
-  send: (event: AdminMachineEvent) => void,
+  send: SendFn,
   role: AppRole
 ): Promise<void> {
   const dialog = context.users.roleChangeDialog;
@@ -51,7 +53,7 @@ export async function handleConfirmRoleChange(
 
 export async function handleConfirmProductAction(
   context: AdminMachineContext,
-  send: (event: AdminMachineEvent) => void,
+  send: SendFn,
   period: PeriodFilter
 ): Promise<void> {
   const dialog = context.products.actionDialog;
@@ -81,7 +83,7 @@ export async function handleConfirmProductAction(
 
 export async function handleAcknowledgeAlert(
   alertId: string,
-  send: (event: AdminMachineEvent) => void
+  send: SendFn
 ): Promise<void> {
   send({ type: "ACKNOWLEDGE_ALERT", alertId });
 
@@ -105,7 +107,7 @@ export async function handleConfirmBlockIP(
   ip: string,
   reason: string,
   expiresInDays: number | undefined,
-  send: (event: AdminMachineEvent) => void
+  send: SendFn
 ): Promise<void> {
   send({ type: "CONFIRM_BLOCK_IP", ip, reason, expiresInDays });
 
@@ -129,7 +131,7 @@ export async function handleConfirmBlockIP(
 
 export async function handleConfirmUnblockIP(
   context: AdminMachineContext,
-  send: (event: AdminMachineEvent) => void
+  send: SendFn
 ): Promise<void> {
   const blocked = context.security.unblockDialogIP;
   if (!blocked) return;
