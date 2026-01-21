@@ -204,22 +204,41 @@ export function AdminTrafficTab({ period }: AdminTrafficTabProps) {
                 </div>
               ) : (topSources?.length || 0) > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={topSources || []} layout="vertical" margin={{ top: 0, right: 20, left: 20, bottom: 0 }}>
+                  <BarChart 
+                    data={topSources || []} 
+                    layout="vertical" 
+                    margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                    barCategoryGap="20%"
+                  >
+                    <defs>
+                      <linearGradient id="sourceBarGradient" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.8} />
+                        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--chart-grid))" opacity={0.2} horizontal={false} />
-                    <XAxis type="number" stroke="hsl(var(--chart-axis))" style={{ fontSize: '11px' }} />
+                    <XAxis 
+                      type="number" 
+                      stroke="hsl(var(--chart-axis))" 
+                      style={{ fontSize: '11px', fontWeight: 500 }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
                     <YAxis 
                       dataKey="source" 
                       type="category" 
                       stroke="hsl(var(--chart-axis))" 
-                      style={{ fontSize: '11px' }}
+                      style={{ fontSize: '11px', fontWeight: 500 }}
                       width={80}
+                      tickLine={false}
+                      axisLine={false}
                     />
-                    <Tooltip content={<SourceTooltip />} />
+                    <Tooltip content={<SourceTooltip />} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.1 }} />
                     <Bar 
                       dataKey="visits" 
-                      fill="hsl(var(--primary))" 
-                      radius={[0, 4, 4, 0]}
-                      opacity={0.8}
+                      fill="url(#sourceBarGradient)"
+                      radius={[0, 6, 6, 0]}
+                      barSize={28}
                     />
                   </BarChart>
                 </ResponsiveContainer>
