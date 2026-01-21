@@ -233,7 +233,7 @@ export const initialSecurityContext: SecurityRegionContext = {
 
 export const createInitialContext = (callerRole: AppRole): AdminMachineContext => ({
   activeTab: "finance",
-  period: "7days",
+  period: "all",
   callerRole,
   usersLoading: false,
   productsLoading: false,
