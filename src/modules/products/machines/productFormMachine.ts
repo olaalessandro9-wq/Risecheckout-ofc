@@ -75,6 +75,7 @@ export const initialContext: ProductFormContext = {
   activeTab: "geral",
   tabErrors: {},
   isCheckoutSettingsInitialized: false,
+  pendingImageUrl: null,
 };
 
 // ============================================================================
@@ -249,19 +250,38 @@ export const productFormMachine = setup({
               affiliateSettings: context.editedData.affiliate ? { ...context.editedData.affiliate } : null,
               offers: [...context.editedData.offers.localOffers],
               checkoutSettings: { ...context.editedData.checkoutSettings },
+              // CRÍTICO: Atualizar image_url do produto com a URL pendente
+              product: context.serverData.product ? {
+                ...context.serverData.product,
+                image_url: context.pendingImageUrl !== null 
+                  ? context.pendingImageUrl 
+                  : (context.editedData.image.pendingRemoval ? null : context.serverData.product.image_url),
+              } : null,
             },
             editedData: {
               ...context.editedData,
-              image: { ...context.editedData.image, imageFile: null, pendingRemoval: false },
+              image: { 
+                imageFile: null, 
+                // CRÍTICO: Atualizar imageUrl com a URL pendente para exibição
+                imageUrl: context.pendingImageUrl ?? "", 
+                pendingRemoval: false 
+              },
               offers: { ...context.editedData.offers, deletedOfferIds: [], modified: false },
             },
             lastSavedAt: Date.now(),
             saveError: null,
+            pendingImageUrl: null, // Limpar após usar
           })),
         },
         SAVE_ERROR: {
           target: "ready.dirty",
           actions: assign({ saveError: ({ event }) => event.error }),
+        },
+        // Evento para armazenar URL da imagem durante salvamento
+        UPDATE_SERVER_IMAGE_URL: {
+          actions: assign(({ event }) => ({
+            pendingImageUrl: event.imageUrl,
+          })),
         },
         // Eventos permitidos durante salvamento (para tratamento de erros de validação)
         SET_TAB_ERRORS: { 

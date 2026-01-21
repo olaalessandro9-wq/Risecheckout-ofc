@@ -177,6 +177,9 @@ export interface ProductFormContext {
   
   // Initialization flags
   isCheckoutSettingsInitialized: boolean;
+  
+  // URL pendente da imagem (usada durante salvamento para sincronizar serverData)
+  pendingImageUrl: string | null;
 }
 
 // ============================================================================
@@ -276,6 +279,12 @@ export interface RefreshEvent {
   type: "REFRESH";
 }
 
+// Evento para atualizar URL da imagem após upload bem-sucedido
+export interface UpdateServerImageUrlEvent {
+  type: "UPDATE_SERVER_IMAGE_URL";
+  imageUrl: string | null;
+}
+
 // Tab Events
 export interface SetTabEvent {
   type: "SET_TAB";
@@ -316,4 +325,5 @@ export type ProductFormEvent =
   | RefreshEvent
   | SetTabEvent
   | SetTabErrorsEvent
-  | ClearTabErrorsEvent;
+  | ClearTabErrorsEvent
+  | UpdateServerImageUrlEvent;
