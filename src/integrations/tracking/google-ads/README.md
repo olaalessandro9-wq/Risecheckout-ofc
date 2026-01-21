@@ -1,290 +1,119 @@
-# Google Ads Integration Module
-**Módulo**: `src/integrations/tracking/google-ads`  
-**Status**: ✅ Implementado  
-**Versão**: 1.0  
+# Google Ads Module
 
----
+> **Versão:** 2.0.0 - RISE Protocol V3 Compliant  
+> **Última atualização:** Janeiro 2026
 
-## 📋 Visão Geral
+## Arquitetura
 
-Este módulo implementa a integração do **Google Ads** no RiseCheckout seguindo uma arquitetura modular baseada em features. Cada integração (Facebook, UTMify, Google Ads, etc) fica isolada em sua própria pasta.
+Este módulo é parte do sistema de tracking do RiseCheckout.
+
+### Sistema Atual (vendor_pixels + product_pixels)
+
+Os pixels são gerenciados centralmente via **XState State Machine**:
+
+| Responsabilidade | Localização |
+|------------------|-------------|
+| **Cadastro de Pixels** | `src/modules/pixels/` (SSOT via `pixelsMachine`) |
+| **Vinculação ao Produto** | `ProductPixelsSelector` (apenas seleciona) |
+| **Renderização no Checkout** | `TrackingManager.tsx` (usa prop `productPixels`) |
+| **Disparo de Eventos** | `events.ts` deste módulo |
 
 ### Estrutura do Módulo
 
 ```
 src/integrations/tracking/google-ads/
-├── index.ts          # Barrel export (interface pública)
-├── types.ts          # Tipos e interfaces TypeScript
-├── events.ts         # Lógica de envio de eventos
-├── hooks.ts          # Hooks React customizados
-├── Tracker.tsx       # Componente React
-└── README.md         # Este arquivo
+├── index.ts      # Barrel export
+├── Tracker.tsx   # Componente React que injeta o script gtag.js
+├── events.ts     # Funções para disparar eventos (trackPurchase, trackLead, etc.)
+├── types.ts      # Interfaces TypeScript
+└── README.md     # Esta documentação
 ```
 
----
+## Fluxo de Dados
 
-## 🚀 Como Usar
+```
+┌─────────────────────────────────────────────────────────────┐
+│  1. Produtor cadastra pixel em /dashboard/integracoes       │
+│     └── pixelsMachine (XState) → vendor_pixels              │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  2. Vincula pixel ao produto via ProductPixelsSelector      │
+│     └── product_pixels (tabela de junção)                   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  3. Checkout carrega pixels via useCheckoutProductPixels    │
+│     └── Edge Function: checkout-loader                      │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  4. TrackingManager renderiza componente <Tracker />        │
+│     └── Injeta script gtag.js no DOM                        │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  5. Eventos são disparados via funções do events.ts         │
+│     └── trackPurchase(), trackLead(), etc.                  │
+└─────────────────────────────────────────────────────────────┘
+```
 
-### 1. Import Centralizado
+## Tabelas do Banco de Dados
 
-```typescript
+| Tabela | Descrição |
+|--------|-----------|
+| `vendor_pixels` | Cadastro de pixels do vendedor (pixel_id, conversion_label, etc.) |
+| `product_pixels` | Vinculação pixel ↔ produto (fire_on_pix, fire_on_card, etc.) |
+
+## Uso do Componente
+
+```tsx
 import * as GoogleAds from "@/integrations/tracking/google-ads";
+
+// Renderizar o tracker (feito pelo TrackingManager)
+<GoogleAds.Tracker integration={googleAdsIntegration} />
+
+// Disparar evento de conversão
+GoogleAds.trackPurchase({
+  conversionId: "AW-123456789",
+  conversionLabel: "abc123",
+  value: 99.90,
+  currency: "BRL",
+  transactionId: "order-123",
+});
 ```
 
-### 2. Carregar Configuração
+## Eventos Disponíveis
 
-```typescript
-const { data: googleAdsIntegration } = GoogleAds.useGoogleAdsConfig(vendorId);
-```
+| Função | Evento Google Ads | Descrição |
+|--------|-------------------|-----------|
+| `trackPurchase()` | `conversion` | Conversão de compra |
+| `trackLead()` | `conversion` | Geração de lead |
+| `trackPageView()` | `page_view` | Visualização de página |
 
-### 3. Verificar se Deve Rodar
+## Configuração de Conversão
 
-```typescript
-const shouldRun = GoogleAds.shouldRunGoogleAds(googleAdsIntegration, productId);
-```
+O Google Ads requer um `conversion_label` para cada tipo de evento. Este label é configurado no cadastro do pixel e armazenado em `vendor_pixels.conversion_label`.
 
-### 4. Renderizar Componente
+## Conformidade RISE V3
 
-```typescript
-{shouldRun && <GoogleAds.Tracker integration={googleAdsIntegration} />}
-```
+- ✅ Zero `console.log` (usa `createLogger`)
+- ✅ Zero `: any`
+- ✅ Zero `@ts-ignore`
+- ✅ Limite de 300 linhas respeitado
+- ✅ Backend-only mutations (via Edge Functions)
+- ✅ SSOT via XState para gerenciamento de pixels
 
-### 5. Enviar Conversão de Compra
+## Changelog
 
-```typescript
-const items: GoogleAds.GoogleAdsItem[] = [
-  {
-    id: checkout.product.id,
-    name: checkout.product.name,
-    quantity: 1,
-    price: checkout.product.price,
-  },
-];
+### v2.0.0 (Janeiro 2026)
+- ✅ Migração para novo sistema vendor_pixels + product_pixels
+- ✅ Remoção de hooks legados (useGoogleAdsConfig, shouldRunGoogleAds)
+- ✅ Documentação atualizada para RISE V3
 
-const customer: GoogleAds.GoogleAdsCustomer = {
-  email: logic.formData.email,
-  phone: logic.formData.phone,
-};
-
-await GoogleAds.trackPurchase(
-  googleAdsIntegration.config,
-  orderId,
-  totalValue,
-  items,
-  customer
-);
-```
-
----
-
-## 📚 Documentação Detalhada
-
-### types.ts
-
-Define as interfaces TypeScript:
-
-- **GoogleAdsEventLabel**: Label de conversão para um evento
-- **GoogleAdsConfig**: Configuração do Google Ads (Conversion ID + Labels)
-- **GoogleAdsCustomer**: Dados do cliente
-- **GoogleAdsItem**: Dados de um produto
-- **GoogleAdsConversionData**: Dados completos da conversão
-- **GoogleAdsResponse**: Resposta da API
-- **GoogleAdsIntegration**: Integração do vendedor
-- **GoogleAdsGlobalParams**: Parâmetros globais do gtag
-
-### events.ts
-
-Funções para enviar eventos:
-
-- `getConversionLabel()` - Obtém label para um evento
-- `isValidGoogleAdsConfig()` - Valida configuração
-- `sendGoogleAdsConversion()` - Envia conversão genérica
-- `trackPurchase()` - Rastreia compra ⭐
-- `trackLead()` - Rastreia lead
-- `trackPageView()` - Rastreia visualização de página
-- `trackAddToCart()` - Rastreia adição ao carrinho
-- `trackViewItem()` - Rastreia visualização de produto
-
-### hooks.ts
-
-Hooks React:
-
-- `useGoogleAdsConfig(vendorId)` - Carregar config do banco (com cache de 5 min)
-- `shouldRunGoogleAds(integration, productId)` - Verificar se deve rodar
-- `useGoogleAdsForProduct(vendorId, productId)` - Hook combinado
-- `isEventEnabledForGoogleAds(integration, eventType)` - Verificar se evento está habilitado
-- `useConversionLabel(integration, eventType)` - Obter label de conversão
-
-### Tracker.tsx
-
-Componente React:
-
-- Injeta script do Google Ads (gtag)
-- Inicializa rastreamento
-- Retorna null (invisível)
-
----
-
-## 🔧 Configuração no Banco de Dados
-
-A configuração é armazenada em `vendor_integrations`:
-
-```json
-{
-  "vendor_id": "uuid-do-vendedor",
-  "integration_type": "GOOGLE_ADS",
-  "active": true,
-  "config": {
-    "conversion_id": "AW-123456789",
-    "conversion_label": "Kj2nCNOytGMQ_4...",
-    "event_labels": [
-      {
-        "eventType": "purchase",
-        "label": "Kj2nCNOytGMQ_4...",
-        "enabled": true
-      },
-      {
-        "eventType": "lead",
-        "label": "Kj2nCNOytGMQ_5...",
-        "enabled": true
-      }
-    ],
-    "selected_products": ["product-id-1", "product-id-2"]
-  }
-}
-```
-
-### Campos
-
-- **conversion_id**: ID de conversão do Google Ads (obrigatório)
-- **conversion_label**: Label global de conversão (fallback)
-- **event_labels**: Labels específicos por evento
-- **selected_products**: Lista de IDs de produtos (vazio = todos)
-
----
-
-## 📊 Fluxo de Dados
-
-```
-PublicCheckout.tsx
-    ↓
-useGoogleAdsConfig(vendorId)
-    ↓ (Query ao Supabase)
-vendor_integrations table
-    ↓
-shouldRunGoogleAds(integration, productId)
-    ↓
-<Tracker integration={googleAdsIntegration} />
-    ↓
-trackPurchase(config, orderId, value, items, customer)
-    ↓
-window.gtag("event", "conversion", {...})
-    ↓
-Google Ads
-```
-
----
-
-## 🧪 Testes
-
-### Teste 1: Verificar Configuração
-
-```javascript
-// Console do navegador
-console.log(window.gtag);
-// Deve retornar: ƒ gtag() { ... }
-```
-
-### Teste 2: Verificar Logs
-
-```javascript
-// Console do navegador
-// Procure por:
-// [Google Ads] Tracker AW-123456789 inicializado com sucesso
-// [Google Ads] ✅ Conversão enviada com sucesso
-```
-
-### Teste 3: Verificar no Google Ads
-
-1. Ir para: ads.google.com
-2. Selecionar sua conta
-3. Ir para "Conversões"
-4. Verificar se aparecem os eventos
-
-### Teste 4: Verificar no Google Tag Manager (GTM)
-
-1. Ir para: tagmanager.google.com
-2. Selecionar seu container
-3. Ir para "Resumo"
-4. Procurar por eventos de conversão
-
----
-
-## 🔐 Segurança
-
-- ✅ Conversion ID armazenado no banco (não no frontend)
-- ✅ Service Role Key não exposto
-- ✅ RLS protege dados de outros vendedores
-- ✅ Validação de entrada
-- ✅ Tratamento de erro
-
----
-
-## 🚀 Próximas Integrações
-
-Este módulo serve como template para outras integrações:
-
-- `src/integrations/tracking/tiktok/` - TikTok Pixel
-- `src/integrations/tracking/kwai/` - Kwai Pixel
-- `src/integrations/gateways/mercadopago/` - Mercado Pago
-- `src/integrations/gateways/pushinpay/` - PushInPay
-
----
-
-## 🐛 Troubleshooting
-
-### Problema: "Integração não encontrada"
-**Solução**: Verificar se existe registro em vendor_integrations com integration_type="GOOGLE_ADS"
-
-### Problema: "Conversão não foi enviada"
-**Solução**: 
-1. Verificar se conversion_id está correto
-2. Verificar se conversion_label está configurado
-3. Verificar console para logs de erro
-
-### Problema: "gtag não está disponível"
-**Solução**: 
-1. Verificar se script foi carregado
-2. Verificar console para erros de rede
-3. Verificar se há bloqueador de scripts
-
-### Problema: "Produto não está habilitado"
-**Solução**: 
-1. Verificar se productId está em selected_products
-2. Se selected_products vazio, todos os produtos devem estar habilitados
-
----
-
-## 📝 Changelog
-
-### v1.0 (29/11/2025)
+### v1.0.0 (Novembro 2025)
 - ✅ Implementação inicial
-- ✅ 6 arquivos criados
-- ✅ Suporte a Conversion ID + Labels
-- ✅ Documentação completa
-- ✅ Testes recomendados
-
----
-
-## 👨‍💻 Autor
-
-Implementado como parte da Refração Modular do RiseCheckout.
-
----
-
-## 📞 Suporte
-
-Para dúvidas ou problemas, consulte:
-1. Este README
-2. Arquivo types.ts para interfaces
-3. Código comentado em cada arquivo

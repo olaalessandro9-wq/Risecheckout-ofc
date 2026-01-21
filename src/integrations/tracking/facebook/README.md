@@ -1,261 +1,117 @@
-# Facebook Pixel Integration Module
-**Módulo**: `src/integrations/tracking/facebook`  
-**Status**: ✅ Implementado  
-**Versão**: 1.0  
+# Facebook Pixel Module
 
----
+> **Versão:** 2.0.0 - RISE Protocol V3 Compliant  
+> **Última atualização:** Janeiro 2026
 
-## 📋 Visão Geral
+## Arquitetura
 
-Este módulo implementa a integração do **Facebook Pixel** no RiseCheckout seguindo uma arquitetura modular baseada em features. Cada integração (Facebook, UTMify, Google Ads, etc) fica isolada em sua própria pasta.
+Este módulo é parte do sistema de tracking do RiseCheckout.
+
+### Sistema Atual (vendor_pixels + product_pixels)
+
+Os pixels são gerenciados centralmente via **XState State Machine**:
+
+| Responsabilidade | Localização |
+|------------------|-------------|
+| **Cadastro de Pixels** | `src/modules/pixels/` (SSOT via `pixelsMachine`) |
+| **Vinculação ao Produto** | `ProductPixelsSelector` (apenas seleciona) |
+| **Renderização no Checkout** | `TrackingManager.tsx` (usa prop `productPixels`) |
+| **Disparo de Eventos** | `events.ts` deste módulo |
 
 ### Estrutura do Módulo
 
 ```
 src/integrations/tracking/facebook/
-├── index.ts          # Barrel export (interface pública)
-├── types.ts          # Tipos e interfaces TypeScript
-├── events.ts         # Lógica de disparo de eventos
-├── hooks.ts          # Hooks React customizados
-├── Pixel.tsx         # Componente React
-└── README.md         # Este arquivo
+├── index.ts      # Barrel export
+├── Pixel.tsx     # Componente React que injeta o script do Facebook Pixel
+├── events.ts     # Funções para disparar eventos (trackPurchase, trackViewContent, etc.)
+├── types.ts      # Interfaces TypeScript
+└── README.md     # Esta documentação
 ```
 
----
+## Fluxo de Dados
 
-## 🚀 Como Usar
+```
+┌─────────────────────────────────────────────────────────────┐
+│  1. Produtor cadastra pixel em /dashboard/integracoes       │
+│     └── pixelsMachine (XState) → vendor_pixels              │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  2. Vincula pixel ao produto via ProductPixelsSelector      │
+│     └── product_pixels (tabela de junção)                   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  3. Checkout carrega pixels via useCheckoutProductPixels    │
+│     └── Edge Function: checkout-loader                      │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  4. TrackingManager renderiza componente <Pixel />          │
+│     └── Injeta script do Facebook Pixel no DOM              │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  5. Eventos são disparados via funções do events.ts         │
+│     └── trackPurchase(), trackViewContent(), etc.           │
+└─────────────────────────────────────────────────────────────┘
+```
 
-### 1. Import Centralizado
+## Tabelas do Banco de Dados
 
-```typescript
+| Tabela | Descrição |
+|--------|-----------|
+| `vendor_pixels` | Cadastro de pixels do vendedor (pixel_id, platform, etc.) |
+| `product_pixels` | Vinculação pixel ↔ produto (fire_on_pix, fire_on_card, etc.) |
+
+## Uso do Componente
+
+```tsx
 import * as Facebook from "@/integrations/tracking/facebook";
+
+// Renderizar o pixel (feito pelo TrackingManager)
+<Facebook.Pixel config={pixelConfig} />
+
+// Disparar evento de compra
+Facebook.trackPurchase({
+  value: 99.90,
+  currency: "BRL",
+  content_ids: ["product-123"],
+  content_type: "product",
+});
 ```
 
-### 2. Carregar Configuração
+## Eventos Disponíveis
 
-```typescript
-const { data: fbConfig } = Facebook.useFacebookConfig(vendorId);
-```
+| Função | Evento Facebook | Descrição |
+|--------|-----------------|-----------|
+| `trackPurchase()` | `Purchase` | Conversão de compra |
+| `trackViewContent()` | `ViewContent` | Visualização de produto |
+| `trackInitiateCheckout()` | `InitiateCheckout` | Início do checkout |
+| `trackAddToCart()` | `AddToCart` | Adição ao carrinho |
+| `trackLead()` | `Lead` | Geração de lead |
+| `trackCustomEvent()` | Custom | Evento personalizado |
 
-### 3. Verificar se Deve Rodar
+## Conformidade RISE V3
 
-```typescript
-const shouldRun = Facebook.shouldRunPixel(fbConfig, productId);
-```
+- ✅ Zero `console.log` (usa `createLogger`)
+- ✅ Zero `: any`
+- ✅ Zero `@ts-ignore`
+- ✅ Limite de 300 linhas respeitado
+- ✅ Backend-only mutations (via Edge Functions)
+- ✅ SSOT via XState para gerenciamento de pixels
 
-### 4. Renderizar Componente
+## Changelog
 
-```typescript
-{shouldRun && <Facebook.Pixel config={fbConfig} />}
-```
+### v2.0.0 (Janeiro 2026)
+- ✅ Migração para novo sistema vendor_pixels + product_pixels
+- ✅ Remoção de hooks legados (useFacebookConfig, shouldRunPixel)
+- ✅ Documentação atualizada para RISE V3
 
-### 5. Disparar Eventos
-
-```typescript
-// Evento de visualização
-Facebook.trackViewContent(product);
-
-// Evento de checkout iniciado
-Facebook.trackInitiateCheckout(product, totalValue, itemsCount);
-
-// Evento de compra
-Facebook.trackPurchase(orderId, valueInCents, product);
-
-// Evento customizado
-Facebook.trackCustomEvent('BumpAdded', { bump_id: '123' });
-```
-
----
-
-## 📚 Documentação Detalhada
-
-### types.ts
-
-Define as interfaces TypeScript:
-
-- **FacebookPixelConfig**: Configuração do pixel armazenada no banco
-- **FacebookEventParams**: Parâmetros de eventos
-- **VendorIntegrationData**: Estrutura de dados do banco
-
-### events.ts
-
-Funções para disparar eventos:
-
-- `trackEvent()` - Evento padrão do Facebook
-- `trackCustomEvent()` - Evento customizado
-- `trackViewContent()` - Quando usuário vê um produto
-- `trackInitiateCheckout()` - Quando inicia checkout
-- `trackPurchase()` - Quando compra é confirmada
-- `trackAddToCart()` - Quando bump é adicionado
-- `trackCompleteRegistration()` - Quando formulário é preenchido
-- `trackPageView()` - Quando página carrega
-- `trackLead()` - Quando lead é capturado
-
-### hooks.ts
-
-Hooks React:
-
-- `useFacebookConfig(vendorId)` - Carregar config do banco (com cache de 5 min)
-- `shouldRunPixel(config, productId)` - Verificar se deve rodar
-- `usePixelForProduct(vendorId, productId)` - Hook combinado
-
-### Pixel.tsx
-
-Componente React:
-
-- Injeta script do Facebook Pixel
-- Inicializa fbq global
-- Dispara PageView automático
-- Retorna null (invisível)
-
----
-
-## 🔧 Configuração no Banco de Dados
-
-A configuração é armazenada em `vendor_integrations`:
-
-```json
-{
-  "vendor_id": "uuid-do-vendedor",
-  "integration_type": "FACEBOOK_PIXEL",
-  "active": true,
-  "config": {
-    "pixel_id": "123456789",
-    "access_token": "token-opcional",
-    "enabled": true,
-    "selected_products": ["product-id-1", "product-id-2"],
-    "fire_purchase_on_pix": true
-  }
-}
-```
-
-### Campos
-
-- **pixel_id**: ID único do pixel (obrigatório)
-- **access_token**: Token de acesso (opcional, para futuro)
-- **enabled**: Se está ativado
-- **selected_products**: Lista de IDs de produtos (vazio = todos)
-- **fire_purchase_on_pix**: Se dispara Purchase no PIX
-
----
-
-## 📊 Fluxo de Dados
-
-```
-PublicCheckout.tsx
-    ↓
-useFacebookConfig(vendorId)
-    ↓ (Query ao Supabase)
-vendor_integrations table
-    ↓
-shouldRunPixel(config, productId)
-    ↓
-<Pixel config={fbConfig} />
-    ↓
-window.fbq('init', pixel_id)
-window.fbq('track', 'PageView')
-    ↓
-trackPurchase(orderId, value, product)
-    ↓
-window.fbq('track', 'Purchase', {...})
-```
-
----
-
-## 🧪 Testes
-
-### Teste 1: Verificar Pixel Injetado
-
-```javascript
-// Console do navegador
-window.fbq
-// Deve retornar: ƒ fbq() { ... }
-```
-
-### Teste 2: Verificar Logs
-
-```javascript
-// Console do navegador
-// Procure por:
-// [Facebook] ✅ Pixel 123456789 inicializado com sucesso
-// [Facebook] 📡 Disparando evento: Purchase
-```
-
-### Teste 3: Verificar no Facebook
-
-1. Ir para: facebook.com/events_manager
-2. Selecionar seu pixel
-3. Ir para "Test Events"
-4. Disparar evento de teste
-5. Verificar se aparece no dashboard
-
----
-
-## 🔐 Segurança
-
-- ✅ Pixel ID armazenado no banco (não no frontend)
-- ✅ Service Role Key não exposto
-- ✅ Apenas ANON_KEY usado no frontend
-- ✅ RLS protege dados de outros vendedores
-- ✅ Validação de productId antes de disparar
-
----
-
-## 🚀 Próximas Integrações
-
-Este módulo serve como template para outras integrações:
-
-- `src/integrations/tracking/utmify/` - UTMify
-- `src/integrations/tracking/google-ads/` - Google Ads
-- `src/integrations/tracking/tiktok/` - TikTok Pixel
-- `src/integrations/tracking/kwai/` - Kwai Pixel
-- `src/integrations/gateways/mercadopago/` - Mercado Pago
-- `src/integrations/gateways/pushinpay/` - PushInPay
-
----
-
-## 🐛 Troubleshooting
-
-### Problema: "fbq is not defined"
-**Solução**: Verificar se `<Pixel config={fbConfig} />` está sendo renderizado
-
-### Problema: "Pixel não foi injetado"
-**Solução**: Verificar console para logs. Confirmar que `shouldRunPixel` retorna true
-
-### Problema: "Eventos não aparecem no Facebook"
-**Solução**: 
-1. Verificar se pixel_id está correto
-2. Verificar se `fire_purchase_on_pix` é true
-3. Aguardar 15-30 minutos para Facebook processar
-
-### Problema: "Config não carrega do banco"
-**Solução**: 
-1. Verificar se vendorId está correto
-2. Verificar se existe registro em vendor_integrations
-3. Verificar se integration_type é "FACEBOOK_PIXEL"
-4. Verificar se active é true
-
----
-
-## 📝 Changelog
-
-### v1.0 (29/11/2025)
+### v1.0.0 (Novembro 2025)
 - ✅ Implementação inicial
-- ✅ 5 arquivos criados
-- ✅ Documentação completa
-- ✅ Testes recomendados
-
----
-
-## 👨‍💻 Autor
-
-Implementado como parte da Refração Modular do RiseCheckout.
-
----
-
-## 📞 Suporte
-
-Para dúvidas ou problemas, consulte:
-1. Este README
-2. Arquivo INSTRUCOES_ATUALIZACAO_PUBLICCHECKOUT.md
-3. Código comentado em cada arquivo

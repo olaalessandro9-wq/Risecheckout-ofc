@@ -22,7 +22,7 @@ interface PixelsContextValue {
   readonly state: {
     readonly value: string;
     readonly context: PixelsMachineContext;
-    readonly matches: (value: string) => boolean;
+    readonly matches: (value: "idle" | "loading" | "ready" | "saving" | "deleting" | "error") => boolean;
   };
   
   /** Dispatcher de eventos */
@@ -114,7 +114,7 @@ export function PixelsProvider({ children }: PixelsProviderProps) {
     state: {
       value: String(state.value),
       context: state.context,
-      matches: (v: string) => state.matches(v as "idle" | "loading" | "ready" | "saving" | "deleting" | "error"),
+      matches: (v: "idle" | "loading" | "ready" | "saving" | "deleting" | "error") => state.matches(v),
     },
     send,
     isLoading,

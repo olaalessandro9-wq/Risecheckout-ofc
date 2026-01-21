@@ -1,265 +1,115 @@
-# TikTok Pixel Integration Module
-**Módulo**: `src/integrations/tracking/tiktok`  
-**Status**: ✅ Implementado  
-**Versão**: 1.0  
+# TikTok Pixel Module
 
----
+> **Versão:** 2.0.0 - RISE Protocol V3 Compliant  
+> **Última atualização:** Janeiro 2026
 
-## 📋 Visão Geral
+## Arquitetura
 
-Este módulo implementa a integração do **TikTok Pixel** no RiseCheckout seguindo uma arquitetura modular baseada em features. Cada integração (Facebook, UTMify, Google Ads, TikTok, etc) fica isolada em sua própria pasta.
+Este módulo é parte do sistema de tracking do RiseCheckout.
+
+### Sistema Atual (vendor_pixels + product_pixels)
+
+Os pixels são gerenciados centralmente via **XState State Machine**:
+
+| Responsabilidade | Localização |
+|------------------|-------------|
+| **Cadastro de Pixels** | `src/modules/pixels/` (SSOT via `pixelsMachine`) |
+| **Vinculação ao Produto** | `ProductPixelsSelector` (apenas seleciona) |
+| **Renderização no Checkout** | `TrackingManager.tsx` (usa prop `productPixels`) |
+| **Disparo de Eventos** | `events.ts` deste módulo |
 
 ### Estrutura do Módulo
 
 ```
 src/integrations/tracking/tiktok/
-├── index.ts          # Barrel export (interface pública)
-├── types.ts          # Tipos e interfaces TypeScript
-├── events.ts         # Lógica de envio de eventos
-├── hooks.ts          # Hooks React customizados
-├── Pixel.tsx         # Componente React
-└── README.md         # Este arquivo
+├── index.ts      # Barrel export
+├── Pixel.tsx     # Componente React que injeta o script do TikTok Pixel
+├── events.ts     # Funções para disparar eventos (trackPurchase, trackViewContent, etc.)
+├── types.ts      # Interfaces TypeScript
+└── README.md     # Esta documentação
 ```
 
----
+## Fluxo de Dados
 
-## 🚀 Como Usar
+```
+┌─────────────────────────────────────────────────────────────┐
+│  1. Produtor cadastra pixel em /dashboard/integracoes       │
+│     └── pixelsMachine (XState) → vendor_pixels              │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  2. Vincula pixel ao produto via ProductPixelsSelector      │
+│     └── product_pixels (tabela de junção)                   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  3. Checkout carrega pixels via useCheckoutProductPixels    │
+│     └── Edge Function: checkout-loader                      │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  4. TrackingManager renderiza componente <Pixel />          │
+│     └── Injeta script do TikTok Pixel no DOM                │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  5. Eventos são disparados via funções do events.ts         │
+│     └── trackPurchase(), trackViewContent(), etc.           │
+└─────────────────────────────────────────────────────────────┘
+```
 
-### 1. Import Centralizado
+## Tabelas do Banco de Dados
 
-```typescript
+| Tabela | Descrição |
+|--------|-----------|
+| `vendor_pixels` | Cadastro de pixels do vendedor (pixel_id, platform, etc.) |
+| `product_pixels` | Vinculação pixel ↔ produto (fire_on_pix, fire_on_card, etc.) |
+
+## Uso do Componente
+
+```tsx
 import * as TikTok from "@/integrations/tracking/tiktok";
+
+// Renderizar o pixel (feito pelo TrackingManager)
+<TikTok.Pixel config={pixelConfig} />
+
+// Disparar evento de compra
+TikTok.trackPurchase({
+  value: 99.90,
+  currency: "BRL",
+  contents: [{ content_id: "product-123", quantity: 1, price: 99.90 }],
+});
 ```
 
-### 2. Carregar Configuração
+## Eventos Disponíveis
 
-```typescript
-const { data: tiktokIntegration } = TikTok.useTikTokConfig(vendorId);
-```
+| Função | Evento TikTok | Descrição |
+|--------|---------------|-----------|
+| `trackPurchase()` | `CompletePayment` | Conversão de compra |
+| `trackViewContent()` | `ViewContent` | Visualização de produto |
+| `trackInitiateCheckout()` | `InitiateCheckout` | Início do checkout |
+| `trackAddToCart()` | `AddToCart` | Adição ao carrinho |
+| `trackPlaceOrder()` | `PlaceAnOrder` | Pedido realizado |
 
-### 3. Verificar se Deve Rodar
+## Conformidade RISE V3
 
-```typescript
-const shouldRun = TikTok.shouldRunTikTok(tiktokIntegration, productId);
-```
+- ✅ Zero `console.log` (usa `createLogger`)
+- ✅ Zero `: any`
+- ✅ Zero `@ts-ignore`
+- ✅ Limite de 300 linhas respeitado
+- ✅ Backend-only mutations (via Edge Functions)
+- ✅ SSOT via XState para gerenciamento de pixels
 
-### 4. Renderizar Componente
+## Changelog
 
-```typescript
-{shouldRun && <TikTok.Pixel config={tiktokIntegration} />}
-```
+### v2.0.0 (Janeiro 2026)
+- ✅ Migração para novo sistema vendor_pixels + product_pixels
+- ✅ Remoção de hooks legados (useTikTokConfig, shouldRunTikTok)
+- ✅ Documentação atualizada para RISE V3
 
-### 5. Enviar Conversão de Compra
-
-```typescript
-const items: TikTok.TikTokItem[] = [
-  {
-    id: checkout.product.id,
-    name: checkout.product.name,
-    quantity: 1,
-    price: checkout.product.price,
-  },
-];
-
-const customer: TikTok.TikTokCustomer = {
-  email: logic.formData.email,
-  phone: logic.formData.phone,
-};
-
-await TikTok.trackPurchase(
-  tiktokIntegration.config,
-  orderId,
-  totalValue,
-  items,
-  customer
-);
-```
-
----
-
-## 📚 Documentação Detalhada
-
-### types.ts
-
-Define as interfaces TypeScript:
-
-- **TikTokConfig**: Configuração do TikTok Pixel (Pixel ID)
-- **TikTokCustomer**: Dados do cliente
-- **TikTokItem**: Dados de um produto
-- **TikTokConversionData**: Dados completos da conversão
-- **TikTokResponse**: Resposta da API
-- **TikTokIntegration**: Integração do vendedor
-- **TikTokGlobalParams**: Parâmetros globais do ttq
-
-### events.ts
-
-Funções para enviar eventos:
-
-- `isValidTikTokConfig()` - Valida configuração
-- `sendTikTokEvent()` - Envia evento genérico
-- `trackPurchase()` - Rastreia compra ⭐
-- `trackViewContent()` - Rastreia visualização de conteúdo
-- `trackAddToCart()` - Rastreia adição ao carrinho
-- `trackPageView()` - Rastreia visualização de página
-- `trackLead()` - Rastreia lead
-- `trackInitiateCheckout()` - Rastreia checkout iniciado
-- `trackRefund()` - Rastreia reembolso
-
-### hooks.ts
-
-Hooks React:
-
-- `useTikTokConfig(vendorId)` - Carregar config do banco (com cache de 5 min)
-- `shouldRunTikTok(integration, productId)` - Verificar se deve rodar
-- `useTikTokForProduct(vendorId, productId)` - Hook combinado
-
-### Pixel.tsx
-
-Componente React:
-
-- Injeta script do TikTok Pixel (ttq)
-- Inicializa rastreamento
-- Retorna null (invisível)
-
----
-
-## 🔧 Configuração no Banco de Dados
-
-A configuração é armazenada em `vendor_integrations`:
-
-```json
-{
-  "vendor_id": "uuid-do-vendedor",
-  "integration_type": "TIKTOK_PIXEL",
-  "active": true,
-  "config": {
-    "pixel_id": "1234567890123456",
-    "selected_products": ["product-id-1", "product-id-2"]
-  }
-}
-```
-
-### Campos
-
-- **pixel_id**: ID do Pixel do TikTok (obrigatório)
-- **selected_products**: Lista de IDs de produtos (vazio = todos)
-
----
-
-## 📊 Fluxo de Dados
-
-```
-PublicCheckout.tsx
-    ↓
-useTikTokConfig(vendorId)
-    ↓ (Query ao Supabase)
-vendor_integrations table
-    ↓
-shouldRunTikTok(integration, productId)
-    ↓
-<Pixel config={tiktokIntegration} />
-    ↓
-trackPurchase(config, orderId, value, items, customer)
-    ↓
-window.ttq.track("Purchase", {...})
-    ↓
-TikTok Pixel
-```
-
----
-
-## 🧪 Testes
-
-### Teste 1: Verificar Configuração
-
-```javascript
-// Console do navegador
-console.log(window.ttq);
-// Deve retornar: { track: ƒ track() { ... } }
-```
-
-### Teste 2: Verificar Logs
-
-```javascript
-// Console do navegador
-// Procure por:
-// [TikTok] Pixel 1234567890123456 inicializado com sucesso
-// [TikTok] ✅ Evento Purchase enviado com sucesso
-```
-
-### Teste 3: Verificar no TikTok Ads Manager
-
-1. Ir para: ads.tiktok.com
-2. Selecionar sua conta
-3. Ir para "Events"
-4. Verificar se aparecem os eventos
-
----
-
-## 🔐 Segurança
-
-- ✅ Pixel ID armazenado no banco (não no frontend)
-- ✅ Service Role Key não exposto
-- ✅ RLS protege dados de outros vendedores
-- ✅ Validação de entrada
-- ✅ Tratamento de erro
-
----
-
-## 🚀 Próximas Integrações
-
-Este módulo serve como template para outras integrações:
-
-- `src/integrations/tracking/kwai/` - Kwai Pixel
-- `src/integrations/gateways/mercadopago/` - Mercado Pago
-- `src/integrations/gateways/pushinpay/` - PushInPay
-
----
-
-## 🐛 Troubleshooting
-
-### Problema: "Integração não encontrada"
-**Solução**: Verificar se existe registro em vendor_integrations com integration_type="TIKTOK_PIXEL"
-
-### Problema: "Conversão não foi enviada"
-**Solução**: 
-1. Verificar se pixel_id está correto
-2. Verificar console para logs de erro
-3. Verificar se há bloqueador de scripts
-
-### Problema: "ttq não está disponível"
-**Solução**: 
-1. Verificar se script foi carregado
-2. Verificar console para erros de rede
-3. Verificar se há bloqueador de scripts
-
-### Problema: "Produto não está habilitado"
-**Solução**: 
-1. Verificar se productId está em selected_products
-2. Se selected_products vazio, todos os produtos devem estar habilitados
-
----
-
-## 📝 Changelog
-
-### v1.0 (29/11/2025)
+### v1.0.0 (Novembro 2025)
 - ✅ Implementação inicial
-- ✅ 6 arquivos criados
-- ✅ 8 funções de eventos
-- ✅ Documentação completa
-- ✅ Testes recomendados
-
----
-
-## 👨‍💻 Autor
-
-Implementado como parte da Refração Modular do RiseCheckout.
-
----
-
-## 📞 Suporte
-
-Para dúvidas ou problemas, consulte:
-1. Este README
-2. Arquivo types.ts para interfaces
-3. Código comentado em cada arquivo
