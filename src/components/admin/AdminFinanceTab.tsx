@@ -9,7 +9,7 @@ import {
   useAdminDailyRevenue, 
   PeriodFilter 
 } from "@/hooks/useAdminAnalytics";
-import { formatCentsToBRL } from "@/lib/money";
+import { formatCentsToBRL, toReais } from "@/lib/money";
 import { DollarSign, TrendingUp, ShoppingCart, Users } from "lucide-react";
 
 interface AdminFinanceTabProps {
@@ -20,14 +20,15 @@ export function AdminFinanceTab({ period }: AdminFinanceTabProps) {
   const { data: metrics, isLoading: metricsLoading } = useAdminFinancialMetrics(period);
   const { data: dailyRevenue, isLoading: chartLoading } = useAdminDailyRevenue(period);
 
+  // Converter centavos para reais (PRICE_STANDARD.md: centavos no código, reais na tela)
   const platformFeeData = dailyRevenue?.map((d) => ({
     date: d.date,
-    value: d.platformFee,
+    value: toReais(d.platformFee),
   })) || [];
 
   const gmvData = dailyRevenue?.map((d) => ({
     date: d.date,
-    value: d.gmv,
+    value: toReais(d.gmv),
   })) || [];
 
   return (

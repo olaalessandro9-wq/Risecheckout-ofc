@@ -155,7 +155,7 @@
 | `storage-management` | producer_sessions | false | unified-auth |
 | `pushinpay-stats` | producer_sessions | false | unified-auth |
 | **Dashboard & Data** | | | |
-| `admin-data` | producer_sessions | false | unified-auth |
+| `admin-data` | producer_sessions | false | unified-auth - **RETORNA VALORES EM CENTAVOS** |
 | `dashboard-orders` | producer_sessions | false | unified-auth |
 | `product-entities` | producer_sessions | false | unified-auth |
 | `products-crud` | producer_sessions | false | Core: list, get, get-settings, get-offers, get-checkouts (RISE V3) |
