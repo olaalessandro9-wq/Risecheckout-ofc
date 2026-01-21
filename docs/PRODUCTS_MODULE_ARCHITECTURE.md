@@ -52,7 +52,6 @@ src/modules/products/
 │   │   ├── index.ts                 # Re-exports
 │   │   ├── useGeneralTab.ts         # Hook orquestrador (view only)
 │   │   ├── types.ts                 # Tipos da aba
-│   │   ├── GeneralTabActions.tsx    # Botão de exclusão
 │   │   ├── ProductInfoSection.tsx   # Seção info
 │   │   ├── ProductImageSection.tsx  # Seção imagem
 │   │   ├── ProductOffersSection.tsx # Seção ofertas
