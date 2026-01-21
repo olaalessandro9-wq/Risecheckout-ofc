@@ -52,6 +52,7 @@ export const adminMachine = setup({
         SELECT_USER: { actions: assign({ users: ({ context, event }) => ({ ...context.users, selectedUser: event.user }) }) },
         DESELECT_USER: { actions: assign({ users: ({ context }) => ({ ...context.users, selectedUser: null }) }) },
         SET_USERS_SEARCH: { actions: assign({ users: ({ context, event }) => ({ ...context.users, searchTerm: event.term }) }) },
+        SET_USERS_STATUS_FILTER: { actions: assign({ users: ({ context, event }) => ({ ...context.users, statusFilter: event.filter }) }) },
         OPEN_ROLE_CHANGE: { actions: assign({ users: ({ context, event }) => ({ ...context.users, roleChangeDialog: event.dialog }) }) },
         CONFIRM_ROLE_CHANGE: { actions: assign({ usersLoading: true }) },
         ROLE_CHANGE_SUCCESS: { actions: assign({ usersLoading: false, users: ({ context }) => ({ ...context.users, roleChangeDialog: null }) }) },

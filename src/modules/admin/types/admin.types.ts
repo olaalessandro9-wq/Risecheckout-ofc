@@ -46,6 +46,7 @@ export interface UserWithRole {
     name: string;
   } | null;
   email?: string;
+  status: string;
   total_gmv: number;
   total_fees: number;
   orders_count: number;
@@ -273,5 +274,12 @@ export const PERIOD_OPTIONS: { value: PeriodFilter; label: string }[] = [
   { value: "7days", label: "Últimos 7 dias" },
   { value: "30days", label: "Últimos 30 dias" },
   { value: "all", label: "Todo período" },
+];
+
+export const USER_STATUS_OPTIONS: { value: UserStatusFilter; label: string }[] = [
+  { value: "all", label: "Todos os Status" },
+  { value: "active", label: "Ativos" },
+  { value: "suspended", label: "Suspensos" },
+  { value: "banned", label: "Banidos" },
 ];
 

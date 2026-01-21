@@ -31,6 +31,8 @@ import {
   ROLE_COLORS,
   SOURCE_LABELS,
   SOURCE_COLORS,
+  USER_STATUS_LABELS,
+  USER_STATUS_COLORS,
 } from "../../types/admin.types";
 import { formatCentsToBRL } from "@/lib/money";
 
@@ -54,7 +56,7 @@ export function UsersTable({
   onViewDetails,
   getAvailableRoles,
 }: UsersTableProps) {
-  const colSpan = isOwner ? 9 : 6;
+  const colSpan = isOwner ? 10 : 7;
 
   return (
     <div className="rounded-md border overflow-x-auto">
@@ -75,6 +77,7 @@ export function UsersTable({
             {isOwner && <TableHead>Email</TableHead>}
             {isOwner && <TableHead>Origem</TableHead>}
             <TableHead>Role</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead>
               <Button
                 variant="ghost"
@@ -151,6 +154,14 @@ export function UsersTable({
                   <TableCell>
                     <Badge variant="outline" className={ROLE_COLORS[user.role]}>
                       {ROLE_LABELS[user.role]}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge 
+                      variant="outline" 
+                      className={USER_STATUS_COLORS[user.status || "active"]}
+                    >
+                      {USER_STATUS_LABELS[user.status || "active"]}
                     </Badge>
                   </TableCell>
                   <TableCell>
