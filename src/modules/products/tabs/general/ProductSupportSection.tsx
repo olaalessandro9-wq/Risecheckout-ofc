@@ -4,7 +4,9 @@
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { GeneralFormData, GeneralFormErrors } from "./types";
+import type { GeneralFormData, FormValidationErrors } from "../../types/formData.types";
+
+type GeneralFormErrors = FormValidationErrors["general"];
 
 interface Props {
   form: GeneralFormData;

@@ -12,20 +12,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Link as LinkIcon, Copy, Check, ExternalLink, Webhook, Mail } from "lucide-react";
 import { toast } from "sonner";
-import type { GeneralFormData, GeneralFormErrors } from "./types";
+import type { GeneralFormData } from "../../types/formData.types";
 
 interface ProductDeliverySectionProps {
   form: GeneralFormData;
   setForm: React.Dispatch<React.SetStateAction<GeneralFormData>>;
-  errors: GeneralFormErrors;
-  clearError: (field: keyof GeneralFormErrors) => void;
 }
 
 export function ProductDeliverySection({ 
   form, 
-  setForm, 
-  errors, 
-  clearError 
+  setForm,
 }: ProductDeliverySectionProps) {
   const [copied, setCopied] = useState(false);
   const [urlError, setUrlError] = useState("");

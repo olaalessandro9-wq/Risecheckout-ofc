@@ -90,33 +90,7 @@ export {
   isCheckoutSettingsInitialized,
 } from "./productFormMachine.guards";
 
-// Actions (Modularized in actions/)
-export {
-  // Lifecycle
-  assignServerData,
-  assignLoadError,
-  assignProductId,
-  markSaved,
-  assignSaveError,
-  clearSaveError,
-  resetToServer,
-  // Edit
-  assignEditGeneral,
-  assignEditImage,
-  assignEditOffers,
-  assignAddDeletedOffer,
-  assignEditUpsell,
-  assignEditAffiliate,
-  assignEditCheckoutSettings,
-  assignInitCheckoutSettings,
-  // Validation
-  assignValidationError,
-  clearValidationErrors,
-  // Tab
-  assignActiveTab,
-  assignTabErrors,
-  clearTabErrors,
-} from "./productFormMachine.actions";
+// Actions: State Machine usa assign inline (RISE V3 - Zero Código Morto)
 
 // Actors
 export {

@@ -87,8 +87,6 @@ export function GeneralTab() {
         <ProductDeliverySection
           form={form}
           setForm={setForm}
-          errors={errors}
-          clearError={clearError}
         />
       </div>
     </>
