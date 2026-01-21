@@ -281,9 +281,21 @@ export function AdminOrdersTab({ period }: AdminOrdersTabProps) {
       </Card>
 
       <OrderDetailsDialog
-        order={selectedOrder}
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
+        orderData={selectedOrder ? {
+          id: selectedOrder.orderId,
+          customerName: selectedOrder.customerName,
+          customerEmail: selectedOrder.customerEmail,
+          customerPhone: selectedOrder.customerPhone || "",
+          customerDocument: selectedOrder.customerDocument || "",
+          productName: selectedOrder.productName,
+          productImageUrl: selectedOrder.productImageUrl || "",
+          amount: selectedOrder.amount,
+          status: selectedOrder.status as "Pago" | "Pendente" | "Reembolso" | "Chargeback",
+          createdAt: selectedOrder.createdAt,
+        } : null}
+        productOwnerId={selectedOrder?.productOwnerId}
       />
     </div>
   );
