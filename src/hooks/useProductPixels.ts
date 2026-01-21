@@ -2,6 +2,7 @@
  * Hook: useProductPixels
  * Gerencia pixels vinculados a um produto específico
  * 
+ * @version 3.1.0 - RISE Protocol V3 - Migrado para usar tipos do módulo pixels
  * MIGRADO para Edge Function: pixel-management
  * Ações: list-product-links, link-to-product, unlink-from-product, update-product-link
  */
@@ -9,13 +10,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
 import { createLogger } from "@/lib/logger";
-import type { VendorPixel, ProductPixel, ProductPixelLinkData, PixelPlatform } from "@/components/pixels/types";
+import type { VendorPixel, ProductPixelLink, ProductPixelLinkData, PixelPlatform, LinkedPixel } from "@/modules/pixels";
 
 const log = createLogger("UseProductPixels");
-
-interface LinkedPixel extends VendorPixel {
-  link: ProductPixel;
-}
 
 interface UseProductPixelsReturn {
   vendorPixels: VendorPixel[];
@@ -84,7 +81,7 @@ export function useProductPixels(productId: string): UseProductPixelsReturn {
       }
 
       interface RawLinkedPixel extends RawVendorPixel {
-        link?: ProductPixel;
+        link?: ProductPixelLink;
       }
 
       // Map vendor pixels with proper typing
@@ -99,7 +96,7 @@ export function useProductPixels(productId: string): UseProductPixelsReturn {
       const linked: LinkedPixel[] = ((data?.linkedPixels || []) as RawLinkedPixel[]).map((item) => ({
         ...item,
         platform: item.platform as PixelPlatform,
-        link: item.link as ProductPixel,
+        link: item.link as ProductPixelLink,
       }));
 
       setLinkedPixels(linked);

@@ -1,6 +1,11 @@
 /**
- * Componente: PixelForm
- * Formulário para adicionar/editar um pixel
+ * PixelForm Component
+ * 
+ * @module modules/pixels/components
+ * @version 1.0.0 - RISE Protocol V3 Compliant
+ * 
+ * Formulário para adicionar/editar um pixel.
+ * Consome estado do PixelsContext (SSOT).
  */
 
 import { useState, useEffect } from "react";
@@ -24,20 +29,23 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PlatformIcon } from "./PlatformIcon";
-import type { VendorPixel, PixelFormData, PixelPlatform } from "./types";
-import { PLATFORM_INFO } from "./types";
+import { usePixelsContext } from "../context/PixelsContext";
+import { PLATFORM_INFO, PIXEL_PLATFORMS } from "../types";
+import type { PixelFormData, PixelPlatform } from "../types";
 
-interface PixelFormProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  pixel?: VendorPixel | null;
-  onSave: (data: PixelFormData) => Promise<void>;
-  isSaving: boolean;
-}
+// ============================================================================
+// COMPONENT
+// ============================================================================
 
-const PLATFORMS: PixelPlatform[] = ['facebook', 'tiktok', 'google_ads', 'kwai'];
+export function PixelForm() {
+  const { 
+    isFormOpen, 
+    editingPixel, 
+    isSaving, 
+    closeForm, 
+    savePixel 
+  } = usePixelsContext();
 
-export function PixelForm({ open, onOpenChange, pixel, onSave, isSaving }: PixelFormProps) {
   const [formData, setFormData] = useState<PixelFormData>({
     platform: 'facebook',
     name: '',
@@ -48,21 +56,21 @@ export function PixelForm({ open, onOpenChange, pixel, onSave, isSaving }: Pixel
     is_active: true,
   });
 
-  const isEditing = !!pixel;
+  const isEditing = !!editingPixel;
   const platformInfo = PLATFORM_INFO[formData.platform];
 
   // Reset form when opening/closing or pixel changes
   useEffect(() => {
-    if (open) {
-      if (pixel) {
+    if (isFormOpen) {
+      if (editingPixel) {
         setFormData({
-          platform: pixel.platform,
-          name: pixel.name,
-          pixel_id: pixel.pixel_id,
-          access_token: pixel.access_token || '',
-          conversion_label: pixel.conversion_label || '',
-          domain: pixel.domain || '',
-          is_active: pixel.is_active,
+          platform: editingPixel.platform,
+          name: editingPixel.name,
+          pixel_id: editingPixel.pixel_id,
+          access_token: editingPixel.access_token || '',
+          conversion_label: editingPixel.conversion_label || '',
+          domain: editingPixel.domain || '',
+          is_active: editingPixel.is_active,
         });
       } else {
         setFormData({
@@ -76,11 +84,11 @@ export function PixelForm({ open, onOpenChange, pixel, onSave, isSaving }: Pixel
         });
       }
     }
-  }, [open, pixel]);
+  }, [isFormOpen, editingPixel]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    await onSave(formData);
+    savePixel(formData);
   };
 
   const updateField = <K extends keyof PixelFormData>(field: K, value: PixelFormData[K]) => {
@@ -88,7 +96,7 @@ export function PixelForm({ open, onOpenChange, pixel, onSave, isSaving }: Pixel
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={isFormOpen} onOpenChange={(open) => !open && closeForm()}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>
@@ -115,7 +123,7 @@ export function PixelForm({ open, onOpenChange, pixel, onSave, isSaving }: Pixel
                 <SelectValue placeholder="Selecione a plataforma" />
               </SelectTrigger>
               <SelectContent>
-                {PLATFORMS.map((platform) => (
+                {PIXEL_PLATFORMS.map((platform) => (
                   <SelectItem key={platform} value={platform}>
                     <div className="flex items-center gap-2">
                       <PlatformIcon platform={platform} size={16} />
@@ -227,7 +235,7 @@ export function PixelForm({ open, onOpenChange, pixel, onSave, isSaving }: Pixel
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={closeForm}
               disabled={isSaving}
             >
               Cancelar

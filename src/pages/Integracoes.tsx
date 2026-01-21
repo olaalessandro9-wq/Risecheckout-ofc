@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { TrendingUp, Webhook } from "lucide-react";
+import { TrendingUp, Webhook, BarChart3 } from "lucide-react";
 import { IntegrationCard } from "@/components/integrations/IntegrationCard";
 import { UTMifyConfig } from "@/components/integrations/UTMifyConfig";
 import { WebhooksConfig } from "@/components/webhooks/WebhooksConfig";
+import { PixelsProvider, PixelLibrary } from "@/modules/pixels";
 
 import {
   Sheet,
@@ -12,12 +13,19 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 
-type IntegrationType = "utmify" | "webhooks" | null;
+type IntegrationType = "pixels" | "utmify" | "webhooks" | null;
 
 const Integracoes = () => {
   const [selectedIntegration, setSelectedIntegration] = useState<IntegrationType>(null);
 
   const integrations = [
+    {
+      id: "pixels" as IntegrationType,
+      name: "Pixels de Rastreamento",
+      icon: BarChart3,
+      iconColor: "#f97316",
+      description: "Facebook, TikTok, Google Ads e Kwai",
+    },
     {
       id: "utmify" as IntegrationType,
       name: "UTMify",
@@ -36,6 +44,12 @@ const Integracoes = () => {
 
   const renderIntegrationContent = () => {
     switch (selectedIntegration) {
+      case "pixels":
+        return (
+          <PixelsProvider>
+            <PixelLibrary />
+          </PixelsProvider>
+        );
       case "utmify":
         return <UTMifyConfig />;
       case "webhooks":
