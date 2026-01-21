@@ -2,17 +2,21 @@
  * Stripe ConfigForm - Componente de Configuração
  * 
  * @module integrations/gateways/stripe/components
- * @version 2.0.0 - RISE Protocol V3 Compliant
+ * @version 3.0.0 - RISE Protocol V3 - SSOT Architecture
  * 
- * Orquestra os sub-componentes para configuração do Stripe Connect.
- * Refatorado de 240 linhas para ~100 linhas usando hooks e componentes modularizados.
+ * SSOT (Single Source of Truth):
+ * - O estado de conexão vem do FinanceiroContext via prop connectionStatus
+ * - Este componente NÃO faz fetch de dados - apenas renderiza
+ * - Os hooks são usados APENAS para ações (connect, disconnect)
+ * 
+ * Resultado: Zero piscadas, UI estável
  */
 
-import { Loader2, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "@/components/ui/sonner";
 import {
-  useStripeConnectionStatus,
   useStripeConnect,
   useStripeDisconnect,
   useStripeOAuthCallback,
@@ -20,18 +24,53 @@ import {
 import { ConnectionStatus } from "./ConnectionStatus";
 import { ConnectButton } from "./ConnectButton";
 import { InfoCard } from "./InfoCard";
-import type { GatewayConfigFormProps } from "@/config/gateways/types";
+import type { GatewayConfigFormProps, GatewayConnectionStatus } from "@/config/gateways/types";
+import type { StripeConnectionStatus } from "../types";
 
-export function ConfigForm({ onConnectionChange }: GatewayConfigFormProps) {
-  // Hooks
-  const { status, isLoading, refetch } = useStripeConnectionStatus();
+// ============================================================================
+// HELPER: Deriva StripeConnectionStatus do GatewayConnectionStatus (SSOT)
+// ============================================================================
+
+function deriveStripeStatus(
+  connectionStatus: GatewayConnectionStatus | null | undefined
+): StripeConnectionStatus {
+  if (!connectionStatus?.connected) {
+    return {
+      connected: false,
+      account_id: null,
+      email: null,
+      livemode: null,
+      connected_at: null,
+    };
+  }
+
+  // Extrai detalhes do connectionStatus (vem do backend via vendor-integrations-status)
+  const details = (connectionStatus as { details?: Record<string, unknown> }).details;
+  
+  return {
+    connected: true,
+    account_id: (details?.account_id as string) ?? null,
+    email: (details?.email as string) ?? null,
+    livemode: connectionStatus.mode === 'production',
+    connected_at: connectionStatus.lastConnectedAt ?? null,
+  };
+}
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
+
+export function ConfigForm({ onConnectionChange, connectionStatus }: GatewayConfigFormProps) {
+  // Deriva estado do connectionStatus (SSOT do FinanceiroContext)
+  const status = deriveStripeStatus(connectionStatus);
+
+  // Hooks apenas para AÇÕES (connect, disconnect)
   const { connect, isConnecting } = useStripeConnect();
   const { disconnect, isDisconnecting } = useStripeDisconnect();
 
   // Handle OAuth callback
   useStripeOAuthCallback(
     () => {
-      refetch();
       onConnectionChange?.();
     },
     () => {
@@ -47,19 +86,15 @@ export function ConfigForm({ onConnectionChange }: GatewayConfigFormProps) {
 
     const result = await disconnect();
     if (result.success) {
-      refetch();
       onConnectionChange?.();
     }
   };
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  // Handle refresh - dispara BACKGROUND_REFRESH via Context
+  const handleRefresh = () => {
+    toast.info('Atualizando status...');
+    onConnectionChange?.();
+  };
 
   return (
     <div className="space-y-6 py-4">
@@ -68,13 +103,13 @@ export function ConfigForm({ onConnectionChange }: GatewayConfigFormProps) {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">Status da Conexão</CardTitle>
-            <Button variant="ghost" size="sm" onClick={refetch}>
+            <Button variant="ghost" size="sm" onClick={handleRefresh}>
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          {status?.connected ? (
+          {status.connected ? (
             <ConnectionStatus
               status={status}
               isLoading={false}
