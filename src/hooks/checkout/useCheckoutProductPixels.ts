@@ -8,7 +8,7 @@
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { createLogger } from "@/lib/logger";
-import type { PixelPlatform } from "@/components/pixels/types";
+import type { PixelPlatform } from "@/modules/pixels";
 
 const log = createLogger("UseCheckoutProductPixels");
 
