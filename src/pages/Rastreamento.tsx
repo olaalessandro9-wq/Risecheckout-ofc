@@ -15,10 +15,10 @@ const Rastreamento = () => {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold mb-1 text-foreground">
-          Rastreamento
+          Trackeamento
         </h1>
         <p className="text-sm text-muted-foreground">
-          Gerencie seus pixels e integrações de rastreamento de conversões
+          Gerencie seus pixels e integrações de trackeamento de conversões
         </p>
       </div>
 
