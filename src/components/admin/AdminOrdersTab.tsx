@@ -23,15 +23,16 @@ import { OrderDetailsDialog } from "@/components/dashboard/OrderDetailsDialog";
 import { OrdersTable, OrderStats, type OrderStatsData } from "@/modules/admin/components/orders";
 import { useAdminFilters, useAdminPagination } from "@/modules/admin/hooks";
 import { useAdmin } from "@/modules/admin/context";
+import { orderStatusService } from "@/lib/order-status/service";
+import type { CustomerDisplayStatus } from "@/modules/dashboard/types";
 import type { OrderSortField, SortDirection, AdminOrder } from "@/modules/admin/types/admin.types";
 
 const STATUS_OPTIONS = [
   { value: "all", label: "Todos os Status" },
-  { value: "Pendente", label: "Pendentes" },
-  { value: "Pago", label: "Pagos" },
-  { value: "Cancelado", label: "Cancelados" },
-  { value: "Reembolsado", label: "Reembolsados" },
-  { value: "Expirado", label: "Expirados" },
+  { value: "pending", label: "Pendentes" },
+  { value: "paid", label: "Pagos" },
+  { value: "refunded", label: "Reembolsados" },
+  { value: "chargeback", label: "Chargeback" },
 ];
 
 export function AdminOrdersTab() {
@@ -84,19 +85,12 @@ export function AdminOrdersTab() {
 
   const stats: OrderStatsData = useMemo(() => ({
     totalOrders: orders.length,
-    totalRevenue: orders.filter((o) => o.status === "Pago").reduce((sum, o) => sum + o.amountCents, 0),
-    pendingOrders: orders.filter((o) => o.status === "Pendente").length,
-    completedOrders: orders.filter((o) => o.status === "Pago").length,
+    totalRevenue: orders.filter((o) => o.status === "paid").reduce((sum, o) => sum + o.amountCents, 0),
+    pendingOrders: orders.filter((o) => o.status === "pending").length,
+    completedOrders: orders.filter((o) => o.status === "paid").length,
   }), [orders]);
 
-  const transformedOrders = paginatedItems.map((order) => {
-    const statusLower = order.status.toLowerCase();
-    const mappedStatus = statusLower === "pago" ? "paid" 
-      : statusLower === "pendente" ? "pending"
-      : statusLower === "reembolso" ? "refunded"
-      : statusLower === "chargeback" ? "chargeback" : "pending";
-    return { ...order, status: mappedStatus };
-  });
+  // Status já vem em inglês lowercase do banco - usar direto
 
   const handleSort = useCallback((field: OrderSortField) => {
     if (ordersContext.sortField === field) {
@@ -182,7 +176,7 @@ export function AdminOrdersTab() {
         </CardHeader>
         <CardContent>
           <OrdersTable 
-            orders={transformedOrders} 
+            orders={paginatedItems}
             isLoading={isOrdersLoading} 
             sortField={ordersContext.sortField}
             sortDirection={ordersContext.sortDirection} 
@@ -236,7 +230,7 @@ export function AdminOrdersTab() {
           productName: ordersContext.selectedOrder.productName,
           productImageUrl: ordersContext.selectedOrder.productImageUrl || "",
           amount: ordersContext.selectedOrder.amount,
-          status: ordersContext.selectedOrder.status as "Pago" | "Pendente" | "Reembolso" | "Chargeback",
+          status: orderStatusService.getDisplayLabel(ordersContext.selectedOrder.status) as CustomerDisplayStatus,
           createdAt: ordersContext.selectedOrder.createdAt,
         } : null}
         productOwnerId={ordersContext.selectedOrder?.productOwnerId} 
