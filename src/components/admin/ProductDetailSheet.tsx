@@ -1,10 +1,13 @@
 /**
  * ProductDetailSheet - Painel de visualização read-only de produto
  * 
+ * RISE Protocol V3 Compliant - Uses centralized types
  * MIGRATED: Uses Edge Function instead of supabase.from()
  * 
  * Exibe detalhes completos do produto para owners verificarem conformidade
  * Modo somente leitura - nenhuma edição permitida
+ * 
+ * @version 2.0.0
  */
 
 import { useQuery } from "@tanstack/react-query";
@@ -20,6 +23,13 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Package, User, Mail, Tag, ImageIcon, Loader2 } from "lucide-react";
+import { formatCentsToBRL } from "@/lib/money";
+import {
+  PRODUCT_STATUS_LABELS,
+  PRODUCT_STATUS_COLORS,
+  type ProductDetails,
+  type ProductOffer,
+} from "@/modules/admin/types/admin.types";
 
 interface ProductDetailSheetProps {
   productId: string | null;
@@ -27,51 +37,7 @@ interface ProductDetailSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
-interface ProductDetails {
-  id: string;
-  name: string;
-  description: string | null;
-  price: number;
-  image_url: string | null;
-  status: string | null;
-  support_name: string | null;
-  support_email: string | null;
-  created_at: string | null;
-  user_id: string | null;
-}
-
-interface Offer {
-  id: string;
-  name: string;
-  price: number;
-  status: string;
-  is_default: boolean | null;
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  active: "Ativo",
-  blocked: "Bloqueado",
-  deleted: "Removido",
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  active: "bg-green-500/10 text-green-500 border-green-500/20",
-  blocked: "bg-red-500/10 text-red-500 border-red-500/20",
-  deleted: "bg-muted text-muted-foreground border-muted",
-};
-
-const formatCentsToBRL = (cents: number): string => {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(cents / 100);
-};
-
 export function ProductDetailSheet({ productId, open, onOpenChange }: ProductDetailSheetProps) {
-  /**
-   * Fetch product details via Edge Function
-   * MIGRATED: Uses supabase.functions.invoke instead of supabase.from()
-   */
   const { data, isLoading } = useQuery({
     queryKey: ["admin-product-detail", productId],
     queryFn: async () => {
@@ -81,7 +47,7 @@ export function ProductDetailSheet({ productId, open, onOpenChange }: ProductDet
         error?: string;
         product?: ProductDetails;
         vendorName?: string;
-        offers?: Offer[];
+        offers?: ProductOffer[];
       }>("admin-data", {
         action: "product-detail-admin",
         productId,
@@ -93,7 +59,7 @@ export function ProductDetailSheet({ productId, open, onOpenChange }: ProductDet
       return {
         product: response?.product as ProductDetails,
         vendorName: response?.vendorName as string,
-        offers: response?.offers as Offer[],
+        offers: response?.offers as ProductOffer[],
       };
     },
     enabled: !!productId && open,
@@ -127,12 +93,11 @@ export function ProductDetailSheet({ productId, open, onOpenChange }: ProductDet
         ) : (
           <ScrollArea className="h-[calc(100vh-120px)] pr-4">
             <div className="space-y-6 py-4">
-              {/* Status e Vendedor */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Status</span>
-                  <Badge variant="outline" className={STATUS_COLORS[product.status || "active"]}>
-                    {STATUS_LABELS[product.status || "active"]}
+                  <Badge variant="outline" className={PRODUCT_STATUS_COLORS[product.status || "active"]}>
+                    {PRODUCT_STATUS_LABELS[product.status || "active"]}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between">
@@ -143,7 +108,6 @@ export function ProductDetailSheet({ productId, open, onOpenChange }: ProductDet
 
               <Separator />
 
-              {/* Informações do Produto */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                   Produto
@@ -178,7 +142,6 @@ export function ProductDetailSheet({ productId, open, onOpenChange }: ProductDet
 
               <Separator />
 
-              {/* Imagem */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
                   <ImageIcon className="h-4 w-4" />
@@ -205,7 +168,6 @@ export function ProductDetailSheet({ productId, open, onOpenChange }: ProductDet
 
               <Separator />
 
-              {/* Ofertas */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
                   <Tag className="h-4 w-4" />
@@ -240,7 +202,6 @@ export function ProductDetailSheet({ productId, open, onOpenChange }: ProductDet
 
               <Separator />
 
-              {/* Suporte */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
                   <User className="h-4 w-4" />

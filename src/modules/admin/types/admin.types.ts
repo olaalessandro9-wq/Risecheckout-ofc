@@ -118,15 +118,18 @@ export interface AdminOrder {
   orderId: string;
   customerName: string;
   customerEmail: string;
-  customerPhone?: string;
-  customerDocument?: string;
+  customerPhone: string;
+  customerDocument: string;
   productName: string;
-  productImageUrl?: string;
-  productOwnerId?: string;
+  productImageUrl: string;
+  productOwnerId: string;
+  vendorId: string;
   amount: string;
   amountCents: number;
   status: string;
+  paymentMethod: string | null;
   createdAt: string;
+  fullCreatedAt: string;
 }
 
 // ============================================
@@ -270,12 +273,21 @@ export const PERIOD_OPTIONS: { value: PeriodFilter; label: string }[] = [
 ];
 
 // ============================================
-// HELPER FUNCTIONS
+// ORDER STATUS CONSTANTS
 // ============================================
 
-export const formatCentsToBRL = (cents: number): string => {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(cents / 100);
+export const ORDER_STATUS_LABELS: Record<string, string> = {
+  pending: "Pendente",
+  paid: "Pago",
+  cancelled: "Cancelado",
+  refunded: "Reembolsado",
+  expired: "Expirado",
+};
+
+export const ORDER_STATUS_COLORS: Record<string, string> = {
+  pending: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+  paid: "bg-green-500/10 text-green-500 border-green-500/20",
+  cancelled: "bg-red-500/10 text-red-500 border-red-500/20",
+  refunded: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+  expired: "bg-muted text-muted-foreground border-muted",
 };

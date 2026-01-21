@@ -3,7 +3,7 @@
  * 
  * Componente puro que exibe a tabela de pedidos com ações.
  * 
- * @version 1.0.0
+ * @version 1.1.0 - RISE V3 Compliant
  */
 
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,7 @@ import { Eye, ArrowUpDown } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { AdminOrder, OrderSortField, SortDirection } from "@/modules/admin/types/admin.types";
+import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from "@/modules/admin/types/admin.types";
 
 interface OrdersTableProps {
   orders: AdminOrder[];
@@ -29,22 +30,6 @@ interface OrdersTableProps {
   onSort: (field: OrderSortField) => void;
   onViewDetails: (orderId: string) => void;
 }
-
-const STATUS_COLORS: Record<string, string> = {
-  pending: "bg-amber-500/10 text-amber-500 border-amber-500/20",
-  paid: "bg-green-500/10 text-green-500 border-green-500/20",
-  cancelled: "bg-red-500/10 text-red-500 border-red-500/20",
-  refunded: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-  expired: "bg-muted text-muted-foreground border-muted",
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  pending: "Pendente",
-  paid: "Pago",
-  cancelled: "Cancelado",
-  refunded: "Reembolsado",
-  expired: "Expirado",
-};
 
 export function OrdersTable({
   orders,
@@ -119,9 +104,9 @@ export function OrdersTable({
             <TableCell>
               <Badge
                 variant="outline"
-                className={STATUS_COLORS[order.status] || "bg-muted"}
+                className={ORDER_STATUS_COLORS[order.status] || "bg-muted"}
               >
-                {STATUS_LABELS[order.status] || order.status}
+                {ORDER_STATUS_LABELS[order.status] || order.status}
               </Badge>
             </TableCell>
             <TableCell className="font-medium">{order.amount}</TableCell>

@@ -8,7 +8,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShoppingCart, DollarSign, Clock, CheckCircle } from "lucide-react";
-import { formatCentsToBRL } from "@/modules/admin/types/admin.types";
+import { formatCentsToBRL } from "@/lib/money";
 
 export interface OrderStatsData {
   totalOrders: number;

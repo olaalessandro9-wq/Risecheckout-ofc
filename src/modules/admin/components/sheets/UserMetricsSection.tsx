@@ -7,7 +7,7 @@
  */
 
 import { DollarSign } from "lucide-react";
-import { formatCentsToBRL } from "../../types/admin.types";
+import { formatCentsToBRL } from "@/lib/money";
 
 interface UserMetricsSectionProps {
   totalGmv: number;
