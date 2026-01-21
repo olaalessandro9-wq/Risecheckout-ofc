@@ -1,8 +1,7 @@
 /**
  * UserDetailSheet - Modal lateral de detalhes do usuário
  * 
- * Exibe informações do usuário, produtos, métricas e ações de moderação
- * Apenas Owner pode usar as ações de moderação
+ * RISE Protocol V3 Compliant - Uses modular sub-components from admin module
  */
 
 import { useState } from "react";
@@ -16,48 +15,24 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { 
-  User, 
-  Mail, 
-  Calendar, 
-  Shield,
-  Package,
-  DollarSign,
-  Percent,
-  Ban,
-  UserX,
-  CheckCircle,
-  XCircle,
-  Trash2,
-  RotateCcw
-} from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { Textarea } from "@/components/ui/textarea";
+import { User } from "lucide-react";
+
+// Import from admin module
+import {
+  UserInfo,
+  UserFeeSection,
+  UserModerationSection,
+  UserProductsSection,
+  UserMetricsSection,
+  UserActionDialog,
+} from "@/modules/admin/components";
+import type { 
+  UserProfile, 
+  UserProduct,
+  UserActionDialog as UserActionDialogType 
+} from "@/modules/admin/types/admin.types";
 
 interface UserDetailSheetProps {
   open: boolean;
@@ -70,40 +45,6 @@ interface UserDetailSheetProps {
   totalFees: number;
   ordersCount: number;
 }
-
-interface UserProduct {
-  id: string;
-  name: string;
-  status: string | null;
-  price: number;
-  total_gmv: number;
-  orders_count: number;
-}
-
-const formatCentsToBRL = (cents: number): string => {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(cents / 100);
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  active: "Ativo",
-  suspended: "Suspenso",
-  banned: "Banido",
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  active: "bg-green-500/10 text-green-500 border-green-500/20",
-  suspended: "bg-amber-500/10 text-amber-500 border-amber-500/20",
-  banned: "bg-red-500/10 text-red-500 border-red-500/20",
-};
-
-const PRODUCT_STATUS_COLORS: Record<string, string> = {
-  active: "bg-green-500/10 text-green-500 border-green-500/20",
-  blocked: "bg-red-500/10 text-red-500 border-red-500/20",
-  deleted: "bg-muted text-muted-foreground border-muted",
-};
 
 export function UserDetailSheet({
   open,
@@ -122,23 +63,9 @@ export function UserDetailSheet({
 
   const [customFee, setCustomFee] = useState<string>("");
   const [statusReason, setStatusReason] = useState("");
-  const [actionDialog, setActionDialog] = useState<{
-    open: boolean;
-    type: "suspend" | "ban" | "activate" | "updateFee" | "resetFee" | "productAction";
-    productId?: string;
-    productName?: string;
-    productAction?: "activate" | "block" | "delete";
-  } | null>(null);
+  const [actionDialog, setActionDialog] = useState<UserActionDialogType | null>(null);
 
-  // Interface for profile response
-  interface UserProfile {
-    status?: string;
-    custom_fee_percent?: number | null;
-    created_at?: string;
-    status_reason?: string;
-  }
-
-  // Buscar dados do perfil (status, custom_fee)
+  // Fetch user profile
   const { data: profile } = useQuery({
     queryKey: ["admin-user-profile", userId],
     queryFn: async () => {
@@ -146,16 +73,14 @@ export function UserDetailSheet({
         action: "user-profile",
         userId,
       });
-
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-
       return data?.profile;
     },
     enabled: open,
   });
 
-  // Buscar produtos do usuário com métricas
+  // Fetch user products
   const { data: products, isLoading: productsLoading } = useQuery({
     queryKey: ["admin-user-products", userId],
     queryFn: async () => {
@@ -163,16 +88,14 @@ export function UserDetailSheet({
         action: "user-products",
         userId,
       });
-
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-
       return data?.products || [];
     },
     enabled: open,
   });
 
-  // Mutation para ações de moderação
+  // Action mutation
   const actionMutation = useMutation({
     mutationFn: async (params: {
       action: string;
@@ -183,10 +106,8 @@ export function UserDetailSheet({
       productId?: string;
     }) => {
       const { data, error } = await api.call<{ error?: string }>("manage-user-status", params);
-
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-
       return data;
     },
     onSuccess: (_, variables) => {
@@ -195,13 +116,12 @@ export function UserDetailSheet({
       queryClient.invalidateQueries({ queryKey: ["admin-users-with-metrics"] });
       queryClient.invalidateQueries({ queryKey: ["admin-products-global"] });
       
-      if (variables.action === "updateStatus") {
-        toast.success("Status do usuário atualizado!");
-      } else if (variables.action === "updateCustomFee") {
-        toast.success("Taxa personalizada atualizada!");
-      } else if (variables.action === "updateProductStatus") {
-        toast.success("Produto atualizado!");
-      }
+      const messages: Record<string, string> = {
+        updateStatus: "Status do usuário atualizado!",
+        updateCustomFee: "Taxa personalizada atualizada!",
+        updateProductStatus: "Produto atualizado!",
+      };
+      toast.success(messages[variables.action] || "Ação executada!");
       
       setActionDialog(null);
       setStatusReason("");
@@ -264,7 +184,6 @@ export function UserDetailSheet({
 
   const userStatus = profile?.status || "active";
   const currentFee = profile?.custom_fee_percent;
-  const displayFee = currentFee != null ? `${(currentFee * 100).toFixed(2)}%` : "Padrão (4%)";
 
   return (
     <>
@@ -281,317 +200,74 @@ export function UserDetailSheet({
           </SheetHeader>
 
           <div className="mt-6 space-y-6">
-            {/* Informações do Usuário */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <span>{userEmail || "Email não disponível"}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <Shield className="h-4 w-4 text-muted-foreground" />
-                <span>Role: {userRole}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span>
-                  Cadastrado em:{" "}
-                  {profile?.created_at
-                    ? format(new Date(profile.created_at), "dd/MM/yyyy", { locale: ptBR })
-                    : "-"
-                  }
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm">Status:</span>
-                <Badge variant="outline" className={STATUS_COLORS[userStatus]}>
-                  {STATUS_LABELS[userStatus]}
-                </Badge>
-              </div>
-              {profile?.status_reason && (
-                <div className="text-sm text-muted-foreground bg-muted/50 p-2 rounded">
-                  Motivo: {profile.status_reason}
-                </div>
-              )}
-            </div>
+            {/* User Info Section */}
+            <UserInfo
+              userEmail={userEmail}
+              userRole={userRole}
+              status={userStatus}
+              statusReason={profile?.status_reason}
+              createdAt={profile?.created_at}
+            />
 
             <Separator />
 
-            {/* Taxa Personalizada */}
+            {/* Custom Fee Section */}
             {isOwner && (
-              <div className="space-y-3">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <Percent className="h-4 w-4" />
-                  Taxa Personalizada
-                </h3>
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary">{displayFee}</Badge>
-                  {currentFee != null && (
-                    <span className="text-xs text-muted-foreground">(personalizada)</span>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <Input
-                      type="text"
-                      placeholder="Ex: 2.5"
-                      value={customFee}
-                      onChange={(e) => setCustomFee(e.target.value)}
-                      className="h-9"
-                    />
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => handleFeeAction("updateFee")}
-                    disabled={!customFee}
-                  >
-                    Aplicar %
-                  </Button>
-                  {currentFee != null && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleFeeAction("resetFee")}
-                    >
-                      <RotateCcw className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              </div>
+              <>
+                <UserFeeSection
+                  currentFee={currentFee}
+                  customFeeInput={customFee}
+                  onCustomFeeChange={setCustomFee}
+                  onApplyFee={() => handleFeeAction("updateFee")}
+                  onResetFee={() => handleFeeAction("resetFee")}
+                />
+                <Separator />
+              </>
             )}
 
-            <Separator />
-
-            {/* Ações de Moderação */}
+            {/* Moderation Actions Section */}
             {isOwner && (
-              <div className="space-y-3">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <Shield className="h-4 w-4" />
-                  Ações de Moderação
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {userStatus !== "active" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-green-500 border-green-500/30"
-                      onClick={() => handleStatusAction("activate")}
-                    >
-                      <CheckCircle className="mr-1 h-4 w-4" />
-                      Ativar
-                    </Button>
-                  )}
-                  {userStatus !== "suspended" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-amber-500 border-amber-500/30"
-                      onClick={() => handleStatusAction("suspend")}
-                    >
-                      <UserX className="mr-1 h-4 w-4" />
-                      Suspender
-                    </Button>
-                  )}
-                  {userStatus !== "banned" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-red-500 border-red-500/30"
-                      onClick={() => handleStatusAction("ban")}
-                    >
-                      <Ban className="mr-1 h-4 w-4" />
-                      Banir
-                    </Button>
-                  )}
-                </div>
-              </div>
+              <>
+                <UserModerationSection
+                  userStatus={userStatus}
+                  onActivate={() => handleStatusAction("activate")}
+                  onSuspend={() => handleStatusAction("suspend")}
+                  onBan={() => handleStatusAction("ban")}
+                />
+                <Separator />
+              </>
             )}
 
-            <Separator />
-
-            {/* Produtos do Usuário */}
-            <div className="space-y-3">
-              <h3 className="font-semibold flex items-center gap-2">
-                <Package className="h-4 w-4" />
-                Produtos ({products?.length || 0})
-              </h3>
-              {productsLoading ? (
-                <p className="text-sm text-muted-foreground">Carregando...</p>
-              ) : products && products.length > 0 ? (
-                <div className="rounded-md border overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Nome</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>GMV</TableHead>
-                        {isOwner && <TableHead className="w-[80px]">Ações</TableHead>}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {products.map((product) => (
-                        <TableRow key={product.id}>
-                          <TableCell className="font-medium">{product.name}</TableCell>
-                          <TableCell>
-                            <Badge 
-                              variant="outline" 
-                              className={PRODUCT_STATUS_COLORS[product.status || "active"]}
-                            >
-                              {product.status === "active" ? "Ativo" : 
-                               product.status === "blocked" ? "Bloqueado" : "Removido"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <span className={product.total_gmv > 0 ? "text-emerald-500" : "text-muted-foreground"}>
-                              {formatCentsToBRL(product.total_gmv)}
-                            </span>
-                          </TableCell>
-                          {isOwner && (
-                            <TableCell>
-                              <div className="flex gap-1">
-                                {product.status !== "active" && (
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-7 w-7 text-green-500"
-                                    onClick={() => handleProductAction(product.id, product.name, "activate")}
-                                  >
-                                    <CheckCircle className="h-4 w-4" />
-                                  </Button>
-                                )}
-                                {product.status !== "blocked" && (
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-7 w-7 text-red-500"
-                                    onClick={() => handleProductAction(product.id, product.name, "block")}
-                                  >
-                                    <XCircle className="h-4 w-4" />
-                                  </Button>
-                                )}
-                                {product.status !== "deleted" && (
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-7 w-7 text-destructive"
-                                    onClick={() => handleProductAction(product.id, product.name, "delete")}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                )}
-                              </div>
-                            </TableCell>
-                          )}
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Nenhum produto cadastrado.</p>
-              )}
-            </div>
+            {/* Products Section */}
+            <UserProductsSection
+              products={products || []}
+              isLoading={productsLoading}
+              isOwner={isOwner}
+              onProductAction={handleProductAction}
+            />
 
             <Separator />
 
-            {/* Métricas */}
-            <div className="space-y-3">
-              <h3 className="font-semibold flex items-center gap-2">
-                <DollarSign className="h-4 w-4" />
-                Métricas Totais
-              </h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center p-3 bg-muted/50 rounded-lg">
-                  <p className="text-lg font-semibold text-emerald-500">
-                    {formatCentsToBRL(totalGmv)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">GMV Total</p>
-                </div>
-                <div className="text-center p-3 bg-muted/50 rounded-lg">
-                  <p className="text-lg font-semibold text-blue-500">
-                    {formatCentsToBRL(totalFees)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Taxa Paga</p>
-                </div>
-                <div className="text-center p-3 bg-muted/50 rounded-lg">
-                  <p className="text-lg font-semibold">{ordersCount}</p>
-                  <p className="text-xs text-muted-foreground">Pedidos</p>
-                </div>
-              </div>
-            </div>
+            {/* Metrics Section */}
+            <UserMetricsSection
+              totalGmv={totalGmv}
+              totalFees={totalFees}
+              ordersCount={ordersCount}
+            />
           </div>
         </SheetContent>
       </Sheet>
 
-      {/* Dialog de Confirmação */}
-      <AlertDialog
-        open={actionDialog?.open}
-        onOpenChange={(open) => !open && setActionDialog(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar ação</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-4">
-                {actionDialog?.type === "suspend" && (
-                  <p>Você está prestes a <strong>suspender</strong> o usuário <strong>{userName}</strong>. O usuário não poderá acessar a plataforma até ser reativado.</p>
-                )}
-                {actionDialog?.type === "ban" && (
-                  <p>Você está prestes a <strong>banir permanentemente</strong> o usuário <strong>{userName}</strong>.</p>
-                )}
-                {actionDialog?.type === "activate" && (
-                  <p>Você está prestes a <strong>reativar</strong> o usuário <strong>{userName}</strong>.</p>
-                )}
-                {actionDialog?.type === "updateFee" && (
-                  <p>Você está prestes a definir uma taxa personalizada de <strong>{customFee}%</strong> para o usuário <strong>{userName}</strong>.</p>
-                )}
-                {actionDialog?.type === "resetFee" && (
-                  <p>Você está prestes a <strong>resetar</strong> a taxa do usuário <strong>{userName}</strong> para o padrão (4%).</p>
-                )}
-                {actionDialog?.type === "productAction" && (
-                  <p>
-                    Você está prestes a{" "}
-                    <strong>
-                      {actionDialog.productAction === "activate" ? "ativar" : 
-                       actionDialog.productAction === "block" ? "bloquear" : "remover"}
-                    </strong>{" "}
-                    o produto <strong>{actionDialog.productName}</strong>.
-                  </p>
-                )}
-
-                {(actionDialog?.type === "suspend" || actionDialog?.type === "ban") && (
-                  <div className="space-y-2">
-                    <Label htmlFor="reason">Motivo (opcional)</Label>
-                    <Textarea
-                      id="reason"
-                      placeholder="Descreva o motivo..."
-                      value={statusReason}
-                      onChange={(e) => setStatusReason(e.target.value)}
-                    />
-                  </div>
-                )}
-
-                <p className="text-sm text-muted-foreground">
-                  Esta ação será registrada no log de segurança.
-                </p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmAction}
-              className={
-                actionDialog?.type === "ban" || 
-                (actionDialog?.type === "productAction" && actionDialog?.productAction === "delete")
-                  ? "bg-destructive hover:bg-destructive/90"
-                  : ""
-              }
-            >
-              Confirmar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Action Dialog */}
+      <UserActionDialog
+        dialog={actionDialog}
+        userName={userName}
+        customFee={customFee}
+        statusReason={statusReason}
+        onStatusReasonChange={setStatusReason}
+        onConfirm={confirmAction}
+        onCancel={() => setActionDialog(null)}
+      />
     </>
   );
 }
