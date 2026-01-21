@@ -18,7 +18,9 @@ import {
   useGeneralTabOffers,
   useGeneralTabMemberGroups,
 } from "./hooks";
-import type { GeneralFormData, GeneralFormErrors } from "./types";
+import type { GeneralFormData, FormValidationErrors } from "../../types/formData.types";
+
+type GeneralFormErrors = FormValidationErrors["general"];
 
 export function useGeneralTab() {
   const {
@@ -56,7 +58,7 @@ export function useGeneralTab() {
     dispatchForm({ 
       type: 'SET_VALIDATION_ERROR', 
       section: 'general',
-      field,
+      field: field as string,
       error: undefined,
     });
   }, [dispatchForm]);

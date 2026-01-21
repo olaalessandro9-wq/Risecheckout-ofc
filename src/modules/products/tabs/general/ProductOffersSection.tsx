@@ -3,7 +3,7 @@
  */
 
 import { OffersManager, type Offer, type MemberGroupOption } from "@/components/products/OffersManager";
-import type { GeneralFormData } from "./types";
+import type { GeneralFormData } from "../../types/formData.types";
 
 interface Props {
   productId: string;

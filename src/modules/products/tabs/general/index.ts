@@ -8,4 +8,4 @@ export { ProductImageSection } from "./ProductImageSection";
 export { ProductOffersSection } from "./ProductOffersSection";
 export { ProductSupportSection } from "./ProductSupportSection";
 export { ProductDeliverySection } from "./ProductDeliverySection";
-export type { GeneralFormData, GeneralFormErrors, ImageState } from "./types";
+export type { GeneralFormData, FormValidationErrors, ImageFormState as ImageState } from "../../types/formData.types";

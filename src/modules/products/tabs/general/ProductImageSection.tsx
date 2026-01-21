@@ -3,7 +3,7 @@
  */
 
 import { ImageSelector } from "@/components/products/ImageSelector";
-import type { ImageState } from "./types";
+import type { ImageFormState as ImageState } from "../../types/formData.types";
 
 interface Props {
   currentImageUrl?: string | null;
