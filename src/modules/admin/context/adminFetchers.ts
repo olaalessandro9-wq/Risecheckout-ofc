@@ -77,7 +77,7 @@ export async function fetchProducts(
   try {
     const { data, error } = await api.call<{ products: ProductWithMetrics[] }>(
       "admin-data",
-      { action: "products-with-metrics", period }
+      { action: "admin-products-global" }
     );
 
     if (error) throw new Error(error.message);
@@ -97,11 +97,11 @@ interface RawOrder {
   customer_email?: string;
   customer_phone?: string;
   customer_document?: string;
-  amount?: number;
+  amount_cents?: number;
   status?: string;
   payment_method?: string;
   created_at?: string;
-  products?: { name?: string; image_url?: string; user_id?: string };
+  product?: { id?: string; name?: string; image_url?: string; user_id?: string };
   vendor_id?: string;
 }
 
@@ -112,7 +112,7 @@ export async function fetchOrders(
   try {
     const { data, error } = await api.call<{ orders: RawOrder[] }>(
       "admin-data",
-      { action: "orders-list", period }
+      { action: "admin-orders", period }
     );
 
     if (error) throw new Error(error.message);
@@ -126,12 +126,12 @@ export async function fetchOrders(
         customerEmail: order.customer_email || "",
         customerPhone: order.customer_phone || "",
         customerDocument: order.customer_document || "",
-        productName: order.products?.name || "Produto removido",
-        productImageUrl: order.products?.image_url || "",
-        productOwnerId: order.products?.user_id || "",
+        productName: order.product?.name || "Produto removido",
+        productImageUrl: order.product?.image_url || "",
+        productOwnerId: order.product?.user_id || "",
         vendorId: order.vendor_id || "",
-        amount: formatCentsToBRL(order.amount || 0),
-        amountCents: order.amount || 0,
+        amount: formatCentsToBRL(order.amount_cents || 0),
+        amountCents: order.amount_cents || 0,
         status: order.status || "pending",
         paymentMethod: order.payment_method || null,
         createdAt: format(createdAt, "dd/MM/yyyy", { locale: ptBR }),
