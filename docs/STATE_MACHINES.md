@@ -3,14 +3,14 @@
 **Última Atualização:** 20 de Janeiro de 2026  
 **Versão XState:** 5.x  
 **Versão @xstate/react:** 4.x  
-**Status:** ✅ **MIGRAÇÃO 100% COMPLETA - TODOS OS 6 MÓDULOS**  
+**Status:** ✅ **MIGRAÇÃO 100% COMPLETA - TODOS OS 11 MÓDULOS**  
 **RISE V3 Score:** 10.0/10
 
 > **📚 Documentação Completa:** Para a arquitetura universal XState com diagramas de todos os módulos, convenções e guia de migração, consulte [`docs/XSTATE_ARCHITECTURE.md`](./XSTATE_ARCHITECTURE.md).
 
 ---
 
-## Módulos Migrados (6/6)
+## Módulos Migrados (11/11)
 
 | # | Módulo | Máquina | Documentação Completa |
 |---|--------|---------|----------------------|
@@ -20,6 +20,11 @@
 | 4 | Members Area Builder | `builderMachine` | [XSTATE_ARCHITECTURE.md](./XSTATE_ARCHITECTURE.md#34-buildermachine-members-area) |
 | 5 | Affiliation | `affiliationMachine` | [XSTATE_ARCHITECTURE.md](./XSTATE_ARCHITECTURE.md#35-affiliationmachine) |
 | 6 | Members Area Settings | `membersAreaMachine` | [XSTATE_ARCHITECTURE.md](./XSTATE_ARCHITECTURE.md#36-membersareamachine-settings) |
+| 7 | Financeiro | `financeiroMachine` | [XSTATE_ARCHITECTURE.md](./XSTATE_ARCHITECTURE.md#37-financeiromachine) |
+| 8 | Pixels | `pixelsMachine` | [XSTATE_ARCHITECTURE.md](./XSTATE_ARCHITECTURE.md#38-pixelsmachine) |
+| 9 | UTMify | `utmifyMachine` | [XSTATE_ARCHITECTURE.md](./XSTATE_ARCHITECTURE.md#39-utmifymachine) |
+| 10 | Webhooks | `webhooksMachine` | [XSTATE_ARCHITECTURE.md](./XSTATE_ARCHITECTURE.md#310-webhooksmachine) |
+| 11 | Admin | `adminMachine` | [XSTATE_ARCHITECTURE.md](./XSTATE_ARCHITECTURE.md#311-adminmachine) |
 
 ---
 
@@ -422,6 +427,7 @@ if (import.meta.env.DEV) {
 | 2026-01-20 | **TODOS OS 6 MÓDULOS MIGRADOS** |
 | 2026-01-20 | Criado XSTATE_ARCHITECTURE.md com documentação universal |
 | 2026-01-20 | Adicionada tabela de referência para outros módulos |
+| 2026-01-21 | Atualizada tabela para 11/11 módulos (incluindo Admin) |
 
 ---
 
