@@ -16,7 +16,7 @@ import {
   Banknote,
   Settings2,
   BarChart3,
-  Plug,
+  Webhook,
   ShieldCheck,
   LifeBuoy,
   HelpCircle,
@@ -128,21 +128,21 @@ export const NAVIGATION_CONFIG: readonly NavItemConfig[] = [
       type: "group",
       children: [
         {
-          id: "pixels",
-          label: "Pixels",
+          id: "tracking",
+          label: "Rastreamento",
           icon: BarChart3,
           variant: {
             type: "route",
-            path: "/dashboard/pixels",
+            path: "/dashboard/rastreamento",
           },
         },
         {
-          id: "integrations",
-          label: "Integrações",
-          icon: Plug,
+          id: "webhooks",
+          label: "Webhooks",
+          icon: Webhook,
           variant: {
             type: "route",
-            path: "/dashboard/integracoes",
+            path: "/dashboard/webhooks",
           },
         },
       ],
