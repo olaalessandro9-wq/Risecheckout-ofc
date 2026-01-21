@@ -1,289 +1,117 @@
-# Kwai Pixel Integration Module
-**Módulo**: `src/integrations/tracking/kwai`  
-**Status**: ✅ Implementado  
-**Versão**: 1.0  
+# Kwai Pixel Module
 
----
+> **Versão:** 2.0.0 - RISE Protocol V3 Compliant  
+> **Última atualização:** Janeiro 2026
 
-## 📋 Visão Geral
+## Arquitetura
 
-Este módulo implementa a integração do **Kwai Pixel** no RiseCheckout seguindo uma arquitetura modular baseada em features. Cada integração (Facebook, UTMify, Google Ads, TikTok, Kwai, etc) fica isolada em sua própria pasta.
+Este módulo é parte do sistema de tracking do RiseCheckout.
+
+### Sistema Atual (vendor_pixels + product_pixels)
+
+Os pixels são gerenciados centralmente via **XState State Machine**:
+
+| Responsabilidade | Localização |
+|------------------|-------------|
+| **Cadastro de Pixels** | `src/modules/pixels/` (SSOT via `pixelsMachine`) |
+| **Vinculação ao Produto** | `ProductPixelsSelector` (apenas seleciona) |
+| **Renderização no Checkout** | `TrackingManager.tsx` (usa prop `productPixels`) |
+| **Disparo de Eventos** | `events.ts` deste módulo |
 
 ### Estrutura do Módulo
 
 ```
 src/integrations/tracking/kwai/
-├── index.ts          # Barrel export (interface pública)
-├── types.ts          # Tipos e interfaces TypeScript
-├── events.ts         # Lógica de envio de eventos
-├── hooks.ts          # Hooks React customizados
-├── Pixel.tsx         # Componente React
-└── README.md         # Este arquivo
+├── index.ts      # Barrel export
+├── Pixel.tsx     # Componente React que injeta o script do Kwai Pixel
+├── events.ts     # Funções para disparar eventos (trackPurchase, trackPageView, etc.)
+├── types.ts      # Interfaces TypeScript
+└── README.md     # Esta documentação
 ```
 
----
+## Fluxo de Dados
 
-## 🚀 Como Usar
+```
+┌─────────────────────────────────────────────────────────────┐
+│  1. Produtor cadastra pixel em /dashboard/integracoes       │
+│     └── pixelsMachine (XState) → vendor_pixels              │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  2. Vincula pixel ao produto via ProductPixelsSelector      │
+│     └── product_pixels (tabela de junção)                   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  3. Checkout carrega pixels via useCheckoutProductPixels    │
+│     └── Edge Function: checkout-loader                      │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  4. TrackingManager renderiza componente <Pixel />          │
+│     └── Injeta script do Kwai Pixel no DOM                  │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  5. Eventos são disparados via funções do events.ts         │
+│     └── trackPurchase(), trackPageView(), etc.              │
+└─────────────────────────────────────────────────────────────┘
+```
 
-### 1. Import Centralizado
+## Tabelas do Banco de Dados
 
-```typescript
+| Tabela | Descrição |
+|--------|-----------|
+| `vendor_pixels` | Cadastro de pixels do vendedor (pixel_id, platform, etc.) |
+| `product_pixels` | Vinculação pixel ↔ produto (fire_on_pix, fire_on_card, etc.) |
+
+## Uso do Componente
+
+```tsx
 import * as Kwai from "@/integrations/tracking/kwai";
+
+// Renderizar o pixel (feito pelo TrackingManager)
+<Kwai.Pixel config={pixelConfig} />
+
+// Disparar evento de compra (NOTA: Kwai usa "PlaceOrder" para conversões)
+Kwai.trackPurchase({
+  value: 99.90,
+  currency: "BRL",
+  orderId: "order-123",
+});
 ```
 
-### 2. Carregar Configuração
+## Eventos Disponíveis
 
-```typescript
-const { data: kwaiIntegration } = Kwai.useKwaiConfig(vendorId);
-```
+| Função | Evento Kwai | Descrição |
+|--------|-------------|-----------|
+| `trackPurchase()` | `PlaceOrder` | Conversão de compra (NOTA: Kwai não usa "Purchase") |
+| `trackPageView()` | `PageView` | Visualização de página |
+| `trackViewContent()` | `ViewContent` | Visualização de conteúdo |
 
-### 3. Verificar se Deve Rodar
+## Nota Técnica: PlaceOrder vs Purchase
 
-```typescript
-const shouldRun = Kwai.shouldRunKwai(kwaiIntegration, productId);
-```
+O Kwai Pixel usa o evento `PlaceOrder` para conversões de compra, diferente de outras plataformas que usam `Purchase`. Esta é uma especificidade da API do Kwai.
 
-### 4. Renderizar Componente
+## Conformidade RISE V3
 
-```typescript
-{shouldRun && <Kwai.Pixel config={kwaiIntegration} />}
-```
+- ✅ Zero `console.log` (usa `createLogger`)
+- ✅ Zero `: any`
+- ✅ Zero `@ts-ignore`
+- ✅ Limite de 300 linhas respeitado
+- ✅ Backend-only mutations (via Edge Functions)
+- ✅ SSOT via XState para gerenciamento de pixels
 
-### 5. Enviar Conversão de Compra
+## Changelog
 
-```typescript
-const items: Kwai.KwaiItem[] = [
-  {
-    id: checkout.product.id,
-    name: checkout.product.name,
-    quantity: 1,
-    price: checkout.product.price,
-  },
-];
+### v2.0.0 (Janeiro 2026)
+- ✅ Migração para novo sistema vendor_pixels + product_pixels
+- ✅ Remoção de hooks legados (useKwaiConfig, shouldRunKwai)
+- ✅ Documentação atualizada para RISE V3
 
-const customer: Kwai.KwaiCustomer = {
-  email: logic.formData.email,
-  phone: logic.formData.phone,
-};
-
-await Kwai.trackPurchase(
-  kwaiIntegration.config,
-  orderId,
-  totalValue,
-  items,
-  customer
-);
-```
-
----
-
-## 📚 Documentação Detalhada
-
-### types.ts
-
-Define as interfaces TypeScript:
-
-- **KwaiConfig**: Configuração do Kwai Pixel (Pixel ID)
-- **KwaiCustomer**: Dados do cliente
-- **KwaiItem**: Dados de um produto
-- **KwaiConversionData**: Dados completos da conversão
-- **KwaiResponse**: Resposta da API
-- **KwaiIntegration**: Integração do vendedor
-- **KwaiGlobalParams**: Parâmetros globais do kwaiq
-
-### events.ts
-
-Funções para enviar eventos:
-
-- `isValidKwaiConfig()` - Valida configuração
-- `sendKwaiEvent()` - Envia evento genérico
-- `trackPurchase()` - Rastreia compra (usa "PlaceOrder") ⭐
-- `trackViewContent()` - Rastreia visualização de conteúdo
-- `trackAddToCart()` - Rastreia adição ao carrinho
-- `trackPageView()` - Rastreia visualização de página
-- `trackLead()` - Rastreia lead
-- `trackInitiateCheckout()` - Rastreia checkout iniciado
-- `trackRefund()` - Rastreia reembolso
-
-### hooks.ts
-
-Hooks React:
-
-- `useKwaiConfig(vendorId)` - Carregar config do banco (com cache de 5 min)
-- `shouldRunKwai(integration, productId)` - Verificar se deve rodar
-- `useKwaiForProduct(vendorId, productId)` - Hook combinado
-
-### Pixel.tsx
-
-Componente React:
-
-- Injeta script do Kwai Pixel (kwaiq)
-- Inicializa rastreamento
-- Retorna null (invisível)
-
----
-
-## 🔧 Configuração no Banco de Dados
-
-A configuração é armazenada em `vendor_integrations`:
-
-```json
-{
-  "vendor_id": "uuid-do-vendedor",
-  "integration_type": "KWAI_PIXEL",
-  "active": true,
-  "config": {
-    "pixel_id": "1234567890",
-    "selected_products": ["product-id-1", "product-id-2"]
-  }
-}
-```
-
-### Campos
-
-- **pixel_id**: ID do Pixel do Kwai (obrigatório)
-- **selected_products**: Lista de IDs de produtos (vazio = todos)
-
----
-
-## 💡 Detalhe Técnico: "PlaceOrder" vs "Purchase"
-
-**Importante**: Kwai usa "PlaceOrder" em vez de "Purchase" para conversões de compra.
-
-```typescript
-// Facebook e TikTok usam "Purchase"
-Facebook.trackPurchase(...);
-TikTok.trackPurchase(...);
-
-// Kwai usa "PlaceOrder" internamente
-Kwai.trackPurchase(...); // Envia como "PlaceOrder"
-```
-
-A função `trackPurchase()` do Kwai automaticamente envia como "PlaceOrder" para compatibilidade com o padrão do Kwai.
-
----
-
-## 📊 Fluxo de Dados
-
-```
-PublicCheckout.tsx
-    ↓
-useKwaiConfig(vendorId)
-    ↓ (Query ao Supabase)
-vendor_integrations table
-    ↓
-shouldRunKwai(integration, productId)
-    ↓
-<Pixel config={kwaiIntegration} />
-    ↓
-trackPurchase(config, orderId, value, items, customer)
-    ↓
-window.kwaiq("PlaceOrder", {...})
-    ↓
-Kwai Pixel
-```
-
----
-
-## 🧪 Testes
-
-### Teste 1: Verificar Configuração
-
-```javascript
-// Console do navegador
-console.log(window.kwaiq);
-// Deve retornar: ƒ (eventName, eventData) { ... }
-```
-
-### Teste 2: Verificar Logs
-
-```javascript
-// Console do navegador
-// Procure por:
-// [Kwai] Pixel 1234567890 inicializado com sucesso
-// [Kwai] ✅ Evento PlaceOrder enviado com sucesso
-```
-
-### Teste 3: Verificar no Kwai Ads Manager
-
-1. Ir para: kwai.com/ads
-2. Selecionar sua conta
-3. Ir para "Events" ou "Conversions"
-4. Verificar se aparecem os eventos
-
----
-
-## 🔐 Segurança
-
-- ✅ Pixel ID armazenado no banco (não no frontend)
-- ✅ Service Role Key não exposto
-- ✅ RLS protege dados de outros vendedores
-- ✅ Validação de entrada
-- ✅ Tratamento de erro
-
----
-
-## 🚀 Próximas Integrações
-
-Este módulo serve como template para outras integrações:
-
-- `src/integrations/gateways/mercadopago/` - Mercado Pago
-- `src/integrations/gateways/pushinpay/` - PushInPay
-
----
-
-## 🐛 Troubleshooting
-
-### Problema: "Integração não encontrada"
-**Solução**: Verificar se existe registro em vendor_integrations com integration_type="KWAI_PIXEL"
-
-### Problema: "Conversão não foi enviada"
-**Solução**: 
-1. Verificar se pixel_id está correto
-2. Verificar console para logs de erro
-3. Verificar se há bloqueador de scripts
-
-### Problema: "kwaiq não está disponível"
-**Solução**: 
-1. Verificar se script foi carregado
-2. Verificar console para erros de rede
-3. Verificar se há bloqueador de scripts
-
-### Problema: "Produto não está habilitado"
-**Solução**: 
-1. Verificar se productId está em selected_products
-2. Se selected_products vazio, todos os produtos devem estar habilitados
-
-### Problema: "Evento não aparece no Kwai"
-**Solução**: 
-1. Verificar se está usando "PlaceOrder" (não "Purchase")
-2. Confirmar que o pixel_id está correto no Kwai Ads Manager
-3. Verificar se há delay de propagação (pode levar minutos)
-
----
-
-## 📝 Changelog
-
-### v1.0 (29/11/2025)
+### v1.0.0 (Novembro 2025)
 - ✅ Implementação inicial
-- ✅ 6 arquivos criados
-- ✅ 8 funções de eventos
-- ✅ Suporte a "PlaceOrder" (padrão Kwai)
-- ✅ Documentação completa
-- ✅ Testes recomendados
-
----
-
-## 👨‍💻 Autor
-
-Implementado como parte da Refração Modular do RiseCheckout (Passo 5).
-
----
-
-## 📞 Suporte
-
-Para dúvidas ou problemas, consulte:
-1. Este README
-2. Arquivo types.ts para interfaces
-3. Código comentado em cada arquivo
-4. Documentação oficial do Kwai Pixel
