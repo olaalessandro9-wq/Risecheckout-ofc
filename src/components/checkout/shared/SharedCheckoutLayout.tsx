@@ -15,6 +15,7 @@ import {
 import { useCheckoutSubmit } from '@/hooks/checkout/useCheckoutSubmit';
 
 import type { RequiredFieldsConfig, AppliedCoupon } from "@/types/checkout-shared.types";
+import { normalizeRequiredFields } from "@/types/checkout-shared.types";
 import type { OrderBump, CheckoutFormData, CheckoutFormErrors, ProductData } from "@/types/checkout";
 import type { ThemePreset } from "@/lib/checkout/themePresets";
 
@@ -30,7 +31,7 @@ interface SharedCheckoutLayoutProps {
   formData?: CheckoutFormData;
   formErrors?: CheckoutFormErrors;
   onFieldChange?: (field: string, value: string) => void;
-  requiredFields?: RequiredFieldsConfig | Record<string, boolean>;
+  requiredFields?: RequiredFieldsConfig | Record<string, boolean> | unknown;
   isProcessing?: boolean;
   publicKey?: string | null;
   creditCardGateway?: string;
@@ -47,6 +48,9 @@ export const SharedCheckoutLayout: React.FC<SharedCheckoutLayoutProps> = ({
   creditCardGateway, amount, onSubmitPayment, onTotalChange, additionalContent, formWrapper,
 }) => {
   const { formRef, handleCardSubmitReady, handleCheckoutClick } = useCheckoutSubmit(selectedPayment);
+
+  // Normalize required fields to ensure correct type
+  const normalizedRequiredFields = normalizeRequiredFields(requiredFields);
 
   const needsBorder = () => {
     const bgColor = design.colors.background || '#000000';
@@ -77,7 +81,7 @@ export const SharedCheckoutLayout: React.FC<SharedCheckoutLayoutProps> = ({
       )}
       
       {/* Formulário de Dados Pessoais */}
-      <SharedPersonalDataForm design={design} mode={mode} disabled={false} formData={formData} formErrors={formErrors} onFieldChange={onFieldChange} requiredFields={requiredFields} />
+      <SharedPersonalDataForm design={design} mode={mode} disabled={false} formData={formData} formErrors={formErrors} onFieldChange={onFieldChange} requiredFields={normalizedRequiredFields} />
       <Divider />
 
       {/* Seção de Pagamento */}

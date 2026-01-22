@@ -19,7 +19,7 @@ export interface CheckoutProductData {
   description?: string;
   price?: number;
   image_url?: string;
-  required_fields?: RequiredFieldsConfig | Record<string, boolean>;
+  required_fields?: RequiredFieldsConfig;
   vendor_id?: string;
 }
 
@@ -61,14 +61,54 @@ export type SharedCheckoutFormErrors = {
 };
 
 /**
- * Configuração de campos obrigatórios
+ * Configuração de campos obrigatórios - SINGLE SOURCE OF TRUTH
+ * 
+ * IMPORTANTE: Esta é a definição canônica. Todos os arquivos devem importar daqui.
+ * 
+ * name e email são SEMPRE obrigatórios (true fixo).
+ * phone e cpf são configuráveis pelo vendedor.
  */
 export interface RequiredFieldsConfig {
-  name?: boolean;
-  email?: boolean;
-  phone?: boolean;
-  cpf?: boolean;
-  address?: boolean;
+  name: boolean;   // Sempre true
+  email: boolean;  // Sempre true  
+  phone: boolean;  // Configurável pelo vendedor
+  cpf: boolean;    // Configurável pelo vendedor
+}
+
+/**
+ * Normaliza required_fields de qualquer formato para RequiredFieldsConfig.
+ * Suporta array ['cpf', 'phone'] ou objeto { cpf: true }.
+ */
+export function normalizeRequiredFields(
+  input: unknown
+): RequiredFieldsConfig {
+  const defaults: RequiredFieldsConfig = {
+    name: true,
+    email: true,
+    phone: false,
+    cpf: false,
+  };
+
+  if (!input) return defaults;
+
+  if (Array.isArray(input)) {
+    return {
+      ...defaults,
+      phone: input.includes('phone'),
+      cpf: input.includes('cpf'),
+    };
+  }
+
+  if (typeof input === 'object') {
+    const obj = input as Record<string, boolean>;
+    return {
+      ...defaults,
+      phone: obj.phone === true,
+      cpf: obj.cpf === true,
+    };
+  }
+
+  return defaults;
 }
 
 // ============================================================================

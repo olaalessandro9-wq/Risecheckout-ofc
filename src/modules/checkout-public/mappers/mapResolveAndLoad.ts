@@ -18,12 +18,15 @@ import type { ResolveAndLoadResponse } from "../contracts";
 // UI MODEL TYPES
 // ============================================================================
 
-export interface RequiredFieldsConfig {
-  name: boolean;
-  email: boolean;
-  phone: boolean;
-  cpf: boolean;
-}
+// Import RequiredFieldsConfig from canonical source
+import { 
+  type RequiredFieldsConfig, 
+  normalizeRequiredFields,
+} from "@/types/checkout-shared.types";
+
+// Re-export for consumers of this module
+export type { RequiredFieldsConfig };
+export { normalizeRequiredFields };
 
 export interface AffiliateSettings {
   enabled?: boolean;
