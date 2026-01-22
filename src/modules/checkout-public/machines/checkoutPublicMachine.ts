@@ -26,41 +26,7 @@ import {
   validateFormFields,
 } from "./checkoutPublicMachine.actions";
 import { createOrderInput, processPixInput, processCardInput } from "./checkoutPublicMachine.inputs";
-
-// ============================================================================
-// INITIAL CONTEXT
-// ============================================================================
-
-export const initialCheckoutContext: CheckoutPublicContext = {
-  slug: null,
-  affiliateCode: null,
-  rawData: null,
-  checkout: null,
-  product: null,
-  offer: null,
-  orderBumps: [],
-  affiliate: null,
-  design: null,
-  resolvedGateways: {
-    pix: 'mercadopago',
-    creditCard: 'mercadopago',
-    mercadoPagoPublicKey: null,
-    stripePublicKey: null,
-  },
-  formData: { name: '', email: '', phone: '', cpf: '', document: '' },
-  formErrors: {},
-  selectedBumps: [],
-  appliedCoupon: null,
-  selectedPaymentMethod: 'pix',
-  orderId: null,
-  accessToken: null,
-  paymentData: null,
-  navigationData: null,
-  cardFormData: null,
-  error: null,
-  loadedAt: null,
-  retryCount: 0,
-};
+import { initialCheckoutContext } from "./checkoutPublicMachine.context";
 
 // ============================================================================
 // STATE MACHINE
