@@ -110,7 +110,6 @@ export const PersonalDataField: React.FC<PersonalDataFieldProps> = ({
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          onInput={(e) => onChange(e.currentTarget.value)}
           onFocus={onFocus}
           onBlur={onBlur}
           disabled={disabled}
