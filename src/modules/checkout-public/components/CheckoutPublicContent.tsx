@@ -34,6 +34,7 @@ import * as UTMify from "@/integrations/tracking/utmify";
 import type { OrderBump, CheckoutFormData } from "@/types/checkout";
 import type { UseCheckoutPublicMachineReturn } from "../hooks";
 import type { CardFormData } from "../machines/checkoutPublicMachine.types";
+import type { CheckoutComponent } from "@/types/checkoutEditor";
 
 interface CheckoutPublicContentProps {
   machine: UseCheckoutPublicMachineReturn;
@@ -259,6 +260,37 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
   }, [formData, fireInitiateCheckout, selectedBumpsSet, orderBumps, submit]);
 
   // ============================================================================
+  // CUSTOMIZATION - Build from checkout components (RISE V3 - SSOT)
+  // ============================================================================
+
+  const customization = useMemo(() => {
+    // Parse top_components and bottom_components from checkout data
+    const topComponents: CheckoutComponent[] = Array.isArray(checkout.top_components)
+      ? (checkout.top_components as CheckoutComponent[])
+      : [];
+    const bottomComponents: CheckoutComponent[] = Array.isArray(checkout.bottom_components)
+      ? (checkout.bottom_components as CheckoutComponent[])
+      : [];
+
+    // Extract backgroundImage from checkout.design (JSON field)
+    const checkoutDesignJson = checkout.design as Record<string, unknown> | undefined;
+    const backgroundImage = checkoutDesignJson?.backgroundImage as 
+      { url?: string; fixed?: boolean; repeat?: boolean; expand?: boolean } | undefined;
+
+    // Build customization compatible with CheckoutMasterLayout
+    return {
+      design: {
+        theme: checkout.theme || 'light',
+        font: checkout.font || 'Inter',
+        colors: design.colors,
+        backgroundImage,
+      },
+      topComponents,
+      bottomComponents,
+    };
+  }, [checkout.top_components, checkout.bottom_components, checkout.theme, checkout.font, checkout.design, design]);
+
+  // ============================================================================
   // RENDER
   // ============================================================================
 
@@ -282,7 +314,7 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
         productPixels={productPixels}
         utmifyConfig={utmifyConfig}
       />
-      <CheckoutMasterLayout mode="public" design={design} viewMode="public">
+      <CheckoutMasterLayout mode="public" design={design} viewMode="public" customization={customization}>
         <SharedCheckoutLayout
           productData={productData}
           orderBumps={orderBumps as OrderBump[]}
