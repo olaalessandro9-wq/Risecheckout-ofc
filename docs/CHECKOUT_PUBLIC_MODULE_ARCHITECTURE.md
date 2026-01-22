@@ -1,7 +1,7 @@
 # Arquitetura do Módulo Checkout Public
 
-**Data:** 20 de Janeiro de 2026  
-**Versão:** 1.0  
+**Data:** 22 de Janeiro de 2026  
+**Versão:** 1.1  
 **Status:** ✅ 10.0/10 RISE V3 Compliant - XState Edition  
 **XState Version:** 5.x | @xstate/react: 4.x
 
@@ -756,19 +756,90 @@ Message: Connection timeout
 
 ---
 
-## 17. Changelog
+## 17. Backend Edge Function (Modularizado)
+
+### 17.1 Estrutura do checkout-public-data
+
+```
+supabase/functions/checkout-public-data/
+├── index.ts                                    # Router puro (~115 linhas)
+├── types.ts                                    # Tipos compartilhados (~130 linhas)
+└── handlers/
+    ├── product-handler.ts                      # action: product (~55 linhas)
+    ├── offer-handler.ts                        # action: offer, get-checkout-offer (~85 linhas)
+    ├── order-bumps-handler.ts                  # action: order-bumps (~100 linhas)
+    ├── affiliate-handler.ts                    # action: affiliate (~45 linhas)
+    ├── checkout-handler.ts                     # action: checkout (~60 linhas)
+    ├── coupon-handler.ts                       # action: validate-coupon (~80 linhas)
+    ├── pixels-handler.ts                       # action: product-pixels (~100 linhas)
+    ├── order-handler.ts                        # action: order-by-token, check-order-payment-status (~80 linhas)
+    ├── payment-link-handler.ts                 # action: payment-link-data (~65 linhas)
+    └── resolve-and-load-handler.ts             # action: resolve-and-load (BFF) (~240 linhas)
+```
+
+### 17.2 Actions Disponíveis
+
+| Action | Handler | Descrição |
+|--------|---------|-----------|
+| `product` | product-handler | Busca produto por ID |
+| `offer` | offer-handler | Busca oferta por checkout ID |
+| `get-checkout-offer` | offer-handler | Busca oferta simplificada |
+| `order-bumps` | order-bumps-handler | Busca order bumps ativos |
+| `affiliate` | affiliate-handler | Busca dados de afiliado |
+| `checkout` | checkout-handler | Busca checkout por ID |
+| `validate-coupon` | coupon-handler | Valida cupom de desconto |
+| `product-pixels` | pixels-handler | Busca pixels de tracking |
+| `order-by-token` | order-handler | Busca pedido para página de sucesso |
+| `check-order-payment-status` | order-handler | Verifica status de pagamento |
+| `payment-link-data` | payment-link-handler | Busca dados de link de pagamento |
+| `resolve-and-load` | resolve-and-load-handler | **BFF OTIMIZADO** - Busca tudo em uma chamada |
+
+### 17.3 Performance do BFF (resolve-and-load)
+
+O handler `resolve-and-load` é o **coração da performance** do checkout:
+
+- ⚡ **1 HTTP call** em vez de 5-6 chamadas separadas
+- 🚀 **70-80% redução de latência**
+- 📦 Retorna: checkout + product + offer + orderBumps + affiliate
+- 🔄 Queries paralelas internamente via `Promise.all()`
+
+---
+
+## 18. Limitações Conhecidas
+
+### 18.1 Stripe PIX (Não Implementado)
+
+O processamento de PIX via Stripe (`processPixPaymentActor.ts`) é um **placeholder**:
+
+```typescript
+// ⚠️ STRIPE PIX NOT IMPLEMENTED
+// Requer configuração adicional no painel Stripe
+// Atualmente delega para página de pagamento
+```
+
+**Ação requerida para habilitar:**
+1. Ativar PIX no painel Stripe
+2. Implementar criação de PaymentIntent com `payment_method_types: ['pix']`
+3. Configurar webhooks para confirmação assíncrona
+
+---
+
+## 19. Changelog
 
 | Versão | Data | Alterações |
 |--------|------|------------|
+| 1.1 | 2026-01-22 | Modularização completa do backend Edge Function |
+| 1.1 | 2026-01-22 | Documentação da estrutura de handlers |
+| 1.1 | 2026-01-22 | Nota sobre limitação Stripe PIX |
 | 1.0 | 2026-01-20 | Documentação inicial completa |
 
 ---
 
-## 18. Arquivos Relacionados
+## 20. Arquivos Relacionados
 
 - `docs/XSTATE_ARCHITECTURE.md` - Arquitetura XState geral do projeto
 - `docs/EDGE_FUNCTIONS_REGISTRY.md` - Registro de Edge Functions
-- `supabase/functions/checkout-public-data/` - BFF correspondente
+- `supabase/functions/checkout-public-data/` - BFF correspondente (modularizado)
 - `supabase/functions/create-order/` - Edge Function de criação de pedidos
 - `src/pages/checkout/` - Rotas que consomem este módulo
 

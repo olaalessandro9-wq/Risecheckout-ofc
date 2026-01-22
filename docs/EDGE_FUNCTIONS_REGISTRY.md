@@ -1,7 +1,7 @@
 # Rise Checkout - Edge Functions Registry
 
 > **🔴 FONTE DA VERDADE MÁXIMA** - Este documento lista TODAS as Edge Functions deployadas no Supabase.  
-> Última atualização: 2026-01-22 (Webhooks Module Cleanup)  
+> Última atualização: 2026-01-22 (Checkout Public Modularization)  
 > Mantenedor: AI Assistant + User
 
 ---
@@ -159,7 +159,7 @@
 | `vendor-integrations` | producer_sessions | false | unified-auth |
 | **Public Endpoints** | | | |
 | `affiliation-public` | public | false | Dados públicos de afiliação |
-| `checkout-public-data` | public | false | Dados públicos do checkout |
+| `checkout-public-data` | public | false | **BFF MODULAR** - Dados públicos do checkout (11 handlers, v2.0.0) |
 | `marketplace-public` | public | false | Endpoints públicos do marketplace (RISE V3) |
 
 ---

@@ -162,10 +162,16 @@ async function processAsaas(input: ProcessPixInput): Promise<ProcessPixOutput> {
 }
 
 async function processStripe(input: ProcessPixInput): Promise<ProcessPixOutput> {
-  log.info("Stripe - creating PIX payment");
+  // ⚠️ STRIPE PIX NOT IMPLEMENTED
+  // Stripe PIX requires additional configuration:
+  // 1. Enable PIX payment method in Stripe Dashboard
+  // 2. Implement PaymentIntent creation with payment_method_types: ['pix']
+  // 3. Handle webhook confirmations for async PIX payments
+  // 
+  // Current behavior: Delegates to payment page for manual handling
+  // TODO: Implement when Stripe PIX is enabled on the platform
+  log.warn("Stripe PIX is not fully implemented - delegating to payment page");
 
-  // Stripe PIX implementation placeholder
-  // For now, delegate to payment page like PushinPay
   return {
     success: true,
     navigationData: {
