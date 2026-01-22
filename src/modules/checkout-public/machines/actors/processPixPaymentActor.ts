@@ -184,8 +184,8 @@ async function processAsaas(input: ProcessPixInput): Promise<ProcessPixOutput> {
       gateway: 'asaas',
       amount: input.amount,
       checkoutSlug: input.checkoutSlug,
-      qrCode: data.qrCode,
-      qrCodeText: data.qrCodeText,
+      qrCode: data.qrCodeText,       // EMV copia e cola (payload)
+      qrCodeBase64: data.qrCode,     // Imagem base64 (encodedImage)
     },
   };
 }
