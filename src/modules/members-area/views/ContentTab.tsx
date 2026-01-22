@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { uploadViaEdge } from "@/lib/storage/storageProxy";
 import { ModulesList } from "@/modules/products/tabs/members-area/components";
 import { AddModuleDialogNetflix, EditModuleDialogNetflix } from "@/modules/members-area/components/dialogs";
-import type { UseMembersAreaReturn } from "@/hooks/members-area";
+import type { UseMembersAreaReturn } from "../hooks";
 import type { EditingModuleData, ContentType } from "@/modules/members-area/types";
 import { createLogger } from "@/lib/logger";
 

@@ -4,7 +4,7 @@
  */
 
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import type { MemberContent } from "@/hooks/members-area";
+import type { MemberContent } from "@/modules/members-area/types";
 import { SortableContentItem } from "./SortableContentItem";
 import { CONTENTS_CONTAINER_PREFIX } from "./modules-list.utils";
 

@@ -1,8 +1,10 @@
 /**
  * Members Area Hook Types
  * 
- * Re-exports canonical types from module + defines hook-specific types
- * This ensures Single Source of Truth for all Members Area types
+ * Hook-specific types that extend the canonical module types.
+ * This ensures Single Source of Truth for all Members Area types.
+ * 
+ * @see RISE ARCHITECT PROTOCOL V3 - SSOT
  */
 
 import type { Json } from "@/integrations/supabase/types";
@@ -10,14 +12,15 @@ import type {
   MemberModule, 
   MemberContent, 
   ModuleWithContents 
-} from "@/modules/members-area/types";
+} from "../types";
 
-// Re-export canonical types for backwards compatibility
+// Re-export canonical types for convenience
 export type { 
   ContentDisplayType,
   MemberModule,
   MemberContent,
-} from "@/modules/members-area/types";
+  ModuleWithContents,
+} from "../types";
 
 // Alias for backwards compatibility with existing code
 export type MemberModuleWithContents = ModuleWithContents;

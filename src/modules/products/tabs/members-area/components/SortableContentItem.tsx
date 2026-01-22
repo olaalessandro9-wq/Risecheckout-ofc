@@ -7,7 +7,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
 import { GripVertical, Edit2, Trash2 } from "lucide-react";
-import type { MemberContent } from "@/hooks/members-area";
+import type { MemberContent } from "@/modules/members-area/types";
 import { getContentIconComponent, getContentLabel } from "./modules-list.utils";
 
 // =====================================================

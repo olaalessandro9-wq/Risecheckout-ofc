@@ -12,15 +12,15 @@ import { useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMachine } from "@xstate/react";
 import { createLogger } from "@/lib/logger";
-
-const log = createLogger("MembersAreaSettings");
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import type { Json } from "@/integrations/supabase/types";
-import type { MembersAreaSettings, MemberModuleWithContents, MemberContent } from "./types";
-import { normalizeContentType } from "@/modules/members-area/utils";
+import type { MembersAreaSettings, ModuleWithContents, MemberContent } from "./types";
+import { normalizeContentType } from "../utils";
 import { membersAreaMachine, initialMembersAreaContext, type MembersAreaMachineEvent } from "./machines";
+
+const log = createLogger("MembersAreaSettings");
 
 interface SettingsResponse {
   success: boolean;
@@ -34,7 +34,7 @@ interface SettingsResponse {
 interface ModulesResponse {
   success: boolean;
   error?: string;
-  data?: MemberModuleWithContents[];
+  data?: ModuleWithContents[];
 }
 
 // Cache de 5 minutos
@@ -69,7 +69,7 @@ async function fetchMembersAreaSettings(productId: string): Promise<MembersAreaS
 /**
  * Fetch modules via Edge Function
  */
-async function fetchMembersAreaModules(productId: string): Promise<MemberModuleWithContents[]> {
+async function fetchMembersAreaModules(productId: string): Promise<ModuleWithContents[]> {
   const { data, error } = await api.call<ModulesResponse>('admin-data', { 
     action: 'members-area-modules-with-contents',
     productId,
@@ -78,7 +78,7 @@ async function fetchMembersAreaModules(productId: string): Promise<MemberModuleW
   if (error) throw new Error(error.message);
   if (!data?.success) throw new Error(data?.error || 'Erro ao carregar modules');
 
-  return (data.data || []).map((module: MemberModuleWithContents) => ({
+  return (data.data || []).map((module: ModuleWithContents) => ({
     ...module,
     contents: (module.contents || [])
       .sort((a, b) => a.position - b.position)
@@ -86,14 +86,14 @@ async function fetchMembersAreaModules(productId: string): Promise<MemberModuleW
         ...content,
         content_type: normalizeContentType(content.content_type),
       })) as MemberContent[],
-  })) as MemberModuleWithContents[];
+  })) as ModuleWithContents[];
 }
 
 interface UseMembersAreaSettingsReturn {
   isLoading: boolean;
   isSaving: boolean;
   settings: MembersAreaSettings;
-  modules: MemberModuleWithContents[];
+  modules: ModuleWithContents[];
   dispatch: (event: MembersAreaMachineEvent) => void;
   updateSettings: (enabled: boolean, settings?: Json) => Promise<void>;
   fetchData: () => Promise<void>;
@@ -137,18 +137,16 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
   }, [modulesQuery.data, send]);
 
   // Mutation para atualizar settings via Edge Function
-  // OPTIMIZED V3: Backend agora faz tudo em uma única chamada quando enabled=true
   const updateMutation = useMutation({
     mutationFn: async ({ enabled, newSettings }: { enabled: boolean; newSettings?: Json }) => {
       if (!productId) throw new Error("Product ID required");
 
-      // Single API call - backend handles all setup logic
       const { data: result, error } = await api.call<{ success: boolean; error?: string }>('product-settings', {
         action: 'update-members-area-settings',
         productId,
         enabled,
         settings: newSettings,
-        producerEmail: user?.email, // Backend uses this for setup when enabling
+        producerEmail: user?.email,
       });
       
       if (error || !result?.success) {
@@ -158,7 +156,6 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
       return { enabled, settings: newSettings || settingsQuery.data?.settings };
     },
     onSuccess: (data) => {
-      // Atualizar cache
       if (productId) {
         queryClient.setQueryData(membersAreaQueryKeys.settings(productId), {
           enabled: data.enabled,

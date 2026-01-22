@@ -2,9 +2,7 @@
  * Members Area Hook - Facade
  * Composes settings, modules, and contents hooks into a single interface
  * 
- * REFACTORED: Uses dispatch from Reducer for Single Source of Truth
- * 
- * @see RISE ARCHITECT PROTOCOL V3 - State Management via Reducer
+ * @see RISE ARCHITECT PROTOCOL V3 - State Management via XState
  */
 
 import { useMembersAreaSettings } from "./useMembersAreaSettings";

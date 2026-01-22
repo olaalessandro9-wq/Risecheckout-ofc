@@ -33,7 +33,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Accordion } from "@/components/ui/accordion";
 import { Plus, Lock } from "lucide-react";
-import type { MemberModuleWithContents } from "@/hooks/members-area";
+import type { ModuleWithContents, MemberContent } from "@/modules/members-area/types";
 import { SortableModuleItem } from "./SortableModuleItem";
 import { MODULES_CONTAINER_ID } from "./modules-list.utils";
 
@@ -42,7 +42,7 @@ import { MODULES_CONTAINER_ID } from "./modules-list.utils";
 // =====================================================
 
 interface ModulesListProps {
-  modules: MemberModuleWithContents[];
+  modules: ModuleWithContents[];
   onAddModule: () => void;
   onEditModule: (module: {
     id: string;
@@ -136,7 +136,7 @@ export function ModulesList({
         const module = modules.find((m) => m.id === activeModuleId);
         if (!module) return;
 
-        const contents = module.contents || [];
+        const contents: MemberContent[] = module.contents || [];
         const oldIndex = contents.findIndex((c) => c.id === activeId);
         const newIndex = contents.findIndex((c) => c.id === overId);
 
