@@ -74,20 +74,23 @@ export function MetricCard({
             )}
           </div>
 
-          {/* Value */}
-          <div className="space-y-3">
-            {isLoading ? (
-              <Skeleton className="h-9 w-32 bg-primary/10" />
-            ) : (
-              <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
-                {value}
-              </p>
-            )}
+          {/* Content: Value + Trend lado a lado */}
+          <div className="flex items-end justify-between gap-3">
+            {/* Coluna Esquerda: Valor Principal */}
+            <div className="flex-1 min-w-0">
+              {isLoading ? (
+                <Skeleton className="h-9 w-32 bg-primary/10" />
+              ) : (
+                <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
+                  {value}
+                </p>
+              )}
+            </div>
 
-            {/* Trend Block: Barra Lateral Colorida */}
+            {/* Coluna Direita: Trend Block com Barra Lateral */}
             {trend && (
               <div
-                className={`border-l-[3px] pl-3 py-1 transition-colors duration-300 ${
+                className={`border-l-[3px] pl-2 md:pl-3 py-1 flex-shrink-0 transition-colors duration-300 ${
                   trend.isPositive
                     ? "border-emerald-500"
                     : "border-red-500"
@@ -95,21 +98,21 @@ export function MetricCard({
               >
                 {/* Linha 1: Seta + Porcentagem */}
                 <div
-                  className={`flex items-center gap-1.5 text-sm font-semibold ${
+                  className={`flex items-center gap-1 text-xs md:text-sm font-semibold ${
                     trend.isPositive ? "text-emerald-400" : "text-red-400"
                   }`}
                 >
                   {trend.isPositive ? (
-                    <ArrowUpRight className="w-4 h-4" />
+                    <ArrowUpRight className="w-3.5 h-3.5 md:w-4 md:h-4" />
                   ) : (
-                    <ArrowDownRight className="w-4 h-4" />
+                    <ArrowDownRight className="w-3.5 h-3.5 md:w-4 md:h-4" />
                   )}
                   <span>{Math.round(trend.value)}%</span>
                 </div>
 
                 {/* Linha 2: Label de Comparação */}
                 {trend.label && (
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 whitespace-nowrap">
                     {trend.label}
                   </p>
                 )}
