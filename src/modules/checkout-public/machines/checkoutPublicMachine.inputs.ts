@@ -37,7 +37,8 @@ export function calculateTotalFromContext(context: CheckoutPublicContext): numbe
     }
   }
   
-  return Math.round(total * 100); // Convert to cents
+  // Prices are already in cents (e.g., 4990 = R$49.90)
+  return Math.round(total);
 }
 
 // ============================================================================

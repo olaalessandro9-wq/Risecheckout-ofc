@@ -57,9 +57,43 @@ export interface ProcessPixOutput {
 // ============================================================================
 
 async function processPushinPay(input: ProcessPixInput): Promise<ProcessPixOutput> {
-  // PushinPay: QR code is generated on the PIX payment page
-  log.info("PushinPay - delegating QR generation to payment page");
-  
+  log.info("PushinPay - creating PIX payment in actor (RISE V3 unified flow)");
+
+  // RISE V3 FIX: Generate QR code HERE, not on the payment page
+  // This ensures consistent behavior across all gateways
+  const { data, error } = await api.publicCall<{
+    ok: boolean;
+    pix?: {
+      id?: string;
+      pix_id?: string;
+      qr_code?: string;
+      qr_code_base64?: string;
+      status?: string;
+      value?: number;
+    };
+    error?: string;
+  }>("pushinpay-create-pix", {
+    orderId: input.orderId,
+    valueInCents: input.amount,
+  });
+
+  if (error || !data?.ok) {
+    log.error("PushinPay PIX creation failed", { 
+      error: error?.message ?? data?.error ?? "Unknown error",
+      orderId: input.orderId,
+      amount: input.amount,
+    });
+    return { 
+      success: false, 
+      error: data?.error ?? error?.message ?? "Erro ao gerar QR Code do PushinPay" 
+    };
+  }
+
+  log.info("PushinPay PIX created successfully", { 
+    pixId: data.pix?.id ?? data.pix?.pix_id,
+    orderId: input.orderId,
+  });
+
   return {
     success: true,
     navigationData: {
@@ -69,6 +103,8 @@ async function processPushinPay(input: ProcessPixInput): Promise<ProcessPixOutpu
       gateway: 'pushinpay',
       amount: input.amount,
       checkoutSlug: input.checkoutSlug,
+      qrCode: data.pix?.qr_code,
+      qrCodeBase64: data.pix?.qr_code_base64,
     },
   };
 }

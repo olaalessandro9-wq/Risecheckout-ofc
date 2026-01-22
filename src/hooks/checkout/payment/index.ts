@@ -1,24 +1,18 @@
 /**
  * Payment Hooks - Barrel Export
  * 
- * Módulo refatorado de pagamento com hooks especializados.
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
- * Arquitetura:
- * - usePaymentOrchestrator: Hook principal (facade)
- * - useOrderCreation: Criação de pedidos
- * - usePixPayment: Processamento PIX
- * - useCardPayment: Processamento cartão
+ * Este módulo foi refatorado. O fluxo de pagamento agora é 100% XState.
+ * Os hooks legados foram removidos pois não são mais utilizados.
+ * 
+ * O processamento de pagamento acontece em:
+ * - src/modules/checkout-public/machines/actors/createOrderActor.ts
+ * - src/modules/checkout-public/machines/actors/processPixPaymentActor.ts
+ * - src/modules/checkout-public/machines/actors/processCardPaymentActor.ts
  */
 
-// Hook principal (substitui usePaymentGateway)
-export { usePaymentOrchestrator } from './usePaymentOrchestrator';
-
-// Hooks especializados (para uso direto quando necessário)
-export { useOrderCreation } from './useOrderCreation';
-export { usePixPayment } from './usePixPayment';
-export { useCardPayment } from './useCardPayment';
-
-// Tipos
+// Tipos (mantidos para compatibilidade)
 export type { 
   PixGateway, 
   CreditCardGateway, 

@@ -11,3 +11,4 @@ export { PixCopyButton } from "./PixCopyButton";
 export { PixProgressBar } from "./PixProgressBar";
 export { PixInstructions } from "./PixInstructions";
 export { PixVerifyButton } from "./PixVerifyButton";
+export { PixErrorState } from "./PixErrorState";
