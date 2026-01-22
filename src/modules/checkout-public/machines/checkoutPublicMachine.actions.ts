@@ -12,6 +12,7 @@
 import type { CheckoutPublicContext, FormErrors } from "./checkoutPublicMachine.types";
 import { validateResolveAndLoadResponse } from "../contracts";
 import { mapResolveAndLoad } from "../mappers";
+import { isFieldRequired } from "./helpers/requiredFields";
 
 // ============================================================================
 // VALIDATION HELPERS
@@ -150,6 +151,7 @@ export function createPaymentTimeoutError() {
 export function validateFormFields(context: CheckoutPublicContext): { isValid: boolean; errors: FormErrors } {
   const errors: FormErrors = {};
   const { formData, product } = context;
+  const requiredFields = product?.required_fields;
   
   // Nome obrigatório
   if (!formData.name.trim()) {
@@ -163,13 +165,13 @@ export function validateFormFields(context: CheckoutPublicContext): { isValid: b
     errors.email = "Email inválido";
   }
   
-  // CPF (se obrigatório)
-  if (product?.required_fields?.cpf && !formData.cpf.trim()) {
+  // CPF (se obrigatório) - supports both array and object formats
+  if (isFieldRequired(requiredFields, 'cpf') && !formData.cpf.trim()) {
     errors.cpf = "CPF/CNPJ é obrigatório";
   }
   
-  // Telefone (se obrigatório)
-  if (product?.required_fields?.phone && !formData.phone.trim()) {
+  // Telefone (se obrigatório) - supports both array and object formats
+  if (isFieldRequired(requiredFields, 'phone') && !formData.phone.trim()) {
     errors.phone = "Celular é obrigatório";
   }
   

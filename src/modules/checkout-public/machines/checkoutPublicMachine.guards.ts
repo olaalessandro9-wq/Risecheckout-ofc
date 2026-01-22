@@ -10,6 +10,7 @@
 
 import type { CheckoutPublicContext } from "./checkoutPublicMachine.types";
 import { validateResolveAndLoadResponse } from "../contracts";
+import { isFieldRequired } from "./helpers/requiredFields";
 
 // ============================================================================
 // RETRY GUARDS
@@ -31,7 +32,8 @@ export function isDataValid({ context }: { context: CheckoutPublicContext }): bo
 }
 
 export function hasRequiredFormFields({ context }: { context: CheckoutPublicContext }): boolean {
-  const { name, email } = context.formData;
+  const { name, email, cpf, phone } = context.formData;
+  const requiredFields = context.product?.required_fields;
   
   // Basic validation - name and email are always required
   if (!name.trim()) return false;
@@ -41,14 +43,14 @@ export function hasRequiredFormFields({ context }: { context: CheckoutPublicCont
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) return false;
   
-  // Phone validation (if required)
-  if (context.product?.required_fields?.phone) {
-    if (!context.formData.phone.trim()) return false;
+  // CPF validation (if required) - supports both array and object formats
+  if (isFieldRequired(requiredFields, 'cpf')) {
+    if (!cpf.trim()) return false;
   }
   
-  // CPF validation (if required)
-  if (context.product?.required_fields?.cpf) {
-    if (!context.formData.cpf.trim()) return false;
+  // Phone validation (if required) - supports both array and object formats
+  if (isFieldRequired(requiredFields, 'phone')) {
+    if (!phone.trim()) return false;
   }
   
   return true;
