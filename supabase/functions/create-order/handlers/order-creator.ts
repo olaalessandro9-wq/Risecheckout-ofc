@@ -125,10 +125,18 @@ export async function createOrder(
     const existing = existingOrders[0] as ExistingOrder;
     log.info(`Pedido duplicado: ${existing.id}`);
 
+    // CRITICAL FIX: Buscar access_token do pedido existente para não quebrar o fluxo PIX
+    const { data: orderWithToken } = await supabase
+      .from("orders")
+      .select("access_token")
+      .eq("id", existing.id)
+      .single();
+
     return new Response(
       JSON.stringify({
         success: true,
         order_id: existing.id,
+        access_token: (orderWithToken as { access_token: string } | null)?.access_token || '',
         message: "Pedido já existe",
         duplicate: true
       }),
