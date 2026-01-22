@@ -402,6 +402,12 @@ export async function handleDeleteOffer(
 
   await supabase.from("payment_links").update({ status: "inactive" }).eq("offer_id", offerId);
 
+  // Cascade: inativar payment_links vinculados à oferta
+  await supabase
+    .from("payment_links")
+    .update({ status: "inactive" })
+    .eq("offer_id", offerId);
+
   const { error: deleteError } = await supabase
     .from("offers")
     .update({ status: "deleted", updated_at: new Date().toISOString() })
