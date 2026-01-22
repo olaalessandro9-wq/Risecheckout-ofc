@@ -145,7 +145,7 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
         action: 'update-members-area-settings',
         productId,
         enabled,
-        settings: newSettings,
+        membersSettings: newSettings,
         producerEmail: user?.email,
       });
       
