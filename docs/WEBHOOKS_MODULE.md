@@ -1,7 +1,7 @@
 # Webhooks Module
 
-> **Versão:** 2.0.0  
-> **Data:** 21 de Janeiro de 2026  
+> **Versão:** 3.0.0  
+> **Data:** 22 de Janeiro de 2026  
 > **Status:** ✅ RISE Protocol V3 Compliant (10.0/10)  
 > **Mantenedor:** Lead Architect
 
@@ -12,6 +12,8 @@
 O módulo Webhooks permite que vendors configurem endpoints HTTP para receber notificações em tempo real sobre eventos do sistema (vendas, reembolsos, etc.).
 
 ## Arquitetura
+
+### Frontend (src/modules/webhooks/)
 
 ```
 src/modules/webhooks/
@@ -38,6 +40,18 @@ src/modules/webhooks/
     ├── TestWebhookDialog.tsx   # Envio de evento teste
     ├── WebhookLogsDialog.tsx   # Visualização de logs
     └── index.ts
+```
+
+### Backend (supabase/functions/webhook-crud/)
+
+```
+supabase/functions/webhook-crud/
+├── index.ts                     # Router puro (~80 linhas)
+├── types.ts                     # Interfaces centralizadas
+└── handlers/
+    ├── list-handlers.ts         # list, listProducts, getWebhookProducts
+    ├── crud-handlers.ts         # create, update, delete
+    └── logs-handler.ts          # getWebhookLogs
 ```
 
 ---
@@ -152,10 +166,13 @@ Dispara webhooks para um evento real (chamado internamente).
 
 ## Edge Functions Consolidadas (Histórico)
 
-| Função Original | Status | Substituto |
-|-----------------|--------|------------|
-| `get-webhook-logs` | ❌ **DELETADA** (2026-01-21) | `webhook-crud` action=`get-logs` |
-| `content-library.get-webhook-logs` | ❌ **REMOVIDA** (2026-01-21) | `webhook-crud` action=`get-logs` |
+| Função Original | Status | Motivo |
+|-----------------|--------|--------|
+| `get-webhook-logs` | ❌ **DELETADA** (2026-01-21) | Consolidada em `webhook-crud` action=`get-logs` |
+| `dispatch-webhook` | ❌ **DELETADA** (2026-01-22) | Código morto - usava tabela `webhook_configs` inexistente |
+| `send-webhook` | ❌ **DELETADA** (2026-01-22) | Stub genérico sem uso identificado |
+| `test-webhook-dispatch` | ❌ **DELETADA** (2026-01-22) | Duplicava `send-webhook-test` |
+| `trigger-webhooks-internal` | ❌ **DELETADA** (2026-01-22) | Código morto - usava tabela `webhook_configs` inexistente |
 
 > **IMPORTANTE:** Todas as operações de webhooks passam exclusivamente por `webhook-crud`. Não criar novas Edge Functions para webhooks.
 
@@ -288,6 +305,7 @@ function MyComponent() {
 
 | Versão | Data | Alterações |
 |--------|------|------------|
+| 3.0.0 | 2026-01-22 | Modularização de `webhook-crud` em handlers, deleção de 4 Edge Functions mortas/duplicadas |
 | 2.0.0 | 2026-01-21 | Consolidação em `webhook-crud`, remoção de `get-webhook-logs` legado |
 | 1.0.0 | 2026-01-21 | Criação do módulo com arquitetura XState |
 
