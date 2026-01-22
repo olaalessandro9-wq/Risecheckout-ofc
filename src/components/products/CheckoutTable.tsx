@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Plus, MoreVertical, Copy, Trash2, Settings, Palette } from "lucide-react";
+import { Search, Plus, MoreVertical, Copy, Trash2, Settings, Palette, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,6 +36,7 @@ interface CheckoutTableProps {
   onDelete: (id: string, name: string) => void;
   onConfigure: (checkout: Checkout) => void;
   onCustomize: (checkout: Checkout) => void;
+  configuringId?: string | null;
 }
 
 export const CheckoutTable = ({
@@ -45,6 +46,7 @@ export const CheckoutTable = ({
   onDelete,
   onConfigure,
   onCustomize,
+  configuringId,
 }: CheckoutTableProps) => {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -133,9 +135,14 @@ export const CheckoutTable = ({
                           <DropdownMenuItem
                             onClick={() => onConfigure(checkout)}
                             className="gap-2 cursor-pointer"
+                            disabled={configuringId === checkout.id}
                           >
-                            <Settings className="w-4 h-4" />
-                            Configurações
+                            {configuringId === checkout.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Settings className="w-4 h-4" />
+                            )}
+                            {configuringId === checkout.id ? "Carregando..." : "Configurações"}
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => onDuplicate(checkout)}

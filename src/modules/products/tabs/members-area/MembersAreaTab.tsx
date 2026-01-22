@@ -61,16 +61,22 @@ export function MembersAreaTab() {
               <CardDescription>
                 Entregue conteúdo exclusivo para seus clientes
               </CardDescription>
-            </div>
+          </div>
             <div className="flex items-center gap-2">
+              {isSaving && (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              )}
               <Switch
                 id="members-area-enabled"
                 checked={settings.enabled}
                 onCheckedChange={handleToggleEnabled}
                 disabled={isSaving}
               />
-              <Label htmlFor="members-area-enabled" className="text-sm">
-                {settings.enabled ? "Ativo" : "Inativo"}
+              <Label htmlFor="members-area-enabled" className="text-sm min-w-[90px]">
+                {isSaving 
+                  ? (settings.enabled ? "Desativando..." : "Ativando...") 
+                  : (settings.enabled ? "Ativo" : "Inativo")
+                }
               </Label>
             </div>
           </div>

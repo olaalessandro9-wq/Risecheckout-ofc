@@ -55,6 +55,8 @@ export function CheckoutTab() {
   const [checkoutConfigDialogOpen, setCheckoutConfigDialogOpen] = useState(false);
   const [editingCheckout, setEditingCheckout] = useState<Checkout | null>(null);
   const [currentOfferId, setCurrentOfferId] = useState<string>("");
+  const [configuringCheckoutId, setConfiguringCheckoutId] = useState<string | null>(null);
+  
   // Interface para ofertas disponíveis
   interface AvailableOffer {
     id: string;
@@ -164,6 +166,7 @@ export function CheckoutTab() {
    * MIGRATED: Uses api.publicCall()
    */
   const handleConfigureCheckout = async (checkout: Checkout) => {
+    setConfiguringCheckoutId(checkout.id);
     setEditingCheckout(checkout);
     
     try {
@@ -182,6 +185,8 @@ export function CheckoutTab() {
     } catch (error: unknown) {
       log.error('Erro ao carregar oferta do checkout', error);
       setCurrentOfferId("");
+    } finally {
+      setConfiguringCheckoutId(null);
     }
     
     setCheckoutConfigDialogOpen(true);
@@ -216,6 +221,7 @@ export function CheckoutTab() {
         onDelete={handleDeleteCheckout}
         onConfigure={handleConfigureCheckout}
         onCustomize={handleCustomizeCheckout}
+        configuringId={configuringCheckoutId}
       />
       
       <CheckoutConfigDialog
