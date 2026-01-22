@@ -43,7 +43,7 @@ export function ModulesAccessSection({
           >
             <Checkbox 
               checked={allSelected}
-              onCheckedChange={onSelectAll}
+              className="pointer-events-none"
             />
             <span className="text-sm font-medium">Todos os módulos</span>
           </div>
@@ -63,7 +63,7 @@ export function ModulesAccessSection({
               >
                 <Checkbox 
                   checked={moduleAccess[module.id] || false}
-                  onCheckedChange={() => onToggleModule(module.id)}
+                  className="pointer-events-none"
                 />
                 
                 <div className="w-8 h-8 rounded bg-muted flex items-center justify-center shrink-0">

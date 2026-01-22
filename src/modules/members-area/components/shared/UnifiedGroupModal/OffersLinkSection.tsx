@@ -69,7 +69,7 @@ export function OffersLinkSection({
                 </span>
                 <Checkbox 
                   checked={linkedOffers[offer.id] || false}
-                  onCheckedChange={() => onToggleOffer(offer.id)}
+                  className="pointer-events-none"
                 />
               </div>
             ))}
