@@ -56,7 +56,7 @@ export async function getWebhookLogs(
 
   const { data: logs, error } = await supabase
     .from("webhook_deliveries")
-    .select("id, webhook_id, event_type, payload, response_status, response_body, success, created_at")
+    .select("id, webhook_id, order_id, event_type, payload, status, response_status, response_body, attempts, last_attempt_at, created_at")
     .eq("webhook_id", webhookId)
     .order("created_at", { ascending: false })
     .limit(50);
