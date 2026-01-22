@@ -33,11 +33,14 @@ export interface WebhookWithProduct {
 export interface WebhookLogEntry {
   id: string;
   webhook_id: string;
+  order_id: string | null;
   event_type: string;
   payload: unknown;
+  status: "success" | "failed" | "pending";
   response_status: number | null;
   response_body: string | null;
-  success: boolean;
+  attempts: number;
+  last_attempt_at: string | null;
   created_at: string;
 }
 
