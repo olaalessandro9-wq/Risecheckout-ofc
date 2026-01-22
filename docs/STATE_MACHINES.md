@@ -10,7 +10,7 @@
 
 ---
 
-## Módulos Migrados (11/11)
+## Módulos Migrados (12/12)
 
 | # | Módulo | Máquina | Documentação Completa |
 |---|--------|---------|----------------------|
@@ -25,6 +25,7 @@
 | 9 | UTMify | `utmifyMachine` | [XSTATE_ARCHITECTURE.md](./XSTATE_ARCHITECTURE.md#39-utmifymachine) |
 | 10 | Webhooks | `webhooksMachine` | [XSTATE_ARCHITECTURE.md](./XSTATE_ARCHITECTURE.md#310-webhooksmachine) |
 | 11 | Admin | `adminMachine` | [XSTATE_ARCHITECTURE.md](./XSTATE_ARCHITECTURE.md#311-adminmachine) |
+| 12 | **Checkout Public** | `checkoutPublicMachine` | [CHECKOUT_PUBLIC_MODULE_ARCHITECTURE.md](./CHECKOUT_PUBLIC_MODULE_ARCHITECTURE.md) |
 
 ---
 

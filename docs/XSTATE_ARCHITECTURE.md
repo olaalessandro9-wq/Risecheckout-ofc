@@ -34,7 +34,7 @@ Este projeto utiliza **XState State Machines** como o **ÚNICO** padrão de gere
 
 ---
 
-## 2. Módulos Migrados (11/11 - 100%)
+## 2. Módulos Migrados (12/12 - 100%)
 
 | # | Módulo | Arquivo Principal | Estados | Linhas |
 |---|--------|-------------------|---------|--------|
@@ -49,8 +49,9 @@ Este projeto utiliza **XState State Machines** como o **ÚNICO** padrão de gere
 | 9 | **UTMify** | `src/modules/utmify/machines/utmifyMachine.ts` | 5 | ~160 |
 | 10 | **Webhooks** | `src/modules/webhooks/machines/webhooksMachine.ts` | 7 | 157 |
 | 11 | **Admin** | `src/modules/admin/machines/adminMachine.ts` | Event-based (4 regions) | ~112 |
+| 12 | **Checkout Public** | `src/modules/checkout-public/machines/checkoutPublicMachine.ts` | 8 | 278 |
 
-**Total de Linhas XState:** ~2.533 linhas (incluindo types)  
+**Total de Linhas XState:** ~2.811 linhas (incluindo types)  
 **Conformidade 300-Line Rule:** ✅ 100%
 
 ---
@@ -428,6 +429,62 @@ stateDiagram-v2
 | Products | `LOAD_PRODUCTS`, `PRODUCTS_LOADED`, `PRODUCTS_ERROR`, `TOGGLE_MARKETPLACE`, `REJECT_PRODUCT` |
 | Orders | `LOAD_ORDERS`, `ORDERS_LOADED`, `ORDERS_ERROR`, `SET_ORDER_SORT` |
 | Security | `LOAD_SECURITY`, `SECURITY_LOADED`, `SECURITY_ERROR`, `SET_ALERT_FILTERS`, `BLOCK_IP`, `IP_BLOCKED`, `TOGGLE_AUTO_REFRESH`, `DISMISS_ALERT` |
+
+---
+
+### 3.12 CheckoutPublicMachine
+
+```mermaid
+stateDiagram-v2
+    [*] --> idle
+    idle --> loading: LOAD
+    loading --> validating: onDone
+    loading --> error: onError
+    
+    validating --> ready: isDataValid
+    validating --> error: !isDataValid
+    
+    state ready {
+        [*] --> form
+        form --> form: UPDATE_FIELD / TOGGLE_BUMP / etc.
+    }
+    
+    ready --> submitting: SUBMIT
+    
+    state submitting {
+        [*] --> creatingOrder
+        creatingOrder --> processingPayment: onDone
+        processingPayment --> processingPix: isPixPayment
+        processingPayment --> processingCard: isCardPayment
+    }
+    
+    processingPix --> paymentPending: onDone
+    processingCard --> success: isApproved
+    processingCard --> paymentPending: isPending
+    
+    paymentPending --> success: PAYMENT_CONFIRMED
+    error --> loading: RETRY
+```
+
+**Responsabilidade:** Gerencia todo o fluxo de checkout público (formulário → pagamento).
+
+**Arquivos:**
+
+| Arquivo | Linhas | Responsabilidade |
+|---------|--------|-----------------|
+| `checkoutPublicMachine.ts` | 278 | Machine principal |
+| `checkoutPublicMachine.context.ts` | 65 | Contexto inicial extraído |
+| `checkoutPublicMachine.types.ts` | 241 | Types do context e events |
+| `checkoutPublicMachine.guards.ts` | 78 | Guards de validação |
+| `checkoutPublicMachine.actions.ts` | ~140 | Action helpers |
+| `checkoutPublicMachine.inputs.ts` | 109 | Factory inputs |
+| `actors/createOrderActor.ts` | ~108 | Criação de pedido |
+| `actors/processPixPaymentActor.ts` | ~220 | Processamento PIX |
+| `actors/processCardPaymentActor.ts` | ~236 | Processamento Cartão |
+
+**Total:** ~1.475 linhas (todos < 300)
+
+**Documentação Completa:** [CHECKOUT_PUBLIC_MODULE_ARCHITECTURE.md](./CHECKOUT_PUBLIC_MODULE_ARCHITECTURE.md)
 
 ---
 

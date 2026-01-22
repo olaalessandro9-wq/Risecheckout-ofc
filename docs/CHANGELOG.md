@@ -6,6 +6,57 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
+## [3.5.4] - 2026-01-22
+
+### 🚀 Refatoração Completa Checkout Público (RISE V3 10.0/10)
+
+#### Corrigido
+- **BUG CRÍTICO:** `calculateTotalFromContext` multiplicava por 100 quando preços já eram em centavos
+- **Token em duplicados:** `order-creator.ts` agora retorna `access_token` para pedidos duplicados
+- **Duplicação de tipos:** `PixNavigationData` unificado em SSOT (`src/types/checkout-payment.types.ts`)
+
+#### Adicionado
+- **Nova Edge Function `get-pix-status`:** Recuperação pública de PIX via orderId (sem accessToken)
+- **Hook `usePixRecovery`:** Recuperação resiliente para página PIX (navState ou banco)
+- **Arquivo `checkoutPublicMachine.context.ts`:** Extração de contexto inicial para manter < 300 linhas
+- **Arquivo `src/types/checkout-payment.types.ts`:** Tipos centralizados de pagamento (SSOT)
+- **Componente `PixErrorState`:** Estado de erro para página PIX
+- **Documento `docs/PIX_PAYMENT_RESILIENCE.md`:** Arquitetura de resiliência PIX
+
+#### Refatorado
+- **`processPixPaymentActor.ts`:** PushinPay agora gera QR code no actor (unificação com outros gateways)
+- **`PixPaymentPage.tsx`:** Simplificado para VIEW pura usando `usePixRecovery`
+- **`checkoutPublicMachine.ts`:** Reduzido de 312 para 278 linhas via extração de contexto
+- **Tipos centralizados:** Import de `PixNavigationData` do SSOT em todos os módulos
+
+#### Removido
+- **`usePixPayment.ts`:** Hook legado não utilizado
+- **`useCardPayment.ts`:** Hook legado não utilizado
+- **`useOrderCreation.ts`:** Hook legado não utilizado
+- **`usePaymentOrchestrator.ts`:** Hook legado não utilizado
+- **`PublicCheckoutV2Content.tsx`:** Componente legado não utilizado
+
+#### Arquivos Afetados
+- `src/modules/checkout-public/machines/checkoutPublicMachine.inputs.ts` - Correção do cálculo
+- `src/modules/checkout-public/machines/checkoutPublicMachine.ts` - Reduzido para 278 linhas
+- `src/modules/checkout-public/machines/checkoutPublicMachine.context.ts` - **NOVO**
+- `src/modules/checkout-public/machines/actors/processPixPaymentActor.ts` - PushinPay unificado
+- `supabase/functions/create-order/handlers/order-creator.ts` - Token em duplicados
+- `supabase/functions/get-pix-status/index.ts` - **NOVA Edge Function**
+- `src/pages/pix-payment/PixPaymentPage.tsx` - VIEW pura
+- `src/pages/pix-payment/hooks/usePixRecovery.ts` - **NOVO** hook
+- `src/types/checkout-payment.types.ts` - Tipos SSOT
+
+#### Conformidade RISE V3
+- **Arquivos > 300 linhas:** 0 (era 1)
+- **Duplicação de tipos:** 0 (eram 3)
+- **Hooks legados:** 0 (eram 4)
+- **Limite 300 linhas:** ✅ 100%
+- **SSOT para tipos:** ✅ 100%
+- **Score Final:** 10.0/10
+
+---
+
 ## [3.5.3] - 2026-01-22
 
 ### 🧹 Auditoria Módulo Financeiro (RISE V3)
