@@ -59,17 +59,28 @@ export function usePixCharge(
       return;
     }
 
+    // Validação explícita de amount_cents para evitar race condition
+    const valueInCents = orderData.amount_cents;
+    if (!valueInCents || valueInCents <= 0) {
+      log.warn("amount_cents inválido, aguardando dados corretos", { 
+        orderId, 
+        amount_cents: valueInCents,
+        orderDataKeys: Object.keys(orderData || {})
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
       log.debug("Criando cobrança PIX via PushinPay", { 
         orderId, 
-        valueInCents: orderData.amount_cents,
+        valueInCents,
       });
 
       const { data, error } = await api.publicCall<PixChargeResponse>("pushinpay-create-pix", {
         orderId,
-        valueInCents: orderData.amount_cents,
+        valueInCents,
       });
 
       log.debug("Resposta da Edge Function", { data, error });
@@ -105,7 +116,7 @@ export function usePixCharge(
       toast.error(err instanceof Error ? err.message : "Erro ao gerar QR Code");
       setLoading(false);
     }
-  }, [orderId, orderData, qrCode]);
+  }, [orderId, orderData?.amount_cents, qrCode]);
 
   return { 
     qrCode, 
