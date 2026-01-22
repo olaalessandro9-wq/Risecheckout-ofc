@@ -15,7 +15,7 @@
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { withSentry, captureException } from "../_shared/sentry.ts";
-import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { handleCorsV2, PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { 
   rateLimitMiddleware, 
   RATE_LIMIT_CONFIGS,
@@ -26,8 +26,6 @@ import { determineSmartSplit } from "./handlers/smart-split.ts";
 import { buildPixPayload, callPushinPayApi, type PushinPayResponse } from "./handlers/pix-builder.ts";
 import { updateOrderWithPixData, triggerPixGeneratedWebhook, logManualPaymentIfNeeded } from "./handlers/post-pix.ts";
 
-// Use public CORS for checkout/payment endpoints
-const corsHeaders = PUBLIC_CORS_HEADERS;
 const log = createLogger("pushinpay-create-pix");
 
 // === INTERFACES (Zero any) ===
@@ -78,9 +76,20 @@ interface PixResponseData {
 // === MAIN HANDLER ===
 
 Deno.serve(withSentry('pushinpay-create-pix', async (req) => {
-  // CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+  // CORS handling dinâmico (compatível com credentials: include)
+  const corsResult = handleCorsV2(req);
+  
+  let corsHeaders: Record<string, string>;
+  if (corsResult instanceof Response) {
+    // Preflight ou origin bloqueado
+    if (req.method === 'OPTIONS') {
+      return corsResult;
+    }
+    // Fallback para webhooks server-to-server
+    corsHeaders = PUBLIC_CORS_HEADERS;
+  } else {
+    // Origin válido - usar headers dinâmicos
+    corsHeaders = corsResult.headers;
   }
 
   log.info('Iniciando Smart Split v4.0');
