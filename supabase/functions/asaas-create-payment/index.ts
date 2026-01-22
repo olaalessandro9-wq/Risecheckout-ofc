@@ -3,6 +3,8 @@
  * ASAAS CREATE PAYMENT - Edge Function
  * ============================================================================
  * 
+ * RISE ARCHITECT PROTOCOL V3 - CORS V2 Compliant
+ * 
  * MODELO MARKETPLACE ASAAS - RiseCheckout
  * Todas cobranças na conta RiseCheckout. Split BINÁRIO (nunca 3 partes).
  * 
@@ -10,6 +12,9 @@
  * 1. OWNER DIRETO: 100% RiseCheckout
  * 2. OWNER + AFILIADO: Afiliado recebe X% * 0.96, Owner recebe resto
  * 3. VENDEDOR COMUM: 96% vendedor, 4% plataforma
+ * 
+ * CORS: Usa handleCorsV2 para suportar credentials: 'include' do frontend.
+ * Fallback para PUBLIC_CORS_HEADERS em chamadas server-to-server (webhooks).
  * 
  * @module asaas-create-payment
  */
@@ -19,6 +24,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // Módulos compartilhados
+import { handleCorsV2, PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { getGatewayCredentials, validateCredentials } from "../_shared/platform-config.ts";
 import { findOrCreateCustomer } from "../_shared/asaas-customer.ts";
 import { calculateMarketplaceSplitData } from "../_shared/asaas-split-calculator.ts";
@@ -36,7 +42,7 @@ import {
 } from "./handlers/validation.ts";
 import { buildSplitRules } from "./handlers/split-builder.ts";
 import { buildChargePayload, createAsaasCharge, getPixQrCode, triggerPixGeneratedWebhook } from "./handlers/charge-creator.ts";
-import { corsHeaders, createSuccessResponse, createErrorResponse, createRateLimitResponse } from "./handlers/response-builder.ts";
+import { createSuccessResponse, createErrorResponse, createRateLimitResponse } from "./handlers/response-builder.ts";
 
 const log = createLogger("asaas-create-payment");
 
@@ -44,8 +50,22 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+  // ============================================================================
+  // CORS V2 - Dynamic Origin Handling
+  // ============================================================================
+  const corsResult = handleCorsV2(req);
+  
+  let corsHeaders: Record<string, string>;
+  if (corsResult instanceof Response) {
+    // Preflight OPTIONS - retornar imediatamente
+    if (req.method === 'OPTIONS') {
+      return corsResult;
+    }
+    // Origin não permitida ou server-to-server (webhook) - usar fallback
+    corsHeaders = PUBLIC_CORS_HEADERS;
+  } else {
+    // Origin válida do frontend
+    corsHeaders = corsResult.headers;
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -55,7 +75,7 @@ serve(async (req) => {
   const rateLimitResult = await checkPaymentRateLimit(supabase, identifier);
   if (!rateLimitResult.allowed) {
     log.warn('Rate limit exceeded', { identifier });
-    return createRateLimitResponse(rateLimitResult.retryAfter);
+    return createRateLimitResponse(rateLimitResult.retryAfter, corsHeaders);
   }
 
   try {
@@ -73,14 +93,14 @@ serve(async (req) => {
     const validation = validatePaymentPayload(payload);
     if (!validation.valid) {
       await recordPaymentAttempt(supabase, identifier, false);
-      return createErrorResponse(validation.error!, validation.statusCode);
+      return createErrorResponse(validation.error!, validation.statusCode, corsHeaders);
     }
 
     // Resolver vendorId
     const vendorResult = await resolveVendorId(supabase, payload.orderId, payload.vendorId);
     if (vendorResult.error) {
       await recordPaymentAttempt(supabase, identifier, false);
-      return createErrorResponse(vendorResult.error, 404);
+      return createErrorResponse(vendorResult.error, 404, corsHeaders);
     }
     const vendorId = vendorResult.vendorId!;
 
@@ -89,14 +109,14 @@ serve(async (req) => {
     if (!credResult.success || !credResult.credentials) {
       log.error('Falha ao buscar credenciais', { error: credResult.error });
       await recordPaymentAttempt(supabase, identifier, false);
-      return createErrorResponse(credResult.error || 'Credenciais não encontradas', 500);
+      return createErrorResponse(credResult.error || 'Credenciais não encontradas', 500, corsHeaders);
     }
     const { credentials, isOwner } = credResult;
     const credValidation = validateCredentials('asaas', credentials);
     if (!credValidation.valid) {
       log.error('Credenciais inválidas', { missingFields: credValidation.missingFields });
       await recordPaymentAttempt(supabase, identifier, false);
-      return createErrorResponse(`Credenciais Asaas faltando: ${credValidation.missingFields.join(', ')}`, 500);
+      return createErrorResponse(`Credenciais Asaas faltando: ${credValidation.missingFields.join(', ')}`, 500, corsHeaders);
     }
 
     const baseUrl = credentials.environment === 'sandbox'
@@ -117,14 +137,14 @@ serve(async (req) => {
     const asaasCustomer = await findOrCreateCustomer(baseUrl, apiKey, payload.customer);
     if (!asaasCustomer) {
       await recordPaymentAttempt(supabase, identifier, false);
-      return createErrorResponse('Erro ao criar/buscar cliente no Asaas', 500);
+      return createErrorResponse('Erro ao criar/buscar cliente no Asaas', 500, corsHeaders);
     }
 
     // Montar split rules
     const splitResult = buildSplitRules(splitData, payload.amountCents);
     if (splitResult.error) {
       await recordPaymentAttempt(supabase, identifier, false);
-      return createErrorResponse(splitResult.error, 400);
+      return createErrorResponse(splitResult.error, 400, corsHeaders);
     }
 
     // Criar cobrança
@@ -142,7 +162,7 @@ serve(async (req) => {
     const chargeResult = await createAsaasCharge(baseUrl, apiKey, chargePayload);
     if (!chargeResult.success) {
       await recordPaymentAttempt(supabase, identifier, false);
-      return createErrorResponse(chargeResult.error!, 400);
+      return createErrorResponse(chargeResult.error!, 400, corsHeaders);
     }
 
     const chargeData = chargeResult.chargeData!;
@@ -201,12 +221,12 @@ serve(async (req) => {
       vendorNetCents: splitResult.vendorNetCents,
       hasAffiliate: splitData.hasAffiliate,
       rawResponse: chargeData
-    });
+    }, corsHeaders);
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Erro interno';
     log.error('Exception', { message: errorMessage });
     await recordPaymentAttempt(supabase, identifier, false);
-    return createErrorResponse(errorMessage, 500);
+    return createErrorResponse(errorMessage, 500, corsHeaders);
   }
 });
