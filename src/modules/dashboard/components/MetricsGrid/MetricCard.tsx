@@ -89,13 +89,7 @@ export function MetricCard({
 
             {/* Coluna Direita: Trend Block com Barra Lateral */}
             {trend && (
-              <div
-                className={`border-l-[3px] pl-2 md:pl-3 py-1 flex-shrink-0 transition-colors duration-300 ${
-                  trend.isPositive
-                    ? "border-emerald-500"
-                    : "border-red-500"
-                }`}
-              >
+              <div className="pl-2 md:pl-3 py-1 flex-shrink-0">
                 {/* Linha 1: Seta + Porcentagem */}
                 <div
                   className={`flex items-center gap-1 text-xs md:text-sm font-semibold ${
