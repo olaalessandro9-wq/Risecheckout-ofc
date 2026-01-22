@@ -35,7 +35,7 @@ export function normalizeDesign(checkout: DesignInputObject): ThemePreset {
   // 3. Merge com design JSON salvo (se existir)
   const designColors = (checkout.design as Record<string, unknown>)?.colors as Record<string, unknown> | undefined;
   if (designColors) {
-    deepMerge(normalized.colors, designColors);
+    deepMerge(normalized.colors as unknown as Record<string, unknown>, designColors);
   }
   
   // 4. Merge com colunas legadas APENAS como fallback (não sobrescrever design salvo)
@@ -108,6 +108,57 @@ export function normalizeDesign(checkout: DesignInputObject): ThemePreset {
       focusBorderColor: normalized.colors.active,
       focusTextColor: normalized.colors.primaryText,
     };
+  }
+  
+  // Order Summary (garantir que existe para checkouts antigos)
+  if (!normalized.colors.orderSummary) {
+    normalized.colors.orderSummary = {
+      background: normalized.colors.formBackground,
+      titleText: normalized.colors.primaryText,
+      productName: normalized.colors.primaryText,
+      priceText: normalized.colors.primaryText,
+      labelText: normalized.colors.secondaryText,
+      borderColor: normalized.colors.border,
+    };
+  }
+  
+  // Footer (garantir que existe para checkouts antigos)
+  if (!normalized.colors.footer) {
+    normalized.colors.footer = {
+      background: normalized.colors.formBackground,
+      primaryText: normalized.colors.primaryText,
+      secondaryText: normalized.colors.secondaryText,
+      border: normalized.colors.border,
+    };
+  }
+  
+  // Secure Purchase (garantir que existe para checkouts antigos)
+  if (!normalized.colors.securePurchase) {
+    normalized.colors.securePurchase = {
+      headerBackground: normalized.colors.active,
+      headerText: '#FFFFFF',
+      cardBackground: normalized.colors.formBackground,
+      primaryText: normalized.colors.primaryText,
+      secondaryText: normalized.colors.secondaryText,
+      linkText: '#3B82F6',
+    };
+  }
+  
+  // Personal Data Fields (garantir que existe para checkouts antigos)
+  if (!normalized.colors.personalDataFields) {
+    normalized.colors.personalDataFields = {
+      textColor: normalized.colors.primaryText,
+      placeholderColor: normalized.colors.secondaryText,
+      borderColor: normalized.colors.border,
+      backgroundColor: normalized.colors.inputBackground || normalized.colors.formBackground,
+      focusBorderColor: normalized.colors.active,
+      focusTextColor: normalized.colors.primaryText,
+    };
+  }
+  
+  // Product Price (garantir que existe)
+  if (!normalized.colors.productPrice) {
+    normalized.colors.productPrice = normalized.colors.active;
   }
   
   return normalized;

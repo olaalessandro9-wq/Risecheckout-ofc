@@ -1,114 +1,8 @@
+import type { CheckoutColors } from "@/types/checkoutColors";
+
 export interface ThemePreset {
   name: 'light' | 'dark' | 'custom';
-  colors: {
-    background: string;
-    primaryText: string;
-    secondaryText: string;
-    active: string;
-    icon: string;
-    formBackground: string;
-    border: string;
-    placeholder?: string;
-    inputBackground?: string;
-    unselectedButton: {
-      text: string;
-      background: string;
-      icon: string;
-      border?: string;
-    };
-    selectedButton: {
-      text: string;
-      background: string;
-      icon: string;
-      border?: string;
-    };
-    box: {
-      headerBg: string;
-      headerPrimaryText: string;
-      headerSecondaryText: string;
-      bg: string;
-      primaryText: string;
-      secondaryText: string;
-    };
-    unselectedBox: {
-      headerBg: string;
-      headerPrimaryText: string;
-      headerSecondaryText: string;
-      bg: string;
-      primaryText: string;
-      secondaryText: string;
-    };
-    selectedBox: {
-      headerBg: string;
-      headerPrimaryText: string;
-      headerSecondaryText: string;
-      bg: string;
-      primaryText: string;
-      secondaryText: string;
-    };
-    button: {
-      background: string;
-      text: string;
-    };
-    orderSummary: {
-      background: string;
-      titleText: string;
-      productName: string;
-      priceText: string;
-      labelText: string;
-      borderColor: string;
-    };
-    footer: {
-      background: string;
-      primaryText: string;
-      secondaryText: string;
-      border: string;
-    };
-    securePurchase: {
-      headerBackground: string;
-      headerText: string;
-      cardBackground: string;
-      primaryText: string;
-      secondaryText: string;
-      linkText: string;
-    };
-    infoBox?: {
-      background: string;
-      border: string;
-      text: string;
-    };
-    orderBump: {
-      headerBackground: string;
-      headerText: string;
-      footerBackground: string;
-      footerText: string;
-      contentBackground: string;
-      titleText: string;
-      descriptionText: string;
-      priceText: string;
-      selectedHeaderBackground?: string;
-      selectedHeaderText?: string;
-      selectedFooterBackground?: string;
-      selectedFooterText?: string;
-    };
-    creditCardFields?: {
-      textColor: string;
-      placeholderColor: string;
-      borderColor: string;
-      backgroundColor: string;
-      focusBorderColor: string;
-      focusTextColor: string;
-    };
-    productPrice?: string;
-    personalDataFields?: {
-      textColor: string;
-      placeholderColor: string;
-      borderColor: string;
-      backgroundColor: string;
-      focusBorderColor: string;
-      focusTextColor: string;
-    };
-  };
+  colors: CheckoutColors;
 }
 
 export const THEME_PRESETS: Record<'light' | 'dark', ThemePreset> = {
@@ -213,6 +107,11 @@ export const THEME_PRESETS: Record<'light' | 'dark', ThemePreset> = {
         focusBorderColor: '#10B981',
         focusTextColor: '#000000',
       },
+      infoBox: {
+        background: '#ECFDF5',
+        border: '#A7F3D0',
+        text: '#047857',
+      },
     },
   },
   dark: {
@@ -315,6 +214,11 @@ export const THEME_PRESETS: Record<'light' | 'dark', ThemePreset> = {
         backgroundColor: '#1F1F1F',
         focusBorderColor: '#10B981',
         focusTextColor: '#FFFFFF',
+      },
+      infoBox: {
+        background: 'rgba(16,185,129,0.1)',
+        border: 'rgba(16,185,129,0.3)',
+        text: '#D1FAE5',
       },
     },
   },

@@ -22,7 +22,7 @@ export const CheckoutColorSettings = ({ customization, onUpdate }: CheckoutColor
         ...customization.design,
         theme: themeName,
         colors: preset.colors,
-      });
+      } as CheckoutDesign);
     }
   };
 
