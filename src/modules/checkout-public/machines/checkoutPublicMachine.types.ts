@@ -71,21 +71,20 @@ export interface CardPaymentData {
 export type PaymentData = PixPaymentData | CardPaymentData;
 
 // ============================================================================
-// NAVIGATION DATA TYPES (for reactive navigation)
+// NAVIGATION DATA TYPES (re-exported from central types)
 // ============================================================================
 
-export interface PixNavigationData {
-  type: 'pix';
-  orderId: string;
-  accessToken: string;
-  gateway: 'pushinpay' | 'mercadopago' | 'stripe' | 'asaas';
-  amount: number;
-  checkoutSlug: string;
-  qrCode?: string;
-  qrCodeBase64?: string;
-  qrCodeText?: string;
-}
+// Import from central types file (SSOT)
+import type { 
+  PixNavigationData as PixNavData,
+  CardSuccessNavigationData,
+  Card3DSNavigationData,
+} from "@/types/checkout-payment.types";
 
+// Re-export for module consumers
+export type PixNavigationData = PixNavData;
+
+// Card navigation uses union of success and 3DS
 export interface CardNavigationData {
   type: 'card';
   orderId: string;

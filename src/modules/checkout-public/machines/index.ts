@@ -9,8 +9,11 @@
  */
 
 // State Machine
-export { checkoutPublicMachine, initialCheckoutContext } from "./checkoutPublicMachine";
+export { checkoutPublicMachine } from "./checkoutPublicMachine";
 export type { CheckoutPublicMachine } from "./checkoutPublicMachine";
+
+// Context (extracted for 300-line compliance)
+export { initialCheckoutContext } from "./checkoutPublicMachine.context";
 
 // Input Factories (extracted for 300-line compliance)
 export { calculateTotalFromContext, createOrderInput, processPixInput, processCardInput } from "./checkoutPublicMachine.inputs";
