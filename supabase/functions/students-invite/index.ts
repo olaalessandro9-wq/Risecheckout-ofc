@@ -107,30 +107,38 @@ function jsonResponse(data: JsonResponseData, status = 200, corsHeaders: Record<
 // ============================================
 
 Deno.serve(async (req) => {
-  // Clone request for body parsing (needed to determine action before CORS)
-  const clonedReq = req.clone();
+  // Determine CORS headers BEFORE try/catch so they're available in catch block
+  let corsHeaders: Record<string, string> = PUBLIC_CORS_HEADERS;
+  let body: Record<string, unknown> = {};
+  
+  // Parse body to determine action type (public vs authenticated)
+  try {
+    const clonedReq = req.clone();
+    body = await clonedReq.json();
+  } catch {
+    // If body parsing fails, use authenticated CORS (safer default)
+    const corsResult = handleCorsV2(req);
+    if (corsResult instanceof Response) return corsResult;
+    corsHeaders = corsResult.headers;
+    return jsonResponse({ error: "Invalid JSON body" }, 400, corsHeaders);
+  }
+  
+  const action = body.action as string | undefined;
+  const isPublicAction = ["validate-invite-token", "use-invite-token", "generate-purchase-access"].includes(action || "");
+  
+  // Set CORS headers based on action type
+  if (isPublicAction) {
+    if (req.method === "OPTIONS") {
+      return new Response(null, { headers: PUBLIC_CORS_HEADERS });
+    }
+    corsHeaders = PUBLIC_CORS_HEADERS;
+  } else {
+    const corsResult = handleCorsV2(req);
+    if (corsResult instanceof Response) return corsResult;
+    corsHeaders = corsResult.headers;
+  }
   
   try {
-    const body = await clonedReq.json();
-    const { action } = body;
-    
-    // PUBLIC actions use wildcard CORS (tokens accessed from external links)
-    const isPublicAction = ["validate-invite-token", "use-invite-token", "generate-purchase-access"].includes(action);
-    
-    let corsHeaders: Record<string, string>;
-    
-    if (isPublicAction) {
-      if (req.method === "OPTIONS") {
-        return new Response(null, { headers: PUBLIC_CORS_HEADERS });
-      }
-      corsHeaders = PUBLIC_CORS_HEADERS;
-    } else {
-      // Authenticated actions use dynamic CORS validation
-      const corsResult = handleCorsV2(req);
-      if (corsResult instanceof Response) return corsResult;
-      corsHeaders = corsResult.headers;
-    }
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -142,7 +150,7 @@ Deno.serve(async (req) => {
 
     // ========== VALIDATE-INVITE-TOKEN (public) ==========
     if (action === "validate-invite-token") {
-      const { token } = body;
+      const token = body.token as string | undefined;
       if (!token) return jsonResponse({ error: "token required" }, 400, corsHeaders);
 
       const tokenHash = await hashToken(token);
@@ -190,7 +198,8 @@ Deno.serve(async (req) => {
 
     // ========== USE-INVITE-TOKEN (public) ==========
     if (action === "use-invite-token") {
-      const { token, password } = body;
+      const token = body.token as string | undefined;
+      const password = body.password as string | undefined;
       if (!token) return jsonResponse({ error: "token required" }, 400, corsHeaders);
 
       const tokenHash = await hashToken(token);
@@ -245,7 +254,9 @@ Deno.serve(async (req) => {
 
     // ========== GENERATE-PURCHASE-ACCESS (public) ==========
     if (action === "generate-purchase-access") {
-      const { order_id, customer_email, product_id } = body;
+      const order_id = body.order_id as string | undefined;
+      const customer_email = body.customer_email as string | undefined;
+      const product_id = body.product_id as string | undefined;
       if (!order_id || !customer_email || !product_id) return jsonResponse({ error: "order_id, customer_email and product_id required" }, 400, corsHeaders);
 
       const { data: order, error: orderError } = await supabase
@@ -320,7 +331,10 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: "Authorization required" }, 401, corsHeaders);
       }
 
-      const { product_id, email, name, group_ids } = body;
+      const product_id = body.product_id as string | undefined;
+      const email = body.email as string | undefined;
+      const name = body.name as string | undefined;
+      const group_ids = body.group_ids as string[] | undefined;
       if (!product_id || !email) return jsonResponse({ error: "product_id and email required" }, 400, corsHeaders);
 
       const { data: product, error: productError } = await supabase.from("products").select("id, user_id, name, image_url").eq("id", product_id).single();
@@ -403,7 +417,8 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Invalid action" }, 400, corsHeaders);
 
   } catch (error: unknown) {
-    log.error("Error:", error);
-    return jsonResponse({ error: error instanceof Error ? error.message : "Internal server error" }, 500, PUBLIC_CORS_HEADERS);
+    const message = error instanceof Error ? error.message : "Internal server error";
+    log.error("Error:", message);
+    return jsonResponse({ error: message }, 500, corsHeaders);
   }
 });
