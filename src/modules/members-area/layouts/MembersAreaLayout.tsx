@@ -3,12 +3,14 @@
  * 
  * Renderiza a seção completa com header visual, navegação interna e conteúdo
  * Suporta modo de edição de conteúdo dedicado
+ * 
+ * RISE V3: Uses MembersAreaProvider as SSOT for all child tabs
  */
 
 import { useSearchParams } from "react-router-dom";
 import { useProductContext } from "@/modules/products/context/ProductContext";
-import { useMembersArea } from "../hooks";
 import { Loader2 } from "lucide-react";
+import { MembersAreaProvider, useMembersAreaContext } from "../context";
 import { BackButton } from "../components/BackButton";
 import { MembersAreaCover } from "../components/MembersAreaCover";
 import { MembersAreaActions } from "../components/MembersAreaActions";
@@ -22,10 +24,13 @@ import { BuilderTab } from "../views/BuilderTab";
 
 export type MembersAreaTabType = "content" | "students" | "groups" | "settings" | "builder";
 
-export function MembersAreaLayout() {
+/**
+ * Inner Layout - Consumes the unified context
+ */
+function MembersAreaLayoutInner() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { product } = useProductContext();
-  const membersAreaData = useMembersArea(product?.id);
+  const { membersArea, productId } = useMembersAreaContext();
   
   const currentTab = (searchParams.get("tab") as MembersAreaTabType) || "content";
   const contentMode = searchParams.get("mode"); // "new" or "edit"
@@ -60,11 +65,11 @@ export function MembersAreaLayout() {
 
   const handleContentEditorSave = async () => {
     // Refetch modules data to show the new content immediately
-    await membersAreaData.fetchModules();
+    await membersArea.fetchModules();
     handleContentEditorBack();
   };
 
-  if (membersAreaData.isLoading) {
+  if (membersArea.isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
@@ -79,7 +84,7 @@ export function MembersAreaLayout() {
   if (isContentEditorMode) {
     return (
       <ContentEditorView
-        productId={product?.id}
+        productId={productId}
         onBack={handleContentEditorBack}
         onSave={handleContentEditorSave}
       />
@@ -92,7 +97,7 @@ export function MembersAreaLayout() {
       <div className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
           <BackButton onClick={handleBack} />
-          <MembersAreaActions productId={product?.id} />
+          <MembersAreaActions productId={productId} />
         </div>
       </div>
 
@@ -109,22 +114,35 @@ export function MembersAreaLayout() {
         {/* Tab Content */}
         <div className="py-6">
           {currentTab === "content" && (
-            <ContentTab membersAreaData={membersAreaData} productId={product?.id} />
+            <ContentTab membersAreaData={membersArea} productId={productId} />
           )}
           {currentTab === "students" && (
-            <StudentsTab productId={product?.id} />
+            <StudentsTab productId={productId} />
           )}
           {currentTab === "groups" && (
-            <GroupsTab productId={product?.id} />
+            <GroupsTab />
           )}
           {currentTab === "settings" && (
-            <SettingsTab productId={product?.id} />
+            <SettingsTab />
           )}
           {currentTab === "builder" && (
-            <BuilderTab productId={product?.id} />
+            <BuilderTab productId={productId} />
           )}
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Main Layout - Provides the unified context
+ */
+export function MembersAreaLayout() {
+  const { product } = useProductContext();
+  
+  return (
+    <MembersAreaProvider productId={product?.id}>
+      <MembersAreaLayoutInner />
+    </MembersAreaProvider>
   );
 }

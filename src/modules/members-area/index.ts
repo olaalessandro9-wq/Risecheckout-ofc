@@ -6,6 +6,10 @@
 // Types
 export * from './types';
 
+// Context (SSOT for module state)
+export { MembersAreaProvider, useMembersAreaContext } from './context';
+export type { MembersAreaContextValue } from './context';
+
 // Hooks
 export * from './hooks';
 

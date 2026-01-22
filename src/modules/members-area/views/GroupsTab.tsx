@@ -1,21 +1,22 @@
 /**
  * GroupsTab - Manage access groups for a product's members area
  * Uses unified modal for creating/editing groups with modules and offers
+ * 
+ * RISE V3: Consumes MembersAreaContext instead of creating hook instances
  */
 
 import { useState, useCallback } from 'react';
 import { Loader2 } from 'lucide-react';
 import { GroupManager, UnifiedGroupModal } from '../components/shared';
-import { useGroups } from '../hooks/useGroups';
-import { useMembersArea } from '../hooks';
+import { useMembersAreaContext } from '../context';
 import type { MemberGroup, GroupPermission } from '../types';
 import type { MemberModule } from '../types/module.types';
 
-interface GroupsTabProps {
-  productId?: string;
-}
-
-export function GroupsTab({ productId }: GroupsTabProps) {
+export function GroupsTab() {
+  // Use unified context - NO duplicate hook instances
+  const { membersArea, groups: groupsData } = useMembersAreaContext();
+  const { modules } = membersArea;
+  
   const {
     groups,
     isLoading,
@@ -26,9 +27,7 @@ export function GroupsTab({ productId }: GroupsTabProps) {
     updatePermissions,
     offers,
     linkOffers,
-  } = useGroups(productId);
-
-  const { modules } = useMembersArea(productId);
+  } = groupsData;
 
   // State for unified modal
   const [modalOpen, setModalOpen] = useState(false);

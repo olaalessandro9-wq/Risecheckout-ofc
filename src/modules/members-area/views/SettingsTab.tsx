@@ -1,13 +1,14 @@
 /**
  * SettingsTab - Configurações completas da área de membros
+ * 
+ * RISE V3: Consumes MembersAreaContext instead of creating hook instances
  */
 
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { useMembersArea } from "../hooks";
-import { useProductContext } from "@/modules/products/context/ProductContext";
+import { useMembersAreaContext } from "../context";
 import { 
   SettingsThemeSection, 
   SettingsAccessSection, 
@@ -17,15 +18,10 @@ import {
   type MembersAreaSettingsData,
 } from "./settings";
 
-interface SettingsTabProps {
-  productId?: string;
-}
-
-export function SettingsTab({ productId }: SettingsTabProps) {
-  const { product } = useProductContext();
-  const resolvedProductId = productId || product?.id;
-  
-  const { settings: membersAreaSettings, updateSettings, isSaving } = useMembersArea(resolvedProductId);
+export function SettingsTab() {
+  // Use unified context - NO duplicate hook instances
+  const { membersArea } = useMembersAreaContext();
+  const { settings: membersAreaSettings, updateSettings, isSaving } = membersArea;
   
   const [localSettings, setLocalSettings] = useState<MembersAreaSettingsData>(DEFAULT_SETTINGS);
   const [hasChanges, setHasChanges] = useState(false);
