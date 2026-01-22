@@ -13,10 +13,11 @@
  * @module checkout-public/components
  */
 
-import React, { useEffect, useCallback, useMemo } from "react";
+import React, { useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { createLogger } from "@/lib/logger";
+import { toCheckoutFormData } from "../adapters";
 
 const log = createLogger("CheckoutPublicContent");
 
@@ -92,9 +93,25 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
   // AUTO-SCROLL TO FIRST ERROR FIELD
   // ============================================================================
   
+  // Track previous error state to avoid duplicate toasts
+  const prevErrorKeysRef = useRef<string>("");
+  
+  // Compute a stable key based on error field names
+  const formErrorsKey = useMemo(
+    () => JSON.stringify(Object.keys(formErrors).sort()),
+    [formErrors]
+  );
+  
   useEffect(() => {
     const errorFields = Object.keys(formErrors);
-    if (errorFields.length === 0) return;
+    if (errorFields.length === 0) {
+      prevErrorKeysRef.current = "";
+      return;
+    }
+    
+    // Skip if errors haven't changed
+    if (prevErrorKeysRef.current === formErrorsKey) return;
+    prevErrorKeysRef.current = formErrorsKey;
     
     const firstErrorField = errorFields[0];
     const element = document.querySelector(`[name="${firstErrorField}"]`) as HTMLInputElement | null;
@@ -106,7 +123,7 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     }
     
     toast.error("Por favor, preencha todos os campos obrigatórios");
-  }, [formErrors]);
+  }, [formErrors, formErrorsKey]);
 
   // ============================================================================
   // EARLY RETURN - requires data
@@ -168,12 +185,11 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
   }, [product.price, selectedBumps, orderBumps, localAppliedCoupon]);
 
   // Form data adapter: Machine FormData -> CheckoutFormData (legacy interface)
-  const formDataForLegacy = useMemo<CheckoutFormData>(() => ({
-    name: formData.name,
-    email: formData.email,
-    phone: formData.phone || '',
-    document: formData.cpf || formData.document || '',
-  }), [formData.name, formData.email, formData.phone, formData.cpf, formData.document]);
+  // Uses dedicated adapter for explicit conversion (RISE V3 - Zero ambiguity)
+  const formDataForLegacy = useMemo<CheckoutFormData>(
+    () => toCheckoutFormData(formData),
+    [formData]
+  );
 
   // Payment method handler
   const handlePaymentChange = useCallback((method: 'pix' | 'credit_card') => {
