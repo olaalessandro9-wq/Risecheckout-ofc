@@ -10,7 +10,7 @@
 
 import { setup, assign } from 'xstate';
 import type { MembersAreaMachineContext, MembersAreaMachineEvent } from './membersAreaMachine.types';
-import type { MemberModuleWithContents, MemberContent } from '../types';
+import type { ModuleWithContents, MemberContent } from '../../types';
 
 // ============================================================================
 // INITIAL CONTEXT
@@ -29,8 +29,8 @@ export const initialMembersAreaContext: MembersAreaMachineContext = {
 // ============================================================================
 
 function modulesChanged(
-  current: MemberModuleWithContents[],
-  original: MemberModuleWithContents[]
+  current: ModuleWithContents[],
+  original: ModuleWithContents[]
 ): boolean {
   if (current.length !== original.length) return true;
   
@@ -152,7 +152,7 @@ export const membersAreaMachine = setup({
             if (!module) return null;
             return { ...module, position: index };
           })
-          .filter((m): m is MemberModuleWithContents => m !== null);
+          .filter((m): m is ModuleWithContents => m !== null);
       },
     }),
     addContent: assign({

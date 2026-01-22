@@ -7,15 +7,15 @@
  * @module members-area/machines
  */
 
-import type { MemberModule, MemberContent, MemberModuleWithContents } from '../types';
+import type { MemberModule, MemberContent, ModuleWithContents } from '../../types';
 
 // ============================================================================
 // CONTEXT
 // ============================================================================
 
 export interface MembersAreaMachineContext {
-  modules: MemberModuleWithContents[];
-  originalModules: MemberModuleWithContents[];
+  modules: ModuleWithContents[];
+  originalModules: ModuleWithContents[];
   isSaving: boolean;
   loadError: string | null;
   saveError: string | null;
@@ -27,15 +27,15 @@ export interface MembersAreaMachineContext {
 
 export type MembersAreaMachineEvent =
   // Lifecycle
-  | { type: "LOAD"; modules: MemberModuleWithContents[] }
+  | { type: "LOAD"; modules: ModuleWithContents[] }
   | { type: "SAVE" }
   | { type: "SAVE_SUCCESS" }
   | { type: "SAVE_ERROR"; error: string }
-  | { type: "RESET"; modules: MemberModuleWithContents[] }
+  | { type: "RESET"; modules: ModuleWithContents[] }
   
   // Modules CRUD
-  | { type: "SET_MODULES"; modules: MemberModuleWithContents[] }
-  | { type: "ADD_MODULE"; module: MemberModuleWithContents }
+  | { type: "SET_MODULES"; modules: ModuleWithContents[] }
+  | { type: "ADD_MODULE"; module: ModuleWithContents }
   | { type: "UPDATE_MODULE"; id: string; data: Partial<MemberModule> }
   | { type: "DELETE_MODULE"; id: string }
   | { type: "REORDER_MODULES"; orderedIds: string[] }

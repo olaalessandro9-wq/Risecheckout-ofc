@@ -8,7 +8,7 @@ import { Loader2 } from 'lucide-react';
 import { GroupManager } from '@/components/members-area/GroupManager';
 import { UnifiedGroupModal } from '@/components/members-area/UnifiedGroupModal';
 import { useGroups } from '../hooks/useGroups';
-import { useMembersArea } from '@/hooks/members-area';
+import { useMembersArea } from '../hooks';
 import type { MemberGroup, GroupPermission } from '../types';
 import type { MemberModule } from '../types/module.types';
 

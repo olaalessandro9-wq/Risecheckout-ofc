@@ -14,7 +14,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Plus, Trash2, Edit2, GripVertical } from "lucide-react";
-import type { MemberModuleWithContents } from "@/hooks/members-area";
+import type { ModuleWithContents } from "@/modules/members-area/types";
 import { ContentsList } from "./ContentsList";
 
 // =====================================================
@@ -22,7 +22,7 @@ import { ContentsList } from "./ContentsList";
 // =====================================================
 
 export interface SortableModuleItemProps {
-  module: MemberModuleWithContents;
+  module: ModuleWithContents;
   onEditModule: (module: {
     id: string;
     title: string;

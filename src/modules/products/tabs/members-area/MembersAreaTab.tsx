@@ -8,7 +8,7 @@
 
 import { useSearchParams } from "react-router-dom";
 import { useProductContext } from "../../context/ProductContext";
-import { useMembersArea } from "@/hooks/members-area";
+import { useMembersArea } from "@/modules/members-area/hooks";
 import { Loader2, BookOpen, Users, Video, ArrowRight, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";

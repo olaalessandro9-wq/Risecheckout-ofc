@@ -7,7 +7,7 @@
 
 import { useSearchParams } from "react-router-dom";
 import { useProductContext } from "@/modules/products/context/ProductContext";
-import { useMembersArea } from "@/hooks/members-area";
+import { useMembersArea } from "../hooks";
 import { Loader2 } from "lucide-react";
 import { BackButton } from "../components/BackButton";
 import { MembersAreaCover } from "../components/MembersAreaCover";
