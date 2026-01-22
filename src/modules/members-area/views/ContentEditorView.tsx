@@ -12,7 +12,7 @@
  * @see RISE ARCHITECT PROTOCOL - Refactored using useContentEditorData hook
  */
 
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -58,6 +58,9 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
     moduleContents,
   } = useContentEditorData({ isNew, contentId, moduleId, onBack });
 
+  // Saving state
+  const [isSaving, setIsSaving] = useState(false);
+
   // Validate form
   const canSave = useMemo(() => {
     if (!content.title.trim()) return false;
@@ -75,6 +78,7 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
   const handleSave = useCallback(async () => {
     if (!canSave || !moduleId || !productId) return;
 
+    setIsSaving(true);
     try {
       // Prepare attachments for Edge Function
       // For temp attachments, we need to convert blob URLs to base64
@@ -125,6 +129,8 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
     } catch (err) {
       log.error("Save exception:", err);
       toast.error("Erro ao salvar conteúdo");
+    } finally {
+      setIsSaving(false);
     }
   }, [canSave, isNew, moduleId, contentId, content, release, attachments, onSave, productId]);
 
@@ -161,7 +167,7 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
     <div className="min-h-screen bg-background">
       <ContentEditorHeader
         isNew={isNew}
-        isSaving={false}
+        isSaving={isSaving}
         canSave={canSave}
         onBack={onBack}
         onCancel={onBack}
