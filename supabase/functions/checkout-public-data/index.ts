@@ -35,7 +35,7 @@ import { handleAffiliate } from "./handlers/affiliate-handler.ts";
 import { handleCheckout } from "./handlers/checkout-handler.ts";
 import { handleValidateCoupon } from "./handlers/coupon-handler.ts";
 import { handleProductPixels } from "./handlers/pixels-handler.ts";
-import { handleOrderByToken, handleCheckOrderPaymentStatus } from "./handlers/order-handler.ts";
+import { handleOrderByToken, handleCheckOrderPaymentStatus, handleGetCheckoutSlugByOrder } from "./handlers/order-handler.ts";
 import { handlePaymentLinkData } from "./handlers/payment-link-handler.ts";
 import { handleResolveAndLoad, handleAll } from "./handlers/resolve-and-load-handler.ts";
 
@@ -104,6 +104,9 @@ serve(async (req) => {
 
       case "check-order-payment-status":
         return handleCheckOrderPaymentStatus(ctx);
+
+      case "get-checkout-slug-by-order":
+        return handleGetCheckoutSlugByOrder(ctx);
 
       case "payment-link-data":
         return handlePaymentLinkData(ctx);
