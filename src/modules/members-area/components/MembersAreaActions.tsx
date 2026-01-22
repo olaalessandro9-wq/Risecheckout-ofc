@@ -12,13 +12,25 @@ interface MembersAreaActionsProps {
 
 export function MembersAreaActions({ productId }: MembersAreaActionsProps) {
   const handlePreview = () => {
-    // TODO: Implementar preview do curso
-    toast.info("Funcionalidade de pré-visualização em desenvolvimento");
+    if (!productId) {
+      toast.error("Produto não encontrado");
+      return;
+    }
+    
+    // Opens preview in new tab with preview mode flag
+    const previewUrl = `/buyer/course/${productId}?preview=true`;
+    window.open(previewUrl, "_blank", "noopener,noreferrer");
   };
 
   const handleOpenStudentArea = () => {
-    // TODO: Abrir área do aluno em nova aba
-    toast.info("Área do aluno em desenvolvimento");
+    if (!productId) {
+      toast.error("Produto não encontrado");
+      return;
+    }
+    
+    // Opens buyer dashboard for this product
+    const studentUrl = `/buyer/course/${productId}`;
+    window.open(studentUrl, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -28,6 +40,7 @@ export function MembersAreaActions({ productId }: MembersAreaActionsProps) {
         size="sm" 
         onClick={handlePreview}
         className="gap-2"
+        disabled={!productId}
       >
         <Eye className="h-4 w-4" />
         <span className="hidden sm:inline">Pré-Visualizar</span>
@@ -37,6 +50,7 @@ export function MembersAreaActions({ productId }: MembersAreaActionsProps) {
         size="sm" 
         onClick={handleOpenStudentArea}
         className="gap-2"
+        disabled={!productId}
       >
         <ExternalLink className="h-4 w-4" />
         <span className="hidden sm:inline">Área do Aluno</span>
