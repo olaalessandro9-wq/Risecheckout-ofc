@@ -117,8 +117,11 @@ export async function getMembersAreaSettings(
   }
 
   return jsonResponse({
-    enabled: product.members_area_enabled || false,
-    settings: product.members_area_settings || null,
+    success: true,
+    data: {
+      enabled: product.members_area_enabled || false,
+      settings: product.members_area_settings || null,
+    },
   }, corsHeaders);
 }
 
@@ -153,5 +156,5 @@ export async function getMembersAreaModulesWithContents(
     return errorResponse("Erro ao buscar módulos", "DB_ERROR", corsHeaders, 500);
   }
 
-  return jsonResponse({ modules: data || [] }, corsHeaders);
+  return jsonResponse({ success: true, data: data || [] }, corsHeaders);
 }
