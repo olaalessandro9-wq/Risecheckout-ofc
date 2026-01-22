@@ -157,7 +157,7 @@ export function useAsaasSaveConfig(): UseAsaasSaveConfigReturn {
     setIsSaving(true);
 
     try {
-      return await saveAsaasSettings(user.id, config);
+      return await saveAsaasSettings(config);
     } finally {
       setIsSaving(false);
     }
@@ -193,7 +193,7 @@ export function useAsaasDisconnect(): UseAsaasDisconnectReturn {
     setIsDisconnecting(true);
 
     try {
-      return await disconnectAsaas(user.id);
+      return await disconnectAsaas();
     } finally {
       setIsDisconnecting(false);
     }

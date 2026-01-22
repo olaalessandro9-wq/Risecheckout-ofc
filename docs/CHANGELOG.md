@@ -6,6 +6,38 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
+## [3.5.3] - 2026-01-22
+
+### 🧹 Auditoria Módulo Financeiro (RISE V3)
+
+#### Refatorado
+- **Modularização do `asaas/api.ts`** (309 → 3 arquivos < 200 linhas cada):
+  - `api/validation-api.ts` - Validação de credenciais (~65 linhas)
+  - `api/payment-api.ts` - Pagamentos PIX e Cartão (~105 linhas)
+  - `api/settings-api.ts` - Configurações get/save/disconnect (~175 linhas)
+  - `api/index.ts` - Barrel export (compatibilidade total)
+
+#### Removido
+- **Parâmetro não utilizado `vendorId`** em `saveAsaasSettings()` - Edge Function usa token auth
+- **Parâmetro não utilizado `vendorId`** em `disconnectAsaas()` - Edge Function usa token auth
+- **Logger não utilizado `log`** em `PushinPayConfigForm.tsx` - declarado mas nunca usado
+- **Arquivo monolítico `api.ts`** - substituído por estrutura modular `api/`
+
+#### Arquivos Afetados
+- `src/integrations/gateways/asaas/api.ts` → DELETADO
+- `src/integrations/gateways/asaas/api/` → CRIADO (4 arquivos)
+- `src/integrations/gateways/asaas/index.ts` → Atualizado import
+- `src/integrations/gateways/asaas/hooks.ts` → Removidos parâmetros
+- `src/integrations/gateways/pushinpay/components/ConfigForm.tsx` → -3 linhas
+
+#### Conformidade RISE V3
+- **Arquivos > 300 linhas:** 0 (era 1)
+- **Parâmetros não utilizados:** 0 (eram 2)
+- **Variáveis não utilizadas:** 0 (era 1)
+- **Limite 300 linhas:** ✅ 100%
+
+---
+
 ## [3.5.2] - 2026-01-21
 
 ### 🧹 Auditoria Módulo de Afiliados (RISE V3)
