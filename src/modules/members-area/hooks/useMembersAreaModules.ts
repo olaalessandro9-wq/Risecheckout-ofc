@@ -41,37 +41,37 @@ export function useMembersAreaModules({
   ): Promise<MemberModule | null> => {
     if (!productId) return null;
 
-    const position = modules.length;
-    const { data, error } = await api.call<{ success: boolean; data: MemberModule; error?: string }>('admin-data', {
-      action: 'create-member-module',
+    const { data, error } = await api.call<{ success: boolean; module: MemberModule; error?: string }>('members-area-modules', {
+      action: 'create',
       productId,
-      title,
-      description,
-      coverImageUrl,
-      position,
+      data: {
+        title,
+        description,
+        cover_image_url: coverImageUrl,
+      },
     });
 
-    if (error || !data?.success || !data.data) {
+    if (error || !data?.success || !data.module) {
       log.error("Failed to create module", { error, data });
       toast.error("Erro ao criar módulo");
       return null;
     }
 
     const newModule: ModuleWithContents = {
-      ...data.data,
+      ...data.module,
       contents: [],
     };
 
     dispatch({ type: 'ADD_MODULE', module: newModule });
     toast.success("Módulo criado!");
-    return data.data;
-  }, [productId, modules.length, dispatch]);
+    return data.module;
+  }, [productId, dispatch]);
 
-  const updateModule = useCallback(async (id: string, data: Partial<MemberModule>): Promise<void> => {
-    const { error } = await api.call<{ success: boolean; error?: string }>('admin-data', {
-      action: 'update-member-module',
+  const updateModule = useCallback(async (id: string, updateData: Partial<MemberModule>): Promise<void> => {
+    const { error } = await api.call<{ success: boolean; error?: string }>('members-area-modules', {
+      action: 'update',
       moduleId: id,
-      ...data,
+      data: updateData,
     });
 
     if (error) {
@@ -80,13 +80,13 @@ export function useMembersAreaModules({
       return;
     }
 
-    dispatch({ type: 'UPDATE_MODULE', id, data });
+    dispatch({ type: 'UPDATE_MODULE', id, data: updateData });
     toast.success("Módulo atualizado!");
   }, [dispatch]);
 
   const deleteModule = useCallback(async (id: string): Promise<void> => {
-    const { error } = await api.call<{ success: boolean; error?: string }>('admin-data', {
-      action: 'delete-member-module',
+    const { error } = await api.call<{ success: boolean; error?: string }>('members-area-modules', {
+      action: 'delete',
       moduleId: id,
     });
 
@@ -109,8 +109,8 @@ export function useMembersAreaModules({
     // Optimistic update
     dispatch({ type: 'REORDER_MODULES', orderedIds });
 
-    const { error } = await api.call<{ success: boolean; error?: string }>('admin-data', {
-      action: 'reorder-member-modules',
+    const { error } = await api.call<{ success: boolean; error?: string }>('members-area-modules', {
+      action: 'reorder',
       productId,
       orderedIds,
     });
