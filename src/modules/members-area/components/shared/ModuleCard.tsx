@@ -10,7 +10,6 @@ import {
   Pencil, 
   Trash2, 
   GripVertical,
-  Image as ImageIcon,
   BookOpen,
   ChevronDown,
   ChevronUp,

@@ -181,7 +181,7 @@ function ContentRenderer({
         <EmptyContent message="URL do PDF não configurada" />
       );
 
-    case 'text':
+    case 'text': {
       // SECURITY: Sanitize HTML content to prevent XSS attacks
       const sanitizedBody = content.body 
         ? DOMPurify.sanitize(content.body, {
@@ -207,6 +207,7 @@ function ContentRenderer({
           </div>
         </ScrollArea>
       );
+    }
 
     case 'download':
       return content.content_url ? (

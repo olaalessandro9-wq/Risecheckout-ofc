@@ -4,7 +4,7 @@
  * Optimized: Removed heavy framer-motion animations for better performance
  */
 
-import { useState, useEffect, useMemo, memo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   BookOpen,
   Loader2,
