@@ -18,7 +18,7 @@ export function MembersAreaActions({ productId }: MembersAreaActionsProps) {
     }
     
     // Opens preview in new tab with preview mode flag
-    const previewUrl = `/buyer/course/${productId}?preview=true`;
+    const previewUrl = `/minha-conta/produto/${productId}?preview=true`;
     window.open(previewUrl, "_blank", "noopener,noreferrer");
   };
 
@@ -29,7 +29,7 @@ export function MembersAreaActions({ productId }: MembersAreaActionsProps) {
     }
     
     // Opens buyer dashboard for this product
-    const studentUrl = `/buyer/course/${productId}`;
+    const studentUrl = `/minha-conta/produto/${productId}`;
     window.open(studentUrl, "_blank", "noopener,noreferrer");
   };
 
