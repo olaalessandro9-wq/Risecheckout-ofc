@@ -181,13 +181,13 @@ export const EditorPaymentSection = ({
         <div 
           className="rounded-lg p-4 space-y-2 mt-4"
           style={{
-            backgroundColor: design.colors.active + '15',
-            borderLeft: `4px solid ${design.colors.active}`
+            backgroundColor: design.colors.infoBox?.background || '#ECFDF5',
+            borderLeft: `4px solid ${design.colors.infoBox?.border || design.colors.active}`
           }}
         >
           <div className="flex items-center gap-2">
             <CheckCircle className="w-5 h-5" style={{ color: design.colors.active }} />
-            <span className="font-semibold" style={{ color: design.colors.primaryText }}>
+            <span className="font-semibold" style={{ color: design.colors.infoBox?.text || design.colors.primaryText }}>
               Liberação imediata
             </span>
           </div>

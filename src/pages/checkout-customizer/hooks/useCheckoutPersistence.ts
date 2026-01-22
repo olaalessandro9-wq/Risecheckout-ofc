@@ -96,7 +96,7 @@ export function useCheckoutPersistence({
       };
       
       const loadedCustomization: CheckoutCustomization = {
-         design: designWithFallbacks,
+         design: designWithFallbacks as CheckoutCustomization['design'],
          topComponents: parseJsonSafely(checkoutAny.top_components as string, []),
          bottomComponents: parseJsonSafely(checkoutAny.bottom_components as string, []),
       };

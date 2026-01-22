@@ -95,12 +95,16 @@ export const SharedCheckoutLayout: React.FC<SharedCheckoutLayoutProps> = ({
             publicKey={publicKey} creditCardGateway={creditCardGateway} amount={amount} onSubmitPayment={onSubmitPayment} isProcessing={isProcessing} onCardSubmitReady={handleCardSubmitReady} />
 
           {selectedPayment === 'pix' && (
-            <div className="p-4 rounded-r-lg flex items-start gap-3 relative overflow-hidden"
-              style={{ backgroundColor: design.colors.primaryText === '#FFFFFF' ? 'rgba(16, 185, 129, 0.1)' : '#EAFBF4' }}>
-              <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: design.colors.active }} />
+            <div 
+              className="p-4 rounded-r-lg flex items-start gap-3 relative overflow-hidden"
+              style={{ 
+                backgroundColor: design.colors.infoBox?.background || '#ECFDF5',
+                borderLeft: `4px solid ${design.colors.infoBox?.border || design.colors.active}` 
+              }}
+            >
               <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: design.colors.active }} />
               <div>
-                <p className="font-semibold text-sm" style={{ color: design.colors.primaryText }}>Liberação imediata</p>
+                <p className="font-semibold text-sm" style={{ color: design.colors.infoBox?.text || design.colors.primaryText }}>Liberação imediata</p>
                 <p className="text-sm mt-1" style={{ color: design.colors.secondaryText }}>É simples, só usar o aplicativo do seu banco para pagar Pix</p>
               </div>
             </div>
