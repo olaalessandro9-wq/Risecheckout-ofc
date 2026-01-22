@@ -1,6 +1,6 @@
 # Members Area Module - Arquitetura Técnica
 
-> **Versão:** 1.0  
+> **Versão:** 1.2  
 > **Data:** 22 de Janeiro de 2026  
 > **Status:** CONSOLIDADO - RISE V3 10.0/10  
 
@@ -282,15 +282,15 @@ interface NotificationSettings {
 
 | Rota | Componente | Descrição |
 |------|------------|-----------|
-| `/buyer/auth` | `BuyerAuth` | Login do aluno |
-| `/buyer/cadastro` | `BuyerCadastro` | Registro do aluno |
-| `/buyer/recuperar-senha` | `BuyerRecuperarSenha` | Recuperação de senha |
-| `/buyer/reset-password` | `BuyerResetPassword` | Reset de senha |
-| `/buyer/dashboard` | `BuyerDashboard` | Dashboard do aluno |
-| `/buyer/history` | `BuyerHistory` | Histórico de compras |
-| `/buyer/course/:productId` | `CourseHome` | Página do curso |
-| `/buyer/course/:productId/lesson/:contentId` | `LessonViewer` | Visualização de aula |
-| `/buyer/setup-access` | `SetupAccess` | Configuração inicial |
+| `/minha-conta` | `BuyerAuth` | Login do aluno |
+| `/minha-conta/cadastro` | `BuyerCadastro` | Registro do aluno |
+| `/minha-conta/recuperar-senha` | `BuyerRecuperarSenha` | Recuperação de senha |
+| `/minha-conta/redefinir-senha` | `BuyerResetPassword` | Reset de senha |
+| `/minha-conta/dashboard` | `BuyerDashboard` | Dashboard do aluno |
+| `/minha-conta/historico` | `BuyerHistory` | Histórico de compras |
+| `/minha-conta/produto/:productId` | `CourseHome` | Página do curso |
+| `/minha-conta/produto/:productId/aula/:contentId` | `LessonViewer` | Visualização de aula |
+| `/minha-conta/setup-acesso` | `SetupAccess` | Configuração inicial |
 
 ---
 
@@ -334,6 +334,7 @@ import { useMembersAreaSettings } from "@/modules/members-area/hooks/useMembersA
 
 | Versão | Data | Alterações |
 |--------|------|------------|
+| 1.2 | 2026-01-22 | Correção rotas (/buyer/ → /minha-conta/) no código e documentação |
 | 1.1 | 2026-01-22 | Modularização UnifiedGroupModal (472→5 arquivos <150 linhas) |
 | 1.0 | 2026-01-22 | Consolidação completa seguindo RISE V3 |
 
