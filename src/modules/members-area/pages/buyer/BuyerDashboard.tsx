@@ -27,12 +27,7 @@ export default function BuyerDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<FilterType>("todos");
 
-  // Redirect if not authenticated
-  if (!authLoading && !isAuthenticated) {
-    return <Navigate to="/minha-conta" replace />;
-  }
-
-  // Filter products with members_area_enabled
+  // ✅ useMemo ANTES de qualquer early return (Regra dos Hooks)
   const filteredProducts = useMemo(() => {
     if (!access) return [];
 
@@ -53,6 +48,11 @@ export default function BuyerDashboard() {
       return true;
     });
   }, [access, filter, searchQuery]);
+
+  // ✅ Early returns DEPOIS de todos os hooks
+  if (!authLoading && !isAuthenticated) {
+    return <Navigate to="/minha-conta" replace />;
+  }
 
   if (authLoading || accessLoading) {
     return (
