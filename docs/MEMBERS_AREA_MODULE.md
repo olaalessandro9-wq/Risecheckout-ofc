@@ -74,7 +74,13 @@ src/modules/members-area/
 │       ├── ModuleCard.tsx
 │       ├── ProgressBar.tsx
 │       ├── StudentList.tsx
-│       ├── UnifiedGroupModal.tsx
+│       ├── UnifiedGroupModal/       # Modularizado (RISE V3)
+│       │   ├── index.ts
+│       │   ├── types.ts
+│       │   ├── UnifiedGroupModal.tsx
+│       │   ├── GroupFormFields.tsx
+│       │   ├── ModulesAccessSection.tsx
+│       │   └── OffersLinkSection.tsx
 │       └── VideoPlayer.tsx
 └── pages/
     └── buyer/
@@ -320,7 +326,7 @@ import { useMembersAreaSettings } from "@/modules/members-area/hooks/useMembersA
 - **SSOT**: Tipos centralizados, sem duplicação
 - **Facade Pattern**: Hook único para interface externa
 - **Clean Architecture**: Separação clara de responsabilidades
-- **<300 linhas**: Todos os arquivos dentro do limite
+- **<300 linhas**: Todos os arquivos dentro do limite (UnifiedGroupModal modularizado em 5 arquivos)
 
 ---
 
@@ -328,6 +334,7 @@ import { useMembersAreaSettings } from "@/modules/members-area/hooks/useMembersA
 
 | Versão | Data | Alterações |
 |--------|------|------------|
+| 1.1 | 2026-01-22 | Modularização UnifiedGroupModal (472→5 arquivos <150 linhas) |
 | 1.0 | 2026-01-22 | Consolidação completa seguindo RISE V3 |
 
 ---
