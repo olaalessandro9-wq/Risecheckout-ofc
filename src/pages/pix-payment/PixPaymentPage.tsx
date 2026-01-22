@@ -99,12 +99,12 @@ export function PixPaymentPage() {
     }
   }, [navState, orderId, fetchOrderData, setQrCode, setQrCodeImageBase64, setTimeRemaining]);
 
-  // Criar cobrança quando orderData estiver disponível e não tiver QR code
+  // Criar cobrança quando amount_cents estiver disponível e válido
   useEffect(() => {
-    if (orderData && !qrCode && gateway === 'pushinpay') {
+    if (orderData?.amount_cents && orderData.amount_cents > 0 && !qrCode && gateway === 'pushinpay') {
       createCharge();
     }
-  }, [orderData, qrCode, gateway, createCharge]);
+  }, [orderData?.amount_cents, qrCode, gateway, createCharge]);
 
   // Copiar código PIX
   const copyToClipboard = useCallback(async () => {
