@@ -254,6 +254,16 @@ interface PaymentResponse {
 
 ## 🔐 Segurança
 
+### CORS V2 (Atualizado Jan 2026)
+
+A função usa `handleCorsV2` para suportar chamadas do frontend com `credentials: 'include'`:
+
+```typescript
+const corsResult = handleCorsV2(req);
+// Retorna origin dinâmica em vez de wildcard *
+// Permite sessões autenticadas do checkout público
+```
+
 ### Rate Limiting
 
 ```typescript
