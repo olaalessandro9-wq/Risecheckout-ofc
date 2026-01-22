@@ -46,7 +46,8 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     product,
     design,
     orderBumps,
-    offer,
+    // Note: offer is available from machine but not used in this component
+    // It's used via orderBumps and product.price for calculations
     resolvedGateways,
     formData,
     formErrors,
