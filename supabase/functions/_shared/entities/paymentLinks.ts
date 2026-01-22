@@ -80,11 +80,12 @@ export async function fetchProductPaymentLinksWithRelations(
   supabase: SupabaseClient,
   productId: string
 ): Promise<Record<string, unknown>[]> {
-  // Get offer IDs for this product
+  // Get offer IDs for this product (only active offers)
   const { data: offers, error: offersError } = await supabase
     .from("offers")
     .select("id")
-    .eq("product_id", productId);
+    .eq("product_id", productId)
+    .eq("status", "active");
 
   if (offersError) {
     logger.error("Failed to fetch offers for payment links", { 
