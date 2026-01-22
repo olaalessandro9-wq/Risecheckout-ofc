@@ -23,10 +23,11 @@ interface SectionEditorProps {
   onUpdate: (updates: Partial<Section>) => void;
   onUpdateSettings: (settings: Partial<SectionSettings>) => void;
   modules?: MemberModule[];
+  productId?: string;
   onModuleEdit?: (moduleId: string) => void;
 }
 
-export function SectionEditor({ section, onUpdate, onUpdateSettings, modules, onModuleEdit }: SectionEditorProps) {
+export function SectionEditor({ section, onUpdate, onUpdateSettings, modules, productId, onModuleEdit }: SectionEditorProps) {
   return (
     <div className="space-y-6">
 
@@ -61,7 +62,7 @@ export function SectionEditor({ section, onUpdate, onUpdateSettings, modules, on
       {/* For Banner: specific settings come BEFORE common settings */}
       {section.type === 'banner' && (
         <>
-          <BannerEditor section={section} onUpdate={onUpdateSettings} />
+          <BannerEditor section={section} onUpdate={onUpdateSettings} productId={productId} />
           <Separator />
         </>
       )}

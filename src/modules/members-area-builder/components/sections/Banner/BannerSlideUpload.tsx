@@ -17,13 +17,14 @@ import { BannerImageCropDialog } from '../../dialogs/BannerImageCropDialog';
 
 interface BannerSlideUploadProps {
   imageUrl: string;
+  productId?: string;
   onImageChange: (url: string) => void;
 }
 
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_SIZE_MB = 10;
 
-export function BannerSlideUpload({ imageUrl, onImageChange }: BannerSlideUploadProps) {
+export function BannerSlideUpload({ imageUrl, productId, onImageChange }: BannerSlideUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
@@ -36,7 +37,7 @@ export function BannerSlideUpload({ imageUrl, onImageChange }: BannerSlideUpload
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `banner-${Date.now()}-${crypto.randomUUID()}.${fileExt}`;
-      const filePath = `banners/${fileName}`;
+      const filePath = productId ? `products/${productId}/banners/${fileName}` : `banners/${fileName}`;
 
       const { publicUrl, error: uploadError } = await uploadViaEdge(
         'product-images',

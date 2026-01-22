@@ -63,7 +63,8 @@ export function MembersAreaBuilderPage() {
           {!state.isPreviewMode && (
             <BuilderSidebar 
               state={state} 
-              actions={actions} 
+              actions={actions}
+              productId={productId}
             />
           )}
         </div>
@@ -76,6 +77,7 @@ export function MembersAreaBuilderPage() {
             if (!open) actions.selectModule(null);
           }}
           module={selectedModule}
+          productId={productId}
           onUpdate={actions.updateModule}
         />
       </div>

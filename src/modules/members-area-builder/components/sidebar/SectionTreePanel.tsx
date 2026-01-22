@@ -51,6 +51,7 @@ interface SectionTreePanelProps {
   selectedSectionId: string | null;
   modules: MemberModule[];
   actions: BuilderActions;
+  productId?: string;
   onModuleEdit?: (moduleId: string) => void;
 }
 
@@ -59,6 +60,7 @@ export function SectionTreePanel({
   selectedSectionId,
   modules,
   actions,
+  productId,
   onModuleEdit,
 }: SectionTreePanelProps) {
   // Drill-down state: which section is being edited (full panel)
@@ -199,6 +201,7 @@ export function SectionTreePanel({
               onUpdate={(updates) => actions.updateSection(editingSection.id, updates)}
               onUpdateSettings={(settings) => actions.updateSectionSettings(editingSection.id, settings)}
               modules={editingSection.type === 'modules' ? modules : undefined}
+              productId={productId}
               onModuleEdit={editingSection.type === 'modules' ? onModuleEdit : undefined}
             />
           </div>
