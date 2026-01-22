@@ -1,39 +1,24 @@
 /**
- * Asaas Gateway API
+ * Asaas Settings API
  * 
- * @version 2.0.0 - RISE Protocol V3 Compliant - Zero console.log
- * MIGRATED: Uses Edge Functions for all operations
- * @see RISE Protocol V2 - Zero database access from frontend
+ * @module integrations/gateways/asaas/api/settings-api
+ * @version 1.0.0 - RISE Protocol V3 Compliant
+ * 
+ * Funções para gerenciamento de configurações do gateway Asaas.
  */
 
 import { api } from "@/lib/api";
 import { createLogger } from "@/lib/logger";
 import type {
   AsaasEnvironment,
-  AsaasPaymentRequest,
-  AsaasPaymentResponse,
-  AsaasValidationResult,
   AsaasIntegrationConfig,
-} from "./types";
+} from "../types";
 
-const log = createLogger("Asaas");
+const log = createLogger("AsaasSettingsAPI");
 
-interface AsaasValidationApiResponse {
-  valid?: boolean;
-  message?: string;
-  accountName?: string;
-  walletId?: string;
-}
-
-interface AsaasPaymentApiResponse {
-  success?: boolean;
-  transactionId?: string;
-  status?: string;
-  qrCode?: string;
-  qrCodeText?: string;
-  pixId?: string;
-  errorMessage?: string;
-}
+// ============================================
+// TYPES
+// ============================================
 
 interface AsaasConfigResponse {
   success?: boolean;
@@ -57,124 +42,7 @@ interface IntegrationManagementResponse {
 const INTEGRATION_TYPE = 'ASAAS';
 
 // ============================================
-// VALIDATION
-// ============================================
-
-/**
- * Valida as credenciais do Asaas chamando a Edge Function
- */
-export async function validateAsaasCredentials(
-  apiKey: string,
-  environment: AsaasEnvironment
-): Promise<AsaasValidationResult> {
-  try {
-    const { data, error } = await api.publicCall<AsaasValidationApiResponse>('asaas-validate-credentials', {
-      apiKey,
-      environment,
-    });
-
-    if (error) {
-      log.error("Validation error", error);
-      return {
-        valid: false,
-        message: error.message || 'Erro ao validar credenciais',
-      };
-    }
-
-    return {
-      valid: data?.valid ?? false,
-      message: data?.message,
-      accountName: data?.accountName,
-      walletId: data?.walletId,
-    };
-  } catch (err) {
-    log.error("Validation exception", err);
-    return {
-      valid: false,
-      message: 'Erro de conexão ao validar credenciais',
-    };
-  }
-}
-
-// ============================================
-// PAYMENTS
-// ============================================
-
-/**
- * Cria um pagamento PIX via Asaas
- */
-export async function createAsaasPixPayment(
-  request: AsaasPaymentRequest
-): Promise<AsaasPaymentResponse> {
-  try {
-    const { data, error } = await api.publicCall<AsaasPaymentApiResponse>('asaas-create-payment', {
-      ...request,
-      paymentMethod: 'pix',
-    });
-
-    if (error) {
-      log.error("PIX payment error", error);
-      return {
-        success: false,
-        errorMessage: error.message || 'Erro ao criar pagamento PIX',
-      };
-    }
-
-    return {
-      success: data?.success ?? false,
-      transactionId: data?.transactionId,
-      status: data?.status as AsaasPaymentResponse['status'],
-      qrCode: data?.qrCode,
-      qrCodeText: data?.qrCodeText,
-      pixId: data?.pixId,
-      errorMessage: data?.errorMessage,
-    };
-  } catch (err) {
-    log.error("PIX payment exception", err);
-    return {
-      success: false,
-      errorMessage: 'Erro de conexão ao criar pagamento PIX',
-    };
-  }
-}
-
-/**
- * Cria um pagamento com Cartão de Crédito via Asaas
- */
-export async function createAsaasCreditCardPayment(
-  request: AsaasPaymentRequest
-): Promise<AsaasPaymentResponse> {
-  try {
-    const { data, error } = await api.publicCall<AsaasPaymentApiResponse>('asaas-create-payment', {
-      ...request,
-      paymentMethod: 'credit_card',
-    });
-
-    if (error) {
-      log.error("Credit card payment error", error);
-      return {
-        success: false,
-        errorMessage: error.message || 'Erro ao criar pagamento com cartão',
-      };
-    }
-
-    return {
-      success: data?.success ?? false,
-      transactionId: data?.transactionId,
-      status: data?.status as AsaasPaymentResponse['status'],
-      errorMessage: data?.errorMessage,
-    };
-  } catch (err) {
-    log.error("Credit card payment exception", err);
-    return {
-      success: false,
-      errorMessage: 'Erro de conexão ao criar pagamento com cartão',
-    };
-  }
-}
-
-// ============================================
-// SETTINGS (via Edge Functions)
+// GET SETTINGS
 // ============================================
 
 /**
@@ -215,11 +83,17 @@ export async function getAsaasSettings(
   }
 }
 
+// ============================================
+// SAVE SETTINGS
+// ============================================
+
 /**
  * Salva as configurações do Asaas para um vendor via Edge Function
+ * 
+ * @note O parâmetro vendorId não é mais necessário pois a Edge Function
+ *       usa o token de autenticação para identificar o vendor.
  */
 export async function saveAsaasSettings(
-  vendorId: string,
   config: AsaasIntegrationConfig
 ): Promise<{ success: boolean; error?: string }> {
   try {
@@ -265,12 +139,17 @@ export async function saveAsaasSettings(
   }
 }
 
+// ============================================
+// DISCONNECT
+// ============================================
+
 /**
  * Desconecta o Asaas via Edge Function
+ * 
+ * @note O parâmetro vendorId não é mais necessário pois a Edge Function
+ *       usa o token de autenticação para identificar o vendor.
  */
-export async function disconnectAsaas(
-  vendorId: string
-): Promise<{ success: boolean; error?: string }> {
+export async function disconnectAsaas(): Promise<{ success: boolean; error?: string }> {
   try {
     // Disconnect via Edge Function
     const { data: result, error } = await api.call<IntegrationManagementResponse>('integration-management', {
@@ -288,7 +167,7 @@ export async function disconnectAsaas(
       action: 'clear-profile-wallet',
     });
 
-    log.info("Desconectado e wallet_id limpo", { vendorId });
+    log.info("Desconectado e wallet_id limpo");
     return { success: true };
   } catch (err) {
     log.error("Disconnect exception", err);
@@ -298,6 +177,10 @@ export async function disconnectAsaas(
     };
   }
 }
+
+// ============================================
+// CONNECTION STATUS
+// ============================================
 
 /**
  * Verifica se o Asaas está conectado para um vendor

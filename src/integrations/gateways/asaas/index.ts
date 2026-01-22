@@ -8,7 +8,7 @@
 // Types
 export * from './types';
 
-// API functions
+// API functions (modularized)
 export {
   validateAsaasCredentials,
   createAsaasPixPayment,
@@ -17,7 +17,7 @@ export {
   saveAsaasSettings,
   disconnectAsaas,
   isAsaasConnected,
-} from './api';
+} from './api/index';
 
 // Hooks
 export {

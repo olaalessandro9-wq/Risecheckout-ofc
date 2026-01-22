@@ -19,9 +19,6 @@ import { savePushinPaySettings } from "../api";
 import { api } from "@/lib/api/client";
 import type { PushinPayEnvironment, PushinPaySettings, PushinPayAccountInfo } from "../types";
 import type { GatewayConfigFormProps, GatewayConnectionStatus } from "@/config/gateways/types";
-import { createLogger } from "@/lib/logger";
-
-const log = createLogger("PushinPayConfigForm");
 
 interface ValidateTokenResponse {
   valid: boolean;
