@@ -15,9 +15,10 @@ import type { BuilderState, BuilderActions } from '../../types/builder.types';
 interface BuilderSidebarProps {
   state: BuilderState;
   actions: BuilderActions;
+  productId?: string;
 }
 
-export function BuilderSidebar({ state, actions }: BuilderSidebarProps) {
+export function BuilderSidebar({ state, actions, productId }: BuilderSidebarProps) {
   const { selectedSectionId, sections, settings, modules } = state;
 
   const handleModuleEdit = (moduleId: string) => {
@@ -50,6 +51,7 @@ export function BuilderSidebar({ state, actions }: BuilderSidebarProps) {
             selectedSectionId={selectedSectionId}
             modules={modules}
             actions={actions}
+            productId={productId}
             onModuleEdit={handleModuleEdit}
           />
         </TabsContent>

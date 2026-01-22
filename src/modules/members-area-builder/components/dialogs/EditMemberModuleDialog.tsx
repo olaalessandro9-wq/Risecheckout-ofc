@@ -32,6 +32,7 @@ interface EditMemberModuleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   module: MemberModule | null;
+  productId?: string;
   onUpdate: (id: string, data: Partial<MemberModule>) => Promise<void>;
 }
 
@@ -39,6 +40,7 @@ export function EditMemberModuleDialog({
   open,
   onOpenChange,
   module,
+  productId,
   onUpdate,
 }: EditMemberModuleDialogProps) {
   // Form state (local até salvar)
@@ -189,7 +191,7 @@ export function EditMemberModuleDialog({
       if (pendingFile) {
         const fileExt = pendingFile.name.split('.').pop();
         const fileName = `module-cover-${module.id}-${Date.now()}.${fileExt}`;
-        const filePath = `modules/${fileName}`;
+        const filePath = `products/${productId}/modules/${fileName}`;
 
         const { publicUrl, error: uploadError } = await uploadViaEdge(
           'product-images',

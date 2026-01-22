@@ -22,9 +22,10 @@ import type { Section, BannerSettings, BannerSlide } from '../../../types/builde
 interface BannerEditorProps {
   section: Section;
   onUpdate: (settings: Partial<BannerSettings>) => void;
+  productId?: string;
 }
 
-export function BannerEditor({ section, onUpdate }: BannerEditorProps) {
+export function BannerEditor({ section, onUpdate, productId }: BannerEditorProps) {
   const settings = section.settings as BannerSettings;
   const slides = settings.slides || [];
 
@@ -92,6 +93,7 @@ export function BannerEditor({ section, onUpdate }: BannerEditorProps) {
               {/* Image Upload */}
               <BannerSlideUpload
                 imageUrl={slide.image_url}
+                productId={productId}
                 onImageChange={(url) => updateSlide(index, { image_url: url })}
               />
 

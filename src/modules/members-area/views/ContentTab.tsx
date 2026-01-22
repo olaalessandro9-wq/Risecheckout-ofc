@@ -67,7 +67,7 @@ export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
       try {
         const fileExt = imageFile.name.split('.').pop();
         const fileName = `${crypto.randomUUID()}.${fileExt}`;
-        const filePath = `${productId}/modules/${fileName}`;
+        const filePath = `products/${productId}/modules/${fileName}`;
 
         const { publicUrl, error: uploadError } = await uploadViaEdge(
           'product-images',
@@ -101,7 +101,7 @@ export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
       try {
         const fileExt = imageFile.name.split('.').pop();
         const fileName = `${crypto.randomUUID()}.${fileExt}`;
-        const filePath = `${productId}/modules/${fileName}`;
+        const filePath = `products/${productId}/modules/${fileName}`;
 
         const { publicUrl, error: uploadError } = await uploadViaEdge(
           'product-images',
