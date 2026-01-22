@@ -75,37 +75,45 @@ export function MetricCard({
           </div>
 
           {/* Value */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             {isLoading ? (
               <Skeleton className="h-9 w-32 bg-primary/10" />
             ) : (
-              <div className="flex items-end justify-between gap-2 flex-wrap">
-                <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground tracking-tight group-hover:text-primary transition-colors duration-300 relative">
-                  {value}
-                </p>
-                {trend && (
-                  <div
-                    className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-lg ${
-                      trend.isPositive
-                        ? "bg-emerald-500/10 text-emerald-400"
-                        : "bg-red-500/10 text-red-400"
-                    }`}
-                  >
-                    {trend.isPositive ? (
-                      <ArrowUpRight className="w-3 h-3" />
-                    ) : (
-                      <ArrowDownRight className="w-3 h-3" />
-                    )}
-                    <span>{Math.round(trend.value)}%</span>
-                  </div>
-                )}
-              </div>
+              <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
+                {value}
+              </p>
             )}
 
-            {trend?.label && (
-              <p className="text-xs text-muted-foreground pl-1">
-                {trend.label}
-              </p>
+            {/* Trend Block: Barra Lateral Colorida */}
+            {trend && (
+              <div
+                className={`border-l-[3px] pl-3 py-1 transition-colors duration-300 ${
+                  trend.isPositive
+                    ? "border-emerald-500"
+                    : "border-red-500"
+                }`}
+              >
+                {/* Linha 1: Seta + Porcentagem */}
+                <div
+                  className={`flex items-center gap-1.5 text-sm font-semibold ${
+                    trend.isPositive ? "text-emerald-400" : "text-red-400"
+                  }`}
+                >
+                  {trend.isPositive ? (
+                    <ArrowUpRight className="w-4 h-4" />
+                  ) : (
+                    <ArrowDownRight className="w-4 h-4" />
+                  )}
+                  <span>{Math.round(trend.value)}%</span>
+                </div>
+
+                {/* Linha 2: Label de Comparação */}
+                {trend.label && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {trend.label}
+                  </p>
+                )}
+              </div>
             )}
           </div>
         </div>
