@@ -138,3 +138,43 @@ export function createPaymentTimeoutError() {
     message: "Tempo de pagamento expirado",
   };
 }
+
+// ============================================================================
+// FORM VALIDATION
+// ============================================================================
+
+/**
+ * Validates all required form fields and returns errors.
+ * This is the SINGLE SOURCE OF TRUTH for checkout form validation.
+ */
+export function validateFormFields(context: CheckoutPublicContext): { isValid: boolean; errors: FormErrors } {
+  const errors: FormErrors = {};
+  const { formData, product } = context;
+  
+  // Nome obrigatório
+  if (!formData.name.trim()) {
+    errors.name = "Nome é obrigatório";
+  }
+  
+  // Email obrigatório e formato válido
+  if (!formData.email.trim()) {
+    errors.email = "Email é obrigatório";
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    errors.email = "Email inválido";
+  }
+  
+  // CPF (se obrigatório)
+  if (product?.required_fields?.cpf && !formData.cpf.trim()) {
+    errors.cpf = "CPF/CNPJ é obrigatório";
+  }
+  
+  // Telefone (se obrigatório)
+  if (product?.required_fields?.phone && !formData.phone.trim()) {
+    errors.phone = "Celular é obrigatório";
+  }
+  
+  return {
+    isValid: Object.keys(errors).length === 0,
+    errors,
+  };
+}

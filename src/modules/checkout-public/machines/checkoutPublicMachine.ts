@@ -23,6 +23,7 @@ import {
   createSubmitError,
   createPaymentError,
   createPaymentTimeoutError,
+  validateFormFields,
 } from "./checkoutPublicMachine.actions";
 import { createOrderInput, processPixInput, processCardInput } from "./checkoutPublicMachine.inputs";
 
@@ -163,14 +164,31 @@ export const checkoutPublicMachine = setup({
             },
             APPLY_COUPON: { actions: assign({ appliedCoupon: ({ event }) => event.coupon }) },
             REMOVE_COUPON: { actions: assign({ appliedCoupon: () => null }) },
-            SUBMIT: {
-              target: "#checkoutPublic.submitting",
-              guard: "hasRequiredFormFields",
-              actions: assign(({ context, event }) => ({
-                formData: event.snapshot ? { ...context.formData, ...event.snapshot } : context.formData,
-                cardFormData: event.cardData || null,
-              })),
-            },
+            SUBMIT: [
+              {
+                // Validação passa → Submeter
+                guard: "hasRequiredFormFields",
+                target: "#checkoutPublic.submitting",
+                actions: assign(({ context, event }) => ({
+                  formData: event.snapshot ? { ...context.formData, ...event.snapshot } : context.formData,
+                  cardFormData: event.cardData || null,
+                  formErrors: {}, // Limpar erros anteriores
+                })),
+              },
+              {
+                // Validação falha → Setar erros e permanecer no form
+                actions: assign(({ context, event }) => {
+                  const updatedFormData = event.snapshot 
+                    ? { ...context.formData, ...event.snapshot } 
+                    : context.formData;
+                  const validation = validateFormFields({ ...context, formData: updatedFormData });
+                  return {
+                    formData: updatedFormData,
+                    formErrors: validation.errors,
+                  };
+                }),
+              },
+            ],
           },
         },
       },
