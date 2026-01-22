@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
+import { Trash2, Loader2 } from "lucide-react";
 
 type BaseProps = {
   resourceType: string; // "Produto", "Checkout", etc.
@@ -50,7 +50,7 @@ export function ConfirmDeleteDialog(props: DeclarativeProps) {
       setBusy(true);
       await onConfirm();
       setOpen(false);
-      toast.success(`${resourceType} excluído com sucesso!`);
+      // Toast é responsabilidade do onConfirm (hook)
     } catch (err: unknown) {
       toast.error(`Falha ao excluir ${resourceType.toLowerCase()}`, {
         description: err instanceof Error ? err.message : "Tente novamente.",
@@ -124,7 +124,14 @@ export function ConfirmDeleteDialog(props: DeclarativeProps) {
               handleConfirm();
             }}
           >
-            {busy ? "Excluindo..." : confirmLabel}
+            {busy ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Excluindo...
+              </>
+            ) : (
+              confirmLabel
+            )}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -166,12 +173,14 @@ export function useConfirmDelete() {
   }, []);
 
   const Bridge = () => {
+    const [busy, setBusy] = React.useState(false);
+
     if (!state) return null;
     return (
       <AlertDialog
         open={state.open}
         onOpenChange={(open) => {
-          if (!open) {
+          if (!open && !busy) {
             setState(null);
           }
         }}
@@ -202,12 +211,14 @@ export function useConfirmDelete() {
                 autoFocus
                 placeholder="EXCLUIR"
                 id="confirm-delete-input"
+                disabled={busy}
               />
             </div>
           )}
 
           <AlertDialogFooter>
             <AlertDialogCancel
+              disabled={busy}
               onClick={() => {
                 setState(null);
               }}
@@ -215,6 +226,7 @@ export function useConfirmDelete() {
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
+              disabled={busy}
               className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
               onClick={async (e) => {
                 e.preventDefault();
@@ -228,16 +240,26 @@ export function useConfirmDelete() {
                 }
 
                 try {
+                  setBusy(true);
                   await state.onConfirm();
-                  toast.success(`${state.resourceType} excluído com sucesso!`);
+                  // Toast é responsabilidade do onConfirm (hook)
                 } catch (err: unknown) {
                   toast.error(`Falha ao excluir ${state.resourceType.toLowerCase()}`, {
                     description: err instanceof Error ? err.message : "Tente novamente.",
                   });
+                } finally {
+                  setBusy(false);
                 }
               }}
             >
-              {state.confirmLabel ?? "Excluir"}
+              {busy ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Excluindo...
+                </>
+              ) : (
+                state.confirmLabel ?? "Excluir"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
