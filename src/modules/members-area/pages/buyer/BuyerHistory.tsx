@@ -1,3 +1,7 @@
+/**
+ * BuyerHistory - Purchase history page
+ */
+
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useBuyerAuth } from "@/hooks/useBuyerAuth";

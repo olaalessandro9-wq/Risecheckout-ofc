@@ -42,17 +42,19 @@ import GdprConfirm from "./pages/lgpd/GdprConfirm";
 import PoliticaDePrivacidade from "./pages/PoliticaDePrivacidade";
 
 // ============================================================================
-// ÁREA DE MEMBROS (BUYER)
+// ÁREA DE MEMBROS (BUYER) - From Members Area Module
 // ============================================================================
-import BuyerAuth from "./pages/buyer/BuyerAuth";
-import BuyerCadastro from "./pages/buyer/BuyerCadastro";
-import BuyerRecuperarSenha from "./pages/buyer/BuyerRecuperarSenha";
-import BuyerResetPassword from "./pages/buyer/BuyerResetPassword";
-import BuyerDashboard from "./pages/buyer/BuyerDashboard";
-import CourseHome from "./pages/buyer/CourseHome";
-import LessonViewer from "./pages/buyer/LessonViewer";
-import BuyerHistory from "./pages/buyer/BuyerHistory";
-import SetupAccess from "./pages/buyer/SetupAccess";
+import {
+  BuyerAuth,
+  BuyerCadastro,
+  BuyerRecuperarSenha,
+  BuyerResetPassword,
+  BuyerDashboard,
+  BuyerHistory,
+  CourseHome,
+  LessonViewer,
+  SetupAccess,
+} from "@/modules/members-area/pages/buyer";
 
 import StudentShell from "./layouts/StudentShell";
 
