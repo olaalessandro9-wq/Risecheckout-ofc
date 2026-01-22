@@ -7,6 +7,11 @@
 import { Mail, Webhook } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { AddProductFormData } from "./types";
 
 interface StepTwoProps {
@@ -134,11 +139,41 @@ export function StepTwo({
           <strong>Resumo:</strong>
         </p>
         <ul className="text-sm text-muted-foreground mt-2 space-y-1">
-          <li>• <strong>Produto:</strong> {formData.name}</li>
-          <li>• <strong>Preço:</strong> {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(formData.price / 100)}</li>
-          <li>• <strong>Entrega:</strong> {externalDelivery ? 'Externa (seu sistema)' : 'Interna (Rise envia email)'}</li>
+          <li className="flex items-start gap-1">
+            <span className="flex-shrink-0">•</span>
+            <span className="min-w-0">
+              <strong>Produto:</strong>{" "}
+              {formData.name.length > 40 ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="truncate inline-block max-w-[280px] align-bottom cursor-help">
+                      {formData.name}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[300px] break-words">
+                    {formData.name}
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                formData.name
+              )}
+            </span>
+          </li>
+          <li className="flex items-start gap-1">
+            <span className="flex-shrink-0">•</span>
+            <span><strong>Preço:</strong> {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(formData.price / 100)}</span>
+          </li>
+          <li className="flex items-start gap-1">
+            <span className="flex-shrink-0">•</span>
+            <span><strong>Entrega:</strong> {externalDelivery ? 'Externa (seu sistema)' : 'Interna (Rise envia email)'}</span>
+          </li>
           {!externalDelivery && formData.delivery_url && (
-            <li>• <strong>Link:</strong> {formData.delivery_url.length > 40 ? formData.delivery_url.substring(0, 40) + '...' : formData.delivery_url}</li>
+            <li className="flex items-start gap-1">
+              <span className="flex-shrink-0">•</span>
+              <span className="min-w-0 truncate">
+                <strong>Link:</strong> {formData.delivery_url.length > 40 ? formData.delivery_url.substring(0, 40) + '...' : formData.delivery_url}
+              </span>
+            </li>
           )}
         </ul>
       </div>
