@@ -2,7 +2,6 @@
  * BuilderTab - Gateway para o personalizador da área de membros
  */
 
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Paintbrush, ExternalLink } from "lucide-react";
 
@@ -11,11 +10,10 @@ interface BuilderTabProps {
 }
 
 export function BuilderTab({ productId }: BuilderTabProps) {
-  const navigate = useNavigate();
-
   const handleOpenBuilder = () => {
     if (productId) {
-      navigate(`/dashboard/produtos/${productId}/members-area/builder`);
+      const builderUrl = `/dashboard/produtos/${productId}/members-area/builder`;
+      window.open(builderUrl, '_blank');
     }
   };
 

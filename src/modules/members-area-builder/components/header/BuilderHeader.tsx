@@ -33,7 +33,14 @@ export function BuilderHeader({ productId, state, actions }: BuilderHeaderProps)
     if (isDirty) {
       // Could add confirmation dialog here
     }
-    navigate(`/dashboard/produtos/editar?id=${productId}&section=members-area&tab=content`);
+    
+    // Smart Exit: fecha aba se foi aberta via window.open(), senão navega
+    if (window.opener) {
+      window.close();
+    } else {
+      // Fallback para acesso direto via URL
+      navigate(`/dashboard/produtos/editar?id=${productId}&section=members-area&tab=content`);
+    }
   };
 
   const handleSave = async () => {
