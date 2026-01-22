@@ -3,7 +3,7 @@
  * Optimized: Removed heavy framer-motion layout animations
  */
 
-import { useState, memo } from 'react';
+import { useState } from 'react';
 import {
   Users,
   Plus,

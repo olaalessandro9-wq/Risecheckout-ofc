@@ -12,7 +12,6 @@ import {
   Maximize,
   SkipBack,
   SkipForward,
-  Settings,
   CheckCircle2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,8 +23,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { formatDuration } from '@/modules/members-area/utils';
-import { validateVideoUrl, type VideoPlatform } from '@/modules/members-area/utils';
+import { formatDuration, validateVideoUrl } from '@/modules/members-area/utils';
 
 interface VideoPlayerProps {
   url: string;

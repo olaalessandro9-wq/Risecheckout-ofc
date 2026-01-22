@@ -5,8 +5,7 @@
 
 import { useState, useCallback } from 'react';
 import { Loader2 } from 'lucide-react';
-import { GroupManager } from '@/components/members-area/GroupManager';
-import { UnifiedGroupModal } from '@/components/members-area/UnifiedGroupModal';
+import { GroupManager, UnifiedGroupModal } from '../components/shared';
 import { useGroups } from '../hooks/useGroups';
 import { useMembersArea } from '../hooks';
 import type { MemberGroup, GroupPermission } from '../types';
