@@ -61,13 +61,13 @@ export function CoursesEditor({ section, onUpdate }: CoursesEditorProps) {
         </div>
       )}
 
-      {/* Course Selection - placeholder */}
+      {/* Course Selection */}
       <div className="space-y-2">
         <Label>Cursos Exibidos</Label>
         <p className="text-sm text-muted-foreground">
           Todos os cursos do produto são exibidos automaticamente.
         </p>
-        {/* TODO: Add course multi-select when needed */}
+        {/* Seleção de cursos específicos será implementada quando houver suporte a múltiplos cursos por produto */}
       </div>
     </div>
   );
