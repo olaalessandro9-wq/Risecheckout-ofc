@@ -1,7 +1,7 @@
 # Rise Checkout - Edge Functions Registry
 
 > **🔴 FONTE DA VERDADE MÁXIMA** - Este documento lista TODAS as Edge Functions deployadas no Supabase.  
-> Última atualização: 2026-01-19 (RISE V3 Security Infrastructure)  
+> Última atualização: 2026-01-22 (Webhooks Module Cleanup)  
 > Mantenedor: AI Assistant + User
 
 ---
@@ -10,8 +10,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 113 |
-| **No código local** | 113 |
+| **Total de Funções** | 109 |
+| **No código local** | 109 |
 | **Apenas deployadas** | 0 |
 | **Operações Diretas Frontend** | 0 ✅ |
 | **Funções com verify_jwt=true** | 0 ✅ |
@@ -99,14 +99,9 @@
 | `asaas-webhook` | webhook | false | Signature validation |
 | `trigger-webhooks` | internal | false | Chamada interna |
 | `process-webhook-queue` | internal | false | Chamada interna |
-| `dispatch-webhook` | internal | false | Chamada interna |
-| `send-webhook` | internal | false | Chamada interna |
 | `retry-webhooks` | internal | false | Chamada interna |
 | `send-webhook-test` | producer_sessions | false | unified-auth |
-| `get-webhook-logs` | ⚠️ DEPRECATED | false | Use webhook-crud action=get-logs |
-| `webhook-crud` | producer_sessions | false | unified-auth (CRUD + logs) |
-| `test-webhook-dispatch` | producer_sessions | false | unified-auth |
-| `trigger-webhooks-internal` | internal | false | Chamada interna |
+| `webhook-crud` | producer_sessions | false | unified-auth (CRUD + logs, modularized v3.1.0) |
 | **OAuth Callbacks** | | | |
 | `mercadopago-oauth-callback` | oauth | false | OAuth flow |
 | `stripe-connect-oauth` | oauth | false | OAuth flow |
@@ -258,19 +253,15 @@
 
 ### Webhooks
 
-| Nome | URL | No Repo? | Auth |
-|------|-----|----------|------|
-| `trigger-webhooks` | `.../trigger-webhooks` | ✅ | internal |
-| `process-webhook-queue` | `.../process-webhook-queue` | ✅ | internal |
-| `dispatch-webhook` | `.../dispatch-webhook` | ✅ | internal |
-| `send-webhook` | `.../send-webhook` | ✅ | internal |
-| `retry-webhooks` | `.../retry-webhooks` | ✅ | internal |
-| `send-webhook-test` | `.../send-webhook-test` | ✅ | producer_sessions |
-| `test-webhook-dispatch` | `.../test-webhook-dispatch` | ✅ | producer_sessions |
-| `trigger-webhooks-internal` | `.../trigger-webhooks-internal` | ✅ | internal |
-| `webhook-crud` | `.../webhook-crud` | ✅ | producer_sessions | **SSOT para CRUD + logs** |
+| Nome | URL | No Repo? | Auth | Descrição |
+|------|-----|----------|------|-----------|
+| `trigger-webhooks` | `.../trigger-webhooks` | ✅ | internal | Disparo de webhooks reais |
+| `process-webhook-queue` | `.../process-webhook-queue` | ✅ | internal | Processamento de fila |
+| `retry-webhooks` | `.../retry-webhooks` | ✅ | internal | Retry de webhooks falhados |
+| `send-webhook-test` | `.../send-webhook-test` | ✅ | producer_sessions | Teste de webhooks |
+| `webhook-crud` | `.../webhook-crud` | ✅ | producer_sessions | **SSOT** - CRUD + logs (modularized v3.1.0) |
 
-> **NOTA:** `get-webhook-logs` foi consolidada em `webhook-crud` action=`get-logs` (2026-01-21)
+> **NOTA (2026-01-22):** Funções deletadas por código morto/duplicação: `dispatch-webhook`, `send-webhook`, `test-webhook-dispatch`, `trigger-webhooks-internal`. Todas usavam tabela `webhook_configs` que não existe.
 
 ### Buyer Portal
 
