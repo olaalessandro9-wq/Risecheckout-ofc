@@ -80,6 +80,7 @@ export interface PixNavigationData {
   accessToken: string;
   gateway: 'pushinpay' | 'mercadopago' | 'stripe' | 'asaas';
   amount: number;
+  checkoutSlug: string;
   qrCode?: string;
   qrCodeBase64?: string;
   qrCodeText?: string;

@@ -10,7 +10,13 @@ import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { createLogger } from "@/lib/logger";
 
-import { usePixOrderData, usePixCharge, usePixPaymentStatus, usePixTimer } from "./hooks";
+import { 
+  usePixOrderData, 
+  usePixCharge, 
+  usePixPaymentStatus, 
+  usePixTimer,
+  useCheckoutSlugFromOrder 
+} from "./hooks";
 import { 
   PixLoadingState, 
   PixPaidState, 
@@ -27,6 +33,12 @@ export function PixPaymentPage() {
   const location = useLocation();
   
   const navState = location.state as PixNavigationState | null;
+  
+  // Fallback: busca slug via RPC se não vier no state
+  const { checkoutSlug: fetchedSlug } = useCheckoutSlugFromOrder(
+    navState?.checkoutSlug ? undefined : orderId
+  );
+  const checkoutSlug = navState?.checkoutSlug || fetchedSlug;
   
   const [gateway, setGateway] = useState<GatewayType | null>(null);
   const [copied, setCopied] = useState(false);
@@ -123,7 +135,14 @@ export function PixPaymentPage() {
       <div className="container max-w-4xl mx-auto px-4 py-8">
         {/* Botão Voltar */}
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => {
+            if (checkoutSlug) {
+              navigate(`/pay/${checkoutSlug}`);
+            } else {
+              // Fallback seguro: volta pro início do app
+              navigate('/');
+            }
+          }}
           className="flex items-center gap-2 text-white hover:text-gray-300 mb-6"
         >
           <ArrowLeft className="w-5 h-5" />

@@ -89,3 +89,38 @@ export async function handleCheckOrderPaymentStatus(ctx: HandlerContext): Promis
     },
   });
 }
+
+export async function handleGetCheckoutSlugByOrder(ctx: HandlerContext): Promise<Response> {
+  const { supabase, body, jsonResponse } = ctx;
+  const { orderId } = body;
+
+  if (!orderId) {
+    return jsonResponse({ error: "orderId required" }, 400);
+  }
+
+  log.info("Getting checkout slug for order", { orderId });
+
+  const { data: order, error } = await supabase
+    .from("orders")
+    .select("checkout_id")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (error || !order?.checkout_id) {
+    log.error("Order or checkout_id not found:", error);
+    return jsonResponse({ success: false, error: "Pedido não encontrado" }, 404);
+  }
+
+  const { data: checkout, error: checkoutError } = await supabase
+    .from("checkouts")
+    .select("slug")
+    .eq("id", order.checkout_id)
+    .maybeSingle();
+
+  if (checkoutError || !checkout?.slug) {
+    log.error("Checkout slug not found:", checkoutError);
+    return jsonResponse({ success: false, error: "Checkout não encontrado" }, 404);
+  }
+
+  return jsonResponse({ success: true, slug: checkout.slug });
+}

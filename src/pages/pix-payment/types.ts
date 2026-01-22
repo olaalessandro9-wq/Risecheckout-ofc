@@ -16,6 +16,7 @@ export interface PixNavigationState {
   amount?: number;
   accessToken?: string;
   gateway?: GatewayType;
+  checkoutSlug?: string; // Slug do checkout para navegação de volta
 }
 
 /**

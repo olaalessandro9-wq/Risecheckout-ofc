@@ -20,6 +20,7 @@ interface PixNavigationData {
   accessToken: string;
   gateway: 'pushinpay' | 'mercadopago' | 'stripe' | 'asaas';
   amount: number;
+  checkoutSlug: string;
   qrCode?: string;
   qrCodeBase64?: string;
   qrCodeText?: string;
@@ -36,6 +37,7 @@ export interface ProcessPixInput {
   accessToken: string;
   gateway: 'pushinpay' | 'mercadopago' | 'stripe' | 'asaas';
   amount: number;
+  checkoutSlug: string;
   formData: {
     name: string;
     email: string;
@@ -66,6 +68,7 @@ async function processPushinPay(input: ProcessPixInput): Promise<ProcessPixOutpu
       accessToken: input.accessToken,
       gateway: 'pushinpay',
       amount: input.amount,
+      checkoutSlug: input.checkoutSlug,
     },
   };
 }
@@ -112,6 +115,7 @@ async function processMercadoPago(input: ProcessPixInput): Promise<ProcessPixOut
       accessToken: input.accessToken,
       gateway: 'mercadopago',
       amount: input.amount,
+      checkoutSlug: input.checkoutSlug,
       qrCode: pixData?.qrCode || pixData?.qr_code,
       qrCodeBase64: pixData?.qrCodeBase64 || pixData?.qr_code_base64,
     },
@@ -155,6 +159,7 @@ async function processAsaas(input: ProcessPixInput): Promise<ProcessPixOutput> {
       accessToken: input.accessToken,
       gateway: 'asaas',
       amount: input.amount,
+      checkoutSlug: input.checkoutSlug,
       qrCode: data.qrCode,
       qrCodeText: data.qrCodeText,
     },
@@ -180,6 +185,7 @@ async function processStripe(input: ProcessPixInput): Promise<ProcessPixOutput> 
       accessToken: input.accessToken,
       gateway: 'stripe',
       amount: input.amount,
+      checkoutSlug: input.checkoutSlug,
     },
   };
 }

@@ -76,6 +76,7 @@ export function processPixInput(context: CheckoutPublicContext) {
     accessToken: context.accessToken!,
     gateway: context.resolvedGateways.pix,
     amount: calculateTotalFromContext(context),
+    checkoutSlug: context.slug!,
     formData: {
       name: context.formData.name,
       email: context.formData.email,
