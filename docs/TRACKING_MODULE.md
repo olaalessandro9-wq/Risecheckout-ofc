@@ -1,7 +1,7 @@
 # Módulo de Trackeamento - RiseCheckout
 
-**Versão:** 1.0.0  
-**Data:** 21 de Janeiro de 2026  
+**Versão:** 1.2.0  
+**Data:** 22 de Janeiro de 2026  
 **Status:** ✅ ATIVO - PRODUÇÃO  
 **RISE V3 Score:** 10.0/10
 
@@ -66,9 +66,22 @@ src/
 ├── integrations/tracking/         # Módulos de disparo por plataforma
 │   ├── facebook/                  
 │   ├── tiktok/                    
-│   ├── google-ads/                
+│   ├── google-ads/                # MODULARIZADO v3.0.0
+│   │   ├── events/                # Eventos modularizados (RISE V3)
+│   │   │   ├── index.ts           # Barrel re-export
+│   │   │   ├── conversion.ts      # trackPurchase, trackLead (~210 linhas)
+│   │   │   └── ecommerce.ts       # trackPageView, trackAddToCart (~130 linhas)
+│   │   ├── Tracker.tsx            
+│   │   ├── types.ts               
+│   │   └── index.ts               
 │   ├── kwai/                      
-│   └── utmify/                    
+│   └── utmify/                    # MODULARIZADO v3.1.0
+│       ├── utils.ts               # Helpers UTM (extraídos, ~100 linhas)
+│       ├── events.ts              # Eventos (~170 linhas)
+│       ├── types.ts               
+│       ├── hooks.ts               
+│       ├── Tracker.tsx            
+│       └── index.ts               
 │
 └── pages/
     ├── Rastreamento.tsx           # Página principal (Tabs)
@@ -334,7 +347,7 @@ CREATE TABLE vendor_integrations (
 
 | Critério | Status | Evidência |
 |----------|--------|-----------|
-| Limite 300 linhas | ✅ | Todos arquivos < 250 linhas |
+| Limite 300 linhas | ✅ | Todos arquivos < 250 linhas (google-ads/events modularizado) |
 | XState como SSOT | ✅ | `pixelsMachine`, `utmifyMachine` |
 | Zero `any` types | ✅ | TypeScript strict mode |
 | Zero `console.log` | ✅ | Usa `createLogger()` |
@@ -363,6 +376,7 @@ CREATE TABLE vendor_integrations (
 
 | Data | Versão | Alteração |
 |------|--------|-----------|
+| 2026-01-22 | 1.2.0 | Modularização RISE V3: google-ads/events.ts (421 linhas) → events/ directory (conversion.ts + ecommerce.ts), utmify/events.ts → utils.ts extraído |
 | 2026-01-21 | 1.1.0 | Refatoração RISE V3: removido import não utilizado, substituído ícone deprecated, centralizado save no XState |
 | 2026-01-21 | 1.0.0 | Criação do documento (consolidação Pixels + UTMify) |
 

@@ -2,7 +2,7 @@
  * Barrel Export - Google Ads Module
  * Módulo: src/integrations/tracking/google-ads
  * 
- * @version 2.0.0 - RISE Protocol V3 Compliant
+ * @version 3.0.0 - RISE Protocol V3 Compliant - Modularizado
  * 
  * Este arquivo exporta a interface pública do módulo Google Ads.
  * Permite importar tudo com: import * as GoogleAds from "@/integrations/tracking/google-ads"
@@ -14,8 +14,8 @@
 // Tipos
 export * from "./types";
 
-// Eventos (trackPurchase, trackLead, etc.)
-export * from "./events";
+// Eventos (modularizados em events/)
+export * from "./events/index";
 
 // Componente de renderização
 export { Tracker } from "./Tracker";
