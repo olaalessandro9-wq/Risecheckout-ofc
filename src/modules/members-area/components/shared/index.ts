@@ -13,4 +13,5 @@ export { ModuleCard } from './ModuleCard';
 export { ProgressBar, CircularProgress, ProgressStats } from './ProgressBar';
 export { StudentList } from './StudentList';
 export { UnifiedGroupModal } from './UnifiedGroupModal';
+export type { UnifiedGroupModalProps, GroupFormData } from './UnifiedGroupModal';
 export { VideoPlayer } from './VideoPlayer';
