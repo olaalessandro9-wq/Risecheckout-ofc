@@ -11,7 +11,11 @@
 src/integrations/gateways/asaas/
 ├── index.ts           # Barrel exports
 ├── types.ts           # Interfaces TypeScript
-├── api.ts             # Funções de API (chamadas às Edge Functions)
+├── api/               # Funções de API modularizadas (RISE V3)
+│   ├── index.ts       # Barrel re-export (compatibilidade)
+│   ├── validation-api.ts   # Validação de credenciais (~65 linhas)
+│   ├── payment-api.ts      # PIX e Cartão (~110 linhas)
+│   └── settings-api.ts     # Get/Save/Disconnect (~190 linhas)
 ├── hooks.ts           # React Hooks para gerenciar estado
 └── components/
     └── ConfigForm.tsx # Formulário de configuração do gateway
@@ -84,9 +88,9 @@ interface AsaasPaymentResponse {
 
 ---
 
-## 📡 API (api.ts)
+## 📡 API (api/)
 
-Funções que chamam as Edge Functions do Supabase.
+Funções modularizadas que chamam as Edge Functions do Supabase. Estrutura RISE V3 compliant com todos os arquivos abaixo de 300 linhas.
 
 ### Validação de Credenciais
 
@@ -163,15 +167,15 @@ const connected = await isAsaasConnected(vendorId);
 // Obter configuração atual
 const settings = await getAsaasSettings(vendorId);
 
-// Salvar nova configuração
-await saveAsaasSettings(vendorId, {
+// Salvar nova configuração (usa autenticação do token)
+await saveAsaasSettings({
   api_key: '$aact_...',
   environment: 'production',
   wallet_id: 'uuid-wallet',
 });
 
-// Desconectar
-await disconnectAsaas(vendorId);
+// Desconectar (usa autenticação do token)
+await disconnectAsaas();
 ```
 
 ---
