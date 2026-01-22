@@ -10,8 +10,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 109 |
-| **No código local** | 109 |
+| **Total de Funções** | 110 |
+| **No código local** | 110 |
 | **Apenas deployadas** | 0 |
 | **Operações Diretas Frontend** | 0 ✅ |
 | **Funções com verify_jwt=true** | 0 ✅ |
@@ -236,10 +236,11 @@
 
 ### Orders
 
-| Nome | URL | No Repo? | Auth |
-|------|-----|----------|------|
-| `create-order` | `.../create-order` | ✅ | public |
-| `get-order-for-pix` | `.../get-order-for-pix` | ✅ | public |
+| Nome | URL | No Repo? | Auth | Descrição |
+|------|-----|----------|------|-----------|
+| `create-order` | `.../create-order` | ✅ | public | Criação de pedidos |
+| `get-order-for-pix` | `.../get-order-for-pix` | ✅ | public | Dados do pedido para página PIX |
+| `get-pix-status` | `.../get-pix-status` | ✅ | public | Recuperação pública de PIX (v3.5.4) |
 | `alert-stuck-orders` | `.../alert-stuck-orders` | ✅ | internal |
 
 ### Reconciliation (RISE V2)

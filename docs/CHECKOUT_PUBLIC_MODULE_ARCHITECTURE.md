@@ -1,7 +1,7 @@
 # Arquitetura do Módulo Checkout Public
 
 **Data:** 22 de Janeiro de 2026  
-**Versão:** 1.1  
+**Versão:** 1.2  
 **Status:** ✅ 10.0/10 RISE V3 Compliant - XState Edition  
 **XState Version:** 5.x | @xstate/react: 4.x
 
@@ -47,8 +47,9 @@ src/modules/checkout-public/
 │   ├── index.ts                       # Barrel exports
 │   └── useCheckoutPublicMachine.ts    # Hook principal (238 linhas)
 ├── machines/                          # XState state machine
-│   ├── index.ts                       # Barrel exports (83 linhas)
-│   ├── checkoutPublicMachine.ts       # State Machine (294 linhas)
+│   ├── index.ts                       # Barrel exports (88 linhas)
+│   ├── checkoutPublicMachine.ts       # State Machine (278 linhas) ✨ Reduzido
+│   ├── checkoutPublicMachine.context.ts # Contexto inicial extraído (65 linhas) ✨ NOVO
 │   ├── checkoutPublicMachine.types.ts # Tipos (241 linhas)
 │   ├── checkoutPublicMachine.guards.ts # Guards puros (78 linhas)
 │   ├── checkoutPublicMachine.actions.ts # Action helpers (~140 linhas)
@@ -57,7 +58,7 @@ src/modules/checkout-public/
 │   └── actors/                        # Actors especializados
 │       ├── index.ts                   # Barrel exports
 │       ├── createOrderActor.ts        # Criação de pedido (~108 linhas)
-│       ├── processPixPaymentActor.ts  # Processamento PIX (~214 linhas)
+│       ├── processPixPaymentActor.ts  # Processamento PIX (~220 linhas) ✨ PushinPay QR
 │       └── processCardPaymentActor.ts # Processamento Cartão (~236 linhas)
 └── mappers/                           # Transformações DTO → UI
     ├── index.ts                       # Barrel exports
@@ -68,13 +69,14 @@ src/modules/checkout-public/
 
 | Arquivo | Linhas | Responsabilidade |
 |---------|--------|------------------|
-| `machines/checkoutPublicMachine.ts` | 294 | State Machine principal |
+| `machines/checkoutPublicMachine.ts` | 278 | State Machine principal ✨ |
+| `machines/checkoutPublicMachine.context.ts` | 65 | Contexto inicial extraído ✨ NOVO |
 | `machines/checkoutPublicMachine.types.ts` | 241 | Context, Events, tipos de Actor |
 | `machines/checkoutPublicMachine.guards.ts` | 78 | Guards puros de validação |
 | `machines/checkoutPublicMachine.actions.ts` | ~140 | Helpers para assign() e criação de erros |
 | `machines/checkoutPublicMachine.inputs.ts` | 109 | Factories para input de actors |
 | `machines/actors/createOrderActor.ts` | ~108 | Criação de pedido via BFF |
-| `machines/actors/processPixPaymentActor.ts` | ~214 | Processamento PIX multi-gateway |
+| `machines/actors/processPixPaymentActor.ts` | ~220 | Processamento PIX multi-gateway (PushinPay QR) ✨ |
 | `machines/actors/processCardPaymentActor.ts` | ~236 | Processamento Cartão multi-gateway |
 | `contracts/resolveAndLoadResponse.schema.ts` | 173 | Zod schemas para validação |
 | `mappers/mapResolveAndLoad.ts` | 256 | Transformação DTO → UI Model |
@@ -83,8 +85,8 @@ src/modules/checkout-public/
 | `components/CheckoutPublicContent.tsx` | 290 | UI principal do checkout |
 | `components/CheckoutErrorDisplay.tsx` | 134 | UI de erros |
 
-**Total:** ~15 arquivos, ~2.650 linhas  
-**Média por arquivo:** ~177 linhas ✅ (bem abaixo do limite de 300)
+**Total:** ~16 arquivos, ~2.715 linhas  
+**Média por arquivo:** ~170 linhas ✅ (bem abaixo do limite de 300)
 
 ---
 
@@ -596,12 +598,12 @@ createPaymentTimeoutError(): CheckoutError
 
 ## 12. Gateways Suportados
 
-| Gateway | PIX | Cartão | 3D Secure | Notas |
-|---------|-----|--------|-----------|-------|
-| **PushinPay** | ✅ | ❌ | - | PIX exclusivo |
-| **MercadoPago** | ✅ | ✅ | ✅ | Suporte completo |
-| **Stripe** | ✅ | ✅ | ✅ | Suporte completo |
-| **Asaas** | ✅ | ✅ | ❌ | Sem 3DS |
+| Gateway | PIX | Cartão | 3D Secure | QR no Actor | Notas |
+|---------|-----|--------|-----------|-------------|-------|
+| **PushinPay** | ✅ | ❌ | - | ✅ v1.2 | PIX exclusivo, QR gerado no `processPixPaymentActor` |
+| **MercadoPago** | ✅ | ✅ | ✅ | ✅ | Suporte completo |
+| **Stripe** | ✅ | ✅ | ✅ | ⚠️ Placeholder | Suporte completo |
+| **Asaas** | ✅ | ✅ | ❌ | ✅ | Sem 3DS |
 
 ### 12.1 Gateway Resolution
 
@@ -610,6 +612,10 @@ Prioridade: Afiliado → Produto → Fallback (MercadoPago)
 ```
 
 Se um afiliado tiver gateway configurado, ele **sobrescreve** o gateway do produto.
+
+### 12.2 PushinPay QR Code Unification (v1.2)
+
+A partir da v1.2, o PushinPay gera o QR code diretamente no `processPixPaymentActor`, unificando o comportamento com os demais gateways. O fluxo anterior delegava a geração para a `PixPaymentPage`, criando inconsistência arquitetural.
 
 ---
 
@@ -824,10 +830,97 @@ O processamento de PIX via Stripe (`processPixPaymentActor.ts`) é um **placehol
 
 ---
 
-## 19. Changelog
+## 19. Tipos Centralizados (SSOT)
+
+A partir da v1.2, todos os tipos de pagamento são centralizados em:
+
+```
+src/types/checkout-payment.types.ts
+```
+
+### 19.1 Tipos Exportados
+
+| Tipo | Descrição |
+|------|-----------|
+| `PixGateway` | Union: `'pushinpay' \| 'mercadopago' \| 'stripe' \| 'asaas'` |
+| `CreditCardGateway` | Union: `'mercadopago' \| 'stripe' \| 'asaas'` |
+| `PaymentMethod` | Union: `'pix' \| 'credit_card'` |
+| `PixPaymentStatus` | Status do PIX: `'waiting' \| 'paid' \| 'expired' \| 'error'` |
+| `OrderStatus` | Status do pedido: `'pending' \| 'paid' \| 'cancelled' \| 'refunded' \| 'expired'` |
+| `PixNavigationData` | Dados de navegação para página PIX |
+| `CardSuccessNavigationData` | Dados de navegação para sucesso de cartão |
+| `Card3DSNavigationData` | Dados de navegação para 3D Secure |
+| `OrderDataForPayment` | Dados do pedido para página de pagamento |
+| `PixStatusResponse` | Resposta da Edge Function `get-pix-status` |
+| `AppliedCoupon` | Cupom aplicado ao pedido |
+| `CardPaymentData` | Dados de pagamento por cartão |
+| `CreateOrderPayload` | Payload para criação de pedido |
+| `CreateOrderResult` | Resultado da criação de pedido |
+
+### 19.2 Importação Correta
+
+```typescript
+// ✅ CORRETO - Import do SSOT
+import type { PixNavigationData } from "@/types/checkout-payment.types";
+
+// ❌ ERRADO - Definição local
+interface PixNavigationData { ... }
+```
+
+---
+
+## 20. PIX Recovery Flow (v1.2)
+
+A partir da v1.2, a página PIX é **100% resiliente** a refresh e acesso direto.
+
+### 20.1 Componentes
+
+| Componente | Responsabilidade |
+|------------|------------------|
+| `processPixPaymentActor` | Gera QR code de TODOS os gateways (incluindo PushinPay) |
+| `get-pix-status` (Edge Function) | Recuperação pública via orderId |
+| `usePixRecovery` | Hook de recuperação multi-estratégia |
+| `PixPaymentPage` | VIEW pura que consome dados |
+
+### 20.2 Estratégia de Recuperação
+
+```mermaid
+flowchart TD
+    A[Usuário acessa /pay/pix/:orderId] --> B{navState existe?}
+    B -->|Sim| C[Usar QR do navState]
+    B -->|Não| D[Chamar get-pix-status]
+    D --> E{PIX existe no banco?}
+    E -->|Sim| F[Usar QR do banco]
+    E -->|Não| G{Tem accessToken?}
+    G -->|Sim| H[Estado: needs_regeneration]
+    G -->|Não| I[Erro: Retorne ao checkout]
+    
+    C --> J[Exibir QR Code]
+    F --> J
+```
+
+### 20.3 Segurança
+
+A Edge Function `get-pix-status` retorna **APENAS** dados públicos:
+- `pix_qr_code`, `pix_status`, `pix_id`
+- `amount_cents`, `order_status`, `checkout_slug`
+
+**NÃO retorna:** nome, email, CPF, telefone, access_token
+
+**Documentação completa:** [`docs/PIX_PAYMENT_RESILIENCE.md`](./PIX_PAYMENT_RESILIENCE.md)
+
+---
+
+## 21. Changelog
 
 | Versão | Data | Alterações |
 |--------|------|------------|
+| 1.2 | 2026-01-22 | **PushinPay QR unificado** no `processPixPaymentActor` |
+| 1.2 | 2026-01-22 | **Extração de contexto** para `checkoutPublicMachine.context.ts` |
+| 1.2 | 2026-01-22 | **Tipos centralizados** em `src/types/checkout-payment.types.ts` |
+| 1.2 | 2026-01-22 | **Nova Edge Function** `get-pix-status` para recuperação PIX |
+| 1.2 | 2026-01-22 | **Novo hook** `usePixRecovery` para resiliência |
+| 1.2 | 2026-01-22 | **Machine reduzida** de 312 para 278 linhas |
 | 1.1 | 2026-01-22 | Modularização completa do backend Edge Function |
 | 1.1 | 2026-01-22 | Documentação da estrutura de handlers |
 | 1.1 | 2026-01-22 | Nota sobre limitação Stripe PIX |
@@ -835,13 +928,17 @@ O processamento de PIX via Stripe (`processPixPaymentActor.ts`) é um **placehol
 
 ---
 
-## 20. Arquivos Relacionados
+## 22. Arquivos Relacionados
 
 - `docs/XSTATE_ARCHITECTURE.md` - Arquitetura XState geral do projeto
 - `docs/EDGE_FUNCTIONS_REGISTRY.md` - Registro de Edge Functions
+- `docs/PIX_PAYMENT_RESILIENCE.md` - Arquitetura de resiliência PIX ✨ NOVO
+- `src/types/checkout-payment.types.ts` - Tipos centralizados (SSOT) ✨ NOVO
 - `supabase/functions/checkout-public-data/` - BFF correspondente (modularizado)
 - `supabase/functions/create-order/` - Edge Function de criação de pedidos
+- `supabase/functions/get-pix-status/` - Recuperação pública de PIX ✨ NOVO
 - `src/pages/checkout/` - Rotas que consomem este módulo
+- `src/pages/pix-payment/` - Página de pagamento PIX
 
 ---
 
