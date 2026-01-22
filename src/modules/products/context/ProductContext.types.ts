@@ -25,6 +25,9 @@ import type { TabValidationMap } from "../types/tabValidation.types";
 // ============================================================================
 
 export interface ProductContextValue {
+  // === Stable Product ID from Route (SSOT) ===
+  productId: string;
+  
   // === Data from State Machine ===
   product: ProductFormContext["serverData"]["product"];
   offers: Offer[];

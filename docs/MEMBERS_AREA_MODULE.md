@@ -1,6 +1,6 @@
 # Members Area Module - Arquitetura Técnica
 
-> **Versão:** 1.2  
+> **Versão:** 1.3  
 > **Data:** 22 de Janeiro de 2026  
 > **Status:** CONSOLIDADO - RISE V3 10.0/10  
 
@@ -136,7 +136,23 @@ export function useMembersArea(productId?: string): UseMembersAreaReturn {
 
 ### 3.2 Single Source of Truth (SSOT)
 
-Todos os tipos estão centralizados em `types/index.ts`:
+Todos os tipos estão centralizados em `types/index.ts`.
+
+> **REGRA DE OURO: Fonte Estável do Product ID**
+>
+> Ao inicializar hooks ou providers que dependem do ID do produto, **SEMPRE** utilize o `productId` estável provido pelo `ProductContext`, e **NUNCA** derive o ID do objeto `product` que é carregado de forma assíncrona.
+>
+> ```typescript
+> // ❌ INCORRETO - product pode ser null durante o carregamento
+> const { product } = useProductContext();
+> useMembersArea(product?.id);
+>
+> // ✅ CORRETO - productId é estável e garantido pela rota
+> const { productId } = useProductContext();
+> useMembersArea(productId);
+> ```
+>
+> **Justificativa:** O objeto `product` é carregado de forma assíncrona pela máquina de estados. Durante o bootstrap, `product` é `null`, resultando em `product?.id` sendo `undefined`. Isso causa race conditions e estados inconsistentes na UI (ex: flicker "Área de Membros Desativada"). O `productId`, por outro lado, é derivado da rota e está disponível imediatamente.
 
 ```typescript
 // Tipos Canônicos
@@ -334,6 +350,7 @@ import { useMembersAreaSettings } from "@/modules/members-area/hooks/useMembersA
 
 | Versão | Data | Alterações |
 |--------|------|------------|
+| 1.3 | 2026-01-22 | Adicionada regra de ouro: productId estável via ProductContext (SSOT) |
 | 1.2 | 2026-01-22 | Correção rotas (/buyer/ → /minha-conta/) no código e documentação |
 | 1.1 | 2026-01-22 | Modularização UnifiedGroupModal (472→5 arquivos <150 linhas) |
 | 1.0 | 2026-01-22 | Consolidação completa seguindo RISE V3 |

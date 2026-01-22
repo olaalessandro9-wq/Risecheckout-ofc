@@ -21,7 +21,7 @@ import {
 export function SettingsTab() {
   // Use unified context - NO duplicate hook instances
   const { membersArea } = useMembersAreaContext();
-  const { settings: membersAreaSettings, updateSettings, isSaving } = membersArea;
+  const { settings: membersAreaSettings, updateSettings, isSaving, isLoading } = membersArea;
   
   const [localSettings, setLocalSettings] = useState<MembersAreaSettingsData>(DEFAULT_SETTINGS);
   const [hasChanges, setHasChanges] = useState(false);
@@ -55,6 +55,16 @@ export function SettingsTab() {
     setHasChanges(false);
     toast.info("Alterações descartadas");
   };
+
+  // RISE V3: Loading guard BEFORE checking enabled state
+  // Prevents showing "Disabled" state during bootstrap
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (!membersAreaSettings.enabled) {
     return (

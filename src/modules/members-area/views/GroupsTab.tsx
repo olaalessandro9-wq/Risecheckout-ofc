@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Users } from 'lucide-react';
 import { GroupManager, UnifiedGroupModal } from '../components/shared';
 import { useMembersAreaContext } from '../context';
 import type { MemberGroup, GroupPermission } from '../types';
@@ -146,10 +146,27 @@ export function GroupsTab() {
     updated_at: m.updated_at,
   }));
 
-  if (isLoading) {
+  // RISE V3: Loading guard BEFORE checking enabled state
+  // Prevents showing "Disabled" state during bootstrap
+  if (isLoading || membersArea.isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // Check if members area is enabled
+  if (!membersArea.settings.enabled) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <div className="rounded-full bg-muted p-6 mb-6">
+          <Users className="h-12 w-12 text-muted-foreground" />
+        </div>
+        <h2 className="text-2xl font-semibold mb-2">Área de Membros Desativada</h2>
+        <p className="text-muted-foreground max-w-md">
+          Ative a área de membros para gerenciar grupos de alunos.
+        </p>
       </div>
     );
   }

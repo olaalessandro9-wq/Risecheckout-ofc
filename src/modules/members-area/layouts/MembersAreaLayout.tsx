@@ -136,12 +136,15 @@ function MembersAreaLayoutInner() {
 
 /**
  * Main Layout - Provides the unified context
+ * 
+ * RISE V3: Uses stable productId from ProductContext (SSOT)
+ * Never derive productId from the async-loaded product object
  */
 export function MembersAreaLayout() {
-  const { product } = useProductContext();
+  const { productId } = useProductContext();
   
   return (
-    <MembersAreaProvider productId={product?.id}>
+    <MembersAreaProvider productId={productId}>
       <MembersAreaLayoutInner />
     </MembersAreaProvider>
   );

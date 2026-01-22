@@ -17,14 +17,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 export function MembersAreaTab() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { product: productData } = useProductContext();
+  // RISE V3: Use stable productId from context (SSOT)
+  // Never derive productId from the async-loaded product object
+  const { productId } = useProductContext();
   const {
     isLoading,
     isSaving,
     settings,
     modules,
     updateSettings,
-  } = useMembersArea(productData?.id);
+  } = useMembersArea(productId);
 
   const handleToggleEnabled = async (enabled: boolean) => {
     await updateSettings(enabled);

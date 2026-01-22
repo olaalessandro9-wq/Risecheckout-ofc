@@ -9,7 +9,7 @@
  * - Flags de estado (loading, saving, dirty, validation)
  */
 
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext, useMemo, useEffect } from "react";
 import { useMachine } from "@xstate/react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -74,7 +74,8 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
   });
   
   // === Load Data on Mount/ProductId Change ===
-  useMemo(() => {
+  // RISE V3: useEffect for side effects (not useMemo)
+  useEffect(() => {
     if (productId && user?.id && state.matches("idle")) {
       send({ type: "LOAD_DATA", productId, userId: user.id });
     }
@@ -116,6 +117,9 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
   
   // === Context Value ===
   const contextValue: ProductContextValue = useMemo(() => ({
+    // === Stable Product ID (SSOT) ===
+    productId: productId!,
+    
     // Data
     product: context.serverData.product,
     offers: context.editedData.offers.localOffers,
@@ -197,6 +201,7 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     machineState: state.value as string,
     send,
   }), [
+    productId,
     context, loading, saving, hasUnsavedChanges, formHandlers,
     saveAll, refreshAll, settingsAdapter, deleteProduct,
     registerSaveHandler, state.value, send,
