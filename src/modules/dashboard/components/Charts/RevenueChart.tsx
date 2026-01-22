@@ -158,7 +158,7 @@ export function RevenueChart({
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={data}
-                margin={{ top: 10, right: 10, left: 40, bottom: 0 }}
+                margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
               >
                 <defs>
                   <filter id="glow">
@@ -184,14 +184,15 @@ export function RevenueChart({
                   dy={10}
                   padding={{ left: 20, right: 20 }}
                 />
-                <YAxis
-                  stroke="hsl(var(--chart-axis))"
-                  style={{ fontSize: "11px", fontWeight: 500 }}
-                  tickLine={false}
-                  axisLine={false}
-                  domain={yAxisConfig.domain}
-                  ticks={yAxisConfig.ticks}
-                  tickFormatter={(value) => {
+            <YAxis
+              stroke="hsl(var(--chart-axis))"
+              style={{ fontSize: "11px", fontWeight: 500 }}
+              tickLine={false}
+              axisLine={false}
+              domain={yAxisConfig.domain}
+              ticks={yAxisConfig.ticks}
+              width={55}
+              tickFormatter={(value) => {
                     if (value >= 1000) {
                       return `R$ ${(value / 1000).toFixed(1)}k`;
                     }
