@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { uploadViaEdge } from "@/lib/storage/storageProxy";
 import { ModulesList } from "@/modules/products/tabs/members-area/components";
 import { AddModuleDialogNetflix, EditModuleDialogNetflix } from "@/modules/members-area/components/dialogs";
+import { useConfirmDelete } from "@/components/common/ConfirmDelete";
 import type { UseMembersAreaReturn } from "../hooks";
 import type { EditingModuleData, ContentType } from "@/modules/members-area/types";
 import { createLogger } from "@/lib/logger";
@@ -40,7 +41,10 @@ export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
   const [isAddModuleOpen, setIsAddModuleOpen] = useState(false);
   const [editingModule, setEditingModule] = useState<EditingModuleData | null>(null);
   const [allExpanded, setAllExpanded] = useState(true);
-  const [isUploading, setIsUploading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Custom confirmation dialog
+  const { confirm, Bridge } = useConfirmDelete();
 
   // Navigate to content editor
   const handleOpenAddContent = (moduleId: string) => {
@@ -59,12 +63,12 @@ export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
   };
 
   const handleAddModule = async (title: string, imageFile: File | null) => {
-    let coverImageUrl: string | undefined;
+    setIsSubmitting(true);
+    
+    try {
+      let coverImageUrl: string | undefined;
 
-    // Upload image if provided
-    if (imageFile && productId) {
-      setIsUploading(true);
-      try {
+      if (imageFile && productId) {
         const fileExt = imageFile.name.split('.').pop();
         const fileName = `${crypto.randomUUID()}.${fileExt}`;
         const filePath = `products/${productId}/modules/${fileName}`;
@@ -81,24 +85,22 @@ export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
         } else if (publicUrl) {
           coverImageUrl = publicUrl;
         }
-      } catch (error: unknown) {
-        log.error("Error uploading image:", error);
-      } finally {
-        setIsUploading(false);
       }
-    }
 
-    await addModule(title, undefined, coverImageUrl);
-    setIsAddModuleOpen(false);
+      await addModule(title, undefined, coverImageUrl);
+      setIsAddModuleOpen(false);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleUpdateModule = async (id: string, title: string, imageFile: File | null, keepExistingImage: boolean) => {
-    let coverImageUrl: string | undefined;
+    setIsSubmitting(true);
+    
+    try {
+      let coverImageUrl: string | undefined;
 
-    // Upload new image if provided
-    if (imageFile && productId) {
-      setIsUploading(true);
-      try {
+      if (imageFile && productId) {
         const fileExt = imageFile.name.split('.').pop();
         const fileName = `${crypto.randomUUID()}.${fileExt}`;
         const filePath = `products/${productId}/modules/${fileName}`;
@@ -115,34 +117,42 @@ export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
         } else if (publicUrl) {
           coverImageUrl = publicUrl;
         }
-      } catch (error: unknown) {
-        log.error("Error uploading image:", error);
-      } finally {
-        setIsUploading(false);
       }
-    }
 
-    // Build update object
-    const updateData: { title: string; cover_image_url?: string | null } = { title };
-    if (!keepExistingImage) {
-      // User selected a new image (or removed the image)
-      updateData.cover_image_url = coverImageUrl || null;
-    }
+      const updateData: { title: string; cover_image_url?: string | null } = { title };
+      if (!keepExistingImage) {
+        updateData.cover_image_url = coverImageUrl || null;
+      }
 
-    await updateModule(id, updateData);
-    setEditingModule(null);
+      await updateModule(id, updateData);
+      setEditingModule(null);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleDeleteModule = async (id: string) => {
-    if (confirm("Tem certeza que deseja excluir este módulo e todo seu conteúdo?")) {
-      await deleteModule(id);
-    }
+    const module = modules.find(m => m.id === id);
+    await confirm({
+      resourceType: "Módulo",
+      resourceName: module?.title || "Módulo",
+      description: "Tem certeza que deseja excluir este módulo e todo seu conteúdo?",
+      onConfirm: async () => {
+        await deleteModule(id);
+      },
+    });
   };
 
   const handleDeleteContent = async (id: string) => {
-    if (confirm("Tem certeza que deseja excluir este conteúdo?")) {
-      await deleteContent(id);
-    }
+    const content = modules.flatMap(m => m.contents || []).find(c => c.id === id);
+    await confirm({
+      resourceType: "Conteúdo",
+      resourceName: content?.title || "Conteúdo",
+      description: "Tem certeza que deseja excluir este conteúdo?",
+      onConfirm: async () => {
+        await deleteContent(id);
+      },
+    });
   };
 
   const totalContents = modules.reduce((acc, mod) => acc + (mod.contents?.length || 0), 0);
@@ -202,15 +212,17 @@ export function ContentTab({ membersAreaData, productId }: ContentTabProps) {
         open={isAddModuleOpen}
         onOpenChange={setIsAddModuleOpen}
         onSubmit={handleAddModule}
-        isSaving={isSaving || isUploading}
+        isSaving={isSubmitting}
       />
 
       <EditModuleDialogNetflix
         module={editingModule}
         onOpenChange={(open) => !open && setEditingModule(null)}
         onSubmit={handleUpdateModule}
-        isSaving={isSaving || isUploading}
+        isSaving={isSubmitting}
       />
+
+      {Bridge()}
     </div>
   );
 }
