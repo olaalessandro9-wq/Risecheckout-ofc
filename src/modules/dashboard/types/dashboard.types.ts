@@ -71,8 +71,10 @@ export interface DashboardMetrics {
   readonly pixRevenue: string;
   readonly creditCardRevenue: string;
   
-  // Trends (opcionais)
+  // Trends
   readonly revenueTrend?: TrendData;
+  readonly paidRevenueTrend?: TrendData;
+  readonly pendingRevenueTrend?: TrendData;
   readonly conversionTrend?: TrendData;
 }
 
