@@ -89,6 +89,26 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
   }, [navigationData, isPaymentPending, isSuccess, navigate]);
 
   // ============================================================================
+  // AUTO-SCROLL TO FIRST ERROR FIELD
+  // ============================================================================
+  
+  useEffect(() => {
+    const errorFields = Object.keys(formErrors);
+    if (errorFields.length === 0) return;
+    
+    const firstErrorField = errorFields[0];
+    const element = document.querySelector(`[name="${firstErrorField}"]`) as HTMLInputElement | null;
+    
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Delay focus to ensure scroll completes
+      setTimeout(() => element.focus(), 300);
+    }
+    
+    toast.error("Por favor, preencha todos os campos obrigatórios");
+  }, [formErrors]);
+
+  // ============================================================================
   // EARLY RETURN - requires data
   // ============================================================================
 
@@ -180,29 +200,23 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
   // ============================================================================
 
   // Submit handler for PIX payments
+  // Validation is now handled by XState machine (SSOT)
   const handleSubmit = useCallback((e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
     const snapshot = getSubmitSnapshot(e.currentTarget, formData);
     
-    // Basic validation
-    if (!snapshot.name?.trim() || !snapshot.email?.trim()) {
-      toast.error("Por favor, preencha todos os campos obrigatórios");
-      return;
-    }
-    
-    updateMultipleFields(snapshot);
-    
     // Fire tracking event
     fireInitiateCheckout(selectedBumpsSet, orderBumps as OrderBump[]);
     
-    // Submit to machine (PIX flow)
+    // Submit to machine - validation happens in the machine
     if (selectedPaymentMethod === 'pix') {
       submit(snapshot);
     }
-  }, [formData, updateMultipleFields, fireInitiateCheckout, selectedBumpsSet, orderBumps, selectedPaymentMethod, submit]);
+  }, [formData, fireInitiateCheckout, selectedBumpsSet, orderBumps, selectedPaymentMethod, submit]);
 
   // Submit handler for Credit Card payments
+  // Validation is now handled by XState machine (SSOT)
   const handleCardSubmit = useCallback(async (
     token: string, 
     installments: number, 
@@ -211,13 +225,6 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     holderDocument?: string
   ): Promise<void> => {
     const snapshot = getSubmitSnapshot(null, formData);
-    
-    if (!snapshot.name?.trim() || !snapshot.email?.trim()) {
-      toast.error("Por favor, preencha todos os campos obrigatórios");
-      return;
-    }
-    
-    updateMultipleFields(snapshot);
     
     // Fire tracking event
     fireInitiateCheckout(selectedBumpsSet, orderBumps as OrderBump[]);
@@ -231,9 +238,9 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
       holderDocument,
     };
     
-    // Submit to machine with card data
+    // Submit to machine with card data - validation happens in the machine
     submit(snapshot, cardData);
-  }, [formData, updateMultipleFields, fireInitiateCheckout, selectedBumpsSet, orderBumps, submit]);
+  }, [formData, fireInitiateCheckout, selectedBumpsSet, orderBumps, submit]);
 
   // ============================================================================
   // RENDER
