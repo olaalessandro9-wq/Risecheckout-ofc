@@ -25,6 +25,7 @@ export async function fetchProductOffers(
     .from("offers")
     .select("*")
     .eq("product_id", productId)
+    .eq("status", "active")
     .order("is_default", { ascending: false })
     .order("created_at", { ascending: true });
 

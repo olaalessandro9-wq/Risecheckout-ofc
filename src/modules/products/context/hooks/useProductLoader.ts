@@ -62,6 +62,7 @@ export interface OfferRecord {
   billing_cycles_count: number | null;
   is_default: boolean;
   active: boolean;
+  status?: string;
   grant_member_group_ids: string[] | null;
   created_at: string;
   updated_at: string | null;
