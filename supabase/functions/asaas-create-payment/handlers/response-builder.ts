@@ -1,15 +1,18 @@
 /**
  * Response Builder Handler - asaas-create-payment
  * 
- * Responsável por construir respostas padronizadas
+ * RISE ARCHITECT PROTOCOL V3 - CORS V2 Compliant
+ * 
+ * Responsável por construir respostas padronizadas.
+ * Todas as funções recebem corsHeaders como parâmetro para suportar
+ * CORS dinâmico (handleCorsV2) em vez de wildcards estáticos.
+ * 
+ * @module asaas-create-payment/response-builder
  */
 
-import { PUBLIC_CORS_HEADERS } from "../../_shared/cors-v2.ts";
 import { createLogger } from "../../_shared/logger.ts";
 
 const log = createLogger("asaas-create-payment");
-
-export const corsHeaders = PUBLIC_CORS_HEADERS;
 
 /**
  * Mapeia status do Asaas para status interno
@@ -29,18 +32,21 @@ export function mapAsaasStatus(asaasStatus: string): string {
 /**
  * Cria resposta de sucesso
  */
-export function createSuccessResponse(data: {
-  chargeId: string;
-  status: string;
-  qrCode?: string;
-  qrCodeText?: string;
-  splitApplied: boolean;
-  platformFeeCents: number;
-  affiliateCommissionCents: number;
-  vendorNetCents: number;
-  hasAffiliate: boolean;
-  rawResponse: Record<string, unknown>;
-}): Response {
+export function createSuccessResponse(
+  data: {
+    chargeId: string;
+    status: string;
+    qrCode?: string;
+    qrCodeText?: string;
+    splitApplied: boolean;
+    platformFeeCents: number;
+    affiliateCommissionCents: number;
+    vendorNetCents: number;
+    hasAffiliate: boolean;
+    rawResponse: Record<string, unknown>;
+  },
+  corsHeaders: Record<string, string>
+): Response {
   const response = {
     success: true,
     transactionId: data.chargeId,
@@ -70,7 +76,8 @@ export function createSuccessResponse(data: {
  */
 export function createErrorResponse(
   error: string,
-  statusCode: number = 400
+  statusCode: number = 400,
+  corsHeaders: Record<string, string>
 ): Response {
   return new Response(
     JSON.stringify({ success: false, error }),
@@ -81,7 +88,10 @@ export function createErrorResponse(
 /**
  * Cria resposta de rate limit
  */
-export function createRateLimitResponse(retryAfter?: string | number): Response {
+export function createRateLimitResponse(
+  retryAfter: string | number | undefined,
+  corsHeaders: Record<string, string>
+): Response {
   // Handle both string (ISO timestamp) and number (seconds) formats
   let retryAfterSeconds: number;
   if (typeof retryAfter === 'string') {
