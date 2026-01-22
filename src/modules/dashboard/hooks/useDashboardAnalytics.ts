@@ -11,7 +11,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { invokeEdgeFunction } from "@/lib/api-client";
-import type { DashboardData, DateRange, RpcDashboardMetrics, Order } from "../types";
+import type { DashboardData, DateRange, DateRangePreset, RpcDashboardMetrics, Order } from "../types";
 import {
   calculateMetricsFromRpc,
   calculateChartData,
@@ -36,7 +36,7 @@ interface DashboardFullResponse {
  * Hook para buscar e calcular métricas do dashboard
  * Usa BFF pattern: 1 HTTP call em vez de 4
  */
-export function useDashboardAnalytics(dateRange: DateRange) {
+export function useDashboardAnalytics(dateRange: DateRange, preset: DateRangePreset) {
   const { user } = useAuth();
   const { startDate, endDate } = dateRange;
 
@@ -73,8 +73,8 @@ export function useDashboardAnalytics(dateRange: DateRange) {
 
       const { currentMetrics, previousMetrics, chartOrders, recentOrders } = response.data;
 
-      // Calcular métricas
-      const metrics = calculateMetricsFromRpc(currentMetrics, previousMetrics);
+      // Calcular métricas com preset para labels dinâmicos
+      const metrics = calculateMetricsFromRpc(currentMetrics, previousMetrics, preset);
 
       // Detectar se é período de 1 dia
       const daysDiff = Math.ceil(

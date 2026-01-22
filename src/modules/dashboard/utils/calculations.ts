@@ -11,8 +11,28 @@ import type {
   ChartDataPoint,
   Order,
   RpcDashboardMetrics,
+  DateRangePreset,
 } from "../types";
 import { formatCurrency } from "./formatters";
+
+// ============================================================================
+// TREND LABEL MAPPING
+// ============================================================================
+
+/**
+ * Retorna o label de comparação baseado no preset selecionado
+ */
+function getTrendLabel(preset: DateRangePreset): string {
+  const labels: Record<DateRangePreset, string> = {
+    today: "vs. ontem",
+    yesterday: "vs. dia anterior",
+    "7days": "vs. semana anterior",
+    "30days": "vs. mês anterior",
+    max: "total",
+    custom: "vs. período anterior",
+  };
+  return labels[preset];
+}
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -47,7 +67,8 @@ export function calculateGatewayFee(amountCents: number): number {
  */
 export function calculateMetricsFromRpc(
   current: RpcDashboardMetrics,
-  previous: RpcDashboardMetrics
+  previous: RpcDashboardMetrics,
+  preset: DateRangePreset
 ): DashboardMetrics {
   const paidRevenue = current.paid_revenue_cents || 0;
   const pendingRevenue = current.pending_revenue_cents || 0;
@@ -60,6 +81,7 @@ export function calculateMetricsFromRpc(
   const creditCardRevenue = current.credit_card_revenue_cents || 0;
 
   const previousPaidRevenue = previous.paid_revenue_cents || 0;
+  const previousPendingRevenue = previous.pending_revenue_cents || 0;
   const previousPaidCount = previous.paid_count || 0;
   const previousTotalCount = previous.total_count || 0;
 
@@ -74,14 +96,13 @@ export function calculateMetricsFromRpc(
       ? (previousPaidCount / previousTotalCount) * 100
       : 0;
 
-  const revenueTrendValue = calculatePercentageChange(
-    paidRevenue,
-    previousPaidRevenue
-  );
-  const conversionTrendValue = calculatePercentageChange(
-    conversionRate,
-    previousConversionRate
-  );
+  // Calcular trends para todas as métricas
+  const revenueTrendValue = calculatePercentageChange(paidRevenue, previousPaidRevenue);
+  const paidRevenueTrendValue = calculatePercentageChange(paidRevenue, previousPaidRevenue);
+  const pendingRevenueTrendValue = calculatePercentageChange(pendingRevenue, previousPendingRevenue);
+  const conversionTrendValue = calculatePercentageChange(conversionRate, previousConversionRate);
+
+  const trendLabel = getTrendLabel(preset);
 
   return {
     totalRevenue: formatCurrency(totalRevenue),
@@ -98,12 +119,22 @@ export function calculateMetricsFromRpc(
     revenueTrend: {
       value: Math.round(Math.abs(revenueTrendValue)),
       isPositive: revenueTrendValue >= 0,
-      label: "vs. período anterior",
+      label: trendLabel,
+    },
+    paidRevenueTrend: {
+      value: Math.round(Math.abs(paidRevenueTrendValue)),
+      isPositive: paidRevenueTrendValue >= 0,
+      label: trendLabel,
+    },
+    pendingRevenueTrend: {
+      value: Math.round(Math.abs(pendingRevenueTrendValue)),
+      isPositive: pendingRevenueTrendValue >= 0,
+      label: trendLabel,
     },
     conversionTrend: {
       value: Math.round(Math.abs(conversionTrendValue)),
       isPositive: conversionTrendValue >= 0,
-      label: "vs. período anterior",
+      label: trendLabel,
     },
   };
 }

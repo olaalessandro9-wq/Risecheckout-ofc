@@ -24,7 +24,7 @@ import { useDashboardAnalytics } from "./useDashboardAnalytics";
  */
 export function useDashboard() {
   const { state, actions, dateRange } = useDateRangeState();
-  const { data, isLoading, refetch } = useDashboardAnalytics(dateRange);
+  const { data, isLoading, refetch } = useDashboardAnalytics(dateRange, state.preset);
 
   return {
     // DateRange State
