@@ -6,6 +6,23 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
+## [3.5.5] - 2026-01-22
+
+### 🔧 Correções PIX Multi-Gateway
+
+#### Corrigido
+- **CORS V2 Asaas:** `asaas-create-payment` migrada para `handleCorsV2` (suporta `credentials: include`)
+- **Mapeamento QR Asaas:** Correção de `qrCode` ↔ `qrCodeText` em `processPixPaymentActor.ts`
+- **Normalização Base64:** `PixQrCodeDisplay` normaliza prefixo `data:image/png;base64,` (PushinPay inclui, outros não)
+
+#### Arquivos Afetados
+- `supabase/functions/asaas-create-payment/index.ts` - CORS V2
+- `supabase/functions/asaas-create-payment/handlers/response-builder.ts` - corsHeaders dinâmico
+- `src/modules/checkout-public/machines/actors/processPixPaymentActor.ts` - Mapeamento corrigido
+- `src/pages/pix-payment/components/PixQrCodeDisplay.tsx` - Normalização base64
+
+---
+
 ## [3.5.4] - 2026-01-22
 
 ### 🚀 Refatoração Completa Checkout Público (RISE V3 10.0/10)
