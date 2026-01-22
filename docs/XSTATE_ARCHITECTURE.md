@@ -43,7 +43,7 @@ Este projeto utiliza **XState State Machines** como o **ÚNICO** padrão de gere
 | 3 | **Dashboard DateRange** | `src/modules/dashboard/machines/dateRangeMachine.ts` | 3 | 144 |
 | 4 | **Members Area Builder** | `src/modules/members-area-builder/machines/builderMachine.ts` | 6 | 279 |
 | 5 | **Affiliation** | `src/modules/affiliation/machines/affiliationMachine.ts` | 4 | 139 |
-| 6 | **Members Area Settings** | `src/hooks/members-area/machines/membersAreaMachine.ts` | 4 | 289 |
+| 6 | **Members Area Settings** | `src/modules/members-area/hooks/machines/membersAreaMachine.ts` | 4 | 289 |
 | 7 | **Financeiro** | `src/modules/financeiro/machines/financeiroMachine.ts` | 4 | 139 |
 | 8 | **Pixels** | `src/modules/pixels/machines/pixelsMachine.ts` | 6 | ~180 |
 | 9 | **UTMify** | `src/modules/utmify/machines/utmifyMachine.ts` | 5 | ~160 |
