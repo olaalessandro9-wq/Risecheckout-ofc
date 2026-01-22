@@ -10,10 +10,35 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Trash2, Loader2 } from "lucide-react";
+
+/** Helper para truncar nomes longos com tooltip */
+const TruncatedResourceName: React.FC<{ name: string }> = ({ name }) => {
+  if (name.length <= 30) {
+    return <span className="font-normal">({name})</span>;
+  }
+  
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="font-normal inline-block max-w-[200px] truncate align-bottom cursor-help">
+          ({name})
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" className="max-w-[300px] break-words">
+        {name}
+      </TooltipContent>
+    </Tooltip>
+  );
+};
 
 type BaseProps = {
   resourceType: string; // "Produto", "Checkout", etc.
@@ -83,9 +108,9 @@ export function ConfirmDeleteDialog(props: DeclarativeProps) {
 
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>
-            Excluir {resourceType}?{" "}
-            <span className="font-normal">({resourceName})</span>
+          <AlertDialogTitle className="flex items-center gap-1 flex-wrap">
+            <span>Excluir {resourceType}?</span>
+            <TruncatedResourceName name={resourceName} />
           </AlertDialogTitle>
           <AlertDialogDescription>
             {description ?? (
@@ -187,9 +212,9 @@ export function useConfirmDelete() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              Excluir {state.resourceType}?{" "}
-              <span className="font-normal">({state.resourceName})</span>
+            <AlertDialogTitle className="flex items-center gap-1 flex-wrap">
+              <span>Excluir {state.resourceType}?</span>
+              <TruncatedResourceName name={state.resourceName} />
             </AlertDialogTitle>
             <AlertDialogDescription>
               {state.description ?? (
