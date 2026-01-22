@@ -16,6 +16,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { formatCentsToBRL as formatBRL } from "@/lib/money";
 
@@ -94,11 +99,24 @@ export const CheckoutTable = ({
               <TableBody>
                 {filteredCheckouts.map((checkout) => (
                   <TableRow key={checkout.id} className="hover:bg-muted/30">
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        {checkout.name}
+                    <TableCell className="font-medium max-w-[180px]">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {checkout.name.length > 20 ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="truncate cursor-help">
+                                {checkout.name}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-[300px] break-words">
+                              {checkout.name}
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <span>{checkout.name}</span>
+                        )}
                         {checkout.isDefault && (
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge variant="secondary" className="text-xs flex-shrink-0">
                             Padrão
                           </Badge>
                         )}
@@ -110,8 +128,21 @@ export const CheckoutTable = ({
                     <TableCell className="text-muted-foreground">
                       {checkout.visits}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {checkout.offer}
+                    <TableCell className="text-muted-foreground max-w-[200px]">
+                      {checkout.offer.length > 25 ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="block truncate cursor-help">
+                              {checkout.offer}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[300px] break-words">
+                            {checkout.offer}
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        checkout.offer
+                      )}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
