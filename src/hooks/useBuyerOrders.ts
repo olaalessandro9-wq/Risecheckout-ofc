@@ -1,5 +1,10 @@
+/**
+ * useBuyerOrders - Buyer orders and content access hooks
+ * 
+ * RISE V3: Uses credentials: 'include' for httpOnly cookies
+ */
+
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getBuyerSessionToken } from "./useBuyerAuth";
 import { SUPABASE_URL } from "@/config/supabase";
 import { createLogger } from "@/lib/logger";
 

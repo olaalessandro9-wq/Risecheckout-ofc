@@ -2,12 +2,14 @@
  * CourseHome Page - Dynamic Sections from Builder
  * Renders banner sections and module carousels based on Builder configuration
  * With sidebar (desktop) and bottom nav (mobile) from Builder settings
+ * 
+ * RISE V3: Uses useUnifiedAuth (unified identity)
  */
 
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { useBuyerAuth } from "@/hooks/useBuyerAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { useBuyerProductContent } from "@/hooks/useBuyerOrders";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft } from "lucide-react";
@@ -69,7 +71,8 @@ interface BuilderSection {
 export default function CourseHome() {
   const navigate = useNavigate();
   const { productId } = useParams<{ productId: string }>();
-  const { isLoading: authLoading, isAuthenticated } = useBuyerAuth();
+  // RISE V3: useUnifiedAuth em vez de useBuyerAuth
+  const { isLoading: authLoading, isAuthenticated } = useUnifiedAuth();
   
   // React Query declarativo - elimina o loop de useEffect
   const { data, isLoading: queryLoading, error: queryError } = useBuyerProductContent(productId);

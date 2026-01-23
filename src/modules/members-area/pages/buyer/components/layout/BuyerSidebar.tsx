@@ -3,6 +3,7 @@
  * Versão simplificada do MenuPreview (sem funcionalidades de edição)
  * Suporta modo click (botão) e hover (mouse) para desktop
  * 
+ * RISE V3: Uses useUnifiedAuth (unified identity)
  * @see RISE ARCHITECT PROTOCOL
  */
 
@@ -12,7 +13,7 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import * as Icons from 'lucide-react';
 import { ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
-import { useBuyerAuth } from '@/hooks/useBuyerAuth';
+import { useUnifiedAuth } from '@/hooks/useUnifiedAuth';
 import type { MembersAreaBuilderSettings } from '@/modules/members-area-builder/types/builder.types';
 
 interface BuyerSidebarProps {
@@ -44,14 +45,15 @@ export function BuyerSidebar({
 }: BuyerSidebarProps) {
   const navigate = useNavigate();
   const { productId } = useParams<{ productId: string }>();
-  const { buyer, logout } = useBuyerAuth();
+  // RISE V3: useUnifiedAuth em vez de useBuyerAuth
+  const { user, logout } = useUnifiedAuth();
 
   // Internal hover state for hover mode
   const [isHovered, setIsHovered] = useState(false);
 
-  const initials = getInitials(buyer?.name, buyer?.email);
-  const displayName = buyer?.name || buyer?.email?.split('@')[0] || 'Usuário';
-  const displayEmail = buyer?.email || '';
+  const initials = getInitials(user?.name, user?.email);
+  const displayName = user?.name || user?.email?.split('@')[0] || 'Usuário';
+  const displayEmail = user?.email || '';
 
   const visibleItems = (settings.menu_items ?? []).filter(item => item.is_visible);
   

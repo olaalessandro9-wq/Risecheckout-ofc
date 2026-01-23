@@ -2,11 +2,10 @@
  * Students Service
  * Communicates with students-* Edge Functions (refactored from members-area-students)
  * 
- * MIGRATED: Uses getProducerSessionToken() instead of supabase.auth.getSession()
+ * RISE V3: Uses credentials: 'include' for httpOnly cookies
  */
 
 import { SUPABASE_URL } from '@/config/supabase';
-import { getProducerSessionToken } from '@/hooks/useProducerAuth';
 import type {
   BuyerWithGroups,
   AssignBuyerGroupsInput,

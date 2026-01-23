@@ -1,10 +1,12 @@
 /**
  * BuyerHistory - Purchase history page
+ * 
+ * RISE V3: Uses useUnifiedAuth (unified identity)
  */
 
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useBuyerAuth } from "@/hooks/useBuyerAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { useBuyerOrders } from "@/hooks/useBuyerOrders";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +34,8 @@ function getStatusBadge(status: string) {
 
 export default function BuyerHistory() {
   const navigate = useNavigate();
-  const { isLoading: authLoading, isAuthenticated } = useBuyerAuth();
+  // RISE V3: useUnifiedAuth em vez de useBuyerAuth
+  const { isLoading: authLoading, isAuthenticated } = useUnifiedAuth();
   const { orders, isLoading: dataLoading, fetchOrders } = useBuyerOrders();
 
   useEffect(() => {

@@ -1,11 +1,13 @@
 /**
  * BuyerDashboard - My Courses dashboard page
  * Shows courses the authenticated buyer has access to
+ * 
+ * RISE V3: Uses useUnifiedAuth (unified identity)
  */
 
 import { useState, useMemo } from "react";
 import { Navigate, Link } from "react-router-dom";
-import { useBuyerAuth } from "@/hooks/useBuyerAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { useBuyerAccessQuery } from "@/hooks/useBuyerOrders";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,7 +23,8 @@ import { Loader2, Search, Package, Play } from "lucide-react";
 type FilterType = "todos" | "ativos" | "arquivados";
 
 export default function BuyerDashboard() {
-  const { buyer, isLoading: authLoading, isAuthenticated } = useBuyerAuth();
+  // RISE V3: useUnifiedAuth em vez de useBuyerAuth
+  const { user, isLoading: authLoading, isAuthenticated } = useUnifiedAuth();
   const { data: access, isLoading: accessLoading } = useBuyerAccessQuery();
 
   const [searchQuery, setSearchQuery] = useState("");

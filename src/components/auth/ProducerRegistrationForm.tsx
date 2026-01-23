@@ -5,6 +5,8 @@
  * state loss when AnimatePresence triggers re-mounts in parent components.
  * 
  * Supports both "producer" and "affiliate" registration with dynamic text content.
+ * 
+ * RISE V3: Uses useUnifiedAuth (unified identity)
  */
 
 import { useState } from "react";
@@ -14,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useFormValidation } from "@/hooks/useFormValidation";
-import { useProducerAuth } from "@/hooks/useProducerAuth";
+import { api } from "@/lib/api";
 import { AlertCircle, CheckCircle2, Loader2, ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -28,7 +30,6 @@ export function ProducerRegistrationForm({
   onBack,
 }: ProducerRegistrationFormProps) {
   const navigate = useNavigate();
-  const { register: registerUser } = useProducerAuth();
   const [loading, setLoading] = useState(false);
 
   // Form hooks live INSIDE this component to prevent state loss on parent re-render
@@ -67,21 +68,20 @@ export function ProducerRegistrationForm({
         return;
       }
 
-      const result = await registerUser({
+      // RISE V3: Usar unified-auth/register diretamente
+      const { data, error } = await api.publicCall<{
+        success: boolean;
+        error?: string;
+      }>("unified-auth/register", {
         email: emailField.value,
         password: passwordField.value,
         name: nameField.value,
         phone: phoneField.getRawValue() || undefined,
-        cpfCnpj: cpfCnpjField.getRawValue(),
-        registrationSource,
+        registrationType: "producer",
       });
 
-      if (!result.success) {
-        if (result.passwordValidation) {
-          toast.error(result.passwordValidation.errors.join(", "));
-        } else {
-          toast.error(result.error || "Erro ao criar conta");
-        }
+      if (error || !data?.success) {
+        toast.error(error?.message || data?.error || "Erro ao criar conta");
         setLoading(false);
         return;
       }
