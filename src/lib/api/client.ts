@@ -27,7 +27,7 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/config/supabase";
 import type { ApiResponse, ApiError } from "./types";
 import { parseHttpError, parseNetworkError, createApiError } from "./errors";
-import { producerTokenService } from "@/lib/token-manager";
+import { unifiedTokenService } from "@/lib/token-manager";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("API");
@@ -140,19 +140,20 @@ async function call<T>(
     }
     
     // Handle 401 with automatic retry (only once, only for authenticated calls)
+    // RISE V3: Uses unifiedTokenService instead of legacy producerTokenService
     if (response.status === 401 && !isPublic && !_skipRetry) {
-      log.info("Got 401, attempting token refresh...");
+      log.info("Got 401, attempting unified token refresh...");
       
-      // Try to refresh token using FSM
-      const refreshed = await producerTokenService.refresh();
+      // Try to refresh token using unified service (calls unified-auth/refresh)
+      const refreshed = await unifiedTokenService.refresh();
       
       if (refreshed) {
-        log.info("Token refreshed, retrying request...");
+        log.info("Token refreshed successfully, retrying request...");
         // Retry the request with fresh token
         return call<T>(functionName, body, { ...options, _skipRetry: true });
       }
       
-      log.warn("Token refresh failed, returning auth error");
+      log.warn("Unified token refresh failed, returning auth error");
     }
     
     // Handle non-OK responses
