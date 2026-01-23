@@ -1,8 +1,14 @@
-import { useAuth } from "@/hooks/useAuth";
+/**
+ * UserAvatar - Avatar do usuário com menu dropdown
+ * 
+ * RISE V3: Agora usa useContextSwitcher para troca unificada de contexto
+ */
+
 import { useNavigate } from "react-router-dom";
-import { User, LogOut, ArrowLeftRight, Loader2 } from "lucide-react";
-import { useProducerBuyerLink } from "@/hooks/useProducerBuyerLink";
+import { User, LogOut, ArrowLeftRight, Loader2, GraduationCap, LayoutDashboard } from "lucide-react";
 import { useState } from "react";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
+import { useContextSwitcher } from "@/hooks/useContextSwitcher";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,18 +35,23 @@ function getInitials(name: string | null | undefined, email?: string | null): st
 }
 
 export function UserAvatar() {
-  const { user, signOut } = useAuth();
+  const { user, logout } = useUnifiedAuth();
   const navigate = useNavigate();
-  const { canAccessStudentPanel, goToStudentPanel, isLoading: buyerLinkLoading } = useProducerBuyerLink();
+  const { 
+    activeRole, 
+    canSwitchToBuyer, 
+    canSwitchToProducer,
+    goToStudentPanel, 
+    goToProducerPanel,
+    isSwitching 
+  } = useContextSwitcher();
   const [isNavigating, setIsNavigating] = useState(false);
   
-  // FIXED: Use name from producer session instead of querying profiles directly
-  // This avoids 406 errors due to RLS blocking when auth.uid() is null
-  const userName = user?.user_metadata?.name as string | null;
+  const userName = user?.name;
   const initials = getInitials(userName, user?.email);
   
   const handleLogout = async () => {
-    await signOut();
+    await logout();
     navigate("/auth");
   };
   
@@ -48,7 +59,7 @@ export function UserAvatar() {
     navigate("/dashboard/perfil");
   };
 
-  const handleStudentPanelClick = async () => {
+  const handleSwitchToStudent = async () => {
     setIsNavigating(true);
     try {
       await goToStudentPanel();
@@ -56,6 +67,17 @@ export function UserAvatar() {
       setIsNavigating(false);
     }
   };
+
+  const handleSwitchToProducer = async () => {
+    setIsNavigating(true);
+    try {
+      await goToProducerPanel();
+    } finally {
+      setIsNavigating(false);
+    }
+  };
+
+  const isLoading = isNavigating || isSwitching;
   
   return (
     <DropdownMenu>
@@ -69,7 +91,17 @@ export function UserAvatar() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56 bg-popover border border-border shadow-lg">
         <DropdownMenuLabel className="font-normal">
-          <p className="text-sm text-muted-foreground truncate">
+          <div className="flex items-center gap-2">
+            {activeRole === "buyer" ? (
+              <GraduationCap className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
+            )}
+            <span className="text-xs text-muted-foreground">
+              {activeRole === "buyer" ? "Modo Aluno" : "Modo Produtor"}
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground truncate mt-1">
             {user?.email}
           </p>
         </DropdownMenuLabel>
@@ -79,19 +111,35 @@ export function UserAvatar() {
           <span>Meu Perfil</span>
         </DropdownMenuItem>
         
-        {/* Opção para mudar para painel do aluno */}
-        {!buyerLinkLoading && canAccessStudentPanel && (
+        {/* Trocar para Painel do Aluno (quando é produtor) */}
+        {canSwitchToBuyer && activeRole !== "buyer" && (
           <DropdownMenuItem 
-            onClick={handleStudentPanelClick} 
+            onClick={handleSwitchToStudent} 
             className="cursor-pointer"
-            disabled={isNavigating}
+            disabled={isLoading}
           >
-            {isNavigating ? (
+            {isLoading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
-              <ArrowLeftRight className="mr-2 h-4 w-4" />
+              <GraduationCap className="mr-2 h-4 w-4" />
             )}
             <span>Mudar para Painel do Aluno</span>
+          </DropdownMenuItem>
+        )}
+
+        {/* Trocar para Painel do Produtor (quando é aluno) */}
+        {canSwitchToProducer && activeRole === "buyer" && (
+          <DropdownMenuItem 
+            onClick={handleSwitchToProducer} 
+            className="cursor-pointer"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <LayoutDashboard className="mr-2 h-4 w-4" />
+            )}
+            <span>Mudar para Painel do Produtor</span>
           </DropdownMenuItem>
         )}
         

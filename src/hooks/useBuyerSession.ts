@@ -1,6 +1,10 @@
 /**
  * useBuyerSession - Hook centralizado para validação de sessão de buyer
  * 
+ * @deprecated Use `useUnifiedAuth` instead.
+ * This hook is being replaced by the unified identity system.
+ * Migration: Replace usages with `useUnifiedAuth()` hook.
+ * 
  * RISE ARCHITECT PROTOCOL - Zero Technical Debt
  * 
  * ARCHITECTURE (REFACTORED V4):
