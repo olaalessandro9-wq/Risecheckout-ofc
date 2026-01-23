@@ -315,13 +315,13 @@ Os tokens de sessão são armazenados em **cookies httpOnly** gerenciados pelo b
 
 | Cookie | Descrição |
 |--------|-----------|
-| `__Host-producer_access` | Token de acesso Producer |
-| `__Host-producer_refresh` | Refresh token Producer |
-| `__Host-buyer_access` | Token de acesso Buyer |
-| `__Host-buyer_refresh` | Refresh token Buyer |
+| `__Host-rise_access` | Token de acesso unificado (60 min) |
+| `__Host-rise_refresh` | Refresh token unificado (30 dias) |
 
 > **IMPORTANTE:** O JavaScript **NÃO** tem acesso aos tokens (proteção XSS total).
 > O TokenService gerencia apenas o **estado da FSM**, não os tokens em si.
+> 
+> **RISE V3:** Os cookies legados (`__Host-producer_*`, `__Host-buyer_*`) foram eliminados.
 
 ### 10.2 Estado da FSM no localStorage
 
@@ -469,10 +469,10 @@ import { createLogger } from "@/lib/logger";
 const log = createLogger("TokenDebug");
 
 // Verificar estado da FSM (metadados, não tokens)
-log.debug("Token state:", localStorage.getItem("rise_producer_token_state"));
+log.debug("Token state:", localStorage.getItem("rise_unified_token_state"));
 
-// Verificar estado do serviço
-log.debug("Service state:", producerTokenService.getState());
+// Verificar estado do serviço (RISE V3: unifiedTokenService)
+log.debug("Service state:", unifiedTokenService.getState());
 ```
 
 > **Nota:** Não é possível verificar os cookies httpOnly via JavaScript (isso é intencional - proteção XSS).

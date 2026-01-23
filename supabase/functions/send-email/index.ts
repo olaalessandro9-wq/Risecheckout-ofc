@@ -2,9 +2,9 @@
  * Edge Function: send-email
  * 
  * Endpoint centralizado para envio de emails via ZeptoMail.
- * Requer autenticação via producer_sessions (unified-auth).
+ * Requer autenticação via sessions (unified-auth-v2, cookies).
  * 
- * @version 2.0.0 - RISE V3 Compliance (unified-auth migration)
+ * @version 3.0.0 - RISE V3 Compliance (unified-auth cookies)
  */
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
@@ -61,7 +61,7 @@ serve(async (req: Request) => {
       return rateLimitResult;
     }
 
-    // RISE V3: Autenticação via producer_sessions (unified-auth)
+    // RISE V3: Autenticação via sessions (unified-auth, cookies)
     let producer;
     try {
       producer = await requireAuthenticatedProducer(supabase, req);

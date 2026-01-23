@@ -60,7 +60,7 @@ Este documento estabelece o **padrão obrigatório** para implementação de rot
 │         Validação REAL no servidor - NUNCA confiar          │
 │         apenas no frontend!                                 │
 │                                                             │
-│  ✓ Autentica via unified-auth.ts (producer_sessions)        │
+│  ✓ Autentica via unified-auth-v2.ts (sessions, cookies)     │
 │  ✓ Usa role-validator.ts para verificar permissões          │
 │  ✓ Registra eventos de segurança via audit-logger.ts        │
 │  ✓ Retorna 401 Unauthorized se não autenticado              │

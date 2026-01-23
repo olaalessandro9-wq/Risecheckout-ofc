@@ -2,13 +2,13 @@
  * decrypt-customer-data - Descriptografa CPF/telefone para visualização
  * 
  * SECURITY:
- * - Requer autenticação via X-Producer-Session-Token (unified-auth)
+ * - Requer autenticação via Cookie: __Host-rise_access (unified-auth-v2)
  * - Auto-decrypt para o PRODUTOR do produto (product.user_id)
  * - Acesso via clique para o OWNER da plataforma
  * - Afiliados NÃO têm acesso (403)
  * - Log de auditoria para cada acesso com tipo (vendor/admin)
  * 
- * @version 3.0.0 - RISE Protocol V3 - Migrated to unified-auth
+ * @version 4.0.0 - RISE Protocol V3 - Unified auth cookies
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";

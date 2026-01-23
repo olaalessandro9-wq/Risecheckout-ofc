@@ -7,10 +7,10 @@
  * - resolve-error: Marca um erro como resolvido
  * 
  * Segurança:
- * - Usa unified-auth (producer_sessions)
+ * - Usa unified-auth (sessions, cookies)
  * - Valida role Admin/Owner
  * 
- * @version 2.0.0
+ * @version 3.0.0 - RISE V3 Compliance
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Authenticate using unified-auth (producer_sessions)
+    // Authenticate using unified-auth (sessions, cookies)
     let producer;
     try {
       producer = await requireAuthenticatedProducer(supabase, req);

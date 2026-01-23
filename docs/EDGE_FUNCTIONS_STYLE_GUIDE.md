@@ -36,10 +36,10 @@ try {
 
 **❌ PROIBIDO:**
 ```typescript
-// NÃO USAR - código duplicado
+// NÃO USAR - código duplicado (RISE V3: tabelas legadas eliminadas)
 const sessionToken = req.headers.get("x-producer-session-token");
 const { data: session } = await supabase
-  .from("producer_sessions")
+  .from("sessions")  // Nunca acessar diretamente!
   .select("...")
   .eq("session_token", sessionToken);
 ```
@@ -203,7 +203,7 @@ return errorResponse("Mensagem de erro", corsHeaders, 400);
  * [Descrição breve]
  * 
  * @version 1.0.0
- * @auth producer_sessions
+ * @auth sessions (unified-auth, cookies)
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
@@ -333,10 +333,10 @@ serve(withSentry("nome-da-funcao", async (req) => {
 ### 1. ❌ Autenticação Local
 
 ```typescript
-// PROIBIDO - Duplicação de código
+// PROIBIDO - Duplicação de código (RISE V3: usar unified-auth-v2.ts)
 const { data: session } = await supabase
-  .from("producer_sessions")
-  .select("producer_id, expires_at")
+  .from("sessions")
+  .select("user_id, expires_at")
   .eq("session_token", token);
 ```
 

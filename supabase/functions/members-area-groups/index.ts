@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
 
     const body: GroupRequest = await req.json();
     
-    // Verificar autenticação via unified-auth (producer_sessions)
+    // Verificar autenticação via unified-auth (sessions, cookies)
     let producer;
     try {
       producer = await requireAuthenticatedProducer(supabase, req);

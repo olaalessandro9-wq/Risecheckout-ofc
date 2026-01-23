@@ -7,9 +7,9 @@
  * - Apenas owner pode ver emails
  * - Outros roles recebem lista vazia
  * - CORS restrito a domínios permitidos
- * - Autenticação via producer_sessions (unified-auth)
+ * - Autenticação via sessions (unified-auth, cookies)
  * 
- * @version 2.0.0 - RISE V3 Compliance (unified-auth migration)
+ * @version 3.0.0 - RISE V3 Compliance (unified-auth cookies)
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -46,7 +46,7 @@ Deno.serve(async (req: Request) => {
       return rateLimitResult;
     }
 
-    // RISE V3: Autenticação via producer_sessions (unified-auth)
+    // RISE V3: Autenticação via sessions (unified-auth, cookies)
     let producer;
     try {
       producer = await requireAuthenticatedProducer(supabaseAdmin, req);

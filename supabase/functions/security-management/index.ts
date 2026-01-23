@@ -7,11 +7,11 @@
  * - unblock-ip: Desbloqueia um IP
  * 
  * SECURITY:
- * - Autenticação via producer_sessions (unified-auth)
+ * - Autenticação via sessions (unified-auth, cookies)
  * - Apenas roles admin/owner podem executar
  * - Audit logging via log_security_event RPC
  * 
- * @version 1.0.0
+ * @version 2.0.0 - RISE V3 Compliance
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
