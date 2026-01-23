@@ -51,6 +51,7 @@ export interface RefreshResult {
 const REFRESH_ENDPOINTS: Record<TokenType, string> = {
   producer: "/functions/v1/producer-auth/refresh",
   buyer: "/functions/v1/buyer-auth/refresh",
+  unified: "/functions/v1/unified-auth/refresh",
 } as const;
 
 // ============================================

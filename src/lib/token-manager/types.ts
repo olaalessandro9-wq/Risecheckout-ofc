@@ -72,9 +72,11 @@ export interface TokenContext {
 // ============================================
 
 /**
- * The two authentication domains in the system
+ * The authentication domains in the system
+ * 
+ * @deprecated "producer" and "buyer" are being unified into "unified"
  */
-export type TokenType = "producer" | "buyer";
+export type TokenType = "producer" | "buyer" | "unified";
 
 // ============================================
 // LOCAL STORAGE KEYS
@@ -102,6 +104,11 @@ export const STORAGE_KEYS: Record<TokenType, StorageKeys> = {
     state: "buyer_auth_state",
     expiresAt: "buyer_auth_expires_at",
     lastRefresh: "buyer_auth_last_refresh",
+  },
+  unified: {
+    state: "unified_auth_state",
+    expiresAt: "unified_auth_expires_at",
+    lastRefresh: "unified_auth_last_refresh",
   },
 } as const;
 

@@ -1,6 +1,10 @@
 /**
  * useProducerSession - Cached session validation hook
  * 
+ * @deprecated Use `useUnifiedAuth` instead.
+ * This hook is being replaced by the unified identity system.
+ * Migration: Replace usages with `useUnifiedAuth()` hook.
+ * 
  * RISE ARCHITECT PROTOCOL - Zero Technical Debt
  * 
  * Uses React Query for caching and automatic revalidation.

@@ -3,6 +3,10 @@
  * Permite que produtores acessem o painel de aluno sem login separado
  * Inclui verificação de produtos próprios com área de membros ativa
  * 
+ * @deprecated Use `useContextSwitcher` instead.
+ * This hook is being replaced by the unified identity system.
+ * Migration: Replace usages with `useContextSwitcher()` hook.
+ * 
  * OTIMIZADO: Usa React Query para cache e navigate() ao invés de window.location.href
  */
 import { useCallback } from "react";
