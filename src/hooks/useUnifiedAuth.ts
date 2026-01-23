@@ -16,7 +16,7 @@
 
 import { useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { SUPABASE_URL } from "@/config/supabase";
+import { api } from "@/lib/api";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("useUnifiedAuth");
@@ -88,65 +88,51 @@ interface SwitchContextResponse {
 
 async function validateSession(): Promise<ValidateResponse> {
   try {
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/unified-auth/validate`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-    });
+    const { data, error } = await api.publicCall<ValidateResponse>("unified-auth/validate", {});
     
-    if (!response.ok) {
+    if (error || !data) {
+      log.debug("Session validation failed", error);
       return { valid: false };
     }
     
-    return await response.json();
+    return data;
   } catch (error) {
-    log.debug("Session validation failed", error);
+    log.debug("Session validation exception", error);
     return { valid: false };
   }
 }
 
 async function loginUser(request: LoginRequest): Promise<LoginResponse> {
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/unified-auth/login`, {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(request),
-  });
+  const { data, error } = await api.publicCall<LoginResponse>("unified-auth/login", request);
   
-  return await response.json();
+  if (error) {
+    return { success: false, error: error.message };
+  }
+  
+  return data ?? { success: false, error: "No response" };
 }
 
 async function logoutUser(): Promise<void> {
-  await fetch(`${SUPABASE_URL}/functions/v1/unified-auth/logout`, {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-  });
+  await api.publicCall("unified-auth/logout", {});
 }
 
 async function switchContextApi(targetRole: AppRole): Promise<SwitchContextResponse> {
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/unified-auth/switch-context`, {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ targetRole }),
-  });
+  const { data, error } = await api.publicCall<SwitchContextResponse>("unified-auth/switch-context", { targetRole });
   
-  return await response.json();
+  if (error) {
+    return { success: false, error: error.message };
+  }
+  
+  return data ?? { success: false, error: "No response" };
 }
 
 async function refreshSession(): Promise<ValidateResponse> {
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/unified-auth/refresh`, {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-  });
+  const { data, error } = await api.publicCall<LoginResponse>("unified-auth/refresh", {});
   
-  if (!response.ok) {
+  if (error || !data) {
     return { valid: false };
   }
   
-  const data = await response.json();
   return {
     valid: data.success,
     user: data.user,
