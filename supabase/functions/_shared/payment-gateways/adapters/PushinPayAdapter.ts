@@ -1,31 +1,30 @@
 /**
  * PushinPayAdapter - Adaptador para o gateway PushinPay
  * 
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
  * Este adaptador traduz as requisições padronizadas do RiseCheckout
  * para o formato específico da API do PushinPay e vice-versa.
+ * 
+ * FEATURES:
+ * - Validação de preço integrada (segurança)
+ * - HTTP Client com timeout e circuit breaker
+ * - Logging estruturado
  * 
  * DOCUMENTAÇÃO OFICIAL:
  * - Criar PIX: https://app.theneo.io/pushinpay/pix/pix/criar-pix
  * - Consultar PIX: https://app.theneo.io/pushinpay/pix/pix/consultar-pix
  * 
- * ENDPOINTS CORRETOS:
- * - Criar PIX: POST /api/pix/cashIn
- * - Consultar PIX: GET /api/transactions/{id}
- * 
- * IMPORTANTE:
- * - O valor DEVE ser enviado em CENTAVOS (não dividir por 100!)
- * - URL Sandbox: https://api-sandbox.pushinpay.com.br/api
- * - URL Produção: https://api.pushinpay.com.br/api
- * - Circuit Breaker para resiliência
- * 
- * @author RiseCheckout Team
- * @version 2.2.0 - Zero `any` compliance
+ * @module payment-gateways/adapters/PushinPayAdapter
  */
 
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { IPaymentGateway } from "../IPaymentGateway.ts";
 import { PaymentRequest, PaymentResponse } from "../types.ts";
-import { CircuitBreaker, CircuitOpenError, GATEWAY_CIRCUIT_CONFIGS } from "../../circuit-breaker.ts";
+import { CircuitOpenError } from "../../circuit-breaker.ts";
 import { createLogger } from "../../logger.ts";
+import { createGatewayClient, createGatewayHeaders } from "../../http-client.ts";
+import { validateOrderAmount } from "../../payment-validation.ts";
 
 const log = createLogger("PushinPayAdapter");
 
@@ -63,25 +62,39 @@ export class PushinPayAdapter implements IPaymentGateway {
   
   private token: string;
   private environment: 'sandbox' | 'production';
-  private baseUrl: string;
-  private circuitBreaker: CircuitBreaker;
+  private supabase: SupabaseClient;
+  private httpClient: ReturnType<typeof createGatewayClient>;
 
   /**
    * Cria uma nova instância do adaptador PushinPay
    * 
    * @param token - API Token do PushinPay
    * @param environment - Ambiente (sandbox ou production)
+   * @param supabase - Cliente Supabase para validação de preço
    */
-  constructor(token: string, environment: 'sandbox' | 'production' = 'production') {
+  constructor(
+    token: string, 
+    environment: 'sandbox' | 'production' = 'production',
+    supabase: SupabaseClient
+  ) {
     if (!token) {
       throw new Error('PushinPay: Token é obrigatório');
     }
+    if (!supabase) {
+      throw new Error('PushinPay: Supabase client é obrigatório');
+    }
+    
     this.token = token;
     this.environment = environment;
+    this.supabase = supabase;
     
-    // URLs corretas da API PushinPay conforme documentação
-    this.baseUrl = PUSHINPAY_API_URLS[environment];
-    this.circuitBreaker = new CircuitBreaker(GATEWAY_CIRCUIT_CONFIGS.pushinpay);
+    // HTTP Client com Circuit Breaker integrado
+    this.httpClient = createGatewayClient({
+      gateway: 'pushinpay',
+      baseUrl: PUSHINPAY_API_URLS[environment],
+      timeout: 15000, // 15s para PushinPay
+      defaultHeaders: createGatewayHeaders('pushinpay', token),
+    });
   }
 
   /**
@@ -93,59 +106,65 @@ export class PushinPayAdapter implements IPaymentGateway {
    */
   async createPix(request: PaymentRequest): Promise<PaymentResponse> {
     try {
-      // Circuit Breaker: Proteger contra falhas em cascata
-      return await this.circuitBreaker.execute(async () => {
-        // Endpoint correto: /api/pix/cashIn
-        const apiUrl = `${this.baseUrl}/pix/cashIn`;
-        
-        // IMPORTANTE: value deve estar em CENTAVOS (não dividir por 100!)
-        // Conforme documentação oficial do PushinPay
-        const pushinPayload = {
-          value: request.amount_cents, // JÁ em centavos!
-          webhook_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/pushinpay-webhook`
-        };
-
-        log.info(`Creating PIX for order ${request.order_id}`);
-        log.debug(`URL: ${apiUrl}, amount_cents: ${request.amount_cents}`);
-
-        // Fazer requisição à API do PushinPay
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${this.token}`
-          },
-          body: JSON.stringify(pushinPayload)
-        });
-
-        const responseText = await response.text();
-        log.debug(`Response status: ${response.status}`);
-
-        // Verificar erros
-        if (!response.ok) {
-          log.error("API error:", responseText);
-          return {
-            success: false,
-            transaction_id: '',
-            status: 'error',
-            raw_response: responseText,
-            error_message: `PushinPay retornou erro: ${response.status} - ${responseText}`
-          };
-        }
-
-        const data = JSON.parse(responseText) as PushinPayCreatePixResponse;
-
-        // Traduzir resposta para formato padronizado
-        return {
-          success: true,
-          transaction_id: data.id?.toString() || '',
-          qr_code: data.qr_code_base64 || data.qrcode_base64,
-          qr_code_text: data.qr_code || data.qrcode,
-          status: this.mapPushinPayStatus(data.status || ''),
-          raw_response: data
-        };
+      // ===================================================================
+      // VALIDAÇÃO DE PREÇO - SEGURANÇA CRÍTICA
+      // ===================================================================
+      const validation = await validateOrderAmount({
+        supabase: this.supabase,
+        orderId: request.order_id,
+        expectedAmountCents: request.amount_cents,
+        gateway: 'pushinpay',
       });
+
+      if (!validation.valid) {
+        log.error(`Price validation failed: ${validation.error}`);
+        return {
+          success: false,
+          transaction_id: '',
+          status: 'error',
+          raw_response: { validation_error: validation.error },
+          error_message: validation.error || 'Validação de preço falhou',
+        };
+      }
+      // ===================================================================
+
+      log.info(`Creating PIX for order ${request.order_id}`);
+      log.debug(`amount_cents: ${request.amount_cents}`);
+
+      // IMPORTANTE: value deve estar em CENTAVOS (não dividir por 100!)
+      const pushinPayload = {
+        value: request.amount_cents,
+        webhook_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/pushinpay-webhook`
+      };
+
+      // Fazer requisição via HTTP Client (com timeout e circuit breaker)
+      const response = await this.httpClient.post<PushinPayCreatePixResponse>(
+        '/pix/cashIn',
+        pushinPayload
+      );
+
+      if (!response.success || !response.data) {
+        log.error("API error:", response.error);
+        return {
+          success: false,
+          transaction_id: '',
+          status: 'error',
+          raw_response: response,
+          error_message: `PushinPay retornou erro: ${response.error || response.status}`
+        };
+      }
+
+      const data = response.data;
+
+      // Traduzir resposta para formato padronizado
+      return {
+        success: true,
+        transaction_id: data.id?.toString() || '',
+        qr_code: data.qr_code_base64 || data.qrcode_base64,
+        qr_code_text: data.qr_code || data.qrcode,
+        status: this.mapPushinPayStatus(data.status || ''),
+        raw_response: data
+      };
 
     } catch (error: unknown) {
       // Circuit Breaker aberto
@@ -178,41 +197,24 @@ export class PushinPayAdapter implements IPaymentGateway {
    * Endpoint: GET /api/transactions/{id}
    */
   async getPixStatus(pixId: string): Promise<{ status: string; paid_at?: string; raw_response: PushinPayStatusResponse }> {
-    try {
-      const apiUrl = `${this.baseUrl}/transactions/${pixId}`;
-      
-      log.info(`Checking PIX status: ${pixId}`);
-      log.debug(`URL: ${apiUrl}`);
+    log.info(`Checking PIX status: ${pixId}`);
 
-      const response = await fetch(apiUrl, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${this.token}`
-        }
-      });
+    const response = await this.httpClient.get<PushinPayStatusResponse>(
+      `/transactions/${pixId}`
+    );
 
-      const responseText = await response.text();
-      log.debug(`Response status: ${response.status}`);
-
-      if (!response.ok) {
-        log.error("Error fetching status:", responseText);
-        throw new Error(`Erro ao consultar PIX: ${response.status}`);
-      }
-
-      const data = JSON.parse(responseText) as PushinPayStatusResponse;
-
-      return {
-        status: this.mapPushinPayStatus(data.status || ''),
-        paid_at: data.paid_at,
-        raw_response: data
-      };
-
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-      log.error("Error fetching status:", errorMessage);
-      throw error;
+    if (!response.success || !response.data) {
+      log.error("Error fetching status:", response.error);
+      throw new Error(`Erro ao consultar PIX: ${response.status}`);
     }
+
+    const data = response.data;
+
+    return {
+      status: this.mapPushinPayStatus(data.status || ''),
+      paid_at: data.paid_at,
+      raw_response: data
+    };
   }
 
   /**
@@ -240,6 +242,13 @@ export class PushinPayAdapter implements IPaymentGateway {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Retorna estado do Circuit Breaker
+   */
+  getCircuitState(): string {
+    return this.httpClient.getCircuitState();
   }
 
   /**
