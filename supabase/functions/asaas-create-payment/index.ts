@@ -3,36 +3,35 @@
  * ASAAS CREATE PAYMENT - Edge Function
  * ============================================================================
  * 
- * RISE ARCHITECT PROTOCOL V3 - CORS V2 Compliant
+ * RISE ARCHITECT PROTOCOL V3 - ADAPTER PATTERN COMPLIANCE
  * 
  * MODELO MARKETPLACE ASAAS - RiseCheckout
- * Todas cobranças na conta RiseCheckout. Split BINÁRIO (nunca 3 partes).
- * 
- * Cenários:
- * 1. OWNER DIRETO: 100% RiseCheckout
- * 2. OWNER + AFILIADO: Afiliado recebe X% * 0.96, Owner recebe resto
- * 3. VENDEDOR COMUM: 96% vendedor, 4% plataforma
- * 
- * CORS: Usa handleCorsV2 para suportar credentials: 'include' do frontend.
- * Fallback para PUBLIC_CORS_HEADERS em chamadas server-to-server (webhooks).
+ * Usa PaymentFactory + AsaasAdapter para garantir:
+ * - Validação de preço integrada
+ * - Circuit Breaker
+ * - Timeout de 15s
+ * - Zero duplicação de código
  * 
  * @module asaas-create-payment
+ * @version 6.0.0 - RISE V3 Compliant (Adapter Pattern)
  */
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // Módulos compartilhados
 import { handleCorsV2, PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { getGatewayCredentials, validateCredentials } from "../_shared/platform-config.ts";
-import { findOrCreateCustomer } from "../_shared/asaas-customer.ts";
 import { calculateMarketplaceSplitData } from "../_shared/asaas-split-calculator.ts";
 import { getIdentifier } from "../_shared/rate-limiting/index.ts";
 import { logSecurityEvent, SecurityAction } from "../_shared/audit-logger.ts";
 import { createLogger } from "../_shared/logger.ts";
 
-// Handlers locais
+// RISE V3: Usar PaymentFactory + Adapter
+import { PaymentFactory, PaymentRequest as AdapterPaymentRequest } from "../_shared/payment-gateways/index.ts";
+
+// Handlers locais (apenas tipos e validação)
 import { 
   PaymentRequest,
   checkPaymentRateLimit, 
@@ -40,8 +39,6 @@ import {
   validatePaymentPayload,
   resolveVendorId
 } from "./handlers/validation.ts";
-import { buildSplitRules } from "./handlers/split-builder.ts";
-import { buildChargePayload, createAsaasCharge, getPixQrCode, triggerPixGeneratedWebhook } from "./handlers/charge-creator.ts";
 import { createSuccessResponse, createErrorResponse, createRateLimitResponse } from "./handlers/response-builder.ts";
 
 const log = createLogger("asaas-create-payment");
@@ -57,18 +54,15 @@ serve(async (req) => {
   
   let corsHeaders: Record<string, string>;
   if (corsResult instanceof Response) {
-    // Preflight OPTIONS - retornar imediatamente
     if (req.method === 'OPTIONS') {
       return corsResult;
     }
-    // Origin não permitida ou server-to-server (webhook) - usar fallback
     corsHeaders = PUBLIC_CORS_HEADERS;
   } else {
-    // Origin válida do frontend
     corsHeaders = corsResult.headers;
   }
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   const identifier = getIdentifier(req);
 
   // Rate Limiting
@@ -81,12 +75,11 @@ serve(async (req) => {
   try {
     const payload: PaymentRequest = await req.json();
     
-    log.info('MODELO MARKETPLACE ASAAS', {
+    log.info('RISE V3 - Using PaymentFactory + AsaasAdapter', {
       orderId: payload.orderId,
       vendorId: payload.vendorId,
       amountCents: payload.amountCents,
-      paymentMethod: payload.paymentMethod,
-      hasCardToken: !!payload.cardToken
+      paymentMethod: payload.paymentMethod
     });
 
     // Validação do payload
@@ -119,75 +112,80 @@ serve(async (req) => {
       return createErrorResponse(`Credenciais Asaas faltando: ${credValidation.missingFields.join(', ')}`, 500, corsHeaders);
     }
 
-    const baseUrl = credentials.environment === 'sandbox'
-      ? 'https://sandbox.asaas.com/api/v3'
-      : 'https://api.asaas.com/v3';
     const apiKey = credentials.apiKey || credentials.api_key || '';
+    const environment = credentials.environment === 'sandbox' ? 'sandbox' : 'production';
 
     log.info('Credenciais obtidas', { 
       type: isOwner ? 'Owner' : 'Vendor', 
-      environment: credentials.environment 
+      environment 
     });
 
     // Calcular split
     const splitData = await calculateMarketplaceSplitData(supabase, payload.orderId, vendorId);
     log.info('Split calculado', splitData);
 
-    // Criar customer
-    const asaasCustomer = await findOrCreateCustomer(baseUrl, apiKey, payload.customer);
-    if (!asaasCustomer) {
-      await recordPaymentAttempt(supabase, identifier, false);
-      return createErrorResponse('Erro ao criar/buscar cliente no Asaas', 500, corsHeaders);
+    // Calcular valores em centavos baseado na porcentagem
+    const affiliateCommissionCents = splitData.hasAffiliate 
+      ? Math.round(payload.amountCents * (splitData.affiliateCommissionPercent / 100))
+      : 0;
+    // Platform fee: 4% sobre o total (modelo marketplace padrão)
+    const platformFeeCents = isOwner ? 0 : Math.round(payload.amountCents * 0.04);
+    const vendorNetCents = payload.amountCents - platformFeeCents - affiliateCommissionCents;
+
+    // ============================================================================
+    // RISE V3: USAR PAYMENTFACTORY + ASAASADAPTER
+    // ============================================================================
+    const gateway = PaymentFactory.create('asaas', {
+      api_key: apiKey,
+      environment
+    }, supabase);
+
+    // Montar PaymentRequest no formato do Adapter
+    const adapterRequest: AdapterPaymentRequest = {
+      amount_cents: payload.amountCents,
+      order_id: payload.orderId,
+      customer: {
+        name: payload.customer.name,
+        email: payload.customer.email,
+        document: payload.customer.document
+      },
+      description: payload.description || `Pedido ${payload.orderId.slice(0, 8)}`,
+      card_token: payload.cardToken,
+      installments: payload.installments,
+      split_rules: splitData.hasAffiliate && splitData.affiliateWalletId ? [
+        {
+          recipient_id: splitData.affiliateWalletId,
+          amount_cents: affiliateCommissionCents,
+          role: 'affiliate' as const
+        }
+      ] : undefined
+    };
+
+    // Executar pagamento via Adapter (validação de preço JÁ ESTÁ INTEGRADA)
+    let result;
+    if (payload.paymentMethod === 'pix') {
+      result = await gateway.createPix(adapterRequest);
+    } else if (payload.paymentMethod === 'credit_card') {
+      result = await gateway.createCreditCard(adapterRequest);
+    } else {
+      return createErrorResponse('Método de pagamento inválido', 400, corsHeaders);
     }
 
-    // Montar split rules
-    const splitResult = buildSplitRules(splitData, payload.amountCents);
-    if (splitResult.error) {
+    if (!result.success) {
+      log.error('Adapter returned error', { error: result.error_message });
       await recordPaymentAttempt(supabase, identifier, false);
-      return createErrorResponse(splitResult.error, 400, corsHeaders);
+      return createErrorResponse(result.error_message || 'Erro ao processar pagamento', 400, corsHeaders);
     }
-
-    // Criar cobrança
-    const chargePayload = buildChargePayload({
-      customerId: asaasCustomer.id,
-      orderId: payload.orderId,
-      amountCents: payload.amountCents,
-      paymentMethod: payload.paymentMethod,
-      description: payload.description,
-      splitRules: splitResult.splitRules,
-      cardToken: payload.cardToken,
-      installments: payload.installments
-    });
-
-    const chargeResult = await createAsaasCharge(baseUrl, apiKey, chargePayload);
-    if (!chargeResult.success) {
-      await recordPaymentAttempt(supabase, identifier, false);
-      return createErrorResponse(chargeResult.error!, 400, corsHeaders);
-    }
-
-    const chargeData = chargeResult.chargeData!;
 
     // Atualizar ordem
     await supabase
       .from('orders')
       .update({
-        platform_fee_cents: splitResult.platformFeeCents,
-        commission_cents: splitResult.affiliateCommissionCents,
-        gateway_payment_id: chargeData.id
+        platform_fee_cents: platformFeeCents,
+        commission_cents: affiliateCommissionCents,
+        gateway_payment_id: result.transaction_id
       })
       .eq('id', payload.orderId);
-
-    // Se PIX, obter QR Code e disparar webhook
-    let qrCode: string | undefined;
-    let qrCodeText: string | undefined;
-
-    if (payload.paymentMethod === 'pix') {
-      const qrResult = await getPixQrCode(baseUrl, apiKey, chargeData.id as string);
-      qrCode = qrResult.qrCode;
-      qrCodeText = qrResult.qrCodeText;
-
-      await triggerPixGeneratedWebhook(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, payload.orderId);
-    }
 
     // Registrar sucesso
     await recordPaymentAttempt(supabase, identifier, true);
@@ -203,24 +201,26 @@ serve(async (req) => {
         gateway: 'asaas',
         paymentMethod: payload.paymentMethod,
         amountCents: payload.amountCents,
-        paymentId: chargeData.id,
+        paymentId: result.transaction_id,
         hasAffiliate: splitData.hasAffiliate,
-        platformFeeCents: splitResult.platformFeeCents,
-        affiliateCommissionCents: splitResult.affiliateCommissionCents
+        platformFeeCents,
+        affiliateCommissionCents,
+        riseV3: true,
+        adapterUsed: 'AsaasAdapter'
       }
     });
 
     return createSuccessResponse({
-      chargeId: chargeData.id as string,
-      status: chargeData.status as string,
-      qrCode,
-      qrCodeText,
-      splitApplied: splitResult.splitRules.length > 0,
-      platformFeeCents: splitResult.platformFeeCents,
-      affiliateCommissionCents: splitResult.affiliateCommissionCents,
-      vendorNetCents: splitResult.vendorNetCents,
+      chargeId: result.transaction_id,
+      status: result.status,
+      qrCode: result.qr_code,
+      qrCodeText: result.qr_code_text,
+      splitApplied: splitData.hasAffiliate,
+      platformFeeCents,
+      affiliateCommissionCents,
+      vendorNetCents,
       hasAffiliate: splitData.hasAffiliate,
-      rawResponse: chargeData
+      rawResponse: (result.raw_response as Record<string, unknown>) || {}
     }, corsHeaders);
 
   } catch (error: unknown) {
