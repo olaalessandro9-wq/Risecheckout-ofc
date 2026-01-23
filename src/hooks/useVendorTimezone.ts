@@ -18,7 +18,7 @@
  */
 
 import { useMemo } from 'react';
-import { useProducerSession } from './useProducerSession';
+import { useUnifiedAuth } from './useUnifiedAuth';
 import { 
   TimezoneService, 
   DEFAULT_TIMEZONE,
@@ -37,17 +37,17 @@ interface UseVendorTimezoneReturn {
 /**
  * Hook to get vendor's configured timezone and service
  * 
- * Uses the producer session to get the vendor's timezone preference.
+ * Uses the unified auth to get the vendor's timezone preference.
  * Falls back to DEFAULT_TIMEZONE (America/Sao_Paulo) if not set.
  */
 export function useVendorTimezone(): UseVendorTimezoneReturn {
-  const { producer } = useProducerSession();
+  const { user } = useUnifiedAuth();
   
-  // Get timezone from vendor profile, fallback to default
-  // Cast to access the timezone property added via migration
-  const producerWithTz = producer as { timezone?: string } | null;
-  const timezone = (producerWithTz?.timezone as IANATimezone) || DEFAULT_TIMEZONE;
-  const isDefaultTimezone = !producerWithTz?.timezone;
+  // Get timezone from user profile
+  // Note: timezone is stored in users table for producers
+  const userWithTz = user as { timezone?: string } | null;
+  const timezone = (userWithTz?.timezone as IANATimezone) || DEFAULT_TIMEZONE;
+  const isDefaultTimezone = !userWithTz?.timezone;
   
   // Memoize the service to avoid recreating on every render
   const service = useMemo(

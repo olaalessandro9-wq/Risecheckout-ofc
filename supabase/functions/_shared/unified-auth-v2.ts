@@ -45,6 +45,7 @@ export interface UnifiedUser {
   id: string;
   email: string;
   name: string | null;
+  timezone: string | null;
   roles: AppRole[];
   activeRole: AppRole;
 }
@@ -261,7 +262,7 @@ async function validateSessionToken(
     // Get user from unified users table
     const { data: user, error: userError } = await supabase
       .from("users")
-      .select("id, email, name, is_active")
+      .select("id, email, name, timezone, is_active")
       .eq("id", session.user_id)
       .single();
     
@@ -287,6 +288,7 @@ async function validateSessionToken(
       id: user.id,
       email: user.email,
       name: user.name,
+      timezone: user.timezone,
       roles,
       activeRole: session.active_role as AppRole,
     };

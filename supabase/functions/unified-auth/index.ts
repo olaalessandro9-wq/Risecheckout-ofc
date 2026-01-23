@@ -21,7 +21,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders } from "../_shared/cors-v2.ts";
+import { handleCorsV2, getCorsHeadersV2 } from "../_shared/cors-v2.ts";
 import { createLogger } from "../_shared/logger.ts";
 import { jsonResponse, errorResponse } from "../_shared/response-helpers.ts";
 
@@ -36,12 +36,12 @@ import { handleSwitchContext } from "./handlers/switch-context.ts";
 const log = createLogger("UnifiedAuth");
 
 serve(async (req: Request): Promise<Response> => {
-  const corsHeaders = getCorsHeaders(req);
-  
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: corsHeaders });
+  // Handle CORS
+  const corsResult = handleCorsV2(req);
+  if (corsResult instanceof Response) {
+    return corsResult; // Blocked origin or preflight
   }
+  const corsHeaders = corsResult.headers;
   
   try {
     // Parse URL and extract action

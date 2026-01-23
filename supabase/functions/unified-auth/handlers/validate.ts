@@ -37,6 +37,7 @@ export async function handleValidate(
         id: user.id,
         email: user.email,
         name: user.name,
+        timezone: user.timezone,
       },
       roles: user.roles,
       activeRole: user.activeRole,
