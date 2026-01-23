@@ -1,13 +1,15 @@
 /**
  * Unified Authentication Helper (V2 Wrapper)
  * 
- * RISE ARCHITECT PROTOCOL V3 - Security Fix
+ * RISE ARCHITECT PROTOCOL V3 - 100% Migrated
  * 
- * This module now wraps unified-auth-v2 to ensure all Edge Functions
- * use the new unified session system while maintaining backwards compatibility.
+ * This module wraps unified-auth-v2 for backwards compatibility.
+ * All authentication now uses the unified `sessions` table exclusively.
  * 
- * The wrapper approach allows 53+ Edge Functions to work correctly
- * without individual modification.
+ * LEGACY REMOVED (2026-01-23):
+ * - Zero fallback to producer_sessions
+ * - Zero fallback to buyer_sessions
+ * - Zero references to legacy cookies
  * 
  * Usage in Edge Functions:
  * ```typescript
@@ -29,7 +31,6 @@ import {
   type UnifiedUser,
   getUnifiedAccessToken,
 } from "./unified-auth-v2.ts";
-import { getProducerAccessToken as getLegacyProducerToken } from "./session-reader.ts";
 
 const log = createLogger("UnifiedAuth");
 
@@ -43,12 +44,10 @@ export interface ProducerAuth {
 /**
  * Attempts to authenticate a producer from the request.
  * 
- * SECURITY FIX: Now uses unified-auth-v2 internally which validates
- * against the `sessions` table (new) instead of `producer_sessions` (legacy).
+ * RISE V3: Uses ONLY unified-auth-v2 which validates against the `sessions` table.
+ * Zero fallback to legacy producer_sessions.
  * 
- * Token priority:
- * 1. __Host-rise_access (unified - new)
- * 2. __Host-producer_access (legacy fallback)
+ * Token source: Cookie `__Host-rise_access` (httpOnly)
  * 
  * @param supabase - Supabase client with service role
  * @param request - The incoming HTTP request
@@ -58,28 +57,20 @@ export async function getAuthenticatedProducer(
   supabase: SupabaseClient,
   request: Request
 ): Promise<ProducerAuth | null> {
-  // First, try the unified auth system (new sessions table)
   const unifiedToken = getUnifiedAccessToken(request);
   
-  if (unifiedToken) {
-    const user = await getAuthenticatedUser(supabase, request);
-    if (user) {
-      return mapUnifiedUserToProducerAuth(user);
-    }
+  if (!unifiedToken) {
+    log.debug("No access token found in request");
+    return null;
   }
   
-  // Fallback to legacy system for old sessions still active
-  const legacyToken = getLegacyProducerToken(request);
-  if (legacyToken) {
-    const legacyAuth = await validateLegacyProducerSession(supabase, legacyToken);
-    if (legacyAuth) {
-      log.debug("Using legacy producer_sessions auth");
-      return legacyAuth;
-    }
+  const user = await getAuthenticatedUser(supabase, request);
+  if (!user) {
+    log.debug("Invalid or expired session");
+    return null;
   }
   
-  log.debug("No valid session found in either system");
-  return null;
+  return mapUnifiedUserToProducerAuth(user);
 }
 
 /**
@@ -113,59 +104,6 @@ function mapUnifiedUserToProducerAuth(user: UnifiedUser): ProducerAuth {
     name: user.name,
     role: user.activeRole,
   };
-}
-
-/**
- * Validates a legacy producer session token against producer_sessions table.
- * Used as fallback for sessions created before the unified auth migration.
- */
-async function validateLegacyProducerSession(
-  supabase: SupabaseClient,
-  token: string
-): Promise<ProducerAuth | null> {
-  try {
-    // Get the session from legacy table
-    const { data: session, error } = await supabase
-      .from("producer_sessions")
-      .select("id, producer_id, expires_at, is_valid")
-      .eq("session_token", token)
-      .eq("is_valid", true)
-      .gt("expires_at", new Date().toISOString())
-      .single();
-
-    if (error || !session) {
-      return null;
-    }
-
-    // Get producer profile from legacy profiles table
-    const { data: producer } = await supabase
-      .from("profiles")
-      .select("id, email, name")
-      .eq("id", session.producer_id)
-      .single();
-
-    if (!producer) {
-      return null;
-    }
-
-    // Get user role
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", producer.id)
-      .single();
-
-    return {
-      id: producer.id,
-      email: producer.email,
-      name: producer.name,
-      role: roleData?.role || "user",
-    };
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    log.error("Error validating legacy session token:", errorMessage);
-    return null;
-  }
 }
 
 /**

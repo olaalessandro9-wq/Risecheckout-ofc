@@ -6,6 +6,8 @@
  * - Explicit type definitions
  * - Single Responsibility
  * 
+ * UPDATED (2026-01-23): Migrated to unified `sessions` table.
+ * 
  * @module data-retention-executor/types
  */
 
@@ -77,8 +79,7 @@ export interface RetentionPolicy {
 /** All retention policies (for status endpoint) */
 export const RETENTION_POLICIES: RetentionPolicy[] = [
   { table_name: 'oauth_states', category: 'oauth', retention_period: '1 hour', criteria: 'Expired or used tokens' },
-  { table_name: 'producer_sessions', category: 'sessions', retention_period: '7 days after expiry', criteria: 'Expired sessions' },
-  { table_name: 'buyer_sessions', category: 'sessions', retention_period: '7 days after expiry', criteria: 'Expired sessions' },
+  { table_name: 'sessions', category: 'sessions', retention_period: '7 days after expiry', criteria: 'Expired unified sessions' },
   { table_name: 'vault_access_log', category: 'security', retention_period: '90 days', criteria: 'Old audit logs' },
   { table_name: 'key_rotation_log', category: 'security', retention_period: '365 days', criteria: 'Old rotation logs' },
   { table_name: 'encryption_key_versions', category: 'security', retention_period: 'Keep last 3', criteria: 'Revoked/deprecated keys' },

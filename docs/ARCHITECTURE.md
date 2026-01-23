@@ -18,7 +18,7 @@ RiseCheckout é uma plataforma de checkout high-end no modelo **Marketplace**.
 │  ┌──────────────────────────────────────────────────────────────────┐   │
 │  │                    CONTA RISECHECKOUT                             │   │
 │  │                    (Recebe 100% inicial)                          │   │
-│  └────────────────────────────┬─────────────────────────────────────┘   │
+│  └────────────────────────────────────────────────────────────────┬─┘   │
 │                               │                                          │
 │         ┌─────────────────────┼─────────────────────┐                   │
 │         │                     │                     │                   │
@@ -65,51 +65,51 @@ RiseCheckout é uma plataforma de checkout high-end no modelo **Marketplace**.
 | `stripe-webhook` | Processar eventos Stripe |
 | `create-order` | Criar pedidos |
 | `trigger-webhooks` | Disparar webhooks do vendedor |
-| `producer-auth` | Login/logout de produtores |
+| `unified-auth` | Login/Register/Refresh (SSOT) |
 
 ---
 
-## 🔑 Sistema de Autenticação
+## 🔑 Sistema de Autenticação (RISE V3 - Unified Auth)
 
-RiseCheckout utiliza autenticação customizada via `producer_sessions`, independente do Supabase Auth.
+RiseCheckout utiliza autenticação **100% unificada** via tabela `sessions`.
 
 ### Componentes
 
 | Componente | Descrição |
 |------------|-----------|
-| `producer_sessions` | Tabela de sessões ativas |
-| `producer-auth` | Edge Function de login/logout |
-| `unified-auth.ts` | Módulo compartilhado de validação |
+| `sessions` | Tabela única de sessões (producers + buyers) |
+| `unified-auth` | Edge Function de login/register/refresh |
+| `unified-auth-v2.ts` | Módulo compartilhado de validação |
 
 ### Fluxo (Cookies httpOnly)
 
 ```
 ┌────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  Frontend  │────▶│  producer-auth   │────▶│producer_sessions│
+│  Frontend  │────▶│   unified-auth   │────▶│    sessions     │
 │   Login    │     │  Edge Function   │     │    (tabela)     │
 └────────────┘     └──────────────────┘     └─────────────────┘
        │                    │                       │
-       │ Set-Cookie: __Host-producer_access (httpOnly)
+       │ Set-Cookie: __Host-rise_access (httpOnly)
        ▼                    │                       │
 ┌────────────┐     ┌──────────────────┐             │
 │  Frontend  │────▶│  Edge Function   │─────────────┘
-│   Request  │     │   (protegida)    │ Valida via unified-auth.ts
+│   Request  │     │   (protegida)    │ Valida via unified-auth-v2.ts
 │ credentials:include      │            (extrai token do cookie)
 └────────────┘     └──────────────────┘
 ```
 
-### Autenticação
+### Cookies
 
-Desde Janeiro 2026, a autenticação usa **cookies httpOnly** para máxima segurança:
-- `__Host-producer_access`: Token de sessão (httpOnly, Secure, SameSite=None)
-- O header `X-Producer-Session-Token` é usado internamente pelo api-client após extração do cookie
+- `__Host-rise_access`: Token de acesso (60 min, httpOnly, Secure)
+- `__Host-rise_refresh`: Token de refresh (30 dias, httpOnly, Secure)
 
-### RISE ARCHITECT PROTOCOL
+### RISE ARCHITECT PROTOCOL V3
 
 Este sistema segue 100% o protocolo:
-- ✅ Zero fallbacks
+- ✅ Zero fallbacks para sistemas legados
 - ✅ Caminho único de autenticação
 - ✅ Sem código morto
+- ✅ Tabela única `sessions`
 
 ---
 
@@ -148,10 +148,9 @@ O RiseCheckout utiliza o **modelo Hotmart/Kiwify** com arquitetura dual-layer:
 - [Sistema de Status](./ORDER_STATUS_MODEL.md) - Modelo Hotmart/Kiwify
 
 ### Autenticação e Segurança
-- [Sistema de Autenticação Completo](./AUTHENTICATION_SYSTEM.md)
+- [Sistema de Autenticação Unificado](./UNIFIED_AUTH_SYSTEM.md)
 - [Segurança de Rotas Admin](./ADMIN_ROUTES_SECURITY.md)
 - [Módulos Compartilhados](../supabase/functions/_shared/README.md)
-- [Módulo unified-auth.ts](../supabase/functions/_shared/README.md#8-unified-authts)
 
 ### Edge Functions
 - [Asaas Create Payment](../supabase/functions/asaas-create-payment/README.md)
@@ -163,7 +162,7 @@ O RiseCheckout utiliza o **modelo Hotmart/Kiwify** com arquitetura dual-layer:
 
 ## 🚫 Zero Database Access (Frontend)
 
-Seguindo o **RISE ARCHITECT PROTOCOL V2**, o frontend **NUNCA** acessa o banco diretamente.
+Seguindo o **RISE ARCHITECT PROTOCOL V3**, o frontend **NUNCA** acessa o banco diretamente.
 
 ### Princípios
 
@@ -194,23 +193,3 @@ Seguindo o **RISE ARCHITECT PROTOCOL V2**, o frontend **NUNCA** acessa o banco d
 | Webhooks | `webhook-crud` | CRUD completo + listagem |
 | Checkout | `checkout-public-data` | Dados públicos + status |
 | Storage | `storage-management` | Upload, copy, remove |
-
-### Migração Realizada (2026-01-16)
-
-10 arquivos frontend migrados para usar Edge Functions:
-
-1. `WebhooksConfig.tsx` → `webhook-crud`
-2. `WebhookForm.tsx` → `webhook-crud`
-3. `AffiliatesTab.tsx` → `admin-data`
-4. `MarketplaceSettings.tsx` → `admin-data`
-5. `useMembersAreaSettings.ts` → `admin-data`
-6. `MenuPreview.tsx` → `admin-data`
-7. `StripePix.tsx` → `checkout-public-data`
-8. `uniqueCheckoutName.ts` → `admin-data`
-9. `useAdminAnalytics.ts` → `admin-data`
-10. `useOffers.ts` → `admin-data`
-
-### Arquivos Removidos
-
-- `src/api/storage/remove.ts` - Substituído por `storage-management`
-- `src/lib/utils/slug.ts` - Código morto (lógica movida para Edge Functions)

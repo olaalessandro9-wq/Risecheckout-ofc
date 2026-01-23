@@ -1,7 +1,7 @@
 # Rise Checkout - Edge Functions Registry
 
 > **🔴 FONTE DA VERDADE MÁXIMA** - Este documento lista TODAS as Edge Functions deployadas no Supabase.  
-> Última atualização: 2026-01-23 (Unified Auth Migration Complete - RISE V3)  
+> Última atualização: 2026-01-23 (RISE V3 - Unified Auth 100% Complete)  
 > Mantenedor: AI Assistant + User
 
 ---
@@ -10,8 +10,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 107 |
-| **No código local** | 107 |
+| **Total de Funções** | 105 |
+| **No código local** | 105 |
 | **Apenas deployadas** | 0 |
 | **Operações Diretas Frontend** | 0 ✅ |
 | **Funções com verify_jwt=true** | 0 ✅ |
@@ -29,7 +29,7 @@
 | **sessions (unified)** | `__Host-rise_access` + `__Host-rise_refresh` | `unified-auth-v2.ts` | TODAS as funções autenticadas |
 | **webhook/public** | N/A | Signature/payload | Webhooks, Checkout, Auth endpoints |
 
-> **Nota (Jan 2026):** O sistema de autenticação foi 100% unificado. As tabelas `producer_sessions` e `buyer_sessions` são legadas.
+> **RISE V3 (Jan 2026):** Sistema 100% unificado. Zero fallbacks. Zero tabelas legadas.
 > O frontend usa `credentials: 'include'` e nunca acessa tokens diretamente (proteção XSS total).
 
 ### Tabela de Auth por Função
@@ -51,29 +51,29 @@
 | `manage-user-role` | sessions | false | unified-auth-v2, owner only |
 | `manage-user-status` | sessions | false | unified-auth-v2, admin+ |
 | `get-users-with-emails` | sessions | false | unified-auth-v2, owner only |
-| `unified-auth` | public | false | Login/Register/Refresh endpoint (RISE V3) |
+| `unified-auth` | public | false | SSOT - Login/Register/Refresh endpoint |
 | **Security & Crypto** | | | |
-| `decrypt-customer-data` | producer_sessions | false | unified-auth, owner check |
-| `decrypt-customer-data-batch` | producer_sessions | false | unified-auth, owner check |
-| `encrypt-token` | producer_sessions | false | unified-auth |
-| `security-management` | producer_sessions | false | unified-auth |
+| `decrypt-customer-data` | sessions | false | unified-auth-v2, owner check |
+| `decrypt-customer-data-batch` | sessions | false | unified-auth-v2, owner check |
+| `encrypt-token` | sessions | false | unified-auth-v2 |
+| `security-management` | sessions | false | unified-auth-v2 |
 | **Affiliates** | | | |
-| `manage-affiliation` | producer_sessions | false | unified-auth |
-| `request-affiliation` | producer_sessions | false | unified-auth |
-| `update-affiliate-settings` | producer_sessions | false | unified-auth |
-| `get-affiliation-status` | producer_sessions | false | unified-auth |
-| `get-all-affiliation-statuses` | producer_sessions | false | unified-auth |
-| `get-my-affiliations` | producer_sessions | false | unified-auth |
-| `get-affiliation-details` | producer_sessions | false | unified-auth |
+| `manage-affiliation` | sessions | false | unified-auth-v2 |
+| `request-affiliation` | sessions | false | unified-auth-v2 |
+| `update-affiliate-settings` | sessions | false | unified-auth-v2 |
+| `get-affiliation-status` | sessions | false | unified-auth-v2 |
+| `get-all-affiliation-statuses` | sessions | false | unified-auth-v2 |
+| `get-my-affiliations` | sessions | false | unified-auth-v2 |
+| `get-affiliation-details` | sessions | false | unified-auth-v2 |
 | **Vault & Credentials** | | | |
-| `vault-save` | producer_sessions | false | unified-auth |
+| `vault-save` | sessions | false | unified-auth-v2 |
 | **Email** | | | |
-| `send-email` | producer_sessions | false | unified-auth (v2.0.0) |
+| `send-email` | sessions | false | unified-auth-v2 (v2.0.0) |
 | `send-confirmation-email` | internal | false | Chamada interna |
 | `send-pix-email` | internal | false | Chamada interna |
 | **Buyer Portal** | | | |
-| `buyer-orders` | sessions | false | unified-auth-v2 (RISE V3) |
-| `buyer-profile` | sessions | false | unified-auth-v2 (RISE V3) |
+| `buyer-orders` | sessions | false | unified-auth-v2 |
+| `buyer-profile` | sessions | false | unified-auth-v2 |
 | **Members Area** | | | |
 | `members-area-modules` | sessions | false | unified-auth-v2 |
 | `members-area-drip` | sessions | false | unified-auth-v2 |
@@ -97,8 +97,8 @@
 | `trigger-webhooks` | internal | false | Chamada interna |
 | `process-webhook-queue` | internal | false | Chamada interna |
 | `retry-webhooks` | internal | false | Chamada interna |
-| `send-webhook-test` | producer_sessions | false | unified-auth |
-| `webhook-crud` | producer_sessions | false | unified-auth (CRUD + logs, modularized v3.1.0) |
+| `send-webhook-test` | sessions | false | unified-auth-v2 |
+| `webhook-crud` | sessions | false | unified-auth-v2 (modularized v3.1.0) |
 | **OAuth Callbacks** | | | |
 | `mercadopago-oauth-callback` | oauth | false | OAuth flow |
 | `stripe-connect-oauth` | oauth | false | OAuth flow |
@@ -116,7 +116,7 @@
 | **Tracking & Analytics** | | | |
 | `utmify-conversion` | public | false | Tracking |
 | `facebook-conversion-api` | public | false | Tracking |
-| `dashboard-analytics` | producer_sessions | false | unified-auth |
+| `dashboard-analytics` | sessions | false | unified-auth-v2 |
 | `checkout-heartbeat` | public | false | Heartbeat |
 | `detect-abandoned-checkouts` | internal | false | Cron |
 | `track-visit` | public | false | Tracking |
@@ -134,30 +134,30 @@
 | `check-secrets` | public | false | Debug |
 | `health` | public | false | Health check |
 | `test-deploy` | public | false | Deploy test |
-| `admin-health` | producer_sessions | false | unified-auth |
-| `owner-settings` | producer_sessions | false | unified-auth, owner only |
+| `admin-health` | sessions | false | unified-auth-v2 |
+| `owner-settings` | sessions | false | unified-auth-v2, owner only |
 | **Security Infrastructure (RISE V3)** | | | |
 | `rls-documentation-generator` | internal | false | Gera documentação RLS automática |
-| `key-rotation-executor` | internal | false | Gerenciamento de rotação de chaves de criptografia |
-| `rls-security-tester` | internal | false | Framework de testes de segurança RLS |
-| `session-manager` | producer_sessions | false | Gerenciamento de sessões (list, revoke, logout) |
-| `data-retention-executor` | internal | false | Executa limpeza de dados automatizada |
-| **RISE Protocol V2** | | | |
-| `rpc-proxy` | producer_sessions | false | unified-auth |
-| `storage-management` | producer_sessions | false | unified-auth |
-| `pushinpay-stats` | producer_sessions | false | unified-auth |
+| `key-rotation-executor` | internal | false | Gerenciamento de rotação de chaves |
+| `rls-security-tester` | internal | false | Framework de testes RLS |
+| `session-manager` | sessions | false | Gerenciamento de sessões |
+| `data-retention-executor` | internal | false | Limpeza de dados automatizada |
+| **RISE Protocol V3** | | | |
+| `rpc-proxy` | sessions | false | unified-auth-v2 |
+| `storage-management` | sessions | false | unified-auth-v2 |
+| `pushinpay-stats` | sessions | false | unified-auth-v2 |
 | **Dashboard & Data** | | | |
-| `admin-data` | producer_sessions | false | unified-auth - **RETORNA VALORES EM CENTAVOS** |
-| `product-entities` | producer_sessions | false | unified-auth |
-| `products-crud` | producer_sessions | false | Core: list, get, get-settings, get-offers, get-checkouts (RISE V3) |
-| `producer-profile` | producer_sessions | false | get-profile, check-credentials, get-gateway-connections (RISE V3) |
-| `coupon-read` | producer_sessions | false | get-coupon (RISE V3) |
-| `content-library` | producer_sessions | false | get-video-library (RISE V3) |
-| `vendor-integrations` | producer_sessions | false | unified-auth |
+| `admin-data` | sessions | false | unified-auth-v2 - **RETORNA CENTAVOS** |
+| `product-entities` | sessions | false | unified-auth-v2 |
+| `products-crud` | sessions | false | Core CRUD (RISE V3) |
+| `producer-profile` | sessions | false | Profile + gateway connections |
+| `coupon-read` | sessions | false | get-coupon (RISE V3) |
+| `content-library` | sessions | false | get-video-library (RISE V3) |
+| `vendor-integrations` | sessions | false | unified-auth-v2 |
 | **Public Endpoints** | | | |
 | `affiliation-public` | public | false | Dados públicos de afiliação |
-| `checkout-public-data` | public | false | **BFF MODULAR** - Dados públicos do checkout (11 handlers, v2.0.0) |
-| `marketplace-public` | public | false | Endpoints públicos do marketplace (RISE V3) |
+| `checkout-public-data` | public | false | BFF Modular (11 handlers) |
+| `marketplace-public` | public | false | Endpoints públicos marketplace |
 
 ---
 
@@ -201,7 +201,7 @@
 | `pushinpay-create-pix` | `.../pushinpay-create-pix` | ✅ | public |
 | `pushinpay-get-status` | `.../pushinpay-get-status` | ✅ | public |
 | `pushinpay-webhook` | `.../pushinpay-webhook` | ✅ | webhook |
-| `pushinpay-stats` | `.../pushinpay-stats` | ✅ | producer_sessions |
+| `pushinpay-stats` | `.../pushinpay-stats` | ✅ | sessions |
 | `pushinpay-validate-token` | `.../pushinpay-validate-token` | ✅ | public |
 
 ### Payments - MercadoPago
@@ -226,7 +226,7 @@
 |------|-----|----------|------|
 | `utmify-conversion` | `.../utmify-conversion` | ✅ | public |
 | `facebook-conversion-api` | `.../facebook-conversion-api` | ✅ | public |
-| `dashboard-analytics` | `.../dashboard-analytics` | ✅ | producer_sessions |
+| `dashboard-analytics` | `.../dashboard-analytics` | ✅ | sessions |
 | `checkout-heartbeat` | `.../checkout-heartbeat` | ✅ | public |
 | `detect-abandoned-checkouts` | `.../detect-abandoned-checkouts` | ✅ | internal |
 | `track-visit` | `.../track-visit` | ✅ | public |
@@ -236,8 +236,8 @@
 | Nome | URL | No Repo? | Auth | Descrição |
 |------|-----|----------|------|-----------|
 | `create-order` | `.../create-order` | ✅ | public | Criação de pedidos |
-| `get-order-for-pix` | `.../get-order-for-pix` | ✅ | public | Dados do pedido para página PIX |
-| `get-pix-status` | `.../get-pix-status` | ✅ | public | Recuperação pública de PIX (v3.5.4) |
+| `get-order-for-pix` | `.../get-order-for-pix` | ✅ | public | Dados do pedido para PIX |
+| `get-pix-status` | `.../get-pix-status` | ✅ | public | Recuperação de PIX (v3.5.4) |
 | `alert-stuck-orders` | `.../alert-stuck-orders` | ✅ | internal |
 
 ### Reconciliation (RISE V2)
@@ -253,45 +253,41 @@
 
 | Nome | URL | No Repo? | Auth | Descrição |
 |------|-----|----------|------|-----------|
-| `trigger-webhooks` | `.../trigger-webhooks` | ✅ | internal | Disparo de webhooks reais |
+| `trigger-webhooks` | `.../trigger-webhooks` | ✅ | internal | Disparo de webhooks |
 | `process-webhook-queue` | `.../process-webhook-queue` | ✅ | internal | Processamento de fila |
 | `retry-webhooks` | `.../retry-webhooks` | ✅ | internal | Retry de webhooks falhados |
-| `send-webhook-test` | `.../send-webhook-test` | ✅ | producer_sessions | Teste de webhooks |
-| `webhook-crud` | `.../webhook-crud` | ✅ | producer_sessions | **SSOT** - CRUD + logs (modularized v3.1.0) |
-
-> **NOTA (2026-01-22):** Funções deletadas por código morto/duplicação: `dispatch-webhook`, `send-webhook`, `test-webhook-dispatch`, `trigger-webhooks-internal`. Todas usavam tabela `webhook_configs` que não existe.
+| `send-webhook-test` | `.../send-webhook-test` | ✅ | sessions | Teste de webhooks |
+| `webhook-crud` | `.../webhook-crud` | ✅ | sessions | SSOT - CRUD + logs |
 
 ### Buyer Portal
 
 | Nome | URL | No Repo? | Auth |
 |------|-----|----------|------|
-| `buyer-auth` | `.../buyer-auth` | ✅ | public |
-| `buyer-orders` | `.../buyer-orders` | ✅ | buyer_token |
-| `buyer-profile` | `.../buyer-profile` | ✅ | buyer_token |
-| `buyer-session` | `.../buyer-session` | ✅ | buyer_token |
+| `buyer-orders` | `.../buyer-orders` | ✅ | sessions |
+| `buyer-profile` | `.../buyer-profile` | ✅ | sessions |
 
 ### Members Area
 
 | Nome | URL | No Repo? | Auth |
 |------|-----|----------|------|
-| `members-area-certificates` | `.../members-area-certificates` | ✅ | buyer_token |
-| `members-area-drip` | `.../members-area-drip` | ✅ | buyer_token |
-| `members-area-groups` | `.../members-area-groups` | ✅ | producer_sessions |
-| `members-area-modules` | `.../members-area-modules` | ✅ | producer_sessions |
-| `members-area-progress` | `.../members-area-progress` | ✅ | buyer_token |
-| `members-area-quizzes` | `.../members-area-quizzes` | ✅ | buyer_token |
-| `content-crud` | `.../content-crud` | ✅ | producer_sessions |
-| `content-save` | `.../content-save` | ✅ | producer_sessions |
-| `students-invite` | `.../students-invite` | ✅ | producer_sessions |
-| `students-access` | `.../students-access` | ✅ | producer_sessions |
-| `students-groups` | `.../students-groups` | ✅ | producer_sessions |
-| `students-list` | `.../students-list` | ✅ | producer_sessions |
+| `members-area-certificates` | `.../members-area-certificates` | ✅ | sessions |
+| `members-area-drip` | `.../members-area-drip` | ✅ | sessions |
+| `members-area-groups` | `.../members-area-groups` | ✅ | sessions |
+| `members-area-modules` | `.../members-area-modules` | ✅ | sessions |
+| `members-area-progress` | `.../members-area-progress` | ✅ | sessions |
+| `members-area-quizzes` | `.../members-area-quizzes` | ✅ | sessions |
+| `content-crud` | `.../content-crud` | ✅ | sessions |
+| `content-save` | `.../content-save` | ✅ | sessions |
+| `students-invite` | `.../students-invite` | ✅ | sessions |
+| `students-access` | `.../students-access` | ✅ | sessions |
+| `students-groups` | `.../students-groups` | ✅ | sessions |
+| `students-list` | `.../students-list` | ✅ | sessions |
 
 ### Email
 
 | Nome | URL | No Repo? | Auth |
 |------|-----|----------|------|
-| `send-email` | `.../send-email` | ✅ | producer_sessions |
+| `send-email` | `.../send-email` | ✅ | sessions |
 | `send-confirmation-email` | `.../send-confirmation-email` | ✅ | internal |
 | `send-pix-email` | `.../send-pix-email` | ✅ | internal |
 
@@ -299,181 +295,100 @@
 
 | Nome | URL | No Repo? | Auth |
 |------|-----|----------|------|
-| `decrypt-customer-data` | `.../decrypt-customer-data` | ✅ | producer_sessions |
-| `decrypt-customer-data-batch` | `.../decrypt-customer-data-batch` | ✅ | producer_sessions |
-| `encrypt-token` | `.../encrypt-token` | ✅ | producer_sessions |
-| `security-management` | `.../security-management` | ✅ | producer_sessions |
+| `decrypt-customer-data` | `.../decrypt-customer-data` | ✅ | sessions |
+| `decrypt-customer-data-batch` | `.../decrypt-customer-data-batch` | ✅ | sessions |
+| `encrypt-token` | `.../encrypt-token` | ✅ | sessions |
+| `security-management` | `.../security-management` | ✅ | sessions |
 | `verify-turnstile` | `.../verify-turnstile` | ✅ | public |
 
 ### Security Infrastructure (RISE V3)
 
 | Nome | URL | No Repo? | Auth | Descrição |
 |------|-----|----------|------|-----------|
-| `rls-documentation-generator` | `.../rls-documentation-generator` | ✅ | internal | Gera documentação RLS automática (SQL → Markdown) |
-| `key-rotation-executor` | `.../key-rotation-executor` | ✅ | internal | Gerenciamento de rotação de chaves de criptografia |
-| `rls-security-tester` | `.../rls-security-tester` | ✅ | internal | Framework automatizado de testes de segurança RLS |
-| `session-manager` | `.../session-manager` | ✅ | producer_sessions | Gerenciamento de sessões (list, revoke, logout-all) |
-| `data-retention-executor` | `.../data-retention-executor` | ✅ | internal | Executa limpeza de dados automatizada (16 tabelas) |
+| `rls-documentation-generator` | `.../rls-documentation-generator` | ✅ | internal | Gera documentação RLS |
+| `key-rotation-executor` | `.../key-rotation-executor` | ✅ | internal | Rotação de chaves |
+| `rls-security-tester` | `.../rls-security-tester` | ✅ | internal | Testes RLS |
+| `session-manager` | `.../session-manager` | ✅ | sessions | Gerenciamento de sessões |
+| `data-retention-executor` | `.../data-retention-executor` | ✅ | internal | Limpeza de dados |
 
 ### User Management
 
 | Nome | URL | No Repo? | Auth |
 |------|-----|----------|------|
-| `get-users-with-emails` | `.../get-users-with-emails` | ✅ | producer_sessions |
-| `manage-user-role` | `.../manage-user-role` | ✅ | producer_sessions |
-| `manage-user-status` | `.../manage-user-status` | ✅ | producer_sessions |
-| `producer-auth` | `.../producer-auth` | ✅ | public |
-| `product-crud` | `.../product-crud` | ✅ | producer_sessions |
-| `product-settings` | `.../product-settings` | ✅ | producer_sessions |
-| `offer-crud` | `.../offer-crud` | ✅ | producer_sessions |
-| `offer-bulk` | `.../offer-bulk` | ✅ | producer_sessions |
-| `checkout-crud` | `.../checkout-crud` | ✅ | producer_sessions |
-| `checkout-editor` | `.../checkout-editor` | ✅ | producer_sessions |
-| `order-bump-crud` | `.../order-bump-crud` | ✅ | producer_sessions |
-| `product-duplicate` | `.../product-duplicate` | ✅ | producer_sessions |
-| `coupon-management` | `.../coupon-management` | ✅ | producer_sessions |
-| `integration-management` | `.../integration-management` | ✅ | producer_sessions |
+| `get-users-with-emails` | `.../get-users-with-emails` | ✅ | sessions |
+| `manage-user-role` | `.../manage-user-role` | ✅ | sessions |
+| `manage-user-status` | `.../manage-user-status` | ✅ | sessions |
+| `unified-auth` | `.../unified-auth` | ✅ | public |
+| `product-crud` | `.../product-crud` | ✅ | sessions |
+| `product-settings` | `.../product-settings` | ✅ | sessions |
+| `offer-crud` | `.../offer-crud` | ✅ | sessions |
+| `offer-bulk` | `.../offer-bulk` | ✅ | sessions |
+| `checkout-crud` | `.../checkout-crud` | ✅ | sessions |
+| `checkout-editor` | `.../checkout-editor` | ✅ | sessions |
+| `order-bump-crud` | `.../order-bump-crud` | ✅ | sessions |
+| `product-duplicate` | `.../product-duplicate` | ✅ | sessions |
+| `coupon-management` | `.../coupon-management` | ✅ | sessions |
+| `integration-management` | `.../integration-management` | ✅ | sessions |
 
 ### Affiliates
 
 | Nome | URL | No Repo? | Auth |
 |------|-----|----------|------|
-| `manage-affiliation` | `.../manage-affiliation` | ✅ | producer_sessions |
-| `request-affiliation` | `.../request-affiliation` | ✅ | producer_sessions |
-| `update-affiliate-settings` | `.../update-affiliate-settings` | ✅ | producer_sessions |
-| `get-affiliation-details` | `.../get-affiliation-details` | ✅ | producer_sessions |
-| `get-affiliation-status` | `.../get-affiliation-status` | ✅ | producer_sessions |
-| `get-all-affiliation-statuses` | `.../get-all-affiliation-statuses` | ✅ | producer_sessions |
-| `get-my-affiliations` | `.../get-my-affiliations` | ✅ | producer_sessions |
-| `affiliate-pixel-management` | `.../affiliate-pixel-management` | ✅ | producer_sessions |
+| `manage-affiliation` | `.../manage-affiliation` | ✅ | sessions |
+| `request-affiliation` | `.../request-affiliation` | ✅ | sessions |
+| `update-affiliate-settings` | `.../update-affiliate-settings` | ✅ | sessions |
+| `get-affiliation-details` | `.../get-affiliation-details` | ✅ | sessions |
+| `get-affiliation-status` | `.../get-affiliation-status` | ✅ | sessions |
+| `get-all-affiliation-statuses` | `.../get-all-affiliation-statuses` | ✅ | sessions |
+| `get-my-affiliations` | `.../get-my-affiliations` | ✅ | sessions |
+| `affiliate-pixel-management` | `.../affiliate-pixel-management` | ✅ | sessions |
 
 ### Pixels
 
 | Nome | URL | No Repo? | Auth |
 |------|-----|----------|------|
-| `pixel-management` | `.../pixel-management` | ✅ | producer_sessions |
+| `pixel-management` | `.../pixel-management` | ✅ | sessions |
 
 ### LGPD/GDPR
 
 | Nome | URL | No Repo? | Auth |
 |------|-----|----------|------|
-| `gdpr-forget` | `.../gdpr-forget` | ✅ | public |
 | `gdpr-request` | `.../gdpr-request` | ✅ | public |
+| `gdpr-forget` | `.../gdpr-forget` | ✅ | public |
 
 ### Vault & Credentials
 
 | Nome | URL | No Repo? | Auth |
 |------|-----|----------|------|
-| `vault-save` | `.../vault-save` | ✅ | producer_sessions |
+| `vault-save` | `.../vault-save` | ✅ | sessions |
 
 ### Health & Diagnostics
 
 | Nome | URL | No Repo? | Auth |
 |------|-----|----------|------|
-| `admin-health` | `.../admin-health` | ✅ | producer_sessions |
-| `health` | `.../health` | ✅ | public |
-| `smoke-test` | `.../smoke-test` | ✅ | public |
-| `test-deploy` | `.../test-deploy` | ✅ | public |
 | `check-secrets` | `.../check-secrets` | ✅ | public |
-
-### Owner
-
-| Nome | URL | No Repo? | Auth |
-|------|-----|----------|------|
-| `owner-settings` | `.../owner-settings` | ✅ | producer_sessions |
-
-### RISE Protocol V2
-
-| Nome | URL | No Repo? | Auth |
-|------|-----|----------|------|
-| `rpc-proxy` | `.../rpc-proxy` | ✅ | producer_sessions |
-| `storage-management` | `.../storage-management` | ✅ | producer_sessions |
-
-### Dashboard & Data
-
-| Nome | URL | No Repo? | Auth | Descrição |
-|------|-----|----------|------|-----------|
-| `admin-data` | `.../admin-data` | ✅ | producer_sessions | Dados administrativos |
-| `dashboard-analytics` | `.../dashboard-analytics` | ✅ | producer_sessions | **BFF**: Métricas do dashboard (modular, RISE V3) |
-| `product-entities` | `.../product-entities` | ✅ | producer_sessions | Entidades do produto |
-| `product-full-loader` | `.../product-full-loader` | ✅ | producer_sessions | **BFF**: 1 chamada substitui 6 (offers, bumps, checkouts, links, coupons, product) |
-| `products-crud` | `.../products-crud` | ✅ | producer_sessions | CRUD de produtos |
-| `vendor-integrations` | `.../vendor-integrations` | ✅ | producer_sessions | Integrações do vendor |
-
-### Public Endpoints
-
-| Nome | URL | No Repo? | Auth |
-|------|-----|----------|------|
-| `affiliation-public` | `.../affiliation-public` | ✅ | public |
-| `checkout-public-data` | `.../checkout-public-data` | ✅ | public |
-| `marketplace-public` | `.../marketplace-public` | ✅ | public |
+| `health` | `.../health` | ✅ | public |
+| `test-deploy` | `.../test-deploy` | ✅ | public |
+| `admin-health` | `.../admin-health` | ✅ | sessions |
+| `owner-settings` | `.../owner-settings` | ✅ | sessions |
 
 ---
 
-## Funções NÃO Presentes no Código Local (0)
-
-> ✅ **Todas as funções estão sincronizadas!** Não há mais dívida técnica.
-
----
-
-## Notas de Manutenção
-
-### Regras de Autenticação (RISE V3)
-
-1. **NUNCA** use `verify_jwt = true` para funções que usam `producer_sessions`
-2. Funções de dashboard DEVEM usar `unified-auth.ts`
-3. Funções de buyer portal DEVEM usar `buyer_token`
-4. Webhooks DEVEM validar signature/payload, não JWT
-
-### Como Atualizar Este Documento
-
-1. Acesse o Supabase Dashboard → Edge Functions
-2. Copie a lista de funções
-3. Compare com este documento
-4. Atualize as métricas e auth mechanisms
-
-### Convenções
+## Convenções
 
 - ✅ = Presente no código local (`supabase/functions/`)
-- **producer_sessions** = Autenticação via X-Producer-Session-Token
-- **buyer_token** = Autenticação via X-Buyer-Session
+- **sessions** = Autenticação via Cookie `__Host-rise_access` (unified-auth-v2)
 - **public** = Sem autenticação
 - **webhook** = Validação de signature
 - **internal** = Chamada interna (cron, outras edge functions)
 - **oauth** = Callback de OAuth flow
 
-### Changelog
+---
+
+## Changelog
 
 | Data | Alteração |
 |------|-----------|
-| 2026-01-19 | **RISE V3 SECURITY INFRASTRUCTURE** - Adicionadas 5 Edge Functions de segurança |
-| 2026-01-19 | Criada `rls-documentation-generator` (geração automática de documentação RLS) |
-| 2026-01-19 | Criada `key-rotation-executor` (gerenciamento de rotação de chaves) |
-| 2026-01-19 | Criada `rls-security-tester` (framework de testes de segurança RLS) |
-| 2026-01-19 | Criada `session-manager` (gerenciamento de sessões de produtores) |
-| 2026-01-19 | Criada `data-retention-executor` (limpeza automatizada de 16 tabelas) |
-| 2026-01-19 | Total de funções: 110 → 115 |
-| 2026-01-21 | **CONSOLIDAÇÃO WEBHOOKS** - `get-webhook-logs` DELETADA, consolidada em `webhook-crud` action=get-logs |
-| 2026-01-21 | Total de funções: 115 → 114 |
-| 2026-01-18 | **RISE V3 products-crud REFACTORING** - Dividida em 4 Edge Functions |
-| 2026-01-18 | Criada `producer-profile` (get-profile, check-credentials, get-gateway-connections) |
-| 2026-01-18 | Criada `coupon-read` (get-coupon) |
-| 2026-01-18 | Criada `content-library` (get-video-library) |
-| 2026-01-18 | `products-crud` reduzida de 597 para 268 linhas |
-| 2026-01-18 | **RISE V3 MARKETPLACE SEPARATION** - Criada `marketplace-public` Edge Function |
-| 2026-01-18 | Separados endpoints públicos do marketplace de `products-crud` |
-| 2026-01-18 | `products-crud` agora contém apenas endpoints core autenticados |
-| 2026-01-17 | **RISE V3 AUTH STANDARDIZATION** - Padronização completa de autenticação |
-| 2026-01-17 | Migrado `get-users-with-emails` para unified-auth (v2.0.0) |
-| 2026-01-17 | Migrado `send-email` para unified-auth (v2.0.0) |
-| 2026-01-17 | Removidas referências órfãs: `migrate-credentials-to-vault`, `migrate-vendor-credentials-to-vault` |
-| 2026-01-17 | Corrigido `verify_jwt` para `manage-user-role`, `manage-user-status`, `update-affiliate-settings` |
-| 2026-01-17 | Corrigido `verify_jwt` para `decrypt-customer-data`, `decrypt-customer-data-batch` |
-| 2026-01-17 | Adicionada seção "Mecanismos de Autenticação" com tabela completa |
-| 2026-01-17 | Total de funções com verify_jwt=true: **0** ✅ |
-| 2026-01-16 | **AUDITORIA FINAL - MIGRAÇÃO 100% COMPLETA** ✅ |
-| 2026-01-16 | Deletado `src/api/storage/remove.ts` - substituído por `storage-management` Edge Function |
-| 2026-01-16 | **MIGRAÇÃO FRONTEND → EDGE FUNCTIONS** (10 arquivos) |
-| 2026-01-16 | **RISE V2 REFACTOR**: `reconcile-pending-orders` dividida em 4 Edge Functions |
-| 2026-01-15 | **FIX GATEWAYS**: Criada `pushinpay-validate-token` |
-| 2026-01-13 | **FASE 3**: Criados 21 stubs para funções deployed-only |
+| 2026-01-23 | RISE V3 Complete - Removed buyer-auth, producer-auth, buyer-session |
+| 2026-01-22 | Unified auth migration |
+| 2026-01-16 | Initial registry |

@@ -1,10 +1,14 @@
 /**
  * Session Reader - Unified Token Extraction
  * 
- * RISE Protocol V3: Reads auth tokens from unified cookies only.
- * Legacy cookie support removed - use cookie-helper.ts LEGACY_COOKIE_NAMES for clearing only.
+ * RISE Protocol V3: Reads auth tokens from unified cookies ONLY.
  * 
- * @version 3.0.0 - Legacy cleanup complete
+ * LEGACY REMOVED (2026-01-23):
+ * - Zero deprecated aliases (getProducerAccessToken, getBuyerAccessToken)
+ * - Zero legacy cookie reading
+ * - Only hasLegacyCookies() kept for logout cleanup
+ * 
+ * @version 4.0.0 - Complete legacy cleanup
  */
 
 import { 
@@ -40,7 +44,7 @@ export function getUnifiedRefreshToken(req: Request): string | null {
 }
 
 // ============================================
-// LEGACY READERS (For clearing old sessions)
+// LEGACY COOKIE DETECTION (For logout cleanup only)
 // ============================================
 
 /**
@@ -63,30 +67,11 @@ export function hasLegacyCookies(req: Request): boolean {
 }
 
 // ============================================
-// ALIASES (Backwards compatibility during migration)
+// STANDARD EXPORTS (No aliases)
 // ============================================
 
 /**
- * @deprecated Use getUnifiedAccessToken instead
+ * Alias for backwards compatibility during transition period.
+ * Points to the unified token getter.
  */
 export const getSessionToken = getUnifiedAccessToken;
-
-/**
- * @deprecated Use getUnifiedAccessToken instead
- */
-export const getProducerAccessToken = getUnifiedAccessToken;
-
-/**
- * @deprecated Use getUnifiedRefreshToken instead
- */
-export const getProducerRefreshToken = getUnifiedRefreshToken;
-
-/**
- * @deprecated Use getUnifiedAccessToken instead
- */
-export const getBuyerAccessToken = getUnifiedAccessToken;
-
-/**
- * @deprecated Use getUnifiedRefreshToken instead
- */
-export const getBuyerRefreshToken = getUnifiedRefreshToken;
