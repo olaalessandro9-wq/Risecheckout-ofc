@@ -4,11 +4,13 @@
  * 
  * Refactored: Form logic extracted to ProducerRegistrationForm component
  * to prevent state loss when AnimatePresence triggers re-mounts.
+ * 
+ * MIGRATED to useUnifiedAuth (RISE Protocol V3)
  */
 
 import { useState, useEffect } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
-import { useProducerAuth } from "@/hooks/useProducerAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { Button } from "@/components/ui/button";
 import { 
   Loader2, 
@@ -26,7 +28,7 @@ type ViewType = "choose-profile" | "already-has-account" | "producer-form";
 export default function Cadastro() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { isAuthenticated, isLoading: authLoading } = useProducerAuth();
+  const { isAuthenticated, isLoading: authLoading } = useUnifiedAuth();
   const [view, setView] = useState<ViewType>("choose-profile");
   const [registrationSource, setRegistrationSource] = useState<"producer" | "affiliate">("producer");
 

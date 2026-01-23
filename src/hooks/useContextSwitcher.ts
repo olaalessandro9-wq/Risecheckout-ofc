@@ -51,7 +51,8 @@ export function useContextSwitcher() {
   const goToProducerPanel = useCallback(async () => {
     if (!isAuthenticated) {
       log.warn("Cannot switch to producer - not authenticated");
-      navigate("/login");
+      // Corrected route: /auth instead of /login (which 404s)
+      navigate("/auth");
       return;
     }
     
@@ -89,7 +90,8 @@ export function useContextSwitcher() {
   const goToStudentPanel = useCallback(async () => {
     if (!isAuthenticated) {
       log.warn("Cannot switch to buyer - not authenticated");
-      navigate("/minha-conta/login");
+      // Corrected route: /minha-conta instead of /minha-conta/login (which 404s)
+      navigate("/minha-conta");
       return;
     }
     
