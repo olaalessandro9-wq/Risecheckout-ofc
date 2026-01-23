@@ -361,7 +361,7 @@ feature/dashboard-analytics-charts
 
 | Componente | Arquivos |
 |------------|----------|
-| Auth | `unified-auth`, `producer-auth`, `buyer-auth` |
+| Auth | `unified-auth` (SSOT - producer-auth e buyer-auth DELETADOS) |
 | Sessions | `session-*` |
 | Security | `security-*`, `rls-security-tester` |
 | Admin | `admin-*` |
