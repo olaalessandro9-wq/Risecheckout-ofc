@@ -72,11 +72,9 @@ export interface TokenContext {
 // ============================================
 
 /**
- * The authentication domains in the system
- * 
- * @deprecated "producer" and "buyer" are being unified into "unified"
+ * The authentication domain (RISE V3: Single Identity)
  */
-export type TokenType = "producer" | "buyer" | "unified";
+export type TokenType = "unified";
 
 // ============================================
 // LOCAL STORAGE KEYS
@@ -95,16 +93,6 @@ export interface StorageKeys {
 }
 
 export const STORAGE_KEYS: Record<TokenType, StorageKeys> = {
-  producer: {
-    state: "producer_auth_state",
-    expiresAt: "producer_auth_expires_at",
-    lastRefresh: "producer_auth_last_refresh",
-  },
-  buyer: {
-    state: "buyer_auth_state",
-    expiresAt: "buyer_auth_expires_at",
-    lastRefresh: "buyer_auth_last_refresh",
-  },
   unified: {
     state: "unified_auth_state",
     expiresAt: "unified_auth_expires_at",

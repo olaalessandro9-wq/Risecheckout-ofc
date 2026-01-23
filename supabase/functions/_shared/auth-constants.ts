@@ -22,23 +22,12 @@ export const CURRENT_HASH_VERSION = 2;
 export const BCRYPT_COST = 10;
 
 // ============================================
-// SESSION CONSTANTS
+// SESSION CONSTANTS (REMOVED - RISE V3)
 // ============================================
-
-/**
- * Producer session duration in days (legacy - for backwards compatibility)
- */
-export const PRODUCER_SESSION_DURATION_DAYS = 30;
-
-/**
- * Buyer session duration in days (legacy - for backwards compatibility)
- */
-export const BUYER_SESSION_DURATION_DAYS = 30;
-
-/**
- * Alias for backwards compatibility with buyer-auth-types.ts
- */
-export const SESSION_DURATION_DAYS = BUYER_SESSION_DURATION_DAYS;
+// Legacy constants PRODUCER_SESSION_DURATION_DAYS, BUYER_SESSION_DURATION_DAYS,
+// and SESSION_DURATION_DAYS were removed in Fase 13 (2026-01-23).
+// All session durations are now derived from ACCESS_TOKEN_DURATION_MINUTES
+// and REFRESH_TOKEN_DURATION_DAYS below.
 
 // ============================================
 // REFRESH TOKEN CONSTANTS (PHASE 3)

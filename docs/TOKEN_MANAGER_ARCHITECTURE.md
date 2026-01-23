@@ -48,9 +48,9 @@ src/lib/token-manager/
 | `service.ts` | Orquestração e API pública | ~210 |
 | `index.ts` | Re-exports e instâncias singleton | ~57 |
 
-> **⚠️ NOTA IMPORTANTE (2026-01-20):**  
+> **⚠️ NOTA IMPORTANTE (2026-01-23 - Fase 13):**  
 > O `persistence.ts` gerencia apenas **metadados de estado da FSM** (ex: `lastRefresh`, `expiresAt`), **não os tokens em si**.  
-> Os tokens de sessão são armazenados em **cookies httpOnly** (`__Host-producer_access` / `__Host-buyer_access`),  
+> Os tokens de sessão são armazenados em **cookies httpOnly** (`__Host-rise_access` / `__Host-rise_refresh`),  
 > inacessíveis via JavaScript, protegendo contra XSS. O browser envia os cookies automaticamente em cada requisição.
 
 ---
@@ -179,10 +179,10 @@ const TOKEN_TIMING = {
 ### 8.1 Login Flow
 
 ```typescript
-import { producerTokenService } from "@/lib/token-manager";
+import { unifiedTokenService } from "@/lib/token-manager";
 
 // Após login bem-sucedido no backend
-const loginResponse = await fetch("/functions/v1/producer-auth/login", {
+const loginResponse = await fetch("/functions/v1/unified-auth/login", {
   method: "POST",
   credentials: "include",
   body: JSON.stringify({ email, password }),
@@ -192,36 +192,36 @@ const data = await loginResponse.json();
 
 if (data.success) {
   // Notifica o TokenService sobre o novo token
-  producerTokenService.setAuthenticated(data.expiresIn);
+  unifiedTokenService.setAuthenticated(data.expiresIn);
 }
 ```
 
 ### 8.2 Verificar Estado
 
 ```typescript
-import { producerTokenService } from "@/lib/token-manager";
+import { unifiedTokenService } from "@/lib/token-manager";
 
 // Verificar se tem token válido
-if (producerTokenService.hasValidToken()) {
+if (unifiedTokenService.hasValidToken()) {
   // Pode fazer chamadas autenticadas
 }
 
 // Obter estado atual
-const state = producerTokenService.getState();
+const state = unifiedTokenService.getState();
 // "idle" | "authenticated" | "expiring" | "refreshing" | "expired" | "error"
 ```
 
 ### 8.3 Subscribe a Mudanças
 
 ```typescript
-import { producerTokenService } from "@/lib/token-manager";
+import { unifiedTokenService } from "@/lib/token-manager";
 import { useEffect, useState } from "react";
 
 function useTokenState() {
-  const [state, setState] = useState(producerTokenService.getState());
+  const [state, setState] = useState(unifiedTokenService.getState());
   
   useEffect(() => {
-    const unsubscribe = producerTokenService.subscribe((newState) => {
+    const unsubscribe = unifiedTokenService.subscribe((newState) => {
       setState(newState);
     });
     
@@ -235,10 +235,10 @@ function useTokenState() {
 ### 8.4 Refresh Manual
 
 ```typescript
-import { producerTokenService } from "@/lib/token-manager";
+import { unifiedTokenService } from "@/lib/token-manager";
 
 // Forçar refresh (útil antes de operações críticas)
-const success = await producerTokenService.refresh();
+const success = await unifiedTokenService.refresh();
 
 if (!success) {
   // Redirecionar para login
@@ -249,17 +249,17 @@ if (!success) {
 ### 8.5 Logout
 
 ```typescript
-import { producerTokenService } from "@/lib/token-manager";
+import { unifiedTokenService } from "@/lib/token-manager";
 
 async function handleLogout() {
   // Backend invalida a sessão
-  await fetch("/functions/v1/producer-auth/logout", {
+  await fetch("/functions/v1/unified-auth/logout", {
     method: "POST",
     credentials: "include",
   });
   
   // Limpa estado local
-  producerTokenService.clearTokens();
+  unifiedTokenService.clearTokens();
   
   // Redireciona
   navigate("/login");
@@ -274,11 +274,11 @@ O `api-client.ts` integra automaticamente com o TokenService:
 
 ```typescript
 // src/lib/api/client.ts
-import { producerTokenService } from "@/lib/token-manager";
+import { unifiedTokenService } from "@/lib/token-manager";
 
 async function authenticatedFetch(url: string, options: RequestInit) {
   // Verifica estado antes da chamada
-  if (!producerTokenService.hasValidToken()) {
+  if (!unifiedTokenService.hasValidToken()) {
     throw new Error("Not authenticated");
   }
   
@@ -289,7 +289,7 @@ async function authenticatedFetch(url: string, options: RequestInit) {
   
   // Se 401, tenta refresh automático
   if (response.status === 401) {
-    const refreshed = await producerTokenService.refresh();
+    const refreshed = await unifiedTokenService.refresh();
     
     if (refreshed) {
       // Retry da requisição original
@@ -297,7 +297,7 @@ async function authenticatedFetch(url: string, options: RequestInit) {
     }
     
     // Refresh falhou, limpa tokens
-    producerTokenService.clearTokens();
+    unifiedTokenService.clearTokens();
     throw new Error("Session expired");
   }
   
@@ -401,15 +401,14 @@ log.error("Max retries exceeded", { state: "error" });
 ### 12.2 Inspecionar Estado
 
 ```typescript
-// No console do browser (apenas dev)
-import { producerTokenService } from "@/lib/token-manager";
+import { unifiedTokenService } from "@/lib/token-manager";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("TokenDebug");
 
 log.debug("Token state inspection", {
-  state: producerTokenService.getState(),
-  hasValidToken: producerTokenService.hasValidToken(),
+  state: unifiedTokenService.getState(),
+  hasValidToken: unifiedTokenService.hasValidToken(),
 });
 ```
 

@@ -61,17 +61,10 @@ export interface SessionData {
 }
 
 // ============================================================================
-// COOKIE NAMES (Unified - Phase 6)
+// COOKIE NAMES (RISE V3: Uses COOKIE_NAMES from cookie-helper.ts)
 // ============================================================================
-
-/**
- * Unified cookie names - used for the new single-identity architecture.
- * During transition period, we read from both old and new formats.
- */
-export const UNIFIED_COOKIE_NAMES = {
-  access: "__Host-rise_access",
-  refresh: "__Host-rise_refresh",
-} as const;
+// UNIFIED_COOKIE_NAMES was removed in Fase 13 (2026-01-23).
+// Use COOKIE_NAMES imported from "./cookie-helper.ts" instead.
 
 // ============================================================================
 // TOKEN GENERATION
@@ -112,7 +105,7 @@ export function generateSessionTokens(): {
 export function getUnifiedAccessToken(req: Request): string | null {
   const cookieHeader = req.headers.get("Cookie");
   if (!cookieHeader) return null;
-  return getCookie(cookieHeader, UNIFIED_COOKIE_NAMES.access);
+  return getCookie(cookieHeader, COOKIE_NAMES.access);
 }
 
 /**
@@ -122,7 +115,7 @@ export function getUnifiedAccessToken(req: Request): string | null {
 export function getUnifiedRefreshToken(req: Request): string | null {
   const cookieHeader = req.headers.get("Cookie");
   if (!cookieHeader) return null;
-  return getCookie(cookieHeader, UNIFIED_COOKIE_NAMES.refresh);
+  return getCookie(cookieHeader, COOKIE_NAMES.refresh);
 }
 
 // ============================================================================
@@ -137,14 +130,14 @@ export function createUnifiedAuthCookies(
   refreshToken: string
 ): string[] {
   return [
-    createSecureCookie(UNIFIED_COOKIE_NAMES.access, accessToken, {
+    createSecureCookie(COOKIE_NAMES.access, accessToken, {
       maxAge: ACCESS_TOKEN_DURATION_MINUTES * 60,
       httpOnly: true,
       secure: true,
       sameSite: "None",
       path: "/",
     }),
-    createSecureCookie(UNIFIED_COOKIE_NAMES.refresh, refreshToken, {
+    createSecureCookie(COOKIE_NAMES.refresh, refreshToken, {
       maxAge: REFRESH_TOKEN_DURATION_DAYS * 24 * 60 * 60,
       httpOnly: true,
       secure: true,
@@ -163,8 +156,8 @@ export function createUnifiedLogoutCookies(): string[] {
   
   return [
     // Unified cookies
-    expired(UNIFIED_COOKIE_NAMES.access),
-    expired(UNIFIED_COOKIE_NAMES.refresh),
+    expired(COOKIE_NAMES.access),
+    expired(COOKIE_NAMES.refresh),
     // Legacy producer cookies (clear from old sessions)
     expired(LEGACY_COOKIE_NAMES.producer.access),
     expired(LEGACY_COOKIE_NAMES.producer.refresh),

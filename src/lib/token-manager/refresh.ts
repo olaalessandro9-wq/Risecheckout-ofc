@@ -52,18 +52,9 @@ export interface RefreshResult {
 // ============================================
 
 /**
- * RISE V3: All token types now use unified-auth/refresh.
- * 
- * The legacy producer-auth and buyer-auth endpoints are
- * proxied to unified-auth on the backend, so we call
- * unified-auth directly for efficiency.
+ * RISE V3: Single unified endpoint for all authentication.
  */
-const REFRESH_ENDPOINTS: Record<TokenType, string> = {
-  unified: "/functions/v1/unified-auth/refresh",
-  // Legacy types now use unified-auth directly (backend-agnostic)
-  producer: "/functions/v1/unified-auth/refresh",
-  buyer: "/functions/v1/unified-auth/refresh",
-} as const;
+const REFRESH_ENDPOINT = "/functions/v1/unified-auth/refresh";
 
 // ============================================
 // REFRESH FUNCTION
@@ -77,20 +68,18 @@ const REFRESH_ENDPOINTS: Record<TokenType, string> = {
  * 
  * GUARD: Skips refresh on public routes (checkout, pay, etc.)
  */
-export async function executeRefresh(type: TokenType): Promise<RefreshResult> {
+export async function executeRefresh(_type: TokenType): Promise<RefreshResult> {
   // GUARD: Skip token refresh on public routes
-  if ((type === "producer" || type === "buyer") && isPublicRoute()) {
+  if (isPublicRoute()) {
     log.debug("Skipping refresh on public route", { 
-      type,
       path: window.location.pathname 
     });
     return { success: false, error: "Public route - refresh skipped" };
   }
   
-  const endpoint = REFRESH_ENDPOINTS[type];
-  const url = `${SUPABASE_URL}${endpoint}`;
+  const url = `${SUPABASE_URL}${REFRESH_ENDPOINT}`;
   
-  log.debug("Executing refresh via unified-auth", { type, endpoint });
+  log.debug("Executing refresh via unified-auth", { endpoint: REFRESH_ENDPOINT });
   
   try {
     const response = await fetch(url, {
