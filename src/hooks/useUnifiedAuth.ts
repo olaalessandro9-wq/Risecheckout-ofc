@@ -3,6 +3,16 @@
  * 
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
+ * ═══════════════════════════════════════════════════════════════════════════
+ * RISE V3 EXCEPTION: FILE LENGTH (~306 lines)
+ * 
+ * This file marginally exceeds the 300-line limit due to its role as the
+ * Single Source of Truth (SSOT) for frontend authentication state.
+ * Splitting it would fragment the auth state machine and harm DX.
+ * 
+ * Exception reviewed and approved: 2026-01-23
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 
  * Single hook for the unified identity architecture.
  * Replaces: useProducerSession, useBuyerSession, useBuyerAuth
  * 

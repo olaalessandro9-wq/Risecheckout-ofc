@@ -677,62 +677,6 @@ export type Database = {
           },
         ]
       }
-      buyer_sessions: {
-        Row: {
-          access_token_expires_at: string | null
-          buyer_id: string
-          created_at: string | null
-          expires_at: string
-          id: string
-          ip_address: string | null
-          is_valid: boolean | null
-          last_activity_at: string | null
-          previous_refresh_token: string | null
-          refresh_token: string | null
-          refresh_token_expires_at: string | null
-          session_token: string
-          user_agent: string | null
-        }
-        Insert: {
-          access_token_expires_at?: string | null
-          buyer_id: string
-          created_at?: string | null
-          expires_at?: string
-          id?: string
-          ip_address?: string | null
-          is_valid?: boolean | null
-          last_activity_at?: string | null
-          previous_refresh_token?: string | null
-          refresh_token?: string | null
-          refresh_token_expires_at?: string | null
-          session_token: string
-          user_agent?: string | null
-        }
-        Update: {
-          access_token_expires_at?: string | null
-          buyer_id?: string
-          created_at?: string | null
-          expires_at?: string
-          id?: string
-          ip_address?: string | null
-          is_valid?: boolean | null
-          last_activity_at?: string | null
-          previous_refresh_token?: string | null
-          refresh_token?: string | null
-          refresh_token_expires_at?: string | null
-          session_token?: string
-          user_agent?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "buyer_sessions_buyer_id_fkey"
-            columns: ["buyer_id"]
-            isOneToOne: false
-            referencedRelation: "buyer_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       certificate_templates: {
         Row: {
           background_image_url: string | null
@@ -2854,69 +2798,6 @@ export type Database = {
           },
         ]
       }
-      producer_sessions: {
-        Row: {
-          access_token_expires_at: string | null
-          created_at: string | null
-          expires_at: string
-          id: string
-          ip_address: string | null
-          is_valid: boolean | null
-          last_activity_at: string | null
-          previous_refresh_token: string | null
-          producer_id: string
-          refresh_token: string | null
-          refresh_token_expires_at: string | null
-          session_token: string
-          user_agent: string | null
-        }
-        Insert: {
-          access_token_expires_at?: string | null
-          created_at?: string | null
-          expires_at?: string
-          id?: string
-          ip_address?: string | null
-          is_valid?: boolean | null
-          last_activity_at?: string | null
-          previous_refresh_token?: string | null
-          producer_id: string
-          refresh_token?: string | null
-          refresh_token_expires_at?: string | null
-          session_token: string
-          user_agent?: string | null
-        }
-        Update: {
-          access_token_expires_at?: string | null
-          created_at?: string | null
-          expires_at?: string
-          id?: string
-          ip_address?: string | null
-          is_valid?: boolean | null
-          last_activity_at?: string | null
-          previous_refresh_token?: string | null
-          producer_id?: string
-          refresh_token?: string | null
-          refresh_token_expires_at?: string | null
-          session_token?: string
-          user_agent?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "producer_sessions_producer_id_fkey"
-            columns: ["producer_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "producer_sessions_producer_id_fkey"
-            columns: ["producer_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_secure"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       product_member_content: {
         Row: {
           body: string | null
@@ -4590,8 +4471,6 @@ export type Database = {
         }[]
       }
       cleanup_expired_blocks: { Args: never; Returns: number }
-      cleanup_expired_buyer_sessions: { Args: never; Returns: number }
-      cleanup_expired_producer_sessions: { Args: never; Returns: number }
       cleanup_gdpr_audit_log: { Args: never; Returns: number }
       cleanup_gdpr_requests: { Args: never; Returns: number }
       cleanup_key_rotation_log: { Args: never; Returns: number }
