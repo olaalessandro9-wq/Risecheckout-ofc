@@ -1977,6 +1977,27 @@ export type Database = {
         }
         Relationships: []
       }
+      migration_id_map: {
+        Row: {
+          migrated_at: string | null
+          new_id: string
+          old_id: string
+          source_table: string
+        }
+        Insert: {
+          migrated_at?: string | null
+          new_id: string
+          old_id: string
+          source_table: string
+        }
+        Update: {
+          migrated_at?: string | null
+          new_id?: string
+          old_id?: string
+          source_table?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string | null
@@ -3711,6 +3732,65 @@ export type Database = {
         }
         Relationships: []
       }
+      sessions: {
+        Row: {
+          access_token_expires_at: string | null
+          active_role: Database["public"]["Enums"]["app_role"]
+          created_at: string | null
+          expires_at: string
+          id: string
+          ip_address: string | null
+          is_valid: boolean | null
+          last_activity_at: string | null
+          previous_refresh_token: string | null
+          refresh_token: string | null
+          refresh_token_expires_at: string | null
+          session_token: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          access_token_expires_at?: string | null
+          active_role?: Database["public"]["Enums"]["app_role"]
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          ip_address?: string | null
+          is_valid?: boolean | null
+          last_activity_at?: string | null
+          previous_refresh_token?: string | null
+          refresh_token?: string | null
+          refresh_token_expires_at?: string | null
+          session_token: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          access_token_expires_at?: string | null
+          active_role?: Database["public"]["Enums"]["app_role"]
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          ip_address?: string | null
+          is_valid?: boolean | null
+          last_activity_at?: string | null
+          previous_refresh_token?: string | null
+          refresh_token?: string | null
+          refresh_token_expires_at?: string | null
+          session_token?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_invite_tokens: {
         Row: {
           buyer_id: string
@@ -3867,21 +3947,161 @@ export type Database = {
           },
         ]
       }
+      user_active_context: {
+        Row: {
+          active_role: Database["public"]["Enums"]["app_role"]
+          switched_at: string | null
+          user_id: string
+        }
+        Insert: {
+          active_role?: Database["public"]["Enums"]["app_role"]
+          switched_at?: string | null
+          user_id: string
+        }
+        Update: {
+          active_role?: Database["public"]["Enums"]["app_role"]
+          switched_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_active_context_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
+          context_data: Json | null
           id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
+          context_data?: Json | null
           id?: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
+          context_data?: Json | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          account_status:
+            | Database["public"]["Enums"]["account_status_enum"]
+            | null
+          asaas_wallet_id: string | null
+          avatar_url: string | null
+          cpf_cnpj: string | null
+          created_at: string | null
+          custom_fee_percent: number | null
+          document_encrypted: string | null
+          document_hash: string | null
+          email: string
+          email_verified: boolean | null
+          id: string
+          is_active: boolean | null
+          last_login_at: string | null
+          mercadopago_collector_id: string | null
+          mercadopago_connected_at: string | null
+          mercadopago_email: string | null
+          name: string | null
+          password_hash: string | null
+          password_hash_version: number | null
+          phone: string | null
+          registration_source: string | null
+          reset_token: string | null
+          reset_token_expires_at: string | null
+          status: string | null
+          status_changed_at: string | null
+          status_changed_by: string | null
+          status_reason: string | null
+          stripe_account_id: string | null
+          stripe_connected_at: string | null
+          test_mode_enabled: boolean | null
+          timezone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          account_status?:
+            | Database["public"]["Enums"]["account_status_enum"]
+            | null
+          asaas_wallet_id?: string | null
+          avatar_url?: string | null
+          cpf_cnpj?: string | null
+          created_at?: string | null
+          custom_fee_percent?: number | null
+          document_encrypted?: string | null
+          document_hash?: string | null
+          email: string
+          email_verified?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          last_login_at?: string | null
+          mercadopago_collector_id?: string | null
+          mercadopago_connected_at?: string | null
+          mercadopago_email?: string | null
+          name?: string | null
+          password_hash?: string | null
+          password_hash_version?: number | null
+          phone?: string | null
+          registration_source?: string | null
+          reset_token?: string | null
+          reset_token_expires_at?: string | null
+          status?: string | null
+          status_changed_at?: string | null
+          status_changed_by?: string | null
+          status_reason?: string | null
+          stripe_account_id?: string | null
+          stripe_connected_at?: string | null
+          test_mode_enabled?: boolean | null
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          account_status?:
+            | Database["public"]["Enums"]["account_status_enum"]
+            | null
+          asaas_wallet_id?: string | null
+          avatar_url?: string | null
+          cpf_cnpj?: string | null
+          created_at?: string | null
+          custom_fee_percent?: number | null
+          document_encrypted?: string | null
+          document_hash?: string | null
+          email?: string
+          email_verified?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          last_login_at?: string | null
+          mercadopago_collector_id?: string | null
+          mercadopago_connected_at?: string | null
+          mercadopago_email?: string | null
+          name?: string | null
+          password_hash?: string | null
+          password_hash_version?: number | null
+          phone?: string | null
+          registration_source?: string | null
+          reset_token?: string | null
+          reset_token_expires_at?: string | null
+          status?: string | null
+          status_changed_at?: string | null
+          status_changed_by?: string | null
+          status_reason?: string | null
+          stripe_account_id?: string | null
+          stripe_connected_at?: string | null
+          test_mode_enabled?: boolean | null
+          timezone?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -4763,7 +4983,7 @@ export type Database = {
         | "pending_setup"
         | "reset_required"
         | "owner_no_password"
-      app_role: "admin" | "user" | "owner" | "seller"
+      app_role: "admin" | "user" | "owner" | "seller" | "buyer"
       credit_card_gateway_type: "mercadopago" | "stripe" | "asaas"
       integration_type:
         | "PUSHINPAY"
@@ -4904,7 +5124,7 @@ export const Constants = {
         "reset_required",
         "owner_no_password",
       ],
-      app_role: ["admin", "user", "owner", "seller"],
+      app_role: ["admin", "user", "owner", "seller", "buyer"],
       credit_card_gateway_type: ["mercadopago", "stripe", "asaas"],
       integration_type: [
         "PUSHINPAY",
