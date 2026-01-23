@@ -70,8 +70,8 @@ Para funções buyer-specific (100% migradas):
 
 | Edge Function | Estratégia | Status |
 |---------------|-----------|--------|
-| `buyer-orders/` | Validação híbrida (unified + legacy fallback) | ✅ DONE |
-| `members-area-quizzes/` | Validação híbrida (unified + legacy fallback) | ✅ DONE |
+| `buyer-orders/` | Sessão unificada exclusiva (fallback removido Fase 10) | ✅ DONE |
+| `members-area-quizzes/` | Sessão unificada exclusiva (fallback removido Fase 10) | ✅ DONE |
 | `students-invite/` | Cria sessão unificada para novos logins | ✅ DONE |
 
 ### Funções Producer (Via Wrapper Automático)
