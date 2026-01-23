@@ -242,8 +242,8 @@ Deno.serve(async (req) => {
 
       await supabase.from("student_invite_tokens").update({ is_used: true, used_at: new Date().toISOString() }).eq("id", tokenData.id);
 
-      // RISE V3: Create unified session instead of legacy buyer_sessions
-      // First, check if buyer has a user record (for unified identity)
+      // RISE V3: Create unified session
+      // Check if buyer has a user record (for unified identity)
       const { data: existingUser } = await supabase
         .from("users")
         .select("id")
@@ -275,20 +275,43 @@ Deno.serve(async (req) => {
         }
       }
       
-      // Fallback to legacy buyer_sessions for buyers not yet in users table
-      const sessionToken = generateSessionToken();
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 30);
+      // If no user exists yet, create one in the users table first
+      const { data: newUser } = await supabase
+        .from("users")
+        .insert({ 
+          email: typedBuyer.email.toLowerCase(),
+          name: typedBuyer.name,
+          default_role: "buyer" as AppRole,
+        })
+        .select("id")
+        .single();
 
-      await supabase.from("buyer_sessions").insert({ buyer_id: typedBuyer.id, session_token: sessionToken, expires_at: expiresAt.toISOString(), is_valid: true });
-      await supabase.from("buyer_profiles").update({ last_login_at: new Date().toISOString() }).eq("id", typedBuyer.id);
+      if (newUser) {
+        const session = await createSession(supabase, newUser.id, "buyer" as AppRole, req);
+        
+        if (session) {
+          const cookies = createUnifiedAuthCookies(session.sessionToken, session.refreshToken);
+          
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              buyer: { id: typedBuyer.id, email: typedBuyer.email, name: typedBuyer.name }, 
+              product_id: tokenData.product_id 
+            }),
+            {
+              status: 200,
+              headers: { 
+                ...corsHeaders, 
+                "Content-Type": "application/json",
+                "Set-Cookie": cookies.join(", "),
+              },
+            }
+          );
+        }
+      }
 
-      return jsonResponse({ 
-        success: true, 
-        sessionToken, 
-        buyer: { id: typedBuyer.id, email: typedBuyer.email, name: typedBuyer.name }, 
-        product_id: tokenData.product_id 
-      }, 200, corsHeaders);
+      // Fallback error if user creation fails
+      return jsonResponse({ success: false, error: "Erro ao criar sessão" }, 500, corsHeaders);
     }
 
     // ========== GENERATE-PURCHASE-ACCESS (public) ==========

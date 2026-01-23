@@ -1,7 +1,7 @@
 # Rise Checkout - Edge Functions Registry
 
 > **🔴 FONTE DA VERDADE MÁXIMA** - Este documento lista TODAS as Edge Functions deployadas no Supabase.  
-> Última atualização: 2026-01-22 (Checkout Public Modularization)  
+> Última atualização: 2026-01-23 (Unified Auth Migration Complete - RISE V3)  
 > Mantenedor: AI Assistant + User
 
 ---
@@ -10,8 +10,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 110 |
-| **No código local** | 110 |
+| **Total de Funções** | 107 |
+| **No código local** | 107 |
 | **Apenas deployadas** | 0 |
 | **Operações Diretas Frontend** | 0 ✅ |
 | **Funções com verify_jwt=true** | 0 ✅ |
@@ -19,18 +19,17 @@
 
 ---
 
-## 🔐 Mecanismos de Autenticação (RISE V3)
+## 🔐 Mecanismos de Autenticação (RISE V3 - Unified Auth)
 
 > **REGRA ABSOLUTA**: Todas as funções usam `verify_jwt = false` no `supabase/config.toml`.
-> A autenticação é feita no código via cookies httpOnly + producer_sessions ou buyer_sessions.
+> A autenticação é feita no código via cookies httpOnly + tabela `sessions` unificada.
 
-| Mecanismo | Cookie/Header | Validação | Funções |
-|-----------|---------------|-----------|---------|
-| **producer_sessions** | Cookie: `__Host-producer_access` → Header interno: `X-Producer-Session-Token` | `unified-auth.ts` | Dashboard, User Mgmt, Affiliates, Vault, Security |
-| **buyer_sessions** | Cookie: `__Host-buyer_access` → Header interno: `X-Buyer-Session` | `buyer-auth.ts` | Members Area, Buyer Portal |
+| Mecanismo | Cookie | Validação | Funções |
+|-----------|--------|-----------|---------|
+| **sessions (unified)** | `__Host-rise_access` + `__Host-rise_refresh` | `unified-auth-v2.ts` | TODAS as funções autenticadas |
 | **webhook/public** | N/A | Signature/payload | Webhooks, Checkout, Auth endpoints |
 
-> **Nota (Jan 2026):** Os headers são usados internamente pelo api-client após extração dos cookies httpOnly.
+> **Nota (Jan 2026):** O sistema de autenticação foi 100% unificado. As tabelas `producer_sessions` e `buyer_sessions` são legadas.
 > O frontend usa `credentials: 'include'` e nunca acessa tokens diretamente (proteção XSS total).
 
 ### Tabela de Auth por Função
@@ -38,21 +37,21 @@
 | Função | Auth Mechanism | verify_jwt | Observação |
 |--------|----------------|------------|------------|
 | **Product Management** | | | |
-| `product-crud` | producer_sessions | false | unified-auth |
-| `product-settings` | producer_sessions | false | unified-auth |
-| `offer-crud` | producer_sessions | false | unified-auth |
-| `offer-bulk` | producer_sessions | false | unified-auth |
-| `checkout-crud` | producer_sessions | false | unified-auth |
-| `order-bump-crud` | producer_sessions | false | unified-auth |
-| `checkout-editor` | producer_sessions | false | unified-auth |
-| `product-duplicate` | producer_sessions | false | unified-auth |
-| `coupon-management` | producer_sessions | false | unified-auth |
-| `integration-management` | producer_sessions | false | unified-auth |
+| `product-crud` | sessions | false | unified-auth-v2 |
+| `product-settings` | sessions | false | unified-auth-v2 |
+| `offer-crud` | sessions | false | unified-auth-v2 |
+| `offer-bulk` | sessions | false | unified-auth-v2 |
+| `checkout-crud` | sessions | false | unified-auth-v2 |
+| `order-bump-crud` | sessions | false | unified-auth-v2 |
+| `checkout-editor` | sessions | false | unified-auth-v2 |
+| `product-duplicate` | sessions | false | unified-auth-v2 |
+| `coupon-management` | sessions | false | unified-auth-v2 |
+| `integration-management` | sessions | false | unified-auth-v2 |
 | **User Management** | | | |
-| `manage-user-role` | producer_sessions | false | unified-auth, owner only |
-| `manage-user-status` | producer_sessions | false | unified-auth, admin+ |
-| `get-users-with-emails` | producer_sessions | false | unified-auth, owner only |
-| `producer-auth` | public | false | Login endpoint |
+| `manage-user-role` | sessions | false | unified-auth-v2, owner only |
+| `manage-user-status` | sessions | false | unified-auth-v2, admin+ |
+| `get-users-with-emails` | sessions | false | unified-auth-v2, owner only |
+| `unified-auth` | public | false | Login/Register/Refresh endpoint (RISE V3) |
 | **Security & Crypto** | | | |
 | `decrypt-customer-data` | producer_sessions | false | unified-auth, owner check |
 | `decrypt-customer-data-batch` | producer_sessions | false | unified-auth, owner check |
@@ -73,25 +72,23 @@
 | `send-confirmation-email` | internal | false | Chamada interna |
 | `send-pix-email` | internal | false | Chamada interna |
 | **Buyer Portal** | | | |
-| `buyer-auth` | public | false | Login endpoint |
-| `buyer-orders` | buyer_token | false | x-buyer-session |
-| `buyer-profile` | buyer_token | false | x-buyer-session |
-| `buyer-session` | buyer_token | false | x-buyer-session |
+| `buyer-orders` | sessions | false | unified-auth-v2 (RISE V3) |
+| `buyer-profile` | sessions | false | unified-auth-v2 (RISE V3) |
 | **Members Area** | | | |
-| `members-area-modules` | producer_sessions | false | unified-auth |
-| `members-area-drip` | buyer_token | false | x-buyer-session |
-| `members-area-progress` | buyer_token | false | x-buyer-session |
-| `members-area-quizzes` | buyer_token | false | x-buyer-session |
-| `members-area-certificates` | buyer_token | false | x-buyer-session |
-| `members-area-groups` | producer_sessions | false | unified-auth |
-| `content-crud` | producer_sessions | false | unified-auth |
-| `content-save` | producer_sessions | false | unified-auth |
-| `students-invite` | producer_sessions | false | unified-auth |
-| `students-access` | producer_sessions | false | unified-auth |
-| `students-groups` | producer_sessions | false | unified-auth |
-| `students-list` | producer_sessions | false | unified-auth |
-| `pixel-management` | producer_sessions | false | unified-auth |
-| `affiliate-pixel-management` | producer_sessions | false | unified-auth |
+| `members-area-modules` | sessions | false | unified-auth-v2 |
+| `members-area-drip` | sessions | false | unified-auth-v2 |
+| `members-area-progress` | sessions | false | unified-auth-v2 |
+| `members-area-quizzes` | sessions | false | unified-auth-v2 |
+| `members-area-certificates` | sessions | false | unified-auth-v2 |
+| `members-area-groups` | sessions | false | unified-auth-v2 |
+| `content-crud` | sessions | false | unified-auth-v2 |
+| `content-save` | sessions | false | unified-auth-v2 |
+| `students-invite` | sessions | false | unified-auth-v2 |
+| `students-access` | sessions | false | unified-auth-v2 |
+| `students-groups` | sessions | false | unified-auth-v2 |
+| `students-list` | sessions | false | unified-auth-v2 |
+| `pixel-management` | sessions | false | unified-auth-v2 |
+| `affiliate-pixel-management` | sessions | false | unified-auth-v2 |
 | **Webhooks** | | | |
 | `mercadopago-webhook` | webhook | false | Signature validation |
 | `pushinpay-webhook` | webhook | false | Signature validation |

@@ -86,8 +86,6 @@ const CORS_ALLOWED_HEADERS = [
   "x-client-info",
   "apikey",
   "content-type",
-  "x-buyer-session",
-  "x-producer-session-token",
   "x-correlation-id",
 ].join(", ");
 

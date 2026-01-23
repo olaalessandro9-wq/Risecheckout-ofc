@@ -23,66 +23,9 @@ import {
   type UnifiedUser,
   unauthorizedResponse,
 } from "../_shared/unified-auth-v2.ts";
-import { getBuyerAccessToken } from "../_shared/session-reader.ts";
 import { createLogger } from "../_shared/logger.ts";
 
 const log = createLogger("buyer-orders");
-
-// ============================================
-// LEGACY BUYER SESSION VALIDATION (Fallback)
-// ============================================
-
-interface LegacyBuyerSession {
-  id: string;
-  expires_at: string;
-  is_valid: boolean;
-  buyer: LegacyBuyerData | LegacyBuyerData[];
-}
-
-interface LegacyBuyerData {
-  id: string;
-  email: string;
-  name: string | null;
-  is_active: boolean;
-}
-
-async function validateLegacyBuyerSession(
-  supabase: SupabaseClient,
-  sessionToken: string
-): Promise<BuyerData | null> {
-  const { data: session } = await supabase
-    .from("buyer_sessions")
-    .select(`
-      id,
-      expires_at,
-      is_valid,
-      buyer:buyer_id (
-        id,
-        email,
-        name,
-        is_active
-      )
-    `)
-    .eq("session_token", sessionToken)
-    .single();
-
-  if (!session || !session.is_valid || !session.buyer) {
-    return null;
-  }
-
-  const typedSession = session as unknown as LegacyBuyerSession;
-  const buyerData = Array.isArray(typedSession.buyer) ? typedSession.buyer[0] : typedSession.buyer;
-
-  if (!buyerData.is_active) {
-    return null;
-  }
-
-  if (new Date(typedSession.expires_at) < new Date()) {
-    return null;
-  }
-
-  return buyerData;
-}
 
 // ============================================
 // INTERFACES
@@ -170,38 +113,26 @@ interface AccessItem {
 }
 
 // ============================================
-// UNIFIED SESSION VALIDATION (V3)
+// SESSION VALIDATION (V3 - Unified Only)
 // ============================================
 
 /**
- * Validates session using unified system first, then falls back to legacy buyer_sessions.
- * This ensures both new unified sessions and old buyer sessions work during migration.
+ * Validates session using unified system only.
+ * Legacy buyer_sessions fallback removed - RISE V3 migration complete.
  */
 async function validateSession(
   supabase: SupabaseClient, 
   req: Request
 ): Promise<BuyerData | null> {
-  // Try unified auth system first (new sessions table)
   const unifiedUser = await getAuthenticatedUser(supabase, req);
   
   if (unifiedUser) {
-    // Map unified user to buyer data format
     return {
       id: unifiedUser.id,
       email: unifiedUser.email,
       name: unifiedUser.name,
       is_active: true,
     };
-  }
-  
-  // Fallback to legacy buyer_sessions for old sessions still active
-  const sessionToken = getBuyerAccessToken(req);
-  if (sessionToken) {
-    const legacyBuyer = await validateLegacyBuyerSession(supabase, sessionToken);
-    if (legacyBuyer) {
-      log.debug("Using legacy buyer_sessions auth");
-      return legacyBuyer;
-    }
   }
   
   return null;
@@ -217,11 +148,7 @@ serve(async (req) => {
   if (corsResult instanceof Response) {
     return corsResult;
   }
-  // Extend CORS headers to include x-buyer-session
-  const corsHeaders = {
-    ...corsResult.headers,
-    "Access-Control-Allow-Headers": corsResult.headers["Access-Control-Allow-Headers"] + ", x-buyer-session",
-  };
+  const corsHeaders = corsResult.headers;
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
