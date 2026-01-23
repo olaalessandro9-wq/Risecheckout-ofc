@@ -482,17 +482,47 @@ html body [data-radix-select-viewport] [data-radix-select-item][style][data-high
    ======================================== */
 
 @media (min-width: 2560px) {
-  /* Reduz blur pesado para leve */
+  /* ====== BACKDROP BLUR - Desabilita completamente ====== */
+  .backdrop-blur-sm,
+  .backdrop-blur,
+  .backdrop-blur-md,
+  .backdrop-blur-lg,
   .backdrop-blur-xl {
-    backdrop-filter: blur(4px) !important;
-    -webkit-backdrop-filter: blur(4px) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
   
-  /* Remove blurs decorativos que consomem GPU */
+  /* ====== BLURS DECORATIVOS - Remove ====== */
   .blur-3xl,
   .blur-2xl,
   .blur-xl {
     filter: none !important;
+  }
+  
+  /* ====== TRANSITIONS - Simplifica ====== */
+  /* transition-all é muito caro em áreas grandes */
+  .transition-all {
+    transition-property: color, background-color, border-color, opacity !important;
+    transition-duration: 150ms !important;
+  }
+  
+  /* ====== HOVER SHADOWS - Remove em ultrawide ====== */
+  .hover\:shadow-lg:hover,
+  .hover\:shadow-xl:hover,
+  .hover\:shadow-2xl:hover {
+    box-shadow: none !important;
+  }
+  
+  /* ====== HOVER TRANSFORMS - Remove em ultrawide ====== */
+  .group-hover\:scale-110:hover,
+  .hover\:scale-\[1\.02\]:hover,
+  .group:hover .group-hover\:scale-110 {
+    transform: none !important;
+  }
+  
+  /* ====== HOVER TRANSLATE - Remove em ultrawide ====== */
+  .hover\:translate-y-\[-2px\]:hover {
+    transform: none !important;
   }
 }
 

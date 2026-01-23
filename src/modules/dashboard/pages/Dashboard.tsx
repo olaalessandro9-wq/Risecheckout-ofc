@@ -6,6 +6,7 @@
  * 
  * Página principal do Dashboard - ~80 linhas.
  * Zero useState - usa useDashboard como SSOT.
+ * Otimizado para ultrawide com animações condicionais.
  */
 
 import { motion } from "framer-motion";
@@ -17,6 +18,7 @@ import {
   RevenueChart,
 } from "../components";
 import { RecentCustomersTable } from "@/components/dashboard/recent-customers";
+import { useIsUltrawide } from "@/hooks/useIsUltrawide";
 
 const PAGE_ANIMATION = {
   hidden: { opacity: 0 },
@@ -30,12 +32,21 @@ const PAGE_ANIMATION = {
 
 export default function Dashboard() {
   const { state, actions, data, isLoading, refetch } = useDashboard();
+  const isUltrawide = useIsUltrawide();
+
+  // Wrapper condicional: div simples em ultrawide (sem staggerChildren)
+  const Wrapper = isUltrawide ? "div" : motion.div;
+  const wrapperProps = isUltrawide
+    ? {}
+    : {
+        initial: "hidden",
+        animate: "show",
+        variants: PAGE_ANIMATION,
+      };
 
   return (
-    <motion.div
-      initial="hidden"
-      animate="show"
-      variants={PAGE_ANIMATION}
+    <Wrapper
+      {...wrapperProps}
       className="space-y-4 md:space-y-6 lg:space-y-8"
     >
       {/* Header com título e filtro de data */}
@@ -70,6 +81,6 @@ export default function Dashboard() {
           onRefresh={() => refetch()}
         />
       </div>
-    </motion.div>
+    </Wrapper>
   );
 }
