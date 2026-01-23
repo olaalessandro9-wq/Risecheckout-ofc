@@ -1,5 +1,7 @@
 /**
- * BuyerRecuperarSenha - Recuperação de senha para alunos (Estilo Braip)
+ * BuyerRecuperarSenha - Recuperação de senha para alunos
+ * 
+ * RISE Protocol V3 - Uses unified-auth as SSOT
  * 
  * Estados:
  * 1. form - Formulário para digitar email
@@ -11,16 +13,21 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mail, ArrowLeft, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SUPABASE_URL } from "@/config/supabase";
+import { api } from "@/lib/api";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("BuyerRecuperarSenha");
 
 type ViewState = "form" | "loading" | "success" | "error";
+
+interface PasswordResetResponse {
+  message?: string;
+  error?: string;
+}
 
 export default function BuyerRecuperarSenha() {
   const [email, setEmail] = useState("");
@@ -40,25 +47,21 @@ export default function BuyerRecuperarSenha() {
     setErrorMessage("");
 
     try {
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/buyer-auth/request-password-reset`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim().toLowerCase() }),
-      });
+      // RISE V3: Use unified-auth as SSOT
+      const { data, error } = await api.publicCall<PasswordResetResponse>(
+        "unified-auth/password-reset-request",
+        { email: email.trim().toLowerCase() }
+      );
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          setErrorMessage("E-mail não encontrado na base de dados");
-          setViewState("error");
-        } else {
-          setErrorMessage(data.error || "Erro ao processar solicitação");
-          setViewState("form");
-        }
+      if (error) {
+        // unified-auth returns success even for non-existent emails (security)
+        // Only network errors are actual errors
+        setErrorMessage(error.message || "Erro ao processar solicitação");
+        setViewState("form");
         return;
       }
 
+      // Always show success (prevents email enumeration attacks)
       setViewState("success");
     } catch (error: unknown) {
       log.error("Error requesting password reset:", error);
@@ -221,7 +224,7 @@ export default function BuyerRecuperarSenha() {
                   <div className="space-y-4">
                     <h1 className="text-2xl font-bold text-white">E-mail enviado!</h1>
                     <div className="space-y-2 text-slate-400">
-                      <p>Enviamos um link de recuperação para</p>
+                      <p>Se o email existir em nossa base, você receberá um link para</p>
                       <p className="text-white font-medium">{email}</p>
                       <p className="text-sm">Verifique sua caixa de entrada e spam.</p>
                     </div>

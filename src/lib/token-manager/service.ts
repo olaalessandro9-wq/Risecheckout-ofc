@@ -8,6 +8,9 @@
  * - Automatic timer management (via HeartbeatManager)
  * - State persistence (via persistence module)
  * - Subscriber notifications
+ * 
+ * MIGRATION NOTE: producerTokenService and buyerTokenService are DEPRECATED.
+ * Use unifiedTokenService for all new code.
  */
 
 import type { 
@@ -237,9 +240,34 @@ export class TokenService {
 // SINGLETON INSTANCES
 // ============================================
 
+/**
+ * UNIFIED TOKEN SERVICE - Use this for all new code
+ * 
+ * This is the primary token service that manages authentication
+ * via the unified-auth system with __Host-rise_* cookies.
+ */
+export const unifiedTokenService = new TokenService("unified");
+
+/**
+ * @deprecated Use unifiedTokenService instead.
+ * This will be removed in the next major version.
+ * 
+ * Legacy producer token service for backwards compatibility.
+ * Internally proxied to unified token service behavior.
+ */
 export const producerTokenService = new TokenService("producer");
+
+/**
+ * @deprecated Use unifiedTokenService instead.
+ * This will be removed in the next major version.
+ * 
+ * Legacy buyer token service for backwards compatibility.
+ * Internally proxied to unified token service behavior.
+ */
 export const buyerTokenService = new TokenService("buyer");
 
-// Backward compatibility aliases
+// Backward compatibility aliases (deprecated)
+/** @deprecated Use unifiedTokenService */
 export const producerTokenManager = producerTokenService;
+/** @deprecated Use unifiedTokenService */
 export const buyerTokenManager = buyerTokenService;
