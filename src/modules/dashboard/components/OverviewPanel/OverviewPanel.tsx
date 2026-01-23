@@ -36,7 +36,7 @@ export function OverviewPanel({ metrics, isLoading }: OverviewPanelProps) {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: config.delay }}
-              className={`flex items-center justify-between p-2.5 md:p-3 rounded-xl md:rounded-2xl bg-gradient-to-br from-muted/50 to-transparent border border-border hover:border-primary/20 transition-all duration-300 group hover:scale-[1.02] cursor-default ${colors.glow} hover:shadow-xl`}
+              className={`flex items-center justify-between p-2.5 md:p-3 rounded-xl md:rounded-2xl bg-gradient-to-br from-muted/50 to-transparent border border-border hover:border-primary/20 transition-all duration-300 group hover:translate-y-[-2px] cursor-default ${colors.glow} hover:shadow-xl`}
             >
               <div className="flex items-center gap-3 md:gap-4">
                 <div

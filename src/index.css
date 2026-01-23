@@ -495,3 +495,21 @@ html body [data-radix-select-viewport] [data-radix-select-item][style][data-high
     filter: none !important;
   }
 }
+
+/* ========================================
+   RECHARTS PERFORMANCE OPTIMIZATION
+   ========================================
+   
+   Isola o ResponsiveContainer do reflow
+   durante animações de layout (sidebar).
+   
+   ======================================== */
+
+.recharts-responsive-container {
+  contain: layout style;
+}
+
+/* Durante transições, reduz prioridade de re-renders */
+.recharts-wrapper {
+  will-change: auto;
+}
