@@ -2,19 +2,24 @@
 
 ## ✅ Completado
 
-### Fase 6.1: Edge Functions Convertidas para Proxy
-- [x] `buyer-auth/index.ts` → Proxy para `unified-auth`
-- [x] `producer-auth/index.ts` → Proxy para `unified-auth`
+### Fase 6.1: Edge Functions Convertidas para Proxy PURO
+- [x] `buyer-auth/index.ts` → Proxy puro para `unified-auth` (100% redirecionado)
+- [x] `producer-auth/index.ts` → Proxy puro para `unified-auth` (100% redirecionado)
 
 ### Fase 6.2: Frontend Migrado
 - [x] `BuyerRecuperarSenha.tsx` → Usa `api.publicCall("unified-auth/...")`
 - [x] `useSetupAccess.ts` → Usa `unifiedTokenService` e `unified-auth/validate`
 
+### Fase 6.3: Handlers Unificados Criados
+- [x] `unified-auth/handlers/check-producer-buyer.ts` → Novo handler
+- [x] `unified-auth/handlers/ensure-producer-access.ts` → Novo handler  
+- [x] `unified-auth/handlers/producer-login.ts` → Novo handler
+
 ### Fase 6.2: Token Services Atualizados
-- [x] `token-manager/service.ts` → `unifiedTokenService` como principal, legados marcados como `@deprecated`
+- [x] `token-manager/service.ts` → `unifiedTokenService` como principal
 - [x] `token-manager/refresh.ts` → Todos os tipos usam `unified-auth/refresh`
 
-## ⏳ Pendente (Fase 6.3+)
+## ⏳ Pendente (Fase 6.4+)
 
 ### Arquivos Legados para Deletar (após 30 dias de proxy estável)
 - `_shared/buyer-auth-handlers.ts`
@@ -37,11 +42,8 @@ Frontend                    Edge Functions
 useUnifiedAuth      ──────► unified-auth (SSOT)
 unifiedTokenService ──────► unified-auth/refresh
 
-BuyerRecuperarSenha ──────► unified-auth/password-reset-request
-useSetupAccess      ──────► unified-auth/validate
-
-buyer-auth/*        ──────► PROXY → unified-auth/*
-producer-auth/*     ──────► PROXY → unified-auth/*
+buyer-auth/*        ──────► PROXY PURO → unified-auth/*
+producer-auth/*     ──────► PROXY PURO → unified-auth/*
 ```
 
 Última atualização: 2026-01-23
