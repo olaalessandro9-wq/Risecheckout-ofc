@@ -1,10 +1,11 @@
 /**
- * RevenueChart Component (Migrado)
+ * RevenueChart Component (Otimizado para Ultrawide)
  * 
  * @module dashboard/components
  * @version RISE V3 Compliant
  * 
- * Gráfico de faturamento com Recharts.
+ * Gráfico de faturamento com otimizações condicionais
+ * para monitores ultrawide (≥2560px).
  */
 
 import { useMemo } from "react";
@@ -20,6 +21,7 @@ import {
 import type { TooltipProps } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
+import { useIsUltrawide } from "@/hooks/useIsUltrawide";
 
 interface RevenueChartProps {
   readonly title: string;
@@ -118,7 +120,31 @@ export function RevenueChart({
   data,
   isLoading = false,
 }: RevenueChartProps) {
+  const isUltrawide = useIsUltrawide();
   const yAxisConfig = useMemo(() => calculateYAxisConfig(data), [data]);
+
+  // Configurações condicionais para performance em ultrawide
+  const chartConfig = useMemo(() => ({
+    isAnimationActive: !isUltrawide,
+    dot: isUltrawide ? false : {
+      r: 4,
+      strokeWidth: 2,
+      stroke: "hsl(var(--success))",
+      fill: "hsl(var(--card))",
+    },
+    activeDot: isUltrawide 
+      ? { r: 6, fill: "hsl(var(--success))" } 
+      : {
+          r: 6,
+          strokeWidth: 2,
+          stroke: "hsl(var(--success) / 0.3)",
+          fill: "hsl(var(--success))",
+        },
+    cursorStyle: isUltrawide 
+      ? { stroke: "hsl(var(--success))", strokeWidth: 1, strokeOpacity: 0.2 }
+      : { stroke: "hsl(var(--success))", strokeWidth: 1, strokeDasharray: "4 4", strokeOpacity: 0.3 },
+    strokeWidth: isUltrawide ? 2 : 3,
+  }), [isUltrawide]);
 
   return (
     <motion.div
@@ -127,7 +153,6 @@ export function RevenueChart({
       transition={{ duration: 0.25 }}
       className="relative h-full"
     >
-      {/* Blur decorativo removido para performance em ultrawide */}
       <div className="relative h-full bg-card/95 backdrop-blur-sm border border-border/50 rounded-xl md:rounded-2xl p-4 md:p-6 hover:border-border transition-all duration-300 flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between mb-4 md:mb-6 lg:mb-8">
@@ -163,7 +188,6 @@ export function RevenueChart({
                 data={data}
                 margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
               >
-                {/* Filtros SVG removidos para performance */}
                 <CartesianGrid
                   strokeDasharray="3 3"
                   stroke="hsl(var(--chart-grid))"
@@ -178,16 +202,18 @@ export function RevenueChart({
                   axisLine={false}
                   dy={10}
                   padding={{ left: 20, right: 20 }}
+                  interval={isUltrawide ? "preserveStartEnd" : "preserveEnd"}
+                  minTickGap={isUltrawide ? 100 : 50}
                 />
-            <YAxis
-              stroke="hsl(var(--chart-axis))"
-              style={{ fontSize: "11px", fontWeight: 500 }}
-              tickLine={false}
-              axisLine={false}
-              domain={yAxisConfig.domain}
-              ticks={yAxisConfig.ticks}
-              width={55}
-              tickFormatter={(value) => {
+                <YAxis
+                  stroke="hsl(var(--chart-axis))"
+                  style={{ fontSize: "11px", fontWeight: 500 }}
+                  tickLine={false}
+                  axisLine={false}
+                  domain={yAxisConfig.domain}
+                  ticks={yAxisConfig.ticks}
+                  width={55}
+                  tickFormatter={(value) => {
                     if (value >= 1000) {
                       return `R$ ${(value / 1000).toFixed(1)}k`;
                     }
@@ -196,30 +222,17 @@ export function RevenueChart({
                 />
                 <Tooltip
                   content={<CustomTooltip />}
-                  cursor={{
-                    stroke: "hsl(var(--success))",
-                    strokeWidth: 1,
-                    strokeDasharray: "4 4",
-                    strokeOpacity: 0.3,
-                  }}
+                  cursor={chartConfig.cursorStyle}
                 />
                 <Line
                   type="monotone"
                   dataKey="value"
                   stroke="hsl(var(--success))"
-                  strokeWidth={3}
-                  dot={{
-                    r: 4,
-                    strokeWidth: 2,
-                    stroke: "hsl(var(--success))",
-                    fill: "hsl(var(--card))",
-                  }}
-                  activeDot={{
-                    r: 6,
-                    strokeWidth: 2,
-                    stroke: "hsl(var(--success) / 0.3)",
-                    fill: "hsl(var(--success))",
-                  }}
+                  strokeWidth={chartConfig.strokeWidth}
+                  isAnimationActive={chartConfig.isAnimationActive}
+                  animationDuration={250}
+                  dot={chartConfig.dot}
+                  activeDot={chartConfig.activeDot}
                 />
               </LineChart>
             </ResponsiveContainer>
