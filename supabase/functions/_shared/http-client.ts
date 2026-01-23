@@ -14,7 +14,7 @@
  */
 
 import { createLogger } from "./logger.ts";
-import { CircuitBreaker, CircuitBreakerConfig } from "./circuit-breaker.ts";
+import { CircuitBreaker, type CircuitBreakerConfig } from "./circuit-breaker.ts";
 
 const log = createLogger("http-client");
 
@@ -79,29 +79,8 @@ const DEFAULT_RETRIES = 0;
 const DEFAULT_RETRY_DELAY = 1000;
 const MAX_RETRY_DELAY = 30000;
 
-// Configurações de Circuit Breaker por gateway
-const GATEWAY_CIRCUIT_CONFIGS: Record<string, Partial<CircuitBreakerConfig>> = {
-  asaas: {
-    failureThreshold: 5,
-    timeout: 30000,
-    successThreshold: 2,
-  },
-  mercadopago: {
-    failureThreshold: 5,
-    timeout: 30000,
-    successThreshold: 2,
-  },
-  stripe: {
-    failureThreshold: 5,
-    timeout: 30000,
-    successThreshold: 2,
-  },
-  pushinpay: {
-    failureThreshold: 5,
-    timeout: 30000,
-    successThreshold: 2,
-  },
-};
+// RISE V3: Importar configs do circuit-breaker.ts (source of truth único)
+import { GATEWAY_CIRCUIT_CONFIGS } from "./circuit-breaker.ts";
 
 // Cache de circuit breakers por gateway
 const circuitBreakers = new Map<string, CircuitBreaker>();
@@ -264,16 +243,23 @@ export function createGatewayClient(config: GatewayClientConfig) {
   // Obter ou criar Circuit Breaker para este gateway
   let breaker = circuitBreakers.get(gateway);
   if (!breaker) {
-    const gatewayConfig = GATEWAY_CIRCUIT_CONFIGS[gateway] || {};
-    breaker = new CircuitBreaker({
-      name: `gateway-${gateway}`,
-      failureThreshold: 5,
-      timeout: 30000,
-      successThreshold: 2,
-      windowSize: 60000,
-      ...gatewayConfig,
-      ...cbConfig,
-    });
+    const gatewayConfig = GATEWAY_CIRCUIT_CONFIGS[gateway];
+    
+    // Se existe config pré-definida, usar (já tem todos os campos). Senão criar uma nova.
+    if (gatewayConfig) {
+      // GATEWAY_CIRCUIT_CONFIGS tem todos os campos definidos, então cast é seguro
+      breaker = new CircuitBreaker({ ...gatewayConfig, ...cbConfig } as CircuitBreakerConfig);
+    } else {
+      // Fallback para gateway desconhecido
+      breaker = new CircuitBreaker({
+        name: `gateway-${gateway}`,
+        failureThreshold: 5,
+        timeout: 30000,
+        successThreshold: 2,
+        windowSize: 60000,
+        ...cbConfig,
+      });
+    }
     circuitBreakers.set(gateway, breaker);
   }
 

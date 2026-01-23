@@ -233,18 +233,22 @@ export async function logSecurityViolation(
   const { supabase, orderId, expectedAmountCents, actualAmountCents, gateway, clientIp, reason } = input;
 
   try {
-    // Registrar em tabela de auditoria de segurança
+    // RISE V3: Usar schema correto de security_audit_log
+    // Colunas disponíveis: user_id, action, resource, resource_id, success, ip_address, user_agent, metadata
     await supabase.from("security_audit_log").insert({
-      event_type: "payment_validation_failure",
-      severity: "high",
-      order_id: orderId,
-      details: {
+      user_id: null, // Não temos user_id neste contexto
+      action: "payment_validation_failure",
+      resource: "orders",
+      resource_id: orderId,
+      success: false,
+      ip_address: clientIp || null,
+      metadata: {
         reason,
         expected_amount_cents: expectedAmountCents,
         actual_amount_cents: actualAmountCents,
         gateway,
-        client_ip: clientIp,
         timestamp: new Date().toISOString(),
+        severity: "high"
       },
     });
 
