@@ -154,8 +154,14 @@ serve(async (req) => {
 
     const vendorId = orderData?.vendor_id || '00000000-0000-0000-0000-000000000000';
 
-    // Build update data - MODELO HOTMART/KIWIFY
+    // RISE V3: Idempotência - Se já pago e evento é de pagamento, retornar early
     const normalizedStatus = orderStatus.toLowerCase();
+    if (orderData?.status === 'paid' && normalizedStatus === 'paid') {
+      logger.info("Order already paid, skipping duplicate", { orderId, asaasPaymentId: payment.id });
+      return createSuccessResponse({ received: true, duplicate: true, orderId });
+    }
+
+    // Build update data - MODELO HOTMART/KIWIFY
     const updateData: Record<string, unknown> = {
       gateway_payment_id: payment.id,
       updated_at: new Date().toISOString()

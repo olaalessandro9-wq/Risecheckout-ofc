@@ -80,9 +80,15 @@ serve(async (req) => {
 
       const { data: order } = await supabase
         .from("orders")
-        .select("customer_email, customer_name, product_name, amount_cents, product_id, offer_id, vendor_id")
+        .select("customer_email, customer_name, product_name, amount_cents, product_id, offer_id, vendor_id, status")
         .eq("id", orderId)
         .single();
+
+      // RISE V3: Idempotência - Se já pago, retornar early
+      if (order?.status === 'paid') {
+        logger.info("Order already paid, skipping duplicate", { orderId, paymentIntentId: paymentIntent.id });
+        return createSuccessResponse({ received: true, duplicate: true });
+      }
 
       const { error: updateError } = await supabase
         .from("orders")

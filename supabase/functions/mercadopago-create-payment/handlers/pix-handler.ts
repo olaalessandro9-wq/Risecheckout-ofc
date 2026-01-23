@@ -7,8 +7,10 @@
  */
 
 import { createLogger } from '../../_shared/logger.ts';
+import { fetchWithTimeout } from '../../_shared/http-client.ts';
 
 const log = createLogger('mercadopago-pix-handler');
+const API_TIMEOUT = 15000; // 15 segundos
 
 // ============================================
 // INTERFACES
@@ -167,7 +169,8 @@ export async function handlePixPayment(params: PixPaymentParams): Promise<PixPay
     has_application_fee: applicationFeeCents > 0
   });
 
-  const pixResponse = await fetch('https://api.mercadopago.com/v1/payments', {
+  // RISE V3: HTTP com timeout
+  const pixResponse = await fetchWithTimeout('https://api.mercadopago.com/v1/payments', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${effectiveAccessToken}`,
@@ -175,7 +178,7 @@ export async function handlePixPayment(params: PixPaymentParams): Promise<PixPay
       'X-Idempotency-Key': `${orderId}-pix`
     },
     body: JSON.stringify(pixPayload)
-  });
+  }, API_TIMEOUT);
 
   const pixData = await pixResponse.json() as MercadoPagoPixResponse;
 
