@@ -6,8 +6,10 @@
 
 import { AsaasSplitRule } from "./split-builder.ts";
 import { createLogger } from "../../_shared/logger.ts";
+import { fetchWithTimeout } from "../../_shared/http-client.ts";
 
 const log = createLogger("asaas-create-payment");
+const API_TIMEOUT = 15000; // 15 segundos
 
 export interface ChargePayload {
   customer: string;
@@ -82,7 +84,7 @@ export function buildChargePayload(params: {
 }
 
 /**
- * Cria a cobrança na API do Asaas
+ * Cria a cobrança na API do Asaas (com timeout RISE V3)
  */
 export async function createAsaasCharge(
   baseUrl: string,
@@ -91,14 +93,14 @@ export async function createAsaasCharge(
 ): Promise<ChargeResult> {
   log.info("Creating charge...");
 
-  const response = await fetch(`${baseUrl}/payments`, {
+  const response = await fetchWithTimeout(`${baseUrl}/payments`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'access_token': apiKey
     },
     body: JSON.stringify(payload)
-  });
+  }, API_TIMEOUT);
 
   const chargeData = await response.json();
 
@@ -113,19 +115,19 @@ export async function createAsaasCharge(
 }
 
 /**
- * Obtém QR Code PIX para a cobrança
+ * Obtém QR Code PIX para a cobrança (com timeout RISE V3)
  */
 export async function getPixQrCode(
   baseUrl: string,
   apiKey: string,
   chargeId: string
 ): Promise<{ qrCode?: string; qrCodeText?: string }> {
-  const response = await fetch(`${baseUrl}/payments/${chargeId}/pixQrCode`, {
+  const response = await fetchWithTimeout(`${baseUrl}/payments/${chargeId}/pixQrCode`, {
     headers: {
       'Content-Type': 'application/json',
       'access_token': apiKey
     }
-  });
+  }, API_TIMEOUT);
 
   if (response.ok) {
     const qrData = await response.json();

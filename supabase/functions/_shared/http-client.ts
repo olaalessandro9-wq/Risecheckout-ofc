@@ -59,6 +59,17 @@ export interface GatewayClientConfig extends HttpClientConfig {
   circuitBreaker?: Partial<CircuitBreakerConfig>;
 }
 
+/** Tipo do cliente HTTP retornado por createGatewayClient */
+export interface GatewayHttpClient {
+  get<T = unknown>(path: string, options?: FetchOptions): Promise<HttpResponse<T>>;
+  post<T = unknown>(path: string, body?: unknown, options?: FetchOptions): Promise<HttpResponse<T>>;
+  put<T = unknown>(path: string, body?: unknown, options?: FetchOptions): Promise<HttpResponse<T>>;
+  delete<T = unknown>(path: string, options?: FetchOptions): Promise<HttpResponse<T>>;
+  patch<T = unknown>(path: string, body?: unknown, options?: FetchOptions): Promise<HttpResponse<T>>;
+  getCircuitState(): string;
+  resetCircuit(): void;
+}
+
 // ============================================================================
 // CONSTANTS
 // ============================================================================
@@ -72,23 +83,23 @@ const MAX_RETRY_DELAY = 30000;
 const GATEWAY_CIRCUIT_CONFIGS: Record<string, Partial<CircuitBreakerConfig>> = {
   asaas: {
     failureThreshold: 5,
-    resetTimeout: 30000,
-    halfOpenRequests: 2,
+    timeout: 30000,
+    successThreshold: 2,
   },
   mercadopago: {
     failureThreshold: 5,
-    resetTimeout: 30000,
-    halfOpenRequests: 2,
+    timeout: 30000,
+    successThreshold: 2,
   },
   stripe: {
     failureThreshold: 5,
-    resetTimeout: 30000,
-    halfOpenRequests: 2,
+    timeout: 30000,
+    successThreshold: 2,
   },
   pushinpay: {
     failureThreshold: 5,
-    resetTimeout: 30000,
-    halfOpenRequests: 2,
+    timeout: 30000,
+    successThreshold: 2,
   },
 };
 
@@ -257,8 +268,9 @@ export function createGatewayClient(config: GatewayClientConfig) {
     breaker = new CircuitBreaker({
       name: `gateway-${gateway}`,
       failureThreshold: 5,
-      resetTimeout: 30000,
-      halfOpenRequests: 2,
+      timeout: 30000,
+      successThreshold: 2,
+      windowSize: 60000,
       ...gatewayConfig,
       ...cbConfig,
     });
