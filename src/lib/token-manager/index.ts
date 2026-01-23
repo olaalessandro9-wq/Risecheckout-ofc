@@ -51,19 +51,6 @@ export {
 } from "./service";
 
 // ============================================
-// LEGACY ALIASES (DEPRECATED)
-// These exist only for backwards compatibility.
-// All point to unifiedTokenService.
-// ============================================
-
-export { 
-  producerTokenService,
-  buyerTokenService,
-  producerTokenManager,
-  buyerTokenManager,
-} from "./service";
-
-// ============================================
 // UNIFIED API HELPERS (RISE V3 - PREFERRED)
 // ============================================
 

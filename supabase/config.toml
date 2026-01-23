@@ -1,22 +1,22 @@
 project_id = "wivbtmtgpsxupfjwwovf"
 
 # =====================================================
-# RISE V3 - EDGE FUNCTIONS AUTHENTICATION CONFIG
+# RISE V3 - UNIFIED AUTHENTICATION SYSTEM
 # =====================================================
 # 
 # PADRÃO: verify_jwt = false
-# Todas as funções usam autenticação app-level via:
-# - producer_sessions (unified-auth) para dashboard/producers
-# - buyer_token para área de membros
+# Todas as funções usam autenticação via:
+# - unified-auth (Cookie: __Host-rise_access)
+# - Tabela: sessions (com active_role)
 # - Sem auth para webhooks/públicas
 #
-# NUNCA use verify_jwt = true para funções producer_sessions!
+# NUNCA use verify_jwt = true para funções autenticadas!
 # O gateway do Supabase bloquearia requests legítimos.
 # =====================================================
 
 # =====================================================
-# PRODUCER_SESSIONS AUTH (unified-auth)
-# Usam X-Producer-Session-Token
+# AUTHENTICATED - Dashboard/Producer Functions
+# Usam getAuthenticatedUser() de unified-auth-v2.ts
 # verify_jwt DEVE ser false
 # =====================================================
 
@@ -78,7 +78,7 @@ verify_jwt = false
 [functions.affiliate-pixel-management]
 verify_jwt = false
 
-# User Management (producer_sessions)
+# User Management
 [functions.manage-user-role]
 verify_jwt = false
 
@@ -88,7 +88,7 @@ verify_jwt = false
 [functions.get-users-with-emails]
 verify_jwt = false
 
-# Affiliates (producer_sessions)
+# Affiliates
 [functions.manage-affiliation]
 verify_jwt = false
 
@@ -110,11 +110,11 @@ verify_jwt = false
 [functions.update-affiliate-settings]
 verify_jwt = false
 
-# Vault & Credentials (producer_sessions)
+# Vault & Credentials
 [functions.vault-save]
 verify_jwt = false
 
-# Security & Crypto (producer_sessions)
+# Security & Crypto
 [functions.decrypt-customer-data]
 verify_jwt = false
 
@@ -127,11 +127,11 @@ verify_jwt = false
 [functions.security-management]
 verify_jwt = false
 
-# Email (producer_sessions)
+# Email
 [functions.send-email]
 verify_jwt = false
 
-# Admin/Owner (producer_sessions)
+# Admin/Owner
 [functions.admin-health]
 verify_jwt = false
 
@@ -142,8 +142,8 @@ verify_jwt = false
 verify_jwt = false
 
 # =====================================================
-# BUYER_TOKEN AUTH (x-buyer-session)
-# Área de Membros - autenticação própria
+# AUTHENTICATED - Members Area (Buyer Functions)
+# Usam getAuthenticatedUser() de unified-auth-v2.ts
 # verify_jwt DEVE ser false
 # =====================================================
 
@@ -269,7 +269,7 @@ verify_jwt = false
 
 # =====================================================
 # PUBLIC - Autenticação
-# Endpoints de login (não requerem auth prévia)
+# Endpoint único de autenticação (unified-auth)
 # verify_jwt DEVE ser false
 # =====================================================
 
