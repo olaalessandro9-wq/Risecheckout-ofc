@@ -18,12 +18,12 @@ import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { createLogger } from "./logger.ts";
 import { 
   getCookie, 
-  COOKIE_NAMES, 
+  COOKIE_NAMES,
+  LEGACY_COOKIE_NAMES,
   createAuthCookies, 
   createLogoutCookies,
   jsonResponseWithCookies,
   createSecureCookie,
-  type CookieDomain,
 } from "./cookie-helper.ts";
 import { 
   ACCESS_TOKEN_DURATION_MINUTES, 
@@ -106,44 +106,23 @@ export function generateSessionTokens(): {
 // ============================================================================
 
 /**
- * Gets access token from request, checking multiple cookie formats for compatibility.
- * Order: unified > producer > buyer
+ * Gets access token from request using unified cookie.
+ * Legacy fallbacks removed - RISE V3 cleanup complete.
  */
 export function getUnifiedAccessToken(req: Request): string | null {
   const cookieHeader = req.headers.get("Cookie");
   if (!cookieHeader) return null;
-  
-  // Try unified format first
-  const unified = getCookie(cookieHeader, UNIFIED_COOKIE_NAMES.access);
-  if (unified) return unified;
-  
-  // Fallback to producer format
-  const producer = getCookie(cookieHeader, COOKIE_NAMES.producer.access);
-  if (producer) return producer;
-  
-  // Fallback to buyer format
-  const buyer = getCookie(cookieHeader, COOKIE_NAMES.buyer.access);
-  return buyer;
+  return getCookie(cookieHeader, UNIFIED_COOKIE_NAMES.access);
 }
 
 /**
- * Gets refresh token from request, checking multiple cookie formats.
+ * Gets refresh token from request using unified cookie.
+ * Legacy fallbacks removed - RISE V3 cleanup complete.
  */
 export function getUnifiedRefreshToken(req: Request): string | null {
   const cookieHeader = req.headers.get("Cookie");
   if (!cookieHeader) return null;
-  
-  // Try unified format first
-  const unified = getCookie(cookieHeader, UNIFIED_COOKIE_NAMES.refresh);
-  if (unified) return unified;
-  
-  // Fallback to producer format
-  const producer = getCookie(cookieHeader, COOKIE_NAMES.producer.refresh);
-  if (producer) return producer;
-  
-  // Fallback to buyer format
-  const buyer = getCookie(cookieHeader, COOKIE_NAMES.buyer.refresh);
-  return buyer;
+  return getCookie(cookieHeader, UNIFIED_COOKIE_NAMES.refresh);
 }
 
 // ============================================================================
@@ -186,12 +165,12 @@ export function createUnifiedLogoutCookies(): string[] {
     // Unified cookies
     expired(UNIFIED_COOKIE_NAMES.access),
     expired(UNIFIED_COOKIE_NAMES.refresh),
-    // Legacy producer cookies
-    expired(COOKIE_NAMES.producer.access),
-    expired(COOKIE_NAMES.producer.refresh),
-    // Legacy buyer cookies
-    expired(COOKIE_NAMES.buyer.access),
-    expired(COOKIE_NAMES.buyer.refresh),
+    // Legacy producer cookies (clear from old sessions)
+    expired(LEGACY_COOKIE_NAMES.producer.access),
+    expired(LEGACY_COOKIE_NAMES.producer.refresh),
+    // Legacy buyer cookies (clear from old sessions)
+    expired(LEGACY_COOKIE_NAMES.buyer.access),
+    expired(LEGACY_COOKIE_NAMES.buyer.refresh),
   ];
 }
 
@@ -492,11 +471,11 @@ function createLegacyClearCookies(): string[] {
   
   return [
     // Legacy producer cookies
-    expired(COOKIE_NAMES.producer.access),
-    expired(COOKIE_NAMES.producer.refresh),
+    expired(LEGACY_COOKIE_NAMES.producer.access),
+    expired(LEGACY_COOKIE_NAMES.producer.refresh),
     // Legacy buyer cookies  
-    expired(COOKIE_NAMES.buyer.access),
-    expired(COOKIE_NAMES.buyer.refresh),
+    expired(LEGACY_COOKIE_NAMES.buyer.access),
+    expired(LEGACY_COOKIE_NAMES.buyer.refresh),
   ];
 }
 

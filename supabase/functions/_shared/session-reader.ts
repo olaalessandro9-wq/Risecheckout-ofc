@@ -1,120 +1,92 @@
 /**
  * Session Reader - Unified Token Extraction
  * 
- * RISE Protocol V3: Reads auth tokens from cookies with priority:
- * 1. Unified cookies (__Host-rise_*) - new system
- * 2. Producer cookies (__Host-producer_*) - legacy
- * 3. Buyer cookies (__Host-buyer_*) - legacy
+ * RISE Protocol V3: Reads auth tokens from unified cookies only.
+ * Legacy cookie support removed - use cookie-helper.ts LEGACY_COOKIE_NAMES for clearing only.
  * 
- * @version 2.0.0 - Security fix: try unified cookies first
+ * @version 3.0.0 - Legacy cleanup complete
  */
 
 import { 
   getAccessToken, 
-  getRefreshToken, 
+  getRefreshToken,
   getCookie,
-  type CookieDomain 
+  COOKIE_NAMES,
+  LEGACY_COOKIE_NAMES,
 } from "./cookie-helper.ts";
-import { UNIFIED_COOKIE_NAMES } from "./unified-auth-v2.ts";
 
 // ============================================
-// SESSION TOKEN READERS
+// UNIFIED SESSION TOKEN READERS
 // ============================================
 
 /**
- * Gets producer access token, trying unified format first.
- * 
- * Priority:
- * 1. __Host-rise_access (unified)
- * 2. __Host-producer_access (legacy)
+ * Gets unified access token from request.
  * 
  * @param req - Request object
  * @returns Access token or null
  */
-export function getProducerAccessToken(req: Request): string | null {
-  const cookieHeader = req.headers.get("Cookie");
-  if (!cookieHeader) return null;
-  
-  // Try unified format first (new system)
-  const unified = getCookie(cookieHeader, UNIFIED_COOKIE_NAMES.access);
-  if (unified) return unified;
-  
-  // Fallback to legacy producer format
-  return getAccessToken(req, "producer");
+export function getUnifiedAccessToken(req: Request): string | null {
+  return getAccessToken(req);
 }
 
 /**
- * Gets producer refresh token, trying unified format first.
+ * Gets unified refresh token from request.
  * 
  * @param req - Request object
  * @returns Refresh token or null
  */
-export function getProducerRefreshToken(req: Request): string | null {
-  const cookieHeader = req.headers.get("Cookie");
-  if (!cookieHeader) return null;
-  
-  // Try unified format first
-  const unified = getCookie(cookieHeader, UNIFIED_COOKIE_NAMES.refresh);
-  if (unified) return unified;
-  
-  // Fallback to legacy
-  return getRefreshToken(req, "producer");
-}
-
-/**
- * Gets buyer access token, trying unified format first.
- * 
- * Priority:
- * 1. __Host-rise_access (unified)
- * 2. __Host-buyer_access (legacy)
- * 
- * @param req - Request object
- * @returns Access token or null
- */
-export function getBuyerAccessToken(req: Request): string | null {
-  const cookieHeader = req.headers.get("Cookie");
-  if (!cookieHeader) return null;
-  
-  // Try unified format first (new system)
-  const unified = getCookie(cookieHeader, UNIFIED_COOKIE_NAMES.access);
-  if (unified) return unified;
-  
-  // Fallback to legacy buyer format
-  return getAccessToken(req, "buyer");
-}
-
-/**
- * Gets buyer refresh token, trying unified format first.
- * 
- * @param req - Request object
- * @returns Refresh token or null
- */
-export function getBuyerRefreshToken(req: Request): string | null {
-  const cookieHeader = req.headers.get("Cookie");
-  if (!cookieHeader) return null;
-  
-  // Try unified format first
-  const unified = getCookie(cookieHeader, UNIFIED_COOKIE_NAMES.refresh);
-  if (unified) return unified;
-  
-  // Fallback to legacy
-  return getRefreshToken(req, "buyer");
+export function getUnifiedRefreshToken(req: Request): string | null {
+  return getRefreshToken(req);
 }
 
 // ============================================
-// GENERIC READER
+// LEGACY READERS (For clearing old sessions)
 // ============================================
 
 /**
- * Gets access token for a specific domain, trying unified format first.
+ * Checks if request has any legacy cookies that should be cleared.
+ * Used by logout to ensure complete cleanup.
  * 
  * @param req - Request object
- * @param domain - "producer" or "buyer"
- * @returns Access token or null
+ * @returns true if legacy cookies are present
  */
-export function getSessionToken(req: Request, domain: CookieDomain): string | null {
-  if (domain === "producer") {
-    return getProducerAccessToken(req);
-  }
-  return getBuyerAccessToken(req);
+export function hasLegacyCookies(req: Request): boolean {
+  const cookieHeader = req.headers.get("Cookie");
+  if (!cookieHeader) return false;
+  
+  return (
+    getCookie(cookieHeader, LEGACY_COOKIE_NAMES.producer.access) !== null ||
+    getCookie(cookieHeader, LEGACY_COOKIE_NAMES.producer.refresh) !== null ||
+    getCookie(cookieHeader, LEGACY_COOKIE_NAMES.buyer.access) !== null ||
+    getCookie(cookieHeader, LEGACY_COOKIE_NAMES.buyer.refresh) !== null
+  );
 }
+
+// ============================================
+// ALIASES (Backwards compatibility during migration)
+// ============================================
+
+/**
+ * @deprecated Use getUnifiedAccessToken instead
+ */
+export const getSessionToken = getUnifiedAccessToken;
+
+/**
+ * @deprecated Use getUnifiedAccessToken instead
+ */
+export const getProducerAccessToken = getUnifiedAccessToken;
+
+/**
+ * @deprecated Use getUnifiedRefreshToken instead
+ */
+export const getProducerRefreshToken = getUnifiedRefreshToken;
+
+/**
+ * @deprecated Use getUnifiedAccessToken instead
+ */
+export const getBuyerAccessToken = getUnifiedAccessToken;
+
+/**
+ * @deprecated Use getUnifiedRefreshToken instead
+ */
+export const getBuyerRefreshToken = getUnifiedRefreshToken;

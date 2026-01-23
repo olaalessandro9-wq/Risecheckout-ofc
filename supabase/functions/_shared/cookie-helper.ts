@@ -1,33 +1,34 @@
 /**
- * Cookie Helper - Secure httpOnly Cookie Management
+ * Cookie Helper - Unified Auth System
  * 
- * RISE Protocol V3: Centralized cookie management for auth security.
- * All auth tokens are now stored in httpOnly cookies (invisible to JavaScript).
+ * RISE Protocol V3: Simplified cookie management for unified identity.
+ * Legacy cookie names kept only for clearing during logout.
  * 
- * Security Features:
- * - httpOnly: Prevents XSS attacks from reading tokens
- * - Secure: Only sent over HTTPS
- * - SameSite=None: Required for cross-origin with credentials
- * - Partitioned: CHIPS for third-party context isolation
- * - __Host- prefix: Prevents domain override attacks
- * 
- * @version 1.0.0
+ * @version 3.0.0 - Legacy cleanup complete
  */
 
-import { ACCESS_TOKEN_DURATION_MINUTES, REFRESH_TOKEN_DURATION_DAYS } from "./auth-constants.ts";
+import { 
+  ACCESS_TOKEN_DURATION_MINUTES, 
+  REFRESH_TOKEN_DURATION_DAYS 
+} from "./auth-constants.ts";
 
 // ============================================
-// COOKIE NAMES
+// UNIFIED COOKIE NAMES (RISE V3)
 // ============================================
 
 /**
- * Cookie names with __Host- prefix for maximum security.
- * __Host- prefix requirements:
- * - Secure flag MUST be set
- * - Path MUST be "/"
- * - Domain MUST NOT be set
+ * Unified cookie names - single identity architecture.
  */
 export const COOKIE_NAMES = {
+  access: "__Host-rise_access",
+  refresh: "__Host-rise_refresh",
+} as const;
+
+/**
+ * Legacy cookie names - kept ONLY for clearing during logout.
+ * DO NOT use these for creating new cookies.
+ */
+export const LEGACY_COOKIE_NAMES = {
   producer: {
     access: "__Host-producer_access",
     refresh: "__Host-producer_refresh",
@@ -38,22 +39,20 @@ export const COOKIE_NAMES = {
   },
 } as const;
 
-export type CookieDomain = "producer" | "buyer";
-
 // ============================================
 // COOKIE OPTIONS
 // ============================================
 
 export interface CookieOptions {
-  maxAge: number;       // seconds
-  httpOnly: boolean;
-  secure: boolean;
-  sameSite: "None" | "Lax" | "Strict";
-  path: string;
+  maxAge: number;
+  httpOnly?: boolean;
+  secure?: boolean;
+  sameSite?: "Strict" | "Lax" | "None";
+  path?: string;
 }
 
 const DEFAULT_COOKIE_OPTIONS: CookieOptions = {
-  maxAge: ACCESS_TOKEN_DURATION_MINUTES * 60, // 15 minutes in seconds
+  maxAge: ACCESS_TOKEN_DURATION_MINUTES * 60,
   httpOnly: true,
   secure: true,
   sameSite: "None",
@@ -61,16 +60,50 @@ const DEFAULT_COOKIE_OPTIONS: CookieOptions = {
 };
 
 // ============================================
-// COOKIE CREATION
+// COOKIE PARSING
 // ============================================
 
 /**
- * Creates a secure cookie string with all security flags.
- * 
- * @param name - Cookie name (use COOKIE_NAMES)
- * @param value - Cookie value (token)
- * @param options - Override default options
- * @returns Cookie string for Set-Cookie header
+ * Escapes special regex characters in cookie name.
+ */
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Parses a cookie value from Cookie header.
+ */
+export function getCookie(cookieHeader: string | null, name: string): string | null {
+  if (!cookieHeader) return null;
+  
+  const regex = new RegExp(`(?:^|; )${escapeRegex(name)}=([^;]*)`);
+  const match = cookieHeader.match(regex);
+  
+  return match ? match[1] : null;
+}
+
+/**
+ * Gets access token from request using unified cookie name.
+ */
+export function getAccessToken(req: Request): string | null {
+  const cookieHeader = req.headers.get("Cookie");
+  return getCookie(cookieHeader, COOKIE_NAMES.access);
+}
+
+/**
+ * Gets refresh token from request using unified cookie name.
+ */
+export function getRefreshToken(req: Request): string | null {
+  const cookieHeader = req.headers.get("Cookie");
+  return getCookie(cookieHeader, COOKIE_NAMES.refresh);
+}
+
+// ============================================
+// SECURE COOKIE CREATION
+// ============================================
+
+/**
+ * Creates a secure cookie string with __Host- prefix support.
  */
 export function createSecureCookie(
   name: string,
@@ -89,96 +122,51 @@ export function createSecureCookie(
   if (opts.secure) parts.push("Secure");
   if (opts.sameSite) parts.push(`SameSite=${opts.sameSite}`);
   
-  // CHIPS: Partitioned cookies for third-party context
+  // Add Partitioned for Chrome third-party cookie support
   parts.push("Partitioned");
   
   return parts.join("; ");
 }
 
-/**
- * Creates access token cookie.
- */
-export function createAccessCookie(domain: CookieDomain, accessToken: string): string {
-  const name = COOKIE_NAMES[domain].access;
-  return createSecureCookie(name, accessToken, {
-    maxAge: ACCESS_TOKEN_DURATION_MINUTES * 60,
-  });
-}
-
-/**
- * Creates refresh token cookie.
- */
-export function createRefreshCookie(domain: CookieDomain, refreshToken: string): string {
-  const name = COOKIE_NAMES[domain].refresh;
-  return createSecureCookie(name, refreshToken, {
-    maxAge: REFRESH_TOKEN_DURATION_DAYS * 24 * 60 * 60, // days to seconds
-  });
-}
-
 // ============================================
-// COOKIE EXPIRATION (LOGOUT)
+// UNIFIED AUTH COOKIES
 // ============================================
 
 /**
- * Creates an expired cookie to clear it from the browser.
- * 
- * @param name - Cookie name to expire
- * @returns Cookie string that expires immediately
+ * Creates auth cookies for unified identity system.
  */
-export function createExpiredCookie(name: string): string {
-  return `${name}=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=None; Partitioned`;
+export function createAuthCookies(
+  accessToken: string,
+  refreshToken: string
+): string[] {
+  return [
+    createSecureCookie(COOKIE_NAMES.access, accessToken, {
+      maxAge: ACCESS_TOKEN_DURATION_MINUTES * 60,
+    }),
+    createSecureCookie(COOKIE_NAMES.refresh, refreshToken, {
+      maxAge: REFRESH_TOKEN_DURATION_DAYS * 24 * 60 * 60,
+    }),
+  ];
 }
 
 /**
- * Creates expired access token cookie for logout.
+ * Creates expired cookies for logout - clears both unified and legacy cookies.
  */
-export function createExpiredAccessCookie(domain: CookieDomain): string {
-  return createExpiredCookie(COOKIE_NAMES[domain].access);
-}
-
-/**
- * Creates expired refresh token cookie for logout.
- */
-export function createExpiredRefreshCookie(domain: CookieDomain): string {
-  return createExpiredCookie(COOKIE_NAMES[domain].refresh);
-}
-
-// ============================================
-// COOKIE READING
-// ============================================
-
-/**
- * Extracts a cookie value from the Cookie header.
- * 
- * @param cookieHeader - Raw Cookie header string
- * @param name - Cookie name to extract
- * @returns Cookie value or null if not found
- */
-export function getCookie(cookieHeader: string | null, name: string): string | null {
-  if (!cookieHeader) return null;
+export function createLogoutCookies(): string[] {
+  const expired = (name: string) => 
+    `${name}=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=None; Partitioned`;
   
-  // Match the cookie name with proper boundary handling
-  // Handles: "name=value", "; name=value", "name=value; ..."
-  const regex = new RegExp(`(?:^|; )${escapeRegex(name)}=([^;]*)`);
-  const match = cookieHeader.match(regex);
-  
-  return match ? match[1] : null;
-}
-
-/**
- * Gets access token from cookies.
- */
-export function getAccessToken(req: Request, domain: CookieDomain): string | null {
-  const cookieHeader = req.headers.get("Cookie");
-  return getCookie(cookieHeader, COOKIE_NAMES[domain].access);
-}
-
-/**
- * Gets refresh token from cookies.
- */
-export function getRefreshToken(req: Request, domain: CookieDomain): string | null {
-  const cookieHeader = req.headers.get("Cookie");
-  return getCookie(cookieHeader, COOKIE_NAMES[domain].refresh);
+  return [
+    // Unified cookies
+    expired(COOKIE_NAMES.access),
+    expired(COOKIE_NAMES.refresh),
+    // Legacy producer cookies (clear from old sessions)
+    expired(LEGACY_COOKIE_NAMES.producer.access),
+    expired(LEGACY_COOKIE_NAMES.producer.refresh),
+    // Legacy buyer cookies (clear from old sessions)
+    expired(LEGACY_COOKIE_NAMES.buyer.access),
+    expired(LEGACY_COOKIE_NAMES.buyer.refresh),
+  ];
 }
 
 // ============================================
@@ -186,12 +174,7 @@ export function getRefreshToken(req: Request, domain: CookieDomain): string | nu
 // ============================================
 
 /**
- * Creates a Response with multiple Set-Cookie headers.
- * 
- * @param data - Response body
- * @param corsHeaders - CORS headers
- * @param cookies - Array of cookie strings
- * @param status - HTTP status code
+ * Creates a JSON response with Set-Cookie headers.
  */
 export function jsonResponseWithCookies(
   data: unknown,
@@ -202,45 +185,9 @@ export function jsonResponseWithCookies(
   const headers = new Headers(corsHeaders);
   headers.set("Content-Type", "application/json");
   
-  // Add each cookie as a separate Set-Cookie header
   for (const cookie of cookies) {
     headers.append("Set-Cookie", cookie);
   }
   
   return new Response(JSON.stringify(data), { status, headers });
-}
-
-/**
- * Creates auth cookies (access + refresh) for login/refresh responses.
- */
-export function createAuthCookies(
-  domain: CookieDomain,
-  accessToken: string,
-  refreshToken: string
-): string[] {
-  return [
-    createAccessCookie(domain, accessToken),
-    createRefreshCookie(domain, refreshToken),
-  ];
-}
-
-/**
- * Creates expired cookies for logout.
- */
-export function createLogoutCookies(domain: CookieDomain): string[] {
-  return [
-    createExpiredAccessCookie(domain),
-    createExpiredRefreshCookie(domain),
-  ];
-}
-
-// ============================================
-// UTILITIES
-// ============================================
-
-/**
- * Escapes special regex characters in cookie name.
- */
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
