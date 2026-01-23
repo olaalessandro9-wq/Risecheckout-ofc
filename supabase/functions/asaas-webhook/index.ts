@@ -24,6 +24,7 @@ import {
   ERROR_CODES
 } from '../_shared/webhook-helpers.ts';
 import { processPostPaymentActions } from '../_shared/webhook-post-payment.ts';
+import { processPostRefundActions, getRefundEventType, type RefundReason } from '../_shared/webhook-post-refund.ts';
 import { validateAsaasIP } from '../_shared/ip-whitelist.ts';
 
 const FUNCTION_VERSION = "5";
@@ -217,6 +218,16 @@ serve(async (req) => {
         paymentMethod: payment.billingType === 'PIX' ? 'PIX / Asaas' : 'Asaas',
         vendorId,
       }, webhookEventType, logger);
+    }
+
+    // Post-Refund Actions - RISE V3: Revogação automática de acesso
+    if (['refunded', 'chargeback'].includes(normalizedStatus) && orderData) {
+      await processPostRefundActions(supabase, {
+        orderId,
+        productId: orderData.product_id,
+        vendorId,
+        reason: normalizedStatus as RefundReason,
+      }, getRefundEventType(normalizedStatus as RefundReason), logger);
     }
 
     // Log Event

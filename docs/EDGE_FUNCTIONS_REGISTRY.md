@@ -263,6 +263,12 @@
 | `reconcile-asaas` | `.../reconcile-asaas` | ✅ | internal | Gateway specific |
 | `grant-member-access` | `.../grant-member-access` | ✅ | internal | Chamada interna |
 
+### Order Lifecycle (RISE V3)
+
+| Nome | URL | No Repo? | Auth | Descrição |
+|------|-----|----------|------|-----------|
+| `order-lifecycle-worker` | `.../order-lifecycle-worker` | ✅ | internal | Processa eventos de lifecycle de pedidos (paid/refund/chargeback) |
+
 ### Webhooks
 
 | Nome | URL | No Repo? | Auth | Descrição |

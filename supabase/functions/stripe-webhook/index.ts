@@ -20,6 +20,7 @@ import {
   ERROR_CODES
 } from '../_shared/webhook-helpers.ts';
 import { processPostPaymentActions } from '../_shared/webhook-post-payment.ts';
+import { processPostRefundActions, getRefundEventType, type RefundReason } from '../_shared/webhook-post-refund.ts';
 
 const FUNCTION_VERSION = "2";
 const logger = createLogger('stripe-webhook', FUNCTION_VERSION);
@@ -152,59 +153,61 @@ serve(async (req) => {
 
       const { data: order } = await supabase
         .from("orders")
-        .select("id, vendor_id")
+        .select("id, vendor_id, product_id")
         .eq("gateway_payment_id", paymentIntentId)
         .maybeSingle();
 
       if (order) {
         const isFullRefund = charge.amount_refunded === charge.amount;
+        const refundStatus: RefundReason = isFullRefund ? 'refunded' : 'partially_refunded';
 
         await supabase
           .from("orders")
           .update({
-            status: isFullRefund ? "refunded" : "partially_refunded",
+            status: refundStatus,
             updated_at: new Date().toISOString(),
           })
           .eq("id", order.id);
 
         logger.info("Order updated for refund", { orderId: order.id, isFullRefund });
 
-        // Trigger refund webhook
-        const internalSecret = Deno.env.get("INTERNAL_WEBHOOK_SECRET");
-        if (internalSecret) {
-          try {
-            await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/trigger-webhooks`, {
-              method: "POST",
-              headers: { 
-                "Content-Type": "application/json",
-                "X-Internal-Secret": internalSecret,
-              },
-              body: JSON.stringify({ order_id: order.id, event_type: "purchase_refunded" }),
-            });
-          } catch {
-            logger.warn("Error triggering refund webhook");
-          }
-        }
+        // RISE V3: Revogar acesso à área de membros
+        await processPostRefundActions(supabase, {
+          orderId: order.id,
+          productId: order.product_id,
+          vendorId: order.vendor_id,
+          reason: refundStatus,
+        }, getRefundEventType(refundStatus), logger);
       }
     }
 
-    // CHARGE.DISPUTE.CREATED
+    // CHARGE.DISPUTE.CREATED (Chargeback)
     if (event.type === "charge.dispute.created") {
       const dispute = event.data.object as Stripe.Dispute;
       const chargeId = dispute.charge as string;
 
-      logger.info("Dispute created", { disputeId: dispute.id, chargeId, reason: dispute.reason });
+      logger.info("Dispute created (chargeback)", { disputeId: dispute.id, chargeId, reason: dispute.reason });
 
       const charge = await stripe.charges.retrieve(chargeId);
       const paymentIntentId = charge.payment_intent as string;
 
       const { data: order } = await supabase
         .from("orders")
-        .select("id, vendor_id")
+        .select("id, vendor_id, product_id, status")
         .eq("gateway_payment_id", paymentIntentId)
         .maybeSingle();
 
       if (order) {
+        // Atualizar status para chargeback
+        await supabase
+          .from("orders")
+          .update({
+            status: "chargeback",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", order.id);
+
+        // Registrar evento
         await supabase.from("order_events").insert({
           order_id: order.id,
           vendor_id: order.vendor_id,
@@ -213,6 +216,14 @@ serve(async (req) => {
           occurred_at: new Date().toISOString(),
         });
         logger.info("Dispute event recorded", { orderId: order.id });
+
+        // RISE V3: Revogar acesso à área de membros
+        await processPostRefundActions(supabase, {
+          orderId: order.id,
+          productId: order.product_id,
+          vendorId: order.vendor_id,
+          reason: 'chargeback',
+        }, getRefundEventType('chargeback'), logger);
       }
     }
 

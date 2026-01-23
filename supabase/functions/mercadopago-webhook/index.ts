@@ -25,6 +25,7 @@ import {
 } from '../_shared/webhook-helpers.ts';
 import { validateMercadoPagoSignature } from '../_shared/mercadopago-signature.ts';
 import { processPostPaymentActions } from '../_shared/webhook-post-payment.ts';
+import { processPostRefundActions, getRefundEventType, type RefundReason } from '../_shared/webhook-post-refund.ts';
 
 const FUNCTION_VERSION = "147";
 const logger = createLogger('mercadopago-webhook', FUNCTION_VERSION);
@@ -214,6 +215,16 @@ serve(async (req) => {
         paymentMethod: 'PIX / Mercado Pago',
         vendorId: currentOrder.vendor_id as string,
       }, eventType, logger);
+    }
+
+    // Post-Refund Actions - RISE V3: Revogação automática de acesso
+    if (['refunded', 'chargeback', 'partially_refunded'].includes(normalizedStatus)) {
+      await processPostRefundActions(supabase, {
+        orderId: currentOrder.id as string,
+        productId: currentOrder.product_id as string,
+        vendorId: currentOrder.vendor_id as string,
+        reason: normalizedStatus as RefundReason,
+      }, getRefundEventType(normalizedStatus as RefundReason), logger);
     }
 
     return createSuccessResponse({
