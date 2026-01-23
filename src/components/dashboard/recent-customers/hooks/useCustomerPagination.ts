@@ -3,13 +3,16 @@
  * 
  * RISE ARCHITECT PROTOCOL:
  * - Single Responsibility: Apenas lógica de paginação
+ * - Performance: Menos itens por página em ultrawide
  * - Reusabilidade: Pode ser usado em outras tabelas
  */
 
 import { useState, useMemo } from "react";
+import { useIsUltrawide } from "@/hooks/useIsUltrawide";
 import type { Customer } from "../types";
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE_STANDARD = 10;
+const ITEMS_PER_PAGE_ULTRAWIDE = 5;
 
 interface UseCustomerPaginationResult {
   currentPage: number;
@@ -25,6 +28,9 @@ interface UseCustomerPaginationResult {
 }
 
 export function useCustomerPagination(customers: Customer[]): UseCustomerPaginationResult {
+  const isUltrawide = useIsUltrawide();
+  const ITEMS_PER_PAGE = isUltrawide ? ITEMS_PER_PAGE_ULTRAWIDE : ITEMS_PER_PAGE_STANDARD;
+  
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
 

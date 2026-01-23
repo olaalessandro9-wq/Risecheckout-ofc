@@ -545,16 +545,18 @@ html body [data-radix-select-viewport] [data-radix-select-item][style][data-high
 }
 
 /* ========================================
-   ULTRAWIDE PERFORMANCE OPTIMIZATION
+   ULTRAWIDE PERFORMANCE OPTIMIZATIONS
    ======================================== 
    
    Otimizações específicas para monitores
    ultrawide (≥2560px) onde o custo de
-   renderização SVG é muito maior.
+   renderização é muito maior.
    
    ======================================== */
 
 @media (min-width: 2560px) {
+  /* === RECHARTS: Otimizações === */
+  
   /* Reduz tamanho de fonte dos eixos */
   .recharts-cartesian-axis-tick {
     font-size: 10px !important;
@@ -574,5 +576,81 @@ html body [data-radix-select-viewport] [data-radix-select-item][style][data-high
   .recharts-line-curve {
     stroke-linecap: round;
     stroke-linejoin: round;
+    transition: none !important;
+  }
+  
+  .recharts-tooltip-wrapper {
+    transition: none !important;
+  }
+  
+  /* === BACKDROP BLUR: Desabilita todos === */
+  
+  .backdrop-blur-sm,
+  .backdrop-blur,
+  .backdrop-blur-md,
+  .backdrop-blur-lg,
+  .backdrop-blur-xl {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  
+  /* === TRANSITIONS: Simplifica === */
+  
+  .transition-all {
+    transition-property: color, background-color, border-color, opacity !important;
+    transition-duration: 100ms !important;
+  }
+  
+  /* === HOVER EFFECTS: Desabilita pesados === */
+  
+  .hover\:shadow-lg:hover,
+  .hover\:shadow-xl:hover,
+  .hover\:shadow-2xl:hover {
+    box-shadow: none !important;
+  }
+  
+  .group-hover\:scale-110,
+  .hover\:scale-\[1\.02\] {
+    transform: none !important;
+  }
+  
+  .hover\:translate-y-\[-2px\]:hover {
+    transform: none !important;
+  }
+  
+  /* === FILTERS: Desabilita decorativos === */
+  
+  .blur-2xl,
+  .blur-3xl {
+    filter: none !important;
+  }
+
+  /* === TABELAS: Otimizações Críticas === */
+  
+  /* Desabilitar transitions em tabelas */
+  table tr,
+  table td,
+  table th,
+  [role="row"],
+  [role="cell"] {
+    transition: none !important;
+  }
+  
+  /* Desabilitar hover states em tabelas */
+  table tr:hover,
+  [role="row"]:hover {
+    background-color: inherit !important;
+  }
+  
+  /* Content visibility para otimizar rendering de linhas */
+  .recent-customers-tbody tr,
+  .recent-customers-tbody [role="row"] {
+    content-visibility: auto;
+    contain-intrinsic-size: 0 52px;
+  }
+  
+  /* Contain para isolar repaints */
+  .recent-customers-tbody {
+    contain: layout style;
   }
 }

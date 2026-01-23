@@ -3,6 +3,7 @@
  * 
  * RISE ARCHITECT PROTOCOL:
  * - Single Responsibility: Apenas renderização de uma linha
+ * - Performance: Hover/transitions desabilitados em ultrawide
  * - Limite de 150 linhas: ✓
  */
 
@@ -10,6 +11,8 @@ import { TableCell, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Eye } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useIsUltrawide } from "@/hooks/useIsUltrawide";
 import type { ReactNode } from "react";
 import type { Customer } from "./types";
 
@@ -20,9 +23,21 @@ interface CustomerTableRowProps {
 }
 
 export function CustomerTableRow({ customer, displayPhone, onViewDetails }: CustomerTableRowProps) {
+  const isUltrawide = useIsUltrawide();
+
   return (
-    <TableRow className="hover:bg-muted/30 border-border/30 transition-colors group">
-      <TableCell className="font-mono text-sm text-foreground/70 group-hover:text-foreground transition-colors">
+    <TableRow 
+      className={cn(
+        "border-border/30",
+        !isUltrawide && "hover:bg-muted/30 transition-colors group"
+      )}
+    >
+      <TableCell 
+        className={cn(
+          "font-mono text-sm text-foreground/70",
+          !isUltrawide && "group-hover:text-foreground transition-colors"
+        )}
+      >
         {customer.id}
       </TableCell>
       <TableCell className="text-sm font-medium text-foreground">
@@ -43,16 +58,16 @@ export function CustomerTableRow({ customer, displayPhone, onViewDetails }: Cust
       <TableCell>
         <Badge
           variant="outline"
-          className={`
-            ${customer.status === "Pago" 
-              ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-emerald-500/20"
+          className={cn(
+            customer.status === "Pago" 
+              ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
               : customer.status === "Pendente"
-              ? "bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border-amber-500/20"
+              ? "bg-amber-500/10 text-amber-500 border-amber-500/20"
               : customer.status === "Reembolso" || customer.status === "Chargeback"
-              ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 border-red-500/20"
-              : "bg-secondary text-secondary-foreground hover:bg-secondary/80"}
-            transition-all
-          `}
+              ? "bg-red-500/10 text-red-500 border-red-500/20"
+              : "bg-secondary text-secondary-foreground",
+            !isUltrawide && "hover:bg-opacity-20 transition-all"
+          )}
         >
           {customer.status}
         </Badge>
@@ -61,7 +76,10 @@ export function CustomerTableRow({ customer, displayPhone, onViewDetails }: Cust
         <Button
           variant="ghost"
           size="sm"
-          className="gap-2 hover:bg-muted/50 hover:text-primary transition-all"
+          className={cn(
+            "gap-2",
+            !isUltrawide && "hover:bg-muted/50 hover:text-primary transition-all"
+          )}
           onClick={onViewDetails}
         >
           <Eye className="w-4 h-4" />
