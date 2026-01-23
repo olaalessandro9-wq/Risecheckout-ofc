@@ -32,7 +32,7 @@ type CustomTooltipProps = TooltipProps<number, string>;
 function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-card/95 backdrop-blur-xl border border-border rounded-xl p-4 shadow-xl">
+      <div className="bg-card border border-border rounded-xl p-4 shadow-lg">
         <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider">
           {label}
         </p>
@@ -122,13 +122,13 @@ export function RevenueChart({
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
+      initial={{ opacity: 0, scale: 0.98 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.5 }}
+      transition={{ duration: 0.25 }}
       className="relative h-full"
     >
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-accent/5 to-transparent rounded-2xl blur-2xl opacity-50" />
-      <div className="relative h-full bg-card/40 backdrop-blur-xl border border-border/50 rounded-xl md:rounded-2xl p-4 md:p-6 hover:border-border transition-all duration-300 flex flex-col">
+      {/* Blur decorativo removido para performance em ultrawide */}
+      <div className="relative h-full bg-card/95 backdrop-blur-sm border border-border/50 rounded-xl md:rounded-2xl p-4 md:p-6 hover:border-border transition-all duration-300 flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between mb-4 md:mb-6 lg:mb-8">
           <h3 className="text-base md:text-lg font-bold text-card-foreground tracking-tight flex items-center gap-2 md:gap-3">
