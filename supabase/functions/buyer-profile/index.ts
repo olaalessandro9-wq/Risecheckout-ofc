@@ -4,13 +4,14 @@
  * Gerencia perfil do comprador (buyer)
  * 
  * @category Buyer
- * @status stub - migrado do deploy
+ * @status RISE V3 COMPLIANT - Unified Auth
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { createLogger } from "../_shared/logger.ts";
+import { getAuthenticatedUser } from "../_shared/unified-auth-v2.ts";
 
 const log = createLogger("buyer-profile");
 
@@ -29,44 +30,25 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const buyerToken = req.headers.get('x-buyer-token');
-    if (!buyerToken) {
+    // RISE V3: Use unified auth - validates via sessions table + __Host-rise_access cookie
+    const user = await getAuthenticatedUser(supabase, req);
+    
+    if (!user) {
       return new Response(
-        JSON.stringify({ error: 'Buyer token required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Validate buyer session
-    const { data: session, error: sessionError } = await supabase
-      .from('buyer_sessions')
-      .select('buyer_id, expires_at, is_valid')
-      .eq('session_token', buyerToken)
-      .single();
-
-    if (sessionError || !session || !session.is_valid) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid or expired session' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (new Date(session.expires_at) < new Date()) {
-      return new Response(
-        JSON.stringify({ error: 'Session expired' }),
+        JSON.stringify({ error: 'Authentication required' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const method = req.method;
-    const buyerId = session.buyer_id;
+    const userId = user.id;
 
     if (method === 'GET') {
-      // Get buyer profile
+      // Get user profile from unified users table
       const { data: profile, error: profileError } = await supabase
-        .from('buyer_profiles')
+        .from('users')
         .select('id, email, name, phone, created_at')
-        .eq('id', buyerId)
+        .eq('id', userId)
         .single();
 
       if (profileError) {
@@ -99,12 +81,12 @@ serve(async (req) => {
       }
 
       const { data: profile, error: updateError } = await supabase
-        .from('buyer_profiles')
+        .from('users')
         .update({
           ...safeUpdates,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', buyerId)
+        .eq('id', userId)
         .select('id, email, name, phone, created_at')
         .single();
 
@@ -112,7 +94,7 @@ serve(async (req) => {
         throw updateError;
       }
 
-      log.info(`Profile updated for buyer ${buyerId}`);
+      log.info(`Profile updated for user ${userId}`);
 
       return new Response(
         JSON.stringify({ profile }),

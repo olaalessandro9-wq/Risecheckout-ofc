@@ -147,11 +147,11 @@ async function anonymizeBuyerProfiles(
     throw new Error(`Falha ao anonimizar buyer_profiles: ${updateError.message}`);
   }
 
-  // Invalidar todas as sessões do buyer
+  // RISE V3: Invalidar todas as sessões na tabela unificada `sessions`
   await supabase
-    .from("buyer_sessions")
+    .from("sessions")
     .update({ is_valid: false })
-    .in("buyer_id", profileIds);
+    .in("user_id", profileIds);
 
   return {
     table: "buyer_profiles",
@@ -161,35 +161,35 @@ async function anonymizeBuyerProfiles(
 }
 
 /**
- * Anonimiza registros na tabela buyer_sessions
+ * Anonimiza registros na tabela sessions (unificada - RISE V3)
  */
-async function anonymizeBuyerSessions(
+async function anonymizeSessions(
   supabase: SupabaseClient,
   email: string
 ): Promise<AnonymizationResult> {
-  // Primeiro buscar buyer_ids pelo email
-  const { data: profiles } = await supabase
-    .from("buyer_profiles")
+  // Buscar user_ids pelo email na tabela users
+  const { data: users } = await supabase
+    .from("users")
     .select("id")
     .eq("email", email);
 
-  if (!profiles || profiles.length === 0) {
-    return { table: "buyer_sessions", records_affected: 0, fields_anonymized: [] };
+  if (!users || users.length === 0) {
+    return { table: "sessions", records_affected: 0, fields_anonymized: [] };
   }
 
-  const buyerIds = profiles.map(p => p.id);
+  const userIds = users.map(u => u.id);
 
   const { data: sessions, error: fetchError } = await supabase
-    .from("buyer_sessions")
+    .from("sessions")
     .select("id")
-    .in("buyer_id", buyerIds);
+    .in("user_id", userIds);
 
   if (fetchError || !sessions || sessions.length === 0) {
-    return { table: "buyer_sessions", records_affected: 0, fields_anonymized: [] };
+    return { table: "sessions", records_affected: 0, fields_anonymized: [] };
   }
 
   const { error: updateError } = await supabase
-    .from("buyer_sessions")
+    .from("sessions")
     .update({
       ip_address: ANONYMIZED_IP,
       user_agent: "ANONYMIZED",
@@ -198,11 +198,11 @@ async function anonymizeBuyerSessions(
     .in("id", sessions.map(s => s.id));
 
   if (updateError) {
-    log.error("Erro ao anonimizar buyer_sessions:", updateError);
+    log.error("Erro ao anonimizar sessions:", updateError);
   }
 
   return {
-    table: "buyer_sessions",
+    table: "sessions",
     records_affected: sessions.length,
     fields_anonymized: ["ip_address", "user_agent"]
   };
@@ -480,8 +480,8 @@ serve(async (req: Request) => {
       const profilesResult = await anonymizeBuyerProfiles(supabase, email, anonymizedEmail);
       results.push(profilesResult);
 
-      // Buyer Sessions
-      const sessionsResult = await anonymizeBuyerSessions(supabase, email);
+      // Sessions (tabela unificada - RISE V3)
+      const sessionsResult = await anonymizeSessions(supabase, email);
       results.push(sessionsResult);
 
       // Checkout Visits (por IP da solicitação original)

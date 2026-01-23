@@ -3,10 +3,7 @@
  * 
  * Handles certificate operations for the members area
  * 
- * SECURITY UPDATES:
- * - VULN-002: Rate limiting implementado
- * 
- * @version 1.1.0
+ * @version 2.0.0 - RISE V3 Unified Auth
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -16,7 +13,8 @@ import {
   getClientIP 
 } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
-import { handleCorsV2, getCorsHeadersV2 } from "../_shared/cors-v2.ts";
+import { getAuthenticatedUser } from "../_shared/unified-auth-v2.ts";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { createLogger } from "../_shared/logger.ts";
 
 const log = createLogger("members-area-certificates");
@@ -27,7 +25,6 @@ interface CertificateRequest {
   template_id?: string;
   certificate_id?: string;
   verification_code?: string;
-  buyer_token?: string;
   data?: {
     name?: string;
     template_html?: string;
@@ -75,7 +72,7 @@ Deno.serve(async (req) => {
     }
 
     const body: CertificateRequest = await req.json();
-    const { action, product_id, template_id, certificate_id, verification_code, buyer_token, data } = body;
+    const { action, product_id, template_id, verification_code, data } = body;
 
     log.info(`Action: ${action}`);
 
@@ -119,29 +116,18 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Ações de buyer
+    // RISE V3: Ações de buyer - usar unified-auth-v2 via cookie
     if (action === "generate" || action === "list-buyer-certificates") {
-      if (!buyer_token) {
+      const user = await getAuthenticatedUser(supabase, req);
+      
+      if (!user) {
         return new Response(
-          JSON.stringify({ error: "buyer_token required" }),
+          JSON.stringify({ error: "Authentication required" }),
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      const { data: session } = await supabase
-        .from("buyer_sessions")
-        .select("buyer_id, expires_at, is_valid")
-        .eq("session_token", buyer_token)
-        .single();
-
-      if (!session || !session.is_valid || new Date(session.expires_at) < new Date()) {
-        return new Response(
-          JSON.stringify({ error: "Invalid or expired session" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const buyer_id = session.buyer_id;
+      const buyer_id = user.id;
 
       if (action === "list-buyer-certificates") {
         const { data: certificates, error } = await supabase
@@ -241,12 +227,12 @@ Deno.serve(async (req) => {
         }
 
         // Buscar dados do buyer e produto
-        const [buyerResult, productResult] = await Promise.all([
-          supabase.from("buyer_profiles").select("name, email").eq("id", buyer_id).single(),
+        const [userResult, productResult] = await Promise.all([
+          supabase.from("users").select("name, email").eq("id", buyer_id).single(),
           supabase.from("products").select("name").eq("id", product_id).single(),
         ]);
 
-        const buyerName = buyerResult.data?.name || buyerResult.data?.email || "Aluno";
+        const buyerName = userResult.data?.name || userResult.data?.email || "Aluno";
         const productName = productResult.data?.name || "Curso";
 
         // Buscar template default

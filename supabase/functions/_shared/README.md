@@ -13,7 +13,7 @@ _shared/
 ├── asaas-customer.ts         # Gerenciamento de clientes Asaas
 ├── asaas-split-calculator.ts # Cálculo de split Marketplace
 ├── audit-logger.ts           # Log de eventos de segurança
-├── rate-limiting/            # 🆕 Módulo consolidado de rate limiting (RISE V3)
+├── rate-limiting/            # Módulo consolidado de rate limiting (RISE V3)
 │   ├── index.ts              # Barrel exports
 │   ├── types.ts              # Tipagens TypeScript
 │   ├── configs.ts            # Configurações por action
@@ -22,46 +22,89 @@ _shared/
 │   └── middleware.ts         # Middlewares prontos
 ├── role-validator.ts         # Validação de permissões (RBAC)
 ├── get-vendor-token.ts       # Busca tokens do Vault
+├── unified-auth.ts           # Wrapper de compatibilidade (usa unified-auth-v2)
+├── unified-auth-v2.ts        # Sistema de auth unificado (RISE V3 SSOT)
 └── payment-gateways/         # Módulos específicos de gateways
 ```
 
-> **Nota**: Tabela `buyer_rate_limits` é a fonte única de rate limiting.
+---
+
+## 🔐 Autenticação (RISE V3 - Unified Auth)
+
+### Arquitetura
+
+O sistema de autenticação segue o padrão **Unified Identity**:
+
+```
+┌──────────────────────────────────────────┐
+│                  users                    │
+│  (single source of truth for identity)   │
+└──────────────────────────────────────────┘
+                    │
+                    ▼
+┌──────────────────────────────────────────┐
+│                sessions                   │
+│          (with active_role)              │
+└──────────────────────────────────────────┘
+```
+
+### Cookies
+
+| Cookie | Duração | Propósito |
+|--------|---------|-----------|
+| `__Host-rise_access` | 60 min | Access token (httpOnly, Secure) |
+| `__Host-rise_refresh` | 30 dias | Refresh token (httpOnly, Secure) |
+
+### Módulos de Auth
+
+#### `unified-auth-v2.ts` (Fonte da Verdade)
+
+```typescript
+import { 
+  getAuthenticatedUser, 
+  requireAuthenticatedUser,
+  getUnifiedAccessToken 
+} from "../_shared/unified-auth-v2.ts";
+
+// Opcional - retorna null se não autenticado
+const user = await getAuthenticatedUser(supabase, req);
+
+// Obrigatório - lança erro se não autenticado
+const user = await requireAuthenticatedUser(supabase, req);
+```
+
+#### `unified-auth.ts` (Wrapper de Compatibilidade)
+
+```typescript
+import { 
+  getAuthenticatedProducer, 
+  requireAuthenticatedProducer,
+  unauthorizedResponse 
+} from "../_shared/unified-auth.ts";
+
+// Para ações de produtor
+const producer = await requireAuthenticatedProducer(supabase, req);
+```
+
+### Interface UnifiedUser
+
+```typescript
+interface UnifiedUser {
+  id: string;           // UUID do usuário
+  email: string;        // Email
+  name: string | null;  // Nome
+  activeRole: string;   // "buyer" | "user" | "seller" | "admin" | "owner"
+  roles: string[];      // Roles disponíveis
+}
+```
 
 ---
 
-## 🔧 Módulos
+## 🔧 Outros Módulos
 
-### 1. `platform-config.ts`
+### `platform-config.ts`
 
-**Propósito**: Configuração centralizada da plataforma RiseCheckout.
-
-#### Constantes Principais
-
-```typescript
-// Taxa da plataforma (4%)
-export const PLATFORM_FEE_PERCENT = 0.04;
-
-// ID do Owner da plataforma
-export const PLATFORM_OWNER_USER_ID = "ccff612c-93e6-4acc-85d9-7c9d978a7e4e";
-
-// IDs de contas nos gateways
-export const PLATFORM_MERCADOPAGO_COLLECTOR_ID = "3002802852";
-export const PLATFORM_PUSHINPAY_ACCOUNT_ID = "A0557404-1578-4F50-8AE7-AEF8711F03D1";
-```
-
-#### Funções Exportadas
-
-| Função | Descrição | Retorno |
-|--------|-----------|---------|
-| `calculatePlatformFeeCents(amountCents, feePercent?)` | Calcula taxa em centavos | `number` |
-| `calculatePlatformFeeReais(amountReais, feePercent?)` | Calcula taxa em reais | `number` |
-| `getVendorFeePercent(supabase, vendorId)` | Busca taxa personalizada do vendedor | `Promise<number>` |
-| `isVendorOwner(supabase, vendorId)` | Verifica se é Owner | `Promise<boolean>` |
-| `validateGatewaySecrets(gateway)` | Health check de secrets | `object` |
-| `getSecretsHealthCheck()` | Health check completo | `object` |
-| `getGatewayCredentials(supabase, vendorId, gateway)` | Busca credenciais dinâmicas | `Promise<GatewayCredentials>` |
-
-#### Exemplo de Uso
+Configuração centralizada da plataforma RiseCheckout.
 
 ```typescript
 import { 
@@ -72,291 +115,11 @@ import {
 
 // Calcular taxa
 const fee = calculatePlatformFeeCents(10000); // R$100 → R$4 (400 centavos)
-
-// Verificar se é Owner
-const isOwner = await isVendorOwner(supabase, vendorId);
-if (isOwner) {
-  // Skip taxa para Owner
-}
 ```
 
-#### Secrets Manifest
+### `rate-limiting/`
 
-O arquivo contém um manifesto completo de todos os secrets configurados:
-
-```typescript
-export const SECRETS_MANIFEST = {
-  lastUpdated: '2024-12-24',
-  totalSecrets: 24,
-  supabase: { ... },      // 4 secrets automáticos
-  gateways: {
-    pushinpay: { ... },   // 6 secrets
-    mercadopago: { ... }, // 5 secrets
-    stripe: { ... },      // 4 secrets
-    asaas: { ... }        // 3 secrets
-  },
-  platform: { ... }       // 2 secrets
-};
-```
-
----
-
-### 2. `asaas-customer.ts`
-
-**Propósito**: Gerenciar clientes no Asaas (buscar ou criar).
-
-#### Interface
-
-```typescript
-interface CustomerData {
-  name: string;
-  email: string;
-  document: string;  // CPF ou CNPJ
-  phone?: string;
-}
-
-interface AsaasCustomer {
-  id: string;
-}
-```
-
-#### Função Principal
-
-```typescript
-findOrCreateCustomer(
-  baseUrl: string,      // URL da API Asaas
-  apiKey: string,       // Token de acesso
-  customer: CustomerData
-): Promise<AsaasCustomer | null>
-```
-
-#### Fluxo
-
-```
-┌─────────────────┐
-│ Recebe customer │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────────┐     ┌──────────────────┐
-│ Buscar por CPF/CNPJ │────▶│ Cliente existe?  │
-└─────────────────────┘     └────────┬─────────┘
-                                     │
-                    ┌────────────────┴────────────────┐
-                    │                                 │
-                    ▼ SIM                             ▼ NÃO
-           ┌────────────────┐               ┌─────────────────┐
-           │ Retorna ID     │               │ Criar novo      │
-           │ existente      │               │ customer        │
-           └────────────────┘               └────────┬────────┘
-                                                     │
-                                                     ▼
-                                            ┌────────────────┐
-                                            │ Retorna novo   │
-                                            │ customer ID    │
-                                            └────────────────┘
-```
-
-#### Exemplo
-
-```typescript
-import { findOrCreateCustomer } from "../_shared/asaas-customer.ts";
-
-const customer = await findOrCreateCustomer(
-  'https://sandbox.asaas.com/api/v3',
-  ASAAS_API_KEY,
-  {
-    name: 'João Silva',
-    email: 'joao@email.com',
-    document: '123.456.789-00',
-    phone: '11999999999'
-  }
-);
-
-if (customer) {
-  console.log('Customer ID:', customer.id);
-}
-```
-
----
-
-### 3. `asaas-split-calculator.ts`
-
-**Propósito**: Calcular dados de split para o modelo Marketplace Asaas.
-
-#### Modelo de Split (BINÁRIO)
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    MODELO MARKETPLACE ASAAS                      │
-├─────────────────────────────────────────────────────────────────┤
-│ REGRA FUNDAMENTAL: Split é SEMPRE BINÁRIO (nunca 3 partes)      │
-│                                                                  │
-│ CENÁRIOS:                                                        │
-│                                                                  │
-│ 1. OWNER DIRETO (sem afiliado)                                  │
-│    └─► 100% → RiseCheckout                                      │
-│                                                                  │
-│ 2. OWNER + AFILIADO                                             │
-│    └─► Afiliado recebe: X% × 0.96 (taxa já descontada)          │
-│    └─► Owner recebe: resto (inclui taxa de 4%)                  │
-│                                                                  │
-│ 3. VENDEDOR COMUM                                               │
-│    └─► 96% → Vendedor                                           │
-│    └─► 4%  → Plataforma (RiseCheckout)                          │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-#### Interface de Retorno
-
-```typescript
-interface CalculatedSplitData {
-  isOwner: boolean;                    // É o Owner da plataforma?
-  hasAffiliate: boolean;               // Tem afiliado na venda?
-  affiliateId: string | null;          // ID do registro de afiliado
-  affiliateUserId: string | null;      // User ID do afiliado
-  affiliateWalletId: string | null;    // Wallet ID Asaas do afiliado
-  affiliateCommissionPercent: number;  // % de comissão configurado
-  vendorWalletId: string | null;       // Wallet ID do vendedor
-}
-```
-
-#### Função Principal
-
-```typescript
-calculateMarketplaceSplitData(
-  supabase: any,
-  orderId: string,
-  vendorId: string
-): Promise<CalculatedSplitData>
-```
-
-#### Exemplo
-
-```typescript
-import { calculateMarketplaceSplitData } from "../_shared/asaas-split-calculator.ts";
-
-const splitData = await calculateMarketplaceSplitData(supabase, orderId, vendorId);
-
-if (splitData.isOwner && !splitData.hasAffiliate) {
-  // 100% para RiseCheckout, sem split
-} else if (splitData.isOwner && splitData.hasAffiliate) {
-  // Split para afiliado
-  const splitRules = [{
-    walletId: splitData.affiliateWalletId,
-    percentualValue: splitData.affiliateCommissionPercent * 0.96
-  }];
-} else {
-  // Vendedor comum: 96% vendedor, 4% plataforma
-  const splitRules = [{
-    walletId: splitData.vendorWalletId,
-    percentualValue: 96
-  }];
-}
-```
-
----
-
-### 4. `audit-logger.ts`
-
-**Propósito**: Registrar eventos de segurança para auditoria.
-
-#### Ações Disponíveis
-
-```typescript
-export const SecurityAction = {
-  // Autenticação
-  LOGIN_SUCCESS: "login_success",
-  LOGIN_FAILED: "login_failed",
-  LOGOUT: "logout",
-  
-  // Afiliação
-  MANAGE_AFFILIATION: "manage_affiliation",
-  APPROVE_AFFILIATE: "approve_affiliate",
-  REJECT_AFFILIATE: "reject_affiliate",
-  BLOCK_AFFILIATE: "block_affiliate",
-  
-  // Produtos
-  CREATE_PRODUCT: "create_product",
-  UPDATE_PRODUCT: "update_product",
-  DELETE_PRODUCT: "delete_product",
-  
-  // Admin
-  ACCESS_ADMIN_PANEL: "access_admin_panel",
-  CHANGE_USER_ROLE: "change_user_role",
-  
-  // Pagamentos
-  PROCESS_PAYMENT: "process_payment",
-  REFUND_PAYMENT: "refund_payment",
-  
-  // Acesso negado
-  ACCESS_DENIED: "access_denied",
-  PERMISSION_DENIED: "permission_denied",
-};
-```
-
-#### Funções
-
-```typescript
-// Log genérico
-logSecurityEvent(supabase, {
-  userId: string,
-  action: SecurityActionType,
-  resource?: string,
-  resourceId?: string,
-  success?: boolean,
-  request?: Request,
-  metadata?: Record<string, unknown>
-}): Promise<void>
-
-// Helper para acesso negado
-logAccessDenied(supabase, userId, resource, request?, reason?): Promise<void>
-
-// Helper para permissão negada
-logPermissionDenied(supabase, userId, userRole, requiredRole, resource, request?): Promise<void>
-```
-
-#### Exemplo
-
-```typescript
-import { logSecurityEvent, SecurityAction } from "../_shared/audit-logger.ts";
-
-// Registrar pagamento processado
-await logSecurityEvent(supabase, {
-  userId: vendorId,
-  action: SecurityAction.PROCESS_PAYMENT,
-  resource: 'orders',
-  resourceId: orderId,
-  success: true,
-  request: req,
-  metadata: {
-    gateway: 'asaas',
-    paymentMethod: 'pix',
-    amountCents: 10000
-  }
-});
-```
-
----
-
-### 5. `rate-limiting/` (Módulo Consolidado - RISE V3)
-
-**Propósito**: Sistema unificado de rate limiting e IP blocklist.
-
-> **RISE V3 Compliant**: Módulo consolidado, zero duplicação, arquivos < 300 linhas.
-
-#### Arquivos
-
-| Arquivo | Linhas | Descrição |
-|---------|--------|-----------|
-| `index.ts` | 37 | Barrel exports |
-| `types.ts` | 100 | Tipagens TypeScript |
-| `configs.ts` | 282 | Configurações por action |
-| `service.ts` | 188 | Lógica core |
-| `blocklist.ts` | 101 | IP blocklist |
-| `middleware.ts` | 120 | Middlewares prontos |
-
-#### Uso Básico
+Sistema unificado de rate limiting e IP blocklist.
 
 ```typescript
 import { 
@@ -365,259 +128,45 @@ import {
   rateLimitMiddleware 
 } from "../_shared/rate-limiting/index.ts";
 
-// Verificar rate limit
-const result = await checkRateLimit(
-  supabase, 
-  `producer:${producerId}`, 
-  RATE_LIMIT_CONFIGS.PRODUCER_ACTION
-);
-
-if (!result.allowed) {
-  return new Response(JSON.stringify({
-    error: 'Too many requests',
-    retryAfter: result.retryAfter
-  }), { status: 429 });
-}
-```
-
-#### Middleware Completo
-
-```typescript
-// Verifica IP blocklist + rate limit automaticamente
+// Middleware completo
 const blocked = await rateLimitMiddleware(
-  supabase, req, RATE_LIMIT_CONFIGS.CREATE_ORDER, corsHeaders, userId
+  supabase, req, RATE_LIMIT_CONFIGS.CREATE_ORDER, corsHeaders
 );
 if (blocked) return blocked;
 ```
 
-#### Tabela
+### `role-validator.ts`
 
-Usa exclusivamente `buyer_rate_limits` (tabela única consolidada).
-
----
-
-### 6. `role-validator.ts`
-
-**Propósito**: Validação de permissões (RBAC) no backend.
-
-#### Hierarquia de Roles
-
-```
-owner (1) > admin (2) > user (3) > seller (4)
-```
-
-#### Funções
+Validação de permissões (RBAC).
 
 ```typescript
-// Obter role do usuário
-getUserRole(supabase, userId): Promise<UserRole>
+import { requireRole } from "../_shared/role-validator.ts";
 
-// Validar se tem pelo menos o role
-validateRole(supabase, userId, requiredRole): Promise<boolean>
-
-// Verificar se pode ter afiliados
-canHaveAffiliates(supabase, userId): Promise<boolean>
-
-// Verificar se é admin
-isAdmin(supabase, userId): Promise<boolean>
-
-// Exigir role (lança erro se não tiver)
-requireRole(supabase, userId, requiredRole, action, request?): Promise<UserRole>
-
-// Exigir permissão de afiliados
-requireCanHaveAffiliates(supabase, userId, action, request?): Promise<void>
-```
-
-#### Exemplo
-
-```typescript
-import { requireRole, UserRole } from "../_shared/role-validator.ts";
-
-try {
-  // Exige que seja admin ou owner
-  await requireRole(supabase, userId, 'admin', 'manage_affiliates', req);
-  
-  // Código protegido...
-  
-} catch (error) {
-  // Permissão negada - já foi logado automaticamente
-  return new Response(JSON.stringify({ error: error.message }), { status: 403 });
-}
+// Exige que seja admin ou owner
+await requireRole(supabase, userId, 'admin', 'manage_affiliates', req);
 ```
 
 ---
 
-### 7. `get-vendor-token.ts`
+## ⚠️ Código Legado (REMOVIDO)
 
-**Propósito**: Buscar tokens de integração do Vault de forma segura.
+Os seguintes padrões foram **completamente removidos** na migração RISE V3:
 
-#### Funções
-
-```typescript
-// Buscar token do vault
-getVendorToken(vendorId, gateway): Promise<string | null>
-
-// Buscar configuração completa
-getVendorIntegrationConfig(vendorId, gateway): Promise<any | null>
-```
-
-#### Exemplo
-
-```typescript
-import { getVendorToken } from "../_shared/get-vendor-token.ts";
-
-const accessToken = await getVendorToken(vendorId, 'mercadopago');
-if (!accessToken) {
-  throw new Error('Mercado Pago não configurado');
-}
-```
+- ❌ `producer_sessions` - Substituída por `sessions`
+- ❌ `buyer_sessions` - Substituída por `sessions`
+- ❌ `x-buyer-token` header - Substituído por cookie `__Host-rise_access`
+- ❌ `x-producer-session-token` header - Substituído por cookie `__Host-rise_access`
+- ❌ `validateLegacyProducerSession()` - Removida
+- ❌ `validateLegacyBuyerSession()` - Removida
 
 ---
 
-### 8. `unified-auth.ts`
+## 📊 RISE V3 Compliance
 
-**Propósito**: Autenticação centralizada de produtores via `producer_sessions`.
-
-#### RISE ARCHITECT PROTOCOL - Conformidade 100%
-
-Este módulo segue rigorosamente o protocolo:
-- ✅ Zero fallbacks legados
-- ✅ Caminho único de autenticação
-- ✅ Sem código morto
-
-#### Interface de Retorno
-
-```typescript
-interface ProducerAuth {
-  id: string;           // UUID do produtor
-  email: string;        // Email do produtor
-  name: string | null;  // Nome (pode ser null)
-  role: string;         // "owner" | "admin" | "user" | "seller"
-}
-```
-
-#### Funções Exportadas
-
-| Função | Parâmetros | Retorno | Descrição |
-|--------|------------|---------|-----------|
-| `getAuthenticatedProducer` | (supabase, request) | `Promise<ProducerAuth \| null>` | Tenta autenticar, retorna null se falhar |
-| `requireAuthenticatedProducer` | (supabase, request) | `Promise<ProducerAuth>` | Exige autenticação, throws se falhar |
-| `unauthorizedResponse` | (corsHeaders) | `Response` | Response 401 padronizada |
-
-#### Exemplo de Uso
-
-```typescript
-import { 
-  requireAuthenticatedProducer, 
-  unauthorizedResponse 
-} from "../_shared/unified-auth.ts";
-
-// Em uma Edge Function protegida:
-let producer;
-try {
-  producer = await requireAuthenticatedProducer(supabaseAdmin, req);
-} catch {
-  return unauthorizedResponse(corsHeaders);
-}
-
-console.log(`Autenticado: ${producer.email} (${producer.role})`);
-```
-
-#### Header Esperado
-
-```
-X-Producer-Session-Token: <token_de_64_caracteres>
-```
-
-#### Fluxo de Validação
-
-```
-┌─────────────────────────────────────────────────────────┐
-│              VALIDAÇÃO DE SESSION TOKEN                  │
-└─────────────────────────────────────────────────────────┘
-                         │
-                         ▼
-         ┌───────────────────────────────┐
-         │ Extrai X-Producer-Session-Token│
-         │ do header                      │
-         └───────────────┬───────────────┘
-                         │
-            Token existe? 
-                         │
-         ┌───────────────┴───────────────┐
-         ▼ NÃO                           ▼ SIM
-  ┌─────────────┐            ┌───────────────────────┐
-  │ return null │            │ Busca em              │
-  └─────────────┘            │ producer_sessions     │
-                             │ WHERE is_valid = true │
-                             │ AND expires_at > now  │
-                             └───────────┬───────────┘
-                                         │
-                          Sessão válida?
-                                         │
-                         ┌───────────────┴───────────────┐
-                         ▼ NÃO                           ▼ SIM
-                  ┌─────────────┐            ┌───────────────────┐
-                  │ return null │            │ Busca profile     │
-                  └─────────────┘            │ e user_role       │
-                                             └─────────┬─────────┘
-                                                       │
-                                                       ▼
-                                             ┌───────────────────┐
-                                             │ return ProducerAuth│
-                                             └───────────────────┘
-```
-
----
-
-## 🔒 Segurança
-
-### Princípios Aplicados
-
-1. **Defesa em Profundidade**: Múltiplas camadas (rate limit, auth, role)
-2. **Menor Privilégio**: Funções só acessam o necessário
-3. **Auditoria Completa**: Todos eventos críticos são logados
-4. **Tokens Protegidos**: Armazenados no Vault, nunca expostos
-
-### Tabelas Utilizadas
-
-| Tabela | Módulo | Propósito |
-|--------|--------|-----------|
-| `rate_limit_attempts` | rate-limit.ts | Controle de tentativas |
-| `security_audit_log` | audit-logger.ts | Eventos de segurança |
-| `user_roles` | role-validator.ts | Roles dos usuários |
-| `profiles` | Vários | Dados de vendedores |
-
----
-
-## 📝 Convenções
-
-### Logs
-
-Todos os módulos usam prefixo padronizado:
-
-```typescript
-console.log('[nome-modulo] Mensagem');
-console.error('[nome-modulo] Erro:', error);
-```
-
-### Tratamento de Erros
-
-- Nunca silenciar erros críticos
-- Retornar `null` em funções de busca que podem falhar
-- Lançar `Error` em validações obrigatórias
-- Logar sempre antes de falhar
-
-### TypeScript
-
-- Interfaces bem definidas
-- Tipos exportados para reutilização
-- `any` apenas quando necessário (ex: Supabase client)
-
----
-
-## 🔗 Links Úteis
-
-- [Logs das Edge Functions](https://supabase.com/dashboard/project/wivbtmtgpsxupfjwwovf/functions)
-- [Secrets Configuration](https://supabase.com/dashboard/project/wivbtmtgpsxupfjwwovf/settings/functions)
-- [Documentação de Arquitetura](../../docs/ARCHITECTURE.md)
+| Critério | Status |
+|----------|--------|
+| Single Source of Truth | ✅ `sessions` table |
+| Zero Fallbacks Legados | ✅ 0 funções |
+| Cookie-based Auth | ✅ `__Host-rise_*` |
+| Zero Headers Legados | ✅ Removidos |
+| Documentação Atualizada | ✅ Este arquivo |

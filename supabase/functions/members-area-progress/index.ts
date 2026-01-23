@@ -1,17 +1,18 @@
 /**
  * members-area-progress - Gerenciamento de progresso de conteúdo
  * 
- * @version 2.0.0 - RISE Protocol V2 Compliance (Zero any)
+ * @version 3.0.0 - RISE Protocol V3 Compliant (Unified Auth)
  */
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { handleCorsV2, getCorsHeadersV2 } from "../_shared/cors-v2.ts";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { 
   rateLimitMiddleware, 
   MEMBERS_AREA,
   getClientIP 
 } from "../_shared/rate-limiting/index.ts";
 import { createLogger } from "../_shared/logger.ts";
+import { getAuthenticatedUser } from "../_shared/unified-auth-v2.ts";
 
 const log = createLogger("members-area-progress");
 
@@ -28,14 +29,7 @@ interface ProgressRequest {
   content_id?: string;
   module_id?: string;
   product_id?: string;
-  buyer_token?: string;
   data?: ProgressData;
-}
-
-interface BuyerSession {
-  buyer_id: string;
-  expires_at: string;
-  is_valid: boolean;
 }
 
 interface ProgressRecord {
@@ -101,40 +95,21 @@ Deno.serve(async (req) => {
     }
 
     const body: ProgressRequest = await req.json();
-    const { action, content_id, module_id, product_id, buyer_token, data } = body;
+    const { action, content_id, module_id, product_id, data } = body;
 
     log.info(`Action: ${action}`);
 
-    // Validar buyer token
-    if (!buyer_token) {
+    // RISE V3: Usar unified-auth-v2 via cookie __Host-rise_access
+    const user = await getAuthenticatedUser(supabase, req);
+    
+    if (!user) {
       return new Response(
-        JSON.stringify({ error: "buyer_token required" }),
+        JSON.stringify({ error: "Authentication required" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Buscar sessão do buyer
-    const { data: session, error: sessionError } = await supabase
-      .from("buyer_sessions")
-      .select("buyer_id, expires_at, is_valid")
-      .eq("session_token", buyer_token)
-      .single() as { data: BuyerSession | null; error: Error | null };
-
-    if (sessionError || !session || !session.is_valid) {
-      return new Response(
-        JSON.stringify({ error: "Invalid or expired session" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (new Date(session.expires_at) < new Date()) {
-      return new Response(
-        JSON.stringify({ error: "Session expired" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const buyer_id = session.buyer_id;
+    const buyer_id = user.id;
 
     switch (action) {
       case "get": {
