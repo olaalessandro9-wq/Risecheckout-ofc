@@ -1,35 +1,8 @@
 /**
- * AsaasAdapter - Adaptador para o gateway Asaas
- * 
- * Este adaptador traduz as requisições padronizadas do RiseCheckout
- * para o formato específico da API da Asaas e vice-versa.
- * 
- * Suporta:
- * - Pagamentos via PIX (QR Code dinâmico)
- * - Pagamentos via Cartão de Crédito (com tokenização)
- * - Split de pagamentos nativo (N recebedores via walletId)
- * - Ambientes de sandbox e produção
- * - Circuit Breaker para resiliência
- * 
- * Documentação Asaas:
- * - Split: https://docs.asaas.com/docs/split-de-pagamentos
- * - PIX: https://docs.asaas.com/docs/pix
- * - Cobranças: https://docs.asaas.com/reference/criar-nova-cobranca
- * 
- * @example
- * ```typescript
- * const adapter = new AsaasAdapter(apiKey, 'production');
- * const result = await adapter.createPix({
- *   amount_cents: 10000,
- *   order_id: 'abc123',
- *   customer: { name: 'João', email: 'joao@example.com', document: '12345678900' },
- *   description: 'Pedido #123'
- * });
- * ```
- * 
- * @version 3.0.0 - Refatorado para RISE Protocol V2 (< 300 linhas)
+ * AsaasAdapter - Gateway Adapter (RISE V3 Compliant)
+ * @module payment-gateways/adapters
+ * @version 3.1.0
  */
-
 import { IPaymentGateway } from "../IPaymentGateway.ts";
 import { PaymentRequest, PaymentResponse } from "../types.ts";
 import { CircuitBreaker, CircuitOpenError, GATEWAY_CIRCUIT_CONFIGS } from "../../circuit-breaker.ts";
@@ -37,42 +10,19 @@ import { createLogger } from "../../logger.ts";
 import { createGatewayClient, type GatewayHttpClient } from "../../http-client.ts";
 import { validateOrderAmount } from "../../payment-validation.ts";
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-// Importar helpers modulares - UNIFICADO para RISE Protocol V2
 import { findOrCreateCustomer, type AsaasCustomer } from "../../asaas-customer.ts";
-import { 
-  createPayment, 
-  getPixQrCode, 
-  buildSplitRules, 
-  getDueDate, 
-  parseCardToken, 
-  mapAsaasStatus,
-  type AsaasPaymentStatus 
-} from "./asaas-payment-helper.ts";
+import { createPayment, getPixQrCode, buildSplitRules, getDueDate, parseCardToken, mapAsaasStatus, type AsaasPaymentStatus } from "./asaas-payment-helper.ts";
 
 const log = createLogger("AsaasAdapter");
 
-// ============================================
-// ADAPTER IMPLEMENTATION
-// ============================================
-
 export class AsaasAdapter implements IPaymentGateway {
   readonly providerName = "asaas";
-  
   private apiKey: string;
   private environment: 'sandbox' | 'production';
   private baseUrl: string;
   private circuitBreaker: CircuitBreaker;
   private httpClient: GatewayHttpClient;
   private supabase: SupabaseClient;
-
-  /**
-   * Cria uma nova instância do adaptador Asaas
-   * 
-   * @param apiKey - API Key da conta Asaas
-   * @param environment - Ambiente (sandbox ou production)
-   * @param supabase - Cliente Supabase para validação de preço
-   */
   constructor(
     apiKey: string, 
     environment: 'sandbox' | 'production' = 'production',
