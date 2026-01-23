@@ -147,16 +147,10 @@ verify_jwt = false
 # verify_jwt DEVE ser false
 # =====================================================
 
-[functions.buyer-auth]
-verify_jwt = false
-
 [functions.buyer-orders]
 verify_jwt = false
 
 [functions.buyer-profile]
-verify_jwt = false
-
-[functions.buyer-session]
 verify_jwt = false
 
 [functions.members-area-drip]
@@ -278,9 +272,6 @@ verify_jwt = false
 # Endpoints de login (não requerem auth prévia)
 # verify_jwt DEVE ser false
 # =====================================================
-
-[functions.producer-auth]
-verify_jwt = false
 
 # RISE V3 - Unified Identity System
 [functions.unified-auth]
