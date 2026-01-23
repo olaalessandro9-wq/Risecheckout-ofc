@@ -13,7 +13,8 @@
  * - POST /validate - Validate current session
  * - POST /refresh - Refresh access token
  * - POST /switch-context - Switch active role (producer <-> buyer)
- * - POST /password-reset-request - Request password reset
+ * - POST /password-reset-request - Request password reset email
+ * - POST /password-reset-verify - Verify reset token validity
  * - POST /password-reset - Reset password with token
  * 
  * @module unified-auth
@@ -32,6 +33,9 @@ import { handleLogout } from "./handlers/logout.ts";
 import { handleValidate } from "./handlers/validate.ts";
 import { handleRefresh } from "./handlers/refresh.ts";
 import { handleSwitchContext } from "./handlers/switch-context.ts";
+import { handlePasswordResetRequest } from "./handlers/password-reset-request.ts";
+import { handlePasswordResetVerify } from "./handlers/password-reset-verify.ts";
+import { handlePasswordReset } from "./handlers/password-reset.ts";
 
 const log = createLogger("UnifiedAuth");
 
@@ -86,6 +90,15 @@ serve(async (req: Request): Promise<Response> => {
         
       case "switch-context":
         return await handleSwitchContext(supabase, req, corsHeaders);
+        
+      case "password-reset-request":
+        return await handlePasswordResetRequest(supabase, req, corsHeaders);
+        
+      case "password-reset-verify":
+        return await handlePasswordResetVerify(supabase, req, corsHeaders);
+        
+      case "password-reset":
+        return await handlePasswordReset(supabase, req, corsHeaders);
         
       default:
         log.warn(`Unknown action: ${action}`);
