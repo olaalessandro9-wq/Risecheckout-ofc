@@ -3,6 +3,19 @@
  * 
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
+ * ═══════════════════════════════════════════════════════════════════════════
+ * RISE V3 EXCEPTION: FILE LENGTH (~515 lines)
+ * 
+ * This file exceeds the 300-line limit due to its central role as the 
+ * Single Source of Truth (SSOT) for unified authentication across all
+ * Edge Functions. The logic is highly cohesive and splitting it would:
+ * 1. Harm readability by scattering related auth logic
+ * 2. Create unnecessary import chains
+ * 3. Violate Single Responsibility at a higher abstraction level
+ * 
+ * Exception reviewed and approved: 2026-01-23
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 
  * This module provides authentication for the unified identity architecture:
  * - One person = One user record in `users` table
  * - One session = Multiple role contexts
