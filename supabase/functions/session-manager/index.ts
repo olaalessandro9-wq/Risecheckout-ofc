@@ -1,9 +1,11 @@
 /**
  * ============================================================================
- * Session Manager - Edge Function
+ * Session Manager - Edge Function (UNIFIED)
  * ============================================================================
  * 
- * Gerencia sessões de usuários (buyers e producers):
+ * RISE Protocol V3 - Uses unified `sessions` table
+ * 
+ * Gerencia sessões de usuários:
  * - Listar sessões ativas
  * - Revogar sessão específica
  * - Logout global (revoke all)
@@ -16,23 +18,22 @@
  * - POST /session-manager { action: "revoke-others" }
  * 
  * Headers:
- * - Cookie: __Host-buyer_access=... (or __Host-producer_access=...)
+ * - Cookie: __Host-rise_access=...
  * 
  * ============================================================================
- * @version 1.0.0 - RISE Protocol V3 Compliant
+ * @version 2.0.0 - RISE Protocol V3 (Unified Sessions Table)
  * ============================================================================
  */
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { createLogger } from "../_shared/logger.ts";
-import { getBuyerAccessToken, getProducerAccessToken } from "../_shared/session-reader.ts";
+import { getUnifiedAccessToken } from "../_shared/unified-auth-v2.ts";
 import {
-  listSessions,
-  revokeSession,
-  revokeAllSessions,
-  revokeOtherSessions,
-  type SessionDomain,
+  listSessionsUnified,
+  revokeSessionUnified,
+  revokeAllSessionsUnified,
+  revokeOtherSessionsUnified,
   type SessionManagementRequest,
 } from "../_shared/session-management/index.ts";
 
@@ -48,56 +49,42 @@ type SupabaseClientAny = SupabaseClient<any, any, any>;
 interface AuthResult {
   userId: string;
   sessionId: string;
-  domain: SessionDomain;
 }
 
 // ============================================================================
-// AUTH HELPERS
+// AUTH HELPER
 // ============================================================================
 
 async function authenticateRequest(
   req: Request,
   supabase: SupabaseClientAny
 ): Promise<AuthResult | null> {
-  // Try buyer token first
-  const buyerToken = getBuyerAccessToken(req);
-  if (buyerToken) {
-    const { data: session } = await supabase
-      .from("buyer_sessions")
-      .select("id, buyer_id, is_valid, expires_at")
-      .eq("session_token", buyerToken)
-      .eq("is_valid", true)
-      .single();
-
-    if (session && new Date(session.expires_at) > new Date()) {
-      return {
-        userId: session.buyer_id,
-        sessionId: session.id,
-        domain: "buyer",
-      };
-    }
+  const token = getUnifiedAccessToken(req);
+  if (!token) {
+    return null;
   }
 
-  // Try producer token
-  const producerToken = getProducerAccessToken(req);
-  if (producerToken) {
-    const { data: session } = await supabase
-      .from("producer_sessions")
-      .select("id, user_id, is_valid, expires_at")
-      .eq("session_token", producerToken)
-      .eq("is_valid", true)
-      .single();
+  // Check unified sessions table
+  const { data: session } = await supabase
+    .from("sessions")
+    .select("id, user_id, is_valid, access_token_expires_at")
+    .eq("session_token", token)
+    .eq("is_valid", true)
+    .single();
 
-    if (session && new Date(session.expires_at) > new Date()) {
-      return {
-        userId: session.user_id,
-        sessionId: session.id,
-        domain: "producer",
-      };
-    }
+  if (!session) {
+    return null;
   }
 
-  return null;
+  // Check expiration
+  if (session.access_token_expires_at && new Date(session.access_token_expires_at) < new Date()) {
+    return null;
+  }
+
+  return {
+    userId: session.user_id,
+    sessionId: session.id,
+  };
 }
 
 // ============================================================================
@@ -133,13 +120,13 @@ Deno.serve(async (req: Request) => {
     const body: SessionManagementRequest = await req.json();
     const { action } = body;
 
-    log.info(`Action: ${action}, Domain: ${auth.domain}, User: ${auth.userId}`);
+    log.info(`Action: ${action}, User: ${auth.userId}`);
 
     let result;
 
     switch (action) {
       case "list":
-        result = await listSessions(supabase, auth.userId, auth.sessionId, auth.domain);
+        result = await listSessionsUnified(supabase, auth.userId, auth.sessionId);
         break;
 
       case "revoke":
@@ -149,15 +136,15 @@ Deno.serve(async (req: Request) => {
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
-        result = await revokeSession(supabase, auth.userId, body.sessionId, auth.sessionId, auth.domain);
+        result = await revokeSessionUnified(supabase, auth.userId, body.sessionId, auth.sessionId);
         break;
 
       case "revoke-all":
-        result = await revokeAllSessions(supabase, auth.userId, auth.domain);
+        result = await revokeAllSessionsUnified(supabase, auth.userId);
         break;
 
       case "revoke-others":
-        result = await revokeOtherSessions(supabase, auth.userId, auth.sessionId, auth.domain);
+        result = await revokeOtherSessionsUnified(supabase, auth.userId, auth.sessionId);
         break;
 
       default:

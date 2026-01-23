@@ -1,7 +1,9 @@
 /**
  * ============================================================================
- * Session Manager - Core Session Operations
+ * Session Manager - Core Session Operations (UNIFIED)
  * ============================================================================
+ * 
+ * RISE Protocol V3 - Uses unified `sessions` table
  * 
  * Provides core session management operations:
  * - List active sessions
@@ -9,7 +11,7 @@
  * - Revoke all sessions (global logout)
  * - Revoke other sessions (keep current)
  * 
- * @version 1.0.0 - RISE Protocol V3 Compliant
+ * @version 2.0.0 - RISE Protocol V3 (Unified Sessions Table)
  * ============================================================================
  */
 
@@ -17,8 +19,6 @@ import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { parseUserAgent } from "./device-parser.ts";
 import type {
   SessionInfo,
-  BuyerSessionRow,
-  SessionDomain,
   ListSessionsResponse,
   RevokeSessionResponse,
   RevokeAllResponse,
@@ -30,11 +30,29 @@ import type {
 type SupabaseClientAny = SupabaseClient<any, any, any>;
 
 // ============================================================================
+// UNIFIED SESSION ROW
+// ============================================================================
+
+interface UnifiedSessionRow {
+  id: string;
+  user_id: string;
+  session_token: string;
+  refresh_token: string | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  created_at: string;
+  expires_at: string;
+  last_activity_at: string | null;
+  is_valid: boolean;
+  active_role: string;
+}
+
+// ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 
 function mapRowToSessionInfo(
-  row: BuyerSessionRow,
+  row: UnifiedSessionRow,
   currentSessionId: string | null
 ): SessionInfo {
   return {
@@ -49,35 +67,23 @@ function mapRowToSessionInfo(
   };
 }
 
-function getTableName(domain: SessionDomain): string {
-  return domain === "buyer" ? "buyer_sessions" : "producer_sessions";
-}
-
-function getUserIdColumn(domain: SessionDomain): string {
-  return domain === "buyer" ? "buyer_id" : "user_id";
-}
-
 // ============================================================================
-// LIST SESSIONS
+// LIST SESSIONS (UNIFIED)
 // ============================================================================
 
-export async function listSessions(
+export async function listSessionsUnified(
   supabase: SupabaseClientAny,
   userId: string,
-  currentSessionId: string | null,
-  domain: SessionDomain
+  currentSessionId: string | null
 ): Promise<ListSessionsResponse | ErrorResponse> {
-  const tableName = getTableName(domain);
-  const userIdColumn = getUserIdColumn(domain);
-
   const { data: sessions, error } = await supabase
-    .from(tableName)
-    .select("id, buyer_id, session_token, refresh_token, ip_address, user_agent, created_at, expires_at, last_activity_at, is_valid")
-    .eq(userIdColumn, userId)
+    .from("sessions")
+    .select("id, user_id, session_token, refresh_token, ip_address, user_agent, created_at, expires_at, last_activity_at, is_valid, active_role")
+    .eq("user_id", userId)
     .eq("is_valid", true)
     .gt("expires_at", new Date().toISOString())
     .order("last_activity_at", { ascending: false, nullsFirst: false }) as {
-      data: BuyerSessionRow[] | null;
+      data: UnifiedSessionRow[] | null;
       error: Error | null;
     };
 
@@ -101,19 +107,15 @@ export async function listSessions(
 }
 
 // ============================================================================
-// REVOKE SINGLE SESSION
+// REVOKE SINGLE SESSION (UNIFIED)
 // ============================================================================
 
-export async function revokeSession(
+export async function revokeSessionUnified(
   supabase: SupabaseClientAny,
   userId: string,
   sessionId: string,
-  currentSessionId: string | null,
-  domain: SessionDomain
+  currentSessionId: string | null
 ): Promise<RevokeSessionResponse | ErrorResponse> {
-  const tableName = getTableName(domain);
-  const userIdColumn = getUserIdColumn(domain);
-
   // Prevent revoking current session through this endpoint
   if (sessionId === currentSessionId) {
     return {
@@ -125,10 +127,10 @@ export async function revokeSession(
 
   // Verify session belongs to user
   const { data: session, error: fetchError } = await supabase
-    .from(tableName)
+    .from("sessions")
     .select("id")
     .eq("id", sessionId)
-    .eq(userIdColumn, userId)
+    .eq("user_id", userId)
     .single();
 
   if (fetchError || !session) {
@@ -141,7 +143,7 @@ export async function revokeSession(
 
   // Revoke session
   const { error: updateError } = await supabase
-    .from(tableName)
+    .from("sessions")
     .update({ is_valid: false })
     .eq("id", sessionId);
 
@@ -161,22 +163,18 @@ export async function revokeSession(
 }
 
 // ============================================================================
-// REVOKE ALL SESSIONS (GLOBAL LOGOUT)
+// REVOKE ALL SESSIONS (GLOBAL LOGOUT) (UNIFIED)
 // ============================================================================
 
-export async function revokeAllSessions(
+export async function revokeAllSessionsUnified(
   supabase: SupabaseClientAny,
-  userId: string,
-  domain: SessionDomain
+  userId: string
 ): Promise<RevokeAllResponse | ErrorResponse> {
-  const tableName = getTableName(domain);
-  const userIdColumn = getUserIdColumn(domain);
-
   // Count active sessions first
   const { count, error: countError } = await supabase
-    .from(tableName)
+    .from("sessions")
     .select("id", { count: "exact", head: true })
-    .eq(userIdColumn, userId)
+    .eq("user_id", userId)
     .eq("is_valid", true);
 
   if (countError) {
@@ -189,9 +187,9 @@ export async function revokeAllSessions(
 
   // Revoke all sessions
   const { error: updateError } = await supabase
-    .from(tableName)
+    .from("sessions")
     .update({ is_valid: false })
-    .eq(userIdColumn, userId)
+    .eq("user_id", userId)
     .eq("is_valid", true);
 
   if (updateError) {
@@ -210,18 +208,14 @@ export async function revokeAllSessions(
 }
 
 // ============================================================================
-// REVOKE OTHER SESSIONS (KEEP CURRENT)
+// REVOKE OTHER SESSIONS (KEEP CURRENT) (UNIFIED)
 // ============================================================================
 
-export async function revokeOtherSessions(
+export async function revokeOtherSessionsUnified(
   supabase: SupabaseClientAny,
   userId: string,
-  currentSessionId: string,
-  domain: SessionDomain
+  currentSessionId: string
 ): Promise<RevokeOthersResponse | ErrorResponse> {
-  const tableName = getTableName(domain);
-  const userIdColumn = getUserIdColumn(domain);
-
   if (!currentSessionId) {
     return {
       success: false,
@@ -232,9 +226,9 @@ export async function revokeOtherSessions(
 
   // Count other active sessions
   const { count, error: countError } = await supabase
-    .from(tableName)
+    .from("sessions")
     .select("id", { count: "exact", head: true })
-    .eq(userIdColumn, userId)
+    .eq("user_id", userId)
     .eq("is_valid", true)
     .neq("id", currentSessionId);
 
@@ -248,9 +242,9 @@ export async function revokeOtherSessions(
 
   // Revoke all sessions except current
   const { error: updateError } = await supabase
-    .from(tableName)
+    .from("sessions")
     .update({ is_valid: false })
-    .eq(userIdColumn, userId)
+    .eq("user_id", userId)
     .eq("is_valid", true)
     .neq("id", currentSessionId);
 
@@ -270,4 +264,51 @@ export async function revokeOtherSessions(
       ? "No other sessions to revoke"
       : `Successfully logged out from ${count} other devices`,
   };
+}
+
+// ============================================================================
+// LEGACY EXPORTS (for backwards compatibility during transition)
+// @deprecated - Use *Unified functions instead
+// ============================================================================
+
+import type { SessionDomain, BuyerSessionRow } from "./types.ts";
+
+/** @deprecated Use listSessionsUnified instead */
+export async function listSessions(
+  supabase: SupabaseClientAny,
+  userId: string,
+  currentSessionId: string | null,
+  _domain: SessionDomain
+): Promise<ListSessionsResponse | ErrorResponse> {
+  return listSessionsUnified(supabase, userId, currentSessionId);
+}
+
+/** @deprecated Use revokeSessionUnified instead */
+export async function revokeSession(
+  supabase: SupabaseClientAny,
+  userId: string,
+  sessionId: string,
+  currentSessionId: string | null,
+  _domain: SessionDomain
+): Promise<RevokeSessionResponse | ErrorResponse> {
+  return revokeSessionUnified(supabase, userId, sessionId, currentSessionId);
+}
+
+/** @deprecated Use revokeAllSessionsUnified instead */
+export async function revokeAllSessions(
+  supabase: SupabaseClientAny,
+  userId: string,
+  _domain: SessionDomain
+): Promise<RevokeAllResponse | ErrorResponse> {
+  return revokeAllSessionsUnified(supabase, userId);
+}
+
+/** @deprecated Use revokeOtherSessionsUnified instead */
+export async function revokeOtherSessions(
+  supabase: SupabaseClientAny,
+  userId: string,
+  currentSessionId: string,
+  _domain: SessionDomain
+): Promise<RevokeOthersResponse | ErrorResponse> {
+  return revokeOtherSessionsUnified(supabase, userId, currentSessionId);
 }

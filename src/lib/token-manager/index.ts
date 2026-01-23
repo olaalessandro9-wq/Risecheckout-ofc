@@ -1,23 +1,10 @@
 /**
  * Token Manager - Public Exports
  * 
- * RISE Protocol V3: FSM-based Token Lifecycle Management
+ * RISE Protocol V3: Unified Token Service
  * 
- * Usage:
- * ```typescript
- * import { producerTokenService } from "@/lib/token-manager";
- * 
- * // Check auth state
- * const state = producerTokenService.getState();
- * 
- * // Get valid token (with auto-refresh)
- * const token = await producerTokenService.getValidAccessToken();
- * 
- * // Subscribe to state changes
- * const unsubscribe = producerTokenService.subscribe((state, context) => {
- *   console.log("Auth state changed:", state);
- * });
- * ```
+ * All authentication flows now use the unified service.
+ * Legacy buyer/producer exports are deprecated aliases.
  */
 
 // Types
@@ -54,22 +41,34 @@ export { HeartbeatManager } from "./heartbeat";
 export type { RefreshResult } from "./refresh";
 export { executeRefresh } from "./refresh";
 
-// Service (main API)
+// ============================================
+// UNIFIED SERVICE (PRIMARY EXPORT)
+// ============================================
+
 export { 
   TokenService,
+  unifiedTokenService,
+} from "./service";
+
+// ============================================
+// LEGACY ALIASES (DEPRECATED)
+// These exist only for backwards compatibility.
+// All point to unifiedTokenService.
+// ============================================
+
+export { 
   producerTokenService,
   buyerTokenService,
-  // Backward compatibility
   producerTokenManager,
   buyerTokenManager,
 } from "./service";
 
 // ============================================
-// UNIFIED SERVICE (RISE V3 - PREFERRED)
+// UNIFIED API HELPERS (RISE V3 - PREFERRED)
 // ============================================
 
 export {
-  unifiedTokenService,
+  unifiedTokenService as tokenService,
   isAuthenticated,
   refreshToken,
   clearAuth,

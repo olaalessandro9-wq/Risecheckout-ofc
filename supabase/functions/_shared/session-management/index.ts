@@ -3,13 +3,15 @@
  * Session Management Module - Entry Point
  * ============================================================================
  * 
+ * RISE Protocol V3 - Unified Sessions Architecture
+ * 
  * Provides complete session management functionality:
  * - List active sessions with device info
  * - Revoke specific sessions
  * - Global logout (revoke all)
  * - Revoke others (keep current)
  * 
- * @version 1.0.0 - RISE Protocol V3 Compliant
+ * @version 2.0.0 - RISE Protocol V3 (Unified Sessions Table)
  * ============================================================================
  */
 
@@ -39,7 +41,15 @@ export {
   formatDeviceDescription,
 } from "./device-parser.ts";
 
-// Re-export session manager
+// Re-export unified session manager functions (preferred)
+export {
+  listSessionsUnified,
+  revokeSessionUnified,
+  revokeAllSessionsUnified,
+  revokeOtherSessionsUnified,
+} from "./session-manager.ts";
+
+// Re-export legacy session manager functions (deprecated, for backwards compatibility)
 export {
   listSessions,
   revokeSession,
