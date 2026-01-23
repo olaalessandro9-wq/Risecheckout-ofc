@@ -108,7 +108,7 @@ serve(async (req) => {
       return rateLimitResult;
     }
 
-    // 1. Autenticação via unified-auth (X-Producer-Session-Token)
+    // 1. Autenticação via unified-auth (Cookie: __Host-rise_access)
     let producer;
     try {
       producer = await requireAuthenticatedProducer(supabaseAdmin, req);

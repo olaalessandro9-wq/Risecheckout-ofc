@@ -62,9 +62,9 @@
 O `unified-auth.ts` já atua como wrapper que redireciona todas as 52+ funções para `unified-auth-v2.ts`. 
 Isso significa que TODAS as funções que usam `requireAuthenticatedProducer` já estão usando o sistema unificado automaticamente.
 
-Para funções buyer-specific, implementamos validação híbrida:
-1. Tenta sessão unificada (`sessions` table) primeiro
-2. Fallback para legacy (`buyer_sessions`) para sessões antigas
+Para funções buyer-specific (100% migradas):
+1. Todas usam sessão unificada (`sessions` table) exclusivamente
+2. Fallbacks legados foram REMOVIDOS na Fase 10 (2026-01-23)
 
 ### Funções Migradas (Buyer Validation)
 

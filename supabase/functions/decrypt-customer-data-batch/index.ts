@@ -103,7 +103,7 @@ serve(async (req) => {
       throw new Error("BUYER_ENCRYPTION_KEY not configured");
     }
 
-    // AUTENTICAÇÃO via unified-auth (X-Producer-Session-Token)
+    // AUTENTICAÇÃO via unified-auth (Cookie: __Host-rise_access)
     let producer;
     try {
       producer = await requireAuthenticatedProducer(supabaseAdmin, req);
