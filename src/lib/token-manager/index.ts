@@ -63,3 +63,16 @@ export {
   producerTokenManager,
   buyerTokenManager,
 } from "./service";
+
+// ============================================
+// UNIFIED SERVICE (RISE V3 - PREFERRED)
+// ============================================
+
+export {
+  unifiedTokenService,
+  isAuthenticated,
+  refreshToken,
+  clearAuth,
+  setAuthenticated,
+  subscribeToAuth,
+} from "./unified-service";
