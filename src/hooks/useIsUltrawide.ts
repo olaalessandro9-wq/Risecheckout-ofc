@@ -1,16 +1,19 @@
 /**
- * Hook para detecção de monitor ultrawide
+ * Hooks para detecção e otimização de monitores ultrawide
  * 
  * Detecta se o usuário está em monitor ultrawide (≥2560px)
- * para aplicar otimizações de performance automaticamente.
+ * e fornece flags de performance para componentes.
  * 
  * @module hooks
  * @version RISE V3 Compliant
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 const ULTRAWIDE_BREAKPOINT = 2560;
 
+/**
+ * Hook base para detectar monitores ultrawide
+ */
 export function useIsUltrawide(): boolean {
   const [isUltrawide, setIsUltrawide] = useState(
     typeof window !== "undefined" 
@@ -32,4 +35,31 @@ export function useIsUltrawide(): boolean {
   }, []);
 
   return isUltrawide;
+}
+
+/**
+ * Configuração de performance para componentes em ultrawide
+ */
+export interface UltrawidePerformanceConfig {
+  readonly isUltrawide: boolean;
+  readonly disableAnimations: boolean;
+  readonly disableBlur: boolean;
+  readonly disableHoverEffects: boolean;
+  readonly simplifyTransitions: boolean;
+}
+
+/**
+ * Hook que retorna configurações de performance para ultrawide
+ * Componentes podem usar essas flags para desabilitar efeitos pesados
+ */
+export function useUltrawidePerformance(): UltrawidePerformanceConfig {
+  const isUltrawide = useIsUltrawide();
+  
+  return useMemo(() => ({
+    isUltrawide,
+    disableAnimations: isUltrawide,
+    disableBlur: isUltrawide,
+    disableHoverEffects: isUltrawide,
+    simplifyTransitions: isUltrawide,
+  }), [isUltrawide]);
 }

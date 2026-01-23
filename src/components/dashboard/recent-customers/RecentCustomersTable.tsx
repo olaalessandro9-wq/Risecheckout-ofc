@@ -5,6 +5,7 @@
  * - Limite de 150 linhas: ✓ (antes: 437 linhas)
  * - Single Responsibility: Orquestra componentes filhos
  * - Clean Architecture: Lógica separada em hooks
+ * - Otimizado para ultrawide com animações condicionais
  */
 
 import { useState, useMemo } from "react";
@@ -19,6 +20,8 @@ import { CustomerTableBody } from "./CustomerTableBody";
 import { CustomerPagination } from "./CustomerPagination";
 import { useCustomerPagination } from "./hooks/useCustomerPagination";
 import { isEncryptedValue, formatPhone, exportCustomersToCSV } from "./utils/customerUtils";
+import { useIsUltrawide } from "@/hooks/useIsUltrawide";
+import { cn } from "@/lib/utils";
 import type { Customer, CustomerExportData } from "./types";
 
 interface RecentCustomersTableProps {
@@ -29,6 +32,7 @@ interface RecentCustomersTableProps {
 
 export function RecentCustomersTable({ customers, isLoading = false, onRefresh }: RecentCustomersTableProps) {
   const { user } = useAuth();
+  const isUltrawide = useIsUltrawide();
   const [selectedOrder, setSelectedOrder] = useState<Customer | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -97,6 +101,16 @@ export function RecentCustomersTable({ customers, isLoading = false, onRefresh }
     status: c.status
   }));
 
+  // Wrapper condicional: div simples em ultrawide
+  const Wrapper = isUltrawide ? "div" : motion.div;
+  const wrapperProps = isUltrawide
+    ? {}
+    : {
+        initial: { opacity: 0, y: 10 },
+        animate: { opacity: 1, y: 0 },
+        transition: { duration: 0.25, delay: 0.1 },
+      };
+
   return (
     <>
       <OrderDetailsDialog
@@ -117,14 +131,14 @@ export function RecentCustomersTable({ customers, isLoading = false, onRefresh }
         productOwnerId={selectedOrder?.productOwnerId}
       />
 
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25, delay: 0.1 }}
-        className="relative"
-      >
-        {/* Div decorativa com blur removida para performance */}
-        <div className="relative bg-card/95 backdrop-blur-sm border border-border/50 rounded-2xl p-6 hover:border-primary/20 transition-all duration-300 hover:shadow-lg">
+      <Wrapper {...wrapperProps} className="relative">
+        <div
+          className={cn(
+            "relative bg-card/95 border border-border/50 rounded-2xl p-6",
+            !isUltrawide && "backdrop-blur-sm hover:border-primary/20 hover:shadow-lg transition-all duration-300",
+            isUltrawide && "transition-colors duration-200"
+          )}
+        >
           <div className="space-y-6">
             <CustomerTableHeader
               searchTerm={pagination.searchTerm}
@@ -136,7 +150,12 @@ export function RecentCustomersTable({ customers, isLoading = false, onRefresh }
               hasData={pagination.filteredCustomers.length > 0}
             />
 
-            <div className="border border-border/30 rounded-xl overflow-hidden bg-background/20 backdrop-blur-sm overflow-x-auto">
+            <div
+              className={cn(
+                "border border-border/30 rounded-xl overflow-hidden bg-background/20 overflow-x-auto",
+                !isUltrawide && "backdrop-blur-sm"
+              )}
+            >
               <Table className="min-w-[800px]">
                 <TableHeader>
                   <TableRow className="bg-muted/30 hover:bg-muted/50 border-border/30">
@@ -174,7 +193,7 @@ export function RecentCustomersTable({ customers, isLoading = false, onRefresh }
             )}
           </div>
         </div>
-      </motion.div>
+      </Wrapper>
     </>
   );
 }

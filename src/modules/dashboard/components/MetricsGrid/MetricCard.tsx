@@ -6,6 +6,7 @@
  * 
  * Card individual para exibição de métrica.
  * Aceita configuração declarativa via MetricConfig.
+ * Otimizado para ultrawide com animações condicionais.
  */
 
 import { Eye, ArrowUpRight, ArrowDownRight } from "lucide-react";
@@ -13,6 +14,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import type { TrendData } from "../../types";
+import { useIsUltrawide } from "@/hooks/useIsUltrawide";
+import { cn } from "@/lib/utils";
 
 interface MetricCardProps {
   readonly title: string;
@@ -37,25 +40,40 @@ export function MetricCard({
   className,
   iconClassName,
 }: MetricCardProps) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, delay: delay * 0.5 }}
-      className="relative group h-full"
-    >
-      {/* Card - Blur reduzido para performance em ultrawide */}
-      <div
-        className={`relative bg-card/95 backdrop-blur-sm border border-border/50 rounded-xl md:rounded-2xl p-4 md:p-5 lg:p-6 hover:border-primary/20 transition-all duration-300 hover:shadow-lg overflow-hidden h-full bg-gradient-to-br ${className || "from-card/95 to-card/90"}`}
-      >
+  const isUltrawide = useIsUltrawide();
 
+  // Wrapper condicional: div simples em ultrawide, motion.div em monitores normais
+  const Wrapper = isUltrawide ? "div" : motion.div;
+  const wrapperProps = isUltrawide
+    ? {}
+    : {
+        initial: { opacity: 0, y: 10 },
+        animate: { opacity: 1, y: 0 },
+        transition: { duration: 0.25, delay: delay * 0.5 },
+      };
+
+  return (
+    <Wrapper {...wrapperProps} className="relative group h-full">
+      <div
+        className={cn(
+          "relative bg-card/95 border border-border/50 rounded-xl md:rounded-2xl p-4 md:p-5 lg:p-6 overflow-hidden h-full bg-gradient-to-br",
+          // Efeitos condicionais baseados em resolução
+          !isUltrawide && "backdrop-blur-sm hover:border-primary/20 hover:shadow-lg transition-all duration-300",
+          isUltrawide && "transition-colors duration-200",
+          className || "from-card/95 to-card/90"
+        )}
+      >
         <div className="relative z-10 flex flex-col justify-between h-full">
           {/* Header */}
           <div className="flex items-center justify-between mb-3 md:mb-4">
             <div className="flex items-center gap-2 md:gap-3">
               {icon && (
                 <div
-                  className={`p-2 md:p-2.5 rounded-lg md:rounded-xl ring-1 ring-border/50 group-hover:scale-110 transition-transform duration-300 ${iconClassName || "bg-primary/10 text-primary"}`}
+                  className={cn(
+                    "p-2 md:p-2.5 rounded-lg md:rounded-xl ring-1 ring-border/50",
+                    !isUltrawide && "group-hover:scale-110 transition-transform duration-300",
+                    iconClassName || "bg-primary/10 text-primary"
+                  )}
                 >
                   {icon}
                 </div>
@@ -76,20 +94,23 @@ export function MetricCard({
               {isLoading ? (
                 <Skeleton className="h-9 w-32 bg-primary/10" />
               ) : (
-                <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
+                <p className={cn(
+                  "text-xl sm:text-2xl md:text-3xl font-bold text-foreground tracking-tight",
+                  !isUltrawide && "group-hover:text-primary transition-colors duration-300"
+                )}>
                   {value}
                 </p>
               )}
             </div>
 
-            {/* Coluna Direita: Trend Block com Barra Lateral */}
+            {/* Coluna Direita: Trend Block */}
             {trend && (
               <div className="pl-2 md:pl-3 py-1 flex-shrink-0">
-                {/* Linha 1: Seta + Porcentagem */}
                 <div
-                  className={`flex items-center gap-1 text-xs md:text-sm font-semibold ${
+                  className={cn(
+                    "flex items-center gap-1 text-xs md:text-sm font-semibold",
                     trend.isPositive ? "text-emerald-400" : "text-red-400"
-                  }`}
+                  )}
                 >
                   {trend.isPositive ? (
                     <ArrowUpRight className="w-3.5 h-3.5 md:w-4 md:h-4" />
@@ -98,8 +119,6 @@ export function MetricCard({
                   )}
                   <span>{Math.round(trend.value)}%</span>
                 </div>
-
-                {/* Linha 2: Label de Comparação */}
                 {trend.label && (
                   <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 whitespace-nowrap">
                     {trend.label}
@@ -110,6 +129,6 @@ export function MetricCard({
           </div>
         </div>
       </div>
-    </motion.div>
+    </Wrapper>
   );
 }
