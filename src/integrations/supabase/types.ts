@@ -4687,7 +4687,6 @@ export type Database = {
               user_id: string
             }[]
           }
-      get_producer_id_from_session: { Args: never; Returns: string }
       get_rls_status_all_tables: {
         Args: never
         Returns: {
