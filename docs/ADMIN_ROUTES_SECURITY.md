@@ -312,7 +312,7 @@ Ao revisar PRs que adicionam rotas administrativas, verifique:
 
 - `src/components/RoleProtectedRoute.tsx` - Implementação do componente
 - `src/hooks/usePermissions.ts` - Hook de permissões frontend
-- `supabase/functions/_shared/unified-auth.ts` - Autenticação via producer_sessions
+- `supabase/functions/_shared/unified-auth.ts` - Autenticação via sessions (unified-auth)
 - `supabase/functions/_shared/role-validator.ts` - Validação de roles
 - `supabase/functions/_shared/audit-logger.ts` - Logs de segurança
 - `docs/AUTHENTICATION_SYSTEM.md` - Documentação completa de autenticação
@@ -322,4 +322,4 @@ Ao revisar PRs que adicionam rotas administrativas, verifique:
 ---
 
 *Documento mantido pela equipe de desenvolvimento RiseCheckout.*
-*Atualizado para refletir sistema de autenticação via producer_sessions (Janeiro 2026).*
+*Atualizado para refletir sistema de autenticação unificada via sessions (Janeiro 2026).*
