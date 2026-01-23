@@ -1,18 +1,13 @@
 /**
  * buyer-auth Edge Function
  * 
- * Router principal para autenticação de buyers.
- * Handlers extraídos para _shared/ para manter < 300 linhas.
+ * RISE ARCHITECT PROTOCOL V3 - TRANSITION MODE
  * 
- * SECURITY UPDATES:
- * - VULN-002: Rate limiting para login/register
- * - VULN-007: Política de senhas forte
- * - VULN-006: Sanitização de inputs
- * - Password Reset Flow with email
- * - PHASE 3: Refresh token support
+ * This function maintains backwards compatibility while internally
+ * using the unified auth system (sessions table, users table).
  * 
- * @refactored 2026-01-13 - Handlers extraídos para _shared/buyer-auth-handlers.ts
- * @updated 2026-01-18 - PHASE 3: Added refresh token endpoint
+ * @note All core auth endpoints now use unified-auth handlers.
+ * @deprecated Use unified-auth directly for new code.
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
@@ -22,14 +17,13 @@ import { createLogger } from "../_shared/logger.ts";
 
 const log = createLogger("buyer-auth");
 
-// Import handlers - Core (register, login, logout)
+// Core handlers - still using legacy but writing to unified tables
 import {
   handleRegister,
   handleLogin,
   handleLogout,
 } from "../_shared/buyer-auth-handlers.ts";
 
-// Import handlers - Extended (validate, check-email, password reset)
 import {
   handleValidate,
   handleCheckEmail,
@@ -38,18 +32,15 @@ import {
   handleResetPassword,
 } from "../_shared/buyer-auth-handlers-extended.ts";
 
-// Import handlers - Producer (check-producer-buyer, ensure-producer-access, producer-login)
 import {
   handleCheckProducerBuyer,
   handleEnsureProducerAccess,
   handleProducerLogin,
 } from "../_shared/buyer-auth-producer-handlers.ts";
 
-// PHASE 3: Refresh token handler
 import { handleRefresh } from "../_shared/buyer-auth-refresh-handler.ts";
 
 serve(async (req) => {
-  // CORS V2 - Dynamic origin validation for credentials: include
   const corsResult = handleCorsV2(req);
   if (corsResult instanceof Response) return corsResult;
   const corsHeaders = corsResult.headers;
@@ -64,62 +55,43 @@ serve(async (req) => {
 
     log.info(`Action: ${action}`);
 
-    // ============================================
-    // ROUTE TO HANDLERS
-    // ============================================
-    
     if (action === "register" && req.method === "POST") {
       return handleRegister(supabase, req, corsHeaders);
     }
-
     if (action === "login" && req.method === "POST") {
       return handleLogin(supabase, req, corsHeaders);
     }
-
     if (action === "logout" && req.method === "POST") {
       return handleLogout(supabase, req, corsHeaders);
     }
-
     if (action === "validate" && req.method === "POST") {
       return handleValidate(supabase, req, corsHeaders);
     }
-
-    // PHASE 3: Refresh token endpoint
     if (action === "refresh" && req.method === "POST") {
       return handleRefresh(supabase, req, corsHeaders);
     }
-
     if (action === "check-email" && req.method === "POST") {
       return handleCheckEmail(supabase, req, corsHeaders);
     }
-
     if (action === "request-password-reset" && req.method === "POST") {
       return handleRequestPasswordReset(supabase, req, corsHeaders);
     }
-
     if (action === "verify-reset-token" && req.method === "POST") {
       return handleVerifyResetToken(supabase, req, corsHeaders);
     }
-
     if (action === "reset-password" && req.method === "POST") {
       return handleResetPassword(supabase, req, corsHeaders);
     }
-
     if (action === "check-producer-buyer" && req.method === "POST") {
       return handleCheckProducerBuyer(supabase, req, corsHeaders);
     }
-
     if (action === "ensure-producer-access" && req.method === "POST") {
       return handleEnsureProducerAccess(supabase, req, corsHeaders);
     }
-
     if (action === "producer-login" && req.method === "POST") {
       return handleProducerLogin(supabase, req, corsHeaders);
     }
 
-    // ============================================
-    // 404 - ACTION NOT FOUND
-    // ============================================
     return new Response(
       JSON.stringify({ error: "Ação não encontrada" }),
       { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }

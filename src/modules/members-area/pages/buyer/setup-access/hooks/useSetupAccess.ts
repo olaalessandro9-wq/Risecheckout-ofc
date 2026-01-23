@@ -1,21 +1,20 @@
 /**
  * useSetupAccess - Hook de lógica para SetupAccess
  * 
+ * RISE Protocol V3 - Uses unified-auth as SSOT
+ * 
  * Responsabilidades:
  * - Validação de token
- * - Verificação de sessão
+ * - Verificação de sessão (via unified-auth)
  * - Estados de loading/error
  * - Ações de login/logout/submit
- * 
- * @see RISE ARCHITECT PROTOCOL V3 - Unified API Client
  */
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
-import { SUPABASE_URL } from "@/config/supabase";
-import { buyerTokenService } from "@/lib/token-manager";
+import { unifiedTokenService } from "@/lib/token-manager";
 import { createLogger } from "@/lib/logger";
 import type { TokenStatus, TokenInfo, LoggedBuyer } from "../types";
 
@@ -35,6 +34,16 @@ interface InviteTokenResponse {
   buyer_email?: string;
   buyer_name?: string;
   sessionToken?: string;
+}
+
+interface ValidateResponse {
+  valid: boolean;
+  user?: {
+    id: string;
+    email: string;
+    name: string | null;
+  };
+  error?: string;
 }
 
 export function useSetupAccess() {
@@ -117,25 +126,25 @@ export function useSetupAccess() {
       };
       setTokenInfo(info);
 
-      // 2. Check if user is already logged in
-      const sessionToken = buyerTokenService.getAccessTokenSync();
+      // 2. Check if user is already logged in via unified-auth (RISE V3 SSOT)
+      const hasToken = unifiedTokenService.hasValidToken();
       
-      if (sessionToken) {
-        const sessionResponse = await fetch(
-          `${SUPABASE_URL}/functions/v1/buyer-auth/validate`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-          }
+      if (hasToken) {
+        // Validate session via unified-auth
+        const { data: sessionData, error: sessionError } = await api.publicCall<ValidateResponse>(
+          "unified-auth/validate",
+          {}
         );
         
-        const sessionData = await sessionResponse.json();
-        
-        if (sessionData.valid && sessionData.buyer) {
-          setLoggedBuyer(sessionData.buyer);
+        if (!sessionError && sessionData?.valid && sessionData?.user) {
+          const loggedUser = sessionData.user;
+          setLoggedBuyer({
+            id: loggedUser.id,
+            email: loggedUser.email,
+            name: loggedUser.name,
+          });
           
-          const loggedEmail = sessionData.buyer.email.toLowerCase().trim();
+          const loggedEmail = loggedUser.email.toLowerCase().trim();
           const inviteEmail = info.buyer_email.toLowerCase().trim();
           
           if (loggedEmail === inviteEmail) {
@@ -175,9 +184,9 @@ export function useSetupAccess() {
     validateTokenAndCheckSession();
   }, [token, validateTokenAndCheckSession]);
 
-  // Handle logout and continue
+  // Handle logout and continue (RISE V3: use unified token service)
   const handleLogoutAndContinue = useCallback(() => {
-    buyerTokenService.clearTokens();
+    unifiedTokenService.clearTokens();
     setLoggedBuyer(null);
     
     if (tokenInfo?.needsPasswordSetup) {

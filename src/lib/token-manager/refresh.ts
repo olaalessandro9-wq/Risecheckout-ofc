@@ -5,6 +5,9 @@
  * 
  * This module handles all HTTP communication for token refresh,
  * isolating network I/O from the main service logic.
+ * 
+ * MIGRATION NOTE: All token types now use unified-auth internally.
+ * The legacy endpoints (producer, buyer) are kept for backwards compatibility.
  */
 
 import type { TokenType, RefreshResponse } from "./types";
@@ -48,10 +51,18 @@ export interface RefreshResult {
 // ENDPOINT MAPPING
 // ============================================
 
+/**
+ * RISE V3: All token types now use unified-auth/refresh.
+ * 
+ * The legacy producer-auth and buyer-auth endpoints are
+ * proxied to unified-auth on the backend, so we call
+ * unified-auth directly for efficiency.
+ */
 const REFRESH_ENDPOINTS: Record<TokenType, string> = {
-  producer: "/functions/v1/producer-auth/refresh",
-  buyer: "/functions/v1/buyer-auth/refresh",
   unified: "/functions/v1/unified-auth/refresh",
+  // Legacy types now use unified-auth directly (backend-agnostic)
+  producer: "/functions/v1/unified-auth/refresh",
+  buyer: "/functions/v1/unified-auth/refresh",
 } as const;
 
 // ============================================
@@ -62,14 +73,15 @@ const REFRESH_ENDPOINTS: Record<TokenType, string> = {
  * Execute token refresh request to backend
  * 
  * Makes HTTP POST with credentials (httpOnly cookies)
- * to the appropriate auth endpoint.
+ * to the unified-auth endpoint.
  * 
  * GUARD: Skips refresh on public routes (checkout, pay, etc.)
  */
 export async function executeRefresh(type: TokenType): Promise<RefreshResult> {
-  // GUARD: Skip producer token refresh on public routes
-  if (type === "producer" && isPublicRoute()) {
-    log.debug("Skipping producer refresh on public route", { 
+  // GUARD: Skip token refresh on public routes
+  if ((type === "producer" || type === "buyer") && isPublicRoute()) {
+    log.debug("Skipping refresh on public route", { 
+      type,
       path: window.location.pathname 
     });
     return { success: false, error: "Public route - refresh skipped" };
@@ -78,7 +90,7 @@ export async function executeRefresh(type: TokenType): Promise<RefreshResult> {
   const endpoint = REFRESH_ENDPOINTS[type];
   const url = `${SUPABASE_URL}${endpoint}`;
   
-  log.debug("Executing refresh", { type, endpoint });
+  log.debug("Executing refresh via unified-auth", { type, endpoint });
   
   try {
     const response = await fetch(url, {

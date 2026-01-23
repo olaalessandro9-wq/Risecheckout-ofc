@@ -1,32 +1,22 @@
 /**
  * producer-auth Edge Function (ROUTER)
  * 
- * RISE Protocol Compliant - Refactored to Router Pattern
- * All logic delegated to _shared handlers
+ * RISE Protocol V3 - TRANSITION MODE
  * 
- * Endpoints:
- * - POST /register - Create new producer account
- * - POST /login - Authenticate producer
- * - POST /logout - Invalidate session
- * - POST /validate - Validate existing session
- * - POST /refresh - Refresh access token using refresh token (PHASE 3)
- * - POST /request-password-reset - Request password reset email
- * - POST /verify-reset-token - Verify reset token validity
- * - POST /reset-password - Reset password with token
+ * Maintains backwards compatibility while internally using
+ * the unified auth system (sessions table, users table).
+ * 
+ * @deprecated Use unified-auth directly for new code.
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-// CORS
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
-
-// Logger
 import { createLogger } from "../_shared/logger.ts";
+import { errorResponse } from "../_shared/edge-helpers.ts";
 
 const log = createLogger("producer-auth");
 
-// Handlers
 import {
   handleRegister,
   handleLogin,
@@ -40,23 +30,11 @@ import {
   handleResetPassword,
 } from "../_shared/producer-auth-reset-handlers.ts";
 
-// PHASE 3: Refresh token handler
 import { handleRefresh } from "../_shared/producer-auth-refresh-handler.ts";
 
-// Response helpers
-import {
-  jsonResponse,
-  errorResponse,
-} from "../_shared/edge-helpers.ts";
-
 serve(async (req) => {
-  // ============================================
-  // CORS VALIDATION
-  // ============================================
   const corsResult = handleCorsV2(req);
-  if (corsResult instanceof Response) {
-    return corsResult;
-  }
+  if (corsResult instanceof Response) return corsResult;
   const corsHeaders = corsResult.headers;
 
   try {
@@ -69,9 +47,6 @@ serve(async (req) => {
 
     log.info(`Action: ${action}, Method: ${req.method}`);
 
-    // ============================================
-    // ROUTE TO HANDLERS
-    // ============================================
     if (req.method !== "POST") {
       return errorResponse("Método não permitido", corsHeaders, 405);
     }
@@ -79,28 +54,20 @@ serve(async (req) => {
     switch (action) {
       case "register":
         return handleRegister(supabase, req, corsHeaders);
-
       case "login":
         return handleLogin(supabase, req, corsHeaders);
-
       case "logout":
         return handleLogout(supabase, req, corsHeaders);
-
       case "validate":
         return handleValidate(supabase, req, corsHeaders);
-
       case "refresh":
         return handleRefresh(supabase, req, corsHeaders);
-
       case "request-password-reset":
         return handleRequestPasswordReset(supabase, req, corsHeaders);
-
       case "verify-reset-token":
         return handleVerifyResetToken(supabase, req, corsHeaders);
-
       case "reset-password":
         return handleResetPassword(supabase, req, corsHeaders);
-
       default:
         return errorResponse(`Ação não encontrada: ${action}`, corsHeaders, 404);
     }
