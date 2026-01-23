@@ -15,11 +15,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { SUPABASE_URL } from "@/config/supabase";
-import { 
-  getBuyerSessionToken, 
-  clearBuyerSessionToken,
-  setBuyerSessionToken 
-} from "@/hooks/useBuyerSession";
+import { buyerTokenService } from "@/lib/token-manager";
 import { createLogger } from "@/lib/logger";
 import type { TokenStatus, TokenInfo, LoggedBuyer } from "../types";
 
@@ -122,7 +118,7 @@ export function useSetupAccess() {
       setTokenInfo(info);
 
       // 2. Check if user is already logged in
-      const sessionToken = getBuyerSessionToken();
+      const sessionToken = buyerTokenService.getAccessTokenSync();
       
       if (sessionToken) {
         const sessionResponse = await fetch(
@@ -130,7 +126,7 @@ export function useSetupAccess() {
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ sessionToken }),
+            credentials: "include",
           }
         );
         
@@ -181,7 +177,7 @@ export function useSetupAccess() {
 
   // Handle logout and continue
   const handleLogoutAndContinue = useCallback(() => {
-    clearBuyerSessionToken();
+    buyerTokenService.clearTokens();
     setLoggedBuyer(null);
     
     if (tokenInfo?.needsPasswordSetup) {
@@ -227,7 +223,9 @@ export function useSetupAccess() {
       if (error) throw error;
 
       if (data?.success && data.sessionToken) {
-        setBuyerSessionToken(data.sessionToken);
+        // Session token is set via httpOnly cookie by the edge function
+        // No need to manually store it
+        log.info("Account created successfully, session established via cookies");
         toast.success("Conta criada com sucesso!");
         navigate("/minha-conta/dashboard");
       } else {

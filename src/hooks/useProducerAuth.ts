@@ -1,13 +1,12 @@
 /**
- * useProducerAuth - Custom authentication hook for producers
+ * useProducerAuth - Producer authentication hook (Legacy Wrapper)
  * 
- * RISE ARCHITECT PROTOCOL - Zero Technical Debt
+ * @deprecated Use `useUnifiedAuth` directly instead.
  * 
- * ARCHITECTURE (REFACTORED V3):
- * - Uses TokenManager for centralized token management
- * - Supports refresh tokens for seamless session renewal
- * - All backend calls use X-Producer-Session-Token header
- * - Edge Functions use service_role (bypass RLS)
+ * This hook is maintained for backward compatibility with existing components.
+ * Internally delegates to useUnifiedAuth for all authentication operations.
+ * 
+ * @see docs/UNIFIED_IDENTITY_ARCHITECTURE.md
  */
 
 import { useState, useCallback, useEffect } from "react";
@@ -15,9 +14,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { SUPABASE_URL } from "@/config/supabase";
 import { createLogger } from "@/lib/logger";
 import { producerTokenService } from "@/lib/token-manager";
-import { producerSessionQueryKey } from "./useProducerSession";
 
 const log = createLogger("ProducerAuth");
+
+// Query key export for cache invalidation (deprecated, use UNIFIED_AUTH_QUERY_KEY)
+export const producerSessionQueryKey = ["producer-session"] as const;
 
 interface ProducerProfile {
   id: string;
