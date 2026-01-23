@@ -42,14 +42,17 @@ export function MetricCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay }}
-      className="relative group h-full will-change-transform"
+      className="relative group h-full"
     >
-      {/* Card - Otimizado para performance (sem backdrop-blur) */}
+      {/* Glow effect */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-primary/5 to-transparent rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      
+      {/* Card */}
       <div
-        className={`relative bg-card border border-border/50 rounded-xl md:rounded-2xl p-4 md:p-5 lg:p-6 hover:border-primary/20 transition-colors duration-300 hover:shadow-xl hover:shadow-primary/5 overflow-hidden h-full ${className || ""}`}
+        className={`relative bg-card/40 backdrop-blur-xl border border-border/50 rounded-xl md:rounded-2xl p-4 md:p-5 lg:p-6 hover:border-primary/20 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/10 overflow-hidden h-full bg-gradient-to-br ${className || "from-card/40 to-card/10"}`}
       >
-        {/* Background Pattern - Otimizado (sem blur) */}
-        <div className="absolute top-0 right-0 w-24 md:w-32 h-24 md:h-32 bg-primary/5 rounded-full -mr-12 md:-mr-16 -mt-12 md:-mt-16 transition-opacity duration-500 group-hover:bg-primary/10" />
+        {/* Background Pattern */}
+        <div className="absolute top-0 right-0 w-24 md:w-32 h-24 md:h-32 bg-primary/10 rounded-full blur-3xl -mr-12 md:-mr-16 -mt-12 md:-mt-16 transition-all duration-500 group-hover:bg-primary/20" />
 
         <div className="relative z-10 flex flex-col justify-between h-full">
           {/* Header */}

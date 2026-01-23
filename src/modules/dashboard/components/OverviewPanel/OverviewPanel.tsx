@@ -19,7 +19,7 @@ interface OverviewPanelProps {
 
 export function OverviewPanel({ metrics, isLoading }: OverviewPanelProps) {
   return (
-    <div className="xl:col-span-1 bg-card border border-border rounded-2xl p-4 md:p-6 flex flex-col min-h-[350px] md:min-h-[400px] lg:min-h-[450px]">
+    <div className="xl:col-span-1 bg-card/40 backdrop-blur-xl border border-border rounded-2xl p-4 md:p-6 flex flex-col min-h-[350px] md:min-h-[400px] lg:min-h-[450px]">
       <h3 className="text-base md:text-lg font-semibold text-foreground mb-4 md:mb-6">
         Visão Geral
       </h3>
