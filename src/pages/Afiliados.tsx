@@ -115,7 +115,7 @@ const Afiliados = () => {
     try {
       setActionLoading(affiliationId);
       
-      // Usar invokeEdgeFunction que inclui X-Producer-Session-Token automaticamente
+      // Usar invokeEdgeFunction que inclui autenticação via cookies automaticamente
       const { data, error } = await invokeEdgeFunction<{ success: boolean; message?: string; error?: string }>('manage-affiliation', {
         affiliation_id: affiliationId,
         action

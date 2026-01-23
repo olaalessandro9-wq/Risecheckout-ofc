@@ -404,11 +404,12 @@ feature/dashboard-analytics-charts
 
 | Auth Type | Descrição | Qtd Funções |
 |-----------|-----------|-------------|
-| `producer_sessions` | Requer sessão de produtor | ~45 |
-| `buyer_token` | Requer token de comprador | ~10 |
+| `sessions (unified-auth)` | Requer sessão via cookies `__Host-rise_*` | ~55 |
 | `webhook` | Validação de assinatura | ~4 |
 | `public` | Sem auth | ~20 |
 | `internal` | Service role only | ~15 |
+
+> **RISE V3:** Producer e Buyer agora usam o mesmo sistema unificado (`sessions` table + unified-auth-v2).
 
 ---
 

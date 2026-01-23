@@ -1,10 +1,10 @@
 /**
  * decrypt-customer-data-batch - Descriptografa telefones em lote para listagem
  * 
- * @version 3.0.0 - RISE Protocol V3 - Migrated to unified-auth
+ * @version 4.0.0 - RISE Protocol V3 - Unified auth cookies
  * 
  * SECURITY:
- * - Requer autenticação via X-Producer-Session-Token (unified-auth)
+ * - Requer autenticação via Cookie: __Host-rise_access (unified-auth-v2)
  * - SOMENTE para PRODUTOR do produto (product.user_id)
  * - Owner NÃO tem acesso aqui (deve usar modal individual)
  * - Limite máximo de 20 pedidos por request (anti-abuso)

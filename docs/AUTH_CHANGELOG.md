@@ -390,12 +390,12 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 ```
 
-**Propósito:** Permite que RLS policies obtenham o `producer_id` do token de sessão customizado, sem depender do JWT do Supabase Auth.
+**Propósito:** Permite que RLS policies obtenham o `user_id` para autorização.
 
-**Comportamento:**
-1. Extrai token do header `x-producer-session-token`
-2. Busca `producer_id` na tabela `producer_sessions`
-3. Fallback para `auth.uid()` se não houver token
+**Comportamento (RISE V3 - Atualizado):**
+1. Retorna `auth.uid()` diretamente
+2. Sessões são validadas por Edge Functions via `unified-auth-v2.ts`
+3. Cookies `__Host-rise_access` substituem headers legados
 
 ---
 

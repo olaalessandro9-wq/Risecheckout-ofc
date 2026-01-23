@@ -52,7 +52,6 @@ interface QuizRequest {
   action: "list" | "get" | "create" | "update" | "delete" | "submit" | "get-attempts";
   content_id?: string;
   quiz_id?: string;
-  buyer_token?: string;
   data?: QuizRequestData;
 }
 
@@ -87,13 +86,12 @@ interface QuizAttempt {
 }
 
 /**
- * Validates buyer session using unified system only.
- * Legacy buyer_sessions fallback removed - RISE V3 migration complete.
+ * Validates buyer session using unified-auth-v2.
+ * RISE V3: Uses cookies (__Host-rise_access) exclusively.
  */
 async function validateBuyerSession(
   supabase: SupabaseClient,
-  req: Request,
-  _buyerToken?: string
+  req: Request
 ): Promise<string | null> {
   const unifiedUser = await getAuthenticatedUser(supabase, req);
   if (unifiedUser) {
@@ -279,14 +277,14 @@ Deno.serve(async (req) => {
     }
 
     const body: QuizRequest = await req.json();
-    const { action, content_id, quiz_id, buyer_token, data } = body;
+    const { action, content_id, quiz_id, data } = body;
 
     log.info(`Action: ${action}`);
 
     // Para ações de buyer (submit, get-attempts), validar buyer session
     if (action === "submit" || action === "get-attempts") {
-      // RISE V3: Unified session validation (tries new sessions table first, then legacy)
-      const buyer_id = await validateBuyerSession(supabase, req, buyer_token);
+      // RISE V3: Unified session validation via cookies (__Host-rise_access)
+      const buyer_id = await validateBuyerSession(supabase, req);
       
       if (!buyer_id) {
         return new Response(

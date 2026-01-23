@@ -22,13 +22,13 @@
  * - GOOGLE_ADS, TIKTOK, KWAI: conversion tokens
  * 
  * Segurança:
- * - Requer autenticação via producer_sessions
+ * - Requer autenticação via sessions (unified-auth, cookies)
  * - Valida que o vendor_id corresponde ao usuário autenticado
  * - Usa save_gateway_credentials RPC para convenção unificada
  * - Criptografa automaticamente via Vault
  * - VULN-002: Rate limiting implementado
  * 
- * @version 3.0.0 - Unified Vault Convention
+ * @version 4.0.0 - RISE V3 Compliance (unified-auth cookies)
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
       return rateLimitResult;
     }
 
-    // 2. Verificar autenticação via unified-auth (producer_sessions)
+    // 2. Verificar autenticação via unified-auth (sessions, cookies)
     let producer;
     try {
       producer = await requireAuthenticatedProducer(supabase, req);
