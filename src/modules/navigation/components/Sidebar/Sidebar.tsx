@@ -90,10 +90,11 @@ export function Sidebar({ navigation }: SidebarProps) {
         className={cn(
           "hidden md:flex fixed left-0 top-0 z-50 h-screen shrink-0 flex-col",
           "border-r border-border/40 bg-background/95 backdrop-blur-sm",
-          "transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] will-change-[width]"
+          "transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
         )}
         style={{
           width: `${currentWidth}px`,
+          willChange: 'width',
         }}
       >
         <SidebarContent {...contentProps} />

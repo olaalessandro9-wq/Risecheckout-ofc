@@ -37,14 +37,15 @@ export default function AppShell() {
     <div className="flex min-h-screen w-full bg-background text-foreground">
       <Sidebar navigation={navigation} />
 
-      {/* Container principal com offset dinâmico */}
+      {/* Container principal com offset dinâmico - margin-left para GPU compositing */}
       <div
         className={cn(
           "flex min-w-0 flex-1 flex-col",
-          "transition-[padding-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+          "transition-[margin-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
         )}
         style={{
-          paddingLeft: `${debouncedWidth}px`,
+          marginLeft: `${debouncedWidth}px`,
+          willChange: 'margin-left',
         }}
       >
         <Topbar

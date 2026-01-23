@@ -148,14 +148,17 @@ export function RevenueChart({
           </h3>
         </div>
 
-        {/* Chart */}
-        <div className="flex-1 min-h-[200px] md:min-h-[250px] lg:min-h-[300px]">
+        {/* Chart - CSS Containment para isolar do reflow */}
+        <div 
+          className="flex-1 min-h-[200px] md:min-h-[250px] lg:min-h-[300px]"
+          style={{ contain: 'layout style' }}
+        >
           {isLoading ? (
             <div className="space-y-4 h-full flex flex-col justify-center">
               <Skeleton className="h-[200px] w-full bg-muted/20" />
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" debounce={400}>
               <LineChart
                 data={data}
                 margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
