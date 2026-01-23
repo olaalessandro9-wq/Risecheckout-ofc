@@ -13,6 +13,11 @@
 import React, { useMemo, useEffect } from 'react';
 import { useCouponValidation, type AppliedCoupon } from '@/hooks/checkout/useCouponValidation';
 import { CouponInput } from './CouponInput';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface OrderBump {
   id: string;
@@ -113,16 +118,32 @@ export const SharedOrderSummary: React.FC<SharedOrderSummaryProps> = ({
             <img
               src={productData.image_url}
               alt={productData.name}
-              className="w-16 h-16 object-cover rounded-md shadow-sm"
+              className="w-16 h-16 object-cover rounded-md shadow-sm flex-shrink-0"
             />
           )}
-          <div className="flex-1 flex flex-col justify-center">
-            <p 
-              className="font-semibold text-lg mb-1 leading-tight"
-              style={{ color: design.colors.primaryText }}
-            >
-              {productData.name || 'Produto'}
-            </p>
+          <div className="flex-1 flex flex-col justify-center min-w-0">
+            {productData.name && productData.name.length > 35 ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <p 
+                    className="font-semibold text-lg mb-1 leading-tight truncate cursor-help max-w-full"
+                    style={{ color: design.colors.primaryText }}
+                  >
+                    {productData.name}
+                  </p>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[300px] break-words">
+                  {productData.name}
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <p 
+                className="font-semibold text-lg mb-1 leading-tight"
+                style={{ color: design.colors.primaryText }}
+              >
+                {productData.name || 'Produto'}
+              </p>
+            )}
             <p 
               className="font-bold text-sm"
               style={{ color: design.colors.active }}
