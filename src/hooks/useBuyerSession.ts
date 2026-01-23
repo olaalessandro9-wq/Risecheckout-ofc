@@ -2,27 +2,26 @@
  * useBuyerSession - Hook centralizado para validação de sessão de buyer
  * 
  * @deprecated Use `useUnifiedAuth` instead.
- * This hook is being replaced by the unified identity system.
- * Migration: Replace usages with `useUnifiedAuth()` hook.
+ * This file is maintained for backward compatibility only.
  * 
- * RISE ARCHITECT PROTOCOL - Zero Technical Debt
+ * IMPORTANT: The token helpers (getBuyerSessionToken, etc.) are still used
+ * by legacy code like useSetupAccess. Do NOT remove until full migration.
  * 
- * ARCHITECTURE (REFACTORED V4):
- * - Uses httpOnly cookies for token transport (XSS protection)
- * - Uses TokenManager for auth state tracking
- * - React Query for intelligent caching
- * - Seamless session renewal without user interaction
+ * @see docs/UNIFIED_IDENTITY_ARCHITECTURE.md
  */
+
+import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SUPABASE_URL } from "@/config/supabase";
-import { createLogger } from "@/lib/logger";
 import { buyerTokenService } from "@/lib/token-manager";
+import { createLogger } from "@/lib/logger";
 
 const log = createLogger("BuyerSession");
 
-// Cache de 10 minutos para sessão
-const SESSION_STALE_TIME = 10 * 60 * 1000;
-const SESSION_CACHE_TIME = 15 * 60 * 1000;
+/**
+ * Query key for buyer session - exported for cache invalidation
+ */
+export const buyerSessionQueryKey = ["buyer-session"] as const;
 
 interface BuyerProfile {
   id: string;
@@ -35,14 +34,11 @@ interface SessionValidation {
   buyer: BuyerProfile | null;
 }
 
-// Query key para sessão
-export const buyerSessionQueryKey = ["buyer-session"] as const;
-
-// Função de validação de sessão
+/**
+ * Validate buyer session with Edge Function
+ */
 async function validateBuyerSession(): Promise<SessionValidation> {
-  // Use TokenService FSM to check auth state (auto-refresh if needed)
   const token = await buyerTokenService.getValidAccessToken();
-  
   if (!token) {
     return { valid: false, buyer: null };
   }
@@ -50,32 +46,41 @@ async function validateBuyerSession(): Promise<SessionValidation> {
   try {
     const response = await fetch(`${SUPABASE_URL}/functions/v1/buyer-auth/validate`, {
       method: "POST",
-      credentials: "include", // Send httpOnly cookies
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
     });
+
+    if (!response.ok) {
+      buyerTokenService.clearTokens();
+      return { valid: false, buyer: null };
+    }
 
     const data = await response.json();
     
-    if (data.valid && data.buyer) {
-      return { valid: true, buyer: data.buyer };
+    if (!data.valid) {
+      buyerTokenService.clearTokens();
+      return { valid: false, buyer: null };
     }
-    
-    // Token inválido - limpar
-    buyerTokenService.clearTokens();
-    return { valid: false, buyer: null };
-  } catch (error: unknown) {
-    log.error("Error validating session", error);
+
+    return { valid: true, buyer: data.buyer };
+  } catch (error) {
+    log.error("Session validation failed", error);
     return { valid: false, buyer: null };
   }
 }
 
 /**
- * Hook principal para sessão de buyer com cache
- * Evita chamadas repetidas de validação
+ * @deprecated Use `useUnifiedAuth` instead.
+ * 
+ * Maintained for backward compatibility with legacy code.
  * Auto-refresh de tokens quando necessário
  */
 export function useBuyerSession() {
   const queryClient = useQueryClient();
+  
+  // Session cache times
+  const SESSION_STALE_TIME = 5 * 60 * 1000; // 5 min
+  const SESSION_CACHE_TIME = 10 * 60 * 1000; // 10 min
 
   const query = useQuery({
     queryKey: buyerSessionQueryKey,
