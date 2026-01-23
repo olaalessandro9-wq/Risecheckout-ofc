@@ -11,6 +11,7 @@ import { Outlet } from "react-router-dom";
 import { Sidebar, useNavigation } from "@/modules/navigation";
 import { Topbar } from "@/components/layout/Topbar";
 import { useScrollShadow } from "@/hooks/useScrollShadow";
+import { useDebouncedWidth } from "@/hooks/useDebouncedWidth";
 import { cn } from "@/lib/utils";
 
 export default function AppShell() {
@@ -23,6 +24,10 @@ export default function AppShell() {
 
   // Largura efetiva do sidebar
   const effectiveWidth = isMobile ? 0 : navigation.currentWidth;
+
+  // OTIMIZAÇÃO: Debounce para evitar re-renders do ResponsiveContainer
+  // durante a animação do sidebar (300ms)
+  const debouncedWidth = useDebouncedWidth(effectiveWidth, 350);
 
   const handleNotificationsClick = () => {
     // TODO: Implementar painel de notificações
@@ -39,7 +44,7 @@ export default function AppShell() {
           "transition-[padding-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
         )}
         style={{
-          paddingLeft: `${effectiveWidth}px`,
+          paddingLeft: `${debouncedWidth}px`,
         }}
       >
         <Topbar
