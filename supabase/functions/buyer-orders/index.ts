@@ -18,10 +18,71 @@ import {
   RATE_LIMIT_CONFIGS,
   getClientIP 
 } from "../_shared/rate-limiting/index.ts";
+import { 
+  getAuthenticatedUser,
+  type UnifiedUser,
+  unauthorizedResponse,
+} from "../_shared/unified-auth-v2.ts";
 import { getBuyerAccessToken } from "../_shared/session-reader.ts";
 import { createLogger } from "../_shared/logger.ts";
 
 const log = createLogger("buyer-orders");
+
+// ============================================
+// LEGACY BUYER SESSION VALIDATION (Fallback)
+// ============================================
+
+interface LegacyBuyerSession {
+  id: string;
+  expires_at: string;
+  is_valid: boolean;
+  buyer: LegacyBuyerData | LegacyBuyerData[];
+}
+
+interface LegacyBuyerData {
+  id: string;
+  email: string;
+  name: string | null;
+  is_active: boolean;
+}
+
+async function validateLegacyBuyerSession(
+  supabase: SupabaseClient,
+  sessionToken: string
+): Promise<BuyerData | null> {
+  const { data: session } = await supabase
+    .from("buyer_sessions")
+    .select(`
+      id,
+      expires_at,
+      is_valid,
+      buyer:buyer_id (
+        id,
+        email,
+        name,
+        is_active
+      )
+    `)
+    .eq("session_token", sessionToken)
+    .single();
+
+  if (!session || !session.is_valid || !session.buyer) {
+    return null;
+  }
+
+  const typedSession = session as unknown as LegacyBuyerSession;
+  const buyerData = Array.isArray(typedSession.buyer) ? typedSession.buyer[0] : typedSession.buyer;
+
+  if (!buyerData.is_active) {
+    return null;
+  }
+
+  if (new Date(typedSession.expires_at) < new Date()) {
+    return null;
+  }
+
+  return buyerData;
+}
 
 // ============================================
 // INTERFACES
@@ -109,49 +170,41 @@ interface AccessItem {
 }
 
 // ============================================
-// SESSION VALIDATION
+// UNIFIED SESSION VALIDATION (V3)
 // ============================================
 
+/**
+ * Validates session using unified system first, then falls back to legacy buyer_sessions.
+ * This ensures both new unified sessions and old buyer sessions work during migration.
+ */
 async function validateSession(
   supabase: SupabaseClient, 
-  sessionToken: string | null
+  req: Request
 ): Promise<BuyerData | null> {
-  if (!sessionToken) {
-    return null;
+  // Try unified auth system first (new sessions table)
+  const unifiedUser = await getAuthenticatedUser(supabase, req);
+  
+  if (unifiedUser) {
+    // Map unified user to buyer data format
+    return {
+      id: unifiedUser.id,
+      email: unifiedUser.email,
+      name: unifiedUser.name,
+      is_active: true,
+    };
   }
-
-  const { data: session } = await supabase
-    .from("buyer_sessions")
-    .select(`
-      id,
-      expires_at,
-      is_valid,
-      buyer:buyer_id (
-        id,
-        email,
-        name,
-        is_active
-      )
-    `)
-    .eq("session_token", sessionToken)
-    .single();
-
-  if (!session || !session.is_valid || !session.buyer) {
-    return null;
+  
+  // Fallback to legacy buyer_sessions for old sessions still active
+  const sessionToken = getBuyerAccessToken(req);
+  if (sessionToken) {
+    const legacyBuyer = await validateLegacyBuyerSession(supabase, sessionToken);
+    if (legacyBuyer) {
+      log.debug("Using legacy buyer_sessions auth");
+      return legacyBuyer;
+    }
   }
-
-  const typedSession = session as unknown as BuyerSession;
-  const buyerData = Array.isArray(typedSession.buyer) ? typedSession.buyer[0] : typedSession.buyer;
-
-  if (!buyerData.is_active) {
-    return null;
-  }
-
-  if (new Date(typedSession.expires_at) < new Date()) {
-    return null;
-  }
-
-  return buyerData;
+  
+  return null;
 }
 
 // ============================================
@@ -191,15 +244,11 @@ serve(async (req) => {
     const pathParts = url.pathname.split("/").filter(Boolean);
     const action = pathParts[pathParts.length - 1];
 
-    // RISE V3: Read token ONLY from httpOnly cookie (zero legacy code)
-    const sessionToken = getBuyerAccessToken(req);
-    const buyer = await validateSession(supabase, sessionToken);
+    // RISE V3: Unified session validation (tries new sessions table first, then legacy)
+    const buyer = await validateSession(supabase, req);
 
     if (!buyer) {
-      return new Response(
-        JSON.stringify({ error: "Sessão inválida ou expirada" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return unauthorizedResponse(corsHeaders);
     }
 
     log.debug(`Action: ${action}, Buyer: ${buyer.email}`);

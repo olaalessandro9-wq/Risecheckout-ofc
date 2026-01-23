@@ -15,6 +15,11 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 import { handleCorsV2, PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { rateLimitMiddleware, MEMBERS_AREA } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
+import { 
+  createSession,
+  createUnifiedAuthCookies,
+  type AppRole,
+} from "../_shared/unified-auth-v2.ts";
 import { genSaltSync, hashSync, compareSync } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 import { createLogger } from "../_shared/logger.ts";
 
@@ -237,6 +242,40 @@ Deno.serve(async (req) => {
 
       await supabase.from("student_invite_tokens").update({ is_used: true, used_at: new Date().toISOString() }).eq("id", tokenData.id);
 
+      // RISE V3: Create unified session instead of legacy buyer_sessions
+      // First, check if buyer has a user record (for unified identity)
+      const { data: existingUser } = await supabase
+        .from("users")
+        .select("id")
+        .eq("email", typedBuyer.email.toLowerCase())
+        .single();
+
+      if (existingUser) {
+        // Use unified session system
+        const session = await createSession(supabase, existingUser.id, "buyer" as AppRole, req);
+        
+        if (session) {
+          const cookies = createUnifiedAuthCookies(session.sessionToken, session.refreshToken);
+          
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              buyer: { id: typedBuyer.id, email: typedBuyer.email, name: typedBuyer.name }, 
+              product_id: tokenData.product_id 
+            }),
+            {
+              status: 200,
+              headers: { 
+                ...corsHeaders, 
+                "Content-Type": "application/json",
+                "Set-Cookie": cookies.join(", "),
+              },
+            }
+          );
+        }
+      }
+      
+      // Fallback to legacy buyer_sessions for buyers not yet in users table
       const sessionToken = generateSessionToken();
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 30);

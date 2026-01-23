@@ -12,6 +12,11 @@ import {
   getClientIP 
 } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { 
+  getAuthenticatedUser,
+  type UnifiedUser,
+} from "../_shared/unified-auth-v2.ts";
+import { getBuyerAccessToken } from "../_shared/session-reader.ts";
 import { createLogger } from "../_shared/logger.ts";
 
 const log = createLogger("members-area-quizzes");
@@ -82,10 +87,41 @@ interface QuizAttempt {
   completed_at: string;
 }
 
-interface BuyerSession {
+interface LegacyBuyerSession {
   buyer_id: string;
   expires_at: string;
   is_valid: boolean;
+}
+
+/**
+ * Validates buyer session using unified system first, then legacy fallback.
+ */
+async function validateBuyerSession(
+  supabase: SupabaseClient,
+  req: Request,
+  buyerToken?: string
+): Promise<string | null> {
+  // Try unified auth first
+  const unifiedUser = await getAuthenticatedUser(supabase, req);
+  if (unifiedUser) {
+    return unifiedUser.id;
+  }
+  
+  // Fallback to legacy buyer_sessions
+  const token = buyerToken || getBuyerAccessToken(req);
+  if (!token) return null;
+  
+  const { data: session } = await supabase
+    .from("buyer_sessions")
+    .select("buyer_id, expires_at, is_valid")
+    .eq("session_token", token)
+    .single() as { data: LegacyBuyerSession | null };
+
+  if (!session || !session.is_valid || new Date(session.expires_at) < new Date()) {
+    return null;
+  }
+  
+  return session.buyer_id;
 }
 
 interface QuizRecord {
@@ -269,29 +305,17 @@ Deno.serve(async (req) => {
 
     log.info(`Action: ${action}`);
 
-    // Para ações de buyer (submit, get-attempts), validar buyer token
+    // Para ações de buyer (submit, get-attempts), validar buyer session
     if (action === "submit" || action === "get-attempts") {
-      if (!buyer_token) {
-        return new Response(
-          JSON.stringify({ error: "buyer_token required" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const { data: session } = await supabase
-        .from("buyer_sessions")
-        .select("buyer_id, expires_at, is_valid")
-        .eq("session_token", buyer_token)
-        .single() as { data: BuyerSession | null };
-
-      if (!session || !session.is_valid || new Date(session.expires_at) < new Date()) {
+      // RISE V3: Unified session validation (tries new sessions table first, then legacy)
+      const buyer_id = await validateBuyerSession(supabase, req, buyer_token);
+      
+      if (!buyer_id) {
         return new Response(
           JSON.stringify({ error: "Invalid or expired session" }),
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-
-      const buyer_id = session.buyer_id;
 
       if (action === "submit") {
         return handleQuizSubmit(supabase, quiz_id!, buyer_id, data?.answers || {}, corsHeaders);

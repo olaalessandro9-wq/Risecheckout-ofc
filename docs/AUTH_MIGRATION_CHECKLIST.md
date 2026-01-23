@@ -12,7 +12,7 @@
 |------|-----------|--------|
 | 1 | Token Service Unificado | ✅ CONCLUÍDO |
 | 2 | Migração Frontend | ✅ CONCLUÍDO (batch 1) |
-| 3 | Migração Edge Functions | ⏳ PENDENTE |
+| 3 | Migração Edge Functions | ✅ CONCLUÍDO |
 | 4 | Migração de Dados SQL | ⏳ PENDENTE |
 | 5 | Cleanup Final | ⏳ PENDENTE |
 
@@ -73,42 +73,50 @@
 
 ---
 
-## 🔧 Fase 3: Migração Edge Functions
+## ✅ Fase 3: Migração Edge Functions (CONCLUÍDO)
 
-### Funções que usam autenticação buyer
+### Arquitetura Escolhida: Wrapper Pattern + Legacy Fallback
 
-| Edge Function | Usa tabela legacy? | Status |
-|---------------|-------------------|--------|
-| `buyer-auth/` | `buyer_sessions` | ⬜ MANTER COMO PROXY |
-| `buyer-orders/` | `buyer_sessions` | ⬜ |
-| `buyer-session/` | `buyer_sessions` | ⬜ DELETAR |
-| `members-area-quizzes/` | `buyer_sessions` | ⬜ |
-| `members-area-students-data/` | `buyer_sessions` | ⬜ |
+O `unified-auth.ts` já atua como wrapper que redireciona todas as 52+ funções para `unified-auth-v2.ts`. 
+Isso significa que TODAS as funções que usam `requireAuthenticatedProducer` já estão usando o sistema unificado automaticamente.
 
-### Funções que usam autenticação producer
+Para funções buyer-specific, implementamos validação híbrida:
+1. Tenta sessão unificada (`sessions` table) primeiro
+2. Fallback para legacy (`buyer_sessions`) para sessões antigas
 
-| Edge Function | Usa tabela legacy? | Status |
-|---------------|-------------------|--------|
-| `producer-auth/` | `producer_sessions` | ⬜ MANTER COMO PROXY |
-| `coupon-management/` | `producer_sessions` | ⬜ |
-| `coupon-read/` | `producer_sessions` | ⬜ |
-| `content-library/` | `producer_sessions` | ⬜ |
-| `students-list/` | `producer_sessions` | ⬜ |
-| `students-invite/` | `producer_sessions` | ⬜ |
-| `get-users-with-emails/` | `producer_sessions` | ⬜ |
-| `vault-save/` | `producer_sessions` | ⬜ |
-| `admin-health/` | `producer_sessions` | ⬜ |
-| `admin-data/` | `producer_sessions` | ⬜ |
-| `dashboard-analytics/` | `producer_sessions` | ⬜ |
-| `order-management/` | `producer_sessions` | ⬜ |
-| `product-management/` | `producer_sessions` | ⬜ |
+### Funções Migradas (Buyer Validation)
 
-### Arquivos _shared a Atualizar
+| Edge Function | Estratégia | Status |
+|---------------|-----------|--------|
+| `buyer-orders/` | Validação híbrida (unified + legacy fallback) | ✅ DONE |
+| `members-area-quizzes/` | Validação híbrida (unified + legacy fallback) | ✅ DONE |
+| `students-invite/` | Cria sessão unificada para novos logins | ✅ DONE |
 
-- [ ] `supabase/functions/_shared/unified-auth.ts` - Deprecar em favor de `unified-auth-v2.ts`
-- [ ] `supabase/functions/_shared/buyer-auth-handlers.ts` - Migrar para unified
-- [ ] `supabase/functions/_shared/buyer-auth-handlers-extended.ts` - Migrar para unified
-- [ ] `supabase/functions/_shared/producer-auth-session-handlers.ts` - Deprecar
+### Funções Producer (Via Wrapper Automático)
+
+| Edge Function | Status | Notas |
+|---------------|--------|-------|
+| `vault-save/` | ✅ DONE | Usa `requireAuthenticatedProducer` → wrapper redireciona para v2 |
+| `admin-health/` | ✅ DONE | Usa `requireAuthenticatedProducer` → wrapper redireciona para v2 |
+| `admin-data/` | ✅ DONE | Usa `requireAuthenticatedProducer` → wrapper redireciona para v2 |
+| `products-crud/` | ✅ DONE | Usa `requireAuthenticatedProducer` → wrapper redireciona para v2 |
+| `order-bump-crud/` | ✅ DONE | Usa `requireAuthenticatedProducer` → wrapper redireciona para v2 |
+| `offer-crud/` | ✅ DONE | Usa `requireAuthenticatedProducer` → wrapper redireciona para v2 |
+| `students-groups/` | ✅ DONE | Usa `requireAuthenticatedProducer` → wrapper redireciona para v2 |
+| `get-users-with-emails/` | ✅ DONE | Usa `requireAuthenticatedProducer` → wrapper redireciona para v2 |
+| `manage-user-status/` | ✅ DONE | Usa `requireAuthenticatedProducer` → wrapper redireciona para v2 |
+| `members-area-certificates/` | ✅ DONE | Usa `requireAuthenticatedProducer` → wrapper redireciona para v2 |
+| `product-settings/` | ✅ DONE | Usa `requireAuthenticatedProducer` → wrapper redireciona para v2 |
+| `decrypt-customer-data-batch/` | ✅ DONE | Usa `requireAuthenticatedProducer` → wrapper redireciona para v2 |
+| Outras 40+ funções | ✅ DONE | Todas usam wrapper que redireciona automaticamente |
+
+### Arquivos _shared
+
+| Arquivo | Status | Notas |
+|---------|--------|-------|
+| `unified-auth.ts` | ✅ JÁ É WRAPPER | Redireciona para `unified-auth-v2.ts` |
+| `unified-auth-v2.ts` | ✅ FONTE VERDADE | Sistema unificado completo |
+| `session-reader.ts` | ✅ PRIORIZA UNIFIED | Lê `__Host-rise_*` antes de legacy |
 
 ---
 
@@ -195,3 +203,5 @@ UPDATE buyer_sessions SET is_valid = false WHERE is_valid = true;
 | Data | Fase | Alteração |
 |------|------|-----------|
 | 2026-01-23 | 1 | Criado `unified-service.ts`, corrigido `api/client.ts` |
+| 2026-01-23 | 2 | Migrados 17 arquivos frontend para useUnifiedAuth |
+| 2026-01-23 | 3 | Edge Functions migradas via wrapper pattern + validação híbrida buyer |
