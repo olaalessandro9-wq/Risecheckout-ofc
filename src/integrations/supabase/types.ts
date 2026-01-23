@@ -422,6 +422,9 @@ export type Database = {
           is_active: boolean | null
           order_id: string | null
           product_id: string
+          revoked_at: string | null
+          revoked_by_event_id: string | null
+          revoked_reason: string | null
         }
         Insert: {
           access_type?: string | null
@@ -432,6 +435,9 @@ export type Database = {
           is_active?: boolean | null
           order_id?: string | null
           product_id: string
+          revoked_at?: string | null
+          revoked_by_event_id?: string | null
+          revoked_reason?: string | null
         }
         Update: {
           access_type?: string | null
@@ -442,6 +448,9 @@ export type Database = {
           is_active?: boolean | null
           order_id?: string | null
           product_id?: string
+          revoked_at?: string | null
+          revoked_by_event_id?: string | null
+          revoked_reason?: string | null
         }
         Relationships: [
           {
@@ -470,6 +479,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_product_access_revoked_by_event_id_fkey"
+            columns: ["revoked_by_event_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle_events"
             referencedColumns: ["id"]
           },
         ]
@@ -2271,6 +2287,56 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_lifecycle_events: {
+        Row: {
+          created_at: string | null
+          id: string
+          metadata: Json | null
+          new_status: string
+          old_status: string | null
+          order_id: string
+          processed: boolean | null
+          processed_at: string | null
+          processing_error: string | null
+          processor_version: string | null
+          retry_count: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          new_status: string
+          old_status?: string | null
+          order_id: string
+          processed?: boolean | null
+          processed_at?: string | null
+          processing_error?: string | null
+          processor_version?: string | null
+          retry_count?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          new_status?: string
+          old_status?: string | null
+          order_id?: string
+          processed?: boolean | null
+          processed_at?: string | null
+          processing_error?: string | null
+          processor_version?: string | null
+          retry_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_lifecycle_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]
