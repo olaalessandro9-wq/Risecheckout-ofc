@@ -220,10 +220,11 @@ export async function handleResetPassword(
 
   const passwordHash = hashPassword(password);
 
+  // Update profiles table (legacy)
   const { error: updateError } = await supabase.from("profiles").update({
     password_hash: passwordHash,
     password_hash_version: CURRENT_HASH_VERSION,
-    account_status: "active", // RISE V3: Garantir que conta está ativa após reset
+    account_status: "active",
     reset_token: null,
     reset_token_expires_at: null,
   }).eq("id", producer.id);
@@ -233,6 +234,24 @@ export async function handleResetPassword(
     return errorResponse("Erro ao redefinir senha", corsHeaders, 500);
   }
 
+  // RISE V3: ALSO update users table (SSOT) to prevent hash divergence
+  // This ensures login via unified-auth works after password reset via producer-auth
+  const { error: usersUpdateError } = await supabase.from("users").update({
+    password_hash: passwordHash,
+    password_hash_version: CURRENT_HASH_VERSION,
+    account_status: "active",
+    reset_token: null,
+    reset_token_expires_at: null,
+    updated_at: new Date().toISOString(),
+  }).eq("email", producer.email);
+
+  if (usersUpdateError) {
+    log.warn("Could not sync password to users table:", usersUpdateError.message);
+    // Don't fail - profiles was updated successfully
+  } else {
+    log.info(`Password synced to users table for: ${producer.email}`);
+  }
+
   // Update Supabase Auth password
   try {
     await supabase.auth.admin.updateUserById(producer.id, { password });
@@ -240,8 +259,9 @@ export async function handleResetPassword(
     log.warn("Could not sync Supabase Auth password", authError);
   }
 
-  // Invalidate all sessions
+  // Invalidate all sessions (both legacy and unified)
   await supabase.from("producer_sessions").update({ is_valid: false }).eq("producer_id", producer.id);
+  await supabase.from("sessions").update({ is_valid: false }).eq("user_id", producer.id);
 
   await logAuditEvent(supabase, producer.id, "PASSWORD_RESET_SUCCESS", true, clientIP, userAgent);
 

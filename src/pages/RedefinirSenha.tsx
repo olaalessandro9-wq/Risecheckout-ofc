@@ -1,11 +1,13 @@
 /**
  * RedefinirSenha - Redefinição de senha via token (link do email) para produtores
  * 
- * Refatorado seguindo RISE Protocol: componentes reutilizáveis + hook compartilhado
+ * RISE Protocol V3 - Uses unified-auth as SSOT
+ * 
+ * NOTE: config.apiEndpoint is no longer used since useResetPassword 
+ * now calls unified-auth directly via api.publicCall
  */
 
 import { AnimatePresence } from "framer-motion";
-import { SUPABASE_URL } from "@/config/supabase";
 import { useResetPassword } from "@/hooks/useResetPassword";
 import {
   ResetPasswordLayout,
@@ -16,8 +18,10 @@ import {
   type ResetPasswordConfig,
 } from "@/components/auth/reset-password";
 
+// Config kept for layout/branding purposes only
+// API calls are handled internally by useResetPassword using unified-auth
 const PRODUCER_CONFIG: ResetPasswordConfig = {
-  apiEndpoint: `${SUPABASE_URL}/functions/v1/producer-auth`,
+  apiEndpoint: "", // Not used - unified-auth is called directly
   loginRoute: "/auth",
   recoveryRoute: "/recuperar-senha",
   brandDescription: "gerenciando suas vendas",

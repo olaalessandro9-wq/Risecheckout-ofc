@@ -1,7 +1,7 @@
 /**
  * RecuperarSenha - Password recovery page for producers
  * 
- * MIGRATED to call unified-auth endpoint directly (RISE Protocol V3)
+ * RISE Protocol V3 - Uses unified-auth as SSOT
  * 
  * Estados:
  * 1. form - Formulário para digitar email
@@ -17,7 +17,7 @@ import { Mail, ArrowLeft, CheckCircle, AlertCircle, Loader2 } from "lucide-react
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SUPABASE_URL } from "@/config/supabase";
+import { api } from "@/lib/api";
 
 type ViewState = "form" | "loading" | "success" | "error";
 
@@ -39,21 +39,24 @@ export default function RecuperarSenha() {
     setErrorMessage("");
 
     try {
-      // Call producer-auth for password reset (still using producer-auth for password reset flow)
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/producer-auth/request-password-reset`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim().toLowerCase() }),
-      });
-      
-      const data = await response.json();
+      // Use unified-auth password reset (RISE V3 - SSOT)
+      const { data, error } = await api.publicCall<{ success: boolean; message?: string; error?: string }>(
+        "unified-auth/password-reset-request",
+        { email: email.trim().toLowerCase() }
+      );
 
-      if (!response.ok) {
-        if (data.error?.includes("não encontrado") || data.error?.includes("not found")) {
+      if (error) {
+        setErrorMessage(error.message || "Erro ao processar solicitação");
+        setViewState("form");
+        return;
+      }
+
+      if (!data?.success) {
+        if (data?.error?.includes("não encontrado") || data?.error?.includes("not found")) {
           setErrorMessage("E-mail não encontrado na base de dados");
           setViewState("error");
         } else {
-          setErrorMessage(data.error || "Erro ao processar solicitação");
+          setErrorMessage(data?.error || "Erro ao processar solicitação");
           setViewState("form");
         }
         return;

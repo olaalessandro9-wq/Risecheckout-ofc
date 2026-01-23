@@ -1,5 +1,14 @@
+/**
+ * useResetPassword Hook
+ * 
+ * RISE Protocol V3 - Uses unified-auth as SSOT for password reset
+ * 
+ * Refactored to use api.publicCall for standardized API communication.
+ */
+
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
+import { api } from "@/lib/api";
 import { createLogger } from "@/lib/logger";
 import type { ViewState, PasswordValidation, ResetPasswordConfig } from "@/components/auth/reset-password/types";
 
@@ -19,6 +28,18 @@ interface UseResetPasswordReturn {
   handleSubmit: (e: React.FormEvent) => Promise<void>;
 }
 
+interface VerifyResponse {
+  valid: boolean;
+  email?: string;
+  error?: string;
+}
+
+interface ResetResponse {
+  success: boolean;
+  error?: string;
+  validation?: PasswordValidation;
+}
+
 export function useResetPassword(config: ResetPasswordConfig): UseResetPasswordReturn {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
@@ -31,7 +52,7 @@ export function useResetPassword(config: ResetPasswordConfig): UseResetPasswordR
   const [errorMessage, setErrorMessage] = useState("");
   const [passwordValidation, setPasswordValidation] = useState<PasswordValidation | null>(null);
 
-  // Validate token on mount
+  // Validate token on mount - uses unified-auth (RISE V3 SSOT)
   useEffect(() => {
     if (!token) {
       setErrorMessage("Link inválido. Token não encontrado.");
@@ -41,16 +62,14 @@ export function useResetPassword(config: ResetPasswordConfig): UseResetPasswordR
 
     const validateToken = async () => {
       try {
-        const response = await fetch(`${config.apiEndpoint}/verify-reset-token`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token }),
-        });
+        // Use unified-auth for token verification
+        const { data, error } = await api.publicCall<VerifyResponse>(
+          "unified-auth/password-reset-verify",
+          { token }
+        );
 
-        const data = await response.json();
-
-        if (!response.ok || !data.valid) {
-          setErrorMessage(data.error || "Link inválido ou expirado");
+        if (error || !data?.valid) {
+          setErrorMessage(data?.error || error?.message || "Link inválido ou expirado");
           setViewState("invalid");
           return;
         }
@@ -65,7 +84,7 @@ export function useResetPassword(config: ResetPasswordConfig): UseResetPasswordR
     };
 
     validateToken();
-  }, [token, config.apiEndpoint]);
+  }, [token]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,19 +105,23 @@ export function useResetPassword(config: ResetPasswordConfig): UseResetPasswordR
     setViewState("loading");
 
     try {
-      const response = await fetch(`${config.apiEndpoint}/reset-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, password }),
-      });
+      // Use unified-auth for password reset (RISE V3 SSOT)
+      const { data, error } = await api.publicCall<ResetResponse>(
+        "unified-auth/password-reset",
+        { token, password }
+      );
 
-      const data = await response.json();
+      if (error) {
+        setErrorMessage(error.message || "Erro ao redefinir senha");
+        setViewState("form");
+        return;
+      }
 
-      if (!response.ok) {
-        if (data.validation) {
+      if (!data?.success) {
+        if (data?.validation) {
           setPasswordValidation(data.validation);
         }
-        setErrorMessage(data.error || "Erro ao redefinir senha");
+        setErrorMessage(data?.error || "Erro ao redefinir senha");
         setViewState("form");
         return;
       }
@@ -109,7 +132,7 @@ export function useResetPassword(config: ResetPasswordConfig): UseResetPasswordR
       setErrorMessage("Erro de conexão. Tente novamente.");
       setViewState("form");
     }
-  }, [token, password, confirmPassword, config.apiEndpoint]);
+  }, [token, password, confirmPassword]);
 
   return {
     viewState,
