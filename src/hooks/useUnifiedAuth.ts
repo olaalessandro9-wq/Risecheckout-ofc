@@ -31,6 +31,7 @@ export interface UnifiedUser {
   id: string;
   email: string;
   name: string | null;
+  timezone: string | null;
 }
 
 export interface UnifiedAuthState {

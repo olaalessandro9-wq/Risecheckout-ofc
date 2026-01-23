@@ -282,6 +282,10 @@ verify_jwt = false
 [functions.producer-auth]
 verify_jwt = false
 
+# RISE V3 - Unified Identity System
+[functions.unified-auth]
+verify_jwt = false
+
 # =====================================================
 # PUBLIC - Tracking & Analytics
 # verify_jwt DEVE ser false
