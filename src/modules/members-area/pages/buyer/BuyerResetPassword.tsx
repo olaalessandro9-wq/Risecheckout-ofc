@@ -17,7 +17,7 @@ import {
 } from "@/components/auth/reset-password";
 
 const BUYER_CONFIG: ResetPasswordConfig = {
-  apiEndpoint: `${SUPABASE_URL}/functions/v1/buyer-auth`,
+  apiEndpoint: `${SUPABASE_URL}/functions/v1/unified-auth`,
   loginRoute: "/minha-conta",
   recoveryRoute: "/minha-conta/recuperar-senha",
   brandDescription: "acessando seus cursos",

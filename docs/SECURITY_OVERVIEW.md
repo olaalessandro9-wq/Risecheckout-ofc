@@ -1,8 +1,8 @@
 # Security Infrastructure Overview
 
-> **Versão:** 1.0.0  
+> **Versão:** 2.0.0  
 > **Status:** RISE Protocol V3 Compliant (10.0/10)  
-> **Última Atualização:** 2026-01-19
+> **Última Atualização:** 2026-01-23
 
 ## Visão Geral
 
@@ -95,42 +95,30 @@ O RiseCheckout implementa uma infraestrutura de segurança enterprise-grade comp
 | Direito ao Esquecimento | GDPR Requests + Anonymization |
 | Minimização de Dados | Data Retention Policies |
 | Auditoria | Vault Access Log + Security Audit Log |
-| Consentimento | Buyer Profiles (email_verified) |
+| Consentimento | User Profiles (email_verified) |
 
-## Fluxos de Segurança
+## Fluxo de Autenticação Unificado
 
-### 1. Autenticação Producer (Dashboard) - Cookies httpOnly
-
-```
-Browser (credentials: include)
-         ↓
-Request → Edge Function → Cookie: __Host-producer_access (httpOnly)
-                               ↓
-                    session-reader.ts (getProducerAccessToken)
-                               ↓
-                    Validate Session → producer_sessions table
-                               ↓
-                    Return producer_id for RLS context
-```
-
-> **Nota:** O header `X-Producer-Session-Token` é usado internamente pelo api-client 
-> após extração do cookie. O frontend nunca acessa o token diretamente (proteção XSS).
-
-### 2. Autenticação Buyer (Área de Membros) - Cookies httpOnly
+### Autenticação (Producer + Buyer) - Cookies httpOnly
 
 ```
 Browser (credentials: include)
          ↓
-Request → Edge Function → Cookie: __Host-buyer_access (httpOnly)
+Request → Edge Function → Cookie: __Host-rise_access (httpOnly)
                                ↓
-                    session-reader.ts (getBuyerAccessToken)
+                    unified-auth-v2.ts (getAuthenticatedUser)
                                ↓
-                    Validate Session → buyer_sessions table
+                    Validate Session → sessions table
                                ↓
-                    Return buyer_id for RLS context
+                    Return { user_id, active_role } for context
 ```
 
-### 3. Rotação de Chaves
+> **Nota:** O sistema usa uma tabela `sessions` única com campo `active_role` 
+> para determinar se o usuário está acessando como Producer ou Buyer.
+> Cookies `__Host-rise_access` e `__Host-rise_refresh` são os únicos mecanismos
+> de autenticação (proteção XSS - tokens nunca expostos ao JavaScript).
+
+### Rotação de Chaves
 
 ```
 key-rotation-executor (action: rotate)
@@ -144,7 +132,7 @@ Activate key → Update status to 'active'
 Log in key_rotation_log
 ```
 
-### 4. Limpeza Automatizada
+### Limpeza Automatizada
 
 ```
 pg_cron (03:00 UTC daily)
@@ -168,10 +156,11 @@ Log results in data_retention_log
 | `ip_blocklist` | IPs bloqueados | ✅ |
 | `gdpr_requests` | Requisições LGPD | ✅ |
 | `gdpr_audit_log` | Auditoria LGPD | ✅ |
+| `sessions` | Sessões unificadas (Producer + Buyer) | ✅ |
 
 ## Links Rápidos
 
-- [Documentação de Autenticação](./AUTHENTICATION_SYSTEM.md)
+- [Sistema de Autenticação Unificado](./UNIFIED_AUTH_SYSTEM.md)
 - [Registry de Edge Functions](./EDGE_FUNCTIONS_REGISTRY.md)
 - [Coding Standards](./CODING_STANDARDS.md)
 - [Edge Functions Style Guide](./EDGE_FUNCTIONS_STYLE_GUIDE.md)
@@ -180,4 +169,5 @@ Log results in data_retention_log
 
 | Data | Versão | Alterações |
 |------|--------|------------|
+| 2026-01-23 | 2.0.0 | Atualizado para sistema de autenticação unificado (sessions única) |
 | 2026-01-19 | 1.0.0 | Documento inicial com todos os 5 módulos de segurança |

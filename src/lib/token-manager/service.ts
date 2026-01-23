@@ -241,21 +241,3 @@ export class TokenService {
  * via the unified-auth system with __Host-rise_* cookies.
  */
 export const unifiedTokenService = new TokenService("unified");
-
-// ============================================
-// LEGACY ALIASES (DEPRECATED - DO NOT USE)
-// These exist only for backwards compatibility during migration.
-// They all point to the unified service.
-// ============================================
-
-/** @deprecated Use unifiedTokenService instead */
-export const producerTokenService = unifiedTokenService;
-
-/** @deprecated Use unifiedTokenService instead */
-export const buyerTokenService = unifiedTokenService;
-
-/** @deprecated Use unifiedTokenService instead */
-export const producerTokenManager = unifiedTokenService;
-
-/** @deprecated Use unifiedTokenService instead */
-export const buyerTokenManager = unifiedTokenService;
