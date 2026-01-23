@@ -79,8 +79,8 @@ export async function handlePasswordReset(
       return errorResponse("Token expirado. Solicite um novo link.", corsHeaders, 400);
     }
 
-    // Hash new password
-    const passwordHash = await hashPassword(password);
+    // Hash new password (sync function)
+    const passwordHash = hashPassword(password);
 
     // Update password in users table (SSOT) and consume token
     const { error: updateError } = await supabase

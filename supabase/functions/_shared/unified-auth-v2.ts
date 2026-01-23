@@ -31,7 +31,7 @@ import {
   CURRENT_HASH_VERSION,
   BCRYPT_COST,
 } from "./auth-constants.ts";
-import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+import { genSaltSync, hashSync, compareSync } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 const log = createLogger("UnifiedAuthV2");
 
@@ -371,23 +371,23 @@ export async function switchContext(
 }
 
 // ============================================================================
-// PASSWORD HELPERS
+// PASSWORD HELPERS (Sync - Compatible with Edge Runtime)
 // ============================================================================
 
 /**
- * Hashes a password using bcrypt.
+ * Hashes a password using bcrypt (synchronous for Edge Runtime compatibility).
  */
-export async function hashPassword(password: string): Promise<string> {
-  const salt = await bcrypt.genSalt(BCRYPT_COST);
-  return await bcrypt.hash(password, salt);
+export function hashPassword(password: string): string {
+  const salt = genSaltSync(BCRYPT_COST);
+  return hashSync(password, salt);
 }
 
 /**
- * Verifies a password against a hash.
+ * Verifies a password against a hash (synchronous for Edge Runtime compatibility).
  */
-export async function verifyPassword(password: string, hash: string): Promise<boolean> {
+export function verifyPassword(password: string, hash: string): boolean {
   try {
-    return await bcrypt.compare(password, hash);
+    return compareSync(password, hash);
   } catch {
     return false;
   }

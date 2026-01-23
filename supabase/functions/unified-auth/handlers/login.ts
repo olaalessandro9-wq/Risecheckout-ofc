@@ -72,7 +72,8 @@ export async function handleLogin(
       return errorResponse("Conta sem senha configurada", corsHeaders, 403);
     }
     
-    const validPassword = await verifyPassword(password, user.password_hash);
+    // Sync function - no await needed
+    const validPassword = verifyPassword(password, user.password_hash);
     if (!validPassword) {
       log.debug("Invalid password for:", normalizedEmail);
       return errorResponse("Credenciais inválidas", corsHeaders, 401);
