@@ -36,6 +36,9 @@ import { handleSwitchContext } from "./handlers/switch-context.ts";
 import { handlePasswordResetRequest } from "./handlers/password-reset-request.ts";
 import { handlePasswordResetVerify } from "./handlers/password-reset-verify.ts";
 import { handlePasswordReset } from "./handlers/password-reset.ts";
+import { handleCheckProducerBuyer } from "./handlers/check-producer-buyer.ts";
+import { handleEnsureProducerAccess } from "./handlers/ensure-producer-access.ts";
+import { handleProducerLogin } from "./handlers/producer-login.ts";
 
 const log = createLogger("UnifiedAuth");
 
@@ -99,6 +102,15 @@ serve(async (req: Request): Promise<Response> => {
         
       case "password-reset":
         return await handlePasswordReset(supabase, req, corsHeaders);
+        
+      case "check-producer-buyer":
+        return await handleCheckProducerBuyer(supabase, req, corsHeaders);
+        
+      case "ensure-producer-access":
+        return await handleEnsureProducerAccess(supabase, req, corsHeaders);
+        
+      case "producer-login":
+        return await handleProducerLogin(supabase, req, corsHeaders);
         
       default:
         log.warn(`Unknown action: ${action}`);
