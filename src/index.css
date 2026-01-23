@@ -513,3 +513,36 @@ html body [data-radix-select-viewport] [data-radix-select-item][style][data-high
 .recharts-wrapper {
   will-change: auto;
 }
+
+/* ========================================
+   ULTRAWIDE PERFORMANCE OPTIMIZATION
+   ======================================== 
+   
+   Otimizações específicas para monitores
+   ultrawide (≥2560px) onde o custo de
+   renderização SVG é muito maior.
+   
+   ======================================== */
+
+@media (min-width: 2560px) {
+  /* Reduz tamanho de fonte dos eixos */
+  .recharts-cartesian-axis-tick {
+    font-size: 10px !important;
+  }
+  
+  .recharts-cartesian-axis-tick-value {
+    font-weight: 400 !important;
+  }
+  
+  /* Reduz opacidade do grid para menos paint */
+  .recharts-cartesian-grid-horizontal line,
+  .recharts-cartesian-grid-vertical line {
+    stroke-opacity: 0.1 !important;
+  }
+  
+  /* Simplifica line stroke para menos cálculo de path */
+  .recharts-line-curve {
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+}

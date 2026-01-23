@@ -47,7 +47,8 @@ export default function Dashboard() {
 
         {/* Gráfico + Overview Panel */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 md:gap-6">
-          <div className="xl:col-span-2 min-h-[350px] md:min-h-[400px] lg:min-h-[450px]">
+          {/* max-w-[1800px] limita largura em ultrawide para reduzir custo de renderização */}
+          <div className="xl:col-span-2 min-h-[350px] md:min-h-[400px] lg:min-h-[450px] max-w-[1800px]">
             <RevenueChart
               title="Fluxo de Faturamento"
               data={
