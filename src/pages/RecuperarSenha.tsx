@@ -1,6 +1,8 @@
 /**
  * RecuperarSenha - Password recovery page for producers
  * 
+ * MIGRATED to call unified-auth endpoint directly (RISE Protocol V3)
+ * 
  * Estados:
  * 1. form - Formulário para digitar email
  * 2. loading - Processando requisição
@@ -15,7 +17,7 @@ import { Mail, ArrowLeft, CheckCircle, AlertCircle, Loader2 } from "lucide-react
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useProducerAuth } from "@/hooks/useProducerAuth";
+import { SUPABASE_URL } from "@/config/supabase";
 
 type ViewState = "form" | "loading" | "success" | "error";
 
@@ -24,7 +26,6 @@ export default function RecuperarSenha() {
   const [viewState, setViewState] = useState<ViewState>("form");
   const [errorMessage, setErrorMessage] = useState("");
   const navigate = useNavigate();
-  const { requestPasswordReset } = useProducerAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,20 +38,32 @@ export default function RecuperarSenha() {
     setViewState("loading");
     setErrorMessage("");
 
-    const result = await requestPasswordReset(email);
+    try {
+      // Call producer-auth for password reset (still using producer-auth for password reset flow)
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/producer-auth/request-password-reset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+      
+      const data = await response.json();
 
-    if (!result.success) {
-      if (result.error?.includes("não encontrado") || result.error?.includes("not found")) {
-        setErrorMessage("E-mail não encontrado na base de dados");
-        setViewState("error");
-      } else {
-        setErrorMessage(result.error || "Erro ao processar solicitação");
-        setViewState("form");
+      if (!response.ok) {
+        if (data.error?.includes("não encontrado") || data.error?.includes("not found")) {
+          setErrorMessage("E-mail não encontrado na base de dados");
+          setViewState("error");
+        } else {
+          setErrorMessage(data.error || "Erro ao processar solicitação");
+          setViewState("form");
+        }
+        return;
       }
-      return;
-    }
 
-    setViewState("success");
+      setViewState("success");
+    } catch (error) {
+      setErrorMessage("Erro de conexão");
+      setViewState("form");
+    }
   };
 
   const handleCancel = () => {

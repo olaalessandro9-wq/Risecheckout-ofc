@@ -1,6 +1,6 @@
 /**
  * Auth - Login page for producers
- * Uses custom producer-auth edge function
+ * Uses unified-auth edge function (RISE Protocol V3)
  */
 
 import { useState, useEffect } from "react";
@@ -11,11 +11,11 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
-import { useProducerAuth } from "@/hooks/useProducerAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 
 const Auth = () => {
   const navigate = useNavigate();
-  const { login, isAuthenticated, isLoading: authLoading } = useProducerAuth();
+  const { login, isAuthenticated, isLoading: authLoading, isLoggingIn } = useUnifiedAuth();
   const [loading, setLoading] = useState(false);
 
   // Login fields
@@ -40,7 +40,8 @@ const Auth = () => {
         return;
       }
 
-      const result = await login(loginEmail, loginPassword);
+      // Use unified-auth login with preferred role "user" (producer)
+      const result = await login(loginEmail, loginPassword, "user");
 
       if (!result.success) {
         toast.error(result.error || "Erro ao fazer login");
@@ -49,7 +50,7 @@ const Auth = () => {
       }
 
       toast.success("Login realizado com sucesso!");
-      navigate("/dashboard");
+      // Navigation will happen automatically via useEffect when isAuthenticated becomes true
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Erro ao fazer login");
     } finally {
@@ -162,14 +163,14 @@ const Auth = () => {
               <Button
                 type="submit"
                 className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90 transition-opacity text-white font-semibold rounded-xl text-base"
-                disabled={loading}
-              >
-                {loading ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Entrando...</>
-                ) : (
-                  <>Entrar <ArrowRight className="ml-2 w-4 h-4" /></>
-                )}
-              </Button>
+              disabled={loading || isLoggingIn}
+            >
+              {loading || isLoggingIn ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Entrando...</>
+              ) : (
+                <>Entrar <ArrowRight className="ml-2 w-4 h-4" /></>
+              )}
+            </Button>
             </form>
 
             {/* Links below button */}

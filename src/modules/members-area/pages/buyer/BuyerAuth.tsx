@@ -1,6 +1,8 @@
 /**
  * BuyerAuth - Login page for student panel
  * 
+ * MIGRATED to useUnifiedAuth (RISE Protocol V3)
+ * 
  * Features:
  * - Login only (registration via invite token or purchase)
  * - Support for ?email= pre-fill
@@ -11,18 +13,19 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
-import { useBuyerAuth } from "@/hooks/useBuyerAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { SUPABASE_URL } from "@/config/supabase";
 
 export default function BuyerAuth() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { isAuthenticated, isLoading: authLoading, login, register, checkEmail } = useBuyerAuth();
+  const { isAuthenticated, isLoading: authLoading, login, isLoggingIn } = useUnifiedAuth();
 
   // Get query params
   const prefillEmail = searchParams.get("email") || "";
@@ -31,7 +34,6 @@ export default function BuyerAuth() {
   const [email, setEmail] = useState(prefillEmail);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [needsPasswordSetup, setNeedsPasswordSetup] = useState(false);
 
   // Redirect if already authenticated
@@ -49,49 +51,52 @@ export default function BuyerAuth() {
   }, [prefillEmail]);
 
   const handleEmailBlur = async () => {
+    // Check email via buyer-auth endpoint for needsPasswordSetup
     if (email) {
-      const result = await checkEmail(email);
-      if (result.exists && result.needsPasswordSetup) {
-        setNeedsPasswordSetup(true);
-        toast.info("Você precisa definir uma senha para acessar sua conta.");
-      } else {
-        setNeedsPasswordSetup(false);
+      try {
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/buyer-auth/check-email`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.trim().toLowerCase() }),
+        });
+        const result = await response.json();
+        if (result.exists && result.needsPasswordSetup) {
+          setNeedsPasswordSetup(true);
+          toast.info("Você precisa definir uma senha para acessar sua conta.");
+        } else {
+          setNeedsPasswordSetup(false);
+        }
+      } catch {
+        // Ignore check errors
       }
     }
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
 
     try {
       if (needsPasswordSetup) {
-        // Register flow for pending password
-        const result = await register(email, password, "");
-        if (result.success) {
-          toast.success("Senha definida com sucesso!");
-          // After setting password, do login automatically
-          const loginResult = await login(email, password);
-          if (loginResult.success) {
-            navigate(redirectUrl);
-          }
-        } else {
-          toast.error(result.error || "Erro ao definir senha");
-        }
-      } else {
-        const result = await login(email, password);
-        if (result.success) {
-          toast.success("Login realizado com sucesso!");
-          navigate(redirectUrl);
-        } else if (result.needsPasswordSetup) {
-          setNeedsPasswordSetup(true);
-          toast.info("Você precisa definir uma senha para acessar sua conta.");
-        } else {
-          toast.error(result.error || "Erro ao fazer login");
-        }
+        // For pending password setup, redirect to setup page
+        toast.info("Você precisa configurar sua senha primeiro.");
+        navigate(`/minha-conta/recuperar-senha?email=${encodeURIComponent(email)}`);
+        return;
       }
-    } finally {
-      setIsLoading(false);
+      
+      // Use unified-auth login with preferred role "buyer"
+      const result = await login(email, password, "buyer");
+      
+      if (result.success) {
+        toast.success("Login realizado com sucesso!");
+        // Navigation happens via useEffect when isAuthenticated becomes true
+      } else if (result.error?.includes("pendente") || result.error?.includes("senha configurada")) {
+        setNeedsPasswordSetup(true);
+        toast.info("Você precisa definir uma senha para acessar sua conta.");
+      } else {
+        toast.error(result.error || "Erro ao fazer login");
+      }
+    } catch {
+      toast.error("Erro de conexão");
     }
   };
 
@@ -225,16 +230,16 @@ export default function BuyerAuth() {
               <Button
                 type="submit"
                 className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90 transition-opacity text-white font-semibold rounded-xl text-base"
-                disabled={isLoading}
+                disabled={isLoggingIn}
               >
-                {isLoading ? (
+                {isLoggingIn ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    {needsPasswordSetup ? "Definindo..." : "Entrando..."}
+                    {needsPasswordSetup ? "Redirecionando..." : "Entrando..."}
                   </>
                 ) : (
                   <>
-                    {needsPasswordSetup ? "Definir Senha e Entrar" : "Entrar"}
+                    {needsPasswordSetup ? "Configurar Senha" : "Entrar"}
                     <ArrowRight className="ml-2 w-4 h-4" />
                   </>
                 )}
