@@ -55,7 +55,7 @@ export function Sidebar({ navigation }: SidebarProps) {
     <Sheet open={state.mobileOpen} onOpenChange={setMobileOpen}>
       <SheetContent
         side="left"
-        className="p-0 w-[280px] border-r border-border/40 bg-background/95 backdrop-blur-xl"
+        className="p-0 w-[280px] border-r border-border/40 bg-background/98 backdrop-blur-sm"
       >
         <SheetHeader className="sr-only">
           <SheetTitle>Menu de Navegação</SheetTitle>
@@ -89,7 +89,7 @@ export function Sidebar({ navigation }: SidebarProps) {
         onMouseLeave={handleMouseLeave}
         className={cn(
           "hidden md:flex fixed left-0 top-0 z-50 h-screen shrink-0 flex-col",
-          "border-r border-border/40 bg-background/80 backdrop-blur-xl",
+          "border-r border-border/40 bg-background/95 backdrop-blur-sm",
           "transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] will-change-[width]"
         )}
         style={{

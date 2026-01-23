@@ -470,3 +470,28 @@ html body [data-radix-select-viewport] [data-radix-select-item][style][data-high
 .group\/card:hover .group-hover\/card\:text-members-primary {
   color: hsl(var(--members-primary));
 }
+
+/* ========================================
+   PERFORMANCE OPTIMIZATION - Ultrawide
+   ========================================
+   
+   Reduz efeitos pesados de GPU em monitores
+   de alta resolução (2560px+) para melhorar
+   a fluidez em Chrome/Edge.
+   
+   ======================================== */
+
+@media (min-width: 2560px) {
+  /* Reduz blur pesado para leve */
+  .backdrop-blur-xl {
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+  }
+  
+  /* Remove blurs decorativos que consomem GPU */
+  .blur-3xl,
+  .blur-2xl,
+  .blur-xl {
+    filter: none !important;
+  }
+}
