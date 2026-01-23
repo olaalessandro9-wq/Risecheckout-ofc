@@ -13,7 +13,7 @@
 | 1 | Token Service Unificado | ✅ CONCLUÍDO |
 | 2 | Migração Frontend | ✅ CONCLUÍDO (batch 1) |
 | 3 | Migração Edge Functions | ✅ CONCLUÍDO |
-| 4 | Migração de Dados SQL | ⏳ PENDENTE |
+| 4 | Migração de Dados SQL | ✅ CONCLUÍDO |
 | 5 | Cleanup Final | ⏳ PENDENTE |
 
 ---
@@ -148,10 +148,10 @@ UPDATE buyer_sessions SET is_valid = false WHERE is_valid = true;
 
 ### Checklist SQL
 
-- [ ] Backup das tabelas legacy
-- [ ] Executar migração producer_sessions → sessions
-- [ ] Executar migração buyer_sessions → sessions
-- [ ] Invalidar sessões legacy
+- [x] Backup das tabelas legacy (via migration rollback)
+- [x] Executar migração producer_sessions → sessions (17 sessões)
+- [x] Executar migração buyer_sessions → sessions (29 sessões)
+- [x] Invalidar sessões legacy (todas marcadas is_valid = false)
 - [ ] Testar login/logout em ambos contextos
 - [ ] Testar switch-context
 
@@ -205,3 +205,4 @@ UPDATE buyer_sessions SET is_valid = false WHERE is_valid = true;
 | 2026-01-23 | 1 | Criado `unified-service.ts`, corrigido `api/client.ts` |
 | 2026-01-23 | 2 | Migrados 17 arquivos frontend para useUnifiedAuth |
 | 2026-01-23 | 3 | Edge Functions migradas via wrapper pattern + validação híbrida buyer |
+| 2026-01-23 | 4 | SQL Migration: 46 sessões migradas para tabela unificada, legacy invalidado |
