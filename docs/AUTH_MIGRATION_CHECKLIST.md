@@ -11,7 +11,7 @@
 | Fase | Descrição | Status |
 |------|-----------|--------|
 | 1 | Token Service Unificado | ✅ CONCLUÍDO |
-| 2 | Migração Frontend | 🔄 EM PROGRESSO |
+| 2 | Migração Frontend | ✅ CONCLUÍDO (batch 1) |
 | 3 | Migração Edge Functions | ⏳ PENDENTE |
 | 4 | Migração de Dados SQL | ⏳ PENDENTE |
 | 5 | Cleanup Final | ⏳ PENDENTE |
@@ -27,31 +27,30 @@
 
 ---
 
-## 📂 Fase 2: Migração Frontend
+## ✅ Fase 2: Migração Frontend (BATCH 1 CONCLUÍDO)
 
-### Hooks Legacy a Substituir
+### Componentes Migrados para useUnifiedAuth
 
-| Arquivo | Referências | Prioridade | Status |
-|---------|-------------|------------|--------|
-| `src/hooks/useBuyerAuth.ts` | ~10 arquivos | 🔴 CRÍTICO | ⬜ |
-| `src/hooks/useBuyerSession.ts` | ~5 arquivos | 🔴 CRÍTICO | ⬜ |
-| `src/hooks/useProducerAuth.ts` | ~8 arquivos | 🟠 ALTO | ⬜ |
-| `src/hooks/useProducerSession.ts` | ~3 arquivos | 🟠 ALTO | ⬜ |
-| `src/hooks/useProducerBuyerLink.ts` | ~2 arquivos | 🟡 MÉDIO | ⬜ |
+- [x] `src/layouts/StudentShell.tsx`
+- [x] `src/modules/members-area/pages/buyer/BuyerDashboard.tsx`
+- [x] `src/modules/members-area/pages/buyer/CourseHome.tsx`
+- [x] `src/modules/members-area/pages/buyer/BuyerHistory.tsx`
+- [x] `src/modules/members-area/pages/buyer/LessonViewer.tsx`
+- [x] `src/modules/members-area/pages/buyer/components/layout/BuyerSidebar.tsx`
+- [x] `src/hooks/useBuyerOrders.ts` - removido import legacy
+- [x] `src/hooks/useAffiliateRequest.ts`
+- [x] `src/hooks/useAffiliationStatusCache.ts`
+- [x] `src/hooks/useAffiliations.ts`
+- [x] `src/components/auth/ProducerRegistrationForm.tsx`
+- [x] `src/lib/api-client.ts` - deprecated, removido import legacy
 
-### Componentes/Páginas a Migrar
+### Services Migrados (removidos imports legacy)
 
-#### Área de Membros (🔴 CRÍTICO)
-
-- [ ] `src/modules/members-area/pages/buyer/CourseHome.tsx`
-- [ ] `src/modules/members-area/pages/buyer/BuyerDashboard.tsx`
-- [ ] `src/modules/members-area/pages/buyer/components/layout/BuyerSidebar.tsx`
-- [ ] `src/modules/members-area/pages/buyer/components/layout/BuyerHeader.tsx`
-- [ ] `src/modules/members-area/pages/buyer/BuyerCertificates.tsx`
-- [ ] `src/modules/members-area/pages/buyer/BuyerOrders.tsx`
-- [ ] `src/modules/members-area/pages/buyer/BuyerProfile.tsx`
-- [ ] `src/modules/members-area/pages/buyer/BuyerAffiliations.tsx`
-- [ ] `src/layouts/StudentShell.tsx`
+- [x] `src/modules/members-area/services/students.service.ts`
+- [x] `src/modules/members-area/services/progress.service.ts`
+- [x] `src/modules/members-area/services/groups.service.ts`
+- [x] `src/modules/members-area/services/quizzes.service.ts`
+- [x] `src/modules/members-area/services/certificates.service.ts`
 
 #### Services (🔴 CRÍTICO)
 

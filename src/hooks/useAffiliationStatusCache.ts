@@ -10,13 +10,12 @@
  * - Atualização local após nova afiliação (sem refetch)
  * - Invalidação ao deslogar
  * 
- * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
- * @see RISE Protocol V2 - Zero database access from frontend
+ * RISE V3: Uses credentials: 'include' for httpOnly cookies
+ * @see RISE Protocol V3 - Unified Identity
  */
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { api } from "@/lib/api";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger('AffiliationStatusCache');
@@ -93,13 +92,8 @@ export function useAffiliationStatusCache(): UseAffiliationStatusCacheReturn {
       return;
     }
 
-    const sessionToken = getProducerSessionToken();
-    if (!sessionToken) {
-      // Usuário não logado, cache vazio mas "carregado"
-      globalCache.isLoaded = true;
-      setIsLoaded(true);
-      return;
-    }
+    // RISE V3: Não precisa verificar token - cookies httpOnly são enviados automaticamente
+    // Se não estiver autenticado, o backend retorna lista vazia
 
     // Iniciar carregamento
     globalCache.isLoading = true;

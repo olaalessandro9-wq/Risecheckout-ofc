@@ -2,11 +2,10 @@
  * Certificates Service
  * Communicates with members-area-certificates Edge Function
  * 
- * MIGRATED: Uses getProducerSessionToken() instead of supabase.auth.getSession()
+ * RISE V3: Uses credentials: 'include' for httpOnly cookies
  */
 
 import { SUPABASE_URL } from '@/config/supabase';
-import { getProducerSessionToken } from '@/hooks/useProducerAuth';
 import type {
   CertificateTemplate,
   Certificate,

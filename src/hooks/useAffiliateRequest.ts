@@ -1,8 +1,13 @@
+/**
+ * useAffiliateRequest - Hook para gerenciar solicitações de afiliação
+ * 
+ * RISE V3: Uses useUnifiedAuth (unified identity)
+ */
+
 import { useState, useCallback } from "react";
 import { checkAffiliationStatus } from "@/services/marketplace";
-import { useAuth } from "@/hooks/useAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { api } from "@/lib/api";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 import { useAffiliationStatusCache } from "@/hooks/useAffiliationStatusCache";
 import { createLogger } from "@/lib/logger";
 
@@ -41,7 +46,8 @@ interface UseAffiliateRequestReturn {
  * @see supabase/functions/request-affiliation/index.ts
  */
 export function useAffiliateRequest(): UseAffiliateRequestReturn & { isCheckingStatus: boolean } {
-  const { user, session } = useAuth();
+  // RISE V3: useUnifiedAuth para verificar autenticação
+  const { user, isAuthenticated } = useUnifiedAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,10 +72,8 @@ export function useAffiliateRequest(): UseAffiliateRequestReturn & { isCheckingS
    */
   const requestAffiliate = useCallback(
     async (productId: string) => {
-      // Validar autenticação via token de sessão customizado
-      const sessionToken = getProducerSessionToken();
-      
-      if (!sessionToken) {
+      // RISE V3: Verificar autenticação via hook unificado
+      if (!isAuthenticated) {
         setError("Você precisa estar logado para solicitar afiliação");
         return;
       }
@@ -140,39 +144,39 @@ export function useAffiliateRequest(): UseAffiliateRequestReturn & { isCheckingS
         }
       } catch (err: unknown) {
         log.error("Erro ao solicitar afiliação", err);
-        setError(err instanceof Error ? err.message : "Erro ao solicitar afiliação. Tente novamente.");
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [user, session, updateCacheStatus]
-  );
+      setError(err instanceof Error ? err.message : "Erro ao solicitar afiliação. Tente novamente.");
+    } finally {
+      setIsLoading(false);
+    }
+  },
+  [isAuthenticated, updateCacheStatus]
+);
 
   /**
    * Verifica status de afiliação
    */
-  const checkStatus = useCallback(
-    async (productId: string) => {
-      // Indicar que está verificando status
-      setIsCheckingStatus(true);
-      
-      if (!user) {
-        setAffiliationStatus({ isAffiliate: false });
-        setIsCheckingStatus(false);
-        return;
-      }
+const checkStatus = useCallback(
+  async (productId: string) => {
+    // Indicar que está verificando status
+    setIsCheckingStatus(true);
+    
+    if (!user) {
+      setAffiliationStatus({ isAffiliate: false });
+      setIsCheckingStatus(false);
+      return;
+    }
 
-      try {
-        const status = await checkAffiliationStatus(productId, user.id);
-        setAffiliationStatus(status);
-      } catch {
-        setAffiliationStatus({ isAffiliate: false });
-      } finally {
-        setIsCheckingStatus(false);
-      }
-    },
-    [user]
-  );
+    try {
+      const status = await checkAffiliationStatus(productId, user.id);
+      setAffiliationStatus(status);
+    } catch {
+      setAffiliationStatus({ isAffiliate: false });
+    } finally {
+      setIsCheckingStatus(false);
+    }
+  },
+  [user]
+);
 
   return {
     requestAffiliate,

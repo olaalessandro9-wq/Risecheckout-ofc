@@ -2,11 +2,12 @@
  * StudentShell - Layout para o painel do aluno
  * Simplificado, focado nos cursos do aluno
  * Inclui dropdown no avatar para trocar entre painéis
+ * 
+ * RISE V3: Uses useUnifiedAuth (unified identity)
  */
 
 import { Outlet, useNavigate } from "react-router-dom";
-import { useBuyerAuth } from "@/hooks/useBuyerAuth";
-import { useAuth } from "@/hooks/useAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -45,26 +46,26 @@ function getInitials(name: string | null | undefined, email?: string | null): st
 
 export default function StudentShell() {
   const navigate = useNavigate();
-  const { buyer, logout } = useBuyerAuth();
-  const { user } = useAuth();
+  // RISE V3: useUnifiedAuth em vez de useBuyerAuth + useAuth
+  const { user, logout, isProducer, canSwitchToProducer, switchToProducer, isSwitching, isLoggingOut } = useUnifiedAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isNavigating, setIsNavigating] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
-    setIsLoggingOut(true);
     await logout();
     navigate("/auth");
   };
 
-  const handleBackToProducer = () => {
-    setIsNavigating(true);
-    navigate("/dashboard");
+  const handleBackToProducer = async () => {
+    // RISE V3: switch-context em vez de navegação simples
+    if (canSwitchToProducer) {
+      await switchToProducer();
+      navigate("/dashboard");
+    }
   };
 
-  // Check if user is also a producer (has Supabase auth session)
-  const isAlsoProducer = !!user;
-  const initials = getInitials(buyer?.name, buyer?.email);
+  // Check if user is also a producer (has producer roles)
+  const isAlsoProducer = canSwitchToProducer;
+  const initials = getInitials(user?.name, user?.email);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
@@ -80,7 +81,7 @@ export default function StudentShell() {
               <div className="hidden sm:block">
                 <h1 className="text-lg font-semibold">Área de Membros</h1>
                 <p className="text-xs text-muted-foreground">
-                  {buyer?.name || buyer?.email}
+                  {user?.name || user?.email}
                 </p>
               </div>
             </div>
@@ -91,7 +92,7 @@ export default function StudentShell() {
                 <DropdownMenuTrigger asChild>
                   <button
                     className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold cursor-pointer hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                    title={buyer?.name || buyer?.email || "Aluno"}
+                    title={user?.name || user?.email || "Aluno"}
                   >
                     {initials}
                   </button>
@@ -99,7 +100,7 @@ export default function StudentShell() {
                 <DropdownMenuContent align="end" className="w-56 bg-popover border border-border shadow-lg">
                   <DropdownMenuLabel className="font-normal">
                     <p className="text-xs text-muted-foreground truncate">
-                      {buyer?.email}
+                      {user?.email}
                     </p>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
@@ -116,9 +117,9 @@ export default function StudentShell() {
                     <DropdownMenuItem 
                       onClick={handleBackToProducer} 
                       className="cursor-pointer"
-                      disabled={isNavigating}
+                      disabled={isSwitching}
                     >
-                      {isNavigating ? (
+                      {isSwitching ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : (
                         <ArrowLeftRight className="mr-2 h-4 w-4" />

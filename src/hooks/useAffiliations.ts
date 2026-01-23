@@ -6,15 +6,13 @@
  * - Cancelamento de afiliação
  * - Gerenciamento de estados de loading/error
  * 
- * MIGRATED: Usa Edge Function para bypass de RLS
- * (sistema usa autenticação customizada via producer_sessions)
+ * RISE V3: Uses useUnifiedAuth (unified identity)
  */
 
 import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { useAuth } from "@/hooks/useAuth";
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("Affiliations");
@@ -40,15 +38,15 @@ interface UseAffiliationsResult {
 }
 
 export function useAffiliations(): UseAffiliationsResult {
-  const { user } = useAuth();
+  // RISE V3: useUnifiedAuth para verificar autenticação
+  const { user, isAuthenticated } = useUnifiedAuth();
   const [affiliations, setAffiliations] = useState<Affiliation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchAffiliations = useCallback(async () => {
-    const sessionToken = getProducerSessionToken();
-
-    if (!sessionToken || !user?.id) {
+    // RISE V3: Verificar autenticação via hook unificado
+    if (!isAuthenticated || !user?.id) {
       setAffiliations([]);
       setIsLoading(false);
       return;
@@ -84,9 +82,9 @@ export function useAffiliations(): UseAffiliationsResult {
       setError("Erro ao carregar suas afiliações.");
       toast.error("Erro ao carregar suas afiliações.");
     } finally {
-      setIsLoading(false);
-    }
-  }, [user?.id]);
+    setIsLoading(false);
+  }
+}, [isAuthenticated, user?.id]);
 
   const cancelAffiliation = useCallback(async (id: string): Promise<boolean> => {
     try {

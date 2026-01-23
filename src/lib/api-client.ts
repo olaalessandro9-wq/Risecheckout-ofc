@@ -1,24 +1,14 @@
 /**
- * Unified API Client
+ * Unified API Client (Legacy)
  * 
- * RISE ARCHITECT PROTOCOL - Zero Technical Debt
+ * RISE ARCHITECT PROTOCOL V3 - DEPRECATED
  * 
- * This module provides utilities for making authenticated API calls
- * that automatically include the producer_session_token in headers.
+ * @deprecated Use `api` from "@/lib/api" instead.
+ * This file is kept for backward compatibility only.
  * 
- * Usage:
- * ```typescript
- * import { apiCall, invokeEdgeFunction } from "@/lib/api-client";
- * 
- * // For raw fetch with auth
- * const response = await apiCall("/some/endpoint", { method: "POST", body: JSON.stringify(data) });
- * 
- * // For Supabase Edge Functions
- * const result = await invokeEdgeFunction("my-function", { action: "do_something" });
- * ```
+ * RISE V3: Uses credentials: 'include' for httpOnly cookies
  */
 
-import { getProducerSessionToken } from "@/hooks/useProducerAuth";
 import { SUPABASE_URL } from "@/config/supabase";
 
 /**
@@ -82,15 +72,12 @@ export async function invokeEdgeFunction<T = unknown>(
 
 /**
  * Gets the current producer ID from local storage cache.
- * This is a synchronous helper for cases where you can't use the hook.
  * 
- * Note: This returns the cached value. For fresh validation, use useAuth().
- * 
- * @returns Producer ID or null
+ * @deprecated Use useUnifiedAuth() hook instead
+ * @returns Always returns null - use hook for proper auth state
  */
 export function getCachedProducerId(): string | null {
-  // The producer data is cached in React Query, but we can't access it synchronously
-  // For edge function calls, we send the token and let the server validate
-  const token = getProducerSessionToken();
-  return token ? "requires-server-validation" : null;
+  // RISE V3: With httpOnly cookies, we can't check auth state synchronously
+  // Use useUnifiedAuth() hook for proper auth state
+  return null;
 }
