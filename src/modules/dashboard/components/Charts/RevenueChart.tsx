@@ -32,13 +32,13 @@ type CustomTooltipProps = TooltipProps<number, string>;
 function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-card/95 backdrop-blur-xl border border-border rounded-xl p-4 shadow-xl">
+      <div className="bg-card border border-border rounded-xl p-4 shadow-lg">
         <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider">
           {label}
         </p>
         <p className="text-xl font-bold text-card-foreground tracking-tight flex items-center gap-1">
           <span
-            className="w-2 h-2 rounded-full animate-pulse"
+            className="w-2 h-2 rounded-full"
             style={{ backgroundColor: "hsl(var(--success))" }}
           />
           {new Intl.NumberFormat("pt-BR", {
@@ -125,10 +125,9 @@ export function RevenueChart({
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5 }}
-      className="relative h-full"
+      className="relative h-full will-change-transform"
     >
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-accent/5 to-transparent rounded-2xl blur-2xl opacity-50" />
-      <div className="relative h-full bg-card/40 backdrop-blur-xl border border-border/50 rounded-xl md:rounded-2xl p-4 md:p-6 hover:border-border transition-all duration-300 flex flex-col">
+      <div className="relative h-full bg-card border border-border/50 rounded-xl md:rounded-2xl p-4 md:p-6 hover:border-border transition-colors duration-300 flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between mb-4 md:mb-6 lg:mb-8">
           <h3 className="text-base md:text-lg font-bold text-card-foreground tracking-tight flex items-center gap-2 md:gap-3">
@@ -160,15 +159,6 @@ export function RevenueChart({
                 data={data}
                 margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
               >
-                <defs>
-                  <filter id="glow">
-                    <feGaussianBlur stdDeviation="3" result="coloredBlur" />
-                    <feMerge>
-                      <feMergeNode in="coloredBlur" />
-                      <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                  </filter>
-                </defs>
                 <CartesianGrid
                   strokeDasharray="3 3"
                   stroke="hsl(var(--chart-grid))"
@@ -213,7 +203,6 @@ export function RevenueChart({
                   dataKey="value"
                   stroke="hsl(var(--success))"
                   strokeWidth={3}
-                  filter="url(#glow)"
                   dot={{
                     r: 4,
                     strokeWidth: 2,
@@ -225,7 +214,6 @@ export function RevenueChart({
                     strokeWidth: 3,
                     stroke: "hsl(var(--success) / 0.3)",
                     fill: "hsl(var(--success))",
-                    filter: "drop-shadow(0 0 10px hsl(var(--success) / 0.8))",
                   }}
                 />
               </LineChart>

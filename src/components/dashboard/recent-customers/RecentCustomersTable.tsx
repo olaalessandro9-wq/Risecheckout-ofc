@@ -121,10 +121,9 @@ export function RecentCustomersTable({ customers, isLoading = false, onRefresh }
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
-        className="relative"
+        className="relative will-change-transform"
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent rounded-2xl blur-xl opacity-20" />
-        <div className="relative bg-card/40 backdrop-blur-xl border border-border/50 rounded-2xl p-6 hover:border-primary/20 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5">
+        <div className="relative bg-card border border-border/50 rounded-2xl p-6 hover:border-primary/20 transition-colors duration-300 hover:shadow-xl hover:shadow-primary/5">
           <div className="space-y-6">
             <CustomerTableHeader
               searchTerm={pagination.searchTerm}
@@ -136,7 +135,7 @@ export function RecentCustomersTable({ customers, isLoading = false, onRefresh }
               hasData={pagination.filteredCustomers.length > 0}
             />
 
-            <div className="border border-border/30 rounded-xl overflow-hidden bg-background/20 backdrop-blur-sm overflow-x-auto">
+            <div className="border border-border/30 rounded-xl overflow-hidden bg-background/50 overflow-x-auto">
               <Table className="min-w-[800px]">
                 <TableHeader>
                   <TableRow className="bg-muted/30 hover:bg-muted/50 border-border/30">
