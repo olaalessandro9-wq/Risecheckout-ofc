@@ -2174,30 +2174,39 @@ export type Database = {
         Row: {
           created_at: string
           data: Json | null
+          external_id: string | null
+          gateway: string | null
           gateway_event_id: string | null
           id: string
           occurred_at: string
           order_id: string
+          processed_successfully: boolean | null
           type: string
           vendor_id: string
         }
         Insert: {
           created_at?: string
           data?: Json | null
+          external_id?: string | null
+          gateway?: string | null
           gateway_event_id?: string | null
           id?: string
           occurred_at: string
           order_id: string
+          processed_successfully?: boolean | null
           type: string
           vendor_id: string
         }
         Update: {
           created_at?: string
           data?: Json | null
+          external_id?: string | null
+          gateway?: string | null
           gateway_event_id?: string | null
           id?: string
           occurred_at?: string
           order_id?: string
+          processed_successfully?: boolean | null
           type?: string
           vendor_id?: string
         }
