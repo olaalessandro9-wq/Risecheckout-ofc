@@ -70,8 +70,10 @@ export class PaymentFactory {
     if (!accessToken) {
       throw new Error('MercadoPago: access_token é obrigatório nas credenciais.');
     }
+
+    const environment = credentials.environment || 'production';
     
-    return new MercadoPagoAdapter(accessToken, supabase);
+    return new MercadoPagoAdapter(accessToken, environment, supabase);
   }
 
   private static createPushinPay(
