@@ -118,13 +118,13 @@ export function RecentCustomersTable({ customers, isLoading = false, onRefresh }
       />
 
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
+        transition={{ duration: 0.25, delay: 0.1 }}
         className="relative"
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent rounded-2xl blur-xl opacity-20" />
-        <div className="relative bg-card/40 backdrop-blur-xl border border-border/50 rounded-2xl p-6 hover:border-primary/20 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5">
+        {/* Div decorativa com blur removida para performance */}
+        <div className="relative bg-card/95 backdrop-blur-sm border border-border/50 rounded-2xl p-6 hover:border-primary/20 transition-all duration-300 hover:shadow-lg">
           <div className="space-y-6">
             <CustomerTableHeader
               searchTerm={pagination.searchTerm}

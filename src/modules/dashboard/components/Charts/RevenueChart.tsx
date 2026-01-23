@@ -160,15 +160,7 @@ export function RevenueChart({
                 data={data}
                 margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
               >
-                <defs>
-                  <filter id="glow">
-                    <feGaussianBlur stdDeviation="3" result="coloredBlur" />
-                    <feMerge>
-                      <feMergeNode in="coloredBlur" />
-                      <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                  </filter>
-                </defs>
+                {/* Filtros SVG removidos para performance */}
                 <CartesianGrid
                   strokeDasharray="3 3"
                   stroke="hsl(var(--chart-grid))"
@@ -213,7 +205,6 @@ export function RevenueChart({
                   dataKey="value"
                   stroke="hsl(var(--success))"
                   strokeWidth={3}
-                  filter="url(#glow)"
                   dot={{
                     r: 4,
                     strokeWidth: 2,
@@ -221,11 +212,10 @@ export function RevenueChart({
                     fill: "hsl(var(--card))",
                   }}
                   activeDot={{
-                    r: 8,
-                    strokeWidth: 3,
+                    r: 6,
+                    strokeWidth: 2,
                     stroke: "hsl(var(--success) / 0.3)",
                     fill: "hsl(var(--success))",
-                    filter: "drop-shadow(0 0 10px hsl(var(--success) / 0.8))",
                   }}
                 />
               </LineChart>
