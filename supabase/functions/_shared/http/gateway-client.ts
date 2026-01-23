@@ -9,6 +9,7 @@ import { CircuitBreaker, GATEWAY_CIRCUIT_CONFIGS } from "../circuit-breaker.ts";
 import { GatewayClientConfig, GatewayHttpClient, HttpResponse, FetchOptions, DEFAULT_TIMEOUT } from "./types.ts";
 import { safeJsonFetch } from "./fetch-utils.ts";
 import { createGatewayHeaders } from "./gateway-headers.ts";
+import { GatewayId } from "../payment-gateways/types.ts";
 
 const log = createLogger("gateway-client");
 
@@ -44,7 +45,7 @@ export function createGatewayClient(config: GatewayClientConfig): GatewayHttpCli
   const gatewayId = config.gatewayId || config.gateway || 'unknown';
   const { baseUrl, apiKey, timeout = DEFAULT_TIMEOUT, retries = 2, defaultHeaders } = config;
   
-  const headers = defaultHeaders || (apiKey ? createGatewayHeaders(gatewayId, apiKey) : {});
+  const headers = defaultHeaders || (apiKey && gatewayId !== 'unknown' ? createGatewayHeaders(gatewayId as GatewayId, apiKey) : {});
   const circuitBreaker = getOrCreateCircuitBreaker(gatewayId);
   
   const buildUrl = (path: string): string => {
