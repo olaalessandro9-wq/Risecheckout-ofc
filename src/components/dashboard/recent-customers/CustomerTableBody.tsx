@@ -72,7 +72,7 @@ export function CustomerTableBody({
   }
 
   return (
-    <TableBody>
+    <TableBody className="recent-customers-tbody">
       {customers.map((customer) => (
         <CustomerTableRow
           key={customer.id}
