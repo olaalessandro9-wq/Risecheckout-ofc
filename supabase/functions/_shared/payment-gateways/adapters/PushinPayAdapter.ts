@@ -248,7 +248,7 @@ export class PushinPayAdapter implements IPaymentGateway {
    * Retorna estado do Circuit Breaker
    */
   getCircuitState(): string {
-    return this.httpClient.getCircuitState();
+    return this.httpClient.getCircuitState?.() ?? 'unknown';
   }
 
   /**
