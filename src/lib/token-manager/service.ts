@@ -1,16 +1,10 @@
 /**
  * Token Service - Public API for Token Lifecycle Management
  * 
- * RISE Protocol V3: Encapsulated FSM with Reactive Subscriptions
+ * RISE Protocol V3: Unified Token Service
  * 
- * This service wraps the FSM and provides:
- * - Public methods for auth operations
- * - Automatic timer management (via HeartbeatManager)
- * - State persistence (via persistence module)
- * - Subscriber notifications
- * 
- * MIGRATION NOTE: producerTokenService and buyerTokenService are DEPRECATED.
- * Use unifiedTokenService for all new code.
+ * All authentication flows now use the unified service.
+ * Legacy buyer/producer services have been removed.
  */
 
 import type { 
@@ -237,37 +231,31 @@ export class TokenService {
 }
 
 // ============================================
-// SINGLETON INSTANCES
+// SINGLETON INSTANCE
 // ============================================
 
 /**
- * UNIFIED TOKEN SERVICE - Use this for all new code
+ * UNIFIED TOKEN SERVICE - The ONLY token service
  * 
- * This is the primary token service that manages authentication
+ * This is the single token service that manages authentication
  * via the unified-auth system with __Host-rise_* cookies.
  */
 export const unifiedTokenService = new TokenService("unified");
 
-/**
- * @deprecated Use unifiedTokenService instead.
- * This will be removed in the next major version.
- * 
- * Legacy producer token service for backwards compatibility.
- * Internally proxied to unified token service behavior.
- */
-export const producerTokenService = new TokenService("producer");
+// ============================================
+// LEGACY ALIASES (DEPRECATED - DO NOT USE)
+// These exist only for backwards compatibility during migration.
+// They all point to the unified service.
+// ============================================
 
-/**
- * @deprecated Use unifiedTokenService instead.
- * This will be removed in the next major version.
- * 
- * Legacy buyer token service for backwards compatibility.
- * Internally proxied to unified token service behavior.
- */
-export const buyerTokenService = new TokenService("buyer");
+/** @deprecated Use unifiedTokenService instead */
+export const producerTokenService = unifiedTokenService;
 
-// Backward compatibility aliases (deprecated)
-/** @deprecated Use unifiedTokenService */
-export const producerTokenManager = producerTokenService;
-/** @deprecated Use unifiedTokenService */
-export const buyerTokenManager = buyerTokenService;
+/** @deprecated Use unifiedTokenService instead */
+export const buyerTokenService = unifiedTokenService;
+
+/** @deprecated Use unifiedTokenService instead */
+export const producerTokenManager = unifiedTokenService;
+
+/** @deprecated Use unifiedTokenService instead */
+export const buyerTokenManager = unifiedTokenService;

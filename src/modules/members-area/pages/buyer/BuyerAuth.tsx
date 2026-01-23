@@ -51,10 +51,10 @@ export default function BuyerAuth() {
   }, [prefillEmail]);
 
   const handleEmailBlur = async () => {
-    // Check email via buyer-auth endpoint for needsPasswordSetup
+    // Check email via unified-auth endpoint for needsPasswordSetup
     if (email) {
       try {
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/buyer-auth/check-email`, {
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/unified-auth/check-email`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: email.trim().toLowerCase() }),

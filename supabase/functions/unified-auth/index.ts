@@ -39,6 +39,7 @@ import { handlePasswordReset } from "./handlers/password-reset.ts";
 import { handleCheckProducerBuyer } from "./handlers/check-producer-buyer.ts";
 import { handleEnsureProducerAccess } from "./handlers/ensure-producer-access.ts";
 import { handleProducerLogin } from "./handlers/producer-login.ts";
+import { handleCheckEmail } from "./handlers/check-email.ts";
 
 const log = createLogger("UnifiedAuth");
 
@@ -111,6 +112,9 @@ serve(async (req: Request): Promise<Response> => {
         
       case "producer-login":
         return await handleProducerLogin(supabase, req, corsHeaders);
+        
+      case "check-email":
+        return await handleCheckEmail(supabase, req, corsHeaders);
         
       default:
         log.warn(`Unknown action: ${action}`);
