@@ -483,7 +483,27 @@ export function forbiddenResponse(corsHeaders: Record<string, string>, message =
 }
 
 /**
+ * Creates expired cookies for legacy auth systems.
+ * Used during login to ensure no stale legacy cookies remain.
+ */
+function createLegacyClearCookies(): string[] {
+  const expired = (name: string) => 
+    `${name}=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=None; Partitioned`;
+  
+  return [
+    // Legacy producer cookies
+    expired(COOKIE_NAMES.producer.access),
+    expired(COOKIE_NAMES.producer.refresh),
+    // Legacy buyer cookies  
+    expired(COOKIE_NAMES.buyer.access),
+    expired(COOKIE_NAMES.buyer.refresh),
+  ];
+}
+
+/**
  * Creates a successful login/register response with cookies.
+ * 
+ * SECURITY FIX: Also clears legacy cookies to prevent cross-user data leakage.
  */
 export function createAuthResponse(
   session: SessionData,
@@ -491,7 +511,14 @@ export function createAuthResponse(
   roles: AppRole[],
   corsHeaders: Record<string, string>
 ): Response {
-  const cookies = createUnifiedAuthCookies(session.sessionToken, session.refreshToken);
+  // Create new unified auth cookies
+  const authCookies = createUnifiedAuthCookies(session.sessionToken, session.refreshToken);
+  
+  // Clear any legacy cookies that might exist (SECURITY FIX)
+  const legacyClearCookies = createLegacyClearCookies();
+  
+  // Combine: set new cookies + clear legacy cookies
+  const allCookies = [...authCookies, ...legacyClearCookies];
   
   return jsonResponseWithCookies({
     success: true,
@@ -504,7 +531,7 @@ export function createAuthResponse(
     },
     roles,
     activeRole: session.activeRole,
-  }, corsHeaders, cookies);
+  }, corsHeaders, allCookies);
 }
 
 /**
