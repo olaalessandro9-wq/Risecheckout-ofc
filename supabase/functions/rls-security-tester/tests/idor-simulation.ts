@@ -17,11 +17,12 @@ import type {
 } from "../types.ts";
 
 // Tables with user_id that should prevent cross-user access
+// RISE V3: Using unified `sessions` table instead of legacy buyer_sessions
 const USER_SCOPED_TABLES = [
   { table: 'orders', userColumn: 'customer_email' },
   { table: 'buyer_product_access', userColumn: 'buyer_id' },
   { table: 'buyer_content_access', userColumn: 'buyer_id' },
-  { table: 'buyer_sessions', userColumn: 'buyer_id' },
+  { table: 'sessions', userColumn: 'user_id' },
   { table: 'affiliates', userColumn: 'user_id' },
   { table: 'products', userColumn: 'user_id' },
   { table: 'notifications', userColumn: 'user_id' },
