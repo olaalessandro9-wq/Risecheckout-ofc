@@ -54,7 +54,7 @@ export function PremiumSidebar({
     totalContents > 0 ? Math.round((completedCount / totalContents) * 100) : 0;
 
   return (
-    <aside className="w-80 border-l border-border/50 bg-card/30 hidden lg:flex flex-col">
+    <aside className="w-80 lg:w-96 xl:w-[420px] shrink-0 border-l border-border/50 bg-card/30 hidden lg:flex flex-col">
       {/* Product Header */}
       <div className="p-5 border-b border-border/50">
         <div className="flex items-start gap-3">

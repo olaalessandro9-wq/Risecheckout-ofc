@@ -16,7 +16,7 @@ export function LessonLayout({ children, sidebar, className }: LessonLayoutProps
   return (
     <div className={cn("flex flex-1 overflow-hidden", className)}>
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 min-w-0 overflow-y-auto">
         {children}
       </main>
 
