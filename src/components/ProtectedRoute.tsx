@@ -1,3 +1,7 @@
+/**
+ * @deprecated Use ProducerRoute or BuyerRoute from @/components/guards instead.
+ * This component doesn't handle context switching and causes flash on navigation.
+ */
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";

@@ -10,9 +10,8 @@ import {
   Outlet,
   useLocation,
 } from "react-router-dom";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { RoleProtectedRoute } from "@/components/RoleProtectedRoute";
-import { ProducerContextGuard, BuyerContextGuard } from "@/components/guards";
+import { ProducerRoute, BuyerRoute } from "@/components/guards";
 import { ThemeProvider } from "@/providers/theme";
 import { NavigationGuardProvider } from "@/providers/NavigationGuardProvider";
 import { BusyProvider } from "@/components/BusyProvider";
@@ -123,15 +122,13 @@ function RootLayout() {
 // ============================================================================
 function DashboardLayout() {
   return (
-    <ProtectedRoute>
-      <ProducerContextGuard>
-        <ThemeProvider>
-          <NavigationGuardProvider>
-            <AppShell />
-          </NavigationGuardProvider>
-        </ThemeProvider>
-      </ProducerContextGuard>
-    </ProtectedRoute>
+    <ProducerRoute>
+      <ThemeProvider>
+        <NavigationGuardProvider>
+          <AppShell />
+        </NavigationGuardProvider>
+      </ThemeProvider>
+    </ProducerRoute>
   );
 }
 
@@ -140,15 +137,13 @@ function DashboardLayout() {
 // ============================================================================
 function MembersAreaBuilderLayout() {
   return (
-    <ProtectedRoute>
-      <ProducerContextGuard>
-        <NavigationGuardProvider>
-          <Suspense fallback={<PageLoader />}>
-            <MembersAreaBuilderPage />
-          </Suspense>
-        </NavigationGuardProvider>
-      </ProducerContextGuard>
-    </ProtectedRoute>
+    <ProducerRoute>
+      <NavigationGuardProvider>
+        <Suspense fallback={<PageLoader />}>
+          <MembersAreaBuilderPage />
+        </Suspense>
+      </NavigationGuardProvider>
+    </ProducerRoute>
   );
 }
 
@@ -157,13 +152,11 @@ function MembersAreaBuilderLayout() {
 // ============================================================================
 function CheckoutCustomizerLayout() {
   return (
-    <ProtectedRoute>
-      <ProducerContextGuard>
-        <NavigationGuardProvider>
-          <CheckoutCustomizer />
-        </NavigationGuardProvider>
-      </ProducerContextGuard>
-    </ProtectedRoute>
+    <ProducerRoute>
+      <NavigationGuardProvider>
+        <CheckoutCustomizer />
+      </NavigationGuardProvider>
+    </ProducerRoute>
   );
 }
 
@@ -218,9 +211,9 @@ const router = createBrowserRouter([
       {
         path: "/minha-conta",
         element: (
-          <BuyerContextGuard>
+          <BuyerRoute>
             <StudentShell />
-          </BuyerContextGuard>
+          </BuyerRoute>
         ),
         children: [
           { path: "dashboard", element: <BuyerDashboard /> },
@@ -231,8 +224,8 @@ const router = createBrowserRouter([
       // ============================================================
       // ÁREA DE MEMBROS - Netflix-style Course Pages (Full Screen)
       // ============================================================
-      { path: "/minha-conta/produto/:productId", element: <BuyerContextGuard><CourseHome /></BuyerContextGuard> },
-      { path: "/minha-conta/produto/:productId/aula/:contentId", element: <BuyerContextGuard><LessonViewer /></BuyerContextGuard> },
+      { path: "/minha-conta/produto/:productId", element: <BuyerRoute><CourseHome /></BuyerRoute> },
+      { path: "/minha-conta/produto/:productId/aula/:contentId", element: <BuyerRoute><LessonViewer /></BuyerRoute> },
 
       // ============================================================
       // CHECKOUT BUILDER - Full screen (Protegido com NavigationGuard)
