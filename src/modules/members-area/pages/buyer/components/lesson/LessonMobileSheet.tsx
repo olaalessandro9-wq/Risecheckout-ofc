@@ -1,18 +1,18 @@
 /**
- * LessonMobileSheet - Mobile navigation sheet with modules
+ * LessonMobileSheet - Premium mobile sheet for course navigation
+ * Matches the desktop premium sidebar design
  */
 
+import { useState, useEffect } from "react";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ModuleItem } from "./ModuleItem";
+import { PremiumModuleCard } from "./PremiumModuleCard";
 import type { Module, ContentItem } from "../types";
-import { useState, useEffect } from "react";
 
 interface LessonMobileSheetProps {
   open: boolean;
@@ -22,6 +22,7 @@ interface LessonMobileSheetProps {
   currentContentId: string | null;
   onSelectContent: (content: ContentItem, module: Module) => void;
   completedContentIds?: string[];
+  productName?: string;
 }
 
 export function LessonMobileSheet({
@@ -32,6 +33,7 @@ export function LessonMobileSheet({
   currentContentId,
   onSelectContent,
   completedContentIds = [],
+  productName,
 }: LessonMobileSheetProps) {
   const [expandedModules, setExpandedModules] = useState<string[]>(() => {
     if (currentModuleId) return [currentModuleId];
@@ -39,7 +41,7 @@ export function LessonMobileSheet({
     return [];
   });
 
-  // Auto-expand current module when it changes
+  // Auto-expand current module
   useEffect(() => {
     if (currentModuleId && !expandedModules.includes(currentModuleId)) {
       setExpandedModules((prev) => [...prev, currentModuleId]);
@@ -56,10 +58,10 @@ export function LessonMobileSheet({
 
   const handleSelectContent = (content: ContentItem, module: Module) => {
     onSelectContent(content, module);
-    onOpenChange(false); // Close sheet after selection
+    onOpenChange(false);
   };
 
-  // Calculate overall progress
+  // Calculate progress
   const totalContents = modules.reduce((acc, m) => acc + m.contents.length, 0);
   const completedCount = completedContentIds.length;
   const progressPercent =
@@ -67,30 +69,35 @@ export function LessonMobileSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full max-w-sm p-0">
-        <SheetHeader className="p-4 border-b border-border">
-          <SheetTitle>Navegação do Curso</SheetTitle>
+      <SheetContent side="right" className="w-[320px] sm:w-[380px] p-0">
+        <SheetHeader className="p-4 pb-3 border-b border-border/50">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+              <span className="text-base">📚</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <SheetTitle className="text-sm font-semibold truncate text-left">
+                {productName || "Navegação"}
+              </SheetTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {completedCount}/{totalContents} aulas • {progressPercent}%
+              </p>
+            </div>
+          </div>
+          
+          {/* Progress Bar */}
+          <div className="mt-3 h-1 bg-muted/50 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-primary rounded-full transition-all duration-500"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
         </SheetHeader>
 
-        {/* Progress Section */}
-        <div className="p-4 border-b border-border bg-muted/30">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">Seu Progresso</span>
-            <span className="text-sm font-semibold text-primary">
-              {progressPercent}%
-            </span>
-          </div>
-          <Progress value={progressPercent} className="h-2" />
-          <p className="text-xs text-muted-foreground mt-2">
-            {completedCount} de {totalContents} aulas concluídas
-          </p>
-        </div>
-
-        {/* Modules List */}
-        <ScrollArea className="h-[calc(100vh-180px)]">
-          <div className="p-3">
+        <ScrollArea className="h-[calc(100vh-120px)]">
+          <div className="p-3 space-y-1.5">
             {modules.map((module, moduleIndex) => (
-              <ModuleItem
+              <PremiumModuleCard
                 key={module.id}
                 module={module}
                 moduleIndex={moduleIndex}
