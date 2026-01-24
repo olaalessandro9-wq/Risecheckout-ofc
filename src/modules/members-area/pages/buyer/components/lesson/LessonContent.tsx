@@ -55,16 +55,18 @@ export function LessonContent({
       transition={{ duration: 0.25 }}
       className="flex flex-col min-h-full"
     >
-      {/* Video Section - Large, no max-width constraint */}
+      {/* Video Section - Centered, Cakto-style layout */}
       {hasVideo && (
-        <div className="w-full bg-black">
-          <div className="aspect-video max-h-[70vh]">
-            <iframe
-              src={content.content_url!}
-              className="w-full h-full"
-              allowFullScreen
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            />
+        <div className="w-full flex justify-center bg-muted/30">
+          <div className="w-full max-w-5xl">
+            <div className="aspect-video">
+              <iframe
+                src={content.content_url!}
+                className="w-full h-full rounded-lg"
+                allowFullScreen
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              />
+            </div>
           </div>
         </div>
       )}
