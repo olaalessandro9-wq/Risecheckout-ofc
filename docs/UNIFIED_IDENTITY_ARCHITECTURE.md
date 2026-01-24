@@ -2,7 +2,7 @@
 
 > **RISE ARCHITECT PROTOCOL V3 - Score: 10.0/10**  
 > **Status:** ✅ PRODUCTION READY  
-> **Date:** 2026-01-23
+> **Date:** 2026-01-24
 
 ---
 
@@ -64,6 +64,20 @@ CREATE TABLE public.sessions (
   is_valid BOOLEAN DEFAULT TRUE
 );
 ```
+
+---
+
+## Related Tables (100% Migrated to users.id)
+
+All buyer-related tables now reference `users(id)` as the single source of truth:
+
+| Table | FK Column | References | Status |
+|-------|-----------|------------|--------|
+| `buyer_product_access` | `buyer_id` | `users(id)` | ✅ Migrated |
+| `buyer_groups` | `buyer_id` | `users(id)` | ✅ Migrated |
+| `student_invite_tokens` | `buyer_id` | `users(id)` | ✅ Migrated |
+| `buyer_content_progress` | `buyer_id` | `users(id)` | ✅ Migrated |
+| `sessions` | `user_id` | `users(id)` | ✅ Native |
 
 ---
 
@@ -159,3 +173,13 @@ const {
 | Scalability | 10/10 |
 | Security | 10/10 |
 | **TOTAL** | **10.0/10** |
+
+---
+
+## Migration History
+
+| Date | Change |
+|------|--------|
+| 2026-01-24 | `buyer_groups` and `student_invite_tokens` migrated to `users(id)` |
+| 2026-01-24 | `buyer_product_access` migrated to `users(id)` |
+| 2026-01-23 | Initial unified architecture implemented |
