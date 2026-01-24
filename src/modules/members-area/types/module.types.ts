@@ -44,6 +44,11 @@ export interface ContentAttachment {
   file_size: number | null;
   position: number;
   created_at: string;
+  /** 
+   * RISE V3: File original para anexos temporários (não persistido)
+   * Usado para conversão direta via FileReader, evitando fetch() em blob URLs (CSP)
+   */
+  _file?: File;
 }
 
 /** Content with release settings */
