@@ -36,7 +36,7 @@ function normalizeBase64DataUrl(base64: string): string {
 export function PixQrCodeDisplay({ qrCode, qrCodeImageBase64 }: PixQrCodeDisplayProps) {
   return (
     <div className="flex justify-center mb-8">
-      <div className="p-6 bg-white border-2 border-gray-200 rounded-lg shadow-md">
+      <div className="p-6 bg-[hsl(var(--payment-qr-bg))] border-2 border-[hsl(var(--payment-qr-border))] rounded-lg shadow-md">
         {qrCodeImageBase64 ? (
           // Se temos imagem base64, renderizar diretamente (normalizado)
           <img 

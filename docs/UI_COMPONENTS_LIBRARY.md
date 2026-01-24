@@ -252,9 +252,42 @@ Todos os 12 componentes da landing page utilizam 100% tokens:
 
 ---
 
+## Auth & Payment Design Tokens
+
+> **Versão:** 1.0.0  
+> **Data:** 24 de Janeiro de 2026  
+> **Status:** ✅ RISE V3 10.0/10
+
+### Tokens Disponíveis
+
+Os tokens `--auth-*` e `--payment-*` foram adicionados ao `src/index.css` para páginas de autenticação e pagamento.
+
+**Auth Tokens:** `--auth-bg`, `--auth-text-primary`, `--auth-text-secondary`, `--auth-accent`, `--auth-purple`, `--auth-border`, `--auth-input-bg`, `--auth-panel-bg`, `--auth-success`, `--auth-error`
+
+**Payment Tokens:** `--payment-bg`, `--payment-card-bg`, `--payment-text-primary`, `--payment-card-text-primary`, `--payment-card-text-secondary`, `--payment-success`, `--payment-error`, `--payment-input-bg`, `--payment-progress-bg`, `--payment-progress-fill`
+
+### Páginas Migradas
+
+| Página | Status |
+|--------|--------|
+| `Auth.tsx` | ✅ 100% tokens |
+| `Cadastro.tsx` | ✅ 100% tokens |
+| `RecuperarSenha.tsx` | ✅ 100% tokens |
+| `RedefinirSenha.tsx` | ✅ 100% tokens |
+| `BuyerAuth.tsx` | ✅ 100% tokens |
+| `BuyerCadastro.tsx` | ✅ 100% tokens |
+| `BuyerRecuperarSenha.tsx` | ✅ 100% tokens |
+| `ResetPasswordLayout.tsx` | ✅ 100% tokens |
+| `PixPaymentPage.tsx` | ✅ 100% tokens |
+| `PaymentSuccessPage.tsx` | ✅ 100% tokens |
+| `OAuthSuccess.tsx` | ✅ 100% tokens |
+
+---
+
 ## Changelog
 
 | Versão | Data | Alterações |
 |--------|------|------------|
-| 1.1.0 | 2026-01-24 | Adicionada documentação completa de Landing Page Design Tokens |
+| 1.2.0 | 2026-01-24 | Auth & Payment Design Tokens - 30+ páginas migradas |
+| 1.1.0 | 2026-01-24 | Landing Page Design Tokens |
 | 1.0.0 | 2026-01-24 | Versão inicial - LoadingSwitch documentado |

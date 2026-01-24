@@ -45,7 +45,7 @@ export function PixVerifyButton({ checkingPayment, onCheckStatus }: PixVerifyBut
     >
       {checkingPayment ? (
         <>
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900 mr-2" />
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[hsl(var(--payment-card-text-primary))] mr-2" />
           Verificando...
         </>
       ) : (

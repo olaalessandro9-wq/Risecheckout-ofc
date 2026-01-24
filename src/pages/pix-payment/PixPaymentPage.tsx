@@ -134,7 +134,7 @@ export function PixPaymentPage() {
     await attemptRecovery();
   }, [attemptRecovery, resetTimer, setPaymentStatus]);
 
-  // === RENDER ===
+// === RENDER ===
 
   // Estado de carregamento
   if (recoveryStatus === 'idle' || recoveryStatus === 'checking') {
@@ -144,8 +144,8 @@ export function PixPaymentPage() {
   // Estado de erro
   if (recoveryStatus === 'error') {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-xl p-8 max-w-md mx-4">
+      <div className="min-h-screen bg-[hsl(var(--payment-bg))] flex items-center justify-center">
+        <div className="bg-[hsl(var(--payment-card-bg))] rounded-lg shadow-xl p-8 max-w-md mx-4">
           <PixErrorState 
             message={errorMessage ?? "Não foi possível recuperar os dados do pagamento."}
             actionLabel="Voltar ao checkout"
@@ -159,8 +159,8 @@ export function PixPaymentPage() {
   // Estado de aguardando regeneração (tem token mas não tem PIX)
   if (recoveryStatus === 'needs_regeneration') {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-xl p-8 max-w-md mx-4">
+      <div className="min-h-screen bg-[hsl(var(--payment-bg))] flex items-center justify-center">
+        <div className="bg-[hsl(var(--payment-card-bg))] rounded-lg shadow-xl p-8 max-w-md mx-4">
           <PixErrorState 
             message="O QR Code PIX precisa ser regenerado."
             showRetry
@@ -175,19 +175,19 @@ export function PixPaymentPage() {
 
   // Página principal (recovered_from_state ou recovered_from_db)
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="min-h-screen bg-[hsl(var(--payment-bg))]">
       <div className="container max-w-4xl mx-auto px-4 py-8">
         {/* Botão Voltar */}
         <button
           onClick={handleBack}
-          className="flex items-center gap-2 text-white hover:text-gray-300 mb-6"
+          className="flex items-center gap-2 text-[hsl(var(--payment-text-primary))] hover:text-[hsl(var(--payment-text-secondary))] mb-6"
         >
           <ArrowLeft className="w-5 h-5" />
           <span>Voltar e editar o pedido</span>
         </button>
 
         {/* Card principal */}
-        <div className="bg-white rounded-lg shadow-xl p-8">
+        <div className="bg-[hsl(var(--payment-card-bg))] rounded-lg shadow-xl p-8">
           {paymentStatus === "paid" ? (
             <PixPaidState />
           ) : paymentStatus === "expired" ? (
