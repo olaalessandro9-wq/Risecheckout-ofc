@@ -33,7 +33,7 @@ interface InviteTokenResponse {
   product_image?: string;
   buyer_email?: string;
   buyer_name?: string;
-  sessionToken?: string;
+  // RISE V3: sessionToken removed - authentication uses httpOnly cookies
 }
 
 interface ValidateResponse {
@@ -231,9 +231,11 @@ export function useSetupAccess() {
 
       if (error) throw error;
 
-      if (data?.success && data.sessionToken) {
-        // Session token is set via httpOnly cookie by the edge function
-        // No need to manually store it
+      if (data?.success) {
+        // RISE V3: Session is established via httpOnly cookies (Set-Cookie header)
+        // Notify token manager that session is now active
+        unifiedTokenService.setAuthenticated(60 * 60); // 1 hour (access token duration)
+        
         log.info("Account created successfully, session established via cookies");
         toast.success("Conta criada com sucesso!");
         navigate("/minha-conta/dashboard");
