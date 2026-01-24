@@ -22,6 +22,7 @@ import {
 } from "../_shared/unified-auth-v2.ts";
 import { genSaltSync, hashSync, compareSync } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 import { createLogger } from "../_shared/logger.ts";
+import { sendEmail } from "../_shared/zeptomail.ts";
 
 const log = createLogger("students-invite");
 
@@ -457,23 +458,36 @@ Deno.serve(async (req) => {
       const studentName = name || normalizedEmail.split("@")[0];
       const producerName = (producerProfile as { name: string } | null)?.name || "Produtor";
 
-      // Send email
-      try {
-        await fetch(`${supabaseUrl}/functions/v1/send-email`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
-          body: JSON.stringify({
-            to: { email: normalizedEmail, name: studentName },
-            subject: `${producerName} te enviou acesso ao produto "${typedProduct.name}"`,
-            htmlBody: `<p>Você recebeu acesso ao produto ${typedProduct.name}. Clique <a href="${accessLink}">aqui</a> para acessar.</p>`,
-            type: "transactional",
-          }),
-        });
-      } catch (emailErr: unknown) {
-        log.error("Email error:", emailErr);
+      // Send email using shared module directly (avoids HTTP call that requires cookie auth)
+      const emailResult = await sendEmail({
+        to: { email: normalizedEmail, name: studentName },
+        subject: `${producerName} te enviou acesso ao produto "${typedProduct.name}"`,
+        htmlBody: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1 style="color: #333;">Você recebeu acesso!</h1>
+            <p>Olá ${studentName},</p>
+            <p>${producerName} te concedeu acesso ao produto <strong>${typedProduct.name}</strong>.</p>
+            <p>Clique no botão abaixo para configurar sua senha e acessar o conteúdo:</p>
+            <p style="text-align: center; margin: 30px 0;">
+              <a href="${accessLink}" 
+                 style="background-color: #10B981; color: white; padding: 12px 24px; 
+                        text-decoration: none; border-radius: 6px; display: inline-block;">
+                Acessar Conteúdo
+              </a>
+            </p>
+            <p style="color: #666; font-size: 12px;">
+              Este link expira em 7 dias. Se você não solicitou este acesso, ignore este email.
+            </p>
+          </div>
+        `,
+        type: "transactional",
+      });
+
+      if (!emailResult.success) {
+        log.error("Failed to send invite email:", emailResult.error);
       }
 
-      return jsonResponse({ success: true, buyer_id: buyerId, is_new_buyer: isNewBuyer, email_sent: true }, 200, corsHeaders);
+      return jsonResponse({ success: true, buyer_id: buyerId, is_new_buyer: isNewBuyer, email_sent: emailResult.success }, 200, corsHeaders);
     }
 
     return jsonResponse({ error: "Invalid action" }, 400, corsHeaders);
