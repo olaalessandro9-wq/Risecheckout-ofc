@@ -19,11 +19,11 @@ export function PixCopyButton({ qrCode, copied, onCopy }: PixCopyButtonProps) {
           type="text"
           value={qrCode}
           readOnly
-          className="flex-1 rounded-md border border-gray-300 bg-green-50 px-4 py-3 text-sm font-mono text-gray-900"
+          className="flex-1 rounded-md border border-[hsl(var(--payment-input-border))] bg-[hsl(var(--payment-input-bg))] px-4 py-3 text-sm font-mono text-[hsl(var(--payment-card-text-primary))]"
         />
         <Button
           onClick={onCopy}
-          className="gap-2 bg-green-600 hover:bg-green-700 text-white px-6"
+          className="gap-2 bg-[hsl(var(--payment-success))] hover:bg-[hsl(var(--payment-success-hover))] text-white px-6"
           size="lg"
         >
           {copied ? (

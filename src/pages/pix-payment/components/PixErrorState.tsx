@@ -29,17 +29,17 @@ export function PixErrorState({
   return (
     <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
       {/* Ícone de erro */}
-      <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mb-6">
-        <AlertCircle className="w-10 h-10 text-red-600" />
+      <div className="w-20 h-20 rounded-full bg-[hsl(var(--payment-error)/0.1)] flex items-center justify-center mb-6">
+        <AlertCircle className="w-10 h-10 text-[hsl(var(--payment-error))]" />
       </div>
 
       {/* Título */}
-      <h2 className="text-2xl font-bold text-gray-900 mb-3">
+      <h2 className="text-2xl font-bold text-[hsl(var(--payment-card-text-primary))] mb-3">
         Ops! Algo deu errado
       </h2>
 
       {/* Mensagem */}
-      <p className="text-gray-600 mb-8 max-w-md">
+      <p className="text-[hsl(var(--payment-card-text-secondary))] mb-8 max-w-md">
         {message}
       </p>
 
@@ -68,7 +68,7 @@ export function PixErrorState({
       </div>
 
       {/* Informação adicional */}
-      <p className="text-sm text-gray-400 mt-8">
+      <p className="text-sm text-[hsl(var(--payment-card-text-muted))] mt-8">
         Se o problema persistir, entre em contato com o suporte.
       </p>
     </div>
