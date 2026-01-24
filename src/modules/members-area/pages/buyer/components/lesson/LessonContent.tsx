@@ -55,18 +55,16 @@ export function LessonContent({
       transition={{ duration: 0.25 }}
       className="flex flex-col min-h-full"
     >
-      {/* Video Section - Centered, Cakto-style layout */}
+      {/* Video Section - Maximized Cakto-style layout */}
       {hasVideo && (
-        <div className="w-full flex justify-center bg-muted/30">
-          <div className="w-full max-w-5xl">
-            <div className="aspect-video">
-              <iframe
-                src={content.content_url!}
-                className="w-full h-full rounded-lg"
-                allowFullScreen
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              />
-            </div>
+        <div className="w-full bg-muted/30 px-4 lg:px-6 xl:px-8">
+          <div className="aspect-video">
+            <iframe
+              src={content.content_url!}
+              className="w-full h-full rounded-lg"
+              allowFullScreen
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            />
           </div>
         </div>
       )}
