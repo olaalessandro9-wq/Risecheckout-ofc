@@ -5,7 +5,7 @@
 
 import { motion } from "framer-motion";
 import DOMPurify from "dompurify";
-import { Paperclip } from "lucide-react";
+import { Paperclip, FileText } from "lucide-react";
 import { LessonInfoBar } from "./LessonInfoBar";
 import { MinimalNavFooter } from "./MinimalNavFooter";
 import { AttachmentsList } from "./AttachmentsList";
@@ -82,16 +82,24 @@ export function LessonContent({
           </p>
         )}
 
-        {/* Body Content (HTML) - Cakto typography */}
+        {/* Body Content (HTML) - Premium Card Container */}
         {hasBody && (
-          <div
-            className="prose prose-base dark:prose-invert max-w-none mt-6 prose-headings:text-foreground prose-headings:font-semibold prose-p:text-foreground/80 prose-p:leading-relaxed prose-strong:text-foreground prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-ul:text-foreground/80 prose-ol:text-foreground/80 prose-li:marker:text-muted-foreground"
-            dangerouslySetInnerHTML={{
-              __html: DOMPurify.sanitize(
-                content.body || (content.content_data?.html as string) || ""
-              ),
-            }}
-          />
+          <div className="mt-8 rounded-xl border border-border bg-card/50 p-5">
+            <h3 className="font-semibold flex items-center gap-2.5 mb-4 text-sm text-foreground">
+              <div className="p-1.5 bg-blue-500/10 rounded-lg">
+                <FileText className="h-4 w-4 text-blue-500" />
+              </div>
+              Conteúdo da Aula
+            </h3>
+            <div
+              className="prose prose-base dark:prose-invert max-w-none prose-headings:text-foreground prose-headings:font-semibold prose-p:text-foreground/85 prose-p:leading-relaxed prose-p:text-base prose-strong:text-foreground prose-a:text-primary prose-a:font-medium prose-a:underline-offset-2 hover:prose-a:underline prose-ul:text-foreground/85 prose-ol:text-foreground/85 prose-li:marker:text-primary prose-blockquote:border-l-primary prose-blockquote:bg-muted/30 prose-blockquote:py-2 prose-blockquote:px-4 prose-blockquote:rounded-r-lg prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-hr:border-border"
+              dangerouslySetInnerHTML={{
+                __html: DOMPurify.sanitize(
+                  content.body || (content.content_data?.html as string) || ""
+                ),
+              }}
+            />
+          </div>
         )}
 
         {/* Attachments Section - Cakto-style card */}
