@@ -13,12 +13,17 @@ import type {
   ContentAccessStatus,
 } from '../types';
 
+interface FetchSummaryOptions {
+  /** When true, errors are swallowed silently (for background refreshes) */
+  silent?: boolean;
+}
+
 interface UseStudentProgressReturn {
   summary: ProgressSummary | null;
   currentProgress: ContentProgress | null;
   isLoading: boolean;
   isSaving: boolean;
-  fetchSummary: (buyerId: string, productId: string) => Promise<void>;
+  fetchSummary: (buyerId: string, productId: string, options?: FetchSummaryOptions) => Promise<void>;
   getContentProgress: (buyerId: string, contentId: string) => Promise<ContentProgress | null>;
   updateProgress: (buyerId: string, input: UpdateProgressInput) => Promise<boolean>;
   markComplete: (buyerId: string, contentId: string) => Promise<boolean>;
@@ -33,18 +38,30 @@ export function useStudentProgress(): UseStudentProgressReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const fetchSummary = useCallback(async (buyerId: string, productId: string) => {
-    setIsLoading(true);
+  const fetchSummary = useCallback(async (
+    buyerId: string, 
+    productId: string,
+    options?: FetchSummaryOptions
+  ) => {
+    // Only show loading on initial fetch, not silent refreshes
+    if (!options?.silent) {
+      setIsLoading(true);
+    }
 
     const { data, error } = await progressService.getSummary(buyerId, productId);
 
     if (error) {
-      toast.error('Erro ao carregar progresso');
+      // Only show toast if not a silent refresh
+      if (!options?.silent) {
+        toast.error('Erro ao carregar progresso');
+      }
     } else if (data) {
       setSummary(data);
     }
 
-    setIsLoading(false);
+    if (!options?.silent) {
+      setIsLoading(false);
+    }
   }, []);
 
   const getContentProgress = useCallback(async (

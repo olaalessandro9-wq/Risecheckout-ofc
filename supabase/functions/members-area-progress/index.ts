@@ -25,10 +25,11 @@ interface ProgressData {
 }
 
 interface ProgressRequest {
-  action: "get" | "update" | "complete" | "uncomplete" | "get-module-progress" | "get-product-progress";
+  action: "get" | "get_content" | "get_summary" | "get_last_watched" | "update" | "complete" | "uncomplete" | "get-module-progress" | "get-product-progress";
   content_id?: string;
   module_id?: string;
   product_id?: string;
+  buyer_id?: string;
   data?: ProgressData;
 }
 
@@ -112,6 +113,8 @@ Deno.serve(async (req) => {
     const buyer_id = user.id;
 
     switch (action) {
+      // Alias: get_content maps to "get" for frontend compatibility
+      case "get_content":
       case "get": {
         if (!content_id) {
           return new Response(
@@ -125,18 +128,211 @@ Deno.serve(async (req) => {
           .select("*")
           .eq("content_id", content_id)
           .eq("buyer_id", buyer_id)
-          .single() as { data: ProgressRecord | null };
+          .maybeSingle();
+
+        // Return ContentProgress shape directly (not wrapped)
+        const result = progress || {
+          id: "",
+          buyer_id,
+          content_id,
+          progress_percent: 0,
+          watch_time_seconds: 0,
+          last_position_seconds: null,
+          started_at: null,
+          completed_at: null,
+          updated_at: new Date().toISOString(),
+        };
 
         return new Response(
-          JSON.stringify({ 
-            success: true, 
-            progress: progress || {
-              progress_percent: 0,
-              last_position_seconds: 0,
-              watch_time_seconds: 0,
-              completed_at: null,
-            }
+          JSON.stringify(result),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // NEW: get_summary - returns ProgressSummary shape
+      case "get_summary": {
+        if (!product_id) {
+          return new Response(
+            JSON.stringify({ error: "product_id required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // 1. Get all modules for this product
+        const { data: modulesData } = await supabase
+          .from("product_member_modules")
+          .select("id, title, position")
+          .eq("product_id", product_id)
+          .eq("is_active", true)
+          .order("position");
+
+        const modulesList = modulesData || [];
+        const moduleIds = modulesList.map(m => m.id);
+
+        if (moduleIds.length === 0) {
+          return new Response(
+            JSON.stringify({
+              overall: {
+                product_id,
+                total_modules: 0,
+                completed_modules: 0,
+                total_contents: 0,
+                completed_contents: 0,
+                overall_percent: 0,
+                total_watch_time_seconds: 0,
+                last_accessed_at: null,
+                last_content_id: null,
+              },
+              modules: [],
+              recent_contents: [],
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // 2. Get all contents for these modules
+        const { data: contentsData } = await supabase
+          .from("product_member_content")
+          .select("id, title, content_type, module_id, duration_seconds, position")
+          .in("module_id", moduleIds)
+          .eq("is_active", true)
+          .order("position");
+
+        const contentsList = contentsData || [];
+        const contentIds = contentsList.map(c => c.id);
+
+        // 3. Get buyer's progress for all these contents
+        const { data: progressData } = await supabase
+          .from("buyer_content_progress")
+          .select("*")
+          .eq("buyer_id", buyer_id)
+          .in("content_id", contentIds)
+          .order("updated_at", { ascending: false });
+
+        const progressList = progressData || [];
+        const progressMap = new Map(progressList.map(p => [p.content_id, p]));
+
+        // 4. Build module progress stats
+        const moduleStats = modulesList.map(mod => {
+          const moduleContents = contentsList.filter(c => c.module_id === mod.id);
+          const completedContents = moduleContents.filter(c => {
+            const p = progressMap.get(c.id);
+            return p?.completed_at;
+          });
+          const totalDuration = moduleContents.reduce((sum, c) => sum + (c.duration_seconds || 0), 0);
+          const watchedSeconds = moduleContents.reduce((sum, c) => {
+            const p = progressMap.get(c.id);
+            return sum + (p?.watch_time_seconds || 0);
+          }, 0);
+
+          return {
+            module_id: mod.id,
+            module_title: mod.title,
+            total_contents: moduleContents.length,
+            completed_contents: completedContents.length,
+            progress_percent: moduleContents.length > 0 
+              ? Math.round((completedContents.length / moduleContents.length) * 100) 
+              : 0,
+            total_duration_seconds: totalDuration,
+            watched_seconds: watchedSeconds,
+          };
+        });
+
+        // 5. Calculate overall stats
+        const totalContents = contentsList.length;
+        const completedContents = progressList.filter(p => p.completed_at).length;
+        const completedModules = moduleStats.filter(m => m.progress_percent === 100).length;
+        const totalWatchTime = progressList.reduce((sum, p) => sum + (p.watch_time_seconds || 0), 0);
+        const lastProgress = progressList[0];
+
+        // 6. Build recent_contents with details
+        const recentContents = progressList.slice(0, 20).map(p => {
+          const content = contentsList.find(c => c.id === p.content_id);
+          const mod = modulesList.find(m => m.id === content?.module_id);
+          return {
+            ...p,
+            content_title: content?.title || "Unknown",
+            content_type: content?.content_type || "video",
+            module_id: content?.module_id || "",
+            module_title: mod?.title || "Unknown",
+          };
+        });
+
+        return new Response(
+          JSON.stringify({
+            overall: {
+              product_id,
+              total_modules: modulesList.length,
+              completed_modules: completedModules,
+              total_contents: totalContents,
+              completed_contents: completedContents,
+              overall_percent: totalContents > 0 
+                ? Math.round((completedContents / totalContents) * 100) 
+                : 0,
+              total_watch_time_seconds: totalWatchTime,
+              last_accessed_at: lastProgress?.updated_at || null,
+              last_content_id: lastProgress?.content_id || null,
+            },
+            modules: moduleStats,
+            recent_contents: recentContents,
           }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // NEW: get_last_watched - returns last accessed content
+      case "get_last_watched": {
+        if (!product_id) {
+          return new Response(
+            JSON.stringify({ error: "product_id required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Get modules for this product
+        const { data: mods } = await supabase
+          .from("product_member_modules")
+          .select("id")
+          .eq("product_id", product_id)
+          .eq("is_active", true);
+
+        const modIds = mods?.map(m => m.id) || [];
+
+        if (modIds.length === 0) {
+          return new Response(
+            JSON.stringify(null),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Get contents for these modules
+        const { data: cts } = await supabase
+          .from("product_member_content")
+          .select("id")
+          .in("module_id", modIds)
+          .eq("is_active", true);
+
+        const ctIds = cts?.map(c => c.id) || [];
+
+        if (ctIds.length === 0) {
+          return new Response(
+            JSON.stringify(null),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Get last watched
+        const { data: lastWatched } = await supabase
+          .from("buyer_content_progress")
+          .select("*")
+          .eq("buyer_id", buyer_id)
+          .in("content_id", ctIds)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        return new Response(
+          JSON.stringify(lastWatched),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
