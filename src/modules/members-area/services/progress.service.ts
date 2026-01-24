@@ -11,7 +11,6 @@ import type {
   ContentProgress,
   UpdateProgressInput,
   MarkCompleteInput,
-  ContentAccessStatus,
 } from '../types';
 
 const FUNCTION_NAME = 'members-area-progress';
@@ -118,19 +117,6 @@ export async function unmarkComplete(
 }
 
 /**
- * Check if a content is accessible (for drip content)
- */
-export async function checkAccess(
-  buyerId: string,
-  contentId: string
-): Promise<ServiceResponse<ContentAccessStatus>> {
-  return invokeProgressFunction<ContentAccessStatus>('check_access', {
-    buyer_id: buyerId,
-    content_id: contentId,
-  });
-}
-
-/**
  * Get the last watched content for "continue watching"
  */
 export async function getLastWatched(
@@ -149,6 +135,5 @@ export const progressService = {
   update: updateProgress,
   markComplete,
   unmarkComplete,
-  checkAccess,
   getLastWatched,
 };

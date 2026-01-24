@@ -10,7 +10,6 @@ import type {
   ProgressSummary,
   ContentProgress,
   UpdateProgressInput,
-  ContentAccessStatus,
 } from '../types';
 
 interface FetchSummaryOptions {
@@ -28,7 +27,6 @@ interface UseStudentProgressReturn {
   updateProgress: (buyerId: string, input: UpdateProgressInput) => Promise<boolean>;
   markComplete: (buyerId: string, contentId: string) => Promise<boolean>;
   unmarkComplete: (buyerId: string, contentId: string) => Promise<boolean>;
-  checkAccess: (buyerId: string, contentId: string) => Promise<ContentAccessStatus | null>;
   getLastWatched: (buyerId: string, productId: string) => Promise<ContentProgress | null>;
 }
 
@@ -143,19 +141,6 @@ export function useStudentProgress(): UseStudentProgressReturn {
     return true;
   }, []);
 
-  const checkAccess = useCallback(async (
-    buyerId: string,
-    contentId: string
-  ): Promise<ContentAccessStatus | null> => {
-    const { data, error } = await progressService.checkAccess(buyerId, contentId);
-
-    if (error) {
-      return null;
-    }
-
-    return data;
-  }, []);
-
   const getLastWatched = useCallback(async (
     buyerId: string,
     productId: string
@@ -179,7 +164,6 @@ export function useStudentProgress(): UseStudentProgressReturn {
     updateProgress,
     markComplete,
     unmarkComplete,
-    checkAccess,
     getLastWatched,
   };
 }
