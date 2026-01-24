@@ -95,7 +95,7 @@ export const CheckoutFooter = ({ colors, maxWidth = "1100px" }: CheckoutFooterPr
             className="text-xs text-center"
             style={{ color: colors?.footer?.secondaryText || '#9CA3AF', opacity: 0.7 }}
           >
-            © 2025 RiseCheckout LTDA. Todos os direitos reservados.
+            © 2026 RiseCheckout LTDA. Todos os direitos reservados.
           </p>
         </div>
       </div>

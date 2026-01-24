@@ -1,3 +1,9 @@
+/**
+ * CountryCodeSelector - Seletor de Código de País
+ * 
+ * RISE Protocol V3 Compliant - Design Tokens
+ */
+
 import { useState, useRef, useEffect } from "react";
 import { ChevronDown, Search } from "lucide-react";
 
@@ -85,7 +91,7 @@ export const CountryCodeSelector = ({ value, onChange, disabled = false }: Count
         type="button"
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
-        className="flex items-center gap-1 px-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed rounded-l-lg"
+        className="flex items-center gap-1 px-2 hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed rounded-l-lg"
       >
         <img 
           src={`https://flagcdn.com/w20/${selectedCountry.code.toLowerCase()}.png`}
@@ -96,18 +102,18 @@ export const CountryCodeSelector = ({ value, onChange, disabled = false }: Count
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 mt-2 w-80 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-96 overflow-hidden">
+        <div className="absolute z-50 mt-2 w-80 bg-card border border-border rounded-lg shadow-lg max-h-96 overflow-hidden">
           {/* Campo de busca */}
-          <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+          <div className="p-3 border-b border-border">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 ref={searchInputRef}
                 type="text"
                 placeholder="Buscar país"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-3 py-2 border border-border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
           </div>
@@ -120,8 +126,8 @@ export const CountryCodeSelector = ({ value, onChange, disabled = false }: Count
                   key={country.code}
                   type="button"
                   onClick={() => handleSelect(country)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left ${
-                    selectedCountry.code === country.code ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-muted transition-colors text-left ${
+                    selectedCountry.code === country.code ? 'bg-primary/10' : ''
                   }`}
                 >
                   <img 
@@ -130,13 +136,13 @@ export const CountryCodeSelector = ({ value, onChange, disabled = false }: Count
                     className="w-6 h-4 object-cover rounded-sm"
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{country.name}</div>
+                    <div className="text-sm font-medium truncate text-foreground">{country.name}</div>
                   </div>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">{country.dialCode}</span>
+                  <span className="text-sm text-muted-foreground">{country.dialCode}</span>
                 </button>
               ))
             ) : (
-              <div className="p-4 text-center text-sm text-gray-500">
+              <div className="p-4 text-center text-sm text-muted-foreground">
                 Nenhum país encontrado
               </div>
             )}

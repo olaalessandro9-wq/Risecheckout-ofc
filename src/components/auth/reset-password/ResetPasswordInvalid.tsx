@@ -1,3 +1,9 @@
+/**
+ * ResetPasswordInvalid - Tela de Link Inválido
+ * 
+ * RISE Protocol V3 Compliant - Design Tokens
+ */
+
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { AlertCircle } from "lucide-react";
@@ -31,8 +37,8 @@ export function ResetPasswordInvalid({
 
       {/* Message */}
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold text-white">Link Inválido</h1>
-        <div className="space-y-2 text-slate-400">
+        <h1 className="text-2xl font-bold text-[hsl(var(--auth-text-primary))]">Link Inválido</h1>
+        <div className="space-y-2 text-[hsl(var(--auth-text-muted))]">
           <p>{errorMessage}</p>
           <p className="text-sm">O link pode ter expirado ou já foi utilizado.</p>
         </div>
@@ -41,12 +47,12 @@ export function ResetPasswordInvalid({
       {/* Actions */}
       <div className="space-y-3">
         <Link to={recoveryRoute}>
-          <Button className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-semibold">
+          <Button className="w-full h-12 bg-gradient-to-r from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] hover:from-[hsl(var(--auth-accent))] hover:to-[hsl(var(--auth-accent-secondary))] text-[hsl(var(--auth-text-primary))] font-semibold">
             Solicitar novo link
           </Button>
         </Link>
         <Link to={loginRoute} className="block">
-          <button className="text-sm text-slate-400 hover:text-white transition-colors">
+          <button className="text-sm text-[hsl(var(--auth-text-muted))] hover:text-[hsl(var(--auth-text-primary))] transition-colors">
             Voltar ao login
           </button>
         </Link>

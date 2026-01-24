@@ -1,8 +1,8 @@
 /**
  * GatewayCardForm - Componente Unificado de Formulário de Cartão
  * 
- * Este componente seleciona automaticamente o formulário correto
- * baseado no gateway configurado pelo vendedor.
+ * RISE Protocol V3 Compliant - Design Tokens
+ * Seleciona automaticamente o formulário correto baseado no gateway.
  * 
  * Gateways Suportados:
  * - mercadopago: MercadoPagoCardForm ✅
@@ -61,8 +61,8 @@ export const GatewayCardForm: React.FC<GatewayCardFormProps> = ({
   if (!gatewayConfig) {
     log.error(`Gateway "${gateway}" não encontrado no registry`);
     return (
-      <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-        <p className="text-sm text-red-600">
+      <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+        <p className="text-sm text-destructive">
           Gateway de pagamento não configurado. Entre em contato com o suporte.
         </p>
       </div>
@@ -72,8 +72,8 @@ export const GatewayCardForm: React.FC<GatewayCardFormProps> = ({
   if (!isGatewayAvailable(gateway)) {
     log.error(`Gateway "${gateway}" não está disponível`);
     return (
-      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <p className="text-sm text-yellow-600">
+      <div className="p-4 bg-warning/10 border border-warning/20 rounded-lg">
+        <p className="text-sm text-[hsl(var(--warning-foreground))]">
           Gateway "{gatewayConfig.displayName}" ainda não está disponível.
         </p>
       </div>
@@ -148,11 +148,11 @@ interface GatewayComingSoonProps {
 
 function GatewayComingSoon({ name }: GatewayComingSoonProps) {
   return (
-    <div className="p-6 bg-gray-50 border border-gray-200 rounded-lg text-center">
-      <p className="text-sm text-gray-600">
+    <div className="p-6 bg-muted border border-border rounded-lg text-center">
+      <p className="text-sm text-muted-foreground">
         Gateway <strong>{name}</strong> estará disponível em breve.
       </p>
-      <p className="text-xs text-gray-500 mt-2">
+      <p className="text-xs text-muted-foreground mt-2">
         Por favor, selecione outro método de pagamento.
       </p>
     </div>

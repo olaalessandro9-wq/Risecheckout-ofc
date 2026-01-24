@@ -1,3 +1,10 @@
+/**
+ * ResetPasswordForm - Formulário de Redefinição de Senha
+ * 
+ * RISE Protocol V3 Compliant - Design Tokens
+ * Todas as cores usam o sistema --auth-*
+ */
+
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Lock, Loader2, Eye, EyeOff, ShieldCheck } from "lucide-react";
@@ -45,10 +52,10 @@ export function ResetPasswordForm({
     >
       {/* Header */}
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold text-white">Criar Nova Senha</h1>
+        <h1 className="text-2xl font-bold text-[hsl(var(--auth-text-primary))]">Criar Nova Senha</h1>
         {email && (
-          <p className="text-slate-400">
-            Definindo senha para <span className="text-white">{email}</span>
+          <p className="text-[hsl(var(--auth-text-muted))]">
+            Definindo senha para <span className="text-[hsl(var(--auth-text-primary))]">{email}</span>
           </p>
         )}
       </div>
@@ -56,7 +63,7 @@ export function ResetPasswordForm({
       {/* Form */}
       <form onSubmit={onSubmit} className="space-y-5">
         <div className="space-y-2">
-          <Label htmlFor="password" className="text-slate-300">Nova Senha</Label>
+          <Label htmlFor="password" className="text-[hsl(var(--auth-text-secondary))]">Nova Senha</Label>
           <div className="relative">
             <Input
               id="password"
@@ -65,12 +72,12 @@ export function ResetPasswordForm({
               onChange={(e) => onPasswordChange(e.target.value)}
               placeholder="••••••••"
               disabled={isLoading}
-              className="h-12 pr-10 bg-white/5 border-white/10 text-white placeholder:text-slate-500 focus:border-blue-500/50 focus:ring-blue-500/20"
+              className="h-12 pr-10 bg-[hsl(var(--auth-input-bg)/0.05)] border-[hsl(var(--auth-input-border)/0.1)] text-[hsl(var(--auth-text-primary))] placeholder:text-[hsl(var(--auth-input-placeholder))] focus:border-[hsl(var(--auth-accent)/0.5)] focus:ring-[hsl(var(--auth-accent)/0.2)]"
             />
             <button
               type="button"
               onClick={onToggleShowPassword}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[hsl(var(--auth-text-muted))] hover:text-[hsl(var(--auth-text-primary))]"
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
@@ -78,7 +85,7 @@ export function ResetPasswordForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="confirmPassword" className="text-slate-300">Confirmar Senha</Label>
+          <Label htmlFor="confirmPassword" className="text-[hsl(var(--auth-text-secondary))]">Confirmar Senha</Label>
           <Input
             id="confirmPassword"
             type={showPassword ? "text" : "password"}
@@ -86,7 +93,7 @@ export function ResetPasswordForm({
             onChange={(e) => onConfirmPasswordChange(e.target.value)}
             placeholder="••••••••"
             disabled={isLoading}
-            className="h-12 bg-white/5 border-white/10 text-white placeholder:text-slate-500 focus:border-blue-500/50 focus:ring-blue-500/20"
+            className="h-12 bg-[hsl(var(--auth-input-bg)/0.05)] border-[hsl(var(--auth-input-border)/0.1)] text-[hsl(var(--auth-text-primary))] placeholder:text-[hsl(var(--auth-input-placeholder))] focus:border-[hsl(var(--auth-accent)/0.5)] focus:ring-[hsl(var(--auth-accent)/0.2)]"
           />
         </div>
 
@@ -110,10 +117,10 @@ export function ResetPasswordForm({
         )}
 
         {/* Password Tips */}
-        <div className="p-3 rounded-lg bg-white/5 border border-white/10 text-slate-400 text-sm">
+        <div className="p-3 rounded-lg bg-[hsl(var(--auth-bg-elevated)/0.05)] border border-[hsl(var(--auth-border)/0.1)] text-[hsl(var(--auth-text-muted))] text-sm">
           <div className="flex items-center gap-2 mb-2">
-            <ShieldCheck className="w-4 h-4 text-blue-400" />
-            <span className="font-medium text-slate-300">Dicas para uma senha forte:</span>
+            <ShieldCheck className="w-4 h-4 text-[hsl(var(--auth-accent))]" />
+            <span className="font-medium text-[hsl(var(--auth-text-secondary))]">Dicas para uma senha forte:</span>
           </div>
           <ul className="list-disc list-inside space-y-1 text-xs">
             <li>Mínimo de 8 caracteres</li>
@@ -125,7 +132,7 @@ export function ResetPasswordForm({
         <Button
           type="submit"
           disabled={isLoading}
-          className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-semibold"
+          className="w-full h-12 bg-gradient-to-r from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] hover:from-[hsl(var(--auth-accent))] hover:to-[hsl(var(--auth-accent-secondary))] text-[hsl(var(--auth-text-primary))] font-semibold"
         >
           {isLoading ? (
             <>
@@ -143,7 +150,7 @@ export function ResetPasswordForm({
 
       {/* Cancel Link */}
       <div className="text-center">
-        <Link to={cancelRoute} className="text-sm text-slate-400 hover:text-white transition-colors">
+        <Link to={cancelRoute} className="text-sm text-[hsl(var(--auth-text-muted))] hover:text-[hsl(var(--auth-text-primary))] transition-colors">
           Cancelar
         </Link>
       </div>
