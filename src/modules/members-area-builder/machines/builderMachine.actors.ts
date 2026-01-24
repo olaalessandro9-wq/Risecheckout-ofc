@@ -21,8 +21,81 @@ import type {
   Section,
   MembersAreaBuilderSettings,
   MemberModule,
+  BannerSettings,
+  ModulesSettings,
 } from "../types/builder.types";
 import { parseSections, parseSettings } from "../hooks/useMembersAreaParsers";
+
+// ============================================================================
+// AUTO-INITIALIZATION HELPER
+// ============================================================================
+
+/**
+ * Generates default sections when a product has no saved sections
+ * but has modules or a product image available.
+ * 
+ * @see RISE V3 - Auto-initialization logic for Netflix-style layout
+ */
+function generateDefaultSections(
+  productId: string,
+  productImageUrl: string | null,
+  modules: MemberModule[]
+): Section[] {
+  const sections: Section[] = [];
+  const now = new Date().toISOString();
+  
+  // 1. Banner with product image
+  const bannerSettings: BannerSettings = {
+    type: 'banner',
+    slides: [{
+      id: crypto.randomUUID(),
+      image_url: productImageUrl || '',
+      link: '',
+      alt: 'Banner do curso',
+    }],
+    transition_seconds: 5,
+    height: 'medium',
+  };
+  
+  sections.push({
+    id: `temp_${crypto.randomUUID()}`,
+    product_id: productId,
+    type: 'banner',
+    title: null,
+    position: 0,
+    settings: bannerSettings,
+    is_active: true,
+    created_at: now,
+    updated_at: now,
+  });
+  
+  // 2. Modules section (if modules exist)
+  if (modules.length > 0) {
+    const modulesSettings: ModulesSettings = {
+      type: 'modules',
+      course_id: null,
+      show_title: 'always',
+      cards_per_row: 4,
+      show_progress: true,
+      module_order: modules.map(m => m.id),
+      hidden_module_ids: [],
+    };
+    
+    sections.push({
+      id: `temp_${crypto.randomUUID()}`,
+      product_id: productId,
+      type: 'modules',
+      title: 'Seus Cursos',
+      position: 1,
+      settings: modulesSettings,
+      is_active: true,
+      created_at: now,
+      updated_at: now,
+    });
+  }
+  
+  return sections;
+}
 
 const log = createLogger("BuilderMachine.actors");
 
@@ -38,11 +111,12 @@ export const loadBuilderActor = fromPromise<LoadBuilderOutput, LoadBuilderInput>
       throw new Error("Product ID não fornecido");
     }
 
-    // Load sections and settings
+    // Load sections, settings and product image URL
     const { data, error } = await api.call<{ 
       error?: string; 
       sections?: unknown[]; 
       settings?: unknown;
+      productImageUrl?: string | null;
     }>("admin-data", {
       action: "members-area-data",
       productId,
@@ -51,8 +125,9 @@ export const loadBuilderActor = fromPromise<LoadBuilderOutput, LoadBuilderInput>
     if (error) throw new Error(error.message);
     if (data?.error) throw new Error(data.error);
 
-    const parsedSections = parseSections(data?.sections || []);
+    let parsedSections = parseSections(data?.sections || []);
     const parsedSettings = parseSettings(data?.settings);
+    const productImageUrl = data?.productImageUrl || null;
 
     // Load modules
     const { data: modulesData, error: modulesError } = await api.call<{ 
@@ -69,10 +144,24 @@ export const loadBuilderActor = fromPromise<LoadBuilderOutput, LoadBuilderInput>
 
     const modules = (modulesData?.modules || []) as MemberModule[];
 
+    // AUTO-INITIALIZATION: Generate default sections if none exist
+    if (parsedSections.length === 0 && (modules.length > 0 || productImageUrl)) {
+      log.info("Auto-initializing builder with default sections", { 
+        modulesCount: modules.length, 
+        hasProductImage: !!productImageUrl 
+      });
+      
+      parsedSections = generateDefaultSections(productId, productImageUrl, modules);
+      
+      // Show informative toast
+      toast.info("Layout inicial criado! Personalize como quiser.");
+    }
+
     return {
       sections: parsedSections,
       settings: parsedSettings,
       modules,
+      productImageUrl,
     };
   }
 );

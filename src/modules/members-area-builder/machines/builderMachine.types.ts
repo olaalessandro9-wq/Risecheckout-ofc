@@ -101,6 +101,7 @@ export interface LoadBuilderOutput {
   sections: Section[];
   settings: MembersAreaBuilderSettings;
   modules: MemberModule[];
+  productImageUrl: string | null;
 }
 
 export interface SaveBuilderInput {
