@@ -51,6 +51,7 @@ interface ContentItem {
   description: string | null;
   content_type: string;
   content_url: string | null;
+  body: string | null;
   content_data: Record<string, unknown> | null;
   position: number;
   is_active: boolean;
@@ -413,6 +414,7 @@ serve(async (req) => {
             description,
             content_type,
             content_url,
+            body,
             content_data,
             position,
             is_active

@@ -2,8 +2,9 @@
  * LessonNavigation - Footer navigation with previous/next/complete buttons
  */
 
-import { ChevronLeft, ChevronRight, Check, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, CheckCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface LessonNavigationProps {
   hasPrevious: boolean;
@@ -12,6 +13,7 @@ interface LessonNavigationProps {
   onNext: () => void;
   onComplete?: () => void;
   isCompleting?: boolean;
+  isCompleted?: boolean;
 }
 
 export function LessonNavigation({
@@ -21,6 +23,7 @@ export function LessonNavigation({
   onNext,
   onComplete,
   isCompleting = false,
+  isCompleted = false,
 }: LessonNavigationProps) {
   return (
     <div className="flex items-center justify-between pt-6 border-t border-border">
@@ -31,15 +34,26 @@ export function LessonNavigation({
             variant="outline"
             onClick={onComplete}
             disabled={isCompleting}
-            className="gap-2 border-green-500/50 text-green-600 hover:bg-green-500/10 hover:text-green-500"
+            className={cn(
+              "gap-2 transition-colors",
+              isCompleted 
+                ? "bg-green-500/20 border-green-500 text-green-500 hover:bg-red-500/10 hover:border-red-500 hover:text-red-500"
+                : "border-green-500/50 text-green-600 hover:bg-green-500/10 hover:text-green-500"
+            )}
           >
             {isCompleting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
+            ) : isCompleted ? (
+              <CheckCircle className="h-4 w-4" />
             ) : (
               <Check className="h-4 w-4" />
             )}
-            <span className="hidden sm:inline">Marcar como concluída</span>
-            <span className="sm:hidden">Concluir</span>
+            <span className="hidden sm:inline">
+              {isCompleted ? "Concluída (desmarcar)" : "Marcar como concluída"}
+            </span>
+            <span className="sm:hidden">
+              {isCompleted ? "Concluída" : "Concluir"}
+            </span>
           </Button>
         )}
       </div>
