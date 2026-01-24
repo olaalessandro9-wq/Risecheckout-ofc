@@ -213,18 +213,18 @@ export function AttachmentsSection({
       {/* Pending uploads indicator */}
       {hasTemporary && !isLoading && (
         <div className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/20 p-2 rounded">
-          ⚠️ Alguns anexos ainda não foram salvos. Clique em "Salvar" para enviar.
+          ⚠️ Alguns anexos estão pendentes. Clique em "Salvar Conteúdo" no topo para enviar.
         </div>
       )}
 
-      {/* Drop Zone */}
+      {/* Drop Zone - Entire area is clickable */}
       {canAddMore && (
-        <div
+        <label
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={`
-            relative border-2 border-dashed rounded-lg p-8 text-center transition-colors
+            relative border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer block
             ${isDragging 
               ? "border-primary bg-primary/5" 
               : "border-muted-foreground/25 hover:border-muted-foreground/50"
@@ -235,22 +235,22 @@ export function AttachmentsSection({
           <Upload className={`h-10 w-10 mx-auto ${isDragging ? "text-primary" : "text-muted-foreground/50"}`} />
           <p className="mt-3 text-sm text-muted-foreground">
             Arraste arquivos aqui ou{" "}
-            <label className="text-primary hover:underline cursor-pointer">
+            <span className="text-primary hover:underline">
               selecione do computador
-              <input
-                type="file"
-                multiple
-                accept={ACCEPTED_TYPES.join(",")}
-                onChange={handleFileSelect}
-                className="sr-only"
-                disabled={isLoading}
-              />
-            </label>
+            </span>
           </p>
+          <input
+            type="file"
+            multiple
+            accept={ACCEPTED_TYPES.join(",")}
+            onChange={handleFileSelect}
+            className="sr-only"
+            disabled={isLoading}
+          />
           <p className="mt-1 text-xs text-muted-foreground/70">
             jpg, gif, png, pdf, zip, doc, xlsx, mp3, etc
           </p>
-        </div>
+        </label>
       )}
 
       {/* Attachments List */}
