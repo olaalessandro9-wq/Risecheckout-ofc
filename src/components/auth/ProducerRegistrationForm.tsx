@@ -6,7 +6,7 @@
  * 
  * Supports both "producer" and "affiliate" registration with dynamic text content.
  * 
- * RISE V3: Uses useUnifiedAuth (unified identity)
+ * @version 2.0.0 - Migrated to Design Tokens (RISE Protocol V3)
  */
 
 import { useState } from "react";
@@ -103,16 +103,16 @@ export function ProducerRegistrationForm({
       className="space-y-8"
     >
       <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold text-white tracking-tight">
+        <h1 className="text-3xl font-bold text-[hsl(var(--auth-text-primary))] tracking-tight">
           {content.title}
         </h1>
-        <p className="text-slate-400">{content.subtitle}</p>
+        <p className="text-[hsl(var(--auth-text-muted))]">{content.subtitle}</p>
       </div>
 
       <form onSubmit={handleSignup} className="space-y-4">
         {/* Name Field */}
         <div className="space-y-2">
-          <Label className="text-slate-300">Nome Completo</Label>
+          <Label className="text-[hsl(var(--auth-text-secondary))]">Nome Completo</Label>
           <div className="relative">
             <Input
               type="text"
@@ -120,7 +120,7 @@ export function ProducerRegistrationForm({
               value={nameField.value}
               onChange={nameField.onChange}
               onBlur={nameField.onBlur}
-              className={`bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:ring-blue-500/20 ${
+              className={`bg-[hsl(var(--auth-input-bg)/0.05)] border-[hsl(var(--auth-input-border)/0.1)] text-[hsl(var(--auth-text-primary))] placeholder:text-[hsl(var(--auth-input-placeholder))] focus:ring-[hsl(var(--auth-accent)/0.2)] ${
                 nameField.isTouched
                   ? nameField.isValid
                     ? "border-green-500/50"
@@ -147,7 +147,7 @@ export function ProducerRegistrationForm({
         {/* CPF/CNPJ and Phone */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label className="text-slate-300">CPF ou CNPJ</Label>
+            <Label className="text-[hsl(var(--auth-text-secondary))]">CPF ou CNPJ</Label>
             <div className="relative">
               <Input
                 placeholder="000.000.000-00"
@@ -155,7 +155,7 @@ export function ProducerRegistrationForm({
                 onChange={cpfCnpjField.onChange}
                 onBlur={cpfCnpjField.onBlur}
                 maxLength={cpfCnpjField.maxLength}
-                className={`bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:ring-blue-500/20 ${
+                className={`bg-[hsl(var(--auth-input-bg)/0.05)] border-[hsl(var(--auth-input-border)/0.1)] text-[hsl(var(--auth-text-primary))] placeholder:text-[hsl(var(--auth-input-placeholder))] focus:ring-[hsl(var(--auth-accent)/0.2)] ${
                   cpfCnpjField.isTouched
                     ? cpfCnpjField.isValid
                       ? "border-green-500/50"
@@ -168,7 +168,7 @@ export function ProducerRegistrationForm({
           </div>
 
           <div className="space-y-2">
-            <Label className="text-slate-300">Telefone</Label>
+            <Label className="text-[hsl(var(--auth-text-secondary))]">Telefone</Label>
             <div className="relative">
               <Input
                 placeholder="(00) 00000-0000"
@@ -176,7 +176,7 @@ export function ProducerRegistrationForm({
                 onChange={phoneField.onChange}
                 onBlur={phoneField.onBlur}
                 maxLength={phoneField.maxLength}
-                className={`bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:ring-blue-500/20 ${
+                className={`bg-[hsl(var(--auth-input-bg)/0.05)] border-[hsl(var(--auth-input-border)/0.1)] text-[hsl(var(--auth-text-primary))] placeholder:text-[hsl(var(--auth-input-placeholder))] focus:ring-[hsl(var(--auth-accent)/0.2)] ${
                   phoneField.isTouched
                     ? phoneField.isValid
                       ? "border-green-500/50"
@@ -191,7 +191,7 @@ export function ProducerRegistrationForm({
 
         {/* Email Field */}
         <div className="space-y-2">
-          <Label className="text-slate-300">Email</Label>
+          <Label className="text-[hsl(var(--auth-text-secondary))]">Email</Label>
           <div className="relative">
             <Input
               type="email"
@@ -199,7 +199,7 @@ export function ProducerRegistrationForm({
               value={emailField.value}
               onChange={emailField.onChange}
               onBlur={emailField.onBlur}
-              className={`bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:ring-blue-500/20 ${
+              className={`bg-[hsl(var(--auth-input-bg)/0.05)] border-[hsl(var(--auth-input-border)/0.1)] text-[hsl(var(--auth-text-primary))] placeholder:text-[hsl(var(--auth-input-placeholder))] focus:ring-[hsl(var(--auth-accent)/0.2)] ${
                 emailField.isTouched
                   ? emailField.isValid
                     ? "border-green-500/50"
@@ -213,7 +213,7 @@ export function ProducerRegistrationForm({
 
         {/* Password Field */}
         <div className="space-y-2">
-          <Label className="text-slate-300">Senha</Label>
+          <Label className="text-[hsl(var(--auth-text-secondary))]">Senha</Label>
           <div className="relative">
             <Input
               type="password"
@@ -221,7 +221,7 @@ export function ProducerRegistrationForm({
               value={passwordField.value}
               onChange={passwordField.onChange}
               onBlur={passwordField.onBlur}
-              className={`bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:ring-blue-500/20 ${
+              className={`bg-[hsl(var(--auth-input-bg)/0.05)] border-[hsl(var(--auth-input-border)/0.1)] text-[hsl(var(--auth-text-primary))] placeholder:text-[hsl(var(--auth-input-placeholder))] focus:ring-[hsl(var(--auth-accent)/0.2)] ${
                 passwordField.isTouched
                   ? passwordField.isValid
                     ? "border-green-500/50"
@@ -236,7 +236,7 @@ export function ProducerRegistrationForm({
         {/* Submit Button */}
         <Button
           type="submit"
-          className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90 transition-opacity text-white font-semibold rounded-xl text-base"
+          className="w-full h-12 bg-gradient-to-r from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] hover:opacity-90 transition-opacity text-[hsl(var(--auth-text-primary))] font-semibold rounded-xl text-base"
           disabled={loading}
         >
           {loading ? (
@@ -250,13 +250,13 @@ export function ProducerRegistrationForm({
         </Button>
 
         {/* Terms */}
-        <p className="text-xs text-center text-slate-500">
+        <p className="text-xs text-center text-[hsl(var(--auth-text-subtle))]">
           Ao se registrar, você concorda com nossos{" "}
           <a
             href="/termos-de-uso"
             target="_blank"
             rel="noopener noreferrer"
-            className="underline hover:text-white"
+            className="underline hover:text-[hsl(var(--auth-text-primary))]"
           >
             Termos de Uso
           </a>{" "}
@@ -265,7 +265,7 @@ export function ProducerRegistrationForm({
             href="/politica-de-privacidade"
             target="_blank"
             rel="noopener noreferrer"
-            className="underline hover:text-white"
+            className="underline hover:text-[hsl(var(--auth-text-primary))]"
           >
             Política de Privacidade
           </a>
@@ -275,18 +275,18 @@ export function ProducerRegistrationForm({
 
       {/* Footer Links */}
       <div className="text-center space-y-3">
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-[hsl(var(--auth-text-muted))]">
           Já tem uma conta?{" "}
           <Link
             to="/auth"
-            className="text-blue-400 hover:text-blue-300 font-medium"
+            className="text-[hsl(var(--auth-accent))] hover:text-[hsl(var(--auth-accent-hover,217_91%_65%))] font-medium"
           >
             Faça login
           </Link>
         </p>
         <button
           onClick={onBack}
-          className="text-sm text-slate-400 hover:text-white transition-colors inline-flex items-center gap-2"
+          className="text-sm text-[hsl(var(--auth-text-muted))] hover:text-[hsl(var(--auth-text-primary))] transition-colors inline-flex items-center gap-2"
         >
           <ArrowLeft className="w-4 h-4" />
           Voltar ao quiz

@@ -1,7 +1,7 @@
 /**
  * RecuperarSenha - Password recovery page for producers
  * 
- * RISE Protocol V3 - Uses unified-auth as SSOT
+ * @version 2.0.0 - Migrated to Design Tokens (RISE Protocol V3)
  * 
  * Estados:
  * 1. form - Formulário para digitar email
@@ -13,11 +13,12 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mail, ArrowLeft, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
+import { AuthThemeProvider } from "@/components/theme-providers";
 
 type ViewState = "form" | "loading" | "success" | "error";
 
@@ -63,7 +64,7 @@ export default function RecuperarSenha() {
       }
 
       setViewState("success");
-    } catch (error) {
+    } catch {
       setErrorMessage("Erro de conexão");
       setViewState("form");
     }
@@ -79,23 +80,23 @@ export default function RecuperarSenha() {
   };
 
   return (
-    <div className="min-h-screen w-full flex bg-[#0A0A0B] text-slate-200 overflow-hidden relative">
+    <AuthThemeProvider>
       {/* Background Elements */}
       <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-blue-600/10 blur-[120px]" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-purple-600/10 blur-[120px]" />
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-[hsl(var(--auth-accent)/0.1)] blur-[120px]" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-[hsl(var(--auth-accent-secondary)/0.1)] blur-[120px]" />
       </div>
 
-      <div className="w-full flex">
+      <div className="w-full flex min-h-screen">
         {/* Left Panel - Visual Branding (Desktop Only) */}
-        <div className="hidden lg:flex lg:w-1/2 relative bg-white/5 backdrop-blur-sm border-r border-white/5 flex-col justify-between p-12">
+        <div className="hidden lg:flex lg:w-1/2 relative bg-[hsl(var(--auth-bg-elevated)/0.05)] backdrop-blur-sm border-r border-[hsl(var(--auth-border)/0.05)] flex-col justify-between p-12">
           {/* Logo */}
           <div className="relative z-10">
             <Link to="/" className="flex items-center gap-3 w-fit hover:opacity-80 transition-opacity">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                <span className="font-bold text-white text-xl">R</span>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] flex items-center justify-center shadow-lg shadow-[hsl(var(--auth-accent)/0.2)]">
+                <span className="font-bold text-[hsl(var(--auth-text-primary))] text-xl">R</span>
               </div>
-              <span className="font-bold text-xl text-white tracking-tight">RiseCheckout</span>
+              <span className="font-bold text-xl text-[hsl(var(--auth-text-primary))] tracking-tight">RiseCheckout</span>
             </Link>
           </div>
 
@@ -107,21 +108,21 @@ export default function RecuperarSenha() {
               transition={{ delay: 0.2 }}
               className="space-y-6"
             >
-              <h2 className="text-4xl font-bold text-white leading-tight">
+              <h2 className="text-4xl font-bold text-[hsl(var(--auth-text-primary))] leading-tight">
                 Recupere seu acesso <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))]">
                   de forma simples
                 </span>
               </h2>
-              <p className="text-lg text-slate-400 leading-relaxed">
+              <p className="text-lg text-[hsl(var(--auth-text-muted))] leading-relaxed">
                 Não se preocupe, vamos te ajudar a voltar a gerenciar suas vendas.
               </p>
             </motion.div>
           </div>
 
           {/* Footer Copyright */}
-          <div className="relative z-10 text-xs text-slate-500">
-            © 2025 RiseCheckout Inc. Todos os direitos reservados.
+          <div className="relative z-10 text-xs text-[hsl(var(--auth-text-subtle))]">
+            © 2026 RiseCheckout Inc. Todos os direitos reservados.
           </div>
         </div>
 
@@ -131,10 +132,10 @@ export default function RecuperarSenha() {
             {/* Mobile Logo */}
             <div className="lg:hidden flex justify-center mb-8">
               <Link to="/" className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
-                  <span className="font-bold text-white">R</span>
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] flex items-center justify-center">
+                  <span className="font-bold text-[hsl(var(--auth-text-primary))]">R</span>
                 </div>
-                <span className="font-bold text-lg text-white">RiseCheckout</span>
+                <span className="font-bold text-lg text-[hsl(var(--auth-text-primary))]">RiseCheckout</span>
               </Link>
             </div>
 
@@ -150,8 +151,8 @@ export default function RecuperarSenha() {
                 >
                   {/* Header */}
                   <div className="space-y-2">
-                    <h1 className="text-2xl font-bold text-white">Recuperar Senha</h1>
-                    <p className="text-slate-400">
+                    <h1 className="text-2xl font-bold text-[hsl(var(--auth-text-primary))]">Recuperar Senha</h1>
+                    <p className="text-[hsl(var(--auth-text-muted))]">
                       Digite o e-mail vinculado à sua conta no espaço abaixo e em seguida enviaremos um link para redefinir a sua senha.
                     </p>
                   </div>
@@ -159,7 +160,7 @@ export default function RecuperarSenha() {
                   {/* Form */}
                   <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="space-y-2">
-                      <Label htmlFor="email" className="text-slate-300">E-mail</Label>
+                      <Label htmlFor="email" className="text-[hsl(var(--auth-text-secondary))]">E-mail</Label>
                       <Input
                         id="email"
                         type="email"
@@ -167,7 +168,7 @@ export default function RecuperarSenha() {
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="seu@email.com"
                         disabled={viewState === "loading"}
-                        className="h-12 bg-white/5 border-white/10 text-white placeholder:text-slate-500 focus:border-blue-500/50 focus:ring-blue-500/20"
+                        className="h-12 bg-[hsl(var(--auth-input-bg)/0.05)] border-[hsl(var(--auth-input-border)/0.1)] text-[hsl(var(--auth-text-primary))] placeholder:text-[hsl(var(--auth-text-subtle))] focus:border-[hsl(var(--auth-accent)/0.5)] focus:ring-[hsl(var(--auth-accent)/0.2)]"
                       />
                       {errorMessage && viewState === "form" && (
                         <p className="text-sm text-red-400">{errorMessage}</p>
@@ -177,7 +178,7 @@ export default function RecuperarSenha() {
                     <Button
                       type="submit"
                       disabled={viewState === "loading"}
-                      className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-semibold"
+                      className="w-full h-12 bg-gradient-to-r from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] hover:from-[hsl(var(--auth-accent))] hover:to-[hsl(var(--auth-accent-secondary))] hover:opacity-90 text-[hsl(var(--auth-text-primary))] font-semibold"
                     >
                       {viewState === "loading" ? (
                         <>
@@ -195,7 +196,7 @@ export default function RecuperarSenha() {
                     <button
                       onClick={handleCancel}
                       disabled={viewState === "loading"}
-                      className="text-sm text-slate-400 hover:text-white transition-colors disabled:opacity-50 inline-flex items-center gap-2"
+                      className="text-sm text-[hsl(var(--auth-text-muted))] hover:text-[hsl(var(--auth-text-primary))] transition-colors disabled:opacity-50 inline-flex items-center gap-2"
                     >
                       <ArrowLeft className="w-4 h-4" />
                       Voltar ao login
@@ -222,17 +223,17 @@ export default function RecuperarSenha() {
 
                   {/* Message */}
                   <div className="space-y-4">
-                    <h1 className="text-2xl font-bold text-white">E-mail enviado!</h1>
-                    <div className="space-y-2 text-slate-400">
+                    <h1 className="text-2xl font-bold text-[hsl(var(--auth-text-primary))]">E-mail enviado!</h1>
+                    <div className="space-y-2 text-[hsl(var(--auth-text-muted))]">
                       <p>Enviamos um link de recuperação para</p>
-                      <p className="text-white font-medium">{email}</p>
+                      <p className="text-[hsl(var(--auth-text-primary))] font-medium">{email}</p>
                       <p className="text-sm">Verifique sua caixa de entrada e spam.</p>
                     </div>
                   </div>
 
                   {/* Action */}
                   <Link to="/auth">
-                    <Button className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-semibold">
+                    <Button className="w-full h-12 bg-gradient-to-r from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] hover:opacity-90 text-[hsl(var(--auth-text-primary))] font-semibold">
                       Voltar ao login
                     </Button>
                   </Link>
@@ -257,8 +258,8 @@ export default function RecuperarSenha() {
 
                   {/* Message */}
                   <div className="space-y-4">
-                    <h1 className="text-2xl font-bold text-white">E-mail não encontrado</h1>
-                    <div className="space-y-2 text-slate-400">
+                    <h1 className="text-2xl font-bold text-[hsl(var(--auth-text-primary))]">E-mail não encontrado</h1>
+                    <div className="space-y-2 text-[hsl(var(--auth-text-muted))]">
                       <p>O e-mail informado não está cadastrado em nossa base de dados.</p>
                       <p className="text-sm">Verifique se digitou corretamente ou crie uma nova conta.</p>
                     </div>
@@ -268,13 +269,13 @@ export default function RecuperarSenha() {
                   <div className="space-y-3">
                     <Button
                       onClick={handleTryAgain}
-                      className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-semibold"
+                      className="w-full h-12 bg-gradient-to-r from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] hover:opacity-90 text-[hsl(var(--auth-text-primary))] font-semibold"
                     >
                       Tentar novamente
                     </Button>
                     <button
                       onClick={handleCancel}
-                      className="text-sm text-slate-400 hover:text-white transition-colors"
+                      className="text-sm text-[hsl(var(--auth-text-muted))] hover:text-[hsl(var(--auth-text-primary))] transition-colors"
                     >
                       Voltar ao login
                     </button>
@@ -285,6 +286,6 @@ export default function RecuperarSenha() {
           </div>
         </div>
       </div>
-    </div>
+    </AuthThemeProvider>
   );
 }

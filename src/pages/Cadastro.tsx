@@ -5,7 +5,7 @@
  * Refactored: Form logic extracted to ProducerRegistrationForm component
  * to prevent state loss when AnimatePresence triggers re-mounts.
  * 
- * MIGRATED to useUnifiedAuth (RISE Protocol V3)
+ * @version 2.0.0 - Migrated to Design Tokens (RISE Protocol V3)
  */
 
 import { useState, useEffect } from "react";
@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ProducerRegistrationForm } from "@/components/auth/ProducerRegistrationForm";
+import { AuthThemeProvider } from "@/components/theme-providers";
 
 type ViewType = "choose-profile" | "already-has-account" | "producer-form";
 
@@ -72,31 +73,33 @@ export default function Cadastro() {
   // Show loading while checking auth
   if (authLoading) {
     return (
-      <div className="min-h-screen w-full flex items-center justify-center bg-[#0A0A0B]">
-        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-      </div>
+      <AuthThemeProvider>
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="w-8 h-8 text-[hsl(var(--auth-accent))] animate-spin" />
+        </div>
+      </AuthThemeProvider>
     );
   }
 
   // Shared layout wrapper
   const PageLayout = ({ children }: { children: React.ReactNode }) => (
-    <div className="min-h-screen w-full flex bg-[#0A0A0B] text-slate-200 overflow-hidden relative">
+    <AuthThemeProvider>
       {/* Background Elements */}
       <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-blue-600/10 blur-[120px]" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-purple-600/10 blur-[120px]" />
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-[hsl(var(--auth-accent)/0.1)] blur-[120px]" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-[hsl(var(--auth-accent-secondary)/0.1)] blur-[120px]" />
       </div>
 
-      <div className="w-full flex">
+      <div className="w-full flex min-h-screen">
         {/* Left Panel - Visual Branding (Desktop Only) */}
-        <div className="hidden lg:flex lg:w-1/2 relative bg-white/5 backdrop-blur-sm border-r border-white/5 flex-col justify-between p-12">
+        <div className="hidden lg:flex lg:w-1/2 relative bg-[hsl(var(--auth-bg-elevated)/0.05)] backdrop-blur-sm border-r border-[hsl(var(--auth-border)/0.05)] flex-col justify-between p-12">
           {/* Logo */}
           <div className="relative z-10">
             <Link to="/" className="flex items-center gap-3 w-fit hover:opacity-80 transition-opacity">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                <span className="font-bold text-white text-xl">R</span>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] flex items-center justify-center shadow-lg shadow-[hsl(var(--auth-accent)/0.2)]">
+                <span className="font-bold text-[hsl(var(--auth-text-primary))] text-xl">R</span>
               </div>
-              <span className="font-bold text-xl text-white tracking-tight">RiseCheckout</span>
+              <span className="font-bold text-xl text-[hsl(var(--auth-text-primary))] tracking-tight">RiseCheckout</span>
             </Link>
           </div>
 
@@ -108,7 +111,7 @@ export default function Cadastro() {
               transition={{ delay: 0.2 }}
               className="space-y-6"
             >
-              <h2 className="text-4xl font-bold text-white leading-tight">
+              <h2 className="text-4xl font-bold text-[hsl(var(--auth-text-primary))] leading-tight">
                 {view === "producer-form" ? (
                   registrationSource === "affiliate" ? (
                     <>
@@ -120,7 +123,7 @@ export default function Cadastro() {
                   ) : (
                     <>
                       Comece a vender <br />
-                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))]">
                         em menos de 5 minutos
                       </span>
                     </>
@@ -128,13 +131,13 @@ export default function Cadastro() {
                 ) : (
                   <>
                     Bem-vindo ao <br />
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))]">
                       RiseCheckout
                     </span>
                   </>
                 )}
               </h2>
-              <p className="text-lg text-slate-400 leading-relaxed">
+              <p className="text-lg text-[hsl(var(--auth-text-muted))] leading-relaxed">
                 {view === "producer-form" 
                   ? registrationSource === "affiliate"
                     ? "Cadastre-se gratuitamente e comece a promover produtos de sucesso."
@@ -146,8 +149,8 @@ export default function Cadastro() {
           </div>
 
           {/* Footer Copyright */}
-          <div className="relative z-10 text-xs text-slate-500">
-            © 2025 RiseCheckout Inc. Todos os direitos reservados.
+          <div className="relative z-10 text-xs text-[hsl(var(--auth-text-subtle))]">
+            © 2026 RiseCheckout Inc. Todos os direitos reservados.
           </div>
         </div>
 
@@ -157,10 +160,10 @@ export default function Cadastro() {
             {/* Mobile Logo */}
             <div className="lg:hidden flex justify-center mb-8">
               <Link to="/" className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
-                  <span className="font-bold text-white">R</span>
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] flex items-center justify-center">
+                  <span className="font-bold text-[hsl(var(--auth-text-primary))]">R</span>
                 </div>
-                <span className="font-bold text-lg text-white">RiseCheckout</span>
+                <span className="font-bold text-lg text-[hsl(var(--auth-text-primary))]">RiseCheckout</span>
               </Link>
             </div>
 
@@ -168,7 +171,7 @@ export default function Cadastro() {
           </div>
         </div>
       </div>
-    </div>
+    </AuthThemeProvider>
   );
 
   // View: Choose Profile Quiz
@@ -180,10 +183,10 @@ export default function Cadastro() {
       className="space-y-8"
     >
       <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold text-white tracking-tight">
+        <h1 className="text-3xl font-bold text-[hsl(var(--auth-text-primary))] tracking-tight">
           Antes de tudo...
         </h1>
-        <p className="text-slate-400">
+        <p className="text-[hsl(var(--auth-text-muted))]">
           Nos conte qual perfil você se identifica no momento:
         </p>
       </div>
@@ -192,15 +195,15 @@ export default function Cadastro() {
         {/* Option: Buyer */}
         <button
           onClick={handleBuyerChoice}
-          className="w-full p-6 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-blue-500/50 transition-all duration-300 text-left group"
+          className="w-full p-6 rounded-2xl border border-[hsl(var(--auth-border)/0.1)] bg-[hsl(var(--auth-bg-elevated)/0.05)] hover:bg-[hsl(var(--auth-bg-elevated)/0.1)] hover:border-[hsl(var(--auth-accent)/0.5)] transition-all duration-300 text-left group"
         >
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-              <ShoppingBag className="w-6 h-6 text-white" />
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+              <ShoppingBag className="w-6 h-6 text-[hsl(var(--auth-text-primary))]" />
             </div>
             <div className="space-y-1">
-              <h3 className="font-semibold text-white text-lg">Quero ver minhas compras</h3>
-              <p className="text-sm text-slate-400">
+              <h3 className="font-semibold text-[hsl(var(--auth-text-primary))] text-lg">Quero ver minhas compras</h3>
+              <p className="text-sm text-[hsl(var(--auth-text-muted))]">
                 Sou cliente e comprei algum produto. Quero acessar meus cursos e conteúdos.
               </p>
             </div>
@@ -210,15 +213,15 @@ export default function Cadastro() {
         {/* Option: Producer */}
         <button
           onClick={handleProducerChoice}
-          className="w-full p-6 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-purple-500/50 transition-all duration-300 text-left group"
+          className="w-full p-6 rounded-2xl border border-[hsl(var(--auth-border)/0.1)] bg-[hsl(var(--auth-bg-elevated)/0.05)] hover:bg-[hsl(var(--auth-bg-elevated)/0.1)] hover:border-[hsl(var(--auth-accent-secondary)/0.5)] transition-all duration-300 text-left group"
         >
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-              <Package className="w-6 h-6 text-white" />
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[hsl(var(--auth-accent-secondary))] to-pink-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+              <Package className="w-6 h-6 text-[hsl(var(--auth-text-primary))]" />
             </div>
             <div className="space-y-1">
-              <h3 className="font-semibold text-white text-lg">Sou produtor</h3>
-              <p className="text-sm text-slate-400">
+              <h3 className="font-semibold text-[hsl(var(--auth-text-primary))] text-lg">Sou produtor</h3>
+              <p className="text-sm text-[hsl(var(--auth-text-muted))]">
                 Tenho meu próprio produto digital e quero vender pela plataforma.
               </p>
             </div>
@@ -228,15 +231,15 @@ export default function Cadastro() {
         {/* Option: Affiliate */}
         <button
           onClick={handleAffiliateChoice}
-          className="w-full p-6 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-emerald-500/50 transition-all duration-300 text-left group"
+          className="w-full p-6 rounded-2xl border border-[hsl(var(--auth-border)/0.1)] bg-[hsl(var(--auth-bg-elevated)/0.05)] hover:bg-[hsl(var(--auth-bg-elevated)/0.1)] hover:border-emerald-500/50 transition-all duration-300 text-left group"
         >
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-              <Users className="w-6 h-6 text-white" />
+              <Users className="w-6 h-6 text-[hsl(var(--auth-text-primary))]" />
             </div>
             <div className="space-y-1">
-              <h3 className="font-semibold text-white text-lg">Quero ser afiliado</h3>
-              <p className="text-sm text-slate-400">
+              <h3 className="font-semibold text-[hsl(var(--auth-text-primary))] text-lg">Quero ser afiliado</h3>
+              <p className="text-sm text-[hsl(var(--auth-text-muted))]">
                 Quero promover produtos de outros produtores e ganhar comissões.
               </p>
             </div>
@@ -247,7 +250,7 @@ export default function Cadastro() {
       <div className="text-center">
         <Link
           to="/auth"
-          className="text-sm text-slate-400 hover:text-white transition-colors inline-flex items-center gap-2"
+          className="text-sm text-[hsl(var(--auth-text-muted))] hover:text-[hsl(var(--auth-text-primary))] transition-colors inline-flex items-center gap-2"
         >
           <ArrowLeft className="w-4 h-4" />
           Voltar ao login
@@ -268,22 +271,22 @@ export default function Cadastro() {
         {/* Styled Icon */}
         <div className="flex justify-center">
           <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
-            <CheckSquare className="w-10 h-10 text-white" />
+            <CheckSquare className="w-10 h-10 text-[hsl(var(--auth-text-primary))]" />
           </div>
         </div>
 
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold text-white tracking-tight">
+          <h1 className="text-2xl font-bold text-[hsl(var(--auth-text-primary))] tracking-tight">
             Você já tem uma conta!
           </h1>
         </div>
       </div>
 
-      <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
-        <p className="text-slate-300 text-center leading-relaxed">
-          <strong className="text-white">Muito bem!</strong> Se você realizou uma compra utilizando seu e-mail, você já tem uma conta no RiseCheckout!
+      <div className="bg-[hsl(var(--auth-bg-elevated)/0.05)] border border-[hsl(var(--auth-border)/0.1)] rounded-2xl p-6 space-y-4">
+        <p className="text-[hsl(var(--auth-text-secondary))] text-center leading-relaxed">
+          <strong className="text-[hsl(var(--auth-text-primary))]">Muito bem!</strong> Se você realizou uma compra utilizando seu e-mail, você já tem uma conta no RiseCheckout!
         </p>
-        <p className="text-slate-400 text-center text-sm leading-relaxed">
+        <p className="text-[hsl(var(--auth-text-muted))] text-center text-sm leading-relaxed">
           Se você não sabe sua senha, clique no botão abaixo para criar uma nova senha e acessar suas compras.
         </p>
       </div>
@@ -291,7 +294,7 @@ export default function Cadastro() {
       <div className="space-y-4">
         <Button
           onClick={() => navigate("/minha-conta/recuperar-senha")}
-          className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90 transition-opacity text-white font-semibold rounded-xl text-base"
+          className="w-full h-12 bg-gradient-to-r from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] hover:opacity-90 transition-opacity text-[hsl(var(--auth-text-primary))] font-semibold rounded-xl text-base"
         >
           Criar nova senha
         </Button>
@@ -299,7 +302,7 @@ export default function Cadastro() {
         <div className="text-center">
           <button
             onClick={handleBackToQuiz}
-            className="text-sm text-slate-400 hover:text-white transition-colors inline-flex items-center gap-2"
+            className="text-sm text-[hsl(var(--auth-text-muted))] hover:text-[hsl(var(--auth-text-primary))] transition-colors inline-flex items-center gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
             Voltar
