@@ -3,7 +3,7 @@
  */
 
 import { Download, FileText, Image, Music, FileArchive, FileSpreadsheet, Paperclip } from "lucide-react";
-import type { ContentAttachment } from "../../types";
+import type { ContentAttachment } from "../types";
 
 // Helper to get icon based on file type
 function getFileIcon(fileType: string) {
