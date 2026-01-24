@@ -1,6 +1,6 @@
 /**
  * LessonContent - Main content area with video, description, and attachments
- * Premium Cakto-style layout with larger video and clean hierarchy
+ * Premium Cakto-parity layout with maximized video and clean hierarchy
  */
 
 import { motion } from "framer-motion";
@@ -15,7 +15,6 @@ interface LessonContentProps {
   content: ContentItem;
   contentId: string;
   moduleTitle?: string;
-  moduleIndex?: number;
   hasPrevious: boolean;
   hasNext: boolean;
   onPrevious: () => void;
@@ -29,7 +28,6 @@ export function LessonContent({
   content,
   contentId,
   moduleTitle,
-  moduleIndex,
   hasPrevious,
   hasNext,
   onPrevious,
@@ -57,11 +55,11 @@ export function LessonContent({
     >
       {/* Video Section - Maximized Cakto-style layout */}
       {hasVideo && (
-        <div className="w-full bg-muted/30 px-4 lg:px-6 xl:px-8">
+        <div className="w-full bg-muted/30 px-4 lg:px-6 xl:px-8 py-4">
           <div className="aspect-video">
             <iframe
               src={content.content_url!}
-              className="w-full h-full rounded-lg"
+              className="w-full h-full rounded-xl shadow-lg"
               allowFullScreen
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             />
@@ -69,26 +67,25 @@ export function LessonContent({
         </div>
       )}
 
-      {/* Content Section */}
-      <div className="flex-1 p-4 md:p-6 lg:p-8 space-y-6 max-w-4xl mx-auto w-full">
-        {/* Info Bar - Module + Title (Cakto-style) */}
+      {/* Content Section - Cakto-parity layout */}
+      <div className="flex-1 flex flex-col px-4 lg:px-6 xl:px-8 py-6">
+        {/* Info Bar - Module + Title */}
         <LessonInfoBar
           moduleTitle={moduleTitle || ""}
           contentTitle={content.title}
-          moduleIndex={moduleIndex}
         />
 
         {/* Description */}
         {content.description && (
-          <p className="text-muted-foreground text-sm md:text-base leading-relaxed">
+          <p className="text-muted-foreground text-base leading-relaxed mt-4">
             {content.description}
           </p>
         )}
 
-        {/* Body Content (HTML) */}
+        {/* Body Content (HTML) - Cakto typography */}
         {hasBody && (
           <div
-            className="prose prose-sm md:prose-base dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground/80 prose-strong:text-foreground prose-a:text-primary"
+            className="prose prose-base dark:prose-invert max-w-none mt-6 prose-headings:text-foreground prose-headings:font-semibold prose-p:text-foreground/80 prose-p:leading-relaxed prose-strong:text-foreground prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-ul:text-foreground/80 prose-ol:text-foreground/80 prose-li:marker:text-muted-foreground"
             dangerouslySetInnerHTML={{
               __html: DOMPurify.sanitize(
                 content.body || (content.content_data?.html as string) || ""
@@ -97,18 +94,23 @@ export function LessonContent({
           />
         )}
 
-        {/* Attachments Section */}
+        {/* Attachments Section - Cakto-style card */}
         {hasAttachments && (
-          <div className="rounded-xl border border-border/50 bg-card/50 p-4">
-            <h3 className="font-medium flex items-center gap-2 mb-4 text-sm text-foreground">
-              <Paperclip className="h-4 w-4 text-primary" />
+          <div className="mt-8 rounded-xl border border-border bg-card p-5">
+            <h3 className="font-semibold flex items-center gap-2.5 mb-4 text-sm text-foreground">
+              <div className="p-1.5 bg-primary/10 rounded-lg">
+                <Paperclip className="h-4 w-4 text-primary" />
+              </div>
               Materiais ({attachmentCount})
             </h3>
             <AttachmentsList attachments={content.attachments!} />
           </div>
         )}
 
-        {/* Navigation Footer - Minimalist */}
+        {/* Spacer to push navigation to bottom */}
+        <div className="flex-1 min-h-8" />
+
+        {/* Navigation Footer - Cakto-style */}
         <MinimalNavFooter
           hasPrevious={hasPrevious}
           hasNext={hasNext}
