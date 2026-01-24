@@ -219,7 +219,6 @@ export default function LessonViewer() {
           content={currentContent}
           contentId={contentId!}
           moduleTitle={currentModule?.title}
-          moduleIndex={modules.findIndex(m => m.id === currentModule?.id)}
           hasPrevious={hasPrevious}
           hasNext={hasNext}
           onPrevious={goToPrevious}

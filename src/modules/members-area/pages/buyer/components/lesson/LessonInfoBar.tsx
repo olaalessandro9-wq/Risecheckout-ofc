@@ -8,30 +8,23 @@ import { cn } from "@/lib/utils";
 interface LessonInfoBarProps {
   moduleTitle: string;
   contentTitle: string;
-  moduleIndex?: number;
   className?: string;
 }
 
 export function LessonInfoBar({
   moduleTitle,
   contentTitle,
-  moduleIndex,
   className,
 }: LessonInfoBarProps) {
-  // Format module label like "#1 Bônus" or just the title
-  const moduleLabel = moduleIndex !== undefined 
-    ? `#${moduleIndex + 1} ${moduleTitle}`
-    : moduleTitle;
-
   return (
-    <div className={cn("space-y-1", className)}>
-      {/* Module Label - Small, muted */}
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-        {moduleLabel}
+    <div className={cn("space-y-2", className)}>
+      {/* Module Label - Small, muted, Cakto-style */}
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+        {moduleTitle}
       </p>
       
-      {/* Content Title - Large, bold */}
-      <h1 className="text-xl md:text-2xl font-bold text-foreground leading-tight">
+      {/* Content Title - Large, bold, Cakto-style */}
+      <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground leading-tight">
         {contentTitle}
       </h1>
     </div>

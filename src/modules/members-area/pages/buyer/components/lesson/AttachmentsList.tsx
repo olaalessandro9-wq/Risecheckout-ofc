@@ -1,18 +1,18 @@
 /**
- * AttachmentsList - List of downloadable attachments/materials
+ * AttachmentsList - Cakto-style list of downloadable attachments/materials
  */
 
-import { Download, FileText, Image, Music, FileArchive, FileSpreadsheet, Paperclip } from "lucide-react";
+import { Download, FileText, Image, Music, FileArchive, FileSpreadsheet, File } from "lucide-react";
 import type { ContentAttachment } from "../types";
 
 // Helper to get icon based on file type
 function getFileIcon(fileType: string) {
-  if (fileType.startsWith("image/")) return <Image className="h-4 w-4" />;
-  if (fileType.startsWith("audio/")) return <Music className="h-4 w-4" />;
-  if (fileType.includes("pdf")) return <FileText className="h-4 w-4" />;
-  if (fileType.includes("zip") || fileType.includes("rar")) return <FileArchive className="h-4 w-4" />;
-  if (fileType.includes("spreadsheet") || fileType.includes("excel")) return <FileSpreadsheet className="h-4 w-4" />;
-  return <Paperclip className="h-4 w-4" />;
+  if (fileType.startsWith("image/")) return <Image className="h-5 w-5" />;
+  if (fileType.startsWith("audio/")) return <Music className="h-5 w-5" />;
+  if (fileType.includes("pdf")) return <FileText className="h-5 w-5" />;
+  if (fileType.includes("zip") || fileType.includes("rar")) return <FileArchive className="h-5 w-5" />;
+  if (fileType.includes("spreadsheet") || fileType.includes("excel")) return <FileSpreadsheet className="h-5 w-5" />;
+  return <File className="h-5 w-5" />;
 }
 
 // Helper to format file size
@@ -31,7 +31,7 @@ export function AttachmentsList({ attachments }: AttachmentsListProps) {
   if (!attachments || attachments.length === 0) return null;
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1">
       {attachments.map((attachment) => (
         <a
           key={attachment.id}
@@ -39,22 +39,27 @@ export function AttachmentsList({ attachments }: AttachmentsListProps) {
           target="_blank"
           rel="noopener noreferrer"
           download={attachment.file_name}
-          className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors group"
+          className="flex items-center gap-4 p-3 -mx-3 rounded-lg hover:bg-muted/50 transition-colors group"
         >
-          <div className="p-2 bg-primary/10 rounded-lg text-primary">
+          {/* File Icon - Cakto style with muted background */}
+          <div className="flex-shrink-0 p-2.5 bg-muted rounded-lg text-muted-foreground group-hover:text-foreground transition-colors">
             {getFileIcon(attachment.file_type)}
           </div>
+          
+          {/* File Info */}
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">
+            <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
               {attachment.file_name}
             </p>
             {attachment.file_size && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 {formatFileSize(attachment.file_size)}
               </p>
             )}
           </div>
-          <Download className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
+          
+          {/* Download Icon - Shows on hover */}
+          <Download className="h-4 w-4 flex-shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
         </a>
       ))}
     </div>
