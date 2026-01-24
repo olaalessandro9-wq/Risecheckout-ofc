@@ -34,8 +34,13 @@ interface ReleaseData {
 
 interface AttachmentData {
   id: string;
-  file_name?: string;
+  file_name: string;
   file_url?: string;
+  file_type: string;
+  file_size: number;
+  position: number;
+  is_temp?: boolean;
+  file_data?: string; // Base64 data for upload
 }
 
 interface RequestBody {
@@ -166,6 +171,66 @@ async function saveDripSettings(
     .upsert(upsertData, { onConflict: "content_id" });
 
   return !error;
+}
+
+// ============================================
+// ATTACHMENT UPLOAD
+// ============================================
+
+async function uploadAttachment(
+  supabase: SupabaseClient,
+  productId: string,
+  contentId: string,
+  attachment: AttachmentData
+): Promise<{ url: string | null; error?: string }> {
+  if (!attachment.file_data || !attachment.is_temp) {
+    return { url: attachment.file_url || null };
+  }
+
+  try {
+    // Decode base64 (format: data:mimetype;base64,XXXX)
+    const base64Match = attachment.file_data.match(/^data:([^;]+);base64,(.+)$/);
+    if (!base64Match) {
+      log.error("Invalid base64 format for attachment:", attachment.file_name);
+      return { url: null, error: "Invalid base64 format" };
+    }
+
+    const mimeType = base64Match[1];
+    const base64Data = base64Match[2];
+    
+    // Decode base64 to binary
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    // RISE V3: Use standardized path products/${productId}/
+    const sanitizedFileName = attachment.file_name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const fileName = `products/${productId}/attachments/${contentId}/${Date.now()}-${sanitizedFileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("product-images")
+      .upload(fileName, bytes, {
+        contentType: mimeType,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      log.error("Upload error:", uploadError);
+      return { url: null, error: uploadError.message };
+    }
+
+    const { data: publicUrl } = supabase.storage
+      .from("product-images")
+      .getPublicUrl(fileName);
+
+    log.info(`Attachment uploaded: ${fileName}`);
+    return { url: publicUrl.publicUrl };
+  } catch (err) {
+    log.error("Upload exception:", err);
+    return { url: null, error: "Upload failed" };
+  }
 }
 
 // ============================================
@@ -305,6 +370,42 @@ Deno.serve(async (req) => {
               .from("content_attachments")
               .delete()
               .eq("content_id", savedContentId);
+          }
+        }
+
+        // Process and upload new attachments
+        if (savedContentId && attachments && attachments.length > 0 && ownership.productId) {
+          for (const att of attachments as AttachmentData[]) {
+            if (att.is_temp && att.file_data) {
+              // Upload new attachment to storage
+              const uploadResult = await uploadAttachment(
+                supabase,
+                ownership.productId,
+                savedContentId,
+                att
+              );
+
+              if (uploadResult.error || !uploadResult.url) {
+                log.warn(`Failed to upload attachment: ${att.file_name} - ${uploadResult.error}`);
+                continue;
+              }
+
+              // Insert into content_attachments table
+              const { error: insertError } = await supabase.from("content_attachments").insert({
+                content_id: savedContentId,
+                file_name: att.file_name,
+                file_url: uploadResult.url,
+                file_type: att.file_type,
+                file_size: att.file_size,
+                position: att.position,
+              });
+
+              if (insertError) {
+                log.warn(`Failed to insert attachment record: ${att.file_name} - ${insertError.message}`);
+              } else {
+                log.info(`Attachment saved: ${att.file_name}`);
+              }
+            }
           }
         }
 
