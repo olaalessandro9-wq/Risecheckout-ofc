@@ -152,8 +152,8 @@ export default function LessonViewer() {
     }
     
     if (success) {
-      // Re-fetch to update sidebar progress
-      await fetchSummary(userId, productId);
+      // Re-fetch silently to update sidebar progress (no error toast if fails)
+      await fetchSummary(userId, productId, { silent: true });
     }
   };
 
