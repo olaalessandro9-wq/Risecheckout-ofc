@@ -46,23 +46,24 @@ export interface SendEmailResult {
  * Retorna o email e nome do remetente baseado no tipo de email.
  */
 export function getFromEmail(type: EmailType = 'transactional'): { email: string; name: string } {
-  const fromName = Deno.env.get('ZEPTOMAIL_FROM_NAME') || 'Rise Checkout';
+  // DEFENSIVE: .trim() removes accidental whitespace/tabs from environment variables
+  const fromName = (Deno.env.get('ZEPTOMAIL_FROM_NAME') || 'Rise Checkout').trim();
   
   switch (type) {
     case 'support':
       return {
-        email: Deno.env.get('ZEPTOMAIL_FROM_SUPPORT') || 'suporte@risecheckout.com',
+        email: (Deno.env.get('ZEPTOMAIL_FROM_SUPPORT') || 'suporte@risecheckout.com').trim(),
         name: fromName,
       };
     case 'notification':
       return {
-        email: Deno.env.get('ZEPTOMAIL_FROM_NOTIFICATIONS') || 'notificacoes@risecheckout.com',
+        email: (Deno.env.get('ZEPTOMAIL_FROM_NOTIFICATIONS') || 'notificacoes@risecheckout.com').trim(),
         name: fromName,
       };
     case 'transactional':
     default:
       return {
-        email: Deno.env.get('ZEPTOMAIL_FROM_NOREPLY') || 'naoresponda@risecheckout.com',
+        email: (Deno.env.get('ZEPTOMAIL_FROM_NOREPLY') || 'naoresponda@risecheckout.com').trim(),
         name: fromName,
       };
   }
