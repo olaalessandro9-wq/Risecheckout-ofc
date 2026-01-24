@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from "react";
+import { GraduationCap } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PremiumModuleCard } from "./PremiumModuleCard";
 import type { Module, ContentItem } from "../types";
@@ -58,7 +59,7 @@ export function PremiumSidebar({
       <div className="p-5 border-b border-border/50">
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-            <span className="text-lg">📚</span>
+            <GraduationCap className="h-5 w-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-sm text-foreground truncate">

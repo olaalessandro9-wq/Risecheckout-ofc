@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from "react";
+import { GraduationCap } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -73,7 +74,7 @@ export function LessonMobileSheet({
         <SheetHeader className="p-4 pb-3 border-b border-border/50">
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-              <span className="text-base">📚</span>
+              <GraduationCap className="h-4 w-4 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
               <SheetTitle className="text-sm font-semibold truncate text-left">
