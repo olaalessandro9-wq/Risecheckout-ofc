@@ -26,7 +26,7 @@ export const EditorProductForm = ({ design, productData }: EditorProductFormProp
       />
 
       {/* Divider */}
-      <div className="border-t border-gray-200 my-5"></div>
+      <div className="border-t border-[hsl(var(--checkout-input-border))] my-5"></div>
 
       {/* Customer Data Form */}
       <div className="space-y-3">

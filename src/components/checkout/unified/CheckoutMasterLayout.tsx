@@ -158,7 +158,7 @@ export const CheckoutMasterLayout: React.FC<CheckoutMasterLayoutProps> = ({
                 'border-2 border-dashed rounded-lg p-4 mb-6 transition-all',
                 isTopOver
                   ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-300 hover:border-gray-400',
+                  : 'border-[hsl(var(--checkout-input-border))] hover:border-[hsl(var(--checkout-input-border-focus))]',
                 hasTopComponents && 'min-h-[100px]'
               )}
             >
@@ -176,7 +176,7 @@ export const CheckoutMasterLayout: React.FC<CheckoutMasterLayoutProps> = ({
                   ))}
                 </div>
               ) : (
-                <div className="flex items-center justify-center gap-2 text-gray-500">
+              <div className="flex items-center justify-center gap-2 text-[hsl(var(--checkout-placeholder-icon))]">
                   <Plus className="w-5 h-5" />
                   <span className="text-sm">Arraste componentes aqui (topo)</span>
                 </div>
@@ -210,7 +210,7 @@ export const CheckoutMasterLayout: React.FC<CheckoutMasterLayoutProps> = ({
                 'border-2 border-dashed rounded-lg p-4 mt-6 transition-all',
                 isBottomOver
                   ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-300 hover:border-gray-400',
+                  : 'border-[hsl(var(--checkout-input-border))] hover:border-[hsl(var(--checkout-input-border-focus))]',
                 hasBottomComponents && 'min-h-[100px]'
               )}
             >
@@ -228,7 +228,7 @@ export const CheckoutMasterLayout: React.FC<CheckoutMasterLayoutProps> = ({
                   ))}
                 </div>
               ) : (
-                <div className="flex items-center justify-center gap-2 text-gray-500">
+                <div className="flex items-center justify-center gap-2 text-[hsl(var(--checkout-placeholder-icon))]">
                   <Plus className="w-5 h-5" />
                   <span className="text-sm">Arraste componentes aqui (rodapé)</span>
                 </div>

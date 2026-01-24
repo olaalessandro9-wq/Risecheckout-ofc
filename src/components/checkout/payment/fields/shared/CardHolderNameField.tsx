@@ -53,7 +53,7 @@ export const CardHolderNameField = memo<CardHolderNameFieldProps>(({
           autoComplete="cc-name"
           maxLength={50}
         />
-        <User className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        <User className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[hsl(var(--checkout-placeholder-icon))] pointer-events-none" />
       </div>
       {error && (
         <p className={ERROR_MESSAGE_CLASS} role="alert">
