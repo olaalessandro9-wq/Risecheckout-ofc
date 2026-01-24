@@ -153,6 +153,7 @@ export function AttachmentsSection({
         file_size: file.size,
         position: attachments.length + index,
         created_at: new Date().toISOString(),
+        _file: file, // RISE V3: Preservar File original para conversão direta (evita CSP)
       }));
 
     if (invalidFiles > 0) {

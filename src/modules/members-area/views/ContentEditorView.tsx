@@ -80,30 +80,33 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
 
     setIsSaving(true);
     try {
-      // Prepare attachments for Edge Function
-      // For temp attachments, we need to convert blob URLs to base64
+      // RISE V3: Prepare attachments for Edge Function
+      // Usar FileReader diretamente no _file para evitar fetch() em blob URLs (CSP)
       const preparedAttachments = await Promise.all(
         attachments.map(async (att) => {
-          if (att.id.startsWith("temp-") && att.file_url.startsWith("blob:")) {
-            // Convert blob to base64 for upload
-            const response = await fetch(att.file_url);
-            const blob = await response.blob();
-            const base64 = await new Promise<string>((resolve) => {
+          if (att.id.startsWith("temp-") && att._file) {
+            // CORRIGIDO: Usar FileReader diretamente no File original
+            // Isso evita fetch() em blob URL (bloqueado por CSP)
+            const base64 = await new Promise<string>((resolve, reject) => {
               const reader = new FileReader();
               reader.onloadend = () => resolve(reader.result as string);
-              reader.readAsDataURL(blob);
+              reader.onerror = reject;
+              reader.readAsDataURL(att._file!);
             });
             
-            // Revoke blob URL
-            URL.revokeObjectURL(att.file_url);
+            // Revoke blob URL para liberar memória
+            if (att.file_url.startsWith("blob:")) {
+              URL.revokeObjectURL(att.file_url);
+            }
             
             return {
               ...att,
+              _file: undefined, // Não enviar File para o backend
               file_data: base64,
               is_temp: true,
             };
           }
-          return { ...att, is_temp: false };
+          return { ...att, _file: undefined, is_temp: false };
         })
       );
 
