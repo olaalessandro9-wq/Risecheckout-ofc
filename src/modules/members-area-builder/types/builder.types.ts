@@ -116,7 +116,11 @@ export interface MembersAreaBuilderSettings {
   favicon_url?: string;
   share_image_url?: string;
   
-  // Menu
+  // Menu Visibility
+  show_menu_desktop: boolean;
+  show_menu_mobile: boolean;
+  
+  // Menu Items
   menu_items: MenuItemConfig[];
   
   // Sidebar Animation (Desktop only - mobile always uses bottom nav)
@@ -256,6 +260,8 @@ export const DEFAULT_BUILDER_SETTINGS: MembersAreaBuilderSettings = {
   logo_url: undefined,
   favicon_url: undefined,
   share_image_url: undefined,
+  show_menu_desktop: true,
+  show_menu_mobile: true,
   menu_items: DEFAULT_MENU_ITEMS,
   sidebar_animation: 'click',
   login_layout: 'centered',

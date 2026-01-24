@@ -13,6 +13,7 @@ import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { useBuyerProductContent } from "@/hooks/useBuyerOrders";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 import { HeroBanner, ModuleCarousel } from "./components/netflix";
 import { BuyerBannerSection } from "./components/sections/BuyerBannerSection";
@@ -159,7 +160,10 @@ export default function CourseHome() {
         />
 
         {/* Main Content */}
-        <main className="flex-1 overflow-x-hidden pb-16 lg:pb-0">
+        <main className={cn(
+          "flex-1 overflow-x-hidden",
+          membersAreaSettings.show_menu_mobile !== false ? "pb-16 lg:pb-0" : "pb-0"
+        )}>
           {/* Back Button - Floating */}
           <div className="absolute top-4 left-4 z-30 lg:hidden">
             <Link to="/minha-conta/dashboard">

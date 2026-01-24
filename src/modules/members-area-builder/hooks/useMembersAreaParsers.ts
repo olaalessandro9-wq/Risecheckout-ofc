@@ -70,6 +70,8 @@ export function parseSettings(data: unknown): MembersAreaBuilderSettings {
     logo_url: partial.logo_url,
     favicon_url: partial.favicon_url,
     share_image_url: partial.share_image_url,
+    show_menu_desktop: partial.show_menu_desktop ?? DEFAULT_BUILDER_SETTINGS.show_menu_desktop,
+    show_menu_mobile: partial.show_menu_mobile ?? DEFAULT_BUILDER_SETTINGS.show_menu_mobile,
     menu_items: partial.menu_items ?? DEFAULT_BUILDER_SETTINGS.menu_items,
     sidebar_animation: partial.sidebar_animation ?? DEFAULT_BUILDER_SETTINGS.sidebar_animation,
     login_layout: partial.login_layout ?? DEFAULT_BUILDER_SETTINGS.login_layout,
