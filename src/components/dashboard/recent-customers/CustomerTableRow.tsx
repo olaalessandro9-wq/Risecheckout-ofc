@@ -18,11 +18,11 @@ import type { Customer } from "./types";
 
 interface CustomerTableRowProps {
   customer: Customer;
-  displayPhone: ReactNode;
+  displayEmail: ReactNode;
   onViewDetails: () => void;
 }
 
-export function CustomerTableRow({ customer, displayPhone, onViewDetails }: CustomerTableRowProps) {
+export function CustomerTableRow({ customer, displayEmail, onViewDetails }: CustomerTableRowProps) {
   const isUltrawide = useIsUltrawide();
 
   return (
@@ -46,8 +46,8 @@ export function CustomerTableRow({ customer, displayPhone, onViewDetails }: Cust
       <TableCell className="text-sm text-foreground/80">
         {customer.client}
       </TableCell>
-      <TableCell className="text-sm text-muted-foreground">
-        {displayPhone}
+      <TableCell className="text-sm text-muted-foreground truncate max-w-[200px]">
+        {displayEmail}
       </TableCell>
       <TableCell className="text-sm text-muted-foreground">
         {customer.createdAt}
