@@ -5,6 +5,8 @@
  * 
  * Checks if a producer has buyer access to their own products.
  * Used for producers accessing their own members area.
+ * 
+ * Uses users table as SSOT (Single Source of Truth).
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -45,31 +47,23 @@ export async function handleCheckProducerBuyer(
       hasOwnProducts = !!(ownProducts && ownProducts.length > 0);
     }
     
-    // Check unified users table first
+    // RISE V3: Check unified users table only (SSOT)
     const { data: user } = await supabase
       .from("users")
       .select("id")
       .eq("email", normalizedEmail)
       .single();
     
-    // Fall back to legacy buyer_profiles for backwards compatibility
-    const { data: buyer } = await supabase
-      .from("buyer_profiles")
-      .select("id")
-      .eq("email", normalizedEmail)
-      .single();
-    
-    const userId = user?.id || buyer?.id;
+    const userId = user?.id;
     
     if (!userId && !hasOwnProducts) {
       log.info(`No user profile or own products for: ${normalizedEmail}`);
       return jsonResponse({ hasBuyerProfile: false, hasOwnProducts: false }, corsHeaders, 200);
     }
     
-    // Check for active product access
+    // Check for active product access using users.id
     let hasActiveAccess = false;
     if (userId) {
-      // Check buyer_product_access (may still use buyer_id from legacy)
       const { data: access } = await supabase
         .from("buyer_product_access")
         .select("id")

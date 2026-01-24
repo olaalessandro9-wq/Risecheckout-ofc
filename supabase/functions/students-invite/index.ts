@@ -7,8 +7,10 @@
  * - generate-purchase-access: Generate access URL after purchase (public)
  * - invite: Send invite to student (authenticated)
  * 
- * RISE Protocol V2 Compliant - Zero `any`
- * Version: 2.0.0
+ * RISE Protocol V3 Compliant - 10.0/10
+ * - Uses users.id as SSOT for all operations
+ * - Zero legacy fallbacks
+ * Version: 3.0.0
  */
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -50,7 +52,7 @@ interface JsonResponseData {
   email_sent?: boolean;
 }
 
-interface BuyerProfile {
+interface UserProfile {
   id: string;
   email: string;
   name: string | null;
@@ -63,7 +65,6 @@ interface TokenData {
   product_id: string;
   is_used: boolean;
   expires_at: string;
-  buyer: BuyerProfile | null;
 }
 
 interface ProductData {
@@ -95,12 +96,6 @@ function generateToken(): string {
   return crypto.randomUUID() + "-" + crypto.randomUUID();
 }
 
-function generateSessionToken(): string {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  return Array.from(array, b => b.toString(16).padStart(2, "0")).join("");
-}
-
 function jsonResponse(data: JsonResponseData, status = 200, corsHeaders: Record<string, string>): Response {
   return new Response(JSON.stringify(data), {
     status,
@@ -114,8 +109,6 @@ function jsonResponse(data: JsonResponseData, status = 200, corsHeaders: Record<
 
 Deno.serve(async (req) => {
   // RISE V3: Use handleCorsV2 for ALL actions (including public ones)
-  // This is REQUIRED because the frontend always sends credentials: 'include'
-  // Wildcards (*) are NOT allowed when credentials are sent
   const corsResult = handleCorsV2(req);
   if (corsResult instanceof Response) return corsResult;
   const corsHeaders = corsResult.headers;
@@ -148,9 +141,11 @@ Deno.serve(async (req) => {
       if (!token) return jsonResponse({ error: "token required" }, 400, corsHeaders);
 
       const tokenHash = await hashToken(token);
+      
+      // RISE V3: Token now references users.id directly
       const { data: tokenData, error: tokenError } = await supabase
         .from("student_invite_tokens")
-        .select(`id, buyer_id, product_id, is_used, expires_at, buyer:buyer_profiles(id, email, name, password_hash)`)
+        .select("id, buyer_id, product_id, is_used, expires_at")
         .eq("token_hash", tokenHash)
         .single();
 
@@ -166,14 +161,19 @@ Deno.serve(async (req) => {
         return jsonResponse({ valid: false, reason: "Este link expirou" }, 200, corsHeaders);
       }
 
-      const typedTokenData = tokenData as unknown as TokenData;
-      const buyer = typedTokenData.buyer;
-      const needsPasswordSetup = !buyer?.password_hash || buyer.password_hash === "PENDING_PASSWORD_SETUP";
+      // RISE V3: Look up user directly in users table (SSOT)
+      const { data: user } = await supabase
+        .from("users")
+        .select("id, email, name, password_hash")
+        .eq("id", tokenData.buyer_id)
+        .single();
+
+      const needsPasswordSetup = !user?.password_hash || user.password_hash === "PENDING_PASSWORD_SETUP";
 
       const { data: product } = await supabase
         .from("products")
         .select("id, name, image_url")
-        .eq("id", typedTokenData.product_id)
+        .eq("id", tokenData.product_id)
         .single();
 
       const typedProduct = product as ProductData | null;
@@ -181,12 +181,12 @@ Deno.serve(async (req) => {
       return jsonResponse({
         valid: true,
         needsPasswordSetup,
-        buyer_id: typedTokenData.buyer_id,
-        product_id: typedTokenData.product_id,
+        buyer_id: tokenData.buyer_id,
+        product_id: tokenData.product_id,
         product_name: typedProduct?.name || "Produto",
         product_image: typedProduct?.image_url || null,
-        buyer_email: buyer?.email || "",
-        buyer_name: buyer?.name || "",
+        buyer_email: user?.email || "",
+        buyer_name: user?.name || "",
       }, 200, corsHeaders);
     }
 
@@ -199,7 +199,7 @@ Deno.serve(async (req) => {
       const tokenHash = await hashToken(token);
       const { data: tokenData, error: tokenError } = await supabase
         .from("student_invite_tokens")
-        .select(`id, buyer_id, product_id, is_used, expires_at`)
+        .select("id, buyer_id, product_id, is_used, expires_at")
         .eq("token_hash", tokenHash)
         .single();
 
@@ -207,16 +207,17 @@ Deno.serve(async (req) => {
       if (tokenData.is_used) return jsonResponse({ success: false, error: "Este link já foi utilizado" }, 400, corsHeaders);
       if (new Date(tokenData.expires_at) < new Date()) return jsonResponse({ success: false, error: "Este link expirou" }, 400, corsHeaders);
 
-      const { data: buyer } = await supabase
-        .from("buyer_profiles")
+      // RISE V3: Look up user directly in users table (SSOT)
+      const { data: user } = await supabase
+        .from("users")
         .select("id, email, name, password_hash")
         .eq("id", tokenData.buyer_id)
         .single();
 
-      if (!buyer) return jsonResponse({ success: false, error: "Perfil não encontrado" }, 400, corsHeaders);
+      if (!user) return jsonResponse({ success: false, error: "Perfil não encontrado" }, 400, corsHeaders);
 
-      const typedBuyer = buyer as BuyerProfile;
-      const needsPasswordSetup = !typedBuyer.password_hash || typedBuyer.password_hash === "PENDING_PASSWORD_SETUP";
+      const typedUser = user as UserProfile;
+      const needsPasswordSetup = !typedUser.password_hash || typedUser.password_hash === "PENDING_PASSWORD_SETUP";
 
       if (needsPasswordSetup) {
         if (!password || password.length < 6) {
@@ -224,92 +225,36 @@ Deno.serve(async (req) => {
         }
         const passwordHash = hashPassword(password);
         await supabase
-          .from("buyer_profiles")
-          .update({ password_hash: passwordHash, password_hash_version: 2, updated_at: new Date().toISOString() })
-          .eq("id", typedBuyer.id);
+          .from("users")
+          .update({ password_hash: passwordHash, updated_at: new Date().toISOString() })
+          .eq("id", typedUser.id);
       }
 
       await supabase.from("student_invite_tokens").update({ is_used: true, used_at: new Date().toISOString() }).eq("id", tokenData.id);
 
       // RISE V3: Create unified session
-      // Check if buyer has a user record (for unified identity)
-      const { data: existingUser } = await supabase
-        .from("users")
-        .select("id")
-        .eq("email", typedBuyer.email.toLowerCase())
-        .single();
-
-      if (existingUser) {
-        // Use unified session system
-        const session = await createSession(supabase, existingUser.id, "buyer" as AppRole, req);
+      const session = await createSession(supabase, typedUser.id, "buyer" as AppRole, req);
+      
+      if (session) {
+        const cookies = createUnifiedAuthCookies(session.sessionToken, session.refreshToken);
         
-        if (session) {
-          const cookies = createUnifiedAuthCookies(session.sessionToken, session.refreshToken);
-          
-          return new Response(
-            JSON.stringify({ 
-              success: true, 
-              buyer: { id: typedBuyer.id, email: typedBuyer.email, name: typedBuyer.name }, 
-              product_id: tokenData.product_id 
-            }),
-            {
-              status: 200,
-              headers: { 
-                ...corsHeaders, 
-                "Content-Type": "application/json",
-                "Set-Cookie": cookies.join(", "),
-              },
-            }
-          );
-        }
-      }
-      
-      // If no user exists yet, create one in the users table first
-      // RISE V3: Copy password_hash from buyer_profiles
-      const passwordHash = needsPasswordSetup 
-        ? hashPassword(password as string) 
-        : typedBuyer.password_hash;
-      
-      const { data: newUser, error: insertUserError } = await supabase
-        .from("users")
-        .insert({ 
-          email: typedBuyer.email.toLowerCase(),
-          name: typedBuyer.name,
-          password_hash: passwordHash,
-          account_status: "active",
-        })
-        .select("id")
-        .single();
-      
-      if (insertUserError) {
-        log.error("Failed to create user in users table:", insertUserError.message);
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            buyer: { id: typedUser.id, email: typedUser.email, name: typedUser.name }, 
+            product_id: tokenData.product_id 
+          }),
+          {
+            status: 200,
+            headers: { 
+              ...corsHeaders, 
+              "Content-Type": "application/json",
+              "Set-Cookie": cookies.join(", "),
+            },
+          }
+        );
       }
 
-      if (newUser) {
-        const session = await createSession(supabase, newUser.id, "buyer" as AppRole, req);
-        
-        if (session) {
-          const cookies = createUnifiedAuthCookies(session.sessionToken, session.refreshToken);
-          
-          return new Response(
-            JSON.stringify({ 
-              success: true, 
-              buyer: { id: typedBuyer.id, email: typedBuyer.email, name: typedBuyer.name }, 
-              product_id: tokenData.product_id 
-            }),
-            {
-              status: 200,
-              headers: { 
-                ...corsHeaders, 
-                "Content-Type": "application/json",
-                "Set-Cookie": cookies.join(", "),
-              },
-            }
-          );
-        }
-      }
-
-      // Fallback error if user creation fails
       return jsonResponse({ success: false, error: "Erro ao criar sessão" }, 500, corsHeaders);
     }
 
@@ -338,45 +283,25 @@ Deno.serve(async (req) => {
       const typedProduct = product as ProductData | null;
       if (!typedProduct?.members_area_enabled) return jsonResponse({ error: "Produto não tem área de membros" }, 400, corsHeaders);
 
-      // RISE V3: Look up user in users table first (SSOT), then buyer_profiles for legacy
-      let user = await supabase.from("users").select("id, email, password_hash").eq("email", normalizedEmail).single();
+      // RISE V3: Look up user in users table only (SSOT)
       let userId: string;
       let passwordHash: string | null = null;
 
-      if (user.data) {
-        userId = user.data.id;
-        passwordHash = user.data.password_hash;
+      const { data: existingUser } = await supabase.from("users").select("id, email, password_hash").eq("email", normalizedEmail).single();
+
+      if (existingUser) {
+        userId = existingUser.id;
+        passwordHash = existingUser.password_hash;
       } else {
-        // Check legacy buyer_profiles
-        const buyerResult = await supabase.from("buyer_profiles").select("id, email, password_hash").eq("email", normalizedEmail).single();
-        
-        if (buyerResult.data) {
-          // Migrate buyer to users table
-          const { data: newUser, error: createUserError } = await supabase
-            .from("users")
-            .insert({ email: normalizedEmail, password_hash: buyerResult.data.password_hash, account_status: "active" })
-            .select("id")
-            .single();
-          if (createUserError) {
-            log.error("Failed to migrate buyer to users:", createUserError.message);
-            return jsonResponse({ error: "Erro ao criar perfil" }, 500, corsHeaders);
-          }
-          userId = newUser.id;
-          passwordHash = buyerResult.data.password_hash;
-        } else {
-          // Create new user in users table
-          const { data: newUser, error: createError } = await supabase
-            .from("users")
-            .insert({ email: normalizedEmail, password_hash: "PENDING_PASSWORD_SETUP", account_status: "active" })
-            .select("id")
-            .single();
-          if (createError) return jsonResponse({ error: "Erro ao criar perfil" }, 500, corsHeaders);
-          userId = newUser.id;
-          passwordHash = "PENDING_PASSWORD_SETUP";
-          
-          // Also create in buyer_profiles for backwards compatibility
-          await supabase.from("buyer_profiles").insert({ email: normalizedEmail, password_hash: "PENDING_PASSWORD_SETUP", is_active: true });
-        }
+        // Create new user in users table
+        const { data: newUser, error: createError } = await supabase
+          .from("users")
+          .insert({ email: normalizedEmail, password_hash: "PENDING_PASSWORD_SETUP", account_status: "active" })
+          .select("id")
+          .single();
+        if (createError) return jsonResponse({ error: "Erro ao criar perfil" }, 500, corsHeaders);
+        userId = newUser.id;
+        passwordHash = "PENDING_PASSWORD_SETUP";
       }
 
       // RISE V3: Use users.id for buyer_product_access
@@ -398,13 +323,10 @@ Deno.serve(async (req) => {
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 7);
 
-        // Get buyer_profiles.id for invite token (still needs legacy reference)
-        const { data: buyerProfile } = await supabase.from("buyer_profiles").select("id").eq("email", normalizedEmail).single();
-        const buyerIdForToken = buyerProfile?.id || userId;
-
+        // RISE V3: Use users.id for student_invite_tokens
         await supabase.from("student_invite_tokens").insert({
           token_hash: tokenHash,
-          buyer_id: buyerIdForToken,
+          buyer_id: userId,
           product_id,
           invited_by: typedProduct.user_id,
           expires_at: expiresAt.toISOString(),
@@ -439,10 +361,9 @@ Deno.serve(async (req) => {
 
       const normalizedEmail = email.toLowerCase().trim();
       
-      // RISE V3: Look up user in users table first (SSOT)
+      // RISE V3: Look up user in users table only (SSOT)
       let userId: string;
       let isNewBuyer = false;
-      let buyerProfileId: string | null = null;
 
       const { data: existingUser } = await supabase.from("users").select("id, email, name").eq("email", normalizedEmail).single();
 
@@ -451,56 +372,16 @@ Deno.serve(async (req) => {
         if (name && !existingUser.name) {
           await supabase.from("users").update({ name }).eq("id", userId);
         }
-        // Get buyer_profiles.id for invite token
-        const { data: bp } = await supabase.from("buyer_profiles").select("id").eq("email", normalizedEmail).single();
-        buyerProfileId = bp?.id || null;
       } else {
-        // Check legacy buyer_profiles
-        const { data: existingBuyer } = await supabase.from("buyer_profiles").select("id, email, name, password_hash").eq("email", normalizedEmail).single();
-        
-        if (existingBuyer) {
-          const typedExistingBuyer = existingBuyer as BuyerProfile;
-          buyerProfileId = typedExistingBuyer.id;
-          
-          // Migrate to users table
-          const { data: newUser, error: createUserError } = await supabase
-            .from("users")
-            .insert({ 
-              email: normalizedEmail, 
-              name: name || typedExistingBuyer.name, 
-              password_hash: typedExistingBuyer.password_hash,
-              account_status: "active" 
-            })
-            .select("id")
-            .single();
-          if (createUserError) {
-            log.error("Failed to migrate buyer to users:", createUserError.message);
-            return jsonResponse({ error: "Erro ao criar perfil do aluno" }, 500, corsHeaders);
-          }
-          userId = newUser.id;
-          
-          if (name && !typedExistingBuyer.name) {
-            await supabase.from("buyer_profiles").update({ name }).eq("id", buyerProfileId);
-          }
-        } else {
-          // Create new user in users table
-          const { data: newUser, error: createError } = await supabase
-            .from("users")
-            .insert({ email: normalizedEmail, name: name || null, password_hash: "PENDING_PASSWORD_SETUP", account_status: "active" })
-            .select("id")
-            .single();
-          if (createError) return jsonResponse({ error: "Erro ao criar perfil do aluno" }, 500, corsHeaders);
-          userId = newUser.id;
-          isNewBuyer = true;
-          
-          // Also create in buyer_profiles for backwards compatibility
-          const { data: newBp } = await supabase
-            .from("buyer_profiles")
-            .insert({ email: normalizedEmail, name: name || null, password_hash: "PENDING_PASSWORD_SETUP", is_active: true })
-            .select("id")
-            .single();
-          buyerProfileId = newBp?.id || null;
-        }
+        // Create new user in users table
+        const { data: newUser, error: createError } = await supabase
+          .from("users")
+          .insert({ email: normalizedEmail, name: name || null, password_hash: "PENDING_PASSWORD_SETUP", account_status: "active" })
+          .select("id")
+          .single();
+        if (createError) return jsonResponse({ error: "Erro ao criar perfil do aluno" }, 500, corsHeaders);
+        userId = newUser.id;
+        isNewBuyer = true;
       }
 
       // RISE V3: Use users.id for buyer_product_access
@@ -513,10 +394,10 @@ Deno.serve(async (req) => {
         granted_at: new Date().toISOString(),
       }, { onConflict: "buyer_id,product_id" });
 
-      // RISE V3: buyer_groups still uses buyer_profiles.id for legacy compatibility
-      if (group_ids && group_ids.length > 0 && buyerProfileId) {
-        await supabase.from("buyer_groups").delete().eq("buyer_id", buyerProfileId);
-        const groupInserts = group_ids.map((gid: string) => ({ buyer_id: buyerProfileId, group_id: gid, is_active: true, granted_at: new Date().toISOString() }));
+      // RISE V3: Use users.id for buyer_groups
+      if (group_ids && group_ids.length > 0) {
+        await supabase.from("buyer_groups").delete().eq("buyer_id", userId);
+        const groupInserts = group_ids.map((gid: string) => ({ buyer_id: userId, group_id: gid, is_active: true, granted_at: new Date().toISOString() }));
         await supabase.from("buyer_groups").insert(groupInserts);
       }
 
@@ -525,9 +406,8 @@ Deno.serve(async (req) => {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
 
-      // Use buyer_profiles.id for invite tokens (legacy compatibility)
-      const tokenBuyerId = buyerProfileId || userId;
-      await supabase.from("student_invite_tokens").insert({ token_hash: tokenHash, buyer_id: tokenBuyerId, product_id, invited_by: producer.id, expires_at: expiresAt.toISOString() });
+      // RISE V3: Use users.id for student_invite_tokens
+      await supabase.from("student_invite_tokens").insert({ token_hash: tokenHash, buyer_id: userId, product_id, invited_by: producer.id, expires_at: expiresAt.toISOString() });
 
       const baseUrl = Deno.env.get("PUBLIC_SITE_URL") || "https://risecheckout.com";
       const accessLink = `${baseUrl}/minha-conta/setup-acesso?token=${rawToken}`;
@@ -536,7 +416,7 @@ Deno.serve(async (req) => {
       const studentName = name || normalizedEmail.split("@")[0];
       const producerName = (producerProfile as { name: string } | null)?.name || "Produtor";
 
-      // Send email using shared module directly (avoids HTTP call that requires cookie auth)
+      // Send email using shared module
       const emailResult = await sendEmail({
         to: { email: normalizedEmail, name: studentName },
         subject: `${producerName} te enviou acesso ao produto "${typedProduct.name}"`,

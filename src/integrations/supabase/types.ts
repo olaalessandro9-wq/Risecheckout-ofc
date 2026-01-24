@@ -400,7 +400,7 @@ export type Database = {
             foreignKeyName: "buyer_groups_buyer_id_fkey"
             columns: ["buyer_id"]
             isOneToOne: false
-            referencedRelation: "buyer_profiles"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
@@ -3786,7 +3786,7 @@ export type Database = {
             foreignKeyName: "student_invite_tokens_buyer_id_fkey"
             columns: ["buyer_id"]
             isOneToOne: false
-            referencedRelation: "buyer_profiles"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
