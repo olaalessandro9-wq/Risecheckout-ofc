@@ -1,7 +1,7 @@
 # Rise Checkout - Edge Functions Registry
 
 > **🔴 FONTE DA VERDADE MÁXIMA** - Este documento lista TODAS as Edge Functions deployadas no Supabase.  
-> Última atualização: 2026-01-23 (RISE V3 - Unified Auth 100% Complete)  
+> Última atualização: 2026-01-24 (RISE V3 - Context Guards + Unified Auth)  
 > Mantenedor: AI Assistant + User
 
 ---
@@ -11,7 +11,7 @@
 ```
 ╔═══════════════════════════════════════════════════════════════╗
 ║  ✅ RISE PROTOCOL V3 - 10.0/10 - UNIFIED IDENTITY COMPLETE   ║
-║     105 Edge Functions | 214 RLS Policies | Zero Legacy      ║
+║     106 Edge Functions | 214 RLS Policies | Zero Legacy      ║
 ╚═══════════════════════════════════════════════════════════════╝
 ```
 
@@ -23,12 +23,13 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 105 |
-| **No código local** | 105 |
+| **Total de Funções** | 106 |
+| **No código local** | 106 |
 | **Apenas deployadas** | 0 |
 | **Operações Diretas Frontend** | 0 ✅ |
 | **Funções com verify_jwt=true** | 0 ✅ |
 | **Unified Auth Compliance** | 100% ✅ |
+| **Context Guards** | ✅ Producer + Buyer |
 | **Base URL** | `https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/` |
 
 ---

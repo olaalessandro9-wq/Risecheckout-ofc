@@ -1,7 +1,7 @@
 # 📚 Documentação - RiseCheckout
 
-**Última atualização:** 21 de Janeiro de 2026  
-**Versão:** 3.4  
+**Última atualização:** 24 de Janeiro de 2026  
+**Versão:** 3.7  
 **Status:** ✅ 100% Completo - Pronto para Produção  
 **RISE Protocol V3:** 10.0/10
 
@@ -14,14 +14,15 @@ O RiseCheckout está **100% completo** e pronto para produção. Todas as funcio
 | Métrica | Valor |
 |---------|-------|
 | Completude | 100% |
-| Edge Functions | 114 |
+| Edge Functions | 106 |
 | Tipos `any` | 0 |
 | Testes Automatizados | ✅ |
 | LGPD Compliance | ✅ |
 | Zero DB Access (Frontend) | ✅ |
 | Tabelas com RLS | 75 |
 | Testes de Segurança | 107 |
-| Módulos XState | 10 |
+| Módulos XState | 12 |
+| Context Guards | ✅ |
 
 ---
 
@@ -46,9 +47,11 @@ O RiseCheckout está **100% completo** e pronto para produção. Todas as funcio
 | **[STATE_MACHINES.md](./STATE_MACHINES.md)** | Guia de XState State Machines |
 | **[PRODUCTS_MODULE_ARCHITECTURE.md](./PRODUCTS_MODULE_ARCHITECTURE.md)** | Arquitetura do módulo Products |
 | **[MODELO_NEGOCIO.md](./MODELO_NEGOCIO.md)** | Modelo de negócio Owner=Plataforma |
-| **[EDGE_FUNCTIONS_REGISTRY.md](./EDGE_FUNCTIONS_REGISTRY.md)** | Registro de 114 Edge Functions |
+| **[EDGE_FUNCTIONS_REGISTRY.md](./EDGE_FUNCTIONS_REGISTRY.md)** | Registro de 106 Edge Functions |
 | **[AUTHENTICATION_SYSTEM.md](./AUTHENTICATION_SYSTEM.md)** | Sistema de autenticação |
 | **[LGPD_IMPLEMENTATION.md](./LGPD_IMPLEMENTATION.md)** | Implementação LGPD |
+| **[CONTEXT_GUARDS_ARCHITECTURE.md](./CONTEXT_GUARDS_ARCHITECTURE.md)** | Context Guards (Cakto-style) |
+| **[UI_COMPONENTS_LIBRARY.md](./UI_COMPONENTS_LIBRARY.md)** | Componentes UI reutilizáveis |
 
 ### 🔒 Segurança
 
@@ -150,11 +153,19 @@ O RiseCheckout implementa 5 módulos de segurança enterprise-grade:
 ```
 src/
 ├── components/          # Componentes React
+│   ├── guards/          # Context Guards (Cakto-style)
+│   │   ├── ProducerContextGuard.tsx  # Protege rotas /dashboard/*
+│   │   ├── BuyerContextGuard.tsx     # Protege rotas /minha-conta/*
+│   │   └── index.ts
+│   └── ui/
+│       └── loading-switch.tsx  # Switch com loading states
 ├── config/              # Configurações (gateways, feature-flags)
 ├── hooks/               # Custom hooks
 ├── lib/                 # Utilitários e serviços
 ├── modules/             # Módulos independentes
 │   ├── dashboard/       # Dashboard financeiro
+│   ├── members-area/    # Área de Membros (XState)
+│   ├── members-area-builder/  # Builder visual (XState)
 │   ├── navigation/      # Navegação/Sidebar
 │   ├── pixels/          # Pixels de rastreamento (XState)
 │   ├── utmify/          # Integração UTMify (XState)
@@ -169,7 +180,7 @@ src/
 └── integrations/        # Integrações (Supabase)
 
 supabase/
-├── functions/           # 114 Edge Functions
+├── functions/           # 106 Edge Functions
 │   └── _shared/         # Módulos compartilhados
 └── migrations/          # Migrações do banco
 
