@@ -68,9 +68,9 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
         />
       ) : (
         <div 
-          className="w-16 h-16 rounded-lg bg-gray-200 flex items-center justify-center text-sm flex-shrink-0"
+          className="w-16 h-16 rounded-lg bg-[hsl(var(--checkout-placeholder-bg))] flex items-center justify-center text-sm flex-shrink-0"
         >
-          <ImageIcon className="w-8 h-8 text-gray-400" />
+          <ImageIcon className="w-8 h-8 text-[hsl(var(--checkout-placeholder-icon))]" />
         </div>
       )}
       

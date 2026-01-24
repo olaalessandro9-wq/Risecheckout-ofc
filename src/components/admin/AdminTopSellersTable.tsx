@@ -19,7 +19,7 @@ export function AdminTopSellersTable({ period }: AdminTopSellersTableProps) {
 
   const getRankIcon = (index: number) => {
     if (index === 0) return <Trophy className="h-4 w-4 text-amber-500" />;
-    if (index === 1) return <Medal className="h-4 w-4 text-slate-400" />;
+    if (index === 1) return <Medal className="h-4 w-4 text-[#C0C0C0]" />; /* Silver - intentional hex for medal color */
     if (index === 2) return <Medal className="h-4 w-4 text-amber-700" />;
     return <span className="text-muted-foreground font-medium">{index + 1}</span>;
   };

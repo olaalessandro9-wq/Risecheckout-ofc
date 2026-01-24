@@ -108,8 +108,8 @@ export const OrderSummaryCard: React.FC<OrderSummaryCardProps> = ({
               className="w-12 h-12 rounded object-cover flex-shrink-0"
             />
           ) : (
-            <div className="w-12 h-12 rounded bg-gray-200 flex items-center justify-center flex-shrink-0">
-              <ImageIcon className="w-6 h-6 text-gray-400" />
+            <div className="w-12 h-12 rounded bg-[hsl(var(--checkout-placeholder-bg))] flex items-center justify-center flex-shrink-0">
+              <ImageIcon className="w-6 h-6 text-[hsl(var(--checkout-placeholder-icon))]" />
             </div>
           )}
           
@@ -149,8 +149,8 @@ export const OrderSummaryCard: React.FC<OrderSummaryCardProps> = ({
                     className="w-12 h-12 rounded object-cover flex-shrink-0"
                   />
                 ) : (
-                  <div className="w-12 h-12 rounded bg-gray-200 flex items-center justify-center flex-shrink-0">
-                    <ImageIcon className="w-6 h-6 text-gray-400" />
+                  <div className="w-12 h-12 rounded bg-[hsl(var(--checkout-placeholder-bg))] flex items-center justify-center flex-shrink-0">
+                    <ImageIcon className="w-6 h-6 text-[hsl(var(--checkout-placeholder-icon))]" />
                   </div>
                 )}
                 

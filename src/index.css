@@ -339,6 +339,26 @@
     --oauth-card-bg: 0 0% 10%;             /* #1A1A1A */
     --oauth-card-border: 0 0% 16%;         /* #2A2A2A */
     --oauth-text-secondary: 0 0% 63%;      /* #A0A0A0 */
+    
+    /* ═══════════════════════════════════════════════════════════════════════════
+       CHECKOUT DESIGN TOKENS
+       Sistema unificado de cores para placeholders, inputs e estados do checkout
+       ═══════════════════════════════════════════════════════════════════════════ */
+    
+    /* Checkout Placeholder Tokens */
+    --checkout-placeholder-bg: 220 14% 90%;     /* gray-200 equivalent */
+    --checkout-placeholder-icon: 220 9% 60%;    /* gray-400 equivalent */
+    
+    /* Checkout Input Tokens */
+    --checkout-input-border: 220 13% 80%;       /* gray-300 equivalent */
+    --checkout-input-border-focus: 142 76% 36%; /* green-600 - focus state */
+    --checkout-input-border-error: 0 84% 60%;   /* red-500 - error state */
+    
+    /* Checkout Error Display Tokens */
+    --checkout-error-bg: 220 14% 96%;           /* gray-50 equivalent */
+    --checkout-error-card-bg: 0 0% 100%;        /* white */
+    --checkout-error-icon-bg: 0 86% 97%;        /* red-100 equivalent */
+    --checkout-error-icon: 0 84% 60%;           /* red-500 */
   }
 
   body {

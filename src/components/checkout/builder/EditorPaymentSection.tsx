@@ -223,8 +223,8 @@ export const EditorPaymentSection = ({
                   className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
                 />
               ) : (
-                <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <ImageIcon className="w-6 h-6 text-gray-400" />
+                <div className="w-16 h-16 bg-[hsl(var(--checkout-placeholder-bg))] rounded-lg flex items-center justify-center flex-shrink-0">
+                  <ImageIcon className="w-6 h-6 text-[hsl(var(--checkout-placeholder-icon))]" />
                 </div>
               )}
               <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
@@ -323,8 +323,8 @@ export const EditorPaymentSection = ({
                   className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
                 />
               ) : (
-                <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <ImageIcon className="w-6 h-6 text-gray-400" />
+                <div className="w-16 h-16 bg-[hsl(var(--checkout-placeholder-bg))] rounded-lg flex items-center justify-center flex-shrink-0">
+                  <ImageIcon className="w-6 h-6 text-[hsl(var(--checkout-placeholder-icon))]" />
                 </div>
               )}
               <div className="flex-1 min-w-0 flex items-center justify-between gap-3">

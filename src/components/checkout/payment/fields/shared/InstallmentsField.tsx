@@ -34,7 +34,7 @@ export const InstallmentsField = memo<InstallmentsFieldProps>(({
   
   const selectClasses = [
     INPUT_BASE_CLASS,
-    error ? INPUT_ERROR_CLASS : 'border-gray-300',
+    error ? INPUT_ERROR_CLASS : 'border-[hsl(var(--checkout-input-border))]',
     disabled ? INPUT_DISABLED_CLASS : ''
   ].filter(Boolean).join(' ');
   

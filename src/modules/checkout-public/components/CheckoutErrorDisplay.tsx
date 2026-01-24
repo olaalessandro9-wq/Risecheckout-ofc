@@ -68,30 +68,30 @@ export const CheckoutErrorDisplay: React.FC<CheckoutErrorDisplayProps> = ({
   const isNotFoundError = reason === 'CHECKOUT_NOT_FOUND' || reason === 'PRODUCT_UNAVAILABLE';
   
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-sm border p-6 text-center">
+    <div className="min-h-screen flex items-center justify-center bg-[hsl(var(--checkout-error-bg))] p-4">
+      <div className="max-w-md w-full bg-[hsl(var(--checkout-error-card-bg))] rounded-lg shadow-sm border border-border p-6 text-center">
         {/* Icon */}
-        <div className="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
+        <div className="mx-auto w-16 h-16 rounded-full bg-[hsl(var(--checkout-error-icon-bg))] flex items-center justify-center mb-4">
           {isNotFoundError ? (
-            <XCircle className="w-8 h-8 text-red-500" />
+            <XCircle className="w-8 h-8 text-[hsl(var(--checkout-error-icon))]" />
           ) : (
-            <AlertCircle className="w-8 h-8 text-red-500" />
+            <AlertCircle className="w-8 h-8 text-[hsl(var(--checkout-error-icon))]" />
           )}
         </div>
         
         {/* Title */}
-        <h1 className="text-xl font-semibold text-gray-900 mb-2">
+        <h1 className="text-xl font-semibold text-foreground mb-2">
           {errorInfo.title}
         </h1>
         
         {/* Description */}
-        <p className="text-gray-600 mb-6">
+        <p className="text-muted-foreground mb-6">
           {displayMessage}
         </p>
         
         {/* Debug info (only in development) */}
         {import.meta.env.DEV && (
-          <div className="mb-4 p-3 bg-gray-50 rounded text-left text-xs font-mono text-gray-500">
+          <div className="mb-4 p-3 bg-muted rounded text-left text-xs font-mono text-muted-foreground">
             <div>Reason: {reason}</div>
             <div>Retries: {retryCount}/3</div>
             {errorMessage && <div>Message: {errorMessage}</div>}
@@ -123,7 +123,7 @@ export const CheckoutErrorDisplay: React.FC<CheckoutErrorDisplayProps> = ({
           )}
           
           {!canRetry && !isNotFoundError && (
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-muted-foreground">
               Número máximo de tentativas atingido. Por favor, tente novamente mais tarde.
             </p>
           )}
