@@ -1,8 +1,8 @@
 # 🔐 Sistema de Autenticação Unificado - RiseCheckout
 
-**Data:** 23 de Janeiro de 2026  
-**Versão:** 1.0.0  
-**Status:** ✅ RISE V3 10.0/10 | 100% MIGRADO
+**Data:** 24 de Janeiro de 2026  
+**Versão:** 1.1.0  
+**Status:** ✅ RISE V3 10.0/10 | 100% MIGRADO + CONTEXT GUARDS
 
 ---
 
@@ -12,10 +12,11 @@
 2. [Arquitetura Unificada](#-arquitetura-unificada)
 3. [Componentes do Sistema](#-componentes-do-sistema)
 4. [Fluxos de Autenticação](#-fluxos-de-autenticação)
-5. [Banco de Dados](#-banco-de-dados)
-6. [Segurança](#-segurança)
-7. [API Endpoints](#-api-endpoints)
-8. [Frontend](#-frontend)
+5. [Context Guards](#-context-guards)
+6. [Banco de Dados](#-banco-de-dados)
+7. [Segurança](#-segurança)
+8. [API Endpoints](#-api-endpoints)
+9. [Frontend](#-frontend)
 
 ---
 
@@ -31,6 +32,7 @@ O RiseCheckout implementa um **Sistema de Autenticação Unificado** que gerenci
 | **Sessões** | Tabela única `sessions` com `active_role` |
 | **Cookies** | `__Host-rise_access` e `__Host-rise_refresh` |
 | **Context Switch** | Troca instantânea entre Produtor ↔ Aluno |
+| **Context Guards** | Isolamento total entre painéis (Cakto-style) |
 | **Edge Function** | `unified-auth` (única para todos os fluxos) |
 
 ---
@@ -124,8 +126,26 @@ Um usuário pode ter múltiplos papéis (producer, buyer) associados a uma únic
 | `src/lib/token-manager/unified-service.ts` | Serviço de gerenciamento de tokens |
 | `src/lib/token-manager/service.ts` | Classe TokenService |
 | `src/lib/api/client.ts` | Cliente HTTP com auto-refresh |
+| `src/components/guards/ProducerContextGuard.tsx` | Guard para rotas de produtor |
+| `src/components/guards/BuyerContextGuard.tsx` | Guard para rotas de aluno |
 
 ---
+
+## 🚧 Context Guards (Complementar)
+
+O sistema de autenticação unificado é complementado por **Context Guards** que garantem isolamento entre contextos:
+
+| Guard | Função |
+|-------|--------|
+| `ProducerContextGuard` | Impede acesso ao dashboard se `activeRole=buyer` |
+| `BuyerContextGuard` | Impede acesso à área de membros se `activeRole≠buyer` |
+
+**Comportamento (Cakto-style):**
+- Se contexto = buyer, acesso a `/dashboard/*` redireciona para `/minha-conta/dashboard`
+- Se contexto = producer, acesso a `/minha-conta/*` redireciona para `/dashboard`
+- A **única forma** de trocar é clicando explicitamente no `ContextSwitcher`
+
+**Documentação completa:** [CONTEXT_GUARDS_ARCHITECTURE.md](./CONTEXT_GUARDS_ARCHITECTURE.md)
 
 ## 🔄 Fluxos de Autenticação
 

@@ -34,6 +34,19 @@ Este documento estabelece o **padrão obrigatório** para implementação de rot
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
+│                    CAMADA 0: CONTEXT GUARDS                 │
+│         Isola Producer e Buyer em painéis separados         │
+│                                                             │
+│  ✓ ProducerContextGuard bloqueia /dashboard/* para buyers   │
+│  ✓ BuyerContextGuard bloqueia /minha-conta/* para producers │
+│  ✓ Único modo de troca: clique explícito no ContextSwitcher │
+│  ✓ Comportamento idêntico ao Cakto/Kiwify                   │
+│                                                             │
+│  📄 Documentação: CONTEXT_GUARDS_ARCHITECTURE.md            │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
 │                    CAMADA 1: LAZY LOADING                   │
 │         O código da rota NÃO é carregado no bundle          │
 │         até que o usuário navegue para a página             │
@@ -69,7 +82,7 @@ Este documento estabelece o **padrão obrigatório** para implementação de rot
 └─────────────────────────────────────────────────────────────┘
 ```
 
-> ⚠️ **IMPORTANTE**: As camadas 1 e 2 são **conveniência e UX**. A camada 3 (backend) é a **segurança real**. NUNCA confie apenas no frontend!
+> ⚠️ **IMPORTANTE**: As camadas 0, 1 e 2 são **conveniência e UX**. A camada 3 (backend) é a **segurança real**. NUNCA confie apenas no frontend!
 
 ---
 
