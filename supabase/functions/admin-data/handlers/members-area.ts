@@ -25,7 +25,7 @@ export async function getMembersAreaData(
 ): Promise<Response> {
   const { data: product, error: productError } = await supabase
     .from("products")
-    .select("user_id, members_area_settings")
+    .select("user_id, members_area_settings, image_url")
     .eq("id", productId)
     .single();
 
@@ -51,6 +51,7 @@ export async function getMembersAreaData(
   return jsonResponse({
     sections: sections || [],
     settings: product.members_area_settings || {},
+    productImageUrl: product.image_url || null,
   }, corsHeaders);
 }
 
