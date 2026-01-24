@@ -138,42 +138,21 @@ export async function handleSaveBuilderSettings(
     return errorResponse(ownership.error!, corsHeaders, 403);
   }
 
-  // Check if settings exist
-  const { data: existingSettings } = await supabase
-    .from("product_members_settings")
-    .select("id")
-    .eq("product_id", productId)
-    .single();
+  // RISE V3: Save to products.members_area_settings (JSONB column)
+  // NOT to a separate table (which doesn't exist)
+  const { error } = await supabase
+    .from("products")
+    .update({
+      members_area_settings: settings,
+    })
+    .eq("id", productId)
+    .eq("user_id", producerId);
 
-  if (existingSettings) {
-    // Update
-    const { error } = await supabase
-      .from("product_members_settings")
-      .update({
-        settings,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("product_id", productId);
-
-    if (error) {
-      log.error("Update settings error:", error);
-      return errorResponse("Erro ao atualizar configurações", corsHeaders, 500);
-    }
-  } else {
-    // Insert
-    const { error } = await supabase
-      .from("product_members_settings")
-      .insert({
-        product_id: productId,
-        settings,
-      });
-
-    if (error) {
-      log.error("Insert settings error:", error);
-      return errorResponse("Erro ao salvar configurações", corsHeaders, 500);
-    }
+  if (error) {
+    log.error("Update members_area_settings error:", error);
+    return errorResponse("Erro ao salvar configurações", corsHeaders, 500);
   }
 
-  log.info(`Builder settings saved by ${producerId}`);
+  log.info(`Builder settings saved by ${producerId} for product ${productId}`);
   return jsonResponse({ success: true }, corsHeaders);
 }
