@@ -219,6 +219,43 @@
     @apply border-border;
   }
 
+  /* ═══════════════════════════════════════════════════════════════════════════
+     LANDING PAGE DESIGN TOKENS
+     Sistema unificado de cores para a landing page (tema escuro exclusivo)
+     Garante consistência com o design system e elimina cores hardcoded
+     ═══════════════════════════════════════════════════════════════════════════ */
+  :root {
+    /* Landing Page Background Tokens */
+    --landing-bg: 240 10% 4%;              /* #0A0A0B - Background principal */
+    --landing-bg-elevated: 240 10% 7%;     /* #111115 - Cards e elementos elevados */
+    --landing-bg-footer: 240 10% 2%;       /* #050506 - Footer */
+    --landing-bg-subtle: 0 0% 100%;        /* white - Para uso com opacity */
+    
+    /* Landing Page Text Tokens */
+    --landing-text-primary: 0 0% 100%;     /* white - Títulos e texto principal */
+    --landing-text-secondary: 215 16% 75%; /* slate-300 - Texto secundário */
+    --landing-text-muted: 215 14% 65%;     /* slate-400 - Texto terciário */
+    --landing-text-subtle: 215 13% 50%;    /* slate-500 - Texto mais sutil */
+    
+    /* Landing Page Border Tokens */
+    --landing-border: 0 0% 100%;           /* white - Para uso com opacity */
+    --landing-border-subtle: 0 0% 100%;    /* white/5 borders */
+    
+    /* Landing Page Accent Tokens (Blue Theme) */
+    --landing-accent: 217 91% 60%;         /* blue-500 */
+    --landing-accent-hover: 217 91% 65%;   /* blue-400 */
+    --landing-accent-muted: 217 91% 60%;   /* blue-500 - Para uso com opacity */
+    --landing-accent-glow: 217 91% 60%;    /* blue-500 - Para shadows */
+    
+    /* Landing Page Gradient Tokens */
+    --landing-gradient-start: 199 89% 70%; /* sky-400 */
+    --landing-gradient-mid: 217 91% 60%;   /* blue-500 */
+    --landing-gradient-end: 239 84% 67%;   /* indigo-500 */
+    
+    /* Landing Page Purple Accent */
+    --landing-purple: 271 81% 56%;         /* purple-600 */
+  }
+
   body {
     @apply bg-background text-foreground transition-colors duration-300;
   }

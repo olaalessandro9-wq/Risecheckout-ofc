@@ -30,15 +30,15 @@ const mainFeatures: Feature[] = [
     icon: Users,
     title: "Programa de Afiliados",
     description: "Sistema completo para gerenciar afiliados, comissões e pagamentos automaticamente.",
-    color: "text-blue-500",
-    bg: "bg-blue-500/10"
+    color: "text-[hsl(var(--landing-accent))]",
+    bg: "bg-[hsl(var(--landing-accent)/0.1)]"
   },
   {
     icon: Palette,
     title: "Builder Visual",
     description: "Personalize cada detalhe do seu checkout com nosso editor drag-and-drop intuitivo.",
-    color: "text-purple-500",
-    bg: "bg-purple-500/10"
+    color: "text-[hsl(var(--landing-purple))]",
+    bg: "bg-[hsl(var(--landing-purple)/0.1)]"
   },
   {
     icon: CreditCard,
@@ -51,7 +51,7 @@ const mainFeatures: Feature[] = [
 
 export function FeaturesSection() {
   return (
-    <section id="features" className="py-32 px-4 relative z-10 bg-[#0A0A0B]">
+    <section id="features" className="py-32 px-4 relative z-10 bg-[hsl(var(--landing-bg))]">
       <div className="container mx-auto max-w-6xl">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           {/* Left Column: Text Content */}
@@ -61,22 +61,22 @@ export function FeaturesSection() {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-medium mb-8">
-              <Zap className="w-4 h-4 fill-blue-400" />
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[hsl(var(--landing-accent)/0.1)] border border-[hsl(var(--landing-accent)/0.2)] text-[hsl(var(--landing-accent-hover))] text-sm font-medium mb-8">
+              <Zap className="w-4 h-4 fill-[hsl(var(--landing-accent-hover))]" />
               <span>Funcionalidades</span>
             </div>
 
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 tracking-tight leading-tight">
+            <h2 className="text-4xl md:text-5xl font-bold text-[hsl(var(--landing-text-primary))] mb-6 tracking-tight leading-tight">
               Tudo que você precisa para <br />
-              <span className="text-blue-500">vender online</span>
+              <span className="text-[hsl(var(--landing-accent))]">vender online</span>
             </h2>
 
-            <p className="text-lg text-slate-400 max-w-lg leading-relaxed mb-8">
+            <p className="text-lg text-[hsl(var(--landing-text-muted))] max-w-lg leading-relaxed mb-8">
               Ferramentas profissionais desenvolvidas para maximizar suas conversões e simplificar sua operação diária. O RiseCheckout cuida da tecnologia para você focar nas vendas.
             </p>
 
             <Link to="/auth">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-8 h-12 shadow-lg shadow-blue-500/20 transition-all hover:scale-105">
+              <Button className="bg-[hsl(var(--landing-accent))] hover:bg-[hsl(var(--landing-accent-hover))] text-[hsl(var(--landing-text-primary))] rounded-full px-8 h-12 shadow-lg shadow-[hsl(var(--landing-accent-glow)/0.2)] transition-all hover:scale-105">
                 Conhecer funcionalidades <ArrowRight className="ml-2 w-4 h-4" />
               </Button>
             </Link>
@@ -94,15 +94,15 @@ export function FeaturesSection() {
               <motion.div
                 key={index}
                 variants={fadeInUp}
-                className="flex items-start gap-4 p-4 rounded-2xl hover:bg-white/5 transition-colors duration-300 group"
+                className="flex items-start gap-4 p-4 rounded-2xl hover:bg-[hsl(var(--landing-bg-subtle)/0.05)] transition-colors duration-300 group"
               >
-                <div className={`mt-1 w-12 h-12 shrink-0 rounded-xl bg-gradient-to-br ${feature.bg.replace('/10', '/20')} flex items-center justify-center shadow-inner ring-1 ring-white/5 group-hover:scale-110 transition-transform duration-300`}>
+                <div className={`mt-1 w-12 h-12 shrink-0 rounded-xl bg-gradient-to-br ${feature.bg} flex items-center justify-center shadow-inner ring-1 ring-[hsl(var(--landing-border)/0.05)] group-hover:scale-110 transition-transform duration-300`}>
                   <feature.icon className={`w-6 h-6 ${feature.color}`} />
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition-colors">{feature.title}</h3>
-                  <p className="text-slate-400 leading-relaxed text-sm">
+                  <h3 className="text-xl font-bold text-[hsl(var(--landing-text-primary))] mb-2 group-hover:text-[hsl(var(--landing-accent-hover))] transition-colors">{feature.title}</h3>
+                  <p className="text-[hsl(var(--landing-text-muted))] leading-relaxed text-sm">
                     {feature.description}
                   </p>
                 </div>
