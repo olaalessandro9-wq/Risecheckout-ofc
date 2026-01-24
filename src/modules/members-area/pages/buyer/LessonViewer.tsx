@@ -18,7 +18,7 @@ import {
   LessonLayout,
   LessonHeader,
   LessonContent,
-  CaktoStyleSidebar,
+  PremiumSidebar,
   LessonMobileSheet,
 } from "./components/lesson";
 import type { Module, ContentItem, ProductData } from "./components/types";
@@ -205,18 +205,21 @@ export default function LessonViewer() {
       {/* Main Layout */}
       <LessonLayout
         sidebar={
-          <CaktoStyleSidebar
+          <PremiumSidebar
             modules={modules}
             currentModuleId={currentModule?.id || null}
             currentContentId={contentId || null}
             onSelectContent={handleSelectContent}
             completedContentIds={completedContentIds}
+            productName={product?.name}
           />
         }
       >
         <LessonContent
           content={currentContent}
           contentId={contentId!}
+          moduleTitle={currentModule?.title}
+          moduleIndex={modules.findIndex(m => m.id === currentModule?.id)}
           hasPrevious={hasPrevious}
           hasNext={hasNext}
           onPrevious={goToPrevious}
@@ -236,6 +239,7 @@ export default function LessonViewer() {
         currentContentId={contentId || null}
         onSelectContent={handleSelectContent}
         completedContentIds={completedContentIds}
+        productName={product?.name}
       />
     </div>
   );

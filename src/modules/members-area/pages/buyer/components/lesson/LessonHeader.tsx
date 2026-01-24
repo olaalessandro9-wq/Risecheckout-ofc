@@ -1,11 +1,11 @@
 /**
- * LessonHeader - Sticky header with back button, course name, and lesson title
+ * LessonHeader - Minimal sticky header with back button
+ * Clean, professional design
  */
 
 import { Link } from "react-router-dom";
 import { ArrowLeft, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { LessonRating } from "./LessonRating";
 
 interface LessonHeaderProps {
   productId: string;
@@ -29,44 +29,37 @@ export function LessonHeader({
   showRating = true,
 }: LessonHeaderProps) {
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm">
-      <div className="flex items-center justify-between h-14 px-4">
+    <header className="sticky top-0 z-40 border-b border-border/50 bg-background/95 backdrop-blur-sm">
+      <div className="flex items-center justify-between h-12 px-3 md:px-4">
         {/* Back Button */}
         <Link to={`/minha-conta/produto/${productId}`}>
-          <Button variant="ghost" size="sm" className="gap-2">
+          <Button variant="ghost" size="sm" className="gap-1.5 h-8 px-2 md:px-3">
             <ArrowLeft className="h-4 w-4" />
-            <span className="hidden sm:inline truncate max-w-[150px]">
+            <span className="hidden sm:inline text-sm truncate max-w-[120px]">
               {productName || "Voltar"}
             </span>
           </Button>
         </Link>
 
-        {/* Current Lesson Info - Desktop */}
-        <div className="hidden md:flex items-center gap-4 flex-1 px-4 justify-center">
-          <div className="text-center">
-            <p className="text-sm font-medium truncate max-w-[300px]">{lessonTitle}</p>
-            <p className="text-xs text-muted-foreground">
-              {moduleName} • Aula {currentIndex + 1} de {totalLessons}
-            </p>
-          </div>
+        {/* Current Lesson Info - Desktop Only (Minimal) */}
+        <div className="hidden md:flex items-center gap-1 text-xs text-muted-foreground">
+          <span className="truncate max-w-[200px]">{moduleName}</span>
+          <span className="mx-1">•</span>
+          <span>{currentIndex + 1}/{totalLessons}</span>
         </div>
-
-        {/* Rating - Desktop Only */}
-        {showRating && (
-          <div className="hidden lg:block">
-            <LessonRating initialRating={0} onRate={() => {}} />
-          </div>
-        )}
 
         {/* Mobile Menu Button */}
         <Button
           variant="ghost"
-          size="icon"
-          className="lg:hidden"
+          size="sm"
+          className="lg:hidden h-8 w-8 p-0"
           onClick={onOpenMobileMenu}
         >
-          <Menu className="h-5 w-5" />
+          <Menu className="h-4 w-4" />
         </Button>
+        
+        {/* Spacer for desktop */}
+        <div className="hidden lg:block w-20" />
       </div>
     </header>
   );
