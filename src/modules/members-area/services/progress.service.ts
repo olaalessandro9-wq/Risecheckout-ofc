@@ -98,9 +98,9 @@ export async function markComplete(
   buyerId: string,
   input: MarkCompleteInput
 ): Promise<ServiceResponse<ContentProgress>> {
-  return invokeProgressFunction<ContentProgress>('mark_complete', {
+  return invokeProgressFunction<ContentProgress>('complete', {
     buyer_id: buyerId,
-    ...input,
+    content_id: input.content_id,
   });
 }
 
