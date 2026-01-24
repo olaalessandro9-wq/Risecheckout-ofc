@@ -472,6 +472,76 @@ html body [data-radix-select-viewport] [data-radix-select-item][style][data-high
 }
 
 /* ========================================
+   PERFORMANCE OPTIMIZATION - Mobile (Safari iOS)
+   ========================================
+   
+   Reduz efeitos pesados de GPU em dispositivos
+   mobile para melhorar performance no Safari iOS.
+   
+   ======================================== */
+
+@media (max-width: 768px), (prefers-reduced-motion: reduce) {
+  /* ====== BACKDROP BLUR - Desabilita completamente ====== */
+  .backdrop-blur-sm,
+  .backdrop-blur,
+  .backdrop-blur-md,
+  .backdrop-blur-lg,
+  .backdrop-blur-xl {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  
+  /* ====== COMPENSAR com fundos sólidos ====== */
+  [class*="backdrop-blur"] {
+    background-color: hsl(var(--background) / 0.97) !important;
+  }
+  
+  .dark [class*="backdrop-blur"] {
+    background-color: hsl(240 10% 5% / 0.97) !important;
+  }
+  
+  /* ====== BLURS DECORATIVOS - Remove ====== */
+  .blur-3xl,
+  .blur-2xl,
+  .blur-xl {
+    filter: none !important;
+  }
+  
+  /* ====== ANIMAÇÕES - Desabilita completamente ====== */
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  /* ====== TRANSITIONS - Simplifica ====== */
+  .transition-all {
+    transition-property: color, background-color, border-color, opacity !important;
+    transition-duration: 50ms !important;
+  }
+  
+  /* ====== HOVER SHADOWS - Remove em mobile ====== */
+  .hover\:shadow-lg:hover,
+  .hover\:shadow-xl:hover,
+  .hover\:shadow-2xl:hover {
+    box-shadow: none !important;
+  }
+  
+  /* ====== HOVER TRANSFORMS - Remove em mobile ====== */
+  .group-hover\:scale-110:hover,
+  .hover\:scale-\[1\.02\]:hover,
+  .group:hover .group-hover\:scale-110 {
+    transform: none !important;
+  }
+  
+  /* ====== HOVER TRANSLATE - Remove em mobile ====== */
+  .hover\:translate-y-\[-2px\]:hover {
+    transform: none !important;
+  }
+}
+
+/* ========================================
    PERFORMANCE OPTIMIZATION - Ultrawide
    ========================================
    
