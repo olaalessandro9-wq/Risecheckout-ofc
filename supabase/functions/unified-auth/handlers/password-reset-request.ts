@@ -87,12 +87,77 @@ export async function handlePasswordResetRequest(
       .eq("email", email.toLowerCase())
       .single();
 
+    // RISE V3 FALLBACK: If not found in users, check buyer_profiles (legacy migration)
+    // This ensures orphan buyers can still reset their password during migration period
     if (findError || !user) {
-      log.info(`Password reset requested for unknown email: ${email}`);
-      // Security: Always return success to prevent email enumeration
-      // But don't actually send an email
+      const { data: buyer, error: buyerError } = await supabase
+        .from("buyer_profiles")
+        .select("id, email, name")
+        .eq("email", email.toLowerCase())
+        .single();
+
+      if (buyerError || !buyer) {
+        log.info(`Password reset requested for unknown email: ${email}`);
+        // Security: Always return success to prevent email enumeration
+        return successResponse({ 
+          message: "Se o email existir em nossa base, você receberá um link de recuperação."
+        }, corsHeaders);
+      }
+
+      // Found in buyer_profiles - generate reset token and save there
+      log.info(`Found orphan buyer in buyer_profiles: ${email}, processing reset`);
+      
+      const resetToken = generateResetToken();
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + RESET_TOKEN_EXPIRY_HOURS);
+
+      const { error: updateBuyerError } = await supabase
+        .from("buyer_profiles")
+        .update({
+          reset_token: resetToken,
+          reset_token_expires_at: expiresAt.toISOString(),
+        })
+        .eq("id", buyer.id);
+
+      if (updateBuyerError) {
+        log.error("Error saving reset token to buyer_profiles:", updateBuyerError.message);
+        return errorResponse("Erro ao processar solicitação", corsHeaders, 500);
+      }
+
+      // Build reset link - use buyer-specific path
+      const siteUrl = Deno.env.get("PUBLIC_SITE_URL") || "https://risecheckout.com";
+      const resetLink = `${siteUrl}/minha-conta/redefinir-senha?token=${resetToken}`;
+
+      // Send email
+      const emailResult = await sendEmail({
+        to: { email: buyer.email, name: buyer.name || undefined },
+        subject: "Redefinir sua senha - RiseCheckout",
+        type: "transactional",
+        htmlBody: getPasswordResetEmailHtml(buyer.name, resetLink),
+        textBody: getPasswordResetEmailText(buyer.name, resetLink),
+      });
+
+      if (!emailResult.success) {
+        log.error("Error sending reset email to buyer:", emailResult.error);
+        return errorResponse("Erro ao enviar email. Tente novamente.", corsHeaders, 500);
+      }
+
+      // Audit log
+      const clientIP = getClientIP(req);
+      const userAgent = req.headers.get("user-agent");
+      
+      await supabase.from("security_audit_log").insert({
+        user_id: buyer.id,
+        action: "PASSWORD_RESET_REQUESTED_BUYER",
+        ip_address: clientIP,
+        user_agent: userAgent,
+        details: { email: buyer.email, source: "buyer_profiles" },
+      });
+
+      log.info(`Password reset email sent to buyer: ${email}`);
+      
       return successResponse({ 
-        message: "Se o email existir em nossa base, você receberá um link de recuperação."
+        message: "Email enviado com instruções para redefinir sua senha."
       }, corsHeaders);
     }
 
