@@ -1,229 +1,35 @@
 /**
  * buyer-orders Edge Function
  * 
- * Handles buyer order and access management:
+ * Router for buyer order and access management.
+ * 
+ * Actions:
  * - orders: List buyer orders
  * - access: List products with access
- * - content: Get product content
+ * - content: Get product content (with drip verification)
  * - profile: Get buyer profile
  * 
- * @version 2.0.0
+ * @version 3.0.0 - RISE Protocol V3 Compliance (Modular Router + Handlers)
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { handleCorsV2, PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
-import { 
-  rateLimitMiddleware, 
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
+import {
+  rateLimitMiddleware,
   RATE_LIMIT_CONFIGS,
-  getClientIP 
+  getClientIP,
 } from "../_shared/rate-limiting/index.ts";
-import { 
-  getAuthenticatedUser,
-  type UnifiedUser,
-  unauthorizedResponse,
-} from "../_shared/unified-auth-v2.ts";
+import { unauthorizedResponse } from "../_shared/unified-auth-v2.ts";
 import { createLogger } from "../_shared/logger.ts";
 
+import { validateSession } from "./helpers/session.ts";
+import { handleOrders } from "./handlers/orders.ts";
+import { handleAccess } from "./handlers/access.ts";
+import { handleContent } from "./handlers/content.ts";
+import { handleProfile } from "./handlers/profile.ts";
+
 const log = createLogger("buyer-orders");
-
-// ============================================
-// INTERFACES
-// ============================================
-
-interface BuyerData {
-  id: string;
-  email: string;
-  name: string | null;
-  is_active: boolean;
-}
-
-interface BuyerSession {
-  id: string;
-  expires_at: string;
-  is_valid: boolean;
-  buyer: BuyerData | BuyerData[];
-}
-
-interface ContentItem {
-  id: string;
-  title: string;
-  description: string | null;
-  content_type: string;
-  content_url: string | null;
-  body: string | null;
-  content_data: Record<string, unknown> | null;
-  position: number;
-  is_active: boolean;
-}
-
-interface ModuleWithContents {
-  id: string;
-  title: string;
-  description: string | null;
-  position: number;
-  is_active: boolean;
-  cover_image_url: string | null;
-  contents: ContentItem[];
-}
-
-interface Attachment {
-  id: string;
-  file_name: string;
-  file_url: string;
-  file_type: string;
-  file_size: number | null;
-}
-
-interface AttachmentRecord {
-  id: string;
-  content_id: string;
-  file_name: string;
-  file_url: string;
-  file_type: string;
-  file_size: number | null;
-  position: number | null;
-}
-
-// RISE V3: Drip/Release settings interfaces
-interface ReleaseSettings {
-  content_id: string;
-  release_type: "immediate" | "days_after_purchase" | "fixed_date" | "after_content";
-  days_after_purchase: number | null;
-  fixed_date: string | null;
-  after_content_id: string | null;
-}
-
-interface ContentWithLock extends ContentItem {
-  is_locked: boolean;
-  unlock_date: string | null;
-  lock_reason: "drip_days" | "drip_date" | "drip_content" | null;
-}
-
-interface ProductData {
-  id: string;
-  name: string;
-  description: string | null;
-  image_url: string | null;
-  members_area_enabled: boolean;
-  members_area_settings: Record<string, unknown> | null;
-}
-
-interface OwnProductRow {
-  id: string;
-  name: string;
-  description: string | null;
-  image_url: string | null;
-  members_area_enabled: boolean;
-  user_id: string;
-}
-
-interface AccessItem {
-  id: string;
-  product_id: string;
-  granted_at: string | null;
-  expires_at: string | null;
-  is_active: boolean;
-  access_type: string;
-  product: OwnProductRow;
-}
-
-// ============================================
-// SESSION VALIDATION (V3 - Unified Only)
-// ============================================
-
-/**
- * Validates session using unified system only.
- * Legacy buyer_sessions fallback removed - RISE V3 migration complete.
- */
-async function validateSession(
-  supabase: SupabaseClient, 
-  req: Request
-): Promise<BuyerData | null> {
-  const unifiedUser = await getAuthenticatedUser(supabase, req);
-  
-  if (unifiedUser) {
-    return {
-      id: unifiedUser.id,
-      email: unifiedUser.email,
-      name: unifiedUser.name,
-      is_active: true,
-    };
-  }
-  
-  return null;
-}
-
-// ============================================
-// DRIP/RELEASE CALCULATION (RISE V3)
-// ============================================
-
-/**
- * Calculate if content is locked based on release settings and purchase date.
- */
-function calculateContentLock(
-  contentId: string,
-  releaseSettings: Map<string, ReleaseSettings>,
-  purchaseDate: string | null,
-  completedContentIds: Set<string>
-): { is_locked: boolean; unlock_date: string | null; lock_reason: ContentWithLock["lock_reason"] } {
-  const settings = releaseSettings.get(contentId);
-  
-  // No settings or immediate = unlocked
-  if (!settings || settings.release_type === "immediate") {
-    return { is_locked: false, unlock_date: null, lock_reason: null };
-  }
-
-  const now = new Date();
-
-  // Days after purchase
-  if (settings.release_type === "days_after_purchase" && settings.days_after_purchase) {
-    if (!purchaseDate) {
-      // Owner/producer - always unlocked
-      return { is_locked: false, unlock_date: null, lock_reason: null };
-    }
-    const purchase = new Date(purchaseDate);
-    const unlockDate = new Date(purchase);
-    unlockDate.setDate(unlockDate.getDate() + settings.days_after_purchase);
-    
-    if (now < unlockDate) {
-      return { 
-        is_locked: true, 
-        unlock_date: unlockDate.toISOString(), 
-        lock_reason: "drip_days" 
-      };
-    }
-  }
-
-  // Fixed date
-  if (settings.release_type === "fixed_date" && settings.fixed_date) {
-    const unlockDate = new Date(settings.fixed_date);
-    if (now < unlockDate) {
-      return { 
-        is_locked: true, 
-        unlock_date: unlockDate.toISOString(), 
-        lock_reason: "drip_date" 
-      };
-    }
-  }
-
-  // After content completion
-  if (settings.release_type === "after_content" && settings.after_content_id) {
-    if (!completedContentIds.has(settings.after_content_id)) {
-      return { 
-        is_locked: true, 
-        unlock_date: null, 
-        lock_reason: "drip_content" 
-      };
-    }
-  }
-
-  return { is_locked: false, unlock_date: null, lock_reason: null };
-}
-
-// ============================================
-// MAIN HANDLER
-// ============================================
 
 serve(async (req) => {
   // CORS handling (V2 - environment-aware)
@@ -254,7 +60,7 @@ serve(async (req) => {
     const pathParts = url.pathname.split("/").filter(Boolean);
     const action = pathParts[pathParts.length - 1];
 
-    // RISE V3: Unified session validation (tries new sessions table first, then legacy)
+    // Validate session (unified auth only)
     const buyer = await validateSession(supabase, req);
 
     if (!buyer) {
@@ -263,394 +69,44 @@ serve(async (req) => {
 
     log.debug(`Action: ${action}, Buyer: ${buyer.email}`);
 
-    // ============================================
-    // ORDERS - Listar pedidos do buyer
-    // ============================================
-    if (action === "orders" && req.method === "GET") {
-      const { data: orders, error } = await supabase
-        .from("orders")
-        .select(`
-          id,
-          product_id,
-          product_name,
-          amount_cents,
-          status,
-          payment_method,
-          created_at,
-          paid_at,
-          product:product_id (
-            id,
-            name,
-            image_url,
-            members_area_enabled
-          )
-        `)
-        .eq("buyer_id", buyer.id)
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        log.error("Error fetching orders:", error);
-        return new Response(
-          JSON.stringify({ error: "Erro ao buscar pedidos" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      return new Response(
-        JSON.stringify({ orders }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // ============================================
-    // ACCESS - Listar produtos com acesso (comprados + próprios)
-    // ============================================
-    if (action === "access" && req.method === "GET") {
-      // 1. Buscar produtos com acesso via buyer_product_access
-      const { data: access, error } = await supabase
-        .from("buyer_product_access")
-        .select(`
-          id,
-          product_id,
-          granted_at,
-          expires_at,
-          is_active,
-          access_type,
-          product:product_id (
-            id,
-            name,
-            description,
-            image_url,
-            members_area_enabled,
-            user_id
-          )
-        `)
-        .eq("buyer_id", buyer.id)
-        .eq("is_active", true);
-
-      if (error) {
-        log.error("Error fetching access:", error);
-        return new Response(
-          JSON.stringify({ error: "Erro ao buscar acessos" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // 2. Buscar produtos onde o produtor (pelo email) é o dono
-      const { data: producerId, error: rpcError } = await supabase
-        .rpc('get_user_id_by_email', { user_email: buyer.email });
-
-      if (rpcError) {
-        log.debug(`RPC error getting producer id for ${buyer.email}:`, rpcError);
-      }
-
-      let ownProducts: AccessItem[] = [];
-      if (producerId) {
-        log.debug(`Found producer id ${producerId} for ${buyer.email}`);
-        const { data: products, error: productsError } = await supabase
-          .from("products")
-          .select("id, name, description, image_url, members_area_enabled, user_id")
-          .eq("user_id", producerId)
-          .eq("members_area_enabled", true);
-        
-        if (productsError) {
-          log.debug(`Error fetching producer products:`, productsError);
+    // Route to handlers
+    switch (action) {
+      case "orders":
+        if (req.method === "GET") {
+          return handleOrders(supabase, buyer, corsHeaders);
         }
+        break;
 
-        if (products && products.length > 0) {
-          log.debug(`Found ${products.length} products owned by producer`);
-          ownProducts = products.map((p: OwnProductRow) => ({
-            id: `own_${p.id}`,
-            product_id: p.id,
-            granted_at: null,
-            expires_at: null,
-            is_active: true,
-            access_type: "producer",
-            product: p,
-          }));
+      case "access":
+        if (req.method === "GET") {
+          return handleAccess(supabase, buyer, corsHeaders);
         }
-      } else {
-        log.debug(`No producer id found for ${buyer.email}`);
-      }
+        break;
 
-      // 3. Unificar e remover duplicatas (prioriza owner se existir)
-      const uniqueProducts = new Map<string, AccessItem>();
-      
-      // Primeiro adiciona os produtos próprios
-      for (const item of ownProducts) {
-        uniqueProducts.set(item.product_id, item);
-      }
-      
-      // Depois adiciona os comprados (só se não existir)
-      for (const item of (access || []) as unknown as AccessItem[]) {
-        if (!uniqueProducts.has(item.product_id)) {
-          uniqueProducts.set(item.product_id, item);
-        }
-      }
-
-      log.info(`Access for ${buyer.email}: ${uniqueProducts.size} products (${ownProducts.length} own)`);
-
-      return new Response(
-        JSON.stringify({ access: Array.from(uniqueProducts.values()) }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // ============================================
-    // CONTENT - Buscar conteúdo de um produto
-    // ============================================
-    if (action === "content" && req.method === "GET") {
-      const productId = url.searchParams.get("productId");
-
-      if (!productId) {
-        return new Response(
-          JSON.stringify({ error: "productId é obrigatório" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // Check if buyer has access to this product (via purchase)
-      const { data: hasAccess } = await supabase
-        .from("buyer_product_access")
-        .select("id")
-        .eq("buyer_id", buyer.id)
-        .eq("product_id", productId)
-        .eq("is_active", true)
-        .limit(1)
-        .single();
-
-      // If no direct access, check if buyer is the product owner
-      let isOwner = false;
-      if (!hasAccess) {
-        const { data: producerId } = await supabase
-          .rpc('get_user_id_by_email', { user_email: buyer.email });
-        
-        if (producerId) {
-          const { data: productData } = await supabase
-            .from("products")
-            .select("user_id")
-            .eq("id", productId)
-            .single();
-          
-          isOwner = productData?.user_id === producerId;
-        }
-      }
-
-      if (!hasAccess && !isOwner) {
-        return new Response(
-          JSON.stringify({ error: "Você não tem acesso a este produto" }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      log.debug(`Content access for ${buyer.email} to product ${productId}: hasAccess=${!!hasAccess}, isOwner=${isOwner}`);
-
-      // Get product info
-      const { data: product } = await supabase
-        .from("products")
-        .select("id, name, description, image_url, members_area_enabled, members_area_settings")
-        .eq("id", productId)
-        .single();
-
-      if (!product) {
-        return new Response(
-          JSON.stringify({ error: "Produto não encontrado" }),
-          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const typedProduct = product as ProductData;
-
-      if (!typedProduct.members_area_enabled) {
-        return new Response(
-          JSON.stringify({ error: "Área de membros não está habilitada para este produto" }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // Get Builder sections (banners, modules, etc.)
-      const { data: sections, error: sectionsError } = await supabase
-        .from("product_members_sections")
-        .select("*")
-        .eq("product_id", productId)
-        .eq("is_active", true)
-        .order("position", { ascending: true });
-
-      if (sectionsError) {
-        log.debug("Error fetching sections (table may not exist):", sectionsError);
-      }
-
-      // Get modules with content
-      const { data: modules, error: modulesError } = await supabase
-        .from("product_member_modules")
-        .select(`
-          id,
-          title,
-          description,
-          position,
-          is_active,
-          cover_image_url,
-          contents:product_member_content (
-            id,
-            title,
-            description,
-            content_type,
-            content_url,
-            body,
-            content_data,
-            position,
-            is_active
-          )
-        `)
-        .eq("product_id", productId)
-        .eq("is_active", true)
-        .order("position", { ascending: true });
-
-      if (modulesError) {
-        log.error("Error fetching modules:", modulesError);
-        return new Response(
-          JSON.stringify({ error: "Erro ao buscar conteúdo" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // Sort contents by position and filter inactive
-      const sortedModules = ((modules || []) as ModuleWithContents[]).map(module => ({
-        ...module,
-        contents: (module.contents || [])
-          .filter((c: ContentItem) => c.is_active)
-          .sort((a: ContentItem, b: ContentItem) => a.position - b.position)
-      }));
-
-      // Fetch attachments for all contents
-      const allContentIds = sortedModules.flatMap(m => m.contents.map((c: ContentItem) => c.id));
-      
-      const attachmentsMap: Record<string, Attachment[]> = {};
-      if (allContentIds.length > 0) {
-        const { data: attachments } = await supabase
-          .from("content_attachments")
-          .select("id, content_id, file_name, file_url, file_type, file_size, position")
-          .in("content_id", allContentIds)
-          .order("position", { ascending: true });
-
-        if (attachments && attachments.length > 0) {
-          log.debug(`Found ${attachments.length} attachments for ${allContentIds.length} contents`);
-          for (const att of attachments as AttachmentRecord[]) {
-            if (!attachmentsMap[att.content_id]) {
-              attachmentsMap[att.content_id] = [];
-            }
-            attachmentsMap[att.content_id].push({
-              id: att.id,
-              file_name: att.file_name,
-              file_url: att.file_url,
-              file_type: att.file_type,
-              file_size: att.file_size,
-            });
+      case "content":
+        if (req.method === "GET") {
+          const productId = url.searchParams.get("productId");
+          if (!productId) {
+            return new Response(
+              JSON.stringify({ error: "productId é obrigatório" }),
+              { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
           }
+          return handleContent(supabase, buyer, productId, corsHeaders);
         }
-      }
+        break;
 
-      // RISE V3: Fetch release settings and buyer progress for drip calculation
-      const releaseSettingsMap = new Map<string, ReleaseSettings>();
-      const completedContentIds = new Set<string>();
-      let purchaseDate: string | null = null;
-
-      if (allContentIds.length > 0) {
-        // Get release settings
-        const { data: releaseData } = await supabase
-          .from("content_release_settings")
-          .select("content_id, release_type, days_after_purchase, fixed_date, after_content_id")
-          .in("content_id", allContentIds);
-
-        if (releaseData) {
-          for (const rs of releaseData as ReleaseSettings[]) {
-            releaseSettingsMap.set(rs.content_id, rs);
-          }
+      case "profile":
+        if (req.method === "GET") {
+          return handleProfile(supabase, buyer, corsHeaders);
         }
-
-        // Get buyer's completed contents (only if not owner)
-        if (!isOwner) {
-          const { data: progress } = await supabase
-            .from("buyer_content_progress")
-            .select("content_id")
-            .eq("buyer_id", buyer.id)
-            .not("completed_at", "is", null);
-
-          if (progress) {
-            for (const p of progress as { content_id: string }[]) {
-              completedContentIds.add(p.content_id);
-            }
-          }
-
-          // Get purchase date for drip calculation
-          const { data: accessData } = await supabase
-            .from("buyer_product_access")
-            .select("granted_at")
-            .eq("buyer_id", buyer.id)
-            .eq("product_id", productId)
-            .eq("is_active", true)
-            .limit(1)
-            .single();
-
-          if (accessData) {
-            purchaseDate = accessData.granted_at;
-          }
-        }
-      }
-
-      // Add attachments and lock info to each content
-      const modulesWithAttachments = sortedModules.map(module => ({
-        ...module,
-        contents: module.contents.map((c: ContentItem) => {
-          const lockInfo = isOwner 
-            ? { is_locked: false, unlock_date: null, lock_reason: null }
-            : calculateContentLock(c.id, releaseSettingsMap, purchaseDate, completedContentIds);
-          
-          return {
-            ...c,
-            attachments: attachmentsMap[c.id] || [],
-            ...lockInfo,
-          };
-        })
-      }));
-
-      return new Response(
-        JSON.stringify({
-          product: {
-            id: typedProduct.id,
-            name: typedProduct.name,
-            description: typedProduct.description,
-            imageUrl: typedProduct.image_url,
-            settings: typedProduct.members_area_settings,
-          },
-          modules: modulesWithAttachments,
-          sections: sections || [],
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // ============================================
-    // PROFILE - Dados do buyer
-    // ============================================
-    if (action === "profile" && req.method === "GET") {
-      const { data: profile } = await supabase
-        .from("buyer_profiles")
-        .select("id, email, name, phone, created_at")
-        .eq("id", buyer.id)
-        .single();
-
-      return new Response(
-        JSON.stringify({ profile }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        break;
     }
 
     return new Response(
       JSON.stringify({ error: "Ação não encontrada" }),
       { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-
   } catch (error: unknown) {
     log.error("Error:", error);
     return new Response(
