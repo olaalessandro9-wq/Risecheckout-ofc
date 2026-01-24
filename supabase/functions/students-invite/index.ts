@@ -12,7 +12,7 @@
  */
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { handleCorsV2, PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { rateLimitMiddleware, MEMBERS_AREA } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 import { 
@@ -113,36 +113,24 @@ function jsonResponse(data: JsonResponseData, status = 200, corsHeaders: Record<
 // ============================================
 
 Deno.serve(async (req) => {
-  // Determine CORS headers BEFORE try/catch so they're available in catch block
-  let corsHeaders: Record<string, string> = PUBLIC_CORS_HEADERS;
+  // RISE V3: Use handleCorsV2 for ALL actions (including public ones)
+  // This is REQUIRED because the frontend always sends credentials: 'include'
+  // Wildcards (*) are NOT allowed when credentials are sent
+  const corsResult = handleCorsV2(req);
+  if (corsResult instanceof Response) return corsResult;
+  const corsHeaders = corsResult.headers;
+
   let body: Record<string, unknown> = {};
   
-  // Parse body to determine action type (public vs authenticated)
+  // Parse body
   try {
     const clonedReq = req.clone();
     body = await clonedReq.json();
   } catch {
-    // If body parsing fails, use authenticated CORS (safer default)
-    const corsResult = handleCorsV2(req);
-    if (corsResult instanceof Response) return corsResult;
-    corsHeaders = corsResult.headers;
     return jsonResponse({ error: "Invalid JSON body" }, 400, corsHeaders);
   }
   
   const action = body.action as string | undefined;
-  const isPublicAction = ["validate-invite-token", "use-invite-token", "generate-purchase-access"].includes(action || "");
-  
-  // Set CORS headers based on action type
-  if (isPublicAction) {
-    if (req.method === "OPTIONS") {
-      return new Response(null, { headers: PUBLIC_CORS_HEADERS });
-    }
-    corsHeaders = PUBLIC_CORS_HEADERS;
-  } else {
-    const corsResult = handleCorsV2(req);
-    if (corsResult instanceof Response) return corsResult;
-    corsHeaders = corsResult.headers;
-  }
   
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
