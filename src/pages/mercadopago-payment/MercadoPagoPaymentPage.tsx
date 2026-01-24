@@ -1,8 +1,8 @@
 /**
  * MercadoPagoPaymentPage - Página de Pagamento PIX via MercadoPago
  * 
- * Orquestra hooks especializados e componentes reutilizáveis.
- * RISE Protocol V2 Compliant (~170 linhas).
+ * RISE Protocol V3 Compliant - Design Tokens
+ * Todas as cores usam o sistema --payment-*
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -105,10 +105,10 @@ export function MercadoPagoPaymentPage() {
   // Estado de loading
   if (orderLoading || chargeLoading || paymentStatus === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+      <div className="min-h-screen flex items-center justify-center bg-[hsl(var(--payment-bg))]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-300">Gerando QR Code...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[hsl(var(--auth-accent))] mx-auto mb-4"></div>
+          <p className="text-[hsl(var(--payment-text-primary))]">Gerando QR Code...</p>
         </div>
       </div>
     );
@@ -117,17 +117,17 @@ export function MercadoPagoPaymentPage() {
   // Estado de erro (sem QR Code)
   if (!qrCode && paymentStatus === "error") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+      <div className="min-h-screen flex items-center justify-center bg-[hsl(var(--payment-bg))] p-4">
+        <div className="bg-[hsl(var(--payment-card-bg))] rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
           <div className="text-red-500 mb-4">
             <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+          <h2 className="text-2xl font-bold text-[hsl(var(--payment-text-dark))] mb-2">
             Erro ao gerar QR Code
           </h2>
-          <p className="text-gray-600 dark:text-gray-300 mb-6">
+          <p className="text-[hsl(var(--payment-text-secondary))] mb-6">
             Não foi possível gerar o QR Code. Por favor, tente novamente.
           </p>
           <Button onClick={() => window.location.reload()} className="w-full">
@@ -139,21 +139,21 @@ export function MercadoPagoPaymentPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4">
+    <div className="min-h-screen bg-[hsl(var(--payment-bg))] py-8 px-4">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
+          <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4 text-[hsl(var(--payment-text-primary))]">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Voltar
           </Button>
         </div>
 
         {/* Card Principal */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
+        <div className="bg-[hsl(var(--payment-card-bg))] rounded-2xl shadow-xl overflow-hidden">
           {/* Status Header */}
           {paymentStatus === "paid" && (
-            <div className="bg-green-500 text-white p-4 text-center">
+            <div className="bg-[hsl(var(--payment-success))] text-[hsl(var(--payment-text-primary))] p-4 text-center">
               <CheckCircle2 className="w-8 h-8 mx-auto mb-2" />
               <p className="font-semibold">Pagamento Confirmado!</p>
               <p className="text-sm opacity-90">Redirecionando...</p>
@@ -161,7 +161,7 @@ export function MercadoPagoPaymentPage() {
           )}
 
           {paymentStatus === "expired" && (
-            <div className="bg-red-500 text-white p-4 text-center">
+            <div className="bg-red-500 text-[hsl(var(--payment-text-primary))] p-4 text-center">
               <Clock className="w-8 h-8 mx-auto mb-2" />
               <p className="font-semibold">QR Code Expirado</p>
               <p className="text-sm opacity-90">Gere um novo para continuar</p>
@@ -169,7 +169,7 @@ export function MercadoPagoPaymentPage() {
           )}
 
           {paymentStatus === "waiting" && (
-            <div className="bg-blue-500 text-white p-4 text-center">
+            <div className="bg-[hsl(var(--auth-accent))] text-[hsl(var(--payment-text-primary))] p-4 text-center">
               <Clock className="w-6 h-6 inline-block mr-2" />
               <span className="font-semibold">Aguardando Pagamento</span>
               <span className="ml-4 font-mono">{formatTime(timeRemaining)}</span>
@@ -179,14 +179,14 @@ export function MercadoPagoPaymentPage() {
           {/* Conteúdo */}
           <div className="p-8">
             <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              <h1 className="text-3xl font-bold text-[hsl(var(--payment-text-dark))] mb-2">
                 Pague com PIX
               </h1>
-              <p className="text-gray-600 dark:text-gray-300">
+              <p className="text-[hsl(var(--payment-text-secondary))]">
                 Escaneie o QR Code ou copie o código
               </p>
               {orderData && (
-                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-4">
+                <p className="text-2xl font-bold text-[hsl(var(--auth-accent))] mt-4">
                   R$ {(orderData.amount_cents / 100).toFixed(2).replace('.', ',')}
                 </p>
               )}
@@ -194,7 +194,7 @@ export function MercadoPagoPaymentPage() {
 
             {/* QR Code */}
             <div className="flex justify-center mb-8">
-              <div className="bg-white p-4 rounded-xl shadow-lg">
+              <div className="bg-[hsl(var(--payment-card-bg))] p-4 rounded-xl shadow-lg border border-[hsl(var(--payment-border))]">
                 {qrCodeBase64 ? (
                   <img 
                     src={`data:image/png;base64,${qrCodeBase64}`} 
@@ -210,7 +210,7 @@ export function MercadoPagoPaymentPage() {
             {/* Código PIX */}
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-[hsl(var(--payment-text-secondary))] mb-2">
                   Código PIX Copia e Cola
                 </label>
                 <div className="relative">
@@ -218,16 +218,16 @@ export function MercadoPagoPaymentPage() {
                     type="text"
                     value={qrCode}
                     readOnly
-                    className="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm"
+                    className="w-full px-4 py-3 pr-12 border border-[hsl(var(--payment-border))] rounded-lg bg-[hsl(var(--payment-card-elevated))] text-[hsl(var(--payment-text-dark))] font-mono text-sm"
                   />
                   <button
                     onClick={handleCopyCode}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 hover:bg-[hsl(var(--payment-border))] rounded-lg transition-colors"
                   >
                     {copied ? (
-                      <CheckCircle2 className="w-5 h-5 text-green-500" />
+                      <CheckCircle2 className="w-5 h-5 text-[hsl(var(--payment-success))]" />
                     ) : (
-                      <Copy className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                      <Copy className="w-5 h-5 text-[hsl(var(--payment-text-secondary))]" />
                     )}
                   </button>
                 </div>
@@ -248,9 +248,9 @@ export function MercadoPagoPaymentPage() {
             </div>
 
             {/* Instruções */}
-            <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Como pagar:</h3>
-              <ol className="text-sm text-gray-600 dark:text-gray-300 space-y-2">
+            <div className="mt-8 p-4 bg-[hsl(var(--auth-accent)/0.1)] rounded-lg">
+              <h3 className="font-semibold text-[hsl(var(--payment-text-dark))] mb-2">Como pagar:</h3>
+              <ol className="text-sm text-[hsl(var(--payment-text-secondary))] space-y-2">
                 <li>1. Abra o app do seu banco</li>
                 <li>2. Escolha pagar com PIX</li>
                 <li>3. Escaneie o QR Code ou cole o código</li>
@@ -261,16 +261,16 @@ export function MercadoPagoPaymentPage() {
 
             {/* Informações do Pedido */}
             {orderData && (
-              <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <div className="mt-6 pt-6 border-t border-[hsl(var(--payment-border))]">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Pedido:</span>
-                  <span className="font-mono text-gray-900 dark:text-white">
+                  <span className="text-[hsl(var(--payment-text-secondary))]">Pedido:</span>
+                  <span className="font-mono text-[hsl(var(--payment-text-dark))]">
                     #{orderId?.slice(0, 8)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm mt-2">
-                  <span className="text-gray-600 dark:text-gray-400">Cliente:</span>
-                  <span className="text-gray-900 dark:text-white">{orderData.customer_name}</span>
+                  <span className="text-[hsl(var(--payment-text-secondary))]">Cliente:</span>
+                  <span className="text-[hsl(var(--payment-text-dark))]">{orderData.customer_name}</span>
                 </div>
               </div>
             )}
@@ -278,7 +278,7 @@ export function MercadoPagoPaymentPage() {
         </div>
 
         {/* Footer */}
-        <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
+        <div className="mt-6 text-center text-sm text-[hsl(var(--payment-text-secondary))]">
           <p>Pagamento processado via Mercado Pago</p>
           <p className="mt-1">Ambiente seguro e protegido</p>
         </div>

@@ -41,10 +41,10 @@ export const CheckoutPublicLoader: React.FC = () => {
   // Loading state (initial load only)
   if (isIdle || isLoading || isValidating) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-muted">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          <p className="text-sm text-gray-500">Carregando checkout...</p>
+          <p className="text-sm text-muted-foreground">Carregando checkout...</p>
         </div>
       </div>
     );

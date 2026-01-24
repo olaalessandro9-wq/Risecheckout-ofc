@@ -1,3 +1,9 @@
+/**
+ * NotFound - Página 404
+ * 
+ * RISE Protocol V3 Compliant - Design Tokens
+ */
+
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -23,13 +29,13 @@ const NotFound = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100">
+    <div className="flex min-h-screen items-center justify-center bg-background">
       <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">404</h1>
-        <p className="mb-4 text-xl text-gray-600">Oops! Page not found</p>
+        <h1 className="mb-4 text-4xl font-bold text-foreground">404</h1>
+        <p className="mb-4 text-xl text-muted-foreground">Oops! Page not found</p>
         <button
           onClick={handleReturnHome}
-          className="text-blue-500 underline hover:text-blue-700 cursor-pointer"
+          className="text-primary underline hover:text-primary/80 cursor-pointer"
         >
           {loading ? "Return to Home" : isAuthenticated ? "Return to Dashboard" : "Return to Home"}
         </button>

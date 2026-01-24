@@ -1,3 +1,9 @@
+/**
+ * ResetPasswordSuccess - Tela de Sucesso
+ * 
+ * RISE Protocol V3 Compliant - Design Tokens
+ */
+
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { CheckCircle } from "lucide-react";
@@ -25,15 +31,15 @@ export function ResetPasswordSuccess({ loginRoute }: ResetPasswordSuccessProps) 
 
       {/* Message */}
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold text-white">Senha Redefinida!</h1>
-        <p className="text-slate-400">
+        <h1 className="text-2xl font-bold text-[hsl(var(--auth-text-primary))]">Senha Redefinida!</h1>
+        <p className="text-[hsl(var(--auth-text-muted))]">
           Sua senha foi alterada com sucesso. Agora você pode fazer login com sua nova senha.
         </p>
       </div>
 
       {/* Action */}
       <Link to={loginRoute}>
-        <Button className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-semibold">
+        <Button className="w-full h-12 bg-gradient-to-r from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] hover:from-[hsl(var(--auth-accent))] hover:to-[hsl(var(--auth-accent-secondary))] text-[hsl(var(--auth-text-primary))] font-semibold">
           Ir para Login
         </Button>
       </Link>

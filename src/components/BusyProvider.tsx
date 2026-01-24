@@ -1,3 +1,10 @@
+/**
+ * BusyProvider - Modal Global de Loading
+ * 
+ * RISE Protocol V3 Compliant - Design Tokens
+ * Usa sistema --auth-* para consistência visual
+ */
+
 import React, { createContext, useContext, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Loader2, Copy, Trash2, Save, Upload, Download } from "lucide-react";
@@ -19,12 +26,12 @@ export function useBusy() {
 
 // Função para determinar o ícone baseado na mensagem
 function getIconForMessage(message?: string) {
-  if (!message) return <Loader2 className="w-6 h-6 text-blue-500" />;
+  if (!message) return <Loader2 className="w-6 h-6 text-[hsl(var(--auth-accent))]" />;
   
   const lowerMessage = message.toLowerCase();
   
   if (lowerMessage.includes('duplicando')) {
-    return <Copy className="w-6 h-6 text-blue-500" />;
+    return <Copy className="w-6 h-6 text-[hsl(var(--auth-accent))]" />;
   }
   if (lowerMessage.includes('excluindo') || lowerMessage.includes('deletando')) {
     return <Trash2 className="w-6 h-6 text-red-500" />;
@@ -33,13 +40,13 @@ function getIconForMessage(message?: string) {
     return <Save className="w-6 h-6 text-green-500" />;
   }
   if (lowerMessage.includes('enviando') || lowerMessage.includes('upload')) {
-    return <Upload className="w-6 h-6 text-purple-500" />;
+    return <Upload className="w-6 h-6 text-[hsl(var(--auth-accent-secondary))]" />;
   }
   if (lowerMessage.includes('baixando') || lowerMessage.includes('download')) {
-    return <Download className="w-6 h-6 text-indigo-500" />;
+    return <Download className="w-6 h-6 text-[hsl(var(--info))]" />;
   }
   
-  return <Loader2 className="w-6 h-6 text-blue-500" />;
+  return <Loader2 className="w-6 h-6 text-[hsl(var(--auth-accent))]" />;
 }
 
 // Função para obter descrição adicional baseada na mensagem
@@ -88,10 +95,10 @@ export function BusyProvider({ children }: { children: ReactNode }) {
         createPortal(
           <div className="fixed inset-0 z-[1000] grid place-items-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
             {/* Card minimalista */}
-            <div className="bg-slate-800 rounded-2xl p-8 shadow-2xl w-[380px] border border-slate-700/50">
+            <div className="bg-[hsl(var(--auth-bg))] rounded-2xl p-8 shadow-2xl w-[380px] border border-[hsl(var(--auth-border)/0.1)]">
               {/* Ícone */}
               <div className="flex justify-center mb-5">
-                <div className="bg-slate-700/30 rounded-full p-4 border border-slate-600/30">
+                <div className="bg-[hsl(var(--auth-bg-elevated)/0.1)] rounded-full p-4 border border-[hsl(var(--auth-border)/0.1)]">
                   <div className="animate-spin">
                     {getIconForMessage(state.message)}
                   </div>
@@ -99,19 +106,19 @@ export function BusyProvider({ children }: { children: ReactNode }) {
               </div>
 
               {/* Título */}
-              <h3 className="text-lg font-semibold text-white text-center mb-3">
+              <h3 className="text-lg font-semibold text-[hsl(var(--auth-text-primary))] text-center mb-3">
                 {state.message ?? "Processando..."}
               </h3>
 
               {/* Descrição */}
-              <p className="text-sm text-slate-400 text-center leading-relaxed mb-5">
+              <p className="text-sm text-[hsl(var(--auth-text-muted))] text-center leading-relaxed mb-5">
                 {getDescriptionForMessage(state.message)}
               </p>
 
               {/* Barra de progresso minimalista */}
-              <div className="relative h-1 bg-slate-700 rounded-full overflow-hidden">
+              <div className="relative h-1 bg-[hsl(var(--auth-border)/0.2)] rounded-full overflow-hidden">
                 <div 
-                  className="absolute inset-0 bg-gradient-to-r from-green-500 to-blue-500 rounded-full"
+                  className="absolute inset-0 bg-gradient-to-r from-green-500 to-[hsl(var(--auth-accent))] rounded-full"
                   style={{
                     animation: 'progress 1.5s ease-in-out infinite'
                   }}
@@ -119,7 +126,7 @@ export function BusyProvider({ children }: { children: ReactNode }) {
               </div>
 
               {/* Texto de rodapé */}
-              <p className="text-xs text-slate-500 text-center mt-4">
+              <p className="text-xs text-[hsl(var(--auth-text-subtle))] text-center mt-4">
                 Por favor, não feche esta janela
               </p>
             </div>
