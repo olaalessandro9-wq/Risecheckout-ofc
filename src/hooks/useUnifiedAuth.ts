@@ -24,10 +24,11 @@
  * @module hooks/useUnifiedAuth
  */
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { createLogger } from "@/lib/logger";
+import { unifiedTokenService } from "@/lib/token-manager";
 
 const log = createLogger("useUnifiedAuth");
 
@@ -162,7 +163,18 @@ export function useUnifiedAuth() {
   // Main auth state query
   const authQuery = useQuery({
     queryKey: UNIFIED_AUTH_QUERY_KEY,
-    queryFn: validateSession,
+    queryFn: async () => {
+      const result = await validateSession();
+      // RISE V3: Sync TokenService with validation result
+      if (result.valid && result.expiresIn) {
+        log.debug("Syncing TokenService after validation", { expiresIn: result.expiresIn });
+        unifiedTokenService.setAuthenticated(result.expiresIn);
+      } else if (!result.valid) {
+        log.debug("Clearing TokenService - invalid session");
+        unifiedTokenService.clearTokens();
+      }
+      return result;
+    },
     staleTime: AUTH_STALE_TIME,
     gcTime: AUTH_CACHE_TIME,
     retry: false,
@@ -181,6 +193,11 @@ export function useUnifiedAuth() {
           activeRole: data.activeRole,
           expiresIn: data.expiresIn,
         });
+        // RISE V3: Sync TokenService after successful login
+        if (data.expiresIn) {
+          log.info("Syncing TokenService after login", { expiresIn: data.expiresIn });
+          unifiedTokenService.setAuthenticated(data.expiresIn);
+        }
       }
     },
   });
@@ -191,6 +208,9 @@ export function useUnifiedAuth() {
     onSuccess: () => {
       queryClient.setQueryData(UNIFIED_AUTH_QUERY_KEY, { valid: false });
       queryClient.invalidateQueries();
+      // RISE V3: Clear TokenService on logout
+      log.info("Clearing TokenService on logout");
+      unifiedTokenService.clearTokens();
     },
   });
   
@@ -214,6 +234,11 @@ export function useUnifiedAuth() {
     onSuccess: (data) => {
       if (data.valid) {
         queryClient.setQueryData(UNIFIED_AUTH_QUERY_KEY, data);
+        // RISE V3: Sync TokenService after successful refresh
+        if (data.expiresIn) {
+          log.debug("Syncing TokenService after refresh", { expiresIn: data.expiresIn });
+          unifiedTokenService.setAuthenticated(data.expiresIn);
+        }
       }
     },
   });
