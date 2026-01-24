@@ -209,8 +209,9 @@ async function uploadAttachment(
     const sanitizedFileName = attachment.file_name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const fileName = `products/${productId}/attachments/${contentId}/${Date.now()}-${sanitizedFileName}`;
 
+    // RISE V3: Use dedicated bucket for attachments (supports all file types)
     const { error: uploadError } = await supabase.storage
-      .from("product-images")
+      .from("content-attachments")
       .upload(fileName, bytes, {
         contentType: mimeType,
         upsert: false,
@@ -222,7 +223,7 @@ async function uploadAttachment(
     }
 
     const { data: publicUrl } = supabase.storage
-      .from("product-images")
+      .from("content-attachments")
       .getPublicUrl(fileName);
 
     log.info(`Attachment uploaded: ${fileName}`);

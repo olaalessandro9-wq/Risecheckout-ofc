@@ -85,6 +85,21 @@ interface AttachmentRecord {
   position: number | null;
 }
 
+// RISE V3: Drip/Release settings interfaces
+interface ReleaseSettings {
+  content_id: string;
+  release_type: "immediate" | "days_after_purchase" | "fixed_date" | "after_content";
+  days_after_purchase: number | null;
+  fixed_date: string | null;
+  after_content_id: string | null;
+}
+
+interface ContentWithLock extends ContentItem {
+  is_locked: boolean;
+  unlock_date: string | null;
+  lock_reason: "drip_days" | "drip_date" | "drip_content" | null;
+}
+
 interface ProductData {
   id: string;
   name: string;
@@ -137,6 +152,73 @@ async function validateSession(
   }
   
   return null;
+}
+
+// ============================================
+// DRIP/RELEASE CALCULATION (RISE V3)
+// ============================================
+
+/**
+ * Calculate if content is locked based on release settings and purchase date.
+ */
+function calculateContentLock(
+  contentId: string,
+  releaseSettings: Map<string, ReleaseSettings>,
+  purchaseDate: string | null,
+  completedContentIds: Set<string>
+): { is_locked: boolean; unlock_date: string | null; lock_reason: ContentWithLock["lock_reason"] } {
+  const settings = releaseSettings.get(contentId);
+  
+  // No settings or immediate = unlocked
+  if (!settings || settings.release_type === "immediate") {
+    return { is_locked: false, unlock_date: null, lock_reason: null };
+  }
+
+  const now = new Date();
+
+  // Days after purchase
+  if (settings.release_type === "days_after_purchase" && settings.days_after_purchase) {
+    if (!purchaseDate) {
+      // Owner/producer - always unlocked
+      return { is_locked: false, unlock_date: null, lock_reason: null };
+    }
+    const purchase = new Date(purchaseDate);
+    const unlockDate = new Date(purchase);
+    unlockDate.setDate(unlockDate.getDate() + settings.days_after_purchase);
+    
+    if (now < unlockDate) {
+      return { 
+        is_locked: true, 
+        unlock_date: unlockDate.toISOString(), 
+        lock_reason: "drip_days" 
+      };
+    }
+  }
+
+  // Fixed date
+  if (settings.release_type === "fixed_date" && settings.fixed_date) {
+    const unlockDate = new Date(settings.fixed_date);
+    if (now < unlockDate) {
+      return { 
+        is_locked: true, 
+        unlock_date: unlockDate.toISOString(), 
+        lock_reason: "drip_date" 
+      };
+    }
+  }
+
+  // After content completion
+  if (settings.release_type === "after_content" && settings.after_content_id) {
+    if (!completedContentIds.has(settings.after_content_id)) {
+      return { 
+        is_locked: true, 
+        unlock_date: null, 
+        lock_reason: "drip_content" 
+      };
+    }
+  }
+
+  return { is_locked: false, unlock_date: null, lock_reason: null };
 }
 
 // ============================================
@@ -468,13 +550,68 @@ serve(async (req) => {
         }
       }
 
-      // Add attachments to each content
+      // RISE V3: Fetch release settings and buyer progress for drip calculation
+      const releaseSettingsMap = new Map<string, ReleaseSettings>();
+      const completedContentIds = new Set<string>();
+      let purchaseDate: string | null = null;
+
+      if (allContentIds.length > 0) {
+        // Get release settings
+        const { data: releaseData } = await supabase
+          .from("content_release_settings")
+          .select("content_id, release_type, days_after_purchase, fixed_date, after_content_id")
+          .in("content_id", allContentIds);
+
+        if (releaseData) {
+          for (const rs of releaseData as ReleaseSettings[]) {
+            releaseSettingsMap.set(rs.content_id, rs);
+          }
+        }
+
+        // Get buyer's completed contents (only if not owner)
+        if (!isOwner) {
+          const { data: progress } = await supabase
+            .from("buyer_content_progress")
+            .select("content_id")
+            .eq("buyer_id", buyer.id)
+            .not("completed_at", "is", null);
+
+          if (progress) {
+            for (const p of progress as { content_id: string }[]) {
+              completedContentIds.add(p.content_id);
+            }
+          }
+
+          // Get purchase date for drip calculation
+          const { data: accessData } = await supabase
+            .from("buyer_product_access")
+            .select("granted_at")
+            .eq("buyer_id", buyer.id)
+            .eq("product_id", productId)
+            .eq("is_active", true)
+            .limit(1)
+            .single();
+
+          if (accessData) {
+            purchaseDate = accessData.granted_at;
+          }
+        }
+      }
+
+      // Add attachments and lock info to each content
       const modulesWithAttachments = sortedModules.map(module => ({
         ...module,
-        contents: module.contents.map((c: ContentItem) => ({
-          ...c,
-          attachments: attachmentsMap[c.id] || [],
-        }))
+        contents: module.contents.map((c: ContentItem) => {
+          const lockInfo = isOwner 
+            ? { is_locked: false, unlock_date: null, lock_reason: null }
+            : calculateContentLock(c.id, releaseSettingsMap, purchaseDate, completedContentIds);
+          
+          return {
+            ...c,
+            attachments: attachmentsMap[c.id] || [],
+            ...lockInfo,
+          };
+        })
       }));
 
       return new Response(
