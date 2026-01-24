@@ -162,11 +162,11 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
           settings: data.settings,
         });
       }
-      toast.success("Configurações atualizadas!");
+      // RISE V3: Toast responsibility delegated to calling component (SSOT)
     },
     onError: (error) => {
       log.error("Error updating settings", error);
-      toast.error("Erro ao atualizar configurações");
+      // RISE V3: Toast responsibility delegated to calling component (SSOT)
     },
     onSettled: () => {
       send({ type: 'SET_SAVING', isSaving: false });

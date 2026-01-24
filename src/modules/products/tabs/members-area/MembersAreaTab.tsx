@@ -8,6 +8,7 @@
  * @see RISE V3 - Enhanced loading feedback pattern
  */
 
+import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useProductContext } from "../../context/ProductContext";
 import { useMembersArea } from "@/modules/members-area/hooks";
@@ -23,13 +24,18 @@ export function MembersAreaTab() {
   const { productId } = useProductContext();
   const {
     isLoading,
-    isSaving,
     settings,
     modules,
     updateSettings,
   } = useMembersArea(productId);
+  
+  // RISE V3: Local state for immediate click protection (prevents race condition)
+  const [isToggling, setIsToggling] = useState(false);
 
   const handleToggleEnabled = async (enabled: boolean) => {
+    // Guard: prevent multiple clicks
+    if (isToggling) return;
+    setIsToggling(true);
     // Immediate toast feedback for user acknowledgment
     const toastId = "members-area-toggle";
     toast.loading(
@@ -45,6 +51,8 @@ export function MembersAreaTab() {
       );
     } catch {
       toast.error("Erro ao atualizar configuração", { id: toastId });
+    } finally {
+      setIsToggling(false);
     }
   };
 
@@ -84,7 +92,7 @@ export function MembersAreaTab() {
               id="members-area-enabled"
               checked={settings.enabled}
               onCheckedChange={handleToggleEnabled}
-              isLoading={isSaving}
+              isLoading={isToggling}
               loadingLabel={settings.enabled ? "Desativando..." : "Ativando..."}
               activeLabel="Ativo"
               inactiveLabel="Inativo"
