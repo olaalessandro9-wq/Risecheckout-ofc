@@ -218,6 +218,12 @@ export const membersAreaMachine = setup({
           target: 'ready',
           actions: 'setModules',
         },
+        // RISE V3: Defesa - permitir ADD_MODULE mesmo em idle
+        // Garante que o primeiro módulo criado transite para ready imediatamente
+        ADD_MODULE: {
+          target: 'ready',
+          actions: 'addModule',
+        },
       },
     },
     ready: {
