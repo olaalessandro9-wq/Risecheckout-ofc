@@ -19,7 +19,7 @@ import { CustomerTableHeader } from "./CustomerTableHeader";
 import { CustomerTableBody } from "./CustomerTableBody";
 import { CustomerPagination } from "./CustomerPagination";
 import { useCustomerPagination } from "./hooks/useCustomerPagination";
-import { isEncryptedValue, formatPhone, exportCustomersToCSV } from "./utils/customerUtils";
+import { isEncryptedValue, exportCustomersToCSV } from "./utils/customerUtils";
 import { useIsUltrawide } from "@/hooks/useIsUltrawide";
 import { cn } from "@/lib/utils";
 import type { Customer, CustomerExportData } from "./types";
@@ -43,7 +43,7 @@ export function RecentCustomersTable({ customers, isLoading = false, onRefresh }
   const orderIdsToDecrypt = useMemo(() => {
     if (!user?.id) return [];
     return pagination.paginatedCustomers
-      .filter(c => c.productOwnerId === user.id && isEncryptedValue(c.customerPhone))
+      .filter(c => c.productOwnerId === user.id && isEncryptedValue(c.customerEmail))
       .map(c => c.orderId);
   }, [pagination.paginatedCustomers, user?.id]);
 
@@ -52,16 +52,16 @@ export function RecentCustomersTable({ customers, isLoading = false, onRefresh }
     orderIdsToDecrypt.length > 0
   );
 
-  const getDisplayPhone = (customer: Customer): React.ReactNode => {
+  const getDisplayEmail = (customer: Customer): React.ReactNode => {
     const isProducer = user?.id === customer.productOwnerId;
-    const isEncrypted = isEncryptedValue(customer.customerPhone);
+    const isEncrypted = isEncryptedValue(customer.customerEmail);
 
     if (isProducer && isEncrypted) {
-      const decrypted = decryptedMap[customer.orderId]?.customer_phone;
+      const decrypted = decryptedMap[customer.orderId]?.customer_email;
       if (isDecrypting && !decrypted) {
-        return <Skeleton className="h-4 w-28 bg-primary/10" />;
+        return <Skeleton className="h-4 w-32 bg-primary/10" />;
       }
-      if (decrypted) return formatPhone(decrypted);
+      if (decrypted) return decrypted;
       return <span className="text-muted-foreground/50">••••••••••</span>;
     }
 
@@ -69,7 +69,7 @@ export function RecentCustomersTable({ customers, isLoading = false, onRefresh }
       return <span className="text-muted-foreground/50">••••••••••</span>;
     }
 
-    return customer.phone || "—";
+    return customer.email || "—";
   };
 
   const handleRefresh = async () => {
@@ -95,7 +95,6 @@ export function RecentCustomersTable({ customers, isLoading = false, onRefresh }
     offer: c.offer,
     client: c.client,
     email: c.email,
-    phone: c.phone,
     createdAt: c.createdAt,
     value: c.value,
     status: c.status
@@ -162,7 +161,7 @@ export function RecentCustomersTable({ customers, isLoading = false, onRefresh }
                     <TableHead className="text-muted-foreground font-medium">ID</TableHead>
                     <TableHead className="text-muted-foreground font-medium">Oferta</TableHead>
                     <TableHead className="text-muted-foreground font-medium">Cliente</TableHead>
-                    <TableHead className="text-muted-foreground font-medium">Telefone</TableHead>
+                    <TableHead className="text-muted-foreground font-medium">Email</TableHead>
                     <TableHead className="text-muted-foreground font-medium">Criado em</TableHead>
                     <TableHead className="text-muted-foreground font-medium">Valor</TableHead>
                     <TableHead className="text-muted-foreground font-medium">Status</TableHead>
@@ -173,7 +172,7 @@ export function RecentCustomersTable({ customers, isLoading = false, onRefresh }
                   customers={pagination.paginatedCustomers}
                   isLoading={isLoading}
                   searchTerm={pagination.searchTerm}
-                  getDisplayPhone={getDisplayPhone}
+                  getDisplayEmail={getDisplayEmail}
                   onViewDetails={handleViewDetails}
                 />
               </Table>

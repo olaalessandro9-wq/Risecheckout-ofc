@@ -9,6 +9,7 @@ import { api } from "@/lib/api";
 
 interface DecryptedBatchData {
   customer_phone?: string | null;
+  customer_email?: string | null;
   customer_document?: string | null;
 }
 
@@ -42,7 +43,7 @@ export function useDecryptCustomerBatch(
 
       const { data: result, error: apiError } = await api.call<DecryptBatchResponse>(
         "decrypt-customer-data-batch",
-        { order_ids: orderIds, fields: ["customer_phone"] }
+        { order_ids: orderIds, fields: ["customer_phone", "customer_email"] }
       );
 
       if (apiError) {
