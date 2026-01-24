@@ -32,6 +32,7 @@ export class TokenService {
   private readonly heartbeat: HeartbeatManager;
   private refreshPromise: Promise<boolean> | null = null;
   private readonly log;
+  private lastVisibilityCheck: number = 0;
   
   constructor(type: TokenType) {
     this.type = type;
@@ -40,6 +41,77 @@ export class TokenService {
     
     this.restoreState();
     this.heartbeat.start();
+    this.setupVisibilityListener();
+  }
+  
+  // ========== VISIBILITY CHANGE HANDLER ==========
+  
+  /**
+   * RISE V3: Visibility-aware session restoration
+   * 
+   * Browsers throttle/pause setInterval in background tabs.
+   * When user returns, we IMMEDIATELY check and refresh if needed.
+   */
+  private setupVisibilityListener(): void {
+    if (typeof document === "undefined") return;
+    
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) {
+        this.handleVisibilityRestore();
+      }
+    });
+    
+    // Also handle focus events for additional coverage
+    window.addEventListener("focus", () => {
+      this.handleVisibilityRestore();
+    });
+    
+    this.log.debug("Visibility listener initialized");
+  }
+  
+  /**
+   * Called when tab becomes visible or window gains focus.
+   * Immediately checks token status and refreshes if expired.
+   */
+  private async handleVisibilityRestore(): Promise<void> {
+    // Debounce: prevent multiple rapid checks
+    const now = Date.now();
+    if (now - this.lastVisibilityCheck < 1000) {
+      return;
+    }
+    this.lastVisibilityCheck = now;
+    
+    // Only act if we think we're authenticated
+    if (this.state === "idle" || this.state === "error") {
+      return;
+    }
+    
+    this.log.debug("Visibility restored, checking token status", {
+      state: this.state,
+      expiresAt: this.context.expiresAt,
+      now: Date.now(),
+    });
+    
+    // If token is expired, attempt immediate refresh
+    if (isExpired(this.context)) {
+      this.log.info("Token expired during background - attempting immediate refresh");
+      this.dispatch({ type: "TIMER_EXPIRED" });
+      const success = await this.refresh();
+      
+      if (success) {
+        this.log.info("Session restored after visibility change");
+      } else {
+        this.log.warn("Failed to restore session after visibility change");
+      }
+      return;
+    }
+    
+    // If token is near expiry, proactively refresh
+    if (needsRefresh(this.context)) {
+      this.log.info("Token near expiry after visibility restore - proactive refresh");
+      this.dispatch({ type: "TIMER_NEAR_EXPIRY" });
+      this.refresh();
+    }
   }
   
   // ========== PUBLIC API ==========
