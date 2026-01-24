@@ -9,7 +9,15 @@ export { LessonContent } from "./LessonContent";
 export { LessonNavigation } from "./LessonNavigation";
 export { LessonRating } from "./LessonRating";
 
-// Sidebar components
+// Premium components (NEW - RiseCheckout Exclusive)
+export { PremiumSidebar } from "./PremiumSidebar";
+export { PremiumModuleItem } from "./PremiumModuleItem";
+export { PremiumContentItem } from "./PremiumContentItem";
+export { PremiumHeader } from "./PremiumHeader";
+export { PremiumLessonContent } from "./PremiumLessonContent";
+export { PremiumMobileSheet } from "./PremiumMobileSheet";
+
+// Sidebar components (Legacy - kept for compatibility)
 export { CaktoStyleSidebar } from "./CaktoStyleSidebar";
 export { LessonMobileSheet } from "./LessonMobileSheet";
 export { ModuleItem } from "./ModuleItem";
