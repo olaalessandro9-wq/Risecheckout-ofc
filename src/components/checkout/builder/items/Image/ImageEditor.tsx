@@ -102,7 +102,7 @@ export const ImageEditor = ({ component, onChange }: ImageEditorProps) => {
       {/* Upload de Imagem */}
       <div>
         <Label>Arraste ou selecione o arquivo</Label>
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+        <div className="border-2 border-dashed border-[hsl(var(--checkout-input-border))] rounded-lg p-6 text-center">
           <input
             type="file"
             accept="image/*"
@@ -112,7 +112,7 @@ export const ImageEditor = ({ component, onChange }: ImageEditorProps) => {
             disabled={isUploading}
           />
           <label htmlFor={imageInputId} className={`cursor-pointer ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
-            <div className="text-gray-500">
+            <div className="text-muted-foreground">
               {isUploading ? (
                 <div className="flex items-center justify-center">
                   <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

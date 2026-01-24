@@ -355,6 +355,57 @@ Componentes de uso geral que usam tokens semânticos base (`--foreground`, `--ba
 
 ---
 
+## Checkout Design Tokens
+
+> **Status:** ✅ RISE V3 10.0/10
+
+Tokens específicos para placeholders, inputs e estados de erro no checkout.
+
+### Tokens Disponíveis
+
+#### Placeholder
+
+| Token | Valor HSL | Uso |
+|-------|-----------|-----|
+| `--checkout-placeholder-bg` | `220 14% 90%` | Background de imagem placeholder |
+| `--checkout-placeholder-icon` | `220 9% 60%` | Cor dos ícones placeholder |
+
+#### Input
+
+| Token | Valor HSL | Uso |
+|-------|-----------|-----|
+| `--checkout-input-border` | `220 13% 80%` | Borda padrão de inputs |
+| `--checkout-input-border-focus` | `142 76% 36%` | Borda em foco |
+| `--checkout-input-border-error` | `0 84% 60%` | Borda com erro |
+
+#### Error Display
+
+| Token | Valor HSL | Uso |
+|-------|-----------|-----|
+| `--checkout-error-bg` | `220 14% 96%` | Background da página de erro |
+| `--checkout-error-card-bg` | `0 0% 100%` | Background do card |
+| `--checkout-error-icon-bg` | `0 86% 97%` | Background do ícone |
+| `--checkout-error-icon` | `0 84% 60%` | Cor do ícone |
+
+### Componentes Migrados
+
+| Componente | Status |
+|------------|--------|
+| `OrderSummaryCard.tsx` | ✅ 100% tokens |
+| `ProductHeader.tsx` | ✅ 100% tokens |
+| `EditorPaymentSection.tsx` | ✅ 100% tokens |
+| `CheckoutErrorDisplay.tsx` | ✅ 100% tokens |
+| `ImageBlock.tsx` | ✅ 100% tokens |
+| `ImageEditor.tsx` | ✅ 100% tokens |
+| `MercadoPagoCardForm.tsx` | ✅ 100% tokens |
+| `MercadoPagoFields.tsx` | ✅ 100% tokens |
+| `InstallmentsField.tsx` | ✅ 100% tokens |
+| `CPFField.tsx` | ✅ 100% tokens |
+| `CardHolderNameField.tsx` | ✅ 100% tokens |
+| `AdminTopSellersTable.tsx` | ✅ 100% tokens |
+
+---
+
 ## Resumo de Migração
 
 ### Estatísticas Finais
@@ -365,8 +416,9 @@ Componentes de uso geral que usam tokens semânticos base (`--foreground`, `--ba
 | Auth Pages | 14 | ✅ 100% |
 | Payment Pages | 13 | ✅ 100% |
 | Success Pages | 2 | ✅ 100% |
+| Checkout Components | 12 | ✅ 100% |
 | Componentes Globais | 5 | ✅ 100% |
-| **TOTAL** | **46** | **✅ 100%** |
+| **TOTAL** | **58** | **✅ 100%** |
 
 ### Cores Hardcoded Eliminadas
 
@@ -374,6 +426,8 @@ Componentes de uso geral que usam tokens semânticos base (`--foreground`, `--ba
 |--------|-------|--------|
 | `text-slate-*` | 78 matches | 0 matches |
 | `text-gray-*` (fora de condicionais) | 50+ matches | 0 matches |
+| `bg-gray-*` (fora de condicionais) | 35+ matches | 0 matches |
+| `border-gray-*` | 20+ matches | 0 matches |
 | `bg-[#...]` | 100+ matches | 0 matches |
 | Copyright 2025 | 3 matches | 0 matches |
 
@@ -383,6 +437,7 @@ Componentes de uso geral que usam tokens semânticos base (`--foreground`, `--ba
 
 | Versão | Data | Alterações |
 |--------|------|------------|
+| 2.1.0 | 2026-01-24 | Checkout Design Tokens - 12 arquivos adicionais migrados |
 | 2.0.0 | 2026-01-24 | Migração completa - 46 arquivos, documentação expandida |
 | 1.2.0 | 2026-01-24 | Auth & Payment Design Tokens - 30+ páginas migradas |
 | 1.1.0 | 2026-01-24 | Landing Page Design Tokens |

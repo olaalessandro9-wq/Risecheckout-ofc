@@ -193,7 +193,7 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
           className={`${inputContainerStyle} ${errors.cardNumber ? 'border-red-500 ring-red-500' : ''}`}
           style={{ backgroundColor, borderColor: errors.cardNumber ? undefined : borderColor }}
         >
-          <CreditCard className={`mr-2 h-4 w-4 flex-shrink-0 ${errors.cardNumber ? 'text-red-500' : 'text-gray-400'}`} />
+          <CreditCard className={`mr-2 h-4 w-4 flex-shrink-0 ${errors.cardNumber ? 'text-destructive' : 'text-muted-foreground'}`} />
           <div id="mp-card-number-slot" className="flex-1 h-full" />
         </div>
         {errors.cardNumber && <span className="text-xs text-red-500 mt-0.5">{errors.cardNumber}</span>}
@@ -209,7 +209,7 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
             className={`${inputContainerStyle} ${errors.expirationDate ? 'border-red-500 ring-red-500' : ''}`}
             style={{ backgroundColor, borderColor: errors.expirationDate ? undefined : borderColor }}
           >
-            <Calendar className={`mr-2 h-4 w-4 flex-shrink-0 ${errors.expirationDate ? 'text-red-500' : 'text-gray-400'}`} />
+            <Calendar className={`mr-2 h-4 w-4 flex-shrink-0 ${errors.expirationDate ? 'text-destructive' : 'text-muted-foreground'}`} />
             <div id="mp-expiration-slot" className="flex-1 h-full" />
           </div>
           {errors.expirationDate && <span className="text-xs text-red-500 mt-0.5">{errors.expirationDate}</span>}
@@ -224,7 +224,7 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
             className={`${inputContainerStyle} ${errors.securityCode ? 'border-red-500 ring-red-500' : ''}`}
             style={{ backgroundColor, borderColor: errors.securityCode ? undefined : borderColor }}
           >
-            <Lock className={`mr-2 h-4 w-4 flex-shrink-0 ${errors.securityCode ? 'text-red-500' : 'text-gray-400'}`} />
+            <Lock className={`mr-2 h-4 w-4 flex-shrink-0 ${errors.securityCode ? 'text-destructive' : 'text-muted-foreground'}`} />
             <div id="mp-security-slot" className="flex-1 h-full" />
           </div>
           {errors.securityCode && <span className="text-xs text-red-500 mt-0.5">{errors.securityCode}</span>}
@@ -251,7 +251,7 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
           className={`${inputContainerStyle} ${errors.cardholderName ? 'border-red-500 ring-red-500' : ''}`}
           style={{ backgroundColor, borderColor: errors.cardholderName ? undefined : borderColor }}
         >
-          <User className={`mr-2 h-4 w-4 flex-shrink-0 ${errors.cardholderName ? 'text-red-500' : 'text-gray-400'}`} />
+          <User className={`mr-2 h-4 w-4 flex-shrink-0 ${errors.cardholderName ? 'text-destructive' : 'text-muted-foreground'}`} />
           <Input
             value={state.cardholderName}
             onChange={(e) => {
@@ -275,7 +275,7 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
           className={`${inputContainerStyle} ${errors.identificationNumber ? 'border-red-500 ring-red-500' : ''}`}
           style={{ backgroundColor, borderColor: errors.identificationNumber ? undefined : borderColor }}
         >
-          <ShieldCheck className={`mr-2 h-4 w-4 flex-shrink-0 ${errors.identificationNumber ? 'text-red-500' : 'text-gray-400'}`} />
+          <ShieldCheck className={`mr-2 h-4 w-4 flex-shrink-0 ${errors.identificationNumber ? 'text-destructive' : 'text-muted-foreground'}`} />
           <Input
             value={state.identificationNumber}
             onChange={(e) => {

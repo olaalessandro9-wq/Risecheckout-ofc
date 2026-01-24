@@ -352,37 +352,37 @@ const MercadoPagoFieldsComponent = forwardRef<MercadoPagoFieldsRef, MercadoPagoF
       <div className="space-y-4">
         {/* Número do Cartão */}
         <div className="space-y-1">
-          <label className="text-xs text-gray-500 font-medium">Número do Cartão</label>
+          <label className="text-xs text-muted-foreground font-medium">Número do Cartão</label>
           <div 
             id="form-checkout__cardNumber" 
-            className={`${inputClass} flex items-center ${fieldErrors.cardNumber ? errorClass : 'border-gray-300'}`}
+            className={`${inputClass} flex items-center ${fieldErrors.cardNumber ? errorClass : 'border-[hsl(var(--checkout-input-border))]'}`}
           />
           {fieldErrors.cardNumber && (
-            <p className="text-red-500 text-xs font-medium">{fieldErrors.cardNumber}</p>
+            <p className="text-destructive text-xs font-medium">{fieldErrors.cardNumber}</p>
           )}
         </div>
 
         {/* Validade e CVV */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
-            <label className="text-xs text-gray-500 font-medium">Validade</label>
+            <label className="text-xs text-muted-foreground font-medium">Validade</label>
             <div 
               id="form-checkout__expirationDate" 
-              className={`${inputClass} flex items-center ${fieldErrors.expirationDate ? errorClass : 'border-gray-300'}`}
+              className={`${inputClass} flex items-center ${fieldErrors.expirationDate ? errorClass : 'border-[hsl(var(--checkout-input-border))]'}`}
             />
             {fieldErrors.expirationDate && (
-              <p className="text-red-500 text-xs font-medium">{fieldErrors.expirationDate}</p>
+              <p className="text-destructive text-xs font-medium">{fieldErrors.expirationDate}</p>
             )}
           </div>
           
           <div className="space-y-1">
-            <label className="text-xs text-gray-500 font-medium">CVV</label>
+            <label className="text-xs text-muted-foreground font-medium">CVV</label>
             <div 
               id="form-checkout__securityCode" 
-              className={`${inputClass} flex items-center ${fieldErrors.securityCode ? errorClass : 'border-gray-300'}`}
+              className={`${inputClass} flex items-center ${fieldErrors.securityCode ? errorClass : 'border-[hsl(var(--checkout-input-border))]'}`}
             />
             {fieldErrors.securityCode && (
-              <p className="text-red-500 text-xs font-medium">{fieldErrors.securityCode}</p>
+              <p className="text-destructive text-xs font-medium">{fieldErrors.securityCode}</p>
             )}
           </div>
         </div>
