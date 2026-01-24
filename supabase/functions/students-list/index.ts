@@ -186,9 +186,9 @@ Deno.serve(async (req) => {
 
       const buyerIds = [...new Set((accessData as AccessRecord[]).map(a => a.buyer_id))];
 
-      // Fetch buyer profiles
+      // Fetch users (SSOT - Unified Identity V3)
       const { data: buyers, error: buyersError } = await supabase
-        .from("buyer_profiles")
+        .from("users")
         .select("id, name, email, last_login_at, password_hash")
         .in("id", buyerIds);
 
@@ -335,10 +335,11 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: "buyer_id and product_id required" }, 400, corsHeaders);
       }
 
+      // SSOT - Unified Identity V3: Query users table with explicit field selection
       const { data: student, error } = await supabase
-        .from("buyer_profiles")
+        .from("users")
         .select(`
-          *,
+          id, email, name, last_login_at, password_hash,
           access:buyer_product_access(id, is_active, granted_at, expires_at, order:orders(*)),
           groups:buyer_groups(group:product_member_groups(*)),
           progress:buyer_content_progress(content_id, progress_percent, completed_at)
