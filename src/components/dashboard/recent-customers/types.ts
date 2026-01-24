@@ -33,7 +33,6 @@ export interface CustomerExportData {
   offer: string;
   client: string;
   email: string;
-  phone: string;
   createdAt: string;
   value: string;
   status: string;

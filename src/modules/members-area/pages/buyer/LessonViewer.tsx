@@ -2,7 +2,7 @@
  * LessonViewer Page - Individual Lesson View
  * Displays lesson content with right sidebar navigation (Cakto-style)
  * 
- * RISE V3: Uses useUnifiedAuth (unified identity)
+ * RISE V3: Uses useUnifiedAuth (unified identity) + Progress Tracking
  */
 
 import { useEffect, useState, useMemo } from "react";
@@ -10,6 +10,7 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { useBuyerProductContent } from "@/hooks/useBuyerOrders";
+import { useStudentProgress } from "@/modules/members-area/hooks/useStudentProgress";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft } from "lucide-react";
 
@@ -28,8 +29,10 @@ export default function LessonViewer() {
     productId: string;
     contentId: string;
   }>();
+  
   // RISE V3: useUnifiedAuth em vez de useBuyerAuth
-  const { isLoading: authLoading, isAuthenticated } = useUnifiedAuth();
+  const { isLoading: authLoading, isAuthenticated, user } = useUnifiedAuth();
+  const userId = user?.id;
 
   // React Query declarativo
   const {
@@ -37,6 +40,15 @@ export default function LessonViewer() {
     isLoading: queryLoading,
     error: queryError,
   } = useBuyerProductContent(productId);
+
+  // Progress tracking
+  const { 
+    summary, 
+    markComplete,
+    unmarkComplete,
+    fetchSummary,
+    isSaving: isCompleting,
+  } = useStudentProgress();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -51,8 +63,28 @@ export default function LessonViewer() {
     }
   }, [authLoading, isAuthenticated, navigate]);
 
+  // Fetch progress when product loads
+  useEffect(() => {
+    if (userId && productId && !authLoading && isAuthenticated) {
+      fetchSummary(userId, productId);
+    }
+  }, [userId, productId, authLoading, isAuthenticated, fetchSummary]);
+
   const isLoading = authLoading || queryLoading;
   const error = queryError ? "Erro ao carregar conteúdo." : null;
+
+  // Derive completed content IDs from summary
+  const completedContentIds = useMemo(() => {
+    if (!summary?.recent_contents) return [];
+    return summary.recent_contents
+      .filter(c => c.completed_at)
+      .map(c => c.content_id);
+  }, [summary]);
+
+  // Check if current content is completed
+  const isCurrentContentCompleted = useMemo(() => {
+    return completedContentIds.includes(contentId || '');
+  }, [completedContentIds, contentId]);
 
   // Find current content and module + build navigation list
   const { currentContent, currentModule, allContents, currentIndex } =
@@ -101,10 +133,27 @@ export default function LessonViewer() {
     setMobileMenuOpen(false);
   };
 
-  const handleComplete = () => {
-    // TODO: Integrate with progress tracking API
-    if (hasNext) {
-      goToNext();
+  const handleToggleComplete = async () => {
+    if (!userId || !contentId || !productId) return;
+    
+    let success: boolean;
+    
+    if (isCurrentContentCompleted) {
+      // Unmark completion
+      success = await unmarkComplete(userId, contentId);
+    } else {
+      // Mark complete
+      success = await markComplete(userId, contentId);
+      
+      // Navigate to next lesson on completion
+      if (success && hasNext) {
+        goToNext();
+      }
+    }
+    
+    if (success) {
+      // Re-fetch to update sidebar progress
+      await fetchSummary(userId, productId);
     }
   };
 
@@ -161,7 +210,7 @@ export default function LessonViewer() {
             currentModuleId={currentModule?.id || null}
             currentContentId={contentId || null}
             onSelectContent={handleSelectContent}
-            completedContentIds={[]}
+            completedContentIds={completedContentIds}
           />
         }
       >
@@ -172,7 +221,9 @@ export default function LessonViewer() {
           hasNext={hasNext}
           onPrevious={goToPrevious}
           onNext={goToNext}
-          onComplete={handleComplete}
+          onComplete={handleToggleComplete}
+          isCompleting={isCompleting}
+          isCompleted={isCurrentContentCompleted}
         />
       </LessonLayout>
 
@@ -184,7 +235,7 @@ export default function LessonViewer() {
         currentModuleId={currentModule?.id || null}
         currentContentId={contentId || null}
         onSelectContent={handleSelectContent}
-        completedContentIds={[]}
+        completedContentIds={completedContentIds}
       />
     </div>
   );

@@ -1,11 +1,14 @@
 /**
  * MercadoPagoAdapter - Adaptador para o gateway Mercado Pago
- * @version 2.3.0 - RISE Protocol V2 Compliance (< 300 lines)
+ * @version 3.0.0 - RISE Protocol V3 Compliance (validação de preço integrada)
  */
 
 import { IPaymentGateway } from "../IPaymentGateway.ts";
 import { PaymentRequest, PaymentResponse, PaymentSplitRule } from "../types.ts";
 import { CircuitBreaker, CircuitOpenError, GATEWAY_CIRCUIT_CONFIGS } from "../../circuit-breaker.ts";
+import { createGatewayClient, type GatewayHttpClient } from "../../http-client.ts";
+import { validateOrderAmount } from "../../payment-validation.ts";
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import type { MercadoPagoPayload, MercadoPagoDisbursement, MercadoPagoResponse } from "./mercadopago-types.ts";
 import { createLogger } from "../../logger.ts";
 
@@ -16,15 +19,47 @@ export class MercadoPagoAdapter implements IPaymentGateway {
   private accessToken: string;
   private apiUrl = 'https://api.mercadopago.com/v1/payments';
   private circuitBreaker: CircuitBreaker;
+  private httpClient: GatewayHttpClient;
+  private supabase: SupabaseClient;
 
-  constructor(accessToken: string, _environment: 'sandbox' | 'production' = 'production') {
+  constructor(
+    accessToken: string, 
+    _environment: 'sandbox' | 'production' = 'production',
+    supabase: SupabaseClient
+  ) {
     if (!accessToken) throw new Error('MercadoPago: Access Token é obrigatório');
     this.accessToken = accessToken;
+    this.supabase = supabase;
     this.circuitBreaker = new CircuitBreaker(GATEWAY_CIRCUIT_CONFIGS.mercadopago);
+    this.httpClient = createGatewayClient({
+      gateway: 'mercadopago',
+      baseUrl: 'https://api.mercadopago.com/v1',
+      timeout: 15000,
+      defaultHeaders: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}` 
+      }
+    });
   }
 
   async createPix(request: PaymentRequest): Promise<PaymentResponse> {
     try {
+      // RISE V3: Validação de preço ANTES de qualquer operação
+      const priceValidation = await validateOrderAmount({
+        supabase: this.supabase,
+        orderId: request.order_id,
+        expectedAmountCents: request.amount_cents,
+        gateway: 'mercadopago'
+      });
+
+      if (!priceValidation.valid) {
+        log.error('SECURITY: Price validation failed', { 
+          orderId: request.order_id,
+          error: priceValidation.error 
+        });
+        return this.errorResponse(priceValidation.error || 'Valor inválido', { security: 'price_mismatch' });
+      }
+
       return await this.circuitBreaker.execute(async () => {
         const mpPayload = this.buildPixPayload(request);
         this.attachDisbursements(mpPayload, request.split_rules);
@@ -56,6 +91,22 @@ export class MercadoPagoAdapter implements IPaymentGateway {
   async createCreditCard(request: PaymentRequest): Promise<PaymentResponse> {
     try {
       if (!request.card_token) throw new Error('Token do cartão é obrigatório');
+
+      // RISE V3: Validação de preço ANTES de qualquer operação
+      const priceValidation = await validateOrderAmount({
+        supabase: this.supabase,
+        orderId: request.order_id,
+        expectedAmountCents: request.amount_cents,
+        gateway: 'mercadopago'
+      });
+
+      if (!priceValidation.valid) {
+        log.error('SECURITY: Price validation failed', { 
+          orderId: request.order_id,
+          error: priceValidation.error 
+        });
+        return this.errorResponse(priceValidation.error || 'Valor inválido', { security: 'price_mismatch' });
+      }
 
       return await this.circuitBreaker.execute(async () => {
         const mpPayload = this.buildCardPayload(request);

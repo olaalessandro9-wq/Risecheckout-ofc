@@ -1,10 +1,13 @@
 /**
  * Mercado Pago Create Payment - Edge Function
  * 
- * @version 5.0.0 - RISE Protocol V3 Compliance
- * - Uses handleCorsV2 from _shared/cors-v2.ts
- * - Uses PUBLIC_CORS_HEADERS for checkout (public endpoint)
- * - Uses createLogger from _shared/logger.ts
+ * @version 6.0.0 - RISE Protocol V3 Compliance (Adapter Pattern)
+ * 
+ * RISE V3: Usa PaymentFactory + MercadoPagoAdapter para garantir:
+ * - Validação de preço integrada no Adapter
+ * - Circuit Breaker
+ * - Timeout de 15s
+ * - Zero duplicação de código
  */
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
@@ -13,9 +16,10 @@ import { handleCorsV2, PUBLIC_CORS_HEADERS } from '../_shared/cors-v2.ts';
 import { rateLimitOnlyMiddleware, getIdentifier, RATE_LIMIT_CONFIGS } from '../_shared/rate-limiting/index.ts';
 import { getVendorCredentials } from '../_shared/vault-credentials.ts';
 import { processPostPaymentActions } from '../_shared/webhook-post-payment.ts';
-import { handlePixPayment, PixPaymentResult } from './handlers/pix-handler.ts';
-import { handleCardPayment, CardPaymentResult } from './handlers/card-handler.ts';
 import { createLogger } from '../_shared/logger.ts';
+
+// RISE V3: Usar PaymentFactory + Adapter
+import { PaymentFactory, PaymentRequest as AdapterPaymentRequest } from '../_shared/payment-gateways/index.ts';
 
 const log = createLogger("mercadopago-create-payment");
 
@@ -30,6 +34,7 @@ interface OrderRecord {
   affiliate_id: string | null;
   customer_email: string | null;
   customer_name: string | null;
+  customer_document: string | null;
   affiliate?: { id: string; user_id: string; commission_rate: number | null } | null;
 }
 
@@ -93,9 +98,9 @@ async function fetchCredentials(supabase: SupabaseClient, vendorId: string) {
 
 async function calculateSplit(
   supabase: SupabaseClient, order: OrderRecord, isOwner: boolean, 
-  totalCents: number, accessToken: string
-): Promise<{ effectiveAccessToken: string; applicationFeeCents: number }> {
-  if (isOwner) return { effectiveAccessToken: accessToken, applicationFeeCents: 0 };
+  totalCents: number
+): Promise<{ applicationFeeCents: number }> {
+  if (isOwner) return { applicationFeeCents: 0 };
   
   const { data: splitConfig } = await supabase
     .from('mercadopago_split_config')
@@ -103,7 +108,7 @@ async function calculateSplit(
     .eq('vendor_id', order.vendor_id)
     .maybeSingle();
   
-  if (!splitConfig) return { effectiveAccessToken: accessToken, applicationFeeCents: 0 };
+  if (!splitConfig) return { applicationFeeCents: 0 };
   
   let feeCents = 0;
   if (splitConfig.split_type === 'percentage' && splitConfig.percentage_amount) {
@@ -112,7 +117,7 @@ async function calculateSplit(
     feeCents = splitConfig.fixed_amount;
   }
   
-  return { effectiveAccessToken: accessToken, applicationFeeCents: feeCents };
+  return { applicationFeeCents: feeCents };
 }
 
 // === MAIN HANDLER ===
@@ -134,13 +139,13 @@ serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(
+    const supabase: SupabaseClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
     
-    // Rate Limiting (RISE V3 - Config específica por gateway)
+    // Rate Limiting
     const rateLimitResponse = await rateLimitOnlyMiddleware(
       supabase, req, RATE_LIMIT_CONFIGS.MERCADOPAGO_CREATE_PAYMENT, corsHeaders
     );
@@ -149,10 +154,14 @@ serve(async (req) => {
     const body: RequestBody | null = await req.json().catch(() => null);
     if (!body) return createErrorResponse(ERROR_CODES.INVALID_REQUEST, 'JSON inválido', 400, corsHeaders);
 
-    const { orderId, payerEmail, payerName, payerDocument, paymentMethod, token, installments, paymentMethodId, issuerId } = body;
+    const { orderId, payerEmail, payerName, payerDocument, paymentMethod, token, installments, paymentMethodId } = body;
     if (!orderId || !payerEmail || !paymentMethod) {
       return createErrorResponse(ERROR_CODES.INVALID_REQUEST, 'Campos obrigatórios faltando', 400, corsHeaders);
     }
+
+    log.info('RISE V3 - Using PaymentFactory + MercadoPagoAdapter', {
+      orderId, paymentMethod
+    });
 
     const { data: order } = await supabase.from('orders')
       .select(`*, affiliate:affiliates(id, user_id, commission_rate)`)
@@ -173,62 +182,114 @@ serve(async (req) => {
       return createErrorResponse(err.code, err.message, 400, corsHeaders); 
     }
 
-    const { effectiveAccessToken, applicationFeeCents } = await calculateSplit(
-      supabase, order, credentials.isOwner, calculatedTotalCents, credentials.accessToken
+    const { applicationFeeCents } = await calculateSplit(
+      supabase, order, credentials.isOwner, calculatedTotalCents
     );
 
-    const firstItem = items[0];
-    let paymentResult: PixPaymentResult | CardPaymentResult;
+    // ============================================================================
+    // RISE V3: USAR PAYMENTFACTORY + MERCADOPAGOADAPTER
+    // ============================================================================
+    const gateway = PaymentFactory.create('mercadopago', {
+      access_token: credentials.accessToken
+    }, supabase);
 
+    // Montar PaymentRequest no formato do Adapter
+    const adapterRequest: AdapterPaymentRequest = {
+      amount_cents: calculatedTotalCents,
+      order_id: orderId,
+      customer: {
+        name: payerName || 'Cliente',
+        email: payerEmail,
+        document: payerDocument || order.customer_document || ''
+      },
+      description: `Pedido ${orderId.slice(0, 8)}`,
+      card_token: token,
+      installments: installments || 1,
+      split_rules: applicationFeeCents > 0 ? [
+        {
+          amount_cents: applicationFeeCents,
+          role: 'platform' as const
+        }
+      ] : undefined
+    };
+
+    // Validar token para cartão
+    if (paymentMethod === 'credit_card' && !token) {
+      return createErrorResponse(ERROR_CODES.TOKEN_REQUIRED, 'Token obrigatório para cartão', 400, corsHeaders);
+    }
+
+    // Executar pagamento via Adapter (validação de preço JÁ ESTÁ INTEGRADA)
+    let result;
     try {
       if (paymentMethod === 'pix') {
-        paymentResult = await handlePixPayment({
-          orderId, calculatedTotalCents, payerEmail, payerName, payerDocument,
-          effectiveAccessToken, applicationFeeCents,
-          productId: firstItem.product_id, productName: firstItem.product_name, items
-        });
+        result = await gateway.createPix(adapterRequest);
       } else if (paymentMethod === 'credit_card') {
-        if (!token) return createErrorResponse(ERROR_CODES.TOKEN_REQUIRED, 'Token obrigatório', 400, corsHeaders);
-        paymentResult = await handleCardPayment({
-          orderId, calculatedTotalCents, payerEmail, payerName, payerDocument,
-          token, installments: installments || 1, paymentMethodId: paymentMethodId || '', issuerId,
-          effectiveAccessToken, applicationFeeCents,
-          productId: firstItem.product_id, productName: firstItem.product_name, items
-        });
+        result = await gateway.createCreditCard(adapterRequest);
       } else {
         return createErrorResponse(ERROR_CODES.INVALID_REQUEST, 'Método inválido', 400, corsHeaders);
       }
     } catch (e: unknown) {
       const err = e as { code?: string; message: string; details?: unknown };
+      log.error('Adapter exception', { error: err.message });
       return createErrorResponse(err.code || ERROR_CODES.GATEWAY_API_ERROR, err.message, 502, corsHeaders, err.details);
     }
 
+    if (!result.success) {
+      log.error('Adapter returned error', { error: result.error_message });
+      return createErrorResponse(ERROR_CODES.GATEWAY_API_ERROR, result.error_message || 'Erro ao processar pagamento', 400, corsHeaders);
+    }
+
+    // Atualizar ordem
     const updateData: Record<string, unknown> = {
-      gateway: 'mercadopago', gateway_payment_id: paymentResult.transactionId,
-      status: paymentResult.status === 'approved' ? 'paid' : (order.status?.toLowerCase() || 'pending'),
-      payment_method: paymentMethod.toLowerCase(), updated_at: new Date().toISOString()
+      gateway: 'mercadopago', 
+      gateway_payment_id: result.transaction_id,
+      status: result.status === 'approved' ? 'paid' : (order.status?.toLowerCase() || 'pending'),
+      payment_method: paymentMethod.toLowerCase(), 
+      updated_at: new Date().toISOString()
     };
-    if (paymentResult.status === 'approved') updateData.paid_at = new Date().toISOString();
-    if (paymentMethod === 'pix' && 'qrCodeText' in paymentResult && paymentResult.qrCodeText) {
-      updateData.pix_qr_code = paymentResult.qrCodeText;
-      updateData.pix_id = paymentResult.transactionId;
-      updateData.pix_status = paymentResult.status;
+    
+    if (result.status === 'approved') {
+      updateData.paid_at = new Date().toISOString();
+    }
+    
+    if (paymentMethod === 'pix' && result.qr_code_text) {
+      updateData.pix_qr_code = result.qr_code_text;
+      updateData.pix_id = result.transaction_id;
+      updateData.pix_status = result.status;
       updateData.pix_created_at = new Date().toISOString();
     }
+    
     await supabase.from('orders').update(updateData).eq('id', orderId);
 
-    if (paymentResult.status === 'approved') {
+    // Post-payment actions se aprovado
+    if (result.status === 'approved') {
       await processPostPaymentActions(supabase, {
-        orderId, customerEmail: order.customer_email, customerName: order.customer_name,
-        productId: order.product_id, productName: order.product_name,
-        amountCents: calculatedTotalCents, paymentMethod, vendorId: order.vendor_id
+        orderId, 
+        customerEmail: order.customer_email, 
+        customerName: order.customer_name,
+        productId: order.product_id, 
+        productName: order.product_name,
+        amountCents: calculatedTotalCents, 
+        paymentMethod, 
+        vendorId: order.vendor_id
       }, 'payment.approved', log);
     }
 
-    const responseData: Record<string, unknown> = { paymentId: paymentResult.transactionId, status: paymentResult.status };
-    if (paymentMethod === 'pix' && 'qrCode' in paymentResult && paymentResult.qrCode) {
-      responseData.pix = { qrCode: paymentResult.qrCodeText || '', qrCodeBase64: paymentResult.qrCode };
+    // Montar resposta
+    const responseData: Record<string, unknown> = { 
+      paymentId: result.transaction_id, 
+      status: result.status,
+      riseV3: true,
+      adapterUsed: 'MercadoPagoAdapter'
+    };
+    
+    if (paymentMethod === 'pix' && result.qr_code) {
+      responseData.pix = { 
+        qrCode: result.qr_code_text || '', 
+        qrCodeBase64: result.qr_code 
+      };
     }
+    
     return createSuccessResponse(responseData, corsHeaders);
 
   } catch (error: unknown) {

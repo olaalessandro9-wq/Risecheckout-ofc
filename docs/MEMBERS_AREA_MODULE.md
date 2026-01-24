@@ -1,7 +1,7 @@
 # Members Area Module - Arquitetura Técnica
 
-> **Versão:** 1.3  
-> **Data:** 22 de Janeiro de 2026  
+> **Versão:** 1.4  
+> **Data:** 24 de Janeiro de 2026  
 > **Status:** CONSOLIDADO - RISE V3 10.0/10  
 
 ---
@@ -23,6 +23,14 @@ src/modules/members-area/
 - Grupos de permissão
 - Interface do aluno (Buyer)
 - Configurações de tema e notificações
+
+### 1.3 Proteção de Rotas
+
+> **⚠️ IMPORTANTE:** Todas as rotas `/minha-conta/*` são protegidas pelo `BuyerContextGuard`. 
+> Se o usuário estiver no contexto produtor e tentar acessar essas rotas (via URL, botão voltar, etc.), 
+> será redirecionado automaticamente para `/dashboard`.
+>
+> **Documentação:** [CONTEXT_GUARDS_ARCHITECTURE.md](./CONTEXT_GUARDS_ARCHITECTURE.md)
 
 ---
 

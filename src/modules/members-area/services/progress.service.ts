@@ -98,9 +98,22 @@ export async function markComplete(
   buyerId: string,
   input: MarkCompleteInput
 ): Promise<ServiceResponse<ContentProgress>> {
-  return invokeProgressFunction<ContentProgress>('mark_complete', {
+  return invokeProgressFunction<ContentProgress>('complete', {
     buyer_id: buyerId,
-    ...input,
+    content_id: input.content_id,
+  });
+}
+
+/**
+ * Unmark a content as complete (toggle off)
+ */
+export async function unmarkComplete(
+  buyerId: string,
+  contentId: string
+): Promise<ServiceResponse<{ success: boolean }>> {
+  return invokeProgressFunction<{ success: boolean }>('uncomplete', {
+    buyer_id: buyerId,
+    content_id: contentId,
   });
 }
 
@@ -135,6 +148,7 @@ export const progressService = {
   getContent: getContentProgress,
   update: updateProgress,
   markComplete,
+  unmarkComplete,
   checkAccess,
   getLastWatched,
 };

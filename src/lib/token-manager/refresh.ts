@@ -11,7 +11,7 @@
  */
 
 import type { TokenType, RefreshResponse } from "./types";
-import { SUPABASE_URL } from "@/config/supabase";
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/config/supabase";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("TokenRefresh");
@@ -85,8 +85,16 @@ export async function executeRefresh(_type: TokenType): Promise<RefreshResult> {
     const response = await fetch(url, {
       method: "POST",
       credentials: "include", // CRITICAL: Send httpOnly cookies
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        "apikey": SUPABASE_ANON_KEY, // CRÍTICO: Gateway Supabase exige este header
+      },
     });
+    
+    if (!response.ok) {
+      log.warn("Refresh request failed", { status: response.status });
+      return { success: false, error: `HTTP ${response.status}` };
+    }
     
     const data: RefreshResponse = await response.json();
     

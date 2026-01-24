@@ -6,8 +6,10 @@
  */
 
 import { createLogger } from '../../_shared/logger.ts';
+import { fetchWithTimeout } from '../../_shared/http-client.ts';
 
 const log = createLogger('mercadopago-card-handler');
+const API_TIMEOUT = 15000; // 15 segundos
 
 // === INTERFACES (Zero any) ===
 
@@ -185,7 +187,8 @@ export async function handleCardPayment(params: CardPaymentParams): Promise<Card
     has_application_fee: applicationFeeCents > 0
   });
 
-  const cardResponse = await fetch('https://api.mercadopago.com/v1/payments', {
+  // RISE V3: HTTP com timeout
+  const cardResponse = await fetchWithTimeout('https://api.mercadopago.com/v1/payments', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${effectiveAccessToken}`,
@@ -193,7 +196,7 @@ export async function handleCardPayment(params: CardPaymentParams): Promise<Card
       'X-Idempotency-Key': `${orderId}-card`
     },
     body: JSON.stringify(cardPayload)
-  });
+  }, API_TIMEOUT);
 
   const cardData: MercadoPagoCardResponse = await cardResponse.json();
 

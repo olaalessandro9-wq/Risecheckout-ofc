@@ -1,82 +1,52 @@
 /**
- * AsaasAdapter - Adaptador para o gateway Asaas
- * 
- * Este adaptador traduz as requisições padronizadas do RiseCheckout
- * para o formato específico da API da Asaas e vice-versa.
- * 
- * Suporta:
- * - Pagamentos via PIX (QR Code dinâmico)
- * - Pagamentos via Cartão de Crédito (com tokenização)
- * - Split de pagamentos nativo (N recebedores via walletId)
- * - Ambientes de sandbox e produção
- * - Circuit Breaker para resiliência
- * 
- * Documentação Asaas:
- * - Split: https://docs.asaas.com/docs/split-de-pagamentos
- * - PIX: https://docs.asaas.com/docs/pix
- * - Cobranças: https://docs.asaas.com/reference/criar-nova-cobranca
- * 
- * @example
- * ```typescript
- * const adapter = new AsaasAdapter(apiKey, 'production');
- * const result = await adapter.createPix({
- *   amount_cents: 10000,
- *   order_id: 'abc123',
- *   customer: { name: 'João', email: 'joao@example.com', document: '12345678900' },
- *   description: 'Pedido #123'
- * });
- * ```
- * 
- * @version 3.0.0 - Refatorado para RISE Protocol V2 (< 300 linhas)
+ * AsaasAdapter - Gateway Adapter (RISE V3 Compliant)
+ * @module payment-gateways/adapters
+ * @version 3.1.0
  */
-
 import { IPaymentGateway } from "../IPaymentGateway.ts";
 import { PaymentRequest, PaymentResponse } from "../types.ts";
 import { CircuitBreaker, CircuitOpenError, GATEWAY_CIRCUIT_CONFIGS } from "../../circuit-breaker.ts";
 import { createLogger } from "../../logger.ts";
-
-// Importar helpers modulares - UNIFICADO para RISE Protocol V2
+import { createGatewayClient, type GatewayHttpClient } from "../../http-client.ts";
+import { validateOrderAmount } from "../../payment-validation.ts";
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { findOrCreateCustomer, type AsaasCustomer } from "../../asaas-customer.ts";
-import { 
-  createPayment, 
-  getPixQrCode, 
-  buildSplitRules, 
-  getDueDate, 
-  parseCardToken, 
-  mapAsaasStatus,
-  type AsaasPaymentStatus 
-} from "./asaas-payment-helper.ts";
+import { createPayment, getPixQrCode, buildSplitRules, getDueDate, parseCardToken, mapAsaasStatus, type AsaasPaymentStatus } from "./asaas-payment-helper.ts";
 
 const log = createLogger("AsaasAdapter");
 
-// ============================================
-// ADAPTER IMPLEMENTATION
-// ============================================
-
 export class AsaasAdapter implements IPaymentGateway {
   readonly providerName = "asaas";
-  
   private apiKey: string;
   private environment: 'sandbox' | 'production';
   private baseUrl: string;
   private circuitBreaker: CircuitBreaker;
-
-  /**
-   * Cria uma nova instância do adaptador Asaas
-   * 
-   * @param apiKey - API Key da conta Asaas
-   * @param environment - Ambiente (sandbox ou production)
-   */
-  constructor(apiKey: string, environment: 'sandbox' | 'production' = 'production') {
+  private httpClient: GatewayHttpClient;
+  private supabase: SupabaseClient;
+  constructor(
+    apiKey: string, 
+    environment: 'sandbox' | 'production' = 'production',
+    supabase: SupabaseClient
+  ) {
     if (!apiKey) {
       throw new Error('Asaas: API Key é obrigatória');
     }
     this.apiKey = apiKey;
     this.environment = environment;
+    this.supabase = supabase;
     this.baseUrl = environment === 'sandbox' 
       ? 'https://sandbox.asaas.com/api/v3'
       : 'https://api.asaas.com/v3';
     this.circuitBreaker = new CircuitBreaker(GATEWAY_CIRCUIT_CONFIGS.asaas);
+    this.httpClient = createGatewayClient({
+      gateway: 'asaas',
+      baseUrl: this.baseUrl,
+      timeout: 15000,
+      defaultHeaders: { 
+        'Content-Type': 'application/json',
+        'access_token': this.apiKey 
+      }
+    });
   }
 
   // ============================================
@@ -89,6 +59,22 @@ export class AsaasAdapter implements IPaymentGateway {
   async createPix(request: PaymentRequest): Promise<PaymentResponse> {
     try {
       log.info(`Creating PIX payment for order ${request.order_id}`);
+
+      // RISE V3: Validação de preço ANTES de qualquer operação
+      const priceValidation = await validateOrderAmount({
+        supabase: this.supabase,
+        orderId: request.order_id,
+        expectedAmountCents: request.amount_cents,
+        gateway: 'asaas'
+      });
+
+      if (!priceValidation.valid) {
+        log.error('SECURITY: Price validation failed', { 
+          orderId: request.order_id,
+          error: priceValidation.error 
+        });
+        return this.errorResponse(priceValidation.error || 'Valor inválido');
+      }
 
       return await this.circuitBreaker.execute(async () => {
         // 1. Criar ou buscar customer
@@ -149,6 +135,22 @@ export class AsaasAdapter implements IPaymentGateway {
 
       if (!request.card_token) {
         return this.errorResponse('Token do cartão é obrigatório');
+      }
+
+      // RISE V3: Validação de preço ANTES de qualquer operação
+      const priceValidation = await validateOrderAmount({
+        supabase: this.supabase,
+        orderId: request.order_id,
+        expectedAmountCents: request.amount_cents,
+        gateway: 'asaas'
+      });
+
+      if (!priceValidation.valid) {
+        log.error('SECURITY: Price validation failed', { 
+          orderId: request.order_id,
+          error: priceValidation.error 
+        });
+        return this.errorResponse(priceValidation.error || 'Valor inválido');
       }
 
       return await this.circuitBreaker.execute(async () => {

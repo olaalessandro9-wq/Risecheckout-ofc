@@ -17,7 +17,7 @@ interface CustomerTableBodyProps {
   customers: Customer[];
   isLoading: boolean;
   searchTerm: string;
-  getDisplayPhone: (customer: Customer) => ReactNode;
+  getDisplayEmail: (customer: Customer) => ReactNode;
   onViewDetails: (customer: Customer) => void;
 }
 
@@ -25,7 +25,7 @@ export function CustomerTableBody({
   customers,
   isLoading,
   searchTerm,
-  getDisplayPhone,
+  getDisplayEmail,
   onViewDetails,
 }: CustomerTableBodyProps) {
   if (isLoading) {
@@ -77,7 +77,7 @@ export function CustomerTableBody({
         <CustomerTableRow
           key={customer.id}
           customer={customer}
-          displayPhone={getDisplayPhone(customer)}
+          displayEmail={getDisplayEmail(customer)}
           onViewDetails={() => onViewDetails(customer)}
         />
       ))}

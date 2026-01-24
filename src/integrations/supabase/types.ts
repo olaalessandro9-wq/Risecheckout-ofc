@@ -358,7 +358,7 @@ export type Database = {
             foreignKeyName: "buyer_content_progress_buyer_id_fkey"
             columns: ["buyer_id"]
             isOneToOne: false
-            referencedRelation: "buyer_profiles"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
@@ -422,6 +422,9 @@ export type Database = {
           is_active: boolean | null
           order_id: string | null
           product_id: string
+          revoked_at: string | null
+          revoked_by_event_id: string | null
+          revoked_reason: string | null
         }
         Insert: {
           access_type?: string | null
@@ -432,6 +435,9 @@ export type Database = {
           is_active?: boolean | null
           order_id?: string | null
           product_id: string
+          revoked_at?: string | null
+          revoked_by_event_id?: string | null
+          revoked_reason?: string | null
         }
         Update: {
           access_type?: string | null
@@ -442,6 +448,9 @@ export type Database = {
           is_active?: boolean | null
           order_id?: string | null
           product_id?: string
+          revoked_at?: string | null
+          revoked_by_event_id?: string | null
+          revoked_reason?: string | null
         }
         Relationships: [
           {
@@ -470,6 +479,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_product_access_revoked_by_event_id_fkey"
+            columns: ["revoked_by_event_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle_events"
             referencedColumns: ["id"]
           },
         ]
@@ -670,62 +686,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "buyer_saved_cards_buyer_id_fkey"
-            columns: ["buyer_id"]
-            isOneToOne: false
-            referencedRelation: "buyer_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      buyer_sessions: {
-        Row: {
-          access_token_expires_at: string | null
-          buyer_id: string
-          created_at: string | null
-          expires_at: string
-          id: string
-          ip_address: string | null
-          is_valid: boolean | null
-          last_activity_at: string | null
-          previous_refresh_token: string | null
-          refresh_token: string | null
-          refresh_token_expires_at: string | null
-          session_token: string
-          user_agent: string | null
-        }
-        Insert: {
-          access_token_expires_at?: string | null
-          buyer_id: string
-          created_at?: string | null
-          expires_at?: string
-          id?: string
-          ip_address?: string | null
-          is_valid?: boolean | null
-          last_activity_at?: string | null
-          previous_refresh_token?: string | null
-          refresh_token?: string | null
-          refresh_token_expires_at?: string | null
-          session_token: string
-          user_agent?: string | null
-        }
-        Update: {
-          access_token_expires_at?: string | null
-          buyer_id?: string
-          created_at?: string | null
-          expires_at?: string
-          id?: string
-          ip_address?: string | null
-          is_valid?: boolean | null
-          last_activity_at?: string | null
-          previous_refresh_token?: string | null
-          refresh_token?: string | null
-          refresh_token_expires_at?: string | null
-          session_token?: string
-          user_agent?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "buyer_sessions_buyer_id_fkey"
             columns: ["buyer_id"]
             isOneToOne: false
             referencedRelation: "buyer_profiles"
@@ -2230,30 +2190,39 @@ export type Database = {
         Row: {
           created_at: string
           data: Json | null
+          external_id: string | null
+          gateway: string | null
           gateway_event_id: string | null
           id: string
           occurred_at: string
           order_id: string
+          processed_successfully: boolean | null
           type: string
           vendor_id: string
         }
         Insert: {
           created_at?: string
           data?: Json | null
+          external_id?: string | null
+          gateway?: string | null
           gateway_event_id?: string | null
           id?: string
           occurred_at: string
           order_id: string
+          processed_successfully?: boolean | null
           type: string
           vendor_id: string
         }
         Update: {
           created_at?: string
           data?: Json | null
+          external_id?: string | null
+          gateway?: string | null
           gateway_event_id?: string | null
           id?: string
           occurred_at?: string
           order_id?: string
+          processed_successfully?: boolean | null
           type?: string
           vendor_id?: string
         }
@@ -2318,6 +2287,56 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_lifecycle_events: {
+        Row: {
+          created_at: string | null
+          id: string
+          metadata: Json | null
+          new_status: string
+          old_status: string | null
+          order_id: string
+          processed: boolean | null
+          processed_at: string | null
+          processing_error: string | null
+          processor_version: string | null
+          retry_count: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          new_status: string
+          old_status?: string | null
+          order_id: string
+          processed?: boolean | null
+          processed_at?: string | null
+          processing_error?: string | null
+          processor_version?: string | null
+          retry_count?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          new_status?: string
+          old_status?: string | null
+          order_id?: string
+          processed?: boolean | null
+          processed_at?: string | null
+          processing_error?: string | null
+          processor_version?: string | null
+          retry_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_lifecycle_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]
@@ -2847,69 +2866,6 @@ export type Database = {
           },
           {
             foreignKeyName: "producer_audit_log_producer_id_fkey"
-            columns: ["producer_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_secure"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      producer_sessions: {
-        Row: {
-          access_token_expires_at: string | null
-          created_at: string | null
-          expires_at: string
-          id: string
-          ip_address: string | null
-          is_valid: boolean | null
-          last_activity_at: string | null
-          previous_refresh_token: string | null
-          producer_id: string
-          refresh_token: string | null
-          refresh_token_expires_at: string | null
-          session_token: string
-          user_agent: string | null
-        }
-        Insert: {
-          access_token_expires_at?: string | null
-          created_at?: string | null
-          expires_at?: string
-          id?: string
-          ip_address?: string | null
-          is_valid?: boolean | null
-          last_activity_at?: string | null
-          previous_refresh_token?: string | null
-          producer_id: string
-          refresh_token?: string | null
-          refresh_token_expires_at?: string | null
-          session_token: string
-          user_agent?: string | null
-        }
-        Update: {
-          access_token_expires_at?: string | null
-          created_at?: string | null
-          expires_at?: string
-          id?: string
-          ip_address?: string | null
-          is_valid?: boolean | null
-          last_activity_at?: string | null
-          previous_refresh_token?: string | null
-          producer_id?: string
-          refresh_token?: string | null
-          refresh_token_expires_at?: string | null
-          session_token?: string
-          user_agent?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "producer_sessions_producer_id_fkey"
-            columns: ["producer_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "producer_sessions_producer_id_fkey"
             columns: ["producer_id"]
             isOneToOne: false
             referencedRelation: "profiles_secure"
@@ -4590,8 +4546,6 @@ export type Database = {
         }[]
       }
       cleanup_expired_blocks: { Args: never; Returns: number }
-      cleanup_expired_buyer_sessions: { Args: never; Returns: number }
-      cleanup_expired_producer_sessions: { Args: never; Returns: number }
       cleanup_gdpr_audit_log: { Args: never; Returns: number }
       cleanup_gdpr_requests: { Args: never; Returns: number }
       cleanup_key_rotation_log: { Args: never; Returns: number }
@@ -4808,7 +4762,6 @@ export type Database = {
               user_id: string
             }[]
           }
-      get_producer_id_from_session: { Args: never; Returns: string }
       get_rls_status_all_tables: {
         Args: never
         Returns: {

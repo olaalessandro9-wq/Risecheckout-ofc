@@ -10,8 +10,8 @@ import {
   Outlet,
   useLocation,
 } from "react-router-dom";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { RoleProtectedRoute } from "@/components/RoleProtectedRoute";
+import { ProducerRoute, BuyerRoute } from "@/components/guards";
 import { ThemeProvider } from "@/providers/theme";
 import { NavigationGuardProvider } from "@/providers/NavigationGuardProvider";
 import { BusyProvider } from "@/components/BusyProvider";
@@ -122,13 +122,13 @@ function RootLayout() {
 // ============================================================================
 function DashboardLayout() {
   return (
-    <ProtectedRoute>
+    <ProducerRoute>
       <ThemeProvider>
         <NavigationGuardProvider>
           <AppShell />
         </NavigationGuardProvider>
       </ThemeProvider>
-    </ProtectedRoute>
+    </ProducerRoute>
   );
 }
 
@@ -137,13 +137,13 @@ function DashboardLayout() {
 // ============================================================================
 function MembersAreaBuilderLayout() {
   return (
-    <ProtectedRoute>
+    <ProducerRoute>
       <NavigationGuardProvider>
         <Suspense fallback={<PageLoader />}>
           <MembersAreaBuilderPage />
         </Suspense>
       </NavigationGuardProvider>
-    </ProtectedRoute>
+    </ProducerRoute>
   );
 }
 
@@ -152,11 +152,11 @@ function MembersAreaBuilderLayout() {
 // ============================================================================
 function CheckoutCustomizerLayout() {
   return (
-    <ProtectedRoute>
+    <ProducerRoute>
       <NavigationGuardProvider>
         <CheckoutCustomizer />
       </NavigationGuardProvider>
-    </ProtectedRoute>
+    </ProducerRoute>
   );
 }
 
@@ -210,7 +210,11 @@ const router = createBrowserRouter([
       // ============================================================
       {
         path: "/minha-conta",
-        element: <StudentShell />,
+        element: (
+          <BuyerRoute>
+            <StudentShell />
+          </BuyerRoute>
+        ),
         children: [
           { path: "dashboard", element: <BuyerDashboard /> },
           { path: "historico", element: <BuyerHistory /> },
@@ -220,8 +224,8 @@ const router = createBrowserRouter([
       // ============================================================
       // ÁREA DE MEMBROS - Netflix-style Course Pages (Full Screen)
       // ============================================================
-      { path: "/minha-conta/produto/:productId", element: <CourseHome /> },
-      { path: "/minha-conta/produto/:productId/aula/:contentId", element: <LessonViewer /> },
+      { path: "/minha-conta/produto/:productId", element: <BuyerRoute><CourseHome /></BuyerRoute> },
+      { path: "/minha-conta/produto/:productId/aula/:contentId", element: <BuyerRoute><LessonViewer /></BuyerRoute> },
 
       // ============================================================
       // CHECKOUT BUILDER - Full screen (Protegido com NavigationGuard)

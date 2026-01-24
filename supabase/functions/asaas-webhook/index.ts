@@ -24,6 +24,7 @@ import {
   ERROR_CODES
 } from '../_shared/webhook-helpers.ts';
 import { processPostPaymentActions } from '../_shared/webhook-post-payment.ts';
+import { processPostRefundActions, getRefundEventType, type RefundReason } from '../_shared/webhook-post-refund.ts';
 import { validateAsaasIP } from '../_shared/ip-whitelist.ts';
 
 const FUNCTION_VERSION = "5";
@@ -154,8 +155,14 @@ serve(async (req) => {
 
     const vendorId = orderData?.vendor_id || '00000000-0000-0000-0000-000000000000';
 
-    // Build update data - MODELO HOTMART/KIWIFY
+    // RISE V3: Idempotência - Se já pago e evento é de pagamento, retornar early
     const normalizedStatus = orderStatus.toLowerCase();
+    if (orderData?.status === 'paid' && normalizedStatus === 'paid') {
+      logger.info("Order already paid, skipping duplicate", { orderId, asaasPaymentId: payment.id });
+      return createSuccessResponse({ received: true, duplicate: true, orderId });
+    }
+
+    // Build update data - MODELO HOTMART/KIWIFY
     const updateData: Record<string, unknown> = {
       gateway_payment_id: payment.id,
       updated_at: new Date().toISOString()
@@ -211,6 +218,16 @@ serve(async (req) => {
         paymentMethod: payment.billingType === 'PIX' ? 'PIX / Asaas' : 'Asaas',
         vendorId,
       }, webhookEventType, logger);
+    }
+
+    // Post-Refund Actions - RISE V3: Revogação automática de acesso
+    if (['refunded', 'chargeback'].includes(normalizedStatus) && orderData) {
+      await processPostRefundActions(supabase, {
+        orderId,
+        productId: orderData.product_id,
+        vendorId,
+        reason: normalizedStatus as RefundReason,
+      }, getRefundEventType(normalizedStatus as RefundReason), logger);
     }
 
     // Log Event

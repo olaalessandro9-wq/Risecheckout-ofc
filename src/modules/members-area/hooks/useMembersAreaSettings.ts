@@ -129,10 +129,12 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
     send({ type: 'RESET', modules: [] });
   }, [productId, send]);
 
-  // Sincronizar modules do React Query com State Machine
+  // RISE V3: Sincronizar modules do React Query com State Machine
+  // Usar LOAD em vez de SET_MODULES para garantir transição idle → ready
+  // mesmo quando a lista está vazia (permite ADD_MODULE funcionar desde o primeiro módulo)
   useEffect(() => {
-    if (modulesQuery.data && modulesQuery.data.length > 0) {
-      send({ type: 'SET_MODULES', modules: modulesQuery.data });
+    if (modulesQuery.data !== undefined) {
+      send({ type: 'LOAD', modules: modulesQuery.data });
     }
   }, [modulesQuery.data, send]);
 
@@ -162,11 +164,11 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
           settings: data.settings,
         });
       }
-      toast.success("Configurações atualizadas!");
+      // RISE V3: Toast responsibility delegated to calling component (SSOT)
     },
     onError: (error) => {
       log.error("Error updating settings", error);
-      toast.error("Erro ao atualizar configurações");
+      // RISE V3: Toast responsibility delegated to calling component (SSOT)
     },
     onSettled: () => {
       send({ type: 'SET_SAVING', isSaving: false });

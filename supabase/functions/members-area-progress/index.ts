@@ -25,7 +25,7 @@ interface ProgressData {
 }
 
 interface ProgressRequest {
-  action: "get" | "update" | "complete" | "get-module-progress" | "get-product-progress";
+  action: "get" | "update" | "complete" | "uncomplete" | "get-module-progress" | "get-product-progress";
   content_id?: string;
   module_id?: string;
   product_id?: string;
@@ -214,6 +214,34 @@ Deno.serve(async (req) => {
         if (error) throw error;
 
         log.info(`Content ${content_id} completed by buyer ${buyer_id}`);
+
+        return new Response(
+          JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      case "uncomplete": {
+        if (!content_id) {
+          return new Response(
+            JSON.stringify({ error: "content_id required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const { error } = await supabase
+          .from("buyer_content_progress")
+          .update({
+            progress_percent: 0,
+            completed_at: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("content_id", content_id)
+          .eq("buyer_id", buyer_id);
+
+        if (error) throw error;
+
+        log.info(`Content ${content_id} uncompleted by buyer ${buyer_id}`);
 
         return new Response(
           JSON.stringify({ success: true }),

@@ -37,13 +37,12 @@ export function formatPhone(phone: string | null | undefined): string {
  * Exporta dados de clientes para CSV
  */
 export function exportCustomersToCSV(customers: CustomerExportData[]): void {
-  const headers = ['ID', 'Oferta', 'Cliente', 'Email', 'Telefone', 'Criado em', 'Valor', 'Status'];
+  const headers = ['ID', 'Oferta', 'Cliente', 'Email', 'Criado em', 'Valor', 'Status'];
   const rows = customers.map(customer => [
     customer.id,
     customer.offer,
     customer.client,
     customer.email,
-    customer.phone,
     customer.createdAt,
     customer.value,
     customer.status
