@@ -111,6 +111,27 @@ export async function handleLogin(
       activeRole = roles.find(r => ["owner", "admin", "user", "seller"].includes(r)) || "user";
     }
     
+    // RISE V3: Invalidar sessões anteriores para evitar acúmulo
+    // Mantém no máximo 5 sessões ativas por usuário
+    const { data: existingSessions } = await supabase
+      .from("sessions")
+      .select("id, created_at")
+      .eq("user_id", user.id)
+      .eq("is_valid", true)
+      .order("created_at", { ascending: false });
+    
+    if (existingSessions && existingSessions.length >= 5) {
+      // Invalidar sessões mais antigas (manter apenas as 4 mais recentes + nova)
+      const sessionsToInvalidate = existingSessions.slice(4).map(s => s.id);
+      if (sessionsToInvalidate.length > 0) {
+        await supabase
+          .from("sessions")
+          .update({ is_valid: false })
+          .in("id", sessionsToInvalidate);
+        log.info("Invalidated old sessions", { count: sessionsToInvalidate.length });
+      }
+    }
+    
     // Create session
     const session = await createSession(supabase, user.id, activeRole, req);
     if (!session) {
