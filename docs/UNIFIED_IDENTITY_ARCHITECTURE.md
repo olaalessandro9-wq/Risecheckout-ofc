@@ -96,6 +96,102 @@ All buyer-related tables now reference `users(id)` as the single source of truth
             └─────────────────┘
 ```
 
+## Resilient Session Architecture (RISE V3 - 2026-01-24)
+
+### Problem Solved
+
+Browsers throttle/pause `setInterval` timers in background tabs, causing:
+- Access tokens to expire without proactive refresh
+- Users being unexpectedly logged out after returning to the app
+- Poor UX requiring frequent re-authentication
+
+### Solution: Visibility-Aware Token Service
+
+The system now implements a **triple-layer defense** against session expiration:
+
+#### Layer 1: Frontend Visibility Listener
+
+```typescript
+// src/lib/token-manager/service.ts
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) this.handleVisibilityRestore();
+});
+
+private async handleVisibilityRestore(): Promise<void> {
+  if (isExpired(this.context)) {
+    await this.refresh(); // Immediate restoration
+  }
+}
+```
+
+#### Layer 2: Refresh-First Strategy (useUnifiedAuth)
+
+```typescript
+// src/hooks/useUnifiedAuth.ts
+async function validateSession() {
+  // Check TokenService BEFORE calling backend
+  if (!unifiedTokenService.hasValidToken()) {
+    const refreshed = await unifiedTokenService.refresh();
+    if (!refreshed) return { valid: false };
+  }
+  // Continue with validation...
+}
+```
+
+#### Layer 3: Backend Auto-Refresh (validate.ts)
+
+```typescript
+// supabase/functions/unified-auth/handlers/validate.ts
+if (!user && refreshToken) {
+  // Access expired but refresh valid → auto-refresh
+  return handleRefresh(supabase, req, corsHeaders);
+}
+```
+
+### Flow Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                 RESILIENT SESSION FLOW                           │
+└─────────────────────────────────────────────────────────────────┘
+
+   Tab in Background (1h+)          Heartbeat PAUSED
+         │                          (browser throttle)
+         │                                  │
+         │ User returns to tab              │
+         ▼                                  ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    visibilitychange EVENT                        │
+│                                                                  │
+│  1. document.hidden = false                                      │
+│  2. TokenService.handleVisibilityRestore()                       │
+│  3. if (expired) → refresh() IMMEDIATE                           │
+└─────────────────────────────────────────────────────────────────┘
+         │
+         │ Refresh successful
+         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    SESSION RESTORED                              │
+│                                                                  │
+│  ✓ Access token renewed (60 min)                                │
+│  ✓ Refresh token rotated                                        │
+│  ✓ Cookies updated                                              │
+│  ✓ React Query invalidated                                      │
+│  ✓ User continues WITHOUT re-login                              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/token-manager/service.ts` | Visibility listener + refresh logic |
+| `src/lib/token-manager/heartbeat.ts` | Suspension detection |
+| `src/hooks/useUnifiedAuth.ts` | Refresh-first strategy |
+| `supabase/functions/unified-auth/handlers/validate.ts` | Backend auto-refresh |
+
+---
+
 ## Cookies
 
 | Cookie | Duration | Purpose |
