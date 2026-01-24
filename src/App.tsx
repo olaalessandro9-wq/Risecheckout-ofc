@@ -254,45 +254,40 @@ const router = createBrowserRouter([
         path: "/dashboard",
         element: <DashboardLayout />,
         children: [
-          { index: true, element: <Suspense fallback={<PageLoader />}><Dashboard /></Suspense> },
-          { path: "produtos", element: <Suspense fallback={<PageLoader />}><Produtos /></Suspense> },
-          { path: "produtos/editar", element: <Suspense fallback={<PageLoader />}><ProductEdit /></Suspense> },
-          { path: "marketplace", element: <Suspense fallback={<PageLoader />}><Marketplace /></Suspense> },
+          // Suspense centralizado no AppShell - não precisa aqui
+          { index: true, element: <Dashboard /> },
+          { path: "produtos", element: <Produtos /> },
+          { path: "produtos/editar", element: <ProductEdit /> },
+          { path: "marketplace", element: <Marketplace /> },
           {
             path: "afiliados",
             element: (
               <RoleProtectedRoute requiredPermission="canHaveAffiliates" showAccessDenied>
-                <Suspense fallback={<PageLoader />}>
-                  <Afiliados />
-                </Suspense>
+                <Afiliados />
               </RoleProtectedRoute>
             ),
           },
-          { path: "minhas-afiliacoes", element: <Suspense fallback={<PageLoader />}><MinhasAfiliacoes /></Suspense> },
-          { path: "minhas-afiliacoes/:affiliationId", element: <Suspense fallback={<PageLoader />}><AffiliationDetails /></Suspense> },
-          { path: "financeiro", element: <Suspense fallback={<PageLoader />}><Financeiro /></Suspense> },
+          { path: "minhas-afiliacoes", element: <MinhasAfiliacoes /> },
+          { path: "minhas-afiliacoes/:affiliationId", element: <AffiliationDetails /> },
+          { path: "financeiro", element: <Financeiro /> },
           {
             path: "gateways",
             element: (
               <RoleProtectedRoute requiredRole="owner" showAccessDenied>
-                <Suspense fallback={<PageLoader />}>
-                  <OwnerGateways />
-                </Suspense>
+                <OwnerGateways />
               </RoleProtectedRoute>
             ),
           },
-          { path: "rastreamento", element: <Suspense fallback={<PageLoader />}><Rastreamento /></Suspense> },
-          { path: "webhooks", element: <Suspense fallback={<PageLoader />}><Webhooks /></Suspense> },
-          { path: "ajuda", element: <Suspense fallback={<PageLoader />}><Ajuda /></Suspense> },
-          { path: "perfil", element: <Suspense fallback={<PageLoader />}><Perfil /></Suspense> },
+          { path: "rastreamento", element: <Rastreamento /> },
+          { path: "webhooks", element: <Webhooks /> },
+          { path: "ajuda", element: <Ajuda /> },
+          { path: "perfil", element: <Perfil /> },
           { path: "config", element: <Navigate to="admin" replace /> },
           {
             path: "admin",
             element: (
               <RoleProtectedRoute requiredRole="admin" showAccessDenied>
-                <Suspense fallback={<PageLoader />}>
-                  <AdminDashboard />
-                </Suspense>
+                <AdminDashboard />
               </RoleProtectedRoute>
             ),
           },
@@ -300,9 +295,7 @@ const router = createBrowserRouter([
             path: "admin/health",
             element: (
               <RoleProtectedRoute requiredRole="admin" showAccessDenied>
-                <Suspense fallback={<PageLoader />}>
-                  <AdminHealth />
-                </Suspense>
+                <AdminHealth />
               </RoleProtectedRoute>
             ),
           },

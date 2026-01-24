@@ -1,13 +1,15 @@
 /**
  * useProductsTable - Centralized hook for ProductsTable state and mutations
  * 
- * @see RISE Protocol V3 - Single Source of Truth
+ * Usa React Query para cache de dados com staleTime de 2 minutos.
+ * 
+ * @see RISE Protocol V3 - Single Source of Truth + React Query
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("useProductsTable");
@@ -20,6 +22,19 @@ import { duplicateProductDeep } from "@/lib/products/duplicateProduct";
 import { deleteProductCascade } from "@/lib/products/deleteProduct";
 import type { Product, ProductTab } from "./types";
 
+// ============================================================================
+// QUERY KEY FACTORY
+// ============================================================================
+
+const productQueryKeys = {
+  all: ['products'] as const,
+  list: (userId: string | undefined) => [...productQueryKeys.all, 'list', userId] as const,
+};
+
+// ============================================================================
+// HOOK
+// ============================================================================
+
 export function useProductsTable() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -27,18 +42,23 @@ export function useProductsTable() {
   const qc = useQueryClient();
   const { confirm, Bridge } = useConfirmDelete();
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Local UI state
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [activeTab, setActiveTab] = useState<ProductTab>("meus-produtos");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
-  const loadProducts = useCallback(async () => {
-    if (!user) return;
-    
-    setLoading(true);
-    try {
+  // ========================================================================
+  // REACT QUERY - Products List com Cache
+  // ========================================================================
+
+  const { 
+    data: products = [], 
+    isLoading: loading,
+    refetch: loadProducts,
+  } = useQuery({
+    queryKey: productQueryKeys.list(user?.id),
+    queryFn: async () => {
       const { data, error } = await api.call<{
         products?: Product[];
         error?: string;
@@ -47,17 +67,21 @@ export function useProductsTable() {
       if (error) throw error;
       
       if (data?.products) {
-        setProducts(data.products as Product[]);
+        return data.products as Product[];
       } else if (data?.error) {
         throw new Error(data.error);
       }
-    } catch (error: unknown) {
-      toast.error("Erro ao carregar produtos");
-      log.error("Load error:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
+      
+      return [];
+    },
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 2, // 2 minutos em cache - navegação instantânea
+    gcTime: 1000 * 60 * 5,    // 5 minutos no garbage collector
+  });
+
+  // ========================================================================
+  // MUTATIONS
+  // ========================================================================
 
   const duplicateMutation = useMutation({
     mutationFn: async (productId: string) => {
@@ -71,8 +95,7 @@ export function useProductsTable() {
     },
     onSuccess: async () => {
       toast.success("Produto duplicado com sucesso!");
-      await loadProducts();
-      await qc.invalidateQueries({ queryKey: ["products:list"] });
+      await qc.invalidateQueries({ queryKey: productQueryKeys.all });
     },
     onError: (err: Error) => {
       log.error("Falha ao duplicar:", err);
@@ -85,8 +108,7 @@ export function useProductsTable() {
       await deleteProductCascade(supabase, productId);
     },
     onSuccess: async () => {
-      await loadProducts();
-      await qc.invalidateQueries({ queryKey: ["products:list"] });
+      await qc.invalidateQueries({ queryKey: productQueryKeys.all });
     },
     onError: (err: Error) => {
       let errorMessage = "Erro ao excluir produto";
@@ -103,11 +125,9 @@ export function useProductsTable() {
     },
   });
 
-  useEffect(() => {
-    if (user?.id) {
-      loadProducts();
-    }
-  }, [user?.id, loadProducts]);
+  // ========================================================================
+  // ACTION HANDLERS
+  // ========================================================================
 
   const handleEdit = useCallback((productId: string) => {
     navigate(`/dashboard/produtos/editar?id=${productId}`);
@@ -128,10 +148,18 @@ export function useProductsTable() {
     });
   }, [confirm, deleteMutation]);
 
+  // ========================================================================
+  // FILTERED PRODUCTS
+  // ========================================================================
+
   const filteredProducts = products.filter(product => 
     product.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
     (statusFilter === "all" || product.status === statusFilter)
   );
+
+  // ========================================================================
+  // RETURN
+  // ========================================================================
 
   return {
     // State

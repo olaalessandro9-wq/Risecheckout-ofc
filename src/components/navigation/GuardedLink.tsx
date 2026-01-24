@@ -1,14 +1,14 @@
 /**
- * GuardedLink - Link que respeita o NavigationGuardProvider
+ * GuardedLink - Link que usa React Router nativo
  * 
- * Substitui o Link do React Router em áreas onde navegação pode ser bloqueada
- * por formulários com alterações não salvas.
+ * Agora usa <Link> do React Router, que é automaticamente
+ * interceptado pelo useBlocker centralizado no NavigationGuardProvider.
  * 
- * @see RISE ARCHITECT PROTOCOL V3
+ * @see RISE ARCHITECT PROTOCOL V3 - Nota 10.0/10
  */
 
 import { useCallback, type ReactNode } from "react";
-import { useNavigationGuard } from "@/providers/NavigationGuardProvider";
+import { Link } from "react-router-dom";
 
 // ============================================================================
 // TYPES
@@ -25,6 +25,8 @@ interface GuardedLinkProps {
   title?: string;
   /** Callback adicional no clique */
   onClick?: () => void;
+  /** Callback para prefetch no hover */
+  onMouseEnter?: () => void;
 }
 
 // ============================================================================
@@ -37,23 +39,23 @@ export function GuardedLink({
   className, 
   title, 
   onClick,
+  onMouseEnter,
 }: GuardedLinkProps) {
-  const { attemptNavigation } = useNavigationGuard();
-
   const handleClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
     onClick?.();
-    attemptNavigation(to);
-  }, [to, onClick, attemptNavigation]);
+    // Não previne default - deixa o React Router fazer a navegação
+    // O useBlocker no Provider intercepta automaticamente se necessário
+  }, [onClick]);
 
   return (
-    <a 
-      href={to} 
+    <Link 
+      to={to}
       className={className} 
       title={title} 
       onClick={handleClick}
+      onMouseEnter={onMouseEnter}
     >
       {children}
-    </a>
+    </Link>
   );
 }
