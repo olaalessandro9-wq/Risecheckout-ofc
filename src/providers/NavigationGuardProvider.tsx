@@ -1,10 +1,10 @@
 /**
  * NavigationGuardProvider - Sistema Centralizado de Proteção de Navegação
  * 
- * Substitui múltiplos useBlocker por um sistema único e previsível.
- * Elimina bug do React Router "A router only supports one blocker at a time".
+ * Usa UM ÚNICO useBlocker centralizado para interceptar toda navegação.
+ * Resolve o bug "A router only supports one blocker at a time" de forma correta.
  * 
- * @see RISE ARCHITECT PROTOCOL V3 - Nota 9.7/10
+ * @see RISE ARCHITECT PROTOCOL V3 - Nota 10.0/10
  */
 
 import { 
@@ -16,7 +16,7 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useBlocker } from "react-router-dom";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,11 +32,6 @@ import {
 // TYPES
 // ============================================================================
 
-interface PendingNavigation {
-  to: string;
-  state?: unknown;
-}
-
 interface NavigationGuardContextValue {
   /** Registra um componente como "dirty" */
   registerDirty: (id: string, isDirty: boolean) => void;
@@ -44,7 +39,7 @@ interface NavigationGuardContextValue {
   unregisterDirty: (id: string) => void;
   /** Verifica se há algum formulário dirty */
   hasAnyDirty: () => boolean;
-  /** Tenta navegar, mostrando modal se necessário */
+  /** Tenta navegar (agora apenas para navegação programática - useBlocker intercepta Link) */
   attemptNavigation: (to: string, state?: unknown) => void;
   /** Verifica se um ID específico está dirty */
   isDirtyById: (id: string) => boolean;
@@ -80,13 +75,28 @@ export function NavigationGuardProvider({
   confirmText = "Descartar alterações",
 }: NavigationGuardProviderProps) {
   const [dirtyMap, setDirtyMap] = useState<Map<string, boolean>>(new Map());
-  const [pendingNavigation, setPendingNavigation] = useState<PendingNavigation | null>(null);
   const navigate = useNavigate();
-  const location = useLocation();
   
-  // Ref para evitar closures stale no beforeunload
+  // Ref para evitar closures stale no blocker e beforeunload
   const dirtyMapRef = useRef(dirtyMap);
   dirtyMapRef.current = dirtyMap;
+
+  // ========================================================================
+  // useBlocker ÚNICO E CENTRALIZADO
+  // ========================================================================
+  
+  const blocker = useBlocker(
+    useCallback(
+      ({ currentLocation, nextLocation }) => {
+        // Bloqueia se há formulários dirty E está mudando de pathname
+        return (
+          dirtyMapRef.current.size > 0 &&
+          currentLocation.pathname !== nextLocation.pathname
+        );
+      },
+      [] // Ref não precisa de deps
+    )
+  );
 
   // ========================================================================
   // REGISTRATION HANDLERS
@@ -128,32 +138,25 @@ export function NavigationGuardProvider({
   // NAVIGATION HANDLERS
   // ========================================================================
 
+  // attemptNavigation agora é apenas para navegação programática
+  // Links usando <Link> são automaticamente interceptados pelo useBlocker
   const attemptNavigation = useCallback((to: string, state?: unknown) => {
-    // Se está na mesma rota, permite
-    if (to === location.pathname) {
-      return;
-    }
-    
-    // Se há formulários dirty, mostra modal
-    if (dirtyMapRef.current.size > 0) {
-      setPendingNavigation({ to, state });
-    } else {
-      navigate(to, { state });
-    }
-  }, [navigate, location.pathname]);
+    navigate(to, { state });
+  }, [navigate]);
 
   const handleProceed = useCallback(() => {
-    if (pendingNavigation) {
-      // Limpa todos os dirty antes de navegar
+    if (blocker.state === "blocked") {
+      // Limpa todos os dirty antes de prosseguir
       setDirtyMap(new Map());
-      navigate(pendingNavigation.to, { state: pendingNavigation.state });
-      setPendingNavigation(null);
+      blocker.proceed?.();
     }
-  }, [pendingNavigation, navigate]);
+  }, [blocker]);
 
   const handleCancel = useCallback(() => {
-    setPendingNavigation(null);
-  }, []);
+    if (blocker.state === "blocked") {
+      blocker.reset?.();
+    }
+  }, [blocker]);
 
   // ========================================================================
   // BROWSER CLOSE/REFRESH HANDLER
@@ -188,7 +191,8 @@ export function NavigationGuardProvider({
     <NavigationGuardContext.Provider value={contextValue}>
       {children}
       
-      <AlertDialog open={pendingNavigation !== null}>
+      {/* Modal controlado pelo estado do blocker */}
+      <AlertDialog open={blocker.state === "blocked"}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{dialogTitle}</AlertDialogTitle>

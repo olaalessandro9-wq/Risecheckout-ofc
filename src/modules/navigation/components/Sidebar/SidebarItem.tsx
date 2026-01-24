@@ -1,14 +1,15 @@
 /**
- * SidebarItem - Item de Navegação Simples
+ * SidebarItem - Item de Navegação com Prefetch
  * 
- * Renderiza um item de navegação sem sub-itens.
+ * Renderiza um item de navegação com prefetch de chunks e dados no hover.
  * Suporta rotas internas (com GuardedLink) e links externos.
  * 
- * @see RISE ARCHITECT PROTOCOL V3 - Componentes Type-Safe
+ * @see RISE ARCHITECT PROTOCOL V3 - Componentes Type-Safe + Prefetch
  */
 
 import { useLocation } from "react-router-dom";
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { GuardedLink } from "@/components/navigation/GuardedLink";
 import { isActivePath } from "../../utils/navigationHelpers";
@@ -28,11 +29,31 @@ interface SidebarItemProps {
 }
 
 // ============================================================================
+// ROUTE PREFETCH MAP - Prefetch de chunks JS no hover
+// ============================================================================
+
+const ROUTE_PREFETCH_MAP: Record<string, () => Promise<unknown>> = {
+  '/dashboard': () => import('@/modules/dashboard'),
+  '/dashboard/produtos': () => import('@/pages/Produtos'),
+  '/dashboard/marketplace': () => import('@/pages/Marketplace'),
+  '/dashboard/afiliados': () => import('@/pages/Afiliados'),
+  '/dashboard/minhas-afiliacoes': () => import('@/pages/MinhasAfiliacoes'),
+  '/dashboard/financeiro': () => import('@/pages/Financeiro'),
+  '/dashboard/gateways': () => import('@/pages/owner/OwnerGateways'),
+  '/dashboard/rastreamento': () => import('@/pages/Rastreamento'),
+  '/dashboard/webhooks': () => import('@/pages/Webhooks'),
+  '/dashboard/ajuda': () => import('@/pages/Ajuda'),
+  '/dashboard/perfil': () => import('@/pages/Perfil'),
+  '/dashboard/admin': () => import('@/pages/admin/AdminDashboard'),
+};
+
+// ============================================================================
 // COMPONENT
 // ============================================================================
 
 export function SidebarItem({ item, showLabels, onNavigate }: SidebarItemProps) {
   const location = useLocation();
+  const queryClient = useQueryClient();
   const Icon = item.icon;
 
   // Type-safe: só calcula isActive para rotas
@@ -40,6 +61,26 @@ export function SidebarItem({ item, showLabels, onNavigate }: SidebarItemProps) 
     if (item.variant.type !== "route") return false;
     return isActivePath(location.pathname, item.variant.path, item.variant.exact);
   }, [item.variant, location.pathname]);
+
+  // Prefetch de chunks JS e dados no hover
+  const prefetchAll = useCallback(() => {
+    if (item.variant.type !== 'route') return;
+    const path = item.variant.path;
+    
+    // 1. Prefetch chunk JS
+    const prefetcher = ROUTE_PREFETCH_MAP[path];
+    if (prefetcher) {
+      prefetcher();
+    }
+    
+    // 2. Prefetch dados via React Query (exemplo para produtos)
+    if (path === '/dashboard/produtos') {
+      queryClient.prefetchQuery({
+        queryKey: ['products:list'],
+        staleTime: 1000 * 60 * 2, // 2 minutos
+      });
+    }
+  }, [item.variant, queryClient]);
 
   // Classes compartilhadas
   const commonClasses = cn(
@@ -89,6 +130,7 @@ export function SidebarItem({ item, showLabels, onNavigate }: SidebarItemProps) 
             className={commonClasses}
             title={!showLabels ? item.label : undefined}
             onClick={onNavigate}
+            onMouseEnter={prefetchAll}
           >
             {content}
           </GuardedLink>

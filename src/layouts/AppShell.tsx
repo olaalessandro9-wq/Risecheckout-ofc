@@ -2,16 +2,33 @@
  * AppShell - Layout Principal da Aplicação
  * 
  * Integra Sidebar, Topbar e área de conteúdo principal.
- * Usa o novo sistema de navegação modular.
+ * Suspense ÚNICO centralizado para todas as rotas filhas.
  * 
- * @see RISE ARCHITECT PROTOCOL V3 - Layouts Simples
+ * @see RISE ARCHITECT PROTOCOL V3 - Layouts Simples + Suspense Centralizado
  */
 
+import { Suspense } from "react";
 import { Outlet } from "react-router-dom";
 import { Sidebar, useNavigation } from "@/modules/navigation";
 import { Topbar } from "@/components/layout/Topbar";
 import { useScrollShadow } from "@/hooks/useScrollShadow";
 import { cn } from "@/lib/utils";
+
+// ============================================================================
+// PAGE LOADER - Componente de loading centralizado
+// ============================================================================
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-[50vh]">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+    </div>
+  );
+}
+
+// ============================================================================
+// APP SHELL
+// ============================================================================
 
 export default function AppShell() {
   const { sentinelRef, scrolled } = useScrollShadow();
@@ -51,9 +68,12 @@ export default function AppShell() {
         {/* Sentinel invisível para ativar a sombra ao rolar */}
         <div ref={sentinelRef} className="h-1 w-full" />
 
+        {/* Suspense ÚNICO para todas as rotas filhas */}
         <main className="relative w-full">
           <div className="px-4 pb-8 pt-4 md:px-6 lg:px-8">
-            <Outlet />
+            <Suspense fallback={<PageLoader />}>
+              <Outlet />
+            </Suspense>
           </div>
         </main>
       </div>
