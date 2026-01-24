@@ -43,6 +43,11 @@ export function BuyerSidebar({
   isCollapsed,
   onToggleCollapse,
 }: BuyerSidebarProps) {
+  // Guard: Don't render if desktop menu is disabled
+  if (settings.show_menu_desktop === false) {
+    return null;
+  }
+
   const navigate = useNavigate();
   const { productId } = useParams<{ productId: string }>();
   // RISE V3: useUnifiedAuth em vez de useBuyerAuth

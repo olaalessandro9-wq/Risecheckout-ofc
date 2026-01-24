@@ -16,6 +16,11 @@ interface BuyerMobileNavProps {
 }
 
 export function BuyerMobileNav({ settings }: BuyerMobileNavProps) {
+  // Guard: Don't render if mobile menu is disabled
+  if (settings.show_menu_mobile === false) {
+    return null;
+  }
+
   const navigate = useNavigate();
   const { productId } = useParams<{ productId: string }>();
   
