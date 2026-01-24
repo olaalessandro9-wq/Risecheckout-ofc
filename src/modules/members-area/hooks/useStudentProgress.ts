@@ -22,6 +22,7 @@ interface UseStudentProgressReturn {
   getContentProgress: (buyerId: string, contentId: string) => Promise<ContentProgress | null>;
   updateProgress: (buyerId: string, input: UpdateProgressInput) => Promise<boolean>;
   markComplete: (buyerId: string, contentId: string) => Promise<boolean>;
+  unmarkComplete: (buyerId: string, contentId: string) => Promise<boolean>;
   checkAccess: (buyerId: string, contentId: string) => Promise<ContentAccessStatus | null>;
   getLastWatched: (buyerId: string, productId: string) => Promise<ContentProgress | null>;
 }
@@ -106,6 +107,25 @@ export function useStudentProgress(): UseStudentProgressReturn {
     return true;
   }, []);
 
+  const unmarkComplete = useCallback(async (
+    buyerId: string,
+    contentId: string
+  ): Promise<boolean> => {
+    setIsSaving(true);
+
+    const { error } = await progressService.unmarkComplete(buyerId, contentId);
+
+    if (error) {
+      toast.error('Erro ao desmarcar conclusão');
+      setIsSaving(false);
+      return false;
+    }
+
+    toast.success('Conclusão removida');
+    setIsSaving(false);
+    return true;
+  }, []);
+
   const checkAccess = useCallback(async (
     buyerId: string,
     contentId: string
@@ -141,6 +161,7 @@ export function useStudentProgress(): UseStudentProgressReturn {
     getContentProgress,
     updateProgress,
     markComplete,
+    unmarkComplete,
     checkAccess,
     getLastWatched,
   };

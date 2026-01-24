@@ -44,7 +44,8 @@ export default function LessonViewer() {
   // Progress tracking
   const { 
     summary, 
-    markComplete, 
+    markComplete,
+    unmarkComplete,
     fetchSummary,
     isSaving: isCompleting,
   } = useStudentProgress();
@@ -79,6 +80,11 @@ export default function LessonViewer() {
       .filter(c => c.completed_at)
       .map(c => c.content_id);
   }, [summary]);
+
+  // Check if current content is completed
+  const isCurrentContentCompleted = useMemo(() => {
+    return completedContentIds.includes(contentId || '');
+  }, [completedContentIds, contentId]);
 
   // Find current content and module + build navigation list
   const { currentContent, currentModule, allContents, currentIndex } =
@@ -127,19 +133,27 @@ export default function LessonViewer() {
     setMobileMenuOpen(false);
   };
 
-  const handleComplete = async () => {
+  const handleToggleComplete = async () => {
     if (!userId || !contentId || !productId) return;
     
-    const success = await markComplete(userId, contentId);
+    let success: boolean;
+    
+    if (isCurrentContentCompleted) {
+      // Unmark completion
+      success = await unmarkComplete(userId, contentId);
+    } else {
+      // Mark complete
+      success = await markComplete(userId, contentId);
+      
+      // Navigate to next lesson on completion
+      if (success && hasNext) {
+        goToNext();
+      }
+    }
     
     if (success) {
       // Re-fetch to update sidebar progress
       await fetchSummary(userId, productId);
-      
-      // Optionally navigate to next lesson
-      if (hasNext) {
-        goToNext();
-      }
     }
   };
 
@@ -207,8 +221,9 @@ export default function LessonViewer() {
           hasNext={hasNext}
           onPrevious={goToPrevious}
           onNext={goToNext}
-          onComplete={handleComplete}
+          onComplete={handleToggleComplete}
           isCompleting={isCompleting}
+          isCompleted={isCurrentContentCompleted}
         />
       </LessonLayout>
 

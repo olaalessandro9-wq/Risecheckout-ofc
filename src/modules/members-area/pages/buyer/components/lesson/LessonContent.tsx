@@ -20,6 +20,7 @@ interface LessonContentProps {
   onNext: () => void;
   onComplete?: () => void;
   isCompleting?: boolean;
+  isCompleted?: boolean;
 }
 
 export function LessonContent({
@@ -31,6 +32,7 @@ export function LessonContent({
   onNext,
   onComplete,
   isCompleting = false,
+  isCompleted = false,
 }: LessonContentProps) {
   const hasVideo = content.content_url && (
     content.content_type === "video" || 
@@ -113,6 +115,7 @@ export function LessonContent({
         onNext={onNext}
         onComplete={onComplete}
         isCompleting={isCompleting}
+        isCompleted={isCompleted}
       />
     </motion.div>
   );

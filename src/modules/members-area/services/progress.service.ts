@@ -105,6 +105,19 @@ export async function markComplete(
 }
 
 /**
+ * Unmark a content as complete (toggle off)
+ */
+export async function unmarkComplete(
+  buyerId: string,
+  contentId: string
+): Promise<ServiceResponse<{ success: boolean }>> {
+  return invokeProgressFunction<{ success: boolean }>('uncomplete', {
+    buyer_id: buyerId,
+    content_id: contentId,
+  });
+}
+
+/**
  * Check if a content is accessible (for drip content)
  */
 export async function checkAccess(
@@ -135,6 +148,7 @@ export const progressService = {
   getContent: getContentProgress,
   update: updateProgress,
   markComplete,
+  unmarkComplete,
   checkAccess,
   getLastWatched,
 };
