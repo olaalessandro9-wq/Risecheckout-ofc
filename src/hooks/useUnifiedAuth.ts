@@ -97,8 +97,32 @@ interface SwitchContextResponse {
   error?: string;
 }
 
+/**
+ * RISE V3: Refresh-First Validation Strategy
+ * 
+ * Before calling validate, check if TokenService indicates the session
+ * needs refresh. This prevents unnecessary 401s when the access token
+ * has expired but the refresh token is still valid.
+ */
 async function validateSession(): Promise<ValidateResponse> {
   try {
+    // RISE V3: Check TokenService first - if it thinks we're expired, refresh first
+    const hasValidToken = unifiedTokenService.hasValidToken();
+    
+    if (!hasValidToken) {
+      // Token appears expired - try refresh BEFORE calling validate
+      log.debug("TokenService indicates no valid token - attempting refresh first");
+      const refreshed = await unifiedTokenService.refresh();
+      
+      if (!refreshed) {
+        log.debug("Pre-validation refresh failed - user needs to re-login");
+        return { valid: false };
+      }
+      
+      log.info("Pre-validation refresh succeeded");
+    }
+    
+    // Now proceed with validation
     const { data, error } = await api.publicCall<ValidateResponse>("unified-auth/validate", {});
     
     if (error || !data) {
