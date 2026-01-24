@@ -358,7 +358,7 @@ export type Database = {
             foreignKeyName: "buyer_content_progress_buyer_id_fkey"
             columns: ["buyer_id"]
             isOneToOne: false
-            referencedRelation: "buyer_profiles"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
