@@ -22,6 +22,10 @@ interface BuilderCanvasProps {
 export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
   const { sections, selectedSectionId, selectedMenuItemId, viewMode, isPreviewMode, isMenuCollapsed, settings, modules } = state;
 
+  // Menu visibility flags (defaults to true for backwards compatibility)
+  const showMenuDesktop = settings.show_menu_desktop ?? true;
+  const showMenuMobile = settings.show_menu_mobile ?? true;
+
   const handleMoveSection = (index: number, direction: 'up' | 'down') => {
     const newIndex = direction === 'up' ? index - 1 : index + 1;
     if (newIndex < 0 || newIndex >= sections.length) return;
@@ -111,12 +115,14 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
               )}
             </div>
 
-            <MobileBottomNav
-              settings={settings}
-              isPreviewMode={isPreviewMode}
-              selectedMenuItemId={selectedMenuItemId}
-              onSelectMenuItem={actions.selectMenuItem}
-            />
+            {showMenuMobile && (
+              <MobileBottomNav
+                settings={settings}
+                isPreviewMode={isPreviewMode}
+                selectedMenuItemId={selectedMenuItemId}
+                onSelectMenuItem={actions.selectMenuItem}
+              />
+            )}
           </div>
         </div>
       </div>
@@ -133,14 +139,16 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
       onClick={() => actions.selectSection(null)}
     >
       {/* Desktop Sidebar - Full height */}
-      <MenuPreview
-        settings={settings}
-        isPreviewMode={isPreviewMode}
-        isCollapsed={isMenuCollapsed}
-        selectedMenuItemId={selectedMenuItemId}
-        onToggleCollapse={actions.toggleMenuCollapse}
-        onSelectMenuItem={actions.selectMenuItem}
-      />
+      {showMenuDesktop && (
+        <MenuPreview
+          settings={settings}
+          isPreviewMode={isPreviewMode}
+          isCollapsed={isMenuCollapsed}
+          selectedMenuItemId={selectedMenuItemId}
+          onToggleCollapse={actions.toggleMenuCollapse}
+          onSelectMenuItem={actions.selectMenuItem}
+        />
+      )}
 
       {/* Main Content Area - Takes remaining space */}
       <div className="flex-1 flex flex-col overflow-hidden">
