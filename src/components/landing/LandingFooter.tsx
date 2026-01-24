@@ -16,7 +16,7 @@ export function LandingFooter() {
               A plataforma de checkout mais completa para infoprodutores e empreendedores digitais.
             </p>
             <div className="text-xs text-[hsl(var(--landing-text-subtle)/0.7)]">
-              © 2025 RiseCheckout. <br />Todos os direitos reservados.
+              © 2026 RiseCheckout. <br />Todos os direitos reservados.
             </div>
           </div>
 

@@ -141,8 +141,120 @@ Padrão para operações assíncronas:
 
 ---
 
+## Landing Page Design Tokens
+
+> **Versão:** 1.0.0  
+> **Data:** 24 de Janeiro de 2026  
+> **Status:** ✅ RISE V3 10.0/10
+
+### Visão Geral
+
+A Landing Page utiliza um sistema de design tokens exclusivo definido em `src/index.css`. Este sistema garante consistência visual, elimina cores hardcoded e resolve conflitos entre tema claro/escuro.
+
+### Arquitetura
+
+| Componente | Responsabilidade |
+|------------|------------------|
+| `LandingThemeProvider` | Wrapper que aplica classe `.dark` e tokens da landing |
+| `index.css` (linhas 222-257) | Definição das variáveis CSS `--landing-*` |
+
+### Tokens Disponíveis
+
+#### Background
+
+| Token | Valor HSL | Uso |
+|-------|-----------|-----|
+| `--landing-bg` | `240 10% 4%` | Background principal (#0A0A0B) |
+| `--landing-bg-elevated` | `240 10% 7%` | Cards e elementos elevados |
+| `--landing-bg-footer` | `240 10% 2%` | Footer |
+| `--landing-bg-subtle` | `0 0% 100%` | Com opacity (white/5) |
+
+#### Text
+
+| Token | Valor HSL | Uso |
+|-------|-----------|-----|
+| `--landing-text-primary` | `0 0% 100%` | Títulos e texto principal |
+| `--landing-text-secondary` | `215 16% 75%` | Texto secundário |
+| `--landing-text-muted` | `215 14% 65%` | Texto terciário |
+| `--landing-text-subtle` | `215 13% 50%` | Texto mais sutil |
+
+#### Accent
+
+| Token | Valor HSL | Uso |
+|-------|-----------|-----|
+| `--landing-accent` | `217 91% 60%` | Cor de destaque (blue-500) |
+| `--landing-accent-hover` | `217 91% 65%` | Hover state |
+| `--landing-accent-glow` | `217 91% 60%` | Shadows e glows |
+| `--landing-purple` | `271 81% 56%` | Accent secundário |
+
+#### Border
+
+| Token | Valor HSL | Uso |
+|-------|-----------|-----|
+| `--landing-border` | `0 0% 100%` | Bordas (usar com opacity) |
+
+### Uso Correto
+
+```tsx
+// ✅ CORRETO - Usar tokens
+className="bg-[hsl(var(--landing-bg))]"
+className="text-[hsl(var(--landing-text-primary))]"
+className="border-[hsl(var(--landing-border)/0.1)]"
+
+// ❌ PROIBIDO - Cores hardcoded
+className="bg-[#0A0A0B]"
+className="text-white"
+className="text-slate-400"
+```
+
+### LandingThemeProvider
+
+Wrapper obrigatório para todas as páginas que usam o tema da landing:
+
+```tsx
+import { LandingThemeProvider } from "@/components/landing";
+
+function LandingPage() {
+  return (
+    <LandingThemeProvider>
+      <HeroSection />
+      <FeaturesSection />
+      {/* ... */}
+    </LandingThemeProvider>
+  );
+}
+```
+
+**Responsabilidades:**
+- Aplica classe `.dark` para ativar variáveis do tema escuro
+- Define background e text-color base usando tokens
+- Garante `overflow-x-hidden` para evitar scroll horizontal
+- Define `selection:` styles para texto selecionado
+
+### Componentes Migrados
+
+Todos os 12 componentes da landing page utilizam 100% tokens:
+
+| Componente | Status |
+|------------|--------|
+| `LandingThemeProvider` | ✅ 100% tokens |
+| `LandingPage` | ✅ 100% tokens |
+| `LandingHeader` | ✅ 100% tokens |
+| `HeroSection` | ✅ 100% tokens |
+| `FeaturesSection` | ✅ 100% tokens |
+| `ConversionSection` | ✅ 100% tokens |
+| `BuilderSection` | ✅ 100% tokens |
+| `IntegrationsSection` | ✅ 100% tokens |
+| `StepsSection` | ✅ 100% tokens |
+| `TestimonialsSection` | ✅ 100% tokens |
+| `CtaSection` | ✅ 100% tokens |
+| `LandingFooter` | ✅ 100% tokens |
+
+---
+
 ## Changelog
 
 | Versão | Data | Alterações |
 |--------|------|------------|
+| 1.1.0 | 2026-01-24 | Adicionada documentação completa de Landing Page Design Tokens |
 | 1.0.0 | 2026-01-24 | Versão inicial - LoadingSwitch documentado |
