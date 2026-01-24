@@ -265,15 +265,25 @@ Deno.serve(async (req) => {
       }
       
       // If no user exists yet, create one in the users table first
-      const { data: newUser } = await supabase
+      // RISE V3: Copy password_hash from buyer_profiles
+      const passwordHash = needsPasswordSetup 
+        ? hashPassword(password as string) 
+        : typedBuyer.password_hash;
+      
+      const { data: newUser, error: insertUserError } = await supabase
         .from("users")
         .insert({ 
           email: typedBuyer.email.toLowerCase(),
           name: typedBuyer.name,
-          default_role: "buyer" as AppRole,
+          password_hash: passwordHash,
+          account_status: "active",
         })
         .select("id")
         .single();
+      
+      if (insertUserError) {
+        log.error("Failed to create user in users table:", insertUserError.message);
+      }
 
       if (newUser) {
         const session = await createSession(supabase, newUser.id, "buyer" as AppRole, req);

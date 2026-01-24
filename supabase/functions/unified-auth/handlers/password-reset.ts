@@ -63,9 +63,92 @@ export async function handlePasswordReset(
       .eq("reset_token", token)
       .single() as { data: UserWithToken | null; error: unknown };
 
+    // RISE V3 FALLBACK: If not found in users, check buyer_profiles
     if (findError || !user) {
-      log.warn("Password reset attempted with invalid token");
-      return errorResponse("Token inválido ou expirado", corsHeaders, 400);
+      const { data: buyer, error: buyerError } = await supabase
+        .from("buyer_profiles")
+        .select("id, email, name, reset_token_expires_at")
+        .eq("reset_token", token)
+        .single();
+
+      if (buyerError || !buyer) {
+        log.warn("Password reset attempted with invalid token (not in users or buyer_profiles)");
+        return errorResponse("Token inválido ou expirado", corsHeaders, 400);
+      }
+
+      // Found in buyer_profiles - process reset there
+      if (!buyer.reset_token_expires_at) {
+        return errorResponse("Token inválido", corsHeaders, 400);
+      }
+
+      const buyerExpiresAt = new Date(buyer.reset_token_expires_at);
+      if (buyerExpiresAt < new Date()) {
+        log.warn(`Password reset token expired for buyer: ${buyer.email}`);
+        return errorResponse("Token expirado. Solicite um novo link.", corsHeaders, 400);
+      }
+
+      // Hash new password and update buyer_profiles
+      const buyerPasswordHash = hashPassword(password);
+
+      const { error: updateBuyerError } = await supabase
+        .from("buyer_profiles")
+        .update({
+          password_hash: buyerPasswordHash,
+          password_hash_version: CURRENT_HASH_VERSION,
+          account_status: "active",
+          reset_token: null,
+          reset_token_expires_at: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", buyer.id);
+
+      if (updateBuyerError) {
+        log.error("Error updating buyer password:", updateBuyerError.message);
+        return errorResponse("Erro ao redefinir senha", corsHeaders, 500);
+      }
+
+      // ALSO create/update users table entry to sync identity
+      const { data: existingUser } = await supabase
+        .from("users")
+        .select("id")
+        .eq("email", buyer.email.toLowerCase())
+        .single();
+
+      if (!existingUser) {
+        // Create user entry for this buyer (migrate to unified identity)
+        await supabase.from("users").insert({
+          email: buyer.email.toLowerCase(),
+          name: buyer.name || null,
+          password_hash: buyerPasswordHash,
+          account_status: "active",
+        });
+        log.info(`Migrated buyer to users table during password reset: ${buyer.email}`);
+      } else {
+        // Update existing user's password
+        await supabase.from("users").update({
+          password_hash: buyerPasswordHash,
+          password_hash_version: CURRENT_HASH_VERSION,
+          updated_at: new Date().toISOString(),
+        }).eq("id", existingUser.id);
+      }
+
+      // Audit log
+      const clientIP = getClientIP(req);
+      const userAgent = req.headers.get("user-agent");
+      
+      await supabase.from("security_audit_log").insert({
+        user_id: buyer.id,
+        action: "PASSWORD_RESET_SUCCESS_BUYER",
+        ip_address: clientIP,
+        user_agent: userAgent,
+        details: { email: buyer.email, source: "buyer_profiles" },
+      });
+
+      log.info(`Password reset successful for buyer: ${buyer.email}`);
+
+      return successResponse({ 
+        message: "Senha redefinida com sucesso. Você já pode fazer login." 
+      }, corsHeaders);
     }
 
     // Check expiration

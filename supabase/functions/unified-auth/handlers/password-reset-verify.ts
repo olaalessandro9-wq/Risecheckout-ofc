@@ -47,11 +47,44 @@ export async function handlePasswordResetVerify(
       .eq("reset_token", token)
       .single() as { data: UserWithToken | null; error: unknown };
 
+    // RISE V3 FALLBACK: If not found in users, check buyer_profiles
     if (findError || !user) {
-      log.debug("Reset token not found");
+      const { data: buyer, error: buyerError } = await supabase
+        .from("buyer_profiles")
+        .select("id, email, name, reset_token_expires_at")
+        .eq("reset_token", token)
+        .single();
+
+      if (buyerError || !buyer) {
+        log.debug("Reset token not found in users or buyer_profiles");
+        return jsonResponse({ 
+          valid: false, 
+          error: "Token inválido" 
+        }, corsHeaders);
+      }
+
+      // Found in buyer_profiles - verify expiration
+      if (!buyer.reset_token_expires_at) {
+        return jsonResponse({ 
+          valid: false, 
+          error: "Token inválido" 
+        }, corsHeaders);
+      }
+
+      const buyerExpiresAt = new Date(buyer.reset_token_expires_at);
+      if (buyerExpiresAt < new Date()) {
+        log.debug("Reset token expired (buyer_profiles)");
+        return jsonResponse({ 
+          valid: false, 
+          error: "Token expirado. Solicite um novo link de recuperação." 
+        }, corsHeaders);
+      }
+
+      log.info(`Reset token verified for buyer: ${buyer.email}`);
       return jsonResponse({ 
-        valid: false, 
-        error: "Token inválido" 
+        valid: true, 
+        email: buyer.email,
+        source: "buyer_profiles"  // Signal to frontend/reset handler
       }, corsHeaders);
     }
 
