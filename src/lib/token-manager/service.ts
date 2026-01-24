@@ -177,9 +177,9 @@ export class TokenService {
       return; // Stay in idle
     }
     
-    // Check if expired
+    // Check if expired - trigger immediate refresh attempt
     if (Date.now() >= persisted.expiresAt) {
-      this.log.info("Restored session is expired");
+      this.log.info("Restored session is expired, attempting refresh");
       this.state = "expired";
       this.context = {
         ...this.context,
@@ -187,6 +187,17 @@ export class TokenService {
         lastRefreshAttempt: persisted.lastRefreshAttempt,
         errorMessage: "Session expired",
       };
+      
+      // RISE V3: Tentar refresh automático ao restaurar sessão expirada
+      // O refresh token pode ainda estar válido (30 dias)
+      setTimeout(() => {
+        this.log.info("Auto-refresh triggered for expired session");
+        this.refresh().then(success => {
+          if (!success) {
+            this.log.warn("Auto-refresh failed, user needs to re-login");
+          }
+        });
+      }, 100);
       return;
     }
     
