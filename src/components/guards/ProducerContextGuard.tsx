@@ -1,6 +1,9 @@
 /**
  * ProducerContextGuard
  * 
+ * @deprecated Use ProducerRoute instead for unified context + auth protection.
+ * This component is kept for backward compatibility only.
+ * 
  * RISE Protocol V3 - Context-Aware Route Guard
  * 
  * Protege rotas de produtor.
