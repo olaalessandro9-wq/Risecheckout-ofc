@@ -4,21 +4,22 @@
  * Esta aba mostra apenas:
  * - Toggle para ativar/desativar a área de membros
  * - Botão grande para acessar a seção dedicada de gestão
+ * 
+ * @see RISE V3 - Enhanced loading feedback pattern
  */
 
 import { useSearchParams } from "react-router-dom";
 import { useProductContext } from "../../context/ProductContext";
 import { useMembersArea } from "@/modules/members-area/hooks";
-import { Loader2, BookOpen, Users, Video, ArrowRight, Settings2 } from "lucide-react";
+import { Loader2, BookOpen, Video, ArrowRight, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { LoadingSwitch } from "@/components/ui/loading-switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "sonner";
 
 export function MembersAreaTab() {
   const [searchParams, setSearchParams] = useSearchParams();
   // RISE V3: Use stable productId from context (SSOT)
-  // Never derive productId from the async-loaded product object
   const { productId } = useProductContext();
   const {
     isLoading,
@@ -29,7 +30,22 @@ export function MembersAreaTab() {
   } = useMembersArea(productId);
 
   const handleToggleEnabled = async (enabled: boolean) => {
-    await updateSettings(enabled);
+    // Immediate toast feedback for user acknowledgment
+    const toastId = "members-area-toggle";
+    toast.loading(
+      enabled ? "Ativando área de membros..." : "Desativando área de membros...",
+      { id: toastId }
+    );
+
+    try {
+      await updateSettings(enabled);
+      toast.success(
+        enabled ? "Área de membros ativada!" : "Área de membros desativada!",
+        { id: toastId }
+      );
+    } catch {
+      toast.error("Erro ao atualizar configuração", { id: toastId });
+    }
   };
 
   const handleOpenMembersArea = () => {
@@ -63,24 +79,16 @@ export function MembersAreaTab() {
               <CardDescription>
                 Entregue conteúdo exclusivo para seus clientes
               </CardDescription>
-          </div>
-            <div className="flex items-center gap-2">
-              {isSaving && (
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-              )}
-              <Switch
-                id="members-area-enabled"
-                checked={settings.enabled}
-                onCheckedChange={handleToggleEnabled}
-                disabled={isSaving}
-              />
-              <Label htmlFor="members-area-enabled" className="text-sm min-w-[90px]">
-                {isSaving 
-                  ? (settings.enabled ? "Desativando..." : "Ativando...") 
-                  : (settings.enabled ? "Ativo" : "Inativo")
-                }
-              </Label>
             </div>
+            <LoadingSwitch
+              id="members-area-enabled"
+              checked={settings.enabled}
+              onCheckedChange={handleToggleEnabled}
+              isLoading={isSaving}
+              loadingLabel={settings.enabled ? "Desativando..." : "Ativando..."}
+              activeLabel="Ativo"
+              inactiveLabel="Inativo"
+            />
           </div>
         </CardHeader>
       </Card>
