@@ -1,6 +1,8 @@
 /**
  * Auth - Login page for producers
  * Uses unified-auth edge function (RISE Protocol V3)
+ * 
+ * @version 2.0.0 - Migrated to Design Tokens
  */
 
 import { useState, useEffect } from "react";
@@ -12,6 +14,7 @@ import { toast } from "sonner";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
+import { AuthThemeProvider } from "@/components/theme-providers";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -61,30 +64,32 @@ const Auth = () => {
   // Show loading while checking auth
   if (authLoading) {
     return (
-      <div className="min-h-screen w-full flex items-center justify-center bg-[#0A0A0B]">
-        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-      </div>
+      <AuthThemeProvider>
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="w-8 h-8 text-[hsl(var(--auth-accent))] animate-spin" />
+        </div>
+      </AuthThemeProvider>
     );
   }
 
   return (
-    <div className="min-h-screen w-full flex bg-[#0A0A0B] text-slate-200 overflow-hidden relative">
+    <AuthThemeProvider>
       {/* Background Elements */}
       <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-blue-600/10 blur-[120px]" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-purple-600/10 blur-[120px]" />
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-[hsl(var(--auth-accent)/0.1)] blur-[120px]" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-[hsl(var(--auth-accent-secondary)/0.1)] blur-[120px]" />
       </div>
 
-      <div className="w-full flex">
+      <div className="w-full flex min-h-screen">
         {/* Left Panel - Visual Branding (Desktop Only) */}
-        <div className="hidden lg:flex lg:w-1/2 relative bg-white/5 backdrop-blur-sm border-r border-white/5 flex-col justify-between p-12">
+        <div className="hidden lg:flex lg:w-1/2 relative bg-[hsl(var(--auth-bg-elevated)/0.05)] backdrop-blur-sm border-r border-[hsl(var(--auth-border)/0.05)] flex-col justify-between p-12">
           {/* Logo */}
           <div className="relative z-10">
             <Link to="/" className="flex items-center gap-3 w-fit hover:opacity-80 transition-opacity">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                <span className="font-bold text-white text-xl">R</span>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] flex items-center justify-center shadow-lg shadow-[hsl(var(--auth-accent)/0.2)]">
+                <span className="font-bold text-[hsl(var(--auth-text-primary))] text-xl">R</span>
               </div>
-              <span className="font-bold text-xl text-white tracking-tight">RiseCheckout</span>
+              <span className="font-bold text-xl text-[hsl(var(--auth-text-primary))] tracking-tight">RiseCheckout</span>
             </Link>
           </div>
 
@@ -96,21 +101,21 @@ const Auth = () => {
               transition={{ delay: 0.2 }}
               className="space-y-6"
             >
-              <h2 className="text-4xl font-bold text-white leading-tight">
+              <h2 className="text-4xl font-bold text-[hsl(var(--auth-text-primary))] leading-tight">
                 A plataforma de infoprodutos <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))]">
                   que mais converte
                 </span>
               </h2>
-              <p className="text-lg text-slate-400 leading-relaxed">
+              <p className="text-lg text-[hsl(var(--auth-text-muted))] leading-relaxed">
                 Junte-se a milhares de empreendedores que estão escalando suas vendas com nossa tecnologia de alta performance.
               </p>
             </motion.div>
           </div>
 
           {/* Footer Copyright */}
-          <div className="relative z-10 text-xs text-slate-500">
-            © 2025 RiseCheckout Inc. Todos os direitos reservados.
+          <div className="relative z-10 text-xs text-[hsl(var(--auth-text-subtle))]">
+            © 2026 RiseCheckout Inc. Todos os direitos reservados.
           </div>
         </div>
 
@@ -120,49 +125,49 @@ const Auth = () => {
             {/* Mobile Logo */}
             <div className="lg:hidden flex justify-center mb-8">
               <Link to="/" className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
-                  <span className="font-bold text-white">R</span>
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] flex items-center justify-center">
+                  <span className="font-bold text-[hsl(var(--auth-text-primary))]">R</span>
                 </div>
-                <span className="font-bold text-lg text-white">RiseCheckout</span>
+                <span className="font-bold text-lg text-[hsl(var(--auth-text-primary))]">RiseCheckout</span>
               </Link>
             </div>
 
             <div className="text-center space-y-2">
-              <h1 className="text-3xl font-bold text-white tracking-tight">
+              <h1 className="text-3xl font-bold text-[hsl(var(--auth-text-primary))] tracking-tight">
                 Bem-vindo de volta
               </h1>
-              <p className="text-slate-400">
+              <p className="text-[hsl(var(--auth-text-muted))]">
                 Acesse seu painel para gerenciar suas vendas
               </p>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-slate-300">Email</Label>
+                <Label className="text-[hsl(var(--auth-text-secondary))]">Email</Label>
                 <Input
                   type="email"
                   placeholder="seu@email.com"
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
-                  className="bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:border-blue-500 focus:ring-blue-500/20"
+                  className="bg-[hsl(var(--auth-input-bg)/0.05)] border-[hsl(var(--auth-input-border)/0.1)] text-[hsl(var(--auth-text-primary))] placeholder:text-[hsl(var(--auth-input-placeholder))] focus:border-[hsl(var(--auth-accent))] focus:ring-[hsl(var(--auth-accent)/0.2)]"
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-slate-300">Senha</Label>
+                <Label className="text-[hsl(var(--auth-text-secondary))]">Senha</Label>
                 <Input
                   type="password"
                   placeholder="••••••••"
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
-                  className="bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:border-blue-500 focus:ring-blue-500/20"
+                  className="bg-[hsl(var(--auth-input-bg)/0.05)] border-[hsl(var(--auth-input-border)/0.1)] text-[hsl(var(--auth-text-primary))] placeholder:text-[hsl(var(--auth-input-placeholder))] focus:border-[hsl(var(--auth-accent))] focus:ring-[hsl(var(--auth-accent)/0.2)]"
                   required
                 />
               </div>
 
               <Button
                 type="submit"
-                className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90 transition-opacity text-white font-semibold rounded-xl text-base"
+                className="w-full h-12 bg-gradient-to-r from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] hover:opacity-90 transition-opacity text-[hsl(var(--auth-text-primary))] font-semibold rounded-xl text-base"
               disabled={loading || isLoggingIn}
             >
               {loading || isLoggingIn ? (
@@ -175,15 +180,15 @@ const Auth = () => {
 
             {/* Links below button */}
             <div className="text-center space-y-2">
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-[hsl(var(--auth-text-muted))]">
                 Esqueceu a senha?{" "}
-                <Link to="/recuperar-senha" className="text-blue-400 hover:text-blue-300 font-medium">
+                <Link to="/recuperar-senha" className="text-[hsl(var(--auth-accent))] hover:text-[hsl(var(--auth-accent-hover,217_91%_65%))] font-medium">
                   Redefina aqui
                 </Link>
               </p>
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-[hsl(var(--auth-text-muted))]">
                 Não tem uma conta?{" "}
-                <Link to="/cadastro" className="text-blue-400 hover:text-blue-300 font-medium">
+                <Link to="/cadastro" className="text-[hsl(var(--auth-accent))] hover:text-[hsl(var(--auth-accent-hover,217_91%_65%))] font-medium">
                   Cadastre-se
                 </Link>
               </p>
@@ -191,7 +196,7 @@ const Auth = () => {
           </div>
         </div>
       </div>
-    </div>
+    </AuthThemeProvider>
   );
 };
 

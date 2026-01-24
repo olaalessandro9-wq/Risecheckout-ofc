@@ -254,6 +254,91 @@
     
     /* Landing Page Purple Accent */
     --landing-purple: 271 81% 56%;         /* purple-600 */
+    
+    /* ═══════════════════════════════════════════════════════════════════════════
+       AUTH PAGES DESIGN TOKENS
+       Sistema unificado de cores para páginas de autenticação (tema escuro)
+       Usado em: Auth, Cadastro, RecuperarSenha, RedefinirSenha, BuyerAuth, etc.
+       ═══════════════════════════════════════════════════════════════════════════ */
+    
+    /* Auth Background Tokens */
+    --auth-bg: 240 10% 4%;                 /* #0A0A0B - Background principal */
+    --auth-bg-elevated: 0 0% 100%;         /* white - Para uso com opacity (white/5) */
+    --auth-bg-card: 0 0% 100%;             /* white - Para cards com opacity */
+    
+    /* Auth Text Tokens */
+    --auth-text-primary: 0 0% 100%;        /* white - Títulos e texto principal */
+    --auth-text-secondary: 215 16% 75%;    /* slate-300 - Texto secundário */
+    --auth-text-muted: 215 14% 65%;        /* slate-400 - Texto terciário */
+    --auth-text-subtle: 215 13% 50%;       /* slate-500 - Texto mais sutil */
+    
+    /* Auth Border Tokens */
+    --auth-border: 0 0% 100%;              /* white - Para uso com opacity */
+    
+    /* Auth Input Tokens */
+    --auth-input-bg: 0 0% 100%;            /* white - Para uso com opacity (white/5) */
+    --auth-input-border: 0 0% 100%;        /* white - Para uso com opacity (white/10) */
+    --auth-input-placeholder: 215 13% 40%; /* slate-600 */
+    
+    /* Auth Accent Tokens */
+    --auth-accent: 217 91% 60%;            /* blue-500 */
+    --auth-accent-secondary: 271 81% 56%;  /* purple-600 */
+    
+    /* ═══════════════════════════════════════════════════════════════════════════
+       PAYMENT PAGES DESIGN TOKENS
+       Sistema unificado de cores para páginas de pagamento PIX
+       Usado em: PixPaymentPage, MercadoPagoPaymentPage
+       ═══════════════════════════════════════════════════════════════════════════ */
+    
+    /* Payment Background Tokens */
+    --payment-bg: 222 47% 11%;             /* gray-900 */
+    --payment-card-bg: 0 0% 100%;          /* white */
+    --payment-card-elevated: 210 40% 96%;  /* gray-50 */
+    
+    /* Payment Text Tokens */
+    --payment-text-primary: 0 0% 100%;     /* white - Para fundo escuro */
+    --payment-text-dark: 224 71% 4%;       /* gray-900 - Para fundo claro */
+    --payment-text-secondary: 220 9% 46%;  /* gray-600 */
+    --payment-text-muted: 220 9% 46%;      /* gray-700 */
+    
+    /* Payment Border Tokens */
+    --payment-border: 220 13% 91%;         /* gray-200 */
+    --payment-border-dark: 220 13% 80%;    /* gray-300 */
+    
+    /* Payment Status Tokens */
+    --payment-success: 142 76% 36%;        /* green-600 */
+    --payment-success-light: 142 77% 73%;  /* green-300 */
+    
+    /* ═══════════════════════════════════════════════════════════════════════════
+       SUCCESS PAGES DESIGN TOKENS
+       Sistema unificado de cores para páginas de sucesso
+       Usado em: PaymentSuccessPage, OAuthSuccess
+       ═══════════════════════════════════════════════════════════════════════════ */
+    
+    /* Success Background Tokens */
+    --success-bg: 0 0% 4%;                 /* #0A0A0A */
+    --success-card-bg: 0 0% 7%;            /* #111111 */
+    --success-card-elevated: 0 0% 4%;      /* #0A0A0A */
+    
+    /* Success Border Tokens */
+    --success-border: 0 0% 12%;            /* #1E1E1E */
+    --success-border-hover: 0 0% 16%;      /* #2A2A2A */
+    
+    /* Success Text Tokens */
+    --success-text-primary: 0 0% 100%;     /* white */
+    --success-text-secondary: 0 0% 53%;    /* #888888 */
+    --success-text-muted: 0 0% 40%;        /* #666666 */
+    --success-text-code: 0 0% 80%;         /* #CCCCCC */
+    
+    /* Success Status Tokens */
+    --success-green: 142 71% 45%;          /* green-500 */
+    --success-green-muted: 142 71% 45%;    /* green-500/10 */
+    
+    /* OAuth Success Tokens (variantes especiais) */
+    --oauth-green: 148 100% 50%;           /* #00FF41 - Verde vibrante */
+    --oauth-card-bg: 0 0% 10%;             /* #1A1A1A */
+    --oauth-card-border: 0 0% 16%;         /* #2A2A2A */
+    --oauth-text-secondary: 0 0% 63%;      /* #A0A0A0 */
   }
 
   body {
