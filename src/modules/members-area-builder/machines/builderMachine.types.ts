@@ -13,6 +13,7 @@ import type {
   SectionType,
   MembersAreaBuilderSettings,
   ViewMode,
+  Viewport,
   MemberModule,
 } from '../types/builder.types';
 
@@ -22,7 +23,17 @@ import type {
 
 export interface BuilderMachineContext {
   productId: string | null;
-  sections: Section[];
+  
+  // Dual-Layout: Separate sections by viewport
+  desktopSections: Section[];
+  mobileSections: Section[];
+  
+  // Active editing viewport
+  activeViewport: Viewport;
+  
+  // Mobile sync mode: when true, mobile mirrors desktop automatically
+  isMobileSynced: boolean;
+  
   settings: MembersAreaBuilderSettings;
   
   // Selection
@@ -39,8 +50,9 @@ export interface BuilderMachineContext {
   selectedModuleId: string | null;
   isEditingModule: boolean;
   
-  // Originals for comparison
-  originalSections: Section[];
+  // Originals for comparison (both viewports)
+  originalDesktopSections: Section[];
+  originalMobileSections: Section[];
   originalSettings: MembersAreaBuilderSettings;
   
   // Errors
@@ -55,15 +67,15 @@ export interface BuilderMachineContext {
 export type BuilderMachineEvent =
   // Lifecycle
   | { type: "LOAD"; productId: string }
-  | { type: "RECEIVE_DATA"; sections: Section[]; settings: MembersAreaBuilderSettings }
+  | { type: "RECEIVE_DATA"; desktopSections: Section[]; mobileSections: Section[]; settings: MembersAreaBuilderSettings; isMobileSynced: boolean }
   | { type: "LOAD_ERROR"; error: string }
   | { type: "SAVE" }
-  | { type: "SAVE_SUCCESS"; sections?: Section[] }
+  | { type: "SAVE_SUCCESS"; desktopSections?: Section[]; mobileSections?: Section[] }
   | { type: "SAVE_ERROR"; error: string }
   | { type: "DISCARD_CHANGES" }
   | { type: "REFRESH" }
   
-  // Sections CRUD
+  // Sections CRUD (operates on active viewport)
   | { type: "ADD_SECTION"; section: Section }
   | { type: "UPDATE_SECTION"; id: string; updates: Partial<Section> }
   | { type: "UPDATE_SECTION_SETTINGS"; id: string; settings: Partial<SectionSettings> }
@@ -79,6 +91,11 @@ export type BuilderMachineEvent =
   | { type: "SET_VIEW_MODE"; mode: ViewMode }
   | { type: "TOGGLE_PREVIEW_MODE" }
   | { type: "TOGGLE_MENU_COLLAPSE" }
+  
+  // Viewport Switching (NEW - Dual Layout)
+  | { type: "SET_ACTIVE_VIEWPORT"; viewport: Viewport }
+  | { type: "COPY_DESKTOP_TO_MOBILE" }
+  | { type: "SET_MOBILE_SYNCED"; synced: boolean }
   
   // Settings
   | { type: "UPDATE_SETTINGS"; settings: Partial<MembersAreaBuilderSettings> }
@@ -98,22 +115,27 @@ export interface LoadBuilderInput {
 }
 
 export interface LoadBuilderOutput {
-  sections: Section[];
+  desktopSections: Section[];
+  mobileSections: Section[];
   settings: MembersAreaBuilderSettings;
   modules: MemberModule[];
   productImageUrl: string | null;
+  isMobileSynced: boolean;
 }
 
 export interface SaveBuilderInput {
   productId: string | null;
-  sections: Section[];
+  desktopSections: Section[];
+  mobileSections: Section[];
   settings: MembersAreaBuilderSettings;
-  originalSections: Section[];
+  originalDesktopSections: Section[];
+  originalMobileSections: Section[];
 }
 
 export interface SaveBuilderOutput {
   success: boolean;
-  updatedSections?: Section[];
+  updatedDesktopSections?: Section[];
+  updatedMobileSections?: Section[];
   error?: string;
 }
 

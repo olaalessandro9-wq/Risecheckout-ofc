@@ -23,11 +23,15 @@ function isSectionType(type: string): type is typeof VALID_SECTION_TYPES[number]
   return VALID_SECTION_TYPES.includes(type as typeof VALID_SECTION_TYPES[number]);
 }
 
+/** Valid viewport types */
+const VALID_VIEWPORTS = ['desktop', 'mobile'] as const;
+
 /** Raw database row type for sections */
 interface RawSectionRow {
   id: string;
   product_id: string;
   type: string;
+  viewport?: string;
   title: string | null;
   position: number;
   settings: unknown;
@@ -42,10 +46,14 @@ interface RawSectionRow {
 export function parseSections(data: unknown[]): Section[] {
   return (data || []).map((item) => {
     const row = item as RawSectionRow;
+    const viewport = VALID_VIEWPORTS.includes(row.viewport as typeof VALID_VIEWPORTS[number]) 
+      ? row.viewport as 'desktop' | 'mobile'
+      : 'desktop';
     return {
       id: row.id,
       product_id: row.product_id,
       type: isSectionType(row.type) ? row.type : 'text',
+      viewport,
       title: row.title,
       position: row.position,
       settings: (row.settings || {}) as unknown as SectionSettings,

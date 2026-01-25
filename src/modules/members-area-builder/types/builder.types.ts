@@ -11,6 +11,12 @@ import type { MemberModule } from '@/modules/members-area/types/module.types';
 export type { MemberModule };
 
 // =====================================================
+// VIEWPORT TYPES (NEW - Dual Layout)
+// =====================================================
+
+export type Viewport = 'desktop' | 'mobile';
+
+// =====================================================
 // SECTION TYPES
 // =====================================================
 
@@ -26,6 +32,7 @@ export interface Section {
   id: string;
   product_id: string;
   type: SectionType;
+  viewport: Viewport; // NEW: Identifies which layout this section belongs to
   title: string | null;
   position: number;
   settings: SectionSettings;
@@ -139,7 +146,19 @@ export interface MembersAreaBuilderSettings {
 export type ViewMode = 'desktop' | 'mobile';
 
 export interface BuilderState {
+  // Dual-Layout: Separate sections by viewport
+  desktopSections: Section[];
+  mobileSections: Section[];
+  
+  // Active editing viewport
+  activeViewport: Viewport;
+  
+  // Mobile sync mode: when true, mobile mirrors desktop automatically
+  isMobileSynced: boolean;
+  
+  // Computed: returns sections for active viewport
   sections: Section[];
+  
   settings: MembersAreaBuilderSettings;
   selectedSectionId: string | null;
   selectedMenuItemId: string | null;
@@ -172,6 +191,11 @@ export interface BuilderActions {
   setViewMode: (mode: ViewMode) => void;
   togglePreviewMode: () => void;
   toggleMenuCollapse: () => void;
+  
+  // Viewport Switching (NEW - Dual Layout)
+  setActiveViewport: (viewport: Viewport) => void;
+  copyDesktopToMobile: () => void;
+  setMobileSynced: (synced: boolean) => void;
   
   // Settings (local only)
   updateSettings: (settings: Partial<MembersAreaBuilderSettings>) => Promise<void>;
