@@ -1,10 +1,14 @@
 /**
  * Token Service - Public API for Token Lifecycle Management
  * 
- * RISE Protocol V3: Unified Token Service
+ * RISE Protocol V3: Unified Token Service with Cross-Tab Coordination
  * 
  * All authentication flows now use the unified service.
  * Legacy buyer/producer services have been removed.
+ * 
+ * CROSS-TAB REFRESH:
+ * Uses BroadcastChannel + localStorage lock to coordinate refresh
+ * across multiple tabs, preventing concurrent refresh race conditions.
  */
 
 import type { 
@@ -18,6 +22,7 @@ import { transition, INITIAL_STATE, INITIAL_CONTEXT, needsRefresh, isExpired } f
 import { persistTokenState, restoreTokenState, clearPersistedState } from "./persistence";
 import { HeartbeatManager } from "./heartbeat";
 import { executeRefresh } from "./refresh";
+import { crossTabLock } from "./cross-tab-lock";
 import { createLogger } from "@/lib/logger";
 
 // ============================================
@@ -168,9 +173,14 @@ export class TokenService {
     return this.hasValidToken() ? "cookie-authenticated" : null;
   }
   
-  /** Trigger token refresh */
+  /** 
+   * Trigger token refresh with cross-tab coordination
+   * 
+   * RISE V3: Uses CrossTabLock to prevent concurrent refresh from multiple tabs.
+   * If another tab is already refreshing, this tab waits for the result.
+   */
   async refresh(): Promise<boolean> {
-    // Prevent concurrent refreshes
+    // Prevent concurrent refreshes within this tab
     if (this.refreshPromise) {
       return this.refreshPromise;
     }
@@ -180,13 +190,72 @@ export class TokenService {
       return false;
     }
     
+    // RISE V3: Cross-tab coordination
+    // Check if another tab is already refreshing
+    if (crossTabLock.isOtherTabRefreshing()) {
+      this.log.info("Another tab is refreshing - waiting for result");
+      const result = await crossTabLock.waitForResult();
+      
+      if (result.success && result.expiresIn) {
+        // Other tab succeeded - update our state
+        this.dispatch({ type: "REFRESH_SUCCESS", expiresIn: result.expiresIn });
+        return true;
+      } else {
+        // Other tab failed - we can try
+        this.log.warn("Other tab refresh failed, attempting our own refresh");
+      }
+    }
+    
+    // Try to acquire lock
+    if (!crossTabLock.tryAcquire()) {
+      // Lock held by another tab - wait for result
+      this.log.info("Lock held by another tab - waiting");
+      const result = await crossTabLock.waitForResult();
+      
+      if (result.success && result.expiresIn) {
+        this.dispatch({ type: "REFRESH_SUCCESS", expiresIn: result.expiresIn });
+        return true;
+      }
+      
+      // Retry acquisition after wait
+      if (!crossTabLock.tryAcquire()) {
+        this.log.warn("Could not acquire lock after wait");
+        return false;
+      }
+    }
+    
+    // We have the lock - proceed with refresh
     this.dispatch({ type: "REFRESH_START" });
     
-    this.refreshPromise = this.executeRefreshFlow();
+    this.refreshPromise = this.executeRefreshFlowWithLock();
     const result = await this.refreshPromise;
     this.refreshPromise = null;
     
     return result;
+  }
+  
+  /**
+   * Execute refresh and notify other tabs of result
+   */
+  private async executeRefreshFlowWithLock(): Promise<boolean> {
+    try {
+      const result = await executeRefresh(this.type);
+      
+      if (result.success && result.expiresIn) {
+        this.dispatch({ type: "REFRESH_SUCCESS", expiresIn: result.expiresIn });
+        crossTabLock.notifySuccess(result.expiresIn);
+        return true;
+      }
+      
+      this.dispatch({ type: "REFRESH_FAILED", error: result.error || "Refresh failed" });
+      crossTabLock.notifyFailure(result.error || "Refresh failed");
+      return false;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      this.dispatch({ type: "REFRESH_FAILED", error: message });
+      crossTabLock.notifyFailure(message);
+      return false;
+    }
   }
   
   /** Clear all auth state (logout) */
@@ -230,6 +299,8 @@ export class TokenService {
     this.notifySubscribers();
   }
   
+  // Legacy method kept for backwards compatibility with existing code
+  // Now handled by executeRefreshFlowWithLock
   private async executeRefreshFlow(): Promise<boolean> {
     const result = await executeRefresh(this.type);
     
