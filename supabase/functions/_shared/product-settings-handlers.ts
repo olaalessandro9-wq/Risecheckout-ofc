@@ -25,6 +25,9 @@ const log = createLogger("ProductSettings");
 
 type CorsHeaders = Record<string, string>;
 
+/** Tipos de entrega disponíveis */
+type DeliveryType = 'standard' | 'members_area' | 'external';
+
 interface ProductUpdateData {
   name?: string;
   description?: string;
@@ -32,6 +35,8 @@ interface ProductUpdateData {
   support_name?: string;
   support_email?: string;
   delivery_url?: string | null;
+  delivery_type?: DeliveryType;
+  /** @deprecated Use delivery_type instead */
   external_delivery?: boolean;
   image_url?: string;
   status?: string;
@@ -173,7 +178,19 @@ export async function handleUpdateGeneral(
     }
   }
 
-  if (data.external_delivery !== undefined) updates.external_delivery = data.external_delivery === true;
+  // Handle delivery_type with backwards compatibility
+  if (data.delivery_type !== undefined) {
+    if (['standard', 'members_area', 'external'].includes(data.delivery_type)) {
+      updates.delivery_type = data.delivery_type;
+      // Sync legacy field
+      updates.external_delivery = data.delivery_type === 'external';
+    }
+  } else if (data.external_delivery !== undefined) {
+    // Legacy support: external_delivery boolean
+    updates.external_delivery = data.external_delivery === true;
+    updates.delivery_type = data.external_delivery ? 'external' : 'standard';
+  }
+
   if (data.image_url !== undefined) updates.image_url = data.image_url;
 
   if (data.status !== undefined) {

@@ -19,11 +19,16 @@ const log = createLogger("ProductCrud");
 // TYPES
 // ============================================
 
+/** Tipos de entrega disponíveis */
+export type DeliveryType = 'standard' | 'members_area' | 'external';
+
 export interface ProductCreatePayload {
   name: string;
   description?: string;
   price: number;
   delivery_url?: string | null;
+  delivery_type?: DeliveryType;
+  /** @deprecated Use delivery_type instead */
   external_delivery?: boolean;
   support_name?: string;
   support_email?: string;
@@ -82,10 +87,20 @@ export function validateCreateProduct(data: Record<string, unknown>): { valid: b
     }
   }
 
-  let deliveryUrl: string | null = null;
-  const externalDelivery = data.external_delivery === true;
+  // Resolve delivery_type with backwards compatibility
+  let deliveryType: DeliveryType = 'standard';
+  if (data.delivery_type && ['standard', 'members_area', 'external'].includes(data.delivery_type as string)) {
+    deliveryType = data.delivery_type as DeliveryType;
+  } else if (data.external_delivery === true) {
+    deliveryType = 'external';
+  }
 
-  if (!externalDelivery && data.delivery_url) {
+  // Compute legacy external_delivery from delivery_type for backwards compatibility
+  const externalDelivery = deliveryType === 'external';
+
+  let deliveryUrl: string | null = null;
+  // Only validate delivery_url for 'standard' type
+  if (deliveryType === 'standard' && data.delivery_url) {
     if (typeof data.delivery_url !== "string") {
       return { valid: false, error: "Link de entrega deve ser texto" };
     }
@@ -105,7 +120,8 @@ export function validateCreateProduct(data: Record<string, unknown>): { valid: b
       description,
       price: data.price as number,
       delivery_url: deliveryUrl,
-      external_delivery: externalDelivery,
+      delivery_type: deliveryType,
+      external_delivery: externalDelivery, // @deprecated - kept for legacy
       support_name: typeof data.support_name === "string" ? data.support_name.trim() : "",
       support_email: typeof data.support_email === "string" ? data.support_email.trim().toLowerCase() : "",
       image_url: (data.image_url as string) || null,
@@ -153,7 +169,19 @@ export function validateUpdateProduct(data: Record<string, unknown>): { valid: b
     }
   }
 
-  if (data.external_delivery !== undefined) updates.external_delivery = data.external_delivery === true;
+  // Handle delivery_type with backwards compatibility
+  if (data.delivery_type !== undefined) {
+    if (['standard', 'members_area', 'external'].includes(data.delivery_type as string)) {
+      updates.delivery_type = data.delivery_type;
+      // Sync legacy field
+      updates.external_delivery = data.delivery_type === 'external';
+    }
+  } else if (data.external_delivery !== undefined) {
+    // Legacy support: external_delivery boolean
+    updates.external_delivery = data.external_delivery === true;
+    updates.delivery_type = data.external_delivery ? 'external' : 'standard';
+  }
+
   if (data.support_name !== undefined) updates.support_name = typeof data.support_name === "string" ? data.support_name.trim() : "";
   if (data.support_email !== undefined) updates.support_email = typeof data.support_email === "string" ? data.support_email.trim().toLowerCase() : "";
   if (data.image_url !== undefined) updates.image_url = data.image_url;
