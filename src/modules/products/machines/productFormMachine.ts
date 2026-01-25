@@ -63,6 +63,7 @@ export const productFormMachine = setup({
               support_email: data.product?.support_email ?? "",
               delivery_url: data.product?.delivery_url ?? "",
               external_delivery: data.product?.external_delivery ?? false,
+              delivery_type: (data.product?.delivery_type as "standard" | "members_area" | "external") ?? "standard",
             };
             return {
               serverData: {
