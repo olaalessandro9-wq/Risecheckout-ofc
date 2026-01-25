@@ -3195,6 +3195,9 @@ export type Database = {
           created_at: string | null
           credit_card_gateway: string | null
           default_payment_method: string | null
+          delivery_type:
+            | Database["public"]["Enums"]["delivery_type_enum"]
+            | null
           delivery_url: string | null
           description: string | null
           external_delivery: boolean | null
@@ -3230,6 +3233,9 @@ export type Database = {
           created_at?: string | null
           credit_card_gateway?: string | null
           default_payment_method?: string | null
+          delivery_type?:
+            | Database["public"]["Enums"]["delivery_type_enum"]
+            | null
           delivery_url?: string | null
           description?: string | null
           external_delivery?: boolean | null
@@ -3265,6 +3271,9 @@ export type Database = {
           created_at?: string | null
           credit_card_gateway?: string | null
           default_payment_method?: string | null
+          delivery_type?:
+            | Database["public"]["Enums"]["delivery_type_enum"]
+            | null
           delivery_url?: string | null
           description?: string | null
           external_delivery?: boolean | null
@@ -4938,6 +4947,7 @@ export type Database = {
         | "owner_no_password"
       app_role: "admin" | "user" | "owner" | "seller" | "buyer"
       credit_card_gateway_type: "mercadopago" | "stripe" | "asaas"
+      delivery_type_enum: "standard" | "members_area" | "external"
       integration_type:
         | "PUSHINPAY"
         | "UTMIFY"
@@ -5079,6 +5089,7 @@ export const Constants = {
       ],
       app_role: ["admin", "user", "owner", "seller", "buyer"],
       credit_card_gateway_type: ["mercadopago", "stripe", "asaas"],
+      delivery_type_enum: ["standard", "members_area", "external"],
       integration_type: [
         "PUSHINPAY",
         "UTMIFY",

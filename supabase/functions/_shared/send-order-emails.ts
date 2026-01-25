@@ -6,7 +6,12 @@
  * Envia emails individuais para cada item do pedido (produto principal + bumps).
  * Cada produto recebe seu próprio email com seu respectivo link de acesso.
  * 
- * @version 2.0.0
+ * Suporta 3 tipos de entrega:
+ * - standard: Link customizado (delivery_url)
+ * - members_area: Link automático para área de membros
+ * - external: Email de confirmação sem botão (vendedor faz entrega)
+ * 
+ * @version 3.0.0 - Suporte a delivery_type ENUM
  * ============================================================================
  */
 
@@ -14,7 +19,11 @@ import { SupabaseClient } from "./supabase-types.ts";
 import { sendEmail } from './zeptomail.ts';
 import { 
   getPurchaseConfirmationTemplate, 
-  getPurchaseConfirmationTextTemplate, 
+  getPurchaseConfirmationTextTemplate,
+  getMembersAreaConfirmationTemplate,
+  getMembersAreaConfirmationTextTemplate,
+  getExternalDeliveryConfirmationTemplate,
+  getExternalDeliveryConfirmationTextTemplate,
   type PurchaseConfirmationData 
 } from './email-templates.ts';
 import { createLogger } from "./logger.ts";
@@ -24,6 +33,8 @@ const log = createLogger("SendOrderEmails");
 // ============================================================================
 // TYPES
 // ============================================================================
+
+export type DeliveryType = 'standard' | 'members_area' | 'external';
 
 export interface OrderData {
   id: string;
@@ -50,6 +61,7 @@ export interface SendOrderEmailsResult {
     productName: string;
     isBump: boolean;
     success: boolean;
+    deliveryType?: DeliveryType;
     error?: string;
   }>;
 }
@@ -58,12 +70,87 @@ interface ProductDeliveryInfo {
   delivery_url: string | null;
   support_email: string | null;
   external_delivery: boolean | null;
+  delivery_type: DeliveryType | null;
 }
 
-// Note: Local logging helpers removed - using centralized createLogger
 const logInfo = (message: string, data?: Record<string, unknown>) => log.info(message, data);
 const logWarn = (message: string, data?: Record<string, unknown>) => log.warn(message, data);
 const logError = (message: string, error?: unknown) => log.error(message, error);
+
+// ============================================================================
+// HELPER: Determinar tipo de entrega (compatível com legado)
+// ============================================================================
+
+function getDeliveryType(product: ProductDeliveryInfo | null): DeliveryType {
+  // Prioridade: delivery_type ENUM > external_delivery boolean (legado)
+  if (product?.delivery_type) {
+    return product.delivery_type;
+  }
+  
+  // Fallback para campo legado
+  if (product?.external_delivery === true) {
+    return 'external';
+  }
+  
+  return 'standard';
+}
+
+// ============================================================================
+// HELPER: Obter URL de entrega baseado no tipo
+// ============================================================================
+
+function getDeliveryUrl(
+  deliveryType: DeliveryType,
+  productId: string,
+  deliveryUrl: string | null
+): string | null {
+  const siteUrl = Deno.env.get('PUBLIC_SITE_URL') || 'https://risecheckout.com';
+  
+  switch (deliveryType) {
+    case 'members_area':
+      // Link automático para área de membros
+      return `${siteUrl}/minha-conta/produtos/${productId}`;
+    
+    case 'external':
+      // Sem link (vendedor faz entrega)
+      return null;
+    
+    case 'standard':
+    default:
+      // Link customizado do produto
+      return deliveryUrl;
+  }
+}
+
+// ============================================================================
+// HELPER: Selecionar template correto
+// ============================================================================
+
+function getEmailTemplates(deliveryType: DeliveryType): {
+  html: (data: PurchaseConfirmationData) => string;
+  text: (data: PurchaseConfirmationData) => string;
+} {
+  switch (deliveryType) {
+    case 'members_area':
+      return {
+        html: getMembersAreaConfirmationTemplate,
+        text: getMembersAreaConfirmationTextTemplate,
+      };
+    
+    case 'external':
+      return {
+        html: getExternalDeliveryConfirmationTemplate,
+        text: getExternalDeliveryConfirmationTextTemplate,
+      };
+    
+    case 'standard':
+    default:
+      return {
+        html: getPurchaseConfirmationTemplate,
+        text: getPurchaseConfirmationTextTemplate,
+      };
+  }
+}
 
 // ============================================================================
 // MAIN FUNCTION
@@ -123,11 +210,9 @@ export async function sendOrderConfirmationEmails(
   let itemsToProcess: OrderItemData[];
 
   if (orderItems && orderItems.length > 0) {
-    // Usar order_items se existirem
     itemsToProcess = orderItems;
     logInfo('Usando order_items', { count: itemsToProcess.length });
   } else {
-    // Fallback: usar dados do order (apenas produto principal)
     logWarn('Nenhum order_item encontrado - usando fallback para produto principal');
     itemsToProcess = [{
       product_id: order.product_id,
@@ -152,10 +237,10 @@ export async function sendOrderConfirmationEmails(
     };
 
     try {
-      // Buscar delivery_url e external_delivery do produto específico
+      // Buscar informações de entrega do produto
       const { data: product, error: productError } = await supabase
         .from('products')
-        .select('delivery_url, support_email, external_delivery')
+        .select('delivery_url, support_email, external_delivery, delivery_type')
         .eq('id', item.product_id)
         .single() as { data: ProductDeliveryInfo | null; error: { message: string } | null };
 
@@ -163,29 +248,31 @@ export async function sendOrderConfirmationEmails(
         logWarn('Erro ao buscar produto', { productId: item.product_id, error: productError.message });
       }
 
-      // Se produto tem entrega externa, pular envio de email (sistema próprio do vendedor)
-      if (product?.external_delivery === true) {
-        logInfo('🔗 Produto com entrega externa - pulando envio de email', { 
-          productId: item.product_id, 
-          productName: item.product_name,
-          isBump: item.is_bump 
-        });
-        itemDetail.error = 'Entrega externa configurada';
-        result.details.push(itemDetail);
-        continue;
-      }
+      // Determinar tipo de entrega
+      const deliveryType = getDeliveryType(product);
+      itemDetail.deliveryType = deliveryType;
 
-      // Se produto não tem delivery_url E não é externo, pular (não faz sentido enviar email sem link)
-      if (!product?.delivery_url) {
-        logWarn('Produto sem delivery_url - pulando envio de email', { 
+      // Obter URL de entrega (null para external)
+      const deliveryUrl = getDeliveryUrl(deliveryType, item.product_id, product?.delivery_url || null);
+
+      // Para entrega standard, validar que existe delivery_url
+      if (deliveryType === 'standard' && !deliveryUrl) {
+        logWarn('Produto standard sem delivery_url - pulando envio', { 
           productId: item.product_id, 
-          productName: item.product_name,
-          isBump: item.is_bump 
+          productName: item.product_name 
         });
         itemDetail.error = 'Produto sem link de acesso (delivery_url)';
         result.details.push(itemDetail);
         continue;
       }
+
+      // Log do tipo de entrega
+      logInfo(`📧 Enviando email (${deliveryType})`, { 
+        productId: item.product_id, 
+        productName: item.product_name,
+        isBump: item.is_bump,
+        hasDeliveryUrl: !!deliveryUrl
+      });
 
       // Montar dados do email
       const emailData: PurchaseConfirmationData = {
@@ -194,28 +281,39 @@ export async function sendOrderConfirmationEmails(
         amountCents: item.amount_cents,
         orderId: order.id,
         paymentMethod,
-        deliveryUrl: product.delivery_url,
-        supportEmail: product.support_email || undefined,
+        deliveryUrl: deliveryUrl || undefined,
+        supportEmail: product?.support_email || undefined,
       };
 
-      // Definir assunto baseado se é bump ou não
-      const subject = item.is_bump
-        ? `🎁 Acesso Liberado - ${item.product_name} (Bônus)`
-        : `✅ Compra Confirmada - ${item.product_name}`;
+      // Selecionar templates corretos
+      const templates = getEmailTemplates(deliveryType);
+
+      // Definir assunto baseado no tipo
+      let subject: string;
+      if (item.is_bump) {
+        subject = `🎁 Acesso Liberado - ${item.product_name} (Bônus)`;
+      } else if (deliveryType === 'members_area') {
+        subject = `🎓 Acesso Liberado - ${item.product_name}`;
+      } else if (deliveryType === 'external') {
+        subject = `✅ Pagamento Confirmado - ${item.product_name}`;
+      } else {
+        subject = `✅ Compra Confirmada - ${item.product_name}`;
+      }
 
       // Enviar email
       const emailResult = await sendEmail({
         to: { email: order.customer_email!, name: order.customer_name || undefined },
         subject,
-        htmlBody: getPurchaseConfirmationTemplate(emailData),
-        textBody: getPurchaseConfirmationTextTemplate(emailData),
+        htmlBody: templates.html(emailData),
+        textBody: templates.text(emailData),
         type: 'transactional',
-        clientReference: `order_${order.id}_product_${item.product_id}`,
+        clientReference: `order_${order.id}_product_${item.product_id}_${deliveryType}`,
       });
 
       if (emailResult.success) {
         logInfo('✅ Email enviado', { 
           productName: item.product_name, 
+          deliveryType,
           isBump: item.is_bump,
           messageId: emailResult.messageId 
         });
@@ -224,6 +322,7 @@ export async function sendOrderConfirmationEmails(
       } else {
         logWarn('⚠️ Falha ao enviar email', { 
           productName: item.product_name, 
+          deliveryType,
           error: emailResult.error 
         });
         itemDetail.error = emailResult.error || 'Erro desconhecido';

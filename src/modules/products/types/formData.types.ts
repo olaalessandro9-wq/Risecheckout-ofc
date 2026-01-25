@@ -54,6 +54,15 @@ export interface GatewayCredentials {
 }
 
 // ============================================================================
+// DELIVERY TYPES
+// ============================================================================
+
+/**
+ * Tipos de entrega disponíveis
+ */
+export type DeliveryType = 'standard' | 'members_area' | 'external';
+
+// ============================================================================
 // FORM DATA TYPES (Dados Editáveis)
 // ============================================================================
 
@@ -67,7 +76,9 @@ export interface GeneralFormData {
   support_name: string;
   support_email: string;
   delivery_url: string;
+  /** @deprecated Use delivery_type instead */
   external_delivery: boolean;
+  delivery_type: DeliveryType;
 }
 
 /**

@@ -25,6 +25,7 @@ export const initialContext: ProductFormContext = {
       support_email: "",
       delivery_url: "",
       external_delivery: false,
+      delivery_type: "standard",
     },
     upsell: {
       hasCustomThankYouPage: false,
@@ -49,6 +50,7 @@ export const initialContext: ProductFormContext = {
       support_email: "",
       delivery_url: "",
       external_delivery: false,
+      delivery_type: "standard",
     },
     image: { imageFile: null, imageUrl: "", pendingRemoval: false },
     offers: { localOffers: [], deletedOfferIds: [], modified: false },
