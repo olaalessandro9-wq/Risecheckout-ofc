@@ -102,7 +102,7 @@ export function useGeneralTab() {
       editedGeneral.support_name !== serverGeneral.support_name ||
       editedGeneral.support_email !== serverGeneral.support_email ||
       editedGeneral.delivery_url !== serverGeneral.delivery_url ||
-      editedGeneral.external_delivery !== serverGeneral.external_delivery
+      editedGeneral.delivery_type !== serverGeneral.delivery_type
     );
 
     const imageChanged = image.imageFile !== null || image.pendingRemoval;
