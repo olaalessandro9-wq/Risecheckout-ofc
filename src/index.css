@@ -617,8 +617,9 @@ html body [data-radix-select-viewport] [data-radix-select-item][style][data-high
    PERFORMANCE OPTIMIZATION - Mobile (Safari iOS)
    ========================================
    
-   Reduz efeitos pesados de GPU em dispositivos
-   mobile para melhorar performance no Safari iOS.
+   RISE V3: Abordagem SELETIVA que preserva
+   animações CRÍTICAS (spinners, sidebar, menus)
+   enquanto desabilita animações DECORATIVAS.
    
    ======================================== */
 
@@ -649,18 +650,12 @@ html body [data-radix-select-viewport] [data-radix-select-item][style][data-high
     filter: none !important;
   }
   
-  /* ====== ANIMAÇÕES - Desabilita completamente ====== */
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-  
-  /* ====== TRANSITIONS - Simplifica ====== */
-  .transition-all {
-    transition-property: color, background-color, border-color, opacity !important;
-    transition-duration: 50ms !important;
+  /* ====== ANIMAÇÕES DECORATIVAS - Desabilita seletivamente ====== */
+  /* NOTA: NÃO inclui animate-spin, animate-in, animate-collapsible */
+  .animate-bounce,
+  .animate-pulse,
+  .animate-ping {
+    animation: none !important;
   }
   
   /* ====== HOVER SHADOWS - Remove em mobile ====== */
@@ -681,6 +676,68 @@ html body [data-radix-select-viewport] [data-radix-select-item][style][data-high
   .hover\:translate-y-\[-2px\]:hover {
     transform: none !important;
   }
+}
+
+/* ========================================
+   ANIMAÇÕES CRÍTICAS - NUNCA DESABILITAR
+   ========================================
+   
+   Estas animações são essenciais para UX e
+   devem funcionar SEMPRE, independente de
+   viewport ou prefers-reduced-motion.
+   
+   ======================================== */
+
+/* ====== SPINNERS ====== */
+.animate-spin,
+[class*="animate-spin"] {
+  animation: spin 1s linear infinite !important;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ====== SIDEBAR WIDTH TRANSITION ====== */
+aside[class*="transition-[width]"] {
+  transition-property: width !important;
+  transition-duration: 300ms !important;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* ====== COLLAPSIBLE/ACCORDION ====== */
+.animate-collapsible-down,
+.animate-collapsible-up,
+.animate-accordion-down,
+.animate-accordion-up {
+  animation-duration: 200ms !important;
+  animation-timing-function: ease-out !important;
+}
+
+/* ====== RADIX UI ANIMATIONS (Sheet, Dialog, Popover, etc.) ====== */
+[data-state="open"].animate-in,
+[data-state="closed"].animate-out {
+  animation-duration: 200ms !important;
+  animation-timing-function: ease-out !important;
+}
+
+/* ====== SLIDE ANIMATIONS (Sheet Mobile) ====== */
+.slide-in-from-left,
+.slide-in-from-right,
+.slide-out-to-left,
+.slide-out-to-right,
+[class*="slide-in-from"],
+[class*="slide-out-to"] {
+  animation-duration: 200ms !important;
+}
+
+/* ====== FADE ANIMATIONS (Critical for feedback) ====== */
+.fade-in-0,
+.fade-out-0,
+[class*="fade-in"],
+[class*="fade-out"] {
+  animation-duration: 150ms !important;
 }
 
 /* ========================================
