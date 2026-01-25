@@ -1,7 +1,8 @@
 /**
- * Members Area Builder - State Management Hook
+ * Members Area Builder - State Management Hook (Dual-Layout Version)
  * 
  * Uses XState State Machine as Single Source of Truth.
+ * Supports independent Desktop/Mobile layouts.
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - Solution 10.0/10
  */
@@ -17,6 +18,7 @@ import type {
   SectionSettings,
   MembersAreaBuilderSettings,
   ViewMode,
+  Viewport,
   MemberModule,
   BuilderState,
   BuilderActions,
@@ -26,24 +28,12 @@ import type {
 // TYPES
 // ============================================================================
 
-/** Raw database row type for sections */
-export interface RawSectionRow {
-  id: string;
-  product_id: string;
-  type: string;
-  title: string | null;
-  position: number;
-  settings: unknown;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
 /** Create a new section with defaults */
 export function createDefaultSection(
   productId: string, 
   type: SectionType, 
   position: number,
+  viewport: Viewport,
   modules: MemberModule[] = []
 ): Section {
   const defaults = getSectionDefaults(type);
@@ -62,6 +52,7 @@ export function createDefaultSection(
     id: `temp_${crypto.randomUUID()}`,
     product_id: productId,
     type,
+    viewport,
     title: null,
     position,
     settings,
@@ -69,19 +60,6 @@ export function createDefaultSection(
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
-}
-
-/** Valid section types for type guard */
-export const VALID_SECTION_TYPES = ['banner', 'modules', 'courses', 'continue_watching', 'text', 'spacer'] as const;
-
-/** Type guard for SectionType */
-export function isSectionType(type: string): type is typeof VALID_SECTION_TYPES[number] {
-  return VALID_SECTION_TYPES.includes(type as typeof VALID_SECTION_TYPES[number]);
-}
-
-/** Check if ID is temporary (not yet in DB) */
-export function isTemporaryId(id: string): boolean {
-  return id.startsWith('temp_');
 }
 
 /** Hook return type */
@@ -105,8 +83,16 @@ export function useMembersAreaState(productId: string | undefined): UseMembersAr
 
   // Derive BuilderState from machine context
   const context = snapshot.context;
+  const activeSections = context.activeViewport === 'desktop' 
+    ? context.desktopSections 
+    : context.mobileSections;
+
   const state: BuilderState = {
-    sections: context.sections,
+    desktopSections: context.desktopSections,
+    mobileSections: context.mobileSections,
+    activeViewport: context.activeViewport,
+    isMobileSynced: context.isMobileSynced,
+    sections: activeSections, // Computed: active viewport sections
     settings: context.settings,
     selectedSectionId: context.selectedSectionId,
     selectedMenuItemId: context.selectedMenuItemId,
@@ -124,10 +110,16 @@ export function useMembersAreaState(productId: string | undefined): UseMembersAr
   // Create actions
   const addSection = useCallback(async (type: SectionType, position?: number): Promise<Section | null> => {
     if (!productId) return null;
-    const section = createDefaultSection(productId, type, position ?? state.sections.length, state.modules);
+    const section = createDefaultSection(
+      productId, 
+      type, 
+      position ?? activeSections.length, 
+      context.activeViewport,
+      context.modules
+    );
     send({ type: 'ADD_SECTION', section });
     return section;
-  }, [productId, state.sections.length, state.modules, send]);
+  }, [productId, activeSections.length, context.activeViewport, context.modules, send]);
 
   const updateSection = useCallback(async (id: string, updates: Partial<Section>) => {
     send({ type: 'UPDATE_SECTION', id, updates });
@@ -146,7 +138,7 @@ export function useMembersAreaState(productId: string | undefined): UseMembersAr
   }, [send]);
 
   const duplicateSection = useCallback(async (id: string): Promise<Section | null> => {
-    const original = state.sections.find(s => s.id === id);
+    const original = activeSections.find(s => s.id === id);
     if (!original || !productId) return null;
     
     const duplicate: Section = {
@@ -159,7 +151,7 @@ export function useMembersAreaState(productId: string | undefined): UseMembersAr
     
     send({ type: 'DUPLICATE_SECTION', original, duplicate });
     return duplicate;
-  }, [state.sections, productId, send]);
+  }, [activeSections, productId, send]);
 
   const selectSection = useCallback((id: string | null) => {
     send({ type: 'SELECT_SECTION', id });
@@ -181,13 +173,32 @@ export function useMembersAreaState(productId: string | undefined): UseMembersAr
     send({ type: 'TOGGLE_MENU_COLLAPSE' });
   }, [send]);
 
+  // Viewport actions (NEW)
+  const setActiveViewport = useCallback((viewport: Viewport) => {
+    send({ type: 'SET_ACTIVE_VIEWPORT', viewport });
+  }, [send]);
+
+  const copyDesktopToMobile = useCallback(() => {
+    send({ type: 'COPY_DESKTOP_TO_MOBILE' });
+    toast.success('Layout do Desktop copiado para Mobile');
+  }, [send]);
+
+  const setMobileSynced = useCallback((synced: boolean) => {
+    send({ type: 'SET_MOBILE_SYNCED', synced });
+    if (synced) {
+      toast.info('Mobile sincronizado com Desktop');
+    } else {
+      toast.info('Edição independente do Mobile ativada');
+    }
+  }, [send]);
+
   const updateSettings = useCallback(async (settings: Partial<MembersAreaBuilderSettings>) => {
     send({ type: 'UPDATE_SETTINGS', settings });
   }, [send]);
 
   const save = useCallback(async (): Promise<boolean> => {
     send({ type: 'SAVE' });
-    return true; // The machine handles the async
+    return true;
   }, [send]);
 
   const load = useCallback(async () => {
@@ -202,7 +213,6 @@ export function useMembersAreaState(productId: string | undefined): UseMembersAr
   }, [send]);
 
   const loadModules = useCallback(async () => {
-    // Modules are loaded with LOAD event
     if (productId) {
       send({ type: 'REFRESH' });
     }
@@ -232,6 +242,9 @@ export function useMembersAreaState(productId: string | undefined): UseMembersAr
     setViewMode,
     togglePreviewMode,
     toggleMenuCollapse,
+    setActiveViewport,
+    copyDesktopToMobile,
+    setMobileSynced,
     updateSettings,
     save,
     load,
