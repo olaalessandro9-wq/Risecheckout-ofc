@@ -22,7 +22,7 @@ function isGeneralDirty(server: GeneralFormData, edited: GeneralFormData): boole
     server.support_name !== edited.support_name ||
     server.support_email !== edited.support_email ||
     server.delivery_url !== edited.delivery_url ||
-    server.external_delivery !== edited.external_delivery
+    server.delivery_type !== edited.delivery_type
   );
 }
 

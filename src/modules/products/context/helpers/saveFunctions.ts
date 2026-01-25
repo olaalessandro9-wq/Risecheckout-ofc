@@ -149,8 +149,9 @@ export async function saveGeneralProduct({
       price: generalForm.price,
       support_name: generalForm.support_name,
       support_email: generalForm.support_email,
-      delivery_url: generalForm.external_delivery ? null : (generalForm.delivery_url || null),
-      external_delivery: generalForm.external_delivery,
+      delivery_url: generalForm.delivery_type === 'standard' ? (generalForm.delivery_url || null) : null,
+      delivery_type: generalForm.delivery_type,
+      external_delivery: generalForm.delivery_type === 'external', // Sync legado
       status: "active",
       image_url: finalImageUrl,
     },
