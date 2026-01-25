@@ -22,7 +22,7 @@ export interface Coupon {
   id: string;
   code: string;
   discount: number;
-  discountType: "percentage" | "fixed";
+  discountType: "percentage";
   startDate: Date;
   endDate: Date;
   applyToOrderBumps: boolean;
@@ -97,9 +97,7 @@ export const CouponsTable = ({
                       -
                     </TableCell>
                     <TableCell className="text-primary font-semibold">
-                      {coupon.discountType === "fixed" 
-                        ? `R$ ${coupon.discount.toFixed(2).replace(".", ",")}`
-                        : `${coupon.discount}%`}
+                      {`${coupon.discount}%`}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {format(coupon.startDate, "dd/MM/yyyy")}

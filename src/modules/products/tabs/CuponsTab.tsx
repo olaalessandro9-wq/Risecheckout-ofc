@@ -27,7 +27,7 @@ interface TableCoupon {
   id: string;
   code: string;
   discount: number;
-  discountType: "percentage" | "fixed";
+  discountType: "percentage";
   startDate: Date;
   endDate: Date;
   applyToOrderBumps: boolean;
@@ -100,7 +100,7 @@ export function CuponsTab() {
         name: couponData.name || couponData.code,
         code: couponData.code,
         description: couponData.description,
-        discountType: couponData.discount_type as "percentage" | "fixed",
+        discountType: "percentage" as const, // RISE V3: Apenas porcentagem suportado
         discountValue: couponData.discount_value,
         hasExpiration: !!couponData.expires_at,
         startDate: couponData.start_date ? new Date(couponData.start_date) : undefined,

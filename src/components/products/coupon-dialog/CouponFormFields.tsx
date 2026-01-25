@@ -11,13 +11,6 @@ import { Controller } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { CouponFormFieldsProps } from "./types";
 
@@ -29,8 +22,7 @@ export function CouponFormFields({
   discountValueRaw,
   setDiscountValueRaw,
 }: CouponFormFieldsProps) {
-  const { register, control, watch, setValue, formState: { errors } } = form;
-  const discountType = watch("discountType");
+  const { register, control, setValue, formState: { errors } } = form;
 
   // Handler para formatar código em tempo real
   const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -115,104 +107,81 @@ export function CouponFormFields({
         </div>
       </div>
 
-      {/* SEÇÃO: TIPO E VALOR */}
+      {/* SEÇÃO: VALOR DO DESCONTO */}
       <div className="space-y-4">
-        <h3 className="text-sm font-semibold text-foreground">Tipo e valor</h3>
+        <h3 className="text-sm font-semibold text-foreground">Valor do desconto</h3>
         
-        <div className="grid grid-cols-2 gap-4">
-          {/* Tipo */}
-          <div className="space-y-2">
-            <Label className="text-foreground">Tipo</Label>
+        <div className="space-y-2">
+          <Label htmlFor="discountValue" className="text-foreground">Porcentagem</Label>
+          <div className="relative">
             <Controller
-              name="discountType"
+              name="discountValue"
               control={control}
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger className="bg-background border-border">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="percentage">Porcentagem</SelectItem>
-                    <SelectItem value="fixed">Valor fixo</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Input
+                  id="discountValue"
+                  type="text"
+                  inputMode="decimal"
+                  value={discountValueRaw}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+
+                    // Permite apagar tudo e digitar livremente (sem o input "voltar").
+                    setDiscountValueRaw(raw);
+
+                    // Aceita apenas formato numérico simples (seguro) durante digitação.
+                    const isNumericLike = /^-?\d*(?:[.,]\d*)?$/.test(raw);
+                    if (!isNumericLike) return;
+
+                    const normalized = raw.replace(",", ".");
+                    const isIncomplete =
+                      normalized === "" ||
+                      normalized === "-" ||
+                      normalized.endsWith(".");
+
+                    if (isIncomplete) {
+                      field.onChange(undefined);
+                      return;
+                    }
+
+                    const n = Number(normalized);
+                    if (Number.isNaN(n)) return;
+                    field.onChange(n);
+                  }}
+                  onBlur={() => {
+                    field.onBlur();
+
+                    const raw = discountValueRaw;
+                    const normalized = raw.replace(",", ".");
+                    const n = Number(normalized);
+
+                    if (raw.trim() === "") {
+                      field.onChange(undefined);
+                      setDiscountValueRaw("");
+                      return;
+                    }
+
+                    if (Number.isNaN(n)) return;
+
+                    // Ao sair do campo, padroniza visualmente para número válido.
+                    setDiscountValueRaw(String(n));
+                    field.onChange(n);
+                  }}
+                  placeholder="10"
+                  className={cn(
+                    "bg-background border-border pr-8",
+                    errors.discountValue && "border-destructive"
+                  )}
+                />
               )}
             />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+              %
+            </span>
           </div>
-
-          {/* Valor */}
-          <div className="space-y-2">
-            <Label htmlFor="discountValue" className="text-foreground">Valor</Label>
-            <div className="relative">
-              <Controller
-                name="discountValue"
-                control={control}
-                render={({ field }) => (
-                  <Input
-                    id="discountValue"
-                    type="text"
-                    inputMode="decimal"
-                    value={discountValueRaw}
-                    onChange={(e) => {
-                      const raw = e.target.value;
-
-                      // Permite apagar tudo e digitar livremente (sem o input "voltar").
-                      setDiscountValueRaw(raw);
-
-                      // Aceita apenas formato numérico simples (seguro) durante digitação.
-                      const isNumericLike = /^-?\d*(?:[.,]\d*)?$/.test(raw);
-                      if (!isNumericLike) return;
-
-                      const normalized = raw.replace(",", ".");
-                      const isIncomplete =
-                        normalized === "" ||
-                        normalized === "-" ||
-                        normalized.endsWith(".");
-
-                      if (isIncomplete) {
-                        field.onChange(undefined);
-                        return;
-                      }
-
-                      const n = Number(normalized);
-                      if (Number.isNaN(n)) return;
-                      field.onChange(n);
-                    }}
-                    onBlur={() => {
-                      field.onBlur();
-
-                      const raw = discountValueRaw;
-                      const normalized = raw.replace(",", ".");
-                      const n = Number(normalized);
-
-                      if (raw.trim() === "") {
-                        field.onChange(undefined);
-                        setDiscountValueRaw("");
-                        return;
-                      }
-
-                      if (Number.isNaN(n)) return;
-
-                      // Ao sair do campo, padroniza visualmente para número válido.
-                      setDiscountValueRaw(String(n));
-                      field.onChange(n);
-                    }}
-                    placeholder="10"
-                    className={cn(
-                      "bg-background border-border",
-                      errors.discountValue && "border-destructive"
-                    )}
-                  />
-                )}
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                {discountType === "percentage" ? "%" : "R$"}
-              </span>
-            </div>
-            {errors.discountValue && (
-              <p className="text-xs text-destructive">{errors.discountValue.message}</p>
-            )}
-          </div>
+          {errors.discountValue && (
+            <p className="text-xs text-destructive">{errors.discountValue.message}</p>
+          )}
         </div>
       </div>
     </>

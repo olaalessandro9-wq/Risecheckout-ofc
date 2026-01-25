@@ -17,7 +17,7 @@ export interface CouponPayload {
   code: string;
   name?: string;
   description?: string;
-  discount_type: "percentage" | "fixed";
+  discount_type: "percentage"; // RISE V3: Apenas porcentagem suportado
   discount_value: number;
   max_uses?: number | null;
   max_uses_per_customer?: number | null;
@@ -48,16 +48,17 @@ export function validateCouponPayload(data: unknown): { valid: boolean; error?: 
     return { valid: false, error: "Código deve ter entre 3 e 50 caracteres" };
   }
 
-  if (!["percentage", "fixed"].includes(payload.discount_type as string)) {
-    return { valid: false, error: "Tipo de desconto deve ser 'percentage' ou 'fixed'" };
+  // RISE V3: Apenas porcentagem é suportado
+  if (payload.discount_type !== "percentage") {
+    return { valid: false, error: "Apenas desconto por porcentagem é suportado" };
   }
 
   if (typeof payload.discount_value !== "number" || payload.discount_value <= 0) {
     return { valid: false, error: "Valor do desconto deve ser positivo" };
   }
 
-  if (payload.discount_type === "percentage" && (payload.discount_value as number) > 100) {
-    return { valid: false, error: "Percentual de desconto não pode exceder 100%" };
+  if ((payload.discount_value as number) > 99) {
+    return { valid: false, error: "Percentual de desconto não pode exceder 99%" };
   }
 
   return {
@@ -66,7 +67,7 @@ export function validateCouponPayload(data: unknown): { valid: boolean; error?: 
       code,
       name: (payload.name as string)?.trim() || undefined,
       description: (payload.description as string)?.trim() || undefined,
-      discount_type: payload.discount_type as "percentage" | "fixed",
+      discount_type: "percentage" as const,
       discount_value: payload.discount_value as number,
       max_uses: (payload.max_uses as number) || null,
       max_uses_per_customer: (payload.max_uses_per_customer as number) || null,

@@ -29,7 +29,7 @@ export interface AppliedCoupon {
   id: string;
   code: string;
   name: string;
-  discount_type: 'percentage' | 'fixed';
+  discount_type: 'percentage';
   discount_value: number;
   apply_to_order_bumps: boolean;
 }
@@ -92,7 +92,7 @@ export function useCouponValidation({ productId }: UseCouponValidationParams): U
         id: data.data.id,
         code: data.data.code,
         name: data.data.name,
-        discount_type: data.data.discount_type as 'percentage' | 'fixed',
+        discount_type: 'percentage' as const,
         discount_value: data.data.discount_value,
         apply_to_order_bumps: data.data.apply_to_order_bumps,
       };

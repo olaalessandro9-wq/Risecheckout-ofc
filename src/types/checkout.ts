@@ -122,7 +122,7 @@ export interface Checkout {
 
 export interface CouponData {
   code: string;
-  discount_type: 'percentage' | 'fixed';
+  discount_type: 'percentage';
   discount_value: number;
 }
 

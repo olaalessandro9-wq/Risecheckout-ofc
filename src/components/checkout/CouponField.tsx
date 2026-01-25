@@ -56,7 +56,7 @@ export interface AppliedCoupon {
   id: string;
   code: string;
   name: string;
-  discount_type: "percentage" | "fixed";
+  discount_type: "percentage";
   discount_value: number;
   apply_to_order_bumps: boolean;
 }
@@ -114,7 +114,7 @@ export function CouponField({ productId, design, onCouponApplied }: CouponFieldP
         id: result.id!,
         code: result.code!,
         name: result.name || result.code!,
-        discount_type: result.discount_type as "percentage" | "fixed",
+        discount_type: "percentage" as const,
         discount_value: Number(result.discount_value),
         apply_to_order_bumps: result.apply_to_order_bumps || false,
       };

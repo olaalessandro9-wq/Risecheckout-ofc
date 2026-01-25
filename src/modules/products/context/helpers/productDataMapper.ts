@@ -193,7 +193,7 @@ export function mapCouponRecords(records: CouponRecord[]): Coupon[] {
     id: record.id,
     code: record.code,
     discount: record.discount_value,
-    discount_type: record.discount_type as "percentage" | "fixed",
+    discount_type: "percentage" as const, // RISE V3: Apenas porcentagem suportado
     startDate: record.start_date ? new Date(record.start_date) : new Date(),
     endDate: record.expires_at ? new Date(record.expires_at) : new Date(),
     usageCount: record.uses_count ?? 0,
