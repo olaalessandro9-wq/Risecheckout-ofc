@@ -8,6 +8,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { 
   ArrowLeft, 
   Monitor, 
@@ -27,7 +28,7 @@ interface BuilderHeaderProps {
 
 export function BuilderHeader({ productId, state, actions }: BuilderHeaderProps) {
   const navigate = useNavigate();
-  const { viewMode, isPreviewMode, isDirty, isSaving } = state;
+  const { viewMode, isPreviewMode, isDirty, isSaving, activeViewport } = state;
 
   const handleBack = () => {
     if (isDirty) {
@@ -61,9 +62,24 @@ export function BuilderHeader({ productId, state, actions }: BuilderHeaderProps)
         <h1 className="font-semibold text-sm">
           Personalizar Área de Membros
         </h1>
+
+        {/* Viewport indicator badge */}
+        <Badge variant={activeViewport === 'desktop' ? 'default' : 'secondary'} className="gap-1">
+          {activeViewport === 'desktop' ? (
+            <>
+              <Monitor className="h-3 w-3" />
+              Desktop
+            </>
+          ) : (
+            <>
+              <Smartphone className="h-3 w-3" />
+              Mobile
+            </>
+          )}
+        </Badge>
       </div>
 
-      {/* Center: View Mode Toggle */}
+      {/* Center: View Mode Toggle (Preview) */}
       <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
         <Button
           variant={viewMode === 'desktop' ? 'secondary' : 'ghost'}

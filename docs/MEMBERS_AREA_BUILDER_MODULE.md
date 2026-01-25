@@ -1,7 +1,7 @@
 # Members Area Builder Module - Arquitetura Técnica
 
-> **Versão:** 1.0  
-> **Data:** 22 de Janeiro de 2026  
+> **Versão:** 2.0 (Dual-Layout)
+> **Data:** 25 de Janeiro de 2026  
 > **Status:** CONSOLIDADO - RISE V3 10.0/10  
 
 ---
@@ -19,9 +19,21 @@ src/modules/members-area-builder/
 ### 1.2 Responsabilidades
 
 - Construção visual de seções (Banner, Módulos, Cursos, Texto, Espaçador)
+- **Layouts independentes para Desktop e Mobile (NEW v2.0)**
 - Configurações globais (tema, cores, menu)
 - Preview desktop/mobile
 - Persistência via Edge Functions
+
+### 1.3 Dual-Layout Architecture (v2.0)
+
+O builder suporta layouts completamente independentes:
+
+| Feature | Descrição |
+|---------|-----------|
+| `desktopSections` | Seções exclusivas para Desktop |
+| `mobileSections` | Seções exclusivas para Mobile |
+| `isMobileSynced` | Quando true, Desktop é espelhado no Mobile |
+| `copyDesktopToMobile` | Copia layout do Desktop para Mobile |
 
 ---
 
@@ -51,6 +63,9 @@ src/modules/members-area-builder/
     ├── canvas/
     ├── header/
     ├── sidebar/
+    │   ├── BuilderSidebar.tsx
+    │   ├── ViewportSyncPanel.tsx  # NEW v2.0
+    │   └── ...
     ├── preview/
     ├── dialogs/
     └── sections/
@@ -58,7 +73,7 @@ src/modules/members-area-builder/
 
 ---
 
-## 3. State Machine
+## 3. State Machine (v2.0)
 
 `builderMachine.ts` gerencia o ciclo de vida do builder com os estados:
 

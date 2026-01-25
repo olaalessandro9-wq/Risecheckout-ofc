@@ -10,12 +10,9 @@
 export { useMembersAreaBuilder } from './useMembersAreaBuilder';
 export { 
   useMembersAreaState, 
-  VALID_SECTION_TYPES, 
-  isSectionType, 
-  isTemporaryId,
   createDefaultSection,
 } from './useMembersAreaState';
-export type { RawSectionRow, UseMembersAreaStateReturn } from './useMembersAreaState';
+export type { UseMembersAreaStateReturn } from './useMembersAreaState';
 export { parseSections, parseSettings } from './useMembersAreaParsers';
 
 // State Machine exports (replaces Reducer)
