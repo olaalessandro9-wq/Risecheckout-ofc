@@ -173,13 +173,9 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
       }
     }
     
-    // Apply coupon discount
+    // Apply coupon discount (RISE V3: apenas porcentagem suportado)
     if (localAppliedCoupon) {
-      if (localAppliedCoupon.discount_type === 'percentage') {
-        total = total * (1 - localAppliedCoupon.discount_value / 100);
-      } else {
-        total = Math.max(0, total - localAppliedCoupon.discount_value);
-      }
+      total = total * (1 - localAppliedCoupon.discount_value / 100);
     }
     
     return total;
