@@ -25,7 +25,7 @@ export function AddProductDialog({ open, onOpenChange, onProductAdded }: AddProd
     loading,
     step,
     formData,
-    externalDelivery,
+    deliveryType,
     deliveryUrlError,
     handleContinue,
     handleBack,
@@ -36,6 +36,9 @@ export function AddProductDialog({ open, onOpenChange, onProductAdded }: AddProd
     validateDeliveryUrl,
     updateFormData,
   } = useAddProduct({ onOpenChange, onProductAdded });
+
+  // Determina se pode submeter baseado no tipo de entrega
+  const canSubmit = deliveryType !== 'standard' || (formData.delivery_url && !deliveryUrlError);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -50,7 +53,7 @@ export function AddProductDialog({ open, onOpenChange, onProductAdded }: AddProd
             ) : (
               <>
                 <LinkIcon className="h-5 w-5 text-primary" />
-                Link de Entrega
+                Tipo de Entrega
               </>
             )}
           </DialogTitle>
@@ -63,7 +66,7 @@ export function AddProductDialog({ open, onOpenChange, onProductAdded }: AddProd
         ) : (
           <StepTwo
             formData={formData}
-            externalDelivery={externalDelivery}
+            deliveryType={deliveryType}
             deliveryUrlError={deliveryUrlError}
             onDeliveryTypeChange={handleDeliveryTypeChange}
             onDeliveryUrlChange={handleDeliveryUrlChange}
@@ -103,7 +106,7 @@ export function AddProductDialog({ open, onOpenChange, onProductAdded }: AddProd
               <Button 
                 onClick={handleSubmit}
                 className="bg-primary hover:bg-primary/90"
-                disabled={loading || (!externalDelivery && !!deliveryUrlError)}
+                disabled={loading || !canSubmit}
               >
                 {loading ? "Criando..." : "Cadastrar Produto"}
               </Button>

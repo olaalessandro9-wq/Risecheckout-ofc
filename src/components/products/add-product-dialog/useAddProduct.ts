@@ -1,7 +1,7 @@
 /**
  * Hook para lógica do AddProductDialog
  * 
- * @version 2.0.0 - RISE Protocol V3 Compliant - Zero console.log
+ * @version 3.0.0 - RISE Protocol V3 Compliant - 3 Delivery Types
  * @see RISE ARCHITECT PROTOCOL V3 - Separação de Lógica e UI
  */
 
@@ -12,6 +12,7 @@ import { api } from "@/lib/api";
 import { createLogger } from "@/lib/logger";
 import { productSchema, deliveryUrlSchema } from "./types";
 import type { AddProductFormData } from "./types";
+import type { DeliveryType } from "@/modules/products/types/product.types";
 
 const log = createLogger("AddProductDialog");
 
@@ -25,7 +26,7 @@ export function useAddProduct({ onOpenChange, onProductAdded }: UseAddProductPro
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
   const [deliveryUrlError, setDeliveryUrlError] = useState("");
-  const [externalDelivery, setExternalDelivery] = useState(false);
+  const [deliveryType, setDeliveryType] = useState<DeliveryType>('standard');
   
   const [formData, setFormData] = useState<AddProductFormData>({
     name: "",
@@ -35,7 +36,8 @@ export function useAddProduct({ onOpenChange, onProductAdded }: UseAddProductPro
   });
 
   const validateDeliveryUrl = useCallback((url: string): boolean => {
-    if (externalDelivery) {
+    // Só valida URL se for entrega padrão
+    if (deliveryType !== 'standard') {
       setDeliveryUrlError("");
       return true;
     }
@@ -48,7 +50,7 @@ export function useAddProduct({ onOpenChange, onProductAdded }: UseAddProductPro
     
     setDeliveryUrlError("");
     return true;
-  }, [externalDelivery]);
+  }, [deliveryType]);
 
   const handleContinue = useCallback(() => {
     if (!formData.name || !formData.description || formData.price <= 0) {
@@ -79,13 +81,14 @@ export function useAddProduct({ onOpenChange, onProductAdded }: UseAddProductPro
 
   const resetForm = useCallback(() => {
     setFormData({ name: "", description: "", price: 0, delivery_url: "" });
-    setExternalDelivery(false);
+    setDeliveryType('standard');
     setStep(1);
     setDeliveryUrlError("");
   }, []);
 
   const handleSubmit = useCallback(async () => {
-    if (!externalDelivery && !validateDeliveryUrl(formData.delivery_url)) {
+    // Só valida URL se for entrega padrão
+    if (deliveryType === 'standard' && !validateDeliveryUrl(formData.delivery_url)) {
       return;
     }
     
@@ -97,8 +100,10 @@ export function useAddProduct({ onOpenChange, onProductAdded }: UseAddProductPro
           name: formData.name.trim(),
           description: formData.description.trim() || "",
           price: formData.price,
-          delivery_url: externalDelivery ? null : (formData.delivery_url.trim() || null),
-          external_delivery: externalDelivery,
+          delivery_url: deliveryType === 'standard' ? (formData.delivery_url.trim() || null) : null,
+          delivery_type: deliveryType,
+          // Mantém external_delivery para compatibilidade com código legado
+          external_delivery: deliveryType === 'external',
         },
       });
 
@@ -124,16 +129,17 @@ export function useAddProduct({ onOpenChange, onProductAdded }: UseAddProductPro
     } finally {
       setLoading(false);
     }
-  }, [externalDelivery, formData, validateDeliveryUrl, onOpenChange, onProductAdded, resetForm, navigate]);
+  }, [deliveryType, formData, validateDeliveryUrl, onOpenChange, onProductAdded, resetForm, navigate]);
 
   const handleCancel = useCallback(() => {
     onOpenChange(false);
     resetForm();
   }, [onOpenChange, resetForm]);
 
-  const handleDeliveryTypeChange = useCallback((external: boolean) => {
-    setExternalDelivery(external);
-    if (external) {
+  const handleDeliveryTypeChange = useCallback((type: DeliveryType) => {
+    setDeliveryType(type);
+    // Limpa URL se não for entrega padrão
+    if (type !== 'standard') {
       setFormData(prev => ({ ...prev, delivery_url: "" }));
       setDeliveryUrlError("");
     }
@@ -151,7 +157,7 @@ export function useAddProduct({ onOpenChange, onProductAdded }: UseAddProductPro
     loading,
     step,
     formData,
-    externalDelivery,
+    deliveryType,
     deliveryUrlError,
     handleContinue,
     handleBack,
