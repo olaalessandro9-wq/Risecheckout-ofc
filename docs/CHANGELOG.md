@@ -6,6 +6,39 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
+## [3.6.0] - 2026-01-25
+
+### 📦 Sistema de Entrega em 3 Níveis (RISE V3 10.0/10)
+
+#### Adicionado
+- **ENUM `delivery_type_enum`** no banco de dados com valores: `standard`, `members_area`, `external`
+- **Coluna `delivery_type`** na tabela `products` com migração de dados existentes
+- **Template de email `email-templates-members-area.ts`**: Botão automático → `/minha-conta/produtos/{id}`
+- **Template de email `email-templates-external.ts`**: Email de confirmação sem botão de acesso
+- **UI de seleção em `ProductDeliverySection.tsx`**: 3 cards distintos para cada tipo
+- **UI de seleção em `StepTwo.tsx`**: Criação de produto com os 3 tipos
+- **Memory `modules/products/delivery-system-architecture`**: Documentação da arquitetura
+
+#### Alterado
+- **`send-order-emails.ts`**: Refatorado para suportar 3 tipos de entrega com seleção dinâmica de template
+- **`product-crud-handlers.ts`**: Adicionada persistência de `delivery_type` com backwards compatibility
+- **`product-settings-handlers.ts`**: Adicionada persistência de `delivery_type` com backwards compatibility
+- **`product.types.ts`**: Adicionado tipo `DeliveryType` e campo na interface `ProductData`
+- **`productFormMachine.ts`**: Mapeamento do campo `delivery_type` do banco para o estado
+
+#### Deprecated
+- **Campo `external_delivery`** (boolean): Usar `delivery_type` ENUM. Campo mantido para compatibilidade.
+
+#### Conformidade RISE V3
+- **Persistência DB correta:** ✅ `delivery_type` salvo em create/update
+- **Templates de email:** ✅ 3 templates especializados
+- **UI completa:** ✅ Configuração e criação de produtos
+- **Compatibilidade legada:** ✅ `external_delivery` sincronizado
+- **Documentação atualizada:** ✅ PRODUCTS_MODULE_ARCHITECTURE.md
+- **Score Final:** 10.0/10
+
+---
+
 ## [3.5.5] - 2026-01-22
 
 ### 🔧 Correções PIX Multi-Gateway

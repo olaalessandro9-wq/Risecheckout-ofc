@@ -232,7 +232,50 @@ Todas as funções de save estão em `saveFunctions.ts`:
 
 ---
 
-## 9. Changelog
+## 9. Sistema de Entrega (Delivery Types)
+
+### 9.1 Tipos Disponíveis
+
+O sistema suporta 3 tipos de entrega distintos via ENUM `delivery_type_enum`:
+
+| Tipo | ENUM | Descrição | Email de Compra |
+|------|------|-----------|-----------------|
+| Entrega Padrão | `standard` | Link customizado definido pelo produtor | Botão "Acessar Produto" → `delivery_url` |
+| Área de Membros | `members_area` | Link automático para área de membros | Botão "Acessar Produto" → `/minha-conta/produtos/{id}` |
+| Entrega Externa | `external` | Produtor entrega manualmente | Apenas confirmação (sem botão de acesso) |
+
+### 9.2 Arquivos Relacionados
+
+| Arquivo | Responsabilidade |
+|---------|-----------------|
+| `email-templates-purchase.ts` | Template padrão (standard) |
+| `email-templates-members-area.ts` | Template área de membros |
+| `email-templates-external.ts` | Template entrega externa |
+| `send-order-emails.ts` | Orquestração de envio e seleção de template |
+| `ProductDeliverySection.tsx` | UI de configuração (edição) |
+| `StepTwo.tsx` | UI de criação de produto |
+| `product-crud-handlers.ts` | Persistência backend (create/update) |
+| `product-settings-handlers.ts` | Persistência backend (settings) |
+
+### 9.3 Compatibilidade Legada
+
+O campo `external_delivery` (boolean) é mantido para compatibilidade com produtos existentes.
+A lógica de resolução prioriza `delivery_type` ENUM quando disponível:
+
+```typescript
+// Prioridade de resolução
+if (product.delivery_type) {
+  return product.delivery_type; // ENUM (novo)
+} else if (product.external_delivery) {
+  return 'external'; // Legacy boolean
+} else {
+  return 'standard'; // Default
+}
+```
+
+---
+
+## 10. Changelog
 
 | Data | Alteração |
 |------|-----------|
@@ -242,3 +285,6 @@ Todas as funções de save estão em `saveFunctions.ts`:
 | 2026-01-20 | **MIGRAÇÃO COMPLETA PARA XSTATE** |
 | 2026-01-20 | Deleção de ~1260 linhas de código legado |
 | 2026-01-20 | State Machine como Single Source of Truth |
+| 2026-01-25 | **SISTEMA DE ENTREGA EM 3 NÍVEIS** |
+| 2026-01-25 | ENUM `delivery_type_enum` (standard, members_area, external) |
+| 2026-01-25 | Templates de email por tipo de entrega |
