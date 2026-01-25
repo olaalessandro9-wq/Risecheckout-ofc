@@ -15,6 +15,14 @@ export interface MembersAreaSettings {
   primary_color?: string;
 }
 
+/**
+ * Tipo de entrega do produto
+ * - standard: Entrega interna com link customizado
+ * - members_area: Entrega via área de membros (link automático)
+ * - external: Entrega externa (webhook/N8N, sem email de acesso)
+ */
+export type DeliveryType = 'standard' | 'members_area' | 'external';
+
 export interface ProductData {
   id?: string;
   name: string;
@@ -27,8 +35,9 @@ export interface ProductData {
   user_id?: string;
   created_at?: string;
   updated_at?: string;
-  delivery_url?: string | null; // Link de entrega do produto digital
-  external_delivery?: boolean; // Quando true, entrega é feita por sistema externo (webhook/N8N)
+  delivery_url?: string | null; // Link de entrega do produto digital (usado quando delivery_type = 'standard')
+  delivery_type?: DeliveryType; // Tipo de entrega (novo campo ENUM)
+  external_delivery?: boolean; // @deprecated - Usar delivery_type em vez disso
   members_area_enabled?: boolean;
   members_area_settings?: MembersAreaSettings | null;
 }
