@@ -235,9 +235,6 @@ export function ProductDeliverySection({
                   O cliente receberá um email com botão <strong>"Acessar Área de Membros"</strong> 
                   que o levará diretamente para o conteúdo deste produto.
                 </p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  O link será gerado automaticamente: <code className="bg-muted px-1 rounded">/minha-conta/produtos/[id]</code>
-                </p>
               </div>
             </div>
           </div>
@@ -253,9 +250,6 @@ export function ProductDeliverySection({
                 <p className="text-sm text-muted-foreground mt-1">
                   O cliente receberá um email confirmando o pagamento com a mensagem de que 
                   <strong> o vendedor entrará em contato para fazer a entrega</strong>.
-                </p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Configure webhooks em <strong>Integrações → Webhooks</strong> para receber notificações de venda.
                 </p>
               </div>
             </div>
