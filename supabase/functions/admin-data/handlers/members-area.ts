@@ -14,7 +14,7 @@ import { createLogger } from "../../_shared/logger.ts";
 const log = createLogger("admin-data/members-area");
 
 // ==========================================
-// MEMBERS AREA DATA
+// MEMBERS AREA DATA (Dual-Layout Support)
 // ==========================================
 
 export async function getMembersAreaData(
@@ -48,8 +48,15 @@ export async function getMembersAreaData(
     return errorResponse("Erro ao buscar seções", "DB_ERROR", corsHeaders, 500);
   }
 
+  // Split sections by viewport (dual-layout)
+  const allSections = sections || [];
+  const desktopSections = allSections.filter(s => s.viewport === 'desktop' || !s.viewport);
+  const mobileSections = allSections.filter(s => s.viewport === 'mobile');
+
   return jsonResponse({
-    sections: sections || [],
+    sections: allSections,
+    desktopSections,
+    mobileSections,
     settings: product.members_area_settings || {},
     productImageUrl: product.image_url || null,
   }, corsHeaders);

@@ -41,10 +41,11 @@ function settingsChanged(current: MembersAreaBuilderSettings, original: MembersA
 // ============================================================================
 
 export function isDirty({ context }: { context: BuilderMachineContext }): boolean {
-  return (
-    sectionsChanged(context.sections, context.originalSections) ||
-    settingsChanged(context.settings, context.originalSettings)
-  );
+  const desktopChanged = sectionsChanged(context.desktopSections, context.originalDesktopSections);
+  const mobileChanged = sectionsChanged(context.mobileSections, context.originalMobileSections);
+  const settingsChange = settingsChanged(context.settings, context.originalSettings);
+  
+  return desktopChanged || mobileChanged || settingsChange;
 }
 
 export function canSave({ context }: { context: BuilderMachineContext }): boolean {
