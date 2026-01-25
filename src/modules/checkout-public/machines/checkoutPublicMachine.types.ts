@@ -46,7 +46,7 @@ export interface CouponData {
   id: string;
   code: string;
   name: string;
-  discount_type: 'percentage' | 'fixed';
+  discount_type: 'percentage';
   discount_value: number;
   apply_to_order_bumps: boolean;
 }

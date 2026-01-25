@@ -9,7 +9,7 @@ export const couponSchema = z.object({
     .max(50, "Código muito longo (máximo 50)")
     .transform((val) => val.toUpperCase().replace(/\s+/g, '-').replace(/[^A-Z0-9-]/g, '')),
   description: z.string().max(500, "Descrição muito longa").optional(),
-  discountType: z.enum(["percentage", "fixed"]),
+  discountType: z.literal("percentage").default("percentage"),
   discountValue: z.preprocess(
     (val) => {
       // Permite o usuário limpar/editar livremente no input.
@@ -78,7 +78,7 @@ export const couponSchema = z.object({
 ).refine(
   (data) => {
     // Validação: porcentagem deve ser no máximo 99
-    if (data.discountType === "percentage" && data.discountValue !== undefined && data.discountValue > 99) {
+    if (data.discountValue !== undefined && data.discountValue > 99) {
       return false;
     }
     return true;

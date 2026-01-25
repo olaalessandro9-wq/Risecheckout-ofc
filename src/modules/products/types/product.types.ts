@@ -95,8 +95,8 @@ export interface Checkout {
 export interface Coupon {
   id: string;
   code: string;
-  discount: number; // Valor do desconto em centavos ou porcentagem
-  discount_type?: "percentage" | "fixed";
+  discount: number; // Valor do desconto em porcentagem (1-99)
+  discount_type: "percentage";
   startDate: Date;
   endDate: Date;
   usageCount: number;

@@ -201,7 +201,7 @@ function mapBffToMachine(data: ProductFullResponse["data"]): MappedProductData {
     id: c.id,
     code: c.code,
     discount: c.discount_value,
-    discount_type: (c.discount_type === "percentage" ? "percentage" : "fixed") as "percentage" | "fixed",
+    discount_type: "percentage" as const, // RISE V3: Apenas porcentagem suportado
     startDate: c.start_date ? new Date(c.start_date) : new Date(),
     endDate: c.expires_at ? new Date(c.expires_at) : new Date(),
     usageCount: c.uses_count ?? 0,
