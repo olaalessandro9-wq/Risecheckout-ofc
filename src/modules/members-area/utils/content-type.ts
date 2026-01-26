@@ -6,7 +6,7 @@
 import type { ContentDisplayType } from '../types/module.types';
 
 /**
- * Normalize legacy content types to unified system
+ * Normalize content types to unified system
  * - "mixed" = Kiwify-style (video + body + attachments)
  * - "video" = video only
  * - "text" = text/html only
@@ -21,7 +21,7 @@ export function normalizeContentType(type: string): ContentDisplayType {
     case 'pdf':
     case 'download':
     case 'link':
-      // Legacy types become mixed for flexible display
+      // Deprecated types become mixed for flexible display
       return 'mixed';
     default:
       return 'mixed';

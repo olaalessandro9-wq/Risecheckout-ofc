@@ -19,7 +19,7 @@ type DesignInputObject = {
  * Normaliza o design do checkout mesclando:
  * 1. Preset do tema (light/dark)
  * 2. JSON salvo em checkout.design
- * 3. Colunas legadas (background_color, button_color, etc.)
+ * 3. Colunas de fallback (background_color, button_color, etc.)
  * 
  * Garante que todas as propriedades de cores necessárias existam,
  * sem usar "cores mágicas" hardcoded.
@@ -38,10 +38,10 @@ export function normalizeDesign(checkout: DesignInputObject): ThemePreset {
     deepMerge(normalized.colors as unknown as Record<string, unknown>, designColors);
   }
   
-  // 4. Merge com colunas legadas APENAS como fallback (não sobrescrever design salvo)
+  // 4. Merge com colunas de fallback APENAS se não houver design salvo
   const hasDesignColors = designColors && Object.keys(designColors).length > 0;
   
-  // Só usar legado se não houver valor no design JSON
+  // Só usar fallback se não houver valor no design JSON
   if (checkout.background_color && !hasDesignColors) {
     normalized.colors.background = checkout.background_color;
   }
@@ -84,7 +84,7 @@ export function normalizeDesign(checkout: DesignInputObject): ThemePreset {
     };
   }
   
-  // Order Bump (garantir que existe para checkouts antigos)
+  // Order Bump (garantir que existe para checkouts sem configuração específica)
   if (!normalized.colors.orderBump) {
     normalized.colors.orderBump = {
       headerBackground: 'rgba(0,0,0,0.15)',
@@ -98,7 +98,7 @@ export function normalizeDesign(checkout: DesignInputObject): ThemePreset {
     };
   }
   
-  // Credit Card Fields (garantir que existe para checkouts antigos)
+  // Credit Card Fields (garantir que existe para checkouts sem configuração específica)
   if (!normalized.colors.creditCardFields) {
     normalized.colors.creditCardFields = {
       textColor: normalized.colors.primaryText,
@@ -110,7 +110,7 @@ export function normalizeDesign(checkout: DesignInputObject): ThemePreset {
     };
   }
   
-  // Order Summary (garantir que existe para checkouts antigos)
+  // Order Summary (garantir que existe para checkouts sem configuração específica)
   if (!normalized.colors.orderSummary) {
     normalized.colors.orderSummary = {
       background: normalized.colors.formBackground,
@@ -122,7 +122,7 @@ export function normalizeDesign(checkout: DesignInputObject): ThemePreset {
     };
   }
   
-  // Footer (garantir que existe para checkouts antigos)
+  // Footer (garantir que existe para checkouts sem configuração específica)
   if (!normalized.colors.footer) {
     normalized.colors.footer = {
       background: normalized.colors.formBackground,
@@ -132,7 +132,7 @@ export function normalizeDesign(checkout: DesignInputObject): ThemePreset {
     };
   }
   
-  // Secure Purchase (garantir que existe para checkouts antigos)
+  // Secure Purchase (garantir que existe para checkouts sem configuração específica)
   if (!normalized.colors.securePurchase) {
     normalized.colors.securePurchase = {
       headerBackground: normalized.colors.active,
@@ -144,7 +144,7 @@ export function normalizeDesign(checkout: DesignInputObject): ThemePreset {
     };
   }
   
-  // Personal Data Fields (garantir que existe para checkouts antigos)
+  // Personal Data Fields (garantir que existe para checkouts sem configuração específica)
   if (!normalized.colors.personalDataFields) {
     normalized.colors.personalDataFields = {
       textColor: normalized.colors.primaryText,

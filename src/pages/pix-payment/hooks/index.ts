@@ -5,7 +5,7 @@
  * 
  * Hooks disponíveis:
  * - usePixOrderData: Busca dados do pedido para exibição
- * - usePixCharge: Gera cobrança PIX (legacy, usado por alguns gateways)
+ * - usePixCharge: Gera cobrança PIX (usado por gateways específicos)
  * - usePixPaymentStatus: Polling de status do pagamento
  * - usePixTimer: Timer de expiração do PIX (15 minutos)
  * - useCheckoutSlugFromOrder: Obtém slug do checkout a partir do pedido

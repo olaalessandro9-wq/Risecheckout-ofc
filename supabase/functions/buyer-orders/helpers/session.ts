@@ -12,7 +12,7 @@ import type { BuyerData } from "../types.ts";
 
 /**
  * Validates session using unified system only.
- * Legacy buyer_sessions fallback removed - RISE V3 migration complete.
+ * RISE V3 migration complete.
  */
 export async function validateSession(
   supabase: SupabaseClient,

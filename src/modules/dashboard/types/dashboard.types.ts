@@ -25,7 +25,7 @@ export type DateRangePreset =
   | "max" 
   | "custom";
 
-// NOTA: DateRangeState e DateRangeAction foram removidos (legado do reducer).
+// NOTA: DateRangeState e DateRangeAction foram movidos para XState.
 // O estado agora é gerenciado pelo XState dateRangeMachine.
 // Tipos da máquina estão em: machines/dateRangeMachine.types.ts
 

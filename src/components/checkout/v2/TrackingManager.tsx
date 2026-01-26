@@ -4,7 +4,7 @@
  * Responsabilidade Única: Renderizar todos os scripts de tracking (pixels)
  * de forma centralizada e isolada.
  * 
- * RISE Protocol V2: Código legacy removido. Usa apenas productPixels.
+ * RISE Protocol V3: Usa product_pixels como fonte de dados.
  */
 
 import React from "react";
@@ -36,7 +36,7 @@ interface TrackingManagerProps {
  * Gerenciador de scripts de tracking.
  * 
  * Renderiza os pixels de tracking via product_pixels.
- * UTMify ainda usa o sistema legacy pois não migrou.
+ * UTMify usa sistema separado (não migrou para product_pixels).
  */
 export const TrackingManager: React.FC<TrackingManagerProps> = ({
   productId,
@@ -111,7 +111,7 @@ export const TrackingManager: React.FC<TrackingManagerProps> = ({
         />
       ))}
 
-      {/* UTMify sempre roda via legacy (não tem product_pixels) */}
+      {/* UTMify usa sistema separado (não tem product_pixels) */}
       {UTMify.shouldRunUTMify(utmifyConfig, productId) && (
         <UTMify.Tracker integration={utmifyConfig} />
       )}

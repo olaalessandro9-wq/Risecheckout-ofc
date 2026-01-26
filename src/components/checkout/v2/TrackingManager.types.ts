@@ -3,7 +3,7 @@
  * 
  * Tipos para o TrackingManager.
  * 
- * RISE Protocol V3: Código legacy removido.
+ * RISE Protocol V3: Tipos centralizados nos módulos de origem.
  * UTMify usa tipos diretamente de @/integrations/tracking/utmify/types
  */
 

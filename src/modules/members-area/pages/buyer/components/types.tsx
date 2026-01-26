@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 /** 
- * Buyer page uses extended content types for legacy support
+ * Buyer page uses extended content types for display flexibility
  * The unified system (mixed/video/text) handles normalization upstream
  */
 export type BuyerContentDisplayType = "mixed" | "video" | "text" | "pdf" | "link" | "download";

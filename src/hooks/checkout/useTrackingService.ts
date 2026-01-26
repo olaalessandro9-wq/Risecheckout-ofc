@@ -3,7 +3,7 @@
  * 
  * Responsabilidade Única: Centralizar a execução de scripts de tracking.
  * 
- * RISE Protocol V2: Código legacy removido. 
+ * RISE Protocol V3: UTMify usa hook separado. 
  * Apenas UTMify permanece pois não migrou para product_pixels.
  * Outros pixels (Facebook, Google Ads, TikTok, Kwai) agora são disparados
  * automaticamente pelos componentes de pixel via TrackingManager.

@@ -78,16 +78,16 @@ const logWarn = (message: string, data?: Record<string, unknown>) => log.warn(me
 const logError = (message: string, error?: unknown) => log.error(message, error);
 
 // ============================================================================
-// HELPER: Determinar tipo de entrega (compatível com legado)
+// HELPER: Determinar tipo de entrega
 // ============================================================================
 
 function getDeliveryType(product: ProductDeliveryInfo | null): DeliveryType {
-  // Prioridade: delivery_type ENUM > external_delivery boolean (legado)
+  // Prioridade: delivery_type ENUM > external_delivery boolean (deprecated)
   if (product?.delivery_type) {
     return product.delivery_type;
   }
   
-  // Fallback para campo legado
+  // Fallback para campo deprecated
   if (product?.external_delivery === true) {
     return 'external';
   }

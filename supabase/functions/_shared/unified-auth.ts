@@ -6,11 +6,6 @@
  * This module wraps unified-auth-v2 as a stable API layer.
  * All authentication now uses the unified `sessions` table exclusively.
  * 
- * LEGACY REMOVED (2026-01-23):
- * - Zero fallback to producer_sessions
- * - Zero fallback to buyer_sessions
- * - Zero references to legacy cookies
- * 
  * Usage in Edge Functions:
  * ```typescript
  * import { getAuthenticatedProducer, requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
@@ -45,7 +40,6 @@ export interface ProducerAuth {
  * Attempts to authenticate a producer from the request.
  * 
  * RISE V3: Uses ONLY unified-auth-v2 which validates against the `sessions` table.
- * Zero fallback to legacy producer_sessions.
  * 
  * Token source: Cookie `__Host-rise_access` (httpOnly)
  * 

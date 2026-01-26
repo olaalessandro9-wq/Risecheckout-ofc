@@ -1,7 +1,7 @@
 /**
  * Tipos do Sistema Centralizado de Form State
  * 
- * MIGRADO PARA XSTATE - Sistema legado de Reducer removido.
+ * MIGRADO PARA XSTATE - Sistema de Reducer substituído.
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - Nota 10.0/10
  */

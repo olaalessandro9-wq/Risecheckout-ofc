@@ -140,7 +140,7 @@ export type CorsHeaders = Record<string, string>;
  * Tables that MUST have RLS enabled and proper policies.
  * Ordered by criticality.
  * 
- * RISE V3: Using unified `sessions` table instead of legacy buyer_sessions
+ * RISE V3: Using unified `sessions` table
  */
 export const CRITICAL_TABLES = [
   // Financial & Orders

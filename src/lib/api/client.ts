@@ -140,7 +140,7 @@ async function call<T>(
     }
     
     // Handle 401 with automatic retry (only once, only for authenticated calls)
-    // RISE V3: Uses unifiedTokenService instead of legacy producerTokenService
+    // RISE V3: Uses unifiedTokenService
     if (response.status === 401 && !isPublic && !_skipRetry) {
       log.info("Got 401, attempting unified token refresh...");
       

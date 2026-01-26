@@ -3,49 +3,49 @@
  * 
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
- * Converte entre FormData (XState) e CheckoutFormData (legacy components).
+ * Converte entre FormData (XState) e CheckoutFormData (public API components).
  * Este é o ÚNICO ponto de tradução entre os dois mundos.
  * 
  * @module checkout-public/adapters
  */
 
 import type { FormData as XStateFormData } from "../machines/checkoutPublicMachine.types";
-import type { CheckoutFormData as LegacyFormData } from "@/types/checkout";
+import type { CheckoutFormData as PublicFormData } from "@/types/checkout";
 
 /**
- * Converte XState FormData → Legacy CheckoutFormData
+ * Converte XState FormData → Public API CheckoutFormData
  * 
- * IMPORTANTE: O legacy usa AMBOS 'document' e 'cpf'.
+ * IMPORTANTE: A public API usa AMBOS 'document' e 'cpf'.
  * Este adapter garante que AMBOS os campos estejam preenchidos corretamente.
  * 
  * @param xstate - FormData do XState machine
- * @returns CheckoutFormData compatível com componentes legacy
+ * @returns CheckoutFormData compatível com componentes de public API
  */
-export function toCheckoutFormData(xstate: XStateFormData): LegacyFormData {
+export function toCheckoutFormData(xstate: XStateFormData): PublicFormData {
   const cpfValue = xstate.cpf || xstate.document || '';
   
   return {
     name: xstate.name,
     email: xstate.email,
     phone: xstate.phone || '',
-    document: cpfValue,  // Legacy components que usam document
+    document: cpfValue,  // Componentes que usam document
     cpf: cpfValue,       // SharedPersonalDataForm usa cpf
   };
 }
 
 /**
- * Converte Legacy CheckoutFormData → XState FormData
+ * Converte Public API CheckoutFormData → XState FormData
  * 
- * @param legacy - CheckoutFormData do componente legacy
+ * @param publicData - CheckoutFormData do componente public API
  * @returns FormData compatível com XState machine
  */
-export function fromCheckoutFormData(legacy: LegacyFormData): XStateFormData {
-  const cpfValue = legacy.cpf || legacy.document || '';
+export function fromCheckoutFormData(publicData: PublicFormData): XStateFormData {
+  const cpfValue = publicData.cpf || publicData.document || '';
   
   return {
-    name: legacy.name,
-    email: legacy.email,
-    phone: legacy.phone || '',
+    name: publicData.name,
+    email: publicData.email,
+    phone: publicData.phone || '',
     cpf: cpfValue,
     document: cpfValue,
   };
