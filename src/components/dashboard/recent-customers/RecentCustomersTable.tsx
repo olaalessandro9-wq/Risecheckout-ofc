@@ -1,11 +1,12 @@
 /**
  * Tabela de clientes recentes - Container principal
  * 
- * RISE ARCHITECT PROTOCOL:
+ * @version RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
  * - Limite de 150 linhas: ✓ (antes: 437 linhas)
  * - Single Responsibility: Orquestra componentes filhos
  * - Clean Architecture: Lógica separada em hooks
- * - Otimizado para ultrawide com animações condicionais
+ * - Otimizado para ultrawide via Context SSOT
  */
 
 import { useState, useMemo } from "react";
@@ -20,7 +21,7 @@ import { CustomerTableBody } from "./CustomerTableBody";
 import { CustomerPagination } from "./CustomerPagination";
 import { useCustomerPagination } from "./hooks/useCustomerPagination";
 import { isEncryptedValue, exportCustomersToCSV } from "./utils/customerUtils";
-import { useIsUltrawide } from "@/hooks/useIsUltrawide";
+import { useUltrawidePerformance } from "@/contexts/UltrawidePerformanceContext";
 import { cn } from "@/lib/utils";
 import type { Customer, CustomerExportData } from "./types";
 
@@ -32,7 +33,7 @@ interface RecentCustomersTableProps {
 
 export function RecentCustomersTable({ customers, isLoading = false, onRefresh }: RecentCustomersTableProps) {
   const { user } = useUnifiedAuth();
-  const isUltrawide = useIsUltrawide();
+  const { isUltrawide, disableBlur, disableHoverEffects } = useUltrawidePerformance();
   const [selectedOrder, setSelectedOrder] = useState<Customer | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);

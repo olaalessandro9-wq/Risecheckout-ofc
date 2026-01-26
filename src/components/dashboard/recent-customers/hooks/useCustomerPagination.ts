@@ -1,14 +1,15 @@
 /**
  * Hook para lógica de paginação de clientes
  * 
- * RISE ARCHITECT PROTOCOL:
+ * @version RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
  * - Single Responsibility: Apenas lógica de paginação
- * - Performance: Menos itens por página em ultrawide
+ * - Performance: Menos itens por página em ultrawide via Context SSOT
  * - Reusabilidade: Pode ser usado em outras tabelas
  */
 
 import { useState, useMemo } from "react";
-import { useIsUltrawide } from "@/hooks/useIsUltrawide";
+import { useUltrawidePerformance } from "@/contexts/UltrawidePerformanceContext";
 import type { Customer } from "../types";
 
 const ITEMS_PER_PAGE_STANDARD = 10;
@@ -28,7 +29,7 @@ interface UseCustomerPaginationResult {
 }
 
 export function useCustomerPagination(customers: Customer[]): UseCustomerPaginationResult {
-  const isUltrawide = useIsUltrawide();
+  const { isUltrawide } = useUltrawidePerformance();
   const ITEMS_PER_PAGE = isUltrawide ? ITEMS_PER_PAGE_ULTRAWIDE : ITEMS_PER_PAGE_STANDARD;
   
   const [currentPage, setCurrentPage] = useState(1);

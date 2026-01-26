@@ -2,17 +2,17 @@
  * OverviewPanel Component
  * 
  * @module dashboard/components
- * @version RISE V3 Compliant
+ * @version RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Painel lateral com 5 métricas secundárias.
  * Usa configuração declarativa do overviewConfig.
- * Otimizado para ultrawide com animações condicionais.
+ * Otimizado para ultrawide com animações condicionais via Context SSOT.
  */
 
 import { motion } from "framer-motion";
 import { OVERVIEW_ITEMS_CONFIG, getOverviewColorClasses } from "../../config";
 import type { DashboardMetrics } from "../../types";
-import { useIsUltrawide } from "@/hooks/useIsUltrawide";
+import { useUltrawidePerformance } from "@/contexts/UltrawidePerformanceContext";
 import { cn } from "@/lib/utils";
 
 interface OverviewPanelProps {
@@ -21,7 +21,7 @@ interface OverviewPanelProps {
 }
 
 export function OverviewPanel({ metrics, isLoading }: OverviewPanelProps) {
-  const isUltrawide = useIsUltrawide();
+  const { isUltrawide, disableBlur, disableHoverEffects } = useUltrawidePerformance();
 
   return (
     <div

@@ -1,9 +1,10 @@
 /**
  * Linha individual da tabela de clientes
  * 
- * RISE ARCHITECT PROTOCOL:
+ * @version RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
  * - Single Responsibility: Apenas renderização de uma linha
- * - Performance: Hover/transitions desabilitados em ultrawide
+ * - Performance: Hover/transitions desabilitados em ultrawide via Context SSOT
  * - Limite de 150 linhas: ✓
  */
 
@@ -12,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useIsUltrawide } from "@/hooks/useIsUltrawide";
+import { useUltrawidePerformance } from "@/contexts/UltrawidePerformanceContext";
 import type { ReactNode } from "react";
 import type { Customer } from "./types";
 
@@ -23,7 +24,7 @@ interface CustomerTableRowProps {
 }
 
 export function CustomerTableRow({ customer, displayEmail, onViewDetails }: CustomerTableRowProps) {
-  const isUltrawide = useIsUltrawide();
+  const { isUltrawide, disableHoverEffects } = useUltrawidePerformance();
 
   return (
     <TableRow 
