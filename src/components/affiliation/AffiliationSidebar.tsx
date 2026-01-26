@@ -112,5 +112,5 @@ export function AffiliationSidebar({
   );
 }
 
-// Re-export type for backward compatibility
+// Public type alias
 export type AffiliationTab = AffiliationTabId;

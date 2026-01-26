@@ -22,7 +22,7 @@ export type {
   ModuleWithContents,
 } from "../types";
 
-// Alias for backwards compatibility with existing code
+// Type alias for unified API
 export type MemberModuleWithContents = ModuleWithContents;
 
 // Hook-specific types (not in module types)

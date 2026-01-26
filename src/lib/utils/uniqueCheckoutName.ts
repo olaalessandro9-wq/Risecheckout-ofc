@@ -14,7 +14,7 @@ interface UniqueCheckoutNameResponse {
 }
 
 export async function ensureUniqueCheckoutName(
-  _supabase: unknown, // Kept for backward compatibility, not used
+  _supabase: unknown, // Kept for signature stability, not used
   productId: string,
   base: string
 ): Promise<string> {

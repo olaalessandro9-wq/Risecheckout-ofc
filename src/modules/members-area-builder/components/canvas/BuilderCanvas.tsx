@@ -22,7 +22,7 @@ interface BuilderCanvasProps {
 export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
   const { sections, selectedSectionId, selectedMenuItemId, viewMode, isPreviewMode, isMenuCollapsed, settings, modules } = state;
 
-  // Menu visibility flags (defaults to true for backwards compatibility)
+  // Menu visibility flags (defaults to true for new products without explicit settings)
   const showMenuDesktop = settings.show_menu_desktop ?? true;
   const showMenuMobile = settings.show_menu_mobile ?? true;
 

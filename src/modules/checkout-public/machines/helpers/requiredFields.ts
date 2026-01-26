@@ -14,7 +14,7 @@ import type { RequiredFieldsConfig } from "../../mappers";
 
 /**
  * Checks if a specific field is required based on the product configuration.
- * Supports both array and object formats for backward compatibility.
+ * Supports both array and object formats for data flexibility.
  */
 export function isFieldRequired(
   requiredFields: RequiredFieldsConfig | string[] | undefined | null,

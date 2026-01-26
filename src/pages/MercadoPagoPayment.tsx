@@ -1,7 +1,7 @@
 /**
- * MercadoPagoPayment - Re-export for backward compatibility
+ * MercadoPagoPayment - Re-export for stable route API
  * 
- * RISE Protocol V2 Compliant.
+ * RISE Protocol V3 Compliant.
  * Original: 460 lines → Refactored: ~5 lines (re-export)
  */
 

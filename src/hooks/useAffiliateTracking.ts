@@ -135,7 +135,7 @@ export const clearPendingAffiliateCode = (): void => {
 };
 
 /**
- * Salva código temporariamente no sessionStorage
+ * Armazena código no sessionStorage para persistência posterior no checkout
  * Chamada pelo modo 'capture' (páginas não-checkout)
  */
 const savePendingAffiliateCode = (code: string): void => {
@@ -199,7 +199,7 @@ export const persistAffiliateCode = (
  * 
  * Modo 'capture' (App.tsx - páginas não-checkout):
  * - Detecta ?ref= na URL
- * - Salva temporariamente em sessionStorage
+ * - Armazena em sessionStorage para persistência no checkout
  * - Limpa a URL
  * 
  * Modo 'persist' (Checkout):
