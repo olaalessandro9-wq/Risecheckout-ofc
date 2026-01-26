@@ -1,191 +1,196 @@
 
-# Plano: Stripe "Em Breve" nas Configurações do Produto
+# Plano: Corrigir Variáveis CSS Ausentes na Página PIX
 
-## Resumo
+## Diagnóstico do Bug (Root Cause Analysis)
 
-Modificar o componente `GatewaySelector` nas configurações do produto para mostrar o Stripe como "Em Breve" para todos os roles **exceto Owner**. O Owner continuará vendo e usando o Stripe normalmente.
+### Problema Identificado
+Os componentes da página de pagamento PIX estão usando **variáveis CSS que NÃO EXISTEM** no `index.css`. Quando uma variável CSS não existe, o navegador usa o valor padrão (transparente/nenhum), resultando em texto invisível sobre fundo branco.
+
+### Mapeamento de Variáveis
+
+| Variável USADA (Inexistente) | Efeito Visual |
+|------------------------------|---------------|
+| `--payment-card-text-primary` | Texto invisível (branco sobre branco) |
+| `--payment-card-text-secondary` | Texto invisível |
+| `--payment-card-text-muted` | Texto invisível |
+| `--payment-card-bg-muted` | Fundo transparente nos badges |
+| `--payment-input-border` | Input sem borda |
+| `--payment-input-bg` | Input transparente |
+| `--payment-progress-bg` | Barra de progresso invisível |
+| `--payment-progress-fill` | Preenchimento invisível |
+| `--payment-success-hover` | Hover do botão quebrado |
+| `--payment-error` | Ícone de erro invisível |
+| `--payment-qr-bg` | QR sem fundo |
+| `--payment-qr-border` | QR sem borda |
+
+### Variáveis EXISTENTES no CSS
+```css
+--payment-bg: 222 47% 11%;           /* gray-900 (fundo escuro) */
+--payment-card-bg: 0 0% 100%;        /* white (card branco) */
+--payment-card-elevated: 210 40% 96%; /* gray-50 */
+--payment-text-primary: 0 0% 100%;   /* white - Para fundo escuro */
+--payment-text-dark: 224 71% 4%;     /* gray-900 - Para fundo claro */
+--payment-text-secondary: 220 9% 46%; /* gray-600 */
+--payment-text-muted: 220 9% 46%;    /* gray-700 */
+--payment-border: 220 13% 91%;       /* gray-200 */
+--payment-success: 142 76% 36%;      /* green-600 */
+```
 
 ---
 
 ## Análise de Soluções (RISE V3)
 
-### Solução A: Alterar status do Stripe no payment-gateways.ts para 'coming_soon'
-- Mudar `status: 'active'` para `status: 'coming_soon'`
-- **Manutenibilidade**: 4/10 - Afeta TODOS os usuários, inclusive Owner
-- **Zero DT**: 3/10 - Não respeita requisito de Owner ver normal
-- **Arquitetura**: 3/10 - Viola requisito específico do Owner
-- **NOTA FINAL: 3.3/10**
+### Solução A: Adicionar as Variáveis Ausentes ao CSS
+- Criar todas as 12 variáveis que faltam no `index.css`
+- Componentes continuam como estão
+- **Manutenibilidade**: 6/10 - Duplicação de variáveis (card-text-primary vs text-dark)
+- **Zero DT**: 5/10 - Inconsistência com padrão existente (text-dark foi criado para isso)
+- **Arquitetura**: 4/10 - Viola DRY, variáveis semânticas duplicadas
+- **NOTA FINAL: 5.0/10**
 
-### Solução B: Passar prop `isOwner` para GatewaySelector e tratar condicionalmente
-- Adicionar prop `isOwner` ao `GatewaySelector`
-- Renderizar Stripe como Coming Soon quando `!isOwner && gateway.id === 'stripe'`
-- **Manutenibilidade**: 8/10 - Lógica no componente certo
-- **Zero DT**: 9/10 - Segue padrão existente
-- **Arquitetura**: 8/10 - Prop drilling mínimo
-- **NOTA FINAL: 8.3/10**
-
-### Solução C: Flag por Gateway + Role no Registry (RISE V3 10.0/10)
-- Adicionar campo `comingSoonForRoles` no tipo `PaymentGateway`
-- Setar `comingSoonForRoles: ['user', 'seller']` no Stripe
-- O `GatewaySelector` consulta `usePermissions()` e renderiza condicionalmente
-- **Manutenibilidade**: 10/10 - Declarativo no Registry, SSOT
-- **Zero DT**: 10/10 - Reutiliza padrão já implementado no navigation
-- **Arquitetura**: 10/10 - Clean Architecture, Single Responsibility
-- **Escalabilidade**: 10/10 - Basta adicionar roles na flag para qualquer gateway
-- **Segurança**: 10/10 - Role verificado no componente
+### Solução B: Corrigir Componentes para Usar Variáveis Existentes (RISE V3 10.0/10)
+- Os componentes devem usar as variáveis JÁ EXISTENTES
+- Para texto dentro do card branco: usar `--payment-text-dark` (não text-primary que é branco)
+- Adicionar APENAS as variáveis semânticas que realmente faltam
+- **Manutenibilidade**: 10/10 - Usa variáveis semânticas corretas
+- **Zero DT**: 10/10 - Alinha com design system existente
+- **Arquitetura**: 10/10 - Single Source of Truth respeitado
+- **Escalabilidade**: 10/10 - Consistência com todo o sistema
+- **Segurança**: 10/10 - Componente de pagamento com 0 falhas visuais
 - **NOTA FINAL: 10.0/10**
 
-### DECISÃO: Solução C (Nota 10.0/10)
-
----
-
-## Arquivos a Modificar
-
-| Arquivo | Ação | Linhas Afetadas |
-|---------|------|-----------------|
-| `src/config/payment-gateways.ts` | MODIFICAR | +5 (tipo + flag no Stripe) |
-| `src/components/products/GatewaySelector.tsx` | MODIFICAR | +25 (lógica condicional) |
+### DECISÃO: Solução B (Nota 10.0/10)
 
 ---
 
 ## Especificação Técnica
 
-### 1. Estender Tipo PaymentGateway
+### 1. Completar Design Tokens no index.css
 
-**Arquivo:** `src/config/payment-gateways.ts`
+**Arquivo:** `src/index.css` (na seção PAYMENT PAGES DESIGN TOKENS)
 
-```typescript
-import type { AppRole } from "@/hooks/usePermissions";
+```css
+/* Payment Background Tokens */
+--payment-bg: 222 47% 11%;             /* gray-900 */
+--payment-card-bg: 0 0% 100%;          /* white */
+--payment-card-elevated: 210 40% 96%;  /* gray-50 */
+--payment-card-muted: 210 40% 96%;     /* gray-50 (para badges/chips) */
 
-export interface PaymentGateway {
-  // ... campos existentes ...
-  
-  // NOVO: Roles para os quais este gateway aparece como "Em Breve"
-  comingSoonForRoles?: readonly AppRole[];
-}
+/* Payment Text Tokens - CORRIGIDO */
+--payment-text-primary: 0 0% 100%;     /* white - Para fundo ESCURO */
+--payment-text-dark: 224 71% 4%;       /* gray-900 - Para fundo CLARO */
+--payment-text-secondary: 220 9% 46%;  /* gray-600 */
+--payment-text-muted: 220 9% 60%;      /* gray-500 */
 
-// No Stripe:
-stripe: {
-  // ... campos existentes ...
-  status: 'active', // Mantém ativo para Owner
-  comingSoonForRoles: ['user', 'seller'], // Em breve para não-admin/owner
-},
+/* Payment Input Tokens - NOVOS */
+--payment-input-bg: 0 0% 100%;         /* white */
+--payment-input-border: 220 13% 85%;   /* gray-300 */
+
+/* Payment Border Tokens */
+--payment-border: 220 13% 91%;         /* gray-200 */
+--payment-border-dark: 220 13% 80%;    /* gray-300 */
+
+/* Payment Progress Bar Tokens - NOVOS */
+--payment-progress-bg: 220 13% 91%;    /* gray-200 */
+--payment-progress-fill: 142 76% 36%;  /* green-600 */
+
+/* Payment QR Code Tokens - NOVOS */
+--payment-qr-bg: 0 0% 100%;            /* white */
+--payment-qr-border: 220 13% 91%;      /* gray-200 */
+
+/* Payment Status Tokens */
+--payment-success: 142 76% 36%;        /* green-600 */
+--payment-success-hover: 142 76% 30%;  /* green-700 */
+--payment-success-light: 142 77% 73%;  /* green-300 */
+--payment-error: 0 84% 60%;            /* red-500 */
 ```
 
-### 2. Modificar GatewaySelector
+### 2. Corrigir Componentes (Usar Variáveis Corretas)
 
-**Arquivo:** `src/components/products/GatewaySelector.tsx`
+**Problema Central:** Dentro do card branco, o texto deve usar `--payment-text-dark` (cinza escuro), NÃO `--payment-text-primary` (branco).
 
-```typescript
-import { usePermissions } from "@/hooks/usePermissions";
-import { Clock } from "lucide-react";
+| Componente | Variável ERRADA | Variável CORRETA |
+|------------|-----------------|------------------|
+| PixWaitingState | `--payment-card-text-primary` | `--payment-text-dark` |
+| PixWaitingState | `--payment-card-text-secondary` | `--payment-text-secondary` |
+| PixInstructions | `--payment-card-text-primary` | `--payment-text-dark` |
+| PixInstructions | `--payment-card-text-secondary` | `--payment-text-secondary` |
+| PixInstructions | `--payment-card-bg-muted` | `--payment-card-muted` |
+| PixCopyButton | `--payment-card-text-primary` | `--payment-text-dark` |
+| PixProgressBar | `--payment-card-text-secondary` | `--payment-text-secondary` |
+| PixProgressBar | `--payment-card-bg-muted` | `--payment-card-muted` |
+| PixPaidState | `--payment-card-text-primary` | `--payment-text-dark` |
+| PixPaidState | `--payment-card-text-secondary` | `--payment-text-secondary` |
+| PixExpiredState | `--payment-card-text-primary` | `--payment-text-dark` |
+| PixExpiredState | `--payment-card-text-secondary` | `--payment-text-secondary` |
+| PixErrorState | `--payment-card-text-*` | `--payment-text-dark/secondary/muted` |
+| PixVerifyButton | `--payment-card-text-primary` | `--payment-text-dark` |
 
-export function GatewaySelector({ ... }: GatewaySelectorProps) {
-  const { role } = usePermissions();
-  
-  // Buscar gateways ativos
-  const activeGateways = getActiveGatewaysByMethod(paymentMethod);
-  
-  // Separar gateways que são "coming soon" para o role atual
-  const { availableGateways, comingSoonForRoleGateways } = activeGateways.reduce(
-    (acc, gateway) => {
-      const isComingSoonForRole = gateway.comingSoonForRoles?.includes(role);
-      if (isComingSoonForRole) {
-        acc.comingSoonForRoleGateways.push(gateway);
-      } else {
-        acc.availableGateways.push(gateway);
-      }
-      return acc;
-    },
-    { availableGateways: [], comingSoonForRoleGateways: [] }
-  );
-  
-  return (
-    <RadioGroup ...>
-      {/* Gateways disponíveis normalmente */}
-      {availableGateways.map((gateway) => (
-        <GatewayOption ... />
-      ))}
-      
-      {/* Gateways "Em Breve" para este role */}
-      {comingSoonForRoleGateways.map((gateway) => (
-        <GatewayRoleComingSoonOption gateway={gateway} paymentMethod={paymentMethod} />
-      ))}
-      
-      {/* Gateways Coming Soon globais (existente) */}
-      {comingSoonGateways.map((gateway) => (
-        <GatewayComingSoonOption ... />
-      ))}
-    </RadioGroup>
-  );
-}
+---
 
-// Novo sub-componente para "Em Breve" por role
-function GatewayRoleComingSoonOption({ gateway, paymentMethod }) {
-  const fees = gateway.fees[paymentMethod];
-  const feesText = fees ? formatGatewayFees(fees) : 'Sem taxas';
+## Arquivos a Modificar
 
-  return (
-    <div className="border rounded-lg p-4 bg-muted/30 flex items-center gap-3 opacity-50 cursor-not-allowed">
-      <div className="w-4 h-4 rounded-full border-2 border-muted-foreground" />
-      <div className="flex-1">
-        <div className="font-medium text-muted-foreground">{gateway.displayName}</div>
-        <div className="text-xs text-muted-foreground">{feesText}</div>
-      </div>
-      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted border border-border">
-        <Clock className="w-3 h-3 text-muted-foreground" />
-        <span className="text-xs font-medium text-muted-foreground">Em Breve</span>
-      </div>
-    </div>
-  );
-}
+| Arquivo | Ação | Descrição |
+|---------|------|-----------|
+| `src/index.css` | MODIFICAR | Adicionar tokens ausentes (input, progress, qr, error, hover) |
+| `src/pages/pix-payment/components/PixWaitingState.tsx` | MODIFICAR | Corrigir variáveis de texto |
+| `src/pages/pix-payment/components/PixInstructions.tsx` | MODIFICAR | Corrigir variáveis de texto e bg |
+| `src/pages/pix-payment/components/PixCopyButton.tsx` | MODIFICAR | Corrigir variáveis de texto e input |
+| `src/pages/pix-payment/components/PixProgressBar.tsx` | MODIFICAR | Corrigir variáveis de texto e progress |
+| `src/pages/pix-payment/components/PixQrCodeDisplay.tsx` | MODIFICAR | Usar tokens existentes (já correto) |
+| `src/pages/pix-payment/components/PixPaidState.tsx` | MODIFICAR | Corrigir variáveis de texto |
+| `src/pages/pix-payment/components/PixExpiredState.tsx` | MODIFICAR | Corrigir variáveis de texto |
+| `src/pages/pix-payment/components/PixErrorState.tsx` | MODIFICAR | Corrigir variáveis de texto e error |
+| `src/pages/pix-payment/components/PixVerifyButton.tsx` | MODIFICAR | Corrigir variáveis de texto |
+| `src/pages/pix-payment/components/PixLoadingState.tsx` | VERIFICAR | Já usa tokens corretos (fundo escuro) |
+
+---
+
+## Resultado Visual Esperado
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                    ANTES (Bug)                                   │
+├─────────────────────────────────────────────────────────────────┤
+│  [Card Branco]                                                   │
+│                                                                  │
+│  (Texto invisível - branco sobre branco)                        │
+│                                                                  │
+│  [████████████████████████████] ← Barra invisível               │
+│                                                                  │
+│  [QR CODE]  ← Sem borda/fundo                                   │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    DEPOIS (Corrigido)                            │
+├─────────────────────────────────────────────────────────────────┤
+│  [Card Branco]                                                   │
+│                                                                  │
+│  Aqui está o PIX copia e cola  ← Texto cinza escuro visível     │
+│                                                                  │
+│  [████████████░░░░░░░░░░░░░░░] ← Barra verde sobre cinza        │
+│                                                                  │
+│  [QR CODE com borda]  ← Fundo branco, borda cinza               │
+│                                                                  │
+│  Para realizar o pagamento:  ← Texto visível                    │
+│  1. Abra o aplicativo do seu banco                              │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Layout Visual
+## Lógica de Cores (Design System)
 
-### Para User/Seller (Configurações do Produto)
 ```text
-Cartão de Crédito:
-┌─────────────────────────────────────────┐
-│ ○ Asaas                    Taxa: 3.49%  │
-│   Gateway completo                      │
-├─────────────────────────────────────────┤
-│ ○ Mercado Pago            Taxa: 3.99%   │  ← Selecionável
-│   Gateway completo                      │
-├─────────────────────────────────────────┤
-│ ○ Stripe                  [Em Breve]    │  ← Desabilitado, cinza
-│   Gateway internacional   (opacity 50%) │
-└─────────────────────────────────────────┘
+CONTEXTO                    VARIÁVEL DE TEXTO A USAR
+─────────────────────────────────────────────────────
+Fundo ESCURO (payment-bg)   → --payment-text-primary (branco)
+Fundo CLARO (payment-card)  → --payment-text-dark (cinza escuro)
+Texto secundário            → --payment-text-secondary (cinza médio)
+Texto terciário             → --payment-text-muted (cinza claro)
 ```
-
-### Para Owner (Configurações do Produto)
-```text
-Cartão de Crédito:
-┌─────────────────────────────────────────┐
-│ ○ Asaas                    Taxa: 3.49%  │
-│   Gateway completo                      │
-├─────────────────────────────────────────┤
-│ ● Mercado Pago            Taxa: 3.99%   │  ← Selecionado
-│   Gateway completo                      │
-├─────────────────────────────────────────┤
-│ ○ Stripe                  Taxa: 3.99%   │  ← Normal, selecionável
-│   Gateway internacional                 │
-└─────────────────────────────────────────┘
-```
-
----
-
-## Benefícios
-
-| Benefício | Descrição |
-|-----------|-----------|
-| **SSOT no Registry** | Flag vive no payment-gateways.ts |
-| **Consistência** | Mesmo padrão usado no navigation (comingSoonForRoles) |
-| **Escalável** | Adicionar outros gateways "em breve" = adicionar flag |
-| **Role-Aware** | Owner vê normal, outros veem "Em Breve" |
-| **Type-Safe** | Usa `AppRole` do sistema de permissões |
 
 ---
 
@@ -193,14 +198,14 @@ Cartão de Crédito:
 
 | Critério | Nota | Justificativa |
 |----------|------|---------------|
-| Manutenibilidade | 10/10 | Flag declarativa no Registry |
-| Zero DT | 10/10 | Reutiliza padrão do navigation |
-| Arquitetura | 10/10 | SSOT, Clean Architecture |
-| Escalabilidade | 10/10 | Fácil adicionar outros gateways |
-| Segurança | 10/10 | usePermissions valida role |
+| Manutenibilidade | 10/10 | Usa design system existente, tokens semânticos |
+| Zero DT | 10/10 | Corrige raiz do problema (variáveis inexistentes) |
+| Arquitetura | 10/10 | SSOT respeitado, Clean Architecture |
+| Escalabilidade | 10/10 | Tokens reutilizáveis em futuras páginas de pagamento |
+| Segurança | 10/10 | Zero falhas visuais em fluxo crítico de pagamento |
 | **NOTA FINAL** | **10.0/10** | Alinhado 100% com RISE Protocol V3 |
 
 ---
 
 ## Tempo Estimado
-**20 minutos**
+**30 minutos**
