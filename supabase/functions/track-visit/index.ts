@@ -2,7 +2,7 @@
  * Edge Function: track-visit
  * 
  * Tracks checkout visits with server-side IP capture.
- * Also increments the legacy visits_count counter.
+ * Also increments the aggregate visits_count counter.
  * 
  * @version 1.0.0 - RISE Protocol V2
  */
@@ -77,7 +77,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Increment legacy counter
+    // Increment aggregate counter
     const { error: rpcError } = await supabase.rpc("increment_checkout_visits", {
       checkout_id: checkoutId,
     });

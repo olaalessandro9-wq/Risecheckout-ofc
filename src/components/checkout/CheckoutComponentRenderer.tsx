@@ -2,7 +2,7 @@
  * CheckoutComponentRenderer - Renderizador de componentes para o checkout público
  * 
  * Usa os componentes refatorados de @/features/checkout-builder/components
- * Mantém compatibilidade com o design system e props legadas
+ * Mantém compatibilidade com o design system e props existentes
  * 
  * SEGURANÇA: Usa configuração centralizada de sanitização XSS de @/lib/security
  * RISE Protocol V2: Zero any - usa PartialComponentContent type-safe

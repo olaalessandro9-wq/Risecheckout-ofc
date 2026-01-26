@@ -87,7 +87,7 @@ async function decryptValue(encrypted: string, key: CryptoKey): Promise<string |
     
     return new TextDecoder().decode(decrypted);
   } catch {
-    // Pode ser dado legado não criptografado
+    // Pode ser dado não criptografado
     return encrypted;
   }
 }
