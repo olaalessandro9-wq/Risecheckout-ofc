@@ -1,15 +1,15 @@
 /**
- * CORS V2 Configuration - Environment-Based Separation
+ * CORS V2 Configuration - Single Secret Architecture
  * 
  * RISE Protocol V3 Compliant - 10.0/10 Security
  * 
  * Architecture:
- * - PRODUCTION: Uses CORS_ALLOWED_ORIGINS secret (no localhost)
- * - DEVELOPMENT: Uses CORS_ALLOWED_ORIGINS_DEV secret (includes localhost)
+ * - Single secret CORS_ALLOWED_ORIGINS for all environments
+ * - Supports multi-subdomain: risecheckout.com, app.*, pay.*, api.*
  * 
  * Fail-Secure: If secret is missing, ALL requests are blocked.
  * 
- * @version 2.0.0 - Environment separation
+ * @version 2.1.0 - Single Secret Architecture
  */
 
 import { createLogger } from "./logger.ts";
@@ -21,46 +21,22 @@ const log = createLogger("CORS-V2");
 // ============================================================================
 
 let cachedOrigins: Set<string> | null = null;
-let cachedEnvironment: "production" | "development" | null = null;
-
-// ============================================================================
-// ENVIRONMENT DETECTION
-// ============================================================================
-
-/**
- * Detects the current environment from the ENVIRONMENT secret.
- * Defaults to 'production' if not set (fail-secure).
- */
-function getEnvironment(): "production" | "development" {
-  if (cachedEnvironment) return cachedEnvironment;
-  
-  const env = Deno.env.get("ENVIRONMENT")?.toLowerCase();
-  cachedEnvironment = env === "development" ? "development" : "production";
-  
-  log.info(`Environment detected: ${cachedEnvironment}`);
-  return cachedEnvironment;
-}
 
 // ============================================================================
 // ORIGINS LOADING
 // ============================================================================
 
 /**
- * Loads allowed origins from the appropriate secret based on environment.
+ * Loads allowed origins from CORS_ALLOWED_ORIGINS secret.
  * Returns an empty Set if secret is missing (fail-secure).
  */
 function loadAllowedOrigins(): Set<string> {
   if (cachedOrigins) return cachedOrigins;
   
-  const env = getEnvironment();
-  const secretName = env === "development" 
-    ? "CORS_ALLOWED_ORIGINS_DEV" 
-    : "CORS_ALLOWED_ORIGINS";
-  
-  const originsRaw = Deno.env.get(secretName);
+  const originsRaw = Deno.env.get("CORS_ALLOWED_ORIGINS");
   
   if (!originsRaw) {
-    log.error(`🚨 CRITICAL: Secret ${secretName} not configured - blocking ALL origins`);
+    log.error("🚨 CRITICAL: CORS_ALLOWED_ORIGINS not configured - blocking ALL origins");
     cachedOrigins = new Set();
     return cachedOrigins;
   }
@@ -72,7 +48,7 @@ function loadAllowedOrigins(): Set<string> {
     .filter(o => o.length > 0);
   
   cachedOrigins = new Set(origins);
-  log.info(`Loaded ${cachedOrigins.size} allowed origins from ${secretName}`);
+  log.info(`Loaded ${cachedOrigins.size} allowed origins`);
   
   return cachedOrigins;
 }
