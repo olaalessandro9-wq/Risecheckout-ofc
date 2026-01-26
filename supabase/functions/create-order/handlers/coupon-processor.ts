@@ -1,9 +1,19 @@
 /**
  * coupon-processor.ts - Validação e Aplicação de Cupom
  * 
- * @version 2.0.0 - RISE Protocol V2 Compliant - Zero `any`
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Responsabilidade ÚNICA: Validar cupom e calcular desconto
+ * 
+ * Lógica de Order Bumps:
+ * - Se apply_to_order_bumps = true: desconto sobre totalAmount (produto + bumps)
+ * - Se apply_to_order_bumps = false: desconto sobre finalPrice (só produto)
+ * 
+ * Validação de Vínculo:
+ * - Cupom DEVE estar vinculado ao product_id PRINCIPAL
+ * - Cupons de produtos bump NÃO funcionam no checkout do produto principal
+ * 
+ * @module create-order/handlers/coupon-processor
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -80,7 +90,7 @@ export async function processCoupon(
 
   const couponData = coupon as CouponRecord;
 
-  // Verificar vínculo com produto
+  // Verificar vínculo com produto PRINCIPAL
   const { data: couponProduct } = await supabase
     .from("coupon_products")
     .select("*")
@@ -124,7 +134,9 @@ export async function processCoupon(
 
   const updated = updatedCoupon as UpdatedCouponRecord;
 
-  // Calcular desconto
+  // Calcular desconto baseado na configuração apply_to_order_bumps
+  // - true: desconto sobre totalAmount (produto principal + bumps)
+  // - false: desconto apenas sobre finalPrice (só produto principal)
   const discountBase = couponData.apply_to_order_bumps ? totalAmount : finalPrice;
 
   if (couponData.discount_type === "percentage") {

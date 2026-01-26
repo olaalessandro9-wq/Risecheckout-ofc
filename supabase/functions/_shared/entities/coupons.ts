@@ -1,11 +1,13 @@
 /**
  * Coupons Entity Handler - Shared module
  * 
- * Single Source of Truth for fetching coupons.
- * Used by: product-full-loader, product-entities
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * Single Source of Truth for fetching coupons by product.
+ * Cupons são SEMPRE vinculados a produtos via tabela coupon_products.
+ * NÃO existem cupons globais neste sistema.
  * 
  * @module _shared/entities/coupons
- * @version RISE V3 Compliant
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -39,28 +41,4 @@ export async function fetchProductCoupons(
   }
 
   return coupons as Record<string, unknown>[];
-}
-
-/**
- * Fetches all coupons (global, for entities endpoint)
- */
-export async function fetchAllCoupons(
-  supabase: SupabaseClient
-): Promise<Record<string, unknown>[]> {
-  const { data, error } = await supabase
-    .from("coupons")
-    .select(`
-      *,
-      coupon_products (
-        product_id
-      )
-    `)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    logger.error("Failed to fetch all coupons", { error: error.message });
-    throw new Error(`coupons: ${error.message}`);
-  }
-
-  return data ?? [];
 }
