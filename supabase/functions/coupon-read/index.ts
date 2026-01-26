@@ -1,13 +1,14 @@
 /**
  * Coupon Read Edge Function
  * 
- * RISE Protocol V3 - Single Responsibility
- * Handles coupon reading operations
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * Responsabilidade ÚNICA: Leitura de cupons para edição
  * 
  * Actions:
  * - get-coupon: Retorna um cupom específico para edição
  * 
- * @version 1.0.0 - Extracted from products-crud
+ * @module coupon-read
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";

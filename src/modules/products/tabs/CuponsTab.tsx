@@ -1,14 +1,17 @@
 /**
  * CuponsTab - Aba de Gerenciamento de Cupons de Desconto
  * 
- * MIGRADO: Todas operações via Edge Function coupon-management
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
- * Esta aba gerencia:
- * - Listagem de cupons do produto
- * - Adicionar novo cupom
- * - Editar cupom existente
- * - Deletar cupom
- * - Cupons são específicos por produto
+ * Responsabilidade ÚNICA: Gerenciamento de cupons do produto
+ * 
+ * Arquitetura:
+ * - Dados carregados via ProductContext (BFF product-full-loader)
+ * - Operações CRUD via Edge Function coupon-management
+ * - Cupons são SEMPRE vinculados a produtos (via coupon_products)
+ * - Unicidade de código é por PRODUTO, não global
+ * 
+ * @module products/tabs/CuponsTab
  */
 
 import { useState, useMemo } from "react";
