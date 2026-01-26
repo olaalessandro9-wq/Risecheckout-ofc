@@ -111,3 +111,51 @@ export async function verifyProductOwnership(
   if (error || !data) return false;
   return data.user_id === producerId;
 }
+
+// ============================================
+// DEFAULT CHECKOUT MANAGEMENT
+// ============================================
+
+interface SetDefaultResult {
+  success: boolean;
+  error?: string;
+}
+
+/**
+ * Define um checkout como padrão, desmarcando os outros do mesmo produto.
+ * Executa na ordem correta para respeitar a constraint unique_default_checkout_per_product.
+ * 
+ * RISE V3 Compliant: Single Source of Truth para lógica de default.
+ * 
+ * @param supabase - Cliente Supabase
+ * @param checkoutId - ID do checkout a definir como padrão
+ * @param productId - ID do produto (para desmarcar outros checkouts)
+ * @returns success: true se operação completou, false se houve erro
+ */
+export async function setCheckoutAsDefault(
+  supabase: SupabaseClient,
+  checkoutId: string,
+  productId: string
+): Promise<SetDefaultResult> {
+  // PASSO 1: Desmarcar TODOS os checkouts do produto (ordem obrigatória)
+  const { error: unsetError } = await supabase
+    .from("checkouts")
+    .update({ is_default: false })
+    .eq("product_id", productId);
+    
+  if (unsetError) {
+    return { success: false, error: `Falha ao desmarcar checkouts: ${unsetError.message}` };
+  }
+  
+  // PASSO 2: Marcar o checkout específico como padrão
+  const { error: setError } = await supabase
+    .from("checkouts")
+    .update({ is_default: true })
+    .eq("id", checkoutId);
+    
+  if (setError) {
+    return { success: false, error: `Falha ao definir checkout padrão: ${setError.message}` };
+  }
+  
+  return { success: true };
+}

@@ -22,6 +22,7 @@ import {
   checkRateLimit,
   verifyCheckoutOwnership,
   verifyProductOwnership,
+  setCheckoutAsDefault,
 } from "../_shared/checkout-crud-helpers.ts";
 import { managePaymentLink } from "../_shared/checkout-link-handlers.ts";
 import { createLogger } from "../_shared/logger.ts";
@@ -112,16 +113,24 @@ serve(withSentry("checkout-crud", async (req) => {
         return errorResponse("Você não tem permissão para criar checkouts neste produto", corsHeaders, 403);
       }
 
+      // RISE V3: Criar checkout com is_default: false SEMPRE inicialmente
       const { data: newCheckout, error: createError } = await supabase
         .from("checkouts")
-        .insert({ product_id: productId, name: name.trim(), is_default: !!isDefault })
+        .insert({ product_id: productId, name: name.trim(), is_default: false })
         .select("id, name, is_default, product_id")
         .single();
 
       if (createError) return errorResponse(`Falha ao criar checkout: ${createError.message}`, corsHeaders, 500);
 
+      // RISE V3: Se deve ser padrão, usar helper centralizado DEPOIS da criação
       if (isDefault) {
-        await supabase.from("checkouts").update({ is_default: false }).eq("product_id", productId).neq("id", newCheckout.id);
+        const defaultResult = await setCheckoutAsDefault(supabase, newCheckout.id, productId);
+        if (!defaultResult.success) {
+          // Rollback: deletar checkout criado
+          await supabase.from("checkouts").delete().eq("id", newCheckout.id);
+          return errorResponse(defaultResult.error || "Falha ao definir como padrão", corsHeaders, 500);
+        }
+        newCheckout.is_default = true;
       }
 
       const linkResult = await managePaymentLink(supabase, newCheckout.id, offerId, baseUrl);
@@ -130,7 +139,6 @@ serve(withSentry("checkout-crud", async (req) => {
         return errorResponse(linkResult.error || "Falha ao criar link de pagamento", corsHeaders, 500);
       }
 
-      // Rate limit auto-records in consolidated module
       return jsonResponse({ success: true, data: { checkout: { id: newCheckout.id, name: newCheckout.name, isDefault: newCheckout.is_default, linkId: linkResult.linkId } } }, corsHeaders);
     }
 
@@ -145,9 +153,9 @@ serve(withSentry("checkout-crud", async (req) => {
       const ownershipCheck = await verifyCheckoutOwnership(supabase, checkoutId, producerId);
       if (!ownershipCheck.valid) return errorResponse("Você não tem permissão para editar este checkout", corsHeaders, 403);
 
-      const updates: Record<string, string | boolean> = { updated_at: new Date().toISOString() };
+      // RISE V3: NÃO incluir is_default no update direto (evita violação de constraint)
+      const updates: Record<string, string> = { updated_at: new Date().toISOString() };
       if (name?.trim()) updates.name = name.trim();
-      if (isDefault !== undefined) updates.is_default = !!isDefault;
 
       const { data: updatedCheckout, error: updateError } = await supabase
         .from("checkouts")
@@ -158,8 +166,13 @@ serve(withSentry("checkout-crud", async (req) => {
 
       if (updateError) return errorResponse(`Falha ao atualizar checkout: ${updateError.message}`, corsHeaders, 500);
 
-      if (isDefault) {
-        await supabase.from("checkouts").update({ is_default: false }).eq("product_id", updatedCheckout.product_id).neq("id", checkoutId);
+      // RISE V3: Se deve ser padrão e ainda não é, usar helper centralizado
+      if (isDefault && !updatedCheckout.is_default) {
+        const defaultResult = await setCheckoutAsDefault(supabase, checkoutId, updatedCheckout.product_id);
+        if (!defaultResult.success) {
+          return errorResponse(defaultResult.error || "Falha ao definir como padrão", corsHeaders, 500);
+        }
+        updatedCheckout.is_default = true;
       }
 
       let linkId: string | undefined;
@@ -168,7 +181,6 @@ serve(withSentry("checkout-crud", async (req) => {
         if (linkResult.success) linkId = linkResult.linkId;
       }
 
-      // Rate limit auto-records in consolidated module
       return jsonResponse({ success: true, data: { checkout: { id: updatedCheckout.id, name: updatedCheckout.name, isDefault: updatedCheckout.is_default, linkId } } }, corsHeaders);
     }
 
@@ -181,9 +193,13 @@ serve(withSentry("checkout-crud", async (req) => {
       if (!ownershipCheck.valid) return errorResponse("Você não tem permissão para alterar este checkout", corsHeaders, 403);
 
       const productId = ownershipCheck.checkout?.product_id;
-      await supabase.from("checkouts").update({ is_default: false }).eq("product_id", productId);
-      const { error: updateError } = await supabase.from("checkouts").update({ is_default: true }).eq("id", checkoutId);
-      if (updateError) return errorResponse(`Falha ao definir checkout padrão: ${updateError.message}`, corsHeaders, 500);
+      if (!productId) return errorResponse("Produto não encontrado", corsHeaders, 404);
+
+      // RISE V3: Usar helper centralizado para garantir ordem correta
+      const result = await setCheckoutAsDefault(supabase, checkoutId, productId);
+      if (!result.success) {
+        return errorResponse(result.error || "Falha ao definir checkout padrão", corsHeaders, 500);
+      }
 
       return jsonResponse({ success: true }, corsHeaders);
     }
