@@ -72,6 +72,8 @@ export const NAVIGATION_CONFIG: readonly NavItemConfig[] = [
       type: "route",
       path: "/dashboard/marketplace",
     },
+    // Em breve para user e seller - apenas admin/owner têm acesso completo
+    comingSoonForRoles: ["user", "seller"],
   },
 
   // ============================================
