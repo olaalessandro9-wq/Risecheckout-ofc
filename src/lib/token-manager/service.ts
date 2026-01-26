@@ -1,14 +1,14 @@
 /**
  * Token Service - Public API for Token Lifecycle Management
  * 
- * RISE Protocol V3: Unified Token Service with Cross-Tab Coordination
+ * RISE Protocol V3: Session Commander Architecture (2026-01-26)
  * 
- * All authentication flows now use the unified service.
- * Legacy buyer/producer services have been removed.
+ * This service manages token state and delegates refresh operations
+ * to Session Commander for unified coordination.
  * 
- * CROSS-TAB REFRESH:
- * Uses BroadcastChannel + localStorage lock to coordinate refresh
- * across multiple tabs, preventing concurrent refresh race conditions.
+ * ARCHITECTURE:
+ * TokenService.refresh() → SessionCommander.requestRefresh() → /request-refresh
+ * Server-side locking prevents cross-tab race conditions.
  */
 
 import type { 

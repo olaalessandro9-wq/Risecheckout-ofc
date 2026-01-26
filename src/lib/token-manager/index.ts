@@ -43,11 +43,6 @@ export { persistTokenState, restoreTokenState, clearPersistedState } from "./per
 export type { HeartbeatCallback } from "./heartbeat";
 export { HeartbeatManager } from "./heartbeat";
 
-// Refresh (DEPRECATED - use sessionCommander.requestRefresh() instead)
-export type { RefreshResult } from "./refresh";
-/** @deprecated Use sessionCommander.requestRefresh() from "@/lib/session-commander" */
-export { executeRefresh } from "./refresh";
-
 // ============================================
 // UNIFIED SERVICE (PRIMARY EXPORT)
 // ============================================

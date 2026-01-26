@@ -1,14 +1,11 @@
 /**
  * Context Guards - Barrel Export
  * 
- * RISE Protocol V3 - Cakto-style route protection
+ * RISE Protocol V3: Session Commander Architecture (2026-01-26)
+ * 
+ * Cakto-style route protection with unified authentication.
  */
 
-// New unified guards (preferred)
 export { ContextAwareProtectedRoute } from "./ContextAwareProtectedRoute";
 export { ProducerRoute } from "./ProducerRoute";
 export { BuyerRoute } from "./BuyerRoute";
-
-// Legacy guards (deprecated - use ProducerRoute/BuyerRoute instead)
-export { ProducerContextGuard } from "./ProducerContextGuard";
-export { BuyerContextGuard } from "./BuyerContextGuard";
