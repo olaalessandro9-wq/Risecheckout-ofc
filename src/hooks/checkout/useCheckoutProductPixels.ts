@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { api } from "@/lib/api";
+import { publicApi } from "@/lib/api/public-client";
 import { createLogger } from "@/lib/logger";
 import type { PixelPlatform } from "@/modules/pixels";
 
@@ -63,7 +63,7 @@ export function useCheckoutProductPixels(productId: string | null): UseCheckoutP
         setError(null);
 
         // Fetch via Edge Function (public)
-        const { data, error: fnError } = await api.publicCall<PixelsResponse>("checkout-public-data", {
+        const { data, error: fnError } = await publicApi.call<PixelsResponse>("checkout-public-data", {
           action: "product-pixels",
           productId,
         });

@@ -5,7 +5,7 @@
  * @see RISE Protocol V2 - Zero database access from frontend
  */
 
-import { api } from "@/lib/api";
+import { publicApi } from "@/lib/api/public-client";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("FetchOfferData");
@@ -23,7 +23,7 @@ interface OfferDataResponse {
 }
 
 export async function fetchOfferData(checkoutId: string): Promise<OfferData> {
-  const { data, error } = await api.publicCall<OfferDataResponse>("checkout-public-data", {
+  const { data, error } = await publicApi.call<OfferDataResponse>("checkout-public-data", {
     action: "offer",
     checkoutId,
   });

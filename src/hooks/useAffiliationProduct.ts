@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { api } from "@/lib/api";
+import { publicApi } from "@/lib/api/public-client";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("UseAffiliationProduct");
@@ -68,7 +68,7 @@ export function useAffiliationProduct(productId: string | undefined): UseAffilia
 
     const loadData = async () => {
       try {
-        const { data, error: invokeError } = await api.publicCall<AffiliationProductResponse>("affiliation-public", {
+        const { data, error: invokeError } = await publicApi.call<AffiliationProductResponse>("affiliation-public", {
           action: "all",
           productId,
         });

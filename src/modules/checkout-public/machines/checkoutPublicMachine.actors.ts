@@ -12,7 +12,7 @@
  */
 
 import { fromPromise } from "xstate";
-import { api } from "@/lib/api";
+import { publicApi } from "@/lib/api/public-client";
 import type {
   FetchCheckoutInput,
   FetchCheckoutOutput,
@@ -41,7 +41,7 @@ export const fetchCheckoutDataActor = fromPromise<FetchCheckoutOutput, FetchChec
       };
     }
 
-    const { data, error } = await api.publicCall<{
+    const { data, error } = await publicApi.call<{
       success: boolean;
       data?: unknown;
       error?: string;

@@ -7,7 +7,7 @@
  */
 
 import { useState, useCallback, useRef } from "react";
-import { api } from "@/lib/api";
+import { publicApi } from "@/lib/api/public-client";
 import { toast } from "sonner";
 import { createLogger } from "@/lib/logger";
 import type { MercadoPagoOrderData, CreatePaymentResult } from "../types";
@@ -66,7 +66,7 @@ export function useMercadoPagoCharge({
     try {
       log.debug("Criando pagamento:", { orderId, amount: orderData.amount_cents / 100 });
 
-      const { data, error } = await api.publicCall<MercadoPagoPaymentResponse>("mercadopago-create-payment", { 
+      const { data, error } = await publicApi.call<MercadoPagoPaymentResponse>("mercadopago-create-payment", { 
         orderId,
         amount: orderData.amount_cents / 100,
         payerEmail: orderData.customer_email,

@@ -5,7 +5,7 @@
  * @see RISE Protocol V2 - Zero database access from frontend
  */
 
-import { api } from "@/lib/api";
+import { publicApi } from "@/lib/api/public-client";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("FetchOrderBumps");
@@ -52,7 +52,7 @@ export interface OrderBumpFormatted {
 }
 
 export async function fetchOrderBumps(checkoutId: string): Promise<OrderBumpFormatted[]> {
-  const { data, error } = await api.publicCall<FetchOrderBumpsResponse>("checkout-public-data", {
+  const { data, error } = await publicApi.call<FetchOrderBumpsResponse>("checkout-public-data", {
     action: "order-bumps",
     checkoutId,
   });

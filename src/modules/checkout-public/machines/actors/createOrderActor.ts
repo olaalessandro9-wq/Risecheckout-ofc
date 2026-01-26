@@ -10,7 +10,7 @@
  */
 
 import { fromPromise } from "xstate";
-import { api } from "@/lib/api";
+import { publicApi } from "@/lib/api/public-client";
 import { getAffiliateCode } from "@/hooks/checkout/helpers";
 import { createLogger } from "@/lib/logger";
 
@@ -70,7 +70,7 @@ export const createOrderActor = fromPromise<CreateOrderOutput, CreateOrderInput>
       affiliate_code: getAffiliateCode(),
     };
 
-    const { data, error } = await api.publicCall<{
+    const { data, error } = await publicApi.call<{
       success: boolean;
       order_id?: string;
       access_token?: string;

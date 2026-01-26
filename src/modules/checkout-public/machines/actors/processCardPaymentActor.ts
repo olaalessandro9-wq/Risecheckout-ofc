@@ -10,7 +10,7 @@
  */
 
 import { fromPromise } from "xstate";
-import { api } from "@/lib/api";
+import { publicApi } from "@/lib/api/public-client";
 import { createLogger } from "@/lib/logger";
 
 // Type defined locally to avoid circular import issues
@@ -87,7 +87,7 @@ export interface ProcessCardOutput {
 async function processMercadoPago(input: ProcessCardInput): Promise<ProcessCardOutput> {
   log.info("MercadoPago - processing card payment");
 
-  const { data, error } = await api.publicCall<{
+  const { data, error } = await publicApi.call<{
     success: boolean;
     error?: string;
     data?: { 
@@ -147,7 +147,7 @@ async function processMercadoPago(input: ProcessCardInput): Promise<ProcessCardO
 async function processAsaas(input: ProcessCardInput): Promise<ProcessCardOutput> {
   log.info("Asaas - processing card payment");
 
-  const { data, error } = await api.publicCall<{
+  const { data, error } = await publicApi.call<{
     success: boolean;
     error?: string;
     status?: string;
@@ -193,7 +193,7 @@ async function processAsaas(input: ProcessCardInput): Promise<ProcessCardOutput>
 async function processStripe(input: ProcessCardInput): Promise<ProcessCardOutput> {
   log.info("Stripe - processing card payment");
 
-  const { data, error } = await api.publicCall<{
+  const { data, error } = await publicApi.call<{
     success: boolean;
     error?: string;
     status?: string;

@@ -8,7 +8,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { api } from "@/lib/api";
+import { publicApi } from "@/lib/api/public-client";
 import { toast } from "sonner";
 import { getOrderForPaymentRpc } from "@/lib/rpc/rpcProxy";
 import { sendUTMifyConversion, formatDateForUTMify } from "@/lib/utmify-helper";
@@ -92,7 +92,7 @@ export function usePixPaymentStatus({
         return { paid: false };
       }
 
-      const { data, error } = await api.publicCall<{ 
+      const { data, error } = await publicApi.call<{ 
         ok?: boolean; 
         error?: string; 
         status?: { status: string } 

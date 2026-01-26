@@ -8,6 +8,7 @@
 
 import type { Database } from "@/integrations/supabase/types";
 import { api } from "@/lib/api";
+import { publicApi } from "@/lib/api/public-client";
 import { incrementMarketplaceViewRpc, incrementMarketplaceClickRpc } from "@/lib/rpc/rpcProxy";
 import { createLogger } from "@/lib/logger";
 
@@ -61,7 +62,7 @@ export async function fetchMarketplaceProducts(
   filters: MarketplaceFilters = {}
 ): Promise<MarketplaceProductWithDetails[]> {
   try {
-    const { data, error } = await api.publicCall<MarketplaceProductsResponse>("marketplace-public", {
+    const { data, error } = await publicApi.call<MarketplaceProductsResponse>("marketplace-public", {
       action: "get-products",
       filters,
     });
@@ -86,7 +87,7 @@ export async function fetchProductDetails(
   productId: string
 ): Promise<MarketplaceProductWithDetails | null> {
   try {
-    const { data, error } = await api.publicCall<MarketplaceProductResponse>("marketplace-public", {
+    const { data, error } = await publicApi.call<MarketplaceProductResponse>("marketplace-public", {
       action: "get-product",
       productId,
     });
@@ -109,7 +110,7 @@ export async function fetchProductDetails(
  */
 export async function fetchMarketplaceCategories(): Promise<MarketplaceCategory[]> {
   try {
-    const { data, error } = await api.publicCall<MarketplaceCategoriesResponse>("marketplace-public", {
+    const { data, error } = await publicApi.call<MarketplaceCategoriesResponse>("marketplace-public", {
       action: "get-categories",
     });
 

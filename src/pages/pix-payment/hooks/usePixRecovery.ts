@@ -18,7 +18,7 @@
  */
 
 import { useState, useCallback, useEffect } from "react";
-import { api } from "@/lib/api";
+import { publicApi } from "@/lib/api/public-client";
 import { createLogger } from "@/lib/logger";
 import type { 
   PixNavigationData, 
@@ -113,7 +113,7 @@ export function usePixRecovery(
     try {
       log.info("Buscando PIX do banco", { orderId });
 
-      const { data, error } = await api.publicCall<PixStatusResponse>(
+      const { data, error } = await publicApi.call<PixStatusResponse>(
         "get-pix-status",
         { orderId }
       );
