@@ -8,8 +8,8 @@
  * `UltrawidePerformanceContext` para SSOT e evitar múltiplas
  * instâncias de matchMedia listeners.
  * 
- * Este hook é mantido para retrocompatibilidade de componentes
- * fora do escopo do Context (ex: bibliotecas externas).
+ * Este hook é mantido para componentes fora do escopo do React Context
+ * (ex: bibliotecas externas que não podem consumir Context).
  * 
  * @see src/contexts/UltrawidePerformanceContext.tsx
  */
