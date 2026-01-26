@@ -1,255 +1,253 @@
 
-
-# Plano: Marketplace "Em Breve" para Não-Admin/Owner
+# Plano: Adicionar Badge "Em Breve" no Stripe (Gateways)
 
 ## Resumo
 
-Modificar o item "Marketplace" no sidebar para mostrar uma badge "Em Breve" e redirecionar para uma página de "Coming Soon" quando clicado por usuários que NÃO sejam `admin` ou `owner`. Para `admin` e `owner`, o comportamento permanece normal.
+Marcar o gateway Stripe como "Em Breve" em todo o sistema, mostrando badge visual e desabilitando interações. A alteração será feita no **Gateway Registry** (SSOT) e os componentes reagirão automaticamente.
 
 ---
 
 ## Análise de Soluções (RISE V3)
 
-### Solução A: Filtrar Marketplace via Permissions + Rota Separada
-- Esconder Marketplace para não-admin/owner
-- Criar rota `/dashboard/marketplace-em-breve` separada
-- **Manutenibilidade**: 5/10 - Usuários não verão o menu (confuso)
-- **Zero DT**: 6/10 - Duplicação de lógica de visibilidade
-- **Arquitetura**: 5/10 - Viola expectativa do usuário (menu some)
-- **NOTA FINAL: 5.3/10**
+### Solução A: Hard-code no componente OwnerGatewayCard
+- Adicionar lógica `if (name === 'Stripe')` no componente
+- **Manutenibilidade**: 3/10 - Viola DRY, lógica espalhada
+- **Zero DT**: 2/10 - Hard-code de nome
+- **Arquitetura**: 2/10 - Ignora o Gateway Registry
+- **NOTA FINAL: 2.3/10**
 
-### Solução B: Badge "Em Breve" no SidebarItem + Guard na Rota
-- Estender tipos de navegação com flag `comingSoon`
-- Modificar `SidebarItem` para mostrar badge visual
-- Criar guard no `App.tsx` para redirecionar não-admin/owner para página EmBreve
-- **Manutenibilidade**: 9/10 - Lógica concentrada em poucos pontos
-- **Zero DT**: 9/10 - Reutiliza componente EmBreve existente
-- **Arquitetura**: 8/10 - Modifica tipos existentes
-- **NOTA FINAL: 8.7/10**
-
-### Solução C: Componente Wrapper de Rota + SidebarItem Condicional (MODULAR)
-- Criar novo type em `navigation.types.ts`: adicionar `comingSoon` flag
-- Criar wrapper `MarketplaceRoute` que verifica role e renderiza EmBreve ou Marketplace
-- Modificar `SidebarItem` para mostrar badge "(Em Breve)" no label
-- Zero mudança na lógica de permissões existente (não esconde, apenas altera visual/comportamento)
-- **Manutenibilidade**: 10/10 - Cada responsabilidade isolada
-- **Zero DT**: 10/10 - Usa infraestrutura existente (EmBreve, permissions)
-- **Arquitetura**: 10/10 - Clean Architecture, Single Responsibility
-- **Escalabilidade**: 10/10 - Fácil aplicar em outros menus futuramente
-- **Segurança**: 10/10 - Verificação de role no componente de rota
+### Solução B: Usar status existente no GATEWAY_REGISTRY (SSOT)
+- Alterar `status: 'active'` → `status: 'coming_soon'` no Stripe
+- Passar `status` para os componentes
+- Componentes renderizam badge "Em Breve" e desabilitam interação quando `status === 'coming_soon'`
+- **Manutenibilidade**: 10/10 - SSOT respeitado
+- **Zero DT**: 10/10 - Usa tipo já existente `GatewayStatus`
+- **Arquitetura**: 10/10 - Clean Architecture
+- **Escalabilidade**: 10/10 - Basta mudar status no Registry para qualquer gateway
+- **Segurança**: 10/10 - N/A
 - **NOTA FINAL: 10.0/10**
 
-### DECISÃO: Solução C (Nota 10.0/10)
+### DECISÃO: Solução B (Nota 10.0/10)
 
 ---
 
-## Arquitetura da Solução
+## Arquivos a Modificar
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                    FLUXO PARA USER/SELLER                       │
-├─────────────────────────────────────────────────────────────────┤
-│ 1. Sidebar mostra "Marketplace (Em Breve)" com badge visual    │
-│ 2. Clique navega para /dashboard/marketplace                    │
-│ 3. MarketplaceRoute verifica role                               │
-│ 4. Se role !== admin/owner → renderiza <EmBreve />              │
-└─────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────┐
-│                    FLUXO PARA ADMIN/OWNER                        │
-├─────────────────────────────────────────────────────────────────┤
-│ 1. Sidebar mostra "Marketplace" (sem badge)                     │
-│ 2. Clique navega para /dashboard/marketplace                    │
-│ 3. MarketplaceRoute verifica role                               │
-│ 4. Se role === admin/owner → renderiza <Marketplace />          │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Arquivos a Criar/Modificar
-
-| Arquivo | Ação | Linhas Afetadas |
-|---------|------|-----------------|
-| `src/modules/navigation/types/navigation.types.ts` | MODIFICAR | +5 |
-| `src/modules/navigation/config/navigationConfig.ts` | MODIFICAR | +3 |
-| `src/modules/navigation/components/Sidebar/SidebarItem.tsx` | MODIFICAR | +20 |
-| `src/components/guards/MarketplaceRoute.tsx` | CRIAR | ~35 |
-| `src/App.tsx` | MODIFICAR | +5 |
+| Arquivo | Ação | Linhas |
+|---------|------|--------|
+| `src/config/gateways/registry.ts` | MODIFICAR | +1 (status do Stripe) |
+| `src/components/financeiro/OwnerGatewayCard.tsx` | MODIFICAR | +15 |
+| `src/components/financeiro/PaymentCard.tsx` | MODIFICAR | +20 |
+| `src/pages/owner/OwnerGateways.tsx` | MODIFICAR | +2 (passar status) |
+| `src/modules/financeiro/components/GatewayList.tsx` | MODIFICAR | +2 (passar status) |
 
 ---
 
 ## Especificação Técnica
 
-### 1. Estender Tipos de Navegação
+### 1. Alterar Status do Stripe no Registry
 
-**Arquivo:** `src/modules/navigation/types/navigation.types.ts`
+**Arquivo:** `src/config/gateways/registry.ts`
 
 ```typescript
-// Adicionar na interface NavItemConfig:
-export interface NavItemConfig {
-  readonly id: string;
-  readonly label: string;
-  readonly icon: LucideIcon;
-  readonly variant: NavItemVariant;
-  readonly permissions?: NavItemPermissions;
-  
-  // NOVO: Flag para features "em breve" para roles específicos
-  readonly comingSoonForRoles?: readonly AppRole[];
+stripe: {
+  id: 'stripe',
+  integrationType: 'STRIPE',
+  name: 'Stripe',
+  description: 'Cartão de Crédito e PIX',
+  icon: CreditCard,
+  iconColor: '#635BFF',
+  status: 'coming_soon', // ALTERADO de 'active'
+  // ... resto permanece igual
 }
 ```
 
-### 2. Atualizar Configuração do Marketplace
+### 2. Modificar OwnerGatewayCard
 
-**Arquivo:** `src/modules/navigation/config/navigationConfig.ts`
-
-```typescript
-{
-  id: "marketplace",
-  label: "Marketplace",
-  icon: Store,
-  variant: {
-    type: "route",
-    path: "/dashboard/marketplace",
-  },
-  // NOVO: Em breve para user e seller
-  comingSoonForRoles: ["user", "seller"],
-},
-```
-
-### 3. Modificar SidebarItem para Badge Visual
-
-**Arquivo:** `src/modules/navigation/components/Sidebar/SidebarItem.tsx`
+**Arquivo:** `src/components/financeiro/OwnerGatewayCard.tsx`
 
 ```typescript
-import { usePermissions } from "@/hooks/usePermissions";
-import { Badge } from "@/components/ui/badge";
+interface OwnerGatewayCardProps {
+  name: string;
+  description: string;
+  icon: LucideIcon;
+  iconColor?: string;
+  status?: GatewayStatus; // NOVO
+}
 
-export function SidebarItem({ item, showLabels, onNavigate }) {
-  const { role } = usePermissions();
+export function OwnerGatewayCard({
+  name,
+  description,
+  icon: Icon,
+  iconColor = "#6366f1",
+  status = 'active', // NOVO - default para retrocompatibilidade
+}: OwnerGatewayCardProps) {
+  const isComingSoon = status === 'coming_soon';
   
-  // Verificar se é "em breve" para este role
-  const isComingSoon = item.comingSoonForRoles?.includes(role) ?? false;
-  
-  // ... código existente ...
-  
-  // Modificar o content para incluir badge:
-  const content = (
-    <>
-      <Icon className={...} />
-      {showLabels && (
-        <span className="...">
-          {item.label}
-          {isComingSoon && (
-            <Badge variant="secondary" className="ml-2 text-xs">
-              Em Breve
-            </Badge>
-          )}
-        </span>
+  return (
+    <div className={cn(
+      "relative flex items-center gap-4 p-5 rounded-lg border border-border bg-card w-full",
+      isComingSoon && "opacity-60"
+    )}>
+      {/* ... ícone e conteúdo ... */}
+      
+      {/* Badges condicionais */}
+      {isComingSoon ? (
+        <div className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted border border-border">
+          <Clock className="w-3 h-3 text-muted-foreground" />
+          <span className="text-xs font-medium text-muted-foreground">
+            Em Breve
+          </span>
+        </div>
+      ) : (
+        <>
+          {/* Badges existentes: Integrado via Secrets + Produção */}
+        </>
       )}
-      {/* Active Indicator Strip */}
-      ...
-    </>
+    </div>
   );
 }
 ```
 
-### 4. Criar Guard MarketplaceRoute
+### 3. Modificar PaymentCard
 
-**Arquivo:** `src/components/guards/MarketplaceRoute.tsx`
+**Arquivo:** `src/components/financeiro/PaymentCard.tsx`
 
 ```typescript
-/**
- * MarketplaceRoute - Guard de Acesso ao Marketplace
- * 
- * RISE Protocol V3: Renderização condicional por role
- * - admin/owner: Renderiza Marketplace normal
- * - user/seller: Renderiza página "Em Breve"
- */
-
-import { usePermissions } from "@/hooks/usePermissions";
-import EmBreve from "@/pages/EmBreve";
-
-interface MarketplaceRouteProps {
-  children: React.ReactNode;
+interface PaymentCardProps {
+  name: string;
+  description: string;
+  icon: LucideIcon;
+  iconColor?: string;
+  connected?: boolean;
+  status?: GatewayStatus; // NOVO
+  onClick: () => void;
 }
 
-export function MarketplaceRoute({ children }: MarketplaceRouteProps) {
-  const { role, isLoading } = usePermissions();
-
-  // Aguardando permissões
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    );
-  }
-
-  // Apenas admin e owner têm acesso completo
-  const hasFullAccess = role === "admin" || role === "owner";
-
-  if (!hasFullAccess) {
-    return <EmBreve titulo="Marketplace" />;
-  }
-
-  return <>{children}</>;
+export function PaymentCard({ 
+  name, 
+  description, 
+  icon: Icon, 
+  iconColor = "#6366f1",
+  connected = false,
+  status = 'active', // NOVO
+  onClick 
+}: PaymentCardProps) {
+  const isComingSoon = status === 'coming_soon';
+  
+  return (
+    <button
+      onClick={isComingSoon ? undefined : onClick} // Desabilita clique
+      disabled={isComingSoon}
+      className={cn(
+        "group relative flex items-center gap-4 p-5 rounded-lg border ...",
+        isComingSoon && "opacity-60 cursor-not-allowed hover:scale-100"
+      )}
+    >
+      {/* ... conteúdo ... */}
+      
+      {/* Status Badge */}
+      {isComingSoon ? (
+        <div className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted border border-border">
+          <Clock className="w-3 h-3 text-muted-foreground" />
+          <span className="text-xs font-medium text-muted-foreground">Em Breve</span>
+        </div>
+      ) : connected ? (
+        // Badge Conectado existente
+      ) : (
+        // Badge Não Conectado existente
+      )}
+      
+      {/* Seta - esconde quando coming_soon */}
+      {!isComingSoon && (
+        <div className="flex-shrink-0 ...">
+          <svg ... />
+        </div>
+      )}
+    </button>
+  );
 }
 ```
 
-### 5. Integrar Guard no App.tsx
+### 4. Atualizar Componentes Consumidores
 
-**Arquivo:** `src/App.tsx`
-
+**OwnerGateways.tsx:**
 ```typescript
-import { MarketplaceRoute } from "./components/guards/MarketplaceRoute";
+<OwnerGatewayCard
+  key={gatewayId}
+  name={gateway.name}
+  description={gateway.description}
+  icon={gateway.icon}
+  iconColor={gateway.iconColor}
+  status={gateway.status} // NOVO
+/>
+```
 
-// Na rota do marketplace:
-{ 
-  path: "marketplace", 
-  element: (
-    <MarketplaceRoute>
-      <Marketplace />
-    </MarketplaceRoute>
-  )
-},
+**GatewayList.tsx:**
+```typescript
+<PaymentCard
+  key={gatewayId}
+  name={gateway.name}
+  description={gateway.description}
+  icon={gateway.icon}
+  iconColor={gateway.iconColor}
+  connected={status.connected}
+  status={gateway.status} // NOVO
+  onClick={() => onSelect(gatewayId)}
+/>
 ```
 
 ---
 
 ## Layout Visual
 
-### Para User/Seller (Sidebar)
-```text
-┌────────────────────────────────────┐
-│ 📦 Produtos                        │
-│ 🏪 Marketplace  [Em Breve]         │  ← Badge cinza
-│ 💰 Financeiro                      │
-└────────────────────────────────────┘
-```
-
-### Para Admin/Owner (Sidebar)
-```text
-┌────────────────────────────────────┐
-│ 📦 Produtos                        │
-│ 🏪 Marketplace                     │  ← Sem badge
-│ 💰 Gateways                        │
-└────────────────────────────────────┘
-```
-
-### Página "Em Breve" (User/Seller acessando rota)
+### OwnerGateways - Stripe "Em Breve"
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
-│                                                                 │
-│              🚧                                                 │
-│                                                                 │
-│         Marketplace                                             │
-│                                                                 │
-│    Esta funcionalidade estará disponível em breve.              │
-│    Estamos trabalhando para trazer novidades incríveis!         │
-│                                                                 │
+│  [💳] Stripe                           [Em Breve] (cinza)       │
+│       Cartão de Crédito e PIX          (sem badges verdes)      │
+│       (opacity: 60%)                                            │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+### Gateways Ativos (mantém comportamento atual)
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  [💳] Asaas         [✓ Integrado via Secrets] [✓ Produção]    │
+│       PIX e Cartão de Crédito                                   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Fluxo de Dados (SSOT)
+
+```text
+GATEWAY_REGISTRY (SSOT)
+    │
+    ├── stripe.status = 'coming_soon'
+    │
+    ▼
+OwnerGateways.tsx
+    │
+    └── gateway.status → OwnerGatewayCard
+            │
+            └── status === 'coming_soon' → Render "Em Breve" badge
+                                         → opacity: 60%
+                                         → Sem badges de "Produção"
+```
+
+---
+
+## Benefícios
+
+| Benefício | Descrição |
+|-----------|-----------|
+| **SSOT Respeitado** | Status vive no Gateway Registry |
+| **Zero Duplicação** | Uma alteração no Registry afeta toda a UI |
+| **Escalável** | Para adicionar outro gateway "em breve", basta mudar status |
+| **Type-Safe** | Usa `GatewayStatus` já definido |
+| **Retrocompatível** | Default `status = 'active'` mantém gateways existentes |
 
 ---
 
@@ -257,26 +255,14 @@ import { MarketplaceRoute } from "./components/guards/MarketplaceRoute";
 
 | Critério | Nota | Justificativa |
 |----------|------|---------------|
-| Manutenibilidade | 10/10 | Flag declarativa, componentes isolados |
-| Zero DT | 10/10 | Reutiliza EmBreve existente, tipos estendidos limpos |
-| Arquitetura | 10/10 | Single Responsibility, Clean Architecture |
-| Escalabilidade | 10/10 | Basta adicionar `comingSoonForRoles` em outros itens |
-| Segurança | 10/10 | Verificação de role no guard + visual feedback |
+| Manutenibilidade | 10/10 | SSOT no Registry, componentes reagem |
+| Zero DT | 10/10 | Usa tipo existente `GatewayStatus` |
+| Arquitetura | 10/10 | Clean Architecture, Single Source of Truth |
+| Escalabilidade | 10/10 | Mudar qualquer gateway = mudar 1 linha |
+| Segurança | 10/10 | N/A para esta feature |
 | **NOTA FINAL** | **10.0/10** | Alinhado 100% com RISE Protocol V3 |
 
 ---
 
 ## Tempo Estimado
-**30 minutos**
-
----
-
-## Ordem de Implementação
-
-1. Estender `navigation.types.ts` com `comingSoonForRoles`
-2. Atualizar `navigationConfig.ts` com flag no Marketplace
-3. Modificar `SidebarItem.tsx` para badge condicional
-4. Criar `MarketplaceRoute.tsx` guard
-5. Integrar no `App.tsx`
-6. Testar com diferentes roles
-
+**20 minutos**
