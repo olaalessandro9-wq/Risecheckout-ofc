@@ -135,7 +135,7 @@ export const NAVIGATION_CONFIG: readonly NavItemConfig[] = [
           icon: BarChart3,
           variant: {
             type: "route",
-            path: "/dashboard/rastreamento",
+            path: "/dashboard/trackeamento",
           },
         },
         {
