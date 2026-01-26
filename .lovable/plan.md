@@ -1,307 +1,254 @@
 
-# Plano: Adicionar Aba de Preview de Emails no Painel Admin
+
+# Plano: Marketplace "Em Breve" para Não-Admin/Owner
 
 ## Resumo
 
-Adicionar uma nova aba "Emails" no Painel de Administração que permite ao Owner visualizar e testar todos os 8 templates de email do sistema. A aba será visível apenas para usuários com role `owner`.
+Modificar o item "Marketplace" no sidebar para mostrar uma badge "Em Breve" e redirecionar para uma página de "Coming Soon" quando clicado por usuários que NÃO sejam `admin` ou `owner`. Para `admin` e `owner`, o comportamento permanece normal.
 
 ---
 
 ## Análise de Soluções (RISE V3)
 
-### Solução A: Componente Inline no AdminDashboard
-- Adicionar toda a lógica diretamente no `AdminDashboard.tsx`
-- **Manutenibilidade**: 6/10 - Aumenta complexidade do arquivo principal
-- **Zero DT**: 6/10 - Código misturado
-- **Arquitetura**: 5/10 - Viola Single Responsibility
-- **Escalabilidade**: 5/10 - Difícil manter
-- **Segurança**: 10/10 - Mesma verificação de role
-- **NOTA FINAL: 6.4/10**
+### Solução A: Filtrar Marketplace via Permissions + Rota Separada
+- Esconder Marketplace para não-admin/owner
+- Criar rota `/dashboard/marketplace-em-breve` separada
+- **Manutenibilidade**: 5/10 - Usuários não verão o menu (confuso)
+- **Zero DT**: 6/10 - Duplicação de lógica de visibilidade
+- **Arquitetura**: 5/10 - Viola expectativa do usuário (menu some)
+- **NOTA FINAL: 5.3/10**
 
-### Solução B: Componente Modular Separado + Integration
-- Criar `AdminEmailPreviewTab.tsx` seguindo padrão das outras tabs
-- Integrar no `AdminDashboard.tsx` com verificação `role === "owner"`
-- Adicionar tipo `"emails"` ao `AdminTabId`
-- **Manutenibilidade**: 10/10 - Componente isolado e testável
-- **Zero DT**: 10/10 - Segue padrão existente das outras tabs
-- **Arquitetura**: 10/10 - Modular, Clean Architecture
-- **Escalabilidade**: 10/10 - Fácil adicionar novos templates
-- **Segurança**: 10/10 - Verificação de role owner
+### Solução B: Badge "Em Breve" no SidebarItem + Guard na Rota
+- Estender tipos de navegação com flag `comingSoon`
+- Modificar `SidebarItem` para mostrar badge visual
+- Criar guard no `App.tsx` para redirecionar não-admin/owner para página EmBreve
+- **Manutenibilidade**: 9/10 - Lógica concentrada em poucos pontos
+- **Zero DT**: 9/10 - Reutiliza componente EmBreve existente
+- **Arquitetura**: 8/10 - Modifica tipos existentes
+- **NOTA FINAL: 8.7/10**
+
+### Solução C: Componente Wrapper de Rota + SidebarItem Condicional (MODULAR)
+- Criar novo type em `navigation.types.ts`: adicionar `comingSoon` flag
+- Criar wrapper `MarketplaceRoute` que verifica role e renderiza EmBreve ou Marketplace
+- Modificar `SidebarItem` para mostrar badge "(Em Breve)" no label
+- Zero mudança na lógica de permissões existente (não esconde, apenas altera visual/comportamento)
+- **Manutenibilidade**: 10/10 - Cada responsabilidade isolada
+- **Zero DT**: 10/10 - Usa infraestrutura existente (EmBreve, permissions)
+- **Arquitetura**: 10/10 - Clean Architecture, Single Responsibility
+- **Escalabilidade**: 10/10 - Fácil aplicar em outros menus futuramente
+- **Segurança**: 10/10 - Verificação de role no componente de rota
 - **NOTA FINAL: 10.0/10**
 
-### DECISÃO: Solução B (Nota 10.0/10)
+### DECISÃO: Solução C (Nota 10.0/10)
 
 ---
 
-## Arquivos a Criar/Modificar
-
-| Arquivo | Ação | Linhas |
-|---------|------|--------|
-| `src/components/admin/AdminEmailPreviewTab.tsx` | CRIAR | ~180 |
-| `src/pages/admin/AdminDashboard.tsx` | MODIFICAR | +15 |
-| `src/modules/admin/types/admin.types.ts` | MODIFICAR | +1 |
-
----
-
-## Especificação Técnica
-
-### 1. AdminEmailPreviewTab.tsx
-
-**Funcionalidades:**
-- Select para escolher o tipo de email (8 opções)
-- Botão para enviar email de preview
-- Indicador de loading durante envio
-- Toast de sucesso/erro após envio
-- Descrição de cada template
-
-**Templates disponíveis:**
-| ID | Label | Descrição |
-|----|-------|-----------|
-| `purchase-standard` | Compra Confirmada | Email padrão de confirmação |
-| `purchase-members-area` | Acesso Liberado | Para produtos com área de membros |
-| `purchase-external` | Entrega Externa | Para produtos sem área de membros |
-| `new-sale` | Nova Venda | Notificação para o produtor |
-| `pix-pending` | Pagamento Pendente | Aguardando PIX |
-| `password-reset` | Redefinir Senha | Link de reset de senha |
-| `student-invite` | Convite de Aluno | Acesso liberado manualmente |
-| `gdpr-request` | Solicitação LGPD | Confirmação de exclusão |
-
-**Interface:**
-```typescript
-// Card com:
-// - Header: "📧 Preview de Emails" + descrição
-// - Select: Dropdown com os 8 templates
-// - Descrição dinâmica do template selecionado
-// - Botão: "Enviar Email de Teste" (disabled enquanto loading)
-// - Info: "Email será enviado para: {email do owner}"
-```
-
-### 2. AdminDashboard.tsx (Modificações)
-
-```typescript
-// Adicionar import
-import { AdminEmailPreviewTab } from "@/components/admin/AdminEmailPreviewTab";
-import { Mail } from "lucide-react";
-
-// Na TabsList, após security, adicionar:
-{role === "owner" && (
-  <TabsTrigger value="emails" className="gap-2">
-    <Mail className="h-4 w-4" />
-    Emails
-  </TabsTrigger>
-)}
-
-// No conteúdo das tabs, adicionar:
-{role === "owner" && (
-  <TabsContent value="emails">
-    <AdminEmailPreviewTab />
-  </TabsContent>
-)}
-```
-
-### 3. admin.types.ts (Modificação)
-
-```typescript
-export type AdminTabId = 
-  | "finance" 
-  | "traffic" 
-  | "overview" 
-  | "users" 
-  | "products" 
-  | "orders" 
-  | "system" 
-  | "security" 
-  | "logs"
-  | "emails";  // ADICIONAR
-```
-
----
-
-## Layout Visual do Componente
+## Arquitetura da Solução
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
-│  📧 Preview de Emails                                           │
-│  Teste os templates de email do sistema                         │
+│                    FLUXO PARA USER/SELLER                       │
 ├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Template                                                       │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │ Selecione um template...                                  ▼ ││
-│  └─────────────────────────────────────────────────────────────┘│
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │ ℹ️ Descrição do template selecionado aparece aqui          ││
-│  └─────────────────────────────────────────────────────────────┘│
-│                                                                 │
-│  📨 O email será enviado para: owner@example.com                │
-│                                                                 │
-│  ┌────────────────────────────────────┐                         │
-│  │ 📤 Enviar Email de Teste           │                         │
-│  └────────────────────────────────────┘                         │
-│                                                                 │
+│ 1. Sidebar mostra "Marketplace (Em Breve)" com badge visual    │
+│ 2. Clique navega para /dashboard/marketplace                    │
+│ 3. MarketplaceRoute verifica role                               │
+│ 4. Se role !== admin/owner → renderiza <EmBreve />              │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    FLUXO PARA ADMIN/OWNER                        │
+├─────────────────────────────────────────────────────────────────┤
+│ 1. Sidebar mostra "Marketplace" (sem badge)                     │
+│ 2. Clique navega para /dashboard/marketplace                    │
+│ 3. MarketplaceRoute verifica role                               │
+│ 4. Se role === admin/owner → renderiza <Marketplace />          │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Fluxo de Execução
+## Arquivos a Criar/Modificar
 
-```text
-1. Owner acessa Painel Admin
-2. Clica na aba "Emails"
-3. Seleciona template no dropdown
-4. Vê descrição do template
-5. Clica "Enviar Email de Teste"
-6. Sistema chama /functions/v1/email-preview
-7. Email enviado para o email do owner
-8. Toast de sucesso/erro
+| Arquivo | Ação | Linhas Afetadas |
+|---------|------|-----------------|
+| `src/modules/navigation/types/navigation.types.ts` | MODIFICAR | +5 |
+| `src/modules/navigation/config/navigationConfig.ts` | MODIFICAR | +3 |
+| `src/modules/navigation/components/Sidebar/SidebarItem.tsx` | MODIFICAR | +20 |
+| `src/components/guards/MarketplaceRoute.tsx` | CRIAR | ~35 |
+| `src/App.tsx` | MODIFICAR | +5 |
+
+---
+
+## Especificação Técnica
+
+### 1. Estender Tipos de Navegação
+
+**Arquivo:** `src/modules/navigation/types/navigation.types.ts`
+
+```typescript
+// Adicionar na interface NavItemConfig:
+export interface NavItemConfig {
+  readonly id: string;
+  readonly label: string;
+  readonly icon: LucideIcon;
+  readonly variant: NavItemVariant;
+  readonly permissions?: NavItemPermissions;
+  
+  // NOVO: Flag para features "em breve" para roles específicos
+  readonly comingSoonForRoles?: readonly AppRole[];
+}
+```
+
+### 2. Atualizar Configuração do Marketplace
+
+**Arquivo:** `src/modules/navigation/config/navigationConfig.ts`
+
+```typescript
+{
+  id: "marketplace",
+  label: "Marketplace",
+  icon: Store,
+  variant: {
+    type: "route",
+    path: "/dashboard/marketplace",
+  },
+  // NOVO: Em breve para user e seller
+  comingSoonForRoles: ["user", "seller"],
+},
+```
+
+### 3. Modificar SidebarItem para Badge Visual
+
+**Arquivo:** `src/modules/navigation/components/Sidebar/SidebarItem.tsx`
+
+```typescript
+import { usePermissions } from "@/hooks/usePermissions";
+import { Badge } from "@/components/ui/badge";
+
+export function SidebarItem({ item, showLabels, onNavigate }) {
+  const { role } = usePermissions();
+  
+  // Verificar se é "em breve" para este role
+  const isComingSoon = item.comingSoonForRoles?.includes(role) ?? false;
+  
+  // ... código existente ...
+  
+  // Modificar o content para incluir badge:
+  const content = (
+    <>
+      <Icon className={...} />
+      {showLabels && (
+        <span className="...">
+          {item.label}
+          {isComingSoon && (
+            <Badge variant="secondary" className="ml-2 text-xs">
+              Em Breve
+            </Badge>
+          )}
+        </span>
+      )}
+      {/* Active Indicator Strip */}
+      ...
+    </>
+  );
+}
+```
+
+### 4. Criar Guard MarketplaceRoute
+
+**Arquivo:** `src/components/guards/MarketplaceRoute.tsx`
+
+```typescript
+/**
+ * MarketplaceRoute - Guard de Acesso ao Marketplace
+ * 
+ * RISE Protocol V3: Renderização condicional por role
+ * - admin/owner: Renderiza Marketplace normal
+ * - user/seller: Renderiza página "Em Breve"
+ */
+
+import { usePermissions } from "@/hooks/usePermissions";
+import EmBreve from "@/pages/EmBreve";
+
+interface MarketplaceRouteProps {
+  children: React.ReactNode;
+}
+
+export function MarketplaceRoute({ children }: MarketplaceRouteProps) {
+  const { role, isLoading } = usePermissions();
+
+  // Aguardando permissões
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  // Apenas admin e owner têm acesso completo
+  const hasFullAccess = role === "admin" || role === "owner";
+
+  if (!hasFullAccess) {
+    return <EmBreve titulo="Marketplace" />;
+  }
+
+  return <>{children}</>;
+}
+```
+
+### 5. Integrar Guard no App.tsx
+
+**Arquivo:** `src/App.tsx`
+
+```typescript
+import { MarketplaceRoute } from "./components/guards/MarketplaceRoute";
+
+// Na rota do marketplace:
+{ 
+  path: "marketplace", 
+  element: (
+    <MarketplaceRoute>
+      <Marketplace />
+    </MarketplaceRoute>
+  )
+},
 ```
 
 ---
 
-## Segurança
+## Layout Visual
 
-| Medida | Implementação |
-|--------|---------------|
-| Acesso restrito | `role === "owner"` para exibir tab |
-| Backend validation | Edge Function valida auth via `requireAuthenticatedProducer` |
-| Rate limiting | `RATE_LIMIT_CONFIGS.SEND_EMAIL` já aplicado |
-| Prefix [PREVIEW] | Todos os emails já têm prefixo no assunto |
+### Para User/Seller (Sidebar)
+```text
+┌────────────────────────────────────┐
+│ 📦 Produtos                        │
+│ 🏪 Marketplace  [Em Breve]         │  ← Badge cinza
+│ 💰 Financeiro                      │
+└────────────────────────────────────┘
+```
 
----
+### Para Admin/Owner (Sidebar)
+```text
+┌────────────────────────────────────┐
+│ 📦 Produtos                        │
+│ 🏪 Marketplace                     │  ← Sem badge
+│ 💰 Gateways                        │
+└────────────────────────────────────┘
+```
 
-## Código Detalhado
-
-### AdminEmailPreviewTab.tsx
-
-```typescript
-/**
- * AdminEmailPreviewTab - Preview de Templates de Email
- * 
- * RISE Protocol V3 - Exclusivo para Owner
- */
-
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Mail, Send, Loader2, Info } from "lucide-react";
-import { toast } from "sonner";
-import { api } from "@/lib/api";
-import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
-
-type TemplateType = 
-  | "purchase-standard"
-  | "purchase-members-area"
-  | "purchase-external"
-  | "new-sale"
-  | "pix-pending"
-  | "password-reset"
-  | "student-invite"
-  | "gdpr-request";
-
-const TEMPLATES: { value: TemplateType; label: string; description: string }[] = [
-  { value: "purchase-standard", label: "Compra Confirmada", description: "Email padrão enviado ao cliente após pagamento aprovado." },
-  { value: "purchase-members-area", label: "Acesso Liberado (Área de Membros)", description: "Email com link de acesso à área de membros do produto." },
-  { value: "purchase-external", label: "Entrega Externa", description: "Email para produtos com entrega externa (sem área de membros)." },
-  { value: "new-sale", label: "Nova Venda (Produtor)", description: "Notificação enviada ao produtor quando realiza uma venda." },
-  { value: "pix-pending", label: "Pagamento Pendente (PIX)", description: "Email com QR Code PIX aguardando pagamento." },
-  { value: "password-reset", label: "Redefinir Senha", description: "Link para redefinição de senha do usuário." },
-  { value: "student-invite", label: "Convite de Aluno", description: "Convite para aluno acessar produto liberado manualmente." },
-  { value: "gdpr-request", label: "Solicitação LGPD", description: "Confirmação de solicitação de exclusão de dados (LGPD)." },
-];
-
-export function AdminEmailPreviewTab() {
-  const { user } = useUnifiedAuth();
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateType | "">("");
-  const [isLoading, setIsLoading] = useState(false);
-
-  const currentTemplate = TEMPLATES.find(t => t.value === selectedTemplate);
-
-  const handleSendPreview = async () => {
-    if (!selectedTemplate) {
-      toast.error("Selecione um template primeiro");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const { data, error } = await api.call("email-preview", {
-        templateType: selectedTemplate,
-      });
-
-      if (error) throw new Error(error);
-
-      toast.success(`Email "${currentTemplate?.label}" enviado com sucesso!`, {
-        description: `Enviado para: ${data?.sentTo || user?.email}`,
-      });
-    } catch (err) {
-      toast.error("Erro ao enviar email de preview", {
-        description: err instanceof Error ? err.message : "Erro desconhecido",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Mail className="h-5 w-5" />
-          Preview de Emails
-        </CardTitle>
-        <CardDescription>
-          Teste os templates de email do sistema. Os emails serão enviados para seu endereço cadastrado.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Template</label>
-          <Select value={selectedTemplate} onValueChange={(v) => setSelectedTemplate(v as TemplateType)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione um template..." />
-            </SelectTrigger>
-            <SelectContent>
-              {TEMPLATES.map((template) => (
-                <SelectItem key={template.value} value={template.value}>
-                  {template.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {currentTemplate && (
-          <Alert>
-            <Info className="h-4 w-4" />
-            <AlertDescription>{currentTemplate.description}</AlertDescription>
-          </Alert>
-        )}
-
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Mail className="h-4 w-4" />
-          O email será enviado para: <strong>{user?.email || "..."}</strong>
-        </div>
-
-        <Button 
-          onClick={handleSendPreview} 
-          disabled={!selectedTemplate || isLoading}
-          className="w-full sm:w-auto"
-        >
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <Send className="h-4 w-4 mr-2" />
-          )}
-          Enviar Email de Teste
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
+### Página "Em Breve" (User/Seller acessando rota)
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                 │
+│              🚧                                                 │
+│                                                                 │
+│         Marketplace                                             │
+│                                                                 │
+│    Esta funcionalidade estará disponível em breve.              │
+│    Estamos trabalhando para trazer novidades incríveis!         │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -310,25 +257,26 @@ export function AdminEmailPreviewTab() {
 
 | Critério | Nota | Justificativa |
 |----------|------|---------------|
-| Manutenibilidade | 10/10 | Componente isolado, segue padrão existente |
-| Zero DT | 10/10 | Nenhum workaround ou código duplicado |
-| Arquitetura | 10/10 | Modular, Clean Architecture |
-| Escalabilidade | 10/10 | Fácil adicionar novos templates |
-| Segurança | 10/10 | Verificação owner + backend auth |
-| **NOTA FINAL** | **10.0/10** | Alinhado com RISE Protocol V3 |
-
----
-
-## Resultado Esperado
-
-Após implementação:
-1. Owner verá nova aba "Emails" no painel admin
-2. Poderá selecionar qualquer um dos 8 templates
-3. Clicar em "Enviar Email de Teste" 
-4. Receber o email de preview em sua caixa
-5. Manus poderá usar essa interface para ajustar templates em paralelo
+| Manutenibilidade | 10/10 | Flag declarativa, componentes isolados |
+| Zero DT | 10/10 | Reutiliza EmBreve existente, tipos estendidos limpos |
+| Arquitetura | 10/10 | Single Responsibility, Clean Architecture |
+| Escalabilidade | 10/10 | Basta adicionar `comingSoonForRoles` em outros itens |
+| Segurança | 10/10 | Verificação de role no guard + visual feedback |
+| **NOTA FINAL** | **10.0/10** | Alinhado 100% com RISE Protocol V3 |
 
 ---
 
 ## Tempo Estimado
 **30 minutos**
+
+---
+
+## Ordem de Implementação
+
+1. Estender `navigation.types.ts` com `comingSoonForRoles`
+2. Atualizar `navigationConfig.ts` com flag no Marketplace
+3. Modificar `SidebarItem.tsx` para badge condicional
+4. Criar `MarketplaceRoute.tsx` guard
+5. Integrar no `App.tsx`
+6. Testar com diferentes roles
+
