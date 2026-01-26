@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Activity, Shield, TrendingUp, DollarSign, Eye, Package, ShieldAlert } from "lucide-react";
+import { Users, Activity, Shield, TrendingUp, DollarSign, Eye, Package, ShieldAlert, Mail } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { AdminUsersTab } from "@/components/admin/AdminUsersTab";
@@ -28,6 +28,7 @@ import { AdminTrafficTab } from "@/components/admin/AdminTrafficTab";
 import { AdminProductsTab } from "@/components/admin/AdminProductsTab";
 import { AdminOrdersTab } from "@/components/admin/AdminOrdersTab";
 import { AdminSecurityAlertsTab } from "@/components/admin/AdminSecurityAlertsTab";
+import { AdminEmailPreviewTab } from "@/components/admin/AdminEmailPreviewTab";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { AdminProvider, useAdmin } from "@/modules/admin/context";
@@ -161,6 +162,12 @@ function AdminDashboardContent() {
               Logs
             </TabsTrigger>
           )}
+          {role === "owner" && (
+            <TabsTrigger value="emails" className="gap-2">
+              <Mail className="h-4 w-4" />
+              Emails
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="finance">
@@ -277,6 +284,12 @@ function AdminDashboardContent() {
         {canViewSecurityLogs && (
           <TabsContent value="logs">
             <AdminLogsTab />
+          </TabsContent>
+        )}
+
+        {role === "owner" && (
+          <TabsContent value="emails">
+            <AdminEmailPreviewTab />
           </TabsContent>
         )}
       </Tabs>

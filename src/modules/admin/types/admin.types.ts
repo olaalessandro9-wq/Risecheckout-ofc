@@ -22,7 +22,8 @@ export type AdminTabId =
   | "orders" 
   | "system" 
   | "security" 
-  | "logs";
+  | "logs"
+  | "emails";
 
 export type PeriodFilter = "today" | "yesterday" | "7days" | "30days" | "all";
 
