@@ -4,6 +4,7 @@
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Handles checkout data fetching by ID.
+ * SSOT: Only fetches design JSON, not individual color columns.
  * 
  * @module checkout-public-data/handlers/checkout
  */
@@ -13,6 +14,11 @@ import type { HandlerContext } from "../types.ts";
 
 const log = createLogger("checkout-public-data/checkout");
 
+/**
+ * SSOT: Minimal SELECT - only fields actually used by the frontend.
+ * Individual color columns (primary_color, text_color, etc.) are DEPRECATED.
+ * All color data comes from the `design` JSON field.
+ */
 const CHECKOUT_SELECT = `
   id,
   name,
@@ -21,11 +27,6 @@ const CHECKOUT_SELECT = `
   seller_name,
   product_id,
   font,
-  background_color,
-  text_color,
-  primary_color,
-  button_color,
-  button_text_color,
   components,
   top_components,
   bottom_components,

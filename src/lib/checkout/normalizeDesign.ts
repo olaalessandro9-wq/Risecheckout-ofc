@@ -1,171 +1,178 @@
+/**
+ * Normalize Design
+ * 
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * SSOT: The `design.colors` JSON is the SINGLE SOURCE OF TRUTH.
+ * NO fallback to individual columns (they are deprecated).
+ * 
+ * @module lib/checkout/normalizeDesign
+ */
+
 import { THEME_PRESETS, ThemePreset } from './themePresets';
+import type { CheckoutColors } from '@/types/checkoutColors';
 
 /**
- * Input aceito pela função normalizeDesign
- * Compatível com qualquer objeto que tenha as propriedades de design
+ * Input accepted by normalizeDesign
+ * SSOT: Only reads from `design` JSON, never from individual columns
  */
 type DesignInputObject = {
   theme?: string;
-  design?: unknown;
-  background_color?: string;
-  text_color?: string;
-  primary_color?: string;
-  button_color?: string;
-  button_text_color?: string;
-  [key: string]: unknown;
+  design?: {
+    theme?: string;
+    font?: string;
+    colors?: Partial<CheckoutColors>;
+    backgroundImage?: unknown;
+  } | null;
 };
 
 /**
- * Normaliza o design do checkout mesclando:
- * 1. Preset do tema (light/dark)
- * 2. JSON salvo em checkout.design
- * 3. Colunas de fallback (background_color, button_color, etc.)
+ * Normalizes checkout design by merging:
+ * 1. Theme preset (light/dark) as base
+ * 2. JSON saved in checkout.design.colors
  * 
- * Garante que todas as propriedades de cores necessárias existam,
- * sem usar "cores mágicas" hardcoded.
+ * RISE V3: ZERO fallback to individual columns.
+ * All color data comes from design.colors JSON only.
  */
 export function normalizeDesign(checkout: DesignInputObject): ThemePreset {
-  // 1. Base: preset do tema
-  const theme = checkout.theme || (checkout.design as Record<string, unknown>)?.theme || 'light';
-  const basePreset = THEME_PRESETS[theme as 'light' | 'dark'] || THEME_PRESETS.light;
+  // 1. Determine theme from design.theme or fallback to 'light'
+  const designObj = checkout.design;
+  const theme = designObj?.theme || checkout.theme || 'light';
+  const resolvedTheme = (theme === 'dark' ? 'dark' : 'light') as 'light' | 'dark';
   
-  // 2. Deep clone do preset para não mutar o original
+  // 2. Get base preset
+  const basePreset = THEME_PRESETS[resolvedTheme];
+  
+  // 3. Deep clone to avoid mutation
   const normalized: ThemePreset = JSON.parse(JSON.stringify(basePreset));
   
-  // 3. Merge com design JSON salvo (se existir)
-  const designColors = (checkout.design as Record<string, unknown>)?.colors as Record<string, unknown> | undefined;
-  if (designColors) {
-    deepMerge(normalized.colors as unknown as Record<string, unknown>, designColors);
+  // 4. Merge with design.colors if it exists
+  const designColors = designObj?.colors;
+  if (designColors && Object.keys(designColors).length > 0) {
+    deepMerge(normalized.colors as unknown as Record<string, unknown>, designColors as Record<string, unknown>);
   }
   
-  // 4. Merge com colunas de fallback APENAS se não houver design salvo
-  const hasDesignColors = designColors && Object.keys(designColors).length > 0;
+  // 5. Ensure all derived properties exist (for checkouts without full color config)
+  ensureDerivedProperties(normalized, resolvedTheme);
   
-  // Só usar fallback se não houver valor no design JSON
-  if (checkout.background_color && !hasDesignColors) {
-    normalized.colors.background = checkout.background_color;
-  }
-  if (checkout.text_color && !designColors?.primaryText) {
-    normalized.colors.primaryText = checkout.text_color;
-  }
-  if (checkout.primary_color && !designColors?.active) {
-    normalized.colors.active = checkout.primary_color;
-    // Se não tiver cores de botões selecionados, usar a cor primária
-    if (!(designColors?.selectedButton as Record<string, unknown>)?.background) {
-      normalized.colors.selectedButton.background = checkout.primary_color;
-    }
-  }
-  if (checkout.button_color && !(designColors?.button as Record<string, unknown>)?.background) {
-    normalized.colors.button.background = checkout.button_color;
-  }
-  if (checkout.button_text_color && !(designColors?.button as Record<string, unknown>)?.text) {
-    normalized.colors.button.text = checkout.button_text_color;
+  return normalized;
+}
+
+/**
+ * Ensures all derived color properties exist.
+ * Uses base colors to derive missing nested objects.
+ */
+function ensureDerivedProperties(preset: ThemePreset, theme: 'light' | 'dark'): void {
+  const colors = preset.colors;
+  
+  // Border
+  if (!colors.border) {
+    colors.border = theme === 'dark' ? '#374151' : '#E5E7EB';
   }
   
-  // 5. Garantir propriedades derivadas se não existirem
-  if (!normalized.colors.border) {
-    normalized.colors.border = theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+  // Placeholder
+  if (!colors.placeholder) {
+    colors.placeholder = theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
   }
   
-  if (!normalized.colors.placeholder) {
-    normalized.colors.placeholder = theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+  // Input Background
+  if (!colors.inputBackground) {
+    colors.inputBackground = colors.formBackground;
   }
   
-  if (!normalized.colors.inputBackground) {
-    normalized.colors.inputBackground = normalized.colors.formBackground;
-  }
-  
-  // Info box para PIX (usar cores derivadas do active se não existir)
-  if (!normalized.colors.infoBox) {
-    normalized.colors.infoBox = {
+  // Info Box
+  if (!colors.infoBox) {
+    colors.infoBox = {
       background: theme === 'dark' ? 'rgba(16,185,129,0.1)' : '#ECFDF5',
       border: theme === 'dark' ? 'rgba(16,185,129,0.3)' : '#A7F3D0',
       text: theme === 'dark' ? '#D1FAE5' : '#047857',
     };
   }
   
-  // Order Bump (garantir que existe para checkouts sem configuração específica)
-  if (!normalized.colors.orderBump) {
-    normalized.colors.orderBump = {
+  // Order Bump
+  if (!colors.orderBump) {
+    colors.orderBump = {
       headerBackground: 'rgba(0,0,0,0.15)',
-      headerText: normalized.colors.active,
+      headerText: colors.active,
       footerBackground: 'rgba(0,0,0,0.15)',
       footerText: theme === 'dark' ? '#FFFFFF' : '#000000',
-      contentBackground: normalized.colors.formBackground,
-      titleText: normalized.colors.primaryText,
-      descriptionText: normalized.colors.secondaryText,
-      priceText: normalized.colors.active,
+      contentBackground: colors.formBackground,
+      titleText: colors.primaryText,
+      descriptionText: colors.secondaryText,
+      priceText: colors.active,
+      selectedHeaderBackground: colors.active,
+      selectedHeaderText: '#FFFFFF',
+      selectedFooterBackground: colors.active,
+      selectedFooterText: '#FFFFFF',
     };
   }
   
-  // Credit Card Fields (garantir que existe para checkouts sem configuração específica)
-  if (!normalized.colors.creditCardFields) {
-    normalized.colors.creditCardFields = {
-      textColor: normalized.colors.primaryText,
-      placeholderColor: normalized.colors.secondaryText,
-      borderColor: normalized.colors.border,
-      backgroundColor: normalized.colors.inputBackground || normalized.colors.formBackground,
-      focusBorderColor: normalized.colors.active,
-      focusTextColor: normalized.colors.primaryText,
+  // Credit Card Fields
+  if (!colors.creditCardFields) {
+    colors.creditCardFields = {
+      textColor: colors.primaryText,
+      placeholderColor: colors.secondaryText,
+      borderColor: colors.border,
+      backgroundColor: colors.inputBackground || colors.formBackground,
+      focusBorderColor: colors.active,
+      focusTextColor: colors.primaryText,
     };
   }
   
-  // Order Summary (garantir que existe para checkouts sem configuração específica)
-  if (!normalized.colors.orderSummary) {
-    normalized.colors.orderSummary = {
-      background: normalized.colors.formBackground,
-      titleText: normalized.colors.primaryText,
-      productName: normalized.colors.primaryText,
-      priceText: normalized.colors.primaryText,
-      labelText: normalized.colors.secondaryText,
-      borderColor: normalized.colors.border,
+  // Order Summary
+  if (!colors.orderSummary) {
+    colors.orderSummary = {
+      background: colors.formBackground,
+      titleText: colors.primaryText,
+      productName: colors.primaryText,
+      priceText: colors.primaryText,
+      labelText: colors.secondaryText,
+      borderColor: colors.border,
     };
   }
   
-  // Footer (garantir que existe para checkouts sem configuração específica)
-  if (!normalized.colors.footer) {
-    normalized.colors.footer = {
-      background: normalized.colors.formBackground,
-      primaryText: normalized.colors.primaryText,
-      secondaryText: normalized.colors.secondaryText,
-      border: normalized.colors.border,
+  // Footer
+  if (!colors.footer) {
+    colors.footer = {
+      background: colors.formBackground,
+      primaryText: colors.primaryText,
+      secondaryText: colors.secondaryText,
+      border: colors.border,
     };
   }
   
-  // Secure Purchase (garantir que existe para checkouts sem configuração específica)
-  if (!normalized.colors.securePurchase) {
-    normalized.colors.securePurchase = {
-      headerBackground: normalized.colors.active,
+  // Secure Purchase
+  if (!colors.securePurchase) {
+    colors.securePurchase = {
+      headerBackground: colors.active,
       headerText: '#FFFFFF',
-      cardBackground: normalized.colors.formBackground,
-      primaryText: normalized.colors.primaryText,
-      secondaryText: normalized.colors.secondaryText,
+      cardBackground: colors.formBackground,
+      primaryText: colors.primaryText,
+      secondaryText: colors.secondaryText,
       linkText: '#3B82F6',
     };
   }
   
-  // Personal Data Fields (garantir que existe para checkouts sem configuração específica)
-  if (!normalized.colors.personalDataFields) {
-    normalized.colors.personalDataFields = {
-      textColor: normalized.colors.primaryText,
-      placeholderColor: normalized.colors.secondaryText,
-      borderColor: normalized.colors.border,
-      backgroundColor: normalized.colors.inputBackground || normalized.colors.formBackground,
-      focusBorderColor: normalized.colors.active,
-      focusTextColor: normalized.colors.primaryText,
+  // Personal Data Fields
+  if (!colors.personalDataFields) {
+    colors.personalDataFields = {
+      textColor: colors.primaryText,
+      placeholderColor: colors.secondaryText,
+      borderColor: colors.border,
+      backgroundColor: colors.inputBackground || colors.formBackground,
+      focusBorderColor: colors.active,
+      focusTextColor: colors.primaryText,
     };
   }
   
-  // Product Price (garantir que existe)
-  if (!normalized.colors.productPrice) {
-    normalized.colors.productPrice = normalized.colors.active;
+  // Product Price
+  if (!colors.productPrice) {
+    colors.productPrice = colors.active;
   }
-  
-  return normalized;
 }
 
 /**
- * Deep merge de objetos
+ * Deep merge objects
  */
 function deepMerge<T extends Record<string, unknown>>(target: T, source: Record<string, unknown>): T {
   for (const key in source) {
@@ -173,7 +180,7 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source: Record<
     if (sourceValue && typeof sourceValue === 'object' && !Array.isArray(sourceValue)) {
       if (!target[key]) (target as Record<string, unknown>)[key] = {};
       deepMerge(target[key] as Record<string, unknown>, sourceValue as Record<string, unknown>);
-    } else {
+    } else if (sourceValue !== undefined) {
       (target as Record<string, unknown>)[key] = sourceValue;
     }
   }

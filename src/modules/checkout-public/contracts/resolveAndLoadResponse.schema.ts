@@ -94,6 +94,11 @@ export type ProductData = z.infer<typeof ProductSchema>;
 // CHECKOUT SCHEMA
 // ============================================================================
 
+/**
+ * RISE V3: Checkout schema reflects SSOT architecture.
+ * Individual color columns are DEPRECATED and not included.
+ * All color data comes from the `design` JSON field.
+ */
 export const CheckoutSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -101,11 +106,6 @@ export const CheckoutSchema = z.object({
   visits_count: z.number(),
   seller_name: z.string().nullable(),
   font: z.string().nullable(),
-  background_color: z.string().nullable(),
-  text_color: z.string().nullable(),
-  primary_color: z.string().nullable(),
-  button_color: z.string().nullable(),
-  button_text_color: z.string().nullable(),
   components: z.unknown().nullable(),
   top_components: z.unknown().nullable(),
   bottom_components: z.unknown().nullable(),

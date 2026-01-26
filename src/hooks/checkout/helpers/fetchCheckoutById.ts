@@ -10,6 +10,10 @@ import { createLogger } from "@/lib/logger";
 
 const log = createLogger("FetchCheckoutById");
 
+/**
+ * RISE V3: SSOT - Individual color columns are DEPRECATED.
+ * All color data comes from the `design` JSON field.
+ */
 export interface CheckoutRawData {
   id: string;
   name: string;
@@ -18,11 +22,6 @@ export interface CheckoutRawData {
   seller_name: string | null;
   product_id: string | null;
   font: string | null;
-  background_color: string | null;
-  text_color: string | null;
-  primary_color: string | null;
-  button_color: string | null;
-  button_text_color: string | null;
   components: unknown;
   top_components: unknown;
   bottom_components: unknown;
