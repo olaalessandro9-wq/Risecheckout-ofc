@@ -65,14 +65,13 @@ export interface PushinPayPayoutId {
 }
 
 // ============================================
-// DEPRECATED - For backwards compatibility only
+// DEPRECATED - Pending column removal
 // ============================================
 
 /**
  * GatewayCredentials
  * 
  * @deprecated Use PayoutIdentifiers from profiles table instead.
- * This type exists only for backwards compatibility during migration.
- * Will be removed when affiliates.gateway_credentials column is dropped.
+ * This type exists for database sync until affiliates.gateway_credentials column is dropped.
  */
 export type GatewayCredentials = Partial<PayoutIdentifiers>;

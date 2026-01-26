@@ -178,15 +178,15 @@ export async function handleUpdateGeneral(
     }
   }
 
-  // Handle delivery_type with backwards compatibility
+  // Handle delivery_type with external_delivery sync
   if (data.delivery_type !== undefined) {
     if (['standard', 'members_area', 'external'].includes(data.delivery_type)) {
       updates.delivery_type = data.delivery_type;
-      // Sync legacy field
+      // Sync database field
       updates.external_delivery = data.delivery_type === 'external';
     }
   } else if (data.external_delivery !== undefined) {
-    // Legacy support: external_delivery boolean
+    // Fallback: external_delivery boolean
     updates.external_delivery = data.external_delivery === true;
     updates.delivery_type = data.external_delivery ? 'external' : 'standard';
   }

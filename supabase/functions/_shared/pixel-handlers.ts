@@ -24,7 +24,7 @@ import { createLogger } from "./logger.ts";
 
 const log = createLogger("PixelHandlers");
 
-// Re-export rate limiting for backwards compatibility with consolidated module
+// Re-export rate limiting with simplified signature for API stability
 export async function checkRateLimit(
   supabase: SupabaseClient,
   producerId: string,

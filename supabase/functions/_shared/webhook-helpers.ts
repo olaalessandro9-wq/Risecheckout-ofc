@@ -49,7 +49,7 @@ export interface DLQPayload {
 // CONSTANTS
 // ============================================================================
 
-// Re-export for backward compatibility
+// Re-export for API stability
 export { PUBLIC_CORS_HEADERS as CORS_HEADERS };
 
 export const ERROR_CODES = {
@@ -222,7 +222,7 @@ export function createErrorResponse(code: string, message: string, status: numbe
 }
 
 // ============================================================================
-// LOGGING FACTORY (Re-exports for backward compatibility)
+// LOGGING FACTORY (Public API re-exports)
 // ============================================================================
 
 export interface Logger {

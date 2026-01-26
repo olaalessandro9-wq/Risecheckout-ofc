@@ -43,11 +43,11 @@ export function errorResponse(message: string, corsHeaders: Record<string, strin
 }
 
 // ============================================
-// RATE LIMITING (RISE V3 - wrapper for legacy signature)
+// RATE LIMITING (RISE V3 - simplified signature wrapper)
 // ============================================
 
 /**
- * Rate limit check with legacy signature for backwards compatibility.
+ * Rate limit check with simplified signature for API stability.
  * Delegates to consolidated rate-limiting module.
  */
 export async function checkRateLimit(

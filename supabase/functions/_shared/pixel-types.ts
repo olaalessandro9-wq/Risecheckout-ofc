@@ -4,7 +4,7 @@
  * RISE V3: Response helper imported from response-helpers.ts
  */
 
-// Re-export jsonResponse for backwards compatibility
+// Re-export jsonResponse for public API
 export { jsonResponse } from "./response-helpers.ts";
 
 // ============================================================================

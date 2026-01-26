@@ -108,7 +108,7 @@ export function generateSessionTokens(): {
 }
 
 // ============================================================================
-// TOKEN READING (with backwards compatibility)
+// TOKEN READING
 // ============================================================================
 
 /**

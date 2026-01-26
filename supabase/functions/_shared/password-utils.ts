@@ -11,7 +11,7 @@
 import { genSaltSync, hashSync, compareSync } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 import { BCRYPT_COST } from "./auth-constants.ts";
 
-// Re-export response helper for backwards compatibility
+// Re-export response helper for public API
 export { jsonResponse } from "./response-helpers.ts";
 
 // ============================================
