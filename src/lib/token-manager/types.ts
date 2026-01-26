@@ -101,23 +101,33 @@ export const STORAGE_KEYS: Record<TokenType, StorageKeys> = {
 } as const;
 
 // ============================================
-// TIMING CONSTANTS
+// TIMING CONSTANTS (SESSION COMMANDER)
 // ============================================
 
 /**
  * Timing constants for the FSM
  * 
- * These define when state transitions occur.
+ * SESSION COMMANDER ARCHITECTURE - RISE V3 2026-01-26
+ * 
+ * Updated to align with 4-hour access token duration:
+ * - 30 min threshold = 3h30min effective session
+ * - Longer timeout for slow networks
  */
 export const TOKEN_TIMING = {
-  /** Start refresh when this many ms remain before expiry (10 minutes before expiry) */
-  REFRESH_THRESHOLD_MS: 10 * 60 * 1000, // 10 minutes (aligned with 60-min access token)
+  /** 
+   * Start refresh when this many ms remain before expiry
+   * 30 minutes before expiry (aligned with 4-hour access token)
+   */
+  REFRESH_THRESHOLD_MS: 30 * 60 * 1000, // 30 minutes
   
-  /** Maximum time to wait for refresh before timing out */
-  REFRESH_TIMEOUT_MS: 10 * 1000, // 10 seconds
+  /** Maximum time to wait for refresh before timing out (increased for slow networks) */
+  REFRESH_TIMEOUT_MS: 15 * 1000, // 15 seconds
   
-  /** Interval to check token status in background */
-  HEARTBEAT_INTERVAL_MS: 30 * 1000, // 30 seconds
+  /** 
+   * Interval to check token status in background
+   * (Session Commander uses event-driven monitoring, this is fallback)
+   */
+  HEARTBEAT_INTERVAL_MS: 60 * 1000, // 60 seconds
   
   /** Maximum consecutive refresh failures before going to error state */
   MAX_REFRESH_FAILURES: 3,

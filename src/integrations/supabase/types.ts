@@ -3583,6 +3583,38 @@ export type Database = {
         }
         Relationships: []
       }
+      refresh_locks: {
+        Row: {
+          created_at: string
+          expires_at: string
+          locked_at: string
+          locked_by_tab: string
+          session_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          locked_at?: string
+          locked_by_tab: string
+          session_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          locked_at?: string
+          locked_by_tab?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "refresh_locks_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: true
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       security_alerts: {
         Row: {
           acknowledged: boolean | null
@@ -4558,6 +4590,7 @@ export type Database = {
         }[]
       }
       cleanup_expired_blocks: { Args: never; Returns: number }
+      cleanup_expired_refresh_locks: { Args: never; Returns: number }
       cleanup_gdpr_audit_log: { Args: never; Returns: number }
       cleanup_gdpr_requests: { Args: never; Returns: number }
       cleanup_key_rotation_log: { Args: never; Returns: number }

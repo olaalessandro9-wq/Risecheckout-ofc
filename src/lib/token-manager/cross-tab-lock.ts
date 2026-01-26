@@ -16,13 +16,21 @@ import { createLogger } from "@/lib/logger";
 const log = createLogger("CrossTabLock");
 
 // ============================================
-// CONSTANTS
+// CONSTANTS (SESSION COMMANDER)
 // ============================================
 
 const LOCK_KEY = "rise_auth_refresh_lock";
 const CHANNEL_NAME = "rise-auth-refresh";
-const LOCK_TTL_MS = 10_000; // 10 seconds max lock duration
-const WAIT_TIMEOUT_MS = 8_000; // Max time to wait for lock release
+
+/**
+ * SESSION COMMANDER ARCHITECTURE - RISE V3 2026-01-26
+ * 
+ * Increased timeouts to accommodate slow networks and background tab throttling.
+ * The server-side refresh_locks table provides primary coordination;
+ * these client-side locks are secondary fallback.
+ */
+const LOCK_TTL_MS = 30_000; // 30 seconds max lock duration (was 10s)
+const WAIT_TIMEOUT_MS = 20_000; // 20 seconds max wait (was 8s)
 
 // ============================================
 // TYPES
