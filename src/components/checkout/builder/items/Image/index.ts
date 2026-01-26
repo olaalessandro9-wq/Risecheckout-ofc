@@ -5,7 +5,7 @@ import { ImageIcon } from "@/components/icons";
 
 export interface ImageContent {
   imageUrl?: string;
-  url?: string; // Suporte legado
+  url?: string; // Campo alternativo para imageUrl
   alt?: string;
   alignment?: "left" | "center" | "right";
   maxWidth?: number;

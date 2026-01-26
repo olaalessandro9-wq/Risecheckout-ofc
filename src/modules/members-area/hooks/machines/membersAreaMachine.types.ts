@@ -46,5 +46,5 @@ export type MembersAreaMachineEvent =
   | { type: "DELETE_CONTENT"; id: string }
   | { type: "REORDER_CONTENTS"; moduleId: string; orderedIds: string[] }
   
-  // UI State (legacy compatibility)
+  // UI State (public API event)
   | { type: "SET_SAVING"; isSaving: boolean };
