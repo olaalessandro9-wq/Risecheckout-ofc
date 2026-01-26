@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { createLogger } from '@/lib/logger';
 import * as Icons from 'lucide-react';
 import { ChevronLeft, ChevronRight, Plus, LogOut } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useUnifiedAuth } from '@/hooks/useUnifiedAuth';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { MembersAreaBuilderSettings } from '../../types/builder.types';
@@ -59,7 +59,7 @@ export function MenuPreview({
   onToggleCollapse,
   onSelectMenuItem,
 }: MenuPreviewProps) {
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   
   // Internal hover state for hover mode
   const [isHovered, setIsHovered] = useState(false);

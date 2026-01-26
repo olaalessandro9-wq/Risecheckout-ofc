@@ -15,7 +15,7 @@ import { createLogger } from "@/lib/logger";
 const log = createLogger("useProductsTable");
 import { supabase } from "@/integrations/supabase/client";
 import { api } from "@/lib/api";
-import { useAuth } from "@/hooks/useAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { useBusy } from "@/components/BusyProvider";
 import { useConfirmDelete } from "@/components/common/ConfirmDelete";
 import { duplicateProductDeep } from "@/lib/products/duplicateProduct";
@@ -37,7 +37,7 @@ const productQueryKeys = {
 
 export function useProductsTable() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   const busy = useBusy();
   const qc = useQueryClient();
   const { confirm, Bridge } = useConfirmDelete();

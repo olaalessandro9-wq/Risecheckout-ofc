@@ -12,7 +12,7 @@ import { useMachine } from "@xstate/react";
 import { utmifyMachine } from "../machines";
 import type { UTMifyStateValue } from "../machines";
 import type { Product } from "../types";
-import { useAuth } from "@/hooks/useAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { toast } from "sonner";
 
 // ============================================================================
@@ -62,7 +62,7 @@ interface UTMifyProviderProps {
 }
 
 export function UTMifyProvider({ children }: UTMifyProviderProps) {
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   const [state, send] = useMachine(utmifyMachine);
   
   // Track previous state for transition detection

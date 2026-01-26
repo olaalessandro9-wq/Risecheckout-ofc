@@ -14,7 +14,7 @@
  */
 
 import { useMemo } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 
 // Tipos de role do sistema
 export type AppRole = "owner" | "admin" | "user" | "seller";
@@ -50,11 +50,11 @@ const ROLE_PRIORITY: Record<AppRole, number> = {
  * Hook principal de permissões
  */
 export function usePermissions(): Permissions {
-  const { user, loading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, activeRole } = useUnifiedAuth();
   
-  // Get role directly from producer profile (already loaded by useAuth)
-  // No need for additional RPC call - role is part of producer data
-  const role: AppRole = (user?.role as AppRole) || "user";
+  // Get role from unified auth context
+  // activeRole comes from the session, mapped to AppRole
+  const role: AppRole = (activeRole as AppRole) || "user";
 
   // Derivar permissões baseadas no role
   const permissions = useMemo<Permissions>(() => {

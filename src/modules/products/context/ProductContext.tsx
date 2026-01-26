@@ -11,7 +11,7 @@
 
 import { createContext, useContext, useMemo, useEffect } from "react";
 import { useMachine } from "@xstate/react";
-import { useAuth } from "@/hooks/useAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 
 // State Machine
 import { productFormMachine } from "../machines";
@@ -45,7 +45,7 @@ const ProductContext = createContext<ProductContextValue | null>(null);
 // ============================================================================
 
 export function ProductProvider({ productId, children }: ProductProviderProps) {
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   
   // === STATE MACHINE - Single Source of Truth ===
   const [state, send] = useMachine(productFormMachine, {

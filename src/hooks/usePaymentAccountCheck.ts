@@ -7,7 +7,7 @@
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { createLogger } from "@/lib/logger";
-import { useAuth } from "@/hooks/useAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 
 const log = createLogger("PaymentAccountCheck");
 
@@ -31,7 +31,7 @@ interface GatewayStatusResponse {
  * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
  */
 export function usePaymentAccountCheck(): PaymentAccountStatus {
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   const [status, setStatus] = useState<PaymentAccountStatus>({
     hasPaymentAccount: null,
     hasMercadoPago: false,

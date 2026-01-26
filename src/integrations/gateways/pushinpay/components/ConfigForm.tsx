@@ -27,7 +27,7 @@ interface ValidateTokenResponse {
 }
 
 import { usePermissions } from "@/hooks/usePermissions";
-import { useAuth } from "@/hooks/useAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 
 import { IntegrationStatus } from "./IntegrationStatus";
 import { AccountInfoCard } from "./AccountInfoCard";
@@ -78,7 +78,7 @@ function deriveStateFromConnectionStatus(
 
 export function ConfigForm({ onConnectionChange, connectionStatus }: GatewayConfigFormProps) {
   const { role } = usePermissions();
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   const isAdmin = role === 'admin';
 
   // Deriva estado inicial do connectionStatus (SSOT)

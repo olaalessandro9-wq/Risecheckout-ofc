@@ -6,7 +6,7 @@
 
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("NotFound");
@@ -14,7 +14,7 @@ const log = createLogger("NotFound");
 const NotFound = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, isLoading: loading } = useUnifiedAuth();
 
   useEffect(() => {
     log.error("404 Error: User attempted to access non-existent route:", location.pathname);

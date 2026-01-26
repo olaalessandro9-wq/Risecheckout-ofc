@@ -7,7 +7,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 
 interface UseOwnerCheckParams {
   productId: string | null;
@@ -25,7 +25,7 @@ export function useOwnerCheck({
   producerId,
   isOpen,
 }: UseOwnerCheckParams): UseOwnerCheckReturn {
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   const [isOwner, setIsOwner] = useState(false);
   const [checkingOwner, setCheckingOwner] = useState(true);
 

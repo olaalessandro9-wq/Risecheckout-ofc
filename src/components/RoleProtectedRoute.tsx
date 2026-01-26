@@ -17,7 +17,7 @@
 
 import { Navigate, useLocation } from "react-router-dom";
 import { usePermissions, AppRole, Permissions } from "@/hooks/usePermissions";
-import { useAuth } from "@/hooks/useAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("RoleProtectedRoute");
@@ -53,7 +53,7 @@ export function RoleProtectedRoute({
   fallbackPath = "/dashboard",
   showAccessDenied = false,
 }: RoleProtectedRouteProps) {
-  const { user, loading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useUnifiedAuth();
   const permissions = usePermissions();
   const location = useLocation();
 

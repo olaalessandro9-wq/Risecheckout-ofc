@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useUnifiedAuth } from '@/hooks/useUnifiedAuth';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger("AsaasHooks");
@@ -38,7 +38,7 @@ interface UseAsaasConfigReturn {
  * Hook para buscar a configuração atual do Asaas
  */
 export function useAsaasConfig(): UseAsaasConfigReturn {
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   const [config, setConfig] = useState<AsaasConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -144,7 +144,7 @@ interface UseAsaasSaveConfigReturn {
  * Hook para salvar configuração do Asaas
  */
 export function useAsaasSaveConfig(): UseAsaasSaveConfigReturn {
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   const [isSaving, setIsSaving] = useState(false);
 
   const save = useCallback(async (
@@ -182,7 +182,7 @@ interface UseAsaasDisconnectReturn {
  * Hook para desconectar o Asaas
  */
 export function useAsaasDisconnect(): UseAsaasDisconnectReturn {
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   const [isDisconnecting, setIsDisconnecting] = useState(false);
 
   const disconnect = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
@@ -219,7 +219,7 @@ interface UseAsaasConnectionStatusReturn {
  * Hook para verificar status de conexão do Asaas
  */
 export function useAsaasConnectionStatus(): UseAsaasConnectionStatusReturn {
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 

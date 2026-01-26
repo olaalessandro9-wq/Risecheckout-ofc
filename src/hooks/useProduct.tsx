@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { createLogger } from "@/lib/logger";
-import { useAuth } from "./useAuth";
+import { useUnifiedAuth } from "./useUnifiedAuth";
 import { toast } from "sonner";
 import { uploadViaEdge } from "@/lib/storage/storageProxy";
 
@@ -22,7 +22,7 @@ export interface ProductData {
 export const useProduct = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   const productId = searchParams.get("id");
   
   const [product, setProduct] = useState<ProductData | null>(null);

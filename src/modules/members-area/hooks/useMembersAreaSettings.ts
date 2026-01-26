@@ -14,7 +14,7 @@ import { useMachine } from "@xstate/react";
 import { createLogger } from "@/lib/logger";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { useAuth } from "@/hooks/useAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import type { Json } from "@/integrations/supabase/types";
 import type { MembersAreaSettings, ModuleWithContents, MemberContent } from "./types";
 import { normalizeContentType } from "../utils";
@@ -101,7 +101,7 @@ interface UseMembersAreaSettingsReturn {
 
 export function useMembersAreaSettings(productId: string | undefined): UseMembersAreaSettingsReturn {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   
   // Single Source of Truth via XState
   const [state, send] = useMachine(membersAreaMachine);
