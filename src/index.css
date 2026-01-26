@@ -294,20 +294,35 @@
     --payment-bg: 222 47% 11%;             /* gray-900 */
     --payment-card-bg: 0 0% 100%;          /* white */
     --payment-card-elevated: 210 40% 96%;  /* gray-50 */
+    --payment-card-muted: 210 40% 96%;     /* gray-50 (badges/chips) */
     
     /* Payment Text Tokens */
-    --payment-text-primary: 0 0% 100%;     /* white - Para fundo escuro */
-    --payment-text-dark: 224 71% 4%;       /* gray-900 - Para fundo claro */
+    --payment-text-primary: 0 0% 100%;     /* white - Para fundo ESCURO */
+    --payment-text-dark: 224 71% 4%;       /* gray-900 - Para fundo CLARO */
     --payment-text-secondary: 220 9% 46%;  /* gray-600 */
-    --payment-text-muted: 220 9% 46%;      /* gray-700 */
+    --payment-text-muted: 220 9% 60%;      /* gray-500 */
+    
+    /* Payment Input Tokens */
+    --payment-input-bg: 0 0% 100%;         /* white */
+    --payment-input-border: 220 13% 85%;   /* gray-300 */
     
     /* Payment Border Tokens */
     --payment-border: 220 13% 91%;         /* gray-200 */
     --payment-border-dark: 220 13% 80%;    /* gray-300 */
     
+    /* Payment Progress Bar Tokens */
+    --payment-progress-bg: 220 13% 91%;    /* gray-200 */
+    --payment-progress-fill: 142 76% 36%;  /* green-600 */
+    
+    /* Payment QR Code Tokens */
+    --payment-qr-bg: 0 0% 100%;            /* white */
+    --payment-qr-border: 220 13% 91%;      /* gray-200 */
+    
     /* Payment Status Tokens */
     --payment-success: 142 76% 36%;        /* green-600 */
+    --payment-success-hover: 142 76% 30%;  /* green-700 */
     --payment-success-light: 142 77% 73%;  /* green-300 */
+    --payment-error: 0 84% 60%;            /* red-500 */
     
     /* ═══════════════════════════════════════════════════════════════════════════
        SUCCESS PAGES DESIGN TOKENS

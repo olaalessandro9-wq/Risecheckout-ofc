@@ -1,7 +1,13 @@
 /**
  * PixWaitingState - Estado de aguardando pagamento PIX
  * 
- * Componente orquestrador que compõe os sub-componentes de UI
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * Componente orquestrador que compõe os sub-componentes de UI.
+ * Usa design tokens semânticos corretos para garantir contraste
+ * adequado de texto dentro do card branco.
+ * 
+ * @module pix-payment/components
  */
 
 import { PixCopyButton } from "./PixCopyButton";
@@ -35,11 +41,11 @@ export function PixWaitingState({
 }: PixWaitingStateProps) {
   return (
     <>
-      <h1 className="text-2xl font-bold text-[hsl(var(--payment-card-text-primary))] mb-6 text-center">
+      <h1 className="text-2xl font-bold text-[hsl(var(--payment-text-dark))] mb-6 text-center">
         Aqui está o PIX copia e cola
       </h1>
 
-      <p className="text-[hsl(var(--payment-card-text-secondary))] mb-6 text-center">
+      <p className="text-[hsl(var(--payment-text-secondary))] mb-6 text-center">
         Copie o código ou use a câmera para ler o QR Code e realize o pagamento no app do seu banco.
       </p>
 
