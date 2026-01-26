@@ -32,6 +32,7 @@ import { handleRegister } from "./handlers/register.ts";
 import { handleLogout } from "./handlers/logout.ts";
 import { handleValidate } from "./handlers/validate.ts";
 import { handleRefresh } from "./handlers/refresh.ts";
+import { handleRequestRefresh } from "./handlers/request-refresh.ts";
 import { handleSwitchContext } from "./handlers/switch-context.ts";
 import { handlePasswordResetRequest } from "./handlers/password-reset-request.ts";
 import { handlePasswordResetVerify } from "./handlers/password-reset-verify.ts";
@@ -91,6 +92,9 @@ serve(async (req: Request): Promise<Response> => {
         
       case "refresh":
         return await handleRefresh(supabase, req, corsHeaders);
+      
+      case "request-refresh":
+        return await handleRequestRefresh(supabase, req, corsHeaders);
         
       case "switch-context":
         return await handleSwitchContext(supabase, req, corsHeaders);

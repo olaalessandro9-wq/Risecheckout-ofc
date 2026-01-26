@@ -30,24 +30,29 @@ export const BCRYPT_COST = 10;
 // and REFRESH_TOKEN_DURATION_DAYS below.
 
 // ============================================
-// REFRESH TOKEN CONSTANTS (PHASE 3)
+// REFRESH TOKEN CONSTANTS (SESSION COMMANDER)
 // ============================================
 
 /**
  * Access token duration in minutes
  * 
- * RISE V3 2026-01-20: Increased from 15 to 60 minutes.
- * Rationale: 15 min was causing excessive re-authentication due to:
- * - Browser tab sleeping/background throttling
- * - Slow refresh races during network latency
- * - Combined with strict IP/UA binding = frequent logouts
+ * SESSION COMMANDER ARCHITECTURE - RISE V3 2026-01-26
+ * 
+ * Increased from 60 to 240 minutes (4 hours) to match market standards
+ * (Cakto, Kiwify, Hotmart) and eliminate frequent logouts.
+ * 
+ * This change is part of the Session Commander Architecture:
+ * 1. Fewer refreshes = fewer race conditions between tabs
+ * 2. More time for retries in case of transient failures
+ * 3. Better UX for users who leave tabs open
  * 
  * Security maintained via:
+ * - Server-side refresh locks (refresh_locks table)
  * - Refresh token rotation (theft detection)
  * - httpOnly cookies (XSS protection)
- * - 30-day refresh token expiry unchanged
+ * - 30-day refresh token expiry (sliding window)
  */
-export const ACCESS_TOKEN_DURATION_MINUTES = 60;
+export const ACCESS_TOKEN_DURATION_MINUTES = 240; // 4 hours
 
 /**
  * Refresh token duration in days (long-lived for convenience)
