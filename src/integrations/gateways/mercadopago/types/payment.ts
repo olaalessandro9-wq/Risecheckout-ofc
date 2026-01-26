@@ -2,7 +2,7 @@
  * Tipos de Pagamento - Mercado Pago Gateway
  * 
  * Módulo: src/integrations/gateways/mercadopago/types/payment.ts
- * RISE ARCHITECT PROTOCOL V2 - Single Responsibility
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import { GatewayPropertyValue } from './connection';

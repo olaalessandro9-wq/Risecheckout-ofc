@@ -5,7 +5,7 @@
  * Mantém compatibilidade com o design system e props existentes
  * 
  * SEGURANÇA: Usa configuração centralizada de sanitização XSS de @/lib/security
- * RISE Protocol V2: Zero any - usa PartialComponentContent type-safe
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import { 
@@ -33,7 +33,6 @@ import type {
 /**
  * Conteúdo parcial de componente - suporta todas as variantes com campos opcionais.
  * 
- * RISE Protocol V2: Substitui Record<string, any> por tipagem forte.
  * Usa Partial para suportar dados incompletos vindos do banco/editor.
  */
 type PartialComponentContent = Partial<

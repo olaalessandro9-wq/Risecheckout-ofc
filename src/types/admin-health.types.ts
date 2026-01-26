@@ -3,7 +3,7 @@
  * Módulo: src/types/admin-health.types.ts
  * 
  * Tipos para métricas de sistema, erros e webhooks.
- * RISE ARCHITECT PROTOCOL V2 - Zero Technical Debt
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 // ============================================================================

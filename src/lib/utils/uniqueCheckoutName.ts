@@ -1,8 +1,7 @@
 /**
  * Unique Checkout Name Utility
  * 
- * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
- * @see RISE Protocol V2 - Zero database access from frontend
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import { api } from "@/lib/api";

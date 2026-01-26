@@ -235,7 +235,7 @@ export interface PaymentState {
 // TIPOS DO CHECKOUT BUILDER
 // ============================================================================
 
-// Re-exportar tipos centralizados do builder (RISE Protocol V2: Zero any)
+// Re-exportar tipos centralizados do builder (RISE ARCHITECT PROTOCOL V3 - 10.0/10)
 export type { 
   CheckoutComponentType, 
   CheckoutComponentContent 

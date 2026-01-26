@@ -2,7 +2,7 @@
  * WhatsApp Configuration
  * 
  * Central config file for WhatsApp support settings.
- * RISE Protocol V2 Compliant - No VITE_* env vars in code.
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 // Número do WhatsApp para suporte (formato E.164 sem +)

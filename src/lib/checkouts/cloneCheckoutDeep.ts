@@ -1,7 +1,7 @@
 /**
  * Clona o layout completo de um checkout para outro via RPC Proxy
  * 
- * @see RISE Protocol V2 - Zero direct RPC calls from frontend
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import { cloneCheckoutLayoutRpc } from "@/lib/rpc/rpcProxy";

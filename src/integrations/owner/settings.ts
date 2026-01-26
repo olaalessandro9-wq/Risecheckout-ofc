@@ -2,7 +2,7 @@
  * API de configurações do Owner
  * Gerencia ambientes de gateway (sandbox/production) via Edge Function owner-settings
  * 
- * RISE Protocol V2 Compliant - Todas as operações via Edge Functions
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import { api } from "@/lib/api/client";

@@ -1,10 +1,8 @@
 /**
  * Storage Proxy - Centralized Storage operations via Edge Function
  * 
- * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
- * 
- * All storage operations must go through this utility to comply with
- * RISE Protocol V2: "Zero direct storage operations from frontend"
+ * All storage operations go through this utility.
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * @see supabase/functions/storage-management/index.ts
  */

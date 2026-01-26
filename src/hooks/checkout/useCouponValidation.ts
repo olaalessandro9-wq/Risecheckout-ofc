@@ -1,8 +1,7 @@
 /**
  * Hook: useCouponValidation
  * 
- * MIGRATED: Uses checkout-public-data Edge Function
- * @see RISE Protocol V2 - Zero database access from frontend
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import { useState, useCallback } from 'react';

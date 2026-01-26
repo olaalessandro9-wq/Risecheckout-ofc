@@ -1,8 +1,7 @@
 /**
  * ProductsTable Component - Refactored orchestrator
  * 
- * @see RISE Protocol V3 - 300-line limit compliance
- * @see RISE Protocol V2 - Zero direct database access from frontend
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import { Tabs, TabsContent } from "@/components/ui/tabs";

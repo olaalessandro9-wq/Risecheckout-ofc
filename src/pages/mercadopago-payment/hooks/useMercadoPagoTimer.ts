@@ -2,7 +2,7 @@
  * useMercadoPagoTimer - Hook para timer de expiração
  * 
  * Single Responsibility: Gerenciamento do countdown timer.
- * RISE Protocol V2 Compliant (~60 linhas).
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";

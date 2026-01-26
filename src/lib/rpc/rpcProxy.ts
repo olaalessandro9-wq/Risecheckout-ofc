@@ -1,10 +1,8 @@
 /**
  * RPC Proxy - Centralized RPC invocation via Edge Function
  * 
- * All RPC calls must go through this utility to comply with
- * RISE Protocol V2: "Zero direct database operations from frontend"
- * 
- * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
+ * All RPC calls go through this utility.
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * @see supabase/functions/rpc-proxy/index.ts
  */

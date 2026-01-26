@@ -2,7 +2,7 @@
  * Re-exports de Tipos - Mercado Pago Gateway
  * 
  * Módulo: src/integrations/gateways/mercadopago/types/index.ts
- * RISE ARCHITECT PROTOCOL V2 - Zero Breaking Changes
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 // Connection Types

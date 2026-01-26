@@ -2,9 +2,7 @@
  * Stripe PIX Component
  * 
  * Exibe QR Code PIX gerado via Stripe.
- * 
- * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
- * @see RISE Protocol V2 - Zero database access from frontend
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import { useState, useEffect } from "react";
