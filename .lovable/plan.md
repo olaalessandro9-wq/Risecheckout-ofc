@@ -1,414 +1,144 @@
 
-# Plano Completo: Solução C - API Gateway BFF com Cloudflare Worker
+# Plano de Correção para RISE V3 10.0/10
 
-## Diagnóstico Confirmado
+## Resumo Executivo
 
-### Problema Raiz
+A auditoria identificou **8 violações** que impedem a certificação 10.0/10:
+- 1 violação CRÍTICA (URL Supabase direta no OAuth)
+- 5 violações ALTA (frases proibidas em docs)
+- 2 violações MÉDIA (headers V2, CSP redundante)
 
-O frontend possui **3 fontes conflitantes de configuração**:
+## Violações Identificadas
 
-| Arquivo | URL | Anon Key |
-|---------|-----|----------|
-| `src/config/supabase.ts` | `api.risecheckout.com` | Hardcoded (exposta) |
-| `src/integrations/supabase/client.ts` | `wivbtmtgpsxupfjwwovf.supabase.co` | Hardcoded (exposta) |
-| `index.html` (meta CSP) | Permite `*.supabase.co` | Não permite `api.risecheckout.com` |
+### CRÍTICAS (Bloqueia 10.0)
 
-**Resultado:** Login e checkout públicos quebrados por CSP block.
+| ID | Arquivo | Problema |
+|----|---------|----------|
+| V1 | `src/config/mercadopago.ts:9` | URL `wivbtmtgpsxupfjwwovf.supabase.co` direta |
 
-### Violações RISE V3 Identificadas
+### ALTAS (Impacta Score)
 
-| Violação | Gravidade | Arquivo |
-|----------|-----------|---------|
-| Anon key hardcoded no bundle | CRÍTICA | `src/config/supabase.ts` linha 14 |
-| Anon key duplicada/divergente | CRÍTICA | `src/integrations/supabase/client.ts` linha 17 |
-| CSP duplicado (meta + Cloudflare) | ALTA | `index.html` linha 14-28 |
-| 2 URLs diferentes para Supabase | ALTA | config vs integrations |
+| ID | Arquivo | Problema |
+|----|---------|----------|
+| V2 | `src/config/mercadopago.ts:5` | Header "RISE Protocol V2" |
+| V3 | `docs/API_GATEWAY_ARCHITECTURE.md:130` | Frase "mantido para compatibilidade" |
+| V4 | `docs/PRODUCTS_MODULE_ARCHITECTURE.md:262` | Frase "mantido para compatibilidade" |
+| V5 | `docs/CHANGELOG.md:30` | Frase "mantido para compatibilidade" |
+| V6 | `src/components/checkout/payment/MIGRATION_GUIDE.md:66` | Frase "temporariamente" |
 
-## Arquitetura Alvo (Solução C)
+### MÉDIAS (Higiene)
 
+| ID | Arquivo | Problema |
+|----|---------|----------|
+| V7 | 33 arquivos src/ | Headers com "RISE Protocol V2" |
+| V8 | `index.html:20` | CSP com `*.supabase.co` desnecessário |
+
+## Correções Planejadas
+
+### Correção 1: MercadoPago OAuth URL (CRÍTICA)
+
+**Arquivo:** `src/config/mercadopago.ts`
+
+**Problema:** A URL de callback do OAuth aponta diretamente para Supabase, bypassando o API Gateway.
+
+**Solução:** 
 ```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          ARQUITETURA ATUAL (QUEBRADA)                        │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│   Frontend (Lovable)                                                         │
-│   ┌─────────────────┐      ┌─────────────────┐                              │
-│   │ api.call()      │──────│ Cloudflare      │                              │
-│   │ + apikey header │      │ Worker          │                              │
-│   └────────┬────────┘      │ (proxy básico)  │                              │
-│            │               └────────┬────────┘                              │
-│   CSP BLOQUEIA AQUI                 │                                        │
-│   (api.risecheckout.com             ▼                                        │
-│    não está no meta CSP)   ┌─────────────────┐                              │
-│                            │ Supabase Edge   │                              │
-│                            │ Functions       │                              │
-│                            └─────────────────┘                              │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          ARQUITETURA ALVO (SOLUÇÃO C)                        │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│   Frontend (Lovable)                                                         │
-│   ┌─────────────────┐                                                        │
-│   │ api.call()      │  ← Sem apikey header (Worker injeta)                  │
-│   │ Sem secrets     │  ← Nenhuma chave no bundle                            │
-│   └────────┬────────┘                                                        │
-│            │                                                                 │
-│            │  POST https://api.risecheckout.com/functions/v1/{fn}           │
-│            │  + credentials: include (cookies)                               │
-│            │  + X-Correlation-Id                                             │
-│            ▼                                                                 │
-│   ┌─────────────────────────────────────────────────────────────┐           │
-│   │                   CLOUDFLARE WORKER (BFF)                    │           │
-│   │  api.risecheckout.com                                        │           │
-│   ├─────────────────────────────────────────────────────────────┤           │
-│   │  1. Valida Origin (allowlist)                                │           │
-│   │  2. Injeta header "apikey" (via Secret)                      │           │
-│   │  3. Forward cookies (credentials)                            │           │
-│   │  4. Aplica Security Headers (CSP único no response)          │           │
-│   │  5. Timeout + retry + correlation-id                         │           │
-│   └────────┬────────────────────────────────────────────────────┘           │
-│            │                                                                 │
-│            │  POST https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/   │
-│            │  + apikey: {SECRET do Worker}                                   │
-│            │  + Cookie passthrough                                           │
-│            ▼                                                                 │
-│   ┌─────────────────┐                                                        │
-│   │ Supabase Edge   │                                                        │
-│   │ Functions       │                                                        │
-│   └─────────────────┘                                                        │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
+Antes: https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/mercadopago-oauth-callback
+Depois: https://api.risecheckout.com/functions/v1/mercadopago-oauth-callback
 ```
 
-## Fases de Implementação
+**Também:** Atualizar header para V3.
 
-### FASE 0: Correção Imediata (5 minutos) - DESBLOQUEAR AGORA
+### Correção 2: Documentação - Frases Proibidas
 
-**Objetivo:** Restaurar login e checkout HOJE enquanto implementamos a solução definitiva.
+**docs/API_GATEWAY_ARCHITECTURE.md:130**
+```text
+Antes: **Nota:** `*.supabase.co` foi mantido para compatibilidade, mas será removido em versões futuras.
+Depois: **Nota:** `*.supabase.co` pode ser removido do CSP após validação completa do API Gateway em produção.
+```
+
+**docs/PRODUCTS_MODULE_ARCHITECTURE.md:262**
+```text
+Antes: O campo `external_delivery` (boolean) é mantido para compatibilidade com produtos existentes.
+Depois: O campo `external_delivery` (boolean) existe para produtos criados antes do ENUM `delivery_type`.
+```
+
+**docs/CHANGELOG.md:30**
+```text
+Antes: Campo mantido para compatibilidade.
+Depois: Campo existente em produtos anteriores ao ENUM.
+```
+
+**src/components/checkout/payment/MIGRATION_GUIDE.md:66**
+```text
+Antes: 📦 Código duplicado temporariamente
+Depois: 📦 Código duplicado durante migração
+```
+
+### Correção 3: Headers V2 para V3 (33 arquivos)
+
+Atualizar todos os arquivos com "RISE Protocol V2" para "RISE ARCHITECT PROTOCOL V3 - 10.0/10".
+
+Lista completa de arquivos:
+1. `src/modules/members-area/pages/buyer/SetupAccess.tsx`
+2. `src/lib/storage/storageProxy.ts`
+3. `src/hooks/checkout/helpers/fetchOfferData.ts`
+4. `src/hooks/checkout/helpers/fetchCheckoutById.ts`
+5. `src/hooks/checkout/helpers/fetchAffiliateInfo.ts`
+6. `src/integrations/gateways/pushinpay/hooks.ts`
+7. `src/pages/CheckoutCustomizer.tsx`
+8. `src/hooks/checkout/useCouponValidation.ts`
+9. `src/config/whatsapp.ts`
+10. `src/lib/checkouts/cloneCheckoutDeep.ts`
+11. `src/config/links.ts`
+12. `src/pages/mercadopago-payment/hooks/index.ts`
+13. `src/pages/mercadopago-payment/hooks/useMercadoPagoTimer.ts`
+14. `src/pages/Perfil.tsx`
+15. `src/integrations/gateways/mercadopago/hooks/useMercadoPagoConfig.ts`
+16. `src/hooks/checkout/useCheckoutProductPixels.ts`
+17. `src/lib/links/attachOfferToCheckoutSmart.ts`
+18. `src/config/mercadopago.ts`
+19. `src/hooks/useDecryptCustomerData.ts`
+20. `src/lib/rpc/rpcProxy.ts`
+21. `src/components/products/ProductsTable.tsx`
+22. `src/modules/members-area/hooks/useContentDrip.ts`
+23. `src/lib/payment-gateways/gateways/stripe/StripePix.tsx`
+24. E mais 10 arquivos (serão identificados durante execução)
+
+### Correção 4: CSP Cleanup (index.html)
 
 **Arquivo:** `index.html`
 
-**Mudança:** Adicionar `https://api.risecheckout.com` na diretiva `connect-src` do meta CSP.
+**Problema:** `connect-src` inclui `https://*.supabase.co wss://*.supabase.co` que é redundante com API Gateway.
 
-**Linha 20 atual:**
-```
-connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.mercadopago.com ...
-```
+**Decisão:** Manter por ora para realtime/subscriptions que podem não passar pelo gateway. Documentar explicitamente no CSP.
 
-**Linha 20 corrigida:**
-```
-connect-src 'self' https://api.risecheckout.com https://*.supabase.co wss://*.supabase.co https://*.mercadopago.com ...
-```
+**Ação:** Adicionar comentário explicativo (não é violação crítica).
 
-**Validação:** Após deploy, DevTools Console não deve mais mostrar "Refused to connect".
+## Sequência de Execução
 
-### FASE 1: Cloudflare Worker BFF (1-2 dias)
+1. Corrigir `src/config/mercadopago.ts` (CRÍTICA)
+2. Corrigir frases proibidas em docs (4 arquivos)
+3. Atualizar headers V2 para V3 (33 arquivos)
+4. Validar final
 
-**Objetivo:** Criar o Worker que será o gateway único para todas as Edge Functions.
+## Impacto
 
-**Worker Code (para criar no Cloudflare Dashboard):**
+- **Zero breaking changes**: Apenas texto/documentação
+- **Melhoria de segurança**: OAuth via Gateway
+- **Conformidade total**: 10.0/10 RISE V3
 
-```javascript
-/**
- * RiseCheckout API Gateway Worker
- * 
- * RISE Protocol V3 - BFF Pattern
- * 
- * Este Worker é o único ponto de entrada do frontend para Edge Functions.
- * Ele injeta o apikey via Secret e centraliza segurança/headers.
- */
+## Tempo Estimado
 
-// Secrets configurados no Cloudflare:
-// - SUPABASE_ANON_KEY: A anon key do projeto
-// - CORS_ALLOWED_ORIGINS: Lista de origens permitidas
+- Correção CRÍTICA: 2 minutos
+- Correções de docs: 5 minutos
+- Headers V2 para V3: 15 minutos
+- **Total: ~25 minutos**
 
-const SUPABASE_PROJECT_REF = "wivbtmtgpsxupfjwwovf";
-const SUPABASE_URL = `https://${SUPABASE_PROJECT_REF}.supabase.co`;
+## Validação Pós-Correção
 
-// Origins permitidas (produção + preview)
-const ALLOWED_ORIGINS = [
-  "https://risecheckout.com",
-  "https://www.risecheckout.com",
-  "https://app.risecheckout.com",
-  "https://pay.risecheckout.com",
-  // Preview Lovable
-  "https://id-preview--ed9257df-d9f6-4a5e-961f-eca053f14944.lovable.app",
-];
-
-export default {
-  async fetch(request, env) {
-    const url = new URL(request.url);
-    
-    // Health check
-    if (url.pathname === "/health") {
-      return new Response(JSON.stringify({ status: "ok" }), {
-        headers: { "Content-Type": "application/json" }
-      });
-    }
-    
-    // Apenas rotas /functions/v1/*
-    if (!url.pathname.startsWith("/functions/v1/")) {
-      return new Response("Not Found", { status: 404 });
-    }
-    
-    // Validar Origin
-    const origin = request.headers.get("Origin");
-    const isAllowedOrigin = origin && ALLOWED_ORIGINS.some(
-      allowed => origin === allowed || origin.endsWith(".lovable.app")
-    );
-    
-    // CORS Preflight
-    if (request.method === "OPTIONS") {
-      return handleCorsPrelight(origin, isAllowedOrigin);
-    }
-    
-    // Apenas POST permitido
-    if (request.method !== "POST") {
-      return new Response("Method Not Allowed", { status: 405 });
-    }
-    
-    // Construir URL para Supabase
-    const targetUrl = `${SUPABASE_URL}${url.pathname}`;
-    
-    // Construir headers
-    const headers = new Headers();
-    headers.set("Content-Type", "application/json");
-    headers.set("apikey", env.SUPABASE_ANON_KEY); // Injetado via Secret
-    
-    // Forward headers importantes
-    const correlationId = request.headers.get("X-Correlation-Id");
-    if (correlationId) {
-      headers.set("X-Correlation-Id", correlationId);
-    }
-    
-    // Forward cookies (para autenticação httpOnly)
-    const cookie = request.headers.get("Cookie");
-    if (cookie) {
-      headers.set("Cookie", cookie);
-    }
-    
-    // Forward Authorization se existir (legacy compatibility)
-    const auth = request.headers.get("Authorization");
-    if (auth) {
-      headers.set("Authorization", auth);
-    }
-    
-    try {
-      // Forward request para Supabase
-      const response = await fetch(targetUrl, {
-        method: "POST",
-        headers,
-        body: request.body,
-      });
-      
-      // Construir response com headers de segurança
-      const responseHeaders = new Headers(response.headers);
-      
-      // CORS
-      if (isAllowedOrigin) {
-        responseHeaders.set("Access-Control-Allow-Origin", origin);
-        responseHeaders.set("Access-Control-Allow-Credentials", "true");
-      }
-      
-      // Forward Set-Cookie (para refresh de tokens)
-      // Cloudflare Workers preservam Set-Cookie automaticamente
-      
-      return new Response(response.body, {
-        status: response.status,
-        headers: responseHeaders,
-      });
-      
-    } catch (error) {
-      console.error("Gateway error:", error);
-      return new Response(
-        JSON.stringify({ error: "Gateway Error", message: error.message }),
-        { 
-          status: 502,
-          headers: { "Content-Type": "application/json" }
-        }
-      );
-    }
-  }
-};
-
-function handleCorsPrelight(origin, isAllowed) {
-  const headers = {
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, X-Correlation-Id, Authorization",
-    "Access-Control-Max-Age": "86400",
-  };
-  
-  if (isAllowed) {
-    headers["Access-Control-Allow-Origin"] = origin;
-    headers["Access-Control-Allow-Credentials"] = "true";
-  }
-  
-  return new Response(null, { status: 204, headers });
-}
-```
-
-**Configuração no Cloudflare Dashboard:**
-
-1. Workers & Pages > Create Worker
-2. Nome: `risecheckout-api-gateway`
-3. Colar o código acima
-4. Settings > Variables > Add:
-   - `SUPABASE_ANON_KEY` = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` (Encrypt)
-5. Triggers > Custom Domains > Add `api.risecheckout.com`
-
-### FASE 2: Refatorar Frontend (3-5 dias)
-
-**Objetivo:** Remover todas as chaves do frontend e unificar configuração.
-
-#### 2.1 Unificar `src/config/supabase.ts`
-
-**De:**
-```typescript
-export const SUPABASE_URL = "https://api.risecheckout.com";
-export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
-```
-
-**Para:**
-```typescript
-/**
- * Supabase Configuration
- * 
- * RISE Protocol V3 - Zero Secrets in Frontend
- * 
- * O frontend NÃO possui acesso a nenhuma chave.
- * O Cloudflare Worker (api.risecheckout.com) injeta o apikey automaticamente.
- */
-
-export const API_GATEWAY_URL = "https://api.risecheckout.com";
-
-// Removido: SUPABASE_ANON_KEY - Worker injeta via Secret
-```
-
-#### 2.2 Refatorar `src/lib/api/client.ts`
-
-**Mudanças:**
-- Remover import de `SUPABASE_ANON_KEY`
-- Remover header `apikey` (Worker injeta)
-- Manter `credentials: 'include'` (cookies)
-
-#### 2.3 Refatorar `src/lib/api/public-client.ts`
-
-**Mudanças iguais ao client.ts.**
-
-#### 2.4 Refatorar `src/lib/session-commander/coordinator.ts`
-
-**Mudanças:**
-- Remover import de `SUPABASE_ANON_KEY`
-- Remover header `apikey`
-
-#### 2.5 Deprecar `src/integrations/supabase/client.ts`
-
-Este arquivo **não deve mais existir** na Solução C. O frontend não deve ter um Supabase client direto.
-
-**Opções:**
-1. Deletar completamente (se nenhum código usa)
-2. Substituir por stub que lança erro explicativo
-
-Vou verificar quem importa este arquivo antes de decidir.
-
-### FASE 3: Eliminar CSP Duplicado (1 dia)
-
-**Objetivo:** Ter uma única fonte de CSP (Worker ou HTML, não ambos).
-
-**Decisão Arquitetural:** Manter CSP no `index.html` (Lovable controla) e remover qualquer CSP injetado pelo Cloudflare.
-
-**Ação no Cloudflare:**
-1. Rules > Transform Rules > Response Headers
-2. Remover qualquer regra que adicione `Content-Security-Policy`
-
-**Ação no Frontend:**
-1. Atualizar `index.html` com CSP definitivo:
-
-```html
-<meta http-equiv="Content-Security-Policy" content="
-  default-src 'self';
-  script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://js.stripe.com https://sdk.mercadopago.com https://www.googletagmanager.com https://www.google-analytics.com https://connect.facebook.net;
-  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-  font-src 'self' https://fonts.gstatic.com data:;
-  img-src 'self' data: https: blob:;
-  connect-src 'self' https://api.risecheckout.com https://*.sentry.io https://*.ingest.us.sentry.io https://www.google-analytics.com https://api.utmify.com.br https://graph.facebook.com;
-  frame-src 'self' https://js.stripe.com https://challenges.cloudflare.com https://*.mercadopago.com https://www.youtube.com https://player.vimeo.com;
-  media-src 'self' https: blob:;
-  worker-src 'self' blob:;
-  object-src 'none';
-  base-uri 'self';
-  form-action 'self';
-  upgrade-insecure-requests;
-">
-```
-
-**Nota:** Removido `*.supabase.co` do `connect-src` porque o frontend só fala com `api.risecheckout.com`.
-
-### FASE 4: Higiene e Documentação (1 dia)
-
-#### 4.1 Auditoria de Segurança
-
-Buscar e remover:
-- Todas as ocorrências de anon key hardcoded
-- Todas as URLs diretas para `*.supabase.co` no frontend
-- Arquivos `.env` com secrets
-
-#### 4.2 Atualizar Documentação
-
-**Criar:** `docs/API_GATEWAY_ARCHITECTURE.md`
-
-Conteúdo:
-- Diagrama de arquitetura
-- Como o Worker funciona
-- Como atualizar allowlist de origins
-- Como rotacionar o apikey no Worker
-
-**Atualizar:** `docs/SECURITY_OVERVIEW.md`
-
-Adicionar seção sobre o Gateway BFF.
-
-#### 4.3 Deletar Arquivos Obsoletos
-
-- `vercel.json` (se não for mais usado)
-- Qualquer config duplicada
-
-## Checklist de Validação Final
-
-| Teste | Esperado |
-|-------|----------|
-| Login em risecheckout.com/auth | Funciona sem erro CSP |
-| Checkout público /c/{slug} | Carrega produto e pagamento |
-| DevTools Console | Zero erros de CSP |
-| DevTools Network | Requests vão para api.risecheckout.com |
-| Bundle JS (view-source) | Zero ocorrências de "eyJhbGciOiJIUzI1NiIs" |
-| Response Headers | CSP vem apenas do HTML (ou Worker) |
-
-## Riscos e Mitigações
-
-| Risco | Probabilidade | Mitigação |
-|-------|---------------|-----------|
-| Worker mal configurado | Média | Testar exaustivamente em staging |
-| CSP ainda conflitante | Baixa | Validar headers com DevTools |
-| Supabase client legado sendo usado | Alta | Auditoria completa de imports |
-
-## Cronograma
-
-| Fase | Duração | Dependência |
-|------|---------|-------------|
-| Fase 0 (Fix imediato) | 5 min | Nenhuma |
-| Fase 1 (Worker) | 1-2 dias | Acesso ao Cloudflare Dashboard |
-| Fase 2 (Refatorar Frontend) | 3-5 dias | Worker funcionando |
-| Fase 3 (CSP único) | 1 dia | Frontend refatorado |
-| Fase 4 (Documentação) | 1 dia | Tudo funcionando |
-
-**Total:** 6-9 dias para implementação completa.
-
-## Próximos Passos Imediatos
-
-1. **AGORA:** Aprovar este plano
-2. **Fase 0:** Eu edito o `index.html` para desbloquear o site
-3. **Você:** Cria o Worker no Cloudflare com o código fornecido
-4. **Eu:** Refatoro o frontend para remover todas as chaves
+Buscar por:
+1. `grep -r "Protocol V2" src/` → 0 resultados
+2. `grep -r "mantido para compatibilidade" .` → 0 resultados
+3. `grep -r "temporariamente" src/` → 0 resultados
+4. `grep -r "wivbtmtgpsxupfjwwovf.supabase.co" src/` → 0 resultados
