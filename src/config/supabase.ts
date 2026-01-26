@@ -1,14 +1,30 @@
 /**
  * Supabase Configuration
  * 
- * Central config file for Supabase URL and keys.
+ * RISE Protocol V3 - Zero Secrets in Frontend (10.0/10)
  * 
- * RISE V4: Uses api.risecheckout.com proxy (Cloudflare Worker) to enable
- * cross-subdomain cookie sharing via Domain=.risecheckout.com.
+ * ARCHITECTURE:
+ * - O frontend NÃO possui acesso a nenhuma chave de API
+ * - O Cloudflare Worker (api.risecheckout.com) injeta o apikey automaticamente
+ * - Cookies httpOnly (__Secure-rise_access, __Secure-rise_refresh) com Domain=.risecheckout.com
+ * - Todas as chamadas passam pelo API Gateway que centraliza segurança
  * 
- * Note: anon key is public by design - security is enforced by RLS policies.
- * Secret keys (service_role) are stored in Supabase Secrets for edge functions.
+ * @see docs/API_GATEWAY_ARCHITECTURE.md
  */
 
-export const SUPABASE_URL = "https://api.risecheckout.com";
-export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpdmJ0bXRncHN4dXBmand3b3ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3Mjg2NzIsImV4cCI6MjA4MTA4ODY3Mn0.h8HDRdHaVTZpZLqBxj7bODaUPCox2h6HF_3U1xfbSXY";
+/**
+ * API Gateway URL - The SINGLE entry point for all backend calls
+ * 
+ * This is a Cloudflare Worker that:
+ * 1. Validates Origin (allowlist)
+ * 2. Injects apikey header (from Worker Secret)
+ * 3. Forwards cookies (credentials)
+ * 4. Proxies to Supabase Edge Functions
+ */
+export const API_GATEWAY_URL = "https://api.risecheckout.com";
+
+/**
+ * @deprecated Use API_GATEWAY_URL instead
+ * Mantido para compatibilidade durante migração
+ */
+export const SUPABASE_URL = API_GATEWAY_URL;

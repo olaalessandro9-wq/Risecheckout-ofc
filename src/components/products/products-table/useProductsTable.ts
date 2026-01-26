@@ -11,9 +11,8 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createLogger } from "@/lib/logger";
-
 const log = createLogger("useProductsTable");
-import { supabase } from "@/integrations/supabase/client";
+
 import { api } from "@/lib/api";
 import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { useBusy } from "@/components/BusyProvider";
@@ -87,7 +86,8 @@ export function useProductsTable() {
     mutationFn: async (productId: string) => {
       return await busy.run(
         async () => {
-          const { newProductId } = await duplicateProductDeep(supabase, productId);
+          // RISE V3: supabase client não é mais usado - Edge Function gerencia tudo
+          const { newProductId } = await duplicateProductDeep(null as never, productId);
           return newProductId;
         },
         "Duplicando produto..."
@@ -105,7 +105,8 @@ export function useProductsTable() {
 
   const deleteMutation = useMutation({
     mutationFn: async (productId: string) => {
-      await deleteProductCascade(supabase, productId);
+      // RISE V3: supabase client não é mais usado - Edge Function gerencia tudo
+      await deleteProductCascade(null as never, productId);
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: productQueryKeys.all });

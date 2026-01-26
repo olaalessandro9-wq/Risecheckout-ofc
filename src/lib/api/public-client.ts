@@ -1,10 +1,16 @@
 /**
  * Public API Client - Isolated from Auth System
  * 
- * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * RISE ARCHITECT PROTOCOL V3 - Zero Secrets in Frontend (10.0/10)
  * 
  * This client is completely isolated from the authentication system.
  * It has ZERO imports from TokenService, SessionCommander, or any auth module.
+ * 
+ * ARCHITECTURE:
+ * - Calls go to api.risecheckout.com (Cloudflare Worker)
+ * - Worker injects apikey header (from Secret)
+ * - Frontend sends NO secrets
+ * - No credentials: 'include' for maximum CORS compatibility
  * 
  * Use this for public-facing features that don't require authentication:
  * - Public checkout
@@ -15,7 +21,7 @@
  * @module lib/api/public-client
  */
 
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/config/supabase";
+import { API_GATEWAY_URL } from "@/config/supabase";
 import type { ApiResponse, ApiError } from "./types";
 import { parseHttpError, parseNetworkError } from "./errors";
 
@@ -62,6 +68,7 @@ export interface PublicApiCallOptions {
  * - Import SessionCommander
  * - Attempt any token refresh
  * - Display any auth-related toasts
+ * - Send any apikey (Worker injects)
  * 
  * @param functionName - Name of the Edge Function
  * @param body - Request body (will be JSON stringified)
@@ -82,15 +89,14 @@ async function call<T>(
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
   
-  // Build headers - minimal, no auth
+  // Build headers - NO apikey (Worker injects)
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "X-Correlation-Id": correlationId,
-    "apikey": SUPABASE_ANON_KEY,
     ...customHeaders,
   };
   
-  const url = `${SUPABASE_URL}/functions/v1/${functionName}`;
+  const url = `${API_GATEWAY_URL}/functions/v1/${functionName}`;
   
   try {
     const response = await fetch(url, {

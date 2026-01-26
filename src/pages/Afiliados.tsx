@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
+// RISE V3: Supabase client removido - todas operações via Edge Functions
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { getProducerAffiliatesRpc } from "@/lib/rpc/rpcProxy";
