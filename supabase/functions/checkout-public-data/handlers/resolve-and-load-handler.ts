@@ -15,6 +15,11 @@ import type { HandlerContext } from "../types.ts";
 
 const log = createLogger("checkout-public-data/resolve-and-load");
 
+/**
+ * SSOT: Minimal SELECT - only fields used by frontend.
+ * Individual color columns are DEPRECATED (nullified in DB).
+ * All color data comes from the `design` JSON field.
+ */
 const CHECKOUT_SELECT = `
   id,
   name,
@@ -23,11 +28,6 @@ const CHECKOUT_SELECT = `
   seller_name,
   product_id,
   font,
-  background_color,
-  text_color,
-  primary_color,
-  button_color,
-  button_text_color,
   components,
   top_components,
   bottom_components,
@@ -195,11 +195,6 @@ export async function handleResolveAndLoad(ctx: HandlerContext): Promise<Respons
         visits_count: checkout.visits_count,
         seller_name: checkout.seller_name,
         font: checkout.font,
-        background_color: checkout.background_color,
-        text_color: checkout.text_color,
-        primary_color: checkout.primary_color,
-        button_color: checkout.button_color,
-        button_text_color: checkout.button_text_color,
         components: checkout.components,
         top_components: checkout.top_components,
         bottom_components: checkout.bottom_components,
