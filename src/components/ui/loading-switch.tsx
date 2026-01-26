@@ -48,45 +48,37 @@ const LoadingSwitch = React.forwardRef<
 
     return (
       <div className="flex items-center gap-3">
-        <div className="relative">
-          <SwitchPrimitives.Root
-            className={cn(
-              "peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-all",
-              "data-[state=checked]:bg-primary data-[state=unchecked]:bg-input",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-              "disabled:cursor-not-allowed disabled:opacity-50",
-              isLoading && "cursor-wait opacity-70 animate-pulse",
-              className
-            )}
-            checked={checked}
-            disabled={disabled || isLoading}
-            {...props}
-            ref={ref}
-          >
-            <SwitchPrimitives.Thumb
-              className={cn(
-                "pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform",
-                "data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0"
-              )}
-            />
-          </SwitchPrimitives.Root>
-          
-          {/* Loading indicator positioned next to switch */}
-          {isLoading && (
-            <div className="absolute -right-7 top-1/2 -translate-y-1/2">
-              <Loader2 className="h-4 w-4 animate-spin text-primary" />
-            </div>
+        <SwitchPrimitives.Root
+          className={cn(
+            "peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-all",
+            "data-[state=checked]:bg-primary data-[state=unchecked]:bg-input",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+            "disabled:cursor-not-allowed disabled:opacity-50",
+            isLoading && "cursor-wait opacity-70 animate-pulse",
+            className
           )}
-        </div>
+          checked={checked}
+          disabled={disabled || isLoading}
+          {...props}
+          ref={ref}
+        >
+          <SwitchPrimitives.Thumb
+            className={cn(
+              "pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform",
+              "data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0"
+            )}
+          />
+        </SwitchPrimitives.Root>
 
         {showLabel && (
           <Label
             className={cn(
-              "text-sm min-w-[100px] transition-all cursor-pointer",
+              "text-sm min-w-[100px] transition-all cursor-pointer flex items-center gap-2",
               isLoading && "text-primary font-medium",
               (disabled || isLoading) && "cursor-not-allowed opacity-70"
             )}
           >
+            {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
             {displayLabel}
           </Label>
         )}
