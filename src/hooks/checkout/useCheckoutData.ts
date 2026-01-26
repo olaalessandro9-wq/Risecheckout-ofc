@@ -27,8 +27,8 @@ import {
   type OfferData,
 } from "./helpers";
 
-// API client for BFF
-import { api } from "@/lib/api";
+// Public API client for checkout (isolated from auth)
+import { publicApi } from "@/lib/api/public-client";
 
 // ============================================================================
 // INTERFACES
@@ -117,7 +117,7 @@ export function useCheckoutData(): UseCheckoutDataReturn {
 
       // BFF: Single call fetches everything (70-80% faster)
       const affiliateCode = getAffiliateCode();
-      const { data: response, error: apiError } = await api.publicCall<{
+      const { data: response, error: apiError } = await publicApi.call<{
         success: boolean;
         data: {
           checkout: CheckoutRawData;

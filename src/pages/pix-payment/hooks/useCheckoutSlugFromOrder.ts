@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { api } from "@/lib/api";
+import { publicApi } from "@/lib/api/public-client";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("useCheckoutSlugFromOrder");
@@ -31,7 +31,7 @@ export function useCheckoutSlugFromOrder(orderId: string | undefined) {
       try {
         log.debug("Fetching checkout slug for order", { orderId });
         
-        const { data, error } = await api.publicCall<CheckoutSlugResponse>(
+        const { data, error } = await publicApi.call<CheckoutSlugResponse>(
           "checkout-public-data",
           { action: "get-checkout-slug-by-order", orderId }
         );

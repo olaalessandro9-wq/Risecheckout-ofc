@@ -12,7 +12,7 @@ import { Loader2, Copy, CheckCircle2, Clock, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
-import { api } from "@/lib/api";
+import { publicApi } from "@/lib/api/public-client";
 import { SUPABASE_URL } from "@/config/supabase";
 import { createLogger } from "@/lib/logger";
 
@@ -58,7 +58,7 @@ export function StripePix({ orderId, amount, onPaymentConfirmed, onError }: Stri
 
     const interval = setInterval(async () => {
       try {
-        const { data, error } = await api.publicCall<OrderPaymentStatusResponse>('checkout-public-data', {
+        const { data, error } = await publicApi.call<OrderPaymentStatusResponse>('checkout-public-data', {
           action: 'check-order-payment-status',
           orderId,
         });

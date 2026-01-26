@@ -38,15 +38,48 @@ export class TokenService {
   private refreshPromise: Promise<boolean> | null = null;
   private readonly log;
   private lastVisibilityCheck: number = 0;
+  private initialized: boolean = false;
   
+  /**
+   * RISE V3: Lazy Initialization Constructor
+   * 
+   * The constructor no longer restores state or starts heartbeat.
+   * Call initialize() explicitly in authenticated contexts.
+   * This prevents auth-related side effects in public routes.
+   */
   constructor(type: TokenType) {
     this.type = type;
     this.log = createLogger(`TokenService:${type}`);
     this.heartbeat = new HeartbeatManager(() => this.checkTokenStatus());
+    // NO auto-initialization - call initialize() explicitly
+  }
+  
+  /**
+   * Initialize the TokenService.
+   * 
+   * RISE V3: Must be called explicitly in authenticated contexts.
+   * This is idempotent - safe to call multiple times.
+   * 
+   * Call this from useUnifiedAuth when the user is authenticated.
+   */
+  initialize(): void {
+    if (this.initialized) {
+      return; // Already initialized
+    }
+    
+    this.log.info("TokenService initializing (lazy)");
+    this.initialized = true;
     
     this.restoreState();
     this.heartbeat.start();
     this.setupVisibilityListener();
+  }
+  
+  /**
+   * Check if the service has been initialized.
+   */
+  isInitialized(): boolean {
+    return this.initialized;
   }
   
   // ========== VISIBILITY CHANGE HANDLER ==========

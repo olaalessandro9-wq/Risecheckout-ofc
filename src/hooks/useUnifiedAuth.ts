@@ -327,6 +327,26 @@ export function useUnifiedAuth() {
   }, [queryClient]);
   
   // ========================================================================
+  // TOKEN SERVICE INITIALIZATION (RISE V3 10.0/10)
+  // ========================================================================
+  
+  /**
+   * Initialize TokenService only when authenticated.
+   * 
+   * RISE V3: Lazy initialization prevents auth side effects in public routes.
+   * TokenService is only initialized when this hook runs in an authenticated context.
+   */
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Initialize TokenService when we have a valid session
+      if (!unifiedTokenService.isInitialized()) {
+        log.info("Initializing TokenService (lazy initialization)");
+        unifiedTokenService.initialize();
+      }
+    }
+  }, [isAuthenticated]);
+  
+  // ========================================================================
   // SESSION COMMANDER INTEGRATION (RISE V3 10.0/10)
   // ========================================================================
   

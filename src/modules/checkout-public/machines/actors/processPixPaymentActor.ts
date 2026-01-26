@@ -10,7 +10,7 @@
  */
 
 import { fromPromise } from "xstate";
-import { api } from "@/lib/api";
+import { publicApi } from "@/lib/api/public-client";
 import { createLogger } from "@/lib/logger";
 import type { PixNavigationData } from "@/types/checkout-payment.types";
 
@@ -49,7 +49,7 @@ async function processPushinPay(input: ProcessPixInput): Promise<ProcessPixOutpu
 
   // RISE V3 FIX: Generate QR code HERE, not on the payment page
   // This ensures consistent behavior across all gateways
-  const { data, error } = await api.publicCall<{
+  const { data, error } = await publicApi.call<{
     ok: boolean;
     pix?: {
       id?: string;
@@ -100,7 +100,7 @@ async function processPushinPay(input: ProcessPixInput): Promise<ProcessPixOutpu
 async function processMercadoPago(input: ProcessPixInput): Promise<ProcessPixOutput> {
   log.info("MercadoPago - creating PIX payment");
 
-  const { data, error } = await api.publicCall<{
+  const { data, error } = await publicApi.call<{
     success: boolean;
     error?: string;
     data?: {
@@ -149,7 +149,7 @@ async function processMercadoPago(input: ProcessPixInput): Promise<ProcessPixOut
 async function processAsaas(input: ProcessPixInput): Promise<ProcessPixOutput> {
   log.info("Asaas - creating PIX payment");
 
-  const { data, error } = await api.publicCall<{
+  const { data, error } = await publicApi.call<{
     success: boolean;
     error?: string;
     qrCode?: string;

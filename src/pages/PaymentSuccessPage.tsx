@@ -10,7 +10,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { CheckCircle2, Mail, MessageCircle, Copy, Check, Package, ShoppingBag, GraduationCap, ArrowRight, Loader2 } from "lucide-react";
-import { api } from "@/lib/api";
+import { publicApi } from "@/lib/api/public-client";
 import { Button } from "@/components/ui/button";
 import { createLogger } from "@/lib/logger";
 import { SuccessThemeProvider } from "@/components/theme-providers";
@@ -71,7 +71,7 @@ export const PaymentSuccessPage = () => {
 
       try {
         // Buscar pedido via Edge Function
-        const { data: result, error } = await api.publicCall<OrderDetailsResponse>('checkout-public-data', {
+        const { data: result, error } = await publicApi.call<OrderDetailsResponse>('checkout-public-data', {
           action: 'order-by-token',
           orderId,
           token,
@@ -118,7 +118,7 @@ export const PaymentSuccessPage = () => {
     
     try {
       // Chamar edge function para gerar token de acesso
-      const { data, error } = await api.publicCall<StudentsInviteResponse>('students-invite', {
+      const { data, error } = await publicApi.call<StudentsInviteResponse>('students-invite', {
         action: 'generate-purchase-access', // Action no body, não no path
         order_id: orderId,
         customer_email: orderDetails.customer_email,
