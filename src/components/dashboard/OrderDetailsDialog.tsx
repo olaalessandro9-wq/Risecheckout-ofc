@@ -8,7 +8,7 @@ import { useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { useDecryptCustomerData } from "@/hooks/useDecryptCustomerData";
-import { useAuth } from "@/hooks/useAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { isEncryptedValue } from "./recent-customers/utils/customerUtils";
 import type { CustomerDisplayStatus } from "@/modules/dashboard/types";
 import {
@@ -40,7 +40,7 @@ interface OrderDetailsDialogProps {
 }
 
 export function OrderDetailsDialog({ open, onOpenChange, orderData, productOwnerId }: OrderDetailsDialogProps) {
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   
   // Determinar se o usuário é o produtor do produto
   const isProductOwner = user?.id === productOwnerId;

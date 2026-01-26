@@ -13,7 +13,7 @@
 
 import { CreditCard, Info, RefreshCw } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { useAuth } from '@/hooks/useAuth';
+import { useUnifiedAuth } from '@/hooks/useUnifiedAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 import type { GatewayConfigFormProps, GatewayConnectionStatus } from '@/config/gateways/types';
 
@@ -59,7 +59,7 @@ function deriveStateFromConnectionStatus(
 // ============================================================================
 
 export function ConfigForm({ onConnectionChange, connectionStatus }: GatewayConfigFormProps) {
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   const { role } = usePermissions();
   const isAdmin = role === 'admin';
 

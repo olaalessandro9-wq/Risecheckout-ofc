@@ -8,7 +8,7 @@
 
 import { LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/hooks/useAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 
 // ============================================================================
 // TYPES
@@ -24,7 +24,7 @@ interface SidebarFooterProps {
 // ============================================================================
 
 export function SidebarFooter({ isCollapsed }: SidebarFooterProps) {
-  const { user, signOut } = useAuth();
+  const { user, logout } = useUnifiedAuth();
   const email = user?.email;
 
   return (
@@ -42,7 +42,7 @@ export function SidebarFooter({ isCollapsed }: SidebarFooterProps) {
       {/* Botão Sair */}
       <button
         type="button"
-        onClick={signOut}
+        onClick={logout}
         className={cn(
           "flex w-full items-center rounded-md bg-destructive/90 text-sm font-medium text-destructive-foreground hover:bg-destructive transition",
           isCollapsed ? "justify-center px-3 py-2.5" : "justify-center gap-2 px-3 py-2"

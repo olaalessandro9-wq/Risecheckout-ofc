@@ -12,7 +12,7 @@ import { useState, useMemo } from "react";
 import { Table, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
-import { useAuth } from "@/hooks/useAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { useDecryptCustomerBatch } from "@/hooks/useDecryptCustomerBatch";
 import { OrderDetailsDialog } from "../OrderDetailsDialog";
 import { CustomerTableHeader } from "./CustomerTableHeader";
@@ -31,7 +31,7 @@ interface RecentCustomersTableProps {
 }
 
 export function RecentCustomersTable({ customers, isLoading = false, onRefresh }: RecentCustomersTableProps) {
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   const isUltrawide = useIsUltrawide();
   const [selectedOrder, setSelectedOrder] = useState<Customer | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);

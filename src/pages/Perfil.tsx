@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createLogger } from "@/lib/logger";
 
@@ -65,7 +65,7 @@ function getInitials(name: string | null | undefined): string {
 }
 
 export default function Perfil() {
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   const queryClient = useQueryClient();
   
   const [nome, setNome] = useState("");

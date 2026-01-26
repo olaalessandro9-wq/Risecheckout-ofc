@@ -24,6 +24,3 @@ export { ContentItem as ContentItemComponent } from "./ContentItem";
 
 // Utilities
 export { AttachmentsList } from "./AttachmentsList";
-
-// Legacy export for compatibility
-export { LessonSidebar } from "./LessonSidebar";

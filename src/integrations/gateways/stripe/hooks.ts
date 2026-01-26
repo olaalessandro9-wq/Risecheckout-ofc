@@ -10,7 +10,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { useAuth } from "@/hooks/useAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { createLogger } from "@/lib/logger";
 import {
   getStripeConnectionStatus,
@@ -37,7 +37,7 @@ interface UseStripeConfigReturn {
  * Hook para buscar e gerenciar a configuração do Stripe
  */
 export function useStripeConfig(): UseStripeConfigReturn {
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   const [config, setConfig] = useState<StripeConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -88,7 +88,7 @@ interface UseStripeConnectionStatusReturn {
  * Hook para verificar o status de conexão do Stripe
  */
 export function useStripeConnectionStatus(): UseStripeConnectionStatusReturn {
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   const [status, setStatus] = useState<StripeConnectionStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 

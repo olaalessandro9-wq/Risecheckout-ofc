@@ -7,7 +7,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { DEFAULT_PIX_GATEWAYS, DEFAULT_CARD_GATEWAYS, GATEWAY_INFO } from "./gateway-constants";
@@ -34,7 +34,7 @@ interface UseGatewayConnectionsOptions {
 }
 
 export function useGatewayConnections({ affiliation, onRefetch }: UseGatewayConnectionsOptions) {
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [userConnections, setUserConnections] = useState<Record<string, boolean>>({});

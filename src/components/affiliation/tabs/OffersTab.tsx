@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { AffiliationDetails } from "@/hooks/useAffiliationDetails";
-import { useAuth } from "@/hooks/useAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { api } from "@/lib/api";
 
 import { createLogger } from "@/lib/logger";
@@ -33,7 +33,7 @@ const formatCurrency = (value: number) => {
 
 export function OffersTab({ affiliation }: OffersTabProps) {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   const { offers, checkouts, affiliate_code, commission_rate, status } = affiliation;
   const isCancelled = status === "cancelled";
   const isActive = status === "active";

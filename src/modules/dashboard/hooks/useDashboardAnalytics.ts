@@ -9,7 +9,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/useAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { api } from "@/lib/api";
 import type { DashboardData, DateRange, DateRangePreset, RpcDashboardMetrics, Order } from "../types";
 import {
@@ -37,7 +37,7 @@ interface DashboardFullResponse {
  * Usa BFF pattern: 1 HTTP call em vez de 4
  */
 export function useDashboardAnalytics(dateRange: DateRange, preset: DateRangePreset) {
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   const { startDate, endDate } = dateRange;
 
   return useQuery({
