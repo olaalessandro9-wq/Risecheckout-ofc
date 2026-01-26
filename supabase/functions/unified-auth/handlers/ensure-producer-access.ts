@@ -40,7 +40,7 @@ export async function handleEnsureProducerAccess(
       .eq("email", normalizedEmail)
       .single();
     
-    // If not in users table, check legacy buyer_profiles
+    // If not in users table, check fallback buyer_profiles
     let { data: buyer } = await supabase
       .from("buyer_profiles")
       .select("id")

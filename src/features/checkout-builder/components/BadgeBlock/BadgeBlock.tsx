@@ -6,7 +6,7 @@
  * 
  * Princípio aplicado: Separação de Responsabilidades (Vibe Coding)
  * 
- * Nota: Este componente era chamado de "seal" no código antigo.
+ * Nota: Este componente era chamado de "seal" na versão anterior.
  */
 
 export interface BadgeBlockProps {

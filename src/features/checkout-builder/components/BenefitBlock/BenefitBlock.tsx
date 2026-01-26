@@ -6,7 +6,7 @@
  * 
  * Princípio aplicado: Separação de Responsabilidades (Vibe Coding)
  * 
- * Nota: Este componente era chamado de "advantage" no código antigo.
+ * Nota: Este componente era chamado de "advantage" na versão anterior.
  */
 
 import { CheckIconCakto } from "@/components/icons/CheckIconCakto";
