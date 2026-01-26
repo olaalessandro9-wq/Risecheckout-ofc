@@ -163,5 +163,5 @@ export function useProductSettings({
   };
 }
 
-// Alias for backward compatibility
+// Public API alias
 export { useProductSettings as useProductSettingsAdapter };

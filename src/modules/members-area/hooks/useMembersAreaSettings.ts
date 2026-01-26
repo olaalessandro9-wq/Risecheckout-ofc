@@ -189,7 +189,7 @@ export function useMembersAreaSettings(productId: string | undefined): UseMember
     ]);
   }, [productId, queryClient]);
 
-  // Adapter: map send to dispatch for backwards compatibility
+  // Adapter: map send to dispatch for consistent public API
   const dispatch = useCallback((event: MembersAreaMachineEvent) => {
     send(event);
   }, [send]);

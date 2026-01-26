@@ -220,7 +220,7 @@ export async function handleResolveAndLoad(ctx: HandlerContext): Promise<Respons
 
 /**
  * Legacy "all" action handler - deprecated, use resolve-and-load instead.
- * Kept for backwards compatibility.
+ * Kept for API stability.
  */
 export async function handleAll(ctx: HandlerContext): Promise<Response> {
   const { supabase, body, jsonResponse } = ctx;

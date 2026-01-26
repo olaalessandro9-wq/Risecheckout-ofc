@@ -3,7 +3,7 @@
  * 
  * RISE ARCHITECT PROTOCOL V3 - 100% Migrated
  * 
- * This module wraps unified-auth-v2 for backwards compatibility.
+ * This module wraps unified-auth-v2 as a stable API layer.
  * All authentication now uses the unified `sessions` table exclusively.
  * 
  * LEGACY REMOVED (2026-01-23):
@@ -95,7 +95,7 @@ export async function requireAuthenticatedProducer(
 }
 
 /**
- * Maps UnifiedUser to ProducerAuth for backwards compatibility.
+ * Maps UnifiedUser to ProducerAuth for stable API layer.
  */
 function mapUnifiedUserToProducerAuth(user: UnifiedUser): ProducerAuth {
   return {

@@ -61,10 +61,10 @@ export { jsonResponse, errorResponse } from "./edge-helpers.ts";
 // ============================================
 // NOTE: Authentication is now handled at the edge function level
 // using unified-auth.ts. Handlers receive producerId directly.
-// This export is kept for backwards compatibility but does nothing.
+// This export is kept for API consistency but does nothing.
 
 // ============================================
-// OWNERSHIP VERIFICATION (wrapper for backwards compatibility)
+// OWNERSHIP VERIFICATION (public API wrapper)
 // ============================================
 
 export async function verifyProductOwnership(
