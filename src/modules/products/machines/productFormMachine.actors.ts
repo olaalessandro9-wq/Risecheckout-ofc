@@ -54,7 +54,8 @@ interface ProductFullResponse {
       id: string;
       custom_title: string | null;
       custom_description: string | null;
-      discount_price: number | null;
+      /** MARKETING price - for strikethrough display only, never used for billing */
+      original_price: number | null;
       product_id: string;
       products?: {
         id: string;
@@ -153,11 +154,14 @@ function mapBffToMachine(data: ProductFullResponse["data"]): MappedProductData {
   }));
   
   // Map order bumps
+  // CRITICAL: Price is ALWAYS from product, never from original_price
+  // original_price is MARKETING ONLY (strikethrough display)
   const orderBumps = data.orderBumps.map(ob => ({
     id: ob.id,
     name: ob.custom_title ?? ob.products?.name ?? "Order Bump",
     description: ob.custom_description,
-    price: ob.discount_price ?? ob.products?.price ?? 0,
+    // REAL PRICE: Always from product (original_price is marketing only)
+    price: ob.products?.price ?? 0,
     image_url: ob.products?.image_url ?? null,
     bump_product_id: ob.product_id,
     created_at: ob.created_at,

@@ -3,7 +3,13 @@
  * 
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
- * Handles order bumps fetching and formatting.
+ * Handles order bumps fetching and formatting for PUBLIC checkout.
+ * 
+ * CRITICAL PRICE SEMANTICS:
+ * - `price`: The REAL price to be charged (from offer or product)
+ * - `original_price`: MARKETING price for strikethrough display only
+ * - When discount_enabled=true, display "~~original_price~~ price"
+ * - original_price is NEVER used for billing calculations
  * 
  * @module checkout-public-data/handlers/order-bumps
  */
@@ -33,25 +39,38 @@ interface RawBump {
   custom_title: string | null;
   custom_description: string | null;
   discount_enabled: boolean;
-  discount_price: number | null;
+  original_price: number | null;
   show_image: boolean;
   call_to_action: string | null;
   products: BumpProduct | null;
   offers: BumpOffer | null;
 }
 
+/**
+ * Formats raw order bump data for frontend consumption.
+ * 
+ * PRICE LOGIC (CORRECT):
+ * - `price` = Real price from offer (priority) or product (fallback)
+ * - `original_price` = Marketing price for strikethrough (only if discount_enabled)
+ * 
+ * The customer ALWAYS pays the `price`, never the `original_price`.
+ */
 export function formatOrderBumps(rawBumps: RawBump[]): OrderBumpFormatted[] {
   return rawBumps.map((bump) => {
     const product = bump.products;
     const offer = bump.offers;
     
-    const priceInCents = offer?.price ? Number(offer.price) : (product?.price || 0);
-    let price = priceInCents;
-    let originalPrice: number | null = null;
+    // REAL PRICE: Priority 1 = Offer, Priority 2 = Product
+    // This is the price that will be CHARGED to the customer
+    const realPriceInCents = offer?.price 
+      ? Number(offer.price) 
+      : (product?.price || 0);
     
-    if (bump.discount_enabled && bump.discount_price) {
-      originalPrice = price;
-      price = Number(bump.discount_price);
+    // MARKETING PRICE: Only for visual strikethrough
+    // This is NEVER used for billing - purely cosmetic
+    let marketingPrice: number | null = null;
+    if (bump.discount_enabled && bump.original_price) {
+      marketingPrice = Number(bump.original_price);
     }
 
     return {
@@ -59,8 +78,8 @@ export function formatOrderBumps(rawBumps: RawBump[]): OrderBumpFormatted[] {
       product_id: bump.product_id,
       name: bump.custom_title || product?.name || "Oferta Especial",
       description: bump.custom_description || product?.description || "",
-      price,
-      original_price: originalPrice,
+      price: realPriceInCents, // REAL price - what customer pays
+      original_price: marketingPrice, // MARKETING price - strikethrough only
       image_url: bump.show_image ? product?.image_url || null : null,
       call_to_action: bump.call_to_action,
       product: product as Record<string, unknown> | null,
@@ -85,7 +104,7 @@ export async function handleOrderBumps(ctx: HandlerContext): Promise<Response> {
       custom_title,
       custom_description,
       discount_enabled,
-      discount_price,
+      original_price,
       show_image,
       call_to_action,
       products(id, name, description, price, image_url),

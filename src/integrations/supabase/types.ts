@@ -2115,9 +2115,9 @@ export type Database = {
           custom_description: string | null
           custom_title: string | null
           discount_enabled: boolean | null
-          discount_price: number | null
           id: string
           offer_id: string | null
+          original_price: number | null
           position: number
           product_id: string
           show_image: boolean | null
@@ -2131,9 +2131,9 @@ export type Database = {
           custom_description?: string | null
           custom_title?: string | null
           discount_enabled?: boolean | null
-          discount_price?: number | null
           id?: string
           offer_id?: string | null
+          original_price?: number | null
           position?: number
           product_id: string
           show_image?: boolean | null
@@ -2147,9 +2147,9 @@ export type Database = {
           custom_description?: string | null
           custom_title?: string | null
           discount_enabled?: boolean | null
-          discount_price?: number | null
           id?: string
           offer_id?: string | null
+          original_price?: number | null
           position?: number
           product_id?: string
           show_image?: boolean | null

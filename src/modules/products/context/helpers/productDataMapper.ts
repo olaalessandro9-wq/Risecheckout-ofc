@@ -105,7 +105,11 @@ export function mapOfferRecords(records: OfferRecord[]): Offer[] {
 
 // ============================================================================
 // ORDER BUMPS MAPPER
-// Mapeia colunas REAIS do banco: custom_title, custom_description, discount_price
+// 
+// CRITICAL PRICE SEMANTICS:
+// - `price`: The REAL price to be charged (ALWAYS from product relation)
+// - `original_price`: MARKETING price for strikethrough display only
+// - The customer ALWAYS pays the product price, never original_price
 // ============================================================================
 
 export function mapOrderBumpRecords(records: OrderBumpRecord[]): OrderBump[] {
@@ -118,10 +122,9 @@ export function mapOrderBumpRecords(records: OrderBumpRecord[]): OrderBump[] {
       // Nome: custom_title > nome do produto > fallback
       name: record.custom_title ?? product?.name ?? "",
       description: record.custom_description,
-      // Preço: discount_price (se ativo) > preço do produto > 0
-      price: record.discount_enabled && record.discount_price != null 
-        ? record.discount_price 
-        : product?.price ?? 0,
+      // REAL PRICE: ALWAYS from product (never from original_price)
+      // original_price is MARKETING ONLY - for strikethrough display
+      price: product?.price ?? 0,
       image_url: record.show_image ? product?.image_url ?? null : null,
       bump_product_id: record.product_id,
       created_at: record.created_at,

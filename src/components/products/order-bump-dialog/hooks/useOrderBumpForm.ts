@@ -60,10 +60,13 @@ export function useOrderBumpForm({
     if (!open) return;
 
     if (editOrderBump) {
+      // Support both field names - original_price is the new name, discount_price is deprecated
+      const marketingPrice = editOrderBump.original_price ?? editOrderBump.discount_price;
       setFormData({
-        discountEnabled: !!editOrderBump.discount_price,
-        discountPrice: editOrderBump.discount_price
-          ? (editOrderBump.discount_price / 100).toFixed(2).replace(".", ",")
+        discountEnabled: !!marketingPrice,
+        // original_price is MARKETING ONLY - for strikethrough display
+        discountPrice: marketingPrice
+          ? (marketingPrice / 100).toFixed(2).replace(".", ",")
           : "0,00",
         callToAction: editOrderBump.call_to_action || DEFAULT_FORM_VALUES.callToAction,
         showImage: editOrderBump.show_image !== false,
@@ -205,13 +208,16 @@ export function useOrderBumpForm({
       }
 
       // Payload normalizado para snake_case (padrão da Edge Function)
+      // NOTE: original_price is MARKETING ONLY - for strikethrough display
+      // The REAL price charged comes from the selected offer
       const orderBumpData = {
         checkout_id: checkouts[0].id,
         product_id: selectedProductId,
         offer_id: selectedOfferId,
         active: true,
         discount_enabled: !!formData.discountEnabled,
-        discount_price: formData.discountEnabled ? parseBRLInput(formData.discountPrice) : null,
+        // original_price is the MARKETING price (strikethrough) - never used for billing
+        original_price: formData.discountEnabled ? parseBRLInput(formData.discountPrice) : null,
         call_to_action: formData.callToAction?.trim() || null,
         custom_title: formData.customTitle?.trim() || null,
         custom_description: formData.customDescription?.trim() || null,
