@@ -1,194 +1,308 @@
 
-# Plano de Implementação: Edge Function `email-preview`
+# Plano: Adicionar Aba de Preview de Emails no Painel Admin
 
-## Análise do Relatório da Manus
+## Resumo
 
-A proposta da Manus está **100% alinhada** com o RISE ARCHITECT PROTOCOL V3 e com a arquitetura existente do projeto. Concordo com a escolha da **Solução A (Nota 10.0/10)**.
-
----
-
-## Inventário dos 8 Tipos de Email
-
-Após análise do código, confirmei a existência de 8 tipos de email:
-
-| # | Template Type | Arquivo/Localização | Modularizado? |
-|---|--------------|---------------------|---------------|
-| 1 | `purchase-standard` | `email-templates-purchase.ts` | Sim |
-| 2 | `purchase-members-area` | `email-templates-members-area.ts` | Sim |
-| 3 | `purchase-external` | `email-templates-external.ts` | Sim |
-| 4 | `new-sale` | `email-templates-seller.ts` | Sim |
-| 5 | `pix-pending` | `email-templates-payment.ts` | Sim |
-| 6 | `password-reset` | `unified-auth/handlers/password-reset-request.ts` | **Inline** |
-| 7 | `student-invite` | `students-invite/index.ts` (inline na action invite) | **Inline** |
-| 8 | `gdpr-request` | `gdpr-request/index.ts` (inline) | **Inline** |
+Adicionar uma nova aba "Emails" no Painel de Administração que permite ao Owner visualizar e testar todos os 8 templates de email do sistema. A aba será visível apenas para usuários com role `owner`.
 
 ---
 
-## Arquitetura Proposta
+## Análise de Soluções (RISE V3)
 
-```text
-supabase/functions/
-├── email-preview/
-│   └── index.ts          # Router + lógica principal (< 300 linhas)
-├── _shared/
-│   ├── email-templates.ts          # Barrel exports (já existe)
-│   ├── email-templates-purchase.ts # Compra standard (já existe)
-│   ├── email-templates-members-area.ts # Área de membros (já existe)
-│   ├── email-templates-external.ts # Entrega externa (já existe)
-│   ├── email-templates-seller.ts   # Nova venda (já existe)
-│   ├── email-templates-payment.ts  # PIX pendente (já existe)
-│   └── email-mock-data.ts          # NOVO: Dados fictícios centralizados
-```
+### Solução A: Componente Inline no AdminDashboard
+- Adicionar toda a lógica diretamente no `AdminDashboard.tsx`
+- **Manutenibilidade**: 6/10 - Aumenta complexidade do arquivo principal
+- **Zero DT**: 6/10 - Código misturado
+- **Arquitetura**: 5/10 - Viola Single Responsibility
+- **Escalabilidade**: 5/10 - Difícil manter
+- **Segurança**: 10/10 - Mesma verificação de role
+- **NOTA FINAL: 6.4/10**
 
----
+### Solução B: Componente Modular Separado + Integration
+- Criar `AdminEmailPreviewTab.tsx` seguindo padrão das outras tabs
+- Integrar no `AdminDashboard.tsx` com verificação `role === "owner"`
+- Adicionar tipo `"emails"` ao `AdminTabId`
+- **Manutenibilidade**: 10/10 - Componente isolado e testável
+- **Zero DT**: 10/10 - Segue padrão existente das outras tabs
+- **Arquitetura**: 10/10 - Modular, Clean Architecture
+- **Escalabilidade**: 10/10 - Fácil adicionar novos templates
+- **Segurança**: 10/10 - Verificação de role owner
+- **NOTA FINAL: 10.0/10**
 
-## Especificação Técnica
-
-### 1. Edge Function: `email-preview/index.ts`
-
-**Endpoint:** `POST /functions/v1/email-preview`
-
-**Autenticação:** `requireAuthenticatedProducer` (apenas produtores autenticados)
-
-**Request Body:**
-```json
-{
-  "templateType": "purchase-standard" | "purchase-members-area" | "purchase-external" | "new-sale" | "pix-pending" | "password-reset" | "student-invite" | "gdpr-request",
-  "recipientEmail": "opcional@email.com"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "templateType": "purchase-standard",
-  "sentTo": "produtor@email.com",
-  "messageId": "<id-do-zeptomail>"
-}
-```
-
-### 2. Módulo: `email-mock-data.ts`
-
-Dados fictícios realistas para popular os templates:
-
-```typescript
-export function getMockPurchaseData(): PurchaseConfirmationData {
-  return {
-    customerName: "João Silva (PREVIEW)",
-    productName: "Curso de Marketing Digital",
-    amountCents: 19700, // R$ 197,00
-    orderId: "prev-" + crypto.randomUUID().substring(0, 8),
-    paymentMethod: "Cartão de Crédito",
-    sellerName: "Rise Academy",
-    supportEmail: "suporte@riseacademy.com",
-    deliveryUrl: "https://risecheckout.com/minha-conta/produtos/preview",
-  };
-}
-
-export function getMockNewSaleData(): NewSaleData { ... }
-export function getMockPaymentPendingData(): PaymentPendingData { ... }
-export function getMockPasswordResetData(): { name: string; resetLink: string } { ... }
-export function getMockStudentInviteData(): { ... } { ... }
-export function getMockGdprData(): { ... } { ... }
-```
-
-### 3. Lógica de Processamento
-
-```typescript
-async function processEmailPreview(
-  templateType: TemplateType,
-  recipientEmail: string
-): Promise<Response> {
-  let subject: string;
-  let htmlBody: string;
-  let textBody: string;
-
-  switch (templateType) {
-    case "purchase-standard":
-      const data = getMockPurchaseData();
-      subject = "[PREVIEW] Compra Confirmada";
-      htmlBody = getPurchaseConfirmationTemplate(data);
-      textBody = getPurchaseConfirmationTextTemplate(data);
-      break;
-    
-    case "purchase-members-area":
-      // ...
-    
-    // ... demais casos
-  }
-
-  const result = await sendEmail({
-    to: { email: recipientEmail },
-    subject,
-    htmlBody,
-    textBody,
-    type: "transactional",
-    clientReference: `preview_${templateType}_${Date.now()}`,
-  });
-
-  return jsonResponse({ success: result.success, ... });
-}
-```
+### DECISÃO: Solução B (Nota 10.0/10)
 
 ---
 
 ## Arquivos a Criar/Modificar
 
-| Arquivo | Ação | Linhas Estimadas |
-|---------|------|------------------|
-| `supabase/functions/email-preview/index.ts` | CRIAR | ~180 |
-| `supabase/functions/_shared/email-mock-data.ts` | CRIAR | ~120 |
+| Arquivo | Ação | Linhas |
+|---------|------|--------|
+| `src/components/admin/AdminEmailPreviewTab.tsx` | CRIAR | ~180 |
+| `src/pages/admin/AdminDashboard.tsx` | MODIFICAR | +15 |
+| `src/modules/admin/types/admin.types.ts` | MODIFICAR | +1 |
+
+---
+
+## Especificação Técnica
+
+### 1. AdminEmailPreviewTab.tsx
+
+**Funcionalidades:**
+- Select para escolher o tipo de email (8 opções)
+- Botão para enviar email de preview
+- Indicador de loading durante envio
+- Toast de sucesso/erro após envio
+- Descrição de cada template
+
+**Templates disponíveis:**
+| ID | Label | Descrição |
+|----|-------|-----------|
+| `purchase-standard` | Compra Confirmada | Email padrão de confirmação |
+| `purchase-members-area` | Acesso Liberado | Para produtos com área de membros |
+| `purchase-external` | Entrega Externa | Para produtos sem área de membros |
+| `new-sale` | Nova Venda | Notificação para o produtor |
+| `pix-pending` | Pagamento Pendente | Aguardando PIX |
+| `password-reset` | Redefinir Senha | Link de reset de senha |
+| `student-invite` | Convite de Aluno | Acesso liberado manualmente |
+| `gdpr-request` | Solicitação LGPD | Confirmação de exclusão |
+
+**Interface:**
+```typescript
+// Card com:
+// - Header: "📧 Preview de Emails" + descrição
+// - Select: Dropdown com os 8 templates
+// - Descrição dinâmica do template selecionado
+// - Botão: "Enviar Email de Teste" (disabled enquanto loading)
+// - Info: "Email será enviado para: {email do owner}"
+```
+
+### 2. AdminDashboard.tsx (Modificações)
+
+```typescript
+// Adicionar import
+import { AdminEmailPreviewTab } from "@/components/admin/AdminEmailPreviewTab";
+import { Mail } from "lucide-react";
+
+// Na TabsList, após security, adicionar:
+{role === "owner" && (
+  <TabsTrigger value="emails" className="gap-2">
+    <Mail className="h-4 w-4" />
+    Emails
+  </TabsTrigger>
+)}
+
+// No conteúdo das tabs, adicionar:
+{role === "owner" && (
+  <TabsContent value="emails">
+    <AdminEmailPreviewTab />
+  </TabsContent>
+)}
+```
+
+### 3. admin.types.ts (Modificação)
+
+```typescript
+export type AdminTabId = 
+  | "finance" 
+  | "traffic" 
+  | "overview" 
+  | "users" 
+  | "products" 
+  | "orders" 
+  | "system" 
+  | "security" 
+  | "logs"
+  | "emails";  // ADICIONAR
+```
+
+---
+
+## Layout Visual do Componente
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  📧 Preview de Emails                                           │
+│  Teste os templates de email do sistema                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Template                                                       │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │ Selecione um template...                                  ▼ ││
+│  └─────────────────────────────────────────────────────────────┘│
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │ ℹ️ Descrição do template selecionado aparece aqui          ││
+│  └─────────────────────────────────────────────────────────────┘│
+│                                                                 │
+│  📨 O email será enviado para: owner@example.com                │
+│                                                                 │
+│  ┌────────────────────────────────────┐                         │
+│  │ 📤 Enviar Email de Teste           │                         │
+│  └────────────────────────────────────┘                         │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Fluxo de Execução
+
+```text
+1. Owner acessa Painel Admin
+2. Clica na aba "Emails"
+3. Seleciona template no dropdown
+4. Vê descrição do template
+5. Clica "Enviar Email de Teste"
+6. Sistema chama /functions/v1/email-preview
+7. Email enviado para o email do owner
+8. Toast de sucesso/erro
+```
 
 ---
 
 ## Segurança
 
-1. **Autenticação Obrigatória:** Apenas produtores autenticados (via `requireAuthenticatedProducer`)
-2. **Rate Limiting:** Aplicar `RATE_LIMIT_CONFIGS.SEND_EMAIL` para evitar abusos
-3. **Assunto Prefixado:** Todos os emails de preview terão `[PREVIEW]` no assunto
-4. **Email Padrão:** Se não especificar destinatário, usa o email do produtor logado
-5. **Sem Efeitos Colaterais:** Nenhum registro é criado no banco de dados
+| Medida | Implementação |
+|--------|---------------|
+| Acesso restrito | `role === "owner"` para exibir tab |
+| Backend validation | Edge Function valida auth via `requireAuthenticatedProducer` |
+| Rate limiting | `RATE_LIMIT_CONFIGS.SEND_EMAIL` já aplicado |
+| Prefix [PREVIEW] | Todos os emails já têm prefixo no assunto |
 
 ---
 
-## Uso pelo Arquiteto
+## Código Detalhado
 
-Após implementação, você poderá disparar qualquer email via:
+### AdminEmailPreviewTab.tsx
 
-1. **Chamada direta à API** (via curl, Postman, ou frontend):
-```bash
-curl -X POST https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/email-preview \
-  -H "Content-Type: application/json" \
-  -H "Cookie: session_token=SEU_TOKEN" \
-  -d '{"templateType": "purchase-standard"}'
+```typescript
+/**
+ * AdminEmailPreviewTab - Preview de Templates de Email
+ * 
+ * RISE Protocol V3 - Exclusivo para Owner
+ */
+
+import { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Mail, Send, Loader2, Info } from "lucide-react";
+import { toast } from "sonner";
+import { api } from "@/lib/api";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
+
+type TemplateType = 
+  | "purchase-standard"
+  | "purchase-members-area"
+  | "purchase-external"
+  | "new-sale"
+  | "pix-pending"
+  | "password-reset"
+  | "student-invite"
+  | "gdpr-request";
+
+const TEMPLATES: { value: TemplateType; label: string; description: string }[] = [
+  { value: "purchase-standard", label: "Compra Confirmada", description: "Email padrão enviado ao cliente após pagamento aprovado." },
+  { value: "purchase-members-area", label: "Acesso Liberado (Área de Membros)", description: "Email com link de acesso à área de membros do produto." },
+  { value: "purchase-external", label: "Entrega Externa", description: "Email para produtos com entrega externa (sem área de membros)." },
+  { value: "new-sale", label: "Nova Venda (Produtor)", description: "Notificação enviada ao produtor quando realiza uma venda." },
+  { value: "pix-pending", label: "Pagamento Pendente (PIX)", description: "Email com QR Code PIX aguardando pagamento." },
+  { value: "password-reset", label: "Redefinir Senha", description: "Link para redefinição de senha do usuário." },
+  { value: "student-invite", label: "Convite de Aluno", description: "Convite para aluno acessar produto liberado manualmente." },
+  { value: "gdpr-request", label: "Solicitação LGPD", description: "Confirmação de solicitação de exclusão de dados (LGPD)." },
+];
+
+export function AdminEmailPreviewTab() {
+  const { user } = useUnifiedAuth();
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateType | "">("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const currentTemplate = TEMPLATES.find(t => t.value === selectedTemplate);
+
+  const handleSendPreview = async () => {
+    if (!selectedTemplate) {
+      toast.error("Selecione um template primeiro");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { data, error } = await api.call("email-preview", {
+        templateType: selectedTemplate,
+      });
+
+      if (error) throw new Error(error);
+
+      toast.success(`Email "${currentTemplate?.label}" enviado com sucesso!`, {
+        description: `Enviado para: ${data?.sentTo || user?.email}`,
+      });
+    } catch (err) {
+      toast.error("Erro ao enviar email de preview", {
+        description: err instanceof Error ? err.message : "Erro desconhecido",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Mail className="h-5 w-5" />
+          Preview de Emails
+        </CardTitle>
+        <CardDescription>
+          Teste os templates de email do sistema. Os emails serão enviados para seu endereço cadastrado.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Template</label>
+          <Select value={selectedTemplate} onValueChange={(v) => setSelectedTemplate(v as TemplateType)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione um template..." />
+            </SelectTrigger>
+            <SelectContent>
+              {TEMPLATES.map((template) => (
+                <SelectItem key={template.value} value={template.value}>
+                  {template.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {currentTemplate && (
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription>{currentTemplate.description}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Mail className="h-4 w-4" />
+          O email será enviado para: <strong>{user?.email || "..."}</strong>
+        </div>
+
+        <Button 
+          onClick={handleSendPreview} 
+          disabled={!selectedTemplate || isLoading}
+          className="w-full sm:w-auto"
+        >
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Send className="h-4 w-4 mr-2" />
+          )}
+          Enviar Email de Teste
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
 ```
-
-2. **(Opcional) Script helper** para facilitar o uso:
-```bash
-deno run --allow-net scripts/send-email-preview.ts purchase-standard
-```
-
----
-
-## Benefícios
-
-| Benefício | Descrição |
-|-----------|-----------|
-| **Iteração Rápida** | Visualize alterações de template em segundos |
-| **Zero Poluição** | Nenhum dado falso criado no banco |
-| **Isolamento** | Teste um template específico sem dependências |
-| **Seguro** | Apenas produtores autenticados podem usar |
-| **Expansível** | Fácil adicionar novos templates no futuro |
-
----
-
-## Cronograma de Implementação
-
-1. **Fase 1 (30 min):** Criar `email-mock-data.ts` com dados fictícios
-2. **Fase 2 (60 min):** Criar `email-preview/index.ts` com router e lógica
-3. **Fase 3 (15 min):** Deploy e teste inicial
-4. **Fase 4 (Paralelo - Manus):** Você pode começar a ajustar templates enquanto trabalho em outras tarefas
 
 ---
 
@@ -196,19 +310,25 @@ deno run --allow-net scripts/send-email-preview.ts purchase-standard
 
 | Critério | Nota | Justificativa |
 |----------|------|---------------|
-| Manutenibilidade | 10/10 | Helper centralizado, templates modulares |
-| Zero DT | 10/10 | Nenhum código duplicado ou inline desnecessário |
-| Arquitetura | 10/10 | Segue padrão Router + Helpers do projeto |
-| Escalabilidade | 10/10 | Novos templates = novo case no switch |
-| Segurança | 10/10 | Auth obrigatória, rate limiting, prefix [PREVIEW] |
-| **NOTA FINAL** | **10.0/10** | Alinhado 100% com RISE Protocol V3 |
+| Manutenibilidade | 10/10 | Componente isolado, segue padrão existente |
+| Zero DT | 10/10 | Nenhum workaround ou código duplicado |
+| Arquitetura | 10/10 | Modular, Clean Architecture |
+| Escalabilidade | 10/10 | Fácil adicionar novos templates |
+| Segurança | 10/10 | Verificação owner + backend auth |
+| **NOTA FINAL** | **10.0/10** | Alinhado com RISE Protocol V3 |
 
 ---
 
-## Próximos Passos Após Aprovação
+## Resultado Esperado
 
-1. Implementar a Edge Function `email-preview`
-2. Criar o módulo de mock data
-3. Deploy automático
-4. Você poderá testar imediatamente via chamada à API
-5. A Manus poderá começar a trabalhar nos templates em paralelo
+Após implementação:
+1. Owner verá nova aba "Emails" no painel admin
+2. Poderá selecionar qualquer um dos 8 templates
+3. Clicar em "Enviar Email de Teste" 
+4. Receber o email de preview em sua caixa
+5. Manus poderá usar essa interface para ajustar templates em paralelo
+
+---
+
+## Tempo Estimado
+**30 minutos**
