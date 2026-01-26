@@ -67,11 +67,11 @@ export function hasLegacyCookies(req: Request): boolean {
 }
 
 // ============================================
-// STANDARD EXPORTS (No aliases)
+// STANDARD EXPORTS
 // ============================================
 
 /**
- * Alias for backwards compatibility during transition period.
+ * Alias for API consistency.
  * Points to the unified token getter.
  */
 export const getSessionToken = getUnifiedAccessToken;
