@@ -1,7 +1,7 @@
 /**
  * Advantage Editor - Editor moderno de Vantagem
  * 
- * RISE V3: Substitui o editor legado
+ * RISE V3: Editor moderno com props tipadas
  */
 
 import { Input } from "@/components/ui/input";

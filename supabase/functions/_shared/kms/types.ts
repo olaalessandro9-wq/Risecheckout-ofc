@@ -35,7 +35,7 @@ export interface KeyVersion {
 
 /**
  * Formato de dados criptografados:
- * - Legacy (v1): base64(iv:ciphertext:tag)
+ * - V1: base64(iv:ciphertext:tag)
  * - Versioned:   ENC_V{version}:{base64(iv:ciphertext:tag)}
  */
 export interface EncryptedData {

@@ -55,7 +55,7 @@ export function ProductDeliverySection({
   const [copied, setCopied] = useState(false);
   const [urlError, setUrlError] = useState("");
 
-  // Compatibilidade: derivar delivery_type do campo legado se não existir
+  // Derivar delivery_type do campo deprecated se não existir
   const currentDeliveryType: DeliveryType = form.delivery_type || 
     (form.external_delivery ? 'external' : 'standard');
 
@@ -91,7 +91,7 @@ export function ProductDeliverySection({
     setForm(prev => ({ 
       ...prev, 
       delivery_type: type,
-      // Manter compatibilidade com campo legado
+      // Sincronizar campo deprecated
       external_delivery: type === 'external',
       // Limpar delivery_url se não for standard
       delivery_url: type === 'standard' ? prev.delivery_url : "" 

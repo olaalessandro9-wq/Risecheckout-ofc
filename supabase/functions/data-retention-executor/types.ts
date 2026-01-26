@@ -18,7 +18,7 @@ export type CleanupCategory =
   | 'security' 
   | 'gdpr' 
   | 'rate_limit'
-  | 'legacy'
+  | 'debug'
   | 'all';
 
 /** Valid actions for the executor */
@@ -88,10 +88,10 @@ export const RETENTION_POLICIES: RetentionPolicy[] = [
   { table_name: 'gdpr_audit_log', category: 'gdpr', retention_period: '365 days', criteria: 'Old GDPR audit logs' },
   { table_name: 'rate_limit_attempts', category: 'rate_limit', retention_period: '24 hours', criteria: 'Old rate limit entries' },
   { table_name: 'buyer_rate_limits', category: 'rate_limit', retention_period: '24 hours', criteria: 'Expired blocks' },
-  { table_name: 'trigger_debug_logs', category: 'legacy', retention_period: '7 days', criteria: 'Debug logs' },
-  { table_name: 'security_audit_log', category: 'legacy', retention_period: '90 days', criteria: 'Old audit logs' },
-  { table_name: 'checkout_visits', category: 'legacy', retention_period: '365 days', criteria: 'Old visit analytics' },
-  { table_name: 'webhook_deliveries', category: 'legacy', retention_period: '30/90 days', criteria: 'Success/failed deliveries' },
-  { table_name: 'gateway_webhook_dlq', category: 'legacy', retention_period: '90 days', criteria: 'Resolved/abandoned entries' },
-  { table_name: 'order_events', category: 'legacy', retention_period: '180 days', criteria: 'Old order events' },
+  { table_name: 'trigger_debug_logs', category: 'debug', retention_period: '7 days', criteria: 'Debug logs' },
+  { table_name: 'security_audit_log', category: 'debug', retention_period: '90 days', criteria: 'Old audit logs' },
+  { table_name: 'checkout_visits', category: 'debug', retention_period: '365 days', criteria: 'Old visit analytics' },
+  { table_name: 'webhook_deliveries', category: 'debug', retention_period: '30/90 days', criteria: 'Success/failed deliveries' },
+  { table_name: 'gateway_webhook_dlq', category: 'debug', retention_period: '90 days', criteria: 'Resolved/abandoned entries' },
+  { table_name: 'order_events', category: 'debug', retention_period: '180 days', criteria: 'Old order events' },
 ];

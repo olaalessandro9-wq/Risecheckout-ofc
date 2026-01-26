@@ -237,12 +237,12 @@ export function filterRelevantWebhooks(
     }
 
     const normalizedItemId = normalizeUUID(itemProductId);
-    const isLegacyMatch = normalizeUUID(wh.product_id) === normalizedItemId;
+    const isDirectProductMatch = normalizeUUID(wh.product_id) === normalizedItemId;
     const isRelationMatch = wh.webhook_products?.some(
       (wp) => normalizeUUID(wp.product_id) === normalizedItemId
     );
 
-    const isMatch = isLegacyMatch || isRelationMatch;
+    const isMatch = isDirectProductMatch || isRelationMatch;
 
     if (isMatch) {
       log.info(`  ✅ Match ESPECÍFICO com webhook: ${wh.name}`);

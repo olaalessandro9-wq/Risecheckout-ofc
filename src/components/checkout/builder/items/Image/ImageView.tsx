@@ -12,7 +12,7 @@ export const ImageView = ({ component }: ImageViewProps) => {
   // Type assertion segura - o componente só recebe content do tipo correto via registry
   const content = component.content as ImageContent | undefined;
   
-  // Ler src com fallback seguro (suporta imageUrl e url legado)
+  // Ler src com fallback seguro (suporta imageUrl e url alternativo)
   const src = typeof content?.imageUrl === 'string'
     ? content.imageUrl
     : (typeof content?.url === 'string' ? content.url : '');

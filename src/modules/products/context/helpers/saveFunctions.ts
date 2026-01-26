@@ -151,7 +151,7 @@ export async function saveGeneralProduct({
       support_email: generalForm.support_email,
       delivery_url: generalForm.delivery_type === 'standard' ? (generalForm.delivery_url || null) : null,
       delivery_type: generalForm.delivery_type,
-      external_delivery: generalForm.delivery_type === 'external', // Sync legado
+      external_delivery: generalForm.delivery_type === 'external', // Sync deprecated field
       status: "active",
       image_url: finalImageUrl,
     },

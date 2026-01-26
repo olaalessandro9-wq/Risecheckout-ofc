@@ -102,7 +102,7 @@ export function useAddProduct({ onOpenChange, onProductAdded }: UseAddProductPro
           price: formData.price,
           delivery_url: deliveryType === 'standard' ? (formData.delivery_url.trim() || null) : null,
           delivery_type: deliveryType,
-          // Mantém external_delivery para compatibilidade com código legado
+          // Sincroniza external_delivery com delivery_type para consistência
           external_delivery: deliveryType === 'external',
         },
       });

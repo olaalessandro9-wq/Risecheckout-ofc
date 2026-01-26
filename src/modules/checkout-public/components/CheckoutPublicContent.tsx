@@ -158,7 +158,7 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
   // Coupon state for form manager compatibility
   const [localAppliedCoupon, setLocalAppliedCoupon] = React.useState<typeof appliedCoupon>(appliedCoupon);
 
-  // Convert selectedBumps array to Set for compatibility with legacy components
+  // Convert selectedBumps array to Set for OrderBumpList component
   const selectedBumpsSet = useMemo(() => new Set(selectedBumps), [selectedBumps]);
 
   // Calculate total price

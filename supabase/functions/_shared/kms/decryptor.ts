@@ -4,7 +4,7 @@
  * ============================================================================
  * 
  * Descriptografa dados, detectando automaticamente a versão da chave.
- * Suporta fallback para versões anteriores e dados legados.
+ * Suporta fallback para versões anteriores e dados V1.
  * 
  * @version 1.0.0 - RISE Protocol V3 Compliant
  * ============================================================================
@@ -21,7 +21,7 @@ const log = createLogger("KMS-Decryptor");
  * 
  * Detecta:
  * - Formato versionado: ENC_V{version}:{payload}
- * - Formato legado: base64 puro
+ * - Formato V1: base64 puro
  */
 export function parseEncryptedData(encrypted: string): EncryptedData {
   // Verificar se tem prefixo de versão
@@ -42,7 +42,7 @@ export function parseEncryptedData(encrypted: string): EncryptedData {
     return { version, payload };
   }
   
-  // Formato legado (versão 1)
+  // Formato V1 (versão 1)
   return { version: LEGACY_VERSION, payload: encrypted };
 }
 
@@ -59,7 +59,7 @@ export function isEncrypted(value: string | null | undefined): boolean {
     return true;
   }
   
-  // Verificar formato legado (base64 válido com comprimento mínimo)
+  // Verificar formato V1 (base64 válido com comprimento mínimo)
   try {
     const decoded = atob(value);
     return decoded.length > 12; // IV (12 bytes) + algum dado
@@ -71,7 +71,7 @@ export function isEncrypted(value: string | null | undefined): boolean {
 /**
  * Descriptografa usando o provedor de chaves
  * 
- * @param encrypted - Dados criptografados (versionado ou legado)
+ * @param encrypted - Dados criptografados (versionado ou V1)
  * @param keyProvider - Provedor de chaves
  * @returns Resultado com texto descriptografado
  */
@@ -123,7 +123,7 @@ export async function decryptWithVersion(
 
 /**
  * Descriptografa de forma segura, retornando valor original se não for criptografado
- * Útil para migração gradual de dados legados
+ * Útil para migração gradual de dados V1
  */
 export async function safeDecryptWithVersion(
   value: string | null | undefined,
@@ -140,7 +140,7 @@ export async function safeDecryptWithVersion(
   
   const result = await decryptWithVersion(value, keyProvider);
   
-  // Se falhar, retornar valor original (pode ser dado legado mal formatado)
+  // Se falhar, retornar valor original (pode ser V1 mal formatado)
   if (!result.success) {
     log.warn(`Decryption failed, returning original value`);
     return { success: true, decrypted: value, version: 0 };

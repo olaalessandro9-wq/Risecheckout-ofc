@@ -82,7 +82,7 @@ export const getAffiliateCode = (): string | null => {
       localStorage.removeItem(STORAGE_KEY);
       
     } catch {
-      // Formato antigo (string pura) - limpar para forçar novo tracking
+      // Formato inválido (string pura) - limpar para forçar novo tracking
       localStorage.removeItem(STORAGE_KEY);
     }
   }

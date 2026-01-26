@@ -71,7 +71,7 @@ export function readAllFieldsFromDOM(): PersonalData {
  * O state pode estar desatualizado (stale) devido a:
  * - Autofill que não dispara onChange
  * - Atualizações assíncronas do React
- * - Dados antigos do localStorage
+ * - Dados persistidos no localStorage
  * 
  * @param stateData - Dados do estado React (useFormManager) - FALLBACK
  * @param domData - Dados lidos do DOM - PRIORIDADE

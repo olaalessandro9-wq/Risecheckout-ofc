@@ -33,7 +33,7 @@ const corsHeaders = {
 };
 
 /** Valid categories for validation */
-const VALID_CATEGORIES: CleanupCategory[] = ['oauth', 'sessions', 'security', 'gdpr', 'rate_limit', 'legacy', 'all'];
+const VALID_CATEGORIES: CleanupCategory[] = ['oauth', 'sessions', 'security', 'gdpr', 'rate_limit', 'debug', 'all'];
 
 serve(async (req: Request): Promise<Response> => {
   // Handle CORS preflight

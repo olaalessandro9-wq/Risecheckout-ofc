@@ -44,7 +44,7 @@ type PartialComponentContent = Partial<
   SealContent &
   AdvantageContent &
   TestimonialContent & {
-    // Campos legados que ainda podem existir em dados antigos
+    // Campos alternativos que podem existir em registros existentes
     url?: string;
     text?: string;
     avatar?: string;
@@ -113,7 +113,7 @@ const CheckoutComponentRenderer = ({
       );
 
     case 'text':
-      // Suporte para texto HTML (legado) e texto simples (novo)
+      // Suporte para texto HTML e texto simples
       // Usa configuração centralizada de sanitização XSS
       if (component.content?.text && component.content.text.includes('<')) {
         return (
