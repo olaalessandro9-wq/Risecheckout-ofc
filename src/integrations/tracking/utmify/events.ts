@@ -19,7 +19,7 @@ import {
 
 const log = createLogger("UTMify");
 
-// Re-export utils for backwards compatibility
+// Re-export utils (public API)
 export { extractUTMParameters, formatDateForUTMify, convertToCents, convertToReais } from "./utils";
 
 /**

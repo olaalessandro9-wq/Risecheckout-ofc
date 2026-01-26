@@ -166,6 +166,6 @@ export interface ContentEditorState {
   contentId?: string;
 }
 
-// Legacy type alias for backwards compatibility
+// Type aliases for unified API
 export type ContentType = string;
 export type DripFormData = ReleaseFormData;

@@ -137,7 +137,7 @@ export const PAYMENT_GATEWAYS: Record<string, PaymentGateway> = {
   },
 
   // ==================== GATEWAYS EM DESENVOLVIMENTO ====================
-  // PagSeguro, Cielo e Rede foram temporariamente removidos.
+  // PagSeguro, Cielo e Rede estão desabilitados (ativar quando implementados).
   // Para reativar, descomentar os blocos abaixo.
   
   /*

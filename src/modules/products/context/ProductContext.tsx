@@ -185,7 +185,7 @@ export function ProductProvider({ productId, children }: ProductProviderProps) {
     // Save Registry
     registerSaveHandler,
     
-    // Legacy Compatibility
+    // Public API (stable interface for consumers)
     formState: {
       editedData: context.editedData,
       serverData: context.serverData,

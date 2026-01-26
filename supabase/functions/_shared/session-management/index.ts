@@ -41,18 +41,10 @@ export {
   formatDeviceDescription,
 } from "./device-parser.ts";
 
-// Re-export unified session manager functions (preferred)
+// Re-export unified session manager functions
 export {
   listSessionsUnified,
   revokeSessionUnified,
   revokeAllSessionsUnified,
   revokeOtherSessionsUnified,
-} from "./session-manager.ts";
-
-// Re-export legacy session manager functions (deprecated, for backwards compatibility)
-export {
-  listSessions,
-  revokeSession,
-  revokeAllSessions,
-  revokeOtherSessions,
 } from "./session-manager.ts";

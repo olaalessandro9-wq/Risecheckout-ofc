@@ -41,10 +41,6 @@ export default function AppShell() {
   // Largura efetiva do sidebar
   const effectiveWidth = isMobile ? 0 : navigation.currentWidth;
 
-  const handleNotificationsClick = () => {
-    // TODO: Implementar painel de notificações
-  };
-
   return (
     <div className="flex min-h-screen w-full bg-background text-foreground">
       <Sidebar navigation={navigation} />
@@ -59,7 +55,6 @@ export default function AppShell() {
       >
         <Topbar
           scrolled={scrolled}
-          onNotificationsClick={handleNotificationsClick}
           onMenuClick={() => navigation.setMobileOpen(true)}
           sidebarState={navigation.state.sidebarState}
           onSidebarToggle={navigation.cycleSidebarState}
