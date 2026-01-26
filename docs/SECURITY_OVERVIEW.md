@@ -1,12 +1,12 @@
 # Security Infrastructure Overview
 
-> **Versão:** 2.0.0  
+> **Versão:** 3.0.0  
 > **Status:** RISE Protocol V3 Compliant (10.0/10)  
-> **Última Atualização:** 2026-01-23
+> **Última Atualização:** 2026-01-26
 
 ## Visão Geral
 
-O RiseCheckout implementa uma infraestrutura de segurança enterprise-grade composta por 5 módulos principais, todos desenvolvidos seguindo o RISE Protocol V3 com score máximo de 10.0/10.
+O RiseCheckout implementa uma infraestrutura de segurança enterprise-grade composta por 6 módulos principais, todos desenvolvidos seguindo o RISE Protocol V3 com score máximo de 10.0/10.
 
 ## Arquitetura de Segurança
 
@@ -46,6 +46,7 @@ O RiseCheckout implementa uma infraestrutura de segurança enterprise-grade comp
 | Session Management | [SESSION_MANAGEMENT.md](./SESSION_MANAGEMENT.md) | ✅ ATIVO | Gestão de sessões multi-dispositivo |
 | RLS Security Tester | [RLS_SECURITY_TESTER.md](./RLS_SECURITY_TESTER.md) | ✅ ATIVO | Framework de testes automatizados |
 | Data Retention System | [DATA_RETENTION_SYSTEM.md](./DATA_RETENTION_SYSTEM.md) | ✅ ATIVO | Limpeza automatizada conforme LGPD |
+| **API Gateway BFF** | [API_GATEWAY_ARCHITECTURE.md](./API_GATEWAY_ARCHITECTURE.md) | ✅ ATIVO | Gateway com zero secrets no frontend |
 
 ## Edge Functions de Segurança
 
@@ -56,6 +57,7 @@ O RiseCheckout implementa uma infraestrutura de segurança enterprise-grade comp
 | `rls-security-tester` | Testes | Framework com 107 testes de segurança RLS |
 | `session-manager` | Autenticação | Gestão de sessões (list, revoke, revoke-all) |
 | `data-retention-executor` | Compliance | Executa políticas de retenção de dados |
+| `unified-auth` | Autenticação | Sistema unificado Producer/Buyer com cookies httpOnly |
 
 ## Automação via pg_cron
 
@@ -73,7 +75,8 @@ O RiseCheckout implementa uma infraestrutura de segurança enterprise-grade comp
 | Falhas Críticas | 0 |
 | Políticas de Retenção | 17 |
 | Funções de Cleanup | 19 |
-| Edge Functions de Segurança | 5 |
+| Edge Functions de Segurança | 6 |
+| Secrets no Frontend | **0** (via API Gateway) |
 
 ## Conformidade
 
@@ -99,24 +102,36 @@ O RiseCheckout implementa uma infraestrutura de segurança enterprise-grade comp
 
 ## Fluxo de Autenticação Unificado
 
-### Autenticação (Producer + Buyer) - Cookies httpOnly
+### API Gateway BFF (RISE V3)
 
 ```
 Browser (credentials: include)
          ↓
-Request → Edge Function → Cookie: __Host-rise_access (httpOnly)
-                               ↓
-                    unified-auth-v2.ts (getAuthenticatedUser)
-                               ↓
-                    Validate Session → sessions table
-                               ↓
-                    Return { user_id, active_role } for context
+api.call() → https://api.risecheckout.com (Cloudflare Worker)
+                        ↓
+         Worker injeta apikey (Secret) + Forward cookies
+                        ↓
+         https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/*
+                        ↓
+         Edge Function → unified-auth-v2.ts (getAuthenticatedUser)
+                        ↓
+         Validate Session → sessions table
+                        ↓
+         Return { user_id, active_role } for context
 ```
 
-> **Nota:** O sistema usa uma tabela `sessions` única com campo `active_role` 
-> para determinar se o usuário está acessando como Producer ou Buyer.
-> Cookies `__Host-rise_access` e `__Host-rise_refresh` são os únicos mecanismos
-> de autenticação (proteção XSS - tokens nunca expostos ao JavaScript).
+> **IMPORTANTE:** O frontend NÃO envia a apikey. O Cloudflare Worker injeta 
+> automaticamente via Secret, eliminando exposição de chaves no bundle.
+
+### Cookies httpOnly
+
+| Cookie | Propósito | Duração |
+|--------|-----------|---------|
+| `__Secure-rise_access` | Access Token | 4 horas |
+| `__Secure-rise_refresh` | Refresh Token | 30 dias |
+
+> **Proteção XSS:** Tokens nunca expostos ao JavaScript. Domain=.risecheckout.com 
+> permite compartilhamento entre subdomínios (app, pay, api).
 
 ### Rotação de Chaves
 
@@ -161,13 +176,15 @@ Log results in data_retention_log
 ## Links Rápidos
 
 - [Sistema de Autenticação Unificado](./UNIFIED_AUTH_SYSTEM.md)
+- [API Gateway Architecture](./API_GATEWAY_ARCHITECTURE.md)
 - [Registry de Edge Functions](./EDGE_FUNCTIONS_REGISTRY.md)
-- [Coding Standards](./CODING_STANDARDS.md)
 - [Edge Functions Style Guide](./EDGE_FUNCTIONS_STYLE_GUIDE.md)
 
 ## Changelog
 
 | Data | Versão | Alterações |
 |------|--------|------------|
+| 2026-01-26 | 3.0.0 | API Gateway BFF com zero secrets no frontend |
 | 2026-01-23 | 2.0.0 | Atualizado para sistema de autenticação unificado (sessions única) |
+| 2026-01-19 | 1.0.0 | Documento inicial com todos os 5 módulos de segurança |
 | 2026-01-19 | 1.0.0 | Documento inicial com todos os 5 módulos de segurança |

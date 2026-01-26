@@ -1,10 +1,15 @@
 /**
  * API Client - Unified Edge Function Client
  * 
- * RISE ARCHITECT PROTOCOL - Zero Technical Debt
+ * RISE ARCHITECT PROTOCOL V3 - Zero Secrets in Frontend (10.0/10)
  * 
  * This is the ONLY way the frontend should communicate with the backend.
  * All database operations MUST go through Edge Functions.
+ * 
+ * ARCHITECTURE:
+ * - Calls go to api.risecheckout.com (Cloudflare Worker)
+ * - Worker injects apikey header (from Secret)
+ * - Frontend sends NO secrets - only credentials (cookies)
  * 
  * Features:
  * - httpOnly cookies for authentication
@@ -24,7 +29,7 @@
  * ```
  */
 
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/config/supabase";
+import { API_GATEWAY_URL } from "@/config/supabase";
 import type { ApiResponse, ApiError } from "./types";
 import { parseHttpError, parseNetworkError, createApiError } from "./errors";
 import { unifiedTokenService } from "@/lib/token-manager";
@@ -72,6 +77,8 @@ export interface ApiCallOptions {
 
 /**
  * Core fetch logic - separated for retry capability
+ * 
+ * RISE V3: No apikey header sent - Worker injects it
  */
 async function doFetch(
   url: string,
@@ -84,7 +91,7 @@ async function doFetch(
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
     signal,
-    credentials: 'include',
+    credentials: 'include', // Include cookies for auth
   });
 }
 
@@ -95,6 +102,8 @@ async function doFetch(
 /**
  * Makes an authenticated request to a Supabase Edge Function
  * Automatically retries once on 401 after refreshing tokens
+ * 
+ * RISE V3: No apikey sent - Cloudflare Worker injects it
  * 
  * @param functionName - Name of the Edge Function
  * @param body - Request body (will be JSON stringified)
@@ -117,15 +126,14 @@ async function call<T>(
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
   
-  // Build headers
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      "X-Correlation-Id": correlationId,
-      "apikey": SUPABASE_ANON_KEY,
-      ...customHeaders,
-    };
+  // Build headers - NO apikey (Worker injects)
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "X-Correlation-Id": correlationId,
+    ...customHeaders,
+  };
   
-  const url = `${SUPABASE_URL}/functions/v1/${functionName}`;
+  const url = `${API_GATEWAY_URL}/functions/v1/${functionName}`;
   
   try {
     const response = await doFetch(url, headers, body, controller.signal);

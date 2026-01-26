@@ -1,7 +1,7 @@
 /**
  * Refresh Coordinator - Centralized Refresh Orchestration
  * 
- * RISE ARCHITECT PROTOCOL V3 - Session Commander Architecture
+ * RISE ARCHITECT PROTOCOL V3 - Session Commander Architecture (10.0/10)
  * 
  * This is the core component that coordinates all refresh operations.
  * It ensures:
@@ -9,10 +9,15 @@
  * 2. Server coordination: Respects server-side locks
  * 3. Retry logic: Exponential backoff with jitter
  * 4. Visual feedback: User-friendly reconnection indicators
+ * 
+ * ARCHITECTURE:
+ * - Calls go to api.risecheckout.com (Cloudflare Worker)
+ * - Worker injects apikey header (from Secret)
+ * - Frontend sends NO secrets - only credentials (cookies)
  */
 
 import { createLogger } from "@/lib/logger";
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/config/supabase";
+import { API_GATEWAY_URL } from "@/config/supabase";
 import type {
   RefreshResult,
   RefreshFailureReason,
@@ -186,8 +191,13 @@ export class RefreshCoordinator {
   // PRIVATE: BACKEND CALL
   // ============================================
   
+  /**
+   * Call backend refresh endpoint
+   * 
+   * RISE V3: No apikey sent - Cloudflare Worker injects it
+   */
   private async callBackendRefresh(): Promise<RequestRefreshResponse> {
-    const url = `${SUPABASE_URL}/functions/v1/unified-auth/request-refresh`;
+    const url = `${API_GATEWAY_URL}/functions/v1/unified-auth/request-refresh`;
     
     const controller = new AbortController();
     const timeoutId = setTimeout(
@@ -200,8 +210,8 @@ export class RefreshCoordinator {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "apikey": SUPABASE_ANON_KEY,
           "X-Tab-Id": this.tabId,
+          // NO apikey - Worker injects
         },
         credentials: "include", // Include cookies
         signal: controller.signal,
