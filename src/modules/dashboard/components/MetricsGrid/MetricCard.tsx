@@ -2,11 +2,11 @@
  * MetricCard Component (Migrado)
  * 
  * @module dashboard/components
- * @version RISE V3 Compliant
+ * @version RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Card individual para exibição de métrica.
  * Aceita configuração declarativa via MetricConfig.
- * Otimizado para ultrawide com animações condicionais.
+ * Consumidor do UltrawidePerformanceContext para SSOT.
  */
 
 import { Eye, ArrowUpRight, ArrowDownRight } from "lucide-react";
@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import type { TrendData } from "../../types";
-import { useIsUltrawide } from "@/hooks/useIsUltrawide";
+import { useUltrawidePerformance } from "@/contexts/UltrawidePerformanceContext";
 import { cn } from "@/lib/utils";
 
 interface MetricCardProps {
@@ -40,7 +40,7 @@ export function MetricCard({
   className,
   iconClassName,
 }: MetricCardProps) {
-  const isUltrawide = useIsUltrawide();
+  const { isUltrawide, disableBlur, disableHoverEffects } = useUltrawidePerformance();
 
   // Wrapper condicional: div simples em ultrawide, motion.div em monitores normais
   const Wrapper = isUltrawide ? "div" : motion.div;
@@ -57,9 +57,10 @@ export function MetricCard({
       <div
         className={cn(
           "relative bg-card/95 border border-border/50 rounded-xl md:rounded-2xl p-4 md:p-5 lg:p-6 overflow-hidden h-full bg-gradient-to-br",
-          // Efeitos condicionais baseados em resolução
-          !isUltrawide && "backdrop-blur-sm hover:border-primary/20 hover:shadow-lg transition-all duration-300",
-          isUltrawide && "transition-colors duration-200",
+          // Efeitos condicionais baseados no contexto
+          !disableBlur && "backdrop-blur-sm",
+          !disableHoverEffects && "hover:border-primary/20 hover:shadow-lg transition-all duration-300",
+          disableHoverEffects && "transition-colors duration-200",
           className || "from-card/95 to-card/90"
         )}
       >
@@ -71,7 +72,7 @@ export function MetricCard({
                 <div
                   className={cn(
                     "p-2 md:p-2.5 rounded-lg md:rounded-xl ring-1 ring-border/50",
-                    !isUltrawide && "group-hover:scale-110 transition-transform duration-300",
+                    !disableHoverEffects && "group-hover:scale-110 transition-transform duration-300",
                     iconClassName || "bg-primary/10 text-primary"
                   )}
                 >
@@ -96,7 +97,7 @@ export function MetricCard({
               ) : (
                 <p className={cn(
                   "text-xl sm:text-2xl md:text-3xl font-bold text-foreground tracking-tight",
-                  !isUltrawide && "group-hover:text-primary transition-colors duration-300"
+                  !disableHoverEffects && "group-hover:text-primary transition-colors duration-300"
                 )}>
                   {value}
                 </p>

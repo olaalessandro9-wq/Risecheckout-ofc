@@ -14,6 +14,7 @@ import { RoleProtectedRoute } from "@/components/RoleProtectedRoute";
 import { ProducerRoute, BuyerRoute } from "@/components/guards";
 import { ThemeProvider } from "@/providers/theme";
 import { NavigationGuardProvider } from "@/providers/NavigationGuardProvider";
+import { UltrawidePerformanceProvider } from "@/contexts/UltrawidePerformanceContext";
 import { BusyProvider } from "@/components/BusyProvider";
 import { HelmetProvider } from "react-helmet-async";
 import { AppErrorBoundary } from "@/components/AppErrorBoundary";
@@ -124,9 +125,11 @@ function DashboardLayout() {
   return (
     <ProducerRoute>
       <ThemeProvider>
-        <NavigationGuardProvider>
-          <AppShell />
-        </NavigationGuardProvider>
+        <UltrawidePerformanceProvider>
+          <NavigationGuardProvider>
+            <AppShell />
+          </NavigationGuardProvider>
+        </UltrawidePerformanceProvider>
       </ThemeProvider>
     </ProducerRoute>
   );

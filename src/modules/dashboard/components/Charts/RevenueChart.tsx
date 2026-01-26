@@ -2,10 +2,12 @@
  * RevenueChart Component (Otimizado para Ultrawide)
  * 
  * @module dashboard/components
- * @version RISE V3 Compliant
+ * @version RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Gráfico de faturamento com otimizações condicionais
  * para monitores ultrawide (≥2560px).
+ * 
+ * Consumidor do UltrawidePerformanceContext para SSOT.
  */
 
 import { useMemo } from "react";
@@ -21,7 +23,8 @@ import {
 import type { TooltipProps } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
-import { useIsUltrawide } from "@/hooks/useIsUltrawide";
+import { useUltrawidePerformance } from "@/contexts/UltrawidePerformanceContext";
+import { cn } from "@/lib/utils";
 
 interface RevenueChartProps {
   readonly title: string;
@@ -120,40 +123,38 @@ export function RevenueChart({
   data,
   isLoading = false,
 }: RevenueChartProps) {
-  const isUltrawide = useIsUltrawide();
+  const { isUltrawide, chartConfig, disableBlur } = useUltrawidePerformance();
   const yAxisConfig = useMemo(() => calculateYAxisConfig(data), [data]);
 
-  // Configurações condicionais para performance em ultrawide
-  const chartConfig = useMemo(() => ({
-    isAnimationActive: !isUltrawide,
-    dot: isUltrawide ? false : {
-      r: 4,
-      strokeWidth: 2,
-      stroke: "hsl(var(--success))",
-      fill: "hsl(var(--card))",
-    },
-    activeDot: isUltrawide 
-      ? { r: 6, fill: "hsl(var(--success))" } 
-      : {
-          r: 6,
-          strokeWidth: 2,
-          stroke: "hsl(var(--success) / 0.3)",
-          fill: "hsl(var(--success))",
-        },
-    cursorStyle: isUltrawide 
-      ? { stroke: "hsl(var(--success))", strokeWidth: 1, strokeOpacity: 0.2 }
-      : { stroke: "hsl(var(--success))", strokeWidth: 1, strokeDasharray: "4 4", strokeOpacity: 0.3 },
-    strokeWidth: isUltrawide ? 2 : 3,
-  }), [isUltrawide]);
+  // Wrapper condicional: div simples em ultrawide, motion.div em monitores normais
+  const Wrapper = isUltrawide ? "div" : motion.div;
+  const wrapperProps = isUltrawide
+    ? {}
+    : {
+        initial: { opacity: 0, scale: 0.98 },
+        animate: { opacity: 1, scale: 1 },
+        transition: { duration: 0.25 },
+      };
+
+  // Cursor style para tooltip
+  const cursorStyle = isUltrawide
+    ? { stroke: "hsl(var(--success))", strokeWidth: 1, strokeOpacity: 0.2 }
+    : { stroke: "hsl(var(--success))", strokeWidth: 1, strokeDasharray: "4 4", strokeOpacity: 0.3 };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.98 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.25 }}
-      className="relative h-full"
-    >
-      <div className="relative h-full bg-card/95 backdrop-blur-sm border border-border/50 rounded-xl md:rounded-2xl p-4 md:p-6 hover:border-border transition-all duration-300 flex flex-col">
+    <Wrapper {...wrapperProps} className="relative h-full">
+      <div
+        className={cn(
+          "relative h-full bg-card/95 border border-border/50 rounded-xl md:rounded-2xl p-4 md:p-6 hover:border-border transition-colors duration-200 flex flex-col",
+          // Blur condicional baseado no contexto
+          !disableBlur && "backdrop-blur-sm"
+        )}
+        style={{
+          // CSS Containment para isolar repaints do gráfico
+          contain: "layout style paint",
+          isolation: "isolate",
+        }}
+      >
         {/* Header */}
         <div className="flex items-center justify-between mb-4 md:mb-6 lg:mb-8">
           <h3 className="text-base md:text-lg font-bold text-card-foreground tracking-tight flex items-center gap-2 md:gap-3">
@@ -173,17 +174,17 @@ export function RevenueChart({
           </h3>
         </div>
 
-        {/* Chart - CSS Containment para isolar do reflow */}
-        <div 
+        {/* Chart Container - CSS Containment para isolar do reflow */}
+        <div
           className="flex-1 min-h-[200px] md:min-h-[250px] lg:min-h-[300px]"
-          style={{ contain: 'layout style' }}
+          style={{ contain: "layout style" }}
         >
           {isLoading ? (
             <div className="space-y-4 h-full flex flex-col justify-center">
               <Skeleton className="h-[200px] w-full bg-muted/20" />
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height="100%" debounce={400}>
+            <ResponsiveContainer width="100%" height="100%" debounce={chartConfig.debounce}>
               <LineChart
                 data={data}
                 margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
@@ -220,17 +221,14 @@ export function RevenueChart({
                     return `R$ ${value}`;
                   }}
                 />
-                <Tooltip
-                  content={<CustomTooltip />}
-                  cursor={chartConfig.cursorStyle}
-                />
+                <Tooltip content={<CustomTooltip />} cursor={cursorStyle} />
                 <Line
                   type="monotone"
                   dataKey="value"
                   stroke="hsl(var(--success))"
                   strokeWidth={chartConfig.strokeWidth}
                   isAnimationActive={chartConfig.isAnimationActive}
-                  animationDuration={250}
+                  animationDuration={chartConfig.animationDuration}
                   dot={chartConfig.dot}
                   activeDot={chartConfig.activeDot}
                 />
@@ -239,6 +237,6 @@ export function RevenueChart({
           )}
         </div>
       </div>
-    </motion.div>
+    </Wrapper>
   );
 }
