@@ -1,11 +1,16 @@
 /**
  * checkout-editor Edge Function
  * 
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
  * Handles checkout editor operations:
  * - get-editor-data: Load all data for CheckoutCustomizer
  * - update-design: Save checkout customization
  * 
- * @version 3.0.0 - RISE Protocol V3 Compliant (unified-auth.ts)
+ * CRITICAL: All design data is saved ONLY to the `design` JSON field.
+ * Individual color columns are DEPRECATED and will be removed.
+ * 
+ * @version 4.0.0 - SSOT: design JSON is the single source of truth
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
@@ -45,45 +50,8 @@ interface RequestBody {
 interface DesignSettings {
   theme?: string;
   font?: string;
-  colors?: ColorSettings;
+  colors?: Record<string, unknown>;
   backgroundImage?: BackgroundImageSettings | null;
-}
-
-interface ColorSettings {
-  background?: string;
-  primaryText?: string;
-  secondaryText?: string;
-  active?: string;
-  icon?: string;
-  formBackground?: string;
-  button?: { background?: string; text?: string };
-  creditCardFields?: {
-    background?: string;
-    text?: string;
-    border?: string;
-    focusBorder?: string;
-    focusText?: string;
-    placeholder?: string;
-  };
-  selectedBox?: BoxColors;
-  unselectedBox?: BoxColors;
-  selectedButton?: ButtonColors;
-  unselectedButton?: ButtonColors;
-}
-
-interface BoxColors {
-  background?: string;
-  headerBackground?: string;
-  headerPrimaryText?: string;
-  headerSecondaryText?: string;
-  primaryText?: string;
-  secondaryText?: string;
-}
-
-interface ButtonColors {
-  background?: string;
-  text?: string;
-  icon?: string;
 }
 
 interface BackgroundImageSettings {
@@ -150,6 +118,80 @@ async function verifyCheckoutOwnership(
 }
 
 // ============================================
+// DESIGN BUILDER - SSOT
+// ============================================
+
+/**
+ * Builds the complete design object for saving.
+ * RISE V3: design JSON is the SINGLE SOURCE OF TRUTH for all checkout styling.
+ */
+function buildDesignUpdate(
+  existingDesign: Record<string, unknown> | null,
+  incomingDesign: DesignSettings
+): Record<string, unknown> {
+  // Start with existing design or empty object
+  const current = existingDesign ?? {};
+  
+  // Build merged design object
+  const merged: Record<string, unknown> = {
+    theme: incomingDesign.theme ?? current.theme ?? 'light',
+    font: incomingDesign.font ?? current.font ?? 'Inter',
+    colors: current.colors ?? {},
+    backgroundImage: current.backgroundImage ?? null,
+  };
+  
+  // Merge colors if provided (deep merge to preserve existing properties)
+  if (incomingDesign.colors) {
+    merged.colors = deepMergeColors(
+      merged.colors as Record<string, unknown>,
+      incomingDesign.colors
+    );
+  }
+  
+  // Update backgroundImage if explicitly provided
+  if (incomingDesign.backgroundImage !== undefined) {
+    merged.backgroundImage = incomingDesign.backgroundImage;
+  }
+  
+  return merged;
+}
+
+/**
+ * Deep merges color objects, preserving nested structures
+ */
+function deepMergeColors(
+  target: Record<string, unknown>,
+  source: Record<string, unknown>
+): Record<string, unknown> {
+  const result = { ...target };
+  
+  for (const key in source) {
+    const sourceValue = source[key];
+    const targetValue = result[key];
+    
+    if (
+      sourceValue !== null &&
+      typeof sourceValue === 'object' &&
+      !Array.isArray(sourceValue) &&
+      targetValue !== null &&
+      typeof targetValue === 'object' &&
+      !Array.isArray(targetValue)
+    ) {
+      // Recursively merge nested objects
+      result[key] = deepMergeColors(
+        targetValue as Record<string, unknown>,
+        sourceValue as Record<string, unknown>
+      );
+    } else if (sourceValue !== undefined) {
+      // Direct assignment for primitives and null
+      result[key] = sourceValue;
+    }
+  }
+  
+  return result;
+}
+
+// ============================================
 // MAIN HANDLER
 // ============================================
 
@@ -169,14 +211,13 @@ serve(withSentry("checkout-editor", async (req) => {
       try { body = await req.json(); } catch { return errorResponse("Corpo da requisição inválido", corsHeaders, 400); }
     }
 
-    // ✅ RISE V3: Action comes from body, not URL pathname
     const action = body.action;
     if (!action) {
       log.error("Missing action in request body");
       return errorResponse("Ação é obrigatória", corsHeaders, 400);
     }
 
-    // ✅ RISE V3: unified-auth.ts
+    // unified-auth.ts
     const producer = await getAuthenticatedProducer(supabase, req);
     if (!producer) {
       return unauthorizedResponse(corsHeaders);
@@ -238,85 +279,25 @@ serve(withSentry("checkout-editor", async (req) => {
       if (!ownershipCheck.valid) return errorResponse("Você não tem permissão para editar este checkout", corsHeaders, 403);
 
       try {
+        // Fetch current design to merge with incoming changes
+        const { data: currentCheckout, error: fetchError } = await supabase
+          .from("checkouts")
+          .select("design, theme, font")
+          .eq("id", checkoutId)
+          .single();
+
+        if (fetchError) throw new Error(`Falha ao carregar checkout: ${fetchError.message}`);
+
         const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
-        if (design?.theme !== undefined) updates.theme = design.theme;
-        if (design?.font !== undefined) updates.font = design.font;
-
-        if (design?.colors) {
-          const colors = design.colors;
-          if (colors.background !== undefined) updates.background_color = colors.background;
-          if (colors.primaryText !== undefined) updates.primary_text_color = colors.primaryText;
-          if (colors.secondaryText !== undefined) updates.secondary_text_color = colors.secondaryText;
-          if (colors.active !== undefined) updates.active_text_color = colors.active;
-          if (colors.icon !== undefined) updates.icon_color = colors.icon;
-          if (colors.formBackground !== undefined) updates.form_background_color = colors.formBackground;
-
-          if (colors.button) {
-            if (colors.button.background !== undefined) updates.payment_button_bg_color = colors.button.background;
-            if (colors.button.text !== undefined) updates.payment_button_text_color = colors.button.text;
-          }
-
-          if (colors.creditCardFields) {
-            const ccFields = colors.creditCardFields;
-            if (ccFields.background !== undefined) updates.cc_field_background_color = ccFields.background;
-            if (ccFields.text !== undefined) updates.cc_field_text_color = ccFields.text;
-            if (ccFields.border !== undefined) updates.cc_field_border_color = ccFields.border;
-            if (ccFields.focusBorder !== undefined) updates.cc_field_focus_border_color = ccFields.focusBorder;
-            if (ccFields.focusText !== undefined) updates.cc_field_focus_text_color = ccFields.focusText;
-            if (ccFields.placeholder !== undefined) updates.cc_field_placeholder_color = ccFields.placeholder;
-          }
-
-          if (colors.selectedBox) {
-            const sb = colors.selectedBox;
-            if (sb.background !== undefined) updates.selected_box_bg_color = sb.background;
-            if (sb.headerBackground !== undefined) updates.selected_box_header_bg_color = sb.headerBackground;
-            if (sb.headerPrimaryText !== undefined) updates.selected_box_header_primary_text_color = sb.headerPrimaryText;
-            if (sb.headerSecondaryText !== undefined) updates.selected_box_header_secondary_text_color = sb.headerSecondaryText;
-            if (sb.primaryText !== undefined) updates.selected_box_primary_text_color = sb.primaryText;
-            if (sb.secondaryText !== undefined) updates.selected_box_secondary_text_color = sb.secondaryText;
-          }
-
-          if (colors.unselectedBox) {
-            const ub = colors.unselectedBox;
-            if (ub.background !== undefined) updates.unselected_box_bg_color = ub.background;
-            if (ub.headerBackground !== undefined) updates.unselected_box_header_bg_color = ub.headerBackground;
-            if (ub.headerPrimaryText !== undefined) updates.unselected_box_header_primary_text_color = ub.headerPrimaryText;
-            if (ub.headerSecondaryText !== undefined) updates.unselected_box_header_secondary_text_color = ub.headerSecondaryText;
-            if (ub.primaryText !== undefined) updates.unselected_box_primary_text_color = ub.primaryText;
-            if (ub.secondaryText !== undefined) updates.unselected_box_secondary_text_color = ub.secondaryText;
-          }
-
-          if (colors.selectedButton) {
-            const sb = colors.selectedButton;
-            if (sb.background !== undefined) updates.selected_button_bg_color = sb.background;
-            if (sb.text !== undefined) updates.selected_button_text_color = sb.text;
-            if (sb.icon !== undefined) updates.selected_button_icon_color = sb.icon;
-          }
-
-          if (colors.unselectedButton) {
-            const ub = colors.unselectedButton;
-            if (ub.background !== undefined) updates.unselected_button_bg_color = ub.background;
-            if (ub.text !== undefined) updates.unselected_button_text_color = ub.text;
-            if (ub.icon !== undefined) updates.unselected_button_icon_color = ub.icon;
-          }
-        }
-
-        if (design?.backgroundImage !== undefined) {
-          updates.design = { backgroundImage: design.backgroundImage };
-          if (design.backgroundImage) {
-            updates.background_image_url = design.backgroundImage.url || null;
-            updates.background_image_expand = design.backgroundImage.expand ?? true;
-            updates.background_image_fixed = design.backgroundImage.fixed ?? true;
-            updates.background_image_repeat = design.backgroundImage.repeat ?? false;
-          } else {
-            updates.background_image_url = null;
-            updates.background_image_expand = null;
-            updates.background_image_fixed = null;
-            updates.background_image_repeat = null;
-          }
-        } else if (design !== undefined) {
-          updates.design = design;
+        // SSOT: Build complete design object
+        if (design !== undefined) {
+          const existingDesign = currentCheckout?.design as Record<string, unknown> | null;
+          updates.design = buildDesignUpdate(existingDesign, design);
+          
+          // Also update theme and font columns for query optimization
+          if (design.theme !== undefined) updates.theme = design.theme;
+          if (design.font !== undefined) updates.font = design.font;
         }
 
         if (topComponents !== undefined) updates.top_components = topComponents;
@@ -326,6 +307,7 @@ serve(withSentry("checkout-editor", async (req) => {
         const { error: updateError } = await supabase.from("checkouts").update(updates).eq("id", checkoutId);
         if (updateError) throw new Error(`Falha ao salvar design: ${updateError.message}`);
 
+        log.info(`Design saved successfully for checkout ${checkoutId}`);
         return jsonResponse({ success: true }, corsHeaders);
       } catch (error: unknown) {
         const err = error instanceof Error ? error : new Error(String(error));

@@ -6,6 +6,9 @@
  * This is the SINGLE SOURCE OF TRUTH for transforming BFF data to UI models.
  * All null handling, fallbacks, and gateway resolution happens HERE.
  * 
+ * SSOT: Design colors come ONLY from checkout.design.colors JSON.
+ * Individual color columns are DEPRECATED and not used.
+ * 
  * @module checkout-public/mappers
  */
 
@@ -117,12 +120,8 @@ export interface MappedCheckoutData {
 /**
  * Maps BFF response to UI-ready models with all fallbacks applied.
  * 
- * This function handles:
- * - Null affiliate/offer safely
- * - Gateway resolution with affiliate override
- * - Required fields normalization
- * - Design theme normalization
- * - Price fallback (offer → product)
+ * RISE V3: Design normalization uses ONLY checkout.design JSON.
+ * Individual color columns are NOT passed to normalizeDesign.
  */
 export function mapResolveAndLoad(response: ResolveAndLoadResponse): MappedCheckoutData {
   const { checkout, product, offer, orderBumps, affiliate } = response.data;
@@ -228,24 +227,14 @@ export function mapResolveAndLoad(response: ResolveAndLoadResponse): MappedCheck
     : null;
 
   // =========================================================================
-  // NORMALIZE DESIGN
+  // NORMALIZE DESIGN - SSOT from design JSON only
   // =========================================================================
   const designData = {
-    id: checkout.id,
-    name: checkout.name,
-    slug: checkout.slug,
-    visits_count: checkout.visits_count,
-    font: checkout.font,
-    background_color: checkout.background_color,
-    text_color: checkout.text_color,
-    primary_color: checkout.primary_color,
-    button_color: checkout.button_color,
-    button_text_color: checkout.button_text_color,
-    design: checkout.design,
     theme: checkout.theme,
+    design: parseJsonSafely(checkout.design, null),
   };
   
-  const design = normalizeDesign(designData as Parameters<typeof normalizeDesign>[0]);
+  const design = normalizeDesign(designData);
 
   return {
     checkout: checkoutUI,
