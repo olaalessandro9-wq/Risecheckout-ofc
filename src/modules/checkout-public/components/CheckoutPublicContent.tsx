@@ -181,9 +181,9 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     return total;
   }, [product.price, selectedBumps, orderBumps, localAppliedCoupon]);
 
-  // Form data adapter: Machine FormData -> CheckoutFormData (legacy interface)
+  // Form data adapter: Machine FormData -> CheckoutFormData (public interface)
   // Uses dedicated adapter for explicit conversion (RISE V3 - Zero ambiguity)
-  const formDataForLegacy = useMemo<CheckoutFormData>(
+  const adaptedFormData = useMemo<CheckoutFormData>(
     () => toCheckoutFormData(formData),
     [formData]
   );
@@ -320,7 +320,7 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
           selectedBumps={selectedBumpsSet}
           onToggleBump={toggleBump}
           mode="public"
-          formData={formDataForLegacy}
+          formData={adaptedFormData}
           formErrors={formErrors}
           onFieldChange={updateField}
           requiredFields={product.required_fields}

@@ -97,7 +97,7 @@ export interface ProductContextValue {
   // === Save Registry ===
   registerSaveHandler: RegisterSaveHandler;
   
-  // === Legacy Compatibility ===
+  // === Public API ===
   formState: {
     editedData: ProductFormContext["editedData"];
     serverData: ProductFormContext["serverData"];

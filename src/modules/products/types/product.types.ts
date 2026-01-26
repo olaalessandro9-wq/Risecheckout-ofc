@@ -155,8 +155,8 @@ export interface AffiliateSettings {
   // allowUpsells: boolean; // ❌ Deprecado (mantido no banco por segurança)
   
   // ✅ Novos Campos
-  commissionOnOrderBump?: boolean; // Opcional para suportar legado
-  commissionOnUpsell?: boolean;    // Opcional para suportar legado
+  commissionOnOrderBump?: boolean; // Opcional - compatível com registros existentes
+  commissionOnUpsell?: boolean;    // Opcional - compatível com registros existentes
   supportEmail?: string;            // E-mail de suporte para afiliados
   publicDescription?: string;       // Descrição/regras para afiliados
   
