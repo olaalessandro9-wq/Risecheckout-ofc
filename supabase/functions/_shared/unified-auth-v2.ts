@@ -32,6 +32,7 @@ import { createLogger } from "./logger.ts";
 import { 
   getCookie, 
   COOKIE_NAMES,
+  COOKIE_DOMAIN,
   LEGACY_COOKIE_NAMES,
   createAuthCookies, 
   createLogoutCookies,
@@ -118,7 +119,12 @@ export function generateSessionTokens(): {
 export function getUnifiedAccessToken(req: Request): string | null {
   const cookieHeader = req.headers.get("Cookie");
   if (!cookieHeader) return null;
-  return getCookie(cookieHeader, COOKIE_NAMES.access);
+  
+  // Try new __Secure- cookie first, then V3 __Host- fallback for migration
+  const newToken = getCookie(cookieHeader, COOKIE_NAMES.access);
+  if (newToken) return newToken;
+  
+  return getCookie(cookieHeader, LEGACY_COOKIE_NAMES.v3.access);
 }
 
 /**
@@ -128,7 +134,12 @@ export function getUnifiedAccessToken(req: Request): string | null {
 export function getUnifiedRefreshToken(req: Request): string | null {
   const cookieHeader = req.headers.get("Cookie");
   if (!cookieHeader) return null;
-  return getCookie(cookieHeader, COOKIE_NAMES.refresh);
+  
+  // Try new __Secure- cookie first, then V3 __Host- fallback for migration
+  const newToken = getCookie(cookieHeader, COOKIE_NAMES.refresh);
+  if (newToken) return newToken;
+  
+  return getCookie(cookieHeader, LEGACY_COOKIE_NAMES.v3.refresh);
 }
 
 // ============================================================================
@@ -149,6 +160,7 @@ export function createUnifiedAuthCookies(
       secure: true,
       sameSite: "None",
       path: "/",
+      domain: COOKIE_DOMAIN,
     }),
     createSecureCookie(COOKIE_NAMES.refresh, refreshToken, {
       maxAge: REFRESH_TOKEN_DURATION_DAYS * 24 * 60 * 60,
@@ -156,6 +168,7 @@ export function createUnifiedAuthCookies(
       secure: true,
       sameSite: "None",
       path: "/",
+      domain: COOKIE_DOMAIN,
     }),
   ];
 }
@@ -164,19 +177,27 @@ export function createUnifiedAuthCookies(
  * Creates expired cookies for logout (clears all possible cookie names).
  */
 export function createUnifiedLogoutCookies(): string[] {
-  const expired = (name: string) => 
+  // Helper for expired cookies WITH domain (new format)
+  const expiredWithDomain = (name: string) => 
+    `${name}=; Max-Age=0; Path=/; Domain=${COOKIE_DOMAIN}; HttpOnly; Secure; SameSite=None`;
+  
+  // Helper for expired cookies WITHOUT domain (legacy __Host- format)
+  const expiredHostOnly = (name: string) => 
     `${name}=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=None; Partitioned`;
   
   return [
-    // Unified cookies
-    expired(COOKIE_NAMES.access),
-    expired(COOKIE_NAMES.refresh),
-    // Legacy producer cookies (clear from old sessions)
-    expired(LEGACY_COOKIE_NAMES.producer.access),
-    expired(LEGACY_COOKIE_NAMES.producer.refresh),
-    // Legacy buyer cookies (clear from old sessions)
-    expired(LEGACY_COOKIE_NAMES.buyer.access),
-    expired(LEGACY_COOKIE_NAMES.buyer.refresh),
+    // New __Secure- cookies (with domain)
+    expiredWithDomain(COOKIE_NAMES.access),
+    expiredWithDomain(COOKIE_NAMES.refresh),
+    // V3 __Host- cookies (host-only, needs Partitioned)
+    expiredHostOnly(LEGACY_COOKIE_NAMES.v3.access),
+    expiredHostOnly(LEGACY_COOKIE_NAMES.v3.refresh),
+    // Legacy producer cookies
+    expiredHostOnly(LEGACY_COOKIE_NAMES.producer.access),
+    expiredHostOnly(LEGACY_COOKIE_NAMES.producer.refresh),
+    // Legacy buyer cookies
+    expiredHostOnly(LEGACY_COOKIE_NAMES.buyer.access),
+    expiredHostOnly(LEGACY_COOKIE_NAMES.buyer.refresh),
   ];
 }
 
@@ -472,16 +493,19 @@ export function forbiddenResponse(corsHeaders: Record<string, string>, message =
  * Used during login to ensure no stale legacy cookies remain.
  */
 function createLegacyClearCookies(): string[] {
-  const expired = (name: string) => 
+  const expiredHostOnly = (name: string) => 
     `${name}=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=None; Partitioned`;
   
   return [
+    // V3 __Host- cookies (host-only)
+    expiredHostOnly(LEGACY_COOKIE_NAMES.v3.access),
+    expiredHostOnly(LEGACY_COOKIE_NAMES.v3.refresh),
     // Legacy producer cookies
-    expired(LEGACY_COOKIE_NAMES.producer.access),
-    expired(LEGACY_COOKIE_NAMES.producer.refresh),
+    expiredHostOnly(LEGACY_COOKIE_NAMES.producer.access),
+    expiredHostOnly(LEGACY_COOKIE_NAMES.producer.refresh),
     // Legacy buyer cookies  
-    expired(LEGACY_COOKIE_NAMES.buyer.access),
-    expired(LEGACY_COOKIE_NAMES.buyer.refresh),
+    expiredHostOnly(LEGACY_COOKIE_NAMES.buyer.access),
+    expiredHostOnly(LEGACY_COOKIE_NAMES.buyer.refresh),
   ];
 }
 

@@ -1,10 +1,10 @@
 /**
  * Cookie Helper - Unified Auth System
  * 
- * RISE Protocol V3: Simplified cookie management for unified identity.
- * Legacy cookie names kept only for clearing during logout.
+ * RISE Protocol V3: Multi-subdomain cookie architecture.
+ * Enables session sharing across *.risecheckout.com subdomains.
  * 
- * @version 3.0.0 - Legacy cleanup complete
+ * @version 4.0.0 - Multi-subdomain support
  */
 
 import { 
@@ -13,26 +13,44 @@ import {
 } from "./auth-constants.ts";
 
 // ============================================
-// UNIFIED COOKIE NAMES (RISE V3)
+// MULTI-SUBDOMAIN CONFIGURATION
 // ============================================
 
 /**
- * Unified cookie names - single identity architecture.
+ * Cookie domain for session sharing across subdomains.
+ * Enables: api.risecheckout.com, app.risecheckout.com, pay.risecheckout.com
+ */
+export const COOKIE_DOMAIN = ".risecheckout.com";
+
+// ============================================
+// UNIFIED COOKIE NAMES (RISE V3 → V4)
+// ============================================
+
+/**
+ * Unified cookie names - __Secure- prefix allows Domain attribute.
+ * Changed from __Host- which blocks Domain attribute.
  */
 export const COOKIE_NAMES = {
-  access: "__Host-rise_access",
-  refresh: "__Host-rise_refresh",
+  access: "__Secure-rise_access",
+  refresh: "__Secure-rise_refresh",
 } as const;
 
 /**
  * Legacy cookie names - kept ONLY for clearing during logout.
- * DO NOT use these for creating new cookies.
+ * Includes both old __Host- prefixed cookies (V3) and legacy buyer/producer cookies.
  */
 export const LEGACY_COOKIE_NAMES = {
+  // V3 cookies (being replaced)
+  v3: {
+    access: "__Host-rise_access",
+    refresh: "__Host-rise_refresh",
+  },
+  // Legacy producer cookies
   producer: {
     access: "__Host-producer_access",
     refresh: "__Host-producer_refresh",
   },
+  // Legacy buyer cookies
   buyer: {
     access: "__Host-buyer_access",
     refresh: "__Host-buyer_refresh",
@@ -49,6 +67,7 @@ export interface CookieOptions {
   secure?: boolean;
   sameSite?: "Strict" | "Lax" | "None";
   path?: string;
+  domain?: string;
 }
 
 const DEFAULT_COOKIE_OPTIONS: CookieOptions = {
@@ -57,6 +76,7 @@ const DEFAULT_COOKIE_OPTIONS: CookieOptions = {
   secure: true,
   sameSite: "None",
   path: "/",
+  domain: COOKIE_DOMAIN,
 };
 
 // ============================================
@@ -83,19 +103,35 @@ export function getCookie(cookieHeader: string | null, name: string): string | n
 }
 
 /**
- * Gets access token from request using unified cookie name.
+ * Gets access token from request.
+ * Tries new __Secure- cookie first, then falls back to legacy __Host- for migration.
  */
 export function getAccessToken(req: Request): string | null {
   const cookieHeader = req.headers.get("Cookie");
-  return getCookie(cookieHeader, COOKIE_NAMES.access);
+  if (!cookieHeader) return null;
+  
+  // Try new cookie format first
+  const newToken = getCookie(cookieHeader, COOKIE_NAMES.access);
+  if (newToken) return newToken;
+  
+  // Fallback to V3 format during migration period
+  return getCookie(cookieHeader, LEGACY_COOKIE_NAMES.v3.access);
 }
 
 /**
- * Gets refresh token from request using unified cookie name.
+ * Gets refresh token from request.
+ * Tries new __Secure- cookie first, then falls back to legacy __Host- for migration.
  */
 export function getRefreshToken(req: Request): string | null {
   const cookieHeader = req.headers.get("Cookie");
-  return getCookie(cookieHeader, COOKIE_NAMES.refresh);
+  if (!cookieHeader) return null;
+  
+  // Try new cookie format first
+  const newToken = getCookie(cookieHeader, COOKIE_NAMES.refresh);
+  if (newToken) return newToken;
+  
+  // Fallback to V3 format during migration period
+  return getCookie(cookieHeader, LEGACY_COOKIE_NAMES.v3.refresh);
 }
 
 // ============================================
@@ -103,7 +139,8 @@ export function getRefreshToken(req: Request): string | null {
 // ============================================
 
 /**
- * Creates a secure cookie string with __Host- prefix support.
+ * Creates a secure cookie string with __Secure- prefix support.
+ * When domain is set, Partitioned attribute is NOT used (incompatible).
  */
 export function createSecureCookie(
   name: string,
@@ -118,12 +155,19 @@ export function createSecureCookie(
     `Path=${opts.path}`,
   ];
   
+  // Add Domain when specified (enables cross-subdomain sharing)
+  if (opts.domain) {
+    parts.push(`Domain=${opts.domain}`);
+  }
+  
   if (opts.httpOnly) parts.push("HttpOnly");
   if (opts.secure) parts.push("Secure");
   if (opts.sameSite) parts.push(`SameSite=${opts.sameSite}`);
   
-  // Add Partitioned for Chrome third-party cookie support
-  parts.push("Partitioned");
+  // Only add Partitioned when Domain is NOT set (they are incompatible)
+  if (!opts.domain) {
+    parts.push("Partitioned");
+  }
   
   return parts.join("; ");
 }
@@ -134,6 +178,7 @@ export function createSecureCookie(
 
 /**
  * Creates auth cookies for unified identity system.
+ * Uses Domain=.risecheckout.com for cross-subdomain support.
  */
 export function createAuthCookies(
   accessToken: string,
@@ -142,30 +187,41 @@ export function createAuthCookies(
   return [
     createSecureCookie(COOKIE_NAMES.access, accessToken, {
       maxAge: ACCESS_TOKEN_DURATION_MINUTES * 60,
+      domain: COOKIE_DOMAIN,
     }),
     createSecureCookie(COOKIE_NAMES.refresh, refreshToken, {
       maxAge: REFRESH_TOKEN_DURATION_DAYS * 24 * 60 * 60,
+      domain: COOKIE_DOMAIN,
     }),
   ];
 }
 
 /**
- * Creates expired cookies for logout - clears both unified and legacy cookies.
+ * Creates expired cookies for logout.
+ * Clears ALL cookie formats: new __Secure-, V3 __Host-, and legacy buyer/producer.
  */
 export function createLogoutCookies(): string[] {
-  const expired = (name: string) => 
+  // Helper for expired cookies WITH domain (new format)
+  const expiredWithDomain = (name: string) => 
+    `${name}=; Max-Age=0; Path=/; Domain=${COOKIE_DOMAIN}; HttpOnly; Secure; SameSite=None`;
+  
+  // Helper for expired cookies WITHOUT domain (legacy __Host- format)
+  const expiredHostOnly = (name: string) => 
     `${name}=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=None; Partitioned`;
   
   return [
-    // Unified cookies
-    expired(COOKIE_NAMES.access),
-    expired(COOKIE_NAMES.refresh),
-    // Legacy producer cookies (clear from old sessions)
-    expired(LEGACY_COOKIE_NAMES.producer.access),
-    expired(LEGACY_COOKIE_NAMES.producer.refresh),
-    // Legacy buyer cookies (clear from old sessions)
-    expired(LEGACY_COOKIE_NAMES.buyer.access),
-    expired(LEGACY_COOKIE_NAMES.buyer.refresh),
+    // New __Secure- cookies (with domain)
+    expiredWithDomain(COOKIE_NAMES.access),
+    expiredWithDomain(COOKIE_NAMES.refresh),
+    // V3 __Host- cookies (host-only, needs Partitioned)
+    expiredHostOnly(LEGACY_COOKIE_NAMES.v3.access),
+    expiredHostOnly(LEGACY_COOKIE_NAMES.v3.refresh),
+    // Legacy producer cookies
+    expiredHostOnly(LEGACY_COOKIE_NAMES.producer.access),
+    expiredHostOnly(LEGACY_COOKIE_NAMES.producer.refresh),
+    // Legacy buyer cookies
+    expiredHostOnly(LEGACY_COOKIE_NAMES.buyer.access),
+    expiredHostOnly(LEGACY_COOKIE_NAMES.buyer.refresh),
   ];
 }
 
