@@ -1,6 +1,6 @@
 /**
  * Tipos Type-Safe para Componentes do Checkout Builder
- * RISE Protocol V2: Zero any, Zero dívida técnica
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Este arquivo centraliza todos os tipos de conteúdo dos componentes
  * do builder para garantir tipagem completa e eliminar `any`.
