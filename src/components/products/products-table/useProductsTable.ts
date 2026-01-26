@@ -86,8 +86,7 @@ export function useProductsTable() {
     mutationFn: async (productId: string) => {
       return await busy.run(
         async () => {
-          // RISE V3: supabase client não é mais usado - Edge Function gerencia tudo
-          const { newProductId } = await duplicateProductDeep(null as never, productId);
+          const { newProductId } = await duplicateProductDeep(productId);
           return newProductId;
         },
         "Duplicando produto..."
