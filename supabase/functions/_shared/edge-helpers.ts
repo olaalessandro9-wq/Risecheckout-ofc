@@ -159,3 +159,57 @@ export async function ensureUniqueName(
 
   return `${baseName} ${Date.now()}`;
 }
+
+// ============================================================================
+// Checkout Slug Generator (Correct Format: xxxxxxx_xxxxxx)
+// ============================================================================
+
+/**
+ * Generates a fallback checkout slug in the correct format: xxxxxxx_xxxxxx
+ * Used when RPC is unavailable
+ */
+function generateFallbackCheckoutSlug(): string {
+  const hex = Math.random().toString(16).substring(2, 9).padEnd(7, '0');
+  const num = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+  return `${hex}_${num}`;
+}
+
+/**
+ * Generates a unique checkout slug using the correct format.
+ * First tries the database RPC, falls back to local generation if unavailable.
+ * 
+ * @returns Slug in format: xxxxxxx_xxxxxx (e.g., a3f7b2c_847291)
+ */
+export async function generateUniqueCheckoutSlug(
+  supabase: SupabaseClient
+): Promise<string> {
+  // Try RPC first
+  const { data, error } = await supabase.rpc("generate_checkout_slug");
+  
+  if (!error && data && typeof data === "string") {
+    return data;
+  }
+  
+  // Fallback: generate locally and verify uniqueness
+  let attempts = 0;
+  const maxAttempts = 10;
+  
+  while (attempts < maxAttempts) {
+    const slug = generateFallbackCheckoutSlug();
+    
+    const { data: existing } = await supabase
+      .from("checkouts")
+      .select("id")
+      .eq("slug", slug)
+      .maybeSingle();
+    
+    if (!existing) {
+      return slug;
+    }
+    
+    attempts++;
+  }
+  
+  // Last resort: add timestamp
+  return `${generateFallbackCheckoutSlug().substring(0, 7)}_${Date.now().toString().slice(-6)}`;
+}
