@@ -267,7 +267,7 @@ A lógica de resolução prioriza `delivery_type` ENUM quando disponível:
 if (product.delivery_type) {
   return product.delivery_type; // ENUM (novo)
 } else if (product.external_delivery) {
-  return 'external'; // Legacy boolean
+  return 'external'; // Campo boolean anterior ao ENUM
 } else {
   return 'standard'; // Default
 }

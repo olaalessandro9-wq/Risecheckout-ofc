@@ -21,8 +21,8 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 #### Alterado
 - **`send-order-emails.ts`**: Refatorado para suportar 3 tipos de entrega com seleção dinâmica de template
-- **`product-crud-handlers.ts`**: Adicionada persistência de `delivery_type` com backwards compatibility
-- **`product-settings-handlers.ts`**: Adicionada persistência de `delivery_type` com backwards compatibility
+- **`product-crud-handlers.ts`**: Adicionada persistência de `delivery_type` com suporte a produtos existentes
+- **`product-settings-handlers.ts`**: Adicionada persistência de `delivery_type` com suporte a produtos existentes
 - **`product.types.ts`**: Adicionado tipo `DeliveryType` e campo na interface `ProductData`
 - **`productFormMachine.ts`**: Mapeamento do campo `delivery_type` do banco para o estado
 
@@ -33,7 +33,7 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 - **Persistência DB correta:** ✅ `delivery_type` salvo em create/update
 - **Templates de email:** ✅ 3 templates especializados
 - **UI completa:** ✅ Configuração e criação de produtos
-- **Compatibilidade legada:** ✅ `external_delivery` sincronizado
+- **Produtos existentes:** ✅ `external_delivery` sincronizado
 - **Documentação atualizada:** ✅ PRODUCTS_MODULE_ARCHITECTURE.md
 - **Score Final:** 10.0/10
 
