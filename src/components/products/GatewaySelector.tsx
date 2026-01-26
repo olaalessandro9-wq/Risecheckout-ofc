@@ -7,6 +7,7 @@
  * Características:
  * - Renderização dinâmica baseada no registry
  * - Suporta gateways ativos e "em breve"
+ * - Suporta "em breve" por role (comingSoonForRoles)
  * - Exibe taxas automaticamente
  * - Type-safe
  * - Fácil de manter
@@ -14,8 +15,9 @@
 
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePermissions } from "@/hooks/usePermissions";
 import {
   getActiveGatewaysByMethod,
   getGatewaysByMethod,
@@ -39,10 +41,29 @@ export function GatewaySelector({
   showComingSoon = true,
   credentials = {},
 }: GatewaySelectorProps) {
+  const { role } = usePermissions();
+  
   // Buscar gateways ativos
   const activeGateways = getActiveGatewaysByMethod(paymentMethod);
   
-  // Buscar gateways "em breve" (se habilitado)
+  // Separar gateways que são "coming soon" para o role atual
+  const { availableGateways, comingSoonForRoleGateways } = activeGateways.reduce<{
+    availableGateways: PaymentGateway[];
+    comingSoonForRoleGateways: PaymentGateway[];
+  }>(
+    (acc, gateway) => {
+      const isComingSoonForRole = gateway.comingSoonForRoles?.includes(role);
+      if (isComingSoonForRole) {
+        acc.comingSoonForRoleGateways.push(gateway);
+      } else {
+        acc.availableGateways.push(gateway);
+      }
+      return acc;
+    },
+    { availableGateways: [], comingSoonForRoleGateways: [] }
+  );
+  
+  // Buscar gateways "em breve" globais (se habilitado)
   const comingSoonGateways = showComingSoon
     ? getGatewaysByMethod(paymentMethod).filter(
         (g) => g.status === 'coming_soon'
@@ -50,7 +71,7 @@ export function GatewaySelector({
     : [];
 
   // Se não houver gateways, mostrar mensagem
-  if (activeGateways.length === 0) {
+  if (availableGateways.length === 0 && comingSoonForRoleGateways.length === 0) {
     return (
       <div className="border rounded-lg p-4 bg-muted/30 text-center">
         <p className="text-sm text-muted-foreground">
@@ -66,8 +87,8 @@ export function GatewaySelector({
       onValueChange={onChange}
       className="grid grid-cols-1 md:grid-cols-2 gap-4"
     >
-      {/* Gateways Ativos */}
-      {activeGateways.map((gateway) => (
+      {/* Gateways Disponíveis */}
+      {availableGateways.map((gateway) => (
         <GatewayOption
           key={gateway.id}
           gateway={gateway}
@@ -78,7 +99,16 @@ export function GatewaySelector({
         />
       ))}
 
-      {/* Gateways "Em Breve" */}
+      {/* Gateways "Em Breve" para este Role */}
+      {comingSoonForRoleGateways.map((gateway) => (
+        <GatewayRoleComingSoonOption
+          key={gateway.id}
+          gateway={gateway}
+          paymentMethod={paymentMethod}
+        />
+      ))}
+
+      {/* Gateways "Em Breve" Globais */}
       {comingSoonGateways.map((gateway) => (
         <GatewayComingSoonOption
           key={gateway.id}
@@ -88,7 +118,7 @@ export function GatewaySelector({
       ))}
 
       {/* Placeholder para "Outros Gateways" */}
-      {comingSoonGateways.length === 0 && (
+      {comingSoonGateways.length === 0 && comingSoonForRoleGateways.length === 0 && (
         <div className="border rounded-lg p-4 bg-muted/30 flex items-center gap-3 opacity-50">
           <div className="w-4 h-4 rounded-full border-2 border-muted-foreground" />
           <div>
@@ -178,6 +208,34 @@ function GatewayComingSoonOption({ gateway, paymentMethod }: GatewayComingSoonOp
         <div className="font-medium text-muted-foreground">{gateway.displayName}</div>
         <div className="text-xs text-muted-foreground">{feesText}</div>
         <div className="text-xs text-muted-foreground mt-1">Em breve</div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// GATEWAY "EM BREVE" POR ROLE
+// ============================================
+
+interface GatewayRoleComingSoonOptionProps {
+  gateway: PaymentGateway;
+  paymentMethod: PaymentMethod;
+}
+
+function GatewayRoleComingSoonOption({ gateway, paymentMethod }: GatewayRoleComingSoonOptionProps) {
+  const fees = gateway.fees[paymentMethod];
+  const feesText = fees ? formatGatewayFees(fees) : 'Sem taxas';
+
+  return (
+    <div className="border rounded-lg p-4 bg-muted/30 flex items-center gap-3 opacity-50 cursor-not-allowed">
+      <div className="w-4 h-4 rounded-full border-2 border-muted-foreground" />
+      <div className="flex-1">
+        <div className="font-medium text-muted-foreground">{gateway.displayName}</div>
+        <div className="text-xs text-muted-foreground">{feesText}</div>
+      </div>
+      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted border border-border">
+        <Clock className="w-3 h-3 text-muted-foreground" />
+        <span className="text-xs font-medium text-muted-foreground">Em Breve</span>
       </div>
     </div>
   );

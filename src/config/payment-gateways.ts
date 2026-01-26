@@ -25,6 +25,8 @@ export interface GatewayFees {
   transaction?: number;  // Taxa por transação em centavos (ex: 40 = R$ 0,40)
 }
 
+import type { AppRole } from "@/hooks/usePermissions";
+
 export interface PaymentGateway {
   id: string;
   name: string;
@@ -37,6 +39,8 @@ export interface PaymentGateway {
   requiresCredentials: boolean;
   credentialsFields?: string[];
   documentationUrl?: string;
+  /** Roles para os quais este gateway aparece como "Em Breve" */
+  comingSoonForRoles?: readonly AppRole[];
 }
 
 // ============================================
@@ -116,7 +120,7 @@ export const PAYMENT_GATEWAYS: Record<string, PaymentGateway> = {
     name: 'stripe',
     displayName: 'Stripe',
     description: 'Gateway internacional com suporte a múltiplas moedas',
-    status: 'active', // ✅ ATIVADO
+    status: 'active', // ✅ ATIVADO - Apenas para Owner
     supportedMethods: ['credit_card', 'debit_card'],
     fees: {
       pix: {
@@ -134,6 +138,7 @@ export const PAYMENT_GATEWAYS: Record<string, PaymentGateway> = {
     requiresCredentials: true,
     credentialsFields: ['publishable_key', 'secret_key'],
     documentationUrl: 'https://stripe.com/docs',
+    comingSoonForRoles: ['user', 'seller'], // Em breve para non-owners
   },
 
   // ==================== GATEWAYS EM DESENVOLVIMENTO ====================
