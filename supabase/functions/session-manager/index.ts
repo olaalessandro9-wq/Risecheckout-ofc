@@ -18,7 +18,7 @@
  * - POST /session-manager { action: "revoke-others" }
  * 
  * Headers:
- * - Cookie: __Host-rise_access=...
+ * - Cookie: __Secure-rise_access=... (Domain=.risecheckout.com)
  * 
  * ============================================================================
  * @version 2.0.0 - RISE Protocol V3 (Unified Sessions Table)

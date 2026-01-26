@@ -92,7 +92,8 @@ All buyer-related tables now reference `users(id)` as the single source of truth
                       ▼
             ┌─────────────────┐
             │ Set-Cookie:     │
-            │ __Host-rise_*   │
+            │ __Secure-rise_* │
+            │ Domain=.risecheckout.com
             └─────────────────┘
 ```
 
@@ -196,8 +197,8 @@ if (!user && refreshToken) {
 
 | Cookie | Duration | Purpose |
 |--------|----------|---------|
-| `__Host-rise_access` | 60 min | Access token (httpOnly, Secure) |
-| `__Host-rise_refresh` | 30 days | Refresh token (httpOnly, Secure) |
+| `__Secure-rise_access` | 4h | Access token (httpOnly, Secure, Domain=.risecheckout.com) |
+| `__Secure-rise_refresh` | 30 days | Refresh token (httpOnly, Secure, Domain=.risecheckout.com) |
 
 ---
 

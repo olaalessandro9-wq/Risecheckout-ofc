@@ -8,7 +8,7 @@
  * 
  * Architecture:
  * 1. Uses unified-auth endpoints with server-side locking
- * 2. Works with __Host-rise_access and __Host-rise_refresh cookies
+ * 2. Works with __Secure-rise_access and __Secure-rise_refresh cookies (Domain=.risecheckout.com)
  * 3. Delegates refresh to Session Commander for deduplication
  * 4. Supports all user roles via active_role context
  * 

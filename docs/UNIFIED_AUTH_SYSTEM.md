@@ -30,7 +30,7 @@ O RiseCheckout implementa um **Sistema de Autenticação Unificado** que gerenci
 |---------|---------------|
 | **Identidade** | Tabela única `users` para ambos os papéis |
 | **Sessões** | Tabela única `sessions` com `active_role` |
-| **Cookies** | `__Host-rise_access` e `__Host-rise_refresh` |
+| **Cookies** | `__Secure-rise_access` e `__Secure-rise_refresh` (Domain=.risecheckout.com) |
 | **Context Switch** | Troca instantânea entre Produtor ↔ Aluno |
 | **Context Guards** | Isolamento total entre painéis (Cakto-style) |
 | **Edge Function** | `unified-auth` (única para todos os fluxos) |
@@ -64,8 +64,8 @@ O RiseCheckout implementa um **Sistema de Autenticação Unificado** que gerenci
 │        │                         │                              │
 │        ▼                         ▼                              │
 │   Set-Cookie:              getAuthenticatedUser()               │
-│   __Host-rise_access       (unified-auth-v2.ts)                 │
-│   __Host-rise_refresh                                           │
+│   __Secure-rise_access     (unified-auth-v2.ts)                 │
+│   __Secure-rise_refresh                                         │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -156,9 +156,9 @@ O sistema de autenticação unificado é complementado por **Context Guards** qu
 2. Frontend chama unified-auth (action: login)
 3. Backend valida credenciais na tabela users
 4. Backend cria sessão na tabela sessions
-5. Backend define cookies httpOnly:
-   - __Host-rise_access (60 min)
-   - __Host-rise_refresh (30 dias)
+5. Backend define cookies httpOnly (Domain=.risecheckout.com):
+   - __Secure-rise_access (4h)
+   - __Secure-rise_refresh (30 dias)
 6. Frontend recebe { success: true, user, expiresIn }
 7. unifiedTokenService.setAuthenticated(expiresIn)
 8. Redirect para dashboard ou área de membros
@@ -170,7 +170,7 @@ O sistema de autenticação unificado é complementado por **Context Guards** qu
 1. Token de acesso expira (ou está próximo: < 5 min)
 2. unifiedTokenService detecta via heartbeat
 3. Chama unified-auth/refresh com credentials: include
-4. Backend valida __Host-rise_refresh cookie
+4. Backend valida __Secure-rise_refresh cookie
 5. Backend rotaciona refresh token (proteção replay)
 6. Backend define novos cookies
 7. Frontend atualiza estado interno
@@ -239,8 +239,8 @@ CREATE INDEX idx_sessions_user ON sessions(user_id, is_valid);
 
 | Cookie | Duração | Flags |
 |--------|---------|-------|
-| `__Host-rise_access` | 60 min | httpOnly, Secure, SameSite=None, Partitioned, Path=/ |
-| `__Host-rise_refresh` | 30 dias | httpOnly, Secure, SameSite=None, Partitioned, Path=/ |
+| `__Secure-rise_access` | 4h | httpOnly, Secure, SameSite=None, Domain=.risecheckout.com, Path=/ |
+| `__Secure-rise_refresh` | 30 dias | httpOnly, Secure, SameSite=None, Domain=.risecheckout.com, Path=/ |
 
 ### Proteções Implementadas
 
@@ -344,7 +344,7 @@ Esta arquitetura substitui completamente o sistema anterior que tinha:
 | `producer-auth` + `buyer-auth` | `unified-auth` única |
 | `useProducerAuth` + `useBuyerAuth` | `useUnifiedAuth` única |
 | `producerTokenService` + `buyerTokenService` | `unifiedTokenService` única |
-| 4 cookies diferentes | 2 cookies (`__Host-rise_*`) |
+| 4 cookies diferentes | 2 cookies (`__Secure-rise_*`, Domain=.risecheckout.com) |
 
 ### Arquivos Deletados na Migração
 
@@ -371,5 +371,9 @@ Esta arquitetura substitui completamente o sistema anterior que tinha:
 
 ---
 
-**Última Atualização:** 23 de Janeiro de 2026  
+**Última Atualização:** 26 de Janeiro de 2026  
 **Mantenedor:** Lead Architect
+
+> **Arquitetura Multi-Subdomain (RISE V3):** Cookies usam `Domain=.risecheckout.com` 
+> permitindo compartilhamento de sessão entre `app.risecheckout.com`, `pay.risecheckout.com`, 
+> e `api.risecheckout.com`.

@@ -4,7 +4,7 @@
  * @version 4.0.0 - RISE Protocol V3 - Unified auth cookies
  * 
  * SECURITY:
- * - Requer autenticação via Cookie: __Host-rise_access (unified-auth-v2)
+ * - Requer autenticação via Cookie: __Secure-rise_access (unified-auth-v2, Domain=.risecheckout.com)
  * - SOMENTE para PRODUTOR do produto (product.user_id)
  * - Owner NÃO tem acesso aqui (deve usar modal individual)
  * - Limite máximo de 20 pedidos por request (anti-abuso)
@@ -103,7 +103,7 @@ serve(async (req) => {
       throw new Error("BUYER_ENCRYPTION_KEY not configured");
     }
 
-    // AUTENTICAÇÃO via unified-auth (Cookie: __Host-rise_access)
+    // AUTENTICAÇÃO via unified-auth (Cookie: __Secure-rise_access)
     let producer;
     try {
       producer = await requireAuthenticatedProducer(supabaseAdmin, req);

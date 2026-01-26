@@ -404,7 +404,7 @@ feature/dashboard-analytics-charts
 
 | Auth Type | Descrição | Qtd Funções |
 |-----------|-----------|-------------|
-| `sessions (unified-auth)` | Requer sessão via cookies `__Host-rise_*` | ~55 |
+| `sessions (unified-auth)` | Requer sessão via cookies `__Secure-rise_*` (Domain=.risecheckout.com) | ~55 |
 | `webhook` | Validação de assinatura | ~4 |
 | `public` | Sem auth | ~20 |
 | `internal` | Service role only | ~15 |

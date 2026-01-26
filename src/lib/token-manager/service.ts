@@ -418,6 +418,6 @@ export class TokenService {
  * UNIFIED TOKEN SERVICE - The ONLY token service
  * 
  * This is the single token service that manages authentication
- * via the unified-auth system with __Host-rise_* cookies.
+ * via the unified-auth system with __Secure-rise_* cookies (Domain=.risecheckout.com).
  */
 export const unifiedTokenService = new TokenService("unified");

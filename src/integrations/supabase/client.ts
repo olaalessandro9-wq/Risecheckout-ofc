@@ -4,7 +4,7 @@
  * ARCHITECTURE NOTE:
  * - anon key is public by design - security is enforced by RLS policies
  * - Secret keys (service_role) are stored in Supabase Secrets for edge functions
- * - Authentication uses httpOnly cookies (__Host-rise_access, __Host-rise_refresh)
+ * - Authentication uses httpOnly cookies (__Secure-rise_access, __Secure-rise_refresh) with Domain=.risecheckout.com
  * - Frontend MUST use api.call() or rpcProxy for all backend operations
  * - Edge Functions receive cookies via credentials: 'include'
  * - This client is used ONLY for Supabase Auth operations

@@ -30,7 +30,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // RISE V3: Use unified auth - validates via sessions table + __Host-rise_access cookie
+    // RISE V3: Use unified auth - validates via sessions table + __Secure-rise_access cookie (Domain=.risecheckout.com)
     const user = await getAuthenticatedUser(supabase, req);
     
     if (!user) {

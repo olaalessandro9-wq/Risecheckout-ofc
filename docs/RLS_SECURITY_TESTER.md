@@ -26,7 +26,7 @@ supabase/functions/rls-security-tester/
 
 ### POST /rls-security-tester
 
-**Auth:** Cookie `__Host-rise_access` (requer autenticação via unified-auth)
+**Auth:** Cookie `__Secure-rise_access` (requer autenticação via unified-auth)
 
 | Action | Payload | Descrição |
 |--------|---------|-----------|
@@ -71,7 +71,7 @@ const USER_SCOPED_TABLES = [
 # Via cookie httpOnly (gerenciado automaticamente pelo frontend)
 curl -X POST https://[project].supabase.co/functions/v1/rls-security-tester \
   -H "Content-Type: application/json" \
-  -H "Cookie: __Host-rise_access=[token]" \
+  -H "Cookie: __Secure-rise_access=[token]" \
   -d '{"action": "run-all"}'
 ```
 

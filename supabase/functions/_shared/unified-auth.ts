@@ -41,7 +41,7 @@ export interface ProducerAuth {
  * 
  * RISE V3: Uses ONLY unified-auth-v2 which validates against the `sessions` table.
  * 
- * Token source: Cookie `__Host-rise_access` (httpOnly)
+ * Token source: Cookie `__Secure-rise_access` (httpOnly, Domain=.risecheckout.com)
  * 
  * @param supabase - Supabase client with service role
  * @param request - The incoming HTTP request

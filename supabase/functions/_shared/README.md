@@ -52,8 +52,8 @@ O sistema de autenticação segue o padrão **Unified Identity**:
 
 | Cookie | Duração | Propósito |
 |--------|---------|-----------|
-| `__Host-rise_access` | 60 min | Access token (httpOnly, Secure) |
-| `__Host-rise_refresh` | 30 dias | Refresh token (httpOnly, Secure) |
+| `__Secure-rise_access` | 4h | Access token (httpOnly, Secure, Domain=.risecheckout.com) |
+| `__Secure-rise_refresh` | 30 dias | Refresh token (httpOnly, Secure, Domain=.risecheckout.com) |
 
 ### Módulos de Auth
 
@@ -154,8 +154,8 @@ Os seguintes padrões foram **completamente removidos** na migração RISE V3:
 
 - ❌ `producer_sessions` - Substituída por `sessions`
 - ❌ `buyer_sessions` - Substituída por `sessions`
-- ❌ `x-buyer-token` header - Substituído por cookie `__Host-rise_access`
-- ❌ `x-producer-session-token` header - Substituído por cookie `__Host-rise_access`
+- ❌ `x-buyer-token` header - Substituído por cookie `__Secure-rise_access`
+- ❌ `x-producer-session-token` header - Substituído por cookie `__Secure-rise_access`
 - ❌ `validateLegacyProducerSession()` - Removida
 - ❌ `validateLegacyBuyerSession()` - Removida
 
@@ -167,6 +167,6 @@ Os seguintes padrões foram **completamente removidos** na migração RISE V3:
 |----------|--------|
 | Single Source of Truth | ✅ `sessions` table |
 | Zero Fallbacks Legados | ✅ 0 funções |
-| Cookie-based Auth | ✅ `__Host-rise_*` |
+| Cookie-based Auth | ✅ `__Secure-rise_*` (Domain=.risecheckout.com) |
 | Zero Headers Legados | ✅ Removidos |
 | Documentação Atualizada | ✅ Este arquivo |
