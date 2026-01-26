@@ -1,10 +1,16 @@
 /**
  * Token Manager - Public Exports
  * 
- * RISE Protocol V3: Unified Token Service
+ * RISE Protocol V3: Session Commander Architecture (2026-01-26)
  * 
- * All authentication flows now use the unified service.
- * Legacy buyer/producer exports are deprecated aliases.
+ * All authentication flows use the unified service + Session Commander.
+ * 
+ * Primary refresh path:
+ *   TokenService.refresh() → SessionCommander.requestRefresh() → /request-refresh
+ * 
+ * For refresh operations, prefer:
+ *   import { sessionCommander } from "@/lib/session-commander";
+ *   await sessionCommander.requestRefresh();
  */
 
 // Types
@@ -37,8 +43,9 @@ export { persistTokenState, restoreTokenState, clearPersistedState } from "./per
 export type { HeartbeatCallback } from "./heartbeat";
 export { HeartbeatManager } from "./heartbeat";
 
-// Refresh (for advanced usage/testing)
+// Refresh (DEPRECATED - use sessionCommander.requestRefresh() instead)
 export type { RefreshResult } from "./refresh";
+/** @deprecated Use sessionCommander.requestRefresh() from "@/lib/session-commander" */
 export { executeRefresh } from "./refresh";
 
 // ============================================
