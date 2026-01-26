@@ -12,6 +12,7 @@ import {
 } from "react-router-dom";
 import { RoleProtectedRoute } from "@/components/RoleProtectedRoute";
 import { ProducerRoute, BuyerRoute } from "@/components/guards";
+import { MarketplaceRoute } from "@/components/guards/MarketplaceRoute";
 import { ThemeProvider } from "@/providers/theme";
 import { NavigationGuardProvider } from "@/providers/NavigationGuardProvider";
 import { UltrawidePerformanceProvider } from "@/contexts/UltrawidePerformanceContext";
@@ -261,7 +262,7 @@ const router = createBrowserRouter([
           { index: true, element: <Dashboard /> },
           { path: "produtos", element: <Produtos /> },
           { path: "produtos/editar", element: <ProductEdit /> },
-          { path: "marketplace", element: <Marketplace /> },
+          { path: "marketplace", element: <MarketplaceRoute><Marketplace /></MarketplaceRoute> },
           {
             path: "afiliados",
             element: (

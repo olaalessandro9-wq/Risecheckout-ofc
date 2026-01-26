@@ -8,6 +8,7 @@
  */
 
 import type { LucideIcon } from "lucide-react";
+import type { AppRole } from "@/hooks/usePermissions";
 
 // ============================================================================
 // NAV ITEM VARIANTS (DISCRIMINATED UNION)
@@ -77,6 +78,8 @@ export interface NavItemConfig {
   readonly variant: NavItemVariant;
   /** Permissões necessárias para visualizar este item */
   readonly permissions?: NavItemPermissions;
+  /** Roles para os quais esta feature está "Em Breve" (mostra badge + página EmBreve) */
+  readonly comingSoonForRoles?: readonly AppRole[];
 }
 
 // ============================================================================

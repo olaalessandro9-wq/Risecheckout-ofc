@@ -12,6 +12,8 @@ import { useMemo, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { GuardedLink } from "@/components/navigation/GuardedLink";
+import { Badge } from "@/components/ui/badge";
+import { usePermissions } from "@/hooks/usePermissions";
 import { isActivePath } from "../../utils/navigationHelpers";
 import type { NavItemConfig } from "../../types/navigation.types";
 
@@ -54,7 +56,13 @@ const ROUTE_PREFETCH_MAP: Record<string, () => Promise<unknown>> = {
 export function SidebarItem({ item, showLabels, onNavigate }: SidebarItemProps) {
   const location = useLocation();
   const queryClient = useQueryClient();
+  const { role } = usePermissions();
   const Icon = item.icon;
+
+  // Verificar se é "em breve" para o role atual
+  const isComingSoon = useMemo(() => {
+    return item.comingSoonForRoles?.includes(role) ?? false;
+  }, [item.comingSoonForRoles, role]);
 
   // Type-safe: só calcula isActive para rotas
   const isActive = useMemo(() => {
@@ -103,13 +111,18 @@ export function SidebarItem({ item, showLabels, onNavigate }: SidebarItemProps) 
       {showLabels && (
         <span
           className={cn(
-            "font-medium whitespace-nowrap overflow-hidden text-ellipsis",
+            "font-medium whitespace-nowrap overflow-hidden text-ellipsis flex items-center gap-2",
             isActive
               ? "text-foreground"
               : "text-muted-foreground group-hover/item:text-foreground"
           )}
         >
           {item.label}
+          {isComingSoon && (
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-normal">
+              Em Breve
+            </Badge>
+          )}
         </span>
       )}
 
