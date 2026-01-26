@@ -1,79 +1,74 @@
 
-# Plano: Simplificação do CORS (Single Secret Architecture)
 
-## Objetivo
+# Plano: Corrigir Content-Security-Policy no vercel.json
 
-Simplificar o sistema CORS removendo a lógica de ambiente (dev/prod) e usando apenas uma secret `CORS_ALLOWED_ORIGINS`.
+## Diagnóstico Confirmado
 
-## Mudanças
+O erro de login NÃO é mais CORS - agora é **CSP (Content-Security-Policy)**.
 
-### 1. Simplificar `supabase/functions/_shared/cors-v2.ts`
+O arquivo `vercel.json` linha 29 define a diretiva `connect-src` que **não inclui** os domínios necessários:
 
-**Remover:**
-- Variável `cachedEnvironment`
-- Função `getEnvironment()`
-- Lógica condicional de `CORS_ALLOWED_ORIGINS_DEV`
-- Referências a `ENVIRONMENT`
+| Domínio | Status | Necessário para |
+|---------|--------|-----------------|
+| `https://api.risecheckout.com` | **FALTANDO** | Login e todas Edge Functions |
+| `https://*.sentry.io` | **FALTANDO** | Captura de erros (Sentry) |
+| `https://*.ingest.us.sentry.io` | **FALTANDO** | Sentry Ingest |
+| `wss://wivbtmtgpsxupfjwwovf.supabase.co` | **FALTANDO** | Realtime (se usado) |
 
-**Manter:**
-- Lógica de cache de origins
-- Validação fail-secure
-- Todas as funções públicas (`handleCorsV2`, `getCorsHeadersV2`, etc.)
+## Mudança Necessária
 
-**Código Simplificado:**
-```typescript
-function loadAllowedOrigins(): Set<string> {
-  if (cachedOrigins) return cachedOrigins;
-  
-  const originsRaw = Deno.env.get("CORS_ALLOWED_ORIGINS");
-  
-  if (!originsRaw) {
-    log.error("CRITICAL: CORS_ALLOWED_ORIGINS not configured - blocking ALL origins");
-    cachedOrigins = new Set();
-    return cachedOrigins;
-  }
-  
-  const origins = originsRaw.split(",").map(o => o.trim()).filter(o => o.length > 0);
-  cachedOrigins = new Set(origins);
-  log.info(`Loaded ${cachedOrigins.size} allowed origins`);
-  
-  return cachedOrigins;
-}
+### Arquivo: `vercel.json`
+
+**Antes (linha 29):**
+```
+connect-src 'self' https://wivbtmtgpsxupfjwwovf.supabase.co https://www.google-analytics.com https://api.mercadopago.com;
 ```
 
-### 2. Adicionar Secret `CORS_ALLOWED_ORIGINS`
-
-**Valor:**
+**Depois:**
 ```
-https://risecheckout.com,https://www.risecheckout.com,https://app.risecheckout.com,https://pay.risecheckout.com,https://api.risecheckout.com,https://id-preview--ed9257df-d9f6-4a5e-961f-eca053f14944.lovable.app
+connect-src 'self' https://api.risecheckout.com https://wivbtmtgpsxupfjwwovf.supabase.co wss://wivbtmtgpsxupfjwwovf.supabase.co https://*.sentry.io https://*.ingest.us.sentry.io https://www.google-analytics.com https://api.mercadopago.com https://api.stripe.com;
 ```
 
-### 3. Atualizar Documentação
+## CSP Completo Atualizado
 
-Atualizar comentários do arquivo para refletir a nova arquitetura simplificada.
+O valor completo do CSP será:
 
-## Resultado
+```text
+default-src 'self'; 
+script-src 'self' 'unsafe-inline' 'unsafe-eval' https://wivbtmtgpsxupfjwwovf.supabase.co https://www.googletagmanager.com https://www.google-analytics.com https://sdk.mercadopago.com https://js.stripe.com; 
+style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; 
+font-src 'self' https://fonts.gstatic.com data:; 
+img-src 'self' data: https: blob:; 
+connect-src 'self' https://api.risecheckout.com https://wivbtmtgpsxupfjwwovf.supabase.co wss://wivbtmtgpsxupfjwwovf.supabase.co https://*.sentry.io https://*.ingest.us.sentry.io https://www.google-analytics.com https://api.mercadopago.com https://api.stripe.com; 
+frame-src 'self' https://www.mercadopago.com.br https://js.stripe.com; 
+object-src 'none'; 
+base-uri 'self'; 
+form-action 'self'; 
+upgrade-insecure-requests;
+```
 
-| Antes | Depois |
-|-------|--------|
-| 3 secrets possíveis | 1 secret |
-| Lógica dev/prod | Código direto |
-| ~95 linhas | ~70 linhas |
-| CORS_ALLOWED_ORIGINS_DEV | Removido |
-| ENVIRONMENT | Desnecessário |
+## Domínios Adicionados
+
+| Diretiva | Domínios Adicionados | Motivo |
+|----------|---------------------|--------|
+| `connect-src` | `https://api.risecheckout.com` | **Proxy para Edge Functions (LOGIN!)** |
+| `connect-src` | `wss://wivbtmtgpsxupfjwwovf.supabase.co` | Supabase Realtime WebSocket |
+| `connect-src` | `https://*.sentry.io` | Sentry error tracking |
+| `connect-src` | `https://*.ingest.us.sentry.io` | Sentry ingest endpoint |
+| `connect-src` | `https://api.stripe.com` | Stripe API |
+| `script-src` | `https://sdk.mercadopago.com` | MercadoPago SDK |
+| `script-src` | `https://js.stripe.com` | Stripe.js |
+| `frame-src` | `https://js.stripe.com` | Stripe 3D Secure iframe |
+
+## Resultado Esperado
+
+Após esta correção:
+- Login funcionará em `risecheckout.com/auth`
+- Sentry capturará erros corretamente
+- Pagamentos com Stripe e MercadoPago funcionarão
+- Realtime (se usado) funcionará
 
 ## Seção Técnica
 
-### Arquivo: `supabase/functions/_shared/cors-v2.ts`
+O CSP é aplicado pelo navegador no momento do carregamento da página. Quando o frontend tenta fazer um `fetch()` para `api.risecheckout.com`, o navegador verifica a diretiva `connect-src`. Como o domínio não estava listado, a requisição era bloqueada ANTES mesmo de sair do navegador - por isso não há logs no servidor.
 
-O arquivo será reduzido de ~190 linhas para ~150 linhas, removendo toda a lógica de detecção de ambiente que não é utilizada.
-
-### Secret Required
-
-A secret `CORS_ALLOWED_ORIGINS` deve conter todos os domínios permitidos separados por vírgula, incluindo:
-- Domínio principal: `https://risecheckout.com`
-- WWW: `https://www.risecheckout.com`
-- App: `https://app.risecheckout.com`
-- Pay (checkout): `https://pay.risecheckout.com`
-- API: `https://api.risecheckout.com`
-- Preview Lovable: `https://id-preview--ed9257df-d9f6-4a5e-961f-eca053f14944.lovable.app`
