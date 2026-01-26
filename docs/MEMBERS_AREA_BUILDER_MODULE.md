@@ -211,16 +211,17 @@ Cada tipo de seção tem seu editor dedicado:
 
 | Arquivo | Linhas | Status |
 |---------|--------|--------|
-| `builderMachine.ts` | 279 | ✅ |
-| `builderMachine.types.ts` | ~120 | ✅ |
-| `builderMachine.guards.ts` | ~45 | ✅ |
-| `builderMachine.actions.ts` | ~85 | ✅ |
+| `builderMachine.ts` | 233 | ✅ |
+| `builderMachine.types.ts` | ~130 | ✅ |
+| `builderMachine.guards.ts` | ~60 | ✅ |
+| `builderMachine.actions.ts` | ~115 | ✅ |
 | `builderMachine.actors.ts` | ~180 | ✅ |
 | `useMembersAreaBuilder.ts` | ~150 | ✅ |
 | `useMembersAreaState.ts` | ~200 | ✅ |
 | `MembersAreaBuilderPage.tsx` | ~180 | ✅ |
+| `ViewportSyncPanel.tsx` | ~100 | ✅ |
 
-**Total:** ~1.239 linhas (todos < 300)
+**Total:** ~1.348 linhas (todos < 300)
 
 ---
 
@@ -228,6 +229,7 @@ Cada tipo de seção tem seu editor dedicado:
 
 | Versão | Data | Alterações |
 |--------|------|------------|
+| 2.0 | 2026-01-25 | **Dual-Layout**: Layouts independentes Desktop/Mobile, toggle de sincronização, botão "Copiar do Desktop", ViewportSyncPanel, refatoração actions para < 300 linhas |
 | 1.0 | 2026-01-22 | Documentação inicial após auditoria RISE V3 |
 
 ---
