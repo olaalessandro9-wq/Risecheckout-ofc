@@ -2,7 +2,7 @@
  * asaas-payment-helper.ts
  * 
  * Módulo auxiliar para gerenciamento de pagamentos na Asaas.
- * Separado do AsaasAdapter para manter arquivos < 300 linhas (RISE Protocol V2).
+ * Separado do AsaasAdapter para manter arquivos < 300 linhas (RISE ARCHITECT PROTOCOL V3).
  * 
  * @version 1.0.0
  */

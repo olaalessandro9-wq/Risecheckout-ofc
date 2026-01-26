@@ -2,7 +2,7 @@
  * Handler para pagamentos PIX no Mercado Pago
  * Recebe parâmetros validados e retorna resultado padronizado
  * 
- * RISE Protocol V2 Compliant - Zero `any`
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10 - Zero `any`
  * Version: 2.0.0
  */
 

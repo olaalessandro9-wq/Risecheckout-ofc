@@ -2,7 +2,7 @@
  * fee-calculator.ts
  * 
  * Funções de cálculo de taxas e comissões da plataforma RiseCheckout.
- * Extraído de platform-config.ts para RISE Protocol V2 (< 300 linhas).
+ * Extraído de platform-config.ts para RISE ARCHITECT PROTOCOL V3 (< 300 linhas).
  * 
  * @module _shared/fee-calculator
  * @version 1.1.0 - Migrated to centralized logger

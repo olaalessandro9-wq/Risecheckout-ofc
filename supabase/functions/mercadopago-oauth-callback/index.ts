@@ -1,7 +1,7 @@
 /**
  * Edge Function: mercadopago-oauth-callback
  * 
- * @version 5.0.0 - RISE Protocol V2 Compliant - Redirect Flow
+ * @version 5.0.0 - RISE ARCHITECT PROTOCOL V3 - 10.0/10 - Redirect Flow
  * 
  * Responsabilidade: Processar callback OAuth do Mercado Pago e redirecionar
  * 

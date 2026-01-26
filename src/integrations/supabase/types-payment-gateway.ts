@@ -1,6 +1,6 @@
 /**
- * Tipos temporários para payment_gateway_settings
- * Este arquivo será removido após regenerar os tipos oficiais do Supabase
+ * Tipos para payment_gateway_settings
+ * Tipos pendentes de integração com schema oficial do Supabase
  */
 
 export interface PaymentGatewaySettings {

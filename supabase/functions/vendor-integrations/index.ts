@@ -8,7 +8,7 @@
  * - get-config: Get integration config by vendor ID and type
  * - get-all: Get all active integrations for a vendor
  * 
- * @see RISE Protocol V2 - Zero database access from frontend
+ * @see RISE ARCHITECT PROTOCOL V3 - Zero database access from frontend
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";

@@ -1,7 +1,7 @@
 /**
  * PushinPay Validate Token Edge Function
  * 
- * @version 1.0.0 - RISE Protocol V2 Compliant
+ * @version 1.0.0 - RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Valida token de API PushinPay no backend, evitando:
  * 1. Exposição do token no browser

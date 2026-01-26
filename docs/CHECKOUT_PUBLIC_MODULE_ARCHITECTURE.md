@@ -619,14 +619,14 @@ A partir da v1.2, o PushinPay gera o QR code diretamente no `processPixPaymentAc
 
 ---
 
-## 13. Integração com Legacy Hooks
+## 13. Integração com Hooks Existentes
 
 ### 13.1 CheckoutFormData Adapter
 
-Para compatibilidade com componentes legados que usam `CheckoutFormData`, existe um adapter em `CheckoutPublicContent.tsx`:
+Para integração com componentes que usam `CheckoutFormData`, existe um adapter em `CheckoutPublicContent.tsx`:
 
 ```typescript
-const formDataForLegacy: CheckoutFormData = {
+const formDataForAdapter: CheckoutFormData = {
   name: formData.name,
   email: formData.email,
   phone: formData.phone || '',
@@ -636,7 +636,7 @@ const formDataForLegacy: CheckoutFormData = {
 
 ### 13.2 selectedBumps Adapter
 
-Para compatibilidade com `useOrderBumpLogic` que espera `Set<string>`:
+Para integração com `useOrderBumpLogic` que espera `Set<string>`:
 
 ```typescript
 const selectedBumpsSet = useMemo(

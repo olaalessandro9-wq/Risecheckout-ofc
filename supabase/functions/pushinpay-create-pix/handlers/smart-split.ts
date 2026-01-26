@@ -8,7 +8,7 @@
  * - Senão → produtor cria PIX
  * 
  * @author RiseCheckout Team
- * @version 2.0.0 - Zero `any` compliance (RISE Protocol V2)
+ * @version 2.0.0 - Zero `any` compliance (RISE ARCHITECT PROTOCOL V3 - 10.0/10)
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";

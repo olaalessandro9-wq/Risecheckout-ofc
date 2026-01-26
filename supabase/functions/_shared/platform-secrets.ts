@@ -2,7 +2,7 @@
  * platform-secrets.ts
  * 
  * Catálogo centralizado de todos os secrets do projeto e funções de validação.
- * Extraído de platform-config.ts para RISE Protocol V2 (< 300 linhas).
+ * Extraído de platform-config.ts para RISE ARCHITECT PROTOCOL V3 (< 300 linhas).
  * 
  * @module _shared/platform-secrets
  * @version 1.0.0

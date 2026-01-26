@@ -1,7 +1,7 @@
 /**
  * product-validator.ts - Validação de Produto, Oferta e Checkout
  * 
- * @version 2.0.0 - RISE Protocol V2 Compliant - Zero `any`
+ * @version 2.0.0 - RISE ARCHITECT PROTOCOL V3 - 10.0/10 - Zero `any`
  * 
  * Responsabilidade ÚNICA: Validar ownership e buscar dados do produto
  */

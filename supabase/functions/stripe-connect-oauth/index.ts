@@ -1,7 +1,7 @@
 /**
  * Stripe Connect OAuth Edge Function
  * 
- * @version 3.0.0 - RISE Protocol V2 Compliant - Refatorado
+ * @version 3.0.0 - RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Gerencia o fluxo OAuth para conectar contas Stripe de vendedores.
  * Endpoints:

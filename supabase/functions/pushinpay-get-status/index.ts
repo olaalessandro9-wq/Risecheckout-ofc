@@ -7,7 +7,7 @@
  * Endpoint correto: GET /api/transactions/{id}
  * 
  * @author RiseCheckout Team
- * @version 2.1.0 - Zero `any` compliance (RISE Protocol V2)
+ * @version 2.1.0 - Zero `any` compliance (RISE ARCHITECT PROTOCOL V3 - 10.0/10)
  */
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";

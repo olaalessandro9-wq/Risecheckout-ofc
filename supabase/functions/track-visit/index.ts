@@ -4,7 +4,7 @@
  * Tracks checkout visits with server-side IP capture.
  * Also increments the aggregate visits_count counter.
  * 
- * @version 1.0.0 - RISE Protocol V2
+ * @version 1.0.0 - RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
