@@ -1,14 +1,16 @@
 /**
  * Product Entities Edge Function
  * 
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
  * Retorna entidades relacionadas a produtos:
  * - offers: Ofertas do produto
  * - orderBumps: Order bumps dos checkouts do produto
- * - coupons: Cupons (global ou por produto)
+ * - coupons: Cupons vinculados ao produto (via coupon_products)
  * - checkouts: Checkouts do produto
  * - paymentLinks: Links de pagamento do produto
  * 
- * @version 2.0.0 - RISE V3 Compliant (uses _shared/entities)
+ * @module product-entities
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
@@ -22,7 +24,6 @@ import {
   fetchProductCheckoutsWithRelations,
   fetchProductPaymentLinksWithRelations,
   fetchProductCoupons,
-  fetchAllCoupons,
 } from "../_shared/entities/index.ts";
 
 const log = createLogger("product-entities");
@@ -128,7 +129,7 @@ serve(async (req) => {
       }
       
       case "coupons": {
-        const coupons = await fetchAllCoupons(supabase);
+        const coupons = await fetchProductCoupons(supabase, productId);
         return jsonResponse({ coupons }, corsHeaders);
       }
       
@@ -147,7 +148,7 @@ serve(async (req) => {
         const [offers, orderBumps, coupons, checkouts, paymentLinks] = await Promise.all([
           fetchActiveProductOffers(supabase, productId),
           fetchProductOrderBumps(supabase, productId),
-          fetchAllCoupons(supabase),
+          fetchProductCoupons(supabase, productId),
           fetchProductCheckoutsWithRelations(supabase, productId),
           fetchProductPaymentLinksWithRelations(supabase, productId),
         ]);

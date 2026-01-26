@@ -1,6 +1,8 @@
 /**
  * Entities Module - Shared handlers for product-related data
  * 
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
  * This module provides a Single Source of Truth for fetching
  * product entities across multiple Edge Functions.
  * 
@@ -9,7 +11,6 @@
  * - product-entities (individual entity fetching)
  * 
  * @module _shared/entities
- * @version RISE V3 Compliant
  */
 
 // Product
@@ -44,8 +45,7 @@ export {
   fetchProductPaymentLinksWithRelations,
 } from "./paymentLinks.ts";
 
-// Coupons
+// Coupons (per-product only)
 export { 
-  fetchProductCoupons, 
-  fetchAllCoupons,
+  fetchProductCoupons,
 } from "./coupons.ts";

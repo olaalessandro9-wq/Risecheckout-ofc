@@ -1,10 +1,16 @@
 /**
  * Coupon Management Handlers
  * 
- * Extracted handlers for coupon-management edge function.
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
- * RISE Protocol Compliant - Zero `any`
- * @version 1.1.0 - Migrated to centralized logger
+ * Responsabilidade ÚNICA: Gerenciamento de cupons por produto
+ * 
+ * Arquitetura:
+ * - Cupons são SEMPRE vinculados a produtos (via coupon_products)
+ * - Unicidade de código é por PRODUTO, não global
+ * - Validação em múltiplas camadas (backend + trigger)
+ * 
+ * @module _shared/coupon-handlers
  */
 
 import { SupabaseClient, Coupon } from "./supabase-types.ts";
@@ -132,8 +138,6 @@ export async function handleCreateCoupon(
     await supabase.from("coupons").delete().eq("id", (newCoupon as Coupon).id);
     return errorResponse("Erro ao vincular cupom ao produto", corsHeaders, 500);
   }
-
-  // Rate limit recording is automatic via checkRateLimit
 
   log.info(`Coupon created: ${(newCoupon as Coupon).id} for product ${productId}`);
   return jsonResponse({ success: true, coupon: newCoupon }, corsHeaders);
