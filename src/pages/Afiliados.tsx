@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { invokeEdgeFunction } from "@/lib/api-client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { getProducerAffiliatesRpc } from "@/lib/rpc/rpcProxy";
 import { createLogger } from "@/lib/logger";
@@ -115,13 +115,12 @@ const Afiliados = () => {
     try {
       setActionLoading(affiliationId);
       
-      // Usar invokeEdgeFunction que inclui autenticação via cookies automaticamente
-      const { data, error } = await invokeEdgeFunction<{ success: boolean; message?: string; error?: string }>('manage-affiliation', {
+      const { data, error } = await api.call<{ success: boolean; message?: string; error?: string }>('manage-affiliation', {
         affiliation_id: affiliationId,
         action
       });
 
-      if (error) throw new Error(error);
+      if (error) throw new Error(error.message);
       if (!data?.success) throw new Error(data?.error || "Erro ao processar ação");
 
       toast.success(data.message || "Ação realizada com sucesso!");
@@ -151,14 +150,13 @@ const Afiliados = () => {
         return;
       }
 
-      // Usar Edge Function existente (PROTOCOLO: Zero bypass direto)
-      const { data, error } = await invokeEdgeFunction<{ success: boolean; error?: string; message?: string }>("manage-affiliation", {
+      const { data, error } = await api.call<{ success: boolean; error?: string; message?: string }>("manage-affiliation", {
         affiliation_id: selectedAffiliate.id,
         action: "update_commission",
         commission_rate: newRate,
       });
 
-      if (error) throw new Error(error);
+      if (error) throw new Error(error.message);
       if (!data?.success) throw new Error(data?.error || "Erro ao atualizar comissão");
 
       toast.success(data.message || 'Comissão atualizada com sucesso!');

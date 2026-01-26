@@ -10,7 +10,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
-import { invokeEdgeFunction } from "@/lib/api-client";
+import { api } from "@/lib/api";
 import type { DashboardData, DateRange, DateRangePreset, RpcDashboardMetrics, Order } from "../types";
 import {
   calculateMetricsFromRpc,
@@ -53,7 +53,7 @@ export function useDashboardAnalytics(dateRange: DateRange, preset: DateRangePre
       }
 
       // 1 única chamada BFF (antes eram 4 paralelas)
-      const { data: response, error: fetchError } = await invokeEdgeFunction<DashboardFullResponse>(
+      const { data: response, error: fetchError } = await api.call<DashboardFullResponse>(
         "dashboard-analytics",
         {
           action: "full",
@@ -64,7 +64,7 @@ export function useDashboardAnalytics(dateRange: DateRange, preset: DateRangePre
       );
 
       if (fetchError) {
-        throw new Error(fetchError);
+        throw new Error(fetchError.message);
       }
 
       if (!response?.success || !response?.data) {

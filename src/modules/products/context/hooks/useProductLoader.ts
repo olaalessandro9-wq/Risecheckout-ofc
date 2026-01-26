@@ -11,7 +11,7 @@
 
 import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { invokeEdgeFunction } from "@/lib/api-client";
+import { api } from "@/lib/api";
 import { createLogger } from "@/lib/logger";
 
 const logger = createLogger("useProductLoader");
@@ -231,14 +231,14 @@ export function useProductLoader({
     queryFn: async (): Promise<ProductFullData> => {
       logger.info("Fetching product full data", { productId });
       
-      const { data: response, error: fetchError } = await invokeEdgeFunction<ProductFullResponse>(
+      const { data: response, error: fetchError } = await api.call<ProductFullResponse>(
         "product-full-loader",
         { action: "load-full", productId }
       );
 
       if (fetchError) {
-        logger.error("Edge function error", { productId, error: fetchError });
-        throw new Error(fetchError);
+        logger.error("Edge function error", { productId, error: fetchError.message });
+        throw new Error(fetchError.message);
       }
 
       if (!response?.success || !response?.data) {
