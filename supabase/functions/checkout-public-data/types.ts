@@ -99,6 +99,11 @@ export interface AffiliateData {
   creditCardGateway?: string | null;
 }
 
+/**
+ * RISE V3: Checkout schema reflects SSOT architecture.
+ * Individual color columns are DEPRECATED and not included.
+ * All color data comes from the `design` JSON field.
+ */
 export interface CheckoutData {
   id: string;
   name: string;
@@ -106,11 +111,6 @@ export interface CheckoutData {
   visits_count: number;
   seller_name: string | null;
   font: string | null;
-  background_color: string | null;
-  text_color: string | null;
-  primary_color: string | null;
-  button_color: string | null;
-  button_text_color: string | null;
   components: unknown;
   top_components: unknown;
   bottom_components: unknown;
