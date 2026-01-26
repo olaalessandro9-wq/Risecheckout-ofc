@@ -107,7 +107,7 @@ export const GATEWAY_REGISTRY: Readonly<Record<GatewayId, GatewayDefinition>> = 
     description: 'Cartão de Crédito e PIX',
     icon: CreditCard,
     iconColor: '#635BFF',
-    status: 'active',
+    status: 'coming_soon',
     capabilities: {
       pix: true,
       creditCard: true,

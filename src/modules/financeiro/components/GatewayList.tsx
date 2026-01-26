@@ -40,6 +40,7 @@ export function GatewayList({ connectionStatuses, onSelect }: GatewayListProps) 
             icon={gateway.icon}
             iconColor={gateway.iconColor}
             connected={status.connected}
+            status={gateway.status}
             onClick={() => onSelect(gatewayId)}
           />
         );

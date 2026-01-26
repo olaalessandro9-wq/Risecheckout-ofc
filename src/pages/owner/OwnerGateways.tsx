@@ -57,6 +57,7 @@ export default function OwnerGateways() {
               description={gateway.description}
               icon={gateway.icon}
               iconColor={gateway.iconColor}
+              status={gateway.status}
             />
           );
         })}
