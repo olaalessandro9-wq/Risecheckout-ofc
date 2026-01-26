@@ -1,62 +1,137 @@
 
-# Plano: Corrigir Variáveis CSS Ausentes na Página PIX
+# Auditoria Completa: Sistema de Cupons - RISE V3 10.0/10
 
-## Diagnóstico do Bug (Root Cause Analysis)
+## Diagnóstico Confirmado
 
-### Problema Identificado
-Os componentes da página de pagamento PIX estão usando **variáveis CSS que NÃO EXISTEM** no `index.css`. Quando uma variável CSS não existe, o navegador usa o valor padrão (transparente/nenhum), resultando em texto invisível sobre fundo branco.
+### ROOT CAUSE do Erro de Criação
+A tabela `coupons` possui a constraint `UNIQUE (code)` chamada `coupons_code_key` que impede criar cupons com o mesmo código em produtos DIFERENTES.
 
-### Mapeamento de Variáveis
-
-| Variável USADA (Inexistente) | Efeito Visual |
-|------------------------------|---------------|
-| `--payment-card-text-primary` | Texto invisível (branco sobre branco) |
-| `--payment-card-text-secondary` | Texto invisível |
-| `--payment-card-text-muted` | Texto invisível |
-| `--payment-card-bg-muted` | Fundo transparente nos badges |
-| `--payment-input-border` | Input sem borda |
-| `--payment-input-bg` | Input transparente |
-| `--payment-progress-bg` | Barra de progresso invisível |
-| `--payment-progress-fill` | Preenchimento invisível |
-| `--payment-success-hover` | Hover do botão quebrado |
-| `--payment-error` | Ícone de erro invisível |
-| `--payment-qr-bg` | QR sem fundo |
-| `--payment-qr-border` | QR sem borda |
-
-### Variáveis EXISTENTES no CSS
-```css
---payment-bg: 222 47% 11%;           /* gray-900 (fundo escuro) */
---payment-card-bg: 0 0% 100%;        /* white (card branco) */
---payment-card-elevated: 210 40% 96%; /* gray-50 */
---payment-text-primary: 0 0% 100%;   /* white - Para fundo escuro */
---payment-text-dark: 224 71% 4%;     /* gray-900 - Para fundo claro */
---payment-text-secondary: 220 9% 46%; /* gray-600 */
---payment-text-muted: 220 9% 46%;    /* gray-700 */
---payment-border: 220 13% 91%;       /* gray-200 */
---payment-success: 142 76% 36%;      /* green-600 */
+```sql
+-- CONSTRAINT INCORRETA (ENCONTRADA)
+coupons_code_key: UNIQUE (code)
 ```
+
+### Verificação: Lógica de Order Bumps
+A lógica de cupom + order bumps está **CORRETA**:
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    FLUXO DE CUPOM + ORDER BUMPS (CORRETO)                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Produto 1 (Principal) - R$100                                               │
+│  ├─ Bump 2 (Produto 2) - R$50                                               │
+│  ├─ Bump 3 (Produto 3) - R$30                                               │
+│  └─ Bump 4 (Produto 4) - R$20                                               │
+│                                                                              │
+│  Total sem desconto: R$200                                                   │
+│                                                                              │
+│  CENÁRIO A: Cupom do Produto 1 com apply_to_order_bumps = TRUE              │
+│  ├─ Cupom "DESC10" (10% desconto)                                           │
+│  ├─ Validação: coupon_products.product_id = "produto-1" → ✅ VÁLIDO         │
+│  ├─ Base do cálculo: totalAmount = R$200                                    │
+│  ├─ Desconto: 10% de R$200 = R$20                                           │
+│  └─ Total final: R$180                                                      │
+│                                                                              │
+│  CENÁRIO B: Cupom do Produto 1 com apply_to_order_bumps = FALSE             │
+│  ├─ Cupom "DESC10" (10% desconto)                                           │
+│  ├─ Validação: coupon_products.product_id = "produto-1" → ✅ VÁLIDO         │
+│  ├─ Base do cálculo: finalPrice = R$100 (só produto principal)              │
+│  ├─ Desconto: 10% de R$100 = R$10                                           │
+│  └─ Total final: R$190                                                      │
+│                                                                              │
+│  CENÁRIO C: Cupom do Produto 2 (bump) usado no checkout do Produto 1        │
+│  ├─ Cupom "BUMPDESC" (do produto 2)                                         │
+│  ├─ Validação: coupon_products.product_id = "produto-2"                     │
+│  ├─ Checkout valida: product_id = "produto-1"                               │
+│  ├─ Resultado: "produto-2" != "produto-1" → ❌ CUPOM INVÁLIDO              │
+│  └─ Mensagem: "Este cupom não é válido para este produto"                   │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Código que prova isso (coupon-processor.ts:83-94):**
+```typescript
+// Verificar vínculo com produto
+const { data: couponProduct } = await supabase
+  .from("coupon_products")
+  .select("*")
+  .eq("coupon_id", couponData.id)
+  .eq("product_id", product_id)  // ← product_id é o PRINCIPAL
+  .maybeSingle();
+
+if (!couponProduct) {
+  log.warn("Cupom não vinculado ao produto:", coupon_id);
+  return { discountAmount, couponCode }; // ← Desconto 0
+}
+```
+
+---
+
+## Problemas Encontrados na Auditoria
+
+### 1. CRÍTICO: Constraint UNIQUE(code) Global (BANCO)
+| Item | Detalhe |
+|------|---------|
+| Constraint | `coupons_code_key: UNIQUE (code)` |
+| Problema | Impede criar cupons com mesmo código em produtos diferentes |
+| Impacto | Erro 500 ao criar segundo cupom com código já existente |
+| Solução | DROP constraint + criar trigger de validação por produto |
+
+### 2. CRÍTICO: product-entities retorna TODOS os cupons
+| Item | Detalhe |
+|------|---------|
+| Arquivo | `supabase/functions/product-entities/index.ts` |
+| Linhas | 131, 150 |
+| Problema | Usa `fetchAllCoupons()` em vez de `fetchProductCoupons(productId)` |
+| Impacto | Retorna cupons de OUTROS produtos (vazamento de dados) |
+| Solução | Mudar para `fetchProductCoupons(supabase, productId)` |
+
+### 3. DOCUMENTAÇÃO INCORRETA: Comentário "global"
+| Item | Detalhe |
+|------|---------|
+| Arquivo | `supabase/functions/_shared/entities/coupons.ts:45` |
+| Comentário | `"Fetches all coupons (global, for entities endpoint)"` |
+| Problema | Sugere que cupons são globais |
+| Solução | Remover função ou atualizar documentação |
+
+### 4. DOCUMENTAÇÃO INCORRETA: Header product-entities
+| Item | Detalhe |
+|------|---------|
+| Arquivo | `supabase/functions/product-entities/index.ts:7` |
+| Comentário | `"coupons: Cupons (global ou por produto)"` |
+| Problema | Sugere que cupons podem ser globais |
+| Solução | Atualizar para `"coupons: Cupons do produto específico"` |
+
+### 5. DOCUMENTAÇÃO DESATUALIZADA: "Migrated" em cabeçalhos
+| Arquivo | Linha | Texto |
+|---------|-------|-------|
+| `supabase/functions/_shared/coupon-handlers.ts` | 7 | `"@version 1.1.0 - Migrated to centralized logger"` |
+| `supabase/functions/create-order/handlers/coupon-processor.ts` | 4 | `"@version 2.0.0 - RISE Protocol V2 Compliant"` |
 
 ---
 
 ## Análise de Soluções (RISE V3)
 
-### Solução A: Adicionar as Variáveis Ausentes ao CSS
-- Criar todas as 12 variáveis que faltam no `index.css`
-- Componentes continuam como estão
-- **Manutenibilidade**: 6/10 - Duplicação de variáveis (card-text-primary vs text-dark)
-- **Zero DT**: 5/10 - Inconsistência com padrão existente (text-dark foi criado para isso)
-- **Arquitetura**: 4/10 - Viola DRY, variáveis semânticas duplicadas
-- **NOTA FINAL: 5.0/10**
+### Solução A: Apenas corrigir constraint no banco
+- DROP coupons_code_key
+- Não adicionar proteção no banco
+- **Manutenibilidade**: 5/10 - Sem proteção de integridade no banco
+- **Zero DT**: 4/10 - Depende apenas do backend para validação
+- **Arquitetura**: 4/10 - Viola "defense in depth"
+- **NOTA FINAL: 4.3/10**
 
-### Solução B: Corrigir Componentes para Usar Variáveis Existentes (RISE V3 10.0/10)
-- Os componentes devem usar as variáveis JÁ EXISTENTES
-- Para texto dentro do card branco: usar `--payment-text-dark` (não text-primary que é branco)
-- Adicionar APENAS as variáveis semânticas que realmente faltam
-- **Manutenibilidade**: 10/10 - Usa variáveis semânticas corretas
-- **Zero DT**: 10/10 - Alinha com design system existente
-- **Arquitetura**: 10/10 - Single Source of Truth respeitado
-- **Escalabilidade**: 10/10 - Consistência com todo o sistema
-- **Segurança**: 10/10 - Componente de pagamento com 0 falhas visuais
+### Solução B: Correção Completa (RISE V3 10.0/10)
+1. DROP constraint global
+2. Criar trigger de validação por produto
+3. Corrigir `product-entities` para usar `fetchProductCoupons`
+4. Atualizar TODA documentação incorreta
+5. Padronizar headers RISE V3
+- **Manutenibilidade**: 10/10 - Código e banco alinhados
+- **Zero DT**: 10/10 - Validação em múltiplas camadas
+- **Arquitetura**: 10/10 - Defense in depth, SSOT
+- **Escalabilidade**: 10/10 - Cupons por produto funcionam corretamente
+- **Segurança**: 10/10 - Sem vazamento de cupons entre produtos
 - **NOTA FINAL: 10.0/10**
 
 ### DECISÃO: Solução B (Nota 10.0/10)
@@ -65,66 +140,158 @@ Os componentes da página de pagamento PIX estão usando **variáveis CSS que N�
 
 ## Especificação Técnica
 
-### 1. Completar Design Tokens no index.css
+### 1. Migração SQL - Corrigir Constraint
 
-**Arquivo:** `src/index.css` (na seção PAYMENT PAGES DESIGN TOKENS)
+```sql
+-- 1. Remover constraint global incorreta
+ALTER TABLE public.coupons DROP CONSTRAINT IF EXISTS coupons_code_key;
 
-```css
-/* Payment Background Tokens */
---payment-bg: 222 47% 11%;             /* gray-900 */
---payment-card-bg: 0 0% 100%;          /* white */
---payment-card-elevated: 210 40% 96%;  /* gray-50 */
---payment-card-muted: 210 40% 96%;     /* gray-50 (para badges/chips) */
+-- 2. Criar índice não-único para performance (busca por código)
+CREATE INDEX IF NOT EXISTS idx_coupons_code ON public.coupons(code);
 
-/* Payment Text Tokens - CORRIGIDO */
---payment-text-primary: 0 0% 100%;     /* white - Para fundo ESCURO */
---payment-text-dark: 224 71% 4%;       /* gray-900 - Para fundo CLARO */
---payment-text-secondary: 220 9% 46%;  /* gray-600 */
---payment-text-muted: 220 9% 60%;      /* gray-500 */
+-- 3. Função de validação de unicidade por produto
+CREATE OR REPLACE FUNCTION public.validate_coupon_product_unique_code()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+  v_coupon_code TEXT;
+  v_existing_count INTEGER;
+BEGIN
+  -- Buscar código do cupom sendo vinculado
+  SELECT code INTO v_coupon_code FROM coupons WHERE id = NEW.coupon_id;
+  
+  -- Verificar se já existe outro cupom com mesmo código para este produto
+  SELECT COUNT(*) INTO v_existing_count
+  FROM coupons c
+  INNER JOIN coupon_products cp ON c.id = cp.coupon_id
+  WHERE cp.product_id = NEW.product_id
+    AND UPPER(c.code) = UPPER(v_coupon_code)
+    AND c.id != NEW.coupon_id;
+  
+  IF v_existing_count > 0 THEN
+    RAISE EXCEPTION 'Código de cupom "%" já existe para este produto', v_coupon_code;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$;
 
-/* Payment Input Tokens - NOVOS */
---payment-input-bg: 0 0% 100%;         /* white */
---payment-input-border: 220 13% 85%;   /* gray-300 */
-
-/* Payment Border Tokens */
---payment-border: 220 13% 91%;         /* gray-200 */
---payment-border-dark: 220 13% 80%;    /* gray-300 */
-
-/* Payment Progress Bar Tokens - NOVOS */
---payment-progress-bg: 220 13% 91%;    /* gray-200 */
---payment-progress-fill: 142 76% 36%;  /* green-600 */
-
-/* Payment QR Code Tokens - NOVOS */
---payment-qr-bg: 0 0% 100%;            /* white */
---payment-qr-border: 220 13% 91%;      /* gray-200 */
-
-/* Payment Status Tokens */
---payment-success: 142 76% 36%;        /* green-600 */
---payment-success-hover: 142 76% 30%;  /* green-700 */
---payment-success-light: 142 77% 73%;  /* green-300 */
---payment-error: 0 84% 60%;            /* red-500 */
+-- 4. Criar trigger no coupon_products
+DROP TRIGGER IF EXISTS trg_validate_coupon_product_unique_code ON public.coupon_products;
+CREATE TRIGGER trg_validate_coupon_product_unique_code
+  BEFORE INSERT ON public.coupon_products
+  FOR EACH ROW
+  EXECUTE FUNCTION public.validate_coupon_product_unique_code();
 ```
 
-### 2. Corrigir Componentes (Usar Variáveis Corretas)
+### 2. Corrigir product-entities/index.ts
 
-**Problema Central:** Dentro do card branco, o texto deve usar `--payment-text-dark` (cinza escuro), NÃO `--payment-text-primary` (branco).
+**Mudança (linhas 130-133, 147-150):**
+```typescript
+// ANTES (ERRADO)
+case "coupons": {
+  const coupons = await fetchAllCoupons(supabase);
+  return jsonResponse({ coupons }, corsHeaders);
+}
 
-| Componente | Variável ERRADA | Variável CORRETA |
-|------------|-----------------|------------------|
-| PixWaitingState | `--payment-card-text-primary` | `--payment-text-dark` |
-| PixWaitingState | `--payment-card-text-secondary` | `--payment-text-secondary` |
-| PixInstructions | `--payment-card-text-primary` | `--payment-text-dark` |
-| PixInstructions | `--payment-card-text-secondary` | `--payment-text-secondary` |
-| PixInstructions | `--payment-card-bg-muted` | `--payment-card-muted` |
-| PixCopyButton | `--payment-card-text-primary` | `--payment-text-dark` |
-| PixProgressBar | `--payment-card-text-secondary` | `--payment-text-secondary` |
-| PixProgressBar | `--payment-card-bg-muted` | `--payment-card-muted` |
-| PixPaidState | `--payment-card-text-primary` | `--payment-text-dark` |
-| PixPaidState | `--payment-card-text-secondary` | `--payment-text-secondary` |
-| PixExpiredState | `--payment-card-text-primary` | `--payment-text-dark` |
-| PixExpiredState | `--payment-card-text-secondary` | `--payment-text-secondary` |
-| PixErrorState | `--payment-card-text-*` | `--payment-text-dark/secondary/muted` |
-| PixVerifyButton | `--payment-card-text-primary` | `--payment-text-dark` |
+// DEPOIS (CORRETO)
+case "coupons": {
+  const coupons = await fetchProductCoupons(supabase, productId);
+  return jsonResponse({ coupons }, corsHeaders);
+}
+```
+
+**Mudança action "all" (linha 150):**
+```typescript
+// ANTES
+fetchAllCoupons(supabase),
+
+// DEPOIS
+fetchProductCoupons(supabase, productId),
+```
+
+**Atualizar header (linhas 1-12):**
+```typescript
+/**
+ * Product Entities Edge Function
+ * 
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * Retorna entidades relacionadas a produtos:
+ * - offers: Ofertas do produto
+ * - orderBumps: Order bumps dos checkouts do produto
+ * - coupons: Cupons vinculados ao produto (via coupon_products)
+ * - checkouts: Checkouts do produto
+ * - paymentLinks: Links de pagamento do produto
+ * 
+ * @module product-entities
+ */
+```
+
+### 3. Atualizar/Remover _shared/entities/coupons.ts
+
+**Opção escolhida:** Remover `fetchAllCoupons` (não tem uso legítimo) ou documentar corretamente.
+
+```typescript
+/**
+ * Coupons Entity Handler - Shared module
+ * 
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * Single Source of Truth for fetching coupons by product.
+ * Cupons são SEMPRE vinculados a produtos via tabela coupon_products.
+ * NÃO existem cupons globais neste sistema.
+ * 
+ * @module _shared/entities/coupons
+ */
+
+// REMOVER ou marcar como deprecated:
+// export async function fetchAllCoupons(...)
+```
+
+### 4. Atualizar coupon-handlers.ts Header
+
+```typescript
+/**
+ * Coupon Management Handlers
+ * 
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * Responsabilidade ÚNICA: Gerenciamento de cupons por produto
+ * 
+ * Arquitetura:
+ * - Cupons são SEMPRE vinculados a produtos (via coupon_products)
+ * - Unicidade de código é por PRODUTO, não global
+ * - Validação em múltiplas camadas (backend + trigger)
+ * 
+ * @module _shared/coupon-handlers
+ */
+```
+
+### 5. Atualizar coupon-processor.ts Header
+
+```typescript
+/**
+ * coupon-processor.ts - Validação e Aplicação de Cupom
+ * 
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * Responsabilidade ÚNICA: Validar cupom e calcular desconto
+ * 
+ * Lógica de Order Bumps:
+ * - Se apply_to_order_bumps = true: desconto sobre totalAmount (produto + bumps)
+ * - Se apply_to_order_bumps = false: desconto sobre finalPrice (só produto)
+ * 
+ * Validação de Vínculo:
+ * - Cupom DEVE estar vinculado ao product_id PRINCIPAL
+ * - Cupons de produtos bump NÃO funcionam no checkout do produto principal
+ * 
+ * @module create-order/handlers/coupon-processor
+ */
+```
 
 ---
 
@@ -132,64 +299,35 @@ Os componentes da página de pagamento PIX estão usando **variáveis CSS que N�
 
 | Arquivo | Ação | Descrição |
 |---------|------|-----------|
-| `src/index.css` | MODIFICAR | Adicionar tokens ausentes (input, progress, qr, error, hover) |
-| `src/pages/pix-payment/components/PixWaitingState.tsx` | MODIFICAR | Corrigir variáveis de texto |
-| `src/pages/pix-payment/components/PixInstructions.tsx` | MODIFICAR | Corrigir variáveis de texto e bg |
-| `src/pages/pix-payment/components/PixCopyButton.tsx` | MODIFICAR | Corrigir variáveis de texto e input |
-| `src/pages/pix-payment/components/PixProgressBar.tsx` | MODIFICAR | Corrigir variáveis de texto e progress |
-| `src/pages/pix-payment/components/PixQrCodeDisplay.tsx` | MODIFICAR | Usar tokens existentes (já correto) |
-| `src/pages/pix-payment/components/PixPaidState.tsx` | MODIFICAR | Corrigir variáveis de texto |
-| `src/pages/pix-payment/components/PixExpiredState.tsx` | MODIFICAR | Corrigir variáveis de texto |
-| `src/pages/pix-payment/components/PixErrorState.tsx` | MODIFICAR | Corrigir variáveis de texto e error |
-| `src/pages/pix-payment/components/PixVerifyButton.tsx` | MODIFICAR | Corrigir variáveis de texto |
-| `src/pages/pix-payment/components/PixLoadingState.tsx` | VERIFICAR | Já usa tokens corretos (fundo escuro) |
+| Migração SQL | CRIAR | DROP constraint + CREATE trigger |
+| `supabase/functions/product-entities/index.ts` | MODIFICAR | Usar fetchProductCoupons, atualizar header |
+| `supabase/functions/_shared/entities/coupons.ts` | MODIFICAR | Atualizar documentação, remover/deprecar fetchAllCoupons |
+| `supabase/functions/_shared/coupon-handlers.ts` | MODIFICAR | Atualizar header RISE V3 |
+| `supabase/functions/create-order/handlers/coupon-processor.ts` | MODIFICAR | Atualizar header RISE V3 |
 
 ---
 
-## Resultado Visual Esperado
+## Resumo das Correções
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│                    ANTES (Bug)                                   │
-├─────────────────────────────────────────────────────────────────┤
-│  [Card Branco]                                                   │
-│                                                                  │
-│  (Texto invisível - branco sobre branco)                        │
-│                                                                  │
-│  [████████████████████████████] ← Barra invisível               │
-│                                                                  │
-│  [QR CODE]  ← Sem borda/fundo                                   │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────┐
-│                    DEPOIS (Corrigido)                            │
-├─────────────────────────────────────────────────────────────────┤
-│  [Card Branco]                                                   │
-│                                                                  │
-│  Aqui está o PIX copia e cola  ← Texto cinza escuro visível     │
-│                                                                  │
-│  [████████████░░░░░░░░░░░░░░░] ← Barra verde sobre cinza        │
-│                                                                  │
-│  [QR CODE com borda]  ← Fundo branco, borda cinza               │
-│                                                                  │
-│  Para realizar o pagamento:  ← Texto visível                    │
-│  1. Abra o aplicativo do seu banco                              │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Lógica de Cores (Design System)
-
-```text
-CONTEXTO                    VARIÁVEL DE TEXTO A USAR
-─────────────────────────────────────────────────────
-Fundo ESCURO (payment-bg)   → --payment-text-primary (branco)
-Fundo CLARO (payment-card)  → --payment-text-dark (cinza escuro)
-Texto secundário            → --payment-text-secondary (cinza médio)
-Texto terciário             → --payment-text-muted (cinza claro)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              CORREÇÕES                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  1. BANCO: DROP coupons_code_key (unicidade global)                          │
+│  2. BANCO: CREATE trigger validação por produto                              │
+│  3. CÓDIGO: product-entities usar fetchProductCoupons                        │
+│  4. DOCS: Remover "global" de todos os comentários                          │
+│  5. DOCS: Atualizar headers para RISE V3 10.0/10                            │
+│                                                                              │
+│  RESULTADO:                                                                  │
+│  ✅ Cupom "PROMO10" pode existir em Produto A e Produto B                   │
+│  ✅ Cupom do Produto A só funciona no checkout do Produto A                 │
+│  ✅ Cupom do bump NÃO funciona no checkout do produto principal             │
+│  ✅ apply_to_order_bumps = true desconta sobre total com bumps              │
+│  ✅ Zero documentação incorreta/desatualizada                               │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -198,14 +336,14 @@ Texto terciário             → --payment-text-muted (cinza claro)
 
 | Critério | Nota | Justificativa |
 |----------|------|---------------|
-| Manutenibilidade | 10/10 | Usa design system existente, tokens semânticos |
-| Zero DT | 10/10 | Corrige raiz do problema (variáveis inexistentes) |
-| Arquitetura | 10/10 | SSOT respeitado, Clean Architecture |
-| Escalabilidade | 10/10 | Tokens reutilizáveis em futuras páginas de pagamento |
-| Segurança | 10/10 | Zero falhas visuais em fluxo crítico de pagamento |
+| Manutenibilidade | 10/10 | Código e banco alinhados, documentação correta |
+| Zero DT | 10/10 | Validação em múltiplas camadas, zero comentários incorretos |
+| Arquitetura | 10/10 | Defense in depth, SSOT para unicidade |
+| Escalabilidade | 10/10 | Cupons por produto funcionam corretamente |
+| Segurança | 10/10 | Sem vazamento de cupons entre produtos |
 | **NOTA FINAL** | **10.0/10** | Alinhado 100% com RISE Protocol V3 |
 
 ---
 
 ## Tempo Estimado
-**30 minutos**
+**45 minutos**
