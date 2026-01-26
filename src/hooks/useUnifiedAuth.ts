@@ -29,6 +29,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { createLogger } from "@/lib/logger";
 import { unifiedTokenService } from "@/lib/token-manager";
+import { sessionCommander } from "@/lib/session-commander";
 
 const log = createLogger("useUnifiedAuth");
 
@@ -324,6 +325,35 @@ export function useUnifiedAuth() {
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: UNIFIED_AUTH_QUERY_KEY });
   }, [queryClient]);
+  
+  // ========================================================================
+  // SESSION COMMANDER INTEGRATION (RISE V3 10.0/10)
+  // ========================================================================
+  
+  /**
+   * Start Session Commander monitoring when authenticated.
+   * 
+   * The SessionMonitor handles:
+   * - Visibility changes (tab becomes visible)
+   * - Network changes (coming back online)
+   * - Window focus events
+   * - Periodic health checks with adaptive intervals
+   */
+  useEffect(() => {
+    if (isAuthenticated) {
+      log.info("Starting Session Commander monitoring");
+      sessionCommander.startMonitoring(() => {
+        // Callback invoked when session should be checked
+        log.debug("Session check triggered by monitor");
+        invalidate();
+      });
+      
+      return () => {
+        log.debug("Stopping Session Commander monitoring");
+        sessionCommander.stopMonitoring();
+      };
+    }
+  }, [isAuthenticated, invalidate]);
   
   return {
     // State

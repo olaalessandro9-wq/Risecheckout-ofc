@@ -1,7 +1,7 @@
 # Rise Checkout - Edge Functions Registry
 
 > **🔴 FONTE DA VERDADE MÁXIMA** - Este documento lista TODAS as Edge Functions deployadas no Supabase.  
-> Última atualização: 2026-01-24 (RISE V3 - Context Guards + Unified Auth)  
+> Última atualização: 2026-01-26 (RISE V3 - Session Commander + 4h Access Token)  
 > Mantenedor: AI Assistant + User
 
 ---
@@ -10,8 +10,9 @@
 
 ```
 ╔═══════════════════════════════════════════════════════════════╗
-║  ✅ RISE PROTOCOL V3 - 10.0/10 - UNIFIED IDENTITY COMPLETE   ║
+║  ✅ RISE PROTOCOL V3 - 10.0/10 - SESSION COMMANDER COMPLETE  ║
 ║     106 Edge Functions | 214 RLS Policies | Zero Legacy      ║
+║     ACCESS_TOKEN: 4h | REFRESH_THRESHOLD: 30m | LOCK: 30s    ║
 ╚═══════════════════════════════════════════════════════════════╝
 ```
 
@@ -66,7 +67,7 @@
 | `manage-user-role` | sessions | false | unified-auth-v2, owner only |
 | `manage-user-status` | sessions | false | unified-auth-v2, admin+ |
 | `get-users-with-emails` | sessions | false | unified-auth-v2, owner only |
-| `unified-auth` | public | false | SSOT - Login/Register/Refresh endpoint |
+| `unified-auth` | public | false | SSOT - Login/Register/Refresh/Request-Refresh endpoint |
 | **Security & Crypto** | | | |
 | `decrypt-customer-data` | sessions | false | unified-auth-v2, owner check |
 | `decrypt-customer-data-batch` | sessions | false | unified-auth-v2, owner check |

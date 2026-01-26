@@ -21,8 +21,8 @@ import type {
 import { transition, INITIAL_STATE, INITIAL_CONTEXT, needsRefresh, isExpired } from "./machine";
 import { persistTokenState, restoreTokenState, clearPersistedState } from "./persistence";
 import { HeartbeatManager } from "./heartbeat";
-import { executeRefresh } from "./refresh";
 import { crossTabLock } from "./cross-tab-lock";
+import { sessionCommander } from "@/lib/session-commander";
 import { createLogger } from "@/lib/logger";
 
 // ============================================
@@ -235,11 +235,17 @@ export class TokenService {
   }
   
   /**
-   * Execute refresh and notify other tabs of result
+   * Execute refresh via Session Commander (RISE V3 10.0/10)
+   * 
+   * Delegates to Session Commander which handles:
+   * - Server-side locking via refresh_locks table
+   * - Exponential backoff with jitter
+   * - Visual feedback (reconnecting toasts)
+   * - Cross-tab coordination
    */
   private async executeRefreshFlowWithLock(): Promise<boolean> {
     try {
-      const result = await executeRefresh(this.type);
+      const result = await sessionCommander.requestRefresh();
       
       if (result.success && result.expiresIn) {
         this.dispatch({ type: "REFRESH_SUCCESS", expiresIn: result.expiresIn });
@@ -247,8 +253,9 @@ export class TokenService {
         return true;
       }
       
-      this.dispatch({ type: "REFRESH_FAILED", error: result.error || "Refresh failed" });
-      crossTabLock.notifyFailure(result.error || "Refresh failed");
+      const error = result.reason || "Refresh failed";
+      this.dispatch({ type: "REFRESH_FAILED", error });
+      crossTabLock.notifyFailure(error);
       return false;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
@@ -297,20 +304,6 @@ export class TokenService {
     
     persistTokenState(this.type, this.state, this.context);
     this.notifySubscribers();
-  }
-  
-  // Legacy method kept for backwards compatibility with existing code
-  // Now handled by executeRefreshFlowWithLock
-  private async executeRefreshFlow(): Promise<boolean> {
-    const result = await executeRefresh(this.type);
-    
-    if (result.success && result.expiresIn) {
-      this.dispatch({ type: "REFRESH_SUCCESS", expiresIn: result.expiresIn });
-      return true;
-    }
-    
-    this.dispatch({ type: "REFRESH_FAILED", error: result.error || "Refresh failed" });
-    return false;
   }
   
   private restoreState(): void {
