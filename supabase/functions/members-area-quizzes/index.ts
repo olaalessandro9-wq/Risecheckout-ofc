@@ -87,7 +87,7 @@ interface QuizAttempt {
 
 /**
  * Validates buyer session using unified-auth-v2.
- * RISE V3: Uses cookies (__Host-rise_access) exclusively.
+ * RISE V3: Uses cookies (__Secure-rise_access, Domain=.risecheckout.com) exclusively.
  */
 async function validateBuyerSession(
   supabase: SupabaseClient,
@@ -283,7 +283,7 @@ Deno.serve(async (req) => {
 
     // Para ações de buyer (submit, get-attempts), validar buyer session
     if (action === "submit" || action === "get-attempts") {
-      // RISE V3: Unified session validation via cookies (__Host-rise_access)
+      // RISE V3: Unified session validation via cookies (__Secure-rise_access, Domain=.risecheckout.com)
       const buyer_id = await validateBuyerSession(supabase, req);
       
       if (!buyer_id) {

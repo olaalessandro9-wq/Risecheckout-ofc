@@ -2,7 +2,7 @@
  * decrypt-customer-data - Descriptografa CPF/telefone para visualização
  * 
  * SECURITY:
- * - Requer autenticação via Cookie: __Host-rise_access (unified-auth-v2)
+ * - Requer autenticação via Cookie: __Secure-rise_access (unified-auth-v2, Domain=.risecheckout.com)
  * - Auto-decrypt para o PRODUTOR do produto (product.user_id)
  * - Acesso via clique para o OWNER da plataforma
  * - Afiliados NÃO têm acesso (403)
@@ -126,7 +126,7 @@ serve(async (req) => {
       throw new Error("BUYER_ENCRYPTION_KEY not configured");
     }
 
-    // AUTENTICAÇÃO via unified-auth (Cookie: __Host-rise_access)
+    // AUTENTICAÇÃO via unified-auth (Cookie: __Secure-rise_access)
     let producer;
     try {
       producer = await requireAuthenticatedProducer(supabaseAdmin, req);

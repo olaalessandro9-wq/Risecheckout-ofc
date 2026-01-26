@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
 
     log.info(`Action: ${action}`);
 
-    // RISE V3: Unified auth via cookie __Host-rise_access
+    // RISE V3: Unified auth via cookie __Secure-rise_access (Domain=.risecheckout.com)
     const user = await getAuthenticatedUser(supabase, req);
     if (!user) {
       return unauthorizedResponse(corsHeaders, "Authentication required");

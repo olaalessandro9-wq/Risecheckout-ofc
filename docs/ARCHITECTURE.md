@@ -89,7 +89,7 @@ RiseCheckout utiliza autenticação **100% unificada** via tabela `sessions`.
 │   Login    │     │  Edge Function   │     │    (tabela)     │
 └────────────┘     └──────────────────┘     └─────────────────┘
        │                    │                       │
-       │ Set-Cookie: __Host-rise_access (httpOnly)
+       │ Set-Cookie: __Secure-rise_access (httpOnly, Domain=.risecheckout.com)
        ▼                    │                       │
 ┌────────────┐     ┌──────────────────┐             │
 │  Frontend  │────▶│  Edge Function   │─────────────┘
@@ -100,8 +100,8 @@ RiseCheckout utiliza autenticação **100% unificada** via tabela `sessions`.
 
 ### Cookies
 
-- `__Host-rise_access`: Token de acesso (60 min, httpOnly, Secure)
-- `__Host-rise_refresh`: Token de refresh (30 dias, httpOnly, Secure)
+- `__Secure-rise_access`: Token de acesso (4h, httpOnly, Secure, Domain=.risecheckout.com)
+- `__Secure-rise_refresh`: Token de refresh (30 dias, httpOnly, Secure, Domain=.risecheckout.com)
 
 ### RISE ARCHITECT PROTOCOL V3
 
