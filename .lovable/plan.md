@@ -1,101 +1,99 @@
 
-# PLANO: COOKIE-FIRST ARCHITECTURE
-## RISE ARCHITECT PROTOCOL V3 - NOTA 10.0/10
+# Plano de Implementação: Multi-Subdomain Architecture
+
+## Resumo Executivo
+
+Este plano implementa a arquitetura de cookies compartilhados via domínio `.risecheckout.com`, permitindo que sessões sejam compartilhadas entre subdomínios como `app.risecheckout.com`, `pay.risecheckout.com`, e `api.risecheckout.com`.
 
 ---
 
-## PRÉ-REQUISITOS CONFIRMADOS
+## Contexto Técnico
 
-| Item | Status |
-|------|--------|
-| CNAME `api.risecheckout.com` → Supabase | Configurado e propagado |
-| Secret `CORS_ALLOWED_ORIGINS` com todos os domínios | Configurado |
+### Problema Atual
 
----
+Os cookies atuais usam o prefixo `__Host-`, que:
+- **Impede** o atributo `Domain=`
+- **Isola** cookies por subdomínio
+- **Bloqueia** compartilhamento de sessão entre `app.risecheckout.com` e `pay.risecheckout.com`
 
-## RESUMO EXECUTIVO
+### Solução
 
-**Problema Atual:** Third-party cookies (`__Host-` prefix, `SameSite=None`) estão sendo bloqueados por navegadores modernos (Safari, Firefox, Chrome com proteção), causando logouts inesperados ao atualizar a página.
-
-**Solução:** Migrar para first-party cookies (`SameSite=Lax`, `domain=.risecheckout.com`) usando o novo CNAME `api.risecheckout.com` que aponta para o Supabase.
+Migrar de cookies `__Host-` para cookies com `Domain=.risecheckout.com`, permitindo compartilhamento entre todos os subdomínios enquanto mantém segurança via `Secure` e `HttpOnly`.
 
 ---
 
-## ANÁLISE DE SOLUÇÕES (RISE V3 OBRIGATÓRIO)
+## Arquivos a Modificar
 
-### Solução A: Cookie-First Architecture (First-Party Cookies)
-| Critério | Nota |
-|----------|------|
-| Manutenibilidade | 10/10 - Cookies gerenciados pelo navegador |
-| Zero DT | 10/10 - Elimina toda dependência de localStorage |
-| Arquitetura | 10/10 - Backend como ÚNICA fonte de verdade |
-| Escalabilidade | 10/10 - Funciona em todos os browsers |
-| Segurança | 10/10 - First-party + httpOnly + Secure |
-| **NOTA FINAL** | **10.0/10** |
-| Tempo estimado | 1-2 horas |
+### Backend (Edge Functions)
 
-### Solução B: Manter Third-Party Cookies (Status Quo)
-| Critério | Nota |
-|----------|------|
-| Manutenibilidade | 4/10 - Dependência de Partitioned, polyfills |
-| Zero DT | 3/10 - localStorage como fallback cria bugs |
-| Arquitetura | 5/10 - Frontend decide, backend é secundário |
-| Escalabilidade | 2/10 - Safari/Firefox bloqueiam |
-| Segurança | 6/10 - Third-party é considerado menos seguro |
-| **NOTA FINAL** | **4.0/10** |
-| Tempo estimado | 0 (já está assim) |
+| Arquivo | Tipo de Mudança |
+|---------|-----------------|
+| `supabase/functions/_shared/cookie-helper.ts` | Renomear cookies + adicionar `Domain` |
+| `supabase/functions/_shared/unified-auth-v2.ts` | Importar constante + atualizar funções de cookie |
 
-### DECISÃO: Solução A (Nota 10.0)
-A Solução B é inferior porque depende de tecnologia que está sendo ativamente depreciada pelos navegadores (third-party cookies).
+### Frontend
+
+| Arquivo | Tipo de Mudança |
+|---------|-----------------|
+| `src/config/supabase.ts` | URL → `api.risecheckout.com` |
+| `src/lib/api/client.ts` | Já usa `SUPABASE_URL` - mudança automática |
+| `src/lib/api/public-client.ts` | Já usa `SUPABASE_URL` - mudança automática |
+| `src/integrations/supabase/client.ts` | Manter URL direto do Supabase (não muda) |
 
 ---
 
-## FASES DE IMPLEMENTAÇÃO
+## Detalhes de Implementação
 
-### FASE 2: MIGRAÇÃO DE COOKIES (BACKEND)
-**Arquivos: 2 | Objetivo: First-Party Cookies**
-
-#### 2.1 `supabase/functions/_shared/cookie-helper.ts`
+### 1. cookie-helper.ts (Backend)
 
 **Mudanças:**
+
 ```text
 ANTES:
-- COOKIE_NAMES = { access: "__Host-rise_access", refresh: "__Host-rise_refresh" }
-- sameSite: "None"
-- Partitioned: true
+- Cookie names: "__Host-rise_access", "__Host-rise_refresh"
+- Sem atributo Domain
+- Com atributo Partitioned
 
 DEPOIS:
-- COOKIE_NAMES = { access: "rise_access", refresh: "rise_refresh" }
-- sameSite: "Lax"
-- domain: ".risecheckout.com"
-- Partitioned: REMOVIDO
+- Cookie names: "__Secure-rise_access", "__Secure-rise_refresh"
+- Com Domain=.risecheckout.com
+- Sem Partitioned (conflita com Domain)
 ```
 
-**Detalhes Técnicos:**
-1. Remover prefixo `__Host-` dos nomes dos cookies
-   - `__Host-` requer `path=/` e não permite `domain=`
-   - Para first-party com domain, usar nome simples
-2. Adicionar `domain: ".risecheckout.com"` para compartilhamento entre subdomínios
-3. Mudar `sameSite: "None"` para `sameSite: "Lax"`
-   - Lax é o padrão seguro para first-party
-4. Remover atributo `Partitioned`
-   - Não é necessário para first-party cookies
+**Novas constantes:**
 
-#### 2.2 `supabase/functions/_shared/unified-auth-v2.ts`
+```typescript
+export const COOKIE_DOMAIN = ".risecheckout.com";
+
+export const COOKIE_NAMES = {
+  access: "__Secure-rise_access",
+  refresh: "__Secure-rise_refresh",
+} as const;
+```
+
+**Função `createSecureCookie` atualizada:**
+
+- Adicionar parâmetro opcional `domain?: string`
+- Incluir `Domain=` quando definido
+- Remover `Partitioned` quando `Domain` está presente
+
+**Cookies de logout:**
+
+- Limpar TODOS os nomes antigos (`__Host-*`) + novos (`__Secure-*`)
+- Isso garante transição suave para usuários com sessões ativas
+
+### 2. unified-auth-v2.ts (Backend)
 
 **Mudanças:**
-- Atualizar `createUnifiedAuthCookies()` com novos atributos
-- Atualizar `createUnifiedLogoutCookies()` com domain
-- Manter clearing de cookies legados (producer/buyer) para retrocompatibilidade
 
----
+- Importar `COOKIE_DOMAIN` de `cookie-helper.ts`
+- Atualizar `createUnifiedAuthCookies` para passar o domain
+- Atualizar `createUnifiedLogoutCookies` para limpar todos os formatos
 
-### FASE 3: ATUALIZAÇÃO DO FRONTEND
-**Arquivos: 2 | Objetivo: Apontar para api.risecheckout.com**
+### 3. src/config/supabase.ts (Frontend)
 
-#### 3.1 `src/config/supabase.ts`
+**Mudança:**
 
-**Mudanças:**
 ```typescript
 // ANTES
 export const SUPABASE_URL = "https://wivbtmtgpsxupfjwwovf.supabase.co";
@@ -104,285 +102,82 @@ export const SUPABASE_URL = "https://wivbtmtgpsxupfjwwovf.supabase.co";
 export const SUPABASE_URL = "https://api.risecheckout.com";
 ```
 
-#### 3.2 `src/integrations/supabase/client.ts`
+A anon key permanece a mesma (não muda).
 
-**Mudanças:**
-```typescript
-// Importar de config
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/config/supabase";
+### 4. src/integrations/supabase/client.ts (Frontend)
 
-// Desabilitar localStorage para sessão
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    storage: undefined,       // Sem localStorage
-    persistSession: false,    // Cookies são a fonte de verdade
-    autoRefreshToken: false,  // Backend gerencia refresh
-  },
-});
-```
+**Sem mudanças** - este cliente usa URL direto do Supabase para operações internas e não precisa passar pelo proxy.
 
 ---
 
-### FASE 4: COOKIE-FIRST ARCHITECTURE (CORE FRONTEND)
-**Arquivos: 4 | Objetivo: Backend como ÚNICA fonte de verdade**
+## Secrets da Cloudflare (Já Configurados)
 
-#### 4.1 `src/hooks/useUnifiedAuth.ts`
+O Worker já configurado no Cloudflare:
+- Route: `api.risecheckout.com/*`
+- Target: `wivbtmtgpsxupfjwwovf.supabase.co`
 
-**Mudanças:**
-1. Remover dependência de `hasValidToken()` para decisões de autenticação
-2. Sempre consultar backend via `/unified-auth/validate`
-3. TokenService se torna cache/proxy, não fonte de verdade
+## CORS (Validação)
 
-```typescript
-// validateSession() - Simplificado
-async function validateSession(): Promise<ValidateResponse> {
-  try {
-    // RISE V3: Backend é a ÚNICA fonte de verdade
-    // Cookies são enviados automaticamente com credentials: include
-    const { data, error } = await api.publicCall<ValidateResponse>("unified-auth/validate", {});
-    
-    if (error || !data) {
-      return { valid: false };
-    }
-    
-    return data;
-  } catch {
-    return { valid: false };
-  }
-}
-```
-
-#### 4.2 `src/lib/token-manager/service.ts`
-
-**Mudanças:**
-1. `hasValidToken()`: Retornar `true` quando em estado `idle` (cookies podem estar válidos)
-2. `refresh()`: Não bloquear em estado `idle`
-3. `restoreState()`: Sempre iniciar em `idle` (não ler localStorage)
-4. `handleVisibilityRestore()`: Sempre notificar subscribers para revalidar
-
-```typescript
-// hasValidToken() - Cookie-First
-hasValidToken(): boolean {
-  // Em Cookie-First, o backend decide
-  // Retornar true permite que a chamada API aconteça
-  if (this.state === "idle") {
-    return true; // Let the API call happen
-  }
-  const validStates: TokenState[] = ["authenticated", "expiring", "refreshing"];
-  return validStates.includes(this.state);
-}
-
-// restoreState() - Cookie-First (NO-OP)
-private restoreState(): void {
-  // RISE V3: Backend é SSOT - não restaurar do localStorage
-  this.log.info("Cookie-First: Backend is source of truth");
-  // Stay in idle, let validation happen via API
-}
-```
-
-#### 4.3 `src/lib/token-manager/persistence.ts`
-
-**Mudanças:**
-Transformar em NO-OP para eliminar localStorage como fonte de autenticação:
-
-```typescript
-// persistTokenState() - NO-OP
-export function persistTokenState(): void {
-  // RISE V3: Cookie-First - No localStorage persistence
-  // Backend cookies are the source of truth
-}
-
-// restoreTokenState() - Always empty
-export function restoreTokenState(): PersistedState {
-  // RISE V3: Cookie-First - Always return empty state
-  return { state: null, expiresAt: null, lastRefreshAttempt: null };
-}
-
-// clearPersistedState() - Keep for cleanup
-export function clearPersistedState(type: TokenType): void {
-  // Keep this to clear any legacy data
-  // ... existing implementation ...
-}
-```
-
-#### 4.4 `src/lib/token-manager/cross-tab-lock.ts`
-
-**Mudanças:**
-Backend agora gerencia locking via tabela `refresh_locks`. Client-side lock se torna secundário:
-
-```typescript
-// tryAcquire() - Always succeed (backend does real locking)
-tryAcquire(): boolean {
-  // RISE V3: Server-side refresh_locks is primary
-  // Client lock is just a courtesy to reduce duplicate requests
-  return true;
-}
-
-// release() - NO-OP
-release(): void {
-  // RISE V3: Server manages lock lifecycle
-}
-```
+Adicionar `https://risecheckout.com` ao secret `CORS_ALLOWED_ORIGINS` no Supabase se ainda não estiver lá (deve incluir todos os subdomínios que farão requests autenticados).
 
 ---
 
-### FASE 5: LIMPEZA DE LEGADO (BACKEND)
-**Arquivos: 3 | Objetivo: users como ÚNICA fonte de verdade**
-
-#### 5.1 `supabase/functions/unified-auth/handlers/password-reset-verify.ts`
-
-**Mudança:** Remover fallback para `buyer_profiles` (linhas 51-88)
-
-```typescript
-// REMOVER TODO ESTE BLOCO:
-// RISE V3 FALLBACK: If not found in users, check buyer_profiles
-if (findError || !user) {
-  const { data: buyer, error: buyerError } = await supabase
-    .from("buyer_profiles")
-    // ...
-}
-```
-
-**Novo comportamento:** Se token não existe em `users`, retornar inválido.
-
-#### 5.2 `supabase/functions/unified-auth/handlers/password-reset.ts`
-
-**Mudança:** Remover fallback para `buyer_profiles` (linhas 67-152)
-
-O mesmo padrão: remover todo o bloco de fallback e manter apenas a lógica da tabela `users`.
-
-#### 5.3 `supabase/functions/unified-auth/handlers/ensure-producer-access.ts`
-
-**Mudança:** Remover fallback para `buyer_profiles` (linhas 44-48, 51, 87)
-
-```typescript
-// REMOVER:
-let { data: buyer } = await supabase
-  .from("buyer_profiles")
-  .select("id")
-  .eq("email", normalizedEmail)
-  .single();
-
-// REMOVER:
-if (!user && !buyer) {
-// MUDAR PARA:
-if (!user) {
-
-// REMOVER:
-const userId = user?.id || buyer?.id;
-// MUDAR PARA:
-const userId = user.id;
-```
-
----
-
-## ARQUIVOS AFETADOS
-
-| # | Arquivo | Tipo | Mudança Principal |
-|---|---------|------|-------------------|
-| 1 | `supabase/functions/_shared/cookie-helper.ts` | Backend | First-party cookies |
-| 2 | `supabase/functions/_shared/unified-auth-v2.ts` | Backend | First-party cookies |
-| 3 | `src/config/supabase.ts` | Frontend | URL para api.risecheckout.com |
-| 4 | `src/integrations/supabase/client.ts` | Frontend | Desabilitar localStorage |
-| 5 | `src/hooks/useUnifiedAuth.ts` | Frontend | Backend como SSOT |
-| 6 | `src/lib/token-manager/service.ts` | Frontend | Cookie-First logic |
-| 7 | `src/lib/token-manager/persistence.ts` | Frontend | NO-OP (sem localStorage) |
-| 8 | `src/lib/token-manager/cross-tab-lock.ts` | Frontend | Simplificado (backend locking) |
-| 9 | `password-reset-verify.ts` | Backend | Remover fallback buyer_profiles |
-| 10 | `password-reset.ts` | Backend | Remover fallback buyer_profiles |
-| 11 | `ensure-producer-access.ts` | Backend | Remover fallback buyer_profiles |
-
-**Total: 11 arquivos**
-
----
-
-## ORDEM DE EXECUÇÃO
+## Ordem de Execução
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│  1. Backend: cookie-helper.ts + unified-auth-v2.ts         │
-│     → First-party cookies com domain=.risecheckout.com     │
-└────────────────────────┬────────────────────────────────────┘
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│  2. Frontend Config: supabase.ts + client.ts               │
-│     → Apontar para api.risecheckout.com                    │
-│     → Desabilitar localStorage                             │
-└────────────────────────┬────────────────────────────────────┘
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│  3. Frontend Core: useUnifiedAuth + TokenService           │
-│     → Backend como ÚNICA fonte de verdade                  │
-│     → persistence.ts e cross-tab-lock.ts simplificados     │
-└────────────────────────┬────────────────────────────────────┘
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│  4. Backend Cleanup: password-reset handlers               │
-│     → Remover fallbacks para buyer_profiles                │
-│     → users como SSOT absoluto                             │
-└────────────────────────┬────────────────────────────────────┘
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│  5. Deploy: Edge Functions (automático pelo Lovable)       │
-└─────────────────────────────────────────────────────────────┘
+1. [Backend] Atualizar cookie-helper.ts
+   ↓
+2. [Backend] Atualizar unified-auth-v2.ts
+   ↓
+3. [Frontend] Atualizar src/config/supabase.ts
+   ↓
+4. Deploy automático das Edge Functions
+   ↓
+5. Testar login/logout em risecheckout.com
 ```
 
 ---
 
-## RESULTADO ESPERADO
+## Impacto e Rollback
 
-| Problema | Antes | Depois |
-|----------|-------|--------|
-| Logout ao atualizar (F5) | Acontece | Resolvido |
-| Sessões instáveis | Frequente | Estável |
-| Third-party cookies | Bloqueados pelo Safari/Firefox | First-party funcionam |
-| localStorage como fonte | Causa dessincronização | Backend é SSOT |
-| Fallbacks para buyer_profiles | Existem | Removidos (users SSOT) |
+### Impacto em Sessões Existentes
 
----
+- Usuários logados com cookies `__Host-*` precisarão fazer login novamente
+- Isto é esperado e aceitável pois é uma mudança de arquitetura
 
-## CRITÉRIOS DE SUCESSO
+### Rollback (Se Necessário)
 
-1. **Login:** Usuário faz login, recebe cookies first-party
-2. **F5:** Usuário atualiza página, permanece logado
-3. **Nova aba:** Usuário abre nova aba, está logado
-4. **Safari/Firefox:** Funciona corretamente (sem bloqueio de cookies)
-5. **Password Reset:** Funciona apenas com tabela `users`
+Se houver problemas:
+1. Reverter `src/config/supabase.ts` para URL original
+2. Reverter `cookie-helper.ts` para nomes `__Host-*`
+3. Deploy
 
 ---
 
-## NOTAS TÉCNICAS
+## Resultado Final
 
-### Por que remover `__Host-` prefix?
+Após implementação:
 
-O prefixo `__Host-` impõe restrições de segurança:
-- Cookie DEVE ter `Secure`
-- Cookie DEVE ter `Path=/`
-- Cookie NÃO PODE ter `Domain=`
-
-Como precisamos de `domain=.risecheckout.com` para compartilhamento entre subdomínios (app, api, pay), não podemos usar `__Host-`.
-
-### Por que `SameSite=Lax` em vez de `Strict`?
-
-- `Strict`: Cookie não enviado em navegações top-level vindas de outros sites
-- `Lax`: Cookie enviado em navegações GET top-level (links)
-
-`Lax` é o padrão seguro que permite usuários chegarem via links externos sem perder sessão.
-
-### Migração de Sessões Existentes
-
-Usuários com sessões existentes (`__Host-rise_*`) precisarão fazer login novamente, pois os novos cookies têm nomes diferentes (`rise_*`). Isso é esperado e acontece uma única vez.
+| Subdomínio | Função | Compartilha Sessão |
+|------------|--------|-------------------|
+| `api.risecheckout.com` | Proxy para Supabase Edge Functions | ✅ |
+| `app.risecheckout.com` | Dashboard do Produtor | ✅ |
+| `pay.risecheckout.com` | Checkout Público | ✅ |
+| `*.risecheckout.com` | Qualquer futuro subdomínio | ✅ |
 
 ---
 
-## NOTA RISE V3 FINAL
+## Seção Técnica: Formato dos Cookies
 
-| Critério | Nota |
-|----------|------|
-| Manutenibilidade Infinita | 10/10 |
-| Zero Dívida Técnica | 10/10 |
-| Arquitetura Correta | 10/10 |
-| Escalabilidade | 10/10 |
-| Segurança | 10/10 |
-| **NOTA FINAL** | **10.0/10** |
+```text
+ANTES:
+__Host-rise_access=TOKEN; Max-Age=14400; Path=/; HttpOnly; Secure; SameSite=None; Partitioned
 
+DEPOIS:
+__Secure-rise_access=TOKEN; Max-Age=14400; Path=/; Domain=.risecheckout.com; HttpOnly; Secure; SameSite=None
+```
+
+**Diferenças Técnicas:**
+- `__Host-` → `__Secure-` (permite Domain)
+- Adicionado `Domain=.risecheckout.com`
+- Removido `Partitioned` (não compatível com Domain)
