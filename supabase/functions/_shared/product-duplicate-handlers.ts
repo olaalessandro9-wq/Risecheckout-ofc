@@ -8,7 +8,7 @@
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { ensureUniqueSlug, toSlug } from "./edge-helpers.ts";
+import { generateUniqueCheckoutSlug } from "./edge-helpers.ts";
 import { cloneCheckoutDeep, cloneCheckoutLinks } from "./product-duplicate-cloner.ts";
 
 // Re-export cloner functions
@@ -177,8 +177,8 @@ export async function duplicateProduct(
     const checkoutsArray = (srcCheckouts as Checkout[]) ?? [];
     const srcDefaultCheckout = checkoutsArray.find((c) => c.is_default);
     if (srcDefaultCheckout && autoCheckout) {
-      const baseSlug = srcDefaultCheckout.slug || toSlug(srcProduct.name);
-      const newSlug = await ensureUniqueSlug(supabase, "checkouts", "slug", baseSlug);
+      // Generate new slug in correct format (xxxxxxx_xxxxxx)
+      const newSlug = await generateUniqueCheckoutSlug(supabase);
 
       await supabase
         .from("checkouts")
@@ -189,12 +189,9 @@ export async function duplicateProduct(
       await cloneCheckoutLinks(supabase, srcDefaultCheckout.id, autoCheckout.id, newSlug);
     }
 
-    for (let i = 0; i < checkoutsArray.length; i++) {
-      const ck = checkoutsArray[i];
-      if (ck.is_default) continue;
-
-      const baseSlug = ck.slug || `${toSlug(srcProduct.name)}-${i + 1}`;
-      const newSlug = await ensureUniqueSlug(supabase, "checkouts", "slug", baseSlug);
+    for (const ck of checkoutsArray.filter((c) => !c.is_default)) {
+      // Generate new slug in correct format (xxxxxxx_xxxxxx)
+      const newSlug = await generateUniqueCheckoutSlug(supabase);
 
       const { data: newCk, error: ckError } = await supabase
         .from("checkouts")

@@ -65,13 +65,13 @@ const PaymentLinkRedirect = () => {
 
         if (fetchError) {
           log.error("Erro ao buscar link", fetchError);
-          navigate(`/pay/${slug}?build=v3_0`, { replace: true });
+          navigate(`/pay/${slug}`, { replace: true });
           return;
         }
 
         if (!data?.success || !data?.data) {
           log.error("Link não encontrado");
-          navigate(`/pay/${slug}?build=v3_0`, { replace: true });
+          navigate(`/pay/${slug}`, { replace: true });
           return;
         }
 
@@ -109,10 +109,10 @@ const PaymentLinkRedirect = () => {
         log.debug("Redirecionando para checkout", { 
           checkout_slug: typedLinkData.checkout_slug 
         });
-        navigate(`/pay/${typedLinkData.checkout_slug}?build=v3_0`, { replace: true });
+        navigate(`/pay/${typedLinkData.checkout_slug}`, { replace: true });
       } catch (err) {
         log.error("Erro ao processar link", err);
-        navigate(`/pay/${slug}?build=v3_0`, { replace: true });
+        navigate(`/pay/${slug}`, { replace: true });
         return;
       }
     };
