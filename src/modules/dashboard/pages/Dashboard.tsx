@@ -2,11 +2,11 @@
  * Dashboard Page
  * 
  * @module dashboard
- * @version RISE V3 Compliant
+ * @version RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Página principal do Dashboard - ~80 linhas.
  * Zero useState - usa useDashboard como SSOT.
- * Otimizado para ultrawide com animações condicionais.
+ * Otimizado para ultrawide com UltrawidePerformanceContext.
  */
 
 import { motion } from "framer-motion";
@@ -18,7 +18,7 @@ import {
   RevenueChart,
 } from "../components";
 import { RecentCustomersTable } from "@/components/dashboard/recent-customers";
-import { useIsUltrawide } from "@/hooks/useIsUltrawide";
+import { useUltrawidePerformance } from "@/contexts/UltrawidePerformanceContext";
 
 const PAGE_ANIMATION = {
   hidden: { opacity: 0 },
@@ -32,11 +32,11 @@ const PAGE_ANIMATION = {
 
 export default function Dashboard() {
   const { state, actions, data, isLoading, refetch } = useDashboard();
-  const isUltrawide = useIsUltrawide();
+  const { isUltrawide, disableAnimations } = useUltrawidePerformance();
 
   // Wrapper condicional: div simples em ultrawide (sem staggerChildren)
-  const Wrapper = isUltrawide ? "div" : motion.div;
-  const wrapperProps = isUltrawide
+  const Wrapper = disableAnimations ? "div" : motion.div;
+  const wrapperProps = disableAnimations
     ? {}
     : {
         initial: "hidden",
@@ -58,8 +58,14 @@ export default function Dashboard() {
 
         {/* Gráfico + Overview Panel */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 md:gap-6">
-          {/* max-w-[1800px] limita largura em ultrawide para reduzir custo de renderização */}
-          <div className="xl:col-span-2 min-h-[350px] md:min-h-[400px] lg:min-h-[450px] max-w-[1800px]">
+          {/* Container do gráfico com CSS Containment para isolar repaints */}
+          <div
+            className="xl:col-span-2 min-h-[350px] md:min-h-[400px] lg:min-h-[450px]"
+            style={{
+              contain: "layout style paint",
+              isolation: "isolate",
+            }}
+          >
             <RevenueChart
               title="Fluxo de Faturamento"
               data={

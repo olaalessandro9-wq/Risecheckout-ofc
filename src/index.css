@@ -824,7 +824,7 @@ aside[class*="transition-[width]"] {
    ======================================== */
 
 @media (min-width: 2560px) {
-  /* === RECHARTS: Otimizações === */
+  /* === RECHARTS: Otimizações Avançadas === */
   
   /* Reduz tamanho de fonte dos eixos */
   .recharts-cartesian-axis-tick {
@@ -850,6 +850,26 @@ aside[class*="transition-[width]"] {
   
   .recharts-tooltip-wrapper {
     transition: none !important;
+  }
+  
+  /* Desabilita animações SVG do Recharts */
+  .recharts-line,
+  .recharts-area,
+  .recharts-bar,
+  .recharts-dot {
+    animation: none !important;
+    transition: none !important;
+  }
+  
+  /* Force will-change auto para evitar layer promotion */
+  .recharts-wrapper,
+  .recharts-surface {
+    will-change: auto !important;
+  }
+  
+  /* Contain para containers de gráficos */
+  .recharts-responsive-container {
+    contain: strict;
   }
   
   /* === BACKDROP BLUR: Desabilita todos === */
@@ -921,5 +941,26 @@ aside[class*="transition-[width]"] {
   /* Contain para isolar repaints */
   .recent-customers-tbody {
     contain: layout style;
+  }
+
+  /* === FRAMER MOTION: Desabilita em ultrawide === */
+  
+  /* Cards e containers animados - força static */
+  [style*="opacity"],
+  [style*="transform"] {
+    transition: none !important;
+  }
+  
+  /* === DASHBOARD ESPECÍFICO: Containment === */
+  
+  /* Isola o container do gráfico completamente */
+  .dashboard-chart-container {
+    contain: strict;
+    isolation: isolate;
+  }
+  
+  /* Simplifica cards de métricas */
+  .metric-card {
+    transition: border-color 100ms !important;
   }
 }
