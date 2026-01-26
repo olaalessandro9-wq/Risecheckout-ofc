@@ -3,7 +3,7 @@
  * Módulo: src/types/checkout-shared.types.ts
  * 
  * Tipos centralizados para dados de checkout, formulários e cupons.
- * RISE ARCHITECT PROTOCOL V2 - Zero Technical Debt
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10 Compliance
  */
 
 // ============================================================================
@@ -126,42 +126,6 @@ export interface AppliedCoupon {
   discount_value: number;
   apply_to_order_bumps?: boolean;
 }
-
-// ============================================================================
-// DESIGN INPUT
-// ============================================================================
-
-/**
- * Input para normalização de design
- * Aceita dados parciais vindos do banco de dados
- * Usa Record para compatibilidade com tipos dinâmicos do Checkout
- */
-export type CheckoutDesignInput = Record<string, unknown> & {
-  theme?: 'light' | 'dark' | string;
-  design?: unknown;
-  background_color?: string;
-  text_color?: string;
-  primary_color?: string;
-  button_color?: string;
-  button_text_color?: string;
-  primary_text_color?: string;
-  secondary_text_color?: string;
-  box_bg_color?: string;
-  box_primary_text_color?: string;
-  box_secondary_text_color?: string;
-  form_background_color?: string;
-  icon_color?: string;
-  selected_payment_color?: string;
-  payment_button_bg_color?: string;
-  payment_button_text_color?: string;
-  cc_field_background_color?: string;
-  cc_field_text_color?: string;
-  cc_field_placeholder_color?: string;
-  cc_field_border_color?: string;
-  cc_field_focus_border_color?: string;
-  cc_field_focus_text_color?: string;
-  font?: string;
-};
 
 // ============================================================================
 // HANDLER VALUE TYPES
