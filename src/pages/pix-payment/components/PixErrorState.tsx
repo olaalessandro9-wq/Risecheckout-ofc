@@ -4,6 +4,7 @@
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Exibe mensagem de erro amigável com opção de ação.
+ * Usa design tokens semânticos para cores consistentes.
  * 
  * @module pix-payment/components
  */
@@ -34,12 +35,12 @@ export function PixErrorState({
       </div>
 
       {/* Título */}
-      <h2 className="text-2xl font-bold text-[hsl(var(--payment-card-text-primary))] mb-3">
+      <h2 className="text-2xl font-bold text-[hsl(var(--payment-text-dark))] mb-3">
         Ops! Algo deu errado
       </h2>
 
       {/* Mensagem */}
-      <p className="text-[hsl(var(--payment-card-text-secondary))] mb-8 max-w-md">
+      <p className="text-[hsl(var(--payment-text-secondary))] mb-8 max-w-md">
         {message}
       </p>
 
@@ -68,7 +69,7 @@ export function PixErrorState({
       </div>
 
       {/* Informação adicional */}
-      <p className="text-sm text-[hsl(var(--payment-card-text-muted))] mt-8">
+      <p className="text-sm text-[hsl(var(--payment-text-muted))] mt-8">
         Se o problema persistir, entre em contato com o suporte.
       </p>
     </div>

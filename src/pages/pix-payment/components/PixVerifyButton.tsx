@@ -1,5 +1,12 @@
 /**
  * PixVerifyButton - Botão para verificar status do pagamento manualmente
+ * 
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * Permite ao usuário verificar manualmente se o pagamento foi processado.
+ * Usa design tokens semânticos para cores consistentes.
+ * 
+ * @module pix-payment/components
  */
 
 import { CheckCircle2 } from "lucide-react";
@@ -40,12 +47,12 @@ export function PixVerifyButton({ checkingPayment, onCheckStatus }: PixVerifyBut
       onClick={handleClick}
       disabled={checkingPayment}
       variant="outline"
-      className="w-full mb-6 disabled:opacity-50"
+      className="w-full mb-6 disabled:opacity-50 text-[hsl(var(--payment-text-dark))] border-[hsl(var(--payment-border-dark))]"
       size="lg"
     >
       {checkingPayment ? (
         <>
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[hsl(var(--payment-card-text-primary))] mr-2" />
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[hsl(var(--payment-text-dark))] mr-2" />
           Verificando...
         </>
       ) : (
