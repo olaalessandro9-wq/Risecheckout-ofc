@@ -1,15 +1,19 @@
 /**
  * Unified Token Service
  * 
- * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * RISE ARCHITECT PROTOCOL V3 - Session Commander Architecture (2026-01-26)
  * 
- * This is the SINGLE SOURCE OF TRUTH for token management.
- * Replaces the split producer/buyer token services with a unified approach.
+ * This is the SINGLE SOURCE OF TRUTH for token management state.
+ * Delegates all refresh operations to Session Commander.
  * 
- * Key differences from legacy services:
- * 1. Uses unified-auth/refresh endpoint
+ * Architecture:
+ * 1. Uses unified-auth endpoints with server-side locking
  * 2. Works with __Host-rise_access and __Host-rise_refresh cookies
- * 3. Supports all user roles (producer, buyer, etc.)
+ * 3. Delegates refresh to Session Commander for deduplication
+ * 4. Supports all user roles via active_role context
+ * 
+ * Primary refresh path:
+ *   TokenService.refresh() → SessionCommander.requestRefresh() → /request-refresh
  * 
  * @module unified-service
  */

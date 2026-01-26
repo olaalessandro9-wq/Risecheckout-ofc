@@ -1,13 +1,20 @@
 /**
- * Token Refresh - Backend Communication
+ * Token Refresh - Legacy HTTP Module
  * 
- * RISE Protocol V3: Single Responsibility - HTTP Only
+ * RISE Protocol V3: Session Commander Architecture (2026-01-26)
  * 
- * This module handles all HTTP communication for token refresh,
- * isolating network I/O from the main service logic.
+ * ⚠️ DEPRECATED: This module is NOT the primary refresh path.
  * 
- * MIGRATION NOTE: All token types now use unified-auth internally.
- * The legacy endpoints (producer, buyer) are kept for backwards compatibility.
+ * The primary refresh path is now through Session Commander:
+ *   sessionCommander.requestRefresh() → /unified-auth/request-refresh
+ * 
+ * This file is kept ONLY for:
+ * 1. isPublicRoute() utility function (used by Session Commander)
+ * 2. Backwards compatibility in edge cases
+ * 
+ * DO NOT import executeRefresh directly. Use sessionCommander instead.
+ * 
+ * @deprecated Use sessionCommander.requestRefresh() for all refresh operations
  */
 
 import type { TokenType, RefreshResponse } from "./types";
