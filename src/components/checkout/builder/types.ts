@@ -1,10 +1,13 @@
+/**
+ * Tipos do Checkout Builder
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ */
 import { ReactNode, ComponentType } from "react";
 import type { CheckoutComponentContent, CheckoutComponentType } from "@/types/checkout-components.types";
 import type { CheckoutDesign } from "@/types/checkoutEditor";
 
 /**
- * Content type for builder components - RISE Protocol V2: Zero any
- * Usa o tipo centralizado em vez de Record<string, any>
+ * Content type for builder components - Zero any, tipagem centralizada
  */
 export type BuilderComponentContent = CheckoutComponentContent;
 

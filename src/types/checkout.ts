@@ -1,10 +1,9 @@
 /**
  * Tipos TypeScript para o Sistema de Checkout
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Este arquivo centraliza todas as definições de tipos para garantir
  * Type Safety em todo o sistema de checkout.
- * 
- * RISE Protocol V3: Sistema de checkout unificado.
  */
 
 // ============================================================================
