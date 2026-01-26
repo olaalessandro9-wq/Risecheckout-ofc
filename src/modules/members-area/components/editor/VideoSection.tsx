@@ -165,7 +165,7 @@ export function VideoSection({
                 Upload de vídeo em breve
               </p>
               <p className="mt-1 text-xs text-muted-foreground/70">
-                Por enquanto, use links do YouTube
+                Use links do YouTube ou Vimeo
               </p>
               <Button variant="outline" className="mt-4" disabled>
                 Selecionar Arquivo
