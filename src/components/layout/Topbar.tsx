@@ -1,5 +1,5 @@
 // src/components/layout/Topbar.tsx
-import { Bell, Menu, PanelLeft, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Menu, PanelLeft, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ThemeToggle from "@/components/ThemeToggle";
 import { UserAvatar } from "@/components/layout/UserAvatar";
@@ -7,7 +7,6 @@ import type { SidebarState } from "@/modules/navigation";
 
 type TopbarProps = {
   scrolled?: boolean;
-  onNotificationsClick?: () => void;
   onMenuClick?: () => void;
   /** Estado atual do sidebar */
   sidebarState?: SidebarState;
@@ -17,7 +16,6 @@ type TopbarProps = {
 
 export function Topbar({ 
   scrolled, 
-  onNotificationsClick, 
   onMenuClick,
   sidebarState = 'collapsed',
   onSidebarToggle,
@@ -83,16 +81,6 @@ export function Topbar({
         <div className="flex-1" />
 
         <div className="flex items-center gap-3">
-          {/* Notificações */}
-          <button
-            type="button"
-            aria-label="Notificações"
-            onClick={onNotificationsClick}
-            className="relative inline-flex h-9 w-9 items-center justify-center rounded-md border border-transparent hover:bg-foreground/5 transition"
-          >
-            <Bell className="h-5 w-5" />
-          </button>
-
           {/* Toggle de tema */}
           <ThemeToggle />
 

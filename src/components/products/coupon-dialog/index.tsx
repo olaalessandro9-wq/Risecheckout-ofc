@@ -30,7 +30,7 @@ import { CouponDateFields } from "./CouponDateFields";
 import { CouponLimitsFields } from "./CouponLimitsFields";
 import type { CouponDialogProps } from "./types";
 
-// Re-exports for backwards compatibility
+// Public type exports
 export type { CouponFormData, CouponSaveResult, CouponDialogProps } from "./types";
 
 export function CouponDialog({

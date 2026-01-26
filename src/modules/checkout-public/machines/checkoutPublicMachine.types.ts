@@ -27,7 +27,7 @@ export interface FormData {
   email: string;
   phone: string;
   cpf: string;
-  document: string; // Alias for CPF, legacy compatibility
+  document: string; // Alias for CPF (unified field name)
 }
 
 export interface FormErrors {

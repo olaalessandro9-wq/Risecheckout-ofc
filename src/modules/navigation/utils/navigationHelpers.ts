@@ -109,7 +109,7 @@ export function getSidebarWidth(
     return SIDEBAR_WIDTHS.hidden;
   }
 
-  // Quando collapsed e hovering, expande temporariamente
+  // Quando collapsed e hovering, expande durante o hover
   if (sidebarState === "collapsed" && isHovering) {
     return SIDEBAR_WIDTHS.expanded;
   }
