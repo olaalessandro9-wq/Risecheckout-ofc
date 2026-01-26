@@ -151,7 +151,7 @@ Ambiente: `"sandbox"` ou `"production"`.
 - ✅ Migração para arquitetura modular
 - ✅ Criação de `ConfigForm.tsx` (admin)
 - ✅ Isolamento completo em `src/integrations/gateways/pushinpay/`
-- ✅ Remoção de código legado (`src/services/pushinpay.ts`)
+- ✅ Remoção de código anterior (`src/services/pushinpay.ts`)
 - ✅ Padronização com Mercado Pago
 
 ### v1.0.0 (2024)

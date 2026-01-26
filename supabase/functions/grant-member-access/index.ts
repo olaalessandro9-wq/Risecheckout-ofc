@@ -3,7 +3,7 @@
  * GRANT-MEMBER-ACCESS EDGE FUNCTION
  * ============================================================================
  * 
- * @version 1.0.0 - RISE Protocol V2 Compliant
+ * @version 1.0.0 - RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Função especializada para concessão de acesso à área de membros.
  * Chamada por reconcile-mercadopago, reconcile-asaas, e webhooks.

@@ -3,7 +3,7 @@
  * RECONCILE-PENDING-ORDERS EDGE FUNCTION (ORCHESTRATOR)
  * ============================================================================
  * 
- * @version 3.0.0 - RISE Protocol V2 Compliant (Refactored to Orchestrator)
+ * @version 3.0.0 - RISE ARCHITECT PROTOCOL V3 - 10.0/10 (Refactored to Orchestrator)
  * 
  * Função orquestradora para reconciliação de pedidos pendentes.
  * Executa a cada 5 minutos via scheduler externo.

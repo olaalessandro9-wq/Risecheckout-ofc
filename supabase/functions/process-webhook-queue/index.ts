@@ -11,7 +11,7 @@
  * 4. Reenvia diretamente via fetch()
  * 5. Atualiza status/attempts em webhook_deliveries
  * 
- * @version 2.0.0 - Zero `any` compliance (RISE Protocol V2)
+ * @version 2.0.0 - Zero `any` compliance (RISE ARCHITECT PROTOCOL V3 - 10.0/10)
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";

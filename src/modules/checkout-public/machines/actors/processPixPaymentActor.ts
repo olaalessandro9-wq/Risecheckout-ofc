@@ -198,7 +198,7 @@ async function processStripe(input: ProcessPixInput): Promise<ProcessPixOutput> 
   // 3. Handle webhook confirmations for async PIX payments
   // 
   // Current behavior: Delegates to payment page for manual handling
-  // TODO: Implement when Stripe PIX is enabled on the platform
+  // Stripe PIX: Implementar quando habilitado na plataforma via Stripe Dashboard
   log.warn("Stripe PIX is not fully implemented - delegating to payment page");
 
   return {

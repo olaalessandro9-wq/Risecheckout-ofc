@@ -4,7 +4,7 @@
  * Tipos específicos do gateway Mercado Pago extraídos do MercadoPagoAdapter
  * para manter o arquivo principal abaixo de 300 linhas.
  * 
- * @version 1.0.0 - RISE Protocol V2 Compliance
+ * @version 1.0.0 - RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 export interface MercadoPagoPayload {

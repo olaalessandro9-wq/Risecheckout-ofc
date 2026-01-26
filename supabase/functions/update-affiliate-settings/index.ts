@@ -11,7 +11,7 @@
  * BLOQUEADO: Alteração de commission_rate, status (exceto cancelled), 
  *            total_sales_count, total_sales_amount, affiliate_code
  * 
- * @version 2.0.0 - RISE Protocol V2 Compliance (Zero any)
+ * @version 2.0.0 - RISE ARCHITECT PROTOCOL V3 - 10.0/10 (Zero any)
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";

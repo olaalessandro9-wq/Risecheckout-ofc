@@ -2,7 +2,7 @@
  * gateway-credentials.ts
  * 
  * Busca credenciais de gateway dinamicamente baseado no vendedor (Owner vs Vendedor comum).
- * Extraído de platform-config.ts para RISE Protocol V2 (< 300 linhas).
+ * Extraído de platform-config.ts para RISE ARCHITECT PROTOCOL V3 (< 300 linhas).
  * 
  * @module _shared/gateway-credentials
  * @version 2.0.0

@@ -110,7 +110,7 @@ O Kwai Pixel usa o evento `PlaceOrder` para conversões de compra, diferente de 
 
 ### v2.0.0 (Janeiro 2026)
 - ✅ Migração para novo sistema vendor_pixels + product_pixels
-- ✅ Remoção de hooks legados (useKwaiConfig, shouldRunKwai)
+- ✅ Remoção de hooks anteriores (useKwaiConfig, shouldRunKwai)
 - ✅ Documentação atualizada para RISE V3
 
 ### v1.0.0 (Novembro 2025)

@@ -2,7 +2,7 @@
  * platform-constants.ts
  * 
  * Constantes globais da plataforma RiseCheckout.
- * Extraído de platform-config.ts para RISE Protocol V2 (< 300 linhas).
+ * Extraído de platform-config.ts para RISE ARCHITECT PROTOCOL V3 (< 300 linhas).
  * 
  * @module _shared/platform-constants
  * @version 1.0.0

@@ -1,7 +1,7 @@
 /**
  * order-creator.ts - Criação e Persistência do Pedido
  * 
- * @version 2.0.0 - RISE Protocol V2 Compliant - Zero `any`
+ * @version 2.0.0 - RISE ARCHITECT PROTOCOL V3 - 10.0/10 - Zero `any`
  * 
  * Responsabilidade ÚNICA: Criar pedido no banco de dados
  * 

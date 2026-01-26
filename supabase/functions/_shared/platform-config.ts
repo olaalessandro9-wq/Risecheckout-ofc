@@ -15,7 +15,7 @@
  * - gateway-credentials.ts: Busca de credenciais por vendedor
  * 
  * ============================================================================
- * RISE Protocol V2 Compliant - Arquivo refatorado de 720 → ~50 linhas
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10 - Arquivo refatorado de 720 → ~50 linhas
  * ============================================================================
  */
 

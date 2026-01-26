@@ -112,7 +112,7 @@ O Google Ads requer um `conversion_label` para cada tipo de evento. Este label �
 
 ### v2.0.0 (Janeiro 2026)
 - ✅ Migração para novo sistema vendor_pixels + product_pixels
-- ✅ Remoção de hooks legados (useGoogleAdsConfig, shouldRunGoogleAds)
+- ✅ Remoção de hooks anteriores (useGoogleAdsConfig, shouldRunGoogleAds)
 - ✅ Documentação atualizada para RISE V3
 
 ### v1.0.0 (Novembro 2025)

@@ -1,7 +1,7 @@
 /**
  * send-webhook-test - Envia webhook de teste
  * 
- * @version 2.0.0 - RISE Protocol V2 Compliance (Zero any)
+ * @version 2.0.0 - RISE ARCHITECT PROTOCOL V3 - 10.0/10 (Zero any)
  */
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";

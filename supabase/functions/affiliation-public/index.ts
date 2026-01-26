@@ -8,7 +8,7 @@
  * - product: Get product with affiliate settings
  * - offers: Get active offers for a product
  * 
- * @see RISE Protocol V2 - Zero database access from frontend
+ * @see RISE ARCHITECT PROTOCOL V3 - Zero database access from frontend
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
