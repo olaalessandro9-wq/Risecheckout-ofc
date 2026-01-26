@@ -42,7 +42,7 @@ const ROUTE_PREFETCH_MAP: Record<string, () => Promise<unknown>> = {
   '/dashboard/minhas-afiliacoes': () => import('@/pages/MinhasAfiliacoes'),
   '/dashboard/financeiro': () => import('@/pages/Financeiro'),
   '/dashboard/gateways': () => import('@/pages/owner/OwnerGateways'),
-  '/dashboard/rastreamento': () => import('@/pages/Rastreamento'),
+  '/dashboard/trackeamento': () => import('@/pages/Rastreamento'),
   '/dashboard/webhooks': () => import('@/pages/Webhooks'),
   '/dashboard/ajuda': () => import('@/pages/Ajuda'),
   '/dashboard/perfil': () => import('@/pages/Perfil'),

@@ -282,7 +282,7 @@ const router = createBrowserRouter([
               </RoleProtectedRoute>
             ),
           },
-          { path: "rastreamento", element: <Rastreamento /> },
+          { path: "trackeamento", element: <Rastreamento /> },
           { path: "webhooks", element: <Webhooks /> },
           { path: "ajuda", element: <Ajuda /> },
           { path: "perfil", element: <Perfil /> },
