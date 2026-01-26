@@ -1,9 +1,12 @@
 /**
  * Marketplace Service
  * 
- * MIGRATED: Uses api.call() and api.publicCall()
- * @version 3.0.0 - RISE Protocol V3 - Zero console.log
- * @see RISE Protocol V2 - Zero direct database access from frontend
+ * RISE ARCHITECT PROTOCOL V3 - API Gateway Architecture (10.0/10)
+ * 
+ * Uses api.call() and api.publicCall() via Cloudflare Worker.
+ * Zero secrets in frontend. Zero direct database access.
+ * 
+ * @see docs/API_GATEWAY_ARCHITECTURE.md
  */
 
 import type { Database } from "@/integrations/supabase/types";
@@ -171,8 +174,7 @@ interface AffiliationStatusResponse {
  * Uses api.call() for authenticated affiliation check
  */
 export async function checkAffiliationStatus(
-  productId: string,
-  _userId: string // Mantido para compatibilidade, mas não usado
+  productId: string
 ): Promise<{
   isAffiliate: boolean;
   status?: "pending" | "active" | "rejected" | "blocked";

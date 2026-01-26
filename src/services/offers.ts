@@ -1,8 +1,12 @@
 /**
  * Offers Service
  * 
- * MIGRATED: Uses api.call() instead of supabase.functions.invoke()
- * @see RISE Protocol V3 - Zero console.log
+ * RISE ARCHITECT PROTOCOL V3 - API Gateway Architecture (10.0/10)
+ * 
+ * Uses api.call() via Cloudflare Worker.
+ * Zero secrets in frontend. Zero direct database access.
+ * 
+ * @see docs/API_GATEWAY_ARCHITECTURE.md
  */
 
 import { api } from "@/lib/api";

@@ -167,7 +167,7 @@ function CheckoutCustomizerLayout() {
 }
 
 // ============================================================================
-// ROUTER - createBrowserRouter (mantido para compatibilidade)
+// ROUTER - createBrowserRouter (React Router v7)
 // ============================================================================
 const router = createBrowserRouter([
   {

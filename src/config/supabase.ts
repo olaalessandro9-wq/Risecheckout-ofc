@@ -24,7 +24,10 @@
 export const API_GATEWAY_URL = "https://api.risecheckout.com";
 
 /**
- * @deprecated Use API_GATEWAY_URL instead
- * Mantido para compatibilidade durante migração
+ * SUPABASE_URL - Alias for API_GATEWAY_URL
+ * 
+ * All requests are routed through the API Gateway.
+ * This alias exists because many modules reference SUPABASE_URL
+ * for Edge Function calls - these are proxied through the gateway.
  */
 export const SUPABASE_URL = API_GATEWAY_URL;

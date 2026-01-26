@@ -167,7 +167,7 @@ const checkStatus = useCallback(
     }
 
     try {
-      const status = await checkAffiliationStatus(productId, user.id);
+      const status = await checkAffiliationStatus(productId);
       setAffiliationStatus(status);
     } catch {
       setAffiliationStatus({ isAffiliate: false });
