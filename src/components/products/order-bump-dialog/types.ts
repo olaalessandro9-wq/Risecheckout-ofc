@@ -20,6 +20,11 @@ export interface OrderBumpFormData {
 /**
  * Interface para order bump existente durante edição.
  * Representa os dados retornados do banco de dados.
+ * 
+ * CRITICAL PRICE SEMANTICS:
+ * - `original_price`: MARKETING price for strikethrough display only
+ * - The REAL price charged comes from the linked offer/product
+ * - `original_price` is NEVER used for billing calculations
  */
 export interface EditOrderBump {
   id: string;
@@ -29,6 +34,9 @@ export interface EditOrderBump {
   position: number;
   active: boolean;
   discount_enabled?: boolean | null;
+  /** MARKETING price - for strikethrough display only, never used for billing */
+  original_price?: number | null;
+  /** @deprecated Use original_price instead */
   discount_price?: number | null;
   call_to_action?: string | null;
   custom_title?: string | null;

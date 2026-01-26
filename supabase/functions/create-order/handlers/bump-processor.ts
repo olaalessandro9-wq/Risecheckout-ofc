@@ -1,15 +1,21 @@
 /**
  * bump-processor.ts - Processamento de Order Bumps
  * 
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
  * Responsabilidade ÚNICA: Validar e calcular preços dos order bumps
  * 
- * RISE Protocol V2 Compliant - Zero `any`
- * Version: 2.0.0
+ * CRITICAL PRICE SEMANTICS:
+ * - The price to be CHARGED is ALWAYS from the offer (priority) or product (fallback)
+ * - The `original_price` field is MARKETING ONLY (strikethrough display)
+ * - `original_price` is NEVER used for billing calculations
  * 
  * OTIMIZADO em 2026-01-11:
  * - Eliminado N+1 query pattern (antes: N queries por bump)
  * - Agora usa batch queries com Maps para O(1) lookup
  * - Redução estimada: -50-150ms por transação com bumps
+ * 
+ * @version 3.0.0 - Fixed price semantics
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -56,11 +62,16 @@ interface BumpData {
   offer_id: string | null;
   custom_title: string | null;
   discount_enabled: boolean | null;
-  discount_price: number | null;
+  original_price: number | null; // MARKETING ONLY - never used for billing
 }
 
 /**
  * Processa order bumps e retorna lista de itens com totais
+ * 
+ * PRICE LOGIC (CORRECT):
+ * - Priority 1: Offer price (already in cents)
+ * - Priority 2: Product price (BRL → cents conversion)
+ * - NEVER use original_price - it's for marketing display only
  * 
  * OTIMIZAÇÃO: Usa batch queries + Maps ao invés de queries individuais no loop
  */
@@ -89,9 +100,10 @@ export async function processBumps(
   }
 
   // Validar bumps (ownership + status)
+  // NOTE: original_price is fetched but IGNORED for billing - only for logging
   const { data: bumps, error: bumpsError } = await supabase
     .from("order_bumps")
-    .select("id, product_id, active, custom_title, discount_enabled, discount_price, offer_id")
+    .select("id, product_id, active, custom_title, discount_enabled, original_price, offer_id")
     .in("id", order_bump_ids)
     .eq("checkout_id", checkout_id)
     .eq("active", true);
@@ -162,6 +174,7 @@ export async function processBumps(
 
   // =====================================================
   // Processar cada bump usando Maps (sem queries adicionais)
+  // PRICE LOGIC: Offer > Product (NEVER original_price)
   // =====================================================
   for (const bump of bumps as BumpData[]) {
     try {
@@ -173,7 +186,7 @@ export async function processBumps(
       let bumpPriceCents = 0;
       let bumpName = bump.custom_title || "Order Bump";
 
-      // PRIORIDADE 1: Preço da OFFER vinculada (já em centavos)
+      // PRIORITY 1: Price from OFFER (already in cents)
       if (bump.offer_id) {
         const bumpOffer = offersMap.get(bump.offer_id);
         
@@ -184,7 +197,7 @@ export async function processBumps(
         }
       }
 
-      // PRIORIDADE 2: Fallback para PRODUCT (BRL → centavos)
+      // PRIORITY 2: Fallback to PRODUCT price (BRL → cents)
       if (bumpPriceCents === 0) {
         const bumpProduct = productsMap.get(bump.product_id);
 
@@ -198,11 +211,14 @@ export async function processBumps(
         }
       }
 
-      // PRIORIDADE 3: Override com discount_price (BRL → centavos)
-      if (bump.discount_enabled && bump.discount_price) {
-        bumpPriceCents = Math.round(Number(bump.discount_price) * 100);
-        log.info(`Bump com desconto: ${bumpPriceCents} centavos`);
-      }
+      // REMOVED: original_price override
+      // original_price is MARKETING ONLY - it should NEVER affect billing
+      // The price charged is ALWAYS from offer or product
+      // 
+      // OLD BUG (REMOVED):
+      // if (bump.discount_enabled && bump.original_price) {
+      //   bumpPriceCents = Math.round(Number(bump.original_price) * 100);
+      // }
 
       totalAmount += bumpPriceCents;
 

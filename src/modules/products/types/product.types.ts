@@ -58,14 +58,19 @@ export interface Offer {
 
 // ============================================================================
 // ORDER BUMPS
-// Campos mapeados do banco: custom_title, custom_description, discount_price
+// 
+// CRITICAL PRICE SEMANTICS:
+// - `price`: The REAL price to be charged (ALWAYS from linked offer/product)
+// - Database field `original_price` is MARKETING ONLY (strikethrough display)
+// - The customer ALWAYS pays the `price`, never the marketing price
 // ============================================================================
 
 export interface OrderBump {
   id: string;
   name: string;               // Mapeado de custom_title ou product.name
   description: string | null; // Mapeado de custom_description
-  price: number;              // Mapeado de discount_price ou product.price
+  /** REAL price - what customer pays (from offer/product, never original_price) */
+  price: number;
   image_url: string | null;   // Mapeado de product.image_url (se show_image=true)
   bump_product_id: string | null; // Mapeado de product_id
   created_at?: string;

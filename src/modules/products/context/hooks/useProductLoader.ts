@@ -68,6 +68,14 @@ export interface OfferRecord {
   updated_at: string | null;
 }
 
+/**
+ * Order Bump Record from database
+ * 
+ * CRITICAL PRICE SEMANTICS:
+ * - `original_price`: MARKETING price for strikethrough display only
+ * - The REAL price charged comes from the linked offer/product
+ * - `original_price` is NEVER used for billing calculations
+ */
 export interface OrderBumpRecord {
   id: string;
   checkout_id: string;
@@ -76,7 +84,8 @@ export interface OrderBumpRecord {
   position: number;
   active: boolean;
   discount_enabled: boolean | null;
-  discount_price: number | null;
+  /** MARKETING price - for strikethrough display only, never used for billing */
+  original_price: number | null;
   call_to_action: string | null;
   custom_title: string | null;
   custom_description: string | null;

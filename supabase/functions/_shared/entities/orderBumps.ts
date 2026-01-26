@@ -1,11 +1,17 @@
 /**
  * Order Bumps Entity Handler - Shared module
  * 
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
  * Single Source of Truth for fetching order bumps.
  * Used by: product-full-loader, product-entities
  * 
+ * CRITICAL PRICE SEMANTICS:
+ * - `original_price`: MARKETING price for strikethrough display only
+ * - The REAL price charged comes from the linked offer/product
+ * - `original_price` is NEVER used for billing calculations
+ * 
  * @module _shared/entities/orderBumps
- * @version RISE V3 Compliant
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -60,6 +66,9 @@ export async function fetchProductOrderBumps(
  * Includes: products (id, name, price, image_url)
  * 
  * Used by BFF for initial loading with full data
+ * 
+ * NOTE: original_price is MARKETING ONLY - for strikethrough display
+ * The REAL price charged comes from the linked offer/product
  */
 export async function fetchProductOrderBumpsWithRelations(
   supabase: SupabaseClient,
@@ -86,6 +95,7 @@ export async function fetchProductOrderBumpsWithRelations(
   }
 
   // Fetch order bumps with product relation for name/price/image
+  // NOTE: original_price is MARKETING ONLY - never used for billing
   const { data, error } = await supabase
     .from("order_bumps")
     .select(`
@@ -96,7 +106,7 @@ export async function fetchProductOrderBumpsWithRelations(
       position,
       active,
       discount_enabled,
-      discount_price,
+      original_price,
       call_to_action,
       custom_title,
       custom_description,

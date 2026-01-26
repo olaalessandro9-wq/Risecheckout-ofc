@@ -110,7 +110,7 @@ export async function handleResolveAndLoad(ctx: HandlerContext): Promise<Respons
       `)
       .eq("checkout_id", checkout.id)
       .maybeSingle(),
-    // Order bumps
+    // Order bumps - NOTE: original_price is MARKETING ONLY (strikethrough display)
     supabase
       .from("order_bumps")
       .select(`
@@ -119,7 +119,7 @@ export async function handleResolveAndLoad(ctx: HandlerContext): Promise<Respons
         custom_title,
         custom_description,
         discount_enabled,
-        discount_price,
+        original_price,
         show_image,
         call_to_action,
         products(id, name, description, price, image_url),
@@ -239,7 +239,7 @@ export async function handleAll(ctx: HandlerContext): Promise<Response> {
       .maybeSingle(),
     supabase
       .from("order_bumps")
-      .select(`id, product_id, custom_title, custom_description, discount_enabled, discount_price, show_image, call_to_action, products(id, name, description, price, image_url), offers(id, name, price)`)
+      .select(`id, product_id, custom_title, custom_description, discount_enabled, original_price, show_image, call_to_action, products(id, name, description, price, image_url), offers(id, name, price)`)
       .eq("checkout_id", checkoutId)
       .eq("active", true)
       .order("position"),

@@ -1,15 +1,20 @@
 /**
  * order-bump-crud Edge Function
  * 
- * @version 3.0.0 - RISE Protocol V3 Compliant
- * - Uses unified-auth.ts for authentication
- * - Removed local validateProducerSession
- *
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
  * Handles order bump CRUD operations:
  * - create: Create new order bump
  * - update: Update order bump
  * - delete: Delete order bump
  * - reorder: Reorder order bumps
+ * 
+ * CRITICAL PRICE SEMANTICS:
+ * - `original_price`: MARKETING price for strikethrough display only
+ * - The REAL price charged comes from the linked offer/product
+ * - `original_price` is NEVER used for billing calculations
+ * 
+ * @version 4.0.0 - Renamed discount_price to original_price
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
@@ -41,6 +46,13 @@ interface OrderBumpPayload {
   offer_id?: string;
   active?: boolean;
   discount_enabled?: boolean;
+  /** 
+   * MARKETING price for strikethrough display.
+   * The REAL price is always from the linked offer/product.
+   * This field is NEVER used for billing calculations.
+   */
+  original_price?: number;
+  /** @deprecated Use original_price instead */
   discount_price?: number;
   call_to_action?: string;
   custom_title?: string;
@@ -55,7 +67,7 @@ interface OrderBumpRecord {
   offer_id: string;
   active: boolean;
   discount_enabled: boolean;
-  discount_price: number | null;
+  original_price: number | null;
   call_to_action: string | null;
   custom_title: string | null;
   custom_description: string | null;
@@ -70,7 +82,8 @@ interface OrderBumpUpdates {
   offer_id?: string;
   active?: boolean;
   discount_enabled?: boolean;
-  discount_price?: number | null;
+  /** MARKETING price - for display only, never used for billing */
+  original_price?: number | null;
   call_to_action?: string | null;
   custom_title?: string | null;
   custom_description?: string | null;
@@ -217,9 +230,12 @@ serve(withSentry("order-bump-crud", async (req) => {
       const isOwner = await verifyCheckoutForOrderBump(supabase, payload.checkout_id, producerId);
       if (!isOwner) return errorResponse("Você não tem permissão para criar order bumps neste checkout", corsHeaders, 403);
 
-      if (payload.discount_enabled && payload.discount_price !== undefined) {
-        if (typeof payload.discount_price !== "number" || payload.discount_price <= 0) {
-          return errorResponse("Preço de desconto deve ser um valor positivo", corsHeaders, 400);
+      // Support both field names for backwards compatibility
+      const originalPriceValue = payload.original_price ?? payload.discount_price;
+      
+      if (payload.discount_enabled && originalPriceValue !== undefined) {
+        if (typeof originalPriceValue !== "number" || originalPriceValue <= 0) {
+          return errorResponse("Preço de origem (marketing) deve ser um valor positivo", corsHeaders, 400);
         }
       }
 
@@ -231,7 +247,8 @@ serve(withSentry("order-bump-crud", async (req) => {
           offer_id: payload.offer_id,
           active: payload.active !== false,
           discount_enabled: !!payload.discount_enabled,
-          discount_price: payload.discount_enabled ? payload.discount_price : null,
+          // original_price is MARKETING ONLY - strikethrough display
+          original_price: payload.discount_enabled ? originalPriceValue : null,
           call_to_action: payload.call_to_action?.trim() || null,
           custom_title: payload.custom_title?.trim() || null,
           custom_description: payload.custom_description?.trim() || null,
@@ -268,7 +285,9 @@ serve(withSentry("order-bump-crud", async (req) => {
       if (payload.active !== undefined) updates.active = payload.active;
       if (payload.discount_enabled !== undefined) {
         updates.discount_enabled = payload.discount_enabled;
-        updates.discount_price = payload.discount_enabled ? payload.discount_price : null;
+        // Support both field names - original_price is MARKETING ONLY
+        const originalPriceValue = payload.original_price ?? payload.discount_price;
+        updates.original_price = payload.discount_enabled ? originalPriceValue : null;
       }
       if (payload.call_to_action !== undefined) updates.call_to_action = payload.call_to_action?.trim() || null;
       if (payload.custom_title !== undefined) updates.custom_title = payload.custom_title?.trim() || null;
