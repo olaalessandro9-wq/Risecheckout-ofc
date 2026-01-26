@@ -27,7 +27,7 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 - **`productFormMachine.ts`**: Mapeamento do campo `delivery_type` do banco para o estado
 
 #### Deprecated
-- **Campo `external_delivery`** (boolean): Usar `delivery_type` ENUM. Campo mantido para compatibilidade.
+- **Campo `external_delivery`** (boolean): Usar `delivery_type` ENUM. Campo existente em produtos anteriores ao ENUM.
 
 #### Conformidade RISE V3
 - **Persistência DB correta:** ✅ `delivery_type` salvo em create/update

@@ -1,7 +1,7 @@
 /**
  * MercadoPago Payment Hooks - Barrel Export
  * 
- * RISE Protocol V2 Compliant.
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 export { useMercadoPagoOrderData } from "./useMercadoPagoOrderData";

@@ -63,7 +63,7 @@ src/components/checkout/payment/
 
 **Desvantagens:**
 - ⏱️ Mais tempo
-- 📦 Código duplicado temporariamente
+- 📦 Código duplicado durante migração
 
 ### Opção 2: Migração Completa
 

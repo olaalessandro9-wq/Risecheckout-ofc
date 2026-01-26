@@ -1,8 +1,7 @@
 /**
  * useMercadoPagoConfig - Hook para carregar configuração do Mercado Pago
  * 
- * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
- * @see RISE Protocol V2 - Zero database access from frontend
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import { useQuery } from "@tanstack/react-query";

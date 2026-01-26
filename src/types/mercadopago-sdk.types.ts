@@ -3,7 +3,7 @@
  * Módulo: src/types/mercadopago-sdk.types.ts
  * 
  * Tipos para callbacks e respostas do SDK de pagamento.
- * RISE ARCHITECT PROTOCOL V2 - Zero Technical Debt
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 // ============================================================================

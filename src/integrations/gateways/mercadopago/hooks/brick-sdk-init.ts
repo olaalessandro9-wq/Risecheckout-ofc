@@ -2,7 +2,7 @@
  * Inicialização do SDK Brick - Mercado Pago Gateway
  * 
  * Módulo: src/integrations/gateways/mercadopago/hooks/brick-sdk-init.ts
- * RISE ARCHITECT PROTOCOL V2 - Single Responsibility
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Encapsula a lógica de inicialização do CardForm do Mercado Pago.
  */

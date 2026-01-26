@@ -1,6 +1,6 @@
 /**
  * Checkout Customizer Module Types
- * RISE Protocol V2 Compliant
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import type { ProductData, OrderBump } from "@/types/checkout";

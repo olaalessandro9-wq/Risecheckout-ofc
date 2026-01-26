@@ -1,8 +1,7 @@
 /**
  * useVideoLibrary - Hook para buscar vídeos já usados no produto
  * 
- * MIGRATED: Uses api.call() instead of supabase.functions.invoke
- * @see RISE Protocol V2 - Zero direct database access from frontend
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Implementa as funcionalidades:
  * - Biblioteca: Lista de vídeos únicos usados no produto

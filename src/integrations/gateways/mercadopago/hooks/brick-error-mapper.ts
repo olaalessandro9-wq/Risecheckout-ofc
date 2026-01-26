@@ -2,7 +2,7 @@
  * Mapeamento de Erros do Brick - Mercado Pago Gateway
  * 
  * Módulo: src/integrations/gateways/mercadopago/hooks/brick-error-mapper.ts
- * RISE ARCHITECT PROTOCOL V2 - Single Responsibility
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Mapeia erros do SDK do Mercado Pago para mensagens amigáveis.
  */

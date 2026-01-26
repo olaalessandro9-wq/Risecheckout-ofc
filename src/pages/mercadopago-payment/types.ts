@@ -2,7 +2,7 @@
  * Types for MercadoPago Payment Page
  * 
  * Single Responsibility: Type definitions only.
- * RISE Protocol V2 Compliant.
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 /**

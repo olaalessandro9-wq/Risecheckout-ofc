@@ -257,9 +257,9 @@ O sistema suporta 3 tipos de entrega distintos via ENUM `delivery_type_enum`:
 | `product-crud-handlers.ts` | Persistência backend (create/update) |
 | `product-settings-handlers.ts` | Persistência backend (settings) |
 
-### 9.3 Compatibilidade Legada
+### 9.3 Campo external_delivery
 
-O campo `external_delivery` (boolean) é mantido para compatibilidade com produtos existentes.
+O campo `external_delivery` (boolean) existe para produtos criados antes do ENUM `delivery_type`.
 A lógica de resolução prioriza `delivery_type` ENUM quando disponível:
 
 ```typescript

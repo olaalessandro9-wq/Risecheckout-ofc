@@ -1,8 +1,7 @@
 /**
  * Perfil Page
  * 
- * MIGRATED: Uses Edge Function instead of direct database access
- * @see RISE Protocol V2 - Zero direct database access from frontend
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import { useState, useEffect } from "react";

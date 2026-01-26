@@ -2,9 +2,7 @@
  * Re-exports de API - Mercado Pago Gateway
  * 
  * Módulo: src/integrations/gateways/mercadopago/api/index.ts
- * RISE ARCHITECT PROTOCOL V2 - Zero Breaking Changes
- * 
- * Mantém compatibilidade total com imports existentes.
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 // Payment API

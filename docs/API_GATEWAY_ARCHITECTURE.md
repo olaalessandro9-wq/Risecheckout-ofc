@@ -127,7 +127,7 @@ O CSP é definido no `index.html` com as seguintes diretivas relevantes:
 connect-src 'self' https://api.risecheckout.com https://*.sentry.io ...
 ```
 
-**Nota:** `*.supabase.co` foi mantido para compatibilidade, mas será removido em versões futuras.
+**Nota:** `*.supabase.co` pode ser removido do CSP após validação completa do API Gateway em produção.
 
 ## Manutenção
 

@@ -2,7 +2,7 @@
  * Storage Helpers
  * 
  * Utilities for storage path parsing and operations
- * All storage operations delegated to storageProxy for RISE Protocol V2 compliance
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";

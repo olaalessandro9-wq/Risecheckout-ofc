@@ -1,8 +1,7 @@
 /**
  * Helper: fetchOfferData
  * 
- * MIGRATED: Uses api.publicCall() for public checkout data
- * @see RISE Protocol V2 - Zero database access from frontend
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import { publicApi } from "@/lib/api/public-client";

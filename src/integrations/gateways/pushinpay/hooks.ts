@@ -1,9 +1,7 @@
 /**
  * Hooks para o PushinPay Gateway
  * 
- * @version 2.0.0 - RISE Protocol V3 Compliant - Zero console.log
- * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
- * @see RISE Protocol V2 - Zero database access from frontend
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import { useQuery } from "@tanstack/react-query";

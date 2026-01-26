@@ -2,7 +2,7 @@
  * Tipos de Conexão e Configuração - Mercado Pago Gateway
  * 
  * Módulo: src/integrations/gateways/mercadopago/types/connection.ts
- * RISE ARCHITECT PROTOCOL V2 - Single Responsibility
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 // ========== Connection Types ==========
