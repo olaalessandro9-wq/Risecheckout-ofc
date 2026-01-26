@@ -9,7 +9,44 @@
  */
 
 import type { BuilderMachineContext } from "./builderMachine.types";
-import type { SectionSettings, Section } from "../types/builder.types";
+import type { SectionSettings, Section, Viewport } from "../types/builder.types";
+
+// ============================================================================
+// VIEWPORT HELPERS (Dual-Layout Support)
+// ============================================================================
+
+/** Get sections for active viewport */
+export function getActiveSections(context: BuilderMachineContext): Section[] {
+  return context.activeViewport === 'desktop' 
+    ? context.desktopSections 
+    : context.mobileSections;
+}
+
+/** Update sections for active viewport (with sync support) */
+export function setActiveSections(
+  context: BuilderMachineContext, 
+  sections: Section[]
+): Partial<BuilderMachineContext> {
+  if (context.activeViewport === 'desktop') {
+    if (context.isMobileSynced) {
+      const mobileSections = sections.map(s => ({ ...s, viewport: 'mobile' as Viewport }));
+      return { desktopSections: sections, mobileSections };
+    }
+    return { desktopSections: sections };
+  }
+  return { mobileSections: sections };
+}
+
+/** Clone desktop sections to mobile */
+export function cloneDesktopToMobile(desktopSections: Section[]): Section[] {
+  return desktopSections.map(section => ({
+    ...section,
+    id: `temp_${crypto.randomUUID()}`,
+    viewport: 'mobile' as Viewport,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }));
+}
 
 // ============================================================================
 // SECTION ACTION HELPERS (Pure functions for assign())

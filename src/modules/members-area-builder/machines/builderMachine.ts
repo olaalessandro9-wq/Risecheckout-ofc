@@ -16,11 +16,13 @@ import type {
   SaveBuilderOutput,
   SaveBuilderInput,
 } from "./builderMachine.types";
-import type { Section, Viewport } from "../types/builder.types";
 import { DEFAULT_BUILDER_SETTINGS } from "../types/builder.types";
 import { loadBuilderActor, saveBuilderActor } from "./builderMachine.actors";
 import { canSave } from "./builderMachine.guards";
 import {
+  getActiveSections,
+  setActiveSections,
+  cloneDesktopToMobile,
   addSectionToList,
   updateSectionInList,
   updateSectionSettingsInList,
@@ -31,44 +33,6 @@ import {
 } from "./builderMachine.actions";
 
 // ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-/** Get sections for active viewport */
-function getActiveSections(context: BuilderMachineContext): Section[] {
-  return context.activeViewport === 'desktop' 
-    ? context.desktopSections 
-    : context.mobileSections;
-}
-
-/** Update sections for active viewport */
-function setActiveSections(
-  context: BuilderMachineContext, 
-  sections: Section[]
-): Partial<BuilderMachineContext> {
-  if (context.activeViewport === 'desktop') {
-    // If mobile is synced, update both
-    if (context.isMobileSynced) {
-      const mobileSections = sections.map(s => ({ ...s, viewport: 'mobile' as Viewport }));
-      return { desktopSections: sections, mobileSections };
-    }
-    return { desktopSections: sections };
-  }
-  return { mobileSections: sections };
-}
-
-/** Clone desktop sections to mobile */
-function cloneDesktopToMobile(desktopSections: Section[]): Section[] {
-  return desktopSections.map(section => ({
-    ...section,
-    id: `temp_${crypto.randomUUID()}`,
-    viewport: 'mobile' as Viewport,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  }));
-}
-
-// ============================================================================
 // INITIAL CONTEXT
 // ============================================================================
 
@@ -77,7 +41,7 @@ export const initialBuilderContext: BuilderMachineContext = {
   desktopSections: [],
   mobileSections: [],
   activeViewport: "desktop",
-  isMobileSynced: true, // Default: mobile mirrors desktop
+  isMobileSynced: true,
   settings: DEFAULT_BUILDER_SETTINGS,
   selectedSectionId: null,
   selectedMenuItemId: null,
@@ -103,13 +67,8 @@ export const builderMachine = setup({
     context: {} as BuilderMachineContext,
     events: {} as BuilderMachineEvent,
   },
-  actors: {
-    loadBuilder: loadBuilderActor,
-    saveBuilder: saveBuilderActor,
-  },
-  guards: {
-    canSave,
-  },
+  actors: { loadBuilder: loadBuilderActor, saveBuilder: saveBuilderActor },
+  guards: { canSave },
 }).createMachine({
   id: "builder",
   initial: "idle",
@@ -120,10 +79,7 @@ export const builderMachine = setup({
       on: {
         LOAD: {
           target: "loading",
-          actions: assign({
-            productId: ({ event }) => event.productId,
-            loadError: () => null,
-          }),
+          actions: assign({ productId: ({ event }) => event.productId, loadError: () => null }),
         },
       },
     },
@@ -151,9 +107,7 @@ export const builderMachine = setup({
         },
         onError: {
           target: "error",
-          actions: assign({
-            loadError: ({ event }) => String(event.error),
-          }),
+          actions: assign({ loadError: ({ event }) => String(event.error) }),
         },
       },
     },
@@ -171,156 +125,37 @@ export const builderMachine = setup({
         SELECT_MODULE: { actions: assign({ selectedModuleId: ({ event }) => event.id, isEditingModule: ({ event }) => event.id !== null }) },
         SET_EDITING_MODULE: { actions: assign({ isEditingModule: ({ event }) => event.isEditing, selectedModuleId: ({ context, event }) => event.isEditing ? context.selectedModuleId : null }) },
         UPDATE_MODULE: { actions: assign({ modules: ({ context, event }) => context.modules.map(m => m.id === event.id ? { ...m, ...event.data } : m) }) },
-        
-        // Viewport Switching
-        SET_ACTIVE_VIEWPORT: { actions: assign({ 
-          activeViewport: ({ event }) => event.viewport,
-          selectedSectionId: () => null, // Clear selection when switching
-        }) },
+        SET_ACTIVE_VIEWPORT: { actions: assign({ activeViewport: ({ event }) => event.viewport, selectedSectionId: () => null }) },
       },
 
       states: {
         pristine: {
           on: {
-            // Viewport actions
-            COPY_DESKTOP_TO_MOBILE: {
-              target: "dirty",
-              actions: assign(({ context }) => ({
-                mobileSections: cloneDesktopToMobile(context.desktopSections),
-                isMobileSynced: false,
-              })),
-            },
-            SET_MOBILE_SYNCED: {
-              target: "dirty",
-              actions: assign(({ context, event }) => {
-                if (event.synced && context.desktopSections.length > 0) {
-                  // When enabling sync, clone desktop to mobile
-                  return {
-                    isMobileSynced: true,
-                    mobileSections: cloneDesktopToMobile(context.desktopSections),
-                  };
-                }
-                return { isMobileSynced: event.synced };
-              }),
-            },
-
-            ADD_SECTION: {
-              target: "dirty",
-              actions: assign(({ context, event }) => ({
-                ...setActiveSections(context, addSectionToList(getActiveSections(context), event.section)),
-                selectedSectionId: event.section.id,
-              })),
-            },
-            UPDATE_SECTION: {
-              target: "dirty",
-              actions: assign(({ context, event }) => 
-                setActiveSections(context, updateSectionInList(getActiveSections(context), event.id, event.updates))
-              ),
-            },
-            UPDATE_SECTION_SETTINGS: {
-              target: "dirty",
-              actions: assign(({ context, event }) => 
-                setActiveSections(context, updateSectionSettingsInList(getActiveSections(context), event.id, event.settings))
-              ),
-            },
-            DELETE_SECTION: {
-              target: "dirty",
-              actions: assign(({ context, event }) => ({
-                ...setActiveSections(context, deleteSectionFromList(getActiveSections(context), event.id)),
-                selectedSectionId: getSelectedSectionAfterDelete(context.selectedSectionId, event.id),
-              })),
-            },
-            REORDER_SECTIONS: {
-              target: "dirty",
-              actions: assign(({ context, event }) => 
-                setActiveSections(context, reorderSectionsInList(getActiveSections(context), event.orderedIds))
-              ),
-            },
-            DUPLICATE_SECTION: {
-              target: "dirty",
-              actions: assign(({ context, event }) => ({
-                ...setActiveSections(context, duplicateSectionInList(getActiveSections(context), event.original, event.duplicate)),
-                selectedSectionId: event.duplicate.id,
-              })),
-            },
-            UPDATE_SETTINGS: {
-              target: "dirty",
-              actions: assign({
-                settings: ({ context, event }) => ({ ...context.settings, ...event.settings }),
-              }),
-            },
+            COPY_DESKTOP_TO_MOBILE: { target: "dirty", actions: assign(({ context }) => ({ mobileSections: cloneDesktopToMobile(context.desktopSections), isMobileSynced: false })) },
+            SET_MOBILE_SYNCED: { target: "dirty", actions: assign(({ context, event }) => event.synced && context.desktopSections.length > 0 ? { isMobileSynced: true, mobileSections: cloneDesktopToMobile(context.desktopSections) } : { isMobileSynced: event.synced }) },
+            ADD_SECTION: { target: "dirty", actions: assign(({ context, event }) => ({ ...setActiveSections(context, addSectionToList(getActiveSections(context), event.section)), selectedSectionId: event.section.id })) },
+            UPDATE_SECTION: { target: "dirty", actions: assign(({ context, event }) => setActiveSections(context, updateSectionInList(getActiveSections(context), event.id, event.updates))) },
+            UPDATE_SECTION_SETTINGS: { target: "dirty", actions: assign(({ context, event }) => setActiveSections(context, updateSectionSettingsInList(getActiveSections(context), event.id, event.settings))) },
+            DELETE_SECTION: { target: "dirty", actions: assign(({ context, event }) => ({ ...setActiveSections(context, deleteSectionFromList(getActiveSections(context), event.id)), selectedSectionId: getSelectedSectionAfterDelete(context.selectedSectionId, event.id) })) },
+            REORDER_SECTIONS: { target: "dirty", actions: assign(({ context, event }) => setActiveSections(context, reorderSectionsInList(getActiveSections(context), event.orderedIds))) },
+            DUPLICATE_SECTION: { target: "dirty", actions: assign(({ context, event }) => ({ ...setActiveSections(context, duplicateSectionInList(getActiveSections(context), event.original, event.duplicate)), selectedSectionId: event.duplicate.id })) },
+            UPDATE_SETTINGS: { target: "dirty", actions: assign({ settings: ({ context, event }) => ({ ...context.settings, ...event.settings }) }) },
           },
         },
 
         dirty: {
           on: {
-            // Viewport actions
-            COPY_DESKTOP_TO_MOBILE: {
-              actions: assign(({ context }) => ({
-                mobileSections: cloneDesktopToMobile(context.desktopSections),
-                isMobileSynced: false,
-              })),
-            },
-            SET_MOBILE_SYNCED: {
-              actions: assign(({ context, event }) => {
-                if (event.synced && context.desktopSections.length > 0) {
-                  return {
-                    isMobileSynced: true,
-                    mobileSections: cloneDesktopToMobile(context.desktopSections),
-                  };
-                }
-                return { isMobileSynced: event.synced };
-              }),
-            },
-
-            ADD_SECTION: {
-              actions: assign(({ context, event }) => ({
-                ...setActiveSections(context, addSectionToList(getActiveSections(context), event.section)),
-                selectedSectionId: event.section.id,
-              })),
-            },
-            UPDATE_SECTION: {
-              actions: assign(({ context, event }) => 
-                setActiveSections(context, updateSectionInList(getActiveSections(context), event.id, event.updates))
-              ),
-            },
-            UPDATE_SECTION_SETTINGS: {
-              actions: assign(({ context, event }) => 
-                setActiveSections(context, updateSectionSettingsInList(getActiveSections(context), event.id, event.settings))
-              ),
-            },
-            DELETE_SECTION: {
-              actions: assign(({ context, event }) => ({
-                ...setActiveSections(context, deleteSectionFromList(getActiveSections(context), event.id)),
-                selectedSectionId: getSelectedSectionAfterDelete(context.selectedSectionId, event.id),
-              })),
-            },
-            REORDER_SECTIONS: {
-              actions: assign(({ context, event }) => 
-                setActiveSections(context, reorderSectionsInList(getActiveSections(context), event.orderedIds))
-              ),
-            },
-            DUPLICATE_SECTION: {
-              actions: assign(({ context, event }) => ({
-                ...setActiveSections(context, duplicateSectionInList(getActiveSections(context), event.original, event.duplicate)),
-                selectedSectionId: event.duplicate.id,
-              })),
-            },
-            UPDATE_SETTINGS: {
-              actions: assign({
-                settings: ({ context, event }) => ({ ...context.settings, ...event.settings }),
-              }),
-            },
+            COPY_DESKTOP_TO_MOBILE: { actions: assign(({ context }) => ({ mobileSections: cloneDesktopToMobile(context.desktopSections), isMobileSynced: false })) },
+            SET_MOBILE_SYNCED: { actions: assign(({ context, event }) => event.synced && context.desktopSections.length > 0 ? { isMobileSynced: true, mobileSections: cloneDesktopToMobile(context.desktopSections) } : { isMobileSynced: event.synced }) },
+            ADD_SECTION: { actions: assign(({ context, event }) => ({ ...setActiveSections(context, addSectionToList(getActiveSections(context), event.section)), selectedSectionId: event.section.id })) },
+            UPDATE_SECTION: { actions: assign(({ context, event }) => setActiveSections(context, updateSectionInList(getActiveSections(context), event.id, event.updates))) },
+            UPDATE_SECTION_SETTINGS: { actions: assign(({ context, event }) => setActiveSections(context, updateSectionSettingsInList(getActiveSections(context), event.id, event.settings))) },
+            DELETE_SECTION: { actions: assign(({ context, event }) => ({ ...setActiveSections(context, deleteSectionFromList(getActiveSections(context), event.id)), selectedSectionId: getSelectedSectionAfterDelete(context.selectedSectionId, event.id) })) },
+            REORDER_SECTIONS: { actions: assign(({ context, event }) => setActiveSections(context, reorderSectionsInList(getActiveSections(context), event.orderedIds))) },
+            DUPLICATE_SECTION: { actions: assign(({ context, event }) => ({ ...setActiveSections(context, duplicateSectionInList(getActiveSections(context), event.original, event.duplicate)), selectedSectionId: event.duplicate.id })) },
+            UPDATE_SETTINGS: { actions: assign({ settings: ({ context, event }) => ({ ...context.settings, ...event.settings }) }) },
             SAVE: { target: "#builder.saving", guard: "canSave" },
-            DISCARD_CHANGES: {
-              target: "pristine",
-              actions: assign(({ context }) => ({
-                desktopSections: context.originalDesktopSections,
-                mobileSections: context.originalMobileSections,
-                settings: context.originalSettings,
-                selectedSectionId: null,
-              })),
-            },
+            DISCARD_CHANGES: { target: "pristine", actions: assign(({ context }) => ({ desktopSections: context.originalDesktopSections, mobileSections: context.originalMobileSections, settings: context.originalSettings, selectedSectionId: null })) },
           },
         },
       },
@@ -365,10 +200,7 @@ export const builderMachine = setup({
       on: {
         LOAD: {
           target: "loading",
-          actions: assign({
-            productId: ({ event }) => event.productId,
-            loadError: () => null,
-          }),
+          actions: assign({ productId: ({ event }) => event.productId, loadError: () => null }),
         },
       },
     },

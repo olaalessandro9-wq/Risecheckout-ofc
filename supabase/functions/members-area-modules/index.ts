@@ -46,6 +46,7 @@ import { jsonResponse, errorResponse } from "../_shared/edge-helpers.ts";
 interface MemberSection {
   id: string;
   type: string;
+  viewport?: 'desktop' | 'mobile';
   title?: string | null;
   position: number;
   settings?: Record<string, unknown>;

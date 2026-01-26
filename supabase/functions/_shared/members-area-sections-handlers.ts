@@ -23,6 +23,7 @@ const log = createLogger("MembersAreaSections");
 interface MemberSection {
   id: string;
   type: string;
+  viewport?: 'desktop' | 'mobile';
   title?: string | null;
   position: number;
   settings?: Record<string, unknown>;
@@ -76,6 +77,7 @@ export async function handleSaveSections(
       .insert({
         product_id: productId,
         type: section.type,
+        viewport: section.viewport || 'desktop',
         title: section.title || null,
         position: section.position,
         settings: section.settings || {},
@@ -100,6 +102,7 @@ export async function handleSaveSections(
       .from("product_members_sections")
       .update({
         type: section.type,
+        viewport: section.viewport || 'desktop',
         title: section.title || null,
         position: section.position,
         settings: section.settings || {},

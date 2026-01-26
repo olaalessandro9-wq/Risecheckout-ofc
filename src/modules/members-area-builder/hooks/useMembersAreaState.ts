@@ -87,21 +87,27 @@ export function useMembersAreaState(productId: string | undefined): UseMembersAr
     ? context.desktopSections 
     : context.mobileSections;
 
+  const stateValue = snapshot.value;
+  const isReady = typeof stateValue === 'object' && 'ready' in stateValue;
+  const isDirty = isReady && (stateValue as { ready: string }).ready === 'dirty';
+  const isLoading = stateValue === 'loading';
+  const isSaving = stateValue === 'saving';
+
   const state: BuilderState = {
     desktopSections: context.desktopSections,
     mobileSections: context.mobileSections,
     activeViewport: context.activeViewport,
     isMobileSynced: context.isMobileSynced,
-    sections: activeSections, // Computed: active viewport sections
+    sections: activeSections,
     settings: context.settings,
     selectedSectionId: context.selectedSectionId,
     selectedMenuItemId: context.selectedMenuItemId,
     viewMode: context.viewMode,
     isPreviewMode: context.isPreviewMode,
     isMenuCollapsed: context.isMenuCollapsed,
-    isDirty: snapshot.matches({ ready: 'dirty' }),
-    isLoading: snapshot.matches('loading'),
-    isSaving: snapshot.matches('saving'),
+    isDirty,
+    isLoading,
+    isSaving,
     modules: context.modules,
     selectedModuleId: context.selectedModuleId,
     isEditingModule: context.isEditingModule,
