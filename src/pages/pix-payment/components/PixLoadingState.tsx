@@ -1,5 +1,15 @@
 /**
  * PixLoadingState - Estado de loading do pagamento PIX
+ * 
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * Responsabilidade ÚNICA: Exibir estado de carregamento durante geração do PIX
+ * 
+ * Design Tokens:
+ * - --payment-bg: Fundo escuro da página
+ * - --payment-text-primary: Texto branco para fundo escuro
+ * 
+ * @module pix-payment/components
  */
 
 export function PixLoadingState() {

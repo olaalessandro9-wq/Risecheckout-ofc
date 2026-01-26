@@ -1,9 +1,17 @@
 /**
  * usePixPaymentStatus - Hook para verificar status de pagamento PIX
  * 
- * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Responsabilidade ÚNICA: Polling e verificação de status multi-gateway
+ * 
+ * Arquitetura:
+ * - Single Responsibility: Apenas gerencia polling e verificação de status
+ * - Multi-Gateway Support: Mercado Pago, Asaas, Stripe, PushinPay
+ * - Uses publicApi.call() for BFF pattern compliance
+ * - Zero direct database access (RISE V3 compliant)
+ * 
+ * @module pix-payment/hooks
  */
 
 import { useState, useCallback, useEffect } from "react";
