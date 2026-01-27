@@ -233,6 +233,48 @@ CREATE INDEX idx_sessions_user ON sessions(user_id, is_valid);
 
 ---
 
+## 📝 Tipos de Registro
+
+O sistema suporta 3 tipos de registro, cada um com mapeamento específico:
+
+| registrationType | role atribuída | registration_source | activeRole inicial |
+|------------------|----------------|---------------------|-------------------|
+| `"producer"` | `seller` | `organic` | `seller` |
+| `"affiliate"` | `seller` | `affiliate` | `seller` |
+| `"buyer"` | (nenhuma) | `checkout` | `buyer` |
+
+### Observações Importantes
+
+1. **Origem vs Role:** A origem (`registration_source`) é apenas marcação interna para analytics.
+   Não influencia permissões - ambos `producer` e `affiliate` recebem role `seller`.
+
+2. **Frontend:** O formulário `/cadastro` envia `registrationType` baseado na escolha do quiz.
+
+3. **Fallback no Login:** Usuários sem role em `user_roles` que tenham `registration_source`
+   igual a `organic` ou `affiliate` recebem role `seller` automaticamente no primeiro login.
+
+### Mapeamento Técnico
+
+```typescript
+// Interface de registro
+interface RegisterRequest {
+  registrationType?: "producer" | "affiliate" | "buyer";
+}
+
+// Mapeamento no Backend (register.ts)
+const registration_source = 
+  registrationType === "producer" ? "organic" : 
+  registrationType === "affiliate" ? "affiliate" : 
+  "checkout";
+
+// Role atribuída (ambos producer e affiliate recebem seller)
+const role = (registrationType === "producer" || registrationType === "affiliate") 
+  ? "seller" 
+  : null; // buyer não recebe role em user_roles
+```
+
+---
+
 ## 🔒 Segurança
 
 ### Cookies httpOnly
