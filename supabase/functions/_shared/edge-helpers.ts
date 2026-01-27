@@ -138,7 +138,8 @@ export async function ensureUniqueName(
   supabase: SupabaseClient,
   baseName: string
 ): Promise<string> {
-  let name = baseName;
+  const MAX_LENGTH = 100;
+  let name = baseName.substring(0, MAX_LENGTH);
   let counter = 1;
   const maxAttempts = 100;
 
@@ -154,10 +155,39 @@ export async function ensureUniqueName(
     }
 
     counter++;
-    name = `${baseName} ${counter}`;
+    const suffix = ` ${counter}`;
+    const maxBase = MAX_LENGTH - suffix.length;
+    const truncatedBase = baseName.length > maxBase 
+      ? baseName.substring(0, maxBase) 
+      : baseName;
+    name = `${truncatedBase}${suffix}`;
   }
 
-  return `${baseName} ${Date.now()}`;
+  const finalSuffix = ` ${Date.now()}`;
+  const maxBase = MAX_LENGTH - finalSuffix.length;
+  return `${baseName.substring(0, maxBase)}${finalSuffix}`;
+}
+
+// ============================================================================
+// Product Duplication Helpers
+// ============================================================================
+
+/**
+ * Builds a safe duplicate name that respects the 100-char limit.
+ * Truncates original name if needed to fit suffix and potential counter.
+ */
+export function buildDuplicateName(originalName: string): string {
+  const COPY_SUFFIX = " (Cópia)";
+  const MAX_LENGTH = 100;
+  const SUFFIX_MARGIN = 12; // " (Cópia) 99" = 12 chars max
+  
+  const maxBaseLength = MAX_LENGTH - SUFFIX_MARGIN;
+  
+  const truncatedName = originalName.length > maxBaseLength
+    ? originalName.substring(0, maxBaseLength - 3) + "..."
+    : originalName;
+  
+  return `${truncatedName}${COPY_SUFFIX}`;
 }
 
 // ============================================================================

@@ -34,3 +34,14 @@ export const TIMER_LIMITS = {
   /** Limite de caracteres para textos do timer */
   TEXT_MAX_LENGTH: 50,
 } as const;
+
+export const PRODUCT_DUPLICATION = {
+  /** Sufixo padrão para cópia */
+  COPY_SUFFIX: " (Cópia)",
+  /** Tamanho do sufixo padrão */
+  COPY_SUFFIX_LENGTH: 8,
+  /** Limite máximo do nome do produto */
+  MAX_NAME_LENGTH: 100,
+  /** Tamanho máximo para nome base (garante espaço para sufixo + contador) */
+  MAX_BASE_NAME_LENGTH: 88,
+} as const;
