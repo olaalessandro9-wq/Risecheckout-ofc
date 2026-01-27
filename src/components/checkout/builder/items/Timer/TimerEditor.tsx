@@ -3,6 +3,7 @@ import { Label } from "@/components/ui/label";
 import { ComponentData } from "../../types";
 import type { TimerContent } from "@/types/checkout-components.types";
 import type { CheckoutDesign } from "@/types/checkoutEditor";
+import { TIMER_LIMITS } from "@/lib/constants/field-limits";
 
 interface TimerEditorProps {
   component: ComponentData;
@@ -30,9 +31,16 @@ export const TimerEditor = ({ component, onChange }: TimerEditorProps) => {
           <Input
             type="number"
             value={content.minutes || 15}
-            onChange={(e) => handleChange("minutes", parseInt(e.target.value))}
-            min={0}
-            max={59}
+            onChange={(e) => {
+              const rawValue = parseInt(e.target.value) || TIMER_LIMITS.MINUTES_MIN;
+              const clampedValue = Math.max(
+                TIMER_LIMITS.MINUTES_MIN,
+                Math.min(TIMER_LIMITS.MINUTES_MAX, rawValue)
+              );
+              handleChange("minutes", clampedValue);
+            }}
+            min={TIMER_LIMITS.MINUTES_MIN}
+            max={TIMER_LIMITS.MINUTES_MAX}
           />
         </div>
         <div>
@@ -40,9 +48,16 @@ export const TimerEditor = ({ component, onChange }: TimerEditorProps) => {
           <Input
             type="number"
             value={content.seconds || 0}
-            onChange={(e) => handleChange("seconds", parseInt(e.target.value))}
-            min={0}
-            max={59}
+            onChange={(e) => {
+              const rawValue = parseInt(e.target.value) || TIMER_LIMITS.SECONDS_MIN;
+              const clampedValue = Math.max(
+                TIMER_LIMITS.SECONDS_MIN,
+                Math.min(TIMER_LIMITS.SECONDS_MAX, rawValue)
+              );
+              handleChange("seconds", clampedValue);
+            }}
+            min={TIMER_LIMITS.SECONDS_MIN}
+            max={TIMER_LIMITS.SECONDS_MAX}
           />
         </div>
       </div>
@@ -89,6 +104,7 @@ export const TimerEditor = ({ component, onChange }: TimerEditorProps) => {
           value={content.activeText || "Oferta por tempo limitado"}
           onChange={(e) => handleChange("activeText", e.target.value)}
           placeholder="Oferta por tempo limitado"
+          maxLength={TIMER_LIMITS.TEXT_MAX_LENGTH}
         />
       </div>
 
@@ -98,6 +114,7 @@ export const TimerEditor = ({ component, onChange }: TimerEditorProps) => {
           value={content.finishedText || "Oferta finalizada"}
           onChange={(e) => handleChange("finishedText", e.target.value)}
           placeholder="Oferta finalizada"
+          maxLength={TIMER_LIMITS.TEXT_MAX_LENGTH}
         />
       </div>
 
