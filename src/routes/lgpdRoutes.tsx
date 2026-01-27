@@ -8,15 +8,16 @@
  * - Política de privacidade
  */
 
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
 import type { RouteObject } from "react-router-dom";
+import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
 // ============================================================================
-// LAZY IMPORTS
+// LAZY IMPORTS (with auto-retry for network failures)
 // ============================================================================
-const GdprRequest = lazy(() => import("@/pages/lgpd/GdprRequest"));
-const GdprConfirm = lazy(() => import("@/pages/lgpd/GdprConfirm"));
-const PoliticaDePrivacidade = lazy(() => import("@/pages/PoliticaDePrivacidade"));
+const GdprRequest = lazyWithRetry(() => import("@/pages/lgpd/GdprRequest"));
+const GdprConfirm = lazyWithRetry(() => import("@/pages/lgpd/GdprConfirm"));
+const PoliticaDePrivacidade = lazyWithRetry(() => import("@/pages/PoliticaDePrivacidade"));
 
 // ============================================================================
 // PAGE LOADER

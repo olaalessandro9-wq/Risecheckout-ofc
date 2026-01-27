@@ -7,25 +7,26 @@
  * - Landing page, auth, checkout público, pagamentos, LGPD
  */
 
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
 import type { RouteObject } from "react-router-dom";
+import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
 // ============================================================================
-// LAZY IMPORTS
+// LAZY IMPORTS (with auto-retry for network failures)
 // ============================================================================
-const LandingPage = lazy(() => import("@/pages/LandingPage"));
-const Auth = lazy(() => import("@/pages/Auth"));
-const Cadastro = lazy(() => import("@/pages/Cadastro"));
-const RecuperarSenha = lazy(() => import("@/pages/RecuperarSenha"));
-const RedefinirSenha = lazy(() => import("@/pages/RedefinirSenha"));
-const PublicCheckoutV2 = lazy(() => import("@/pages/PublicCheckoutV2"));
-const PaymentLinkRedirect = lazy(() => import("@/pages/PaymentLinkRedirect"));
-const PixPaymentPage = lazy(() => import("@/pages/PixPaymentPage"));
-const MercadoPagoPayment = lazy(() => import("@/pages/MercadoPagoPayment").then(m => ({ default: m.MercadoPagoPayment })));
-const PaymentSuccessPage = lazy(() => import("@/pages/PaymentSuccessPage"));
-const OAuthSuccess = lazy(() => import("@/pages/OAuthSuccess"));
-const SolicitarAfiliacao = lazy(() => import("@/pages/SolicitarAfiliacao"));
-const TermosDeUso = lazy(() => import("@/pages/TermosDeUso"));
+const LandingPage = lazyWithRetry(() => import("@/pages/LandingPage"));
+const Auth = lazyWithRetry(() => import("@/pages/Auth"));
+const Cadastro = lazyWithRetry(() => import("@/pages/Cadastro"));
+const RecuperarSenha = lazyWithRetry(() => import("@/pages/RecuperarSenha"));
+const RedefinirSenha = lazyWithRetry(() => import("@/pages/RedefinirSenha"));
+const PublicCheckoutV2 = lazyWithRetry(() => import("@/pages/PublicCheckoutV2"));
+const PaymentLinkRedirect = lazyWithRetry(() => import("@/pages/PaymentLinkRedirect"));
+const PixPaymentPage = lazyWithRetry(() => import("@/pages/PixPaymentPage"));
+const MercadoPagoPayment = lazyWithRetry(() => import("@/pages/MercadoPagoPayment").then(m => ({ default: m.MercadoPagoPayment })));
+const PaymentSuccessPage = lazyWithRetry(() => import("@/pages/PaymentSuccessPage"));
+const OAuthSuccess = lazyWithRetry(() => import("@/pages/OAuthSuccess"));
+const SolicitarAfiliacao = lazyWithRetry(() => import("@/pages/SolicitarAfiliacao"));
+const TermosDeUso = lazyWithRetry(() => import("@/pages/TermosDeUso"));
 
 // ============================================================================
 // PAGE LOADER
