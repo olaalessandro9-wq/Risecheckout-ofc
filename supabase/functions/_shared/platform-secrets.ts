@@ -112,6 +112,18 @@ export const SECRETS_MANIFEST: Record<string, SecretDefinition> = {
     required: true,
     gateway: 'stripe',
   },
+  STRIPE_CLIENT_ID: {
+    name: 'STRIPE_CLIENT_ID',
+    description: 'Client ID do Stripe Connect para OAuth (público, mas lido de env)',
+    required: true,
+    gateway: 'stripe',
+  },
+  STRIPE_WEBHOOK_SECRET: {
+    name: 'STRIPE_WEBHOOK_SECRET',
+    description: 'Secret para validação de assinaturas de webhooks do Stripe',
+    required: true,
+    gateway: 'stripe',
+  },
 
   // ========================================================================
   // PLATAFORMA (GLOBAIS)
