@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { PRODUCT_FIELD_LIMITS } from "@/lib/constants/field-limits";
 import type { AddProductFormData } from "./types";
 
 interface StepOneProps {
@@ -26,7 +27,11 @@ export function StepOne({ formData, onUpdate }: StepOneProps) {
           onChange={(e) => onUpdate({ name: e.target.value })}
           className="bg-background border-border text-foreground"
           placeholder="Digite o nome do produto"
+          maxLength={PRODUCT_FIELD_LIMITS.NAME}
         />
+        <p className="text-xs text-muted-foreground text-right">
+          {formData.name.length}/{PRODUCT_FIELD_LIMITS.NAME}
+        </p>
       </div>
 
       <div className="space-y-2">
@@ -37,10 +42,10 @@ export function StepOne({ formData, onUpdate }: StepOneProps) {
           onChange={(e) => onUpdate({ description: e.target.value })}
           className="bg-background border-border text-foreground min-h-[100px]"
           placeholder="Digite a descrição do produto"
-          maxLength={100}
+          maxLength={PRODUCT_FIELD_LIMITS.DESCRIPTION}
         />
         <p className="text-xs text-muted-foreground text-right">
-          {formData.description.length}/100
+          {formData.description.length}/{PRODUCT_FIELD_LIMITS.DESCRIPTION}
         </p>
       </div>
 

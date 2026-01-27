@@ -5,6 +5,7 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { PRODUCT_FIELD_LIMITS } from "@/lib/constants/field-limits";
 import type { GeneralFormData, FormValidationErrors } from "../../types/formData.types";
 
 type GeneralFormErrors = FormValidationErrors["general"];
@@ -37,11 +38,21 @@ export function ProductInfoSection({ form, setForm, errors, clearError }: Props)
               setForm((prev) => ({ ...prev, name: e.target.value }));
               if (errors.name) clearError("name");
             }}
+            maxLength={PRODUCT_FIELD_LIMITS.NAME}
             className={`bg-background text-foreground ${
               errors.name ? "border-red-500 focus:border-red-500" : "border-border"
             }`}
           />
-          {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
+          <div className="flex justify-between">
+            {errors.name ? (
+              <p className="text-sm text-red-500">{errors.name}</p>
+            ) : (
+              <span />
+            )}
+            <span className="text-xs text-muted-foreground">
+              {form.name.length}/{PRODUCT_FIELD_LIMITS.NAME}
+            </span>
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -55,6 +66,7 @@ export function ProductInfoSection({ form, setForm, errors, clearError }: Props)
               setForm((prev) => ({ ...prev, description: e.target.value }));
               if (errors.description) clearError("description");
             }}
+            maxLength={PRODUCT_FIELD_LIMITS.DESCRIPTION}
             className={`bg-background text-foreground min-h-[100px] ${
               errors.description ? "border-red-500 focus:border-red-500" : "border-border"
             }`}
@@ -71,7 +83,7 @@ export function ProductInfoSection({ form, setForm, errors, clearError }: Props)
                 form.description.length < 100 ? "text-muted-foreground" : "text-green-500"
               }`}
             >
-              {form.description.length}/100
+              {form.description.length}/{PRODUCT_FIELD_LIMITS.DESCRIPTION}
             </span>
           </div>
         </div>
