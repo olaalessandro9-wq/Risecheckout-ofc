@@ -61,6 +61,16 @@ export async function handleRegister(
     // Hash password
     const passwordHash = await hashPassword(password);
     
+    // RISE V3: Map all registration types to their correct sources
+    // - producer → registration_source: "organic"
+    // - affiliate → registration_source: "affiliate"
+    // - buyer → registration_source: "checkout"
+    // Note: role assignment is the same for producer/affiliate (both get "seller")
+    const registrationSourceValue = 
+      registrationType === "producer" ? "organic" : 
+      registrationType === "affiliate" ? "affiliate" : 
+      "checkout";
+    
     // Create user
     const { data: newUser, error: createError } = await supabase
       .from("users")
@@ -72,7 +82,7 @@ export async function handleRegister(
         phone: phone || null,
         account_status: "active",
         is_active: true,
-        registration_source: registrationType === "producer" ? "organic" : "checkout",
+        registration_source: registrationSourceValue,
       })
       .select("id, email, name")
       .single();

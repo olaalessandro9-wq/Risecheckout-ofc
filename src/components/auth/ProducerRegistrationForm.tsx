@@ -68,7 +68,9 @@ export function ProducerRegistrationForm({
         return;
       }
 
-      // RISE V3: Usar unified-auth/register diretamente
+      // RISE V3: Map registrationSource prop to registrationType
+      // - producer → registration_source: "organic" → role: "seller"
+      // - affiliate → registration_source: "affiliate" → role: "seller"
       const { data, error } = await api.publicCall<{
         success: boolean;
         error?: string;
@@ -77,7 +79,7 @@ export function ProducerRegistrationForm({
         password: passwordField.value,
         name: nameField.value,
         phone: phoneField.getRawValue() || undefined,
-        registrationType: "producer",
+        registrationType: registrationSource,
       });
 
       if (error || !data?.success) {
