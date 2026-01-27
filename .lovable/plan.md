@@ -1,186 +1,133 @@
 
+# Plano: Corrigir Mapeamento de Checkouts sem Oferta
 
-# Plano: Documentar Padrão useRef para Estabilização de Callbacks
+## RISE Protocol V3 - Análise de Soluções
 
-## RISE Protocol V3 - Conformidade 10.0/10
+### Solução A: Fix pontual no mapeamento
+- Manutenibilidade: 10/10 (código claro, single source of truth)
+- Zero DT: 10/10 (resolve a causa raiz sem workarounds)
+- Arquitetura: 10/10 (alinha `productFormMachine.actors.ts` com `productDataMapper.ts`)
+- Escalabilidade: 10/10 (padrão consistente em todo o codebase)
+- Segurança: 10/10 (sem impacto)
+- **NOTA FINAL: 10.0/10**
+- Tempo estimado: 10 minutos
 
-Esta atualização documenta um padrão arquitetural crítico já implementado no código, garantindo que futuros desenvolvedores sigam a mesma abordagem.
+### DECISÃO: Solução A (10.0/10)
+
+Não existem outras soluções viáveis - esta é a única forma correta de corrigir o bug.
 
 ---
 
-## Objetivo
+## Diagnóstico Root Cause
 
-Adicionar a **Seção 7: React Patterns** ao arquivo `docs/CODING_STANDARDS.md` documentando o padrão de estabilização de callbacks com `useRef`.
+### Problema Identificado
 
----
-
-## Alterações
-
-### Arquivo: `docs/CODING_STANDARDS.md`
-
-**Atualização 1:** Atualizar data no header (linha 4)
-
-```markdown
-> Última atualização: 2026-01-27
-```
-
-**Atualização 2:** Adicionar nova seção após a seção 6 (após linha 173)
-
-```markdown
----
-
-## 7. React Patterns
-
-### 7.1 Estabilização de Callbacks com useRef
-
-#### Regra Absoluta
-
-Callbacks externos passados para hooks de data fetching **NUNCA** devem ser incluídos no array de dependências de `useCallback` ou `useEffect`.
-
-#### Problema
-
-Quando um callback (ex: `onBack`, `onSave`) é passado como prop e incluído nas dependências:
+No arquivo `src/modules/products/machines/productFormMachine.actors.ts`, a função `mapBffToMachine` (linhas 171-188) usa fallback **incorreto** para dados do produto quando não há oferta:
 
 ```typescript
-// PROIBIDO - Causa loop infinito
-const loadData = useCallback(async () => {
-  // ... fetch data
-  if (error) onBack(); // callback usado
-}, [contentId, onBack]); // onBack nas dependências
-
-useEffect(() => {
-  loadData();
-}, [loadData]); // Re-executa quando loadData muda
+// ❌ CÓDIGO ATUAL - INCORRETO
+const checkouts = data.checkouts.map(c => {
+  const firstLink = c.checkout_links?.[0];
+  const offerName = firstLink?.payment_links?.offers?.name ?? c.products?.name ?? "";  // Fallback errado!
+  const offerPrice = firstLink?.payment_links?.offers?.price ?? c.products?.price ?? 0; // Fallback errado!
+  
+  return {
+    // ...
+    price: offerPrice,  // Mostra preço do produto mesmo sem oferta
+    offer: offerName,   // Mostra nome do produto mesmo sem oferta
+  };
+});
 ```
 
-**Cadeia de eventos do loop:**
-1. Parent renderiza e cria nova referência de `onBack`
-2. `loadData` é recriado (nova dependência)
-3. `useEffect` detecta mudança e executa `loadData()`
-4. `setIsLoading(true)` causa re-render
-5. Volta ao passo 1 - LOOP INFINITO
+### Comportamento Observado
 
-#### Solução Correta
+Quando um checkout é duplicado via RPC `duplicate_checkout_shallow`:
+1. O novo checkout é criado **sem** `checkout_links` (correto)
+2. O BFF retorna `checkout_links: []` (correto)
+3. O mapeamento faz fallback para `products.name` e `products.price` (INCORRETO)
+4. A UI exibe preço e nome do produto como se fossem da oferta (BUG)
 
-Usar `useRef` para armazenar callbacks de ação:
+### Evidência do Banco
+
+```sql
+-- Checkout duplicado recente SEM oferta
+id: dbb07fb2-c798-46d1-b2e5-f246a264078e
+name: Checkout Principal (Cópia) (Cópia)
+link_id: NULL       -- Sem link de pagamento
+offer_name: NULL    -- Sem oferta
+offer_price: NULL   -- Sem preço
+```
+
+### Solução Correta
+
+Usar a mesma lógica já implementada em `productDataMapper.ts`:
 
 ```typescript
-import { useState, useEffect, useCallback, useRef } from "react";
-
-export function useDataFetchingHook({
-  dataId,
-  onBack,  // Callback externo
-}: Props) {
-  // RISE V3: Ref para callbacks que NÃO devem influenciar data fetching
-  const onBackRef = useRef(onBack);
-  
-  // Manter ref atualizada sem causar re-execução
-  useEffect(() => {
-    onBackRef.current = onBack;
-  }, [onBack]);
-
-  const loadData = useCallback(async () => {
-    try {
-      const { data, error } = await api.call("endpoint", { dataId });
-      
-      if (error) {
-        toast.error("Erro ao carregar");
-        // RISE V3: Usar ref.current - não afeta dependências
-        onBackRef.current();
-        return;
-      }
-      
-      // ... processar dados
-    } catch (err) {
-      log.error("Exception:", err);
-    }
-  }, [dataId]); // onBack REMOVIDO das dependências
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-  
+// ✅ CÓDIGO CORRETO (de productDataMapper.ts, linhas 139-162)
+const hasOffer = !!offer;
+return {
   // ...
-}
-```
-
-#### Quando Aplicar
-
-| Cenário | Usar useRef? |
-|---------|--------------|
-| Callback de navegação (`onBack`, `onClose`) | Sim |
-| Callback de sucesso (`onSave`, `onSuccess`) | Sim |
-| Callback de atualização de estado local | Nao (usar useCallback no parent) |
-| Funções do React Router (`navigate`, `setSearchParams`) | Nao (já são estáveis) |
-
-#### Padrão Complementar: useCallback no Parent
-
-Além do `useRef` no hook, o componente pai deve estabilizar seus callbacks:
-
-```typescript
-// MembersAreaLayout.tsx - Parent Component
-const handleContentEditorBack = useCallback(() => {
-  // Usar function form para evitar dependência de state
-  setSearchParams((prev) => {
-    const newParams = new URLSearchParams(prev);
-    newParams.delete("mode");
-    return newParams;
-  });
-}, [setSearchParams]); // setSearchParams é estável
-```
-
-### 7.2 Estabilização de Handlers com useCallback
-
-#### Regra
-
-Handlers que atualizam estado e são passados para componentes filhos devem usar `useCallback`:
-
-```typescript
-// CORRETO - Handler estável
-const handleTitleChange = useCallback((value: string) => {
-  setContent((prev) => ({ ...prev, title: value }));
-}, []); // Array vazio - usa function form de setState
-
-const handleAttachmentsChange = useCallback((newAttachments: Attachment[]) => {
-  setAttachments(newAttachments);
-}, []); // setAttachments de useState é estável por design
-```
-
-#### Anti-pattern
-
-```typescript
-// PROIBIDO - Handler inline recriado a cada render
-<Input 
-  onChange={(e) => setContent({ ...content, title: e.target.value })}
-/>
+  price: hasOffer ? offer.price : null,
+  offer: hasOffer ? offer.name : null,
+};
 ```
 
 ---
 
-## 8. Exceções Permitidas (Backend)
+## Execução
+
+### Arquivo a Modificar
+
+`src/modules/products/machines/productFormMachine.actors.ts` (linhas 171-188)
+
+### Código Atual (Incorreto)
+
+```typescript
+// Map checkouts
+const checkouts = data.checkouts.map(c => {
+  const firstLink = c.checkout_links?.[0];
+  const offerName = firstLink?.payment_links?.offers?.name ?? c.products?.name ?? "";
+  const offerPrice = firstLink?.payment_links?.offers?.price ?? c.products?.price ?? 0;
+  
+  return {
+    id: c.id,
+    name: c.name,
+    price: offerPrice,
+    visits: c.visits_count,
+    offer: offerName,
+    isDefault: c.is_default,
+    linkId: firstLink?.link_id ?? "",
+    product_id: c.product_id,
+    status: c.status ?? undefined,
+    created_at: c.created_at,
+  };
+});
 ```
 
-**Atualização 3:** Renumerar seção de exceções de 6 para 8 (manter conteúdo)
+### Código Corrigido
 
-**Atualização 4:** Adicionar entrada no Changelog (final do arquivo)
-
-```markdown
-| 2026-01-27 | Adicionada Seção 7: React Patterns - useRef para callbacks, useCallback para handlers |
+```typescript
+// Map checkouts
+// RISE V3: Sem fallback para product - null indica "sem oferta associada"
+const checkouts = data.checkouts.map(c => {
+  const firstLink = c.checkout_links?.[0];
+  const offer = firstLink?.payment_links?.offers;
+  const hasOffer = !!offer;
+  
+  return {
+    id: c.id,
+    name: c.name,
+    price: hasOffer ? offer.price : null,
+    visits: c.visits_count,
+    offer: hasOffer ? offer.name : null,
+    isDefault: c.is_default,
+    linkId: firstLink?.link_id ?? "",
+    product_id: c.product_id,
+    status: c.status ?? undefined,
+    created_at: c.created_at,
+  };
+});
 ```
-
----
-
-## Estrutura Final do Documento
-
-| Seção | Título |
-|-------|--------|
-| 1 | Logging Centralizado |
-| 2 | Padrões Proibidos |
-| 3 | Lint Rules Ativas |
-| 4 | Migração de Código Legado |
-| 5 | Verificação de Conformidade |
-| 6 | Exceções Permitidas (Backend) |
-| **7** | **React Patterns** (NOVO) |
 
 ---
 
@@ -188,21 +135,21 @@ const handleAttachmentsChange = useCallback((newAttachments: Attachment[]) => {
 
 | Verificação | Resultado Esperado |
 |-------------|-------------------|
-| Seção 7 presente | Presente com exemplos de codigo |
-| Changelog atualizado | Entrada 2026-01-27 |
-| Data do header | 2026-01-27 |
-| Exemplos de codigo funcionais | Syntax highlighting correto |
+| Checkout duplicado na tabela | Preço: "—", Oferta: "Selecione uma oferta" (amarelo) |
+| Checkout com oferta na tabela | Preço: R$ XX,XX, Oferta: nome da oferta |
+| Diálogo de configuração | Nenhuma oferta selecionada |
+| TypeScript build | Zero erros |
 
 ---
 
 ## Conformidade RISE V3
 
-| Criterio | Status |
+| Critério | Status |
 |----------|--------|
-| Documentação completa | 10/10 - Padrão documentado com exemplos |
-| Zero ambiguidade | 10/10 - Regras claras de quando aplicar |
-| Manutenibilidade | 10/10 - Futuros devs sabem o padrão |
-| Arquitetura | 10/10 - Padrão reflete implementação real |
+| Root Cause Only | Resolve a causa raiz no mapeamento de dados |
+| Zero Dívida Técnica | Alinha `actors.ts` com `productDataMapper.ts` |
+| Single Source of Truth | Ambos mappers usam a mesma lógica |
+| Arquitetura Correta | Tipos nullable são respeitados |
+| Segurança | Sem impacto |
 
-**NOTA FINAL: 10.0/10** - Documentação de padrão arquitetural conforme RISE Protocol V3.
-
+**NOTA FINAL: 10.0/10** - Correção de bug seguindo RISE Protocol V3.
