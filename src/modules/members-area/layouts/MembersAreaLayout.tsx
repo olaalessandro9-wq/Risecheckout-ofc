@@ -5,8 +5,10 @@
  * Suporta modo de edição de conteúdo dedicado
  * 
  * RISE V3: Uses MembersAreaProvider as SSOT for all child tabs
+ * RISE V3: Callbacks estabilizados com useCallback para evitar loops infinitos
  */
 
+import { useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useProductContext } from "@/modules/products/context/ProductContext";
 import { Loader2 } from "lucide-react";
@@ -45,29 +47,40 @@ function MembersAreaLayoutInner() {
     setSearchParams(newParams);
   };
 
-  const handleBack = () => {
-    const newParams = new URLSearchParams(searchParams);
-    newParams.delete("section");
-    newParams.delete("tab");
-    newParams.delete("mode");
-    newParams.delete("contentId");
-    newParams.delete("moduleId");
-    setSearchParams(newParams);
-  };
+  const handleBack = useCallback(() => {
+    setSearchParams((prev) => {
+      const newParams = new URLSearchParams(prev);
+      newParams.delete("section");
+      newParams.delete("tab");
+      newParams.delete("mode");
+      newParams.delete("contentId");
+      newParams.delete("moduleId");
+      return newParams;
+    });
+  }, [setSearchParams]);
 
-  const handleContentEditorBack = () => {
-    const newParams = new URLSearchParams(searchParams);
-    newParams.delete("mode");
-    newParams.delete("contentId");
-    newParams.delete("moduleId");
-    setSearchParams(newParams);
-  };
+  // RISE V3: Callback estabilizado com useCallback + function form de setSearchParams
+  const handleContentEditorBack = useCallback(() => {
+    setSearchParams((prev) => {
+      const newParams = new URLSearchParams(prev);
+      newParams.delete("mode");
+      newParams.delete("contentId");
+      newParams.delete("moduleId");
+      return newParams;
+    });
+  }, [setSearchParams]);
 
-  const handleContentEditorSave = async () => {
-    // Refetch modules data to show the new content immediately
+  // RISE V3: Callback estabilizado - referência estável para ContentEditorView
+  const handleContentEditorSave = useCallback(async () => {
     await membersArea.fetchModules();
-    handleContentEditorBack();
-  };
+    setSearchParams((prev) => {
+      const newParams = new URLSearchParams(prev);
+      newParams.delete("mode");
+      newParams.delete("contentId");
+      newParams.delete("moduleId");
+      return newParams;
+    });
+  }, [membersArea, setSearchParams]);
 
   if (membersArea.isLoading) {
     return (

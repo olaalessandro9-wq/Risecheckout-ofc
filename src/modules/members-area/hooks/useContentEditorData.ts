@@ -7,10 +7,13 @@
  * - Load content, attachments, release settings
  * - Load module contents for after_content selection
  * 
+ * RISE V3: Callbacks de ação (onBack) usam useRef para evitar loop infinito
+ * O data fetching NUNCA deve depender de callbacks externos.
+ * 
  * @see RISE Protocol V3 - Zero console.log
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { createLogger } from "@/lib/logger";
@@ -88,6 +91,15 @@ export function useContentEditorData({
   const [attachments, setAttachments] = useState<ContentAttachment[]>([]);
   const [moduleContents, setModuleContents] = useState<Pick<MemberContent, "id" | "title">[]>([]);
 
+  // RISE V3: Usar ref para callbacks que NÃO devem influenciar o ciclo de data fetching
+  // Isso evita loop infinito quando o callback é recriado a cada render do parent
+  const onBackRef = useRef(onBack);
+  
+  // Manter ref atualizada sem causar re-execução de loadData
+  useEffect(() => {
+    onBackRef.current = onBack;
+  }, [onBack]);
+
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -101,7 +113,8 @@ export function useContentEditorData({
       if (error) {
         log.error("Error loading content:", error);
         toast.error("Erro ao carregar conteúdo");
-        onBack();
+        // RISE V3: Usar ref.current para callback - não afeta dependências
+        onBackRef.current();
         return;
       }
 
@@ -145,7 +158,8 @@ export function useContentEditorData({
     } finally {
       setIsLoading(false);
     }
-  }, [isNew, contentId, moduleId, onBack]);
+    // RISE V3: onBack REMOVIDO das dependências - usar onBackRef.current() para callbacks
+  }, [isNew, contentId, moduleId]);
 
   useEffect(() => {
     loadData();

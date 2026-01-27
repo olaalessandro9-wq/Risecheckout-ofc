@@ -9,6 +9,9 @@
  * 
  * Uses members-area-content Edge Function for atomic save
  * 
+ * RISE V3: Handlers estabilizados com useCallback para evitar re-renders
+ * que causavam loop infinito ao interagir com attachments
+ * 
  * @see RISE ARCHITECT PROTOCOL - Refactored using useContentEditorData hook
  */
 
@@ -137,26 +140,28 @@ export function ContentEditorView({ productId, onBack, onSave }: ContentEditorVi
     }
   }, [canSave, isNew, moduleId, contentId, content, release, attachments, onSave, productId]);
 
-  // Handlers
-  const handleTitleChange = (value: string) => {
+  // RISE V3: Handlers estabilizados com useCallback para evitar re-renders desnecessários
+  // Isso previne loop infinito quando esses handlers são passados como props
+  const handleTitleChange = useCallback((value: string) => {
     setContent((prev) => ({ ...prev, title: value }));
-  };
+  }, []);
 
-  const handleVideoUrlChange = (value: string | null) => {
+  const handleVideoUrlChange = useCallback((value: string | null) => {
     setContent((prev) => ({ ...prev, video_url: value }));
-  };
+  }, []);
 
-  const handleBodyChange = (value: string) => {
+  const handleBodyChange = useCallback((value: string) => {
     setContent((prev) => ({ ...prev, body: value || null }));
-  };
+  }, []);
 
-  const handleReleaseChange = (settings: ReleaseFormData) => {
+  const handleReleaseChange = useCallback((settings: ReleaseFormData) => {
     setRelease(settings);
-  };
+  }, []);
 
-  const handleAttachmentsChange = (newAttachments: ContentAttachment[]) => {
+  // RISE V3: Handler crítico - era o trigger do loop infinito
+  const handleAttachmentsChange = useCallback((newAttachments: ContentAttachment[]) => {
     setAttachments(newAttachments);
-  };
+  }, []);
 
   if (isLoading) {
     return (
