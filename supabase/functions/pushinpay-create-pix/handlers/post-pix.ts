@@ -1,11 +1,21 @@
 /**
- * Post-PIX Handler
+ * ============================================================================
+ * Post-PIX Handler - Ações Pós-Criação do PIX
+ * ============================================================================
  * 
- * Ações após criação do PIX
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
+ * Gerencia ações após a criação bem-sucedida de um PIX:
+ * - Atualizar order com dados do PIX (qr_code, pix_id, status)
+ * - Disparar webhook pix_generated
+ * - Registrar pagamentos manuais necessários (split > 50%)
+ * 
+ * @module pushinpay-create-pix/handlers/post-pix
  * @author RiseCheckout Team
+ * ============================================================================
  */
 
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import type { PushinPayResponse } from "./pix-builder.ts";
 import type { SmartSplitDecision } from "./smart-split.ts";
 import { createLogger } from "../../_shared/logger.ts";
@@ -13,7 +23,7 @@ import { createLogger } from "../../_shared/logger.ts";
 const log = createLogger("pushinpay-create-pix");
 
 interface UpdateOrderParams {
-  supabase: { from: (table: string) => any };
+  supabase: SupabaseClient;
   orderId: string;
   pixData: PushinPayResponse;
   logPrefix: string;
@@ -80,7 +90,7 @@ export async function triggerPixGeneratedWebhook(params: TriggerWebhookParams): 
 }
 
 interface LogManualPaymentParams {
-  supabase: { from: (table: string) => any };
+  supabase: SupabaseClient;
   orderId: string;
   smartSplit: SmartSplitDecision;
   logPrefix: string;
