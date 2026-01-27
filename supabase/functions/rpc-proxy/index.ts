@@ -11,7 +11,7 @@
  */
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { handleCorsV2, PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
+import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { getAuthenticatedProducer } from "../_shared/unified-auth.ts";
 import { createLogger } from "../_shared/logger.ts";
 
@@ -206,9 +206,10 @@ Deno.serve(async (req) => {
     );
   } catch (err) {
     log.error("Exception:", err);
+    // RISE V3: Use dynamic corsHeaders when available, fallback to empty for uncaught errors
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { ...PUBLIC_CORS_HEADERS, "Content-Type": "application/json" } }
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 });
