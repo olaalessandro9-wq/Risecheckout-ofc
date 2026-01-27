@@ -1,440 +1,599 @@
 
-# AUDITORIA COMPLETA - CATEGORIA D: EDGE FUNCTIONS & BACKEND
+# AUDITORIA COMPLETA - CATEGORIA A: ARQUITETURA CORE
 
 ## Metodologia Aplicada (RISE V3)
 
-Seguindo o protocolo de auditoria:
-1. ✅ Li TODOS os arquivos relevantes das Edge Functions
-2. ✅ Verifiquei a arquitetura _shared/ completa
-3. ✅ Analisei o config.toml para verify_jwt
-4. ✅ Verifiquei uso de console.log direto
-5. ✅ Analisei a modularização e limite de 300 linhas
-6. ✅ Verifiquei o Edge Functions Registry
+Seguindo o checklist obrigatório do Relatório Mestre:
+1. ✅ Li TODOS os arquivos relevantes da categoria A
+2. ✅ Identifiquei TODAS as violações do RISE V3
+3. ✅ Analisei cada questão do Relatório Mestre conforme mencionado
+4. ✅ Verifiquei supabase.from() no frontend
+5. ✅ Verifiquei keys/secrets expostos
+6. ✅ Verifiquei limite de 300 linhas
+7. ✅ Verifiquei padrão de State Management
+8. ✅ Verifiquei localStorage como SSOT
 
 ---
 
-## D1: ARQUITETURA MODULAR (ROUTER + HANDLERS)
+## A1: SUPABASE.FROM() NO FRONTEND
 
 ### Status: ✅ **CONFORME**
 
-### Análise da Arquitetura
+### Análise
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ PADRÃO RISE V3 - ROUTER + HANDLERS                                          │
+│ ZERO DATABASE ACCESS - VERIFICAÇÃO                                          │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│ Funções Grandes Modularizadas Corretamente:                                 │
-│ ├── unified-auth/                                                           │
-│ │   ├── index.ts (router - 132 linhas) ✅                                   │
-│ │   └── handlers/ (14 handlers especializados) ✅                           │
-│ │                                                                            │
-│ ├── checkout-public-data/                                                   │
-│ │   ├── index.ts (router - 128 linhas) ✅                                   │
-│ │   └── handlers/ (11 handlers especializados) ✅                           │
-│ │                                                                            │
-│ ├── admin-data/                                                             │
-│ │   ├── index.ts (router - 165 linhas) ✅                                   │
-│ │   └── handlers/ (6 arquivos de handlers) ✅                               │
-│ │                                                                            │
-│ ├── order-lifecycle-worker/                                                 │
-│ │   ├── index.ts (router - 152 linhas) ✅                                   │
-│ │   ├── handlers/ (payment, refund) ✅                                      │
-│ │   └── utils/ ✅                                                           │
-│ │                                                                            │
-│ └── webhook-crud/                                                           │
-│     ├── index.ts (router - 154 linhas) ✅                                   │
-│     └── handlers/ (list, crud, logs) ✅                                     │
+│ RESULTADO DA BUSCA: 35 matches em 5 arquivos                                │
+│ OCORRÊNCIAS REAIS: 0 (todas são COMENTÁRIOS indicando migração)             │
+│                                                                              │
+│ ARQUIVOS ENCONTRADOS:                                                       │
+│ ├── useContentEditorData.ts - "MIGRATED: Uses Edge Function..."            │
+│ ├── useContentDrip.ts - "MIGRATED: Uses supabase.functions.invoke..."      │
+│ ├── PaymentLinkRedirect.tsx - "MIGRATED: Uses Edge Function..."            │
+│ ├── MenuPreview.tsx - "MIGRATED: Uses Edge Function..."                    │
+│ └── ProductDetailSheet.tsx - "MIGRATED: Uses Edge Function..."             │
+│                                                                              │
+│ src/integrations/supabase/client.ts:                                        │
+│ ├── Exporta STUB que lança erro explicativo                                │
+│ ├── Qualquer uso de supabase.from() resulta em erro                        │
+│ └── "Use api.call() de @/lib/api. Veja docs/API_GATEWAY_ARCHITECTURE.md"   │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Veredicto
-Todas as funções grandes estão corretamente modularizadas com routers puros (< 200 linhas) delegando para handlers especializados.
+O frontend **NÃO** faz acesso direto ao banco de dados. O client Supabase foi substituído por um Proxy que lança erro explicativo. Todas as operações passam por Edge Functions via `api.call()`.
 
 **AÇÃO NECESSÁRIA:** Nenhuma
 
 ---
 
-## D2: LIMITE DE 300 LINHAS
+## A2: KEYS/SECRETS EXPOSTOS NO FRONTEND
 
-### Status: ✅ **CONFORME** (com 1 exceção documentada)
+### Status: ✅ **CONFORME**
 
-### Arquivos Verificados
+### Análise
 
-| Arquivo | Linhas | Status |
-|---------|--------|--------|
-| unified-auth/index.ts | 132 | ✅ |
-| checkout-public-data/index.ts | 128 | ✅ |
-| admin-data/index.ts | 165 | ✅ |
-| order-lifecycle-worker/index.ts | 152 | ✅ |
-| webhook-crud/index.ts | 154 | ✅ |
-| data-retention-executor/index.ts | 116 | ✅ |
-| rls-documentation-generator/index.ts | 137 | ✅ |
-| _shared/unified-auth-v2.ts | ~515 | ⚠️ **EXCEÇÃO APROVADA** |
-| _shared/circuit-breaker.ts | 272 | ✅ |
-| _shared/cors-v2.ts | 167 | ✅ |
-| _shared/logger.ts | 94 | ✅ |
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ZERO SECRETS IN FRONTEND - VERIFICAÇÃO                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│ ARQUITETURA API GATEWAY (RISE V3 10.0/10):                                  │
+│                                                                              │
+│ Frontend → api.risecheckout.com (Cloudflare Worker) → Supabase Edge Fn     │
+│                                                                              │
+│ 1. Frontend NÃO envia apikey header                                        │
+│ 2. Cloudflare Worker injeta apikey (via Secret)                            │
+│ 3. Cookies httpOnly (__Secure-rise_*) com Domain=.risecheckout.com         │
+│                                                                              │
+│ VERIFICAÇÃO DE ARQUIVOS:                                                    │
+│ ├── src/config/supabase.ts: Apenas API_GATEWAY_URL (endpoint público)      │
+│ ├── src/lib/api/client.ts: Não envia apikey                                │
+│ ├── src/lib/api/public-client.ts: Não envia apikey                         │
+│ └── src/lib/session-commander/coordinator.ts: Não envia apikey             │
+│                                                                              │
+│ .env CONTÉM:                                                                │
+│ ├── VITE_SUPABASE_PROJECT_ID - ID público (permitido)                      │
+│ ├── VITE_SUPABASE_PUBLISHABLE_KEY - ANON KEY (⚠️ mas NÃO usada)            │
+│ └── VITE_SUPABASE_URL - URL pública (permitido)                            │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
-### Exceção Documentada: unified-auth-v2.ts
+### Veredicto
+O frontend **NÃO** envia secrets. A arquitetura API Gateway garante que a anon key seja injetada pelo Cloudflare Worker, não pelo frontend. A VITE_SUPABASE_PUBLISHABLE_KEY no .env existe mas **não é usada** pelo código - todas as chamadas passam pelo API Gateway.
 
-O arquivo `_shared/unified-auth-v2.ts` (~515 linhas) possui uma **exceção documentada no próprio arquivo** (linhas 7-17):
+**AÇÃO NECESSÁRIA:** Nenhuma
+
+---
+
+## A3: STATE MANAGEMENT COM XSTATE
+
+### Status: ✅ **CONFORME**
+
+### Análise
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ STATE MANAGEMENT - XSTATE 10.0/10                                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│ MÓDULOS COM XSTATE (100% MIGRADOS):                                         │
+│ ├── productFormMachine.ts - Produtos                                       │
+│ ├── membersAreaMachine.ts - Área de Membros                                │
+│ ├── builderMachine.ts - Builder                                            │
+│ ├── navigationMachine.ts - Navegação/Sidebar                               │
+│ ├── checkoutPublicMachine.ts - Checkout Público                            │
+│ ├── affiliationMachine.ts - Afiliações                                     │
+│ ├── dateRangeMachine.ts - Seleção de Datas                                 │
+│ ├── financeiroMachine.ts - Financeiro                                      │
+│ ├── pixelsMachine.ts - Pixels                                              │
+│ ├── webhooksMachine.ts - Webhooks                                          │
+│ └── adminMachine.ts - Admin                                                │
+│                                                                              │
+│ PADRÃO ARQUITETURAL:                                                        │
+│ ├── useMachine(machine) no Provider                                        │
+│ ├── send() como único ponto de transição                                   │
+│ ├── Actors para operações assíncronas                                      │
+│ └── Guards para transições condicionais                                    │
+│                                                                              │
+│ CÓDIGO LEGADO USERUDUCER: 0 (100% DELETADO)                                 │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Veredicto
+Todos os módulos utilizam XState v5 como SSOT. O código legado com useReducer foi 100% removido conforme documentado em `docs/RISE_PROTOCOL_EXCEPTIONS.md`.
+
+**AÇÃO NECESSÁRIA:** Nenhuma
+
+---
+
+## A4: LOCALSTORAGE COMO SSOT DE AUTH
+
+### Status: ✅ **CONFORME** (Corrigido)
+
+### Análise
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ AUTENTICAÇÃO - VALIDATE-FIRST ARCHITECTURE                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│ ARQUITETURA ATUAL (RISE V3 10.0/10):                                        │
+│                                                                              │
+│ 1. SSOT = BACKEND (cookies httpOnly)                                        │
+│    ├── __Secure-rise_access (4 horas)                                      │
+│    └── __Secure-rise_refresh (30 dias sliding window)                      │
+│                                                                              │
+│ 2. VALIDATE-FIRST STRATEGY:                                                 │
+│    ├── No page load (F5), frontend SEMPRE chama unified-auth/validate      │
+│    ├── Backend valida cookies e faz auto-refresh se necessário             │
+│    └── Frontend NÃO usa localStorage para determinar sessão                │
+│                                                                              │
+│ 3. LOCALSTORAGE USAGE (Análise):                                            │
+│    ├── cross-tab-lock.ts - Lock de refresh entre tabs (fallback)           │
+│    ├── persistence.ts - APENAS metadados de estado (não tokens)            │
+│    ├── theme.tsx - Preferência de tema (permitido)                         │
+│    ├── navigationHelpers.ts - Estado do sidebar (permitido)                │
+│    ├── useFormManager.ts - Draft de formulários (permitido)                │
+│    ├── useOrderBumpForm.ts - Draft de formulários (permitido)              │
+│    └── useAffiliateTracking.ts - Tracking de afiliado (permitido)          │
+│                                                                              │
+│ 4. TOKEN SERVICE ARCHITECTURE:                                              │
+│    ├── Lazy initialization - só inicia em contextos autenticados           │
+│    ├── hasValidToken() verifica estado + expiresAt (metadata)              │
+│    ├── Refresh SEMPRE via Session Commander → backend                      │
+│    └── localStorage NÃO armazena tokens (só metadados)                     │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Verificação de persistence.ts
 
 ```typescript
-/**
- * ═══════════════════════════════════════════════════════════════════════════
- * RISE V3 EXCEPTION: FILE LENGTH (~515 lines)
- * 
- * This file exceeds the 300-line limit due to its central role as the 
- * Single Source of Truth (SSOT) for unified authentication across all
- * Edge Functions. The logic is highly cohesive and splitting it would:
- * 1. Harm readability by scattering related auth logic
- * 2. Create unnecessary import chains
- * 3. Violate Single Responsibility at a higher abstraction level
- * 
- * Exception reviewed and approved: 2026-01-23
- * ═══════════════════════════════════════════════════════════════════════════
- */
+// O que é armazenado:
+localStorage.setItem(keys.state, state);        // "authenticated" | "idle" | etc
+localStorage.setItem(keys.expiresAt, String(context.expiresAt));  // timestamp
+localStorage.setItem(keys.lastRefresh, String(context.lastRefreshAttempt));
+
+// O que NÃO é armazenado:
+// ❌ access_token
+// ❌ refresh_token
+// ❌ Qualquer secret
 ```
 
 ### Veredicto
-A exceção está formalmente documentada e justificada. Todas as outras funções respeitam o limite de 300 linhas.
+O localStorage **NÃO é usado como SSOT de autenticação**. Ele armazena apenas metadados de estado (expiresAt, lastRefresh) para otimização de UX. A fonte da verdade são os cookies httpOnly gerenciados pelo backend. A estratégia Validate-First garante que o backend é sempre consultado no carregamento da página.
 
 **AÇÃO NECESSÁRIA:** Nenhuma
 
 ---
 
-## D3: USO DE console.log DIRETO
+## A5: THIRD-PARTY COOKIES
 
-### Status: ⚠️ **CORREÇÃO NECESSÁRIA**
+### Status: ✅ **CONFORME** (Corrigido)
 
-### Análise de Uso de console.log
+### Análise
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ OCORRÊNCIAS DE console.log FORA DE _shared/logger.ts                         │
+│ COOKIE ARCHITECTURE - FIRST-PARTY COOKIES                                   │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│ 1. data-retention-executor/index.ts (linha 109)                             │
-│    console.error('[data-retention-executor] Error:', errorMessage);         │
-│    ❌ VIOLAÇÃO - Deveria usar createLogger()                                │
+│ MIGRAÇÃO REALIZADA (Jan 2026):                                              │
 │                                                                              │
-│ 2. rls-documentation-generator/index.ts (linhas 55, 61, 96, 127)            │
-│    console.log("[rls-documentation-generator] Generating...");              │
-│    console.error("[rls-documentation-generator] Error:", error);            │
-│    ❌ VIOLAÇÃO - Deveria usar createLogger()                                │
+│ ANTES (Instável):                                                           │
+│ ├── __Host- prefixed cookies                                               │
+│ ├── SameSite=None (third-party)                                            │
+│ └── Problemas em Safari/Firefox                                            │
 │                                                                              │
-│ PERMITIDOS (documentados no EDGE_FUNCTIONS_STYLE_GUIDE.md):                 │
-│ ├── _shared/logger.ts - Fonte da verdade do logging                        │
-│ ├── _shared/platform-secrets.ts - JSDoc (documentação)                      │
-│ └── mercadopago-oauth-callback/templates/html-responses.ts - Client JS     │
+│ DEPOIS (Estável):                                                           │
+│ ├── __Secure-rise_access                                                   │
+│ ├── __Secure-rise_refresh                                                  │
+│ ├── Domain=.risecheckout.com (first-party cross-subdomain)                 │
+│ ├── SameSite=Lax (mais compatível)                                         │
+│ ├── HttpOnly=true (proteção XSS)                                           │
+│ └── Secure=true (HTTPS only)                                               │
+│                                                                              │
+│ VERIFICAÇÃO NO CÓDIGO:                                                      │
+│ ├── src/hooks/useUnifiedAuth.ts: "cookies HttpOnly (__Secure-rise_*)"      │
+│ ├── src/lib/token-manager/service.ts: "__Secure-rise_* cookies"            │
+│ ├── src/config/supabase.ts: "Cookies httpOnly (__Secure-rise_*)"           │
+│ └── docs/UNIFIED_AUTH_SYSTEM.md: Documentação completa                     │
+│                                                                              │
+│ BUSCA POR __Host-: 0 resultados                                            │
+│ BUSCA POR __Secure-: 20 matches (todos corretos)                           │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+### Veredicto
+A migração de third-party cookies (__Host-) para first-party cookies (__Secure-) foi **concluída**. O sistema agora usa cookies com Domain=.risecheckout.com que funcionam corretamente em todos os browsers.
+
+**AÇÃO NECESSÁRIA:** Nenhuma
+
+---
+
+## A6: LIMITE DE 300 LINHAS
+
+### Status: ✅ **CONFORME** (com exceções documentadas)
+
+### Análise
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ LIMITE 300 LINHAS - VERIFICAÇÃO                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│ ARQUIVOS COM EXCEÇÕES DOCUMENTADAS:                                         │
+│                                                                              │
+│ 1. src/hooks/useUnifiedAuth.ts (~306 linhas)                               │
+│    ├── RISE V3 EXCEPTION documentada no header                             │
+│    ├── Justificativa: SSOT para frontend auth state                        │
+│    └── Exception approved: 2026-01-23                                      │
+│                                                                              │
+│ 2. supabase/functions/_shared/unified-auth-v2.ts (~515 linhas)             │
+│    ├── RISE V3 EXCEPTION documentada no header                             │
+│    ├── Justificativa: SSOT para backend auth                               │
+│    └── Exception approved: 2026-01-23                                      │
+│                                                                              │
+│ 3. src/App.tsx (~350 linhas)                                               │
+│    ├── Router configuration - difícil fragmentar                           │
+│    ├── Cada rota é lazy-loaded                                             │
+│    └── NECESSITA DOCUMENTAÇÃO de exceção                                   │
+│                                                                              │
+│ VERIFICAÇÃO STATE MACHINES:                                                 │
+│ ├── productFormMachine.ts - 252 linhas ✅                                  │
+│ ├── checkoutPublicMachine.ts - 278 linhas ✅                               │
+│ ├── ProductContext.tsx - 227 linhas ✅                                     │
+│                                                                              │
+│ DOCUMENTAÇÃO: docs/RISE_PROTOCOL_EXCEPTIONS.md                              │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Veredicto
+Dois arquivos têm exceções formalmente documentadas. O `App.tsx` (~350 linhas) precisa de documentação formal da exceção ou refatoração.
+
+**AÇÃO NECESSÁRIA:** Documentar exceção para App.tsx ou refatorar
+
+---
+
+## A7: TIPOS ANY NO CÓDIGO
+
+### Status: ✅ **CONFORME**
+
+### Análise
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ZERO TIPOS ANY - VERIFICAÇÃO                                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│ BUSCA ": any" em src/: 5 matches em 1 arquivo                              │
+│ ├── checkout-components.types.ts (COMENTÁRIO, não uso real)                │
+│ └── "Substitui o `[key: string]: any` anterior por tipagem forte"          │
+│                                                                              │
+│ BUSCA "as any" em src/: 0 matches ✅                                        │
+│                                                                              │
+│ BUSCA "@ts-ignore|@ts-expect-error" em src/: 10 matches em 2 arquivos      │
+│ ├── src/types/global.d.ts - Declaração de tipos globais (permitido)        │
+│ └── src/types/mercadopago.d.ts - Declaração de tipos (permitido)           │
+│     Ambos são arquivos .d.ts que ELIMINAM a necessidade de @ts-ignore      │
+│                                                                              │
+│ RESULTADO: Zero tipos any no código de produção                            │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Veredicto
+O código não possui tipos `any` ou `@ts-ignore` em arquivos de produção. Os arquivos .d.ts existem justamente para fornecer tipagem forte a bibliotecas externas.
+
+**AÇÃO NECESSÁRIA:** Nenhuma
+
+---
+
+## A8: EDGE FUNCTIONS REGISTRY
+
+### Status: ✅ **CONFORME**
+
+### Análise
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ EDGE FUNCTIONS REGISTRY - VERIFICAÇÃO                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│ docs/EDGE_FUNCTIONS_REGISTRY.md:                                            │
+│ ├── Total de funções: 106                                                  │
+│ ├── No código local: 106                                                   │
+│ ├── Apenas deployadas: 0 ✅                                                │
+│ ├── Operações Diretas Frontend: 0 ✅                                       │
+│ ├── Funções com verify_jwt=true: 0 ✅                                      │
+│ └── Unified Auth Compliance: 100% ✅                                       │
+│                                                                              │
+│ ÚLTIMA ATUALIZAÇÃO: 2026-01-26                                              │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Veredicto
+O Registry está atualizado e todas as 106 funções estão no repositório.
+
+**AÇÃO NECESSÁRIA:** Nenhuma
+
+---
+
+## A9: SESSION COMMANDER ARCHITECTURE
+
+### Status: ✅ **CONFORME**
+
+### Análise
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ SESSION COMMANDER - VERIFICAÇÃO                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│ COMPONENTES:                                                                │
+│ ├── coordinator.ts - Deduplicação de refresh (Promise única)               │
+│ ├── session-monitor.ts - Visibility/Network/Focus events                   │
+│ ├── feedback.ts - Toasts de reconexão                                      │
+│ ├── retry-strategy.ts - Exponential backoff com jitter                     │
+│ └── types.ts - Tipagem completa                                            │
+│                                                                              │
+│ INTEGRAÇÃO:                                                                 │
+│ ├── useUnifiedAuth.ts → sessionCommander.startMonitoring()                 │
+│ ├── TokenService.refresh() → sessionCommander.requestRefresh()             │
+│ └── CrossTabLock para coordenação entre tabs                               │
+│                                                                              │
+│ CONFIGURAÇÕES:                                                              │
+│ ├── Access Token: 4 horas (240 min)                                        │
+│ ├── Refresh Threshold: 30 minutos                                          │
+│ ├── Lock TTL: 30 segundos                                                  │
+│ ├── Max Retries: 3                                                         │
+│ └── Request Timeout: 15 segundos                                           │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Veredicto
+A arquitetura Session Commander está implementada corretamente conforme documentado nas memórias.
+
+**AÇÃO NECESSÁRIA:** Nenhuma
+
+---
+
+## A10: DOCUMENTAÇÃO ATUALIZADA
+
+### Status: ✅ **CONFORME**
+
+### Análise
+
+Documentação verificada:
+- ✅ docs/UNIFIED_AUTH_SYSTEM.md - v1.1.0 (24 Jan 2026)
+- ✅ docs/API_GATEWAY_ARCHITECTURE.md - Atualizado (26 Jan 2026)
+- ✅ docs/EDGE_FUNCTIONS_REGISTRY.md - Atualizado (26 Jan 2026)
+- ✅ docs/RISE_PROTOCOL_EXCEPTIONS.md - XState Edition
+- ✅ docs/RELATORIO_MAE.md - v1.0 (23 Jan 2026)
+
+**AÇÃO NECESSÁRIA:** Nenhuma
+
+---
+
+## PLANO DE CORREÇÃO ÚNICA
+
+### Correção A6: Documentar Exceção do App.tsx
+
+O arquivo `src/App.tsx` tem ~350 linhas e precisa de exceção documentada.
+
+**Opção A: Documentar Exceção (Nota 9.8/10)**
+- Adicionar header de exceção RISE V3
+- Justificativa: Router configuration é monolítico por natureza
+- Tempo: 5 minutos
+
+**Opção B: Refatorar para Rotas Modulares (Nota 10.0/10)**
+- Extrair rotas para arquivos separados
+- Criar route configs modulares
+- Tempo: 2-3 horas
 
 ### Análise RISE V3 (Seção 4.4)
 
-#### Solução A: Manter console.log Direto
-- Manutenibilidade: 5/10 - Inconsistência com padrão do projeto
-- Zero DT: 4/10 - Viola regra documentada no Style Guide
-- Arquitetura: 5/10 - Não segue SSOT de logging
-- Escalabilidade: 8/10 - N/A
+#### Solução A: Documentar Exceção
+- Manutenibilidade: 9/10 - Estrutura atual é clara
+- Zero DT: 10/10 - Não é dívida, é limitação arquitetural
+- Arquitetura: 9/10 - Routers geralmente são monolíticos
+- Escalabilidade: 9/10 - Lazy loading já implementado
 - Segurança: 10/10 - N/A
-- **NOTA FINAL: 5.8/10** ❌
-- Tempo: 0 minutos
+- **NOTA FINAL: 9.4/10**
+- Tempo: 5 minutos
 
-#### Solução B: Migrar para createLogger()
-- Manutenibilidade: 10/10 - Padrão consistente
-- Zero DT: 10/10 - Resolve violação documentada
-- Arquitetura: 10/10 - Segue SSOT
-- Escalabilidade: 10/10 - N/A
+#### Solução B: Refatorar para Rotas Modulares
+- Manutenibilidade: 10/10 - Arquivos menores e focados
+- Zero DT: 10/10 - Estrutura final
+- Arquitetura: 10/10 - Separation of Concerns
+- Escalabilidade: 10/10 - Cada módulo adiciona rotas próprias
 - Segurança: 10/10 - N/A
-- **NOTA FINAL: 10.0/10** ✅
-- Tempo: 10 minutos
+- **NOTA FINAL: 10.0/10**
+- Tempo: 2-3 horas
 
 ### DECISÃO: Solução B (Nota 10.0/10)
 
-**AÇÃO NECESSÁRIA:**
-1. Refatorar `data-retention-executor/index.ts` para usar `createLogger()`
-2. Refatorar `rls-documentation-generator/index.ts` para usar `createLogger()`
+Seguindo a LEI SUPREMA (Seção 4.6): "Se nota 10 demora 1 ano e nota 9.9 demora 5 min, escolhemos a de 1 ano."
+
+Portanto, a refatoração modular é obrigatória.
 
 ---
 
-## D4: CONFIGURAÇÃO verify_jwt NO config.toml
-
-### Status: ✅ **CONFORME**
-
-### Análise do config.toml
+## RESUMO EXECUTIVO - CATEGORIA A
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ VERIFICAÇÃO DE verify_jwt                                                    │
+│                    RESULTADO DA AUDITORIA - CATEGORIA A                      │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│ RESULTADO DA BUSCA: 0 ocorrências de verify_jwt = true                      │
-│                                                                              │
-│ config.toml declara explicitamente (linha 13):                              │
-│ "# NUNCA use verify_jwt = true para funções autenticadas!"                  │
-│                                                                              │
-│ TODAS as funções usam:                                                      │
-│ [functions.nome-da-funcao]                                                  │
-│ verify_jwt = false                                                          │
-│                                                                              │
-│ Autenticação é feita via:                                                   │
-│ - unified-auth-v2.ts (cookies httpOnly)                                     │
-│ - Tabela sessions unificada                                                 │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Veredicto
-Zero funções com `verify_jwt = true`. Todas seguem o padrão RISE V3 de autenticação via cookies e tabela sessions.
-
-**AÇÃO NECESSÁRIA:** Nenhuma
-
----
-
-## D5: EDGE FUNCTIONS REGISTRY ATUALIZADO
-
-### Status: ✅ **CONFORME**
-
-### Análise do Registry
-
-| Métrica | Valor | Status |
-|---------|-------|--------|
-| Total de Funções no Registry | 106 | ✅ |
-| Funções com serve() no código | 106 | ✅ |
-| Funções apenas deployadas (não no repo) | 0 | ✅ |
-| Operações diretas frontend | 0 | ✅ |
-| Funções com verify_jwt=true | 0 | ✅ |
-| Unified Auth Compliance | 100% | ✅ |
-
-### Correspondência Registry vs Código
-
-O Registry lista 106 funções e o código contém exatamente 106 diretórios de funções (excluindo _shared/ e arquivos de configuração).
-
-**AÇÃO NECESSÁRIA:** Nenhuma
-
----
-
-## D6: INFRAESTRUTURA _SHARED/
-
-### Status: ✅ **CONFORME**
-
-### Análise da Estrutura _shared/
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ ESTRUTURA MODULAR _shared/ (RISE V3)                                         │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│ _shared/                                                                    │
-│ ├── affiliation-queries/    # Queries de afiliação                         │
-│ ├── entities/               # Tipos de entidades                           │
-│ ├── http/                   # HTTP client com Circuit Breaker              │
-│ │   ├── gateway-client.ts   # Factory para clientes HTTP                   │
-│ │   ├── fetch-utils.ts      # Helpers de fetch                             │
-│ │   ├── gateway-headers.ts  # Headers por gateway                          │
-│ │   └── types.ts            # Tipos HTTP                                   │
-│ ├── kernel/                 # Core do sistema                              │
-│ ├── kms/                    # Key Management System                        │
-│ ├── payment-gateways/       # Adapters de gateway                          │
-│ ├── rate-limiting/          # Rate limiting centralizado                   │
-│ ├── session-management/     # Gerenciamento de sessões                     │
-│ ├── validation/             # Validadores                                  │
-│ ├── webhook/                # Idempotência e middleware                    │
-│ │   ├── idempotency-middleware.ts                                          │
-│ │   ├── idempotency-core.ts                                                │
-│ │   └── types.ts                                                           │
-│ │                                                                            │
-│ ├── cors-v2.ts              # CORS dinâmico (SSOT)                         │
-│ ├── unified-auth-v2.ts      # Autenticação unificada (SSOT)                │
-│ ├── logger.ts               # Logging centralizado (SSOT)                  │
-│ ├── circuit-breaker.ts      # Circuit Breaker para resiliência             │
-│ └── ...                     # ~60 outros módulos compartilhados            │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Componentes Críticos Verificados
-
-| Componente | Arquivo | Linhas | Status |
-|------------|---------|--------|--------|
-| CORS Dinâmico | cors-v2.ts | 167 | ✅ |
-| Auth Unificada | unified-auth-v2.ts | ~515 | ✅ (exceção) |
-| Logger | logger.ts | 94 | ✅ |
-| Circuit Breaker | circuit-breaker.ts | 272 | ✅ |
-| HTTP Client | http/gateway-client.ts | 120 | ✅ |
-| Idempotência | webhook/idempotency-middleware.ts | 81 | ✅ |
-
-**AÇÃO NECESSÁRIA:** Nenhuma
-
----
-
-## D7: PADRÃO DE AUTENTICAÇÃO CONSISTENTE
-
-### Status: ✅ **CONFORME**
-
-### Verificação de Padrões
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ PADRÕES DE AUTENTICAÇÃO                                                      │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│ FUNÇÕES AUTENTICADAS (Dashboard/Producer):                                  │
-│ ├── Usam: requireAuthenticatedProducer() de unified-auth.ts                │
-│ ├── CORS: handleCorsV2() para validação dinâmica                           │
-│ └── ✅ Padrão consistente                                                  │
-│                                                                              │
-│ FUNÇÕES PÚBLICAS (Checkout/Webhooks):                                       │
-│ ├── Usam: PUBLIC_CORS_HEADERS de cors-v2.ts                                │
-│ ├── Validam payload/signature quando necessário                            │
-│ └── ✅ Padrão consistente                                                  │
-│                                                                              │
-│ FUNÇÕES INTERNAS (Cron/Workers):                                            │
-│ ├── Usam: PUBLIC_CORS_HEADERS                                              │
-│ ├── Chamadas internas apenas                                               │
-│ └── ✅ Padrão consistente                                                  │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-**AÇÃO NECESSÁRIA:** Nenhuma
-
----
-
-## RESUMO EXECUTIVO - CATEGORIA D
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    RESULTADO DA AUDITORIA - CATEGORIA D                      │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  D1: Arquitetura Modular (Router + Handlers)    ✅ CONFORME                 │
-│  D2: Limite de 300 Linhas                       ✅ CONFORME (1 exceção doc) │
-│  D3: Uso de console.log Direto                  ⚠️ CORREÇÃO NECESSÁRIA     │
-│  D4: Configuração verify_jwt                    ✅ CONFORME                 │
-│  D5: Edge Functions Registry                    ✅ CONFORME                 │
-│  D6: Infraestrutura _shared/                    ✅ CONFORME                 │
-│  D7: Padrão de Autenticação                     ✅ CONFORME                 │
+│  A1: supabase.from() no frontend              ✅ CONFORME                   │
+│  A2: Keys/secrets expostos                    ✅ CONFORME                   │
+│  A3: State Management (XState)                ✅ CONFORME                   │
+│  A4: localStorage como SSOT auth              ✅ CONFORME (Corrigido)       │
+│  A5: Third-party cookies                      ✅ CONFORME (Corrigido)       │
+│  A6: Limite de 300 linhas                     ⚠️ CORREÇÃO NECESSÁRIA        │
+│  A7: Tipos any no código                      ✅ CONFORME                   │
+│  A8: Edge Functions Registry                  ✅ CONFORME                   │
+│  A9: Session Commander Architecture           ✅ CONFORME                   │
+│  A10: Documentação atualizada                 ✅ CONFORME                   │
 │                                                                              │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  PONTOS CONFORMES:       6/7 (86%)                                          │
-│  CORREÇÕES NECESSÁRIAS:  1/7 (14%)                                          │
-│  CRITICIDADE: 🟡 BAIXA (apenas logging inconsistente)                       │
+│  PONTOS CONFORMES:       9/10 (90%)                                         │
+│  CORREÇÕES NECESSÁRIAS:  1/10 (10%)                                         │
+│  CRITICIDADE: 🟡 BAIXA (apenas organização de código)                       │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## PLANO DE CORREÇÃO (Para Aprovação)
+## PLANO DE IMPLEMENTAÇÃO
 
-### Correção D3: Migrar console.log para createLogger()
+### Fase 1: Refatoração App.tsx (RISE V3 10.0/10)
 
-**Arquivo 1: supabase/functions/data-retention-executor/index.ts**
+**Arquivos a criar:**
 
-**Linha 109 - De:**
-```typescript
-console.error('[data-retention-executor] Error:', errorMessage);
+```text
+src/
+├── routes/
+│   ├── index.ts                    # Barrel export
+│   ├── publicRoutes.tsx            # Rotas públicas (/, /auth, /pay/*)
+│   ├── buyerRoutes.tsx             # Rotas buyer (/minha-conta/*)
+│   ├── dashboardRoutes.tsx         # Rotas dashboard (/dashboard/*)
+│   ├── builderRoutes.tsx           # Rotas full-screen builders
+│   └── lgpdRoutes.tsx              # Rotas LGPD
+└── App.tsx                         # ~100 linhas (composer apenas)
 ```
 
-**Para:**
-```typescript
-log.error('Error', { error: errorMessage });
-```
+**Estrutura do novo App.tsx (~100 linhas):**
 
-**Adicionar import no topo:**
 ```typescript
-import { createLogger } from "../_shared/logger.ts";
-const log = createLogger("DataRetentionExecutor");
+/**
+ * App.tsx - Application Entry Point
+ * 
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * Este arquivo apenas compõe o router a partir de módulos de rotas.
+ * Cada módulo de rota é responsável por seu próprio domínio.
+ */
+
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./config/queryClient";
+import { RootLayout } from "./layouts/RootLayout";
+import { publicRoutes } from "./routes/publicRoutes";
+import { buyerRoutes } from "./routes/buyerRoutes";
+import { dashboardRoutes } from "./routes/dashboardRoutes";
+import { builderRoutes } from "./routes/builderRoutes";
+import { lgpdRoutes } from "./routes/lgpdRoutes";
+
+const router = createBrowserRouter([
+  {
+    element: <RootLayout />,
+    children: [
+      ...publicRoutes,
+      ...buyerRoutes,
+      ...dashboardRoutes,
+      ...builderRoutes,
+      ...lgpdRoutes,
+    ],
+  },
+]);
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <HelmetProvider>
+        <AppErrorBoundary>
+          <BusyProvider>
+            <TooltipProvider>
+              <RouterProvider router={router} />
+            </TooltipProvider>
+          </BusyProvider>
+        </AppErrorBoundary>
+      </HelmetProvider>
+    </QueryClientProvider>
+  );
+}
+
+export default App;
 ```
 
 ---
 
-**Arquivo 2: supabase/functions/rls-documentation-generator/index.ts**
-
-**Linha 55 - De:**
-```typescript
-console.log("[rls-documentation-generator] Generating RLS documentation...");
-```
-
-**Para:**
-```typescript
-log.info("Generating RLS documentation...");
-```
-
-**Linha 61 - De:**
-```typescript
-console.error("[rls-documentation-generator] Error:", error);
-```
-
-**Para:**
-```typescript
-log.error("Database error", { error: error.message });
-```
-
-**Linha 96 - De:**
-```typescript
-console.log(`[rls-documentation-generator] Generated ${markdown.length} chars`);
-```
-
-**Para:**
-```typescript
-log.info("Documentation generated", { chars: markdown.length });
-```
-
-**Linha 127 - De:**
-```typescript
-console.error("[rls-documentation-generator] Exception:", errorMessage);
-```
-
-**Para:**
-```typescript
-log.error("Exception", { error: errorMessage });
-```
-
-**Adicionar import no topo:**
-```typescript
-import { createLogger } from "../_shared/logger.ts";
-const log = createLogger("rls-documentation-generator");
-```
-
----
-
-## NOTA FINAL DA CATEGORIA D
+## NOTA FINAL DA CATEGORIA A
 
 | Critério | Antes da Correção | Após Correção |
 |----------|-------------------|---------------|
 | Manutenibilidade | 9.5/10 | 10.0/10 |
-| Zero DT | 9.0/10 | 10.0/10 |
-| Arquitetura | 10.0/10 | 10.0/10 |
+| Zero DT | 9.5/10 | 10.0/10 |
+| Arquitetura | 9.0/10 | 10.0/10 |
 | Escalabilidade | 10.0/10 | 10.0/10 |
 | Segurança | 10.0/10 | 10.0/10 |
-| **NOTA FINAL** | **9.7/10** | **10.0/10** |
+| **NOTA FINAL** | **9.6/10** | **10.0/10** |
 
 ---
 
 ## CONCLUSÃO
 
-A **Categoria D: Edge Functions & Backend** está em **86% conformidade** com o RISE ARCHITECT PROTOCOL V3.
+A **Categoria A: Arquitetura Core** está em **90% conformidade** com o RISE ARCHITECT PROTOCOL V3.
 
-### Arquitetura Confirmada
+### Violações Mencionadas no Relatório Mestre - Status Atual
 
-1. **106 Edge Functions** no repositório, todas registradas no Registry
-2. **Modularização correta** com Router + Handlers para funções grandes
-3. **Zero verify_jwt = true** - autenticação via cookies/sessions
-4. **_shared/ bem estruturado** com módulos especializados
-5. **Circuit Breaker** implementado para resiliência de gateways
-6. **Idempotência** de webhooks via middleware centralizado
-7. **CORS dinâmico** via handleCorsV2() para funções autenticadas
+| Violação Mencionada | Status 2026-01-27 |
+|---------------------|-------------------|
+| Third-party cookies instáveis | ✅ CORRIGIDO → __Secure- com Domain |
+| localStorage como SSOT | ✅ CORRIGIDO → Validate-First Strategy |
+| TokenService deadlock idle | ✅ CORRIGIDO → Lazy initialization |
+| supabase.from() no frontend | ✅ CONFORME → Stub com erro |
+| RLS exposto | ✅ Verificado em Categoria B |
+| Duas anon keys | ✅ CORRIGIDO → API Gateway única |
 
 ### Correção Única Necessária
 
-Migrar 2 funções de `console.log` para `createLogger()` para atingir 100% de conformidade de logging.
+Refatorar `App.tsx` de ~350 linhas para estrutura modular de rotas (~100 linhas no App.tsx + módulos).
+
+### Arquitetura Confirmada
+
+1. **XState v5** em todos os 11 módulos como SSOT
+2. **API Gateway** (api.risecheckout.com) centraliza segurança
+3. **Zero secrets** no bundle frontend
+4. **Cookies httpOnly** (__Secure-rise_*) com Domain=.risecheckout.com
+5. **Session Commander** para refresh coordenado
+6. **106 Edge Functions** registradas e deployadas
 
 ### Próximo Passo
 
-Após aplicar as correções de D3, a Categoria D estará em **10.0/10**.
+Após aprovação, implementar a refatoração do App.tsx para atingir **10.0/10**.
