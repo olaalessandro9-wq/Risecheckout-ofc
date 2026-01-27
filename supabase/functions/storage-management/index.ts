@@ -276,10 +276,10 @@ Deno.serve(async (req) => {
     }
   } catch (err) {
     log.error("Exception:", err);
-    // RISE V3: Use dynamic corsHeaders when available, fallback to empty for uncaught errors
+    // RISE V3: corsHeaders already validated at function start
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
