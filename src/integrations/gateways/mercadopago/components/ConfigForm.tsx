@@ -84,9 +84,9 @@ export function ConfigForm({ onConnectionChange, connectionStatus }: GatewayConf
     },
   });
 
-  // Handler de disconnect que passa o integrationId
+  // Handler de disconnect - usa integrationType via hook (RISE V3)
   const onDisconnect = async () => {
-    await handleDisconnect(integration?.id);
+    await handleDisconnect();
   };
 
   return (
