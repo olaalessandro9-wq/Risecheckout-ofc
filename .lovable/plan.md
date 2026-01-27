@@ -1,336 +1,141 @@
 
-# Plano: Auto-Retry para Falhas de Carregamento de Chunks (DNS/Rede)
+Objetivo: corrigir definitivamente o erro 500 ao desconectar Mercado Pago, eliminando a causa raiz (“integrationId” não-UUID = “mercadopago”) e blindando o backend contra payload inválido.
 
-## Problema
+## Diagnóstico (Root Cause Only)
 
-Quando ocorre um erro `ERR_NAME_NOT_RESOLVED` (falha temporária de DNS), a aplicação crasheia porque os `React.lazy()` imports falham ao carregar os chunks JavaScript. Um simples F5 resolve porque o DNS se recupera.
+Os logs do Edge Function mostram repetidamente:
 
-## Objetivo
+- `invalid input syntax for type uuid: "mercadopago"` (Postgres `22P02`)
 
-Fazer o "F5 automático" de forma inteligente - sem recarregar a página inteira, apenas retentando o carregamento do chunk que falhou.
+Isso acontece porque o frontend está chamando:
 
----
+```ts
+api.call('integration-management', { action: 'disconnect', integrationId: 'mercadopago' })
+```
 
-## Análise de Soluções
+Mas `integrationId` deveria ser um UUID da tabela `vendor_integrations.id`. Hoje, no módulo Financeiro, o `connectionStatus.id` é **GatewayId** (`'mercadopago'`), não o UUID do registro. O ConfigForm do Mercado Pago deriva `integration.id = connectionStatus.id`, e repassa isso para `handleDisconnect(integration?.id)`.
 
-### Solução A: Wrapper `lazyWithRetry` + Error Boundary Inteligente
-- **Manutenibilidade:** 10/10 - Utilitário centralizado reutilizável
-- **Zero DT:** 10/10 - Solução definitiva para o problema
-- **Arquitetura:** 10/10 - Padrão bem estabelecido na indústria
-- **Escalabilidade:** 10/10 - Funciona para todos os lazy imports
-- **Segurança:** 10/10 - Nenhuma implicação
+Portanto:
+- O backend faz `.eq("id", integrationId)` esperando UUID
+- recebe `"mercadopago"`
+- Postgres explode com `22P02`
+- vira 500 na UI
+
+## Análise de Soluções (RISE V3)
+
+### Solução A: Corrigir contrato (frontend usa integrationType) + Validação forte no backend (uuid/type)
+- Manutenibilidade: 10/10
+- Zero DT: 10/10
+- Arquitetura: 10/10
+- Escalabilidade: 10/10
+- Segurança: 10/10
 - **NOTA FINAL: 10.0/10**
-- **Tempo estimado:** 45 minutos
+- Tempo estimado: 45–90 min (inclui testes)
 
-### Solução B: Apenas Error Boundary com botão "Tentar Novamente"
-- **Manutenibilidade:** 7/10 - Não é automático
-- **Zero DT:** 7/10 - Requer ação do usuário
-- **Arquitetura:** 7/10 - Não resolve a raiz
-- **Escalabilidade:** 8/10 - Funciona mas não é elegante
-- **Segurança:** 10/10 - Nenhuma implicação
-- **NOTA FINAL: 7.8/10**
-- **Tempo estimado:** 20 minutos
+### Solução B: Backend “tolerante” (se integrationId não for UUID, interpretar como GatewayId e mapear)
+- Manutenibilidade: 7/10 (contrato fica ambíguo)
+- Zero DT: 6/10 (permite bug continuar existindo no caller)
+- Arquitetura: 7/10 (mistura “id” e “type” no mesmo campo)
+- Escalabilidade: 7/10
+- Segurança: 10/10
+- **NOTA FINAL: 7.2/10**
+- Tempo estimado: 30–60 min
 
-### Solução C: Service Worker para cache de chunks
-- **Manutenibilidade:** 6/10 - Complexidade adicional
-- **Zero DT:** 8/10 - Resolve mas com overhead
-- **Arquitetura:** 7/10 - Overengineering para o problema
-- **Escalabilidade:** 8/10 - Funciona
-- **Segurança:** 10/10 - Nenhuma implicação
-- **NOTA FINAL: 7.4/10**
-- **Tempo estimado:** 2+ horas
+## DECISÃO: Solução A (10.0/10)
+
+A solução A é superior porque corrige o contrato (SSOT) e ainda impede que payload inválido volte a virar 500, transformando em erro 400 explícito (diagnóstico imediato).
 
 ---
 
-## DECISÃO: Solução A (Nota 10.0/10)
+## Implementação (passo a passo)
 
-A Solução A é superior porque:
-1. **Retry Automático:** Usuário nem percebe a falha temporária
-2. **Padrão da Indústria:** Hotmart, Stripe, Vercel usam essa técnica
-3. **Zero Intervenção:** Resolve sozinho, como um F5 automático
-4. **Fallback Gracioso:** Se todas tentativas falharem, mostra UI amigável
+### 1) Frontend: Mercado Pago deve desconectar por `integrationType`, não por `integrationId`
+
+**Arquivo 1:** `src/integrations/gateways/mercadopago/hooks/useMercadoPagoConnection.ts`
+- Alterar a assinatura:
+  - de: `handleDisconnect(integrationId: string | undefined)`
+  - para: `handleDisconnect(): Promise<void>`
+- Remover a validação “integração não encontrada” baseada em `integrationId`
+- Chamar o Edge Function com:
+  - `action: 'disconnect'`
+  - `integrationType: 'MERCADOPAGO'`
+
+Motivo: `vendor_integrations` é naturalmente endereçável por `(vendor_id, integration_type)`. Isso evita expor UUID interno na UI e não depende do Financeiro carregar `vendor_integrations.id`.
+
+**Arquivo 2:** `src/integrations/gateways/mercadopago/components/ConfigForm.tsx`
+- Trocar:
+  - `await handleDisconnect(integration?.id);`
+  - por:
+  - `await handleDisconnect();`
+- (Opcional, mas recomendado) Ajustar `deriveStateFromConnectionStatus` para não chamar o campo de “integration.id” se ele não é UUID (pode manter, desde que não seja usado como id de DB).
+
+Resultado: o payload enviado deixará de ter `integrationId: "mercadopago"`.
 
 ---
 
-## Implementação Técnica
+### 2) Backend: blindar `handleDisconnect` contra `integrationId` inválido (não-UUID) e contra `integrationType` inválido
 
-### 1. CRIAR: `src/lib/lazyWithRetry.ts`
+**Arquivo:** `supabase/functions/_shared/integration-handlers.ts`
 
-Utilitário que envolve `React.lazy()` com lógica de retry:
+Mudanças:
+1. Criar helper `isUuid(value: string): boolean` (regex UUID v4/v1 genérico, aceitando padrões padrão do Postgres).
+2. Se `integrationId` existir:
+   - Se NÃO for UUID: retornar **400** com mensagem clara (“integrationId inválido; esperado UUID”)
+   - Se for UUID: seguir fluxo atual
+3. Se usar `integrationType`:
+   - Normalizar para uppercase (`integrationType.toUpperCase()`)
+   - Validar contra o conjunto permitido: `ASAAS | MERCADOPAGO | PUSHINPAY | STRIPE`
+   - Se inválido: retornar **400**
 
-```typescript
-/**
- * lazyWithRetry - Lazy Loading com Retry Automático
- * 
- * RISE ARCHITECT PROTOCOL V3 - 10.0/10
- * 
- * Resolve automaticamente falhas temporárias de DNS/rede
- * ao carregar chunks JavaScript (code splitting).
- * 
- * Comportamento:
- * - Tenta carregar o chunk normalmente
- * - Se falhar, aguarda 1 segundo e tenta novamente
- * - Máximo de 3 tentativas
- * - Se todas falharem, propaga o erro para o Error Boundary
- */
+Resultado: mesmo que algum lugar do frontend volte a mandar “mercadopago” como `integrationId`, isso nunca mais vira 500; vira 400 e aponta a origem do bug.
 
-import { lazy, ComponentType } from "react";
-import { createLogger } from "@/lib/logger";
+---
 
-const log = createLogger("lazyWithRetry");
+### 3) Teste automatizado (anti-regressão)
 
-interface LazyWithRetryOptions {
-  maxRetries?: number;
-  retryDelay?: number;
-}
+Adicionar teste Deno para garantir que `integration-management` não retorna 500 com `integrationId` inválido.
 
-const DEFAULT_OPTIONS: Required<LazyWithRetryOptions> = {
-  maxRetries: 3,
-  retryDelay: 1000,
-};
+**Arquivo (novo):** `supabase/functions/integration-management/index_test.ts` (ou `integration-management.test.ts`)
+- Carregar dotenv conforme guideline
+- Executar POST para a Edge Function `integration-management` com body:
+  - `{ action: "disconnect", integrationId: "mercadopago" }`
+- Assert:
+  - status === 400
+  - body contém mensagem de erro esperada
+- Importante: consumir response body (`await res.text()`)
 
-/**
- * Verifica se o erro é relacionado a rede/DNS
- */
-function isNetworkError(error: unknown): boolean {
-  if (error instanceof Error) {
-    const message = error.message.toLowerCase();
-    return (
-      message.includes("failed to fetch") ||
-      message.includes("load failed") ||
-      message.includes("loading chunk") ||
-      message.includes("network") ||
-      error.name === "ChunkLoadError" ||
-      error.name === "TypeError"
-    );
-  }
-  return false;
-}
-
-/**
- * Aguarda um tempo antes de continuar
- */
-function wait(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
- * Wrapper para React.lazy() com retry automático
- * 
- * @example
- * const Dashboard = lazyWithRetry(() => import("@/pages/Dashboard"));
- */
-export function lazyWithRetry<T extends ComponentType<unknown>>(
-  importFn: () => Promise<{ default: T }>,
-  options?: LazyWithRetryOptions
-): React.LazyExoticComponent<T> {
-  const { maxRetries, retryDelay } = { ...DEFAULT_OPTIONS, ...options };
-
-  return lazy(async () => {
-    let lastError: unknown;
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        return await importFn();
-      } catch (error) {
-        lastError = error;
-
-        // Só faz retry se for erro de rede
-        if (!isNetworkError(error)) {
-          throw error;
-        }
-
-        log.warn(`Chunk load failed (attempt ${attempt}/${maxRetries})`, {
-          error: error instanceof Error ? error.message : String(error),
-        });
-
-        // Última tentativa? Não espera
-        if (attempt < maxRetries) {
-          await wait(retryDelay * attempt); // Backoff exponencial simples
-        }
-      }
-    }
-
-    log.error("All chunk load attempts failed", {
-      attempts: maxRetries,
-      error: lastError instanceof Error ? lastError.message : String(lastError),
-    });
-
-    throw lastError;
-  });
-}
-```
-
-### 2. MODIFICAR: `src/routes/publicRoutes.tsx`
-
-Substituir todos os `lazy()` por `lazyWithRetry()`:
-
-```typescript
-// ANTES
-const LandingPage = lazy(() => import("@/pages/LandingPage"));
-
-// DEPOIS
-import { lazyWithRetry } from "@/lib/lazyWithRetry";
-const LandingPage = lazyWithRetry(() => import("@/pages/LandingPage"));
-```
-
-### 3. MODIFICAR: `src/routes/dashboardRoutes.tsx`
-
-Mesma substituição:
-
-```typescript
-// ANTES
-const Dashboard = lazy(() => import("@/modules/dashboard").then(...));
-
-// DEPOIS
-import { lazyWithRetry } from "@/lib/lazyWithRetry";
-const Dashboard = lazyWithRetry(() => import("@/modules/dashboard").then(...));
-```
-
-### 4. MODIFICAR: `src/routes/builderRoutes.tsx` (e outros)
-
-Aplicar o mesmo padrão em todos os arquivos de rotas.
-
-### 5. MELHORAR: `src/components/AppErrorBoundary.tsx`
-
-Adicionar detecção inteligente de erros de rede:
-
-```typescript
-/**
- * Detecta se o erro é relacionado a rede/chunk loading
- */
-function isChunkLoadError(error: Error | null): boolean {
-  if (!error) return false;
-  const message = error.message.toLowerCase();
-  return (
-    message.includes("loading chunk") ||
-    message.includes("failed to fetch") ||
-    message.includes("load failed") ||
-    error.name === "ChunkLoadError"
-  );
-}
-
-// No render():
-if (this.state.hasError) {
-  const isNetworkIssue = isChunkLoadError(this.state.error);
+Observação: este teste não precisa autenticar se a função exige auth? No seu caso, `integration-management` usa `getAuthenticatedProducer`. Então o teste deve:
+- ou usar um token válido (se viável no ambiente),
+- ou focar em uma rota pública não autenticada (não existe aqui),
+- ou então fazer o teste em nível de handler com SupabaseClient mock (mais complexo).
   
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="max-w-md w-full space-y-6 text-center">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-foreground">
-            {isNetworkIssue 
-              ? "Problemas de conexão" 
-              : "Ops! Algo deu errado"}
-          </h1>
-          <p className="text-muted-foreground">
-            {isNetworkIssue
-              ? "Não foi possível carregar a página. Verifique sua conexão e tente novamente."
-              : "Ocorreu um erro inesperado. Por favor, tente recarregar a página."}
-          </p>
-        </div>
-
-        <Button onClick={this.handleReload} size="lg" className="w-full">
-          {isNetworkIssue ? "Tentar Novamente" : "Recarregar Página"}
-        </Button>
-      </div>
-    </div>
-  );
-}
-```
+Escolha (melhor): **teste de handler com mock minimalista** do SupabaseClient para o caminho “integrationId inválido”, porque esse caminho retorna 400 antes de qualquer query real. Assim o teste fica determinístico e não depende de sessão.
 
 ---
 
-## Fluxo de Recuperação Automática
+### 4) Verificação pós-implementação (com prova)
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                    FLUXO COM lazyWithRetry                   │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  1. Usuário navega para /dashboard                          │
-│     │                                                        │
-│     ▼                                                        │
-│  2. lazyWithRetry tenta: import("@/pages/Dashboard")        │
-│     │                                                        │
-│     ▼                                                        │
-│  3. FALHA: ERR_NAME_NOT_RESOLVED                            │
-│     │                                                        │
-│     ▼                                                        │
-│  4. lazyWithRetry detecta: isNetworkError() = true          │
-│     │                                                        │
-│     ▼                                                        │
-│  5. Aguarda 1 segundo (retry 1)                             │
-│     │                                                        │
-│     ▼                                                        │
-│  6. TENTA NOVAMENTE: import("@/pages/Dashboard")            │
-│     │                                                        │
-│     ▼                                                        │
-│  7. SUCESSO! DNS se recuperou                               │
-│     │                                                        │
-│     ▼                                                        │
-│  8. Usuário vê a página normalmente (nem percebeu a falha)  │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
-```
+Checklist:
+1. UI: clicar “Desconectar” no Mercado Pago deve:
+   - não gerar 500
+   - desativar a integração (active=false) e limpar config
+2. Logs: `integration-management` deve registrar action disconnect sem erro `22P02`.
+3. Se alguém mandar `integrationId: "mercadopago"` manualmente:
+   - retorno 400, não 500.
 
 ---
 
-## Alterações por Arquivo
+## Mudanças por arquivo
 
-| Arquivo | Ação | Mudança |
-|---------|------|---------|
-| `src/lib/lazyWithRetry.ts` | CRIAR | Utilitário de lazy loading com retry |
-| `src/routes/publicRoutes.tsx` | MODIFICAR | Substituir lazy() por lazyWithRetry() |
-| `src/routes/dashboardRoutes.tsx` | MODIFICAR | Substituir lazy() por lazyWithRetry() |
-| `src/routes/builderRoutes.tsx` | MODIFICAR | Substituir lazy() por lazyWithRetry() |
-| `src/routes/buyerRoutes.tsx` | MODIFICAR | Substituir lazy() por lazyWithRetry() |
-| `src/routes/lgpdRoutes.tsx` | MODIFICAR | Substituir lazy() por lazyWithRetry() |
-| `src/components/AppErrorBoundary.tsx` | MODIFICAR | Detectar erros de rede e mostrar UI específica |
+- `src/integrations/gateways/mercadopago/hooks/useMercadoPagoConnection.ts` (modificar)
+- `src/integrations/gateways/mercadopago/components/ConfigForm.tsx` (modificar)
+- `supabase/functions/_shared/integration-handlers.ts` (modificar)
+- `supabase/functions/integration-management/index_test.ts` (criar) — teste de regressão
 
 ---
 
-## Comportamento Resultante
+## Resultado esperado
 
-| Cenário | Antes | Depois |
-|---------|-------|--------|
-| Falha DNS temporária | Crash + Error Boundary | Retry silencioso (até 3x) |
-| DNS recupera em 1-2s | Usuário faz F5 manual | Carrega automaticamente |
-| DNS falha persistente | Error genérico | Mensagem "Problemas de conexão" |
-| Erro de código real | Error Boundary | Error Boundary (inalterado) |
-
----
-
-## Proteções
-
-| Cenário | Comportamento |
-|---------|---------------|
-| Erro de sintaxe no código | Não faz retry (não é erro de rede) |
-| Import de módulo inexistente | Não faz retry (não é erro de rede) |
-| Rede cai por 30 segundos | 3 tentativas em ~6s, depois Error Boundary |
-| Falha intermitente rápida | Resolve na 2ª ou 3ª tentativa |
-
----
-
-## Conformidade RISE V3
-
-| Critério | Status |
-|----------|--------|
-| Manutenibilidade Infinita | Utilitário centralizado, fácil de modificar |
-| Zero Dívida Técnica | Solução definitiva para o problema |
-| Arquitetura Correta | Padrão da indústria para code splitting |
-| Escalabilidade | Funciona para N lazy imports |
-| Segurança | Nenhuma implicação |
-| Limite 300 linhas | Todos os arquivos dentro do limite |
-
----
-
-## Benefícios
-
-| Benefício | Descrição |
-|-----------|-----------|
-| UX Transparente | Usuário nem percebe falhas temporárias |
-| Zero F5 Manual | Aplicação se recupera sozinha |
-| Logging | Tentativas ficam registradas para análise |
-| Sentry Integration | Falhas persistentes são reportadas |
-| Mensagem Específica | "Problemas de conexão" vs "Algo deu errado" |
+- Desconectar Mercado Pago funciona sempre.
+- Bug de “GatewayId usado como UUID” é eliminado na origem (frontend).
+- Backend fica imune a payload inválido, evitando 500 (falha segura com 400).
