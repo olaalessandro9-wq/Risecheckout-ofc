@@ -1,269 +1,263 @@
 
-# Plano de Correção de Pendências - Categoria A (Autenticação)
+# Plano de Correção: FK Incorreta + Fallback de Login
 
-## Sumário Executivo
+## 1. Diagnóstico Real (Dados Verificados via SQL)
 
-Após análise completa do código, identifiquei **3 pendências reais** que precisam ser corrigidas, todas relacionadas a fallbacks para a tabela legada `buyer_profiles`. O objetivo é eliminar 100% das referências a essa tabela nos handlers de autenticação, consolidando `users` como a única fonte de verdade (SSOT).
+| Verificação | Resultado |
+|-------------|-----------|
+| `sandro098@gmail.com` em `public.users` | ✅ Existe (ID: `c6e2e08d-...`) |
+| `sandro098@gmail.com` em `auth.users` | ❌ NÃO existe |
+| `sandro098@gmail.com` em `user_roles` | ❌ VAZIO |
+| FK `user_roles_user_id_fkey` | ❌ Aponta para `auth.users(id)` |
+| FK `sessions.user_id` | ✅ Aponta para `users(id)` (correto) |
+| `profiles` para `sandro098` | ❌ NÃO existe |
+| Sessões válidas | 2 (uma `user`, uma `buyer`) |
 
----
+## 2. Causa Raiz Identificada
 
-## Estado Atual vs. Desejado
+O sistema RiseCheckout usa **`public.users`** como SSOT (Single Source of Truth), mas a Foreign Key em `user_roles` ainda aponta para **`auth.users`** (tabela do Supabase Auth nativo, que NÃO é utilizada).
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                    ESTADO ATUAL                              │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  password-reset-request.ts   → users ONLY ✅                │
-│  password-reset-verify.ts    → users + buyer_profiles ❌    │
-│  password-reset.ts           → users + buyer_profiles ❌    │
-│  ensure-producer-access.ts   → users + buyer_profiles ❌    │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────┐
-│                    ESTADO DESEJADO                           │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  password-reset-request.ts   → users ONLY ✅                │
-│  password-reset-verify.ts    → users ONLY ✅                │
-│  password-reset.ts           → users ONLY ✅                │
-│  ensure-producer-access.ts   → users ONLY ✅                │
-│                                                              │
-│  Zero fallbacks legados. Zero buyer_profiles nos handlers.  │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
+Quando `register.ts` executa:
+```typescript
+await supabase.from("user_roles").insert({ user_id: newUser.id, role: "user" });
 ```
 
----
+O INSERT falha silenciosamente porque `newUser.id` não existe em `auth.users`. O usuário é criado em `users`, mas fica SEM ROLE.
 
-## Análise de Dados - Risco de Migração
+No login subsequente (`login.ts`):
+1. Busca roles de `user_roles` → retorna vazio
+2. Adiciona `buyer` como fallback
+3. `activeRole = "buyer"` (porque não há roles de produtor)
+4. Redireciona para `/minha-conta/dashboard`
 
-Executei queries no banco para avaliar o risco:
+## 3. Análise de Soluções (RISE V3 4.4 - Obrigatório)
 
-| Métrica | Valor | Risco |
-|---------|-------|-------|
-| Total de buyers em `buyer_profiles` | 5 | Muito baixo |
-| Buyers com reset_token ativo | 0 | Zero |
-| Buyers não migrados para `users` | 0 | Zero |
+### Solução A: Corrigir FK + Fallback Inteligente no Login
 
-**Conclusão:** Não há risco de perda de dados. Todos os buyers já estão sincronizados com a tabela `users`. Os fallbacks podem ser removidos com segurança.
+**Alterações:**
+1. **Migration SQL:** Alterar FK para apontar para `public.users(id)`
+2. **Migration SQL:** Atribuir role `seller` para usuários sem role (baseado em `registration_source`)
+3. **`register.ts`:** Adicionar tratamento de erro no INSERT de role
+4. **`login.ts`:** Adicionar lógica de fallback inteligente para usuários sem role
 
----
+- Manutenibilidade: 10/10 (corrige na raiz)
+- Zero DT: 10/10 (elimina o problema completamente)
+- Arquitetura: 10/10 (FK correta = integridade referencial)
+- Escalabilidade: 10/10
+- Segurança: 10/10
+- **NOTA FINAL: 10.0/10**
+- Tempo estimado: 1 hora
 
-## Pendências a Corrigir
+### Solução B: Remover FK e confiar no código
 
-### A8: `password-reset-verify.ts` (Linhas 50-88)
+- Manutenibilidade: 5/10
+- Zero DT: 6/10
+- Arquitetura: 4/10
+- Escalabilidade: 7/10
+- Segurança: 6/10
+- **NOTA FINAL: 5.6/10**
+- Tempo estimado: 15 minutos
 
-**Problema:** Fallback para `buyer_profiles` quando token não encontrado em `users`.
+### DECISÃO: Solução A (Nota 10.0/10)
 
-**Código Atual:**
+## 4. Plano de Implementação
+
+### Fase 1: Migration SQL
+
+```sql
+-- 1. Remover FK antiga (aponta para auth.users)
+ALTER TABLE public.user_roles 
+DROP CONSTRAINT IF EXISTS user_roles_user_id_fkey;
+
+-- 2. Adicionar FK correta (aponta para public.users)
+ALTER TABLE public.user_roles 
+ADD CONSTRAINT user_roles_user_id_fkey 
+FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+-- 3. Atribuir role 'seller' para usuários sem role
+-- (Conforme definido: seller para todos no cadastro via /cadastro)
+INSERT INTO public.user_roles (user_id, role)
+SELECT u.id, 'seller'::app_role
+FROM public.users u
+WHERE u.registration_source IN ('organic', 'affiliate', 'producer')
+  AND NOT EXISTS (
+    SELECT 1 FROM public.user_roles ur 
+    WHERE ur.user_id = u.id
+  );
+```
+
+### Fase 2: Corrigir `register.ts`
+
+**Arquivo:** `supabase/functions/unified-auth/handlers/register.ts`
+
+**Alterações:**
+1. Manter `registrationType` como está (produtor ou buyer)
+2. Atribuir role `seller` para TODOS que vêm de `/cadastro`
+3. Adicionar tratamento de erro no INSERT de role
+4. Fazer rollback se role falhar
+
 ```typescript
-// RISE V3 FALLBACK: If not found in users, check buyer_profiles
-if (findError || !user) {
-  const { data: buyer, error: buyerError } = await supabase
-    .from("buyer_profiles")  // ← FALLBACK PARA TABELA LEGADA
-    .select("id, email, name, reset_token_expires_at")
-    .eq("reset_token", token)
-    .single();
-  // ... 40 linhas de código duplicado ...
+// ANTES (linha 80-96)
+if (registrationType === "producer") {
+  roles.push("user");
+  await supabase.from("user_roles").insert({
+    user_id: newUser.id,
+    role: "user",
+  });
 }
-```
 
-**Correção:** Remover todo o bloco de fallback (linhas 50-88). Se o token não for encontrado em `users`, retornar "Token inválido" diretamente.
-
-**Código Corrigido:**
-```typescript
-// Find user by reset token in unified users table (SSOT)
-const { data: user, error: findError } = await supabase
-  .from("users")
-  .select("id, email, name, reset_token_expires_at")
-  .eq("reset_token", token)
-  .single();
-
-// RISE V3: users is the only SSOT - no fallbacks
-if (findError || !user) {
-  log.debug("Reset token not found in users table");
-  return jsonResponse({ 
-    valid: false, 
-    error: "Token inválido" 
-  }, corsHeaders);
-}
-
-// Rest of the logic continues...
-```
-
----
-
-### A9: `password-reset.ts` (Linhas 66-151)
-
-**Problema:** Fallback para `buyer_profiles` + lógica duplicada de migração para `users`.
-
-**Código Atual:**
-```typescript
-// RISE V3 FALLBACK: If not found in users, check buyer_profiles
-if (findError || !user) {
-  const { data: buyer, error: buyerError } = await supabase
-    .from("buyer_profiles")  // ← FALLBACK
-    .select(...)
+// DEPOIS
+// Cadastro via /cadastro = sempre recebe role seller
+// Origem (producer/affiliate) é apenas marcação interna
+if (registrationType === "producer" || registrationType === "affiliate") {
+  const { error: roleError } = await supabase.from("user_roles").insert({
+    user_id: newUser.id,
+    role: "seller",
+  });
   
-  // ... 85 linhas de código duplicado incluindo:
-  // - Validação de expiração
-  // - Hash de senha
-  // - Update em buyer_profiles
-  // - Criação/update em users (migração)
-  // - Audit log separado
+  if (roleError) {
+    log.error("Failed to assign role:", roleError.message);
+    // Rollback: deletar usuário criado
+    await supabase.from("users").delete().eq("id", newUser.id);
+    return errorResponse("Erro ao configurar permissões", corsHeaders, 500);
+  }
+  
+  roles.push("seller");
 }
 ```
 
-**Correção:** Remover todo o bloco de fallback (linhas 66-151). A lógica de reset deve operar APENAS na tabela `users`.
+### Fase 3: Corrigir `login.ts`
 
-**Justificativa:** Como `password-reset-request.ts` já opera APENAS em `users`, qualquer token gerado estará APENAS na tabela `users`. Portanto, não há necessidade de verificar `buyer_profiles`.
+**Arquivo:** `supabase/functions/unified-auth/handlers/login.ts`
 
----
+**Alterações:**
+1. Adicionar fallback inteligente para usuários sem role
+2. Se `registration_source` indica produtor/afiliado, atribuir `seller` retroativamente
+3. Priorizar roles de produtor quando login é via `/auth`
 
-### A10: `ensure-producer-access.ts` (Linhas 43-48, 51, 87)
-
-**Problema:** Fallback para `buyer_profiles` ao verificar se usuário existe.
-
-**Código Atual:**
 ```typescript
-// Check if user exists in unified users table
-let { data: user } = await supabase
-  .from("users")
-  .select("id")
-  .eq("email", normalizedEmail)
-  .single();
+// ADICIONAR após linha 93 (após buscar roles)
+// RISE V3: Fallback para usuários sem role (migracao de dados antigos)
+if (roles.length === 1 && roles[0] === "buyer") {
+  const { data: userData } = await supabase
+    .from("users")
+    .select("registration_source")
+    .eq("id", user.id)
+    .single();
+  
+  // Se registrou como produtor/afiliado mas não tem role, atribuir seller
+  if (userData?.registration_source === "organic" || 
+      userData?.registration_source === "affiliate") {
+    const { error: roleError } = await supabase.from("user_roles").insert({
+      user_id: user.id,
+      role: "seller",
+    });
+    
+    if (!roleError) {
+      roles.push("seller");
+      log.info("Auto-assigned seller role based on registration_source", {
+        userId: user.id,
+        source: userData.registration_source,
+      });
+    }
+  }
+}
 
-// If not in users table, check fallback buyer_profiles
-let { data: buyer } = await supabase
-  .from("buyer_profiles")  // ← FALLBACK
-  .select("id")
-  .eq("email", normalizedEmail)
-  .single();
-
-// ... usa buyer?.id como fallback
-const userId = user?.id || buyer?.id;
+// ALTERAR linha 109-112
+// Priorizar roles de produtor quando há roles disponíveis
+} else if (roles.some(r => ["owner", "admin", "user", "seller"].includes(r))) {
+  activeRole = roles.find(r => ["owner", "admin", "user", "seller"].includes(r)) || "seller";
+}
 ```
 
-**Correção:** Remover a query para `buyer_profiles`. Se o usuário não existir em `users`, criar diretamente em `users`.
+### Fase 4: Corrigir Sessões Existentes (Opcional)
 
----
+```sql
+-- Atualizar sessões ativas com role errada
+UPDATE public.sessions s
+SET active_role = 'seller'
+FROM public.users u
+WHERE s.user_id = u.id
+  AND u.registration_source IN ('organic', 'affiliate')
+  AND s.active_role = 'buyer'
+  AND s.is_valid = true;
+```
 
-## Plano de Implementação
+## 5. Arquivos a Modificar
 
-### Fase 1: Corrigir `password-reset-verify.ts`
+| Arquivo | Ação |
+|---------|------|
+| **Migration SQL** | Corrigir FK + atribuir roles |
+| `supabase/functions/unified-auth/handlers/register.ts` | Atribuir `seller` + tratamento de erro |
+| `supabase/functions/unified-auth/handlers/login.ts` | Fallback inteligente |
 
-1. Remover linhas 50-88 (bloco de fallback completo)
-2. Simplificar para retornar erro quando token não encontrado em `users`
-3. Remover `source: "buyer_profiles"` do retorno
-
-**Arquivo Final:** ~70 linhas (atualmente 123 linhas) - Redução de 43%
-
----
-
-### Fase 2: Corrigir `password-reset.ts`
-
-1. Remover linhas 66-151 (bloco de fallback completo)
-2. Manter apenas a lógica para tabela `users`
-3. Remover import não utilizado (se houver)
-
-**Arquivo Final:** ~125 linhas (atualmente 212 linhas) - Redução de 41%
-
----
-
-### Fase 3: Corrigir `ensure-producer-access.ts`
-
-1. Remover linhas 43-48 (query para `buyer_profiles`)
-2. Remover linha 87 (`|| buyer?.id`)
-3. Simplificar lógica para criar em `users` diretamente se não existir
-
-**Arquivo Final:** ~70 linhas (atualmente 98 linhas) - Redução de 29%
-
----
-
-### Fase 4: Atualizar Documentação
-
-Atualizar `docs/EDGE_FUNCTIONS_REGISTRY.md` e `docs/UNIFIED_AUTH_SYSTEM.md` para refletir que **100% dos handlers de autenticação operam APENAS na tabela `users`**.
-
----
-
-## Análise de Soluções (RISE V3 Obrigatório)
-
-### Solução A: Remoção Direta de Fallbacks
-
-Remove todos os fallbacks para `buyer_profiles` sem migração adicional.
-
-- Manutenibilidade: 10/10 (código 40% menor)
-- Zero DT: 10/10 (elimina código morto)
-- Arquitetura: 10/10 (SSOT puro)
-- Escalabilidade: 10/10
-- Segurança: 10/10
-- **NOTA FINAL: 10.0/10**
-- Tempo estimado: 1-2 horas
-
-### Solução B: Migração Automática + Remoção de Fallbacks
-
-Primeiro migra dados, depois remove fallbacks.
-
-- Manutenibilidade: 10/10
-- Zero DT: 10/10
-- Arquitetura: 10/10
-- Escalabilidade: 10/10
-- Segurança: 10/10
-- **NOTA FINAL: 10.0/10**
-- Tempo estimado: 2-3 horas (inclui migração desnecessária)
-
-### DECISÃO: Solução A
-
-Como a análise de dados mostrou que **0 buyers têm tokens ativos** e **0 buyers não estão migrados**, a Solução B é trabalho desnecessário. A Solução A é suficiente e mais eficiente.
-
----
-
-## Arquivos a Modificar
-
-| Arquivo | Ação | Linhas Removidas | Resultado |
-|---------|------|------------------|-----------|
-| `password-reset-verify.ts` | Remover fallback | 38 linhas | 100% SSOT |
-| `password-reset.ts` | Remover fallback | 85 linhas | 100% SSOT |
-| `ensure-producer-access.ts` | Remover fallback | 10 linhas | 100% SSOT |
-| `EDGE_FUNCTIONS_REGISTRY.md` | Atualizar status | N/A | Documentação |
-| `UNIFIED_AUTH_SYSTEM.md` | Atualizar status | N/A | Documentação |
-
----
-
-## Resultado Final Esperado
+## 6. Resultado Esperado
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│  AUDITORIA CATEGORIA A - PÓS CORREÇÃO                       │
+│  FLUXO CORRIGIDO                                             │
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
-│  A1: Third-party cookies    → By Design (multi-subdomínio)  │
-│  A2: Refresh em idle        → ✅ CORRIGIDO (Validate-First) │
-│  A3: validateSession        → ✅ CORRIGIDO (Backend SSOT)   │
-│  A4: Duas anon keys         → ✅ CORRIGIDO (Stub seguro)    │
-│  A5: Supabase localStorage  → ✅ CORRIGIDO (Bloqueado)      │
-│  A6: CrossTabLock           → ✅ Mitigado (Server Lock)     │
-│  A7: Persistence            → ✅ Mitigado (Server Lock)     │
-│  A8: password-reset-verify  → A CORRIGIR NESTE PLANO        │
-│  A9: password-reset         → A CORRIGIR NESTE PLANO        │
-│  A10: ensure-producer-access→ A CORRIGIR NESTE PLANO        │
-│  A14: hasValidToken idle    → ✅ CORRIGIDO (Validate-First) │
-│  A15: restoreState          → ✅ Mitigado (Backend SSOT)    │
-│  A16: handleVisibility      → ✅ Mitigado (Backend SSOT)    │
+│  1. Cadastro via /cadastro:                                  │
+│     → Cria user em public.users                             │
+│     → FK agora aponta para public.users                     │
+│     → INSERT em user_roles SUCEDE                           │
+│     → role = "seller" (para todos)                          │
+│     → registration_source = "organic" ou "affiliate"        │
 │                                                              │
-│  RESULTADO: 100% COMPLIANT (Após execução deste plano)      │
+│  2. Login via /auth:                                         │
+│     → Busca roles de user_roles                             │
+│     → roles = ["seller", "buyer"]                           │
+│     → activeRole = "seller" (produtor-type priority)        │
+│     → Redireciona para /dashboard                           │
+│                                                              │
+│  3. UserAvatar:                                              │
+│     → canSwitchToProducer = true                            │
+│     → Opção de trocar contexto visível                      │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
----
+## 7. Validação Pós-Deploy
 
-## Benefícios
+1. Verificar FK aponta para `public.users`:
+   ```sql
+   SELECT pg_get_constraintdef(c.oid) FROM pg_constraint c 
+   WHERE conname = 'user_roles_user_id_fkey';
+   ```
 
-1. **Código 35% Menor:** Remoção de ~133 linhas de código morto
-2. **SSOT Absoluto:** `users` é a única fonte de verdade
-3. **Zero Confusão:** Desenvolvedores não precisam considerar `buyer_profiles`
-4. **Manutenção Simplificada:** Um único caminho de código
-5. **RISE V3 10.0/10:** Compliance total com o protocolo
+2. Verificar `sandro098@gmail.com` tem role `seller`
+
+3. Criar nova conta via `/cadastro` → verificar role `seller` atribuída
+
+4. Login em `/auth` → verificar redirect para `/dashboard`
+
+5. Verificar menu mostra opção de trocar contexto
+
+## 8. Seção Técnica
+
+### Interface Atualizada (register.ts)
+
+```typescript
+interface RegisterRequest {
+  email: string;
+  password: string;
+  name?: string;
+  phone?: string;
+  registrationType?: "producer" | "affiliate" | "buyer";
+}
+```
+
+### Mapeamento Final
+
+| registrationType | role em user_roles | registration_source | activeRole no login |
+|------------------|-------------------|---------------------|---------------------|
+| `"producer"` | `seller` | `organic` | `seller` |
+| `"affiliate"` | `seller` | `affiliate` | `seller` |
+| `"buyer"` | (nenhuma) | `checkout` | `buyer` |
+
+### Deploy Order
+
+1. Executar Migration SQL (FK + roles)
+2. Deploy Edge Function `unified-auth`
+3. Testar fluxo completo
