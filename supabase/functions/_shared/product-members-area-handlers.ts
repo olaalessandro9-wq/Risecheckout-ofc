@@ -1,10 +1,10 @@
 /**
  * Members Area Settings Handler
- * Extracted from product-settings-handlers for RISE Protocol compliance (< 300 lines per file)
  * 
- * OPTIMIZED: handleEnableMembersArea consolidates all enable logic into single call
+ * @version 4.0.0 - RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
- * @version 3.0.0
+ * SSOT: users table is the single source of truth
+ * Producer already exists in users table - no need for separate buyer_profiles
  */
 
 import { SupabaseClient, MembersAreaSettings, JsonResponseData } from "./supabase-types.ts";
@@ -17,11 +17,6 @@ const log = createLogger("MembersArea");
 // ============================================
 
 type CorsHeaders = Record<string, string>;
-
-interface BuyerProfileRecord {
-  id: string;
-  email: string;
-}
 
 interface GroupRecord {
   id: string;
@@ -47,43 +42,33 @@ function errorResponse(message: string, headers: CorsHeaders, status = 400): Res
 // ============================================
 
 /**
- * Garante que o produtor tem um buyer_profile para acessar a área de membros
+ * RISE V3: Producer already exists in users table
+ * No need to create a separate buyer_profile for them
+ * They can access their own members area using their existing user ID
  */
-async function ensureProducerBuyerProfile(
+async function ensureProducerHasAccess(
   supabase: SupabaseClient,
   producerEmail: string,
   producerId: string
 ): Promise<void> {
+  // RISE V3: Producer exists in users table, which is the SSOT
+  // Simply verify they exist - no need to create anything
   const normalizedEmail = producerEmail.toLowerCase().trim();
   
-  // Check if buyer profile exists
-  const { data: existingBuyer } = await supabase
-    .from("buyer_profiles")
-    .select("id, email")
+  const { data: existingUser } = await supabase
+    .from("users")
+    .select("id")
     .eq("email", normalizedEmail)
-    .maybeSingle() as { data: BuyerProfileRecord | null };
+    .maybeSingle();
 
-  if (existingBuyer) {
-    log.info(`Producer buyer profile already exists: ${existingBuyer.id}`);
+  if (existingUser) {
+    log.info(`Producer already exists in users table: ${existingUser.id}`);
     return;
   }
 
-  // Create buyer profile for producer (with a random password they won't use)
-  const randomPassword = crypto.randomUUID();
-  const { error: createError } = await supabase
-    .from("buyer_profiles")
-    .insert({
-      email: normalizedEmail,
-      name: "Produtor",
-      password_hash: randomPassword, // Producer uses producer-login, not this password
-      is_active: true,
-    });
-
-  if (createError) {
-    log.error("Error creating producer buyer profile", createError);
-  } else {
-    log.info(`Created buyer profile for producer: ${producerId}`);
-  }
+  // If for some reason the producer doesn't exist in users, log a warning
+  // This should not happen as producers are created during registration
+  log.warn(`Producer ${producerId} not found in users table - this is unexpected`);
 }
 
 /**
@@ -129,9 +114,11 @@ async function ensureDefaultGroup(
 /**
  * Habilita a área de membros com todas as configurações necessárias em uma única chamada.
  * 
+ * RISE V3: Producer uses unified users table - no buyer_profiles creation needed
+ * 
  * Executa em paralelo:
  * 1. Atualiza members_area_enabled = true
- * 2. Garante buyer_profile do produtor
+ * 2. Verifica que producer existe em users (SSOT)
  * 3. Garante grupo padrão
  */
 export async function handleEnableMembersArea(
@@ -160,9 +147,9 @@ export async function handleEnableMembersArea(
       return errorResponse("Erro ao habilitar área de membros", corsHeaders, 500);
     }
 
-    // 2. Executar setup em paralelo (buyer profile + default group)
+    // 2. Executar setup em paralelo (verify producer + default group)
     await Promise.all([
-      ensureProducerBuyerProfile(supabase, producerEmail, producerId),
+      ensureProducerHasAccess(supabase, producerEmail, producerId),
       ensureDefaultGroup(supabase, productId),
     ]);
 
@@ -208,7 +195,7 @@ export async function handleDisableMembersArea(
 }
 
 // ============================================
-// UPDATE MEMBERS AREA SETTINGS HANDLER (LEGACY - settings only)
+// UPDATE MEMBERS AREA SETTINGS HANDLER
 // ============================================
 
 export async function handleUpdateMembersAreaSettings(

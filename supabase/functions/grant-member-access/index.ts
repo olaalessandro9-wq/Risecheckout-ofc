@@ -3,18 +3,18 @@
  * GRANT-MEMBER-ACCESS EDGE FUNCTION
  * ============================================================================
  * 
- * @version 1.0.0 - RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * @version 2.0.0 - RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Função especializada para concessão de acesso à área de membros.
  * Chamada por reconcile-mercadopago, reconcile-asaas, e webhooks.
  * 
  * ============================================================================
- * RESPONSABILIDADE ÚNICA
+ * SSOT: users table is the single source of truth
  * ============================================================================
  * 
  * 1. Recebe dados do pedido aprovado
  * 2. Verifica se produto tem área de membros
- * 3. Cria/encontra buyer_profile
+ * 3. Cria/encontra user (NOT buyer_profiles)
  * 4. Concede buyer_product_access
  * 5. Adiciona ao grupo padrão se existir
  * 
@@ -86,35 +86,37 @@ async function grantMemberAccess(
 
     const normalizedEmail = customer_email.toLowerCase().trim();
 
-    // 2. Buscar ou criar buyer_profile
-    const { data: existingBuyer } = await supabase
-      .from('buyer_profiles')
+    // 2. RISE V3: Buscar ou criar user (NOT buyer_profiles)
+    const { data: existingUser } = await supabase
+      .from('users')
       .select('id')
       .eq('email', normalizedEmail)
       .single();
 
     let buyerId: string;
 
-    if (!existingBuyer) {
-      const { data: newBuyer, error: createError } = await supabase
-        .from('buyer_profiles')
+    if (!existingUser) {
+      // RISE V3: Create new user in users table (SSOT)
+      const { data: newUser, error: createError } = await supabase
+        .from('users')
         .insert({
           email: normalizedEmail,
           name: customer_name || null,
-          password_hash: 'PENDING_PASSWORD_SETUP',
+          password_hash: null,
+          account_status: 'pending_setup',
           is_active: true,
         })
         .select('id')
         .single();
 
       if (createError) {
-        log.error('Erro ao criar buyer_profile', createError);
+        log.error('Erro ao criar user', createError);
         return { success: false, error: `Erro ao criar perfil: ${createError.message}` };
       }
-      buyerId = newBuyer.id;
-      log.info('Novo buyer_profile criado', { buyerId, email: normalizedEmail });
+      buyerId = newUser.id;
+      log.info('Novo user criado (SSOT)', { buyerId, email: normalizedEmail });
     } else {
-      buyerId = existingBuyer.id;
+      buyerId = existingUser.id;
     }
 
     // 3. Conceder acesso ao produto

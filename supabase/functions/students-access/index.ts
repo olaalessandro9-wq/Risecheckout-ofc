@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
     }
 
     // ========== GRANT-ACCESS ==========
-    // RISE V3: buyer_id should now be users.id (not buyer_profiles.id)
+    // RISE V3 10.0/10: users table is the ONLY SSOT - zero fallbacks
     if (action === "grant-access") {
       if (!buyer_id || !product_id) {
         return jsonResponse({ error: "buyer_id and product_id required" }, 400);
@@ -102,43 +102,8 @@ Deno.serve(async (req) => {
         .eq("id", buyer_id)
         .single();
 
+      // RISE V3: users is the only SSOT - no fallbacks to buyer_profiles
       if (userError || !user) {
-        // Fallback: check if it's a buyer_profiles.id and migrate
-        const { data: buyer } = await supabase
-          .from("buyer_profiles")
-          .select("id, email")
-          .eq("id", buyer_id)
-          .single();
-
-        if (buyer) {
-          // Find or create user by email
-          const { data: existingUser } = await supabase
-            .from("users")
-            .select("id")
-            .eq("email", buyer.email.toLowerCase())
-            .single();
-
-          if (existingUser) {
-            // Use the correct users.id
-            const { error } = await supabase
-              .from("buyer_product_access")
-              .upsert({
-                buyer_id: existingUser.id,
-                product_id,
-                order_id: order_id || null,
-                is_active: true,
-                access_type: "invite",
-                granted_at: new Date().toISOString(),
-              }, {
-                onConflict: "buyer_id,product_id",
-              });
-
-            if (error) throw error;
-            log.info(`Granted access to user ${existingUser.id} (migrated from buyer ${buyer_id})`);
-            return jsonResponse({ success: true });
-          }
-        }
-
         return jsonResponse({ error: "Buyer not found in users table" }, 404);
       }
 

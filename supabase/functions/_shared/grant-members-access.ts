@@ -6,8 +6,9 @@
  * Concede acesso à área de membros automaticamente após compra aprovada.
  * Usado pelos webhooks de pagamento (MercadoPago, Asaas, Stripe).
  * 
- * @version 3.0.0 - Centralized Logger
- * Data de Criação: 2026-01-06
+ * @version 4.0.0 - RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * SSOT: users table is the single source of truth
  * ============================================================================
  */
 
@@ -69,9 +70,11 @@ function generateToken(): string {
 /**
  * Concede acesso à área de membros para uma compra.
  * 
+ * RISE V3 10.0/10: users table is the ONLY SSOT
+ * 
  * Fluxo:
  * 1. Verifica se produto tem members_area_enabled
- * 2. Busca ou cria buyer_profile
+ * 2. Busca ou cria user (NOT buyer_profiles)
  * 3. Cria buyer_product_access (se não existir)
  * 4. Gera invite_token para novos buyers
  * 5. Retorna URL de acesso
@@ -112,13 +115,13 @@ export async function grantMembersAccess(
   log.info('Produto tem área de membros habilitada', { productId, productName: product.name });
 
   // ========================================================================
-  // 2. BUSCAR OU CRIAR BUYER_PROFILE
+  // 2. RISE V3: BUSCAR OU CRIAR USER (NOT buyer_profiles)
   // ========================================================================
 
   const normalizedEmail = customerEmail.toLowerCase().trim();
 
-  let { data: existingBuyer } = await supabase
-    .from('buyer_profiles')
+  let { data: existingUser } = await supabase
+    .from('users')
     .select('id, email, name, account_status')
     .eq('email', normalizedEmail)
     .single();
@@ -127,10 +130,10 @@ export async function grantMembersAccess(
   let isNewBuyer = false;
   let needsPasswordSetup = false;
 
-  if (!existingBuyer) {
-    // RISE V3: Criar novo buyer profile com account_status pending_setup
-    const { data: newBuyer, error: createError } = await supabase
-      .from('buyer_profiles')
+  if (!existingUser) {
+    // RISE V3: Create new user in users table (SSOT)
+    const { data: newUser, error: createError } = await supabase
+      .from('users')
       .insert({
         email: normalizedEmail,
         name: customerName || null,
@@ -142,28 +145,28 @@ export async function grantMembersAccess(
       .single();
 
     if (createError) {
-      log.error('Erro ao criar buyer profile', createError);
+      log.error('Erro ao criar user', createError);
       return { success: false, hasMembersArea: true, error: 'Erro ao criar perfil do comprador' };
     }
 
-    buyerId = newBuyer.id;
+    buyerId = newUser.id;
     isNewBuyer = true;
     needsPasswordSetup = true;
-    log.info('Novo buyer profile criado', { buyerId, email: normalizedEmail });
+    log.info('Novo user criado (SSOT)', { buyerId, email: normalizedEmail });
   } else {
-    buyerId = existingBuyer.id;
+    buyerId = existingUser.id;
     // RISE V3: Use account_status instead of password_hash markers
-    needsPasswordSetup = existingBuyer.account_status === 'pending_setup' || existingBuyer.account_status === 'reset_required';
+    needsPasswordSetup = existingUser.account_status === 'pending_setup' || existingUser.account_status === 'reset_required';
     
     // Atualizar nome se não tiver
-    if (customerName && !existingBuyer.name) {
+    if (customerName && !existingUser.name) {
       await supabase
-        .from('buyer_profiles')
+        .from('users')
         .update({ name: customerName })
         .eq('id', buyerId);
     }
     
-    log.info('Buyer profile existente encontrado', { buyerId, needsPasswordSetup });
+    log.info('User existente encontrado', { buyerId, needsPasswordSetup });
   }
 
   // ========================================================================
@@ -248,7 +251,7 @@ export async function grantMembersAccess(
   }
 
   // ========================================================================
-  // 4. GERAR INVITE TOKEN (se precisar setup de senha)
+  // 5. GERAR INVITE TOKEN (se precisar setup de senha)
   // ========================================================================
 
   let inviteToken: string | undefined;
