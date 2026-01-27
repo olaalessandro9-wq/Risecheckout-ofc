@@ -1,172 +1,118 @@
 
+# Plano: Componentes "Em Breve" no Checkout Builder
 
-# Plano: Correção da Exclusão de Conteúdo na Área de Membros
+## Objetivo
 
-## Diagnóstico
+Marcar os componentes **Vantagem**, **Selo** e **Depoimento** como "Em Breve" no painel de componentes do Checkout Builder, posicionando-os no final da lista.
 
-### Erro Identificado
-- **Sintoma**: Erro 400 ao tentar excluir conteúdo na área de membros
-- **Mensagem no console**: `Failed to load resource: the server responded with a status of 400 ()`
-- **Toast**: "Erro ao excluir conteúdo"
+---
 
-### Causa Raiz
+## Alterações no Arquivo
 
-O hook `useMembersAreaContents.ts` está chamando a **Edge Function errada**:
+### Arquivo: `src/components/checkout/CheckoutCustomizationPanel.tsx`
+
+---
+
+### Mudança 1: Adicionar `ComingSoonComponent` após `DraggableComponent` (linha 62)
+
+Inserir novo componente:
+
+```typescript
+// Item "Em Breve" (não arrastável, desabilitado visualmente)
+const ComingSoonComponent = ({ icon, label }: { icon: React.ReactNode; label: string }) => {
+  return (
+    <div
+      className="flex flex-col items-center justify-center p-4 rounded-lg border-2 border-dashed opacity-50 cursor-not-allowed relative"
+    >
+      {icon}
+      <span className="text-sm mt-2 text-muted-foreground">{label}</span>
+      <span className="absolute top-1 right-1 text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+        Em Breve
+      </span>
+    </div>
+  );
+};
+```
+
+---
+
+### Mudança 2: Reorganizar grid de componentes (linhas 217-225)
+
+**ANTES:**
+```typescript
+<div className="grid grid-cols-2 gap-3">
+  <DraggableComponent type="text" icon={<TypeIcon size={24} />} label="Texto" />
+  <DraggableComponent type="image" icon={<ImageIcon size={24} />} label="Imagem" />
+  <DraggableComponent type="advantage" icon={<CheckCircleIcon size={24} />} label="Vantagem" />
+  <DraggableComponent type="seal" icon={<AwardIcon size={24} />} label="Selo" />
+  <DraggableComponent type="timer" icon={<TimerIcon size={24} />} label="Cronômetro" />
+  <DraggableComponent type="testimonial" icon={<QuoteIcon size={24} />} label="Depoimento" />
+  <DraggableComponent type="video" icon={<VideoIcon size={24} />} label="Vídeo" />
+</div>
+```
+
+**DEPOIS:**
+```typescript
+<div className="grid grid-cols-2 gap-3">
+  {/* Componentes Funcionais */}
+  <DraggableComponent type="text" icon={<TypeIcon size={24} />} label="Texto" />
+  <DraggableComponent type="image" icon={<ImageIcon size={24} />} label="Imagem" />
+  <DraggableComponent type="timer" icon={<TimerIcon size={24} />} label="Cronômetro" />
+  <DraggableComponent type="video" icon={<VideoIcon size={24} />} label="Vídeo" />
+  
+  {/* Componentes "Em Breve" (desabilitados, no final) */}
+  <ComingSoonComponent icon={<CheckCircleIcon size={24} />} label="Vantagem" />
+  <ComingSoonComponent icon={<AwardIcon size={24} />} label="Selo" />
+  <ComingSoonComponent icon={<QuoteIcon size={24} />} label="Depoimento" />
+</div>
+```
+
+---
+
+## Resultado Visual
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                          FLUXO ATUAL (INCORRETO)                             │
+│  Componentes Disponíveis                                                     │
+│  Arraste para adicionar ao checkout                                         │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  useMembersAreaContents                                                      │
-│  │                                                                           │
-│  └── api.call('admin-data', { action: 'delete-member-content' })            │
-│                    │                                                         │
-│                    ▼                                                         │
-│              admin-data                                                      │
-│              │                                                               │
-│              └── switch(action)                                             │
-│                  │                                                           │
-│                  ├── case "delete-member-content" → NÃO EXISTE ❌           │
-│                  │                                                           │
-│                  └── default → return 400 "Ação desconhecida"               │
+│   ┌─────────────┐  ┌─────────────┐                                          │
+│   │     T       │  │     🖼️      │                                          │
+│   │   Texto     │  │   Imagem    │  ← Funcionais                            │
+│   └─────────────┘  └─────────────┘                                          │
 │                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-Enquanto isso, existe a Edge Function `content-crud` que já implementa todas as operações de conteúdo (create, update, delete, reorder) corretamente.
-
----
-
-## Solução
-
-### Correção no Frontend
-
-Alterar o hook `useMembersAreaContents.ts` para chamar a Edge Function correta (`content-crud`) com os nomes de ação corretos.
-
-**Mapeamento de Correção:**
-
-| Ação Atual (ERRADA) | Edge Function Atual | Ação Correta | Edge Function Correta |
-|---------------------|---------------------|--------------|----------------------|
-| `create-member-content` | `admin-data` | `create` | `content-crud` |
-| `update-member-content` | `admin-data` | `update` | `content-crud` |
-| `delete-member-content` | `admin-data` | `delete` | `content-crud` |
-| `reorder-member-contents` | `admin-data` | `reorder` | `content-crud` |
-
----
-
-## Alterações Necessárias
-
-### Arquivo: `src/modules/members-area/hooks/useMembersAreaContents.ts`
-
-**Mudança 1: `addContent` (linhas 46-51)**
-
-```typescript
-// ANTES
-const { data: result, error } = await api.call<...>('admin-data', {
-  action: 'create-member-content',
-  moduleId,
-  ...data,
-  position,
-});
-
-// DEPOIS
-const { data: result, error } = await api.call<...>('content-crud', {
-  action: 'create',
-  moduleId,
-  data: {
-    ...data,
-    position,
-  },
-});
-```
-
-**Mudança 2: `updateContent` (linhas 65-69)**
-
-```typescript
-// ANTES
-const { error } = await api.call<...>('admin-data', {
-  action: 'update-member-content',
-  contentId: id,
-  ...data,
-});
-
-// DEPOIS
-const { error } = await api.call<...>('content-crud', {
-  action: 'update',
-  contentId: id,
-  data,
-});
-```
-
-**Mudança 3: `deleteContent` (linhas 82-85)**
-
-```typescript
-// ANTES
-const { error } = await api.call<...>('admin-data', {
-  action: 'delete-member-content',
-  contentId: id,
-});
-
-// DEPOIS
-const { error } = await api.call<...>('content-crud', {
-  action: 'delete',
-  contentId: id,
-});
-```
-
-**Mudança 4: `reorderContents` (linhas 104-108)**
-
-```typescript
-// ANTES
-const { error } = await api.call<...>('admin-data', {
-  action: 'reorder-member-contents',
-  moduleId,
-  orderedIds,
-});
-
-// DEPOIS
-const { error } = await api.call<...>('content-crud', {
-  action: 'reorder',
-  moduleId,
-  orderedIds,
-});
-```
-
----
-
-## Fluxo Corrigido
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          FLUXO CORRIGIDO                                     │
-├─────────────────────────────────────────────────────────────────────────────┤
+│   ┌─────────────┐  ┌─────────────┐                                          │
+│   │     ⏱️      │  │     🎥      │                                          │
+│   │ Cronômetro  │  │   Vídeo     │  ← Funcionais                            │
+│   └─────────────┘  └─────────────┘                                          │
 │                                                                              │
-│  useMembersAreaContents                                                      │
-│  │                                                                           │
-│  └── api.call('content-crud', { action: 'delete', contentId })              │
-│                    │                                                         │
-│                    ▼                                                         │
-│              content-crud                                                    │
-│              │                                                               │
-│              └── if (action === "delete")                                   │
-│                  │                                                           │
-│                  ├── verifyContentOwnership() ✅                            │
-│                  │                                                           │
-│                  ├── supabase.delete() ✅                                   │
-│                  │                                                           │
-│                  └── return { success: true } ✅                            │
+│   ┌─────────────┐  ┌─────────────┐                                          │
+│   │ [Em Breve]  │  │ [Em Breve]  │                                          │
+│   │     ✓       │  │     🏆      │  ← Desabilitados (50% opacidade)         │
+│   │  Vantagem   │  │    Selo     │                                          │
+│   └─────────────┘  └─────────────┘                                          │
+│                                                                              │
+│   ┌─────────────┐                                                            │
+│   │ [Em Breve]  │                                                            │
+│   │     💬      │  ← Desabilitado (50% opacidade)                           │
+│   │ Depoimento  │                                                            │
+│   └─────────────┘                                                            │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Resumo das Alterações
+## Características do `ComingSoonComponent`
 
-| Arquivo | Mudanças |
-|---------|----------|
-| `src/modules/members-area/hooks/useMembersAreaContents.ts` | Trocar 4 chamadas de `admin-data` para `content-crud` com actions corretas |
+| Propriedade | Valor |
+|-------------|-------|
+| Opacidade | 50% (`opacity-50`) |
+| Cursor | `cursor-not-allowed` |
+| Badge | "Em Breve" no canto superior direito |
+| Texto | `text-muted-foreground` |
+| Eventos | Nenhum (não arrastável, não clicável) |
 
 ---
 
@@ -174,25 +120,7 @@ const { error } = await api.call<...>('content-crud', {
 
 | Critério | Status |
 |----------|--------|
-| Resolve causa raiz | Usa Edge Function correta |
-| Zero workarounds | Sem gambiarras |
-| Mantém arquivos < 300 linhas | Arquivo atual tem 127 linhas |
-| Zero breaking changes | Apenas corrige chamadas incorretas |
-| Logging mantido | Nenhuma alteração no logging |
-
----
-
-## Testes Esperados
-
-Após implementação:
-1. Abrir Área de Membros de um produto
-2. Expandir um módulo com conteúdos
-3. Clicar no botão de excluir conteúdo (lixeira)
-4. Toast "Conteúdo excluído!" deve aparecer
-5. Conteúdo deve desaparecer da lista
-
-Também testar:
-- Criar novo conteúdo
-- Atualizar conteúdo existente
-- Reordenar conteúdos via drag-and-drop
-
+| Consistência visual | Segue padrão de `OwnerGatewayCard` e `SidebarItem` |
+| Zero breaking changes | Componentes continuam no registry para uso futuro |
+| Mantém arquivos < 300 linhas | Arquivo continua com ~260 linhas |
+| Reutilização | Componente pode ser usado para outros itens "Em Breve" |
