@@ -1,95 +1,172 @@
 
-# Plano: Correção do Upload de Imagem no Checkout Builder
+
+# Plano: Correção da Exclusão de Conteúdo na Área de Membros
 
 ## Diagnóstico
 
 ### Erro Identificado
-- **Sintoma**: 403 Forbidden ao fazer upload de imagem no builder do checkout
-- **Localização**: `src/components/checkout/builder/items/Image/ImageEditor.tsx`
+- **Sintoma**: Erro 400 ao tentar excluir conteúdo na área de membros
+- **Mensagem no console**: `Failed to load resource: the server responded with a status of 400 ()`
+- **Toast**: "Erro ao excluir conteúdo"
 
 ### Causa Raiz
-O `ImageEditor.tsx` gera um path de upload que **NÃO é aceito** pela Edge Function:
 
-```typescript
-// ImageEditor.tsx linha 60 (INCORRETO)
-const fileName = `checkout-components/${component.id}-${Date.now()}.${fileExt}`;
+O hook `useMembersAreaContents.ts` está chamando a **Edge Function errada**:
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          FLUXO ATUAL (INCORRETO)                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  useMembersAreaContents                                                      │
+│  │                                                                           │
+│  └── api.call('admin-data', { action: 'delete-member-content' })            │
+│                    │                                                         │
+│                    ▼                                                         │
+│              admin-data                                                      │
+│              │                                                               │
+│              └── switch(action)                                             │
+│                  │                                                           │
+│                  ├── case "delete-member-content" → NÃO EXISTE ❌           │
+│                  │                                                           │
+│                  └── default → return 400 "Ação desconhecida"               │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-A Edge Function `storage-management` (linhas 108-117) valida que o path deve começar com:
-1. `${producer.id}/` (UUID do usuário)
-2. `products/` (path de produtos)
-
-O prefixo `checkout-components/` não é aceito → **403 Forbidden**.
+Enquanto isso, existe a Edge Function `content-crud` que já implementa todas as operações de conteúdo (create, update, delete, reorder) corretamente.
 
 ---
 
 ## Solução
 
-### Arquitetura da Correção
+### Correção no Frontend
+
+Alterar o hook `useMembersAreaContents.ts` para chamar a Edge Function correta (`content-crud`) com os nomes de ação corretos.
+
+**Mapeamento de Correção:**
+
+| Ação Atual (ERRADA) | Edge Function Atual | Ação Correta | Edge Function Correta |
+|---------------------|---------------------|--------------|----------------------|
+| `create-member-content` | `admin-data` | `create` | `content-crud` |
+| `update-member-content` | `admin-data` | `update` | `content-crud` |
+| `delete-member-content` | `admin-data` | `delete` | `content-crud` |
+| `reorder-member-contents` | `admin-data` | `reorder` | `content-crud` |
+
+---
+
+## Alterações Necessárias
+
+### Arquivo: `src/modules/members-area/hooks/useMembersAreaContents.ts`
+
+**Mudança 1: `addContent` (linhas 46-51)**
+
+```typescript
+// ANTES
+const { data: result, error } = await api.call<...>('admin-data', {
+  action: 'create-member-content',
+  moduleId,
+  ...data,
+  position,
+});
+
+// DEPOIS
+const { data: result, error } = await api.call<...>('content-crud', {
+  action: 'create',
+  moduleId,
+  data: {
+    ...data,
+    position,
+  },
+});
+```
+
+**Mudança 2: `updateContent` (linhas 65-69)**
+
+```typescript
+// ANTES
+const { error } = await api.call<...>('admin-data', {
+  action: 'update-member-content',
+  contentId: id,
+  ...data,
+});
+
+// DEPOIS
+const { error } = await api.call<...>('content-crud', {
+  action: 'update',
+  contentId: id,
+  data,
+});
+```
+
+**Mudança 3: `deleteContent` (linhas 82-85)**
+
+```typescript
+// ANTES
+const { error } = await api.call<...>('admin-data', {
+  action: 'delete-member-content',
+  contentId: id,
+});
+
+// DEPOIS
+const { error } = await api.call<...>('content-crud', {
+  action: 'delete',
+  contentId: id,
+});
+```
+
+**Mudança 4: `reorderContents` (linhas 104-108)**
+
+```typescript
+// ANTES
+const { error } = await api.call<...>('admin-data', {
+  action: 'reorder-member-contents',
+  moduleId,
+  orderedIds,
+});
+
+// DEPOIS
+const { error } = await api.call<...>('content-crud', {
+  action: 'reorder',
+  moduleId,
+  orderedIds,
+});
+```
+
+---
+
+## Fluxo Corrigido
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                          FLUXO CORRIGIDO                                     │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  CheckoutCustomizer                                                          │
-│  ├── persistence.productData.id  ──────────────────────────────────────┐    │
-│  │                                                                      │    │
-│  ▼                                                                      │    │
-│  CheckoutCustomizationPanel                                             │    │
-│  ├── productId prop (NOVO)  ◄───────────────────────────────────────────┘    │
-│  │                                                                            │
-│  ▼                                                                            │
-│  ImageEditor                                                                  │
-│  ├── productId prop (NOVO)                                                   │
-│  │                                                                            │
-│  └── Upload path:                                                            │
-│      ANTES: checkout-components/{id}-{ts}.png  ❌ 403 Forbidden             │
-│      DEPOIS: products/{productId}/checkout-components/{id}-{ts}.png  ✅     │
+│  useMembersAreaContents                                                      │
+│  │                                                                           │
+│  └── api.call('content-crud', { action: 'delete', contentId })              │
+│                    │                                                         │
+│                    ▼                                                         │
+│              content-crud                                                    │
+│              │                                                               │
+│              └── if (action === "delete")                                   │
+│                  │                                                           │
+│                  ├── verifyContentOwnership() ✅                            │
+│                  │                                                           │
+│                  ├── supabase.delete() ✅                                   │
+│                  │                                                           │
+│                  └── return { success: true } ✅                            │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Alterações Necessárias
+## Resumo das Alterações
 
-### 1. ImageEditor.tsx
-**Arquivo**: `src/components/checkout/builder/items/Image/ImageEditor.tsx`
-
-**Mudanças**:
-- Adicionar prop `productId?: string` na interface
-- Alterar a geração do path de upload:
-
-```typescript
-// ANTES (linha 60)
-const fileName = `checkout-components/${component.id}-${Date.now()}.${fileExt}`;
-
-// DEPOIS
-const basePath = productId 
-  ? `products/${productId}/checkout-components`
-  : `products/unknown/checkout-components`;
-const fileName = `${basePath}/${component.id}-${Date.now()}.${fileExt}`;
-```
-
-### 2. CheckoutCustomizationPanel.tsx
-**Arquivo**: `src/components/checkout/CheckoutCustomizationPanel.tsx`
-
-**Mudanças**:
-- Adicionar prop `productId?: string` na interface
-- Passar `productId` para o editor do componente Image
-
-### 3. CheckoutCustomizer.tsx
-**Arquivo**: `src/pages/CheckoutCustomizer.tsx`
-
-**Mudanças**:
-- Passar `productId={persistence.productData?.id}` para `CheckoutCustomizationPanel`
-
-### 4. types/builder
-**Arquivo**: `src/components/checkout/builder/types.ts`
-
-**Mudanças**:
-- Atualizar `ComponentEditorProps` para incluir `productId?: string`
+| Arquivo | Mudanças |
+|---------|----------|
+| `src/modules/members-area/hooks/useMembersAreaContents.ts` | Trocar 4 chamadas de `admin-data` para `content-crud` com actions corretas |
 
 ---
 
@@ -97,40 +174,25 @@ const fileName = `${basePath}/${component.id}-${Date.now()}.${fileExt}`;
 
 | Critério | Status |
 |----------|--------|
-| Resolve causa raiz | ✅ Path agora segue padrão obrigatório |
-| Zero workarounds | ✅ Sem gambiarras |
-| Segue memory storage/product-path-standard-v3 | ✅ Prefixo `products/${productId}/` |
-| Mantém arquivos < 300 linhas | ✅ Apenas adições mínimas |
-| Zero breaking changes | ✅ Props opcionais com fallback |
-
----
-
-## Arquivos a Modificar
-
-| Arquivo | Linhas Afetadas | Tipo |
-|---------|-----------------|------|
-| `ImageEditor.tsx` | ~8 linhas | Edição |
-| `CheckoutCustomizationPanel.tsx` | ~3 linhas | Edição |
-| `CheckoutCustomizer.tsx` | ~1 linha | Edição |
-| `src/components/checkout/builder/types.ts` | ~2 linhas | Edição |
-
----
-
-## Fallback de Segurança
-
-Caso `productId` não esteja disponível (edge case), o sistema usa `products/unknown/checkout-components` como fallback. Isso garante que:
-1. O upload não falha com 403
-2. O arquivo ainda é armazenado em local válido
-3. O sistema degrada graciosamente
+| Resolve causa raiz | Usa Edge Function correta |
+| Zero workarounds | Sem gambiarras |
+| Mantém arquivos < 300 linhas | Arquivo atual tem 127 linhas |
+| Zero breaking changes | Apenas corrige chamadas incorretas |
+| Logging mantido | Nenhuma alteração no logging |
 
 ---
 
 ## Testes Esperados
 
 Após implementação:
-1. Abrir Personalizar Checkout
-2. Adicionar componente Imagem
-3. Fazer upload de imagem
-4. ✅ Upload deve completar sem erro 403
-5. ✅ Imagem deve aparecer no preview
-6. ✅ Salvar checkout deve persistir a imagem
+1. Abrir Área de Membros de um produto
+2. Expandir um módulo com conteúdos
+3. Clicar no botão de excluir conteúdo (lixeira)
+4. Toast "Conteúdo excluído!" deve aparecer
+5. Conteúdo deve desaparecer da lista
+
+Também testar:
+- Criar novo conteúdo
+- Atualizar conteúdo existente
+- Reordenar conteúdos via drag-and-drop
+
