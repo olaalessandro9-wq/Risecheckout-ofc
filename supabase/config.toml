@@ -6,7 +6,7 @@ project_id = "wivbtmtgpsxupfjwwovf"
 # 
 # PADRÃO: verify_jwt = false
 # Todas as funções usam autenticação via:
-# - unified-auth (Cookie: __Host-rise_access)
+# - unified-auth (Cookie: __Secure-rise_access)
 # - Tabela: sessions (com active_role)
 # - Sem auth para webhooks/públicas
 #
