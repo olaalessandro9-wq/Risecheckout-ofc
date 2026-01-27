@@ -31,9 +31,24 @@ export { jsonResponse, errorResponse };
 
 export type IntegrationType = "MERCADOPAGO" | "STRIPE" | "ASAAS" | "PUSHINPAY";
 
+const VALID_INTEGRATION_TYPES: readonly string[] = ["MERCADOPAGO", "STRIPE", "ASAAS", "PUSHINPAY"];
+
 export interface CredentialsPayload {
   integrationType: IntegrationType;
   config: Record<string, unknown>;
+}
+
+// ============================================================================
+// UUID VALIDATION HELPER
+// ============================================================================
+
+/**
+ * Validates if a string is a valid UUID (v1-v5 format).
+ * Used to prevent Postgres 22P02 errors when invalid IDs are passed.
+ */
+function isUuid(value: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(value);
 }
 
 // ============================================================================
@@ -166,6 +181,21 @@ export async function handleDisconnect(
     return errorResponse("Tipo de integração ou ID é obrigatório", corsHeaders, 400);
   }
 
+  // RISE V3: Validate integrationId is UUID if provided (prevents Postgres 22P02)
+  if (integrationId && !isUuid(integrationId)) {
+    log.warn("Invalid integrationId format:", { integrationId, producerId });
+    return errorResponse("integrationId inválido; esperado UUID", corsHeaders, 400);
+  }
+
+  // RISE V3: Validate integrationType against allowed values
+  if (integrationType) {
+    const normalizedType = integrationType.toUpperCase();
+    if (!VALID_INTEGRATION_TYPES.includes(normalizedType)) {
+      log.warn("Invalid integrationType:", { integrationType, producerId });
+      return errorResponse(`integrationType inválido: ${integrationType}`, corsHeaders, 400);
+    }
+  }
+
   try {
     // 1. BUSCAR A INTEGRAÇÃO PRIMEIRO (para obter o tipo se não fornecido)
     let query = supabase.from("vendor_integrations").select("id, integration_type");
@@ -173,7 +203,8 @@ export async function handleDisconnect(
     if (integrationId) {
       query = query.eq("id", integrationId).eq("vendor_id", producerId);
     } else {
-      query = query.eq("vendor_id", producerId).eq("integration_type", integrationType);
+      const normalizedType = integrationType!.toUpperCase();
+      query = query.eq("vendor_id", producerId).eq("integration_type", normalizedType);
     }
 
     const { data: integration, error: fetchError } = await query.maybeSingle();

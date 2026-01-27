@@ -30,7 +30,7 @@ interface UseMercadoPagoConnectionProps {
 interface UseMercadoPagoConnectionReturn {
   connectingOAuth: boolean;
   handleConnectOAuth: () => Promise<void>;
-  handleDisconnect: (integrationId: string | undefined) => Promise<void>;
+  handleDisconnect: () => Promise<void>;
 }
 
 export function useMercadoPagoConnection({
@@ -149,16 +149,11 @@ export function useMercadoPagoConnection({
     }
   }, [userId, onConnectionChange]);
 
-  const handleDisconnect = useCallback(async (integrationId: string | undefined) => {
+  const handleDisconnect = useCallback(async () => {
     try {
-      if (!integrationId) {
-        toast.error('Integração não encontrada');
-        return;
-      }
-
       const { data: result, error } = await api.call<{ success?: boolean; error?: string }>('integration-management', {
         action: 'disconnect',
-        integrationId,
+        integrationType: 'MERCADOPAGO',
       });
 
       if (error || !result?.success) {
