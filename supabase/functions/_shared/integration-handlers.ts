@@ -18,6 +18,7 @@ import {
 } from "./rate-limiting/index.ts";
 import { jsonResponse, errorResponse } from "./response-helpers.ts";
 import { createLogger } from "./logger.ts";
+import { deleteCredentialsFromVault } from "./vault-credentials.ts";
 
 const log = createLogger("IntegrationHandlers");
 
@@ -150,7 +151,7 @@ export async function handleSaveCredentials(
 }
 
 // ============================================================================
-// HANDLER: DISCONNECT
+// HANDLER: DISCONNECT (RISE V3 - Soft-Delete + Vault Cleanup)
 // ============================================================================
 
 export async function handleDisconnect(
@@ -165,23 +166,66 @@ export async function handleDisconnect(
     return errorResponse("Tipo de integração ou ID é obrigatório", corsHeaders, 400);
   }
 
-  let query = supabase.from("vendor_integrations").delete();
-  
-  if (integrationId) {
-    query = query.eq("id", integrationId).eq("vendor_id", producerId);
-  } else {
-    query = query.eq("vendor_id", producerId).eq("integration_type", integrationType);
+  try {
+    // 1. BUSCAR A INTEGRAÇÃO PRIMEIRO (para obter o tipo se não fornecido)
+    let query = supabase.from("vendor_integrations").select("id, integration_type");
+    
+    if (integrationId) {
+      query = query.eq("id", integrationId).eq("vendor_id", producerId);
+    } else {
+      query = query.eq("vendor_id", producerId).eq("integration_type", integrationType);
+    }
+
+    const { data: integration, error: fetchError } = await query.maybeSingle();
+
+    if (fetchError) {
+      log.error("Error fetching integration:", fetchError);
+      return errorResponse("Erro ao buscar integração", corsHeaders, 500);
+    }
+
+    if (!integration) {
+      log.warn("Integration not found", { integrationId, integrationType, producerId });
+      return errorResponse("Integração não encontrada", corsHeaders, 404);
+    }
+
+    const gatewayType = (integration.integration_type as string).toLowerCase();
+
+    // 2. DELETAR CREDENCIAIS DO VAULT (se existirem)
+    const vaultResult = await deleteCredentialsFromVault(
+      supabase,
+      producerId,
+      gatewayType
+    );
+    
+    if (!vaultResult.success) {
+      log.warn("Failed to delete vault credentials (continuing):", vaultResult.error);
+      // Não falha a operação inteira - credenciais podem não existir
+    } else {
+      log.info("✅ Credentials deleted from Vault");
+    }
+
+    // 3. SOFT-DELETE: UPDATE active=false, limpar config
+    const { error: updateError } = await supabase
+      .from("vendor_integrations")
+      .update({
+        active: false,
+        config: {},
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", integration.id);
+
+    if (updateError) {
+      log.error("Error deactivating integration:", updateError);
+      return errorResponse("Erro ao desativar integração", corsHeaders, 500);
+    }
+
+    log.info(`✅ Disconnected ${gatewayType} for ${producerId}`);
+    return jsonResponse({ success: true }, corsHeaders);
+
+  } catch (error) {
+    log.error("Disconnect exception:", error);
+    return errorResponse("Erro inesperado ao desconectar", corsHeaders, 500);
   }
-
-  const { error } = await query;
-
-  if (error) {
-    log.error("Disconnect error:", error);
-    return errorResponse("Erro ao desconectar integração", corsHeaders, 500);
-  }
-
-  log.info(`Disconnected ${integrationType || integrationId} for ${producerId}`);
-  return jsonResponse({ success: true }, corsHeaders);
 }
 
 // ============================================================================
