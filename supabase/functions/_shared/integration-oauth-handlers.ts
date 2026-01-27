@@ -2,9 +2,10 @@
  * Integration OAuth Handlers
  * 
  * Extracted OAuth-specific handlers for integration-management.
+ * SSOT: Usa mercadopago-oauth-config.ts para gerar Authorization URL
  * 
  * @created 2026-01-13 - Extracted from integration-handlers.ts
- * @version 2.0.0
+ * @version 3.0.0 - RISE Protocol V3 SSOT Architecture
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -16,6 +17,7 @@ import {
   generateSecureNonce,
 } from "./integration-handlers.ts";
 import { createLogger } from "./logger.ts";
+import { buildAuthorizationUrl, validateOAuthSecrets } from "./mercadopago-oauth-config.ts";
 
 const log = createLogger("IntegrationOAuth");
 
@@ -44,6 +46,19 @@ export async function handleInitOAuth(
     return errorResponse("Tipo de integração é obrigatório", corsHeaders, 400);
   }
 
+  // Validar secrets antes de prosseguir
+  if (integrationType === 'MERCADOPAGO') {
+    const secretsValidation = validateOAuthSecrets();
+    if (!secretsValidation.valid) {
+      log.error(`Secrets faltando: ${secretsValidation.missing.join(', ')}`);
+      return errorResponse(
+        "Configuração do Mercado Pago incompleta. Contate o suporte.",
+        corsHeaders,
+        500
+      );
+    }
+  }
+
   const nonce = generateSecureNonce();
   const expiresAt = new Date();
   expiresAt.setMinutes(expiresAt.getMinutes() + 10);
@@ -61,8 +76,19 @@ export async function handleInitOAuth(
     return errorResponse("Erro ao iniciar autenticação", corsHeaders, 500);
   }
 
-  // Rate limit auto-records in consolidated module
+  // SSOT: Gerar Authorization URL no backend
+  let authorizationUrl: string | null = null;
+  
+  if (integrationType === 'MERCADOPAGO') {
+    authorizationUrl = buildAuthorizationUrl({ state: nonce });
+    log.info(`Authorization URL gerada: ${authorizationUrl.substring(0, 80)}...`);
+  }
 
   log.info(`OAuth state created for ${integrationType} by ${producerId}`);
-  return jsonResponse({ success: true, state: nonce }, corsHeaders);
+  
+  return jsonResponse({ 
+    success: true, 
+    state: nonce,
+    authorizationUrl, // Frontend usa isso diretamente, sem montar URL
+  }, corsHeaders);
 }
