@@ -6,26 +6,31 @@
  * @see RISE ARCHITECT PROTOCOL V3 - Modularização
  */
 
+import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useOffersManager } from "./useOffersManager";
 import { DefaultOfferCard } from "./DefaultOfferCard";
 import { AdditionalOfferCard } from "./AdditionalOfferCard";
+import { NewOfferCard } from "./NewOfferCard";
 import type { OffersManagerProps } from "./types";
 
 export function OffersManager({
+  productId,
   offers,
   onOffersChange,
   onModifiedChange,
   onOfferDeleted,
+  onOfferCreated,
   memberGroups = [],
   hasMembersArea = false,
 }: OffersManagerProps) {
+  const [isCreating, setIsCreating] = useState(false);
+  
   const {
     errors,
     defaultOffer,
     additionalOffers,
-    handleAddOffer,
     handleRemoveOffer,
     handleUpdateOffer,
   } = useOffersManager({
@@ -34,6 +39,19 @@ export function OffersManager({
     onModifiedChange,
     onOfferDeleted,
   });
+
+  const handleAddOfferClick = () => {
+    setIsCreating(true);
+  };
+
+  const handleNewOfferSave = () => {
+    setIsCreating(false);
+    onOfferCreated?.();
+  };
+
+  const handleNewOfferCancel = () => {
+    setIsCreating(false);
+  };
 
   return (
     <div className="border-t border-border pt-6">
@@ -72,16 +90,30 @@ export function OffersManager({
           />
         ))}
 
+        {/* CARD DE CRIAÇÃO DE NOVA OFERTA */}
+        {isCreating && productId && (
+          <NewOfferCard
+            productId={productId}
+            onSave={handleNewOfferSave}
+            onCancel={handleNewOfferCancel}
+            hasMembersArea={hasMembersArea}
+            memberGroups={memberGroups}
+          />
+        )}
+
         {/* BOTÃO ADICIONAR NOVA OFERTA */}
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handleAddOffer}
-          className="w-full"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Adicionar Nova Oferta
-        </Button>
+        {!isCreating && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleAddOfferClick}
+            className="w-full"
+            disabled={!productId}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Adicionar Nova Oferta
+          </Button>
+        )}
       </div>
     </div>
   );

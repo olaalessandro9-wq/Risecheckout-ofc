@@ -31,6 +31,7 @@ export interface OffersManagerProps {
   onOffersChange: (offers: Offer[]) => void;
   onModifiedChange: (modified: boolean) => void;
   onOfferDeleted?: (offerId: string) => void;
+  onOfferCreated?: () => void;
   memberGroups?: MemberGroupOption[];
   hasMembersArea?: boolean;
 }
