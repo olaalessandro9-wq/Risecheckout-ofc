@@ -23,6 +23,13 @@ export interface OfferError {
   price?: string;
 }
 
+export interface AutoSaveState {
+  isSaving: boolean;
+  lastSavedAt: Date | null;
+  saveError: string | null;
+  showSavedIndicator: boolean;
+}
+
 export interface OffersManagerProps {
   productId: string | null;
   productName: string;

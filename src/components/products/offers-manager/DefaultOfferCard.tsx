@@ -2,13 +2,16 @@
  * Card da Oferta Principal
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - Componente Puro
+ * @see Auto-save com debounce para ofertas existentes
  */
 
+import { Loader2, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Badge } from "@/components/ui/badge";
 import { MemberGroupSelect } from "./MemberGroupSelect";
+import { useAutoSaveOffer } from "./useAutoSaveOffer";
 import type { Offer, OfferError, MemberGroupOption } from "./types";
 
 interface DefaultOfferCardProps {
@@ -26,12 +29,36 @@ export function DefaultOfferCard({
   hasMembersArea,
   memberGroups,
 }: DefaultOfferCardProps) {
+  // Auto-save hook para ofertas existentes
+  const { isSaving, showSavedIndicator } = useAutoSaveOffer({
+    offerId: offer.id,
+    currentName: offer.name,
+    currentPrice: offer.price,
+    currentMemberGroupId: offer.member_group_id,
+  });
+
   return (
     <div className="border border-border rounded-lg p-4 space-y-4 bg-background/50">
       <div className="flex items-start justify-between">
         <Badge variant="default" className="mb-2">
           Oferta Principal
         </Badge>
+        
+        {/* Indicador de Auto-Save */}
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          {isSaving && (
+            <>
+              <Loader2 className="w-3 h-3 animate-spin" />
+              <span>Salvando...</span>
+            </>
+          )}
+          {showSavedIndicator && !isSaving && (
+            <>
+              <Check className="w-3 h-3 text-green-500" />
+              <span className="text-green-500">Salvo</span>
+            </>
+          )}
+        </div>
       </div>
       
       <div className="grid grid-cols-2 gap-4">
