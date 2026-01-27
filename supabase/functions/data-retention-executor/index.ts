@@ -21,6 +21,9 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import type { CleanupRequest, CleanupCategory } from './types.ts';
 import { RETENTION_POLICIES } from './types.ts';
+import { createLogger } from '../_shared/logger.ts';
+
+const log = createLogger('DataRetentionExecutor');
 import { 
   executeFullCleanup, 
   executeCategoryCleanup, 
@@ -106,7 +109,7 @@ serve(async (req: Request): Promise<Response> => {
     }
   } catch (e) {
     const errorMessage = e instanceof Error ? e.message : 'Unknown error';
-    console.error('[data-retention-executor] Error:', errorMessage);
+    log.error('Error', { error: errorMessage });
     
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),

@@ -16,6 +16,9 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("rls-documentation-generator");
 
 // ============================================================================
 // TYPES
@@ -52,13 +55,13 @@ Deno.serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    console.log("[rls-documentation-generator] Generating RLS documentation...");
+    log.info("Generating RLS documentation...");
 
     // Chamar função SQL que gera a documentação
     const { data, error } = await supabase.rpc("generate_rls_documentation");
 
     if (error) {
-      console.error("[rls-documentation-generator] Error:", error);
+      log.error("Database error", { error: error.message });
       return new Response(
         JSON.stringify({ 
           error: "Failed to generate documentation", 
@@ -93,7 +96,7 @@ Deno.serve(async (req: Request) => {
       markdown += section.content;
     }
 
-    console.log(`[rls-documentation-generator] Generated ${markdown.length} chars`);
+    log.info("Documentation generated", { chars: markdown.length });
 
     // Verificar se quer JSON ou Markdown
     const acceptHeader = req.headers.get("Accept") || "";
@@ -124,7 +127,7 @@ Deno.serve(async (req: Request) => {
 
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    console.error("[rls-documentation-generator] Exception:", errorMessage);
+    log.error("Exception", { error: errorMessage });
 
     return new Response(
       JSON.stringify({ error: "Internal server error", details: errorMessage }),
