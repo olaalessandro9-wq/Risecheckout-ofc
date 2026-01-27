@@ -3,6 +3,7 @@
  */
 
 import { OffersManager, type Offer, type MemberGroupOption } from "@/components/products/OffersManager";
+import { useProductContext } from "../../context/ProductContext";
 import type { GeneralFormData } from "../../types/formData.types";
 
 interface Props {
@@ -26,6 +27,12 @@ export function ProductOffersSection({
   memberGroups = [],
   hasMembersArea = false,
 }: Props) {
+  const { refreshAll } = useProductContext();
+
+  const handleOfferCreated = () => {
+    refreshAll();
+  };
+
   return (
     <OffersManager
       productId={productId}
@@ -35,6 +42,7 @@ export function ProductOffersSection({
       onOffersChange={onOffersChange}
       onModifiedChange={onModifiedChange}
       onOfferDeleted={onOfferDeleted}
+      onOfferCreated={handleOfferCreated}
       memberGroups={memberGroups}
       hasMembersArea={hasMembersArea}
     />
