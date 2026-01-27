@@ -90,8 +90,8 @@ Sistema de Identidade Unificada no padrão Kiwify/Cakto/Hotmart:
 │  └── unifiedTokenService (singleton FSM)                        │
 │                                                                  │
 │  Cookies:                                                        │
-│  ├── __Host-rise_access (60 min, httpOnly, Secure)             │
-│  └── __Host-rise_refresh (30 dias, httpOnly, Secure)           │
+│  ├── __Secure-rise_access (4h, httpOnly, Secure, Domain)       │
+│  └── __Secure-rise_refresh (30 dias, httpOnly, Secure, Domain) │
 │                                                                  │
 │  ✅ BENEFÍCIO: Context switch instantâneo sem re-login          │
 │                                                                  │
@@ -216,8 +216,8 @@ export const unifiedTokenService = new TokenService("unified");
 
 | Cookie | Duração | Flags | Propósito |
 |--------|---------|-------|-----------|
-| `__Host-rise_access` | 60 min | httpOnly, Secure, SameSite=Lax | Token de acesso |
-| `__Host-rise_refresh` | 30 dias | httpOnly, Secure, SameSite=Lax | Token de refresh |
+| `__Secure-rise_access` | 4h | httpOnly, Secure, SameSite=Lax, Domain=.risecheckout.com | Token de acesso |
+| `__Secure-rise_refresh` | 30 dias | httpOnly, Secure, SameSite=Lax, Domain=.risecheckout.com | Token de refresh |
 
 ---
 
@@ -302,7 +302,7 @@ UNIFIED_COOKIE_NAMES (duplicata)
 
 | # | Critério | Método de Teste | Resultado |
 |---|----------|-----------------|-----------|
-| 1 | Sessão persiste 30 dias | Cookie `__Host-rise_refresh` Max-Age | ✅ PASS |
+| 1 | Sessão persiste 30 dias | Cookie `__Secure-rise_refresh` Max-Age | ✅ PASS |
 | 2 | Zero re-login ao trocar contexto | Endpoint `switch-context` | ✅ PASS |
 | 3 | Cookie único de acesso | DevTools → Application → Cookies | ✅ PASS |
 | 4 | Tabela única de sessões | `SELECT COUNT(*) FROM sessions` | ✅ PASS |

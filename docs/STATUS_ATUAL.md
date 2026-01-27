@@ -211,7 +211,7 @@ O RiseCheckout está **100% completo** e em **conformidade total com o RISE ARCH
 | Tabela `sessions` (SSOT) | ✅ Única fonte de verdade |
 | Edge Function `unified-auth` | ✅ Login/Logout/Refresh/Switch-Context |
 | Hook `useUnifiedAuth` | ✅ Único hook para todo o app |
-| Cookies `__Host-rise_*` | ✅ httpOnly, Secure, SameSite=Lax |
+| Cookies `__Secure-rise_*` | ✅ httpOnly, Secure, SameSite=Lax, Domain=.risecheckout.com |
 | Tabelas legadas (`producer_sessions`, `buyer_sessions`) | ✅ **DELETADAS** |
 | Edge Functions legadas (`buyer-auth`, `producer-auth`) | ✅ **DELETADAS** |
 | **Context Guards (Cakto-style)** | ✅ **IMPLEMENTADO** |

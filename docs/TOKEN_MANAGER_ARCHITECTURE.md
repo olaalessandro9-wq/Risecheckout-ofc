@@ -48,9 +48,9 @@ src/lib/token-manager/
 | `service.ts` | Orquestração e API pública | ~210 |
 | `index.ts` | Re-exports e instâncias singleton | ~57 |
 
-> **⚠️ NOTA IMPORTANTE (2026-01-23 - Fase 13):**  
+> **⚠️ NOTA IMPORTANTE (2026-01-27 - Session Commander V3):**  
 > O `persistence.ts` gerencia apenas **metadados de estado da FSM** (ex: `lastRefresh`, `expiresAt`), **não os tokens em si**.  
-> Os tokens de sessão são armazenados em **cookies httpOnly** (`__Host-rise_access` / `__Host-rise_refresh`),  
+> Os tokens de sessão são armazenados em **cookies httpOnly** (`__Secure-rise_access` / `__Secure-rise_refresh`),  
 > inacessíveis via JavaScript, protegendo contra XSS. O browser envia os cookies automaticamente em cada requisição.
 
 ---
@@ -315,8 +315,8 @@ Os tokens de sessão são armazenados em **cookies httpOnly** gerenciados pelo b
 
 | Cookie | Descrição |
 |--------|-----------|
-| `__Host-rise_access` | Token de acesso unificado (60 min) |
-| `__Host-rise_refresh` | Refresh token unificado (30 dias) |
+| `__Secure-rise_access` | Token de acesso unificado (4h, Domain=.risecheckout.com) |
+| `__Secure-rise_refresh` | Refresh token unificado (30 dias, Domain=.risecheckout.com) |
 
 > **IMPORTANTE:** O JavaScript **NÃO** tem acesso aos tokens (proteção XSS total).
 > O TokenService gerencia apenas o **estado da FSM**, não os tokens em si.

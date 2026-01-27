@@ -9,22 +9,24 @@
 
 ```
 _shared/
-├── platform-config.ts        # Configurações centralizadas da plataforma
-├── asaas-customer.ts         # Gerenciamento de clientes Asaas
-├── asaas-split-calculator.ts # Cálculo de split Marketplace
-├── audit-logger.ts           # Log de eventos de segurança
-├── rate-limiting/            # Módulo consolidado de rate limiting (RISE V3)
-│   ├── index.ts              # Barrel exports
-│   ├── types.ts              # Tipagens TypeScript
-│   ├── configs.ts            # Configurações por action
-│   ├── service.ts            # Lógica core (checkRateLimit)
-│   ├── blocklist.ts          # IP blocklist
-│   └── middleware.ts         # Middlewares prontos
-├── role-validator.ts         # Validação de permissões (RBAC)
-├── get-vendor-token.ts       # Busca tokens do Vault
-├── unified-auth.ts           # Wrapper de compatibilidade (usa unified-auth-v2)
-├── unified-auth-v2.ts        # Sistema de auth unificado (RISE V3 SSOT)
-└── payment-gateways/         # Módulos específicos de gateways
+├── platform-config.ts            # Configurações centralizadas da plataforma
+├── asaas-customer.ts             # Gerenciamento de clientes Asaas
+├── asaas-split-calculator.ts     # Cálculo de split Marketplace
+├── audit-logger.ts               # Log de eventos de segurança
+├── mercadopago-oauth-config.ts   # SSOT OAuth Mercado Pago (RISE V3)
+├── stripe-oauth-config.ts        # SSOT OAuth Stripe (RISE V3)
+├── rate-limiting/                # Módulo consolidado de rate limiting (RISE V3)
+│   ├── index.ts                  # Barrel exports
+│   ├── types.ts                  # Tipagens TypeScript
+│   ├── configs.ts                # Configurações por action
+│   ├── service.ts                # Lógica core (checkRateLimit)
+│   ├── blocklist.ts              # IP blocklist
+│   └── middleware.ts             # Middlewares prontos
+├── role-validator.ts             # Validação de permissões (RBAC)
+├── get-vendor-token.ts           # Busca tokens do Vault
+├── unified-auth.ts               # Wrapper de compatibilidade (usa unified-auth-v2)
+├── unified-auth-v2.ts            # Sistema de auth unificado (RISE V3 SSOT)
+└── payment-gateways/             # Módulos específicos de gateways
 ```
 
 ---
@@ -97,6 +99,79 @@ interface UnifiedUser {
   roles: string[];      // Roles disponíveis
 }
 ```
+
+---
+
+## 🔐 OAuth Configuration (RISE V3 - SSOT)
+
+### Arquitetura OAuth SSOT
+
+Os fluxos OAuth dos gateways de pagamento usam módulos de configuração centralizados:
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                     SSOT OAuth Architecture                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Frontend                                                        │
+│     │                                                            │
+│     ▼ (1) Request init-oauth                                     │
+│  integration-management                                          │
+│     │                                                            │
+│     ▼ (2) Import config                                          │
+│  mercadopago-oauth-config.ts / stripe-oauth-config.ts           │
+│     │                                                            │
+│     ▼ (3) Return authorizationUrl                                │
+│  Frontend → window.open(authorizationUrl)                        │
+│     │                                                            │
+│     ▼ (4) Callback with code                                     │
+│  mercadopago-oauth-callback / stripe-connect-oauth               │
+│     │                                                            │
+│     ▼ (5) Token exchange (SAME redirect_uri from config)         │
+│  Success!                                                        │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### `mercadopago-oauth-config.ts`
+
+SSOT para OAuth do Mercado Pago.
+
+```typescript
+import { 
+  buildAuthorizationUrl,
+  getTokenExchangeConfig,
+  MERCADOPAGO_REDIRECT_URI,
+  MERCADOPAGO_CLIENT_ID
+} from "../_shared/mercadopago-oauth-config.ts";
+
+// Gerar URL de autorização
+const url = buildAuthorizationUrl({ state: 'abc123' });
+
+// Obter config para token exchange
+const config = getTokenExchangeConfig({ code: 'auth_code' });
+```
+
+### `stripe-oauth-config.ts`
+
+SSOT para OAuth do Stripe Connect.
+
+```typescript
+import { 
+  buildStripeAuthorizationUrl,
+  STRIPE_REDIRECT_URI,
+  getStripeClientId
+} from "../_shared/stripe-oauth-config.ts";
+
+// Gerar URL de autorização
+const url = buildStripeAuthorizationUrl({ state: 'abc123' });
+```
+
+### Por que SSOT?
+
+1. **Zero mismatch de redirect_uri** - Mesmo valor usado em autorização e token exchange
+2. **URL hardcoded** - Elimina dependência de secrets para configuração de URL
+3. **Consistência** - Frontend não monta URLs OAuth manualmente
 
 ---
 

@@ -304,7 +304,7 @@ supabase/functions/_shared/affiliation-queries/
 
 ### 7.1 Authentication
 - Todos endpoints autenticados usam `requireAuthenticatedProducer()` do unified-auth
-- Sessão validada via Cookie `__Host-rise_access` (httpOnly)
+- Sessão validada via Cookie `__Secure-rise_access` (httpOnly, Domain=.risecheckout.com)
 
 ### 7.2 Ownership Validation
 - Afiliados só podem modificar suas próprias afiliações

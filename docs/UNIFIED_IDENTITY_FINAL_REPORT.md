@@ -114,8 +114,8 @@
 
 | Cookie | Duração | Flags |
 |--------|---------|-------|
-| `__Host-rise_access` | 60 min | httpOnly, Secure, SameSite=Lax |
-| `__Host-rise_refresh` | 30 dias | httpOnly, Secure, SameSite=Lax |
+| `__Secure-rise_access` | 4h | httpOnly, Secure, SameSite=Lax, Domain=.risecheckout.com |
+| `__Secure-rise_refresh` | 30 dias | httpOnly, Secure, SameSite=Lax, Domain=.risecheckout.com |
 
 ---
 

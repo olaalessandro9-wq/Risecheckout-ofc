@@ -46,11 +46,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     'MERCADOPAGO_WEBHOOK_SECRET': 'mercadopago',
     'MERCADOPAGO_COLLECTOR_ID': 'mercadopago',
     
-    // Stripe
+    // Stripe (STRIPE_REDIRECT_URL removido - hardcoded em stripe-oauth-config.ts SSOT)
     'STRIPE_SECRET_KEY': 'stripe',
     'STRIPE_WEBHOOK_SECRET': 'stripe',
     'STRIPE_CLIENT_ID': 'stripe',
-    'STRIPE_REDIRECT_URL': 'stripe',
     
     // PushinPay
     'PUSHINPAY_API_TOKEN': 'pushinpay',
