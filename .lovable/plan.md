@@ -1,205 +1,198 @@
 
+## Contexto e evidência (o que está acontecendo de verdade)
 
-# Plano: Corrigir Duplicação de Produtos com Nomes Longos
+Você está certo em dois pontos:
 
-## Diagnóstico (Root Cause Only)
+1) **Os secrets existem** (o print do Supabase confirma).  
+2) O erro atual **não é “falta de secret”** — é **mismatch de configuração**.
 
-O erro ocorre na linha 89 de `product-duplicate-handlers.ts`:
+O dado objetivo que encerra a dúvida é este:
 
-```typescript
-const baseName = `${srcProduct.name} (Cópia)`;
+- **Logs reais da Edge Function `mercadopago-oauth-callback` mostram que o `redirect_uri` usado no TOKEN EXCHANGE ainda é o antigo**:
+
+```
+Redirect URI: https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/mercadopago-oauth-callback
 ```
 
-**Constraint do banco de dados:**
-```sql
-CHECK (((char_length(name) >= 1) AND (char_length(name) <= 100)))
+Ou seja: mesmo que o painel do Mercado Pago agora esteja com:
+
+```
+https://api.risecheckout.com/functions/v1/mercadopago-oauth-callback
 ```
 
-**Problema:** Quando o nome original tem 100 caracteres (limite máximo), ao adicionar " (Cópia)" (8 caracteres), o novo nome fica com **108 caracteres**, violando a constraint `products_name_length`.
+…a etapa **3 (troca do code por token)** está mandando **outro redirect_uri**, e o Mercado Pago **nega** (isso gera `token_exchange_failed`).
 
-| Cenário | Nome Original | + Sufixo | Total | Resultado |
-|---------|---------------|----------|-------|-----------|
-| Nome curto | 44 chars | " (Cópia)" | 52 chars | ✅ OK |
-| Nome no limite | 100 chars | " (Cópia)" | 108 chars | ❌ ERRO |
-| Nome próximo | 95 chars | " (Cópia)" | 103 chars | ❌ ERRO |
+Além disso, existe um segundo bug independente:
+- `public/oauth-error.html` envia `postMessage(..., window.location.origin)`.  
+Se o opener é `app.risecheckout.com` e o popup está em `risecheckout.com`, dá erro de origin e o app não recebe o evento de erro corretamente. (O sucesso já usa `'*'`, o erro não.)
+
+---
+
+## Root Cause (sem “workarounds”)
+
+### Root Cause #1 (principal)
+**O OAuth está com SSOT quebrado**:  
+- O **Authorization** (frontend) usa `redirect_uri = https://api.risecheckout.com/...`  
+- O **Token Exchange** (edge function) usa `redirect_uri = https://wivbtmt...supabase.co/...`
+
+Isso é suficiente para o Mercado Pago recusar o token exchange.
+
+### Root Cause #2 (secundário, mas real)
+**`oauth-error.html` usa targetOrigin restritivo** no `postMessage`, causando falhas de comunicação cross-subdomain.
 
 ---
 
 ## Análise de Soluções (RISE V3)
 
-### Solução A: Truncar Nome + Adicionar Sufixo com Limite Garantido
-- **Manutenibilidade:** 10/10 - Lógica clara e centralizada
-- **Zero DT:** 10/10 - Resolve problema na raiz
-- **Arquitetura:** 10/10 - Constantes centralizadas, helper reutilizável
-- **Escalabilidade:** 10/10 - Funciona para qualquer tamanho de nome
-- **Segurança:** 10/10 - Impossível violar constraint
+### Solução A: Ajustar o secret `MERCADOPAGO_REDIRECT_URI` para `api.risecheckout.com` e pronto
+- Manutenibilidade: 6/10 (depende de humano não errar de novo)
+- Zero DT: 6/10 (SSOT continua duplicado: frontend + backend)
+- Arquitetura: 5/10 (risco recorrente de mismatch)
+- Escalabilidade: 6/10
+- Segurança: 9/10
+- **NOTA FINAL: 6.2/10**
+- Tempo estimado: 15 min
+
+### Solução B: SSOT definitivo — gerar a Authorization URL no backend (integration-management) e usar o MESMO config no token exchange + corrigir postMessage do erro
+- Manutenibilidade: 10/10 (SSOT real: um lugar só)
+- Zero DT: 10/10 (remove classe inteira de bugs)
+- Arquitetura: 10/10 (Clean: UI não monta URL sensível de OAuth)
+- Escalabilidade: 10/10 (fácil adicionar sandbox, múltiplas apps, etc.)
+- Segurança: 10/10 (nenhuma secret no frontend; redirect controlado)
 - **NOTA FINAL: 10.0/10**
+- Tempo estimado: 1–2 dias (com testes + docs)
 
-### Solução B: Aumentar limite no banco para 200
-- **Manutenibilidade:** 4/10 - Adia o problema
-- **Zero DT:** 3/10 - Problema reaparece em 200 chars
-- **Arquitetura:** 4/10 - Não resolve causa raiz
-- **Escalabilidade:** 3/10 - Limite arbitrário
-- **Segurança:** 8/10 - Funciona temporariamente
-- **NOTA FINAL: 4.4/10**
+### Solução C: Hardcode do redirect_uri correto no token exchange (ignorando secret) + manter frontend como está + corrigir postMessage do erro
+- Manutenibilidade: 8/10 (menos risco, mas ainda duplicação entre FE/BE)
+- Zero DT: 7/10 (SSOT ainda duplicado; melhora parcial)
+- Arquitetura: 7/10
+- Escalabilidade: 7/10
+- Segurança: 10/10
+- **NOTA FINAL: 7.9/10**
+- Tempo estimado: 1–3 horas
 
-## DECISÃO: Solução A (10.0/10)
+### DECISÃO: Solução B (10.0/10)
+Porque elimina a causa estrutural (mismatch recorrente) e deixa o fluxo blindado a mudanças de domínio (api gateway vs supabase direto).
 
 ---
 
-## Implementação Técnica
+## Plano de Execução (Solução B)
 
-### 1. Adicionar Constantes de Duplicação
+### 1) Backend vira SSOT do OAuth (authorization URL + token exchange)
+**Objetivo:** o frontend nunca mais “monta URL OAuth manualmente”.
 
-**Arquivo:** `src/lib/constants/field-limits.ts`
+**Mudanças:**
+- `supabase/functions/_shared/integration-oauth-handlers.ts`
+  - Evoluir `handleInitOAuth` para retornar também:
+    - `authorizationUrl` (string já pronta para `window.open`)
+    - opcional: `provider: 'mercadopago'`
+  - Essa URL será montada usando um único módulo de config (ver item 2).
 
-```typescript
-export const PRODUCT_DUPLICATION = {
-  /** Sufixo padrão para cópia */
-  COPY_SUFFIX: " (Cópia)",
-  /** Tamanho do sufixo padrão */
-  COPY_SUFFIX_LENGTH: 8,
-  /** Limite máximo do nome do produto */
-  MAX_NAME_LENGTH: 100,
-  /** Tamanho máximo para nome base (garante espaço para sufixo + contador) */
-  MAX_BASE_NAME_LENGTH: 88, // 100 - 8 (" (Cópia)") - 4 (margem para " 99")
-} as const;
-```
+- `supabase/functions/mercadopago-oauth-callback/handlers/token-exchange.ts`
+  - Parar de depender de redirect_uri “solto” e usar o MESMO módulo de config.
+  - Fazer validação “fail-fast”:
+    - se `MERCADOPAGO_CLIENT_SECRET` estiver vazio → erro explícito e log claro.
+    - redirect_uri sempre consistente com a URL emitida no init.
 
-### 2. Criar Helper para Truncar Nome com Sufixo
+### 2) Criar um módulo único de configuração (Edge SSOT)
+Criar arquivo novo (<= 300 linhas):
+- `supabase/functions/_shared/mercadopago-oauth-config.ts`
 
-**Arquivo:** `supabase/functions/_shared/edge-helpers.ts`
+Ele será a única fonte para:
+- `client_id` (pode ser env ou constante pública)
+- `redirect_uri` (SSOT, preferencialmente constante `https://api.risecheckout.com/functions/v1/mercadopago-oauth-callback`)
+- `buildAuthorizationUrl(state: string): string`
+- `getTokenExchangeParams(code: string): URLSearchParams` (sem expor secrets)
 
-Adicionar função:
+### 3) Frontend passa a usar `authorizationUrl` do backend
+**Arquivo:**
+- `src/integrations/gateways/mercadopago/hooks/useMercadoPagoConnection.ts`
 
-```typescript
-export function buildDuplicateName(originalName: string): string {
-  const COPY_SUFFIX = " (Cópia)";
-  const MAX_LENGTH = 100;
-  const SUFFIX_MARGIN = 12; // " (Cópia) 99" = 12 chars
+**Mudança:**
+- Trocar:
+  - montar URL manualmente com `MERCADOPAGO_CLIENT_ID` + `MERCADOPAGO_REDIRECT_URI`
+- Por:
+  - `init-oauth` retorna `authorizationUrl`
+  - `window.open(authorizationUrl, ...)`
+
+Resultado: o frontend não precisa mais de `src/config/mercadopago.ts` (podemos manter por enquanto, mas ficará obsoleto; ideal é remover depois para evitar SSOT duplicado).
+
+### 4) Corrigir `oauth-error.html` (postMessage cross-subdomain)
+**Arquivo:**
+- `public/oauth-error.html`
+
+**Mudança:**
+- Trocar targetOrigin:
+  - de `window.location.origin`
+  - para `'*'` (mesmo padrão do success)
   
-  const maxBaseLength = MAX_LENGTH - SUFFIX_MARGIN;
-  
-  // Truncar nome se necessário
-  const truncatedName = originalName.length > maxBaseLength
-    ? originalName.substring(0, maxBaseLength - 3) + "..."
-    : originalName;
-  
-  return `${truncatedName}${COPY_SUFFIX}`;
-}
-```
+Isso elimina erros do tipo “target origin does not match recipient origin”.
 
-### 3. Atualizar `product-duplicate-handlers.ts`
+### 5) Atualizar SSOT de Secrets (arquivo que você citou como fonte máxima)
+**Arquivo:**
+- `supabase/functions/_shared/platform-secrets.ts`
 
-**Arquivo:** `supabase/functions/_shared/product-duplicate-handlers.ts`
+**Mudança:**
+- Adicionar ao `SECRETS_MANIFEST` (gateway mercadopago):
+  - `MERCADOPAGO_CLIENT_SECRET` (required: true)
+  - `MERCADOPAGO_WEBHOOK_SECRET` (required: true/false conforme uso real)
+  - (Opcional) `MERCADOPAGO_CLIENT_ID` e `MERCADOPAGO_REDIRECT_URI` como “config” (se decidirmos manter em env).  
+    Observação: redirect_uri não é secret, mas pode estar documentado ali como “config required” se for política interna.
 
-**Antes (linha 89):**
-```typescript
-const baseName = `${srcProduct.name} (Cópia)`;
-```
-
-**Depois:**
-```typescript
-import { buildDuplicateName } from "./edge-helpers.ts";
-
-// Na função duplicateProduct:
-const baseName = buildDuplicateName(srcProduct.name);
-```
-
-### 4. Atualizar `ensureUniqueName` para Respeitar Limite
-
-**Arquivo:** `supabase/functions/_shared/edge-helpers.ts`
-
-Modificar a função para garantir que mesmo com sufixo numérico, não exceda 100:
-
-```typescript
-export async function ensureUniqueName(
-  supabase: SupabaseClient,
-  baseName: string
-): Promise<string> {
-  const MAX_LENGTH = 100;
-  let name = baseName.substring(0, MAX_LENGTH); // Garantir limite
-  let counter = 1;
-  const maxAttempts = 100;
-
-  while (counter <= maxAttempts) {
-    const { data, error } = await supabase
-      .from("products")
-      .select("id")
-      .eq("name", name)
-      .maybeSingle();
-
-    if (error || !data) {
-      return name;
-    }
-
-    counter++;
-    const suffix = ` ${counter}`;
-    // Truncar base name para caber sufixo numérico
-    const maxBase = MAX_LENGTH - suffix.length;
-    const truncatedBase = baseName.length > maxBase 
-      ? baseName.substring(0, maxBase) 
-      : baseName;
-    name = `${truncatedBase}${suffix}`;
-  }
-
-  const finalSuffix = ` ${Date.now()}`;
-  const maxBase = MAX_LENGTH - finalSuffix.length;
-  return `${baseName.substring(0, maxBase)}${finalSuffix}`;
-}
-```
+### 6) Observabilidade e Debug 10/10
+- Melhorar logs no `token-exchange.ts`:
+  - manter log do Redirect URI (não é secret)
+  - logar status code e body do MP quando `!ok` (já existe) e mapear para um `reason` interno quando possível.
+- Opcional: propagar `reason` mais específico para `oauth-error.html?reason=...` (ex: `redirect_uri_mismatch`), sem vazar informações sensíveis.
 
 ---
 
-## Alterações por Arquivo
+## Passos Manuais (curtos, para “destravar agora” enquanto implementamos B)
 
-| Arquivo | Ação | Mudança |
-|---------|------|---------|
-| `src/lib/constants/field-limits.ts` | MODIFICAR | Adicionar `PRODUCT_DUPLICATION` |
-| `supabase/functions/_shared/edge-helpers.ts` | MODIFICAR | Adicionar `buildDuplicateName` + atualizar `ensureUniqueName` |
-| `supabase/functions/_shared/product-duplicate-handlers.ts` | MODIFICAR | Usar `buildDuplicateName` |
+Mesmo com a Solução B, hoje existe um fato:
+- **O token exchange ainda está usando redirect antigo** (supabase.co).
 
----
+Então, antes/depois do deploy da Solução B, vamos validar:
 
-## Comportamento Resultante
+1) Tentar integrar novamente
+2) Ver logs do `mercadopago-oauth-callback` e confirmar que aparece:
+   - `Redirect URI: https://api.risecheckout.com/functions/v1/mercadopago-oauth-callback`
 
-| Cenário | Nome Original | Resultado | Total |
-|---------|---------------|-----------|-------|
-| Nome curto (44 chars) | "Meu Produto" | "Meu Produto (Cópia)" | 20 chars ✅ |
-| Nome médio (80 chars) | "Nome com oitenta caracteres..." | "Nome com oitenta... (Cópia)" | 88 chars ✅ |
-| Nome no limite (100 chars) | "yyrrrrrrrrrrr..." | "yyrrrrrrrrrrr... (Cópia)" | 96 chars ✅ |
-| Com sufixo numérico | "Produto (Cópia)" existe | "Produto (Cópia) 2" | ≤100 chars ✅ |
+Se continuar mostrando `supabase.co`, significa que algum lugar ainda está definindo config errada e será eliminado pela Solução B (porque deixaremos de depender desse secret para redirect_uri).
 
 ---
 
-## Diagrama Visual
+## Testes (obrigatórios)
 
-```text
-ANTES (overflow):
-┌─────────────────────────────────────────────────────┐
-│ Nome Original: "yyrrrrr...k" (100 chars)            │
-│ + Sufixo: " (Cópia)" (8 chars)                      │
-│ = Total: 108 chars → VIOLA CONSTRAINT ❌            │
-└─────────────────────────────────────────────────────┘
-
-DEPOIS (truncation):
-┌─────────────────────────────────────────────────────┐
-│ Nome Original: "yyrrrrr...k" (100 chars)            │
-│ Truncado: "yyrrrrr..." (85 chars)                   │
-│ + Sufixo: " (Cópia)" (8 chars)                      │
-│ = Total: 93 chars → OK ✅                           │
-└─────────────────────────────────────────────────────┘
-```
+1) Teste de unidade (Deno) para `buildAuthorizationUrl`:
+   - garante query params corretos (`client_id`, `redirect_uri`, `state`, etc.)
+2) Teste de unidade para token exchange params:
+   - garante que `redirect_uri` usado no exchange é idêntico ao de authorization
+3) Teste manual ponta-a-ponta:
+   - conectar → sucesso → `vendor_integrations` atualizado → UI reflete conectado
+   - erro proposital (cancelar no MP) → `oauth-error.html` envia postMessage e UI mostra erro
 
 ---
 
-## Conformidade RISE V3
+## Arquivos impactados (resumo)
 
-| Critério | Status |
-|----------|--------|
-| Root Cause Only | Resolve overflow na origem |
-| Single Source of Truth | Constantes centralizadas |
-| Zero Dívida Técnica | Impossível violar constraint |
-| Arquitetura Correta | Helper reutilizável |
-| Segurança | Truncation + limit garantido |
+**Backend**
+- `supabase/functions/_shared/integration-oauth-handlers.ts` (editar)
+- `supabase/functions/_shared/mercadopago-oauth-config.ts` (criar)
+- `supabase/functions/mercadopago-oauth-callback/handlers/token-exchange.ts` (editar)
+- `supabase/functions/_shared/platform-secrets.ts` (editar)
 
+**Frontend**
+- `src/integrations/gateways/mercadopago/hooks/useMercadoPagoConnection.ts` (editar)
+
+**Public**
+- `public/oauth-error.html` (editar)
+
+---
+
+## Critério de aceite (Definition of Done)
+
+- Integrar Mercado Pago funciona com redirect do **api gateway**.
+- Logs mostram `Redirect URI` correto (api.risecheckout.com).
+- `oauth-error.html` consegue notificar o opener em qualquer subdomínio.
+- Nenhuma dependência do frontend em “montar OAuth URL manualmente” (SSOT no backend).
