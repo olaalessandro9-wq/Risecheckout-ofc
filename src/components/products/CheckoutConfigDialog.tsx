@@ -220,18 +220,24 @@ export const CheckoutConfigDialog = ({
               >
                 <div className="space-y-2 border border-border rounded-lg p-4">
                   {availableOffers.map((offer) => (
-                    <div
+                    <Label
                       key={offer.id}
-                      className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                      htmlFor={`offer-${offer.id}`}
+                      className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-muted/50 ${
+                        selectedOfferId === offer.id 
+                          ? "bg-primary/10 border border-primary/30" 
+                          : ""
+                      }`}
                     >
-                      <RadioGroupItem value={offer.id} id={`offer-${offer.id}`} />
+                      <RadioGroupItem 
+                        value={offer.id} 
+                        id={`offer-${offer.id}`} 
+                        className="mt-0.5"
+                      />
                       <div className="flex-1">
-                        <Label
-                          htmlFor={`offer-${offer.id}`}
-                          className="text-sm font-medium text-foreground cursor-pointer"
-                        >
+                        <span className="text-sm font-medium text-foreground">
                           {offer.name}
-                        </Label>
+                        </span>
                         <p className="text-xs text-muted-foreground mt-1">
                           {formatBRL(offer.price)}
                         </p>
@@ -241,7 +247,7 @@ export const CheckoutConfigDialog = ({
                           </span>
                         )}
                       </div>
-                    </div>
+                    </Label>
                   ))}
                 </div>
               </RadioGroup>
