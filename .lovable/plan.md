@@ -1,118 +1,132 @@
 
-# Plano: Componentes "Em Breve" no Checkout Builder
+# Plano: Correção do Status do Link de Pagamento na UI
 
-## Objetivo
+## Diagnóstico
 
-Marcar os componentes **Vantagem**, **Selo** e **Depoimento** como "Em Breve" no painel de componentes do Checkout Builder, posicionando-os no final da lista.
+### Erro Identificado
+- **Sintoma**: Após desativar um link, a UI continua mostrando "Ativo" mesmo após F5
+- **Comportamento real**: O link está desativado no banco (a página pública mostra "Produto não disponível")
+- **Problema**: Dessincronia entre banco de dados e exibição na UI
 
----
+### Causa Raiz
 
-## Alterações no Arquivo
-
-### Arquivo: `src/components/checkout/CheckoutCustomizationPanel.tsx`
-
----
-
-### Mudança 1: Adicionar `ComingSoonComponent` após `DraggableComponent` (linha 62)
-
-Inserir novo componente:
+No arquivo `src/modules/products/machines/productFormMachine.actors.ts`, linha 198:
 
 ```typescript
-// Item "Em Breve" (não arrastável, desabilitado visualmente)
-const ComingSoonComponent = ({ icon, label }: { icon: React.ReactNode; label: string }) => {
-  return (
-    <div
-      className="flex flex-col items-center justify-center p-4 rounded-lg border-2 border-dashed opacity-50 cursor-not-allowed relative"
-    >
-      {icon}
-      <span className="text-sm mt-2 text-muted-foreground">{label}</span>
-      <span className="absolute top-1 right-1 text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
-        Em Breve
-      </span>
-    </div>
-  );
-};
+// CÓDIGO ATUAL (INCORRETO)
+status: (pl.active !== false ? "active" : "inactive") as "active" | "inactive",
 ```
 
----
+O mapeamento verifica a propriedade `pl.active`, mas o BFF (`fetchProductPaymentLinksWithRelations`) retorna a propriedade `pl.status`!
 
-### Mudança 2: Reorganizar grid de componentes (linhas 217-225)
-
-**ANTES:**
-```typescript
-<div className="grid grid-cols-2 gap-3">
-  <DraggableComponent type="text" icon={<TypeIcon size={24} />} label="Texto" />
-  <DraggableComponent type="image" icon={<ImageIcon size={24} />} label="Imagem" />
-  <DraggableComponent type="advantage" icon={<CheckCircleIcon size={24} />} label="Vantagem" />
-  <DraggableComponent type="seal" icon={<AwardIcon size={24} />} label="Selo" />
-  <DraggableComponent type="timer" icon={<TimerIcon size={24} />} label="Cronômetro" />
-  <DraggableComponent type="testimonial" icon={<QuoteIcon size={24} />} label="Depoimento" />
-  <DraggableComponent type="video" icon={<VideoIcon size={24} />} label="Vídeo" />
-</div>
-```
-
-**DEPOIS:**
-```typescript
-<div className="grid grid-cols-2 gap-3">
-  {/* Componentes Funcionais */}
-  <DraggableComponent type="text" icon={<TypeIcon size={24} />} label="Texto" />
-  <DraggableComponent type="image" icon={<ImageIcon size={24} />} label="Imagem" />
-  <DraggableComponent type="timer" icon={<TimerIcon size={24} />} label="Cronômetro" />
-  <DraggableComponent type="video" icon={<VideoIcon size={24} />} label="Vídeo" />
-  
-  {/* Componentes "Em Breve" (desabilitados, no final) */}
-  <ComingSoonComponent icon={<CheckCircleIcon size={24} />} label="Vantagem" />
-  <ComingSoonComponent icon={<AwardIcon size={24} />} label="Selo" />
-  <ComingSoonComponent icon={<QuoteIcon size={24} />} label="Depoimento" />
-</div>
-```
-
----
-
-## Resultado Visual
+**Fluxo do Bug:**
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  Componentes Disponíveis                                                     │
-│  Arraste para adicionar ao checkout                                         │
+│                          FLUXO DO BUG                                        │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│   ┌─────────────┐  ┌─────────────┐                                          │
-│   │     T       │  │     🖼️      │                                          │
-│   │   Texto     │  │   Imagem    │  ← Funcionais                            │
-│   └─────────────┘  └─────────────┘                                          │
+│  1. Edge Function checkout-crud/toggle-link-status                          │
+│     ├── Atualiza DB: payment_links.status = 'inactive'                      │
+│     └── Retorna: { success: true, newStatus: 'inactive' }                   │
 │                                                                              │
-│   ┌─────────────┐  ┌─────────────┐                                          │
-│   │     ⏱️      │  │     🎥      │                                          │
-│   │ Cronômetro  │  │   Vídeo     │  ← Funcionais                            │
-│   └─────────────┘  └─────────────┘                                          │
+│  2. Frontend: LinksTab.tsx                                                   │
+│     ├── Toast: "Link desativado com sucesso"                               │
+│     └── Chama: refreshPaymentLinks() → send({ type: "REFRESH" })            │
 │                                                                              │
-│   ┌─────────────┐  ┌─────────────┐                                          │
-│   │ [Em Breve]  │  │ [Em Breve]  │                                          │
-│   │     ✓       │  │     🏆      │  ← Desabilitados (50% opacidade)         │
-│   │  Vantagem   │  │    Selo     │                                          │
-│   └─────────────┘  └─────────────┘                                          │
+│  3. State Machine: productFormMachine.ts                                     │
+│     └── REFRESH → target: "loading" → invoke: loadProductActor              │
 │                                                                              │
-│   ┌─────────────┐                                                            │
-│   │ [Em Breve]  │                                                            │
-│   │     💬      │  ← Desabilitado (50% opacidade)                           │
-│   │ Depoimento  │                                                            │
-│   └─────────────┘                                                            │
+│  4. BFF: product-full-loader                                                 │
+│     └── fetchProductPaymentLinksWithRelations()                             │
+│         └── Retorna: { status: "inactive", ... }  ← Campo CORRETO          │
+│                                                                              │
+│  5. Actor: productFormMachine.actors.ts (linha 198)  ← BUG AQUI             │
+│     └── Mapeia: pl.active !== false ? "active" : "inactive"                 │
+│         └── pl.active = undefined                                           │
+│         └── undefined !== false = true                                      │
+│         └── Resultado: SEMPRE "active" ❌                                   │
+│                                                                              │
+│  6. UI: LinksTab.tsx                                                         │
+│     └── Exibe: "Ativo" (incorreto)                                          │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Características do `ComingSoonComponent`
+## Solução
 
-| Propriedade | Valor |
-|-------------|-------|
-| Opacidade | 50% (`opacity-50`) |
-| Cursor | `cursor-not-allowed` |
-| Badge | "Em Breve" no canto superior direito |
-| Texto | `text-muted-foreground` |
-| Eventos | Nenhum (não arrastável, não clicável) |
+### Correção no Mapeamento
+
+Alterar a linha 198 de `productFormMachine.actors.ts` para usar `pl.status` ao invés de `pl.active`:
+
+```typescript
+// ANTES (INCORRETO)
+status: (pl.active !== false ? "active" : "inactive") as "active" | "inactive",
+
+// DEPOIS (CORRETO)
+status: (pl.status === "active" ? "active" : "inactive") as "active" | "inactive",
+```
+
+### Também limpar a interface
+
+Remover a propriedade `active` não utilizada da interface `PaymentLinks` (linha 89):
+
+```typescript
+// ANTES
+paymentLinks: Array<{
+  id: string;
+  slug: string;
+  url?: string;
+  status?: string;
+  active?: boolean;  // ← REMOVER (nunca foi usado, causa confusão)
+  ...
+}>;
+
+// DEPOIS
+paymentLinks: Array<{
+  id: string;
+  slug: string;
+  url?: string;
+  status?: string;  // Campo real do banco
+  ...
+}>;
+```
+
+---
+
+## Alterações Necessárias
+
+### Arquivo: `src/modules/products/machines/productFormMachine.actors.ts`
+
+| Linha | Mudança |
+|-------|---------|
+| 89 | Remover `active?: boolean;` da interface |
+| 198 | Trocar `pl.active !== false` por `pl.status === "active"` |
+
+---
+
+## Fluxo Corrigido
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          FLUXO CORRIGIDO                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  1. DB: payment_links.status = 'inactive'                                   │
+│                                                                              │
+│  2. BFF retorna: { status: "inactive", ... }                                │
+│                                                                              │
+│  3. Actor mapeia: pl.status === "active" ? ... : "inactive"                 │
+│     └── pl.status = "inactive"                                              │
+│     └── "inactive" === "active" = false                                     │
+│     └── Resultado: "inactive" ✅                                            │
+│                                                                              │
+│  4. UI exibe: Badge "Desativado" ✅                                         │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -120,7 +134,20 @@ const ComingSoonComponent = ({ icon, label }: { icon: React.ReactNode; label: st
 
 | Critério | Status |
 |----------|--------|
-| Consistência visual | Segue padrão de `OwnerGatewayCard` e `SidebarItem` |
-| Zero breaking changes | Componentes continuam no registry para uso futuro |
-| Mantém arquivos < 300 linhas | Arquivo continua com ~260 linhas |
-| Reutilização | Componente pode ser usado para outros itens "Em Breve" |
+| Resolve causa raiz | Corrige mapeamento incorreto de propriedade |
+| Zero workarounds | Usa campo correto do banco |
+| Mantém arquivos < 300 linhas | Arquivo tem 296 linhas |
+| Zero breaking changes | Apenas corrige lógica interna |
+| Remove código morto | Remove propriedade `active` não utilizada |
+
+---
+
+## Testes Esperados
+
+Após implementação:
+1. Ir para aba Links de um produto
+2. Clicar em ações → Desativar no menu de um link
+3. Toast "Link desativado com sucesso"
+4. UI deve mostrar badge "Desativado" imediatamente
+5. Após F5, badge deve continuar mostrando "Desativado"
+6. Clicar em Ativar deve voltar para "Ativo"
