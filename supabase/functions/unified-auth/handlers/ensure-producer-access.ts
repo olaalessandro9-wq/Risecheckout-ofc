@@ -4,6 +4,7 @@
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Creates or ensures buyer access for a producer to their own products.
+ * Uses users table as SSOT - no fallbacks.
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -33,22 +34,15 @@ export async function handleEnsureProducerAccess(
     
     const normalizedEmail = email.toLowerCase().trim();
     
-    // Check if user exists in unified users table
+    // Check if user exists in unified users table (SSOT)
     let { data: user } = await supabase
       .from("users")
       .select("id")
       .eq("email", normalizedEmail)
       .single();
     
-    // If not in users table, check fallback buyer_profiles
-    let { data: buyer } = await supabase
-      .from("buyer_profiles")
-      .select("id")
-      .eq("email", normalizedEmail)
-      .single();
-    
-    // If no profile exists, create one
-    if (!user && !buyer) {
+    // If no user exists, create one
+    if (!user) {
       // Get producer's name for the profile
       const { data: profile } = await supabase
         .from("profiles")
@@ -56,7 +50,7 @@ export async function handleEnsureProducerAccess(
         .eq("id", producerUserId)
         .single();
       
-      // Create in unified users table
+      // Create in unified users table (SSOT)
       const { data: newUser, error: createError } = await supabase
         .from("users")
         .insert({
@@ -84,11 +78,9 @@ export async function handleEnsureProducerAccess(
       log.info(`Created user profile for producer: ${normalizedEmail}`);
     }
     
-    const userId = user?.id || buyer?.id;
-    
     log.info(`Producer ${normalizedEmail} has access via product ownership`);
     
-    return jsonResponse({ success: true, buyerId: userId }, corsHeaders, 200);
+    return jsonResponse({ success: true, buyerId: user.id }, corsHeaders, 200);
     
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
