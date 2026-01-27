@@ -1,176 +1,314 @@
 
-# Plano: Expandir Área Clicável na Seleção de Ofertas do Checkout
+# Plano: Auto-Retry para Falhas de Carregamento de Chunks (DNS/Rede)
 
 ## Problema
 
-No dialog "Editar Checkout", a seleção de ofertas requer um clique preciso na "bolinha" (radio button) ou no nome da oferta. Clicar no preço, no badge "(Oferta Principal)", ou em qualquer outra área do card não funciona.
+Quando ocorre um erro `ERR_NAME_NOT_RESOLVED` (falha temporária de DNS), a aplicação crasheia porque os `React.lazy()` imports falham ao carregar os chunks JavaScript. Um simples F5 resolve porque o DNS se recupera.
 
-## Causa Raiz
+## Objetivo
 
-A estrutura atual usa um `<div>` container sem handler de clique. Apenas o `<RadioGroupItem>` e o `<Label htmlFor>` são clicáveis nativamente. O preço e o badge estão fora do `<Label>`, então não disparam a seleção.
+Fazer o "F5 automático" de forma inteligente - sem recarregar a página inteira, apenas retentando o carregamento do chunk que falhou.
+
+---
 
 ## Análise de Soluções
 
-### Solução A: Envolver Todo o Card com Label
-- **Manutenibilidade:** 10/10 - Solução HTML pura, sem JavaScript adicional
-- **Zero DT:** 10/10 - Usa comportamento nativo do HTML
-- **Arquitetura:** 10/10 - Segue semântica correta de formulários
-- **Escalabilidade:** 10/10 - Funciona com qualquer conteúdo interno
+### Solução A: Wrapper `lazyWithRetry` + Error Boundary Inteligente
+- **Manutenibilidade:** 10/10 - Utilitário centralizado reutilizável
+- **Zero DT:** 10/10 - Solução definitiva para o problema
+- **Arquitetura:** 10/10 - Padrão bem estabelecido na indústria
+- **Escalabilidade:** 10/10 - Funciona para todos os lazy imports
 - **Segurança:** 10/10 - Nenhuma implicação
 - **NOTA FINAL: 10.0/10**
-- **Tempo estimado:** 15 minutos
+- **Tempo estimado:** 45 minutos
 
-**Como funciona:** Trocar o `<div>` container por um `<Label>` com `htmlFor` apontando para o radio button. Todo o conteúdo interno (nome, preço, badge) fica clicável automaticamente.
-
-### Solução B: Adicionar onClick no Container
-- **Manutenibilidade:** 8/10 - Requer JavaScript adicional
-- **Zero DT:** 8/10 - Precisa de ref para o radio
-- **Arquitetura:** 7/10 - Usa JS para algo que HTML faz nativamente
-- **Escalabilidade:** 8/10 - Funciona, mas menos elegante
+### Solução B: Apenas Error Boundary com botão "Tentar Novamente"
+- **Manutenibilidade:** 7/10 - Não é automático
+- **Zero DT:** 7/10 - Requer ação do usuário
+- **Arquitetura:** 7/10 - Não resolve a raiz
+- **Escalabilidade:** 8/10 - Funciona mas não é elegante
 - **Segurança:** 10/10 - Nenhuma implicação
-- **NOTA FINAL: 8.2/10**
+- **NOTA FINAL: 7.8/10**
 - **Tempo estimado:** 20 minutos
 
-### Solução C: CSS `pointer-events` + Pseudo-element
-- **Manutenibilidade:** 6/10 - Truque de CSS não óbvio
-- **Zero DT:** 6/10 - Potenciais problemas de acessibilidade
-- **Arquitetura:** 5/10 - Gambiarra visual
-- **Escalabilidade:** 6/10 - Difícil de debugar
+### Solução C: Service Worker para cache de chunks
+- **Manutenibilidade:** 6/10 - Complexidade adicional
+- **Zero DT:** 8/10 - Resolve mas com overhead
+- **Arquitetura:** 7/10 - Overengineering para o problema
+- **Escalabilidade:** 8/10 - Funciona
 - **Segurança:** 10/10 - Nenhuma implicação
-- **NOTA FINAL: 6.6/10**
-- **Tempo estimado:** 15 minutos
+- **NOTA FINAL: 7.4/10**
+- **Tempo estimado:** 2+ horas
 
 ---
 
 ## DECISÃO: Solução A (Nota 10.0/10)
 
-A Solução A é a única que atinge nota máxima porque:
-1. **Zero JavaScript:** Usa comportamento nativo do HTML
-2. **Semântica correta:** Um `<Label>` associado a um input é a forma correta
-3. **Acessibilidade:** Leitores de tela entendem perfeitamente
-4. **Manutenibilidade:** Código óbvio e auto-explicativo
+A Solução A é superior porque:
+1. **Retry Automático:** Usuário nem percebe a falha temporária
+2. **Padrão da Indústria:** Hotmart, Stripe, Vercel usam essa técnica
+3. **Zero Intervenção:** Resolve sozinho, como um F5 automático
+4. **Fallback Gracioso:** Se todas tentativas falharem, mostra UI amigável
 
 ---
 
 ## Implementação Técnica
 
-### Arquivo: `src/components/products/CheckoutConfigDialog.tsx`
+### 1. CRIAR: `src/lib/lazyWithRetry.ts`
 
-### Antes (Linhas 222-244):
+Utilitário que envolve `React.lazy()` com lógica de retry:
 
-```tsx
-{availableOffers.map((offer) => (
-  <div
-    key={offer.id}
-    className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors"
-  >
-    <RadioGroupItem value={offer.id} id={`offer-${offer.id}`} />
-    <div className="flex-1">
-      <Label
-        htmlFor={`offer-${offer.id}`}
-        className="text-sm font-medium text-foreground cursor-pointer"
-      >
-        {offer.name}
-      </Label>
-      <p className="text-xs text-muted-foreground mt-1">
-        {formatBRL(offer.price)}
-      </p>
-      {offer.is_default && (
-        <span className="text-xs text-primary">
-          (Oferta Principal)
-        </span>
-      )}
-    </div>
-  </div>
-))}
+```typescript
+/**
+ * lazyWithRetry - Lazy Loading com Retry Automático
+ * 
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * Resolve automaticamente falhas temporárias de DNS/rede
+ * ao carregar chunks JavaScript (code splitting).
+ * 
+ * Comportamento:
+ * - Tenta carregar o chunk normalmente
+ * - Se falhar, aguarda 1 segundo e tenta novamente
+ * - Máximo de 3 tentativas
+ * - Se todas falharem, propaga o erro para o Error Boundary
+ */
+
+import { lazy, ComponentType } from "react";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("lazyWithRetry");
+
+interface LazyWithRetryOptions {
+  maxRetries?: number;
+  retryDelay?: number;
+}
+
+const DEFAULT_OPTIONS: Required<LazyWithRetryOptions> = {
+  maxRetries: 3,
+  retryDelay: 1000,
+};
+
+/**
+ * Verifica se o erro é relacionado a rede/DNS
+ */
+function isNetworkError(error: unknown): boolean {
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    return (
+      message.includes("failed to fetch") ||
+      message.includes("load failed") ||
+      message.includes("loading chunk") ||
+      message.includes("network") ||
+      error.name === "ChunkLoadError" ||
+      error.name === "TypeError"
+    );
+  }
+  return false;
+}
+
+/**
+ * Aguarda um tempo antes de continuar
+ */
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Wrapper para React.lazy() com retry automático
+ * 
+ * @example
+ * const Dashboard = lazyWithRetry(() => import("@/pages/Dashboard"));
+ */
+export function lazyWithRetry<T extends ComponentType<unknown>>(
+  importFn: () => Promise<{ default: T }>,
+  options?: LazyWithRetryOptions
+): React.LazyExoticComponent<T> {
+  const { maxRetries, retryDelay } = { ...DEFAULT_OPTIONS, ...options };
+
+  return lazy(async () => {
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await importFn();
+      } catch (error) {
+        lastError = error;
+
+        // Só faz retry se for erro de rede
+        if (!isNetworkError(error)) {
+          throw error;
+        }
+
+        log.warn(`Chunk load failed (attempt ${attempt}/${maxRetries})`, {
+          error: error instanceof Error ? error.message : String(error),
+        });
+
+        // Última tentativa? Não espera
+        if (attempt < maxRetries) {
+          await wait(retryDelay * attempt); // Backoff exponencial simples
+        }
+      }
+    }
+
+    log.error("All chunk load attempts failed", {
+      attempts: maxRetries,
+      error: lastError instanceof Error ? lastError.message : String(lastError),
+    });
+
+    throw lastError;
+  });
+}
 ```
 
-### Depois:
+### 2. MODIFICAR: `src/routes/publicRoutes.tsx`
 
-```tsx
-{availableOffers.map((offer) => (
-  <Label
-    key={offer.id}
-    htmlFor={`offer-${offer.id}`}
-    className={cn(
-      "flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors",
-      "hover:bg-muted/50",
-      selectedOfferId === offer.id && "bg-primary/10 border border-primary/30"
-    )}
-  >
-    <RadioGroupItem 
-      value={offer.id} 
-      id={`offer-${offer.id}`} 
-      className="mt-0.5"
-    />
-    <div className="flex-1">
-      <span className="text-sm font-medium text-foreground">
-        {offer.name}
-      </span>
-      <p className="text-xs text-muted-foreground mt-1">
-        {formatBRL(offer.price)}
-      </p>
-      {offer.is_default && (
-        <span className="text-xs text-primary">
-          (Oferta Principal)
-        </span>
-      )}
+Substituir todos os `lazy()` por `lazyWithRetry()`:
+
+```typescript
+// ANTES
+const LandingPage = lazy(() => import("@/pages/LandingPage"));
+
+// DEPOIS
+import { lazyWithRetry } from "@/lib/lazyWithRetry";
+const LandingPage = lazyWithRetry(() => import("@/pages/LandingPage"));
+```
+
+### 3. MODIFICAR: `src/routes/dashboardRoutes.tsx`
+
+Mesma substituição:
+
+```typescript
+// ANTES
+const Dashboard = lazy(() => import("@/modules/dashboard").then(...));
+
+// DEPOIS
+import { lazyWithRetry } from "@/lib/lazyWithRetry";
+const Dashboard = lazyWithRetry(() => import("@/modules/dashboard").then(...));
+```
+
+### 4. MODIFICAR: `src/routes/builderRoutes.tsx` (e outros)
+
+Aplicar o mesmo padrão em todos os arquivos de rotas.
+
+### 5. MELHORAR: `src/components/AppErrorBoundary.tsx`
+
+Adicionar detecção inteligente de erros de rede:
+
+```typescript
+/**
+ * Detecta se o erro é relacionado a rede/chunk loading
+ */
+function isChunkLoadError(error: Error | null): boolean {
+  if (!error) return false;
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("loading chunk") ||
+    message.includes("failed to fetch") ||
+    message.includes("load failed") ||
+    error.name === "ChunkLoadError"
+  );
+}
+
+// No render():
+if (this.state.hasError) {
+  const isNetworkIssue = isChunkLoadError(this.state.error);
+  
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="max-w-md w-full space-y-6 text-center">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold text-foreground">
+            {isNetworkIssue 
+              ? "Problemas de conexão" 
+              : "Ops! Algo deu errado"}
+          </h1>
+          <p className="text-muted-foreground">
+            {isNetworkIssue
+              ? "Não foi possível carregar a página. Verifique sua conexão e tente novamente."
+              : "Ocorreu um erro inesperado. Por favor, tente recarregar a página."}
+          </p>
+        </div>
+
+        <Button onClick={this.handleReload} size="lg" className="w-full">
+          {isNetworkIssue ? "Tentar Novamente" : "Recarregar Página"}
+        </Button>
+      </div>
     </div>
-  </Label>
-))}
+  );
+}
 ```
 
 ---
 
-## Mudanças Específicas
-
-| Mudança | Antes | Depois | Benefício |
-|---------|-------|--------|-----------|
-| Container | `<div>` | `<Label htmlFor>` | 100% da área clicável |
-| Label interno | `<Label>` aninhado | `<span>` | Evita Label dentro de Label |
-| Estilo selecionado | Nenhum | `bg-primary/10` | Feedback visual claro |
-| Cursor | Padrão no div | `cursor-pointer` | UX consistente |
-| Alinhamento radio | Default | `mt-0.5` | Alinha com primeira linha |
-
----
-
-## Fluxo Visual
+## Fluxo de Recuperação Automática
 
 ```text
-ANTES:
 ┌─────────────────────────────────────────────────────────────┐
-│ [○ clicável] [Nome clicável] [Preço NÃO clicável]          │
-│              [(Oferta Principal) NÃO clicável]              │
-└─────────────────────────────────────────────────────────────┘
-
-DEPOIS:
-┌─────────────────────────────────────────────────────────────┐
-│ TODA A ÁREA É CLICÁVEL                                      │
-│ ○ Nome da Oferta                                            │
-│   R$ 9,90                                                   │
-│   (Oferta Principal)                                        │
+│                    FLUXO COM lazyWithRetry                   │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  1. Usuário navega para /dashboard                          │
+│     │                                                        │
+│     ▼                                                        │
+│  2. lazyWithRetry tenta: import("@/pages/Dashboard")        │
+│     │                                                        │
+│     ▼                                                        │
+│  3. FALHA: ERR_NAME_NOT_RESOLVED                            │
+│     │                                                        │
+│     ▼                                                        │
+│  4. lazyWithRetry detecta: isNetworkError() = true          │
+│     │                                                        │
+│     ▼                                                        │
+│  5. Aguarda 1 segundo (retry 1)                             │
+│     │                                                        │
+│     ▼                                                        │
+│  6. TENTA NOVAMENTE: import("@/pages/Dashboard")            │
+│     │                                                        │
+│     ▼                                                        │
+│  7. SUCESSO! DNS se recuperou                               │
+│     │                                                        │
+│     ▼                                                        │
+│  8. Usuário vê a página normalmente (nem percebeu a falha)  │
+│                                                              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Resumo das Alterações
+## Alterações por Arquivo
 
-| Arquivo | Ação | Linhas |
-|---------|------|--------|
-| `CheckoutConfigDialog.tsx` | MODIFICAR | Linhas 222-244 (~22 linhas) |
+| Arquivo | Ação | Mudança |
+|---------|------|---------|
+| `src/lib/lazyWithRetry.ts` | CRIAR | Utilitário de lazy loading com retry |
+| `src/routes/publicRoutes.tsx` | MODIFICAR | Substituir lazy() por lazyWithRetry() |
+| `src/routes/dashboardRoutes.tsx` | MODIFICAR | Substituir lazy() por lazyWithRetry() |
+| `src/routes/builderRoutes.tsx` | MODIFICAR | Substituir lazy() por lazyWithRetry() |
+| `src/routes/buyerRoutes.tsx` | MODIFICAR | Substituir lazy() por lazyWithRetry() |
+| `src/routes/lgpdRoutes.tsx` | MODIFICAR | Substituir lazy() por lazyWithRetry() |
+| `src/components/AppErrorBoundary.tsx` | MODIFICAR | Detectar erros de rede e mostrar UI específica |
 
 ---
 
-## Proteções e Acessibilidade
+## Comportamento Resultante
 
-| Aspecto | Status |
-|---------|--------|
-| Teclado | ✅ RadioGroup já suporta navegação por teclado |
-| Leitor de tela | ✅ Label associado ao input via htmlFor |
-| Hover | ✅ `hover:bg-muted/50` mantido |
-| Selecionado | ✅ Novo estilo `bg-primary/10` para feedback visual |
-| Disabled | ✅ RadioGroup `disabled={saving}` continua funcionando |
+| Cenário | Antes | Depois |
+|---------|-------|--------|
+| Falha DNS temporária | Crash + Error Boundary | Retry silencioso (até 3x) |
+| DNS recupera em 1-2s | Usuário faz F5 manual | Carrega automaticamente |
+| DNS falha persistente | Error genérico | Mensagem "Problemas de conexão" |
+| Erro de código real | Error Boundary | Error Boundary (inalterado) |
+
+---
+
+## Proteções
+
+| Cenário | Comportamento |
+|---------|---------------|
+| Erro de sintaxe no código | Não faz retry (não é erro de rede) |
+| Import de módulo inexistente | Não faz retry (não é erro de rede) |
+| Rede cai por 30 segundos | 3 tentativas em ~6s, depois Error Boundary |
+| Falha intermitente rápida | Resolve na 2ª ou 3ª tentativa |
 
 ---
 
@@ -178,12 +316,12 @@ DEPOIS:
 
 | Critério | Status |
 |----------|--------|
-| Manutenibilidade Infinita | Solução HTML pura, zero complexidade |
-| Zero Dívida Técnica | Usa padrão nativo, não precisa de manutenção |
-| Arquitetura Correta | Semântica HTML correta |
-| Escalabilidade | Funciona com N ofertas |
+| Manutenibilidade Infinita | Utilitário centralizado, fácil de modificar |
+| Zero Dívida Técnica | Solução definitiva para o problema |
+| Arquitetura Correta | Padrão da indústria para code splitting |
+| Escalabilidade | Funciona para N lazy imports |
 | Segurança | Nenhuma implicação |
-| Limite 300 linhas | Arquivo já está dentro do limite |
+| Limite 300 linhas | Todos os arquivos dentro do limite |
 
 ---
 
@@ -191,8 +329,8 @@ DEPOIS:
 
 | Benefício | Descrição |
 |-----------|-----------|
-| UX Melhorada | 100% da área do card é clicável |
-| Feedback Visual | Oferta selecionada tem destaque |
-| Acessibilidade | Comportamento nativo do HTML |
-| Zero JavaScript | Sem lógica adicional |
-| Consistência | Mesmo padrão usado em outros selects do sistema |
+| UX Transparente | Usuário nem percebe falhas temporárias |
+| Zero F5 Manual | Aplicação se recupera sozinha |
+| Logging | Tentativas ficam registradas para análise |
+| Sentry Integration | Falhas persistentes são reportadas |
+| Mensagem Específica | "Problemas de conexão" vs "Algo deu errado" |
