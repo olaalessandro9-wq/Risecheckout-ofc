@@ -49,6 +49,8 @@ export const TextBlock = ({
         borderWidth: `${borderWidth}px`,
         borderStyle: "solid",
         borderRadius: `${borderRadius}px`,
+        overflow: 'hidden',
+        maxWidth: '100%',
       }}
     >
       <p
@@ -56,6 +58,10 @@ export const TextBlock = ({
           color: textColor,
           fontSize: `${fontSize}px`,
           textAlign,
+          wordWrap: 'break-word',
+          overflowWrap: 'break-word',
+          whiteSpace: 'pre-wrap',
+          maxWidth: '100%',
         }}
       >
         {text}
