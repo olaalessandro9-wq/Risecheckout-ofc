@@ -168,17 +168,18 @@ function mapBffToMachine(data: ProductFullResponse["data"]): MappedProductData {
   }));
   
   // Map checkouts
+  // RISE V3: Sem fallback para product - null indica "sem oferta associada"
   const checkouts = data.checkouts.map(c => {
     const firstLink = c.checkout_links?.[0];
-    const offerName = firstLink?.payment_links?.offers?.name ?? c.products?.name ?? "";
-    const offerPrice = firstLink?.payment_links?.offers?.price ?? c.products?.price ?? 0;
+    const offer = firstLink?.payment_links?.offers;
+    const hasOffer = !!offer;
     
     return {
       id: c.id,
       name: c.name,
-      price: offerPrice,
+      price: hasOffer ? offer.price : null,
       visits: c.visits_count,
-      offer: offerName,
+      offer: hasOffer ? offer.name : null,
       isDefault: c.is_default,
       linkId: firstLink?.link_id ?? "",
       product_id: c.product_id,
