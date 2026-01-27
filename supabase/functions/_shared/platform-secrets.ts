@@ -74,6 +74,12 @@ export const SECRETS_MANIFEST: Record<string, SecretDefinition> = {
     required: true,
     gateway: 'mercadopago',
   },
+  MERCADOPAGO_CLIENT_SECRET: {
+    name: 'MERCADOPAGO_CLIENT_SECRET',
+    description: 'Client Secret para OAuth do Mercado Pago (troca de code por token)',
+    required: true,
+    gateway: 'mercadopago',
+  },
   MERCADOPAGO_COLLECTOR_ID: {
     name: 'MERCADOPAGO_COLLECTOR_ID',
     description: 'Collector ID da conta Mercado Pago para split',

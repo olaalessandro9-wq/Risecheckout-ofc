@@ -2,11 +2,18 @@
  * Token Exchange Handler
  * 
  * Responsabilidade: Trocar authorization code por access_token
+ * Usa mercadopago-oauth-config.ts como SSOT para garantir consistência
  * 
  * @module mercadopago-oauth-callback/handlers/token-exchange
+ * @version 2.0.0 - RISE Protocol V3 SSOT Architecture
  */
 
 import { createLogger } from "../../_shared/logger.ts";
+import { 
+  getTokenExchangeConfig, 
+  getDebugInfo,
+  MERCADOPAGO_REDIRECT_URI 
+} from "../../_shared/mercadopago-oauth-config.ts";
 
 const log = createLogger("mercadopago-oauth-callback");
 
@@ -21,43 +28,64 @@ export interface TokenExchangeResult {
   success: boolean;
   data?: TokenResponse;
   error?: string;
+  reason?: string;
 }
-
-const MERCADOPAGO_CLIENT_ID = Deno.env.get('MERCADOPAGO_CLIENT_ID') || '2354396684039370';
-const MERCADOPAGO_CLIENT_SECRET = Deno.env.get('MERCADOPAGO_CLIENT_SECRET') || '';
-const MERCADOPAGO_REDIRECT_URI = Deno.env.get('MERCADOPAGO_REDIRECT_URI') || '';
 
 /**
  * Troca o authorization code por tokens de acesso
+ * 
+ * SSOT: Usa mercadopago-oauth-config.ts para garantir que o redirect_uri
+ * seja idêntico ao usado na autorização inicial
  */
 export async function exchangeCodeForToken(code: string): Promise<TokenExchangeResult> {
   log.info('Iniciando troca de code por access_token...');
-  log.info(`Client ID: ${MERCADOPAGO_CLIENT_ID}`);
-  log.info(`Redirect URI: ${MERCADOPAGO_REDIRECT_URI}`);
-  log.info(`Client Secret presente: ${!!MERCADOPAGO_CLIENT_SECRET}`);
+  
+  // Log debug info (sem expor secrets)
+  const debugInfo = getDebugInfo();
+  log.info(`Client ID: ${debugInfo.client_id}`);
+  log.info(`Redirect URI: ${debugInfo.redirect_uri}`);
+  log.info(`Client Secret configurado: ${debugInfo.client_secret_configured}`);
+
+  // Obter configuração completa do SSOT
+  const config = getTokenExchangeConfig({ code });
+  
+  if (!config) {
+    log.error('MERCADOPAGO_CLIENT_SECRET não está configurado no Supabase Secrets');
+    return {
+      success: false,
+      error: 'Configuração incompleta do Mercado Pago.',
+      reason: 'missing_client_secret',
+    };
+  }
 
   try {
-    const tokenResponse = await fetch('https://api.mercadopago.com/oauth/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json'
-      },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        client_id: MERCADOPAGO_CLIENT_ID,
-        client_secret: MERCADOPAGO_CLIENT_SECRET,
-        code: code,
-        redirect_uri: MERCADOPAGO_REDIRECT_URI
-      })
+    const tokenResponse = await fetch(config.url, {
+      method: config.method,
+      headers: config.headers,
+      body: config.body,
     });
 
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text();
       log.error(`Erro ao trocar code: ${tokenResponse.status} ${errorData}`);
+      
+      // Parse para identificar tipo de erro
+      let reason = 'token_exchange_failed';
+      try {
+        const errorJson = JSON.parse(errorData);
+        if (errorJson.error === 'invalid_grant') {
+          reason = 'invalid_grant';
+        } else if (errorJson.message?.includes('redirect_uri')) {
+          reason = 'redirect_uri_mismatch';
+        }
+      } catch {
+        // Manter reason padrão
+      }
+      
       return {
         success: false,
-        error: 'Erro ao obter token do Mercado Pago.'
+        error: 'Erro ao obter token do Mercado Pago.',
+        reason,
       };
     }
 
@@ -68,20 +96,22 @@ export async function exchangeCodeForToken(code: string): Promise<TokenExchangeR
       log.error(`user_id inválido: ${tokenData.user_id}`);
       return {
         success: false,
-        error: 'Dados inválidos retornados pelo Mercado Pago.'
+        error: 'Dados inválidos retornados pelo Mercado Pago.',
+        reason: 'invalid_user_id',
       };
     }
 
     return {
       success: true,
-      data: tokenData
+      data: tokenData,
     };
 
   } catch (error) {
     log.error('Exception:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Erro desconhecido'
+      error: error instanceof Error ? error.message : 'Erro desconhecido',
+      reason: 'network_error',
     };
   }
 }

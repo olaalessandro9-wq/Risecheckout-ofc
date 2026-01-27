@@ -340,6 +340,8 @@
     document.getElementById('error-message').textContent = errorMessages[reason] || 'Ocorreu um erro desconhecido.';
     
     // Notificar janela pai sobre erro
+    // IMPORTANTE: Usar '*' para permitir comunicação cross-subdomain
+    // (popup em api.risecheckout.com → opener em app.risecheckout.com)
     if (window.opener) {
       try {
         window.opener.postMessage({ 
@@ -347,7 +349,7 @@
           source: 'oauth-callback',
           reason: reason,
           timestamp: Date.now()
-        }, window.location.origin);
+        }, '*');
         console.log('[OAuth Error] ❌ Mensagem de erro enviada para janela pai');
       } catch (error) {
         console.error('[OAuth Error] Erro ao notificar janela pai:', error);

@@ -1,18 +1,17 @@
 /**
  * useMercadoPagoConnection Hook
  * 
- * @version 3.0.0 - RISE Protocol V3 Compliant - SSOT Architecture
+ * @version 4.0.0 - RISE Protocol V3 - Backend SSOT Architecture
  * 
  * Hook APENAS para AÇÕES (connect, disconnect).
  * O ESTADO vem do FinanceiroContext (Single Source of Truth).
- * Eliminadas chamadas duplicadas e re-renders desnecessários.
+ * Authorization URL agora vem do backend para garantir consistência.
  */
 
 import { useState, useCallback, useRef } from 'react';
 import { toast } from '@/components/ui/sonner';
 import { api } from '@/lib/api';
 import { createLogger } from '@/lib/logger';
-import { MERCADOPAGO_CLIENT_ID, MERCADOPAGO_REDIRECT_URI } from '@/config/mercadopago';
 
 const log = createLogger("UseMercadoPagoConnection");
 
@@ -33,6 +32,13 @@ interface UseMercadoPagoConnectionReturn {
   handleDisconnect: () => Promise<void>;
 }
 
+interface OAuthInitResponse {
+  success?: boolean;
+  error?: string;
+  state?: string;
+  authorizationUrl?: string;
+}
+
 export function useMercadoPagoConnection({
   userId,
   onConnectionChange,
@@ -51,28 +57,33 @@ export function useMercadoPagoConnection({
     setConnectingOAuth(true);
 
     try {
-      const nonce = generateSecureNonce();
-
-      const { data: oauthResult, error: oauthError } = await api.call<{ success?: boolean; error?: string; state?: string }>('integration-management', {
-        action: 'init-oauth',
-        integrationType: 'MERCADOPAGO',
-      });
+      // SSOT: Backend gera a Authorization URL
+      const { data: oauthResult, error: oauthError } = await api.call<OAuthInitResponse>(
+        'integration-management', 
+        {
+          action: 'init-oauth',
+          integrationType: 'MERCADOPAGO',
+        }
+      );
 
       if (oauthError || !oauthResult?.success) {
-        log.error('Erro ao salvar state:', oauthResult?.error || oauthError);
+        log.error('Erro ao iniciar OAuth:', oauthResult?.error || oauthError);
         toast.error('Erro ao iniciar autenticação. Tente novamente.');
         setConnectingOAuth(false);
         return;
       }
 
-      const stateNonce = oauthResult.state || nonce;
+      // Usar authorizationUrl do backend (SSOT)
+      const authUrl = oauthResult.authorizationUrl;
+      
+      if (!authUrl) {
+        log.error('Backend não retornou authorizationUrl');
+        toast.error('Erro de configuração. Contate o suporte.');
+        setConnectingOAuth(false);
+        return;
+      }
 
-      const authUrl = new URL('https://auth.mercadopago.com.br/authorization');
-      authUrl.searchParams.set('client_id', MERCADOPAGO_CLIENT_ID);
-      authUrl.searchParams.set('response_type', 'code');
-      authUrl.searchParams.set('platform_id', 'mp');
-      authUrl.searchParams.set('state', stateNonce);
-      authUrl.searchParams.set('redirect_uri', MERCADOPAGO_REDIRECT_URI);
+      log.info('Authorization URL recebida do backend');
 
       const width = 600;
       const height = 700;
@@ -80,7 +91,7 @@ export function useMercadoPagoConnection({
       const top = window.screen.height / 2 - height / 2;
 
       const popup = window.open(
-        authUrl.toString(),
+        authUrl,
         'MercadoPago OAuth',
         `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes`
       );
