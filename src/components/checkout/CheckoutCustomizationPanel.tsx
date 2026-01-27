@@ -61,6 +61,21 @@ const DraggableComponent = ({ type, icon, label }: { type: string; icon: React.R
   );
 };
 
+// Item "Em Breve" (não arrastável, desabilitado visualmente)
+const ComingSoonComponent = ({ icon, label }: { icon: React.ReactNode; label: string }) => {
+  return (
+    <div
+      className="flex flex-col items-center justify-center p-4 rounded-lg border-2 border-dashed opacity-50 cursor-not-allowed relative"
+    >
+      {icon}
+      <span className="text-sm mt-2 text-muted-foreground">{label}</span>
+      <span className="absolute top-1 right-1 text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+        Em Breve
+      </span>
+    </div>
+  );
+};
+
 // Componente para seleção de layout de linha
 const RowLayoutOption = ({ 
   label, 
@@ -215,13 +230,16 @@ export const CheckoutCustomizationPanel = ({
                 <p className="text-xs text-muted-foreground">Arraste para adicionar ao checkout</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
+                {/* Componentes Funcionais */}
                 <DraggableComponent type="text" icon={<TypeIcon size={24} />} label="Texto" />
                 <DraggableComponent type="image" icon={<ImageIcon size={24} />} label="Imagem" />
-                <DraggableComponent type="advantage" icon={<CheckCircleIcon size={24} />} label="Vantagem" />
-                <DraggableComponent type="seal" icon={<AwardIcon size={24} />} label="Selo" />
                 <DraggableComponent type="timer" icon={<TimerIcon size={24} />} label="Cronômetro" />
-                <DraggableComponent type="testimonial" icon={<QuoteIcon size={24} />} label="Depoimento" />
                 <DraggableComponent type="video" icon={<VideoIcon size={24} />} label="Vídeo" />
+                
+                {/* Componentes "Em Breve" (desabilitados, no final) */}
+                <ComingSoonComponent icon={<CheckCircleIcon size={24} />} label="Vantagem" />
+                <ComingSoonComponent icon={<AwardIcon size={24} />} label="Selo" />
+                <ComingSoonComponent icon={<QuoteIcon size={24} />} label="Depoimento" />
               </div>
             </TabScrollArea>
           </TabsContent>
