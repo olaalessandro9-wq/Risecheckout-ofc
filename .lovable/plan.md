@@ -1,392 +1,376 @@
 
-# AUDITORIA COMPLETA - CATEGORIA E: FRONTEND COMPONENTS
+# AUDITORIA COMPLETA - CATEGORIA F: MEMBERS AREA
 
 ## Metodologia Aplicada (RISE V3)
 
 Seguindo o checklist obrigatório do Relatório Mestre:
-1. ✅ Li TODOS os arquivos relevantes de componentes
-2. ✅ Verifiquei console.log direto no código
-3. ✅ Verifiquei tipos `any` e `@ts-ignore`
-4. ✅ Verifiquei limite de 300 linhas
-5. ✅ Verifiquei padrões React e hooks
-6. ✅ Verifiquei modularização de componentes
+1. Li TODOS os arquivos relevantes do módulo Members Area
+2. Verifiquei console.log direto no código
+3. Verifiquei tipos `any` e `@ts-ignore`
+4. Verifiquei limite de 300 linhas
+5. Verifiquei padrão State Management XState
+6. Verifiquei supabase.from() no frontend
+7. Verifiquei estrutura modular e encapsulamento
 
 ---
 
-## E1: USO DE CONSOLE.LOG DIRETO
+## F1: USO DE CONSOLE.LOG DIRETO
 
-### Status: ✅ **CONFORME**
+### Status: CONFORME
 
 ### Análise
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ ZERO CONSOLE.LOG NO CÓDIGO DE PRODUÇÃO                                      │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│ src/components/: 25 matches em 5 arquivos                                   │
-│ ├── Todos são COMENTÁRIOS JSDoc (documentação)                             │
-│ └── "@version 3.0.0 - RISE Protocol V3 - Zero console.log"                 │
-│                                                                              │
-│ src/modules/: 0 matches                                                     │
-│ └── ✅ Zero console.log direto                                             │
-│                                                                              │
-│ src/hooks/: 40 matches em 8 arquivos                                        │
-│ ├── Todos são COMENTÁRIOS JSDoc ou exemplos em documentação                │
-│ └── ✅ Zero console.log em código executável                               │
-│                                                                              │
-│ ÚNICO ARQUIVO COM console.log REAL: src/lib/logger.ts (SSOT)               │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
+Busca "console.log" em src/modules/members-area/: 0 matches
+Busca "console.log" em src/modules/members-area-builder/: 0 matches
+
+RESULTADO: Zero console.log em código executável
+Logging centralizado via createLogger() em todos os arquivos
 ```
 
-**AÇÃO NECESSÁRIA:** Nenhuma
+**ACAO NECESSARIA:** Nenhuma
 
 ---
 
-## E2: TIPOS ANY E @TS-IGNORE
+## F2: TIPOS ANY E @TS-IGNORE
 
-### Status: ✅ **CONFORME**
+### Status: CONFORME
 
 ### Análise
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ ZERO TIPOS ANY NO CÓDIGO                                                    │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│ Busca ": any" em src/components/: 0 matches ✅                              │
-│ Busca ": any" em src/hooks/: 0 matches ✅                                   │
-│ Busca "as any" em src/: 0 matches ✅                                        │
-│                                                                              │
-│ Busca "@ts-ignore|@ts-expect-error" em src/ (excl. .d.ts):                  │
-│ ├── 20 matches em 4 arquivos                                               │
-│ └── TODOS são em arquivos README.md (documentação)                         │
-│     "✅ Zero @ts-ignore"                                                    │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
+Busca ": any" em src/modules/members-area/: 0 matches
+Busca ": any" em src/modules/members-area-builder/: 0 matches
+Busca "as any" em src/modules/members-area/: 0 matches
+Busca "@ts-ignore|@ts-expect-error" em src/modules/members-area/: 0 matches
+
+RESULTADO: Zero tipos any ou @ts-ignore no módulo
 ```
 
-**AÇÃO NECESSÁRIA:** Nenhuma
+**ACAO NECESSARIA:** Nenhuma
 
 ---
 
-## E3: LIMITE DE 300 LINHAS
+## F3: SUPABASE.FROM() NO FRONTEND
 
-### Status: ⚠️ **CORREÇÃO NECESSÁRIA**
+### Status: CONFORME
 
 ### Análise
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ VERIFICAÇÃO DE ARQUIVOS > 300 LINHAS                                        │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│ VIOLAÇÃO IDENTIFICADA:                                                      │
-│                                                                              │
-│ 1. src/components/ui/sidebar.tsx - 637 linhas                              │
-│    ├── Componente shadcn/ui gerado pela CLI oficial                        │
-│    ├── NÃO possui exceção documentada                                      │
-│    └── ❌ VIOLAÇÃO do limite de 300 linhas                                 │
-│                                                                              │
-│ ARQUIVOS CONFORMES OU COM EXCEÇÃO DOCUMENTADA:                              │
-│ ├── src/hooks/useUnifiedAuth.ts - 306 linhas                               │
-│ │   └── ✅ EXCEÇÃO documentada no header (SSOT auth)                       │
-│ ├── src/components/ui/chart.tsx - 303 linhas                               │
-│ │   └── ⚠️ Marginal (3 linhas acima), shadcn/ui                            │
-│ ├── src/components/ui/form.tsx - 129 linhas ✅                             │
-│ ├── src/components/ui/command.tsx - 132 linhas ✅                          │
-│ ├── src/components/ui/calendar.tsx - 53 linhas ✅                          │
-│                                                                              │
-│ STATE MACHINES (todas < 300):                                               │
-│ ├── productFormMachine.ts - 253 linhas ✅                                  │
-│ ├── checkoutPublicMachine.ts - 278 linhas ✅                               │
-│ ├── ProductContext.tsx - 227 linhas ✅                                     │
-│ ├── AffiliationContext.tsx - 118 linhas ✅                                 │
-│ └── MembersAreaContext.tsx - 89 linhas ✅                                  │
-│                                                                              │
-│ HOOKS (todos < 300):                                                        │
-│ ├── useAffiliations.ts - 130 linhas ✅                                     │
-│ ├── useMembersArea.ts - 64 linhas ✅                                       │
-│ ├── useFormManager.ts - 305 linhas ⚠️ (marginal)                           │
-│ └── Todos os outros verificados < 250 linhas ✅                            │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
+Busca "supabase.from" em src/modules/members-area/: 20 matches em 2 arquivos
+- Todos são COMENTARIOS de documentação:
+  "MIGRATED: Uses Edge Function instead of supabase.from()"
+  "MIGRATED: Uses supabase.functions.invoke instead of supabase.from()"
+
+RESULTADO: Zero acesso direto ao banco no frontend
+Todas as operações passam por Edge Functions via api.call()
 ```
 
-### Análise RISE V3 (Seção 4.4) - sidebar.tsx
+**ACAO NECESSARIA:** Nenhuma
 
-#### Contexto
-O arquivo `sidebar.tsx` (637 linhas) é um **componente shadcn/ui** gerado pela CLI oficial. Componentes shadcn/ui são:
-- Copiados para o projeto (não instalados como dependência)
-- Usados como estão por milhares de projetos
-- Atualizados via CLI quando necessário
+---
 
-#### Solução A: Documentar Exceção para shadcn/ui
-- Manutenibilidade: 10/10 - shadcn/ui é padrão da indústria
-- Zero DT: 10/10 - Não é dívida técnica, é biblioteca externa
-- Arquitetura: 9/10 - Componente monolítico por design
-- Escalabilidade: 10/10 - Atualizado via CLI
+## F4: STATE MANAGEMENT COM XSTATE
+
+### Status: CONFORME
+
+### Análise
+
+```text
+MEMBERS AREA MODULE:
+- src/modules/members-area/hooks/machines/membersAreaMachine.ts (295 linhas)
+  - XState v5 com setup()
+  - Guards: isDirty, canSave, hasModules, isNotDirty
+  - Actions: loadModules, setModules, resetModules, CRUD modules/contents
+  - Estados: idle, ready (pristine/dirty), saving
+
+MEMBERS AREA BUILDER:
+- src/modules/members-area-builder/machines/builderMachine.ts (210 linhas)
+  - XState v5 com Dual-Layout (Desktop/Mobile)
+  - Actors: loadBuilderActor, saveBuilderActor
+  - Estados: idle, loading, ready (pristine/dirty), saving, error
+
+MODULARIZACAO DAS MACHINES:
+- builderMachine.types.ts - 148 linhas
+- builderMachine.actions.ts - 125 linhas
+- builderMachine.actors.ts - 271 linhas
+- builderMachine.guards.ts - separado
+
+RESULTADO: 100% XState v5 nos dois sub-módulos
+```
+
+**ACAO NECESSARIA:** Nenhuma
+
+---
+
+## F5: CONTEXT SSOT PATTERN
+
+### Status: CONFORME
+
+### Análise
+
+```text
+src/modules/members-area/context/MembersAreaContext.tsx (89 linhas):
+- Provider único que compõe useMembersArea() e useGroups()
+- Elimina múltiplas instâncias de hooks
+- Single Source of Truth para toda a seção
+
+src/modules/members-area-builder/hooks/useMembersAreaBuilder.ts:
+- Delega para useMembersAreaState (XState)
+
+RESULTADO: SSOT Pattern implementado corretamente
+```
+
+**ACAO NECESSARIA:** Nenhuma
+
+---
+
+## F6: LIMITE DE 300 LINHAS (FRONTEND)
+
+### Status: CONFORME
+
+### Análise
+
+```text
+ARQUIVOS VERIFICADOS NO FRONTEND:
+- MembersAreaContext.tsx: 89 linhas
+- membersAreaMachine.ts: 295 linhas
+- builderMachine.ts: 210 linhas
+- builderMachine.actors.ts: 271 linhas
+- builder.types.ts: 294 linhas
+- LessonViewer.tsx: 245 linhas
+- CourseHome.tsx: 254 linhas
+- BuyerDashboard.tsx: 165 linhas
+- useStudentsData.ts: 206 linhas
+
+RESULTADO: Todos os arquivos do frontend < 300 linhas
+```
+
+**ACAO NECESSARIA:** Nenhuma
+
+---
+
+## F7: LIMITE DE 300 LINHAS (EDGE FUNCTIONS)
+
+### Status: VIOLACAO ENCONTRADA
+
+### Análise
+
+```text
+EDGE FUNCTIONS CONFORMES:
+- members-area-modules/index.ts: 141 linhas (Router Pattern)
+- members-area-groups/index.ts: 98 linhas (Router Pattern)
+- members-area-progress/index.ts: 93 linhas (Router Pattern)
+- buyer-orders/index.ts: 117 linhas (Router Pattern)
+- buyer-orders/handlers/content.ts: 252 linhas
+
+VIOLACOES:
+1. students-list/index.ts: 398 linhas (VIOLACAO)
+2. students-invite/index.ts: 458 linhas (VIOLACAO)
+
+Ambas as funções NÃO seguem o padrão Router + Handlers
+que as outras funções do módulo usam corretamente.
+```
+
+---
+
+## F8: PADROES DE UI E UX
+
+### Status: CONFORME
+
+### Análise
+
+```text
+LESSON VIEWER (Cakto-style):
+- LessonLayout: Flexbox com sidebar direita
+- LessonHeader: Sticky top com navegação
+- PremiumSidebar: Módulos expansíveis com progresso
+- LessonMobileSheet: Drawer para mobile
+- MinimalNavFooter: Navegação Anterior/Próxima
+
+COURSE HOME:
+- MembersAreaThemeProvider: Tema do builder aplicado
+- BuyerSidebar: Renderização condicional por settings
+- BuyerMobileNav: Renderização condicional por settings
+- HeroBanner, ModuleCarousel: Netflix-style
+
+RESULTADO: UI/UX consistente e profissional
+```
+
+**ACAO NECESSARIA:** Nenhuma
+
+---
+
+## F9: DRIP CONTENT (LIBERACAO PROGRAMADA)
+
+### Status: CONFORME
+
+### Análise
+
+```text
+BACKEND (buyer-orders/helpers/drip.ts):
+- calculateContentLock() implementado
+- Suporte a: Immediate, Days After Purchase, Fixed Date
+
+FRONTEND (LessonViewer.tsx, PremiumSidebar.tsx):
+- is_locked, unlock_date, lock_reason recebidos do backend
+- UI mostra cadeado e mensagem de desbloqueio
+- Navegação bloqueada para conteúdo trancado
+
+RESULTADO: Sistema de Drip completo e funcional
+```
+
+**ACAO NECESSARIA:** Nenhuma
+
+---
+
+## F10: PROGRESS TRACKING
+
+### Status: CONFORME
+
+### Análise
+
+```text
+EDGE FUNCTION (members-area-progress/):
+- Router Pattern com 8 handlers separados
+- get_content, get_summary, get_last_watched
+- update, complete, uncomplete
+- get_module_progress, get_product_progress
+
+FRONTEND (useStudentProgress.ts):
+- markComplete, unmarkComplete
+- fetchSummary com modo silent
+- Integração com PremiumSidebar (ícones de progresso)
+
+RESULTADO: Progress tracking completo
+```
+
+**ACAO NECESSARIA:** Nenhuma
+
+---
+
+## RESUMO EXECUTIVO - CATEGORIA F
+
+```text
+RESULTADO DA AUDITORIA - CATEGORIA F
+
+  F1: Uso de console.log direto              CONFORME
+  F2: Tipos any e @ts-ignore                 CONFORME
+  F3: supabase.from() no frontend            CONFORME
+  F4: State Management (XState)              CONFORME
+  F5: Context SSOT Pattern                   CONFORME
+  F6: Limite 300 linhas (Frontend)           CONFORME
+  F7: Limite 300 linhas (Edge Functions)     VIOLACAO (2 arquivos)
+  F8: Padrões de UI e UX                     CONFORME
+  F9: Drip Content System                    CONFORME
+  F10: Progress Tracking                     CONFORME
+
+  PONTOS CONFORMES:       9/10 (90%)
+  VIOLACOES:              1/10 (10%)
+  CRITICIDADE: MEDIA (Edge Functions precisam modularização)
+```
+
+---
+
+## PLANO DE CORRECAO
+
+### Correção F7: Modularizar Edge Functions
+
+#### Arquivo 1: students-list/index.ts (398 linhas para ~100 linhas)
+
+**Estrutura proposta:**
+
+```text
+supabase/functions/students-list/
+├── index.ts                    # ~100 linhas (Router puro)
+├── types.ts                    # ~50 linhas (Interfaces)
+└── handlers/
+    ├── list.ts                 # ~150 linhas (Action: list)
+    ├── get.ts                  # ~50 linhas (Action: get)
+    └── get_producer_info.ts    # ~40 linhas (Action: get-producer-info)
+```
+
+#### Arquivo 2: students-invite/index.ts (458 linhas para ~120 linhas)
+
+**Estrutura proposta:**
+
+```text
+supabase/functions/students-invite/
+├── index.ts                         # ~120 linhas (Router puro)
+├── types.ts                         # ~50 linhas (Interfaces)
+├── helpers/
+│   ├── hash.ts                      # ~30 linhas (hashToken, hashPassword)
+│   └── token.ts                     # ~20 linhas (generateToken)
+└── handlers/
+    ├── validate_invite_token.ts     # ~60 linhas
+    ├── use_invite_token.ts          # ~80 linhas
+    ├── generate_purchase_access.ts  # ~100 linhas
+    └── invite.ts                    # ~110 linhas
+```
+
+---
+
+## ANALISE RISE V3 (Seção 4.4)
+
+### Solução A: Deixar Como Está + Documentar Exceção
+- Manutenibilidade: 5/10 - Arquivos grandes dificultam manutenção
+- Zero DT: 3/10 - É dívida técnica explícita
+- Arquitetura: 4/10 - Inconsistente com outras funções do módulo
+- Escalabilidade: 4/10 - Difícil adicionar novos handlers
 - Segurança: 10/10 - N/A
-- **NOTA FINAL: 9.8/10**
-- Tempo: 10 minutos
+- **NOTA FINAL: 5.2/10**
 
-#### Solução B: Refatorar sidebar.tsx em Módulos
-- Manutenibilidade: 7/10 - Quebraria compatibilidade com CLI shadcn
-- Zero DT: 5/10 - Criaria dívida de manutenção manual
-- Arquitetura: 8/10 - Modular, mas perde atualizações automáticas
-- Escalabilidade: 6/10 - Cada atualização do shadcn requer refatoração
+### Solução B: Modularizar com Router + Handlers
+- Manutenibilidade: 10/10 - Arquivos pequenos e focados
+- Zero DT: 10/10 - Elimina a dívida
+- Arquitetura: 10/10 - Consistente com members-area-groups, buyer-orders, etc.
+- Escalabilidade: 10/10 - Fácil adicionar novos handlers
 - Segurança: 10/10 - N/A
-- **NOTA FINAL: 7.2/10**
-- Tempo: 3-4 horas + manutenção contínua
+- **NOTA FINAL: 10.0/10**
 
-### DECISÃO: Solução A (Nota 9.8/10)
+### DECISAO: Solução B (Nota 10.0/10)
 
-Componentes shadcn/ui são exceções por natureza - são bibliotecas copiadas, não código interno. A refatoração criaria mais dívida técnica do que manteria.
-
-**AÇÃO NECESSÁRIA:**
-1. Adicionar documentação de exceção em `docs/RISE_PROTOCOL_EXCEPTIONS.md` para componentes shadcn/ui
+Seguindo a LEI SUPREMA: A modularização é obrigatória.
 
 ---
 
-## E4: PADRÕES REACT E HOOKS
+## NOTA FINAL DA CATEGORIA F
 
-### Status: ✅ **CONFORME**
-
-### Análise
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ PADRÕES REACT - VERIFICAÇÃO                                                 │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│ HOOKS:                                                                      │
-│ ├── useCallback para funções passadas como props ✅                        │
-│ ├── useMemo para valores derivados ✅                                      │
-│ ├── useEffect para side effects (não useMemo) ✅                           │
-│ └── Hooks no topo dos componentes ✅                                       │
-│                                                                              │
-│ STATE MANAGEMENT:                                                           │
-│ ├── XState v5 como SSOT em todos os módulos ✅                             │
-│ ├── useMachine() no Provider ✅                                            │
-│ ├── send() como único ponto de transição ✅                                │
-│ └── Zero useState duplicados em forms ✅                                   │
-│                                                                              │
-│ COMPONENTES:                                                                │
-│ ├── memo() para componentes puros quando necessário ✅                     │
-│ ├── forwardRef para componentes UI ✅                                      │
-│ ├── displayName definido ✅                                                │
-│ └── Lazy loading com Suspense ✅                                           │
-│                                                                              │
-│ ANTI-PATTERNS VERIFICADOS:                                                  │
-│ ├── useState com arrays vazios em módulos: 0 ✅                            │
-│ ├── useEffect sem deps: 0 ✅                                               │
-│ └── Inline functions desnecessárias: verificado ✅                         │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-**AÇÃO NECESSÁRIA:** Nenhuma
-
----
-
-## E5: MODULARIZAÇÃO DE COMPONENTES
-
-### Status: ✅ **CONFORME**
-
-### Análise
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ ESTRUTURA MODULAR - VERIFICAÇÃO                                             │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│ COMPONENTES:                                                                │
-│ ├── src/components/ui/ - Primitivos shadcn/ui                              │
-│ ├── src/components/checkout/ - Checkout builder                            │
-│ ├── src/components/products/ - Produtos                                    │
-│ ├── src/components/affiliates/ - Afiliados                                 │
-│ ├── src/components/guards/ - Route guards                                  │
-│ └── src/components/layout/ - Layouts                                       │
-│                                                                              │
-│ MODULES (Feature-based):                                                    │
-│ ├── src/modules/products/ - Módulo de produtos                             │
-│ ├── src/modules/checkout-public/ - Checkout público                        │
-│ ├── src/modules/members-area/ - Área de membros                            │
-│ ├── src/modules/affiliation/ - Afiliações                                  │
-│ ├── src/modules/admin/ - Administração                                     │
-│ └── src/modules/webhooks/ - Webhooks                                       │
-│                                                                              │
-│ PADRÃO BARREL EXPORTS:                                                      │
-│ ├── Cada módulo tem index.ts ✅                                            │
-│ ├── Exports públicos explícitos ✅                                         │
-│ └── Encapsulamento de implementação ✅                                     │
-│                                                                              │
-│ SEPARAÇÃO DE RESPONSABILIDADES:                                             │
-│ ├── machines/ - State Machines XState                                      │
-│ ├── context/ - React Context Providers                                     │
-│ ├── hooks/ - Custom Hooks                                                  │
-│ ├── components/ - React Components                                         │
-│ ├── types/ - TypeScript Definitions                                        │
-│ └── services/ - Business Logic                                             │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-**AÇÃO NECESSÁRIA:** Nenhuma
-
----
-
-## E6: DESIGN SYSTEM E UI PATTERNS
-
-### Status: ✅ **CONFORME**
-
-### Análise
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ DESIGN SYSTEM - VERIFICAÇÃO                                                 │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│ COMPONENTES UI:                                                             │
-│ ├── shadcn/ui como base ✅                                                 │
-│ ├── Radix primitives para acessibilidade ✅                                │
-│ ├── CVA para variants ✅                                                   │
-│ └── Tailwind para styling ✅                                               │
-│                                                                              │
-│ TOKENS:                                                                     │
-│ ├── CSS variables em index.css ✅                                          │
-│ ├── Design tokens semânticos ✅                                            │
-│ └── Theme providers especializados ✅                                      │
-│                                                                              │
-│ PADRÕES:                                                                    │
-│ ├── Truncation + Tooltip para texto longo ✅                               │
-│ ├── Loading states consistentes ✅                                         │
-│ ├── Error boundaries ✅                                                    │
-│ └── Skeleton loading ✅                                                    │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-**AÇÃO NECESSÁRIA:** Nenhuma
-
----
-
-## RESUMO EXECUTIVO - CATEGORIA E
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    RESULTADO DA AUDITORIA - CATEGORIA E                      │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  E1: Uso de console.log direto                 ✅ CONFORME                  │
-│  E2: Tipos any e @ts-ignore                    ✅ CONFORME                  │
-│  E3: Limite de 300 linhas                      ⚠️ EXCEÇÃO A DOCUMENTAR     │
-│  E4: Padrões React e Hooks                     ✅ CONFORME                  │
-│  E5: Modularização de componentes              ✅ CONFORME                  │
-│  E6: Design System e UI Patterns               ✅ CONFORME                  │
-│                                                                              │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  PONTOS CONFORMES:       5/6 (83%)                                          │
-│  EXCEÇÕES A DOCUMENTAR:  1/6 (17%)                                          │
-│  CRITICIDADE: 🟢 MUITO BAIXA (apenas documentação)                          │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## PLANO DE CORREÇÃO
-
-### Correção E3: Documentar Exceção shadcn/ui
-
-Adicionar ao arquivo `docs/RISE_PROTOCOL_EXCEPTIONS.md`:
-
-```markdown
-## 10. Componentes shadcn/ui (Exceção de 300 Linhas)
-
-### Arquivos Afetados
-- `src/components/ui/sidebar.tsx` (637 linhas)
-- `src/components/ui/chart.tsx` (303 linhas - marginal)
-
-### Justificativa
-
-| Critério | Justificativa |
-|----------|---------------|
-| **Origem** | Componentes gerados pela CLI oficial shadcn/ui |
-| **Natureza** | Bibliotecas copiadas, não código interno |
-| **Manutenção** | Atualizados via `npx shadcn@latest add <component>` |
-| **Alternativa** | Refatorar quebraria compatibilidade com CLI |
-| **Impacto** | Zero impacto na manutenibilidade do código interno |
-
-### Decisão
-
-✅ **EXCEÇÃO ACEITA** - Componentes shadcn/ui são exceções por natureza.
-Eles são bibliotecas padrão da indústria usadas como estão.
-Refatorá-los criaria dívida técnica de manutenção manual.
-
-### Componentes shadcn/ui Instalados
-
-| Componente | Linhas | Status |
-|------------|--------|--------|
-| sidebar.tsx | 637 | ✅ Exceção |
-| chart.tsx | 303 | ✅ Marginal |
-| form.tsx | 129 | ✅ Conforme |
-| dialog.tsx | ~100 | ✅ Conforme |
-| ... | <300 | ✅ Conforme |
-```
-
----
-
-## NOTA FINAL DA CATEGORIA E
-
-| Critério | Antes da Documentação | Após Documentação |
-|----------|----------------------|-------------------|
-| Manutenibilidade | 10.0/10 | 10.0/10 |
-| Zero DT | 9.5/10 | 10.0/10 |
-| Arquitetura | 10.0/10 | 10.0/10 |
-| Escalabilidade | 10.0/10 | 10.0/10 |
+| Critério | Antes da Correção | Após Correção |
+|----------|-------------------|---------------|
+| Manutenibilidade | 9.0/10 | 10.0/10 |
+| Zero DT | 8.0/10 | 10.0/10 |
+| Arquitetura | 9.0/10 | 10.0/10 |
+| Escalabilidade | 9.0/10 | 10.0/10 |
 | Segurança | 10.0/10 | 10.0/10 |
-| **NOTA FINAL** | **9.9/10** | **10.0/10** |
+| **NOTA FINAL** | **9.0/10** | **10.0/10** |
 
 ---
 
-## CONCLUSÃO
-
-A **Categoria E: Frontend Components** está em **83% conformidade** com o RISE ARCHITECT PROTOCOL V3.
-
-### Arquitetura Confirmada
-
-1. **Zero console.log** no código de produção (apenas em logger.ts)
-2. **Zero tipos any** ou @ts-ignore em código executável
-3. **XState v5** em todos os módulos como SSOT
-4. **Modularização correta** com barrel exports
-5. **Design System** consistente com shadcn/ui + Tailwind
-6. **Padrões React** seguidos (hooks, memo, lazy loading)
-
-### Correção Única Necessária
-
-Documentar exceção para componentes shadcn/ui (sidebar.tsx com 637 linhas) que são bibliotecas externas copiadas, não código interno.
-
-### Próximo Passo
-
-Após aplicar a documentação, a Categoria E estará em **10.0/10**.
-
----
-
-## CATEGORIAS AUDITADAS ATÉ AGORA
+## CATEGORIAS AUDITADAS ATE AGORA
 
 | Categoria | Status | Nota |
 |-----------|--------|------|
-| A: Arquitetura Core | ✅ CONFORME | 10.0/10 |
-| B: Segurança & RLS | ✅ CONFORME | 10.0/10 |
-| C: Checkout Público | ✅ CONFORME | 10.0/10 |
-| D: Edge Functions & Backend | ✅ CONFORME | 10.0/10 |
-| E: Frontend Components | ⏳ Aguardando Documentação | 9.9/10 |
+| A: Arquitetura Core | CONFORME | 10.0/10 |
+| B: Segurança e RLS | CONFORME | 10.0/10 |
+| C: Checkout Público | CONFORME | 10.0/10 |
+| D: Edge Functions e Backend | CONFORME | 10.0/10 |
+| E: Frontend Components | CONFORME | 10.0/10 |
+| F: Members Area | Aguardando Correção | 9.0/10 |
 
-### Próximas Categorias Pendentes
-- F: Members Area
-- G: Dashboard  
-- H: Integrações
-- I: DevOps
+---
+
+## PROXIMOS PASSOS
+
+Após aprovação, implementarei a modularização de:
+
+1. **students-list**: Extrair handlers para arquivos separados
+2. **students-invite**: Extrair handlers e helpers para arquivos separados
+
+Ambas seguirão o mesmo padrão já usado em:
+- `members-area-groups` (Router + 8 handlers)
+- `members-area-progress` (Router + 8 handlers)
+- `buyer-orders` (Router + 4 handlers)
+
+Isso garantirá consistência arquitetural 100% no módulo Members Area.
