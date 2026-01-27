@@ -124,11 +124,8 @@ serve(async (req) => {
     const userId = producer.id;
     log.info(`Usuário: ${userId.substring(0, 8)}...`);
 
-    // 2. Criar cliente Supabase para queries com RLS
-    const supabase: SupabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-    );
+    // 2. Reutilizar supabaseAdmin para queries (RISE V3: service_role only)
+    // Ownership validation is done explicitly via user_id check below
 
     // 4. Parse do payload
     const payload: RequestPayload = await req.json();
@@ -142,7 +139,7 @@ serve(async (req) => {
     }
 
     // 5. Verificar se o usuário é DONO desta afiliação
-    const { data: affiliate, error: fetchError } = await supabase
+    const { data: affiliate, error: fetchError } = await supabaseAdmin
       .from("affiliates")
       .select("id, user_id, product_id, status")
       .eq("id", affiliate_id)
@@ -187,7 +184,7 @@ serve(async (req) => {
         }
 
         // Buscar configurações permitidas do produto
-        const { data: product } = await supabase
+        const { data: product } = await supabaseAdmin
           .from("products")
           .select("affiliate_gateway_settings")
           .eq("id", affiliate.product_id)
