@@ -8,7 +8,7 @@
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { generateUniqueCheckoutSlug } from "./edge-helpers.ts";
+import { generateUniqueCheckoutSlug, buildDuplicateName } from "./edge-helpers.ts";
 import { cloneCheckoutDeep, cloneCheckoutLinks } from "./product-duplicate-cloner.ts";
 
 // Re-export cloner functions
@@ -86,7 +86,7 @@ export async function duplicateProduct(
   ensureUniqueName: (supabase: SupabaseClient, baseName: string) => Promise<string>
 ): Promise<{ success: boolean; newProductId?: string; error?: string }> {
   try {
-    const baseName = `${srcProduct.name} (Cópia)`;
+    const baseName = buildDuplicateName(srcProduct.name);
     const newName = await ensureUniqueName(supabase, baseName);
 
     const { data: newProduct, error: insertError } = await supabase
