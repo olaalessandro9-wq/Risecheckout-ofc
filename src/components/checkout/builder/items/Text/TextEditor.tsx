@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ComponentData } from "../../types";
 import type { TextContent } from "@/types/checkout-components.types";
 import type { CheckoutDesign } from "@/types/checkoutEditor";
+import { CHECKOUT_TEXT_LIMITS } from "@/lib/constants/field-limits";
 
 interface TextEditorProps {
   component: ComponentData;
@@ -41,9 +42,16 @@ export const TextEditor = ({ component, onChange }: TextEditorProps) => {
           <Input
             type="number"
             value={content.fontSize || 16}
-            onChange={(e) => handleChange("fontSize", parseInt(e.target.value))}
-            min={12}
-            max={48}
+            onChange={(e) => {
+              const rawValue = parseInt(e.target.value) || CHECKOUT_TEXT_LIMITS.FONT_SIZE_MIN;
+              const clampedValue = Math.max(
+                CHECKOUT_TEXT_LIMITS.FONT_SIZE_MIN,
+                Math.min(CHECKOUT_TEXT_LIMITS.FONT_SIZE_MAX, rawValue)
+              );
+              handleChange("fontSize", clampedValue);
+            }}
+            min={CHECKOUT_TEXT_LIMITS.FONT_SIZE_MIN}
+            max={CHECKOUT_TEXT_LIMITS.FONT_SIZE_MAX}
           />
         </div>
         <div>
