@@ -77,19 +77,30 @@ export const CountdownTimer = ({
         backgroundColor, 
         color: textColor,
         minHeight: '72px',
+        overflow: 'hidden',
+        maxWidth: '100%',
       }}
     >
       {/* Tempo */}
-      <span className="text-3xl lg:text-4xl font-bold tabular-nums">
+      <span className="text-3xl lg:text-4xl font-bold tabular-nums flex-shrink-0">
         {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
       </span>
 
       {/* Ícone */}
-      <AlarmClock className="w-6 h-6 lg:w-7 lg:h-7" style={{ color: textColor }} />
+      <AlarmClock className="w-6 h-6 lg:w-7 lg:h-7 flex-shrink-0" style={{ color: textColor }} />
 
       {/* Texto */}
       {(isFinished ? finishedText : activeText) && (
-        <span className="text-base lg:text-lg font-medium">
+        <span 
+          className="text-base lg:text-lg font-medium"
+          style={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            maxWidth: '40%',
+            display: 'inline-block',
+          }}
+        >
           {isFinished ? finishedText : activeText}
         </span>
       )}
