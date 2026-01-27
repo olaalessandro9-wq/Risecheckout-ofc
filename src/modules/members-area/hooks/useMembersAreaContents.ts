@@ -43,11 +43,13 @@ export function useMembersAreaContents({
     }
 
     const position = targetModule.contents.length;
-    const { data: result, error } = await api.call<{ success: boolean; data: MemberContent; error?: string }>('admin-data', {
-      action: 'create-member-content',
+    const { data: result, error } = await api.call<{ success: boolean; data: MemberContent; error?: string }>('content-crud', {
+      action: 'create',
       moduleId,
-      ...data,
-      position,
+      data: {
+        ...data,
+        position,
+      },
     });
 
     if (error || !result?.success || !result.data) {
@@ -62,10 +64,10 @@ export function useMembersAreaContents({
   }, [modules, dispatch]);
 
   const updateContent = useCallback(async (id: string, data: Partial<MemberContent>): Promise<void> => {
-    const { error } = await api.call<{ success: boolean; error?: string }>('admin-data', {
-      action: 'update-member-content',
+    const { error } = await api.call<{ success: boolean; error?: string }>('content-crud', {
+      action: 'update',
       contentId: id,
-      ...data,
+      data,
     });
 
     if (error) {
@@ -79,8 +81,8 @@ export function useMembersAreaContents({
   }, [dispatch]);
 
   const deleteContent = useCallback(async (id: string): Promise<void> => {
-    const { error } = await api.call<{ success: boolean; error?: string }>('admin-data', {
-      action: 'delete-member-content',
+    const { error } = await api.call<{ success: boolean; error?: string }>('content-crud', {
+      action: 'delete',
       contentId: id,
     });
 
@@ -101,8 +103,8 @@ export function useMembersAreaContents({
     // Optimistic update
     dispatch({ type: 'REORDER_CONTENTS', moduleId, orderedIds });
 
-    const { error } = await api.call<{ success: boolean; error?: string }>('admin-data', {
-      action: 'reorder-member-contents',
+    const { error } = await api.call<{ success: boolean; error?: string }>('content-crud', {
+      action: 'reorder',
       moduleId,
       orderedIds,
     });
