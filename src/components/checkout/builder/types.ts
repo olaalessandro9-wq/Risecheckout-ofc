@@ -57,6 +57,7 @@ export interface BuilderComponentConfig<T extends BuilderComponentContent = Buil
     component: ComponentData; 
     onChange: (newContent: Partial<T>) => void; 
     design?: CheckoutDesign;
+    productId?: string;
   }>;
   
   /** Dados iniciais quando o componente é criado */

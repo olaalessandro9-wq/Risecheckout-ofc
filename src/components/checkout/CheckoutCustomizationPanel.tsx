@@ -25,6 +25,7 @@ interface CheckoutCustomizationPanelProps {
   activeTab: "components" | "rows" | "settings";
   onActiveTabChange: (tab: "components" | "rows" | "settings") => void;
   viewMode: "desktop" | "mobile" | "public";
+  productId?: string;
 }
 
 // --- Subcomponentes Estáticos (fora do componente principal) ---
@@ -94,6 +95,7 @@ export const CheckoutCustomizationPanel = ({
   activeTab,
   onActiveTabChange,
   viewMode,
+  productId,
 }: CheckoutCustomizationPanelProps) => {
 
   // Lógica de atualização de design (Simplificada e usando lodash-style path se necessário)
@@ -153,6 +155,7 @@ export const CheckoutCustomizationPanel = ({
               component={selectedComponent}
               onChange={(newContent: Partial<CheckoutComponentContent>) => onUpdateComponent(selectedComponent.id, newContent)}
               design={customization.design}
+              productId={productId}
             />
           ) : (
             <div className="text-muted-foreground text-sm">

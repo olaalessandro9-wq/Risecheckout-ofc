@@ -109,7 +109,7 @@ const CheckoutCustomizer = () => {
 
             {!editor.isPreviewMode && (
               <aside className="flex-none w-96 border-l bg-card flex flex-col overflow-hidden">
-                <CheckoutCustomizationPanel
+              <CheckoutCustomizationPanel
                   customization={editor.customization}
                   selectedComponent={editor.selectedComponentData}
                   onUpdateComponent={editor.handleUpdateComponent}
@@ -122,6 +122,7 @@ const CheckoutCustomizer = () => {
                   activeTab={editor.activeTab}
                   onActiveTabChange={editor.setActiveTab}
                   viewMode={editor.viewMode}
+                  productId={persistence.productData?.id}
                 />
               </aside>
             )}
