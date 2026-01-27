@@ -143,19 +143,17 @@ export function mapCheckoutRecords(records: CheckoutRecord[]): Checkout[] {
     const paymentLink = checkoutLink?.payment_links;
     const offer = paymentLink?.offers;
     
-    // Prioridade: offer > product > fallback
-    const price = offer?.price ?? record.products?.price ?? 0;
-    const offerName = offer?.name ?? record.products?.name ?? "";
-    const linkId = checkoutLink?.link_id ?? "";
+    // RISE V3: Sem fallback para product - null indica "sem oferta associada"
+    const hasOffer = !!offer;
     
     return {
       id: record.id,
       name: record.name,
-      price,
+      price: hasOffer ? offer.price : null,
       visits: record.visits_count ?? 0,
-      offer: offerName,
+      offer: hasOffer ? offer.name : null,
       isDefault: record.is_default,
-      linkId,
+      linkId: checkoutLink?.link_id ?? "",
       product_id: record.product_id,
       status: record.status ?? "active",
       created_at: record.created_at,

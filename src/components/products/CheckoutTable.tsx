@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Plus, MoreVertical, Copy, Trash2, Settings, Palette, Loader2 } from "lucide-react";
+import { Search, Plus, MoreVertical, Copy, Trash2, Settings, Palette, Loader2, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,9 +27,9 @@ import { formatCentsToBRL as formatBRL } from "@/lib/money";
 export interface Checkout {
   id: string;
   name: string;
-  price: number;
+  price: number | null;   // null = sem oferta associada
   visits: number;
-  offer: string;
+  offer: string | null;   // null = sem oferta associada
   isDefault: boolean;
   linkId: string;
 }
@@ -123,25 +123,36 @@ export const CheckoutTable = ({
                       </div>
                     </TableCell>
                     <TableCell className="text-primary font-semibold">
-                      {formatBRL(checkout.price)}
+                      {checkout.price !== null ? (
+                        formatBRL(checkout.price)
+                      ) : (
+                        <span className="text-muted-foreground italic">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {checkout.visits}
                     </TableCell>
                     <TableCell className="text-muted-foreground max-w-[200px]">
-                      {checkout.offer.length > 25 ? (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="block truncate cursor-help">
+                      {checkout.offer !== null ? (
+                        checkout.offer.length > 25 ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="block truncate cursor-help">
+                                {checkout.offer}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-[300px] break-words">
                               {checkout.offer}
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-[300px] break-words">
-                            {checkout.offer}
-                          </TooltipContent>
-                        </Tooltip>
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          checkout.offer
+                        )
                       ) : (
-                        checkout.offer
+                        <span className="text-yellow-500 italic text-sm flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          Selecione uma oferta
+                        </span>
                       )}
                     </TableCell>
                     <TableCell>
