@@ -83,9 +83,9 @@ export interface OrderBump {
 export interface Checkout {
   id: string;
   name: string;
-  price: number; // Centavos
+  price: number | null;  // null = sem oferta associada
   visits: number;
-  offer: string;
+  offer: string | null;  // null = sem oferta associada
   isDefault: boolean;
   linkId: string;
   product_id?: string;

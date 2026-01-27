@@ -77,11 +77,12 @@ export const CheckoutConfigDialog = ({
     if (checkout) {
       setName(checkout.name);
       setIsDefault(checkout.isDefault);
-      setSelectedOfferId(currentOfferId);
+      // RISE V3: Se não há oferta associada (currentOfferId vazio), manter vazio
+      setSelectedOfferId(currentOfferId || "");
     } else {
       setName("");
       setIsDefault(false);
-      // Selecionar automaticamente a oferta padrão para novos checkouts
+      // Para novos checkouts: pré-selecionar oferta padrão
       const defaultOffer = availableOffers.find(offer => offer.is_default);
       setSelectedOfferId(defaultOffer ? defaultOffer.id : (availableOffers[0]?.id || ""));
     }
@@ -213,6 +214,16 @@ export const CheckoutConfigDialog = ({
                 </div>
               </div>
             ) : (
+              <>
+                {/* Warning: Checkout sem oferta associada */}
+                {!selectedOfferId && (
+                  <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg mb-2 flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-yellow-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-yellow-500">
+                      Este checkout não tem oferta associada. Selecione uma oferta para definir o preço.
+                    </p>
+                  </div>
+                )}
               <RadioGroup 
                 value={selectedOfferId} 
                 onValueChange={setSelectedOfferId}
@@ -251,6 +262,7 @@ export const CheckoutConfigDialog = ({
                   ))}
                 </div>
               </RadioGroup>
+              </>
             )}
           </div>
 
