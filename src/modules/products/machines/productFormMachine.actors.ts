@@ -86,7 +86,7 @@ interface ProductFullResponse {
       slug: string;
       url?: string;
       status?: string;
-      active?: boolean;
+      
       created_at?: string;
       offers?: {
         id: string;
@@ -195,7 +195,7 @@ function mapBffToMachine(data: ProductFullResponse["data"]): MappedProductData {
     offer_name: pl.offers?.name ?? "",
     offer_price: pl.offers?.price ?? 0,
     is_default: pl.offers?.is_default ?? false,
-    status: (pl.active !== false ? "active" : "inactive") as "active" | "inactive",
+    status: (pl.status === "active" ? "active" : "inactive") as "active" | "inactive",
     checkouts: pl.checkouts ?? [],
     created_at: pl.created_at,
   }));
