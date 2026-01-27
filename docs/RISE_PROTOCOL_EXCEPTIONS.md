@@ -278,3 +278,43 @@ Hooks que precisam salvar dados recebem:
 | 2026-01-20 | Lovable | Criação `membersAreaMachine.ts` (XState State Machine) |
 | 2026-01-20 | Lovable | Criação `builderMachine.ts` (XState State Machine) |
 | 2026-01-20 | Lovable | Criação `navigationMachine.ts` (XState State Machine) |
+| 2026-01-27 | Lovable | Exceção shadcn/ui documentada (sidebar.tsx, chart.tsx) |
+
+---
+
+## 10. Componentes shadcn/ui (Exceção de 300 Linhas)
+
+### Arquivos Afetados
+
+| Arquivo | Linhas | Status |
+|---------|--------|--------|
+| `src/components/ui/sidebar.tsx` | 637 | ✅ Exceção Aceita |
+| `src/components/ui/chart.tsx` | 303 | ✅ Marginal Aceito |
+
+### Justificativa
+
+| Critério | Justificativa |
+|----------|---------------|
+| **Origem** | Componentes gerados pela CLI oficial shadcn/ui |
+| **Natureza** | Bibliotecas copiadas para o projeto, não código interno |
+| **Manutenção** | Atualizados via `npx shadcn@latest add <component>` |
+| **Alternativa** | Refatorar quebraria compatibilidade com CLI |
+| **Impacto** | Zero impacto na manutenibilidade do código interno |
+
+### Decisão
+
+✅ **EXCEÇÃO ACEITA** - Componentes shadcn/ui são exceções por natureza.
+Eles são bibliotecas padrão da indústria usadas como estão.
+Refatorá-los criaria dívida técnica de manutenção manual.
+
+### Componentes shadcn/ui Instalados
+
+| Componente | Linhas | Status |
+|------------|--------|--------|
+| sidebar.tsx | 637 | ✅ Exceção |
+| chart.tsx | 303 | ✅ Marginal |
+| form.tsx | 129 | ✅ Conforme |
+| dialog.tsx | ~100 | ✅ Conforme |
+| command.tsx | 132 | ✅ Conforme |
+| calendar.tsx | 53 | ✅ Conforme |
+| Outros | <300 | ✅ Conforme |
