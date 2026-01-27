@@ -99,31 +99,24 @@ interface SwitchContextResponse {
 }
 
 /**
- * RISE V3: Refresh-First Validation Strategy
+ * RISE V3: Validate-First Strategy (Padrão Hotmart/Cakto/Kiwify)
  * 
- * Before calling validate, check if TokenService indicates the session
- * needs refresh. This prevents unnecessary 401s when the access token
- * has expired but the refresh token is still valid.
+ * SEMPRE chama o backend para validar sessão. O backend é o SSOT.
+ * O backend já implementa auto-refresh quando o access token expira
+ * mas o refresh token ainda é válido (unified-auth/handlers/validate.ts).
+ * 
+ * Esta abordagem elimina o deadlock de cold start onde o TokenService
+ * inicia em state="idle" e impedia qualquer chamada de rede.
+ * 
+ * @see docs/UNIFIED_AUTH_SYSTEM.md
  */
 async function validateSession(): Promise<ValidateResponse> {
   try {
-    // RISE V3: Check TokenService first - if it thinks we're expired, refresh first
-    const hasValidToken = unifiedTokenService.hasValidToken();
+    // RISE V3: SEMPRE chamar o backend - ele é o SSOT (Single Source of Truth)
+    // Os cookies HttpOnly (__Secure-rise_*) são enviados automaticamente
+    // O backend valida e faz auto-refresh se necessário
+    log.debug("Validating session with backend (Validate-First strategy)");
     
-    if (!hasValidToken) {
-      // Token appears expired - try refresh BEFORE calling validate
-      log.debug("TokenService indicates no valid token - attempting refresh first");
-      const refreshed = await unifiedTokenService.refresh();
-      
-      if (!refreshed) {
-        log.debug("Pre-validation refresh failed - user needs to re-login");
-        return { valid: false };
-      }
-      
-      log.info("Pre-validation refresh succeeded");
-    }
-    
-    // Now proceed with validation
     const { data, error } = await api.publicCall<ValidateResponse>("unified-auth/validate", {});
     
     if (error || !data) {
@@ -131,6 +124,7 @@ async function validateSession(): Promise<ValidateResponse> {
       return { valid: false };
     }
     
+    log.debug("Session validation succeeded", { valid: data.valid });
     return data;
   } catch (error) {
     log.debug("Session validation exception", error);
