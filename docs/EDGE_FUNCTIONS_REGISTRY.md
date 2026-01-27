@@ -43,7 +43,7 @@
 
 | Mecanismo | Cookie | Validação | Funções |
 |-----------|--------|-----------|---------|
-| **sessions (unified)** | `__Host-rise_access` + `__Host-rise_refresh` | `unified-auth-v2.ts` | TODAS as funções autenticadas |
+| **sessions (unified)** | `__Secure-rise_access` + `__Secure-rise_refresh` | `unified-auth-v2.ts` | TODAS as funções autenticadas |
 | **webhook/public** | N/A | Signature/payload | Webhooks, Checkout, Auth endpoints |
 
 > **RISE V3 (Jan 2026):** Sistema 100% unificado. Zero fallbacks. Zero tabelas legadas.
@@ -400,7 +400,7 @@
 ## Convenções
 
 - ✅ = Presente no código local (`supabase/functions/`)
-- **sessions** = Autenticação via Cookie `__Host-rise_access` (unified-auth-v2)
+- **sessions** = Autenticação via Cookie `__Secure-rise_access` (unified-auth-v2)
 - **public** = Sem autenticação
 - **webhook** = Validação de signature
 - **internal** = Chamada interna (cron, outras edge functions)
