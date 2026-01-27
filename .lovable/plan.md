@@ -1,132 +1,219 @@
 
-# Plano: Correção do Status do Link de Pagamento na UI
+# Plano: Auto-Save de Ofertas com Card Inline
 
-## Diagnóstico
+## Objetivo
 
-### Erro Identificado
-- **Sintoma**: Após desativar um link, a UI continua mostrando "Ativo" mesmo após F5
-- **Comportamento real**: O link está desativado no banco (a página pública mostra "Produto não disponível")
-- **Problema**: Dessincronia entre banco de dados e exibição na UI
+Quando o vendedor clicar em "Adicionar Nova Oferta", ao invés de criar uma oferta temporária que requer "Salvar Produto":
+1. Abre um **card inline** com campos Nome e Preço
+2. Card tem botões próprios: **"Salvar"** e **"Cancelar"**
+3. Ao clicar "Salvar" no card: oferta é criada via API imediatamente
+4. Link de pagamento aparece na aba Links sem precisar F5
 
-### Causa Raiz
+---
 
-No arquivo `src/modules/products/machines/productFormMachine.actors.ts`, linha 198:
-
-```typescript
-// CÓDIGO ATUAL (INCORRETO)
-status: (pl.active !== false ? "active" : "inactive") as "active" | "inactive",
-```
-
-O mapeamento verifica a propriedade `pl.active`, mas o BFF (`fetchProductPaymentLinksWithRelations`) retorna a propriedade `pl.status`!
-
-**Fluxo do Bug:**
+## Fluxo Visual Proposto
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                          FLUXO DO BUG                                        │
-├─────────────────────────────────────────────────────────────────────────────┤
+│  ANTES: Botão "Adicionar Nova Oferta" clicado                               │
 │                                                                              │
-│  1. Edge Function checkout-crud/toggle-link-status                          │
-│     ├── Atualiza DB: payment_links.status = 'inactive'                      │
-│     └── Retorna: { success: true, newStatus: 'inactive' }                   │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │ Oferta Principal                                                       │ │
+│  │ [Produto teste                    ] [R$ 9,90                         ] │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
 │                                                                              │
-│  2. Frontend: LinksTab.tsx                                                   │
-│     ├── Toast: "Link desativado com sucesso"                               │
-│     └── Chama: refreshPaymentLinks() → send({ type: "REFRESH" })            │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │ 🆕 Nova Oferta                                        [🗑️]             │ │
+│  │                                                                        │ │
+│  │ Nome da Oferta                           Preço                         │ │
+│  │ ┌────────────────────────────────┐   ┌───────────────────────────────┐ │ │
+│  │ │ Ex: Plano Premium              │   │ R$ 0,00                       │ │ │
+│  │ └────────────────────────────────┘   └───────────────────────────────┘ │ │
+│  │ Este nome será usado para gerar o link de pagamento                    │ │
+│  │                                                                        │ │
+│  │           ┌─────────────┐  ┌────────────────────────┐                  │ │
+│  │           │  Cancelar   │  │   💾 Salvar Oferta     │                  │ │
+│  │           └─────────────┘  └────────────────────────┘                  │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
 │                                                                              │
-│  3. State Machine: productFormMachine.ts                                     │
-│     └── REFRESH → target: "loading" → invoke: loadProductActor              │
-│                                                                              │
-│  4. BFF: product-full-loader                                                 │
-│     └── fetchProductPaymentLinksWithRelations()                             │
-│         └── Retorna: { status: "inactive", ... }  ← Campo CORRETO          │
-│                                                                              │
-│  5. Actor: productFormMachine.actors.ts (linha 198)  ← BUG AQUI             │
-│     └── Mapeia: pl.active !== false ? "active" : "inactive"                 │
-│         └── pl.active = undefined                                           │
-│         └── undefined !== false = true                                      │
-│         └── Resultado: SEMPRE "active" ❌                                   │
-│                                                                              │
-│  6. UI: LinksTab.tsx                                                         │
-│     └── Exibe: "Ativo" (incorreto)                                          │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │ + Adicionar Nova Oferta                                                │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Solução
-
-### Correção no Mapeamento
-
-Alterar a linha 198 de `productFormMachine.actors.ts` para usar `pl.status` ao invés de `pl.active`:
-
-```typescript
-// ANTES (INCORRETO)
-status: (pl.active !== false ? "active" : "inactive") as "active" | "inactive",
-
-// DEPOIS (CORRETO)
-status: (pl.status === "active" ? "active" : "inactive") as "active" | "inactive",
-```
-
-### Também limpar a interface
-
-Remover a propriedade `active` não utilizada da interface `PaymentLinks` (linha 89):
-
-```typescript
-// ANTES
-paymentLinks: Array<{
-  id: string;
-  slug: string;
-  url?: string;
-  status?: string;
-  active?: boolean;  // ← REMOVER (nunca foi usado, causa confusão)
-  ...
-}>;
-
-// DEPOIS
-paymentLinks: Array<{
-  id: string;
-  slug: string;
-  url?: string;
-  status?: string;  // Campo real do banco
-  ...
-}>;
-```
-
----
-
-## Alterações Necessárias
-
-### Arquivo: `src/modules/products/machines/productFormMachine.actors.ts`
-
-| Linha | Mudança |
-|-------|---------|
-| 89 | Remover `active?: boolean;` da interface |
-| 198 | Trocar `pl.active !== false` por `pl.status === "active"` |
-
----
-
-## Fluxo Corrigido
+## Arquitetura da Solução
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                          FLUXO CORRIGIDO                                     │
+│                          FLUXO DE CRIAÇÃO                                    │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  1. DB: payment_links.status = 'inactive'                                   │
+│  1. Usuário clica "Adicionar Nova Oferta"                                   │
+│     │                                                                        │
+│     ▼                                                                        │
+│  2. OffersManager mostra NewOfferCard                                       │
+│     ├── State: isCreating = true                                            │
+│     ├── Campos: name (vazio), price (0)                                     │
+│     └── Botões: "Cancelar" | "Salvar Oferta"                               │
+│     │                                                                        │
+│     ▼                                                                        │
+│  3. Usuário preenche nome + preço                                           │
+│     │                                                                        │
+│     ▼                                                                        │
+│  4. Clica "Salvar Oferta":                                                  │
+│     ├── Validação local (nome não vazio, preço > 0)                         │
+│     ├── api.call('offer-crud', { action: 'create', product_id, ... })       │
+│     ├── Loading spinner no botão                                            │
+│     └── Trigger DB: create_payment_link_for_offer()                         │
+│     │                                                                        │
+│     ▼                                                                        │
+│  5. Sucesso:                                                                 │
+│     ├── Toast: "Oferta criada com sucesso!"                                 │
+│     ├── NewOfferCard é removido (isCreating = false)                        │
+│     ├── Oferta aparece na lista via refreshAll()                            │
+│     └── Aba Links atualiza automaticamente                                  │
 │                                                                              │
-│  2. BFF retorna: { status: "inactive", ... }                                │
-│                                                                              │
-│  3. Actor mapeia: pl.status === "active" ? ... : "inactive"                 │
-│     └── pl.status = "inactive"                                              │
-│     └── "inactive" === "active" = false                                     │
-│     └── Resultado: "inactive" ✅                                            │
-│                                                                              │
-│  4. UI exibe: Badge "Desativado" ✅                                         │
+│  5b. Cancelar:                                                               │
+│     └── NewOfferCard é removido (isCreating = false)                        │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## Componentes e Arquivos
+
+### 1. CRIAR: `src/components/products/offers-manager/NewOfferCard.tsx`
+
+Componente para o card inline de criação de nova oferta:
+
+```typescript
+interface NewOfferCardProps {
+  productId: string;
+  onSave: (offer: CreatedOffer) => void;
+  onCancel: () => void;
+  hasMembersArea: boolean;
+  memberGroups: MemberGroupOption[];
+}
+
+// Estrutura:
+// - Card com borda destacada (border-primary/50)
+// - Badge "Nova Oferta" no topo
+// - Campos: Nome, Preço, (Member Group se aplicável)
+// - Botões: "Cancelar" (outline) | "Salvar Oferta" (primary, com Loader2)
+// - Validação inline
+// - api.call('offer-crud', { action: 'create', ... }) no submit
+```
+
+### 2. MODIFICAR: `src/components/products/offers-manager/index.tsx`
+
+Adicionar estado e lógica para o card inline:
+
+```typescript
+// Mudanças:
+// - Importar NewOfferCard
+// - Adicionar: const [isCreating, setIsCreating] = useState(false)
+// - Botão "Adicionar Nova Oferta" → setIsCreating(true)
+// - Renderizar NewOfferCard condicionalmente
+// - Prop: onOfferCreated callback
+```
+
+### 3. MODIFICAR: `src/components/products/offers-manager/types.ts`
+
+Adicionar tipos e callback:
+
+```typescript
+// Adicionar:
+export interface OffersManagerProps {
+  // ... existing props
+  onOfferCreated?: () => void; // Callback após criar oferta via API
+}
+```
+
+### 4. MODIFICAR: `src/modules/products/tabs/general/ProductOffersSection.tsx`
+
+Passar callback de refresh:
+
+```typescript
+// Adicionar:
+// - Importar useProductContext
+// - Obter refreshAll do context
+// - Passar onOfferCreated={() => refreshAll()} para OffersManager
+```
+
+---
+
+## Detalhes Técnicos do NewOfferCard
+
+### Campos do Formulário
+
+| Campo | Tipo | Validação |
+|-------|------|-----------|
+| Nome | Input text | Obrigatório, não vazio |
+| Preço | CurrencyInput | Mínimo R$ 0,01 (1 centavo) |
+| Grupo de Membros | Select (opcional) | Só aparece se hasMembersArea |
+
+### Chamada API
+
+```typescript
+const { data, error } = await api.call<{ success: boolean; offer?: Offer; error?: string }>(
+  "offer-crud", 
+  {
+    action: "create",
+    product_id: productId,
+    name: name.trim(),
+    price: priceInCents,
+    is_default: false,
+    member_group_id: memberGroupId || null,
+  }
+);
+```
+
+### Estados do Botão "Salvar Oferta"
+
+| Estado | Visual |
+|--------|--------|
+| Normal | "Salvar Oferta" |
+| Loading | `<Loader2 className="animate-spin" />` + "Salvando..." |
+| Disabled | Campos inválidos |
+
+---
+
+## Comparação: Ofertas Existentes vs Nova Oferta
+
+| Aspecto | Ofertas Existentes | Nova Oferta (Card Inline) |
+|---------|-------------------|---------------------------|
+| Como salva | Botão global "Salvar Produto" | Botão "Salvar Oferta" no card |
+| Quando salva | Junto com outras alterações | Imediatamente |
+| Link criado | Após salvar produto + F5 | Imediatamente (trigger DB) |
+| Pode cancelar | Não (já existe) | Sim (botão "Cancelar") |
+
+---
+
+## Resumo das Alterações
+
+| Arquivo | Ação | Linhas Est. |
+|---------|------|-------------|
+| `NewOfferCard.tsx` | CRIAR | ~120 linhas |
+| `offers-manager/index.tsx` | MODIFICAR | +15 linhas |
+| `offers-manager/types.ts` | MODIFICAR | +2 linhas |
+| `ProductOffersSection.tsx` | MODIFICAR | +8 linhas |
+
+---
+
+## Benefícios
+
+| Benefício | Descrição |
+|-----------|-----------|
+| UX Clara | Botões "Salvar" e "Cancelar" dentro do card |
+| Feedback Imediato | Toast + oferta aparece na lista |
+| Zero Confusão | Vendedor sabe exatamente o que foi salvo |
+| Link Instantâneo | Aparece na aba Links sem F5 |
+| Consistente | Ofertas existentes continuam no fluxo atual |
 
 ---
 
@@ -134,20 +221,9 @@ paymentLinks: Array<{
 
 | Critério | Status |
 |----------|--------|
-| Resolve causa raiz | Corrige mapeamento incorreto de propriedade |
-| Zero workarounds | Usa campo correto do banco |
-| Mantém arquivos < 300 linhas | Arquivo tem 296 linhas |
-| Zero breaking changes | Apenas corrige lógica interna |
-| Remove código morto | Remove propriedade `active` não utilizada |
-
----
-
-## Testes Esperados
-
-Após implementação:
-1. Ir para aba Links de um produto
-2. Clicar em ações → Desativar no menu de um link
-3. Toast "Link desativado com sucesso"
-4. UI deve mostrar badge "Desativado" imediatamente
-5. Após F5, badge deve continuar mostrando "Desativado"
-6. Clicar em Ativar deve voltar para "Ativo"
+| Manutenibilidade Infinita | Componente isolado, reutilizável |
+| Zero Dívida Técnica | Usa Edge Function existente (offer-crud) |
+| Arquitetura Correta | Separação de responsabilidades |
+| Escalabilidade | Card pode ter mais campos no futuro |
+| Segurança | Autenticação via api.call() |
+| Limite 300 linhas | NewOfferCard ~120 linhas |
