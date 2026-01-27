@@ -9,23 +9,24 @@
  * - Visualização de cursos e aulas
  */
 
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
 import type { RouteObject } from "react-router-dom";
 import { BuyerRoute } from "@/components/guards";
+import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
 // ============================================================================
-// LAZY IMPORTS
+// LAZY IMPORTS (with auto-retry for network failures)
 // ============================================================================
-const BuyerAuth = lazy(() => import("@/modules/members-area/pages/buyer").then(m => ({ default: m.BuyerAuth })));
-const BuyerCadastro = lazy(() => import("@/modules/members-area/pages/buyer").then(m => ({ default: m.BuyerCadastro })));
-const BuyerRecuperarSenha = lazy(() => import("@/modules/members-area/pages/buyer").then(m => ({ default: m.BuyerRecuperarSenha })));
-const BuyerResetPassword = lazy(() => import("@/modules/members-area/pages/buyer").then(m => ({ default: m.BuyerResetPassword })));
-const BuyerDashboard = lazy(() => import("@/modules/members-area/pages/buyer").then(m => ({ default: m.BuyerDashboard })));
-const BuyerHistory = lazy(() => import("@/modules/members-area/pages/buyer").then(m => ({ default: m.BuyerHistory })));
-const CourseHome = lazy(() => import("@/modules/members-area/pages/buyer").then(m => ({ default: m.CourseHome })));
-const LessonViewer = lazy(() => import("@/modules/members-area/pages/buyer").then(m => ({ default: m.LessonViewer })));
-const SetupAccess = lazy(() => import("@/modules/members-area/pages/buyer").then(m => ({ default: m.SetupAccess })));
-const StudentShell = lazy(() => import("@/layouts/StudentShell"));
+const BuyerAuth = lazyWithRetry(() => import("@/modules/members-area/pages/buyer").then(m => ({ default: m.BuyerAuth })));
+const BuyerCadastro = lazyWithRetry(() => import("@/modules/members-area/pages/buyer").then(m => ({ default: m.BuyerCadastro })));
+const BuyerRecuperarSenha = lazyWithRetry(() => import("@/modules/members-area/pages/buyer").then(m => ({ default: m.BuyerRecuperarSenha })));
+const BuyerResetPassword = lazyWithRetry(() => import("@/modules/members-area/pages/buyer").then(m => ({ default: m.BuyerResetPassword })));
+const BuyerDashboard = lazyWithRetry(() => import("@/modules/members-area/pages/buyer").then(m => ({ default: m.BuyerDashboard })));
+const BuyerHistory = lazyWithRetry(() => import("@/modules/members-area/pages/buyer").then(m => ({ default: m.BuyerHistory })));
+const CourseHome = lazyWithRetry(() => import("@/modules/members-area/pages/buyer").then(m => ({ default: m.CourseHome })));
+const LessonViewer = lazyWithRetry(() => import("@/modules/members-area/pages/buyer").then(m => ({ default: m.LessonViewer })));
+const SetupAccess = lazyWithRetry(() => import("@/modules/members-area/pages/buyer").then(m => ({ default: m.SetupAccess })));
+const StudentShell = lazyWithRetry(() => import("@/layouts/StudentShell"));
 
 // ============================================================================
 // PAGE LOADER

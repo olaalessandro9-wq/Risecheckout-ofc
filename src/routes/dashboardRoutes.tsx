@@ -9,7 +9,6 @@
  * - Configurações e admin
  */
 
-import { lazy, Suspense } from "react";
 import { Navigate } from "react-router-dom";
 import type { RouteObject } from "react-router-dom";
 import { ProducerRoute } from "@/components/guards";
@@ -20,27 +19,28 @@ import { NavigationGuardProvider } from "@/providers/NavigationGuardProvider";
 import { UltrawidePerformanceProvider } from "@/contexts/UltrawidePerformanceContext";
 import AppShell from "@/layouts/AppShell";
 import NotFound from "@/pages/NotFound";
+import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
 // ============================================================================
-// LAZY IMPORTS
+// LAZY IMPORTS (with auto-retry for network failures)
 // ============================================================================
-const Dashboard = lazy(() => import("@/modules/dashboard").then(m => ({ default: m.Dashboard })));
-const Produtos = lazy(() => import("@/pages/Produtos"));
-const ProductEdit = lazy(() => import("@/pages/ProductEdit"));
-const MinhasAfiliacoes = lazy(() => import("@/pages/MinhasAfiliacoes"));
-const AffiliationDetails = lazy(() => import("@/pages/AffiliationDetails"));
-const Marketplace = lazy(() => import("@/pages/Marketplace"));
-const Financeiro = lazy(() => import("@/pages/Financeiro"));
-const Rastreamento = lazy(() => import("@/pages/Rastreamento"));
-const Webhooks = lazy(() => import("@/pages/Webhooks"));
-const Ajuda = lazy(() => import("@/pages/Ajuda"));
-const Perfil = lazy(() => import("@/pages/Perfil"));
+const Dashboard = lazyWithRetry(() => import("@/modules/dashboard").then(m => ({ default: m.Dashboard })));
+const Produtos = lazyWithRetry(() => import("@/pages/Produtos"));
+const ProductEdit = lazyWithRetry(() => import("@/pages/ProductEdit"));
+const MinhasAfiliacoes = lazyWithRetry(() => import("@/pages/MinhasAfiliacoes"));
+const AffiliationDetails = lazyWithRetry(() => import("@/pages/AffiliationDetails"));
+const Marketplace = lazyWithRetry(() => import("@/pages/Marketplace"));
+const Financeiro = lazyWithRetry(() => import("@/pages/Financeiro"));
+const Rastreamento = lazyWithRetry(() => import("@/pages/Rastreamento"));
+const Webhooks = lazyWithRetry(() => import("@/pages/Webhooks"));
+const Ajuda = lazyWithRetry(() => import("@/pages/Ajuda"));
+const Perfil = lazyWithRetry(() => import("@/pages/Perfil"));
 
 // Admin & Sensitive Routes
-const AdminHealth = lazy(() => import("@/pages/AdminHealth"));
-const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
-const Afiliados = lazy(() => import("@/pages/Afiliados"));
-const OwnerGateways = lazy(() => import("@/pages/owner/OwnerGateways"));
+const AdminHealth = lazyWithRetry(() => import("@/pages/AdminHealth"));
+const AdminDashboard = lazyWithRetry(() => import("@/pages/admin/AdminDashboard"));
+const Afiliados = lazyWithRetry(() => import("@/pages/Afiliados"));
+const OwnerGateways = lazyWithRetry(() => import("@/pages/owner/OwnerGateways"));
 
 // ============================================================================
 // DASHBOARD LAYOUT

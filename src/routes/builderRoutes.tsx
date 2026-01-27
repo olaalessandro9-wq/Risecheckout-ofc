@@ -8,16 +8,17 @@
  * - Members Area Builder
  */
 
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
 import type { RouteObject } from "react-router-dom";
 import { ProducerRoute } from "@/components/guards";
 import { NavigationGuardProvider } from "@/providers/NavigationGuardProvider";
+import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
 // ============================================================================
-// LAZY IMPORTS
+// LAZY IMPORTS (with auto-retry for network failures)
 // ============================================================================
-const CheckoutCustomizer = lazy(() => import("@/pages/CheckoutCustomizer"));
-const MembersAreaBuilderPage = lazy(() => import("@/modules/members-area-builder").then(m => ({ default: m.MembersAreaBuilderPage })));
+const CheckoutCustomizer = lazyWithRetry(() => import("@/pages/CheckoutCustomizer"));
+const MembersAreaBuilderPage = lazyWithRetry(() => import("@/modules/members-area-builder").then(m => ({ default: m.MembersAreaBuilderPage })));
 
 // ============================================================================
 // PAGE LOADER
