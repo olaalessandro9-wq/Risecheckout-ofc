@@ -1,47 +1,51 @@
 
-# Plano: Auto-Save de Ofertas com Card Inline
+# Plano: Auto-Save para Ofertas Existentes (Debounce)
 
 ## Objetivo
 
-Quando o vendedor clicar em "Adicionar Nova Oferta", ao invés de criar uma oferta temporária que requer "Salvar Produto":
-1. Abre um **card inline** com campos Nome e Preço
-2. Card tem botões próprios: **"Salvar"** e **"Cancelar"**
-3. Ao clicar "Salvar" no card: oferta é criada via API imediatamente
-4. Link de pagamento aparece na aba Links sem precisar F5
+Quando o vendedor editar o **nome** ou **preço** de uma oferta já existente (Oferta Principal ou Ofertas Adicionais), o sistema deve **salvar automaticamente** após um breve delay, sem precisar clicar em "Salvar Produto".
 
 ---
 
-## Fluxo Visual Proposto
+## Análise de Soluções
 
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  ANTES: Botão "Adicionar Nova Oferta" clicado                               │
-│                                                                              │
-│  ┌────────────────────────────────────────────────────────────────────────┐ │
-│  │ Oferta Principal                                                       │ │
-│  │ [Produto teste                    ] [R$ 9,90                         ] │ │
-│  └────────────────────────────────────────────────────────────────────────┘ │
-│                                                                              │
-│  ┌────────────────────────────────────────────────────────────────────────┐ │
-│  │ 🆕 Nova Oferta                                        [🗑️]             │ │
-│  │                                                                        │ │
-│  │ Nome da Oferta                           Preço                         │ │
-│  │ ┌────────────────────────────────┐   ┌───────────────────────────────┐ │ │
-│  │ │ Ex: Plano Premium              │   │ R$ 0,00                       │ │ │
-│  │ └────────────────────────────────┘   └───────────────────────────────┘ │ │
-│  │ Este nome será usado para gerar o link de pagamento                    │ │
-│  │                                                                        │ │
-│  │           ┌─────────────┐  ┌────────────────────────┐                  │ │
-│  │           │  Cancelar   │  │   💾 Salvar Oferta     │                  │ │
-│  │           └─────────────┘  └────────────────────────┘                  │ │
-│  └────────────────────────────────────────────────────────────────────────┘ │
-│                                                                              │
-│  ┌────────────────────────────────────────────────────────────────────────┐ │
-│  │ + Adicionar Nova Oferta                                                │ │
-│  └────────────────────────────────────────────────────────────────────────┘ │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+### Solução A: Debounce no Hook com Salvamento Automático
+- **Manutenibilidade:** 9/10 - Hook isolado, lógica centralizada
+- **Zero DT:** 9/10 - Usa Edge Function existente (offer-crud/update)
+- **Arquitetura:** 10/10 - Separação clara entre UI e lógica
+- **Escalabilidade:** 9/10 - Facilmente extensível para mais campos
+- **Segurança:** 10/10 - Autenticação via api.call()
+- **NOTA FINAL: 9.4/10**
+- **Tempo estimado:** 3-4 horas
+
+**Como funciona:**
+1. Usuário edita campo (nome ou preço)
+2. Debounce de 1 segundo antes de disparar save
+3. Toast sutil: "Salvando..." → "Salvo ✓"
+4. Não precisa clicar em nenhum botão
+
+### Solução B: Botão "Salvar" Individual em Cada Card
+- **Manutenibilidade:** 8/10 - Requer estado individual por card
+- **Zero DT:** 8/10 - Mesma Edge Function
+- **Arquitetura:** 7/10 - Menos elegante, mais cliques
+- **Escalabilidade:** 7/10 - Precisa gerenciar "dirty state" por card
+- **Segurança:** 10/10 - Mesma autenticação
+- **NOTA FINAL: 8.0/10**
+- **Tempo estimado:** 3-4 horas
+
+**Problemas:**
+- Mais cliques para o usuário
+- Precisa de UI para indicar "não salvo"
+
+---
+
+## DECISÃO: Solução A (Nota 9.4/10)
+
+A Solução A é superior porque:
+1. **Zero cliques adicionais:** Salva sozinho
+2. **Feedback visual:** Toast indica salvamento
+3. **Debounce inteligente:** Não sobrecarrega a API
+4. **UX moderna:** Comportamento esperado em 2026
 
 ---
 
@@ -49,36 +53,31 @@ Quando o vendedor clicar em "Adicionar Nova Oferta", ao invés de criar uma ofer
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                          FLUXO DE CRIAÇÃO                                    │
+│                    FLUXO AUTO-SAVE COM DEBOUNCE                              │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  1. Usuário clica "Adicionar Nova Oferta"                                   │
+│  1. Usuário digita no campo (nome ou preço)                                 │
 │     │                                                                        │
 │     ▼                                                                        │
-│  2. OffersManager mostra NewOfferCard                                       │
-│     ├── State: isCreating = true                                            │
-│     ├── Campos: name (vazio), price (0)                                     │
-│     └── Botões: "Cancelar" | "Salvar Oferta"                               │
+│  2. onChange atualiza state local imediatamente                             │
 │     │                                                                        │
 │     ▼                                                                        │
-│  3. Usuário preenche nome + preço                                           │
+│  3. useAutoSaveOffer detecta mudança                                        │
+│     ├── Cancela debounce anterior (se houver)                               │
+│     ├── Inicia novo debounce (1000ms)                                       │
+│     └── Mostra indicador sutil (opcional)                                   │
 │     │                                                                        │
 │     ▼                                                                        │
-│  4. Clica "Salvar Oferta":                                                  │
-│     ├── Validação local (nome não vazio, preço > 0)                         │
-│     ├── api.call('offer-crud', { action: 'create', product_id, ... })       │
-│     ├── Loading spinner no botão                                            │
-│     └── Trigger DB: create_payment_link_for_offer()                         │
+│  4. Após 1 segundo sem nova digitação:                                      │
+│     ├── Validação (nome não vazio, preço > 0)                               │
+│     ├── Se inválido: não salva, mostra erro                                 │
+│     ├── Se válido: api.call('offer-crud', { action: 'update', ... })        │
 │     │                                                                        │
 │     ▼                                                                        │
-│  5. Sucesso:                                                                 │
-│     ├── Toast: "Oferta criada com sucesso!"                                 │
-│     ├── NewOfferCard é removido (isCreating = false)                        │
-│     ├── Oferta aparece na lista via refreshAll()                            │
-│     └── Aba Links atualiza automaticamente                                  │
-│                                                                              │
-│  5b. Cancelar:                                                               │
-│     └── NewOfferCard é removido (isCreating = false)                        │
+│  5. Resultado:                                                               │
+│     ├── Sucesso: Toast discreto "Alterações salvas" (2s)                    │
+│     ├── Erro: Toast erro (persiste até fechar)                              │
+│     └── State machine: dispatchForm({ type: 'REFRESH' }) opcional           │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -87,110 +86,122 @@ Quando o vendedor clicar em "Adicionar Nova Oferta", ao invés de criar uma ofer
 
 ## Componentes e Arquivos
 
-### 1. CRIAR: `src/components/products/offers-manager/NewOfferCard.tsx`
+### 1. CRIAR: `src/components/products/offers-manager/useAutoSaveOffer.ts`
 
-Componente para o card inline de criação de nova oferta:
+Hook dedicado para auto-save com debounce:
 
 ```typescript
-interface NewOfferCardProps {
-  productId: string;
-  onSave: (offer: CreatedOffer) => void;
-  onCancel: () => void;
-  hasMembersArea: boolean;
-  memberGroups: MemberGroupOption[];
+interface UseAutoSaveOfferProps {
+  offerId: string;
+  isTemporary: boolean; // IDs temp-xxx não salvam (ainda não existem)
+  currentName: string;
+  currentPrice: number;
+  currentMemberGroupId: string | null;
+  debounceMs?: number; // default: 1000
+  onSaveSuccess?: () => void;
 }
 
-// Estrutura:
-// - Card com borda destacada (border-primary/50)
-// - Badge "Nova Oferta" no topo
-// - Campos: Nome, Preço, (Member Group se aplicável)
-// - Botões: "Cancelar" (outline) | "Salvar Oferta" (primary, com Loader2)
-// - Validação inline
-// - api.call('offer-crud', { action: 'create', ... }) no submit
+// Retorna:
+// - isSaving: boolean (para indicador visual)
+// - lastSavedAt: Date | null (para feedback)
+// - saveError: string | null
 ```
 
-### 2. MODIFICAR: `src/components/products/offers-manager/index.tsx`
+**Lógica:**
+- Compara valores atuais com valores "commitados"
+- Usa `useRef` para guardar o timeout do debounce
+- Usa `useEffect` para detectar mudanças
+- Chama `api.call('offer-crud', { action: 'update', ... })`
+- Atualiza valores "commitados" após save bem-sucedido
 
-Adicionar estado e lógica para o card inline:
+### 2. MODIFICAR: `src/components/products/offers-manager/DefaultOfferCard.tsx`
+
+Adicionar auto-save:
 
 ```typescript
 // Mudanças:
-// - Importar NewOfferCard
-// - Adicionar: const [isCreating, setIsCreating] = useState(false)
-// - Botão "Adicionar Nova Oferta" → setIsCreating(true)
-// - Renderizar NewOfferCard condicionalmente
-// - Prop: onOfferCreated callback
+// - Importar useAutoSaveOffer
+// - Usar o hook passando offer.id, offer.name, offer.price
+// - Adicionar indicador visual de saving (opcional: ícone subtle)
 ```
 
-### 3. MODIFICAR: `src/components/products/offers-manager/types.ts`
+### 3. MODIFICAR: `src/components/products/offers-manager/AdditionalOfferCard.tsx`
 
-Adicionar tipos e callback:
+Adicionar auto-save:
+
+```typescript
+// Mudanças:
+// - Importar useAutoSaveOffer
+// - Usar o hook passando offer.id, offer.name, offer.price
+// - Mesmo padrão do DefaultOfferCard
+```
+
+### 4. MODIFICAR: `src/components/products/offers-manager/types.ts`
+
+Adicionar tipos para auto-save (se necessário):
 
 ```typescript
 // Adicionar:
-export interface OffersManagerProps {
-  // ... existing props
-  onOfferCreated?: () => void; // Callback após criar oferta via API
+export interface AutoSaveState {
+  isSaving: boolean;
+  lastSavedAt: Date | null;
+  error: string | null;
 }
 ```
 
-### 4. MODIFICAR: `src/modules/products/tabs/general/ProductOffersSection.tsx`
+---
 
-Passar callback de refresh:
+## Detalhes do useAutoSaveOffer
 
-```typescript
-// Adicionar:
-// - Importar useProductContext
-// - Obter refreshAll do context
-// - Passar onOfferCreated={() => refreshAll()} para OffersManager
-```
+### Parâmetros
+
+| Parâmetro | Tipo | Descrição |
+|-----------|------|-----------|
+| offerId | string | ID da oferta (não salva se começa com "temp-") |
+| currentName | string | Nome atual do campo |
+| currentPrice | number | Preço atual do campo |
+| debounceMs | number | Delay antes de salvar (default: 1000ms) |
+
+### Estados
+
+| Estado | Uso |
+|--------|-----|
+| `isSaving` | Mostrar indicador (ex: spinner pequeno) |
+| `lastSavedAt` | Opcional: "Salvo às 14:28" |
+| `saveError` | Mostrar erro se falhar |
+
+### Comportamento
+
+1. **Ofertas temporárias (temp-xxx):** Ignora auto-save
+2. **Validação falha:** Não salva, não mostra erro (já tem erro inline)
+3. **Debounce:** Cancela save anterior se usuário continuar digitando
+4. **Toast:** Discreto, some após 2 segundos
 
 ---
 
-## Detalhes Técnicos do NewOfferCard
+## Indicador Visual (Opcional mas Recomendado)
 
-### Campos do Formulário
+Pequeno indicador no card mostrando estado:
 
-| Campo | Tipo | Validação |
-|-------|------|-----------|
-| Nome | Input text | Obrigatório, não vazio |
-| Preço | CurrencyInput | Mínimo R$ 0,01 (1 centavo) |
-| Grupo de Membros | Select (opcional) | Só aparece se hasMembersArea |
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Oferta Principal                                          [💾 Salvando...] │
+│                                                                              │
+│ Nome: [Produto teste              ]    Preço: [R$ 9,90           ]          │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
 
-### Chamada API
+↓ Após salvar:
 
-```typescript
-const { data, error } = await api.call<{ success: boolean; offer?: Offer; error?: string }>(
-  "offer-crud", 
-  {
-    action: "create",
-    product_id: productId,
-    name: name.trim(),
-    price: priceInCents,
-    is_default: false,
-    member_group_id: memberGroupId || null,
-  }
-);
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Oferta Principal                                               [✓ Salvo]   │
+│                                                                              │
+│ Nome: [Produto teste              ]    Preço: [R$ 9,90           ]          │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Estados do Botão "Salvar Oferta"
-
-| Estado | Visual |
-|--------|--------|
-| Normal | "Salvar Oferta" |
-| Loading | `<Loader2 className="animate-spin" />` + "Salvando..." |
-| Disabled | Campos inválidos |
-
----
-
-## Comparação: Ofertas Existentes vs Nova Oferta
-
-| Aspecto | Ofertas Existentes | Nova Oferta (Card Inline) |
-|---------|-------------------|---------------------------|
-| Como salva | Botão global "Salvar Produto" | Botão "Salvar Oferta" no card |
-| Quando salva | Junto com outras alterações | Imediatamente |
-| Link criado | Após salvar produto + F5 | Imediatamente (trigger DB) |
-| Pode cancelar | Não (já existe) | Sim (botão "Cancelar") |
+O indicador [✓ Salvo] desaparece após 3 segundos.
 
 ---
 
@@ -198,22 +209,22 @@ const { data, error } = await api.call<{ success: boolean; offer?: Offer; error?
 
 | Arquivo | Ação | Linhas Est. |
 |---------|------|-------------|
-| `NewOfferCard.tsx` | CRIAR | ~120 linhas |
-| `offers-manager/index.tsx` | MODIFICAR | +15 linhas |
-| `offers-manager/types.ts` | MODIFICAR | +2 linhas |
-| `ProductOffersSection.tsx` | MODIFICAR | +8 linhas |
+| `useAutoSaveOffer.ts` | CRIAR | ~80 linhas |
+| `DefaultOfferCard.tsx` | MODIFICAR | +15 linhas |
+| `AdditionalOfferCard.tsx` | MODIFICAR | +15 linhas |
+| `types.ts` | MODIFICAR | +5 linhas |
 
 ---
 
-## Benefícios
+## Proteções
 
-| Benefício | Descrição |
-|-----------|-----------|
-| UX Clara | Botões "Salvar" e "Cancelar" dentro do card |
-| Feedback Imediato | Toast + oferta aparece na lista |
-| Zero Confusão | Vendedor sabe exatamente o que foi salvo |
-| Link Instantâneo | Aparece na aba Links sem F5 |
-| Consistente | Ofertas existentes continuam no fluxo atual |
+| Cenário | Comportamento |
+|---------|---------------|
+| Oferta temporária (temp-xxx) | Auto-save desabilitado |
+| Usuário digitando rápido | Debounce cancela saves anteriores |
+| Erro de rede | Toast de erro, não perde dados locais |
+| Navegação durante save | Save completa em background |
+| Validação falha | Não tenta salvar, erro inline visível |
 
 ---
 
@@ -221,9 +232,21 @@ const { data, error } = await api.call<{ success: boolean; offer?: Offer; error?
 
 | Critério | Status |
 |----------|--------|
-| Manutenibilidade Infinita | Componente isolado, reutilizável |
-| Zero Dívida Técnica | Usa Edge Function existente (offer-crud) |
+| Manutenibilidade Infinita | Hook isolado, zero acoplamento |
+| Zero Dívida Técnica | Usa Edge Function existente |
 | Arquitetura Correta | Separação de responsabilidades |
-| Escalabilidade | Card pode ter mais campos no futuro |
+| Escalabilidade | Facilmente extensível |
 | Segurança | Autenticação via api.call() |
-| Limite 300 linhas | NewOfferCard ~120 linhas |
+| Limite 300 linhas | Hook ~80 linhas |
+
+---
+
+## Benefícios
+
+| Benefício | Descrição |
+|-----------|-----------|
+| Zero cliques | Salva automaticamente |
+| Consistência | Dados sempre sincronizados |
+| Feedback visual | Usuário sabe que salvou |
+| Performático | Debounce evita chamadas excessivas |
+| Resiliente | Erros não perdem dados locais |
