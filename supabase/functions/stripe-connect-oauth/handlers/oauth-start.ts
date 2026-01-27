@@ -2,12 +2,21 @@
  * OAuth Start Handler
  * 
  * Responsabilidade: Iniciar fluxo OAuth do Stripe Connect
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * SSOT: Usa stripe-oauth-config.ts para gerar Authorization URL
  * 
  * @module stripe-connect-oauth/handlers/oauth-start
+ * @version 2.0.0
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { createLogger } from "../../_shared/logger.ts";
+import { 
+  buildStripeAuthorizationUrl, 
+  validateStripeOAuthSecrets,
+  getStripeDebugInfo 
+} from "../../_shared/stripe-oauth-config.ts";
 
 const log = createLogger("stripe-oauth-start");
 
@@ -21,6 +30,9 @@ export interface OAuthStartResult {
 
 /**
  * Inicia o fluxo OAuth gerando URL de autorização do Stripe
+ * 
+ * SSOT: A URL é gerada pelo módulo stripe-oauth-config.ts
+ * garantindo consistência com o token exchange.
  */
 export async function startOAuthFlow(
   supabase: SupabaseClient,
@@ -28,31 +40,20 @@ export async function startOAuthFlow(
 ): Promise<OAuthStartResult> {
   log.info('Iniciando OAuth para vendor:', vendorId);
 
-  // Validar STRIPE_CLIENT_ID
-  const stripeClientId = Deno.env.get("STRIPE_CLIENT_ID");
-  log.info('STRIPE_CLIENT_ID presente:', { present: !!stripeClientId, preview: stripeClientId?.substring(0, 10) + '...' });
-  
-  if (!stripeClientId || stripeClientId.trim() === "" || stripeClientId.includes("PLACEHOLDER")) {
-    log.error('STRIPE_CLIENT_ID não configurado ou inválido');
+  // Validar secrets antes de prosseguir
+  const secretsValidation = validateStripeOAuthSecrets();
+  if (!secretsValidation.valid) {
+    log.error(`Secrets faltando: ${secretsValidation.missing.join(', ')}`);
     return {
       success: false,
-      error: "Stripe não está configurado corretamente. STRIPE_CLIENT_ID ausente ou inválido.",
+      error: `Stripe não está configurado corretamente. Faltam: ${secretsValidation.missing.join(', ')}`,
       errorCode: "STRIPE_CONFIG_ERROR"
     };
   }
 
-  // Validar STRIPE_REDIRECT_URL
-  const redirectUri = Deno.env.get("STRIPE_REDIRECT_URL");
-  log.info('STRIPE_REDIRECT_URL:', redirectUri);
-  
-  if (!redirectUri || redirectUri.trim() === "" || redirectUri.includes("PLACEHOLDER")) {
-    log.error('STRIPE_REDIRECT_URL não configurado');
-    return {
-      success: false,
-      error: "Stripe não está configurado corretamente. STRIPE_REDIRECT_URL ausente.",
-      errorCode: "STRIPE_CONFIG_ERROR"
-    };
-  }
+  // Log debug info (sem expor secrets)
+  const debugInfo = getStripeDebugInfo();
+  log.info('Stripe OAuth config:', debugInfo);
 
   try {
     // Gerar state único para CSRF protection
@@ -65,20 +66,23 @@ export async function startOAuthFlow(
       expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(), // 10 min
     });
 
-    // Stripe Connect OAuth URL
-    const stripeConnectUrl = new URL("https://connect.stripe.com/oauth/authorize");
-    stripeConnectUrl.searchParams.set("response_type", "code");
-    stripeConnectUrl.searchParams.set("client_id", stripeClientId);
-    stripeConnectUrl.searchParams.set("scope", "read_write");
-    stripeConnectUrl.searchParams.set("redirect_uri", redirectUri);
-    stripeConnectUrl.searchParams.set("state", state);
-    stripeConnectUrl.searchParams.set("stripe_user[country]", "BR");
+    // SSOT: Gerar URL usando módulo de configuração
+    const stripeConnectUrl = buildStripeAuthorizationUrl({ state });
+    
+    if (!stripeConnectUrl) {
+      log.error('Falha ao construir URL de autorização - STRIPE_CLIENT_ID inválido');
+      return {
+        success: false,
+        error: "Configuração do Stripe incompleta. STRIPE_CLIENT_ID não configurado.",
+        errorCode: "STRIPE_CONFIG_ERROR"
+      };
+    }
 
     log.info('URL gerada com sucesso');
 
     return {
       success: true,
-      url: stripeConnectUrl.toString(),
+      url: stripeConnectUrl,
       state
     };
 

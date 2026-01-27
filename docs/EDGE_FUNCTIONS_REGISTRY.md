@@ -31,7 +31,8 @@
 | **Funções com verify_jwt=true** | 0 ✅ |
 | **Unified Auth Compliance** | 100% ✅ |
 | **Context Guards** | ✅ Producer + Buyer |
-| **Base URL** | `https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/` |
+| **Base URL (Frontend)** | `https://api.risecheckout.com/functions/v1/` |
+| **Base URL (Webhooks)** | `https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/` |
 
 ---
 
