@@ -43,7 +43,7 @@ export function useAutoSaveOffer({
   currentName,
   currentPrice,
   currentMemberGroupId,
-  debounceMs = 1000,
+  debounceMs = 500, // OTIMIZAÇÃO: Reduzido de 1000ms para 500ms (UX mais responsiva)
   onSaveSuccess,
 }: UseAutoSaveOfferProps): AutoSaveState {
   const { toast } = useToast();

@@ -246,38 +246,45 @@ async function validateSessionToken(
   try {
     const now = new Date().toISOString();
     
-    // Get session from unified sessions table
-    const { data: session, error: sessionError } = await supabase
+    // OTIMIZAÇÃO RISE V3: Query única com JOIN (sessions + users)
+    // Reduz de 3 queries sequenciais para 2 (economia de ~100-200ms)
+    const { data: sessionData, error: sessionError } = await supabase
       .from("sessions")
-      .select("id, user_id, active_role, access_token_expires_at, is_valid")
+      .select(`
+        id, 
+        user_id, 
+        active_role, 
+        access_token_expires_at, 
+        is_valid,
+        users!inner(
+          id, 
+          email, 
+          name, 
+          timezone, 
+          is_active
+        )
+      `)
       .eq("session_token", token)
       .eq("is_valid", true)
+      .gt("access_token_expires_at", now)
       .single();
     
-    if (sessionError || !session) {
+    if (sessionError || !sessionData) {
       log.debug("Session not found or invalid");
       return null;
     }
     
-    // Check expiration
-    if (session.access_token_expires_at && session.access_token_expires_at < now) {
-      log.debug("Access token expired");
-      return null;
-    }
+    // Extract user from JOIN result
+    const user = Array.isArray(sessionData.users) 
+      ? sessionData.users[0] 
+      : sessionData.users;
     
-    // Get user from unified users table
-    const { data: user, error: userError } = await supabase
-      .from("users")
-      .select("id, email, name, timezone, is_active")
-      .eq("id", session.user_id)
-      .single();
-    
-    if (userError || !user || !user.is_active) {
+    if (!user || !user.is_active) {
       log.debug("User not found or inactive");
       return null;
     }
     
-    // Get user roles
+    // Get user roles (separate query - necessary for array result)
     const { data: userRoles } = await supabase
       .from("user_roles")
       .select("role")
@@ -296,7 +303,7 @@ async function validateSessionToken(
       name: user.name,
       timezone: user.timezone,
       roles,
-      activeRole: session.active_role as AppRole,
+      activeRole: sessionData.active_role as AppRole,
     };
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
