@@ -1,141 +1,181 @@
 
-Objetivo: corrigir definitivamente o erro 500 ao desconectar Mercado Pago, eliminando a causa raiz (“integrationId” não-UUID = “mercadopago”) e blindando o backend contra payload inválido.
+# Plano: Corrigir Limite de Fonte e Overflow de Texto no Checkout Builder
 
-## Diagnóstico (Root Cause Only)
+## Diagnóstico dos Problemas
 
-Os logs do Edge Function mostram repetidamente:
+### Problema 1: Limite de Tamanho de Fonte
+O input numérico em `TextEditor.tsx` (linha 41-47) usa `min={12}` e `max={48}`, mas estes atributos HTML só funcionam com as setas do browser. O usuário pode digitar manualmente qualquer valor (até 1000+) porque o `onChange` não valida o range.
 
-- `invalid input syntax for type uuid: "mercadopago"` (Postgres `22P02`)
+### Problema 2: Texto Overflow/Sobreposição
+O componente `TextBlock.tsx` renderiza o texto sem nenhuma propriedade CSS de contenção:
+- Sem `overflow: hidden`
+- Sem `word-wrap: break-word`
+- Sem `max-width: 100%`
+- Resultado: texto longo ultrapassa os limites do container e sobrepõe outros elementos
 
-Isso acontece porque o frontend está chamando:
-
-```ts
-api.call('integration-management', { action: 'disconnect', integrationId: 'mercadopago' })
-```
-
-Mas `integrationId` deveria ser um UUID da tabela `vendor_integrations.id`. Hoje, no módulo Financeiro, o `connectionStatus.id` é **GatewayId** (`'mercadopago'`), não o UUID do registro. O ConfigForm do Mercado Pago deriva `integration.id = connectionStatus.id`, e repassa isso para `handleDisconnect(integration?.id)`.
-
-Portanto:
-- O backend faz `.eq("id", integrationId)` esperando UUID
-- recebe `"mercadopago"`
-- Postgres explode com `22P02`
-- vira 500 na UI
+---
 
 ## Análise de Soluções (RISE V3)
 
-### Solução A: Corrigir contrato (frontend usa integrationType) + Validação forte no backend (uuid/type)
-- Manutenibilidade: 10/10
-- Zero DT: 10/10
-- Arquitetura: 10/10
-- Escalabilidade: 10/10
-- Segurança: 10/10
+### Solução A: Validação Hard + CSS Containment
+- **Manutenibilidade:** 10/10 - Lógica clara e centralizada
+- **Zero DT:** 10/10 - Resolve ambos os problemas na raiz
+- **Arquitetura:** 10/10 - Constantes centralizadas em `field-limits.ts`
+- **Escalabilidade:** 10/10 - Aplicável a outros componentes
+- **Segurança:** 10/10 - Impede valores inválidos
 - **NOTA FINAL: 10.0/10**
-- Tempo estimado: 45–90 min (inclui testes)
 
-### Solução B: Backend “tolerante” (se integrationId não for UUID, interpretar como GatewayId e mapear)
-- Manutenibilidade: 7/10 (contrato fica ambíguo)
-- Zero DT: 6/10 (permite bug continuar existindo no caller)
-- Arquitetura: 7/10 (mistura “id” e “type” no mesmo campo)
-- Escalabilidade: 7/10
-- Segurança: 10/10
-- **NOTA FINAL: 7.2/10**
-- Tempo estimado: 30–60 min
+### Solução B: Apenas CSS no container pai
+- **Manutenibilidade:** 6/10 - Não resolve validação de input
+- **Zero DT:** 5/10 - Permite valores inválidos no estado
+- **Arquitetura:** 6/10 - Fragmentada
+- **Escalabilidade:** 5/10 - Problema pode reaparecer
+- **Segurança:** 6/10 - Valores inválidos persistem no banco
+- **NOTA FINAL: 5.6/10**
 
 ## DECISÃO: Solução A (10.0/10)
 
-A solução A é superior porque corrige o contrato (SSOT) e ainda impede que payload inválido volte a virar 500, transformando em erro 400 explícito (diagnóstico imediato).
-
 ---
 
-## Implementação (passo a passo)
+## Implementação Técnica
 
-### 1) Frontend: Mercado Pago deve desconectar por `integrationType`, não por `integrationId`
+### 1. Adicionar Constantes de Limites
 
-**Arquivo 1:** `src/integrations/gateways/mercadopago/hooks/useMercadoPagoConnection.ts`
-- Alterar a assinatura:
-  - de: `handleDisconnect(integrationId: string | undefined)`
-  - para: `handleDisconnect(): Promise<void>`
-- Remover a validação “integração não encontrada” baseada em `integrationId`
-- Chamar o Edge Function com:
-  - `action: 'disconnect'`
-  - `integrationType: 'MERCADOPAGO'`
+**Arquivo:** `src/lib/constants/field-limits.ts`
 
-Motivo: `vendor_integrations` é naturalmente endereçável por `(vendor_id, integration_type)`. Isso evita expor UUID interno na UI e não depende do Financeiro carregar `vendor_integrations.id`.
+Adicionar constantes para o componente de texto do builder:
 
-**Arquivo 2:** `src/integrations/gateways/mercadopago/components/ConfigForm.tsx`
-- Trocar:
-  - `await handleDisconnect(integration?.id);`
-  - por:
-  - `await handleDisconnect();`
-- (Opcional, mas recomendado) Ajustar `deriveStateFromConnectionStatus` para não chamar o campo de “integration.id” se ele não é UUID (pode manter, desde que não seja usado como id de DB).
+```typescript
+export const CHECKOUT_TEXT_LIMITS = {
+  /** Tamanho mínimo da fonte em pixels */
+  FONT_SIZE_MIN: 12,
+  /** Tamanho máximo da fonte em pixels */
+  FONT_SIZE_MAX: 48,
+} as const;
+```
 
-Resultado: o payload enviado deixará de ter `integrationId: "mercadopago"`.
+### 2. Corrigir TextEditor com Validação Hard
 
----
-
-### 2) Backend: blindar `handleDisconnect` contra `integrationId` inválido (não-UUID) e contra `integrationType` inválido
-
-**Arquivo:** `supabase/functions/_shared/integration-handlers.ts`
+**Arquivo:** `src/components/checkout/builder/items/Text/TextEditor.tsx`
 
 Mudanças:
-1. Criar helper `isUuid(value: string): boolean` (regex UUID v4/v1 genérico, aceitando padrões padrão do Postgres).
-2. Se `integrationId` existir:
-   - Se NÃO for UUID: retornar **400** com mensagem clara (“integrationId inválido; esperado UUID”)
-   - Se for UUID: seguir fluxo atual
-3. Se usar `integrationType`:
-   - Normalizar para uppercase (`integrationType.toUpperCase()`)
-   - Validar contra o conjunto permitido: `ASAAS | MERCADOPAGO | PUSHINPAY | STRIPE`
-   - Se inválido: retornar **400**
+1. Importar constantes de limites
+2. Clampar o valor do fontSize entre MIN e MAX no `onChange`
+3. Garantir que valores digitados manualmente sejam validados
 
-Resultado: mesmo que algum lugar do frontend volte a mandar “mercadopago” como `integrationId`, isso nunca mais vira 500; vira 400 e aponta a origem do bug.
+Lógica:
+
+```typescript
+import { CHECKOUT_TEXT_LIMITS } from "@/lib/constants/field-limits";
+
+// No onChange do fontSize:
+onChange={(e) => {
+  const rawValue = parseInt(e.target.value) || CHECKOUT_TEXT_LIMITS.FONT_SIZE_MIN;
+  const clampedValue = Math.max(
+    CHECKOUT_TEXT_LIMITS.FONT_SIZE_MIN,
+    Math.min(CHECKOUT_TEXT_LIMITS.FONT_SIZE_MAX, rawValue)
+  );
+  handleChange("fontSize", clampedValue);
+}}
+```
+
+### 3. Corrigir TextBlock com CSS Containment
+
+**Arquivo:** `src/features/checkout-builder/components/TextBlock/TextBlock.tsx`
+
+Mudanças no elemento `<p>`:
+1. Adicionar `overflow: hidden` para esconder texto que exceda
+2. Adicionar `word-wrap: break-word` para quebrar palavras longas
+3. Adicionar `overflow-wrap: break-word` (padrão moderno)
+4. Adicionar `max-width: 100%` para garantir contenção
+5. Adicionar `white-space: pre-wrap` para manter quebras de linha mas permitir wrap
+
+CSS inline no style do `<p>`:
+
+```typescript
+<p
+  style={{
+    color: textColor,
+    fontSize: `${fontSize}px`,
+    textAlign,
+    // RISE V3: Containment para evitar overflow
+    wordWrap: 'break-word',
+    overflowWrap: 'break-word',
+    whiteSpace: 'pre-wrap',
+    maxWidth: '100%',
+  }}
+>
+```
+
+E no container `<div>`:
+
+```typescript
+<div
+  className={`p-4 transition-all ${className}`}
+  onClick={onClick}
+  style={{
+    backgroundColor,
+    borderColor,
+    borderWidth: `${borderWidth}px`,
+    borderStyle: "solid",
+    borderRadius: `${borderRadius}px`,
+    // RISE V3: Containment do container
+    overflow: 'hidden',
+    maxWidth: '100%',
+  }}
+>
+```
 
 ---
 
-### 3) Teste automatizado (anti-regressão)
+## Alterações por Arquivo
 
-Adicionar teste Deno para garantir que `integration-management` não retorna 500 com `integrationId` inválido.
-
-**Arquivo (novo):** `supabase/functions/integration-management/index_test.ts` (ou `integration-management.test.ts`)
-- Carregar dotenv conforme guideline
-- Executar POST para a Edge Function `integration-management` com body:
-  - `{ action: "disconnect", integrationId: "mercadopago" }`
-- Assert:
-  - status === 400
-  - body contém mensagem de erro esperada
-- Importante: consumir response body (`await res.text()`)
-
-Observação: este teste não precisa autenticar se a função exige auth? No seu caso, `integration-management` usa `getAuthenticatedProducer`. Então o teste deve:
-- ou usar um token válido (se viável no ambiente),
-- ou focar em uma rota pública não autenticada (não existe aqui),
-- ou então fazer o teste em nível de handler com SupabaseClient mock (mais complexo).
-  
-Escolha (melhor): **teste de handler com mock minimalista** do SupabaseClient para o caminho “integrationId inválido”, porque esse caminho retorna 400 antes de qualquer query real. Assim o teste fica determinístico e não depende de sessão.
+| Arquivo | Ação | Mudança |
+|---------|------|---------|
+| `src/lib/constants/field-limits.ts` | MODIFICAR | Adicionar `CHECKOUT_TEXT_LIMITS` |
+| `src/components/checkout/builder/items/Text/TextEditor.tsx` | MODIFICAR | Import + clamp de fontSize |
+| `src/features/checkout-builder/components/TextBlock/TextBlock.tsx` | MODIFICAR | CSS containment no container e no texto |
 
 ---
 
-### 4) Verificação pós-implementação (com prova)
+## Comportamento Resultante
 
-Checklist:
-1. UI: clicar “Desconectar” no Mercado Pago deve:
-   - não gerar 500
-   - desativar a integração (active=false) e limpar config
-2. Logs: `integration-management` deve registrar action disconnect sem erro `22P02`.
-3. Se alguém mandar `integrationId: "mercadopago"` manualmente:
-   - retorno 400, não 500.
-
----
-
-## Mudanças por arquivo
-
-- `src/integrations/gateways/mercadopago/hooks/useMercadoPagoConnection.ts` (modificar)
-- `src/integrations/gateways/mercadopago/components/ConfigForm.tsx` (modificar)
-- `supabase/functions/_shared/integration-handlers.ts` (modificar)
-- `supabase/functions/integration-management/index_test.ts` (criar) — teste de regressão
+| Cenário | Antes | Depois |
+|---------|-------|--------|
+| Digitar 100 no fontSize | Aceita 100 | Clampa para 48 |
+| Digitar 5 no fontSize | Aceita 5 | Clampa para 12 |
+| Usar setas para aumentar | Para em 48 | Para em 48 |
+| Texto muito longo | Sobrepõe checkout | Quebra dentro do container |
+| Palavras longas (ex: "FFFFFF...") | Sai do container | Quebra corretamente |
+| Texto com espaços | Pode vazar | Fica contido |
 
 ---
 
-## Resultado esperado
+## Diagrama Visual do Resultado
 
-- Desconectar Mercado Pago funciona sempre.
-- Bug de “GatewayId usado como UUID” é eliminado na origem (frontend).
-- Backend fica imune a payload inválido, evitando 500 (falha segura com 400).
+```text
+ANTES (overflow):
+┌─────────────────────────────┐
+│ FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF→→→→→→
+└─────────────────────────────┘
+                              ↓ (sobrepõe checkout)
+
+DEPOIS (containment):
+┌─────────────────────────────┐
+│ FFFFFFFFFFFFFFFFFFFFFFFFFFF │
+│ FFFFFFFFFFFFFFFFFFFFFFFFFFF │
+│ FFF                         │
+└─────────────────────────────┘
+```
+
+---
+
+## Conformidade RISE V3
+
+| Critério | Status |
+|----------|--------|
+| Single Source of Truth | Limites em `field-limits.ts` |
+| Zero Dívida Técnica | Validação hard impede valores inválidos |
+| Arquitetura Correta | Separação: constantes / editor / view |
+| Limite 300 linhas | Todos os arquivos dentro do limite |
+| Segurança | Valores clampeados antes de persistir |
