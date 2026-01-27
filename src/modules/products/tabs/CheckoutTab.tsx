@@ -1,7 +1,8 @@
 /**
  * CheckoutTab - Aba de Gerenciamento de Checkouts
  * 
- * MIGRATED: Uses product-entities Edge Function for data fetching
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * SSOT: Checkout type imported from ../types/product.types
  * 
  * Esta aba gerencia:
  * - Listagem de checkouts do produto
@@ -20,6 +21,7 @@ import { useNavigate } from "react-router-dom";
 import { CheckoutTable } from "@/components/products/CheckoutTable";
 import { CheckoutConfigDialog } from "@/components/products/CheckoutConfigDialog";
 import { useProductContext } from "../context/ProductContext";
+import type { Checkout } from "../types/product.types";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useConfirmDelete } from "@/components/common/ConfirmDelete";
@@ -33,17 +35,6 @@ interface ProductEntitiesResponse {
 interface CheckoutCrudResponse {
   success?: boolean;
   error?: string;
-}
-
-// Tipo Checkout (igual ao CheckoutTable)
-interface Checkout {
-  id: string;
-  name: string;
-  price: number;
-  visits: number;
-  offer: string;
-  isDefault: boolean;
-  linkId: string;
 }
 
 export function CheckoutTab() {
