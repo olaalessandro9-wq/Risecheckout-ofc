@@ -1,23 +1,26 @@
 
-# Plano: Corrigir Limite de Fonte e Overflow de Texto no Checkout Builder
+
+# Plano: Corrigir Limite de Tempo e Overflow de Texto no Timer
 
 ## Diagnóstico dos Problemas
 
-### Problema 1: Limite de Tamanho de Fonte
-O input numérico em `TextEditor.tsx` (linha 41-47) usa `min={12}` e `max={48}`, mas estes atributos HTML só funcionam com as setas do browser. O usuário pode digitar manualmente qualquer valor (até 1000+) porque o `onChange` não valida o range.
+### Problema 1: Minutos e Segundos sem Limitador Hard
+O `TimerEditor.tsx` usa `min={0}` e `max={59}` nos inputs, mas esses atributos HTML só funcionam com as setas do browser. O usuário pode digitar manualmente valores como 5.9 (que vira `1.4e+40` quando multiplicado) ou qualquer número acima de 59.
+
+**Evidência do Print**: Timer mostrando `1.4e+40:12` - resultado de valor absurdamente alto.
 
 ### Problema 2: Texto Overflow/Sobreposição
-O componente `TextBlock.tsx` renderiza o texto sem nenhuma propriedade CSS de contenção:
+O componente `CountdownTimer.tsx` renderiza o texto em um `<span>` sem CSS de contenção:
 - Sem `overflow: hidden`
-- Sem `word-wrap: break-word`
-- Sem `max-width: 100%`
-- Resultado: texto longo ultrapassa os limites do container e sobrepõe outros elementos
+- Sem `text-overflow: ellipsis`
+- Sem `max-width`
+- Resultado: texto longo ultrapassa os limites do timer e sobrepõe outros elementos
 
 ---
 
 ## Análise de Soluções (RISE V3)
 
-### Solução A: Validação Hard + CSS Containment
+### Solução A: Validação Hard + CSS Containment (Mesmo padrão do TextEditor)
 - **Manutenibilidade:** 10/10 - Lógica clara e centralizada
 - **Zero DT:** 10/10 - Resolve ambos os problemas na raiz
 - **Arquitetura:** 10/10 - Constantes centralizadas em `field-limits.ts`
@@ -25,13 +28,13 @@ O componente `TextBlock.tsx` renderiza o texto sem nenhuma propriedade CSS de co
 - **Segurança:** 10/10 - Impede valores inválidos
 - **NOTA FINAL: 10.0/10**
 
-### Solução B: Apenas CSS no container pai
-- **Manutenibilidade:** 6/10 - Não resolve validação de input
-- **Zero DT:** 5/10 - Permite valores inválidos no estado
-- **Arquitetura:** 6/10 - Fragmentada
-- **Escalabilidade:** 5/10 - Problema pode reaparecer
-- **Segurança:** 6/10 - Valores inválidos persistem no banco
-- **NOTA FINAL: 5.6/10**
+### Solução B: Apenas truncate no texto
+- **Manutenibilidade:** 5/10 - Não resolve validação de input
+- **Zero DT:** 4/10 - Permite valores inválidos no estado
+- **Arquitetura:** 5/10 - Fragmentada
+- **Escalabilidade:** 4/10 - Problema pode reaparecer
+- **Segurança:** 5/10 - Valores inválidos persistem
+- **NOTA FINAL: 4.6/10**
 
 ## DECISÃO: Solução A (10.0/10)
 
@@ -39,91 +42,106 @@ O componente `TextBlock.tsx` renderiza o texto sem nenhuma propriedade CSS de co
 
 ## Implementação Técnica
 
-### 1. Adicionar Constantes de Limites
+### 1. Adicionar Constantes de Limites do Timer
 
 **Arquivo:** `src/lib/constants/field-limits.ts`
 
-Adicionar constantes para o componente de texto do builder:
+Adicionar constantes para o componente de timer:
 
 ```typescript
-export const CHECKOUT_TEXT_LIMITS = {
-  /** Tamanho mínimo da fonte em pixels */
-  FONT_SIZE_MIN: 12,
-  /** Tamanho máximo da fonte em pixels */
-  FONT_SIZE_MAX: 48,
+export const TIMER_LIMITS = {
+  /** Minutos: 0-59 */
+  MINUTES_MIN: 0,
+  MINUTES_MAX: 59,
+  /** Segundos: 0-59 */
+  SECONDS_MIN: 0,
+  SECONDS_MAX: 59,
+  /** Limite de caracteres para textos do timer */
+  TEXT_MAX_LENGTH: 50,
 } as const;
 ```
 
-### 2. Corrigir TextEditor com Validação Hard
+### 2. Corrigir TimerEditor com Validação Hard
 
-**Arquivo:** `src/components/checkout/builder/items/Text/TextEditor.tsx`
+**Arquivo:** `src/components/checkout/builder/items/Timer/TimerEditor.tsx`
 
 Mudanças:
 1. Importar constantes de limites
-2. Clampar o valor do fontSize entre MIN e MAX no `onChange`
-3. Garantir que valores digitados manualmente sejam validados
+2. Clampar o valor de `minutes` entre 0 e 59 no `onChange`
+3. Clampar o valor de `seconds` entre 0 e 59 no `onChange`
+4. Adicionar `maxLength` nos campos de texto (activeText, finishedText)
 
-Lógica:
+Lógica para minutos:
 
 ```typescript
-import { CHECKOUT_TEXT_LIMITS } from "@/lib/constants/field-limits";
+import { TIMER_LIMITS } from "@/lib/constants/field-limits";
 
-// No onChange do fontSize:
+// No onChange dos minutos:
 onChange={(e) => {
-  const rawValue = parseInt(e.target.value) || CHECKOUT_TEXT_LIMITS.FONT_SIZE_MIN;
+  const rawValue = parseInt(e.target.value) || TIMER_LIMITS.MINUTES_MIN;
   const clampedValue = Math.max(
-    CHECKOUT_TEXT_LIMITS.FONT_SIZE_MIN,
-    Math.min(CHECKOUT_TEXT_LIMITS.FONT_SIZE_MAX, rawValue)
+    TIMER_LIMITS.MINUTES_MIN,
+    Math.min(TIMER_LIMITS.MINUTES_MAX, rawValue)
   );
-  handleChange("fontSize", clampedValue);
+  handleChange("minutes", clampedValue);
 }}
+
+// No onChange dos segundos:
+onChange={(e) => {
+  const rawValue = parseInt(e.target.value) || TIMER_LIMITS.SECONDS_MIN;
+  const clampedValue = Math.max(
+    TIMER_LIMITS.SECONDS_MIN,
+    Math.min(TIMER_LIMITS.SECONDS_MAX, rawValue)
+  );
+  handleChange("seconds", clampedValue);
+}}
+
+// Nos inputs de texto:
+<Input
+  value={content.activeText || "..."}
+  onChange={(e) => handleChange("activeText", e.target.value)}
+  maxLength={TIMER_LIMITS.TEXT_MAX_LENGTH}
+/>
 ```
 
-### 3. Corrigir TextBlock com CSS Containment
+### 3. Corrigir CountdownTimer com CSS Containment
 
-**Arquivo:** `src/features/checkout-builder/components/TextBlock/TextBlock.tsx`
+**Arquivo:** `src/features/checkout-builder/components/CountdownTimer/CountdownTimer.tsx`
 
-Mudanças no elemento `<p>`:
-1. Adicionar `overflow: hidden` para esconder texto que exceda
-2. Adicionar `word-wrap: break-word` para quebrar palavras longas
-3. Adicionar `overflow-wrap: break-word` (padrão moderno)
-4. Adicionar `max-width: 100%` para garantir contenção
-5. Adicionar `white-space: pre-wrap` para manter quebras de linha mas permitir wrap
+Mudanças no container `<div>`:
+1. Adicionar `overflow: 'hidden'` para conter elementos internos
 
-CSS inline no style do `<p>`:
+Mudanças no `<span>` do texto:
+1. Adicionar `overflow: hidden` 
+2. Adicionar `text-overflow: ellipsis`
+3. Adicionar `white-space: nowrap`
+4. Adicionar `max-width` para limitar largura
 
-```typescript
-<p
-  style={{
-    color: textColor,
-    fontSize: `${fontSize}px`,
-    textAlign,
-    // RISE V3: Containment para evitar overflow
-    wordWrap: 'break-word',
-    overflowWrap: 'break-word',
-    whiteSpace: 'pre-wrap',
-    maxWidth: '100%',
-  }}
->
-```
-
-E no container `<div>`:
+Código:
 
 ```typescript
-<div
-  className={`p-4 transition-all ${className}`}
-  onClick={onClick}
+// No container <div>:
+style={{ 
+  backgroundColor, 
+  color: textColor,
+  minHeight: '72px',
+  overflow: 'hidden',  // Contenção
+  maxWidth: '100%',
+}}
+
+// No <span> do texto:
+<span 
+  className="text-base lg:text-lg font-medium"
   style={{
-    backgroundColor,
-    borderColor,
-    borderWidth: `${borderWidth}px`,
-    borderStyle: "solid",
-    borderRadius: `${borderRadius}px`,
-    // RISE V3: Containment do container
     overflow: 'hidden',
-    maxWidth: '100%',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    maxWidth: '40%',  // Limita o texto a 40% do container
+    display: 'inline-block',
   }}
 >
+  {isFinished ? finishedText : activeText}
+</span>
 ```
 
 ---
@@ -132,9 +150,9 @@ E no container `<div>`:
 
 | Arquivo | Ação | Mudança |
 |---------|------|---------|
-| `src/lib/constants/field-limits.ts` | MODIFICAR | Adicionar `CHECKOUT_TEXT_LIMITS` |
-| `src/components/checkout/builder/items/Text/TextEditor.tsx` | MODIFICAR | Import + clamp de fontSize |
-| `src/features/checkout-builder/components/TextBlock/TextBlock.tsx` | MODIFICAR | CSS containment no container e no texto |
+| `src/lib/constants/field-limits.ts` | MODIFICAR | Adicionar `TIMER_LIMITS` |
+| `src/components/checkout/builder/items/Timer/TimerEditor.tsx` | MODIFICAR | Import + clamp de minutos/segundos + maxLength nos textos |
+| `src/features/checkout-builder/components/CountdownTimer/CountdownTimer.tsx` | MODIFICAR | CSS containment no container e truncate no texto |
 
 ---
 
@@ -142,12 +160,12 @@ E no container `<div>`:
 
 | Cenário | Antes | Depois |
 |---------|-------|--------|
-| Digitar 100 no fontSize | Aceita 100 | Clampa para 48 |
-| Digitar 5 no fontSize | Aceita 5 | Clampa para 12 |
-| Usar setas para aumentar | Para em 48 | Para em 48 |
-| Texto muito longo | Sobrepõe checkout | Quebra dentro do container |
-| Palavras longas (ex: "FFFFFF...") | Sai do container | Quebra corretamente |
-| Texto com espaços | Pode vazar | Fica contido |
+| Digitar 100 nos minutos | Aceita 100 → `1.4e+40` | Clampa para 59 |
+| Digitar 60 nos segundos | Aceita 60 | Clampa para 59 |
+| Digitar 0 nos minutos | Aceita 0 | Aceita 0 ✓ |
+| Usar setas para aumentar | Para em 59 | Para em 59 |
+| Texto muito longo | Sobrepõe checkout | Trunca com "..." |
+| Texto normal | Exibe completo | Exibe completo |
 
 ---
 
@@ -155,17 +173,15 @@ E no container `<div>`:
 
 ```text
 ANTES (overflow):
-┌─────────────────────────────┐
-│ FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF→→→→→→
-└─────────────────────────────┘
-                              ↓ (sobrepõe checkout)
+┌────────────────────────────────────────────────────────────────────┐
+│ 59:59 🔔 TextoMuitoLongoQueUltrapassaOContainerEVaiParaForaaaaa→→→→
+└────────────────────────────────────────────────────────────────────┘
+                                                                    ↓ (sobrepõe)
 
-DEPOIS (containment):
-┌─────────────────────────────┐
-│ FFFFFFFFFFFFFFFFFFFFFFFFFFF │
-│ FFFFFFFFFFFFFFFFFFFFFFFFFFF │
-│ FFF                         │
-└─────────────────────────────┘
+DEPOIS (containment + truncate):
+┌────────────────────────────────────────────────────────────┐
+│ 59:59 🔔 TextoMuitoLongoQueUl...                           │
+└────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -179,3 +195,4 @@ DEPOIS (containment):
 | Arquitetura Correta | Separação: constantes / editor / view |
 | Limite 300 linhas | Todos os arquivos dentro do limite |
 | Segurança | Valores clampeados antes de persistir |
+
