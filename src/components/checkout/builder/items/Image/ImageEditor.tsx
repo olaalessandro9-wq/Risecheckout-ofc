@@ -13,9 +13,10 @@ interface ImageEditorProps {
   component: ComponentData;
   onChange: (newContent: Partial<ImageContent>) => void;
   design?: CheckoutDesign;
+  productId?: string;
 }
 
-export const ImageEditor = ({ component, onChange }: ImageEditorProps) => {
+export const ImageEditor = ({ component, onChange, productId }: ImageEditorProps) => {
   // Type assertion segura - o componente só recebe content do tipo correto via registry
   const content = (component.content || {}) as ImageContent;
   const imageInputId = `image-upload-${component.id}`;
@@ -57,7 +58,11 @@ export const ImageEditor = ({ component, onChange }: ImageEditorProps) => {
     // 3. Upload via Edge Function em background
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `checkout-components/${component.id}-${Date.now()}.${fileExt}`;
+      // RISE V3: Segue padrão products/${productId}/ para storage-management
+      const basePath = productId 
+        ? `products/${productId}/checkout-components`
+        : `products/unknown/checkout-components`;
+      const fileName = `${basePath}/${component.id}-${Date.now()}.${fileExt}`;
 
       // Fazer upload via storageProxy
       const { publicUrl, error: uploadError } = await uploadViaEdge(
