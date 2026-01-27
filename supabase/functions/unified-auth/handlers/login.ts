@@ -92,6 +92,32 @@ export async function handleLogin(
       roles.push("buyer");
     }
     
+    // RISE V3: Fallback para usuários sem role de produtor (migração de dados antigos)
+    // Se só tem buyer e veio de cadastro de produtor/afiliado, atribuir seller
+    if (roles.length === 1 && roles[0] === "buyer") {
+      const { data: userData } = await supabase
+        .from("users")
+        .select("registration_source")
+        .eq("id", user.id)
+        .single();
+      
+      if (userData?.registration_source === "organic" || 
+          userData?.registration_source === "affiliate") {
+        const { error: roleError } = await supabase.from("user_roles").insert({
+          user_id: user.id,
+          role: "seller",
+        });
+        
+        if (!roleError) {
+          roles.push("seller");
+          log.info("Auto-assigned seller role based on registration_source", {
+            userId: user.id,
+            source: userData.registration_source,
+          });
+        }
+      }
+    }
+    
     // Determine active role
     let activeRole: AppRole = "buyer"; // Default
     
@@ -106,9 +132,9 @@ export async function handleLogin(
       activeRole = lastContext.active_role as AppRole;
     } else if (preferredRole && roles.includes(preferredRole)) {
       activeRole = preferredRole;
-    } else if (roles.includes("user") || roles.includes("admin") || roles.includes("owner")) {
+    } else if (roles.some(r => ["owner", "admin", "user", "seller"].includes(r))) {
       // Producer-type roles take precedence
-      activeRole = roles.find(r => ["owner", "admin", "user", "seller"].includes(r)) || "user";
+      activeRole = roles.find(r => ["owner", "admin", "user", "seller"].includes(r)) || "seller";
     }
     
     // RISE V3: Invalidar sessões anteriores para evitar acúmulo

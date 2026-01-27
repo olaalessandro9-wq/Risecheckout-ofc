@@ -24,7 +24,7 @@ interface RegisterRequest {
   password: string;
   name?: string;
   phone?: string;
-  registrationType?: "producer" | "buyer";
+  registrationType?: "producer" | "affiliate" | "buyer";
 }
 
 export async function handleRegister(
@@ -83,20 +83,28 @@ export async function handleRegister(
     }
     
     // Assign roles based on registration type
+    // RISE V3: Cadastro via /cadastro = sempre recebe role "seller"
+    // Origem (producer/affiliate) é apenas marcação interna
     const roles: AppRole[] = ["buyer"]; // Everyone is a buyer
     
-    if (registrationType === "producer") {
-      roles.push("user"); // Producer role
-      
-      // Insert producer role
-      await supabase.from("user_roles").insert({
+    if (registrationType === "producer" || registrationType === "affiliate") {
+      const { error: roleError } = await supabase.from("user_roles").insert({
         user_id: newUser.id,
-        role: "user",
+        role: "seller",
       });
+      
+      if (roleError) {
+        log.error("Failed to assign role:", roleError.message);
+        // Rollback: deletar usuário criado
+        await supabase.from("users").delete().eq("id", newUser.id);
+        return errorResponse("Erro ao configurar permissões", corsHeaders, 500);
+      }
+      
+      roles.push("seller");
     }
     
-    // Set active role
-    const activeRole: AppRole = registrationType === "producer" ? "user" : "buyer";
+    // Set active role (seller para produtores/afiliados, buyer para compradores)
+    const activeRole: AppRole = (registrationType === "producer" || registrationType === "affiliate") ? "seller" : "buyer";
     
     // Set initial context
     await supabase.from("user_active_context").insert({
