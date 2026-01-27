@@ -1,192 +1,217 @@
 
-# Plano: Corrigir uso de `any` em post-pix.ts - RISE V3 100%
+# Plano: Corrigir exibição de checkouts sem oferta associada
 
-## Diagnóstico Root Cause
+## RISE Protocol V3 - Análise de Soluções
 
-O arquivo `supabase/functions/pushinpay-create-pix/handlers/post-pix.ts` viola a regra **Zero `any`** do RISE Protocol V3 em duas interfaces:
-
-```typescript
-// Linha 16 - VIOLAÇÃO
-supabase: { from: (table: string) => any };
-
-// Linha 83 - VIOLAÇÃO (mesma estrutura)
-supabase: { from: (table: string) => any };
-```
-
-### Por que está errado?
-
-1. **Tipagem fraca** - `any` desabilita checagem de tipos do TypeScript
-2. **Inconsistência** - Todos os outros arquivos usam `SupabaseClient` do SDK
-3. **Manutenibilidade** - Erros de tipagem não serão detectados em compile-time
-
----
-
-## Análise de Soluções (RISE V3)
-
-### Solução A: Usar SupabaseClient do SDK (padrão do projeto)
-
-- Manutenibilidade: 10/10 (consistente com todo o codebase)
-- Zero DT: 10/10 (tipagem forte)
-- Arquitetura: 10/10 (segue padrão estabelecido)
-- Escalabilidade: 10/10 (IntelliSense completo)
-- Segurança: 10/10 (erros detectados em compile-time)
-- **NOTA FINAL: 10.0/10**
-- Tempo estimado: 10 minutos
-
-### Solução B: Criar interface personalizada com tipagem parcial
-
-- Manutenibilidade: 7/10 (interface adicional a manter)
-- Zero DT: 8/10 (tipagem melhor que any, mas não ideal)
-- Arquitetura: 5/10 (inconsistente com outros arquivos)
-- Escalabilidade: 6/10 (requer atualização manual se API mudar)
-- Segurança: 8/10 (melhor que any)
-- **NOTA FINAL: 6.8/10**
+### Solução A: Ajustar apenas o mapper para retornar string vazia
+- Manutenibilidade: 6/10 (confunde string vazia com "não carregado")
+- Zero DT: 5/10 (precisa de tratamento especial em cada componente)
+- Arquitetura: 4/10 (não segue princípio de clareza semântica)
+- Escalabilidade: 5/10 (cada novo componente precisa saber tratar "")
+- Segurança: 10/10 (sem impacto)
+- **NOTA FINAL: 5.6/10**
 - Tempo estimado: 15 minutos
 
-### DECISÃO: Solução A (10.0/10)
+### Solução B: Sinalização explícita com valores claros + tratamento visual unificado
+- Manutenibilidade: 10/10 (semântica clara: null = sem oferta)
+- Zero DT: 10/10 (tratamento único e consistente)
+- Arquitetura: 10/10 (Single Source of Truth no mapper, UI apenas renderiza)
+- Escalabilidade: 10/10 (qualquer componente sabe interpretar null/0)
+- Segurança: 10/10 (sem impacto)
+- **NOTA FINAL: 10.0/10**
+- Tempo estimado: 40 minutos
 
-A Solução B é inferior porque cria uma abstração desnecessária quando o SDK já fornece tipagem completa. Usar `SupabaseClient` diretamente é o padrão estabelecido em **57+ arquivos** do projeto.
+### DECISÃO: Solução B (10.0/10)
 
----
-
-## Plano de Execução
-
-### Fase 1: Atualizar imports
-
-**Adicionar import do SupabaseClient:**
-
-```typescript
-import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-```
-
-### Fase 2: Corrigir interface UpdateOrderParams (linha 15-20)
-
-**Antes:**
-```typescript
-interface UpdateOrderParams {
-  supabase: { from: (table: string) => any };
-  orderId: string;
-  pixData: PushinPayResponse;
-  logPrefix: string;
-}
-```
-
-**Depois:**
-```typescript
-interface UpdateOrderParams {
-  supabase: SupabaseClient;
-  orderId: string;
-  pixData: PushinPayResponse;
-  logPrefix: string;
-}
-```
-
-### Fase 3: Corrigir interface LogManualPaymentParams (linha 82-87)
-
-**Antes:**
-```typescript
-interface LogManualPaymentParams {
-  supabase: { from: (table: string) => any };
-  orderId: string;
-  smartSplit: SmartSplitDecision;
-  logPrefix: string;
-}
-```
-
-**Depois:**
-```typescript
-interface LogManualPaymentParams {
-  supabase: SupabaseClient;
-  orderId: string;
-  smartSplit: SmartSplitDecision;
-  logPrefix: string;
-}
-```
-
-### Fase 4: Adicionar header RISE V3 (bônus - consistência)
-
-Atualizar o header do arquivo para seguir o padrão RISE V3 completo:
-
-```typescript
-/**
- * ============================================================================
- * Post-PIX Handler - Ações Pós-Criação do PIX
- * ============================================================================
- * 
- * RISE ARCHITECT PROTOCOL V3 - 10.0/10
- * 
- * Gerencia ações após a criação bem-sucedida de um PIX:
- * - Atualizar order com dados do PIX (qr_code, pix_id, status)
- * - Disparar webhook pix_generated
- * - Registrar pagamentos manuais necessários (split > 50%)
- * 
- * @module pushinpay-create-pix/handlers/post-pix
- * @author RiseCheckout Team
- * ============================================================================
- */
-```
+A Solução A é inferior porque força cada componente da UI a "adivinhar" se uma string vazia significa "sem oferta" ou "dados não carregados". A Solução B implementa semântica clara: `offer = null` e `price = null` indicam explicitamente ausência de oferta.
 
 ---
 
-## Arquivo Final Esperado
+## Fases de Execução
+
+### Fase 1: Ajustar tipo Checkout para suportar valores nulos
+
+**Arquivo:** `src/modules/products/types/product.types.ts`
+
+Atualizar a interface `Checkout` para que `offer` e `price` possam ser `null`:
 
 ```typescript
-/**
- * ============================================================================
- * Post-PIX Handler - Ações Pós-Criação do PIX
- * ============================================================================
- * 
- * RISE ARCHITECT PROTOCOL V3 - 10.0/10
- * 
- * Gerencia ações após a criação bem-sucedida de um PIX:
- * - Atualizar order com dados do PIX (qr_code, pix_id, status)
- * - Disparar webhook pix_generated
- * - Registrar pagamentos manuais necessários (split > 50%)
- * 
- * @module pushinpay-create-pix/handlers/post-pix
- * @author RiseCheckout Team
- * ============================================================================
- */
-
-import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import type { PushinPayResponse } from "./pix-builder.ts";
-import type { SmartSplitDecision } from "./smart-split.ts";
-import { createLogger } from "../../_shared/logger.ts";
-
-const log = createLogger("pushinpay-create-pix");
-
-interface UpdateOrderParams {
-  supabase: SupabaseClient;
-  orderId: string;
-  pixData: PushinPayResponse;
-  logPrefix: string;
-}
-
-export async function updateOrderWithPixData(params: UpdateOrderParams): Promise<void> {
-  // ... (sem mudanças na implementação)
-}
-
-interface TriggerWebhookParams {
-  supabaseUrl: string;
-  orderId: string;
-  logPrefix: string;
-}
-
-export async function triggerPixGeneratedWebhook(params: TriggerWebhookParams): Promise<void> {
-  // ... (sem mudanças na implementação)
-}
-
-interface LogManualPaymentParams {
-  supabase: SupabaseClient;
-  orderId: string;
-  smartSplit: SmartSplitDecision;
-  logPrefix: string;
-}
-
-export async function logManualPaymentIfNeeded(params: LogManualPaymentParams): Promise<void> {
-  // ... (sem mudanças na implementação)
+export interface Checkout {
+  id: string;
+  name: string;
+  price: number | null;        // null = sem oferta associada
+  visits: number;
+  offer: string | null;        // null = sem oferta associada
+  isDefault: boolean;
+  linkId: string;
+  product_id: string;
+  status: string;
+  created_at: string;
 }
 ```
+
+### Fase 2: Ajustar o mapper para retornar null quando não há oferta
+
+**Arquivo:** `src/modules/products/context/helpers/productDataMapper.ts`
+
+Modificar `mapCheckoutRecords` para retornar valores semânticos claros:
+
+```typescript
+export function mapCheckoutRecords(records: CheckoutRecord[]): Checkout[] {
+  return records.map((record) => {
+    const checkoutLink = record.checkout_links?.[0];
+    const paymentLink = checkoutLink?.payment_links;
+    const offer = paymentLink?.offers;
+    
+    // RISE V3: Sem fallback para product - null indica "sem oferta"
+    const hasOffer = !!offer;
+    
+    return {
+      id: record.id,
+      name: record.name,
+      price: hasOffer ? offer.price : null,
+      visits: record.visits_count ?? 0,
+      offer: hasOffer ? offer.name : null,
+      isDefault: record.is_default,
+      linkId: checkoutLink?.link_id ?? "",
+      product_id: record.product_id,
+      status: record.status ?? "active",
+      created_at: record.created_at,
+    };
+  });
+}
+```
+
+### Fase 3: Atualizar a CheckoutTable para exibir placeholders visuais
+
+**Arquivo:** `src/components/products/CheckoutTable.tsx`
+
+Atualizar a interface para refletir tipos nulláveis:
+
+```typescript
+export interface Checkout {
+  id: string;
+  name: string;
+  price: number | null;       // null = sem oferta
+  visits: number;
+  offer: string | null;       // null = sem oferta
+  isDefault: boolean;
+  linkId: string;
+}
+```
+
+Atualizar o JSX para tratar valores nulos:
+
+```typescript
+// Coluna Preço
+<TableCell className="text-primary font-semibold">
+  {checkout.price !== null ? (
+    formatBRL(checkout.price)
+  ) : (
+    <span className="text-muted-foreground italic">—</span>
+  )}
+</TableCell>
+
+// Coluna Oferta
+<TableCell className="text-muted-foreground max-w-[200px]">
+  {checkout.offer !== null ? (
+    // Truncação com tooltip para nomes longos
+    checkout.offer.length > 25 ? (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="block truncate cursor-help">
+            {checkout.offer}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-[300px] break-words">
+          {checkout.offer}
+        </TooltipContent>
+      </Tooltip>
+    ) : (
+      checkout.offer
+    )
+  ) : (
+    <span className="text-yellow-500 italic text-sm flex items-center gap-1">
+      <AlertCircle className="w-3 h-3" />
+      Selecione uma oferta
+    </span>
+  )}
+</TableCell>
+```
+
+### Fase 4: Atualizar CheckoutConfigDialog para não pré-selecionar oferta
+
+**Arquivo:** `src/components/products/CheckoutConfigDialog.tsx`
+
+Atualizar a interface importada para refletir tipos nulláveis:
+
+```typescript
+import type { Checkout } from "./CheckoutTable";
+```
+
+Modificar o useEffect para não forçar seleção quando `currentOfferId` está vazio:
+
+```typescript
+useEffect(() => {
+  if (checkout) {
+    setName(checkout.name);
+    setIsDefault(checkout.isDefault);
+    // Se não há oferta associada, manter vazio
+    setSelectedOfferId(currentOfferId || "");
+  } else {
+    setName("");
+    setIsDefault(false);
+    // Para novos checkouts: pré-selecionar oferta padrão
+    const defaultOffer = availableOffers.find(offer => offer.is_default);
+    setSelectedOfferId(defaultOffer ? defaultOffer.id : (availableOffers[0]?.id || ""));
+  }
+}, [checkout, open, currentOfferId, availableOffers]);
+```
+
+Adicionar indicador visual quando nenhuma oferta está selecionada:
+
+```typescript
+{availableOffers.length > 0 && !selectedOfferId && (
+  <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg mb-2 flex items-start gap-2">
+    <AlertCircle className="w-4 h-4 text-yellow-500 flex-shrink-0 mt-0.5" />
+    <p className="text-sm text-yellow-500">
+      Este checkout não tem oferta associada. Selecione uma oferta para definir o preço.
+    </p>
+  </div>
+)}
+```
+
+### Fase 5: Atualizar CheckoutRecord no useProductLoader
+
+**Arquivo:** `src/modules/products/context/hooks/useProductLoader.ts`
+
+Não requer mudanças - os tipos já suportam `checkout_links?: Array<...>` (opcional).
+
+---
+
+## Arquitetura Visual Final
+
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     TABELA DE CHECKOUTS                                 │
+├─────────────────┬───────────────┬─────────┬────────────────────────────┤
+│ Nome            │ Preço         │ Visitas │ Oferta                     │
+├─────────────────┼───────────────┼─────────┼────────────────────────────┤
+│ Checkout (Cópia)│ —             │ 0       │ ⚠ Selecione uma oferta    │
+│ Checkout Padrão │ R$ 14,90      │ 0       │ OFFER                      │
+└─────────────────┴───────────────┴─────────┴────────────────────────────┘
+```
+
+---
+
+## Arquivos a Modificar (4 arquivos)
+
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/modules/products/types/product.types.ts` | Tornar `offer` e `price` nulláveis |
+| `src/modules/products/context/helpers/productDataMapper.ts` | Retornar `null` ao invés de fallback para product |
+| `src/components/products/CheckoutTable.tsx` | Exibir placeholder visual quando `null` |
+| `src/components/products/CheckoutConfigDialog.tsx` | Não pré-selecionar oferta; exibir warning |
 
 ---
 
@@ -194,11 +219,11 @@ export async function logManualPaymentIfNeeded(params: LogManualPaymentParams): 
 
 | Verificação | Resultado Esperado |
 |-------------|-------------------|
-| Zero `any` no arquivo | ✅ 0 matches |
-| Import de SupabaseClient | ✅ Presente |
-| Header RISE V3 | ✅ Completo |
-| Build sem erros | ✅ Compilação bem-sucedida |
-| Tipagem IntelliSense | ✅ Autocomplete funcional |
+| Checkout duplicado na tabela | Mostra "—" em Preço e "⚠ Selecione uma oferta" |
+| Abrir dialog do checkout duplicado | Nenhuma oferta selecionada + warning amarelo |
+| Checkout original na tabela | Mostra preço e nome da oferta normalmente |
+| Abrir dialog do checkout original | Oferta correta pré-selecionada |
+| TypeScript build | Zero erros |
 
 ---
 
@@ -206,11 +231,11 @@ export async function logManualPaymentIfNeeded(params: LogManualPaymentParams): 
 
 | Critério | Status |
 |----------|--------|
-| Root Cause Only | ✅ Corrige tipagem na raiz |
-| Single Source of Truth | ✅ Usa tipo do SDK (único lugar) |
-| Zero Dívida Técnica | ✅ Remove `any` completamente |
-| Arquitetura Correta | ✅ Consistente com 57+ arquivos |
-| Segurança | ✅ Tipagem forte previne erros |
-| < 300 linhas | ✅ ~107 linhas |
+| Root Cause Only | ✅ Corrige no mapper (SSOT) |
+| Zero Dívida Técnica | ✅ Tipagem clara com null |
+| Arquitetura Correta | ✅ SSOT no mapper, UI apenas renderiza |
+| Escalabilidade | ✅ Qualquer componente interpreta null |
+| Segurança | ✅ Sem impacto |
+| < 300 linhas | ✅ Todos os arquivos permanecem compactos |
 
-**NOTA FINAL: 10.0/10** - Após esta correção, o arquivo atingirá conformidade total com RISE Protocol V3.
+**NOTA FINAL: 10.0/10** - Implementação semanticamente correta seguindo RISE Protocol V3.
