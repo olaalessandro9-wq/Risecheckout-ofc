@@ -60,11 +60,26 @@ export interface BannerSlide {
   alt?: string;
 }
 
+// =====================================================
+// GRADIENT OVERLAY CONFIG (Netflix-style transitions)
+// =====================================================
+
+export type GradientDirection = 'bottom' | 'top' | 'left' | 'right';
+
+export interface GradientOverlayConfig {
+  enabled: boolean;
+  direction: GradientDirection;
+  strength: number; // 0-100 (controla ponto médio do gradiente)
+  use_theme_color: boolean; // Se true, usa hsl(var(--background))
+  custom_color?: string; // Hex color quando use_theme_color = false
+}
+
 export interface BannerSettings {
   type: 'banner';
   slides: BannerSlide[];
   transition_seconds: number;
   height: 'small' | 'medium' | 'large';
+  gradient_overlay?: GradientOverlayConfig; // Optional for backwards compat
 }
 
 export interface ModulesSettings {
@@ -234,6 +249,14 @@ export interface SectionConfig<T extends SectionSettings = SectionSettings> {
 // DEFAULTS
 // =====================================================
 
+export const DEFAULT_GRADIENT_OVERLAY: GradientOverlayConfig = {
+  enabled: true, // Ativado por padrão para melhor UX out-of-the-box
+  direction: 'bottom',
+  strength: 60,
+  use_theme_color: true,
+  custom_color: undefined,
+};
+
 export const DEFAULT_BANNER_SETTINGS: Omit<BannerSettings, 'type'> = {
   slides: [
     {
@@ -245,6 +268,7 @@ export const DEFAULT_BANNER_SETTINGS: Omit<BannerSettings, 'type'> = {
   ],
   transition_seconds: 5,
   height: 'medium',
+  gradient_overlay: DEFAULT_GRADIENT_OVERLAY,
 };
 
 export const DEFAULT_MODULES_SETTINGS: Omit<ModulesSettings, 'type'> = {
