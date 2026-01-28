@@ -1,7 +1,9 @@
 /**
  * Builder Sidebar - Painel lateral de configuração
  * 
- * @see RISE ARCHITECT PROTOCOL
+ * Viewport toggle movido para BuilderHeader (RISE V3 10.0/10).
+ * 
+ * @see RISE ARCHITECT PROTOCOL V3
  */
 
 import React from 'react';
@@ -10,7 +12,6 @@ import { Home, Palette, Menu } from 'lucide-react';
 import { SectionTreePanel } from './SectionTreePanel';
 import { GlobalSettingsPanel } from './GlobalSettingsPanel';
 import { MenuSettingsPanel } from './MenuSettingsPanel';
-import { ViewportSyncPanel } from './ViewportSyncPanel';
 import type { BuilderState, BuilderActions } from '../../types/builder.types';
 
 interface BuilderSidebarProps {
@@ -20,7 +21,7 @@ interface BuilderSidebarProps {
 }
 
 export function BuilderSidebar({ state, actions, productId }: BuilderSidebarProps) {
-  const { selectedSectionId, sections, settings, modules, activeViewport, isMobileSynced, desktopSections, mobileSections } = state;
+  const { selectedSectionId, sections, settings, modules } = state;
 
   const handleModuleEdit = (moduleId: string) => {
     actions.selectModule(moduleId);
@@ -29,17 +30,6 @@ export function BuilderSidebar({ state, actions, productId }: BuilderSidebarProp
 
   return (
     <aside className="w-80 border-l bg-background flex flex-col h-full overflow-hidden">
-      {/* Viewport Sync Panel at top */}
-      <ViewportSyncPanel
-        activeViewport={activeViewport}
-        isMobileSynced={isMobileSynced}
-        desktopSectionsCount={desktopSections.length}
-        mobileSectionsCount={mobileSections.length}
-        onSetActiveViewport={actions.setActiveViewport}
-        onCopyDesktopToMobile={actions.copyDesktopToMobile}
-        onSetMobileSynced={actions.setMobileSynced}
-      />
-
       <Tabs defaultValue="home" className="flex flex-col flex-1 overflow-hidden">
         <TabsList className="w-full justify-start rounded-none border-b h-12 px-2 shrink-0 bg-transparent p-0">
           <TabsTrigger value="home" className="gap-2">
