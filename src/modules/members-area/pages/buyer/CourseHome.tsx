@@ -188,7 +188,11 @@ export default function CourseHome() {
           {hasBuilderSections ? (
             // Use Builder sections
             <div className="space-y-2">
-              {sections.map((section) => {
+              {sections.map((section, index) => {
+                // Detecta se a seção anterior é um banner (para margin negativo)
+                const prevSection = index > 0 ? sections[index - 1] : null;
+                const isAfterBanner = prevSection?.type === 'banner';
+                
                 if (section.type === 'banner') {
                   const bannerSettings = section.settings as {
                     type: 'banner';
@@ -227,15 +231,22 @@ export default function CourseHome() {
                   if (visibleModules.length === 0) return null;
                   
                   return (
-                    <ModuleCarousel
+                    <div 
                       key={section.id}
-                      modules={visibleModules}
-                      onSelectContent={handleSelectContent}
-                      title={section.title}
-                      cardSize={cardSize}
-                      titleSize={titleSize}
-                      showTitle={showTitle}
-                    />
+                      className={cn(
+                        // Módulos após banner: margin-top negativo para "subir" debaixo do gradient extension
+                        isAfterBanner && '-mt-16 relative z-0'
+                      )}
+                    >
+                      <ModuleCarousel
+                        modules={visibleModules}
+                        onSelectContent={handleSelectContent}
+                        title={section.title}
+                        cardSize={cardSize}
+                        titleSize={titleSize}
+                        showTitle={showTitle}
+                      />
+                    </div>
                   );
                 }
                 

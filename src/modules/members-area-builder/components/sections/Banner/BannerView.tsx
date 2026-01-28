@@ -12,8 +12,8 @@ import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import type { Section, BannerSettings, ViewMode } from '../../../types/builder.types';
 import { 
-  generateGradientCSS, 
-  generateSideGradientCSS, 
+  generateSideGradientCSS,
+  generateExtensionGradientCSS,
   resolveGradientConfig 
 } from '../../../utils/gradientUtils';
 
@@ -86,69 +86,76 @@ export function BannerView({ section, viewMode, theme }: BannerViewProps) {
   }
 
   return (
-    <div className={cn('relative overflow-hidden', heightClass)}>
-      <div ref={emblaRef} className="overflow-hidden h-full cursor-grab active:cursor-grabbing">
-        <div className="flex h-full">
-          {slides.map((slide, index) => (
-            <div 
-              key={slide.id} 
-              className="relative w-full h-full flex-shrink-0 flex-grow-0 basis-full"
-            >
-              <img
-                src={slide.image_url}
-                alt={slide.alt || `Slide ${index + 1}`}
-                className="w-full h-full object-cover"
-                draggable={false}
-              />
-              {slide.link && (
-                <a 
-                  href={slide.link} 
-                  className="absolute inset-0"
-                  target="_blank"
-                  rel="noopener noreferrer"
+    // WRAPPER: relative, SEM overflow-hidden para gradient extension poder "vazar"
+    <div className="relative">
+      {/* CONTAINER DO CAROUSEL: COM overflow-hidden (só aqui) */}
+      <div className={cn('relative overflow-hidden', heightClass)}>
+        <div ref={emblaRef} className="overflow-hidden h-full cursor-grab active:cursor-grabbing">
+          <div className="flex h-full">
+            {slides.map((slide, index) => (
+              <div 
+                key={slide.id} 
+                className="relative w-full h-full flex-shrink-0 flex-grow-0 basis-full"
+              >
+                <img
+                  src={slide.image_url}
+                  alt={slide.alt || `Slide ${index + 1}`}
+                  className="w-full h-full object-cover"
+                  draggable={false}
                 />
-              )}
-            </div>
-          ))}
+                {slide.link && (
+                  <a 
+                    href={slide.link} 
+                    className="absolute inset-0"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  />
+                )}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
 
-      {/* Gradient Overlay - Netflix-style transition effect */}
-      {gradientConfig.enabled && (
-        <>
-          {/* Primary gradient (direction-based) */}
-          <div 
-            className="absolute inset-0 pointer-events-none z-10"
-            style={{
-              background: generateGradientCSS(gradientConfig)
-            }}
-          />
-          {/* Side gradient for depth (Netflix-style vignette) */}
+        {/* Side gradient for depth (Netflix-style vignette) - DENTRO do overflow */}
+        {gradientConfig.enabled && (
           <div 
             className="absolute inset-0 pointer-events-none z-10"
             style={{
               background: generateSideGradientCSS(gradientConfig)
             }}
           />
-        </>
-      )}
+        )}
 
-      {/* Indicators - z-20 to stay above gradient */}
-      {slides.length > 1 && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
-          {slides.map((_, index) => (
-            <button
-              key={index}
-              className={cn(
-                'w-2 h-2 rounded-full transition-all',
-                index === selectedIndex 
-                  ? 'bg-white w-4' 
-                  : 'bg-white/50 hover:bg-white/75'
-              )}
-              onClick={() => scrollTo(index)}
-            />
-          ))}
-        </div>
+        {/* Indicators - z-20 to stay above gradient */}
+        {slides.length > 1 && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+            {slides.map((_, index) => (
+              <button
+                key={index}
+                className={cn(
+                  'w-2 h-2 rounded-full transition-all',
+                  index === selectedIndex 
+                    ? 'bg-white w-4' 
+                    : 'bg-white/50 hover:bg-white/75'
+                )}
+                onClick={() => scrollTo(index)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+      
+      {/* GRADIENT EXTENSION: FORA do overflow-hidden, extende para baixo */}
+      {/* Cria a transição suave estilo Netflix/Cakto */}
+      {gradientConfig.enabled && (
+        <div 
+          className="absolute left-0 right-0 h-24 pointer-events-none z-10"
+          style={{
+            bottom: 0,
+            transform: 'translateY(100%)',
+            background: generateExtensionGradientCSS(gradientConfig),
+          }}
+        />
       )}
     </div>
   );

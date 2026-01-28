@@ -10,8 +10,8 @@ import { cn } from '@/lib/utils';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import { 
-  generateGradientCSS, 
   generateSideGradientCSS, 
+  generateExtensionGradientCSS,
   resolveGradientConfig 
 } from '@/modules/members-area-builder/utils/gradientUtils';
 import type { GradientOverlayConfig } from '@/modules/members-area-builder/types/builder.types';
@@ -86,13 +86,15 @@ export function BuyerBannerSection({ settings, title }: BuyerBannerSectionProps)
   }
 
   return (
-    <div className="w-full">
+    // WRAPPER: relative, SEM overflow-hidden para gradient extension poder "vazar"
+    <div className="w-full relative">
       {title && (
         <h2 className="text-lg font-semibold text-foreground mb-3 px-4 md:px-8">
           {title}
         </h2>
       )}
       
+      {/* CONTAINER DO CAROUSEL: COM overflow-hidden (só aqui) */}
       <div className={cn('relative overflow-hidden', heightClass)}>
         <div ref={emblaRef} className="overflow-hidden h-full cursor-grab active:cursor-grabbing">
           <div className="flex h-full">
@@ -120,24 +122,14 @@ export function BuyerBannerSection({ settings, title }: BuyerBannerSectionProps)
           </div>
         </div>
 
-        {/* Gradient Overlay - Netflix-style transition effect */}
+        {/* Side gradient for depth (Netflix-style vignette) - DENTRO do overflow */}
         {gradientConfig.enabled && (
-          <>
-            {/* Primary gradient (direction-based) */}
-            <div 
-              className="absolute inset-0 pointer-events-none z-10"
-              style={{
-                background: generateGradientCSS(gradientConfig)
-              }}
-            />
-            {/* Side gradient for depth (Netflix-style vignette) */}
-            <div 
-              className="absolute inset-0 pointer-events-none z-10"
-              style={{
-                background: generateSideGradientCSS(gradientConfig)
-              }}
-            />
-          </>
+          <div 
+            className="absolute inset-0 pointer-events-none z-10"
+            style={{
+              background: generateSideGradientCSS(gradientConfig)
+            }}
+          />
         )}
 
         {/* Indicators - z-20 to stay above gradient */}
@@ -158,6 +150,19 @@ export function BuyerBannerSection({ settings, title }: BuyerBannerSectionProps)
           </div>
         )}
       </div>
+      
+      {/* GRADIENT EXTENSION: FORA do overflow-hidden, extende para baixo */}
+      {/* Cria a transição suave estilo Netflix/Cakto */}
+      {gradientConfig.enabled && (
+        <div 
+          className="absolute left-0 right-0 h-24 pointer-events-none z-10"
+          style={{
+            bottom: 0,
+            transform: 'translateY(100%)',
+            background: generateExtensionGradientCSS(gradientConfig),
+          }}
+        />
+      )}
     </div>
   );
 }
