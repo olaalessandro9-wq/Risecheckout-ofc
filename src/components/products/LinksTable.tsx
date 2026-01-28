@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Copy, Star, ExternalLink, Power, MoreVertical } from "lucide-react";
+import { Search, Copy, ExternalLink, Power, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -113,15 +113,7 @@ export function LinksTable({ links, onToggleStatus }: LinksTableProps) {
                   className={`hover:bg-muted/30 ${link.status === 'inactive' ? 'opacity-50' : ''}`}
                 >
                   <TableCell className="font-medium text-foreground">
-                    <div className="flex items-center gap-2">
-                      {link.offer_name}
-                      {link.is_default && (
-                        <Badge variant="secondary" className="text-xs gap-1">
-                          <Star className="w-3 h-3" />
-                          Padrão
-                        </Badge>
-                      )}
-                    </div>
+                    {link.offer_name}
                   </TableCell>
                   <TableCell className="text-foreground font-medium">
                     {formatBRL(link.offer_price)}
