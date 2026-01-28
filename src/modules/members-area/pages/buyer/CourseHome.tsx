@@ -218,9 +218,10 @@ export default function CourseHome() {
                   const sectionSettings = section.settings as unknown as ModulesSettings;
                   const visibleModules = getVisibleOrderedModules(modules, sectionSettings);
                   
-                  // RISE V3: Get cardSize and titleSize from section settings
+                  // RISE V3: Get all display settings from section
                   const cardSize: CardSize = sectionSettings.card_size || 'medium';
                   const titleSize: TitleSize = sectionSettings.title_size || 'medium';
+                  const showTitle = sectionSettings.show_title || 'always';
                   
                   // Don't render section if no visible modules
                   if (visibleModules.length === 0) return null;
@@ -233,6 +234,7 @@ export default function CourseHome() {
                       title={section.title}
                       cardSize={cardSize}
                       titleSize={titleSize}
+                      showTitle={showTitle}
                     />
                   );
                 }
