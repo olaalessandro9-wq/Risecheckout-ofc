@@ -65,11 +65,11 @@ export function ModulesView({ section, viewMode, theme, modules = [], onModuleCl
   // Se não houver módulos visíveis, mostrar placeholder
   if (visibleModules.length === 0) {
     return (
-      <div className="py-4">
+      <div className="pt-3 pb-1">
         {section.title && (
           <h2 className={cn(
             titleSizeClass,
-            'mb-3 px-4',
+            'mb-1 px-4',
             theme === 'dark' ? 'text-white' : 'text-foreground'
           )}>
             {section.title}
@@ -91,12 +91,12 @@ export function ModulesView({ section, viewMode, theme, modules = [], onModuleCl
   }
   
   return (
-    <div className="py-4">
+    <div className="pt-3 pb-1">
       {/* Section Title - Uses configurable title size */}
       {section.title && (
         <h2 className={cn(
           titleSizeClass,
-          'mb-3 px-4',
+          'mb-1 px-4',
           theme === 'dark' ? 'text-white' : 'text-foreground'
         )}>
           {section.title}

@@ -104,7 +104,7 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
                   ))}
                   
                   {!isPreviewMode && (
-                    <div className="flex justify-center py-8">
+                    <div className="flex justify-center py-4">
                       <AddSectionButton 
                         sections={sections} 
                         onAdd={handleAddSection}
@@ -195,7 +195,7 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
               ))}
               
               {!isPreviewMode && (
-                <div className="flex justify-center py-8">
+                <div className="flex justify-center py-4">
                   <AddSectionButton 
                     sections={sections} 
                     onAdd={handleAddSection}

@@ -187,7 +187,7 @@ export default function CourseHome() {
           {/* Render sections based on Builder configuration */}
           {hasBuilderSections ? (
             // Use Builder sections
-            <div className="space-y-6">
+            <div className="space-y-2">
               {sections.map((section) => {
                 if (section.type === 'banner') {
                   const bannerSettings = section.settings as {
