@@ -19,9 +19,16 @@ interface NetflixModuleCardProps {
   index: number;
   onClick?: () => void;
   cardSize?: CardSize;
+  showTitle?: 'always' | 'hover' | 'never';
 }
 
-export function NetflixModuleCard({ module, index, onClick, cardSize = 'medium' }: NetflixModuleCardProps) {
+export function NetflixModuleCard({ 
+  module, 
+  index, 
+  onClick, 
+  cardSize = 'medium',
+  showTitle = 'always'
+}: NetflixModuleCardProps) {
   const lessonCount = module.contents.length;
   
   // RISE V3: Use SSOT card width from settings
@@ -84,17 +91,22 @@ export function NetflixModuleCard({ module, index, onClick, cardSize = 'medium' 
         </div>
       </motion.div>
 
-      {/* Title below card */}
-      <div className="mt-3 space-y-1">
-        <h3 className="font-medium text-sm text-foreground line-clamp-1 group-hover/card:text-members-primary transition-colors">
-          {module.title}
-        </h3>
-        {module.description && (
-          <p className="text-xs text-muted-foreground line-clamp-1">
-            {module.description}
-          </p>
-        )}
-      </div>
+      {/* Title below card - RISE V3: Conditional based on show_title setting */}
+      {showTitle !== 'never' && (
+        <div className={cn(
+          'mt-3 space-y-1 transition-opacity duration-300',
+          showTitle === 'hover' && 'opacity-0 group-hover/card:opacity-100'
+        )}>
+          <h3 className="font-medium text-sm text-foreground line-clamp-1 group-hover/card:text-members-primary transition-colors">
+            {module.title}
+          </h3>
+          {module.description && (
+            <p className="text-xs text-muted-foreground line-clamp-1">
+              {module.description}
+            </p>
+          )}
+        </div>
+      )}
     </motion.div>
   );
 }

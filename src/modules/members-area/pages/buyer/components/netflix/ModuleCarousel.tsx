@@ -22,9 +22,17 @@ interface ModuleCarouselProps {
   title?: string | null;
   cardSize?: CardSize;
   titleSize?: TitleSize;
+  showTitle?: 'always' | 'hover' | 'never';
 }
 
-export function ModuleCarousel({ modules, onSelectContent, title, cardSize = 'medium', titleSize = 'medium' }: ModuleCarouselProps) {
+export function ModuleCarousel({ 
+  modules, 
+  onSelectContent, 
+  title, 
+  cardSize = 'medium', 
+  titleSize = 'medium',
+  showTitle = 'always'
+}: ModuleCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
@@ -120,6 +128,7 @@ export function ModuleCarousel({ modules, onSelectContent, title, cardSize = 'me
               index={index}
               onClick={() => handleModuleClick(module)}
               cardSize={cardSize}
+              showTitle={showTitle}
             />
           ))}
         </div>
