@@ -1,231 +1,251 @@
 
-# Plano: Order Bumps a Nível de Produto (Não de Checkout)
+# Plano: Correção Completa do Sistema de Cupons
 
 ## RISE Protocol V3 - Análise de Soluções
 
-### Solução A: Migrar Order Bumps de `checkout_id` para `product_id` (pai)
-- Manutenibilidade: 10/10 (modelo mental claro: bumps pertencem ao produto)
-- Zero DT: 10/10 (resolve causa raiz estrutural)
-- Arquitetura: 10/10 (semântica correta conforme regra de negócio)
-- Escalabilidade: 10/10 (funciona com N checkouts por produto)
-- Segurança: 10/10 (sem impacto)
+### Solução A: Implementar validação completa end-to-end
+- Manutenibilidade: 10/10 (todos os campos funcionando corretamente)
+- Zero DT: 10/10 (elimina campos fantasma)
+- Arquitetura: 10/10 (validação em todas as camadas)
+- Escalabilidade: 10/10 (lógica de limite por cliente escalável)
+- Segurança: 10/10 (impede abuso de cupons)
 - **NOTA FINAL: 10.0/10**
 - Tempo estimado: 2-3 horas
 
-### Solução B: Query via `product_id` no backend (sem alterar schema)
-- Manutenibilidade: 8/10 (query indireta: checkout → product → order_bumps)
-- Zero DT: 7/10 (schema ainda tem `checkout_id` obrigatório - confuso)
-- Arquitetura: 6/10 (dados dizem uma coisa, query faz outra)
-- Escalabilidade: 9/10 (funciona, mas menos eficiente)
-- Segurança: 10/10 (sem impacto)
-- **NOTA FINAL: 7.6/10**
-- Tempo estimado: 30 minutos
-
 ### DECISÃO: Solução A (10.0/10)
 
-A Solução B é um workaround que mantém o schema incorreto. A Solução A alinha schema, queries e semântica de negócio.
+Única solução viável - corrigir todos os problemas identificados.
 
 ---
 
 ## Diagnóstico Root Cause
 
-### Problema Arquitetural Atual
+### Problemas Identificados
 
-A tabela `order_bumps` tem:
+| # | Problema | Gravidade | Local |
+|---|----------|-----------|-------|
+| 1 | `max_uses_per_customer` nunca validado | 🔴 CRÍTICA | checkout-public-data, create-order |
+| 2 | `start_date` enviado quando hasExpiration=false | 🟠 MÉDIA | CuponsTab.tsx |
+| 3 | Tabela exibe data atual quando cupom não tem expiração | 🟡 VISUAL | CouponsTable.tsx, CuponsTab.tsx |
+
+### Detalhamento dos Problemas
+
+#### Problema 1: `max_uses_per_customer` (CRÍTICO)
+
+O campo existe e é salvo no banco:
 ```sql
-checkout_id UUID NOT NULL  -- ❌ Vinculado a checkout específico
-product_id UUID NOT NULL   -- Este é o produto DO BUMP, não do checkout pai
+max_uses_per_customer INTEGER DEFAULT 0
 ```
 
-Quando o usuário configura um Order Bump:
-1. Ele está configurando para o **PRODUTO** (ex: "Rise Community")
-2. Mas o sistema salva no **CHECKOUT** específico (ex: "Checkout Principal")
-3. Novos checkouts do mesmo produto não têm acesso aos bumps
+Mas **NÃO é verificado** em nenhum lugar:
+- `checkout-public-data/handlers/coupon-handler.ts` - ignora o campo
+- `create-order/handlers/coupon-processor.ts` - ignora o campo
+- `validate_coupon` RPC function - ignora o campo
 
-### Comportamento Atual (Incorreto)
+**Impacto:** Um cliente pode usar o mesmo cupom infinitas vezes, mesmo com limite configurado.
 
-```text
-Produto A (e63d3016-...)
-├── Checkout Principal → 1 order bump ✅
-├── Checkout B → 0 order bumps ❌
-├── Checkout D → 0 order bumps ❌
-└── Checkout D (Cópia) → 0 order bumps ❌
+#### Problema 2: `start_date` enviado incorretamente
+
+No `CuponsTab.tsx` linha 141:
+```typescript
+start_date: couponData.startDate?.toISOString() || null,
 ```
 
-### Comportamento Correto (Desejado)
-
-```text
-Produto A (e63d3016-...)
-├── Order Bumps: [Produto 1 principal] → Associados ao PRODUTO
-│
-├── Checkout Principal → Mostra todos os bumps do produto ✅
-├── Checkout B → Mostra todos os bumps do produto ✅
-├── Checkout D → Mostra todos os bumps do produto ✅
-└── Checkout D (Cópia) → Mostra todos os bumps do produto ✅
+Deveria ser (igual ao `expires_at`):
+```typescript
+start_date: couponData.hasExpiration && couponData.startDate 
+  ? couponData.startDate.toISOString() 
+  : null,
 ```
+
+#### Problema 3: Tabela não trata datas nulas
+
+No `CuponsTab.tsx` linhas 62-63:
+```typescript
+startDate: c.startDate instanceof Date ? c.startDate : new Date(c.startDate || Date.now()),
+endDate: c.endDate instanceof Date ? c.endDate : new Date(c.endDate || Date.now()),
+```
+
+Quando `startDate` ou `endDate` é null, cria `new Date(Date.now())` = data atual.
+
+E na `CouponsTable.tsx` linhas 102-106:
+```typescript
+<TableCell className="text-muted-foreground">
+  {format(coupon.startDate, "dd/MM/yyyy")}
+</TableCell>
+```
+
+Sempre formata, sem verificar se deveria mostrar "-".
 
 ---
 
-## Execução Técnica
+## Alterações Necessárias
 
-### 1. Migração do Banco de Dados
+### 1. Backend: Validar `max_uses_per_customer` no Checkout
 
-Adicionar coluna `parent_product_id` e migrar dados:
+**Arquivo:** `supabase/functions/checkout-public-data/handlers/coupon-handler.ts`
 
-```sql
--- 1. Adicionar coluna para o produto PAI (o checkout pertence a este produto)
-ALTER TABLE order_bumps 
-ADD COLUMN parent_product_id UUID REFERENCES products(id);
+Adicionar verificação após linha 69 (antes do `return jsonResponse`):
 
--- 2. Preencher com base no checkout atual
-UPDATE order_bumps ob
-SET parent_product_id = c.product_id
-FROM checkouts c
-WHERE ob.checkout_id = c.id;
-
--- 3. Tornar NOT NULL após migração
-ALTER TABLE order_bumps 
-ALTER COLUMN parent_product_id SET NOT NULL;
-
--- 4. Tornar checkout_id NULLABLE (futuro: remover)
-ALTER TABLE order_bumps 
-ALTER COLUMN checkout_id DROP NOT NULL;
-
--- 5. Criar índice para performance
-CREATE INDEX idx_order_bumps_parent_product_id 
-ON order_bumps(parent_product_id);
-```
-
-### 2. Backend: `order-bumps-handler.ts`
-
-Alterar query para buscar por `product_id` ao invés de `checkout_id`:
-
-**Arquivo:** `supabase/functions/checkout-public-data/handlers/order-bumps-handler.ts`
-
-**Query atual (linha 99-115):**
 ```typescript
-const { data, error } = await supabase
-  .from("order_bumps")
-  .select(`...`)
-  .eq("checkout_id", checkoutId)  // ❌ Busca por checkout
-  .eq("active", true)
-  .order("position");
-```
-
-**Query corrigida:**
-```typescript
-const { data, error } = await supabase
-  .from("order_bumps")
-  .select(`...`)
-  .eq("parent_product_id", productId)  // ✅ Busca por produto
-  .eq("active", true)
-  .order("position");
-```
-
-**Assinatura do handler:**
-- Mudar de `checkoutId` para `productId` no body da request
-- Ou manter `checkoutId` e fazer lookup interno para `product_id`
-
-### 3. Backend: `resolve-and-load-handler.ts`
-
-**Arquivo:** `supabase/functions/checkout-public-data/handlers/resolve-and-load-handler.ts`
-
-**Query atual (linhas 114-130):**
-```typescript
-// Order bumps
-supabase
-  .from("order_bumps")
-  .select(`...`)
-  .eq("checkout_id", checkout.id)  // ❌ Busca por checkout
-  .eq("active", true)
-  .order("position"),
-```
-
-**Query corrigida:**
-```typescript
-// Order bumps - RISE V3: busca por produto, não por checkout
-supabase
-  .from("order_bumps")
-  .select(`...`)
-  .eq("parent_product_id", resolvedProductId)  // ✅ Busca por produto
-  .eq("active", true)
-  .order("position"),
-```
-
-### 4. Backend: `_shared/entities/orderBumps.ts`
-
-Simplificar a função para buscar diretamente por `parent_product_id`:
-
-**Arquivo:** `supabase/functions/_shared/entities/orderBumps.ts`
-
-**Código atual (linhas 73-95):**
-```typescript
-export async function fetchProductOrderBumpsWithRelations(
-  supabase: SupabaseClient,
-  productId: string
-): Promise<Record<string, unknown>[]> {
-  // First get checkout IDs for this product
-  const { data: checkouts, error: checkoutsError } = await supabase
-    .from("checkouts")
-    .select("id")
-    .eq("product_id", productId);
-  
-  // ... then query order_bumps by checkout_ids
+// 6. Check per-customer usage limit (NEW)
+if (coupon.max_uses_per_customer && coupon.max_uses_per_customer > 0) {
+  // NOTE: Esta validação requer customer_email no request
+  // Por ora, validamos apenas na criação do pedido (coupon-processor)
+  // onde temos acesso ao email do cliente
 }
 ```
 
-**Código corrigido:**
+**Arquivo:** `supabase/functions/create-order/handlers/coupon-processor.ts`
+
+Este é o local correto para validar, pois temos acesso ao `customer_email`.
+
+Adicionar nova interface e lógica após linha 103:
+
 ```typescript
-export async function fetchProductOrderBumpsWithRelations(
-  supabase: SupabaseClient,
-  productId: string
-): Promise<Record<string, unknown>[]> {
-  // RISE V3: Busca direta por parent_product_id
-  const { data, error } = await supabase
-    .from("order_bumps")
-    .select(`...`)
-    .eq("parent_product_id", productId)
-    .eq("active", true)
-    .order("position", { ascending: true });
-  
-  // ... handle error and return
+interface CouponInput {
+  coupon_id?: string;
+  product_id: string;
+  totalAmount: number;
+  finalPrice: number;
+  customer_email?: string;  // ADICIONAR
+}
+
+// Após verificar vínculo com produto (linha 104)
+// Adicionar verificação de limite por cliente:
+
+// Verificar limite por cliente
+if (couponData.max_uses_per_customer && input.customer_email) {
+  const { count } = await supabase
+    .from("orders")
+    .select("id", { count: "exact", head: true })
+    .eq("coupon_code", couponData.code)
+    .ilike("customer_email", input.customer_email);
+
+  if ((count ?? 0) >= couponData.max_uses_per_customer) {
+    log.warn("Cupom atingiu limite por cliente:", {
+      code: couponData.code,
+      customer: input.customer_email,
+      limit: couponData.max_uses_per_customer,
+      used: count
+    });
+    return { discountAmount: 0, couponCode: null };
+  }
 }
 ```
 
-### 5. Frontend: CRUD de Order Bumps
+### 2. Caller: Passar `customer_email` para `processCoupon`
 
-Quando criar um Order Bump, salvar `parent_product_id` ao invés de `checkout_id`:
+**Arquivo:** `supabase/functions/create-order/index.ts` (ou handler principal)
 
-**Buscar arquivos relevantes:**
-- Componente de criação/edição de order bumps
-- Edge function de CRUD de order bumps
-
-### 6. Tipos TypeScript
-
-Atualizar interfaces para refletir nova estrutura:
+Modificar chamada de `processCoupon` para incluir `customer_email`:
 
 ```typescript
-interface OrderBump {
+const couponResult = await processCoupon(supabase, {
+  coupon_id,
+  product_id,
+  totalAmount,
+  finalPrice,
+  customer_email: orderData.customer_email,  // ADICIONAR
+});
+```
+
+### 3. Frontend: Corrigir envio de `start_date`
+
+**Arquivo:** `src/modules/products/tabs/CuponsTab.tsx`
+
+Linha 141, alterar:
+
+```typescript
+// ANTES:
+start_date: couponData.startDate?.toISOString() || null,
+
+// DEPOIS:
+start_date: couponData.hasExpiration && couponData.startDate 
+  ? couponData.startDate.toISOString() 
+  : null,
+```
+
+### 4. Frontend: Tabela - tipos opcionais para datas
+
+**Arquivo:** `src/components/products/CouponsTable.tsx`
+
+Alterar interface (linhas 21-30):
+
+```typescript
+export interface Coupon {
   id: string;
-  parent_product_id: string;  // Produto que contém este bump
-  product_id: string;         // Produto que É o bump
-  checkout_id?: string;       // Deprecated, nullable
-  // ...
+  code: string;
+  discount: number;
+  discountType: "percentage";
+  startDate: Date | null;  // ALTERAR
+  endDate: Date | null;    // ALTERAR
+  applyToOrderBumps: boolean;
+  usageCount: number;
 }
+```
+
+Alterar renderização das colunas (linhas 102-106):
+
+```typescript
+<TableCell className="text-muted-foreground">
+  {coupon.startDate ? format(coupon.startDate, "dd/MM/yyyy") : "-"}
+</TableCell>
+<TableCell className="text-muted-foreground">
+  {coupon.endDate ? format(coupon.endDate, "dd/MM/yyyy") : "-"}
+</TableCell>
+```
+
+### 5. Frontend: Mapper - não criar Date quando null
+
+**Arquivo:** `src/modules/products/tabs/CuponsTab.tsx`
+
+Alterar tipo e mapeamento (linhas 29-38 e 56-67):
+
+```typescript
+interface TableCoupon {
+  id: string;
+  code: string;
+  discount: number;
+  discountType: "percentage";
+  startDate: Date | null;  // ALTERAR
+  endDate: Date | null;    // ALTERAR
+  applyToOrderBumps: boolean;
+  usageCount: number;
+}
+
+// Mapeamento corrigido:
+const tableCoupons: TableCoupon[] = useMemo(() => {
+  return contextCoupons.map((c) => ({
+    id: c.id,
+    code: c.code,
+    discount: c.discount,
+    discountType: c.discount_type || "percentage",
+    // CORRIGIDO: null quando não tem data, ao invés de Date.now()
+    startDate: c.startDate 
+      ? (c.startDate instanceof Date ? c.startDate : new Date(c.startDate)) 
+      : null,
+    endDate: c.endDate 
+      ? (c.endDate instanceof Date ? c.endDate : new Date(c.endDate)) 
+      : null,
+    applyToOrderBumps: c.applyToOrderBumps ?? true,
+    usageCount: c.usageCount ?? 0,
+  }));
+}, [contextCoupons]);
 ```
 
 ---
 
 ## Resumo das Alterações
 
-| Componente | Alteração |
-|------------|-----------|
-| **Schema SQL** | Adicionar `parent_product_id`, migrar dados, tornar `checkout_id` nullable |
-| `order-bumps-handler.ts` | Query por `parent_product_id` |
-| `resolve-and-load-handler.ts` | Query por `parent_product_id` |
-| `_shared/entities/orderBumps.ts` | Query direta sem lookup de checkouts |
-| **CRUD Order Bumps** | Salvar `parent_product_id` ao criar |
-| **Tipos TypeScript** | Adicionar `parent_product_id` |
+| Arquivo | Alteração | Tipo |
+|---------|-----------|------|
+| `create-order/handlers/coupon-processor.ts` | Adicionar validação de `max_uses_per_customer` | Backend |
+| `create-order/index.ts` | Passar `customer_email` para `processCoupon` | Backend |
+| `src/modules/products/tabs/CuponsTab.tsx` | Corrigir envio de `start_date` | Frontend |
+| `src/modules/products/tabs/CuponsTab.tsx` | Mapper com datas opcionais | Frontend |
+| `src/components/products/CouponsTable.tsx` | Interface com datas opcionais | Frontend |
+| `src/components/products/CouponsTable.tsx` | Renderização condicional de datas | Frontend |
 
 ---
 
@@ -233,10 +253,11 @@ interface OrderBump {
 
 | Verificação | Resultado Esperado |
 |-------------|-------------------|
-| Checkout Principal | Mostra todos os order bumps do produto |
-| Checkout duplicado | Mostra todos os order bumps do produto |
-| Novo checkout | Mostra todos os order bumps do produto |
-| Criar bump no painel | Salva com `parent_product_id` correto |
+| Cupom sem expiração | Tabela mostra "-" em Início e Fim |
+| Cupom com expiração | Tabela mostra datas formatadas |
+| max_uses_per_customer = 1 | Cliente não pode usar 2x |
+| max_uses_per_customer = null | Cliente pode usar ilimitado |
+| start_date quando hasExpiration=false | Salva null no banco |
 | TypeScript build | Zero erros |
 | Deploy Edge Functions | Sucesso |
 
@@ -246,10 +267,10 @@ interface OrderBump {
 
 | Critério | Status |
 |----------|--------|
-| Root Cause Only | Corrige estrutura do schema (causa raiz) |
-| Zero Dívida Técnica | Elimina vínculo incorreto a checkout |
-| Single Source of Truth | `parent_product_id` é a fonte de verdade |
-| Arquitetura Correta | Semântica alinhada com regra de negócio |
-| Segurança | Sem impacto |
+| Root Cause Only | Corrige TODOS os problemas identificados |
+| Zero Dívida Técnica | Elimina campos não funcionais |
+| Single Source of Truth | Validação consistente em todas as camadas |
+| Arquitetura Correta | Backend valida, frontend exibe |
+| Segurança | Impede abuso de cupons por cliente |
 
-**NOTA FINAL: 10.0/10** - Refatoração arquitetural seguindo RISE Protocol V3.
+**NOTA FINAL: 10.0/10** - Correção completa seguindo RISE Protocol V3.
