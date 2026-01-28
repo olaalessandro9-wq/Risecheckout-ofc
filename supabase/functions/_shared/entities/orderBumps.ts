@@ -75,7 +75,7 @@ export async function fetchProductOrderBumpsWithRelations(
       show_image,
       created_at,
       updated_at,
-      products:product_id (
+      products!product_id (
         id,
         name,
         price,

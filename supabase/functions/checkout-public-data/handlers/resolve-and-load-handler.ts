@@ -123,8 +123,8 @@ export async function handleResolveAndLoad(ctx: HandlerContext): Promise<Respons
         original_price,
         show_image,
         call_to_action,
-        products(id, name, description, price, image_url),
-        offers(id, name, price)
+        products!product_id(id, name, description, price, image_url),
+        offers!offer_id(id, name, price)
       `)
       .eq("parent_product_id", resolvedProductId)
       .eq("active", true)
@@ -241,7 +241,7 @@ export async function handleAll(ctx: HandlerContext): Promise<Response> {
     // RISE V3: Query by parent_product_id (from the product being sold, not the bump's product)
     supabase
       .from("order_bumps")
-      .select(`id, product_id, custom_title, custom_description, discount_enabled, original_price, show_image, call_to_action, products(id, name, description, price, image_url), offers(id, name, price)`)
+      .select(`id, product_id, custom_title, custom_description, discount_enabled, original_price, show_image, call_to_action, products!product_id(id, name, description, price, image_url), offers!offer_id(id, name, price)`)
       .eq("parent_product_id", productId)
       .eq("active", true)
       .order("position"),

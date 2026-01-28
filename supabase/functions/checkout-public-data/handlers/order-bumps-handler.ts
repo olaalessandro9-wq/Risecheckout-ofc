@@ -121,8 +121,8 @@ export async function handleOrderBumps(ctx: HandlerContext): Promise<Response> {
       original_price,
       show_image,
       call_to_action,
-      products(id, name, description, price, image_url),
-      offers(id, name, price)
+      products!product_id(id, name, description, price, image_url),
+      offers!offer_id(id, name, price)
     `)
     .eq("parent_product_id", resolvedProductId)
     .eq("active", true)
