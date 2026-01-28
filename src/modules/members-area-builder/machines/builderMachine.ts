@@ -16,7 +16,7 @@ import type {
   SaveBuilderOutput,
   SaveBuilderInput,
 } from "./builderMachine.types";
-import { DEFAULT_BUILDER_SETTINGS } from "../types/builder.types";
+import { DEFAULT_BUILDER_SETTINGS } from "../types";
 import { loadBuilderActor, saveBuilderActor } from "./builderMachine.actors";
 import { canSave } from "./builderMachine.guards";
 import {

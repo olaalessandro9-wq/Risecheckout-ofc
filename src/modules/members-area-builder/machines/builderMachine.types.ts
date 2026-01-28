@@ -15,7 +15,7 @@ import type {
   ViewMode,
   Viewport,
   MemberModule,
-} from '../types/builder.types';
+} from '../types';
 
 // ============================================================================
 // CONTEXT

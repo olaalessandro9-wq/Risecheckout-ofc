@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import type { MembersAreaBuilderSettings } from '@/modules/members-area-builder/types/builder.types';
+import type { MembersAreaBuilderSettings } from '@/modules/members-area-builder/types';
 
 interface MembersAreaThemeProviderProps {
   settings: MembersAreaBuilderSettings;

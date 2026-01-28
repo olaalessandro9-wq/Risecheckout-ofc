@@ -29,7 +29,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import type { Section, ModulesSettings, MemberModule } from '../../../types/builder.types';
+import type { Section, ModulesSettings, MemberModule } from '../../../types';
 import { SortableModuleListItem } from './SortableModuleListItem';
 
 interface ModulesEditorProps {

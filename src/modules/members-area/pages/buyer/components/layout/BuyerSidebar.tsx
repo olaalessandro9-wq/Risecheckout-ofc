@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import * as Icons from 'lucide-react';
 import { ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
 import { useUnifiedAuth } from '@/hooks/useUnifiedAuth';
-import type { MembersAreaBuilderSettings } from '@/modules/members-area-builder/types/builder.types';
+import type { MembersAreaBuilderSettings } from '@/modules/members-area-builder/types';
 
 interface BuyerSidebarProps {
   settings: MembersAreaBuilderSettings;

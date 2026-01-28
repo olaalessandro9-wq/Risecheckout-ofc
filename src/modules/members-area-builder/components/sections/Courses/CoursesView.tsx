@@ -7,7 +7,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { BookOpen } from 'lucide-react';
-import type { Section, CoursesSettings, ViewMode } from '../../../types/builder.types';
+import type { Section, CoursesSettings, ViewMode } from '../../../types';
 
 interface CoursesViewProps {
   section: Section;

@@ -22,7 +22,7 @@ import {
   LayoutDashboard,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { Section, SectionType } from '../../types/builder.types';
+import type { Section, SectionType } from '../../types';
 import { canDeleteSection, canMoveSection, getSectionLabel } from '../../registry';
 
 // Icon mapping for section types

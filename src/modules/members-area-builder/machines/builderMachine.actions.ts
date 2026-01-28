@@ -9,7 +9,7 @@
  */
 
 import type { BuilderMachineContext } from "./builderMachine.types";
-import type { SectionSettings, Section, Viewport } from "../types/builder.types";
+import type { SectionSettings, Section, Viewport } from "../types";
 
 // ============================================================================
 // VIEWPORT HELPERS (Dual-Layout Support)

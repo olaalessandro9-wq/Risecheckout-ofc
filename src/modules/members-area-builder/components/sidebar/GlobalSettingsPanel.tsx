@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { MembersAreaBuilderSettings } from '../../types/builder.types';
+import type { MembersAreaBuilderSettings } from '../../types';
 
 interface GlobalSettingsPanelProps {
   settings: MembersAreaBuilderSettings;

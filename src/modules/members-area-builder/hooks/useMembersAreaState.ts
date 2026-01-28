@@ -22,7 +22,7 @@ import type {
   MemberModule,
   BuilderState,
   BuilderActions,
-} from '../types/builder.types';
+} from '../types';
 
 // ============================================================================
 // TYPES

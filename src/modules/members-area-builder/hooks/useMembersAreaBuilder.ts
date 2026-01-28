@@ -6,7 +6,7 @@
  * @see RISE ARCHITECT PROTOCOL V3 - Solution 10.0/10
  */
 
-import type { BuilderState, BuilderActions } from '../types/builder.types';
+import type { BuilderState, BuilderActions } from '../types';
 import { useMembersAreaState } from './useMembersAreaState';
 
 interface UseMembersAreaBuilderReturn {

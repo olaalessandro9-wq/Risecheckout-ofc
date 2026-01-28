@@ -12,8 +12,8 @@ import type {
   Section, 
   SectionSettings,
   MembersAreaBuilderSettings,
-} from '../types/builder.types';
-import { DEFAULT_BUILDER_SETTINGS } from '../types/builder.types';
+} from '../types';
+import { DEFAULT_BUILDER_SETTINGS } from '../types';
 
 /** Valid section types for type guard */
 const VALID_SECTION_TYPES = ['banner', 'modules', 'courses', 'continue_watching', 'text', 'spacer'] as const;

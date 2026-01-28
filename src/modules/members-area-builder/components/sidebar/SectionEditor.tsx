@@ -24,7 +24,7 @@ import { CoursesEditor } from '../sections/Courses/CoursesEditor';
 import { ContinueWatchingEditor } from '../sections/ContinueWatching/ContinueWatchingEditor';
 import { TextEditor } from '../sections/Text/TextEditor';
 import { SpacerEditor } from '../sections/Spacer/SpacerEditor';
-import type { Section, SectionSettings, MemberModule, ModulesSettings, FixedHeaderSettings } from '../../types/builder.types';
+import type { Section, SectionSettings, MemberModule, ModulesSettings, FixedHeaderSettings } from '../../types';
 
 interface SectionEditorProps {
   section: Section;

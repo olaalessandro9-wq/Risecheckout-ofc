@@ -7,7 +7,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import * as Icons from 'lucide-react';
-import type { MembersAreaBuilderSettings } from '../../types/builder.types';
+import type { MembersAreaBuilderSettings } from '../../types';
 
 interface MobileBottomNavProps {
   settings: MembersAreaBuilderSettings;

@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import type { Section, SpacerSettings, ViewMode } from '../../../types/builder.types';
+import type { Section, SpacerSettings, ViewMode } from '../../../types';
 
 interface SpacerViewProps {
   section: Section;

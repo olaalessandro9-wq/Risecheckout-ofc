@@ -25,8 +25,8 @@ import type {
   MemberModule,
   FixedHeaderSettings,
   ModulesSettings,
-} from "../types/builder.types";
-import { DEFAULT_GRADIENT_OVERLAY } from "../types/builder.types";
+} from "../types";
+import { DEFAULT_GRADIENT_OVERLAY } from "../types";
 import { parseSections, parseSettings } from "../hooks/useMembersAreaParsers";
 
 const log = createLogger("BuilderMachine.actors");

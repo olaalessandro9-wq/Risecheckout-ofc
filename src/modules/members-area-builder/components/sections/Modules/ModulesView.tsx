@@ -8,7 +8,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Play, Lock, Pencil, Film } from 'lucide-react';
-import type { Section, ModulesSettings, ViewMode, MemberModule } from '../../../types/builder.types';
+import type { Section, ModulesSettings, ViewMode, MemberModule } from '../../../types';
 import { getCardWidthClass } from '../../../constants/cardSizes';
 import { getTitleSizeClass } from '../../../constants/titleSizes';
 

@@ -12,7 +12,7 @@ import { AddSectionButton } from './AddSectionButton';
 import { SectionView } from '../sections/SectionView';
 import { MenuPreview } from '../preview/MenuPreview';
 import { MobileBottomNav } from '../preview/MobileBottomNav';
-import type { BuilderState, BuilderActions, SectionType } from '../../types/builder.types';
+import type { BuilderState, BuilderActions, SectionType } from '../../types';
 
 interface BuilderCanvasProps {
   state: BuilderState;

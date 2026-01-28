@@ -30,7 +30,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import type { BuilderState, BuilderActions } from '../../types/builder.types';
+import type { BuilderState, BuilderActions } from '../../types';
 
 interface BuilderHeaderProps {
   productId: string;

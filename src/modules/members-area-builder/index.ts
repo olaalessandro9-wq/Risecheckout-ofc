@@ -26,7 +26,7 @@ export type {
   BuilderActions,
   ViewMode,
   MemberModule,
-} from './types/builder.types';
+} from './types';
 
 // Registry
 export { 

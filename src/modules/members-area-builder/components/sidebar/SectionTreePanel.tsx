@@ -44,7 +44,7 @@ import {
 import { SortableSectionTreeItem } from './SortableSectionTreeItem';
 import { SectionEditor } from './SectionEditor';
 import { SectionRegistry, getAvailableSectionTypes, canDeleteSection, getSectionLabel } from '../../registry';
-import type { Section, SectionType, MemberModule, BuilderActions, ModulesSettings } from '../../types/builder.types';
+import type { Section, SectionType, MemberModule, BuilderActions, ModulesSettings } from '../../types';
 
 interface SectionTreePanelProps {
   sections: Section[];

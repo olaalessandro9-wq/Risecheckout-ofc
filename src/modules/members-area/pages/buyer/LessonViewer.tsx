@@ -26,7 +26,7 @@ import type { Module, ContentItem, ProductData } from "./components/types";
 import { 
   DEFAULT_BUILDER_SETTINGS, 
   type MembersAreaBuilderSettings 
-} from "@/modules/members-area-builder/types/builder.types";
+} from "@/modules/members-area-builder/types";
 
 export default function LessonViewer() {
   const navigate = useNavigate();

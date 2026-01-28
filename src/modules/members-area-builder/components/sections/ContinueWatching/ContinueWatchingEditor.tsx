@@ -7,7 +7,7 @@
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import type { Section, ContinueWatchingSettings } from '../../../types/builder.types';
+import type { Section, ContinueWatchingSettings } from '../../../types';
 
 interface ContinueWatchingEditorProps {
   section: Section;
