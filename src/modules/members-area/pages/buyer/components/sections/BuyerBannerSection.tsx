@@ -77,11 +77,11 @@ export function BuyerBannerSection({ settings, title }: BuyerBannerSectionProps)
     emblaApi.scrollTo(index);
   }, [emblaApi]);
 
-  // Height classes matching Builder exactly
+  // RISE V3: Hero banner sizes with viewport units + safety limits
   const heightClass = {
-    small: 'h-40',    // 160px
-    medium: 'h-64',   // 256px
-    large: 'h-96',    // 384px
+    small: 'h-96',                                    // 384px (antigo large)
+    medium: 'h-[50vh] min-h-80 max-h-[500px]',       // 50% viewport
+    large: 'h-[70vh] min-h-96 max-h-[800px]',        // 70% viewport (Hero)
   }[settings.height || 'medium'];
 
   if (!hasSlides) {
