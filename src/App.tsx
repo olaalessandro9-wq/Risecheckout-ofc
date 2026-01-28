@@ -16,6 +16,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createBrowserRouter, RouterProvider, Outlet, useLocation } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { AppErrorBoundary } from "@/components/AppErrorBoundary";
+import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { BusyProvider } from "@/components/BusyProvider";
 import { useAffiliateTracking } from "@/hooks/useAffiliateTracking";
 import NotFound from "@/pages/NotFound";
@@ -57,6 +58,7 @@ function RootLayout() {
 const router = createBrowserRouter([
   {
     element: <RootLayout />,
+    errorElement: <RouteErrorBoundary />,
     children: [
       ...publicRoutes,
       ...lgpdRoutes,

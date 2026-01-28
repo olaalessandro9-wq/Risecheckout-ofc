@@ -63,6 +63,7 @@ const CORS_ALLOWED_HEADERS = [
   "apikey",
   "content-type",
   "x-correlation-id",
+  "x-tab-id",  // Session Commander multi-tab coordination
 ].join(", ");
 
 const CORS_ALLOWED_METHODS = "GET, POST, PUT, DELETE, OPTIONS";
