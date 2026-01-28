@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 import { ImageIcon } from 'lucide-react';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
-import type { Section, BannerSettings, ViewMode } from '../../../types/builder.types';
+import type { Section, BannerSettings, ViewMode } from '../../../types';
 import { 
   generateCombinedOverlayStyle,
   resolveGradientConfig 

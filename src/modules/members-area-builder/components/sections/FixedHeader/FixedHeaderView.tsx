@@ -9,7 +9,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { ImageIcon } from 'lucide-react';
 import { FIXED_HEADER_LIMITS } from '@/lib/constants/field-limits';
-import type { Section, FixedHeaderSettings, ViewMode, MemberModule } from '../../../types/builder.types';
+import type { Section, FixedHeaderSettings, ViewMode, MemberModule } from '../../../types';
 import { 
   generateCombinedOverlayStyle,
   resolveGradientConfig 

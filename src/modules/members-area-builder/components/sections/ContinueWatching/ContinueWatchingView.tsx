@@ -7,7 +7,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Play, Clock } from 'lucide-react';
-import type { Section, ContinueWatchingSettings, ViewMode } from '../../../types/builder.types';
+import type { Section, ContinueWatchingSettings, ViewMode } from '../../../types';
 
 interface ContinueWatchingViewProps {
   section: Section;

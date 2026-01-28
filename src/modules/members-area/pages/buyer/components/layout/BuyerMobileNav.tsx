@@ -9,7 +9,7 @@ import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import * as Icons from 'lucide-react';
-import type { MembersAreaBuilderSettings } from '@/modules/members-area-builder/types/builder.types';
+import type { MembersAreaBuilderSettings } from '@/modules/members-area-builder/types';
 
 interface BuyerMobileNavProps {
   settings: MembersAreaBuilderSettings;

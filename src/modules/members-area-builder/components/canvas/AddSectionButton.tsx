@@ -15,7 +15,7 @@ import {
 import { Plus } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import { SectionRegistry, getAvailableSectionTypes } from '../../registry';
-import type { SectionType, Section } from '../../types/builder.types';
+import type { SectionType, Section } from '../../types';
 
 interface AddSectionButtonProps {
   sections: Section[];

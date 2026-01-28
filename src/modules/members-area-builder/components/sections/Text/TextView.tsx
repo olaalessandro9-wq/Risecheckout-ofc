@@ -9,7 +9,7 @@ import React from 'react';
 import DOMPurify from 'dompurify';
 import { cn } from '@/lib/utils';
 import { Type } from 'lucide-react';
-import type { Section, TextSettings, ViewMode } from '../../../types/builder.types';
+import type { Section, TextSettings, ViewMode } from '../../../types';
 
 interface TextViewProps {
   section: Section;

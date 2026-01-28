@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { Section, TextSettings } from '../../../types/builder.types';
+import type { Section, TextSettings } from '../../../types';
 
 interface TextEditorProps {
   section: Section;

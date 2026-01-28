@@ -38,7 +38,7 @@ import {
   Bell,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { MenuItemConfig } from '../../types/builder.types';
+import type { MenuItemConfig } from '../../types';
 
 const AVAILABLE_ICONS = [
   { name: 'Home', icon: Home },

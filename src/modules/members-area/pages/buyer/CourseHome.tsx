@@ -31,7 +31,7 @@ import {
   type MembersAreaBuilderSettings,
   type ModulesSettings,
   type FixedHeaderSettings,
-} from "@/modules/members-area-builder/types/builder.types";
+} from "@/modules/members-area-builder/types";
 import type { CardSize } from "@/modules/members-area-builder/constants/cardSizes";
 import type { TitleSize } from "@/modules/members-area-builder/constants/titleSizes";
 

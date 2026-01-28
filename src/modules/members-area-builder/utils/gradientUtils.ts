@@ -10,7 +10,7 @@
  * @module members-area-builder/utils
  */
 
-import type { GradientOverlayConfig, GradientDirection } from '../types/builder.types';
+import type { GradientOverlayConfig, GradientDirection } from '../types';
 
 // ============================================================================
 // MATHEMATICAL EASING (SMOOTHSTEP)

@@ -19,7 +19,7 @@ import {
   Lock,
 } from 'lucide-react';
 import { getSectionLabel, getSectionIcon, canDeleteSection, canDuplicateSection, canMoveSection } from '../../registry';
-import type { Section } from '../../types/builder.types';
+import type { Section } from '../../types';
 import * as Icons from 'lucide-react';
 import {
   Tooltip,

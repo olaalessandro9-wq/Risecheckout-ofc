@@ -15,7 +15,7 @@ import type {
   ContinueWatchingSettings,
   TextSettings,
   SpacerSettings,
-} from './types/builder.types';
+} from './types';
 
 import {
   DEFAULT_FIXED_HEADER_SETTINGS as FIXED_HEADER_DEFAULTS,
@@ -25,7 +25,7 @@ import {
   DEFAULT_CONTINUE_WATCHING_SETTINGS as CONTINUE_DEFAULTS,
   DEFAULT_TEXT_SETTINGS as TEXT_DEFAULTS,
   DEFAULT_SPACER_SETTINGS as SPACER_DEFAULTS,
-} from './types/builder.types';
+} from './types';
 
 // =====================================================
 // SECTION CONFIGURATIONS

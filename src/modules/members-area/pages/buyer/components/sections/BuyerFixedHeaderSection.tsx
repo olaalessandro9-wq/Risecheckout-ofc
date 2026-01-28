@@ -12,7 +12,7 @@ import {
   generateCombinedOverlayStyle,
   resolveGradientConfig 
 } from '@/modules/members-area-builder/utils/gradientUtils';
-import type { FixedHeaderSettings } from '@/modules/members-area-builder/types/builder.types';
+import type { FixedHeaderSettings } from '@/modules/members-area-builder/types';
 
 interface BuyerFixedHeaderSectionProps {
   settings: FixedHeaderSettings;

@@ -16,7 +16,7 @@ import { ChevronLeft, ChevronRight, Plus, LogOut } from 'lucide-react';
 import { useUnifiedAuth } from '@/hooks/useUnifiedAuth';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { MembersAreaBuilderSettings } from '../../types/builder.types';
+import type { MembersAreaBuilderSettings } from '../../types';
 
 const log = createLogger("MenuPreview");
 

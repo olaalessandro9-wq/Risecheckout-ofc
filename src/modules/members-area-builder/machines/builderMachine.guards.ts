@@ -8,7 +8,7 @@
  */
 
 import type { BuilderMachineContext } from './builderMachine.types';
-import type { Section, MembersAreaBuilderSettings } from '../types/builder.types';
+import type { Section, MembersAreaBuilderSettings } from '../types';
 
 // ============================================================================
 // DIRTY CHECK

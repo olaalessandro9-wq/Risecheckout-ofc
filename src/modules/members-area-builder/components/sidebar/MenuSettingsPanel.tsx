@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { MousePointer2, Hand, Loader2, Check, Monitor, Smartphone } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { MembersAreaBuilderSettings } from '../../types/builder.types';
+import type { MembersAreaBuilderSettings } from '../../types';
 import { MenuEditor } from './MenuEditor';
 
 interface MenuSettingsPanelProps {

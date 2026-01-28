@@ -24,8 +24,8 @@ import type {
   FixedHeaderSettings, 
   GradientDirection,
   GradientOverlayConfig,
-} from '../../../types/builder.types';
-import { DEFAULT_GRADIENT_OVERLAY } from '../../../types/builder.types';
+} from '../../../types';
+import { DEFAULT_GRADIENT_OVERLAY } from '../../../types';
 
 interface FixedHeaderEditorProps {
   section: Section;

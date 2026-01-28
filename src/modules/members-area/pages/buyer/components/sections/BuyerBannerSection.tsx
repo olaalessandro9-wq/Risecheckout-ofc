@@ -17,7 +17,7 @@ import {
   generateCombinedOverlayStyle,
   resolveGradientConfig 
 } from '@/modules/members-area-builder/utils/gradientUtils';
-import type { GradientOverlayConfig } from '@/modules/members-area-builder/types/builder.types';
+import type { GradientOverlayConfig } from '@/modules/members-area-builder/types';
 
 interface BannerSlide {
   id: string;

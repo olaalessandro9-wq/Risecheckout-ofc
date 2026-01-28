@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import type { Section, ViewMode, MemberModule } from '../../types/builder.types';
+import type { Section, ViewMode, MemberModule } from '../../types';
 import { FixedHeaderView } from './FixedHeader/FixedHeaderView';
 import { BannerView } from './Banner/BannerView';
 import { ModulesView } from './Modules/ModulesView';

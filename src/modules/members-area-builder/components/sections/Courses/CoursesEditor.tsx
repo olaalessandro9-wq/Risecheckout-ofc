@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { Section, CoursesSettings } from '../../../types/builder.types';
+import type { Section, CoursesSettings } from '../../../types';
 
 interface CoursesEditorProps {
   section: Section;

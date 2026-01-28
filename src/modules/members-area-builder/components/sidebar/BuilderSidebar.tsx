@@ -12,7 +12,7 @@ import { Home, Palette, Menu } from 'lucide-react';
 import { SectionTreePanel } from './SectionTreePanel';
 import { GlobalSettingsPanel } from './GlobalSettingsPanel';
 import { MenuSettingsPanel } from './MenuSettingsPanel';
-import type { BuilderState, BuilderActions } from '../../types/builder.types';
+import type { BuilderState, BuilderActions } from '../../types';
 
 interface BuilderSidebarProps {
   state: BuilderState;
