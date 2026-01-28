@@ -1,13 +1,13 @@
 /**
  * Modules View - Renderiza seção de módulos estilo Netflix
- * Aplica filtro de visibilidade e ordem customizada
+ * Usa carousel horizontal com cards de tamanho fixo (igual à área real)
  * 
- * @see RISE ARCHITECT PROTOCOL
+ * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { Play, Lock, Pencil } from 'lucide-react';
+import { Play, Lock, Pencil, Film } from 'lucide-react';
 import type { Section, ModulesSettings, ViewMode, MemberModule } from '../../../types/builder.types';
 
 interface ModulesViewProps {
@@ -21,7 +21,9 @@ interface ModulesViewProps {
 
 export function ModulesView({ section, viewMode, theme, modules = [], onModuleClick, isPreviewMode = false }: ModulesViewProps) {
   const settings = section.settings as ModulesSettings;
-  const cardsPerRow = viewMode === 'mobile' ? 2 : (settings.cards_per_row || 4);
+  
+  // Card sizes for preview (proportionally smaller than real area)
+  const cardWidth = viewMode === 'mobile' ? 'w-[100px]' : 'w-[140px]';
   
   // Apply visibility filter and custom order
   const getVisibleOrderedModules = (): MemberModule[] => {
@@ -59,21 +61,21 @@ export function ModulesView({ section, viewMode, theme, modules = [], onModuleCl
   // Se não houver módulos visíveis, mostrar placeholder
   if (visibleModules.length === 0) {
     return (
-      <div className="p-6">
+      <div className="py-4">
         {section.title && (
           <h2 className={cn(
-            'text-xl font-bold mb-4',
-            theme === 'dark' ? 'text-white' : 'text-gray-900'
+            'text-base font-semibold mb-3 px-4',
+            theme === 'dark' ? 'text-white' : 'text-foreground'
           )}>
             {section.title}
           </h2>
         )}
         <div className={cn(
-          'rounded-lg border-2 border-dashed p-8 text-center',
-          theme === 'dark' ? 'border-zinc-700 text-zinc-400' : 'border-gray-300 text-gray-500'
+          'mx-4 rounded-lg border-2 border-dashed p-6 text-center',
+          theme === 'dark' ? 'border-zinc-700 text-zinc-400' : 'border-border text-muted-foreground'
         )}>
-          <p>Nenhum módulo visível nesta seção.</p>
-          <p className="text-sm mt-1">
+          <p className="text-sm">Nenhum módulo visível nesta seção.</p>
+          <p className="text-xs mt-1">
             {modules.length > 0 
               ? 'Todos os módulos estão ocultos. Ative a visibilidade no painel lateral.'
               : 'Crie módulos na aba "Conteúdo" da área de membros.'}
@@ -84,28 +86,28 @@ export function ModulesView({ section, viewMode, theme, modules = [], onModuleCl
   }
   
   return (
-    <div className="p-6">
+    <div className="py-4">
       {/* Section Title */}
       {section.title && (
         <h2 className={cn(
-          'text-xl font-bold mb-4',
-          theme === 'dark' ? 'text-white' : 'text-gray-900'
+          'text-base font-semibold mb-3 px-4',
+          theme === 'dark' ? 'text-white' : 'text-foreground'
         )}>
           {section.title}
         </h2>
       )}
 
-      {/* Modules Grid */}
+      {/* Horizontal Carousel - Same structure as real members area */}
       <div 
-        className="grid gap-4"
-        style={{ 
-          gridTemplateColumns: `repeat(${cardsPerRow}, minmax(0, 1fr))` 
-        }}
+        className="flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
-        {visibleModules.map((module) => (
+        {visibleModules.map((module, index) => (
           <ModuleCard 
             key={module.id} 
-            module={module} 
+            module={module}
+            index={index}
+            cardWidth={cardWidth}
             showTitle={settings.show_title || 'always'}
             showProgress={settings.show_progress}
             theme={theme}
@@ -120,6 +122,8 @@ export function ModulesView({ section, viewMode, theme, modules = [], onModuleCl
 
 interface ModuleCardProps {
   module: MemberModule;
+  index: number;
+  cardWidth: string;
   showTitle: 'always' | 'hover' | 'never';
   showProgress: boolean;
   theme: 'light' | 'dark';
@@ -127,99 +131,137 @@ interface ModuleCardProps {
   onClick?: () => void;
 }
 
-function ModuleCard({ module, showTitle, showProgress, theme, isPreviewMode = false, onClick }: ModuleCardProps) {
+// Gradient colors for modules without cover (matching NetflixModuleCard)
+const gradientColors = [
+  'from-rose-600 to-purple-700',
+  'from-blue-600 to-cyan-500',
+  'from-green-600 to-emerald-500',
+  'from-orange-600 to-amber-500',
+  'from-indigo-600 to-violet-500',
+  'from-pink-600 to-fuchsia-500',
+];
+
+function ModuleCard({ 
+  module, 
+  index,
+  cardWidth, 
+  showTitle, 
+  showProgress, 
+  theme, 
+  isPreviewMode = false, 
+  onClick 
+}: ModuleCardProps) {
   const isInactive = !module.is_active;
+  const gradient = gradientColors[index % gradientColors.length];
   
   return (
     <div 
       className={cn(
-        'group/module relative',
+        'group/module relative flex-shrink-0',
+        cardWidth,
         !isPreviewMode && 'cursor-pointer'
       )}
       onClick={!isPreviewMode ? onClick : undefined}
     >
-      {/* Thumbnail - Vertical poster format like Netflix */}
+      {/* Thumbnail - Vertical poster format like Netflix (2:3 aspect ratio) */}
       <div 
         className={cn(
-          'relative aspect-[2/3] rounded-lg overflow-hidden transition-all duration-200',
-          !isPreviewMode && 'group-hover/module:scale-105 group-hover/module:shadow-lg',
-          theme === 'dark' ? 'bg-zinc-800' : 'bg-gray-200'
+          'relative aspect-[2/3] rounded-lg overflow-hidden shadow-md transition-all duration-200',
+          !isPreviewMode && 'group-hover/module:scale-[1.03] group-hover/module:shadow-lg',
+          'ring-1 ring-white/10'
         )}
       >
+        {/* Background Image or Gradient Fallback */}
         {module.cover_image_url ? (
           <img 
             src={module.cover_image_url} 
             alt={module.title}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover object-top"
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className={cn(
-              'w-12 h-12 rounded-full flex items-center justify-center',
-              theme === 'dark' ? 'bg-zinc-700' : 'bg-gray-300'
-            )}>
-              {isInactive ? (
-                <Lock className="h-5 w-5 text-muted-foreground" />
-              ) : (
-                <Play className="h-5 w-5 text-muted-foreground" />
-              )}
+          <div className={cn('absolute inset-0 bg-gradient-to-br', gradient)}>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Film className="h-8 w-8 text-white/30" />
             </div>
           </div>
         )}
+
+        {/* Gradient overlay for better readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
 
         {/* Hover overlay e ícone de edição - SÓ NO MODO EDITOR */}
         {!isPreviewMode && (
           <>
-            {/* Subtle hover overlay - gradient only */}
+            {/* Play icon on hover (preview mode only) */}
             <div className={cn(
-              'absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent',
-              'opacity-0 group-hover/module:opacity-100 transition-opacity duration-200'
-            )} />
+              'absolute inset-0 flex items-center justify-center',
+              'bg-black/0 group-hover/module:bg-black/30 transition-all duration-200'
+            )}>
+              <Play className={cn(
+                'h-8 w-8 text-white fill-white',
+                'opacity-0 group-hover/module:opacity-100 transition-opacity duration-200',
+                'transform scale-75 group-hover/module:scale-100'
+              )} />
+            </div>
 
-            {/* Discrete edit icon - top right corner (Kiwify style) */}
+            {/* Discrete edit icon - top right corner */}
             <div className={cn(
-              'absolute top-2 right-2 w-7 h-7 rounded-md flex items-center justify-center',
+              'absolute top-1.5 right-1.5 w-6 h-6 rounded-md flex items-center justify-center',
               'bg-black/70 backdrop-blur-sm border border-white/10',
               'opacity-0 group-hover/module:opacity-100 transition-opacity duration-200',
               'hover:bg-black/90'
             )}>
-              <Pencil className="h-3.5 w-3.5 text-white" />
+              <Pencil className="h-3 w-3 text-white" />
             </div>
           </>
         )}
 
+        {/* Preview mode - Play icon on hover */}
+        {isPreviewMode && (
+          <div className={cn(
+            'absolute inset-0 flex items-center justify-center',
+            'bg-black/0 group-hover/module:bg-black/40 transition-all duration-300'
+          )}>
+            <Play className={cn(
+              'h-8 w-8 text-white fill-white',
+              'opacity-0 group-hover/module:opacity-100 transition-all duration-300',
+              'transform scale-75 group-hover/module:scale-100'
+            )} />
+          </div>
+        )}
+
         {/* Inactive Badge */}
         {isInactive && (
-          <div className="absolute top-2 left-2 px-2 py-0.5 rounded text-xs font-medium bg-amber-500/90 text-white">
+          <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/90 text-white">
             Inativo
           </div>
         )}
 
-        {/* Progress Bar - placeholder since we don't have real progress */}
+        {/* Progress Bar */}
         {showProgress && (
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50">
+          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-black/50">
             <div 
-              className="h-full bg-primary transition-all"
+              className="h-full bg-members-primary transition-all"
               style={{ width: '0%' }}
             />
           </div>
         )}
       </div>
 
-      {/* Title */}
+      {/* Title below card (matching NetflixModuleCard style) */}
       {showTitle !== 'never' && (
         <div className={cn(
-          'mt-2 transition-opacity',
+          'mt-1.5 transition-opacity',
           showTitle === 'hover' && 'opacity-0 group-hover/module:opacity-100'
         )}>
           <h3 className={cn(
-            'text-sm font-medium truncate',
-            theme === 'dark' ? 'text-white' : 'text-gray-900'
+            'text-xs font-medium truncate',
+            theme === 'dark' ? 'text-white' : 'text-foreground'
           )}>
             {module.title}
           </h3>
           {module.description && (
-            <p className="text-xs text-muted-foreground truncate">
+            <p className="text-[10px] text-muted-foreground truncate">
               {module.description}
             </p>
           )}

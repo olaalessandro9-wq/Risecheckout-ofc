@@ -134,23 +134,7 @@ export function ModulesEditor({ section, onUpdate, modules = [], onModuleEdit }:
           </p>
         </div>
 
-        {/* Cards Per Row */}
-        <div className="space-y-2">
-          <Label>Cards por Linha</Label>
-          <Select
-            value={String(settings.cards_per_row || 4)}
-            onValueChange={(value) => onUpdate({ cards_per_row: parseInt(value) as 3 | 4 | 5 })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="3">3 cards</SelectItem>
-              <SelectItem value="4">4 cards</SelectItem>
-              <SelectItem value="5">5 cards</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        {/* Note: Cards are displayed in horizontal carousel with fixed width (Netflix-style) */}
 
         {/* Show Title */}
         <div className="space-y-2">

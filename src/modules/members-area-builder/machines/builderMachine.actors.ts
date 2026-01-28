@@ -79,7 +79,6 @@ function generateDefaultSections(
       type: 'modules',
       course_id: null,
       show_title: 'always',
-      cards_per_row: 4,
       show_progress: true,
       module_order: modules.map(m => m.id),
       hidden_module_ids: [],

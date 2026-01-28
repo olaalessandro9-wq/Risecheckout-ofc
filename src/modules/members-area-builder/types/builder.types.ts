@@ -71,10 +71,10 @@ export interface ModulesSettings {
   type: 'modules';
   course_id: string | null;
   show_title: 'always' | 'hover' | 'never';
-  cards_per_row: 3 | 4 | 5;
   show_progress: boolean;
   module_order?: string[]; // Custom order of module IDs
   hidden_module_ids?: string[]; // Module IDs hidden from this section
+  // Note: cards_per_row removed - carousel uses fixed-width cards (Netflix-style)
 }
 
 export interface CoursesSettings {
@@ -247,7 +247,6 @@ export const DEFAULT_BANNER_SETTINGS: Omit<BannerSettings, 'type'> = {
 export const DEFAULT_MODULES_SETTINGS: Omit<ModulesSettings, 'type'> = {
   course_id: null,
   show_title: 'always',
-  cards_per_row: 4,
   show_progress: true,
   module_order: [],
   hidden_module_ids: [],
