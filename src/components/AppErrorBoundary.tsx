@@ -29,6 +29,7 @@ interface State {
   hasError: boolean;
   error: Error | null;
   errorInfo: ErrorInfo | null;
+  recoveryAttempted: boolean;
 }
 
 // ============================================================================
@@ -41,6 +42,7 @@ export class AppErrorBoundary extends Component<Props, State> {
       hasError: false,
       error: null,
       errorInfo: null,
+      recoveryAttempted: false,
     };
   }
 
@@ -53,6 +55,17 @@ export class AppErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     const isNetworkIssue = isChunkLoadError(error);
+    
+    // AUTO-RECOVERY: Tentar recarregar após erros de rede (apenas 1 vez)
+    if (isNetworkIssue && !this.state.recoveryAttempted) {
+      log.info("Network error detected - attempting auto-recovery in 2s");
+      this.setState({ recoveryAttempted: true });
+      
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+      return;
+    }
     
     log.error('❌ Erro capturado:', {
       error,
