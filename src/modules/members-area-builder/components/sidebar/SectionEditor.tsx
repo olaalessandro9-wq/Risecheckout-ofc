@@ -9,6 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { getSectionLabel } from '../../registry';
 import { BannerEditor } from '../sections/Banner/BannerEditor';
 import { ModulesEditor } from '../sections/Modules/ModulesEditor';
@@ -16,7 +23,7 @@ import { CoursesEditor } from '../sections/Courses/CoursesEditor';
 import { ContinueWatchingEditor } from '../sections/ContinueWatching/ContinueWatchingEditor';
 import { TextEditor } from '../sections/Text/TextEditor';
 import { SpacerEditor } from '../sections/Spacer/SpacerEditor';
-import type { Section, SectionSettings, MemberModule } from '../../types/builder.types';
+import type { Section, SectionSettings, MemberModule, ModulesSettings } from '../../types/builder.types';
 
 interface SectionEditorProps {
   section: Section;
@@ -43,6 +50,28 @@ export function SectionEditor({ section, onUpdate, onUpdateSettings, modules, pr
               placeholder="Ex: Meus Cursos"
             />
           </div>
+
+          {/* Title Size - Only for modules sections */}
+          {section.type === 'modules' && (
+            <div className="space-y-2">
+              <Label>Tamanho do Título</Label>
+              <Select
+                value={(section.settings as ModulesSettings).title_size || 'medium'}
+                onValueChange={(value: 'small' | 'medium' | 'large') => 
+                  onUpdateSettings({ title_size: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="small">Pequeno</SelectItem>
+                  <SelectItem value="medium">Médio</SelectItem>
+                  <SelectItem value="large">Grande</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
