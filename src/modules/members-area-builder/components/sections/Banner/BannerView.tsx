@@ -1,7 +1,8 @@
 /**
  * Banner View - Renderiza seção de banner/slideshow com swipe/drag
+ * Com suporte a Gradient Overlay customizável (Netflix-style)
  * 
- * @see RISE ARCHITECT PROTOCOL
+ * @see RISE ARCHITECT PROTOCOL V3 - Solution 10.0/10
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -10,6 +11,11 @@ import { ImageIcon } from 'lucide-react';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import type { Section, BannerSettings, ViewMode } from '../../../types/builder.types';
+import { 
+  generateGradientCSS, 
+  generateSideGradientCSS, 
+  resolveGradientConfig 
+} from '../../../utils/gradientUtils';
 
 interface BannerViewProps {
   section: Section;
@@ -22,6 +28,9 @@ export function BannerView({ section, viewMode, theme }: BannerViewProps) {
   const slides = settings.slides || [];
   const hasSlides = slides.length > 0;
   const [selectedIndex, setSelectedIndex] = useState(0);
+
+  // Resolve gradient config with backwards compatibility
+  const gradientConfig = resolveGradientConfig(settings.gradient_overlay);
 
   const autoplayPlugin = Autoplay({
     delay: (settings.transition_seconds || 5) * 1000,
@@ -104,9 +113,29 @@ export function BannerView({ section, viewMode, theme }: BannerViewProps) {
         </div>
       </div>
 
-      {/* Indicators - Always visible when multiple slides */}
+      {/* Gradient Overlay - Netflix-style transition effect */}
+      {gradientConfig.enabled && (
+        <>
+          {/* Primary gradient (direction-based) */}
+          <div 
+            className="absolute inset-0 pointer-events-none z-10"
+            style={{
+              background: generateGradientCSS(gradientConfig)
+            }}
+          />
+          {/* Side gradient for depth (Netflix-style vignette) */}
+          <div 
+            className="absolute inset-0 pointer-events-none z-10"
+            style={{
+              background: generateSideGradientCSS(gradientConfig)
+            }}
+          />
+        </>
+      )}
+
+      {/* Indicators - z-20 to stay above gradient */}
       {slides.length > 1 && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
           {slides.map((_, index) => (
             <button
               key={index}
