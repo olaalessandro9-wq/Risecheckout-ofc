@@ -1,458 +1,210 @@
 
-# Plano: Transição Visual Premium - Banner Gradient Overlay System
+# Plano: Correção Definitiva da Transição Banner → Conteúdo
 
-## RISE ARCHITECT PROTOCOL V3 - Seção 4: LEI SUPREMA
+## RISE ARCHITECT PROTOCOL V3 - Solução 10.0/10
 
 ---
 
-## Diagnóstico Visual (Análise das Imagens)
+## Diagnóstico Visual Comparativo
 
-| Aspecto | RiseCheckout (Atual) | Cakto/RatoFlix (Referência) |
-|---------|---------------------|----------------------------|
-| Transição Banner → Conteúdo | Corte seco, linha dura visível | Gradiente suave, efeito "fade" |
-| Profundidade Visual | Design plano, 2D, "colado" | Múltiplas camadas, profundidade |
-| Integração com Fundo | Banner termina abruptamente | Banner se dissolve no background |
-| Percepção de Qualidade | "Amador", "cru" | Premium, Netflix-like |
-| **Nota de Design** | **3.0/10** | **9.5/10** |
+| Aspecto | RiseCheckout (Seu Print) | Cakto/RatoFlix (Print Referência) |
+|---------|--------------------------|-----------------------------------|
+| Transição | **LINHA DURA** visível entre banner e "Fase 1" | **IMPERCEPTÍVEL** - tudo parece contínuo |
+| Gradiente | Preso DENTRO do `overflow-hidden` | "Vaza" para o conteúdo abaixo |
+| Cards de Módulos | Começam FORA do banner, fundo separado | Aparecem DEBAIXO do gradiente |
+| Percepção | "Colado", duas áreas separadas | Espaço único, profundo |
 
-### Cadeia Técnica do Problema
+---
+
+## Causa Raiz Identificada
+
+```text
+PROBLEMA NO CÓDIGO ATUAL (BuyerBannerSection.tsx):
+
+Linha 96: <div className="relative overflow-hidden {heightClass}">
+              │
+              └─ overflow-hidden CORTA o gradiente
+                 O gradiente MORRE na borda inferior do banner
+                 Nada "vaza" para o conteúdo abaixo
+
+Linha 123-141: Gradient está DENTRO do container cortado
+               ├─ generateGradientCSS()      ← Preso dentro
+               └─ generateSideGradientCSS()  ← Preso dentro
+
+RESULTADO: Corte seco entre banner e "Fase 1"
+```
+
+---
+
+## Solução: Gradient Extension (Netflix-Style)
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ BuyerBannerSection.tsx (linha 86-130)                                        │
-│                                                                              │
-│ <div className="relative overflow-hidden {heightClass}">                     │
-│   <div ref={emblaRef}>                                                       │
-│     {slides.map(...)}   ← Imagem CRUA, sem overlay                          │
-│   </div>                                                                     │
-│   {indicators}                                                               │
-│ </div>                                                                       │
-│                                                                              │
-│ PROBLEMA: Zero camadas de gradiente sobre a imagem                          │
-│ RESULTADO: Corte abrupto entre banner e conteúdo                            │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Contraste com Componente Correto
-
-O `HeroBanner.tsx` (linhas 47-49) **já implementa o padrão correto**:
-
-```tsx
-{/* Gradient Overlays */}
-<div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
-<div className="absolute inset-0 bg-gradient-to-r from-background/80 via-transparent to-transparent" />
-```
-
-O `BuyerBannerSection.tsx` e `BannerView.tsx` **não possuem estas camadas**.
-
----
-
-## Análise de Soluções (RISE V3 - Seção 4.4)
-
-### Solução A: Overlay com Gradiente Fixo
-- **Manutenibilidade:** 7/10 (hardcoded, sem customização)
-- **Zero DT:** 6/10 (funciona mas limita o futuro)
-- **Arquitetura:** 5/10 (não segue padrão SOLID - hardcoded)
-- **Escalabilidade:** 4/10 (não escala para temas claros/escuros dinâmicos)
-- **Segurança:** 10/10 (sem impacto)
-- **NOTA FINAL: 6.4/10**
-- Tempo estimado: 30 minutos
-
-### Solução B: Gradiente Customizável no Builder (10.0/10)
-- **Manutenibilidade:** 10/10 (configuração no Builder, flexibilidade total)
-- **Zero DT:** 10/10 (resolve completamente, sem "melhorar depois")
-- **Arquitetura:** 10/10 (SOLID, clean, extensível, tipo discriminado)
-- **Escalabilidade:** 10/10 (suporta temas, cores customizadas, dark/light)
-- **Segurança:** 10/10 (sem impacto)
-- **NOTA FINAL: 10.0/10**
-- Tempo estimado: 4-6 horas
-
-### Solução C: Divisor Separado Entre Seções
-- **Manutenibilidade:** 3/10 (workaround, não resolve raiz)
-- **Zero DT:** 2/10 (cria espaçamento estranho)
-- **Arquitetura:** 2/10 (viola RISE V3 - é uma gambiarra)
-- **Escalabilidade:** 2/10 (não resolve problema real)
-- **Segurança:** 10/10 (sem impacto)
-- **NOTA FINAL: 3.8/10**
-- Tempo estimado: 15 minutos
-
-### DECISÃO: Solução B (Nota 10.0/10)
-
-As outras soluções são inferiores porque:
-- **A** é hardcoded e viola princípios SOLID (não é extensível)
-- **C** é literalmente uma gambiarra (proibido pelo RISE V3)
-- **B** dá poder total ao produtor, é extensível, e resolve o problema na raiz
-
----
-
-## Implementação Completa
-
-### Arquitetura da Solução
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    GRADIENT OVERLAY SYSTEM                                   │
+│                    ARQUITETURA DA SOLUÇÃO                                    │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  TIPOS (builder.types.ts)                                                    │
-│  ─────────────────────────                                                   │
-│  interface GradientOverlayConfig {                                           │
-│    enabled: boolean;                                                         │
-│    direction: 'bottom' | 'top' | 'left' | 'right';                          │
-│    strength: number; // 0-100                                                │
-│    use_theme_color: boolean; // Se true, usa --background do tema           │
-│    custom_color?: string; // Cor customizada (hex)                           │
-│  }                                                                           │
+│  ANTES (Problema):                                                           │
+│  ┌────────────────────────────────────────────────────────────┐              │
+│  │ <div overflow-hidden>                                       │              │
+│  │   <img/>                                                    │              │
+│  │   <gradient/> ← PRESO aqui dentro, não sai                 │              │
+│  │ </div>                                                      │              │
+│  └────────────────────────────────────────────────────────────┘              │
+│  ─────────────── CORTE SECO ───────────────                                  │
+│  ┌────────────────────────────────────────────────────────────┐              │
+│  │ Fase 1 / Conteúdo                                           │              │
+│  └────────────────────────────────────────────────────────────┘              │
 │                                                                              │
-│  interface BannerSettings {                                                  │
-│    type: 'banner';                                                           │
-│    slides: BannerSlide[];                                                    │
-│    transition_seconds: number;                                               │
-│    height: 'small' | 'medium' | 'large';                                    │
-│    gradient_overlay: GradientOverlayConfig; // ← NOVO                        │
-│  }                                                                           │
+│  DEPOIS (Solução):                                                           │
+│  ┌────────────────────────────────────────────────────────────┐              │
+│  │ <div relative> (wrapper SEM overflow)                       │              │
+│  │   ┌──────────────────────────────────────────────────────┐ │              │
+│  │   │ <div overflow-hidden> (só pro carousel)              │ │              │
+│  │   │   <img/>                                              │ │              │
+│  │   │   <side-gradient/> ← Gradiente lateral (vigneta)     │ │              │
+│  │   │ </div>                                                │ │              │
+│  │   └──────────────────────────────────────────────────────┘ │              │
+│  │                                                             │              │
+│  │   <gradient-extension/> ← FORA do overflow, z-10           │              │
+│  │   │                                                         │              │
+│  │   │  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ Gradiente que "vaza"               │              │
+│  │   │  ░░░░░░░░░░░░░░░░░ para baixo                          │              │
+│  │   │  ·················                                     │              │
+│  │   └─────────────────── ← Dissolve em transparent           │              │
+│  └────────────────────────────────────────────────────────────┘              │
+│  ┌─────────────────────── -mt-16 (margin negativo) ──────────┐               │
+│  │ Fase 1 / Conteúdo ← SOBE para ficar debaixo do gradiente  │               │
+│  └────────────────────────────────────────────────────────────┘              │
 │                                                                              │
-│  BUILDER UI (BannerEditor.tsx)                                               │
-│  ──────────────────────────────                                              │
-│  ┌────────────────────────────┐                                              │
-│  │ ☑ Ativar Efeito de Gradiente                                             │
-│  │                            │                                              │
-│  │ Direção: [⬇ Para Baixo ▾] │                                              │
-│  │                            │                                              │
-│  │ Intensidade: ──●────── 60% │                                              │
-│  │                            │                                              │
-│  │ ○ Usar cor do tema         │                                              │
-│  │ ● Cor customizada: [■ #000]│                                              │
-│  └────────────────────────────┘                                              │
-│                                                                              │
-│  RENDERIZAÇÃO (BuyerBannerSection.tsx + BannerView.tsx)                      │
-│  ──────────────────────────────────────────────────────                      │
-│  <div className="relative overflow-hidden">                                  │
-│    {/* Carousel */}                                                          │
-│    <div ref={emblaRef}>...</div>                                             │
-│                                                                              │
-│    {/* NOVO: Gradient Overlay */}                                            │
-│    {gradient_overlay.enabled && (                                            │
-│      <div                                                                    │
-│        className="absolute inset-0 pointer-events-none z-10"                │
-│        style={{                                                              │
-│          background: generateGradientCSS(gradient_overlay)                   │
-│        }}                                                                    │
-│      />                                                                      │
-│    )}                                                                        │
-│                                                                              │
-│    {/* Indicators (z-20 para ficar acima) */}                               │
-│  </div>                                                                      │
+│  RESULTADO: Transição imperceptível, estilo Netflix/Cakto                    │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Arquivos a Modificar
+---
 
-| Arquivo | Alteração | Prioridade |
-|---------|-----------|------------|
-| `src/modules/members-area-builder/types/builder.types.ts` | Adicionar `GradientOverlayConfig` e atualizar `BannerSettings` | CRÍTICA |
-| `src/modules/members-area-builder/components/sections/Banner/BannerEditor.tsx` | Adicionar UI para configurar gradiente | ALTA |
-| `src/modules/members-area-builder/components/sections/Banner/BannerView.tsx` | Renderizar overlay no Builder (preview) | ALTA |
-| `src/modules/members-area/pages/buyer/components/sections/BuyerBannerSection.tsx` | Renderizar overlay na área do aluno | ALTA |
-| `src/modules/members-area-builder/utils/gradientUtils.ts` | NOVO - Utilitário para gerar CSS do gradiente | MÉDIA |
+## Arquivos a Modificar
+
+| Arquivo | Modificação | Criticidade |
+|---------|-------------|-------------|
+| `gradientUtils.ts` | Adicionar `generateExtensionGradientCSS()` | ALTA |
+| `BuyerBannerSection.tsx` | Reestruturar com gradient extension FORA do overflow | CRÍTICA |
+| `BannerView.tsx` | Mesma reestruturação para paridade no Builder | ALTA |
+| `CourseHome.tsx` | Adicionar margin-top negativo após banners | ALTA |
 
 ---
 
-## Detalhamento Técnico
+## Implementação Técnica Detalhada
 
-### 1. Tipos (builder.types.ts)
-
-```typescript
-// =====================================================
-// GRADIENT OVERLAY CONFIG (NEW)
-// =====================================================
-
-export type GradientDirection = 'bottom' | 'top' | 'left' | 'right';
-
-export interface GradientOverlayConfig {
-  enabled: boolean;
-  direction: GradientDirection;
-  strength: number; // 0-100 (controla ponto médio do gradiente)
-  use_theme_color: boolean; // Se true, usa hsl(var(--background))
-  custom_color?: string; // Hex color quando use_theme_color = false
-}
-
-// Atualizar BannerSettings
-export interface BannerSettings {
-  type: 'banner';
-  slides: BannerSlide[];
-  transition_seconds: number;
-  height: 'small' | 'medium' | 'large';
-  gradient_overlay: GradientOverlayConfig; // ← NOVO
-}
-
-// Atualizar DEFAULT_BANNER_SETTINGS
-export const DEFAULT_BANNER_SETTINGS: Omit<BannerSettings, 'type'> = {
-  slides: [{ id: crypto.randomUUID(), image_url: '', link: '', alt: '' }],
-  transition_seconds: 5,
-  height: 'medium',
-  gradient_overlay: {
-    enabled: true, // Ativado por padrão para melhor UX out-of-the-box
-    direction: 'bottom',
-    strength: 60,
-    use_theme_color: true,
-    custom_color: undefined,
-  },
-};
-```
-
-### 2. Utilitário de Gradiente (NOVO)
-
-**Arquivo:** `src/modules/members-area-builder/utils/gradientUtils.ts`
+### 1. Nova Função em `gradientUtils.ts`
 
 ```typescript
 /**
- * Gradient Utilities
- * Gera CSS para gradientes baseado em configuração
- * 
- * @see RISE ARCHITECT PROTOCOL V3
- */
-
-import type { GradientOverlayConfig, GradientDirection } from '../types/builder.types';
-
-const DIRECTION_MAP: Record<GradientDirection, string> = {
-  bottom: 'to bottom',
-  top: 'to top',
-  left: 'to left',
-  right: 'to right',
-};
-
-/**
- * Gera o CSS do linear-gradient baseado na configuração
+ * Gera o gradiente de extensão que "vaza" para o conteúdo abaixo do banner
+ * Este gradiente fica FORA do container overflow-hidden
  * 
  * @param config - Configuração do gradiente
- * @param themeColor - Cor do tema (usada se use_theme_color = true)
- * @returns String CSS do gradiente
+ * @returns String CSS do gradiente de extensão
  */
-export function generateGradientCSS(
-  config: GradientOverlayConfig,
-  themeColor?: string
-): string {
-  if (!config.enabled) return 'none';
-  
-  const direction = DIRECTION_MAP[config.direction];
-  const color = config.use_theme_color 
-    ? (themeColor || 'hsl(var(--background))') 
-    : (config.custom_color || '#000000');
-  
-  // Strength controla onde o gradiente atinge opacidade máxima
-  // 0% = gradiente começa opaco imediatamente
-  // 100% = gradiente só fica opaco no final
-  const midpoint = Math.max(0, Math.min(100, config.strength));
-  
-  // Criar gradiente com 3 stops para efeito suave
-  // transparent → semi-opaco (midpoint) → opaco
-  return `linear-gradient(${direction}, transparent 0%, ${color}40 ${midpoint * 0.5}%, ${color}99 ${midpoint}%, ${color} 100%)`;
-}
-
-/**
- * Gera o gradiente lateral complementar (efeito Netflix)
- * Usado em combinação com o gradiente principal para profundidade
- */
-export function generateSideGradientCSS(
-  config: GradientOverlayConfig,
-  themeColor?: string
+export function generateExtensionGradientCSS(
+  config: GradientOverlayConfig
 ): string {
   if (!config.enabled) return 'none';
   
   const color = config.use_theme_color 
-    ? (themeColor || 'hsl(var(--background))') 
+    ? 'hsl(var(--background))' 
     : (config.custom_color || '#000000');
   
-  // Gradiente lateral suave para dar profundidade
-  return `linear-gradient(to right, ${color}80 0%, transparent 40%, transparent 60%, ${color}40 100%)`;
+  // Gradiente que vai do opaco (topo) para transparente (base)
+  // Isso cria a "extensão" visual que se mistura com o conteúdo
+  return `linear-gradient(to bottom, ${color} 0%, ${color}95 20%, ${color}60 50%, ${color}20 80%, transparent 100%)`;
 }
 ```
 
-### 3. Editor do Banner (BannerEditor.tsx)
+### 2. Reestruturação do `BuyerBannerSection.tsx`
 
-Adicionar nova seção após "Tempo de Transição":
-
-```typescript
-{/* Gradient Overlay Settings */}
-<div className="space-y-3 pt-4 border-t">
-  <div className="flex items-center justify-between">
-    <div className="space-y-0.5">
-      <Label>Efeito de Gradiente</Label>
-      <p className="text-xs text-muted-foreground">
-        Suaviza a transição do banner para o conteúdo
-      </p>
-    </div>
-    <Switch
-      checked={settings.gradient_overlay?.enabled ?? true}
-      onCheckedChange={(enabled) => onUpdate({ 
-        gradient_overlay: { 
-          ...settings.gradient_overlay, 
-          enabled 
-        } 
-      })}
-    />
-  </div>
-  
-  {settings.gradient_overlay?.enabled && (
-    <>
-      {/* Direction */}
-      <div className="space-y-2">
-        <Label>Direção</Label>
-        <Select
-          value={settings.gradient_overlay?.direction || 'bottom'}
-          onValueChange={(direction: GradientDirection) => onUpdate({ 
-            gradient_overlay: { 
-              ...settings.gradient_overlay, 
-              direction 
-            } 
-          })}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="bottom">Para Baixo ↓</SelectItem>
-            <SelectItem value="top">Para Cima ↑</SelectItem>
-            <SelectItem value="left">Para Esquerda ←</SelectItem>
-            <SelectItem value="right">Para Direita →</SelectItem>
-          </SelectContent>
-        </Select>
+```tsx
+return (
+  // WRAPPER: relative, SEM overflow-hidden
+  <div className="w-full relative">
+    {title && (
+      <h2 className="...">
+        {title}
+      </h2>
+    )}
+    
+    {/* CONTAINER DO CAROUSEL: COM overflow-hidden (só aqui) */}
+    <div className={cn('relative overflow-hidden', heightClass)}>
+      <div ref={emblaRef}>
+        {/* slides... */}
       </div>
-      
-      {/* Strength Slider */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label>Intensidade</Label>
-          <span className="text-xs text-muted-foreground">
-            {settings.gradient_overlay?.strength || 60}%
-          </span>
-        </div>
-        <Slider
-          value={[settings.gradient_overlay?.strength || 60]}
-          onValueChange={([strength]) => onUpdate({ 
-            gradient_overlay: { 
-              ...settings.gradient_overlay, 
-              strength 
-            } 
-          })}
-          min={20}
-          max={100}
-          step={5}
+
+      {/* Gradiente INTERNO (lateral/vigneta) - fica dentro do overflow */}
+      {gradientConfig.enabled && (
+        <div 
+          className="absolute inset-0 pointer-events-none z-10"
+          style={{ background: generateSideGradientCSS(gradientConfig) }}
         />
-      </div>
-      
-      {/* Color Mode */}
-      <div className="space-y-2">
-        <Label>Cor do Gradiente</Label>
-        <RadioGroup
-          value={settings.gradient_overlay?.use_theme_color ? 'theme' : 'custom'}
-          onValueChange={(value) => onUpdate({ 
-            gradient_overlay: { 
-              ...settings.gradient_overlay, 
-              use_theme_color: value === 'theme' 
-            } 
-          })}
-        >
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="theme" id="theme" />
-            <Label htmlFor="theme" className="font-normal">
-              Usar cor do tema (recomendado)
-            </Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="custom" id="custom" />
-            <Label htmlFor="custom" className="font-normal">
-              Cor customizada
-            </Label>
-          </div>
-        </RadioGroup>
-        
-        {!settings.gradient_overlay?.use_theme_color && (
-          <Input
-            type="color"
-            value={settings.gradient_overlay?.custom_color || '#000000'}
-            onChange={(e) => onUpdate({ 
-              gradient_overlay: { 
-                ...settings.gradient_overlay, 
-                custom_color: e.target.value 
-              } 
-            })}
-            className="h-10 w-full"
-          />
-        )}
-      </div>
-    </>
-  )}
-</div>
-```
+      )}
 
-### 4. Renderização no Builder (BannerView.tsx)
-
-Adicionar após o carousel, antes dos indicators:
-
-```tsx
-{/* Gradient Overlay - Netflix-style transition effect */}
-{settings.gradient_overlay?.enabled !== false && (
-  <>
-    {/* Primary gradient (direction-based) */}
-    <div 
-      className="absolute inset-0 pointer-events-none z-10"
-      style={{
-        background: generateGradientCSS(
-          settings.gradient_overlay || DEFAULT_GRADIENT_CONFIG,
-          theme === 'dark' ? 'hsl(var(--background))' : undefined
-        )
-      }}
-    />
-    {/* Side gradient for depth (Netflix-style) */}
-    <div 
-      className="absolute inset-0 pointer-events-none z-10"
-      style={{
-        background: generateSideGradientCSS(
-          settings.gradient_overlay || DEFAULT_GRADIENT_CONFIG,
-          theme === 'dark' ? 'hsl(var(--background))' : undefined
-        )
-      }}
-    />
-  </>
-)}
-
-{/* Indicators - z-20 para ficar acima do gradiente */}
-{slides.length > 1 && (
-  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
-    ...
+      {/* Indicators */}
+      {slides.length > 1 && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+          ...
+        </div>
+      )}
+    </div>
+    
+    {/* GRADIENT EXTENSION: FORA do overflow-hidden, extende para baixo */}
+    {gradientConfig.enabled && (
+      <div 
+        className="absolute left-0 right-0 h-24 pointer-events-none z-10"
+        style={{
+          bottom: 0,
+          transform: 'translateY(100%)', // Posiciona ABAIXO do banner
+          background: generateExtensionGradientCSS(gradientConfig),
+        }}
+      />
+    )}
   </div>
-)}
+);
 ```
 
-### 5. Renderização na Área do Aluno (BuyerBannerSection.tsx)
+### 3. Ajuste no `CourseHome.tsx`
 
-Mesma lógica do BannerView.tsx, garantindo paridade visual:
+Para que o gradiente de extensão sobreponha o conteúdo, as seções de módulos precisam "subir":
 
 ```tsx
-{/* Gradient Overlay - Netflix-style transition effect */}
-{settings.gradient_overlay?.enabled !== false && (
-  <>
-    <div 
-      className="absolute inset-0 pointer-events-none z-10"
-      style={{
-        background: generateGradientCSS(
-          settings.gradient_overlay || DEFAULT_GRADIENT_CONFIG
-        )
-      }}
-    />
-    <div 
-      className="absolute inset-0 pointer-events-none z-10"
-      style={{
-        background: generateSideGradientCSS(
-          settings.gradient_overlay || DEFAULT_GRADIENT_CONFIG
-        )
-      }}
-    />
-  </>
-)}
+<div className="space-y-2">
+  {sections.map((section, index) => {
+    // Detecta se a seção anterior é um banner
+    const prevSection = index > 0 ? sections[index - 1] : null;
+    const isAfterBanner = prevSection?.type === 'banner';
+    
+    if (section.type === 'banner') {
+      // Banners renderizam normalmente
+      return (
+        <BuyerBannerSection key={section.id} ... />
+      );
+    }
+    
+    if (section.type === 'modules') {
+      // Módulos após banner: margin-top negativo para "subir"
+      return (
+        <div 
+          key={section.id}
+          className={cn(
+            isAfterBanner && '-mt-16 relative z-0' // Sobe e fica abaixo do gradient
+          )}
+        >
+          <ModuleCarousel ... />
+        </div>
+      );
+    }
+    
+    return null;
+  })}
+</div>
 ```
 
 ---
@@ -461,64 +213,36 @@ Mesma lógica do BannerView.tsx, garantindo paridade visual:
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                    ANTES vs DEPOIS                                           │
+│                         COMPARAÇÃO FINAL                                     │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│ ANTES (Atual):                                                               │
+│ ANTES (Seu Print - RiseCheckout):                                            │
 │ ┌─────────────────────────────────────┐                                      │
-│ │        BANNER IMAGE                 │ ← Imagem crua                        │
+│ │        COMMUNITY (Banner)           │                                      │
 │ └─────────────────────────────────────┘                                      │
-│ ━━━━━━━━━━ LINHA DURA VISÍVEL ━━━━━━━━━━ ← Corte abrupto                     │
+│ ━━━━━━━━━━ LINHA DURA VISÍVEL ━━━━━━━━━━ ← PROBLEMA                          │
+│ Fase 1                                                                       │
+│ ┌────────┐ ┌────────┐ ┌────────┐                                            │
+│                                                                              │
+│ DEPOIS (Igual Cakto/RatoFlix):                                               │
 │ ┌─────────────────────────────────────┐                                      │
-│ │        CONTEÚDO                     │                                      │
+│ │        COMMUNITY (Banner)           │                                      │
+│ │▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│ ← Gradiente                         │
+│ │░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│ ← Extension (vaza para baixo)       │
+│ │  Fase 1  ← Conteúdo SOBE debaixo    │                                      │
+│ │  ┌────────┐ ┌────────┐ ┌────────┐   │                                      │
 │ └─────────────────────────────────────┘                                      │
 │                                                                              │
-│ DEPOIS (Com Gradiente):                                                      │
-│ ┌─────────────────────────────────────┐                                      │
-│ │        BANNER IMAGE                 │                                      │
-│ │░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│ ← Gradiente suave começando          │
-│ │▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│ ← Gradiente mais forte               │
-│ │███████████████████████████████████████│ ← Blend total com background        │
-│ └─────────────────────────────────────┘                                      │
-│ ┌─────────────────────────────────────┐                                      │
-│ │        CONTEÚDO                     │ ← Transição imperceptível            │
-│ └─────────────────────────────────────┘                                      │
+│ TRANSIÇÃO: Imperceptível, profunda, estilo Netflix/Cakto                     │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Retrocompatibilidade
+## Paridade Builder ↔ Área do Aluno
 
-Para banners existentes sem `gradient_overlay`:
-
-```typescript
-// Em BuyerBannerSection.tsx e BannerView.tsx
-const gradientConfig: GradientOverlayConfig = settings.gradient_overlay ?? {
-  enabled: true, // Ativar por padrão para melhorar UX instantaneamente
-  direction: 'bottom',
-  strength: 60,
-  use_theme_color: true,
-};
-```
-
-Isso garante que:
-1. Banners existentes ganham o efeito automaticamente
-2. Produtores podem desativar se preferirem
-3. Zero migração de dados necessária
-
----
-
-## Resumo de Arquivos
-
-| Arquivo | Tipo | Linhas Estimadas |
-|---------|------|------------------|
-| `builder.types.ts` | Modificação | +25 linhas |
-| `gradientUtils.ts` | NOVO | ~60 linhas |
-| `BannerEditor.tsx` | Modificação | +80 linhas |
-| `BannerView.tsx` | Modificação | +30 linhas |
-| `BuyerBannerSection.tsx` | Modificação | +30 linhas |
+Aplicar a **mesma lógica** em `BannerView.tsx` para que o Builder mostre exatamente como ficará na área do aluno.
 
 ---
 
@@ -526,12 +250,11 @@ Isso garante que:
 
 | Critério | Status |
 |----------|--------|
-| LEI SUPREMA (4.1) | 10.0/10 - Melhor solução, customizável |
-| Manutenibilidade Infinita | Configuração no Builder, zero hardcode |
-| Zero Dívida Técnica | Não precisa "melhorar depois" |
-| Arquitetura Correta | SOLID, tipos discriminados, utilitários puros |
-| Escalabilidade | Suporta qualquer tema, cor, direção |
-| Limite 300 Linhas | Utilitário separado, tipos separados |
-| Single Responsibility | Cada arquivo tem uma responsabilidade |
+| LEI SUPREMA (4.1) | 10.0/10 - Técnica real Netflix/Cakto |
+| Manutenibilidade | Usa config do Builder, extensível |
+| Zero Dívida Técnica | Resolve completamente na raiz |
+| Arquitetura | Gradient fora do overflow, separação correta |
+| Escalabilidade | Funciona com qualquer altura de banner |
+| Paridade Visual | Builder e área do aluno idênticos |
 
-**NOTA FINAL: 10.0/10** - Solução Premium com Controle Total do Produtor
+**NOTA FINAL: 10.0/10** - Solução definitiva para transição premium
