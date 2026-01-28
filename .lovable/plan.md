@@ -1,378 +1,524 @@
 
-# Plano: Correção do Sistema de Auto-Refresh e Recuperação de Erros
+# Plano: Transição Visual Premium - Banner Gradient Overlay System
 
-## RISE Protocol V3 - Seção 4: LEI SUPREMA
+## RISE ARCHITECT PROTOCOL V3 - Seção 4: LEI SUPREMA
 
 ---
 
-## Diagnóstico Completo (Revisado Após Revert)
+## Diagnóstico Visual (Análise das Imagens)
 
-### Análise dos Erros do Console (Print do Usuário)
+| Aspecto | RiseCheckout (Atual) | Cakto/RatoFlix (Referência) |
+|---------|---------------------|----------------------------|
+| Transição Banner → Conteúdo | Corte seco, linha dura visível | Gradiente suave, efeito "fade" |
+| Profundidade Visual | Design plano, 2D, "colado" | Múltiplas camadas, profundidade |
+| Integração com Fundo | Banner termina abruptamente | Banner se dissolve no background |
+| Percepção de Qualidade | "Amador", "cru" | Premium, Netflix-like |
+| **Nota de Design** | **3.0/10** | **9.5/10** |
 
-| Erro | Causa Raiz | Impacto |
-|------|------------|---------|
-| `x-tab-id is not allowed by Access-Control-Allow-Headers` | Header X-Tab-Id **NÃO ESTÁ** na lista CORS | **CRÍTICO** - Bloqueia refresh |
-| `net::ERR_NAME_NOT_RESOLVED` | Falha transitória de DNS | Agrava após CORS falhar |
-| `Failed to fetch dynamically imported module` | Chunk loading falha após erro de rede | Quebra a aplicação |
-| `Unexpected Application Error!` | React Router sem errorElement | Usuário vê erro genérico |
-
-### Cadeia de Falhas (Root Cause Analysis)
+### Cadeia Técnica do Problema
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ 1. Frontend (coordinator.ts:213) envia X-Tab-Id header para /request-refresh│
-│                              ▼                                               │
-│ 2. CORS bloqueia (cors-v2.ts linha 60-66 NÃO inclui x-tab-id)               │
-│                              ▼                                               │
-│ 3. Fetch falha com CORS error → SessionCommander retorna { status: "error" }│
-│                              ▼                                               │
-│ 4. TokenService não consegue fazer refresh → state = "error"                │
-│                              ▼                                               │
-│ 5. Network instability → Dynamic import falha (Auth chunk)                  │
-│                              ▼                                               │
-│ 6. React Router não tem errorElement → Mostra "Unexpected Application Error"│
-│                              ▼                                               │
-│ 7. AppErrorBoundary captura MAS não tenta auto-recovery                     │
-│                              ▼                                               │
-│ 8. Usuário precisa dar F5 manualmente                                       │
+│ BuyerBannerSection.tsx (linha 86-130)                                        │
+│                                                                              │
+│ <div className="relative overflow-hidden {heightClass}">                     │
+│   <div ref={emblaRef}>                                                       │
+│     {slides.map(...)}   ← Imagem CRUA, sem overlay                          │
+│   </div>                                                                     │
+│   {indicators}                                                               │
+│ </div>                                                                       │
+│                                                                              │
+│ PROBLEMA: Zero camadas de gradiente sobre a imagem                          │
+│ RESULTADO: Corte abrupto entre banner e conteúdo                            │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Por Que F5 Funciona?
+### Contraste com Componente Correto
 
-1. Página recarrega completamente
-2. `useUnifiedAuth` chama `/validate` (não `/request-refresh`)
-3. Backend faz auto-refresh via validate (linha 52-65 de validate.ts)
-4. Cookie `__Secure-rise_refresh` ainda válido → Sessão restaurada
+O `HeroBanner.tsx` (linhas 47-49) **já implementa o padrão correto**:
+
+```tsx
+{/* Gradient Overlays */}
+<div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
+<div className="absolute inset-0 bg-gradient-to-r from-background/80 via-transparent to-transparent" />
+```
+
+O `BuyerBannerSection.tsx` e `BannerView.tsx` **não possuem estas camadas**.
 
 ---
 
-## Análise de Soluções
+## Análise de Soluções (RISE V3 - Seção 4.4)
 
-### Solução A: Correção Completa com Resiliência Sistêmica (10.0/10)
-
-- **Manutenibilidade:** 10/10 (correção na raiz + auto-recovery)
-- **Zero DT:** 10/10 (resolve problema permanentemente)
-- **Arquitetura:** 10/10 (múltiplas camadas de fallback)
-- **Escalabilidade:** 10/10 (padrão robusto para futuras features)
-- **Segurança:** 10/10 (sem impacto negativo)
-- **NOTA FINAL: 10.0/10**
-- Tempo estimado: 2-3 horas
-
-### Solução B: Apenas Adicionar Header CORS
-
-- **Manutenibilidade:** 6/10 (não resolve chunk loading)
-- **Zero DT:** 5/10 (outros erros ainda quebram)
-- **Arquitetura:** 4/10 (sem fallback para erros)
-- **Escalabilidade:** 5/10 (problema ressurge com outros erros)
+### Solução A: Overlay com Gradiente Fixo
+- **Manutenibilidade:** 7/10 (hardcoded, sem customização)
+- **Zero DT:** 6/10 (funciona mas limita o futuro)
+- **Arquitetura:** 5/10 (não segue padrão SOLID - hardcoded)
+- **Escalabilidade:** 4/10 (não escala para temas claros/escuros dinâmicos)
 - **Segurança:** 10/10 (sem impacto)
-- **NOTA FINAL: 6.0/10**
-- Tempo estimado: 10 minutos
+- **NOTA FINAL: 6.4/10**
+- Tempo estimado: 30 minutos
 
-### Solução C: Remover X-Tab-Id do Frontend
+### Solução B: Gradiente Customizável no Builder (10.0/10)
+- **Manutenibilidade:** 10/10 (configuração no Builder, flexibilidade total)
+- **Zero DT:** 10/10 (resolve completamente, sem "melhorar depois")
+- **Arquitetura:** 10/10 (SOLID, clean, extensível, tipo discriminado)
+- **Escalabilidade:** 10/10 (suporta temas, cores customizadas, dark/light)
+- **Segurança:** 10/10 (sem impacto)
+- **NOTA FINAL: 10.0/10**
+- Tempo estimado: 4-6 horas
 
-- **Manutenibilidade:** 5/10 (perde coordenação multi-tab)
-- **Zero DT:** 4/10 (degrada arquitetura Session Commander)
-- **Arquitetura:** 3/10 (viola RISE V3 - server-side locking)
-- **Escalabilidade:** 4/10 (race conditions em múltiplas tabs)
-- **Segurança:** 6/10 (menos coordenação = mais vulnerável)
-- **NOTA FINAL: 4.4/10**
+### Solução C: Divisor Separado Entre Seções
+- **Manutenibilidade:** 3/10 (workaround, não resolve raiz)
+- **Zero DT:** 2/10 (cria espaçamento estranho)
+- **Arquitetura:** 2/10 (viola RISE V3 - é uma gambiarra)
+- **Escalabilidade:** 2/10 (não resolve problema real)
+- **Segurança:** 10/10 (sem impacto)
+- **NOTA FINAL: 3.8/10**
 - Tempo estimado: 15 minutos
 
-### DECISÃO: Solução A (10.0/10)
+### DECISÃO: Solução B (Nota 10.0/10)
 
 As outras soluções são inferiores porque:
-- **B** apenas corrige CORS mas não adiciona resiliência
-- **C** degrada a arquitetura removendo feature importante
+- **A** é hardcoded e viola princípios SOLID (não é extensível)
+- **C** é literalmente uma gambiarra (proibido pelo RISE V3)
+- **B** dá poder total ao produtor, é extensível, e resolve o problema na raiz
 
 ---
 
-## Implementação em 4 Camadas
+## Implementação Completa
 
-### Camada 1: Correção CORS (Causa Raiz)
-
-**Arquivo:** `supabase/functions/_shared/cors-v2.ts`
-
-**Problema:** Linha 60-66 define `CORS_ALLOWED_HEADERS` mas NÃO inclui `x-tab-id`.
-
-**Correção:** Adicionar `x-tab-id` à lista de headers permitidos:
-
-```typescript
-// Linha 60-66: ANTES
-const CORS_ALLOWED_HEADERS = [
-  "authorization",
-  "x-client-info",
-  "apikey",
-  "content-type",
-  "x-correlation-id",
-].join(", ");
-
-// DEPOIS
-const CORS_ALLOWED_HEADERS = [
-  "authorization",
-  "x-client-info",
-  "apikey",
-  "content-type",
-  "x-correlation-id",
-  "x-tab-id",  // ← NOVO: Session Commander multi-tab coordination
-].join(", ");
-```
-
----
-
-### Camada 2: React Router errorElement
-
-**Arquivo:** `src/App.tsx`
-
-**Problema:** O router (linha 57-69) não tem `errorElement`, então erros de rota mostram "Unexpected Application Error".
-
-**Correção:** Adicionar `errorElement` ao router:
-
-```typescript
-import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
-
-const router = createBrowserRouter([
-  {
-    element: <RootLayout />,
-    errorElement: <RouteErrorBoundary />, // ← NOVO
-    children: [
-      ...publicRoutes,
-      ...lgpdRoutes,
-      ...buyerRoutes,
-      ...builderRoutes,
-      ...dashboardRoutes,
-      { path: "*", element: <NotFound /> },
-    ],
-  },
-]);
-```
-
----
-
-### Camada 3: RouteErrorBoundary (Novo Componente)
-
-**Arquivo:** `src/components/RouteErrorBoundary.tsx` (NOVO)
-
-Componente dedicado para erros de rota com auto-recovery:
-
-```typescript
-/**
- * RouteErrorBoundary - React Router Error Recovery
- * 
- * RISE ARCHITECT PROTOCOL V3 - 10.0/10
- * 
- * Captura erros de rota (errorElement) e tenta auto-recovery
- * para erros de rede antes de mostrar UI de erro.
- */
-
-import { useEffect, useState } from "react";
-import { useRouteError } from "react-router-dom";
-import { isChunkLoadError } from "@/lib/lazyWithRetry";
-import { createLogger } from "@/lib/logger";
-import { WifiOff, RefreshCw, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-
-const log = createLogger("RouteErrorBoundary");
-
-// Limite de auto-recoveries para evitar loops infinitos
-const MAX_AUTO_RECOVERY_ATTEMPTS = 2;
-const RECOVERY_ATTEMPT_KEY = "route_error_recovery_attempts";
-const RECOVERY_TIMESTAMP_KEY = "route_error_recovery_timestamp";
-
-export function RouteErrorBoundary() {
-  const error = useRouteError();
-  const [recovering, setRecovering] = useState(false);
-  
-  // Detectar se é erro de rede/chunk
-  const isNetworkError = error instanceof Error && isChunkLoadError(error);
-  
-  // Auto-recovery para erros de rede (com limite)
-  useEffect(() => {
-    if (!isNetworkError || recovering) return;
-    
-    // Verificar contagem de tentativas (reset após 1 minuto)
-    const now = Date.now();
-    const lastTimestamp = parseInt(sessionStorage.getItem(RECOVERY_TIMESTAMP_KEY) || "0");
-    let attempts = parseInt(sessionStorage.getItem(RECOVERY_ATTEMPT_KEY) || "0");
-    
-    // Reset contador se passou mais de 1 minuto
-    if (now - lastTimestamp > 60000) {
-      attempts = 0;
-    }
-    
-    if (attempts >= MAX_AUTO_RECOVERY_ATTEMPTS) {
-      log.warn("Max auto-recovery attempts reached, showing manual UI");
-      return;
-    }
-    
-    // Incrementar e salvar
-    sessionStorage.setItem(RECOVERY_ATTEMPT_KEY, String(attempts + 1));
-    sessionStorage.setItem(RECOVERY_TIMESTAMP_KEY, String(now));
-    
-    log.info(`Network error - auto-recovery attempt ${attempts + 1}/${MAX_AUTO_RECOVERY_ATTEMPTS}`);
-    setRecovering(true);
-    
-    const timer = setTimeout(() => {
-      window.location.reload();
-    }, 2000);
-    
-    return () => clearTimeout(timer);
-  }, [isNetworkError, recovering]);
-  
-  // Durante recovery, mostrar feedback visual
-  if (recovering) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <p className="text-muted-foreground">Reconectando...</p>
-        </div>
-      </div>
-    );
-  }
-  
-  // UI de erro para quando auto-recovery falhou ou não é erro de rede
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="max-w-md w-full space-y-6 text-center">
-        <div className="flex justify-center">
-          {isNetworkError ? (
-            <div className="p-4 rounded-full bg-amber-100 dark:bg-amber-900/20">
-              <WifiOff className="h-12 w-12 text-amber-600 dark:text-amber-400" />
-            </div>
-          ) : (
-            <div className="p-4 rounded-full bg-destructive/10">
-              <RefreshCw className="h-12 w-12 text-destructive" />
-            </div>
-          )}
-        </div>
-        
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-foreground">
-            {isNetworkError ? "Problemas de conexão" : "Erro inesperado"}
-          </h1>
-          <p className="text-muted-foreground">
-            {isNetworkError
-              ? "Não foi possível carregar a página. Verifique sua conexão."
-              : "Ocorreu um erro. Por favor, tente novamente."}
-          </p>
-        </div>
-        
-        <Button onClick={() => window.location.reload()} size="lg" className="w-full">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Tentar Novamente
-        </Button>
-      </div>
-    </div>
-  );
-}
-```
-
----
-
-### Camada 4: AppErrorBoundary com Auto-Recovery
-
-**Arquivo:** `src/components/AppErrorBoundary.tsx`
-
-**Problema:** O AppErrorBoundary atual (linha 54-80) captura o erro mas NÃO tenta auto-recovery.
-
-**Correção:** Adicionar lógica de auto-recovery para erros de rede:
-
-```typescript
-// Adicionar state para controle de recovery
-interface State {
-  hasError: boolean;
-  error: Error | null;
-  errorInfo: ErrorInfo | null;
-  recoveryAttempted: boolean; // ← NOVO
-}
-
-// No constructor
-this.state = {
-  hasError: false,
-  error: null,
-  errorInfo: null,
-  recoveryAttempted: false, // ← NOVO
-};
-
-// No componentDidCatch
-componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-  const isNetworkIssue = isChunkLoadError(error);
-  
-  // AUTO-RECOVERY: Tentar recarregar após erros de rede (apenas 1 vez)
-  if (isNetworkIssue && !this.state.recoveryAttempted) {
-    log.info("Network error detected - attempting auto-recovery in 2s");
-    this.setState({ recoveryAttempted: true });
-    
-    setTimeout(() => {
-      window.location.reload();
-    }, 2000);
-    return;
-  }
-  
-  // ... resto do código existente de log e Sentry
-}
-```
-
----
-
-## Fluxo Após Correção
+### Arquitetura da Solução
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                       FLUXO CORRIGIDO (RISE V3 10.0/10)                      │
+│                    GRADIENT OVERLAY SYSTEM                                   │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│ Cenário 1: Refresh Normal (Sem Erros)                                       │
-│ ─────────────────────────────────────────                                    │
-│ Frontend → X-Tab-Id → CORS OK → /request-refresh → Tokens Renovados ✓       │
+│  TIPOS (builder.types.ts)                                                    │
+│  ─────────────────────────                                                   │
+│  interface GradientOverlayConfig {                                           │
+│    enabled: boolean;                                                         │
+│    direction: 'bottom' | 'top' | 'left' | 'right';                          │
+│    strength: number; // 0-100                                                │
+│    use_theme_color: boolean; // Se true, usa --background do tema           │
+│    custom_color?: string; // Cor customizada (hex)                           │
+│  }                                                                           │
 │                                                                              │
-│ Cenário 2: Erro de Rede Transitório                                          │
-│ ─────────────────────────────────────────                                    │
-│ Refresh falha → SessionCommander retry (3x com backoff) → Sucesso ✓         │
+│  interface BannerSettings {                                                  │
+│    type: 'banner';                                                           │
+│    slides: BannerSlide[];                                                    │
+│    transition_seconds: number;                                               │
+│    height: 'small' | 'medium' | 'large';                                    │
+│    gradient_overlay: GradientOverlayConfig; // ← NOVO                        │
+│  }                                                                           │
 │                                                                              │
-│ Cenário 3: Erro Persistente + Chunk Loading                                  │
-│ ─────────────────────────────────────────                                    │
-│ Chunk falha → RouteErrorBoundary detecta → Auto-reload em 2s ✓              │
-│ Após reload → /validate com auto-refresh → Sessão Restaurada ✓              │
+│  BUILDER UI (BannerEditor.tsx)                                               │
+│  ──────────────────────────────                                              │
+│  ┌────────────────────────────┐                                              │
+│  │ ☑ Ativar Efeito de Gradiente                                             │
+│  │                            │                                              │
+│  │ Direção: [⬇ Para Baixo ▾] │                                              │
+│  │                            │                                              │
+│  │ Intensidade: ──●────── 60% │                                              │
+│  │                            │                                              │
+│  │ ○ Usar cor do tema         │                                              │
+│  │ ● Cor customizada: [■ #000]│                                              │
+│  └────────────────────────────┘                                              │
 │                                                                              │
-│ Cenário 4: Múltiplos Erros (Proteção Anti-Loop)                             │
-│ ─────────────────────────────────────────                                    │
-│ 2 auto-recoveries falham → Mostra UI com botão manual "Tentar Novamente"    │
+│  RENDERIZAÇÃO (BuyerBannerSection.tsx + BannerView.tsx)                      │
+│  ──────────────────────────────────────────────────────                      │
+│  <div className="relative overflow-hidden">                                  │
+│    {/* Carousel */}                                                          │
+│    <div ref={emblaRef}>...</div>                                             │
 │                                                                              │
-│ Cenário 5: Refresh Token Expirado (Legítimo)                                │
-│ ─────────────────────────────────────────                                    │
-│ Backend retorna 401 → SessionCommander mostra "Sessão expirada" →           │
-│ Usuário redirecionado para /auth (comportamento correto)                    │
+│    {/* NOVO: Gradient Overlay */}                                            │
+│    {gradient_overlay.enabled && (                                            │
+│      <div                                                                    │
+│        className="absolute inset-0 pointer-events-none z-10"                │
+│        style={{                                                              │
+│          background: generateGradientCSS(gradient_overlay)                   │
+│        }}                                                                    │
+│      />                                                                      │
+│    )}                                                                        │
+│                                                                              │
+│    {/* Indicators (z-20 para ficar acima) */}                               │
+│  </div>                                                                      │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
----
-
-## Resumo de Arquivos a Alterar
+### Arquivos a Modificar
 
 | Arquivo | Alteração | Prioridade |
 |---------|-----------|------------|
-| `supabase/functions/_shared/cors-v2.ts` | Adicionar `x-tab-id` aos headers CORS | **CRÍTICA** |
-| `src/components/RouteErrorBoundary.tsx` | NOVO - Error boundary para rotas | **ALTA** |
-| `src/App.tsx` | Adicionar `errorElement` ao router | **ALTA** |
-| `src/components/AppErrorBoundary.tsx` | Adicionar auto-recovery para erros de rede | **MÉDIA** |
+| `src/modules/members-area-builder/types/builder.types.ts` | Adicionar `GradientOverlayConfig` e atualizar `BannerSettings` | CRÍTICA |
+| `src/modules/members-area-builder/components/sections/Banner/BannerEditor.tsx` | Adicionar UI para configurar gradiente | ALTA |
+| `src/modules/members-area-builder/components/sections/Banner/BannerView.tsx` | Renderizar overlay no Builder (preview) | ALTA |
+| `src/modules/members-area/pages/buyer/components/sections/BuyerBannerSection.tsx` | Renderizar overlay na área do aluno | ALTA |
+| `src/modules/members-area-builder/utils/gradientUtils.ts` | NOVO - Utilitário para gerar CSS do gradiente | MÉDIA |
 
 ---
 
-## Testes de Validação
+## Detalhamento Técnico
 
-Após implementação, validar os seguintes cenários:
+### 1. Tipos (builder.types.ts)
 
-| Cenário | Comportamento Esperado |
-|---------|------------------------|
-| Refresh normal | Sem erros, tokens renovados silenciosamente |
-| Erro DNS transitório | Toast "Reconectando..." → Sucesso automático |
-| Chunk loading falha | Spinner "Reconectando..." → Reload automático em 2s |
-| Múltiplas tabs | Apenas uma faz refresh (lock), outras esperam |
-| Refresh token expirado | Toast "Sessão expirada" → Redirect para /auth |
-| Loop de erros | Máximo 2 auto-recoveries, depois UI manual |
+```typescript
+// =====================================================
+// GRADIENT OVERLAY CONFIG (NEW)
+// =====================================================
+
+export type GradientDirection = 'bottom' | 'top' | 'left' | 'right';
+
+export interface GradientOverlayConfig {
+  enabled: boolean;
+  direction: GradientDirection;
+  strength: number; // 0-100 (controla ponto médio do gradiente)
+  use_theme_color: boolean; // Se true, usa hsl(var(--background))
+  custom_color?: string; // Hex color quando use_theme_color = false
+}
+
+// Atualizar BannerSettings
+export interface BannerSettings {
+  type: 'banner';
+  slides: BannerSlide[];
+  transition_seconds: number;
+  height: 'small' | 'medium' | 'large';
+  gradient_overlay: GradientOverlayConfig; // ← NOVO
+}
+
+// Atualizar DEFAULT_BANNER_SETTINGS
+export const DEFAULT_BANNER_SETTINGS: Omit<BannerSettings, 'type'> = {
+  slides: [{ id: crypto.randomUUID(), image_url: '', link: '', alt: '' }],
+  transition_seconds: 5,
+  height: 'medium',
+  gradient_overlay: {
+    enabled: true, // Ativado por padrão para melhor UX out-of-the-box
+    direction: 'bottom',
+    strength: 60,
+    use_theme_color: true,
+    custom_color: undefined,
+  },
+};
+```
+
+### 2. Utilitário de Gradiente (NOVO)
+
+**Arquivo:** `src/modules/members-area-builder/utils/gradientUtils.ts`
+
+```typescript
+/**
+ * Gradient Utilities
+ * Gera CSS para gradientes baseado em configuração
+ * 
+ * @see RISE ARCHITECT PROTOCOL V3
+ */
+
+import type { GradientOverlayConfig, GradientDirection } from '../types/builder.types';
+
+const DIRECTION_MAP: Record<GradientDirection, string> = {
+  bottom: 'to bottom',
+  top: 'to top',
+  left: 'to left',
+  right: 'to right',
+};
+
+/**
+ * Gera o CSS do linear-gradient baseado na configuração
+ * 
+ * @param config - Configuração do gradiente
+ * @param themeColor - Cor do tema (usada se use_theme_color = true)
+ * @returns String CSS do gradiente
+ */
+export function generateGradientCSS(
+  config: GradientOverlayConfig,
+  themeColor?: string
+): string {
+  if (!config.enabled) return 'none';
+  
+  const direction = DIRECTION_MAP[config.direction];
+  const color = config.use_theme_color 
+    ? (themeColor || 'hsl(var(--background))') 
+    : (config.custom_color || '#000000');
+  
+  // Strength controla onde o gradiente atinge opacidade máxima
+  // 0% = gradiente começa opaco imediatamente
+  // 100% = gradiente só fica opaco no final
+  const midpoint = Math.max(0, Math.min(100, config.strength));
+  
+  // Criar gradiente com 3 stops para efeito suave
+  // transparent → semi-opaco (midpoint) → opaco
+  return `linear-gradient(${direction}, transparent 0%, ${color}40 ${midpoint * 0.5}%, ${color}99 ${midpoint}%, ${color} 100%)`;
+}
+
+/**
+ * Gera o gradiente lateral complementar (efeito Netflix)
+ * Usado em combinação com o gradiente principal para profundidade
+ */
+export function generateSideGradientCSS(
+  config: GradientOverlayConfig,
+  themeColor?: string
+): string {
+  if (!config.enabled) return 'none';
+  
+  const color = config.use_theme_color 
+    ? (themeColor || 'hsl(var(--background))') 
+    : (config.custom_color || '#000000');
+  
+  // Gradiente lateral suave para dar profundidade
+  return `linear-gradient(to right, ${color}80 0%, transparent 40%, transparent 60%, ${color}40 100%)`;
+}
+```
+
+### 3. Editor do Banner (BannerEditor.tsx)
+
+Adicionar nova seção após "Tempo de Transição":
+
+```typescript
+{/* Gradient Overlay Settings */}
+<div className="space-y-3 pt-4 border-t">
+  <div className="flex items-center justify-between">
+    <div className="space-y-0.5">
+      <Label>Efeito de Gradiente</Label>
+      <p className="text-xs text-muted-foreground">
+        Suaviza a transição do banner para o conteúdo
+      </p>
+    </div>
+    <Switch
+      checked={settings.gradient_overlay?.enabled ?? true}
+      onCheckedChange={(enabled) => onUpdate({ 
+        gradient_overlay: { 
+          ...settings.gradient_overlay, 
+          enabled 
+        } 
+      })}
+    />
+  </div>
+  
+  {settings.gradient_overlay?.enabled && (
+    <>
+      {/* Direction */}
+      <div className="space-y-2">
+        <Label>Direção</Label>
+        <Select
+          value={settings.gradient_overlay?.direction || 'bottom'}
+          onValueChange={(direction: GradientDirection) => onUpdate({ 
+            gradient_overlay: { 
+              ...settings.gradient_overlay, 
+              direction 
+            } 
+          })}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="bottom">Para Baixo ↓</SelectItem>
+            <SelectItem value="top">Para Cima ↑</SelectItem>
+            <SelectItem value="left">Para Esquerda ←</SelectItem>
+            <SelectItem value="right">Para Direita →</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      
+      {/* Strength Slider */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label>Intensidade</Label>
+          <span className="text-xs text-muted-foreground">
+            {settings.gradient_overlay?.strength || 60}%
+          </span>
+        </div>
+        <Slider
+          value={[settings.gradient_overlay?.strength || 60]}
+          onValueChange={([strength]) => onUpdate({ 
+            gradient_overlay: { 
+              ...settings.gradient_overlay, 
+              strength 
+            } 
+          })}
+          min={20}
+          max={100}
+          step={5}
+        />
+      </div>
+      
+      {/* Color Mode */}
+      <div className="space-y-2">
+        <Label>Cor do Gradiente</Label>
+        <RadioGroup
+          value={settings.gradient_overlay?.use_theme_color ? 'theme' : 'custom'}
+          onValueChange={(value) => onUpdate({ 
+            gradient_overlay: { 
+              ...settings.gradient_overlay, 
+              use_theme_color: value === 'theme' 
+            } 
+          })}
+        >
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="theme" id="theme" />
+            <Label htmlFor="theme" className="font-normal">
+              Usar cor do tema (recomendado)
+            </Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="custom" id="custom" />
+            <Label htmlFor="custom" className="font-normal">
+              Cor customizada
+            </Label>
+          </div>
+        </RadioGroup>
+        
+        {!settings.gradient_overlay?.use_theme_color && (
+          <Input
+            type="color"
+            value={settings.gradient_overlay?.custom_color || '#000000'}
+            onChange={(e) => onUpdate({ 
+              gradient_overlay: { 
+                ...settings.gradient_overlay, 
+                custom_color: e.target.value 
+              } 
+            })}
+            className="h-10 w-full"
+          />
+        )}
+      </div>
+    </>
+  )}
+</div>
+```
+
+### 4. Renderização no Builder (BannerView.tsx)
+
+Adicionar após o carousel, antes dos indicators:
+
+```tsx
+{/* Gradient Overlay - Netflix-style transition effect */}
+{settings.gradient_overlay?.enabled !== false && (
+  <>
+    {/* Primary gradient (direction-based) */}
+    <div 
+      className="absolute inset-0 pointer-events-none z-10"
+      style={{
+        background: generateGradientCSS(
+          settings.gradient_overlay || DEFAULT_GRADIENT_CONFIG,
+          theme === 'dark' ? 'hsl(var(--background))' : undefined
+        )
+      }}
+    />
+    {/* Side gradient for depth (Netflix-style) */}
+    <div 
+      className="absolute inset-0 pointer-events-none z-10"
+      style={{
+        background: generateSideGradientCSS(
+          settings.gradient_overlay || DEFAULT_GRADIENT_CONFIG,
+          theme === 'dark' ? 'hsl(var(--background))' : undefined
+        )
+      }}
+    />
+  </>
+)}
+
+{/* Indicators - z-20 para ficar acima do gradiente */}
+{slides.length > 1 && (
+  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+    ...
+  </div>
+)}
+```
+
+### 5. Renderização na Área do Aluno (BuyerBannerSection.tsx)
+
+Mesma lógica do BannerView.tsx, garantindo paridade visual:
+
+```tsx
+{/* Gradient Overlay - Netflix-style transition effect */}
+{settings.gradient_overlay?.enabled !== false && (
+  <>
+    <div 
+      className="absolute inset-0 pointer-events-none z-10"
+      style={{
+        background: generateGradientCSS(
+          settings.gradient_overlay || DEFAULT_GRADIENT_CONFIG
+        )
+      }}
+    />
+    <div 
+      className="absolute inset-0 pointer-events-none z-10"
+      style={{
+        background: generateSideGradientCSS(
+          settings.gradient_overlay || DEFAULT_GRADIENT_CONFIG
+        )
+      }}
+    />
+  </>
+)}
+```
+
+---
+
+## Resultado Visual Esperado
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    ANTES vs DEPOIS                                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│ ANTES (Atual):                                                               │
+│ ┌─────────────────────────────────────┐                                      │
+│ │        BANNER IMAGE                 │ ← Imagem crua                        │
+│ └─────────────────────────────────────┘                                      │
+│ ━━━━━━━━━━ LINHA DURA VISÍVEL ━━━━━━━━━━ ← Corte abrupto                     │
+│ ┌─────────────────────────────────────┐                                      │
+│ │        CONTEÚDO                     │                                      │
+│ └─────────────────────────────────────┘                                      │
+│                                                                              │
+│ DEPOIS (Com Gradiente):                                                      │
+│ ┌─────────────────────────────────────┐                                      │
+│ │        BANNER IMAGE                 │                                      │
+│ │░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│ ← Gradiente suave começando          │
+│ │▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│ ← Gradiente mais forte               │
+│ │███████████████████████████████████████│ ← Blend total com background        │
+│ └─────────────────────────────────────┘                                      │
+│ ┌─────────────────────────────────────┐                                      │
+│ │        CONTEÚDO                     │ ← Transição imperceptível            │
+│ └─────────────────────────────────────┘                                      │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Retrocompatibilidade
+
+Para banners existentes sem `gradient_overlay`:
+
+```typescript
+// Em BuyerBannerSection.tsx e BannerView.tsx
+const gradientConfig: GradientOverlayConfig = settings.gradient_overlay ?? {
+  enabled: true, // Ativar por padrão para melhorar UX instantaneamente
+  direction: 'bottom',
+  strength: 60,
+  use_theme_color: true,
+};
+```
+
+Isso garante que:
+1. Banners existentes ganham o efeito automaticamente
+2. Produtores podem desativar se preferirem
+3. Zero migração de dados necessária
+
+---
+
+## Resumo de Arquivos
+
+| Arquivo | Tipo | Linhas Estimadas |
+|---------|------|------------------|
+| `builder.types.ts` | Modificação | +25 linhas |
+| `gradientUtils.ts` | NOVO | ~60 linhas |
+| `BannerEditor.tsx` | Modificação | +80 linhas |
+| `BannerView.tsx` | Modificação | +30 linhas |
+| `BuyerBannerSection.tsx` | Modificação | +30 linhas |
 
 ---
 
@@ -380,10 +526,12 @@ Após implementação, validar os seguintes cenários:
 
 | Critério | Status |
 |----------|--------|
-| LEI SUPREMA (4.1) | Nota 10.0/10 - Solução mais completa |
-| Manutenibilidade Infinita | Múltiplas camadas de fallback |
-| Zero Dívida Técnica | Corrige causa raiz + adiciona resiliência |
-| Arquitetura Correta | Session Commander + Error Boundaries |
-| Escalabilidade | Padrão aplicável a qualquer erro de rede |
+| LEI SUPREMA (4.1) | 10.0/10 - Melhor solução, customizável |
+| Manutenibilidade Infinita | Configuração no Builder, zero hardcode |
+| Zero Dívida Técnica | Não precisa "melhorar depois" |
+| Arquitetura Correta | SOLID, tipos discriminados, utilitários puros |
+| Escalabilidade | Suporta qualquer tema, cor, direção |
+| Limite 300 Linhas | Utilitário separado, tipos separados |
+| Single Responsibility | Cada arquivo tem uma responsabilidade |
 
-**NOTA FINAL: 10.0/10** - Correção completa com resiliência sistêmica
+**NOTA FINAL: 10.0/10** - Solução Premium com Controle Total do Produtor
