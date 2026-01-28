@@ -81,7 +81,7 @@ export function ModuleCarousel({
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.4 }}
-        className="px-6 md:px-10 lg:px-16 mb-2"
+        className="px-6 md:px-10 lg:px-16 mb-1"
       >
         <h2 className={cn(titleSizeClass, 'text-foreground')}>
           {title || "Módulos"}
@@ -118,7 +118,7 @@ export function ModuleCarousel({
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="flex gap-4 overflow-x-auto scrollbar-hide px-6 md:px-10 lg:px-16 pt-4 pb-4"
+          className="flex gap-4 overflow-x-auto scrollbar-hide px-6 md:px-10 lg:px-16 pt-1.5 pb-4"
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
           {modules.map((module, index) => (
