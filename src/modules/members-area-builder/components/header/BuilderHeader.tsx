@@ -170,32 +170,8 @@ export function BuilderHeader({ productId, state, actions }: BuilderHeaderProps)
           )}
         </div>
 
-        {/* Right: View Mode + Preview + Save */}
+        {/* Right: Preview + Save */}
         <div className="flex items-center gap-3">
-          {/* View Mode Toggle (for preview) */}
-          <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
-            <Button
-              variant={viewMode === 'desktop' ? 'secondary' : 'ghost'}
-              size="sm"
-              className="h-7 px-3"
-              onClick={() => actions.setViewMode('desktop')}
-            >
-              <Monitor className="h-4 w-4 mr-1" />
-              Desktop
-            </Button>
-            <Button
-              variant={viewMode === 'mobile' ? 'secondary' : 'ghost'}
-              size="sm"
-              className="h-7 px-3"
-              onClick={() => actions.setViewMode('mobile')}
-            >
-              <Smartphone className="h-4 w-4 mr-1" />
-              Mobile
-            </Button>
-          </div>
-
-          <Separator orientation="vertical" className="h-6" />
-
           <Button
             variant="outline"
             size="sm"

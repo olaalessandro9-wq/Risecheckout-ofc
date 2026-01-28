@@ -125,7 +125,7 @@ export const builderMachine = setup({
         SELECT_MODULE: { actions: assign({ selectedModuleId: ({ event }) => event.id, isEditingModule: ({ event }) => event.id !== null }) },
         SET_EDITING_MODULE: { actions: assign({ isEditingModule: ({ event }) => event.isEditing, selectedModuleId: ({ context, event }) => event.isEditing ? context.selectedModuleId : null }) },
         UPDATE_MODULE: { actions: assign({ modules: ({ context, event }) => context.modules.map(m => m.id === event.id ? { ...m, ...event.data } : m) }) },
-        SET_ACTIVE_VIEWPORT: { actions: assign({ activeViewport: ({ event }) => event.viewport, selectedSectionId: () => null }) },
+        SET_ACTIVE_VIEWPORT: { actions: assign({ activeViewport: ({ event }) => event.viewport, viewMode: ({ event }) => event.viewport, selectedSectionId: () => null }) },
       },
 
       states: {
