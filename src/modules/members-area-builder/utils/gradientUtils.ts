@@ -28,31 +28,28 @@ export const DEFAULT_GRADIENT_CONFIG: GradientOverlayConfig = {
 };
 
 /**
- * Gera o CSS do linear-gradient baseado na configuração
+ * Gera o gradiente de fade inferior (Netflix-style)
+ * Este gradiente fica DENTRO do banner e faz a imagem
+ * transicionar para cor sólida no bottom
+ * 
+ * ARQUITETURA CORRETA: O banner TERMINA em cor sólida,
+ * não precisa de "extension" externa
  * 
  * @param config - Configuração do gradiente
- * @param themeColor - Cor do tema (usada se use_theme_color = true)
  * @returns String CSS do gradiente
  */
-export function generateGradientCSS(
-  config: GradientOverlayConfig,
-  themeColor?: string
+export function generateBottomFadeCSS(
+  config: GradientOverlayConfig
 ): string {
   if (!config.enabled) return 'none';
   
-  const direction = DIRECTION_MAP[config.direction];
   const color = config.use_theme_color 
-    ? (themeColor || 'hsl(var(--background))') 
+    ? 'hsl(var(--background))' 
     : (config.custom_color || '#000000');
   
-  // Strength controla onde o gradiente atinge opacidade máxima
-  // 0% = gradiente começa opaco imediatamente
-  // 100% = gradiente só fica opaco no final
-  const midpoint = Math.max(0, Math.min(100, config.strength));
-  
-  // Criar gradiente com 4 stops para efeito suave Netflix-style
-  // transparent → levemente opaco → semi-opaco → opaco
-  return `linear-gradient(${direction}, transparent 0%, ${color}40 ${midpoint * 0.5}%, ${color}99 ${midpoint}%, ${color} 100%)`;
+  // Netflix pattern: transparente no topo, sólido no bottom
+  // A imagem "dissolve" em cor sólida - transição imperceptível
+  return `linear-gradient(to bottom, transparent 0%, transparent 30%, ${color}40 50%, ${color}80 70%, ${color} 100%)`;
 }
 
 /**
@@ -77,27 +74,8 @@ export function generateSideGradientCSS(
   return `linear-gradient(to right, ${color}80 0%, transparent 40%, transparent 60%, ${color}40 100%)`;
 }
 
-/**
- * Gera o gradiente de extensão que "vaza" para o conteúdo abaixo do banner
- * Este gradiente fica FORA do container overflow-hidden
- * Cria a transição suave estilo Netflix/Cakto
- * 
- * @param config - Configuração do gradiente
- * @returns String CSS do gradiente de extensão
- */
-export function generateExtensionGradientCSS(
-  config: GradientOverlayConfig
-): string {
-  if (!config.enabled) return 'none';
-  
-  const color = config.use_theme_color 
-    ? 'hsl(var(--background))' 
-    : (config.custom_color || '#000000');
-  
-  // Gradiente que vai do opaco (topo) para transparente (base)
-  // Isso cria a "extensão" visual que se mistura com o conteúdo
-  return `linear-gradient(to bottom, ${color} 0%, ${color}95 20%, ${color}60 50%, ${color}20 80%, transparent 100%)`;
-}
+// generateExtensionGradientCSS foi removida - arquitetura Netflix não precisa de extension
+// O gradiente INTERNO (generateBottomFadeCSS) faz a imagem terminar em cor sólida
 
 /**
  * Resolve a configuração de gradiente com fallback para default

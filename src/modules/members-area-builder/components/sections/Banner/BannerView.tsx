@@ -2,7 +2,10 @@
  * Banner View - Renderiza seção de banner/slideshow com swipe/drag
  * Com suporte a Gradient Overlay customizável (Netflix-style)
  * 
- * @see RISE ARCHITECT PROTOCOL V3 - Solution 10.0/10
+ * RISE V3 10.0/10 - Arquitetura Netflix Real:
+ * - Gradiente INTERNO que termina em cor sólida
+ * - Não precisa de "extension" externa
+ * - Transição imperceptível para o conteúdo abaixo
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -12,8 +15,8 @@ import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import type { Section, BannerSettings, ViewMode } from '../../../types/builder.types';
 import { 
+  generateBottomFadeCSS,
   generateSideGradientCSS,
-  generateExtensionGradientCSS,
   resolveGradientConfig 
 } from '../../../utils/gradientUtils';
 
@@ -86,10 +89,10 @@ export function BannerView({ section, viewMode, theme }: BannerViewProps) {
   }
 
   return (
-    // WRAPPER: relative, SEM overflow-hidden para gradient extension poder "vazar"
-    <div className="relative">
-      {/* CONTAINER DO CAROUSEL: COM overflow-hidden (só aqui) */}
+    <div className="w-full">
+      {/* Container único com overflow-hidden */}
       <div className={cn('relative overflow-hidden', heightClass)}>
+        {/* Carousel */}
         <div ref={emblaRef} className="overflow-hidden h-full cursor-grab active:cursor-grabbing">
           <div className="flex h-full">
             {slides.map((slide, index) => (
@@ -116,14 +119,25 @@ export function BannerView({ section, viewMode, theme }: BannerViewProps) {
           </div>
         </div>
 
-        {/* Side gradient for depth (Netflix-style vignette) - DENTRO do overflow */}
+        {/* Gradientes Netflix: INTERNOS, fazem a imagem terminar em cor sólida */}
         {gradientConfig.enabled && (
-          <div 
-            className="absolute inset-0 pointer-events-none z-10"
-            style={{
-              background: generateSideGradientCSS(gradientConfig)
-            }}
-          />
+          <>
+            {/* Bottom fade - principal (Netflix-style) */}
+            <div 
+              className="absolute inset-0 pointer-events-none z-10"
+              style={{
+                background: generateBottomFadeCSS(gradientConfig)
+              }}
+            />
+            
+            {/* Side gradient para profundidade (vinheta lateral) */}
+            <div 
+              className="absolute inset-0 pointer-events-none z-10"
+              style={{
+                background: generateSideGradientCSS(gradientConfig)
+              }}
+            />
+          </>
         )}
 
         {/* Indicators - z-20 to stay above gradient */}
@@ -145,18 +159,7 @@ export function BannerView({ section, viewMode, theme }: BannerViewProps) {
         )}
       </div>
       
-      {/* GRADIENT EXTENSION: FORA do overflow-hidden, extende para baixo */}
-      {/* Cria a transição suave estilo Netflix/Cakto */}
-      {gradientConfig.enabled && (
-        <div 
-          className="absolute left-0 right-0 h-24 pointer-events-none z-10"
-          style={{
-            bottom: 0,
-            transform: 'translateY(100%)',
-            background: generateExtensionGradientCSS(gradientConfig),
-          }}
-        />
-      )}
+      {/* NÃO TEM MAIS GRADIENT EXTENSION - arquitetura Netflix não precisa */}
     </div>
   );
 }
