@@ -51,4 +51,8 @@ export const FIXED_HEADER_LIMITS = {
   TITLE_MAX: 60,
   /** Ponto de truncamento visual na área do aluno */
   TITLE_TRUNCATE_DISPLAY: 45,
+  /** Descrição customizada: até 300 caracteres */
+  DESCRIPTION_MAX: 300,
+  /** Texto do botão CTA: até 30 caracteres */
+  CTA_BUTTON_TEXT_MAX: 30,
 } as const;

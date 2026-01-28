@@ -27,11 +27,30 @@ export interface GradientOverlayConfig {
 export interface FixedHeaderSettings {
   type: 'fixed_header';
   bg_image_url: string;
+  
+  // Title
   title: string;
-  show_module_count: boolean;
+  show_title: boolean;
+  
+  // Stats (módulos + aulas)
+  show_stats: boolean;
+  show_lesson_count: boolean;
+  
+  // Description
+  show_description: boolean;
+  description: string;
+  
+  // CTA Button
+  show_cta_button: boolean;
+  cta_button_text: string;
+  
+  // Visual settings
   alignment: 'left' | 'center';
   size: 'small' | 'medium' | 'large';
   gradient_overlay?: GradientOverlayConfig;
+  
+  /** @deprecated Use show_stats instead - kept for backwards compatibility */
+  show_module_count?: boolean;
 }
 
 // =====================================================
