@@ -41,6 +41,9 @@ interface JsonResponseData {
 interface OrderBumpPayload {
   id?: string;
   order_bump_id?: string;
+  /** RISE V3: The product that owns this order bump (parent product) */
+  parent_product_id?: string;
+  /** @deprecated Use parent_product_id. Kept for backwards compatibility */
   checkout_id?: string;
   product_id?: string;
   offer_id?: string;
@@ -62,7 +65,8 @@ interface OrderBumpPayload {
 
 interface OrderBumpRecord {
   id: string;
-  checkout_id: string;
+  parent_product_id: string;
+  checkout_id?: string | null;
   product_id: string;
   offer_id: string;
   active: boolean;
@@ -100,22 +104,9 @@ interface RequestBody {
   orderBumpId?: string;
 }
 
-interface CheckoutWithProduct {
+interface ProductWithOwner {
   id: string;
-  products: {
-    user_id: string;
-  };
-}
-
-interface OrderBumpWithCheckout {
-  id: string;
-  checkout_id: string;
-  checkouts: {
-    product_id: string;
-    products: {
-      user_id: string;
-    };
-  };
+  user_id: string;
 }
 
 // ============================================
@@ -139,35 +130,44 @@ function errorResponse(message: string, corsHeaders: Record<string, string>, sta
 // OWNERSHIP VERIFICATION
 // ============================================
 
-async function verifyCheckoutForOrderBump(supabase: SupabaseClient, checkoutId: string, producerId: string): Promise<boolean> {
+/**
+ * RISE V3: Verify product ownership for order bump creation
+ * Now checks product directly, not via checkout
+ */
+async function verifyProductForOrderBump(supabase: SupabaseClient, productId: string, producerId: string): Promise<boolean> {
   const { data, error } = await supabase
-    .from("checkouts")
-    .select("id, products!inner(user_id)")
-    .eq("id", checkoutId)
+    .from("products")
+    .select("id, user_id")
+    .eq("id", productId)
     .single();
 
   if (error || !data) return false;
   
-  const checkoutData = data as unknown as CheckoutWithProduct;
-  return checkoutData.products?.user_id === producerId;
+  const product = data as ProductWithOwner;
+  return product.user_id === producerId;
 }
 
+/**
+ * RISE V3: Verify order bump ownership via parent_product_id
+ */
 async function verifyOrderBumpOwnership(
   supabase: SupabaseClient,
   orderBumpId: string,
   producerId: string
-): Promise<{ valid: boolean; orderBump?: OrderBumpWithCheckout }> {
+): Promise<{ valid: boolean; orderBump?: Record<string, unknown> }> {
   const { data, error } = await supabase
     .from("order_bumps")
-    .select(`id, checkout_id, checkouts!inner(product_id, products!inner(user_id))`)
+    .select(`id, parent_product_id, products!order_bumps_parent_product_id_fkey(user_id)`)
     .eq("id", orderBumpId)
     .single();
 
   if (error || !data) return { valid: false };
   
-  const orderBumpData = data as unknown as OrderBumpWithCheckout;
-  if (orderBumpData.checkouts?.products?.user_id !== producerId) return { valid: false };
-  return { valid: true, orderBump: orderBumpData };
+  // deno-lint-ignore no-explicit-any
+  const orderBumpData = data as any;
+  const ownerUserId = orderBumpData.products?.user_id;
+  if (ownerUserId !== producerId) return { valid: false };
+  return { valid: true, orderBump: data as Record<string, unknown> };
 }
 
 // ============================================
@@ -223,12 +223,27 @@ serve(withSentry("order-bump-crud", async (req) => {
       if (!rateCheck.allowed) return jsonResponse({ success: false, error: "Muitas requisições.", retryAfter: rateCheck.retryAfter ? 300 : undefined }, corsHeaders, 429);
 
       const payload: OrderBumpPayload = body.orderBump || body;
-      if (!payload.checkout_id) return errorResponse("ID do checkout é obrigatório", corsHeaders, 400);
+      
+      // RISE V3: Require parent_product_id OR checkout_id (for backwards compatibility)
+      let parentProductId = payload.parent_product_id;
+      
+      // Backwards compatibility: derive parent_product_id from checkout_id
+      if (!parentProductId && payload.checkout_id) {
+        const { data: checkout } = await supabase
+          .from("checkouts")
+          .select("product_id")
+          .eq("id", payload.checkout_id)
+          .maybeSingle();
+        parentProductId = checkout?.product_id;
+      }
+      
+      if (!parentProductId) return errorResponse("parent_product_id ou checkout_id é obrigatório", corsHeaders, 400);
       if (!payload.product_id) return errorResponse("ID do produto do bump é obrigatório", corsHeaders, 400);
       if (!payload.offer_id) return errorResponse("ID da oferta é obrigatório", corsHeaders, 400);
 
-      const isOwner = await verifyCheckoutForOrderBump(supabase, payload.checkout_id, producerId);
-      if (!isOwner) return errorResponse("Você não tem permissão para criar order bumps neste checkout", corsHeaders, 403);
+      // RISE V3: Verify ownership via parent product
+      const isOwner = await verifyProductForOrderBump(supabase, parentProductId, producerId);
+      if (!isOwner) return errorResponse("Você não tem permissão para criar order bumps neste produto", corsHeaders, 403);
 
       // Support both field names for backwards compatibility
       const originalPriceValue = payload.original_price ?? payload.discount_price;
@@ -242,7 +257,8 @@ serve(withSentry("order-bump-crud", async (req) => {
       const { data: newOrderBump, error: insertError } = await supabase
         .from("order_bumps")
         .insert({
-          checkout_id: payload.checkout_id,
+          parent_product_id: parentProductId,
+          checkout_id: payload.checkout_id || null, // Deprecated, kept for compatibility
           product_id: payload.product_id,
           offer_id: payload.offer_id,
           active: payload.active !== false,
@@ -336,12 +352,27 @@ serve(withSentry("order-bump-crud", async (req) => {
       if (!checkoutId) return errorResponse("ID do checkout é obrigatório", corsHeaders, 400);
       if (!orderedIds || !Array.isArray(orderedIds) || orderedIds.length === 0) return errorResponse("orderedIds é obrigatório", corsHeaders, 400);
 
-      const isOwner = await verifyCheckoutForOrderBump(supabase, checkoutId, producerId);
-      if (!isOwner) return errorResponse("Você não tem permissão para reordenar order bumps deste checkout", corsHeaders, 403);
+      // RISE V3: Support both productId and checkoutId for reorder
+      let parentProductId: string | undefined;
+      
+      if (checkoutId) {
+        // Backwards compatibility: derive parent_product_id from checkoutId
+        const { data: checkout } = await supabase
+          .from("checkouts")
+          .select("product_id")
+          .eq("id", checkoutId)
+          .maybeSingle();
+        parentProductId = checkout?.product_id;
+      }
+      
+      if (!parentProductId) return errorResponse("Checkout ou produto não encontrado", corsHeaders, 400);
+
+      const isOwner = await verifyProductForOrderBump(supabase, parentProductId, producerId);
+      if (!isOwner) return errorResponse("Você não tem permissão para reordenar order bumps deste produto", corsHeaders, 403);
 
       try {
         const updates = orderedIds.map((id, index) =>
-          supabase.from("order_bumps").update({ position: index }).eq("id", id).eq("checkout_id", checkoutId)
+          supabase.from("order_bumps").update({ position: index }).eq("id", id).eq("parent_product_id", parentProductId)
         );
 
         const results = await Promise.all(updates);

@@ -20,37 +20,18 @@ import { createLogger } from "../logger.ts";
 const logger = createLogger("entities/orderBumps");
 
 /**
- * Fetches order bumps for a product via checkout_id (basic)
- * Order bumps are linked to checkouts, not directly to products
+ * Fetches order bumps for a product via parent_product_id (RISE V3)
+ * Order bumps are linked to products, not checkouts
  */
 export async function fetchProductOrderBumps(
   supabase: SupabaseClient,
   productId: string
 ): Promise<Record<string, unknown>[]> {
-  // First get checkout IDs for this product
-  const { data: checkouts, error: checkoutsError } = await supabase
-    .from("checkouts")
-    .select("id")
-    .eq("product_id", productId);
-
-  if (checkoutsError) {
-    logger.error("Failed to fetch checkouts for order bumps", { 
-      productId, 
-      error: checkoutsError.message 
-    });
-    throw new Error(`checkouts: ${checkoutsError.message}`);
-  }
-
-  const checkoutIds = (checkouts ?? []).map((c: { id: string }) => c.id);
-
-  if (checkoutIds.length === 0) {
-    return [];
-  }
-
+  // RISE V3: Direct query by parent_product_id
   const { data, error } = await supabase
     .from("order_bumps")
     .select("*")
-    .in("checkout_id", checkoutIds)
+    .eq("parent_product_id", productId)
     .order("position", { ascending: true });
 
   if (error) {
@@ -74,32 +55,13 @@ export async function fetchProductOrderBumpsWithRelations(
   supabase: SupabaseClient,
   productId: string
 ): Promise<Record<string, unknown>[]> {
-  // First get checkout IDs for this product
-  const { data: checkouts, error: checkoutsError } = await supabase
-    .from("checkouts")
-    .select("id")
-    .eq("product_id", productId);
-
-  if (checkoutsError) {
-    logger.error("Failed to fetch checkouts for order bumps", { 
-      productId, 
-      error: checkoutsError.message 
-    });
-    throw new Error(`checkouts: ${checkoutsError.message}`);
-  }
-
-  const checkoutIds = (checkouts ?? []).map((c: { id: string }) => c.id);
-
-  if (checkoutIds.length === 0) {
-    return [];
-  }
-
-  // Fetch order bumps with product relation for name/price/image
+  // RISE V3: Direct query by parent_product_id
   // NOTE: original_price is MARKETING ONLY - never used for billing
   const { data, error } = await supabase
     .from("order_bumps")
     .select(`
       id,
+      parent_product_id,
       checkout_id,
       product_id,
       offer_id,
@@ -120,7 +82,8 @@ export async function fetchProductOrderBumpsWithRelations(
         image_url
       )
     `)
-    .in("checkout_id", checkoutIds)
+    .eq("parent_product_id", productId)
+    .eq("active", true)
     .order("position", { ascending: true });
 
   if (error) {

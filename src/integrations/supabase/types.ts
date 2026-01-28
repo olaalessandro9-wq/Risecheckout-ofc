@@ -2110,7 +2110,7 @@ export type Database = {
         Row: {
           active: boolean | null
           call_to_action: string | null
-          checkout_id: string
+          checkout_id: string | null
           created_at: string | null
           custom_description: string | null
           custom_title: string | null
@@ -2118,6 +2118,7 @@ export type Database = {
           id: string
           offer_id: string | null
           original_price: number | null
+          parent_product_id: string
           position: number
           product_id: string
           show_image: boolean | null
@@ -2126,7 +2127,7 @@ export type Database = {
         Insert: {
           active?: boolean | null
           call_to_action?: string | null
-          checkout_id: string
+          checkout_id?: string | null
           created_at?: string | null
           custom_description?: string | null
           custom_title?: string | null
@@ -2134,6 +2135,7 @@ export type Database = {
           id?: string
           offer_id?: string | null
           original_price?: number | null
+          parent_product_id: string
           position?: number
           product_id: string
           show_image?: boolean | null
@@ -2142,7 +2144,7 @@ export type Database = {
         Update: {
           active?: boolean | null
           call_to_action?: string | null
-          checkout_id?: string
+          checkout_id?: string | null
           created_at?: string | null
           custom_description?: string | null
           custom_title?: string | null
@@ -2150,6 +2152,7 @@ export type Database = {
           id?: string
           offer_id?: string | null
           original_price?: number | null
+          parent_product_id?: string
           position?: number
           product_id?: string
           show_image?: boolean | null
@@ -2168,6 +2171,20 @@ export type Database = {
             columns: ["offer_id"]
             isOneToOne: false
             referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_bumps_parent_product_id_fkey"
+            columns: ["parent_product_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_bumps_parent_product_id_fkey"
+            columns: ["parent_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
           {

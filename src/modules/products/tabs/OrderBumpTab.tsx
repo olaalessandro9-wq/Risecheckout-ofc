@@ -28,7 +28,8 @@ interface OrderBumpDetailResponse {
  */
 interface OrderBumpListItem {
   id: string;
-  checkout_id: string;
+  parent_product_id: string; // RISE V3
+  checkout_id?: string | null;
   product_id: string;
   offer_id: string | null;
   position: number;
@@ -52,7 +53,8 @@ export function OrderBumpTab() {
   const mappedOrderBumps: OrderBumpListItem[] = useMemo(() => {
     return orderBumps.map((ob, index) => ({
       id: ob.id,
-      checkout_id: "", // Será preenchido pela lista se necessário
+      parent_product_id: product.id, // RISE V3: Parent product
+      checkout_id: "", // Deprecated
       product_id: ob.bump_product_id || "",
       offer_id: null,
       position: index,
@@ -61,7 +63,7 @@ export function OrderBumpTab() {
       product_price: ob.price,
       product_image: ob.image_url || undefined,
     }));
-  }, [orderBumps]);
+  }, [orderBumps, product.id]);
 
   const handleAddOrderBump = useCallback(() => {
     setEditingOrderBump(null);
