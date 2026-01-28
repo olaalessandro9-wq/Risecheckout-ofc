@@ -23,9 +23,10 @@ import type {
   Viewport,
   MembersAreaBuilderSettings,
   MemberModule,
-  BannerSettings,
+  FixedHeaderSettings,
   ModulesSettings,
 } from "../types/builder.types";
+import { DEFAULT_GRADIENT_OVERLAY } from "../types/builder.types";
 import { parseSections, parseSettings } from "../hooks/useMembersAreaParsers";
 
 const log = createLogger("BuilderMachine.actors");
@@ -47,27 +48,25 @@ function generateDefaultSections(
   const sections: Section[] = [];
   const now = new Date().toISOString();
   
-  // 1. Banner with product image
-  const bannerSettings: BannerSettings = {
-    type: 'banner',
-    slides: [{
-      id: crypto.randomUUID(),
-      image_url: productImageUrl || '',
-      link: '',
-      alt: 'Banner do curso',
-    }],
-    transition_seconds: 5,
-    height: 'medium',
+  // 1. Fixed Header (always first, required)
+  const fixedHeaderSettings: FixedHeaderSettings = {
+    type: 'fixed_header',
+    bg_image_url: productImageUrl || '',
+    title: '', // Will fallback to product name in UI
+    show_module_count: true,
+    alignment: 'left',
+    size: 'large',
+    gradient_overlay: DEFAULT_GRADIENT_OVERLAY,
   };
   
   sections.push({
     id: `temp_${crypto.randomUUID()}`,
     product_id: productId,
-    type: 'banner',
+    type: 'fixed_header',
     viewport,
     title: null,
     position: 0,
-    settings: bannerSettings,
+    settings: fixedHeaderSettings,
     is_active: true,
     created_at: now,
     updated_at: now,

@@ -19,13 +19,15 @@ import {
   Type,
   Minus,
   ChevronRight,
+  LayoutDashboard,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Section, SectionType } from '../../types/builder.types';
-import { canDeleteSection, getSectionLabel } from '../../registry';
+import { canDeleteSection, canMoveSection, getSectionLabel } from '../../registry';
 
 // Icon mapping for section types
 const SECTION_ICONS: Record<SectionType, React.ComponentType<{ className?: string }>> = {
+  fixed_header: LayoutDashboard,
   banner: Image,
   modules: LayoutGrid,
   courses: BookOpen,
@@ -51,7 +53,7 @@ export function SortableSectionTreeItem({
 }: SortableSectionTreeItemProps) {
   const Icon = SECTION_ICONS[section.type];
   const canDelete = canDeleteSection(section.type);
-  
+  const canMove = canMoveSection(section.type);
   const {
     attributes,
     listeners,
@@ -85,15 +87,21 @@ export function SortableSectionTreeItem({
         )}
         onClick={handleClick}
       >
-        {/* Drag handle */}
-        <div 
-          {...attributes} 
-          {...listeners} 
-          className="cursor-grab active:cursor-grabbing p-1 hover:bg-accent/50 rounded"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <GripVertical className="h-4 w-4 text-muted-foreground" />
-        </div>
+        {/* Drag handle - only if section can be moved */}
+        {canMove ? (
+          <div 
+            {...attributes} 
+            {...listeners} 
+            className="cursor-grab active:cursor-grabbing p-1 hover:bg-accent/50 rounded"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
+          </div>
+        ) : (
+          <div className="p-1">
+            <div className="h-4 w-4" /> {/* Spacer for alignment */}
+          </div>
+        )}
         
         {/* Section icon */}
         <Icon className="h-4 w-4 text-muted-foreground shrink-0" />

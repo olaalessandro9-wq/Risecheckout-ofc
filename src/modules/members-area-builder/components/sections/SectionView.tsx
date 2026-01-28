@@ -1,11 +1,12 @@
 /**
  * Section View - Renderiza a seção correta baseado no tipo
  * 
- * @see RISE ARCHITECT PROTOCOL
+ * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import React from 'react';
 import type { Section, ViewMode, MemberModule } from '../../types/builder.types';
+import { FixedHeaderView } from './FixedHeader/FixedHeaderView';
 import { BannerView } from './Banner/BannerView';
 import { ModulesView } from './Modules/ModulesView';
 import { CoursesView } from './Courses/CoursesView';
@@ -20,6 +21,7 @@ interface SectionViewProps {
   modules?: MemberModule[];
   onModuleClick?: (moduleId: string) => void;
   isPreviewMode?: boolean;
+  productName?: string;
 }
 
 export function SectionView({ 
@@ -28,11 +30,21 @@ export function SectionView({
   theme, 
   modules, 
   onModuleClick,
-  isPreviewMode = false
+  isPreviewMode = false,
+  productName
 }: SectionViewProps) {
   const commonProps = { viewMode, theme, isPreviewMode };
 
   switch (section.type) {
+    case 'fixed_header':
+      return (
+        <FixedHeaderView 
+          section={section} 
+          {...commonProps} 
+          modules={modules}
+          productName={productName}
+        />
+      );
     case 'banner':
       return <BannerView section={section} {...commonProps} />;
     case 'modules':

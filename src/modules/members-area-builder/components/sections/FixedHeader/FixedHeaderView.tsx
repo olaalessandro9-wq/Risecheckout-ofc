@@ -1,0 +1,145 @@
+/**
+ * FixedHeader View - Renders fixed header section in builder canvas
+ * Combines background image, title and module counter
+ * 
+ * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ */
+
+import React from 'react';
+import { cn } from '@/lib/utils';
+import { ImageIcon } from 'lucide-react';
+import type { Section, FixedHeaderSettings, ViewMode, MemberModule } from '../../../types/builder.types';
+import { 
+  generateCombinedOverlayStyle,
+  resolveGradientConfig 
+} from '../../../utils/gradientUtils';
+
+interface FixedHeaderViewProps {
+  section: Section;
+  viewMode: ViewMode;
+  theme: 'light' | 'dark';
+  modules?: MemberModule[];
+  productName?: string;
+  isPreviewMode?: boolean;
+}
+
+export function FixedHeaderView({ 
+  section, 
+  viewMode, 
+  theme,
+  modules = [],
+  productName,
+  isPreviewMode = false 
+}: FixedHeaderViewProps) {
+  const settings = section.settings as FixedHeaderSettings;
+  const hasImage = !!settings.bg_image_url;
+  
+  // Resolve gradient config
+  const gradientConfig = resolveGradientConfig(settings.gradient_overlay);
+
+  // RISE V3: Hero header sizes with viewport units + safety limits
+  const heightClass = {
+    small: 'h-96',                                    // 384px
+    medium: 'h-[50vh] min-h-80 max-h-[500px]',       // 50% viewport
+    large: 'h-[70vh] min-h-96 max-h-[800px]',        // 70% viewport (Hero)
+  }[settings.size || 'large'];
+
+  // Module count text
+  const moduleCount = modules.length;
+  const moduleText = moduleCount === 1 ? '1 módulo' : `${moduleCount} módulos`;
+  
+  // Display title (fallback to product name)
+  const displayTitle = settings.title || productName || 'Título do Curso';
+
+  // Overlay style for gradient
+  const overlayStyle = gradientConfig.enabled ? generateCombinedOverlayStyle(gradientConfig) : {};
+
+  // Empty state for builder
+  if (!hasImage && !isPreviewMode) {
+    return (
+      <div 
+        className={cn(
+          'flex flex-col items-center justify-center gap-4',
+          heightClass,
+          theme === 'dark' ? 'bg-zinc-800/50' : 'bg-gray-200'
+        )}
+      >
+        <ImageIcon className="h-12 w-12 text-muted-foreground" />
+        <div className="text-center">
+          <p className="text-sm text-muted-foreground">
+            Adicione uma imagem de fundo
+          </p>
+          <p className="text-xs text-muted-foreground/70 mt-1">
+            Clique para editar a header
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full">
+      <div className={cn('relative overflow-hidden bg-background', heightClass)}>
+        {/* Background Image */}
+        {hasImage && (
+          <img
+            src={settings.bg_image_url}
+            alt="Header background"
+            className="absolute inset-0 w-full h-full object-cover"
+            draggable={false}
+          />
+        )}
+        
+        {/* Gradient Overlay */}
+        {gradientConfig.enabled && (
+          <div 
+            className="absolute inset-0 pointer-events-none z-10"
+            style={overlayStyle}
+          />
+        )}
+
+        {/* Content Overlay */}
+        <div 
+          className={cn(
+            'absolute inset-0 z-20 flex flex-col justify-end p-6 md:p-8 lg:p-12',
+            settings.alignment === 'center' && 'items-center text-center'
+          )}
+        >
+          {/* Title */}
+          <h1 
+            className={cn(
+              'font-bold text-white drop-shadow-lg',
+              'leading-tight max-w-3xl',
+              settings.size === 'small' && 'text-2xl md:text-3xl',
+              settings.size === 'medium' && 'text-3xl md:text-4xl',
+              settings.size === 'large' && 'text-4xl md:text-5xl lg:text-6xl'
+            )}
+          >
+            {displayTitle}
+          </h1>
+          
+          {/* Module Counter Badge */}
+          {settings.show_module_count && (
+            <div 
+              className={cn(
+                'mt-3 md:mt-4',
+                settings.alignment === 'center' && 'flex justify-center'
+              )}
+            >
+              <span 
+                className={cn(
+                  'inline-flex items-center px-3 py-1.5 rounded-full',
+                  'text-sm font-medium',
+                  'bg-white/20 text-white backdrop-blur-sm',
+                  'border border-white/30'
+                )}
+              >
+                {moduleText}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
