@@ -18,13 +18,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 
+// RISE V3: Datas opcionais para cupons sem expiração
 export interface Coupon {
   id: string;
   code: string;
   discount: number;
   discountType: "percentage";
-  startDate: Date;
-  endDate: Date;
+  startDate: Date | null;
+  endDate: Date | null;
   applyToOrderBumps: boolean;
   usageCount: number;
 }
@@ -100,10 +101,10 @@ export const CouponsTable = ({
                       {`${coupon.discount}%`}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {format(coupon.startDate, "dd/MM/yyyy")}
+                      {coupon.startDate ? format(coupon.startDate, "dd/MM/yyyy") : "-"}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {format(coupon.endDate, "dd/MM/yyyy")}
+                      {coupon.endDate ? format(coupon.endDate, "dd/MM/yyyy") : "-"}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {coupon.usageCount}

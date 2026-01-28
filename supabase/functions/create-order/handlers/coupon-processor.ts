@@ -31,6 +31,7 @@ export interface CouponInput {
   product_id: string;
   totalAmount: number;
   finalPrice: number;
+  customer_email?: string;
 }
 
 interface CouponRecord {
@@ -43,6 +44,7 @@ interface CouponRecord {
   expires_at: string | null;
   uses_count: number | null;
   max_uses: number | null;
+  max_uses_per_customer: number | null;
   apply_to_order_bumps: boolean | null;
 }
 
@@ -112,6 +114,25 @@ export async function processCoupon(
   if (!validDate) {
     log.warn("Cupom fora do período válido");
     return { discountAmount, couponCode };
+  }
+
+  // RISE V3: Verificar limite por cliente
+  if (couponData.max_uses_per_customer && couponData.max_uses_per_customer > 0 && input.customer_email) {
+    const { count, error: countError } = await supabase
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("coupon_code", couponData.code)
+      .ilike("customer_email", input.customer_email);
+
+    if (!countError && (count ?? 0) >= couponData.max_uses_per_customer) {
+      log.warn("Cupom atingiu limite por cliente:", {
+        code: couponData.code,
+        customer: input.customer_email,
+        limit: couponData.max_uses_per_customer,
+        used: count
+      });
+      return { discountAmount, couponCode };
+    }
   }
 
   // Incremento atômico com verificação de limite (race condition fix)
