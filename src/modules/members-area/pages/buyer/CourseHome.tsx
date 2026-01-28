@@ -31,6 +31,7 @@ import {
   type ModulesSettings,
 } from "@/modules/members-area-builder/types/builder.types";
 import type { CardSize } from "@/modules/members-area-builder/constants/cardSizes";
+import type { TitleSize } from "@/modules/members-area-builder/constants/titleSizes";
 
 // Helper to filter and order modules based on section settings
 function getVisibleOrderedModules(
@@ -217,8 +218,9 @@ export default function CourseHome() {
                   const sectionSettings = section.settings as unknown as ModulesSettings;
                   const visibleModules = getVisibleOrderedModules(modules, sectionSettings);
                   
-                  // RISE V3: Get cardSize from section settings
+                  // RISE V3: Get cardSize and titleSize from section settings
                   const cardSize: CardSize = sectionSettings.card_size || 'medium';
+                  const titleSize: TitleSize = sectionSettings.title_size || 'medium';
                   
                   // Don't render section if no visible modules
                   if (visibleModules.length === 0) return null;
@@ -230,6 +232,7 @@ export default function CourseHome() {
                       onSelectContent={handleSelectContent}
                       title={section.title}
                       cardSize={cardSize}
+                      titleSize={titleSize}
                     />
                   );
                 }

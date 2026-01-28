@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { Play, Lock, Pencil, Film } from 'lucide-react';
 import type { Section, ModulesSettings, ViewMode, MemberModule } from '../../../types/builder.types';
 import { getCardWidthClass } from '../../../constants/cardSizes';
+import { getTitleSizeClass } from '../../../constants/titleSizes';
 
 interface ModulesViewProps {
   section: Section;
@@ -25,6 +26,8 @@ export function ModulesView({ section, viewMode, theme, modules = [], onModuleCl
   
   // RISE V3: Use SSOT card size from settings
   const cardWidth = getCardWidthClass(settings.card_size, viewMode === 'mobile');
+  // RISE V3: Use SSOT title size from settings
+  const titleSizeClass = getTitleSizeClass(settings.title_size, viewMode === 'mobile');
   
   // Apply visibility filter and custom order
   const getVisibleOrderedModules = (): MemberModule[] => {
@@ -65,7 +68,8 @@ export function ModulesView({ section, viewMode, theme, modules = [], onModuleCl
       <div className="py-4">
         {section.title && (
           <h2 className={cn(
-            'text-base font-semibold mb-3 px-4',
+            titleSizeClass,
+            'mb-3 px-4',
             theme === 'dark' ? 'text-white' : 'text-foreground'
           )}>
             {section.title}
@@ -88,10 +92,11 @@ export function ModulesView({ section, viewMode, theme, modules = [], onModuleCl
   
   return (
     <div className="py-4">
-      {/* Section Title */}
+      {/* Section Title - Uses configurable title size */}
       {section.title && (
         <h2 className={cn(
-          'text-base font-semibold mb-3 px-4',
+          titleSizeClass,
+          'mb-3 px-4',
           theme === 'dark' ? 'text-white' : 'text-foreground'
         )}>
           {section.title}
