@@ -128,10 +128,11 @@ async function fetchBuyerAccess(): Promise<BuyerAccess[]> {
   return data.access || [];
 }
 
-async function fetchBuyerProductContent(productId: string): Promise<ProductContent | null> {
+async function fetchBuyerProductContent(productId: string, viewport: 'desktop' | 'mobile' = 'desktop'): Promise<ProductContent | null> {
   // RISE V3: credentials: include envia cookies httpOnly automaticamente
+  // RISE V3: Pass viewport to filter sections by device type
   const response = await fetch(
-    `${SUPABASE_URL}/functions/v1/buyer-orders/content?productId=${productId}`,
+    `${SUPABASE_URL}/functions/v1/buyer-orders/content?productId=${productId}&viewport=${viewport}`,
     {
       method: "GET",
       headers: getHeaders(),
@@ -153,7 +154,7 @@ export const buyerQueryKeys = {
   all: ["buyer"] as const,
   orders: () => [...buyerQueryKeys.all, "orders"] as const,
   access: () => [...buyerQueryKeys.all, "access"] as const,
-  content: (productId: string) => [...buyerQueryKeys.all, "content", productId] as const,
+  content: (productId: string, viewport: 'desktop' | 'mobile') => [...buyerQueryKeys.all, "content", productId, viewport] as const,
 };
 
 // Hook principal com React Query
@@ -179,11 +180,11 @@ export function useBuyerOrders() {
   });
 
   // Função para buscar conteúdo de um produto (usa cache)
-  const fetchProductContent = async (productId: string): Promise<ProductContent | null> => {
+  const fetchProductContent = async (productId: string, viewport: 'desktop' | 'mobile' = 'desktop'): Promise<ProductContent | null> => {
     try {
       return await queryClient.fetchQuery({
-        queryKey: buyerQueryKeys.content(productId),
-        queryFn: () => fetchBuyerProductContent(productId),
+        queryKey: buyerQueryKeys.content(productId, viewport),
+        queryFn: () => fetchBuyerProductContent(productId, viewport),
         staleTime: STALE_TIME,
         gcTime: CACHE_TIME,
       });
@@ -214,10 +215,11 @@ export function useBuyerOrders() {
 }
 
 // Hook específico para conteúdo de produto com cache
-export function useBuyerProductContent(productId: string | undefined) {
+// RISE V3: Accepts viewport parameter to filter sections
+export function useBuyerProductContent(productId: string | undefined, viewport: 'desktop' | 'mobile' = 'desktop') {
   return useQuery({
-    queryKey: productId ? buyerQueryKeys.content(productId) : ["disabled"],
-    queryFn: () => fetchBuyerProductContent(productId!),
+    queryKey: productId ? buyerQueryKeys.content(productId, viewport) : ["disabled"],
+    queryFn: () => fetchBuyerProductContent(productId!, viewport),
     enabled: !!productId,
     staleTime: STALE_TIME,
     gcTime: CACHE_TIME,

@@ -74,7 +74,8 @@ export interface ModulesSettings {
   show_progress: boolean;
   module_order?: string[]; // Custom order of module IDs
   hidden_module_ids?: string[]; // Module IDs hidden from this section
-  // Note: cards_per_row removed - carousel uses fixed-width cards (Netflix-style)
+  // Card size control - determines card width in carousel (Netflix-style)
+  card_size: 'small' | 'medium' | 'large';
 }
 
 export interface CoursesSettings {
@@ -250,6 +251,7 @@ export const DEFAULT_MODULES_SETTINGS: Omit<ModulesSettings, 'type'> = {
   show_progress: true,
   module_order: [],
   hidden_module_ids: [],
+  card_size: 'medium', // Default card size
 };
 
 export const DEFAULT_COURSES_SETTINGS: Omit<CoursesSettings, 'type'> = {

@@ -1,6 +1,6 @@
 /**
  * Modules View - Renderiza seção de módulos estilo Netflix
- * Usa carousel horizontal com cards de tamanho fixo (igual à área real)
+ * Usa carousel horizontal com cards de tamanho configurável (SSOT)
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
@@ -9,6 +9,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { Play, Lock, Pencil, Film } from 'lucide-react';
 import type { Section, ModulesSettings, ViewMode, MemberModule } from '../../../types/builder.types';
+import { getCardWidthClass } from '../../../constants/cardSizes';
 
 interface ModulesViewProps {
   section: Section;
@@ -22,8 +23,8 @@ interface ModulesViewProps {
 export function ModulesView({ section, viewMode, theme, modules = [], onModuleClick, isPreviewMode = false }: ModulesViewProps) {
   const settings = section.settings as ModulesSettings;
   
-  // Card sizes for preview (proportionally smaller than real area)
-  const cardWidth = viewMode === 'mobile' ? 'w-[100px]' : 'w-[140px]';
+  // RISE V3: Use SSOT card size from settings
+  const cardWidth = getCardWidthClass(settings.card_size, viewMode === 'mobile');
   
   // Apply visibility filter and custom order
   const getVisibleOrderedModules = (): MemberModule[] => {

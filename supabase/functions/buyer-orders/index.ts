@@ -86,13 +86,17 @@ serve(async (req) => {
       case "content":
         if (req.method === "GET") {
           const productId = url.searchParams.get("productId");
+          // RISE V3: Extract viewport from query param (default: desktop)
+          const viewportParam = url.searchParams.get("viewport");
+          const viewport: 'desktop' | 'mobile' = viewportParam === 'mobile' ? 'mobile' : 'desktop';
+          
           if (!productId) {
             return new Response(
               JSON.stringify({ error: "productId é obrigatório" }),
               { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
             );
           }
-          return handleContent(supabase, buyer, productId, corsHeaders);
+          return handleContent(supabase, buyer, productId, viewport, corsHeaders);
         }
         break;
 
