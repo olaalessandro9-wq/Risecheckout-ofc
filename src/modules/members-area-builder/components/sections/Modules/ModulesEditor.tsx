@@ -147,9 +147,9 @@ export function ModulesEditor({ section, onUpdate, modules = [], onModuleEdit }:
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="small">Pequeno (mais cards visíveis)</SelectItem>
-              <SelectItem value="medium">Médio</SelectItem>
-              <SelectItem value="large">Grande (menos cards visíveis)</SelectItem>
+              <SelectItem value="small">Pequeno (180px)</SelectItem>
+              <SelectItem value="medium">Médio (220px)</SelectItem>
+              <SelectItem value="large">Grande (280px)</SelectItem>
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">

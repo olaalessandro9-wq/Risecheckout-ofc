@@ -13,16 +13,16 @@ export type CardSize = 'small' | 'medium' | 'large';
  */
 export const CARD_SIZE_MAP = {
   small: {
-    desktop: 'w-[140px]',
-    mobile: 'w-[100px]',
-  },
-  medium: {
     desktop: 'w-[180px]',
     mobile: 'w-[130px]',
   },
-  large: {
+  medium: {
     desktop: 'w-[220px]',
     mobile: 'w-[160px]',
+  },
+  large: {
+    desktop: 'w-[280px]',
+    mobile: 'w-[200px]',
   },
 } as const;
 
