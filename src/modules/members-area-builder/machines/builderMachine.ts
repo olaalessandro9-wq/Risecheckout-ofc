@@ -116,7 +116,6 @@ export const builderMachine = setup({
       initial: "pristine",
       on: {
         REFRESH: { target: "loading", actions: assign({ loadError: () => null }) },
-        SET_VIEW_MODE: { actions: assign({ viewMode: ({ event }) => event.mode }) },
         TOGGLE_PREVIEW_MODE: { actions: assign({ isPreviewMode: ({ context }) => !context.isPreviewMode }) },
         TOGGLE_MENU_COLLAPSE: { actions: assign({ isMenuCollapsed: ({ context }) => !context.isMenuCollapsed }) },
         SELECT_SECTION: { actions: assign({ selectedSectionId: ({ event }) => event.id, selectedMenuItemId: () => null }) },

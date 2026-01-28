@@ -88,7 +88,6 @@ export type BuilderMachineEvent =
   | { type: "SELECT_MENU_ITEM"; id: string | null }
   
   // View
-  | { type: "SET_VIEW_MODE"; mode: ViewMode }
   | { type: "TOGGLE_PREVIEW_MODE" }
   | { type: "TOGGLE_MENU_COLLAPSE" }
   

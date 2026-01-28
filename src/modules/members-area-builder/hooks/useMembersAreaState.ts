@@ -167,10 +167,6 @@ export function useMembersAreaState(productId: string | undefined): UseMembersAr
     send({ type: 'SELECT_MENU_ITEM', id });
   }, [send]);
 
-  const setViewMode = useCallback((mode: ViewMode) => {
-    send({ type: 'SET_VIEW_MODE', mode });
-  }, [send]);
-
   const togglePreviewMode = useCallback(() => {
     send({ type: 'TOGGLE_PREVIEW_MODE' });
   }, [send]);
@@ -245,7 +241,6 @@ export function useMembersAreaState(productId: string | undefined): UseMembersAr
     duplicateSection,
     selectSection,
     selectMenuItem,
-    setViewMode,
     togglePreviewMode,
     toggleMenuCollapse,
     setActiveViewport,
