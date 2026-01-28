@@ -54,7 +54,26 @@ export function RouteErrorBoundary() {
   // Detectar se é erro de rede/chunk
   const isNetworkError = error instanceof Error && isChunkLoadError(error);
   
-  // Auto-recovery para erros de rede (com limite anti-loop)
+  // ============================================================================
+  // VISIBILITY-FIRST RECOVERY
+  // Reload IMEDIATO quando usuário volta para a aba - nunca vê tela de erro
+  // ============================================================================
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (!document.hidden && isNetworkError) {
+        log.info("Tab visible + network error detected - instant reload");
+        window.location.reload();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [isNetworkError]);
+  
+  // ============================================================================
+  // FALLBACK: Auto-recovery para erros de rede (com limite anti-loop)
+  // Usado apenas se o usuário JÁ ESTÁ olhando a aba quando o erro ocorre
+  // ============================================================================
   useEffect(() => {
     if (!isNetworkError || recovering) return;
     

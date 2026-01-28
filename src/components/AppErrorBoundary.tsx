@@ -36,6 +36,8 @@ interface State {
 // COMPONENT
 // ============================================================================
 export class AppErrorBoundary extends Component<Props, State> {
+  private visibilityHandler: () => void;
+
   constructor(props: Props) {
     super(props);
     this.state = {
@@ -44,6 +46,31 @@ export class AppErrorBoundary extends Component<Props, State> {
       errorInfo: null,
       recoveryAttempted: false,
     };
+    
+    // Visibility-First Recovery: reload imediato quando aba fica visível
+    this.visibilityHandler = this.handleVisibilityChange.bind(this);
+    document.addEventListener('visibilitychange', this.visibilityHandler);
+  }
+
+  componentWillUnmount() {
+    document.removeEventListener('visibilitychange', this.visibilityHandler);
+  }
+
+  /**
+   * Visibility-First Recovery
+   * 
+   * Quando o usuário volta para a aba e há um erro de rede pendente,
+   * faz reload IMEDIATO - usuário nunca vê a tela de erro.
+   */
+  private handleVisibilityChange() {
+    if (!document.hidden && this.state.hasError) {
+      const isNetworkIssue = isChunkLoadError(this.state.error);
+      
+      if (isNetworkIssue) {
+        log.info("Tab visible + network error detected - instant reload");
+        window.location.reload();
+      }
+    }
   }
 
   static getDerivedStateFromError(error: Error): Partial<State> {
