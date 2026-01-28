@@ -75,7 +75,7 @@ export function ModuleCarousel({
   }
 
   return (
-    <div className="relative py-6">
+    <div className="relative pt-3 pb-1">
       {/* Section Title - Uses configurable title size */}
       <motion.div
         initial={{ opacity: 0, x: -20 }}
@@ -118,7 +118,7 @@ export function ModuleCarousel({
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="flex gap-4 overflow-x-auto scrollbar-hide px-6 md:px-10 lg:px-16 pt-1.5 pb-4"
+          className="flex gap-4 overflow-x-auto scrollbar-hide px-6 md:px-10 lg:px-16 pt-1.5 pb-2"
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
           {modules.map((module, index) => (
