@@ -1,178 +1,99 @@
 
 
-# Plano: Ajuste de Responsividade do Header (Padding Inferior)
+# Plano: Alinhar Conteúdo com a Borda Inferior do Header
 
 ## Diagnóstico
 
 ### Problema Identificado
-O conteúdo da Fixed Header (título "RISE COMMUNITY", stats, descrição) está com posicionamento muito "apertado" na parte inferior do banner em desktop. O padding atual é:
+O conteúdo (título, stats, descrição) está com padding bottom muito grande:
 
-```css
-p-6 md:p-8 lg:p-12
-```
+| Viewport | Padding Atual | Resultado |
+|----------|---------------|-----------|
+| Mobile | 32px (pb-8) | Alto demais |
+| Tablet | 48px (pb-12) | Alto demais |
+| Desktop | 64px (pb-16) | Alto demais |
+| XL | 80px (pb-20) | Alto demais |
 
-Isso resulta em:
-- Mobile: 24px (p-6)
-- Tablet: 32px (md:p-8)  
-- Desktop: 48px (lg:p-12)
-
-### Problema Visual
-O conteúdo parece "flutuar" alto demais na área do banner, sem respiro adequado na parte inferior, especialmente em monitores grandes.
+### Objetivo
+Alinhar o conteúdo para que a descrição termine praticamente na mesma linha da borda inferior da imagem, com apenas um pequeno respiro visual (tipo Netflix/Cakto).
 
 ---
 
 ## Análise de Soluções (RISE V3 - Seção 4.4)
 
-### Solução A: Aumentar Padding Bottom Progressivo
-- Manutenibilidade: 10/10 (mudança simples e clara)
-- Zero DT: 10/10 (resolve o problema diretamente)
-- Arquitetura: 10/10 (sem hacks, usa classes Tailwind padrão)
-- Escalabilidade: 10/10 (funciona em qualquer viewport)
+### Solução A: Reduzir Padding Bottom para Valores Mínimos
+- Manutenibilidade: 10/10 (mudança simples)
+- Zero DT: 10/10 (resolve diretamente)
+- Arquitetura: 10/10 (classes Tailwind padrão)
+- Escalabilidade: 10/10 (responsivo)
 - Segurança: 10/10
 - **NOTA FINAL: 10.0/10**
 - Tempo estimado: 5 minutos
 
-### Solução B: Usar margin-bottom em vez de padding
-- Manutenibilidade: 7/10 (menos intuitivo)
-- Zero DT: 8/10 (funciona mas não é o padrão)
-- Arquitetura: 6/10 (margin e padding misturados)
-- Escalabilidade: 8/10
-- Segurança: 10/10
-- **NOTA FINAL: 7.8/10**
-- Tempo estimado: 5 minutos
-
-### Solução C: Usar padding-block com valores customizados
-- Manutenibilidade: 8/10 (requer valores customizados)
-- Zero DT: 9/10 (funciona bem)
-- Arquitetura: 9/10 (semântico)
-- Escalabilidade: 9/10
-- Segurança: 10/10
-- **NOTA FINAL: 9.0/10**
-- Tempo estimado: 5 minutos
-
 ### DECISÃO: Solução A (10.0/10)
 
-Aumentar o padding inferior progressivamente para dar mais "respiro" ao conteúdo, especialmente em desktop.
+Reduzir o padding bottom para valores mínimos que dão apenas um pequeno respiro visual.
 
 ---
 
 ## Implementação Técnica
 
+### Novos Valores de Padding Bottom
+
+| Viewport | Valor Anterior | Valor Novo | Resultado |
+|----------|----------------|------------|-----------|
+| Mobile | pb-8 (32px) | pb-4 (16px) | Encostado |
+| Tablet (md) | pb-12 (48px) | pb-6 (24px) | Pequeno respiro |
+| Desktop (lg) | pb-16 (64px) | pb-8 (32px) | Respiro elegante |
+| XL | pb-20 (80px) | pb-10 (40px) | Confortável |
+
 ### Arquivos a Modificar
 
-Dois arquivos têm o mesmo código (DRY violation identificada, mas não é escopo desta tarefa):
+1. **`BuyerFixedHeaderSection.tsx`** (linha 108)
+2. **`FixedHeaderView.tsx`** (linha 147)
 
-1. **`BuyerFixedHeaderSection.tsx`** (área do aluno - PRIORITÁRIO)
-2. **`FixedHeaderView.tsx`** (builder preview - para consistência)
+### Código da Mudança
 
-### Mudança Principal
-
-**Linha 106 do `BuyerFixedHeaderSection.tsx`:**
-
-**ANTES:**
+**ANTES (ambos arquivos):**
 ```tsx
-'absolute inset-0 z-20 flex flex-col justify-end p-6 md:p-8 lg:p-12',
+'pb-8 md:pb-12 lg:pb-16 xl:pb-20',
 ```
 
-**DEPOIS:**
+**DEPOIS (ambos arquivos):**
 ```tsx
-'absolute inset-0 z-20 flex flex-col justify-end',
-'px-6 md:px-8 lg:px-12',           // Padding horizontal
-'pb-8 md:pb-12 lg:pb-16 xl:pb-20', // Padding bottom generoso
-'pt-6 md:pt-8 lg:pt-12',           // Padding top menor (não precisa tanto)
-```
-
-### Valores Propostos
-
-| Viewport | Padding Bottom | Resultado Visual |
-|----------|----------------|------------------|
-| Mobile | 32px (pb-8) | Confortável |
-| Tablet (md) | 48px (pb-12) | Espaçoso |
-| Desktop (lg) | 64px (pb-16) | Generoso |
-| Large Desktop (xl) | 80px (pb-20) | Hero impact |
-
----
-
-## Código da Mudança
-
-### `BuyerFixedHeaderSection.tsx` (linha 104-108)
-
-**ANTES:**
-```tsx
-<div 
-  className={cn(
-    'absolute inset-0 z-20 flex flex-col justify-end p-6 md:p-8 lg:p-12',
-    settings.alignment === 'center' && 'items-center text-center'
-  )}
->
-```
-
-**DEPOIS:**
-```tsx
-<div 
-  className={cn(
-    'absolute inset-0 z-20 flex flex-col justify-end',
-    'px-6 md:px-8 lg:px-12',
-    'pb-8 md:pb-12 lg:pb-16 xl:pb-20',
-    'pt-6 md:pt-8',
-    settings.alignment === 'center' && 'items-center text-center'
-  )}
->
-```
-
-### `FixedHeaderView.tsx` (linha 143-147) - Mesma mudança
-
-**ANTES:**
-```tsx
-<div 
-  className={cn(
-    'absolute inset-0 z-20 flex flex-col justify-end p-6 md:p-8 lg:p-12',
-    settings.alignment === 'center' && 'items-center text-center'
-  )}
->
-```
-
-**DEPOIS:**
-```tsx
-<div 
-  className={cn(
-    'absolute inset-0 z-20 flex flex-col justify-end',
-    'px-6 md:px-8 lg:px-12',
-    'pb-8 md:pb-12 lg:pb-16 xl:pb-20',
-    'pt-6 md:pt-8',
-    settings.alignment === 'center' && 'items-center text-center'
-  )}
->
+'pb-4 md:pb-6 lg:pb-8 xl:pb-10',
 ```
 
 ---
 
-## Resultado Visual
+## Resultado Visual Esperado
 
-### Antes (Desktop):
+### Antes:
 ```
 ┌─────────────────────────────────────────────┐
-│                                             │
-│           [IMAGEM DE FUNDO]                 │
-│                                             │
-│  RISE COMMUNITY                             │
-│  [4 módulos · 0 aulas]                      │ ← Muito perto da borda
-│  Descrição...                               │
-└─────────────────────────────────────────────┘
-```
-
-### Depois (Desktop):
-```
-┌─────────────────────────────────────────────┐
-│                                             │
 │           [IMAGEM DE FUNDO]                 │
 │                                             │
 │  RISE COMMUNITY                             │
 │  [4 módulos · 0 aulas]                      │
 │  Descrição...                               │
-│                                             │ ← Respiro generoso
+│                                             │
+│                                             │ ← Muito espaço
 └─────────────────────────────────────────────┘
 ```
+
+### Depois:
+```
+┌─────────────────────────────────────────────┐
+│           [IMAGEM DE FUNDO]                 │
+│                                             │
+│                                             │
+│  RISE COMMUNITY                             │
+│  [4 módulos · 0 aulas]                      │
+│  Descrição...                               │ ← Alinhado com borda
+└─────────────────────────────────────────────┘
+```
+
+O texto da descrição terminará praticamente na mesma linha da borda inferior do header, dando aquele visual profissional estilo Cakto/Netflix.
 
 ---
 
@@ -180,10 +101,10 @@ Dois arquivos têm o mesmo código (DRY violation identificada, mas não é esco
 
 | Critério | Nota | Justificativa |
 |----------|------|---------------|
-| LEI SUPREMA (4.1) | 10/10 | Solução correta, não workaround |
+| LEI SUPREMA (4.1) | 10/10 | Solução correta, sem hacks |
 | Manutenibilidade Infinita | 10/10 | Classes Tailwind padrão |
-| Zero Dívida Técnica | 10/10 | Resolve o problema completamente |
-| Arquitetura Correta | 10/10 | Sem hacks ou overrides |
+| Zero Dívida Técnica | 10/10 | Resolve completamente |
+| Arquitetura Correta | 10/10 | Sem overrides |
 | Escalabilidade | 10/10 | Responsivo em todos os viewports |
 | Segurança | 10/10 | Não afeta segurança |
 
