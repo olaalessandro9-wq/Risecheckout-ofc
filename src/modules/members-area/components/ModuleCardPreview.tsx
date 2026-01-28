@@ -47,7 +47,7 @@ export function ModuleCardPreview({
 
   return (
     <div className={cn("w-full", config.wrapper, className)}>
-      <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-zinc-800 to-zinc-900 shadow-lg ring-1 ring-white/10">
+      <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-gradient-to-br from-zinc-800 to-zinc-900 shadow-lg ring-1 ring-white/10">
         {/* Image or Placeholder */}
         {imageUrl ? (
           <img

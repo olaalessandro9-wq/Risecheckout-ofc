@@ -169,10 +169,10 @@ function ModuleCard({
       )}
       onClick={!isPreviewMode ? onClick : undefined}
     >
-      {/* Thumbnail - Horizontal video format (16:9 aspect ratio - Market Standard) */}
+      {/* Thumbnail - Vertical poster format like Netflix (2:3 aspect ratio) */}
       <div 
         className={cn(
-          'relative aspect-video rounded-lg overflow-hidden shadow-md transition-all duration-200',
+          'relative aspect-[2/3] rounded-lg overflow-hidden shadow-md transition-all duration-200',
           !isPreviewMode && 'group-hover/module:scale-[1.03] group-hover/module:shadow-lg',
           'ring-1 ring-white/10'
         )}
@@ -182,12 +182,12 @@ function ModuleCard({
           <img 
             src={module.cover_image_url} 
             alt={module.title}
-            className="w-full h-full object-cover object-center"
+            className="w-full h-full object-cover object-top"
           />
         ) : (
           <div className={cn('absolute inset-0 bg-gradient-to-br', gradient)}>
             <div className="absolute inset-0 flex items-center justify-center">
-              <Film className="h-6 w-6 text-white/30" />
+              <Film className="h-8 w-8 text-white/30" />
             </div>
           </div>
         )}
@@ -204,7 +204,7 @@ function ModuleCard({
               'bg-black/0 group-hover/module:bg-black/30 transition-all duration-200'
             )}>
               <Play className={cn(
-                'h-6 w-6 text-white fill-white',
+                'h-8 w-8 text-white fill-white',
                 'opacity-0 group-hover/module:opacity-100 transition-opacity duration-200',
                 'transform scale-75 group-hover/module:scale-100'
               )} />
@@ -229,7 +229,7 @@ function ModuleCard({
             'bg-black/0 group-hover/module:bg-black/40 transition-all duration-300'
           )}>
             <Play className={cn(
-              'h-6 w-6 text-white fill-white',
+              'h-8 w-8 text-white fill-white',
               'opacity-0 group-hover/module:opacity-100 transition-all duration-300',
               'transform scale-75 group-hover/module:scale-100'
             )} />
