@@ -104,8 +104,8 @@ export function BuyerFixedHeaderSection({
         <div 
           className={cn(
             'absolute inset-0 z-20 flex flex-col justify-end',
-            'px-6 md:px-8 lg:px-12 xl:px-16',
-            'pb-12 md:pb-16 lg:pb-20 xl:pb-24 2xl:pb-28',
+            'px-6 md:px-8 lg:px-12',
+            'pb-8 md:pb-12 lg:pb-16 xl:pb-20',
             'pt-6 md:pt-8',
             settings.alignment === 'center' && 'items-center text-center'
           )}
@@ -129,7 +129,7 @@ export function BuyerFixedHeaderSection({
           {showStats && (moduleCount > 0 || lessonCount > 0) && (
             <div 
               className={cn(
-                'mt-4 md:mt-5 lg:mt-6',
+                'mt-3 md:mt-4',
                 settings.alignment === 'center' && 'flex justify-center'
               )}
             >
@@ -151,7 +151,7 @@ export function BuyerFixedHeaderSection({
           {showDescription && displayDescription && (
             <p 
               className={cn(
-                'mt-5 md:mt-6 lg:mt-8 text-white/90 drop-shadow max-w-2xl',
+                'mt-4 text-white/90 drop-shadow max-w-2xl',
                 'text-sm md:text-base leading-relaxed',
                 'line-clamp-3'
               )}
@@ -162,7 +162,7 @@ export function BuyerFixedHeaderSection({
 
           {/* CTA Button */}
           {showCtaButton && onStartCourse && (
-            <div className={cn('mt-6 md:mt-8 lg:mt-10', settings.alignment === 'center' && 'flex justify-center')}>
+            <div className={cn('mt-6', settings.alignment === 'center' && 'flex justify-center')}>
               <Button 
                 size="lg" 
                 className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg"

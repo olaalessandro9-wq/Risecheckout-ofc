@@ -1,183 +1,177 @@
 
 
-# Plano: Refinamento do Espaçamento da Fixed Header (RISE V3 10.0/10)
+# Plano: Ajuste de Responsividade do Header (Padding Inferior)
 
 ## Diagnóstico
 
 ### Problema Identificado
-Analisando a imagem de referência, o conteúdo do header precisa de:
-1. **Mais padding inferior** - o texto ainda está muito próximo da borda inferior
-2. **Espaçamento interno melhorado** - gap entre título, stats e descrição precisa ser mais generoso
-3. **Responsividade perfeita** - escala gradual em todos os breakpoints
+O conteúdo da Fixed Header (título "RISE COMMUNITY", stats, descrição) está com posicionamento muito "apertado" na parte inferior do banner em desktop. O padding atual é:
 
-### Código Atual (linhas 105-111)
-```tsx
-'absolute inset-0 z-20 flex flex-col justify-end',
-'px-6 md:px-8 lg:px-12',
-'pb-8 md:pb-12 lg:pb-16 xl:pb-20',
-'pt-6 md:pt-8',
+```css
+p-6 md:p-8 lg:p-12
 ```
+
+Isso resulta em:
+- Mobile: 24px (p-6)
+- Tablet: 32px (md:p-8)  
+- Desktop: 48px (lg:p-12)
+
+### Problema Visual
+O conteúdo parece "flutuar" alto demais na área do banner, sem respiro adequado na parte inferior, especialmente em monitores grandes.
 
 ---
 
 ## Análise de Soluções (RISE V3 - Seção 4.4)
 
-### Solução A: Aumentar Padding Bottom + Gap Entre Elementos
-- Manutenibilidade: 10/10 (classes Tailwind padrão)
-- Zero DT: 10/10 (resolve completamente)
-- Arquitetura: 10/10 (sem hacks)
-- Escalabilidade: 10/10 (funciona em todos os viewports)
+### Solução A: Aumentar Padding Bottom Progressivo
+- Manutenibilidade: 10/10 (mudança simples e clara)
+- Zero DT: 10/10 (resolve o problema diretamente)
+- Arquitetura: 10/10 (sem hacks, usa classes Tailwind padrão)
+- Escalabilidade: 10/10 (funciona em qualquer viewport)
 - Segurança: 10/10
 - **NOTA FINAL: 10.0/10**
-- Tempo estimado: 10 minutos
+- Tempo estimado: 5 minutos
 
-### Solução B: Usar Flexbox Gap em vez de margins individuais
-- Manutenibilidade: 9/10 (menos classes, mas menos controle granular)
-- Zero DT: 9/10 (pode precisar ajuste fino depois)
-- Arquitetura: 9/10 (bom mas menos flexível)
+### Solução B: Usar margin-bottom em vez de padding
+- Manutenibilidade: 7/10 (menos intuitivo)
+- Zero DT: 8/10 (funciona mas não é o padrão)
+- Arquitetura: 6/10 (margin e padding misturados)
+- Escalabilidade: 8/10
+- Segurança: 10/10
+- **NOTA FINAL: 7.8/10**
+- Tempo estimado: 5 minutos
+
+### Solução C: Usar padding-block com valores customizados
+- Manutenibilidade: 8/10 (requer valores customizados)
+- Zero DT: 9/10 (funciona bem)
+- Arquitetura: 9/10 (semântico)
 - Escalabilidade: 9/10
 - Segurança: 10/10
-- **NOTA FINAL: 9.2/10**
-- Tempo estimado: 10 minutos
+- **NOTA FINAL: 9.0/10**
+- Tempo estimado: 5 minutos
 
 ### DECISÃO: Solução A (10.0/10)
 
-Aumentar padding-bottom significativamente + aumentar os gaps entre os elementos para melhor hierarquia visual.
+Aumentar o padding inferior progressivamente para dar mais "respiro" ao conteúdo, especialmente em desktop.
 
 ---
 
 ## Implementação Técnica
 
-### Mudanças no Container Principal
+### Arquivos a Modificar
+
+Dois arquivos têm o mesmo código (DRY violation identificada, mas não é escopo desta tarefa):
+
+1. **`BuyerFixedHeaderSection.tsx`** (área do aluno - PRIORITÁRIO)
+2. **`FixedHeaderView.tsx`** (builder preview - para consistência)
+
+### Mudança Principal
+
+**Linha 106 do `BuyerFixedHeaderSection.tsx`:**
 
 **ANTES:**
 ```tsx
-'pb-8 md:pb-12 lg:pb-16 xl:pb-20',
+'absolute inset-0 z-20 flex flex-col justify-end p-6 md:p-8 lg:p-12',
 ```
 
 **DEPOIS:**
 ```tsx
-'pb-12 md:pb-16 lg:pb-20 xl:pb-24 2xl:pb-28',
+'absolute inset-0 z-20 flex flex-col justify-end',
+'px-6 md:px-8 lg:px-12',           // Padding horizontal
+'pb-8 md:pb-12 lg:pb-16 xl:pb-20', // Padding bottom generoso
+'pt-6 md:pt-8 lg:pt-12',           // Padding top menor (não precisa tanto)
 ```
 
-| Viewport | Antes | Depois | Diferença |
-|----------|-------|--------|-----------|
-| Mobile | 32px (pb-8) | 48px (pb-12) | +16px |
-| Tablet (md) | 48px (pb-12) | 64px (pb-16) | +16px |
-| Desktop (lg) | 64px (pb-16) | 80px (pb-20) | +16px |
-| Large (xl) | 80px (pb-20) | 96px (pb-24) | +16px |
-| XL (2xl) | N/A | 112px (pb-28) | Novo |
+### Valores Propostos
 
-### Mudanças nos Espaçamentos Internos
-
-**Stats Badge (mt-3 md:mt-4 → mt-4 md:mt-5 lg:mt-6):**
-```tsx
-// ANTES
-'mt-3 md:mt-4',
-
-// DEPOIS
-'mt-4 md:mt-5 lg:mt-6',
-```
-
-**Description (mt-4 → mt-5 md:mt-6 lg:mt-8):**
-```tsx
-// ANTES
-'mt-4 text-white/90 drop-shadow max-w-2xl',
-
-// DEPOIS
-'mt-5 md:mt-6 lg:mt-8 text-white/90 drop-shadow max-w-2xl',
-```
-
-**CTA Button (mt-6 → mt-6 md:mt-8 lg:mt-10):**
-```tsx
-// ANTES
-<div className={cn('mt-6', ...)}>
-
-// DEPOIS
-<div className={cn('mt-6 md:mt-8 lg:mt-10', ...)}>
-```
+| Viewport | Padding Bottom | Resultado Visual |
+|----------|----------------|------------------|
+| Mobile | 32px (pb-8) | Confortável |
+| Tablet (md) | 48px (pb-12) | Espaçoso |
+| Desktop (lg) | 64px (pb-16) | Generoso |
+| Large Desktop (xl) | 80px (pb-20) | Hero impact |
 
 ---
 
-## Arquivos a Modificar
+## Código da Mudança
 
-| Arquivo | Linhas | Mudança |
-|---------|--------|---------|
-| `BuyerFixedHeaderSection.tsx` | 108, 131, 153, 165 | Aumentar padding-bottom e gaps |
-| `FixedHeaderView.tsx` | 147, 170, 192, 204 | Mesmas mudanças para consistência |
+### `BuyerFixedHeaderSection.tsx` (linha 104-108)
 
----
-
-## Resultado Visual Esperado
-
-### Antes:
-```
-┌─────────────────────────────────────────────┐
-│           [IMAGEM DE FUNDO]                 │
-│                                             │
-│  RISE COMMUNITY                             │
-│  [4 módulos · 0 aulas]      ← Gap apertado  │
-│  Descrição...               ← Gap apertado  │
-│                             ← Pouco respiro │
-└─────────────────────────────────────────────┘
+**ANTES:**
+```tsx
+<div 
+  className={cn(
+    'absolute inset-0 z-20 flex flex-col justify-end p-6 md:p-8 lg:p-12',
+    settings.alignment === 'center' && 'items-center text-center'
+  )}
+>
 ```
 
-### Depois:
-```
-┌─────────────────────────────────────────────┐
-│           [IMAGEM DE FUNDO]                 │
-│                                             │
-│  RISE COMMUNITY                             │
-│                                             │
-│  [4 módulos · 0 aulas]      ← Gap generoso  │
-│                                             │
-│  Descrição...               ← Gap generoso  │
-│                                             │
-│                             ← Muito respiro │
-└─────────────────────────────────────────────┘
-```
-
----
-
-## Código Final
-
-### Container Principal
+**DEPOIS:**
 ```tsx
 <div 
   className={cn(
     'absolute inset-0 z-20 flex flex-col justify-end',
-    'px-6 md:px-8 lg:px-12 xl:px-16',
-    'pb-12 md:pb-16 lg:pb-20 xl:pb-24 2xl:pb-28',
+    'px-6 md:px-8 lg:px-12',
+    'pb-8 md:pb-12 lg:pb-16 xl:pb-20',
     'pt-6 md:pt-8',
     settings.alignment === 'center' && 'items-center text-center'
   )}
 >
 ```
 
-### Stats Badge
+### `FixedHeaderView.tsx` (linha 143-147) - Mesma mudança
+
+**ANTES:**
 ```tsx
 <div 
   className={cn(
-    'mt-4 md:mt-5 lg:mt-6',
-    settings.alignment === 'center' && 'flex justify-center'
+    'absolute inset-0 z-20 flex flex-col justify-end p-6 md:p-8 lg:p-12',
+    settings.alignment === 'center' && 'items-center text-center'
   )}
 >
 ```
 
-### Description
+**DEPOIS:**
 ```tsx
-<p 
+<div 
   className={cn(
-    'mt-5 md:mt-6 lg:mt-8 text-white/90 drop-shadow max-w-2xl',
-    'text-sm md:text-base leading-relaxed',
-    'line-clamp-3'
+    'absolute inset-0 z-20 flex flex-col justify-end',
+    'px-6 md:px-8 lg:px-12',
+    'pb-8 md:pb-12 lg:pb-16 xl:pb-20',
+    'pt-6 md:pt-8',
+    settings.alignment === 'center' && 'items-center text-center'
   )}
 >
 ```
 
-### CTA Button
-```tsx
-<div className={cn('mt-6 md:mt-8 lg:mt-10', settings.alignment === 'center' && 'flex justify-center')}>
+---
+
+## Resultado Visual
+
+### Antes (Desktop):
+```
+┌─────────────────────────────────────────────┐
+│                                             │
+│           [IMAGEM DE FUNDO]                 │
+│                                             │
+│  RISE COMMUNITY                             │
+│  [4 módulos · 0 aulas]                      │ ← Muito perto da borda
+│  Descrição...                               │
+└─────────────────────────────────────────────┘
+```
+
+### Depois (Desktop):
+```
+┌─────────────────────────────────────────────┐
+│                                             │
+│           [IMAGEM DE FUNDO]                 │
+│                                             │
+│  RISE COMMUNITY                             │
+│  [4 módulos · 0 aulas]                      │
+│  Descrição...                               │
+│                                             │ ← Respiro generoso
+└─────────────────────────────────────────────┘
 ```
 
 ---
@@ -186,11 +180,11 @@ Aumentar padding-bottom significativamente + aumentar os gaps entre os elementos
 
 | Critério | Nota | Justificativa |
 |----------|------|---------------|
-| LEI SUPREMA (4.1) | 10/10 | Espaçamento calculado, não arbitrário |
-| Manutenibilidade Infinita | 10/10 | Classes Tailwind standard |
-| Zero Dívida Técnica | 10/10 | Resolve problema completamente |
-| Arquitetura Correta | 10/10 | Sem hacks ou magic numbers |
-| Escalabilidade | 10/10 | Responsivo até 2xl |
+| LEI SUPREMA (4.1) | 10/10 | Solução correta, não workaround |
+| Manutenibilidade Infinita | 10/10 | Classes Tailwind padrão |
+| Zero Dívida Técnica | 10/10 | Resolve o problema completamente |
+| Arquitetura Correta | 10/10 | Sem hacks ou overrides |
+| Escalabilidade | 10/10 | Responsivo em todos os viewports |
 | Segurança | 10/10 | Não afeta segurança |
 
 **NOTA FINAL: 10.0/10**
