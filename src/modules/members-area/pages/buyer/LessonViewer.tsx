@@ -21,7 +21,12 @@ import {
   PremiumSidebar,
   LessonMobileSheet,
 } from "./components/lesson";
+import { MembersAreaThemeProvider } from "./components/MembersAreaThemeProvider";
 import type { Module, ContentItem, ProductData } from "./components/types";
+import { 
+  DEFAULT_BUILDER_SETTINGS, 
+  type MembersAreaBuilderSettings 
+} from "@/modules/members-area-builder/types/builder.types";
 
 export default function LessonViewer() {
   const navigate = useNavigate();
@@ -55,6 +60,17 @@ export default function LessonViewer() {
   // Derived state from query data
   const product = data?.product as ProductData | null;
   const modules = (data?.modules as Module[]) || [];
+
+  // Derive builder settings from product
+  const membersAreaSettings: MembersAreaBuilderSettings = useMemo(() => {
+    if (product?.settings && typeof product.settings === 'object') {
+      return {
+        ...DEFAULT_BUILDER_SETTINGS,
+        ...(product.settings as Partial<MembersAreaBuilderSettings>),
+      };
+    }
+    return DEFAULT_BUILDER_SETTINGS;
+  }, [product?.settings]);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -190,7 +206,8 @@ export default function LessonViewer() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <MembersAreaThemeProvider settings={membersAreaSettings}>
+      <div className="flex flex-col min-h-screen">
       {/* Header */}
       <LessonHeader
         productId={productId!}
@@ -240,6 +257,7 @@ export default function LessonViewer() {
         completedContentIds={completedContentIds}
         productName={product?.name}
       />
-    </div>
+      </div>
+    </MembersAreaThemeProvider>
   );
 }

@@ -151,7 +151,7 @@ export default function CourseHome() {
 
   return (
     <MembersAreaThemeProvider settings={membersAreaSettings}>
-      <div className="min-h-screen bg-background flex">
+      <div className="flex min-h-screen">
         {/* Desktop Sidebar */}
         <BuyerSidebar
           settings={membersAreaSettings}
