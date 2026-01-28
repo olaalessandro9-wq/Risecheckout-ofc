@@ -142,7 +142,10 @@ export function FixedHeaderView({
         {/* Content Overlay */}
         <div 
           className={cn(
-            'absolute inset-0 z-20 flex flex-col justify-end p-6 md:p-8 lg:p-12',
+            'absolute inset-0 z-20 flex flex-col justify-end',
+            'px-6 md:px-8 lg:px-12',
+            'pb-8 md:pb-12 lg:pb-16 xl:pb-20',
+            'pt-6 md:pt-8',
             settings.alignment === 'center' && 'items-center text-center'
           )}
         >
