@@ -10,17 +10,23 @@
 
 import type { 
   Section, 
+  SectionType,
   SectionSettings,
   MembersAreaBuilderSettings,
 } from '../types';
 import { DEFAULT_BUILDER_SETTINGS } from '../types';
 
-/** Valid section types for type guard */
-const VALID_SECTION_TYPES = ['banner', 'modules', 'courses', 'continue_watching', 'text', 'spacer'] as const;
+/** 
+ * Valid section types - Single Source of Truth via SectionType
+ * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ */
+const VALID_SECTION_TYPES: readonly SectionType[] = [
+  'fixed_header', 'banner', 'modules', 'courses', 'continue_watching', 'text', 'spacer'
+];
 
 /** Type guard for SectionType */
-function isSectionType(type: string): type is typeof VALID_SECTION_TYPES[number] {
-  return VALID_SECTION_TYPES.includes(type as typeof VALID_SECTION_TYPES[number]);
+function isSectionType(type: string): type is SectionType {
+  return VALID_SECTION_TYPES.includes(type as SectionType);
 }
 
 /** Valid viewport types */
