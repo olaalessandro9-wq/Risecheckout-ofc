@@ -151,9 +151,9 @@ export function BannerEditor({ section, onUpdate, productId }: BannerEditorProps
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="small">Pequeno (160px)</SelectItem>
-            <SelectItem value="medium">Médio (256px)</SelectItem>
-            <SelectItem value="large">Grande (384px)</SelectItem>
+            <SelectItem value="small">Pequeno (384px)</SelectItem>
+            <SelectItem value="medium">Médio (50% da tela)</SelectItem>
+            <SelectItem value="large">Grande Hero (70% da tela)</SelectItem>
           </SelectContent>
         </Select>
       </div>
