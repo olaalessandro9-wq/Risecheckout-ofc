@@ -53,11 +53,11 @@ export function NetflixModuleCard({
       onClick={onClick}
       className={cn("relative group/card cursor-pointer flex-shrink-0", cardWidth)}
     >
-      {/* Card Container - Fixed aspect ratio 2:3 (poster style) */}
+      {/* Card Container - Fixed aspect ratio 16:9 (video thumbnail style - Market Standard) */}
       <motion.div 
         whileHover={{ scale: 1.05, zIndex: 10 }}
         whileTap={{ scale: 0.98 }}
-        className="relative aspect-[2/3] rounded-xl overflow-hidden shadow-lg transition-shadow duration-300 group-hover/card:shadow-2xl ring-1 ring-white/10"
+        className="relative aspect-video rounded-lg overflow-hidden shadow-lg transition-shadow duration-300 group-hover/card:shadow-2xl ring-1 ring-white/10"
         style={{ '--tw-shadow-color': 'hsl(var(--members-primary) / 0.2)' } as React.CSSProperties}
       >
         {/* Background Image or Gradient Fallback */}
@@ -65,12 +65,12 @@ export function NetflixModuleCard({
           <img
             src={module.cover_image_url}
             alt={module.title}
-            className="absolute inset-0 h-full w-full object-cover object-top"
+            className="absolute inset-0 h-full w-full object-cover object-center"
           />
         ) : (
           <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`}>
             <div className="absolute inset-0 flex items-center justify-center">
-              <Film className="h-16 w-16 text-white/30" />
+              <Film className="h-12 w-12 text-white/30" />
             </div>
           </div>
         )}
@@ -80,11 +80,11 @@ export function NetflixModuleCard({
 
         {/* Hover Overlay */}
         <div className="absolute inset-0 bg-black/0 group-hover/card:bg-black/40 transition-all duration-300 flex items-center justify-center">
-          <PlayCircle className="h-14 w-14 text-white opacity-0 group-hover/card:opacity-100 transition-all duration-300 transform scale-75 group-hover/card:scale-100" />
+          <PlayCircle className="h-10 w-10 text-white opacity-0 group-hover/card:opacity-100 transition-all duration-300 transform scale-75 group-hover/card:scale-100" />
         </div>
 
         {/* Badge with lesson count */}
-        <div className="absolute top-3 right-3">
+        <div className="absolute top-2 right-2">
           <Badge variant="secondary" className="bg-black/70 text-white border-0 backdrop-blur-sm text-xs font-semibold">
             {lessonCount} {lessonCount === 1 ? "aula" : "aulas"}
           </Badge>
