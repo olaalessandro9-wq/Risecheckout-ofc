@@ -1,53 +1,48 @@
 
-# Plano: Mover Toggle Desktop/Mobile para o Header + Corrigir Erro de Save
+# Plano: Modularização do `builder.types.ts` (348 → ~290 linhas distribuídas)
 
-## Diagnóstico Completo
+## Diagnóstico Atual
 
-### Problema 1: Erro ao Salvar (500)
+**Violação Identificada:** O arquivo `src/modules/members-area-builder/types/builder.types.ts` possui **348 linhas**, ultrapassando o limite de **300 linhas** do RISE ARCHITECT PROTOCOL V3 (Seção 6.4).
 
-**Causa Raiz Identificada:**
-O banco de dados tem uma constraint que só aceita os seguintes tipos de seção:
-```sql
-CHECK ((type = ANY (ARRAY['banner', 'modules', 'courses', 'continue_watching', 'text', 'spacer'])))
-```
+### Estrutura Atual do Arquivo (348 linhas)
 
-O novo tipo `fixed_header` **não está na constraint**, causando o erro:
-```
-new row for relation "product_members_sections" violates check constraint "product_members_sections_type_check"
-```
-
-**Solução:** Atualizar a constraint para incluir `fixed_header`.
-
-### Problema 2: Toggle Desktop/Mobile no Local Errado
-
-**Situação Atual:**
-- O toggle Desktop/Mobile está no `ViewportSyncPanel` dentro da sidebar
-- Usuário quer que fique no header (topo), próximo ao Preview e Salvar
-- Opções de sincronização devem aparecer apenas quando Mobile está selecionado
+| Bloco | Linhas | Descrição |
+|-------|--------|-----------|
+| Viewport Types | 17-17 | 1 linha útil |
+| Section Types | 22-43 | ~22 linhas (SectionType, Section) |
+| Section Settings | 45-135 | ~90 linhas (todas as interfaces de settings) |
+| Gradient Overlay | 79-91 | ~13 linhas (incluso acima) |
+| Global Settings | 137-174 | ~38 linhas (MenuItemConfig, MembersAreaBuilderSettings) |
+| Builder State | 176-247 | ~72 linhas (BuilderState, BuilderActions) |
+| Section Registry | 249-263 | ~15 linhas (SectionConfig) |
+| **Defaults** | **265-348** | **~84 linhas** (todos os DEFAULT_*) |
 
 ---
 
 ## Análise de Soluções (RISE V3 - Seção 4.4)
 
-### Solução A: Apenas Mover o Toggle (Manter ViewportSyncPanel)
-- Manutenibilidade: 6/10 (código duplicado entre header e sidebar)
-- Zero DT: 5/10 (dois lugares controlando o mesmo estado)
-- Arquitetura: 5/10 (viola Single Source of Truth visual)
-- Escalabilidade: 6/10
-- Segurança: 10/10
-- **NOTA FINAL: 6.4/10**
+### Solução A: Extrair Apenas Defaults
+- **Manutenibilidade:** 7/10 (melhora, mas tipos ainda misturados)
+- **Zero DT:** 7/10 (resolve o limite de linhas)
+- **Arquitetura:** 6/10 (tipos e constantes ainda no mesmo domínio)
+- **Escalabilidade:** 7/10 (razoável)
+- **Segurança:** 10/10
+- **NOTA FINAL: 7.4/10**
+- **Tempo estimado:** 30 minutos
 
-### Solução B: Refatorar Completamente - Toggle no Header, Remover ViewportSyncPanel
-- Manutenibilidade: 10/10 (código centralizado no header)
-- Zero DT: 10/10 (uma única fonte de controle)
-- Arquitetura: 10/10 (Clean Architecture - responsabilidades claras)
-- Escalabilidade: 10/10 (fácil adicionar mais opções no futuro)
-- Segurança: 10/10
+### Solução B: Modularização por Domínio Semântico
+- **Manutenibilidade:** 10/10 (cada arquivo tem responsabilidade única)
+- **Zero DT:** 10/10 (estrutura escalável)
+- **Arquitetura:** 10/10 (Clean Architecture - separação por domínio)
+- **Escalabilidade:** 10/10 (fácil adicionar novos tipos de seção)
+- **Segurança:** 10/10
 - **NOTA FINAL: 10.0/10**
+- **Tempo estimado:** 1 hora
 
 ### DECISÃO: Solução B (10.0/10)
 
-Remover completamente o `ViewportSyncPanel` e mover toda a lógica para o `BuilderHeader`.
+Modularização completa por domínio semântico, criando arquivos especializados.
 
 ---
 
@@ -55,120 +50,211 @@ Remover completamente o `ViewportSyncPanel` e mover toda a lógica para o `Build
 
 ```text
 ANTES (Atual)
-┌────────────────────────────────────────────────────────────────────────────┐
-│  HEADER                                                                     │
-│  [Voltar] | Personalizar Área | [Desktop] (badge)                          │
-│                               [Desktop][Mobile] (View Mode)   [Preview][Save] │
-└────────────────────────────────────────────────────────────────────────────┘
-┌─────────────────────────────────┐
-│  SIDEBAR                        │
-│  ┌─────────────────────────────┐│
-│  │ Editando Layout             ││  ← REMOVER COMPLETAMENTE
-│  │ [Desktop(2)][Mobile(2)]     ││
-│  │ "Alterações serão..."       ││
-│  └─────────────────────────────┘│
-│  [Início][Menu][Global]         │
-│  ...                            │
-└─────────────────────────────────┘
+src/modules/members-area-builder/types/
+└── builder.types.ts (348 linhas) ← VIOLAÇÃO
 
-DEPOIS (Novo)
-┌────────────────────────────────────────────────────────────────────────────┐
-│  HEADER                                                                     │
-│  [Voltar] | Personalizar Área                                              │
-│                                                                             │
-│  ┌────────────────────────────────────────────────────────────────────────┐│
-│  │ [Desktop(2)][Mobile(2)]  (activeViewport toggle)                       ││  ← NOVO
-│  │                                                                         ││
-│  │ SE MOBILE: [🔗 Sincronizar] [📋 Copiar do Desktop]                    ││  ← CONDICIONAL
-│  └────────────────────────────────────────────────────────────────────────┘│
-│                                                                             │
-│                               [Desktop][Mobile] (viewMode) [Preview][Save]  │
-└────────────────────────────────────────────────────────────────────────────┘
-┌─────────────────────────────────┐
-│  SIDEBAR (sem ViewportSyncPanel)│
-│  [Início][Menu][Global]         │  ← SIMPLIFICADO
-│  ...                            │
-└─────────────────────────────────┘
+DEPOIS (Modularizado)
+src/modules/members-area-builder/types/
+├── index.ts (~40 linhas)           ← Re-exports públicos
+├── viewport.types.ts (~15 linhas)  ← Viewport, ViewMode
+├── section.types.ts (~50 linhas)   ← Section, SectionType
+├── settings.types.ts (~95 linhas)  ← Todas as *Settings interfaces
+├── builder-state.types.ts (~75 linhas) ← BuilderState, BuilderActions
+├── registry.types.ts (~20 linhas)  ← SectionConfig
+└── defaults.ts (~90 linhas)        ← Todos os DEFAULT_*
 ```
 
 ---
 
-## Implementação Técnica
+## Detalhamento dos Novos Arquivos
 
-### 1. Criar Migration para Adicionar `fixed_header` à Constraint
-
-```sql
--- Atualizar constraint para incluir fixed_header
-ALTER TABLE product_members_sections 
-DROP CONSTRAINT IF EXISTS product_members_sections_type_check;
-
-ALTER TABLE product_members_sections 
-ADD CONSTRAINT product_members_sections_type_check 
-CHECK (type = ANY (ARRAY[
-  'banner', 
-  'modules', 
-  'courses', 
-  'continue_watching', 
-  'text', 
-  'spacer',
-  'fixed_header'  -- NOVO
-]));
+### 1. `viewport.types.ts` (~15 linhas)
+```typescript
+// Tipos de viewport para o sistema dual-layout
+export type Viewport = 'desktop' | 'mobile';
+export type ViewMode = 'desktop' | 'mobile';
 ```
 
-### 2. Refatorar `BuilderHeader.tsx`
+### 2. `section.types.ts` (~50 linhas)
+```typescript
+// Tipo discriminante e interface Section
+import type { Viewport } from './viewport.types';
+import type { SectionSettings } from './settings.types';
 
-Adicionar controles de viewport no centro-esquerda do header:
+export type SectionType = 
+  | 'fixed_header'
+  | 'banner' 
+  | 'modules' 
+  | 'courses' 
+  | 'continue_watching' 
+  | 'text' 
+  | 'spacer';
+
+export interface Section {
+  id: string;
+  product_id: string;
+  type: SectionType;
+  viewport: Viewport;
+  title: string | null;
+  position: number;
+  settings: SectionSettings;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+```
+
+### 3. `settings.types.ts` (~95 linhas)
+```typescript
+// Todas as interfaces de configurações de seções
+export type GradientDirection = 'bottom' | 'top' | 'left' | 'right';
+
+export interface GradientOverlayConfig { ... }
+export interface FixedHeaderSettings { ... }
+export interface BannerSlide { ... }
+export interface BannerSettings { ... }
+export interface ModulesSettings { ... }
+export interface CoursesSettings { ... }
+export interface ContinueWatchingSettings { ... }
+export interface TextSettings { ... }
+export interface SpacerSettings { ... }
+
+// Discriminated Union
+export type SectionSettings = 
+  | FixedHeaderSettings
+  | BannerSettings
+  | ModulesSettings
+  | CoursesSettings
+  | ContinueWatchingSettings
+  | TextSettings
+  | SpacerSettings;
+
+// Global Settings
+export interface MenuItemConfig { ... }
+export interface MembersAreaBuilderSettings { ... }
+```
+
+### 4. `builder-state.types.ts` (~75 linhas)
+```typescript
+// Estado e Ações do Builder
+import type { Section } from './section.types';
+import type { SectionType } from './section.types';
+import type { Viewport, ViewMode } from './viewport.types';
+import type { SectionSettings, MembersAreaBuilderSettings } from './settings.types';
+import type { MemberModule } from '@/modules/members-area/types/module.types';
+
+export interface BuilderState { ... }
+export interface BuilderActions { ... }
+```
+
+### 5. `registry.types.ts` (~20 linhas)
+```typescript
+// Configuração do Registry de Seções
+import type { SectionType } from './section.types';
+import type { SectionSettings } from './settings.types';
+
+export interface SectionConfig<T extends SectionSettings = SectionSettings> {
+  type: SectionType;
+  label: string;
+  description: string;
+  icon: string;
+  maxInstances: number;
+  isRequired: boolean;
+  canDuplicate: boolean;
+  canMove: boolean;
+  defaults: Omit<T, 'type'>;
+}
+```
+
+### 6. `defaults.ts` (~90 linhas)
+```typescript
+// Valores padrão para todas as configurações
+import type { 
+  GradientOverlayConfig,
+  FixedHeaderSettings,
+  BannerSettings,
+  ModulesSettings,
+  CoursesSettings,
+  ContinueWatchingSettings,
+  TextSettings,
+  SpacerSettings,
+  MenuItemConfig,
+  MembersAreaBuilderSettings,
+} from './settings.types';
+
+export const DEFAULT_GRADIENT_OVERLAY: GradientOverlayConfig = { ... };
+export const DEFAULT_FIXED_HEADER_SETTINGS: Omit<FixedHeaderSettings, 'type'> = { ... };
+export const DEFAULT_BANNER_SETTINGS: Omit<BannerSettings, 'type'> = { ... };
+export const DEFAULT_MODULES_SETTINGS: Omit<ModulesSettings, 'type'> = { ... };
+export const DEFAULT_COURSES_SETTINGS: Omit<CoursesSettings, 'type'> = { ... };
+export const DEFAULT_CONTINUE_WATCHING_SETTINGS: Omit<ContinueWatchingSettings, 'type'> = { ... };
+export const DEFAULT_TEXT_SETTINGS: Omit<TextSettings, 'type'> = { ... };
+export const DEFAULT_SPACER_SETTINGS: Omit<SpacerSettings, 'type'> = { ... };
+export const DEFAULT_MENU_ITEMS: MenuItemConfig[] = [ ... ];
+export const DEFAULT_BUILDER_SETTINGS: MembersAreaBuilderSettings = { ... };
+```
+
+### 7. `index.ts` (~40 linhas) - Barrel Export
+```typescript
+// Re-exports públicos mantendo API compatível
+export type { Viewport, ViewMode } from './viewport.types';
+export type { SectionType, Section } from './section.types';
+export type {
+  GradientDirection,
+  GradientOverlayConfig,
+  FixedHeaderSettings,
+  BannerSlide,
+  BannerSettings,
+  ModulesSettings,
+  CoursesSettings,
+  ContinueWatchingSettings,
+  TextSettings,
+  SpacerSettings,
+  SectionSettings,
+  MenuItemConfig,
+  MembersAreaBuilderSettings,
+} from './settings.types';
+export type { BuilderState, BuilderActions } from './builder-state.types';
+export type { SectionConfig } from './registry.types';
+export * from './defaults';
+
+// Re-export from members-area module
+export type { MemberModule } from '@/modules/members-area/types/module.types';
+```
+
+---
+
+## Migração de Imports
+
+### Impacto Zero (Barrel Export)
+
+Todos os imports existentes continuarão funcionando sem alteração:
 
 ```typescript
-// Nova estrutura do header:
-// Left: [Voltar] | Título
-// Center-Left: [Desktop(X)][Mobile(X)] + opções de sync (apenas quando Mobile)
-// Center-Right: [Desktop][Mobile] (view mode para preview)
-// Right: [Preview][Salvar]
+// ANTES e DEPOIS - mesmo import funciona
+import type { Section, SectionType, BuilderState } from '../types/builder.types';
+
+// Mudará apenas para:
+import type { Section, SectionType, BuilderState } from '../types';
 ```
 
-Props necessárias:
-- `desktopSections.length`
-- `mobileSections.length`
-- `activeViewport`
-- `isMobileSynced`
-- `actions.setActiveViewport`
-- `actions.copyDesktopToMobile`
-- `actions.setMobileSynced`
-
-### 3. Remover `ViewportSyncPanel` da Sidebar
-
-Modificar `BuilderSidebar.tsx` para remover completamente o componente `ViewportSyncPanel`.
-
-### 4. Adicionar Toast de Erro para Falhas de Save
-
-O toast de sucesso já existe em `builderMachine.actors.ts`. Verificar se o toast de erro está sendo exibido corretamente quando a máquina entra no estado de erro.
-
 ---
 
-## Arquivos a Modificar
+## Arquivos a Criar/Modificar
 
-| Arquivo | Ação |
-|---------|------|
-| `supabase/migrations/` | Nova migration para constraint |
-| `BuilderHeader.tsx` | Adicionar toggle de viewport + opções de sync |
-| `BuilderSidebar.tsx` | Remover `ViewportSyncPanel` |
-| `ViewportSyncPanel.tsx` | Pode ser deletado após refatoração |
+| Arquivo | Ação | Linhas |
+|---------|------|--------|
+| `types/viewport.types.ts` | CRIAR | ~15 |
+| `types/section.types.ts` | CRIAR | ~50 |
+| `types/settings.types.ts` | CRIAR | ~95 |
+| `types/builder-state.types.ts` | CRIAR | ~75 |
+| `types/registry.types.ts` | CRIAR | ~20 |
+| `types/defaults.ts` | CRIAR | ~90 |
+| `types/index.ts` | CRIAR | ~40 |
+| `types/builder.types.ts` | DELETAR | - |
 
----
-
-## Resultado Esperado
-
-### Antes:
-- Toggle Desktop/Mobile na sidebar (confuso)
-- Erro 500 ao salvar com `fixed_header`
-- Sem mensagem de erro visível
-
-### Depois:
-- Toggle Desktop/Mobile no header (intuitivo)
-- Opções de sync aparecem apenas quando Mobile está ativo
-- `fixed_header` salva corretamente
-- Mensagens de erro exibidas via toast
+**Total:** 7 arquivos novos, 1 arquivo deletado.
+**Maior arquivo:** `settings.types.ts` com ~95 linhas (BEM abaixo do limite de 300).
 
 ---
 
@@ -176,11 +262,21 @@ O toast de sucesso já existe em `builderMachine.actors.ts`. Verificar se o toas
 
 | Critério | Nota | Justificativa |
 |----------|------|---------------|
-| LEI SUPREMA (4.1) | 10/10 | Refatoração completa, não apenas "mover código" |
-| Manutenibilidade Infinita | 10/10 | Header centraliza controles de viewport |
-| Zero Dívida Técnica | 10/10 | Constraint atualizada, UI limpa |
-| Arquitetura Correta | 10/10 | Single Source of Truth visual |
-| Escalabilidade | 10/10 | Fácil adicionar mais opções |
-| Segurança | 10/10 | Constraint de banco corrigida |
+| LEI SUPREMA (4.1) | 10/10 | Modularização completa, não apenas extrair defaults |
+| Manutenibilidade Infinita | 10/10 | Cada arquivo tem responsabilidade única |
+| Zero Dívida Técnica | 10/10 | Todos os arquivos < 100 linhas |
+| Arquitetura Correta | 10/10 | Clean Architecture - separação por domínio |
+| Escalabilidade | 10/10 | Fácil adicionar novos tipos de seção |
+| Segurança | 10/10 | Não altera comportamento |
 
 **NOTA FINAL: 10.0/10**
+
+---
+
+## Benefícios
+
+1. **Limite de 300 linhas respeitado** - Maior arquivo terá ~95 linhas
+2. **Single Responsibility** - Cada arquivo tem um propósito claro
+3. **Melhor navegação** - Fácil encontrar tipos específicos
+4. **Escalabilidade** - Adicionar novos tipos de seção é trivial
+5. **API compatível** - Barrel export mantém imports existentes funcionando
