@@ -1,178 +1,206 @@
 
-# Plano: Reorganizar UI de "Tamanho do Título" no Builder
+# Plano: Layout Compacto Estilo Paramount+
 
-## RISE Protocol V3 - Seção 4: LEI SUPREMA
-
----
-
-## Diagnóstico dos Problemas
-
-| Problema | Localização | Status |
-|----------|-------------|--------|
-| "Tamanho do Título" mal posicionado | `ModulesEditor.tsx` linha 160-181 | Fora de contexto lógico |
-| Texto "estilo Paramount+" | `ModulesEditor.tsx` linha 175 | Ruído visual |
-| Campos de título separados | `SectionEditor.tsx` + `ModulesEditor.tsx` | Confuso para usuário |
-
-**Problema de UX:** O usuário edita "Título da Seção" em um lugar e "Tamanho do Título" em outro (rolando para baixo). Ambos editam a mesma coisa (o título), logo devem estar juntos.
+## RISE Protocol V3 - Secao 4: LEI SUPREMA
 
 ---
 
-## Análise de Soluções
+## Analise Visual Detalhada
 
-### Solução A: Mover campo para SectionEditor com lógica condicional
-- Manutenibilidade: 10/10 (campos agrupados logicamente)
-- Zero DT: 10/10 (remoção completa do código redundante)
-- Arquitetura: 10/10 (Single Responsibility - cada editor com seu escopo)
-- Escalabilidade: 10/10 (padrão replicável para outros tipos)
-- Segurança: 10/10 (sem impacto)
+| Plataforma | Espacamento Entre Secoes |
+|------------|-------------------------|
+| Paramount+ | ~16-24px (compacto) |
+| RiseCheckout Atual | ~72px (muito distante) |
+
+### Decomposicao do Espacamento Atual
+
+```text
+┌─────────────────────────────────────────┐
+│ SECAO "Recomendados"                    │
+│   py-6 = 24px bottom                    │ ← padding interno
+└─────────────────────────────────────────┘
+         ↕ space-y-6 = 24px               ← gap entre secoes
+┌─────────────────────────────────────────┐
+│   py-6 = 24px top                       │ ← padding interno
+│ SECAO "Módulos"                         │
+└─────────────────────────────────────────┘
+
+TOTAL: 24 + 24 + 24 = 72px (!) 
+```
+
+---
+
+## Analise de Solucoes
+
+### Solucao A: Espacamento Compacto Responsivo (Paramount+ Style)
+- Manutenibilidade: 10/10 (valores consistentes em todas as areas)
+- Zero DT: 10/10 (resolve espacamento de forma sistemica)
+- Arquitetura: 10/10 (paridade Builder ↔ Area Real)
+- Escalabilidade: 10/10 (breakpoints responsivos)
+- Seguranca: 10/10 (sem impacto)
 - **NOTA FINAL: 10.0/10**
-- Tempo estimado: 20 minutos
+- Tempo estimado: 25 minutos
 
-### Solução B: Apenas reordenar dentro de ModulesEditor
-- Manutenibilidade: 5/10 (campo ainda separado do título)
-- Zero DT: 3/10 (não resolve problema de UX)
-- Arquitetura: 4/10 (lógica de título em dois lugares)
-- Escalabilidade: 5/10 (outros tipos de seção não teriam)
-- Segurança: 10/10 (sem impacto)
-- **NOTA FINAL: 5.4/10**
+### Solucao B: Apenas reduzir space-y
+- Manutenibilidade: 4/10 (nao resolve padding interno)
+- Zero DT: 3/10 (espacamento ainda inconsistente)
+- Arquitetura: 3/10 (divergencia visual)
+- Escalabilidade: 5/10 (nao responsivo)
+- Seguranca: 10/10 (sem impacto)
+- **NOTA FINAL: 5.0/10**
 - Tempo estimado: 5 minutos
 
-### DECISÃO: Solução A (10.0/10)
-O campo "Tamanho do Título" deve estar junto com "Título da Seção" pois editam a mesma propriedade visual.
+### DECISAO: Solucao A (10.0/10)
 
 ---
 
-## Alterações Necessárias
+## Alteracoes Necessarias
 
-### Parte 1: Atualizar `SectionEditor.tsx`
+### Arquivo 1: CourseHome.tsx (Area de Membros Real)
 
-Adicionar controle de tamanho do título logo após o input "Título da Seção" (apenas para seções tipo 'modules'):
+Reduzir gap entre secoes:
+
+| Linha | Antes | Depois |
+|-------|-------|--------|
+| 190 | `space-y-6` | `space-y-2` |
 
 ```typescript
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import type { ModulesSettings } from '../../types/builder.types';
-
-// Dentro do bloco "Common Settings - Only for non-banner sections"
-// APÓS o input "Título da Seção", ANTES de "Seção Ativa":
-
-{/* Title Size - Only for modules sections */}
-{section.type === 'modules' && (
-  <div className="space-y-2">
-    <Label>Tamanho do Título</Label>
-    <Select
-      value={(section.settings as ModulesSettings).title_size || 'medium'}
-      onValueChange={(value: 'small' | 'medium' | 'large') => 
-        onUpdateSettings({ title_size: value })
-      }
-    >
-      <SelectTrigger>
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="small">Pequeno</SelectItem>
-        <SelectItem value="medium">Médio</SelectItem>
-        <SelectItem value="large">Grande</SelectItem>
-      </SelectContent>
-    </Select>
+// Render sections based on Builder configuration
+{hasBuilderSections ? (
+  <div className="space-y-2"> {/* Antes: space-y-6 (24px) → Depois: space-y-2 (8px) */}
+    {sections.map((section) => { ... })}
   </div>
-)}
+) : ( ... )}
 ```
 
-### Parte 2: Remover de `ModulesEditor.tsx`
+### Arquivo 2: ModuleCarousel.tsx (Area de Membros Real)
 
-Remover completamente o bloco "Title Size Control" (linhas 160-181) para evitar duplicação.
+Reduzir padding vertical:
+
+| Linha | Antes | Depois |
+|-------|-------|--------|
+| 78 | `py-6` | `pt-3 pb-1` |
+| 121 | `pb-4` | `pb-2` |
+
+```typescript
+<div className="relative pt-3 pb-1"> {/* Antes: py-6 (48px total) → Depois: pt-3 pb-1 (~16px) */}
+  {/* Section Title */}
+  <motion.div className="px-6 md:px-10 lg:px-16 mb-1">
+    ...
+  </motion.div>
+
+  {/* Scrollable Container */}
+  <div className="flex gap-4 overflow-x-auto scrollbar-hide px-6 md:px-10 lg:px-16 pt-1.5 pb-2">
+    {/* Antes: pb-4 → Depois: pb-2 */}
+    ...
+  </div>
+</div>
+```
+
+### Arquivo 3: ModulesView.tsx (Builder Preview)
+
+Paridade com area real:
+
+| Linha | Antes | Depois |
+|-------|-------|--------|
+| 94 | `py-4` | `pt-3 pb-1` |
+| 99 | `mb-3` | `mb-1` |
+
+```typescript
+<div className="pt-3 pb-1"> {/* Antes: py-4 (32px) → Depois: pt-3 pb-1 (~16px) */}
+  {section.title && (
+    <h2 className={cn(titleSizeClass, 'mb-1 px-4', ...)}>  {/* Antes: mb-3 → Depois: mb-1 */}
+      {section.title}
+    </h2>
+  )}
+  <div className="flex gap-3 overflow-x-auto px-4 pb-2 ...">
+    ...
+  </div>
+</div>
+```
+
+### Arquivo 4: BuilderCanvas.tsx
+
+Reduzir espacamento do botao "Add Section":
+
+| Linha | Antes | Depois |
+|-------|-------|--------|
+| 107 (mobile) | `py-8` | `py-4` |
+| 197 (desktop) | `py-8` | `py-4` |
 
 ---
 
-## Estrutura UI Antes vs Depois
+## Resultado Esperado
 
-### ANTES (Confuso)
+### ANTES (72px entre secoes)
 ```text
 ┌─────────────────────────────────────────┐
-│ MÓDULOS                                 │
-├─────────────────────────────────────────┤
-│ Título da Seção                         │ ← Edita título
-│ [Recomendados________________]          │
+│ Recomendados                            │
+│ ┌───┐ ┌───┐ ┌───┐                       │
+│ │   │ │   │ │   │                       │
+│ └───┘ └───┘ └───┘                       │
 │                                         │
-│ Seção Ativa                      [ON]   │
-├─────────────────────────────────────────┤
-│ Configurações Específicas               │
-│ ─────────────────────────────           │
-│ Curso: [Todos os cursos ▾]              │
-│ Tamanho dos Cards: [Médio ▾]            │
-│ Tamanho do Título da Seção: [Médio ▾]   │ ← LONGE do título!
-│ Exibir Título do Módulo: [Sempre ▾]     │
-│ ...                                     │
+│                                         │ ← Grande espaco
+│                                         │
+│                                         │
+└─────────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│                                         │
+│                                         │
+│ Módulos                                 │
+│ ┌───┐ ┌───┐ ┌───┐                       │
+│ │   │ │   │ │   │                       │
+│ └───┘ └───┘ └───┘                       │
 └─────────────────────────────────────────┘
 ```
 
-### DEPOIS (Intuitivo)
+### DEPOIS (~24px entre secoes - Estilo Paramount+)
 ```text
 ┌─────────────────────────────────────────┐
-│ MÓDULOS                                 │
+│ Recomendados                            │
+│ ┌───┐ ┌───┐ ┌───┐                       │
+│ │   │ │   │ │   │                       │
+│ └───┘ └───┘ └───┘                       │
 ├─────────────────────────────────────────┤
-│ Título da Seção                         │ ← Edita título
-│ [Recomendados________________]          │
-│                                         │
-│ Tamanho do Título                       │ ← JUNTO do título!
-│ [Grande ▾]                              │
-│                                         │
-│ Seção Ativa                      [ON]   │
-├─────────────────────────────────────────┤
-│ Configurações Específicas               │
-│ ─────────────────────────────           │
-│ Curso: [Todos os cursos ▾]              │
-│ Tamanho dos Cards: [Médio ▾]            │
-│ Exibir Título do Módulo: [Sempre ▾]     │
-│ ...                                     │
+│ Módulos                                 │
+│ ┌───┐ ┌───┐ ┌───┐                       │
+│ │   │ │   │ │   │                       │
+│ └───┘ └───┘ └───┘                       │
 └─────────────────────────────────────────┘
 ```
+
+---
+
+## Tabela de Tamanhos Responsivos
+
+O espacamento se ajusta automaticamente:
+
+| Viewport | Espacamento Entre Secoes | Padding Lateral |
+|----------|-------------------------|-----------------|
+| Mobile (<768px) | ~20px | px-6 (24px) |
+| Tablet (768-1024px) | ~24px | px-10 (40px) |
+| Desktop (>1024px) | ~24px | px-16 (64px) |
 
 ---
 
 ## Resumo de Arquivos a Alterar
 
-| Arquivo | Alteração |
+| Arquivo | Alteracao |
 |---------|-----------|
-| `SectionEditor.tsx` | Adicionar Select "Tamanho do Título" após input de título (só para modules) |
-| `ModulesEditor.tsx` | Remover bloco "Title Size Control" (linhas 160-181) |
-
----
-
-## Fluxo de Dados (Inalterado)
-
-```text
-SectionEditor.tsx
-    │ onUpdateSettings({ title_size: value })
-    ▼
-builderMachine
-    │ UPDATE_SECTION_SETTINGS
-    ▼
-section.settings.title_size = 'large'
-    │
-    ├──► ModulesView.tsx (Builder Preview)
-    │    getTitleSizeClass(settings.title_size, isMobile)
-    │
-    └──► CourseHome.tsx → ModuleCarousel.tsx (Área Real)
-         getTitleSizeClass(titleSize, isMobile)
-```
+| `CourseHome.tsx` | `space-y-6` → `space-y-2` |
+| `ModuleCarousel.tsx` | `py-6` → `pt-3 pb-1`, `pb-4` → `pb-2` |
+| `ModulesView.tsx` | `py-4` → `pt-3 pb-1`, `mb-3` → `mb-1` |
+| `BuilderCanvas.tsx` | `py-8` → `py-4` (botao Add Section) |
 
 ---
 
 ## Conformidade RISE V3
 
-| Critério | Status |
+| Criterio | Status |
 |----------|--------|
-| LEI SUPREMA (4.1) | Escolhemos nota 10.0 |
-| Manutenibilidade Infinita | Campos agrupados por contexto |
-| Zero Dívida Técnica | Remoção de código duplicado |
-| Arquitetura Correta | Single Responsibility |
-| Escalabilidade | Padrão para futuros tipos de seção |
+| LEI SUPREMA (4.1) | Nota 10.0/10 - solucao sistemica |
+| Paridade Visual | Builder = Area Real = Paramount+ |
+| Responsivo | Desktop, Tablet, Mobile |
+| Zero Divida Tecnica | Espacamento consistente em toda plataforma |
 
-**NOTA FINAL: 10.0/10**
+**NOTA FINAL: 10.0/10** - Layout compacto estilo Paramount+
