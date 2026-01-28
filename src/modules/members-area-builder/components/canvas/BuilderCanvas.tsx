@@ -2,7 +2,7 @@
  * Builder Canvas - Área central de preview/edição com sidebar Netflix
  * Layout edge-to-edge como Kiwify
  * 
- * @see RISE ARCHITECT PROTOCOL
+ * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import React from 'react';
@@ -96,9 +96,6 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
                       onSelect={() => actions.selectSection(fixedHeader.id)}
                       onMoveUp={() => {}}
                       onMoveDown={() => {}}
-                      onDuplicate={() => {}}
-                      onDelete={() => {}}
-                      onToggleActive={() => actions.updateSection(fixedHeader.id, { is_active: !fixedHeader.is_active })}
                     >
                       <SectionView 
                         section={fixedHeader} 
@@ -122,9 +119,6 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
                       onSelect={() => actions.selectSection(section.id)}
                       onMoveUp={() => handleMoveSection(index, 'up')}
                       onMoveDown={() => handleMoveSection(index, 'down')}
-                      onDuplicate={() => actions.duplicateSection(section.id)}
-                      onDelete={() => actions.deleteSection(section.id)}
-                      onToggleActive={() => actions.updateSection(section.id, { is_active: !section.is_active })}
                     >
                     <SectionView 
                       section={section} 
@@ -214,9 +208,6 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
                   onSelect={() => actions.selectSection(fixedHeader.id)}
                   onMoveUp={() => {}}
                   onMoveDown={() => {}}
-                  onDuplicate={() => {}}
-                  onDelete={() => {}}
-                  onToggleActive={() => actions.updateSection(fixedHeader.id, { is_active: !fixedHeader.is_active })}
                 >
                   <SectionView 
                     section={fixedHeader} 
@@ -240,9 +231,6 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
                   onSelect={() => actions.selectSection(section.id)}
                   onMoveUp={() => handleMoveSection(index, 'up')}
                   onMoveDown={() => handleMoveSection(index, 'down')}
-                  onDuplicate={() => actions.duplicateSection(section.id)}
-                  onDelete={() => actions.deleteSection(section.id)}
-                  onToggleActive={() => actions.updateSection(section.id, { is_active: !section.is_active })}
                 >
                       <SectionView 
                         section={section} 
