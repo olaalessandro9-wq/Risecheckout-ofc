@@ -1,174 +1,260 @@
 
-# Plano: Ajustar Tamanhos dos Cards de Módulos
 
-## Problema Identificado
+# Plano: Header Totalmente Personalizável com Novos Elementos
 
-O usuário reportou que:
-1. **Card "Pequeno"** está MUITO pequeno (140px no desktop)
-2. **Card "Grande"** não é suficientemente grande (220px no desktop)
+## Diagnóstico Atual
 
-## Análise dos Tamanhos Atuais
+O usuário identificou que a **Header da Área de Membros** não reflete todos os elementos visíveis na área do aluno. Atualmente:
 
-| Tamanho | Desktop | Mobile |
-|---------|---------|--------|
-| `small` | 140px | 100px |
-| `medium` | 180px | 130px |
-| `large` | 220px | 160px |
+### Elementos na Área do Aluno (via HeroBanner fallback):
+1. ✅ **Título** (nome do produto)
+2. ✅ **Subtítulo** (X módulos · Y aulas)
+3. ✅ **Descrição** (product.description)
+4. ✅ **Botão CTA** ("Começar a Assistir")
 
-## Solução Proposta (Shift + Novo Grande)
-
-A proposta do usuário é elegante e resolve dois problemas simultaneamente:
-
-| Tamanho | ANTES | DEPOIS |
-|---------|-------|--------|
-| `small` | 140px / 100px | **180px / 130px** (era medium) |
-| `medium` | 180px / 130px | **220px / 160px** (era large) |
-| `large` | 220px / 160px | **280px / 200px** (NOVO) |
+### Elementos Editáveis no Builder (FixedHeaderSettings):
+1. ✅ Título
+2. ✅ Contador de módulos (badge)
+3. ❌ **Subtítulo/Stats com aulas** - NÃO EXISTE
+4. ❌ **Descrição** - NÃO EXISTE  
+5. ❌ **Botão CTA** - NÃO EXISTE
+6. ❌ **Toggle show_title** - NÃO EXISTE
 
 ---
 
 ## Análise de Soluções (RISE V3 - Seção 4.4)
 
-### Solução A: Apenas Aumentar o "Large"
-- Manutenibilidade: 7/10 (resolve parcialmente)
-- Zero DT: 6/10 (pequeno ainda muito pequeno)
-- Arquitetura: 7/10 (mantém inconsistência de escala)
-- Escalabilidade: 7/10
+### Solução A: Adicionar Apenas os Toggles Básicos
+- Manutenibilidade: 7/10 (campos limitados)
+- Zero DT: 6/10 (futuro pedido para mais opções)
+- Arquitetura: 6/10 (incompleto vs. HeroBanner)
+- Escalabilidade: 6/10
 - Segurança: 10/10
-- **NOTA FINAL: 7.4/10**
-- Tempo estimado: 5 minutos
+- **NOTA FINAL: 7.0/10**
+- Tempo estimado: 30 minutos
 
-### Solução B: Shift Completo (proposta do usuário)
-- Manutenibilidade: 10/10 (escala mais harmoniosa)
-- Zero DT: 10/10 (resolve ambos os problemas de uma vez)
-- Arquitetura: 10/10 (progressão linear: ~180 → ~220 → ~280)
-- Escalabilidade: 10/10 (espaço para crescer)
+### Solução B: Paridade Total com HeroBanner + Customização Completa
+- Manutenibilidade: 10/10 (todos os elementos controláveis)
+- Zero DT: 10/10 (nenhuma solicitação futura previsível)
+- Arquitetura: 10/10 (FixedHeaderSettings = HeroBanner features)
+- Escalabilidade: 10/10 (extensível facilmente)
 - Segurança: 10/10
 - **NOTA FINAL: 10.0/10**
-- Tempo estimado: 10 minutos
+- Tempo estimado: 2 horas
 
 ### DECISÃO: Solução B (10.0/10)
 
-O shift completo cria uma progressão mais harmoniosa e resolve dois problemas simultaneamente.
+Implementar paridade total com customização completa de todos os elementos da Header.
 
 ---
 
-## Cálculo dos Novos Tamanhos
+## Nova Estrutura do FixedHeaderSettings
 
-**Progressão escolhida (incremento ~40px desktop, ~30px mobile):**
-
-```text
-small:  180px (desktop) / 130px (mobile)   ← Antigo medium
-medium: 220px (desktop) / 160px (mobile)   ← Antigo large  
-large:  280px (desktop) / 200px (mobile)   ← NOVO (mais impactante)
+```typescript
+interface FixedHeaderSettings {
+  type: 'fixed_header';
+  bg_image_url: string;
+  
+  // TÍTULO
+  title: string;
+  show_title: boolean;           // ← NOVO
+  
+  // SUBTÍTULO (Stats)
+  show_stats: boolean;           // ← NOVO (X módulos · Y aulas)
+  show_module_count: boolean;    // Já existe (renomear contexto)
+  show_lesson_count: boolean;    // ← NOVO
+  
+  // DESCRIÇÃO
+  show_description: boolean;     // ← NOVO
+  description: string;           // ← NOVO (se vazio, usa do produto)
+  
+  // BOTÃO CTA
+  show_cta_button: boolean;      // ← NOVO
+  cta_button_text: string;       // ← NOVO (default: "Começar a Assistir")
+  
+  // CONFIGURAÇÕES VISUAIS (já existem)
+  alignment: 'left' | 'center';
+  size: 'small' | 'medium' | 'large';
+  gradient_overlay?: GradientOverlayConfig;
+}
 ```
 
-**Justificativa matemática:**
-- Incremento desktop: 180 → 220 → 280 (delta ~40-60px)
-- Incremento mobile: 130 → 160 → 200 (delta ~30-40px)
-- Progressão visual coerente e profissional
+---
+
+## Comparativo Visual
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│                      HEADER COMPLETA                          │
+├──────────────────────────────────────────────────────────────┤
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │ [Imagem de Fundo]                                        │ │
+│  │                                                          │ │
+│  │   ┌───────────────────────────────────────────────────┐ │ │
+│  │   │ RISE COMMUNITY              ← show_title          │ │ │
+│  │   │ 📚 0 módulos · 0 aulas      ← show_stats          │ │ │
+│  │   │ Descrição do produto...     ← show_description    │ │ │
+│  │   │ [▶ Começar a Assistir]      ← show_cta_button     │ │ │
+│  │   └───────────────────────────────────────────────────┘ │ │
+│  └─────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## Arquivos a Modificar
 
-### 1. `src/modules/members-area-builder/constants/cardSizes.ts`
+### 1. `src/modules/members-area-builder/types/settings.types.ts`
+Expandir `FixedHeaderSettings` com os novos campos.
 
-**Mudança:** Atualizar o `CARD_SIZE_MAP` com os novos valores
+### 2. `src/modules/members-area-builder/types/defaults.ts`
+Adicionar valores default para os novos campos.
 
-```typescript
-// ANTES
-export const CARD_SIZE_MAP = {
-  small: {
-    desktop: 'w-[140px]',
-    mobile: 'w-[100px]',
-  },
-  medium: {
-    desktop: 'w-[180px]',
-    mobile: 'w-[130px]',
-  },
-  large: {
-    desktop: 'w-[220px]',
-    mobile: 'w-[160px]',
-  },
-} as const;
+### 3. `src/lib/constants/field-limits.ts`
+Adicionar limites para descrição e texto do botão.
 
-// DEPOIS
-export const CARD_SIZE_MAP = {
-  small: {
-    desktop: 'w-[180px]',
-    mobile: 'w-[130px]',
-  },
-  medium: {
-    desktop: 'w-[220px]',
-    mobile: 'w-[160px]',
-  },
-  large: {
-    desktop: 'w-[280px]',
-    mobile: 'w-[200px]',
-  },
-} as const;
-```
+### 4. `src/modules/members-area-builder/components/sections/FixedHeader/FixedHeaderEditor.tsx`
+Adicionar os novos controles no editor:
+- Toggle "Mostrar Título"
+- Toggle "Mostrar Stats" (módulos + aulas)
+- Toggle "Mostrar Descrição" + Campo de texto
+- Toggle "Mostrar Botão" + Campo de texto para customizar
 
-### 2. `src/modules/members-area-builder/components/sections/Modules/ModulesEditor.tsx`
+### 5. `src/modules/members-area-builder/components/sections/FixedHeader/FixedHeaderView.tsx`
+Renderizar os novos elementos no Builder Canvas.
 
-**Mudança:** Atualizar as labels do Select para refletir os novos tamanhos
-
-```typescript
-// ANTES
-<SelectItem value="small">Pequeno (mais cards visíveis)</SelectItem>
-<SelectItem value="medium">Médio</SelectItem>
-<SelectItem value="large">Grande (menos cards visíveis)</SelectItem>
-
-// DEPOIS
-<SelectItem value="small">Pequeno (180px)</SelectItem>
-<SelectItem value="medium">Médio (220px)</SelectItem>
-<SelectItem value="large">Grande (280px)</SelectItem>
-```
+### 6. `src/modules/members-area/pages/buyer/components/sections/BuyerFixedHeaderSection.tsx`
+Renderizar os novos elementos na área do aluno:
+- Stats com módulos e aulas
+- Descrição (customizada ou do produto)
+- Botão CTA funcional
 
 ---
 
-## Impacto (Zero Breaking Changes)
+## Detalhamento Técnico
 
-| Componente | Impacto |
-|------------|---------|
-| `cardSizes.ts` | SSOT - única mudança necessária |
-| `ModulesView.tsx` | Usa `getCardWidthClass()` - auto-atualiza |
-| `NetflixModuleCard.tsx` | Usa `getCardWidthClass()` - auto-atualiza |
-| `CourseHome.tsx` | Usa `getCardWidthClass()` - auto-atualiza |
-| `ModulesEditor.tsx` | Labels atualizadas |
+### 1. Novos Tipos (settings.types.ts)
 
-**Nenhum outro arquivo precisa de mudança** graças ao padrão SSOT (Single Source of Truth).
+```typescript
+export interface FixedHeaderSettings {
+  type: 'fixed_header';
+  bg_image_url: string;
+  
+  // Title
+  title: string;
+  show_title: boolean;
+  
+  // Stats (módulos + aulas)
+  show_stats: boolean;
+  show_lesson_count: boolean;
+  
+  // Description
+  show_description: boolean;
+  description: string;
+  
+  // CTA Button
+  show_cta_button: boolean;
+  cta_button_text: string;
+  
+  // Visual settings (existing)
+  alignment: 'left' | 'center';
+  size: 'small' | 'medium' | 'large';
+  gradient_overlay?: GradientOverlayConfig;
+  
+  // Deprecated (será removido)
+  show_module_count?: boolean; // Migrado para show_stats
+}
+```
 
----
+### 2. Novos Defaults (defaults.ts)
 
-## Visualização Comparativa
+```typescript
+export const DEFAULT_FIXED_HEADER_SETTINGS: Omit<FixedHeaderSettings, 'type'> = {
+  bg_image_url: '',
+  title: '',
+  show_title: true,
+  show_stats: true,
+  show_lesson_count: true,
+  show_description: true,
+  description: '',
+  show_cta_button: true,
+  cta_button_text: 'Começar a Assistir',
+  alignment: 'left',
+  size: 'large',
+  gradient_overlay: DEFAULT_GRADIENT_OVERLAY,
+};
+```
+
+### 3. Novos Limites (field-limits.ts)
+
+```typescript
+export const FIXED_HEADER_LIMITS = {
+  TITLE_MAX: 60,
+  TITLE_TRUNCATE_DISPLAY: 45,
+  DESCRIPTION_MAX: 300,        // ← NOVO
+  CTA_BUTTON_TEXT_MAX: 30,     // ← NOVO
+} as const;
+```
+
+### 4. Editor UI (FixedHeaderEditor.tsx)
+
+Novos controles organizados em seções:
 
 ```text
-┌──────────────────────────────────────────────────────────┐
-│                    DESKTOP VIEW                          │
-├──────────────────────────────────────────────────────────┤
-│                                                          │
-│  ANTES (muito pequeno):                                  │
-│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐           │
-│  │140px │ │140px │ │140px │ │140px │ │140px │           │
-│  │      │ │      │ │      │ │      │ │      │           │
-│  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘           │
-│                                                          │
-│  DEPOIS (novo small = 180px):                            │
-│  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐            │
-│  │ 180px  │ │ 180px  │ │ 180px  │ │ 180px  │            │
-│  │        │ │        │ │        │ │        │            │
-│  └────────┘ └────────┘ └────────┘ └────────┘            │
-│                                                          │
-│  NOVO LARGE (280px):                                     │
-│  ┌────────────┐ ┌────────────┐ ┌────────────┐           │
-│  │   280px    │ │   280px    │ │   280px    │           │
-│  │            │ │            │ │            │           │
-│  │            │ │            │ │            │           │
-│  └────────────┘ └────────────┘ └────────────┘           │
-│                                                          │
-└──────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│ 📷 Imagem de Fundo                      │
+│ [Upload Image]                          │
+├─────────────────────────────────────────┤
+│ 📝 CONTEÚDO                             │
+│                                         │
+│ ○ Mostrar Título      [ON/OFF]          │
+│ └─ Título: [________________]           │
+│                                         │
+│ ○ Mostrar Stats       [ON/OFF]          │
+│ └─ Exibir aulas       [ON/OFF]          │
+│                                         │
+│ ○ Mostrar Descrição   [ON/OFF]          │
+│ └─ Descrição: [________________]        │
+│ └─ Se vazio, usa descrição do produto   │
+│                                         │
+│ ○ Mostrar Botão       [ON/OFF]          │
+│ └─ Texto: [Começar a Assistir______]    │
+├─────────────────────────────────────────┤
+│ 🎨 VISUAL                               │
+│                                         │
+│ Alinhamento: [Esquerda ▾]               │
+│ Tamanho: [Grande (Hero) ▾]              │
+├─────────────────────────────────────────┤
+│ ✨ Efeito de Gradiente   [ON/OFF]       │
+│ ...                                     │
+└─────────────────────────────────────────┘
+```
+
+### 5. BuyerFixedHeaderSection.tsx - Props Adicionais
+
+```typescript
+interface BuyerFixedHeaderSectionProps {
+  settings: FixedHeaderSettings;
+  moduleCount: number;
+  lessonCount: number;       // ← NOVO
+  productName?: string;
+  productDescription?: string; // ← NOVO
+  onStartCourse?: () => void; // ← NOVO (para o botão CTA)
+}
+```
+
+---
+
+## Migração de Dados Existentes
+
+Para compatibilidade com headers já salvas:
+
+```typescript
+// Em BuyerFixedHeaderSection e FixedHeaderView
+const showStats = settings.show_stats ?? settings.show_module_count ?? true;
+const showTitle = settings.show_title ?? true;
+const showDescription = settings.show_description ?? false;
+const showCtaButton = settings.show_cta_button ?? false;
 ```
 
 ---
@@ -177,12 +263,12 @@ export const CARD_SIZE_MAP = {
 
 | Critério | Nota | Justificativa |
 |----------|------|---------------|
-| LEI SUPREMA (4.1) | 10/10 | Shift completo, não apenas ajuste parcial |
-| Manutenibilidade Infinita | 10/10 | SSOT - mudança em 1 arquivo afeta todo o sistema |
-| Zero Dívida Técnica | 10/10 | Progressão harmoniosa, sem gambiarras |
-| Arquitetura Correta | 10/10 | Constantes centralizadas |
-| Escalabilidade | 10/10 | Espaço para adicionar "extra-large" no futuro |
-| Segurança | 10/10 | Não altera comportamento |
+| LEI SUPREMA (4.1) | 10/10 | Paridade total, não apenas toggles parciais |
+| Manutenibilidade Infinita | 10/10 | SSOT em settings.types.ts |
+| Zero Dívida Técnica | 10/10 | Todos os elementos controláveis |
+| Arquitetura Correta | 10/10 | Separação clara Editor/View/Buyer |
+| Escalabilidade | 10/10 | Fácil adicionar novos elementos |
+| Segurança | 10/10 | Validação de limites |
 
 **NOTA FINAL: 10.0/10**
 
@@ -191,10 +277,11 @@ export const CARD_SIZE_MAP = {
 ## Resultado Esperado
 
 ### Antes:
-- Pequeno: Cards minúsculos difíceis de visualizar
-- Grande: Cards não suficientemente impactantes
+- Header mostra apenas título e contador de módulos
+- Descrição, aulas e botão não aparecem quando configurados no Builder
 
 ### Depois:
-- Pequeno: Cards visíveis e confortáveis (180px)
-- Médio: Tamanho padrão equilibrado (220px)
-- Grande: Cards impactantes estilo "Hero" (280px)
+- Todos os elementos controláveis individualmente
+- Paridade visual entre Builder e área do aluno
+- Produtor pode escolher exatamente o que exibir na Header
+
