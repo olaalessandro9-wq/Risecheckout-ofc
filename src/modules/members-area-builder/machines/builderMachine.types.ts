@@ -120,6 +120,7 @@ export interface LoadBuilderOutput {
   settings: MembersAreaBuilderSettings;
   modules: MemberModule[];
   productImageUrl: string | null;
+  productName: string | null;
   isMobileSynced: boolean;
 }
 

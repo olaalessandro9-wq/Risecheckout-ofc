@@ -42,6 +42,7 @@ const log = createLogger("BuilderMachine.actors");
 function generateDefaultSections(
   productId: string,
   productImageUrl: string | null,
+  productName: string | null,
   modules: MemberModule[],
   viewport: Viewport
 ): Section[] {
@@ -52,7 +53,7 @@ function generateDefaultSections(
   const fixedHeaderSettings: FixedHeaderSettings = {
     type: 'fixed_header',
     bg_image_url: productImageUrl || '',
-    title: '', // Will fallback to product name in UI
+    title: productName || '', // RISE V3: Auto-fill with product name
     show_module_count: true,
     alignment: 'left',
     size: 'large',
@@ -120,6 +121,7 @@ export const loadBuilderActor = fromPromise<LoadBuilderOutput, LoadBuilderInput>
       sections?: unknown[]; 
       settings?: unknown;
       productImageUrl?: string | null;
+      productName?: string | null;
     }>("admin-data", {
       action: "members-area-data",
       productId,
@@ -131,6 +133,7 @@ export const loadBuilderActor = fromPromise<LoadBuilderOutput, LoadBuilderInput>
     const allSections = parseSections(data?.sections || []);
     const parsedSettings = parseSettings(data?.settings);
     const productImageUrl = data?.productImageUrl || null;
+    const productName = data?.productName || null;
 
     // Load modules
     const { data: modulesData, error: modulesError } = await api.call<{ 
@@ -161,8 +164,8 @@ export const loadBuilderActor = fromPromise<LoadBuilderOutput, LoadBuilderInput>
         hasProductImage: !!productImageUrl 
       });
       
-      desktopSections = generateDefaultSections(productId, productImageUrl, modules, 'desktop');
-      mobileSections = generateDefaultSections(productId, productImageUrl, modules, 'mobile');
+      desktopSections = generateDefaultSections(productId, productImageUrl, productName, modules, 'desktop');
+      mobileSections = generateDefaultSections(productId, productImageUrl, productName, modules, 'mobile');
       isMobileSynced = true;
       
       toast.info("Layout inicial criado! Personalize como quiser.");
@@ -187,6 +190,7 @@ export const loadBuilderActor = fromPromise<LoadBuilderOutput, LoadBuilderInput>
       settings: parsedSettings,
       modules,
       productImageUrl,
+      productName,
       isMobileSynced,
     };
   }

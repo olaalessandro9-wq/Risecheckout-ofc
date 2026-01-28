@@ -8,6 +8,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { ImageIcon } from 'lucide-react';
+import { FIXED_HEADER_LIMITS } from '@/lib/constants/field-limits';
 import type { Section, FixedHeaderSettings, ViewMode, MemberModule } from '../../../types/builder.types';
 import { 
   generateCombinedOverlayStyle,
@@ -21,6 +22,15 @@ interface FixedHeaderViewProps {
   modules?: MemberModule[];
   productName?: string;
   isPreviewMode?: boolean;
+}
+
+/**
+ * Truncates title with ellipsis if it exceeds maxLength
+ * RISE V3: Prevents layout overflow while maintaining readability
+ */
+function truncateTitle(title: string, maxLength: number): string {
+  if (title.length <= maxLength) return title;
+  return title.substring(0, maxLength - 3) + '...';
 }
 
 export function FixedHeaderView({ 
@@ -48,8 +58,9 @@ export function FixedHeaderView({
   const moduleCount = modules.length;
   const moduleText = moduleCount === 1 ? '1 módulo' : `${moduleCount} módulos`;
   
-  // Display title (fallback to product name)
-  const displayTitle = settings.title || productName || 'Título do Curso';
+  // Display title with truncation (fallback to product name)
+  const rawTitle = settings.title || productName || 'Título do Curso';
+  const displayTitle = truncateTitle(rawTitle, FIXED_HEADER_LIMITS.TITLE_TRUNCATE_DISPLAY);
 
   // Overlay style for gradient
   const overlayStyle = gradientConfig.enabled ? generateCombinedOverlayStyle(gradientConfig) : {};
@@ -108,7 +119,7 @@ export function FixedHeaderView({
           {/* Title */}
           <h1 
             className={cn(
-              'font-bold text-white drop-shadow-lg',
+              'font-bold text-white drop-shadow-lg truncate',
               'leading-tight max-w-3xl',
               settings.size === 'small' && 'text-2xl md:text-3xl',
               settings.size === 'medium' && 'text-3xl md:text-4xl',

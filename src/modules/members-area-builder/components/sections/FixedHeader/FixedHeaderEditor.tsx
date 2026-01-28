@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { FixedHeaderImageUpload } from './FixedHeaderImageUpload';
+import { FIXED_HEADER_LIMITS } from '@/lib/constants/field-limits';
 import type { 
   Section, 
   FixedHeaderSettings, 
@@ -65,10 +66,16 @@ export function FixedHeaderEditor({ section, onUpdate, productId }: FixedHeaderE
           value={settings.title || ''}
           onChange={(e) => onUpdate({ title: e.target.value })}
           placeholder="Ex: RatoFlix - Tenha acesso a tudo"
+          maxLength={FIXED_HEADER_LIMITS.TITLE_MAX}
         />
-        <p className="text-xs text-muted-foreground">
-          Se vazio, usa o nome do produto
-        </p>
+        <div className="flex justify-between items-center">
+          <p className="text-xs text-muted-foreground">
+            Se vazio, usa o nome do produto
+          </p>
+          <span className="text-xs text-muted-foreground">
+            {(settings.title || '').length}/{FIXED_HEADER_LIMITS.TITLE_MAX}
+          </span>
+        </div>
       </div>
 
       {/* Module Counter Toggle */}
