@@ -5,6 +5,7 @@
  */
 
 import React from 'react';
+import { cn } from '@/lib/utils';
 import type { MembersAreaBuilderSettings } from '@/modules/members-area-builder/types/builder.types';
 
 interface MembersAreaThemeProviderProps {
@@ -70,6 +71,7 @@ export function MembersAreaThemeProvider({
   const primaryColor = settings.primary_color || '#6366f1';
   const primaryHSL = hexToHSL(primaryColor);
   const foregroundHSL = isLightColor(primaryColor) ? '240 10% 3.9%' : '0 0% 98%';
+  const isDarkTheme = settings.theme === 'dark';
 
   const cssVars = {
     '--members-primary': primaryHSL,
@@ -78,7 +80,13 @@ export function MembersAreaThemeProvider({
   } as React.CSSProperties;
 
   return (
-    <div style={cssVars} className="members-area-root contents">
+    <div 
+      style={cssVars} 
+      className={cn(
+        "members-area-root min-h-screen bg-background",
+        isDarkTheme && "dark"
+      )}
+    >
       {children}
     </div>
   );
