@@ -62,7 +62,6 @@ export interface BuilderActions {
   selectMenuItem: (id: string | null) => void;
   
   // View
-  setViewMode: (mode: ViewMode) => void;
   togglePreviewMode: () => void;
   toggleMenuCollapse: () => void;
   
