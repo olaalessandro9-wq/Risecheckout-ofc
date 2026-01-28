@@ -53,8 +53,14 @@ function generateDefaultSections(
   const fixedHeaderSettings: FixedHeaderSettings = {
     type: 'fixed_header',
     bg_image_url: productImageUrl || '',
-    title: productName || '', // RISE V3: Auto-fill with product name
-    show_module_count: true,
+    title: productName || '',
+    show_title: true,
+    show_stats: true,
+    show_lesson_count: true,
+    show_description: false,
+    description: '',
+    show_cta_button: false,
+    cta_button_text: 'Começar a Assistir',
     alignment: 'left',
     size: 'large',
     gradient_overlay: DEFAULT_GRADIENT_OVERLAY,

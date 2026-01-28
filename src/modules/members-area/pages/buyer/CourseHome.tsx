@@ -201,12 +201,27 @@ export default function CourseHome() {
                     return null;
                   }
                   
+                  // Count total lessons from all modules
+                  const lessonCount = modules.reduce((total, mod) => 
+                    total + (mod.contents?.length || 0), 0
+                  );
+                  
                   return (
                     <BuyerFixedHeaderSection
                       key={section.id}
                       settings={headerSettings}
                       moduleCount={modules.length}
+                      lessonCount={lessonCount}
                       productName={product?.name}
+                      productDescription={product?.description || undefined}
+                      onStartCourse={() => {
+                        // Navigate to first content of first module
+                        const firstModule = modules[0];
+                        const firstContent = firstModule?.contents?.[0];
+                        if (firstContent) {
+                          navigate(`/minha-conta/conteudo/${productId}/${firstContent.id}`);
+                        }
+                      }}
                     />
                   );
                 }
