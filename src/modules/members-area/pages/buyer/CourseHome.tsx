@@ -186,13 +186,10 @@ export default function CourseHome() {
 
           {/* Render sections based on Builder configuration */}
           {hasBuilderSections ? (
-            // Use Builder sections
-            <div className="space-y-2">
-              {sections.map((section, index) => {
-                // Detecta se a seção anterior é um banner (para margin negativo)
-                const prevSection = index > 0 ? sections[index - 1] : null;
-                const isAfterBanner = prevSection?.type === 'banner';
-                
+            // RISE V3: Arquitetura Netflix - flex-col sem gaps
+            // O banner termina em cor sólida, não precisa de margin negativo
+            <div className="flex flex-col">
+              {sections.map((section) => {
                 if (section.type === 'banner') {
                   const bannerSettings = section.settings as {
                     type: 'banner';
@@ -230,23 +227,17 @@ export default function CourseHome() {
                   // Don't render section if no visible modules
                   if (visibleModules.length === 0) return null;
                   
+                  // RISE V3: Sem margin negativo - o banner termina em cor sólida
                   return (
-                    <div 
+                    <ModuleCarousel
                       key={section.id}
-                      className={cn(
-                        // Módulos após banner: margin-top negativo para "subir" debaixo do gradient extension
-                        isAfterBanner && '-mt-16 relative z-0'
-                      )}
-                    >
-                      <ModuleCarousel
-                        modules={visibleModules}
-                        onSelectContent={handleSelectContent}
-                        title={section.title}
-                        cardSize={cardSize}
-                        titleSize={titleSize}
-                        showTitle={showTitle}
-                      />
-                    </div>
+                      modules={visibleModules}
+                      onSelectContent={handleSelectContent}
+                      title={section.title}
+                      cardSize={cardSize}
+                      titleSize={titleSize}
+                      showTitle={showTitle}
+                    />
                   );
                 }
                 

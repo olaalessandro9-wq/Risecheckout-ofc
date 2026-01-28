@@ -2,7 +2,10 @@
  * Buyer Banner Section - Renderiza banner do Builder na área do aluno
  * Com suporte a swipe/drag via Embla Carousel e Gradient Overlay
  * 
- * @see RISE ARCHITECT PROTOCOL V3 - Solution 10.0/10
+ * RISE V3 10.0/10 - Arquitetura Netflix Real:
+ * - Gradiente INTERNO que termina em cor sólida
+ * - Não precisa de "extension" externa
+ * - Transição imperceptível para o conteúdo abaixo
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -10,8 +13,8 @@ import { cn } from '@/lib/utils';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import { 
+  generateBottomFadeCSS,
   generateSideGradientCSS, 
-  generateExtensionGradientCSS,
   resolveGradientConfig 
 } from '@/modules/members-area-builder/utils/gradientUtils';
 import type { GradientOverlayConfig } from '@/modules/members-area-builder/types/builder.types';
@@ -86,16 +89,16 @@ export function BuyerBannerSection({ settings, title }: BuyerBannerSectionProps)
   }
 
   return (
-    // WRAPPER: relative, SEM overflow-hidden para gradient extension poder "vazar"
-    <div className="w-full relative">
+    <div className="w-full">
       {title && (
         <h2 className="text-lg font-semibold text-foreground mb-3 px-4 md:px-8">
           {title}
         </h2>
       )}
       
-      {/* CONTAINER DO CAROUSEL: COM overflow-hidden (só aqui) */}
+      {/* Container único com overflow-hidden */}
       <div className={cn('relative overflow-hidden', heightClass)}>
+        {/* Carousel */}
         <div ref={emblaRef} className="overflow-hidden h-full cursor-grab active:cursor-grabbing">
           <div className="flex h-full">
             {slides.map((slide, index) => (
@@ -122,14 +125,25 @@ export function BuyerBannerSection({ settings, title }: BuyerBannerSectionProps)
           </div>
         </div>
 
-        {/* Side gradient for depth (Netflix-style vignette) - DENTRO do overflow */}
+        {/* Gradientes Netflix: INTERNOS, fazem a imagem terminar em cor sólida */}
         {gradientConfig.enabled && (
-          <div 
-            className="absolute inset-0 pointer-events-none z-10"
-            style={{
-              background: generateSideGradientCSS(gradientConfig)
-            }}
-          />
+          <>
+            {/* Bottom fade - principal (Netflix-style) */}
+            <div 
+              className="absolute inset-0 pointer-events-none z-10"
+              style={{
+                background: generateBottomFadeCSS(gradientConfig)
+              }}
+            />
+            
+            {/* Side gradient para profundidade (vinheta lateral) */}
+            <div 
+              className="absolute inset-0 pointer-events-none z-10"
+              style={{
+                background: generateSideGradientCSS(gradientConfig)
+              }}
+            />
+          </>
         )}
 
         {/* Indicators - z-20 to stay above gradient */}
@@ -151,18 +165,7 @@ export function BuyerBannerSection({ settings, title }: BuyerBannerSectionProps)
         )}
       </div>
       
-      {/* GRADIENT EXTENSION: FORA do overflow-hidden, extende para baixo */}
-      {/* Cria a transição suave estilo Netflix/Cakto */}
-      {gradientConfig.enabled && (
-        <div 
-          className="absolute left-0 right-0 h-24 pointer-events-none z-10"
-          style={{
-            bottom: 0,
-            transform: 'translateY(100%)',
-            background: generateExtensionGradientCSS(gradientConfig),
-          }}
-        />
-      )}
+      {/* NÃO TEM MAIS GRADIENT EXTENSION - arquitetura Netflix não precisa */}
     </div>
   );
 }
