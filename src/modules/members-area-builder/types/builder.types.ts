@@ -21,6 +21,7 @@ export type Viewport = 'desktop' | 'mobile';
 // =====================================================
 
 export type SectionType = 
+  | 'fixed_header'  // Always first, cannot be moved/deleted
   | 'banner' 
   | 'modules' 
   | 'courses' 
@@ -46,12 +47,27 @@ export interface Section {
 // =====================================================
 
 export type SectionSettings = 
+  | FixedHeaderSettings  // NEW
   | BannerSettings 
   | ModulesSettings 
   | CoursesSettings 
   | ContinueWatchingSettings
   | TextSettings
   | SpacerSettings;
+
+// =====================================================
+// FIXED HEADER SETTINGS (Always at top, non-movable)
+// =====================================================
+
+export interface FixedHeaderSettings {
+  type: 'fixed_header';
+  bg_image_url: string;
+  title: string;
+  show_module_count: boolean;
+  alignment: 'left' | 'center';
+  size: 'small' | 'medium' | 'large';
+  gradient_overlay?: GradientOverlayConfig;
+}
 
 export interface BannerSlide {
   id: string;
@@ -242,6 +258,7 @@ export interface SectionConfig<T extends SectionSettings = SectionSettings> {
   maxInstances: number; // -1 = unlimited
   isRequired: boolean; // Cannot be deleted
   canDuplicate: boolean; // Can be duplicated
+  canMove: boolean; // Can be moved up/down (NEW)
   defaults: Omit<T, 'type'>;
 }
 
@@ -255,6 +272,15 @@ export const DEFAULT_GRADIENT_OVERLAY: GradientOverlayConfig = {
   strength: 60,
   use_theme_color: true,
   custom_color: undefined,
+};
+
+export const DEFAULT_FIXED_HEADER_SETTINGS: Omit<FixedHeaderSettings, 'type'> = {
+  bg_image_url: '',
+  title: '',
+  show_module_count: true,
+  alignment: 'left',
+  size: 'large',
+  gradient_overlay: DEFAULT_GRADIENT_OVERLAY,
 };
 
 export const DEFAULT_BANNER_SETTINGS: Omit<BannerSettings, 'type'> = {

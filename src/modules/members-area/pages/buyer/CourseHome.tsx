@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 
 import { HeroBanner, ModuleCarousel } from "./components/netflix";
 import { BuyerBannerSection } from "./components/sections/BuyerBannerSection";
+import { BuyerFixedHeaderSection } from "./components/sections/BuyerFixedHeaderSection";
 import { BuyerSidebar } from "./components/layout/BuyerSidebar";
 import { BuyerMobileNav } from "./components/layout/BuyerMobileNav";
 import { MembersAreaThemeProvider } from "./components/MembersAreaThemeProvider";
@@ -29,6 +30,7 @@ import {
   DEFAULT_BUILDER_SETTINGS, 
   type MembersAreaBuilderSettings,
   type ModulesSettings,
+  type FixedHeaderSettings,
 } from "@/modules/members-area-builder/types/builder.types";
 import type { CardSize } from "@/modules/members-area-builder/constants/cardSizes";
 import type { TitleSize } from "@/modules/members-area-builder/constants/titleSizes";
@@ -190,6 +192,25 @@ export default function CourseHome() {
             // O banner termina em cor sólida, não precisa de margin negativo
             <div className="flex flex-col">
               {sections.map((section) => {
+                // Fixed Header Section (Cakto-style)
+                if (section.type === 'fixed_header') {
+                  const headerSettings = section.settings as unknown as FixedHeaderSettings;
+                  
+                  // Only render if has image
+                  if (!headerSettings.bg_image_url) {
+                    return null;
+                  }
+                  
+                  return (
+                    <BuyerFixedHeaderSection
+                      key={section.id}
+                      settings={headerSettings}
+                      moduleCount={modules.length}
+                      productName={product?.name}
+                    />
+                  );
+                }
+                
                 if (section.type === 'banner') {
                   const bannerSettings = section.settings as {
                     type: 'banner';

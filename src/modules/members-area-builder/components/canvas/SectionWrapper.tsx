@@ -18,7 +18,7 @@ import {
   EyeOff,
   Lock,
 } from 'lucide-react';
-import { getSectionLabel, getSectionIcon, canDeleteSection, canDuplicateSection } from '../../registry';
+import { getSectionLabel, getSectionIcon, canDeleteSection, canDuplicateSection, canMoveSection } from '../../registry';
 import type { Section } from '../../types/builder.types';
 import * as Icons from 'lucide-react';
 import {
@@ -62,6 +62,7 @@ export function SectionWrapper({
   
   const canDelete = canDeleteSection(section.type);
   const canDuplicate = canDuplicateSection(section.type);
+  const canMove = canMoveSection(section.type);
   
   if (isPreviewMode) {
     return <>{children}</>;
@@ -147,41 +148,44 @@ export function SectionWrapper({
             isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
           )}
         >
-          <div className="flex flex-col gap-0.5 bg-background border rounded-md shadow-sm p-0.5">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={handleMoveUp}
-                  disabled={isFirst}
-                >
-                  <ChevronUp className="h-3 w-3" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="left">
-                <p>Mover para cima</p>
-              </TooltipContent>
-            </Tooltip>
-            
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={handleMoveDown}
-                  disabled={isLast}
-                >
-                  <ChevronDown className="h-3 w-3" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="left">
-                <p>Mover para baixo</p>
-              </TooltipContent>
-            </Tooltip>
-          </div>
+          {/* Movement controls - only if section can be moved */}
+          {canMove && (
+            <div className="flex flex-col gap-0.5 bg-background border rounded-md shadow-sm p-0.5">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={handleMoveUp}
+                    disabled={isFirst}
+                  >
+                    <ChevronUp className="h-3 w-3" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  <p>Mover para cima</p>
+                </TooltipContent>
+              </Tooltip>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={handleMoveDown}
+                    disabled={isLast}
+                  >
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  <p>Mover para baixo</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          )}
 
           <div className="flex flex-col gap-0.5 bg-background border rounded-md shadow-sm p-0.5">
             <Tooltip>

@@ -2,12 +2,13 @@
  * Members Area Builder - Section Registry
  * Registry Pattern para seções do builder
  * 
- * @see RISE ARCHITECT PROTOCOL
+ * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import type { 
   SectionType, 
   SectionConfig,
+  FixedHeaderSettings,
   BannerSettings,
   ModulesSettings,
   CoursesSettings,
@@ -17,6 +18,7 @@ import type {
 } from './types/builder.types';
 
 import {
+  DEFAULT_FIXED_HEADER_SETTINGS as FIXED_HEADER_DEFAULTS,
   DEFAULT_BANNER_SETTINGS as BANNER_DEFAULTS,
   DEFAULT_MODULES_SETTINGS as MODULES_DEFAULTS,
   DEFAULT_COURSES_SETTINGS as COURSES_DEFAULTS,
@@ -29,6 +31,18 @@ import {
 // SECTION CONFIGURATIONS
 // =====================================================
 
+const FixedHeaderConfig: SectionConfig<FixedHeaderSettings> = {
+  type: 'fixed_header',
+  label: 'Header',
+  description: 'Cabeçalho fixo com imagem, título e contador de módulos',
+  icon: 'LayoutDashboard',
+  maxInstances: 1,
+  isRequired: true,
+  canDuplicate: false,
+  canMove: false, // Cannot be moved - always at top
+  defaults: FIXED_HEADER_DEFAULTS,
+};
+
 const BannerConfig: SectionConfig<BannerSettings> = {
   type: 'banner',
   label: 'Banner',
@@ -37,6 +51,7 @@ const BannerConfig: SectionConfig<BannerSettings> = {
   maxInstances: -1,  // Unlimited banners
   isRequired: false,
   canDuplicate: true, // Can duplicate
+  canMove: true,
   defaults: BANNER_DEFAULTS,
 };
 
@@ -48,6 +63,7 @@ const ModulesConfig: SectionConfig<ModulesSettings> = {
   maxInstances: -1,
   isRequired: false,
   canDuplicate: true,
+  canMove: true,
   defaults: MODULES_DEFAULTS,
 };
 
@@ -59,6 +75,7 @@ const CoursesConfig: SectionConfig<CoursesSettings> = {
   maxInstances: -1,
   isRequired: false,
   canDuplicate: true,
+  canMove: true,
   defaults: COURSES_DEFAULTS,
 };
 
@@ -70,6 +87,7 @@ const ContinueWatchingConfig: SectionConfig<ContinueWatchingSettings> = {
   maxInstances: 1,
   isRequired: true, // Required section - cannot be deleted
   canDuplicate: false,
+  canMove: true,
   defaults: CONTINUE_DEFAULTS,
 };
 
@@ -81,6 +99,7 @@ const TextConfig: SectionConfig<TextSettings> = {
   maxInstances: -1,
   isRequired: false,
   canDuplicate: true,
+  canMove: true,
   defaults: TEXT_DEFAULTS,
 };
 
@@ -92,6 +111,7 @@ const SpacerConfig: SectionConfig<SpacerSettings> = {
   maxInstances: -1,
   isRequired: false,
   canDuplicate: true,
+  canMove: true,
   defaults: SPACER_DEFAULTS,
 };
 
@@ -100,6 +120,7 @@ const SpacerConfig: SectionConfig<SpacerSettings> = {
 // =====================================================
 
 export const SectionRegistry: Record<SectionType, SectionConfig> = {
+  fixed_header: FixedHeaderConfig,
   banner: BannerConfig,
   modules: ModulesConfig,
   courses: CoursesConfig,
@@ -144,13 +165,21 @@ export function canDuplicateSection(type: SectionType): boolean {
   return SectionRegistry[type].canDuplicate;
 }
 
+export function canMoveSection(type: SectionType): boolean {
+  return SectionRegistry[type].canMove;
+}
+
 export function isRequiredSection(type: SectionType): boolean {
   return SectionRegistry[type].isRequired;
 }
 
 export function getAvailableSectionTypes(currentSections: { type: SectionType }[]): SectionType[] {
   return (Object.keys(SectionRegistry) as SectionType[]).filter(
-    type => canAddSection(type, currentSections)
+    type => {
+      // fixed_header is not manually addable - it's always auto-initialized
+      if (type === 'fixed_header') return false;
+      return canAddSection(type, currentSections);
+    }
   );
 }
 

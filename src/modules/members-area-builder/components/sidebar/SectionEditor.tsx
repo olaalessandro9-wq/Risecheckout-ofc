@@ -1,7 +1,7 @@
 /**
  * Section Editor - Editor contextual de seção
  * 
- * @see RISE ARCHITECT PROTOCOL
+ * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import React from 'react';
@@ -17,13 +17,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { getSectionLabel } from '../../registry';
+import { FixedHeaderEditor } from '../sections/FixedHeader/FixedHeaderEditor';
 import { BannerEditor } from '../sections/Banner/BannerEditor';
 import { ModulesEditor } from '../sections/Modules/ModulesEditor';
 import { CoursesEditor } from '../sections/Courses/CoursesEditor';
 import { ContinueWatchingEditor } from '../sections/ContinueWatching/ContinueWatchingEditor';
 import { TextEditor } from '../sections/Text/TextEditor';
 import { SpacerEditor } from '../sections/Spacer/SpacerEditor';
-import type { Section, SectionSettings, MemberModule, ModulesSettings } from '../../types/builder.types';
+import type { Section, SectionSettings, MemberModule, ModulesSettings, FixedHeaderSettings } from '../../types/builder.types';
 
 interface SectionEditorProps {
   section: Section;
@@ -35,6 +36,19 @@ interface SectionEditorProps {
 }
 
 export function SectionEditor({ section, onUpdate, onUpdateSettings, modules, productId, onModuleEdit }: SectionEditorProps) {
+  // Fixed Header has its own complete editor
+  if (section.type === 'fixed_header') {
+    return (
+      <div className="space-y-6">
+        <FixedHeaderEditor 
+          section={section} 
+          onUpdate={onUpdateSettings as (settings: Partial<FixedHeaderSettings>) => void} 
+          productId={productId} 
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
 

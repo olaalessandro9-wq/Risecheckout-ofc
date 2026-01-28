@@ -22,17 +22,24 @@ interface BuilderCanvasProps {
 export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
   const { sections, selectedSectionId, selectedMenuItemId, viewMode, isPreviewMode, isMenuCollapsed, settings, modules } = state;
 
+  // Separate fixed_header from regular sections
+  const fixedHeader = sections.find(s => s.type === 'fixed_header');
+  const regularSections = sections.filter(s => s.type !== 'fixed_header');
+
   // Menu visibility flags (defaults to true for new products without explicit settings)
   const showMenuDesktop = settings.show_menu_desktop ?? true;
   const showMenuMobile = settings.show_menu_mobile ?? true;
 
   const handleMoveSection = (index: number, direction: 'up' | 'down') => {
     const newIndex = direction === 'up' ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= sections.length) return;
+    if (newIndex < 0 || newIndex >= regularSections.length) return;
     
-    const orderedIds = [...sections].map(s => s.id);
+    const orderedIds = [...regularSections].map(s => s.id);
     [orderedIds[index], orderedIds[newIndex]] = [orderedIds[newIndex], orderedIds[index]];
-    actions.reorderSections(orderedIds);
+    
+    // Include fixed_header ID at the beginning if it exists
+    const finalOrderedIds = fixedHeader ? [fixedHeader.id, ...orderedIds] : orderedIds;
+    actions.reorderSections(finalOrderedIds);
   };
 
   const handleAddSection = (type: SectionType) => {
@@ -67,7 +74,7 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
           {/* Main Content Area */}
           <div className="flex-1 flex flex-col overflow-hidden">
             <div className="flex-1 flex flex-col overflow-auto">
-              {sections.length === 0 ? (
+              {!fixedHeader && regularSections.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
                   <p className="text-lg mb-4">Nenhuma seção adicionada</p>
                   <AddSectionButton 
@@ -77,13 +84,40 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
                 </div>
               ) : (
                 <>
-                  {sections.map((section, index) => (
+                  {/* Fixed Header - always first, no movement controls */}
+                  {fixedHeader && (
+                    <SectionWrapper
+                      key={fixedHeader.id}
+                      section={fixedHeader}
+                      isSelected={selectedSectionId === fixedHeader.id}
+                      isFirst={true}
+                      isLast={regularSections.length === 0}
+                      isPreviewMode={isPreviewMode}
+                      onSelect={() => actions.selectSection(fixedHeader.id)}
+                      onMoveUp={() => {}}
+                      onMoveDown={() => {}}
+                      onDuplicate={() => {}}
+                      onDelete={() => {}}
+                      onToggleActive={() => actions.updateSection(fixedHeader.id, { is_active: !fixedHeader.is_active })}
+                    >
+                      <SectionView 
+                        section={fixedHeader} 
+                        viewMode={viewMode}
+                        theme={settings.theme}
+                        modules={modules}
+                        isPreviewMode={isPreviewMode}
+                      />
+                    </SectionWrapper>
+                  )}
+                  
+                  {/* Regular Sections */}
+                  {regularSections.map((section, index) => (
                     <SectionWrapper
                       key={section.id}
                       section={section}
                       isSelected={selectedSectionId === section.id}
                       isFirst={index === 0}
-                      isLast={index === sections.length - 1}
+                      isLast={index === regularSections.length - 1}
                       isPreviewMode={isPreviewMode}
                       onSelect={() => actions.selectSection(section.id)}
                       onMoveUp={() => handleMoveSection(index, 'up')}
@@ -153,7 +187,7 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
       {/* Main Content Area - Takes remaining space */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-auto">
-          {sections.length === 0 ? (
+          {!fixedHeader && regularSections.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-muted-foreground">
               <p className={cn(
                 'text-lg mb-4',
@@ -168,13 +202,40 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
             </div>
           ) : (
             <div className="flex flex-col">
-              {sections.map((section, index) => (
+              {/* Fixed Header - always first, no movement controls */}
+              {fixedHeader && (
+                <SectionWrapper
+                  key={fixedHeader.id}
+                  section={fixedHeader}
+                  isSelected={selectedSectionId === fixedHeader.id}
+                  isFirst={true}
+                  isLast={regularSections.length === 0}
+                  isPreviewMode={isPreviewMode}
+                  onSelect={() => actions.selectSection(fixedHeader.id)}
+                  onMoveUp={() => {}}
+                  onMoveDown={() => {}}
+                  onDuplicate={() => {}}
+                  onDelete={() => {}}
+                  onToggleActive={() => actions.updateSection(fixedHeader.id, { is_active: !fixedHeader.is_active })}
+                >
+                  <SectionView 
+                    section={fixedHeader} 
+                    viewMode={viewMode}
+                    theme={settings.theme}
+                    modules={modules}
+                    isPreviewMode={isPreviewMode}
+                  />
+                </SectionWrapper>
+              )}
+              
+              {/* Regular Sections */}
+              {regularSections.map((section, index) => (
                 <SectionWrapper
                   key={section.id}
                   section={section}
                   isSelected={selectedSectionId === section.id}
                   isFirst={index === 0}
-                  isLast={index === sections.length - 1}
+                  isLast={index === regularSections.length - 1}
                   isPreviewMode={isPreviewMode}
                   onSelect={() => actions.selectSection(section.id)}
                   onMoveUp={() => handleMoveSection(index, 'up')}
