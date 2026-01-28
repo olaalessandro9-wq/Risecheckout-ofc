@@ -11,17 +11,7 @@ import {
   generateCombinedOverlayStyle,
   resolveGradientConfig 
 } from '@/modules/members-area-builder/utils/gradientUtils';
-import type { GradientOverlayConfig } from '@/modules/members-area-builder/types/builder.types';
-
-interface FixedHeaderSettings {
-  type: 'fixed_header';
-  bg_image_url: string;
-  title: string;
-  show_module_count: boolean;
-  alignment: 'left' | 'center';
-  size: 'small' | 'medium' | 'large';
-  gradient_overlay?: GradientOverlayConfig;
-}
+import type { FixedHeaderSettings } from '@/modules/members-area-builder/types/builder.types';
 
 interface BuyerFixedHeaderSectionProps {
   settings: FixedHeaderSettings;
