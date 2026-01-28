@@ -8,22 +8,30 @@
 import { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { NetflixModuleCard } from "./NetflixModuleCard";
 import type { Module, ContentItem } from "../types";
 import type { CardSize } from "@/modules/members-area-builder/constants/cardSizes";
+import { getTitleSizeClass, type TitleSize } from "@/modules/members-area-builder/constants/titleSizes";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ModuleCarouselProps {
   modules: Module[];
   onSelectContent: (content: ContentItem, module: Module) => void;
   title?: string | null;
   cardSize?: CardSize;
+  titleSize?: TitleSize;
 }
 
-export function ModuleCarousel({ modules, onSelectContent, title, cardSize = 'medium' }: ModuleCarouselProps) {
+export function ModuleCarousel({ modules, onSelectContent, title, cardSize = 'medium', titleSize = 'medium' }: ModuleCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
+  const isMobile = useIsMobile();
+
+  // RISE V3: Use SSOT title size from settings
+  const titleSizeClass = getTitleSizeClass(titleSize, isMobile);
 
   const handleScroll = () => {
     if (!scrollRef.current) return;
@@ -60,14 +68,14 @@ export function ModuleCarousel({ modules, onSelectContent, title, cardSize = 'me
 
   return (
     <div className="relative py-6">
-      {/* Section Title */}
+      {/* Section Title - Uses configurable title size */}
       <motion.div
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.4 }}
         className="px-6 md:px-10 lg:px-16 mb-2"
       >
-        <h2 className="text-xl md:text-2xl font-semibold text-foreground">
+        <h2 className={cn(titleSizeClass, 'text-foreground')}>
           {title || "Módulos"}
         </h2>
       </motion.div>

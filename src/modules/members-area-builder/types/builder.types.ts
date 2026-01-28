@@ -76,6 +76,8 @@ export interface ModulesSettings {
   hidden_module_ids?: string[]; // Module IDs hidden from this section
   // Card size control - determines card width in carousel (Netflix-style)
   card_size: 'small' | 'medium' | 'large';
+  // Section title size control (Paramount+ style)
+  title_size: 'small' | 'medium' | 'large';
 }
 
 export interface CoursesSettings {
@@ -252,6 +254,7 @@ export const DEFAULT_MODULES_SETTINGS: Omit<ModulesSettings, 'type'> = {
   module_order: [],
   hidden_module_ids: [],
   card_size: 'medium', // Default card size
+  title_size: 'medium', // Default title size
 };
 
 export const DEFAULT_COURSES_SETTINGS: Omit<CoursesSettings, 'type'> = {

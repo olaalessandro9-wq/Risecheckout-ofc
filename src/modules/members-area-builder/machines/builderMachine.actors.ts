@@ -83,6 +83,7 @@ function generateDefaultSections(
       module_order: modules.map(m => m.id),
       hidden_module_ids: [],
       card_size: 'medium', // RISE V3: Default card size
+      title_size: 'medium', // RISE V3: Default title size
     };
     
     sections.push({

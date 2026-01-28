@@ -157,6 +157,29 @@ export function ModulesEditor({ section, onUpdate, modules = [], onModuleEdit }:
           </p>
         </div>
 
+        {/* Title Size Control */}
+        <div className="space-y-2">
+          <Label>Tamanho do Título da Seção</Label>
+          <Select
+            value={settings.title_size || 'medium'}
+            onValueChange={(value: 'small' | 'medium' | 'large') => 
+              onUpdate({ title_size: value })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="small">Pequeno</SelectItem>
+              <SelectItem value="medium">Médio</SelectItem>
+              <SelectItem value="large">Grande (estilo Paramount+)</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Define o tamanho do título da seção (ex: "Recomendados")
+          </p>
+        </div>
+
         {/* Show Title */}
         <div className="space-y-2">
           <Label>Exibir Título do Módulo</Label>
