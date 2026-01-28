@@ -157,12 +157,13 @@ serve(withSentry('create-order', async (req) => {
     
     const { allOrderItems, totalAmount } = bumpResult as BumpProcessingResult;
 
-    // 6. APLICAR CUPOM
+    // 6. APLICAR CUPOM (RISE V3: inclui customer_email para limite por cliente)
     const { discountAmount, couponCode } = await processCoupon(supabase, {
       coupon_id,
       product_id,
       totalAmount,
-      finalPrice
+      finalPrice,
+      customer_email,
     });
 
     const finalTotal = totalAmount - discountAmount;

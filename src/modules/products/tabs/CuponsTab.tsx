@@ -26,13 +26,14 @@ import { useConfirmDelete } from "@/components/common/ConfirmDelete";
 const log = createLogger("CuponsTab");
 
 // Tipo Coupon para a tabela (formato do componente CouponsTable)
+// RISE V3: Datas opcionais para cupons sem expiração
 interface TableCoupon {
   id: string;
   code: string;
   discount: number;
   discountType: "percentage";
-  startDate: Date;
-  endDate: Date;
+  startDate: Date | null;
+  endDate: Date | null;
   applyToOrderBumps: boolean;
   usageCount: number;
 }
@@ -53,14 +54,19 @@ export function CuponsTab() {
   const [editingCoupon, setEditingCoupon] = useState<CouponFormData | null>(null);
 
   // Transformar coupons do contexto para formato da tabela (memoizado)
+  // RISE V3: Datas null quando cupom não tem expiração
   const tableCoupons: TableCoupon[] = useMemo(() => {
     return contextCoupons.map((c) => ({
       id: c.id,
       code: c.code,
       discount: c.discount,
       discountType: c.discount_type || "percentage",
-      startDate: c.startDate instanceof Date ? c.startDate : new Date(c.startDate || Date.now()),
-      endDate: c.endDate instanceof Date ? c.endDate : new Date(c.endDate || Date.now()),
+      startDate: c.startDate 
+        ? (c.startDate instanceof Date ? c.startDate : new Date(c.startDate)) 
+        : null,
+      endDate: c.endDate 
+        ? (c.endDate instanceof Date ? c.endDate : new Date(c.endDate)) 
+        : null,
       applyToOrderBumps: c.applyToOrderBumps ?? true,
       usageCount: c.usageCount ?? 0,
     }));
@@ -138,8 +144,13 @@ export function CuponsTab() {
           description: couponData.description,
           discount_type: couponData.discountType,
           discount_value: couponData.discountValue,
-          start_date: couponData.startDate?.toISOString() || null,
-          expires_at: couponData.hasExpiration && couponData.endDate ? couponData.endDate.toISOString() : null,
+          // RISE V3: Só envia datas se hasExpiration = true
+          start_date: couponData.hasExpiration && couponData.startDate 
+            ? couponData.startDate.toISOString() 
+            : null,
+          expires_at: couponData.hasExpiration && couponData.endDate 
+            ? couponData.endDate.toISOString() 
+            : null,
           max_uses: couponData.maxUses || null,
           max_uses_per_customer: couponData.maxUsesPerCustomer || null,
           apply_to_order_bumps: couponData.applyToOrderBumps ?? true,
