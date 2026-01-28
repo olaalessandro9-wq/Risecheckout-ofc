@@ -1,6 +1,8 @@
 /**
  * Netflix-style Module Carousel Component
  * Horizontal scrolling carousel of module cards
+ * 
+ * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import { useRef, useState } from "react";
@@ -9,14 +11,16 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NetflixModuleCard } from "./NetflixModuleCard";
 import type { Module, ContentItem } from "../types";
+import type { CardSize } from "@/modules/members-area-builder/constants/cardSizes";
 
 interface ModuleCarouselProps {
   modules: Module[];
   onSelectContent: (content: ContentItem, module: Module) => void;
   title?: string | null;
+  cardSize?: CardSize;
 }
 
-export function ModuleCarousel({ modules, onSelectContent, title }: ModuleCarouselProps) {
+export function ModuleCarousel({ modules, onSelectContent, title, cardSize = 'medium' }: ModuleCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
@@ -107,6 +111,7 @@ export function ModuleCarousel({ modules, onSelectContent, title }: ModuleCarous
               module={module}
               index={index}
               onClick={() => handleModuleClick(module)}
+              cardSize={cardSize}
             />
           ))}
         </div>

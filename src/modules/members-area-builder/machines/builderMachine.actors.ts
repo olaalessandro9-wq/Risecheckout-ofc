@@ -82,6 +82,7 @@ function generateDefaultSections(
       show_progress: true,
       module_order: modules.map(m => m.id),
       hidden_module_ids: [],
+      card_size: 'medium', // RISE V3: Default card size
     };
     
     sections.push({
@@ -168,7 +169,10 @@ export const loadBuilderActor = fromPromise<LoadBuilderOutput, LoadBuilderInput>
     }
     
     // If mobile is empty but desktop has content, sync is enabled
-    if (mobileSections.length === 0 && desktopSections.length > 0) {
+    // RISE V3 FIX: Check if DB already has mobile sections (not just local array)
+    const dbHasMobileSections = allSections.some(s => s.viewport === 'mobile');
+    
+    if (!dbHasMobileSections && desktopSections.length > 0) {
       mobileSections = desktopSections.map(s => ({
         ...s,
         id: `temp_${crypto.randomUUID()}`,

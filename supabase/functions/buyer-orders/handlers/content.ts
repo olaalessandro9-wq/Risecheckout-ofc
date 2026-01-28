@@ -25,6 +25,7 @@ export async function handleContent(
   supabase: SupabaseClient,
   buyer: BuyerData,
   productId: string,
+  viewport: 'desktop' | 'mobile', // RISE V3: Filter by viewport
   corsHeaders: Record<string, string>
 ): Promise<Response> {
   // Check if buyer has access to this product (via purchase)
@@ -89,11 +90,12 @@ export async function handleContent(
     );
   }
 
-  // Get Builder sections (banners, modules, etc.)
+  // Get Builder sections (banners, modules, etc.) - RISE V3: FILTERED BY VIEWPORT
   const { data: sections, error: sectionsError } = await supabase
     .from("product_members_sections")
     .select("*")
     .eq("product_id", productId)
+    .eq("viewport", viewport) // RISE V3: Filter by viewport to prevent duplicates
     .eq("is_active", true)
     .order("position", { ascending: true });
 

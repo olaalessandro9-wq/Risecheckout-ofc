@@ -134,7 +134,28 @@ export function ModulesEditor({ section, onUpdate, modules = [], onModuleEdit }:
           </p>
         </div>
 
-        {/* Note: Cards are displayed in horizontal carousel with fixed width (Netflix-style) */}
+        {/* Card Size Control */}
+        <div className="space-y-2">
+          <Label>Tamanho dos Cards</Label>
+          <Select
+            value={settings.card_size || 'medium'}
+            onValueChange={(value: 'small' | 'medium' | 'large') => 
+              onUpdate({ card_size: value })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="small">Pequeno (mais cards visíveis)</SelectItem>
+              <SelectItem value="medium">Médio</SelectItem>
+              <SelectItem value="large">Grande (menos cards visíveis)</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Define a largura dos cards no carousel
+          </p>
+        </div>
 
         {/* Show Title */}
         <div className="space-y-2">

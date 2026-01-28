@@ -3,7 +3,10 @@
  * Renders banner sections and module carousels based on Builder configuration
  * With sidebar (desktop) and bottom nav (mobile) from Builder settings
  * 
- * RISE V3: Uses useUnifiedAuth (unified identity)
+ * RISE V3: 
+ * - Uses useUnifiedAuth (unified identity)
+ * - Passes viewport to filter sections
+ * - Passes cardSize to ModuleCarousel
  */
 
 import { useEffect, useState, useMemo } from "react";
@@ -11,6 +14,7 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { useBuyerProductContent } from "@/hooks/useBuyerOrders";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -23,8 +27,10 @@ import { MembersAreaThemeProvider } from "./components/MembersAreaThemeProvider"
 import type { Module, ContentItem, ProductData } from "./components/types";
 import { 
   DEFAULT_BUILDER_SETTINGS, 
-  type MembersAreaBuilderSettings 
+  type MembersAreaBuilderSettings,
+  type ModulesSettings,
 } from "@/modules/members-area-builder/types/builder.types";
+import type { CardSize } from "@/modules/members-area-builder/constants/cardSizes";
 
 // Helper to filter and order modules based on section settings
 function getVisibleOrderedModules(
@@ -74,9 +80,12 @@ export default function CourseHome() {
   const { productId } = useParams<{ productId: string }>();
   // RISE V3: useUnifiedAuth em vez de useBuyerAuth
   const { isLoading: authLoading, isAuthenticated } = useUnifiedAuth();
+  // RISE V3: Detect viewport for filtering sections
+  const isMobile = useIsMobile();
+  const viewport = isMobile ? 'mobile' : 'desktop';
   
-  // React Query declarativo - elimina o loop de useEffect
-  const { data, isLoading: queryLoading, error: queryError } = useBuyerProductContent(productId);
+  // React Query declarativo - RISE V3: Pass viewport to filter sections
+  const { data, isLoading: queryLoading, error: queryError } = useBuyerProductContent(productId, viewport);
 
   const [isMenuCollapsed, setIsMenuCollapsed] = useState(false);
 
@@ -205,11 +214,11 @@ export default function CourseHome() {
                 
                 if (section.type === 'modules') {
                   // Apply hidden_module_ids and module_order filters
-                  const sectionSettings = section.settings as {
-                    hidden_module_ids?: string[];
-                    module_order?: string[];
-                  };
+                  const sectionSettings = section.settings as unknown as ModulesSettings;
                   const visibleModules = getVisibleOrderedModules(modules, sectionSettings);
+                  
+                  // RISE V3: Get cardSize from section settings
+                  const cardSize: CardSize = sectionSettings.card_size || 'medium';
                   
                   // Don't render section if no visible modules
                   if (visibleModules.length === 0) return null;
@@ -220,6 +229,7 @@ export default function CourseHome() {
                       modules={visibleModules}
                       onSelectContent={handleSelectContent}
                       title={section.title}
+                      cardSize={cardSize}
                     />
                   );
                 }

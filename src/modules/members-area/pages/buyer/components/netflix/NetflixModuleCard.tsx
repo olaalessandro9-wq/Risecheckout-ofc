@@ -1,21 +1,31 @@
 /**
  * Netflix-style Module Card Component
  * Displays a module with thumbnail, title, and lesson count
+ * Uses SSOT card sizes from cardSizes.ts
+ * 
+ * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import { motion } from "framer-motion";
 import { PlayCircle, Film } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import type { Module } from "../types";
+import type { CardSize } from "@/modules/members-area-builder/constants/cardSizes";
+import { getCardWidthClass } from "@/modules/members-area-builder/constants/cardSizes";
 
 interface NetflixModuleCardProps {
   module: Module;
   index: number;
   onClick?: () => void;
+  cardSize?: CardSize;
 }
 
-export function NetflixModuleCard({ module, index, onClick }: NetflixModuleCardProps) {
+export function NetflixModuleCard({ module, index, onClick, cardSize = 'medium' }: NetflixModuleCardProps) {
   const lessonCount = module.contents.length;
+  
+  // RISE V3: Use SSOT card width from settings
+  const cardWidth = getCardWidthClass(cardSize, false); // Mobile handled at parent level
   
   // Fallback gradient colors for modules without cover
   const gradientColors = [
@@ -34,7 +44,7 @@ export function NetflixModuleCard({ module, index, onClick }: NetflixModuleCardP
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1, duration: 0.4 }}
       onClick={onClick}
-      className="relative group/card cursor-pointer flex-shrink-0 w-[180px] md:w-[220px]"
+      className={cn("relative group/card cursor-pointer flex-shrink-0", cardWidth)}
     >
       {/* Card Container - Fixed aspect ratio 2:3 (poster style) */}
       <motion.div 
