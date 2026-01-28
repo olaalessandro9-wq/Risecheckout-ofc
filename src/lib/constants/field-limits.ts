@@ -45,3 +45,10 @@ export const PRODUCT_DUPLICATION = {
   /** Tamanho máximo para nome base (garante espaço para sufixo + contador) */
   MAX_BASE_NAME_LENGTH: 88,
 } as const;
+
+export const FIXED_HEADER_LIMITS = {
+  /** Título da header: até 60 caracteres (balanceado para responsividade) */
+  TITLE_MAX: 60,
+  /** Ponto de truncamento visual na área do aluno */
+  TITLE_TRUNCATE_DISPLAY: 45,
+} as const;

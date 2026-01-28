@@ -7,6 +7,7 @@
  */
 
 import { cn } from '@/lib/utils';
+import { FIXED_HEADER_LIMITS } from '@/lib/constants/field-limits';
 import { 
   generateCombinedOverlayStyle,
   resolveGradientConfig 
@@ -17,6 +18,15 @@ interface BuyerFixedHeaderSectionProps {
   settings: FixedHeaderSettings;
   moduleCount: number;
   productName?: string;
+}
+
+/**
+ * Truncates title with ellipsis if it exceeds maxLength
+ * RISE V3: Prevents layout overflow while maintaining readability
+ */
+function truncateTitle(title: string, maxLength: number): string {
+  if (title.length <= maxLength) return title;
+  return title.substring(0, maxLength - 3) + '...';
 }
 
 export function BuyerFixedHeaderSection({ 
@@ -39,8 +49,9 @@ export function BuyerFixedHeaderSection({
   // Module count text
   const moduleText = moduleCount === 1 ? '1 módulo' : `${moduleCount} módulos`;
   
-  // Display title (fallback to product name)
-  const displayTitle = settings.title || productName || '';
+  // Display title with truncation (fallback to product name)
+  const rawTitle = settings.title || productName || '';
+  const displayTitle = rawTitle ? truncateTitle(rawTitle, FIXED_HEADER_LIMITS.TITLE_TRUNCATE_DISPLAY) : '';
 
   // Overlay style for gradient
   const overlayStyle = gradientConfig.enabled ? generateCombinedOverlayStyle(gradientConfig) : {};
@@ -80,7 +91,7 @@ export function BuyerFixedHeaderSection({
           {displayTitle && (
             <h1 
               className={cn(
-                'font-bold text-white drop-shadow-lg',
+                'font-bold text-white drop-shadow-lg truncate',
                 'leading-tight max-w-3xl',
                 settings.size === 'small' && 'text-2xl md:text-3xl',
                 settings.size === 'medium' && 'text-3xl md:text-4xl',
