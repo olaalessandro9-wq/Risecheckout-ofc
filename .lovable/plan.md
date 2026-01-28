@@ -1,261 +1,169 @@
 
 
-# Plano: Header Totalmente Personalizável com Novos Elementos
+# Plano: Unificação do Controle Desktop/Mobile
 
-## Diagnóstico Atual
+## Diagnóstico
 
-O usuário identificou que a **Header da Área de Membros** não reflete todos os elementos visíveis na área do aluno. Atualmente:
+### Arquitetura Atual (Problema)
+O Header possui **DOIS controles separados**:
 
-### Elementos na Área do Aluno (via HeroBanner fallback):
-1. ✅ **Título** (nome do produto)
-2. ✅ **Subtítulo** (X módulos · Y aulas)
-3. ✅ **Descrição** (product.description)
-4. ✅ **Botão CTA** ("Começar a Assistir")
+| Controle | Localização | Função | Estado |
+|----------|-------------|--------|--------|
+| **Viewport Toggle** | Centro | `activeViewport` - Qual layout está sendo editado | desktop/mobile |
+| **View Mode Toggle** | Direita | `viewMode` - Como o canvas é renderizado | desktop/mobile |
 
-### Elementos Editáveis no Builder (FixedHeaderSettings):
-1. ✅ Título
-2. ✅ Contador de módulos (badge)
-3. ❌ **Subtítulo/Stats com aulas** - NÃO EXISTE
-4. ❌ **Descrição** - NÃO EXISTE  
-5. ❌ **Botão CTA** - NÃO EXISTE
-6. ❌ **Toggle show_title** - NÃO EXISTE
+Isso causa confusão:
+- O usuário pode estar editando "Mobile" mas visualizando no formato "Desktop"
+- Dois controles para o mesmo conceito lógico é redundante e confuso
+
+### Comportamento Esperado (Unificado)
+Um **ÚNICO controle** que faz ambas as funções:
+- Quando seleciona "Desktop": edita seções desktop + visualiza no formato desktop
+- Quando seleciona "Mobile": edita seções mobile + visualiza no formato mobile
 
 ---
 
 ## Análise de Soluções (RISE V3 - Seção 4.4)
 
-### Solução A: Adicionar Apenas os Toggles Básicos
-- Manutenibilidade: 7/10 (campos limitados)
-- Zero DT: 6/10 (futuro pedido para mais opções)
-- Arquitetura: 6/10 (incompleto vs. HeroBanner)
-- Escalabilidade: 6/10
+### Solução A: Remover ViewMode e Usar Apenas ActiveViewport
+- Manutenibilidade: 9/10 (simplifica o código)
+- Zero DT: 8/10 (elimina redundância mas perde flexibilidade futura)
+- Arquitetura: 8/10 (menos conceitos)
+- Escalabilidade: 7/10 (se no futuro precisar separar novamente...)
 - Segurança: 10/10
-- **NOTA FINAL: 7.0/10**
-- Tempo estimado: 30 minutos
+- **NOTA FINAL: 8.4/10**
+- Tempo estimado: 1 hora
 
-### Solução B: Paridade Total com HeroBanner + Customização Completa
-- Manutenibilidade: 10/10 (todos os elementos controláveis)
-- Zero DT: 10/10 (nenhuma solicitação futura previsível)
-- Arquitetura: 10/10 (FixedHeaderSettings = HeroBanner features)
-- Escalabilidade: 10/10 (extensível facilmente)
+### Solução B: Sincronizar ViewMode Automaticamente com ActiveViewport
+- Manutenibilidade: 10/10 (mantém flexibilidade para casos especiais)
+- Zero DT: 10/10 (comportamento correto imediato)
+- Arquitetura: 10/10 (conceitos separados mas sincronizados por padrão)
+- Escalabilidade: 10/10 (pode desacoplar no futuro se necessário)
 - Segurança: 10/10
 - **NOTA FINAL: 10.0/10**
-- Tempo estimado: 2 horas
+- Tempo estimado: 45 minutos
 
 ### DECISÃO: Solução B (10.0/10)
 
-Implementar paridade total com customização completa de todos os elementos da Header.
+Sincronizar automaticamente `viewMode` com `activeViewport` quando o usuário troca de viewport. Mantém a flexibilidade do sistema mas elimina a confusão do usuário.
 
 ---
 
-## Nova Estrutura do FixedHeaderSettings
+## Implementação Técnica
+
+### Mudança Principal
+
+Quando o usuário clica em "Desktop" ou "Mobile" no centro do Header:
+1. `activeViewport` muda (já acontece)
+2. `viewMode` muda JUNTO automaticamente (NOVO)
+
+Isso é feito alterando o handler de `SET_ACTIVE_VIEWPORT` no state machine.
+
+### Arquivos a Modificar
+
+#### 1. `src/modules/members-area-builder/machines/builderMachine.ts`
+Modificar a action de `SET_ACTIVE_VIEWPORT` para também atualizar `viewMode`:
 
 ```typescript
-interface FixedHeaderSettings {
-  type: 'fixed_header';
-  bg_image_url: string;
-  
-  // TÍTULO
-  title: string;
-  show_title: boolean;           // ← NOVO
-  
-  // SUBTÍTULO (Stats)
-  show_stats: boolean;           // ← NOVO (X módulos · Y aulas)
-  show_module_count: boolean;    // Já existe (renomear contexto)
-  show_lesson_count: boolean;    // ← NOVO
-  
-  // DESCRIÇÃO
-  show_description: boolean;     // ← NOVO
-  description: string;           // ← NOVO (se vazio, usa do produto)
-  
-  // BOTÃO CTA
-  show_cta_button: boolean;      // ← NOVO
-  cta_button_text: string;       // ← NOVO (default: "Começar a Assistir")
-  
-  // CONFIGURAÇÕES VISUAIS (já existem)
-  alignment: 'left' | 'center';
-  size: 'small' | 'medium' | 'large';
-  gradient_overlay?: GradientOverlayConfig;
-}
+// ANTES (linha 128)
+SET_ACTIVE_VIEWPORT: { 
+  actions: assign({ 
+    activeViewport: ({ event }) => event.viewport, 
+    selectedSectionId: () => null 
+  }) 
+},
+
+// DEPOIS
+SET_ACTIVE_VIEWPORT: { 
+  actions: assign({ 
+    activeViewport: ({ event }) => event.viewport,
+    viewMode: ({ event }) => event.viewport, // ← SINCRONIZAÇÃO AUTOMÁTICA
+    selectedSectionId: () => null 
+  }) 
+},
 ```
 
----
+#### 2. `src/modules/members-area-builder/components/header/BuilderHeader.tsx`
+Remover o segundo toggle de View Mode (direita) pois agora é redundante:
 
-## Comparativo Visual
-
+**ANTES:**
 ```text
-┌──────────────────────────────────────────────────────────────┐
-│                      HEADER COMPLETA                          │
-├──────────────────────────────────────────────────────────────┤
-│  ┌─────────────────────────────────────────────────────────┐ │
-│  │ [Imagem de Fundo]                                        │ │
-│  │                                                          │ │
-│  │   ┌───────────────────────────────────────────────────┐ │ │
-│  │   │ RISE COMMUNITY              ← show_title          │ │ │
-│  │   │ 📚 0 módulos · 0 aulas      ← show_stats          │ │ │
-│  │   │ Descrição do produto...     ← show_description    │ │ │
-│  │   │ [▶ Começar a Assistir]      ← show_cta_button     │ │ │
-│  │   └───────────────────────────────────────────────────┘ │ │
-│  └─────────────────────────────────────────────────────────┘ │
-└──────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│  [Voltar]  │  Personalizar...  │  [Desktop|Mobile] [Sync] │ [Desktop|Mobile] [Preview] [Salvar] │
+│            │                   │      (EDIÇÃO)            │    (VISUALIZAÇÃO)                   │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
----
-
-## Arquivos a Modificar
-
-### 1. `src/modules/members-area-builder/types/settings.types.ts`
-Expandir `FixedHeaderSettings` com os novos campos.
-
-### 2. `src/modules/members-area-builder/types/defaults.ts`
-Adicionar valores default para os novos campos.
-
-### 3. `src/lib/constants/field-limits.ts`
-Adicionar limites para descrição e texto do botão.
-
-### 4. `src/modules/members-area-builder/components/sections/FixedHeader/FixedHeaderEditor.tsx`
-Adicionar os novos controles no editor:
-- Toggle "Mostrar Título"
-- Toggle "Mostrar Stats" (módulos + aulas)
-- Toggle "Mostrar Descrição" + Campo de texto
-- Toggle "Mostrar Botão" + Campo de texto para customizar
-
-### 5. `src/modules/members-area-builder/components/sections/FixedHeader/FixedHeaderView.tsx`
-Renderizar os novos elementos no Builder Canvas.
-
-### 6. `src/modules/members-area/pages/buyer/components/sections/BuyerFixedHeaderSection.tsx`
-Renderizar os novos elementos na área do aluno:
-- Stats com módulos e aulas
-- Descrição (customizada ou do produto)
-- Botão CTA funcional
-
----
-
-## Detalhamento Técnico
-
-### 1. Novos Tipos (settings.types.ts)
-
-```typescript
-export interface FixedHeaderSettings {
-  type: 'fixed_header';
-  bg_image_url: string;
-  
-  // Title
-  title: string;
-  show_title: boolean;
-  
-  // Stats (módulos + aulas)
-  show_stats: boolean;
-  show_lesson_count: boolean;
-  
-  // Description
-  show_description: boolean;
-  description: string;
-  
-  // CTA Button
-  show_cta_button: boolean;
-  cta_button_text: string;
-  
-  // Visual settings (existing)
-  alignment: 'left' | 'center';
-  size: 'small' | 'medium' | 'large';
-  gradient_overlay?: GradientOverlayConfig;
-  
-  // Deprecated (será removido)
-  show_module_count?: boolean; // Migrado para show_stats
-}
-```
-
-### 2. Novos Defaults (defaults.ts)
-
-```typescript
-export const DEFAULT_FIXED_HEADER_SETTINGS: Omit<FixedHeaderSettings, 'type'> = {
-  bg_image_url: '',
-  title: '',
-  show_title: true,
-  show_stats: true,
-  show_lesson_count: true,
-  show_description: true,
-  description: '',
-  show_cta_button: true,
-  cta_button_text: 'Começar a Assistir',
-  alignment: 'left',
-  size: 'large',
-  gradient_overlay: DEFAULT_GRADIENT_OVERLAY,
-};
-```
-
-### 3. Novos Limites (field-limits.ts)
-
-```typescript
-export const FIXED_HEADER_LIMITS = {
-  TITLE_MAX: 60,
-  TITLE_TRUNCATE_DISPLAY: 45,
-  DESCRIPTION_MAX: 300,        // ← NOVO
-  CTA_BUTTON_TEXT_MAX: 30,     // ← NOVO
-} as const;
-```
-
-### 4. Editor UI (FixedHeaderEditor.tsx)
-
-Novos controles organizados em seções:
-
+**DEPOIS:**
 ```text
-┌─────────────────────────────────────────┐
-│ 📷 Imagem de Fundo                      │
-│ [Upload Image]                          │
-├─────────────────────────────────────────┤
-│ 📝 CONTEÚDO                             │
-│                                         │
-│ ○ Mostrar Título      [ON/OFF]          │
-│ └─ Título: [________________]           │
-│                                         │
-│ ○ Mostrar Stats       [ON/OFF]          │
-│ └─ Exibir aulas       [ON/OFF]          │
-│                                         │
-│ ○ Mostrar Descrição   [ON/OFF]          │
-│ └─ Descrição: [________________]        │
-│ └─ Se vazio, usa descrição do produto   │
-│                                         │
-│ ○ Mostrar Botão       [ON/OFF]          │
-│ └─ Texto: [Começar a Assistir______]    │
-├─────────────────────────────────────────┤
-│ 🎨 VISUAL                               │
-│                                         │
-│ Alinhamento: [Esquerda ▾]               │
-│ Tamanho: [Grande (Hero) ▾]              │
-├─────────────────────────────────────────┤
-│ ✨ Efeito de Gradiente   [ON/OFF]       │
-│ ...                                     │
-└─────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│  [Voltar]  │  Personalizar...  │  [Desktop|Mobile] [Sync]  │  [Preview] [Salvar] │
+│            │                   │  (EDIÇÃO + VISUALIZAÇÃO)  │                     │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 5. BuyerFixedHeaderSection.tsx - Props Adicionais
+**Mudanças específicas:**
+- Remover o bloco do "View Mode Toggle" (linhas 176-195)
+- Manter apenas: Preview toggle e botão Salvar
 
+---
+
+## Código das Mudanças
+
+### builderMachine.ts (linha 128)
 ```typescript
-interface BuyerFixedHeaderSectionProps {
-  settings: FixedHeaderSettings;
-  moduleCount: number;
-  lessonCount: number;       // ← NOVO
-  productName?: string;
-  productDescription?: string; // ← NOVO
-  onStartCourse?: () => void; // ← NOVO (para o botão CTA)
-}
+SET_ACTIVE_VIEWPORT: { 
+  actions: assign({ 
+    activeViewport: ({ event }) => event.viewport,
+    viewMode: ({ event }) => event.viewport,
+    selectedSectionId: () => null 
+  }) 
+},
+```
+
+### BuilderHeader.tsx (remover linhas 176-197)
+Remover completamente:
+```tsx
+{/* View Mode Toggle (for preview) */}
+<div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
+  <Button ... onClick={() => actions.setViewMode('desktop')}>
+    Desktop
+  </Button>
+  <Button ... onClick={() => actions.setViewMode('mobile')}>
+    Mobile
+  </Button>
+</div>
+
+<Separator orientation="vertical" className="h-6" />
 ```
 
 ---
 
-## Migração de Dados Existentes
+## Resultado Visual
 
-Para compatibilidade com headers já salvas:
-
-```typescript
-// Em BuyerFixedHeaderSection e FixedHeaderView
-const showStats = settings.show_stats ?? settings.show_module_count ?? true;
-const showTitle = settings.show_title ?? true;
-const showDescription = settings.show_description ?? false;
-const showCtaButton = settings.show_cta_button ?? false;
+### Header Simplificado
+```text
+┌────────────────────────────────────────────────────────────────────────────────────┐
+│ ← Voltar │ Personalizar Área de Membros │ [Desktop(2)] [Mobile(2)] [Sync] │ [Preview] [Salvar] │
+└────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+### Comportamento Unificado
+| Ação do Usuário | activeViewport | viewMode | Canvas |
+|-----------------|----------------|----------|--------|
+| Clica "Desktop" | desktop | desktop | Edita seções desktop + formato desktop |
+| Clica "Mobile" | mobile | mobile | Edita seções mobile + formato mobile |
+
+---
+
+## Impacto
+
+| Componente | Mudança |
+|------------|---------|
+| `builderMachine.ts` | 1 linha: sincronizar viewMode com activeViewport |
+| `BuilderHeader.tsx` | Remover ~20 linhas do segundo toggle |
+| `BuilderCanvas.tsx` | Nenhuma mudança necessária |
+| `useMembersAreaState.ts` | Nenhuma mudança necessária |
 
 ---
 
@@ -263,12 +171,12 @@ const showCtaButton = settings.show_cta_button ?? false;
 
 | Critério | Nota | Justificativa |
 |----------|------|---------------|
-| LEI SUPREMA (4.1) | 10/10 | Paridade total, não apenas toggles parciais |
-| Manutenibilidade Infinita | 10/10 | SSOT em settings.types.ts |
-| Zero Dívida Técnica | 10/10 | Todos os elementos controláveis |
-| Arquitetura Correta | 10/10 | Separação clara Editor/View/Buyer |
-| Escalabilidade | 10/10 | Fácil adicionar novos elementos |
-| Segurança | 10/10 | Validação de limites |
+| LEI SUPREMA (4.1) | 10/10 | Solução unificada, não workaround |
+| Manutenibilidade Infinita | 10/10 | Menos código, menos confusão |
+| Zero Dívida Técnica | 10/10 | Comportamento correto imediato |
+| Arquitetura Correta | 10/10 | Mantém conceitos separados mas sincronizados |
+| Escalabilidade | 10/10 | Pode desacoplar no futuro se necessário |
+| Segurança | 10/10 | Não afeta segurança |
 
 **NOTA FINAL: 10.0/10**
 
@@ -277,11 +185,12 @@ const showCtaButton = settings.show_cta_button ?? false;
 ## Resultado Esperado
 
 ### Antes:
-- Header mostra apenas título e contador de módulos
-- Descrição, aulas e botão não aparecem quando configurados no Builder
+- 2 controles separados causando confusão
+- Possível editar Mobile mas visualizar Desktop
+- UX confusa
 
 ### Depois:
-- Todos os elementos controláveis individualmente
-- Paridade visual entre Builder e área do aluno
-- Produtor pode escolher exatamente o que exibir na Header
+- 1 único controle Desktop/Mobile
+- Edição e visualização sempre sincronizadas
+- UX intuitiva e limpa
 
