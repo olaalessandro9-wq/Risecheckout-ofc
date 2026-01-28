@@ -72,13 +72,6 @@ export function NetflixModuleCard({ module, index, onClick }: NetflixModuleCardP
             {lessonCount} {lessonCount === 1 ? "aula" : "aulas"}
           </Badge>
         </div>
-
-        {/* Module number */}
-        <div className="absolute bottom-3 left-3">
-          <span className="text-xs font-medium text-white bg-black/50 px-2 py-1 rounded backdrop-blur-sm">
-            Módulo {index + 1}
-          </span>
-        </div>
       </motion.div>
 
       {/* Title below card */}
