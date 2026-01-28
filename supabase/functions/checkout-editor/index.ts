@@ -249,10 +249,11 @@ serve(withSentry("checkout-editor", async (req) => {
           offers = offersData || [];
         }
 
+        // RISE V3: Query by parent_product_id (product that owns the checkout)
         const { data: orderBumps } = await supabase
           .from("order_bumps")
           .select(`*, products!order_bumps_product_id_fkey(*), offers(*)`)
-          .eq("checkout_id", checkoutId)
+          .eq("parent_product_id", checkout.product_id)
           .eq("active", true)
           .order("position");
 

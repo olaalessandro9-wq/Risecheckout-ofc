@@ -110,7 +110,8 @@ export async function handleResolveAndLoad(ctx: HandlerContext): Promise<Respons
       `)
       .eq("checkout_id", checkout.id)
       .maybeSingle(),
-    // Order bumps - NOTE: original_price is MARKETING ONLY (strikethrough display)
+    // Order bumps - RISE V3: Query by parent_product_id, not checkout_id
+    // NOTE: original_price is MARKETING ONLY (strikethrough display)
     supabase
       .from("order_bumps")
       .select(`
@@ -125,7 +126,7 @@ export async function handleResolveAndLoad(ctx: HandlerContext): Promise<Respons
         products(id, name, description, price, image_url),
         offers(id, name, price)
       `)
-      .eq("checkout_id", checkout.id)
+      .eq("parent_product_id", resolvedProductId)
       .eq("active", true)
       .order("position"),
     // Affiliate (if code provided)
@@ -237,10 +238,11 @@ export async function handleAll(ctx: HandlerContext): Promise<Response> {
       .select(`link_id, payment_links!inner (offer_id, offers!inner (id, name, price))`)
       .eq("checkout_id", checkoutId)
       .maybeSingle(),
+    // RISE V3: Query by parent_product_id (from the product being sold, not the bump's product)
     supabase
       .from("order_bumps")
       .select(`id, product_id, custom_title, custom_description, discount_enabled, original_price, show_image, call_to_action, products(id, name, description, price, image_url), offers(id, name, price)`)
-      .eq("checkout_id", checkoutId)
+      .eq("parent_product_id", productId)
       .eq("active", true)
       .order("position"),
   ]);

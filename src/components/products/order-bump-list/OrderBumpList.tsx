@@ -74,6 +74,7 @@ export function OrderBumpList({
 
       const mappedBumps: OrderBump[] = (data?.orderBumps || []).map((bump: RawOrderBumpRow) => ({
         id: bump.id,
+        parent_product_id: bump.parent_product_id || productId, // RISE V3
         checkout_id: bump.checkout_id,
         product_id: bump.product_id,
         offer_id: bump.offer_id,

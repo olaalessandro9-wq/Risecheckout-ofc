@@ -13,7 +13,10 @@
  */
 export interface OrderBump {
   id: string;
-  checkout_id: string;
+  /** RISE V3: The product that owns this order bump */
+  parent_product_id: string;
+  /** @deprecated Use parent_product_id */
+  checkout_id?: string | null;
   product_id: string;
   offer_id: string | null;
   position: number;
@@ -54,7 +57,10 @@ export interface SortableOrderBumpItemProps {
  */
 export interface RawOrderBumpRow {
   id: string;
-  checkout_id: string;
+  /** RISE V3: The product that owns this order bump */
+  parent_product_id: string;
+  /** @deprecated Use parent_product_id */
+  checkout_id?: string | null;
   product_id: string;
   offer_id: string | null;
   position: number;

@@ -90,12 +90,26 @@ export function formatOrderBumps(rawBumps: RawBump[]): OrderBumpFormatted[] {
 
 export async function handleOrderBumps(ctx: HandlerContext): Promise<Response> {
   const { supabase, body, jsonResponse } = ctx;
-  const { checkoutId } = body;
+  const { checkoutId, productId } = body;
 
-  if (!checkoutId) {
-    return jsonResponse({ error: "checkoutId required" }, 400);
+  // RISE V3: Accept productId directly, or resolve from checkoutId
+  let resolvedProductId = productId;
+  
+  if (!resolvedProductId && checkoutId) {
+    const { data: checkout } = await supabase
+      .from("checkouts")
+      .select("product_id")
+      .eq("id", checkoutId)
+      .maybeSingle();
+    
+    resolvedProductId = checkout?.product_id;
   }
 
+  if (!resolvedProductId) {
+    return jsonResponse({ error: "productId or checkoutId required" }, 400);
+  }
+
+  // RISE V3: Query by parent_product_id
   const { data, error } = await supabase
     .from("order_bumps")
     .select(`
@@ -110,7 +124,7 @@ export async function handleOrderBumps(ctx: HandlerContext): Promise<Response> {
       products(id, name, description, price, image_url),
       offers(id, name, price)
     `)
-    .eq("checkout_id", checkoutId)
+    .eq("parent_product_id", resolvedProductId)
     .eq("active", true)
     .order("position");
 

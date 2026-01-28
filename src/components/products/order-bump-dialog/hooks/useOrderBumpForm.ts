@@ -192,27 +192,15 @@ export function useOrderBumpForm({
     try {
       setLoading(true);
       
-      // Buscar checkout_id do produto principal via Edge Function
-      const { data: checkoutResponse, error: checkoutsError } = await api.call<{ checkouts?: Array<{ id: string }>; error?: string }>('products-crud', {
-        action: 'get-checkouts',
-        productId,
-      });
-
-      if (checkoutsError) throw new Error(checkoutsError.message);
-      if (checkoutResponse?.error) throw new Error(checkoutResponse.error);
-
-      const checkouts = checkoutResponse?.checkouts || [];
-      if (!checkouts || checkouts.length === 0) {
-        toast.error("Nenhum checkout encontrado para este produto");
-        return;
-      }
-
+      // RISE V3: Use parent_product_id directly (productId is the parent product)
+      // No need to lookup checkout anymore - order bumps are linked to products, not checkouts
+      
       // Payload normalizado para snake_case (padrão da Edge Function)
       // NOTE: original_price is MARKETING ONLY - for strikethrough display
       // The REAL price charged comes from the selected offer
       const orderBumpData = {
-        checkout_id: checkouts[0].id,
-        product_id: selectedProductId,
+        parent_product_id: productId, // RISE V3: Product that owns this bump
+        product_id: selectedProductId, // Product being offered as bump
         offer_id: selectedOfferId,
         active: true,
         discount_enabled: !!formData.discountEnabled,
