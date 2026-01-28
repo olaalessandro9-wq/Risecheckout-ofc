@@ -78,6 +78,28 @@ export function generateSideGradientCSS(
 }
 
 /**
+ * Gera o gradiente de extensão que "vaza" para o conteúdo abaixo do banner
+ * Este gradiente fica FORA do container overflow-hidden
+ * Cria a transição suave estilo Netflix/Cakto
+ * 
+ * @param config - Configuração do gradiente
+ * @returns String CSS do gradiente de extensão
+ */
+export function generateExtensionGradientCSS(
+  config: GradientOverlayConfig
+): string {
+  if (!config.enabled) return 'none';
+  
+  const color = config.use_theme_color 
+    ? 'hsl(var(--background))' 
+    : (config.custom_color || '#000000');
+  
+  // Gradiente que vai do opaco (topo) para transparente (base)
+  // Isso cria a "extensão" visual que se mistura com o conteúdo
+  return `linear-gradient(to bottom, ${color} 0%, ${color}95 20%, ${color}60 50%, ${color}20 80%, transparent 100%)`;
+}
+
+/**
  * Resolve a configuração de gradiente com fallback para default
  * Garante retrocompatibilidade com banners existentes
  * 
