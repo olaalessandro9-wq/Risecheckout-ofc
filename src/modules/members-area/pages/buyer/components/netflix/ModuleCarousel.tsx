@@ -75,7 +75,8 @@ export function ModuleCarousel({
   }
 
   return (
-    <div className="relative pt-3 pb-1">
+    // RISE V3: bg-background explícito garante continuidade de superfície
+    <div className="relative pt-3 pb-1 bg-background">
       {/* Section Title - Uses configurable title size */}
       <motion.div
         initial={{ opacity: 0, x: -20 }}
