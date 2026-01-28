@@ -1,180 +1,178 @@
 
-# Plano: Remoção dos Controles Não Funcionais (Eye, Copy, Trash)
+
+# Plano: Ajuste de Responsividade do Header (Padding Inferior)
 
 ## Diagnóstico
 
 ### Problema Identificado
-No `SectionWrapper.tsx`, existe um bloco de controles (linhas 190-251) que contém:
-- **Eye/EyeOff** - Toggle de visibilidade (`onToggleActive`)
-- **Copy** - Duplicar seção (`onDuplicate`)
-- **Trash2/Lock** - Excluir seção (`onDelete`)
+O conteúdo da Fixed Header (título "RISE COMMUNITY", stats, descrição) está com posicionamento muito "apertado" na parte inferior do banner em desktop. O padding atual é:
 
-Esses controles estão **visíveis** mas **não funcionam corretamente** para a Header (passam funções vazias `() => {}`).
+```css
+p-6 md:p-8 lg:p-12
+```
 
-### Localização do Código
-```
-src/modules/members-area-builder/components/canvas/SectionWrapper.tsx
-Linhas 190-251: Bloco com os 3 botões problemáticos
-```
+Isso resulta em:
+- Mobile: 24px (p-6)
+- Tablet: 32px (md:p-8)  
+- Desktop: 48px (lg:p-12)
+
+### Problema Visual
+O conteúdo parece "flutuar" alto demais na área do banner, sem respiro adequado na parte inferior, especialmente em monitores grandes.
 
 ---
 
 ## Análise de Soluções (RISE V3 - Seção 4.4)
 
-### Solução A: Remover Completamente os 3 Controles
-- Manutenibilidade: 10/10 (menos código, menos confusão)
-- Zero DT: 10/10 (remove código que não funciona)
-- Arquitetura: 10/10 (UI reflete funcionalidade real)
-- Escalabilidade: 10/10 (se precisar no futuro, adiciona corretamente)
+### Solução A: Aumentar Padding Bottom Progressivo
+- Manutenibilidade: 10/10 (mudança simples e clara)
+- Zero DT: 10/10 (resolve o problema diretamente)
+- Arquitetura: 10/10 (sem hacks, usa classes Tailwind padrão)
+- Escalabilidade: 10/10 (funciona em qualquer viewport)
 - Segurança: 10/10
 - **NOTA FINAL: 10.0/10**
-- Tempo estimado: 20 minutos
+- Tempo estimado: 5 minutos
 
-### Solução B: Corrigir os Handlers para Funcionarem
-- Manutenibilidade: 8/10 (mais código para manter)
-- Zero DT: 7/10 (funcionalidade extra pode não ser necessária)
-- Arquitetura: 7/10 (adiciona complexidade)
+### Solução B: Usar margin-bottom em vez de padding
+- Manutenibilidade: 7/10 (menos intuitivo)
+- Zero DT: 8/10 (funciona mas não é o padrão)
+- Arquitetura: 6/10 (margin e padding misturados)
 - Escalabilidade: 8/10
 - Segurança: 10/10
-- **NOTA FINAL: 8.0/10**
-- Tempo estimado: 1 hora
+- **NOTA FINAL: 7.8/10**
+- Tempo estimado: 5 minutos
 
-### Solução C: Esconder os Botões Apenas para Header
-- Manutenibilidade: 6/10 (lógica condicional extra)
-- Zero DT: 5/10 (código morto ainda existe)
-- Arquitetura: 5/10 (solução parcial)
-- Escalabilidade: 6/10
+### Solução C: Usar padding-block com valores customizados
+- Manutenibilidade: 8/10 (requer valores customizados)
+- Zero DT: 9/10 (funciona bem)
+- Arquitetura: 9/10 (semântico)
+- Escalabilidade: 9/10
 - Segurança: 10/10
-- **NOTA FINAL: 6.4/10**
-- Tempo estimado: 15 minutos
+- **NOTA FINAL: 9.0/10**
+- Tempo estimado: 5 minutos
 
 ### DECISÃO: Solução A (10.0/10)
 
-Remover completamente os 3 controles (Eye, Copy, Trash). Se no futuro essas funcionalidades forem necessárias, serão implementadas corretamente.
+Aumentar o padding inferior progressivamente para dar mais "respiro" ao conteúdo, especialmente em desktop.
 
 ---
 
 ## Implementação Técnica
 
-### 1. `SectionWrapper.tsx` - Remover Bloco de Controles
+### Arquivos a Modificar
 
-**Código a Remover (linhas 190-251):**
+Dois arquivos têm o mesmo código (DRY violation identificada, mas não é escopo desta tarefa):
+
+1. **`BuyerFixedHeaderSection.tsx`** (área do aluno - PRIORITÁRIO)
+2. **`FixedHeaderView.tsx`** (builder preview - para consistência)
+
+### Mudança Principal
+
+**Linha 106 do `BuyerFixedHeaderSection.tsx`:**
+
+**ANTES:**
 ```tsx
-<div className="flex flex-col gap-0.5 bg-background border rounded-md shadow-sm p-0.5">
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <Button ... onClick={handleToggleActive}>
-        {section.is_active ? <Eye /> : <EyeOff />}
-      </Button>
-    </TooltipTrigger>
-    ...
-  </Tooltip>
-  
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <Button ... onClick={handleDuplicate}>
-        <Copy />
-      </Button>
-    </TooltipTrigger>
-    ...
-  </Tooltip>
-  
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <Button ... onClick={handleDelete}>
-        <Trash2 /> ou <Lock />
-      </Button>
-    </TooltipTrigger>
-    ...
-  </Tooltip>
-</div>
+'absolute inset-0 z-20 flex flex-col justify-end p-6 md:p-8 lg:p-12',
 ```
 
-### 2. `SectionWrapper.tsx` - Remover Props Não Utilizadas
-
-**Props a Remover da Interface:**
-```typescript
-onDuplicate: () => void;  // REMOVER
-onDelete: () => void;     // REMOVER
-onToggleActive: () => void; // REMOVER
-```
-
-### 3. `SectionWrapper.tsx` - Remover Handlers Não Utilizados
-
-**Handlers a Remover:**
-```typescript
-const handleToggleActive = (e: React.MouseEvent) => { ... };  // REMOVER
-const handleDuplicate = (e: React.MouseEvent) => { ... };      // REMOVER
-const handleDelete = (e: React.MouseEvent) => { ... };         // REMOVER
-```
-
-### 4. `SectionWrapper.tsx` - Remover Imports Não Utilizados
-
-**Imports a Remover:**
-```typescript
-import { Copy, Trash2, Eye, EyeOff } from 'lucide-react';  // REMOVER estes 4
-import { canDeleteSection, canDuplicateSection } from '../../registry';  // REMOVER estes 2
-```
-
-### 5. `BuilderCanvas.tsx` - Remover Props Passadas
-
-**Linhas a Modificar (Desktop e Mobile):**
-
-Remover estas 3 props de TODAS as chamadas de `<SectionWrapper>`:
+**DEPOIS:**
 ```tsx
-onDuplicate={() => ...}
-onDelete={() => ...}
-onToggleActive={() => ...}
+'absolute inset-0 z-20 flex flex-col justify-end',
+'px-6 md:px-8 lg:px-12',           // Padding horizontal
+'pb-8 md:pb-12 lg:pb-16 xl:pb-20', // Padding bottom generoso
+'pt-6 md:pt-8 lg:pt-12',           // Padding top menor (não precisa tanto)
+```
+
+### Valores Propostos
+
+| Viewport | Padding Bottom | Resultado Visual |
+|----------|----------------|------------------|
+| Mobile | 32px (pb-8) | Confortável |
+| Tablet (md) | 48px (pb-12) | Espaçoso |
+| Desktop (lg) | 64px (pb-16) | Generoso |
+| Large Desktop (xl) | 80px (pb-20) | Hero impact |
+
+---
+
+## Código da Mudança
+
+### `BuyerFixedHeaderSection.tsx` (linha 104-108)
+
+**ANTES:**
+```tsx
+<div 
+  className={cn(
+    'absolute inset-0 z-20 flex flex-col justify-end p-6 md:p-8 lg:p-12',
+    settings.alignment === 'center' && 'items-center text-center'
+  )}
+>
+```
+
+**DEPOIS:**
+```tsx
+<div 
+  className={cn(
+    'absolute inset-0 z-20 flex flex-col justify-end',
+    'px-6 md:px-8 lg:px-12',
+    'pb-8 md:pb-12 lg:pb-16 xl:pb-20',
+    'pt-6 md:pt-8',
+    settings.alignment === 'center' && 'items-center text-center'
+  )}
+>
+```
+
+### `FixedHeaderView.tsx` (linha 143-147) - Mesma mudança
+
+**ANTES:**
+```tsx
+<div 
+  className={cn(
+    'absolute inset-0 z-20 flex flex-col justify-end p-6 md:p-8 lg:p-12',
+    settings.alignment === 'center' && 'items-center text-center'
+  )}
+>
+```
+
+**DEPOIS:**
+```tsx
+<div 
+  className={cn(
+    'absolute inset-0 z-20 flex flex-col justify-end',
+    'px-6 md:px-8 lg:px-12',
+    'pb-8 md:pb-12 lg:pb-16 xl:pb-20',
+    'pt-6 md:pt-8',
+    settings.alignment === 'center' && 'items-center text-center'
+  )}
+>
 ```
 
 ---
 
-## Código Final do SectionWrapper
+## Resultado Visual
 
-Após a limpeza, o arquivo ficará mais limpo:
-
-```typescript
-interface SectionWrapperProps {
-  section: Section;
-  isSelected: boolean;
-  isFirst: boolean;
-  isLast: boolean;
-  isPreviewMode: boolean;
-  onSelect: () => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  children: React.ReactNode;
-}
+### Antes (Desktop):
+```
+┌─────────────────────────────────────────────┐
+│                                             │
+│           [IMAGEM DE FUNDO]                 │
+│                                             │
+│  RISE COMMUNITY                             │
+│  [4 módulos · 0 aulas]                      │ ← Muito perto da borda
+│  Descrição...                               │
+└─────────────────────────────────────────────┘
 ```
 
-Os controles laterais conterão apenas:
-- **ChevronUp** - Mover para cima
-- **ChevronDown** - Mover para baixo
-
----
-
-## Impacto Total
-
-| Arquivo | Mudança |
-|---------|---------|
-| `SectionWrapper.tsx` | Remover ~80 linhas (bloco de controles + handlers + props + imports) |
-| `BuilderCanvas.tsx` | Remover 6 props (3 por chamada × 2 viewports + 2 para fixedHeader) |
-
----
-
-## Limpeza de Código Morto
-
-### Imports a Remover de `SectionWrapper.tsx`:
-- `Copy` (lucide-react)
-- `Trash2` (lucide-react)
-- `Eye` (lucide-react)
-- `EyeOff` (lucide-react)
-- `canDeleteSection` (registry)
-- `canDuplicateSection` (registry)
-
-### Variáveis a Remover:
-- `const canDelete = canDeleteSection(section.type);`
-- `const canDuplicate = canDuplicateSection(section.type);`
+### Depois (Desktop):
+```
+┌─────────────────────────────────────────────┐
+│                                             │
+│           [IMAGEM DE FUNDO]                 │
+│                                             │
+│  RISE COMMUNITY                             │
+│  [4 módulos · 0 aulas]                      │
+│  Descrição...                               │
+│                                             │ ← Respiro generoso
+└─────────────────────────────────────────────┘
+```
 
 ---
 
@@ -182,34 +180,12 @@ Os controles laterais conterão apenas:
 
 | Critério | Nota | Justificativa |
 |----------|------|---------------|
-| LEI SUPREMA (4.1) | 10/10 | Remoção completa, não workaround |
-| Manutenibilidade Infinita | 10/10 | Menos código = menos bugs |
-| Zero Dívida Técnica | 10/10 | Remove código não funcional |
-| Arquitetura Correta | 10/10 | UI reflete realidade |
-| Escalabilidade | 10/10 | Base limpa para futuras features |
+| LEI SUPREMA (4.1) | 10/10 | Solução correta, não workaround |
+| Manutenibilidade Infinita | 10/10 | Classes Tailwind padrão |
+| Zero Dívida Técnica | 10/10 | Resolve o problema completamente |
+| Arquitetura Correta | 10/10 | Sem hacks ou overrides |
+| Escalabilidade | 10/10 | Responsivo em todos os viewports |
 | Segurança | 10/10 | Não afeta segurança |
 
 **NOTA FINAL: 10.0/10**
 
----
-
-## Resultado Visual
-
-### Antes:
-```
-[Section Header Label]
-                        [↑]
-                        [↓]
-                        [👁]  ← NÃO FUNCIONA
-                        [📋]  ← NÃO FUNCIONA  
-                        [🗑]  ← NÃO FUNCIONA
-```
-
-### Depois:
-```
-[Section Header Label]
-                        [↑]  ← FUNCIONA
-                        [↓]  ← FUNCIONA
-```
-
-Interface limpa com apenas controles que funcionam.
