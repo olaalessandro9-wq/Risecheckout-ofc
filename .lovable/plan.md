@@ -1,18 +1,29 @@
 
-# Plano: Tema da Área de Membros Seguir Configuração do Builder
+# Plano: Alinhar Preview do Builder com Área de Membros Real
 
 ## RISE Protocol V3 - Análise de Soluções
 
-### Solução A: Aplicar classe `.dark` dinâmica no ThemeProvider + backgrounds condicionais
-- Manutenibilidade: 10/10 (centralizado no ThemeProvider)
-- Zero DT: 10/10 (usa o sistema de temas existente do Tailwind)
-- Arquitetura: 10/10 (respeita o SSOT do builder)
-- Escalabilidade: 10/10 (qualquer novo componente herda automaticamente)
+### Solução A: Substituir grid por carousel horizontal no ModulesView do Builder
+- Manutenibilidade: 10/10 (usa mesma estrutura visual do real)
+- Zero DT: 10/10 (elimina discrepância visual)
+- Arquitetura: 10/10 (preview reflete exatamente o resultado final)
+- Escalabilidade: 10/10 (alterações futuras se refletem em ambos)
 - Segurança: 10/10 (sem impacto)
 - **NOTA FINAL: 10.0/10**
-- Tempo estimado: 30 minutos
+- Tempo estimado: 45 minutos
+
+### Solução B: Manter grid mas ajustar tamanhos dos cards
+- Manutenibilidade: 6/10 (ainda há diferença estrutural)
+- Zero DT: 5/10 (preview continua diferente, apenas mais próximo)
+- Arquitetura: 5/10 (não resolve a causa raiz)
+- Escalabilidade: 5/10 (alterações não sincronizadas)
+- Segurança: 10/10 (sem impacto)
+- **NOTA FINAL: 6.2/10**
+- Tempo estimado: 20 minutos
 
 ### DECISÃO: Solução A (10.0/10)
+
+Reescrever `ModulesView.tsx` do builder para usar o mesmo layout de carousel horizontal com cards de tamanho fixo que a área de membros real utiliza.
 
 ---
 
@@ -20,141 +31,78 @@
 
 ### Situação Atual (Incorreta)
 
-| Componente | Comportamento |
-|------------|---------------|
-| `MembersAreaThemeProvider` | Só injeta CSS vars para cor primária |
-| `CourseHome.tsx` | Usa `bg-background` (tema do sistema) |
-| `LessonViewer.tsx` | Usa `bg-background` (tema do sistema) |
-| `BuyerSidebar` | ✅ Usa `settings.theme === 'dark'` corretamente |
-| `BuyerMobileNav` | ✅ Usa `settings.theme === 'dark'` corretamente |
+| Componente | Arquivo | Layout | Largura Card |
+|------------|---------|--------|--------------|
+| **Builder Preview** | `ModulesView.tsx` | Grid com `gridTemplateColumns` | 100% da coluna (variável) |
+| **Área Real** | `ModuleCarousel.tsx` + `NetflixModuleCard.tsx` | Carousel horizontal com scroll | `w-[180px] md:w-[220px]` (fixo) |
 
-**Problema:** O fundo principal da área de membros segue o tema do sistema/navegador, não o tema configurado pelo produtor no builder.
+**Problema Identificado:**
+
+O preview do builder mostra cards **muito maiores** porque usa grid com colunas iguais que ocupam toda a largura disponível, enquanto a área real usa cards de **tamanho fixo** (180-220px) com scroll horizontal.
 
 ### Comportamento Desejado
 
-| Componente | Comportamento Esperado |
-|------------|------------------------|
-| Container principal | Usa classe `.dark` se `settings.theme === 'dark'` |
-| Fundo da página | `bg-background` responde à classe `.dark` do container |
-| Cliente | **Não pode** alterar o tema (apenas visualiza) |
+O preview do builder deve renderizar os módulos **exatamente** como aparecem na área de membros real:
+- Cards com largura fixa de 180-220px
+- Scroll horizontal (carousel)
+- Mesmo aspect ratio (2:3 poster style)
+- Mesmo hover behavior
+- Mesma estrutura visual
 
 ---
 
 ## Alterações Necessárias
 
-### 1. MembersAreaThemeProvider - Aplicar classe `.dark` dinâmica
+### 1. ModulesView.tsx - Refatorar para Carousel Horizontal
 
-**Arquivo:** `src/modules/members-area/pages/buyer/components/MembersAreaThemeProvider.tsx`
+**Arquivo:** `src/modules/members-area-builder/components/sections/Modules/ModulesView.tsx`
 
-**Alterações:**
-- Adicionar `settings.theme` às props recebidas
-- Aplicar classe `dark` ao container se tema for dark
-- Manter a classe `contents` para não afetar layout
+**Mudanças:**
+- Remover grid com `gridTemplateColumns`
+- Implementar layout de carousel horizontal com `flex` + `overflow-x-auto`
+- Usar cards com largura fixa equivalente à área real
+- Adaptar tamanho para mobile (2 colunas menores)
+- Manter funcionalidades de edição (hover com ícone de edição)
 
-**Código atualizado:**
-```typescript
-export function MembersAreaThemeProvider({ 
-  settings, 
-  children 
-}: MembersAreaThemeProviderProps) {
-  const primaryColor = settings.primary_color || '#6366f1';
-  const primaryHSL = hexToHSL(primaryColor);
-  const foregroundHSL = isLightColor(primaryColor) ? '240 10% 3.9%' : '0 0% 98%';
-  const isDarkTheme = settings.theme === 'dark';
-
-  const cssVars = {
-    '--members-primary': primaryHSL,
-    '--members-primary-hex': primaryColor,
-    '--members-primary-foreground': foregroundHSL,
-  } as React.CSSProperties;
-
-  return (
-    <div 
-      style={cssVars} 
-      className={cn(
-        "members-area-root contents",
-        isDarkTheme && "dark"
-      )}
-    >
-      {children}
-    </div>
-  );
-}
+**Estrutura Nova:**
+```text
+┌─────────────────────────────────────────────────────────┐
+│ [Título da Seção - "Seus Cursos"]                       │
+├─────────────────────────────────────────────────────────┤
+│ ← [Card 1] [Card 2] [Card 3] [Card 4] [...] →          │
+│    w-[120px]  ou w-[160px] dependendo do viewMode       │
+│    aspect-[2/3]                                         │
+└─────────────────────────────────────────────────────────┘
 ```
 
-**Problema com `contents`:** A classe `contents` do Tailwind faz o elemento agir como se não existisse no DOM para layout, mas isso pode interferir com a propagação da classe `.dark`.
+**Cards Size no Preview:**
 
-### 2. Solução Robusta - Wrapper com background próprio
+| ViewMode | Card Width | Rationale |
+|----------|------------|-----------|
+| Desktop Preview | `w-[160px]` | Proporcionalmente menor que a área real (220px) pois o canvas do builder é menor |
+| Mobile Preview | `w-[100px]` | Ajustado para caber 2+ cards no frame mobile (~375px) |
 
-Para garantir que o tema seja isolado, o `MembersAreaThemeProvider` deve:
-1. **Não usar `contents`** - ser um container real
-2. Aplicar `min-h-screen` e `bg-background` diretamente
-3. A classe `.dark` então afeta todos os descendentes
+### 2. ModuleCard (interno) - Alinhar com NetflixModuleCard
 
-**Código final:**
-```typescript
-export function MembersAreaThemeProvider({ 
-  settings, 
-  children 
-}: MembersAreaThemeProviderProps) {
-  const primaryColor = settings.primary_color || '#6366f1';
-  const primaryHSL = hexToHSL(primaryColor);
-  const foregroundHSL = isLightColor(primaryColor) ? '240 10% 3.9%' : '0 0% 98%';
-  const isDarkTheme = settings.theme === 'dark';
+**Mudanças no card interno:**
+- Manter `aspect-[2/3]` (poster style)
+- Adicionar container com largura fixa (`flex-shrink-0`)
+- Manter overlay de edição apenas no modo editor (não preview)
+- Badge de "Inativo" quando módulo está desativado
+- Título abaixo do card conforme configuração `show_title`
 
-  const cssVars = {
-    '--members-primary': primaryHSL,
-    '--members-primary-hex': primaryColor,
-    '--members-primary-foreground': foregroundHSL,
-  } as React.CSSProperties;
+### 3. Remover Configuração "Cards por Linha"
 
-  return (
-    <div 
-      style={cssVars} 
-      className={cn(
-        "members-area-root min-h-screen bg-background",
-        isDarkTheme && "dark"
-      )}
-    >
-      {children}
-    </div>
-  );
-}
-```
+**Problema:** A opção "Cards por Linha" (3, 4, 5) faz sentido para grid, mas não para carousel horizontal.
 
-### 3. CourseHome.tsx - Ajustar container principal
+**Decisão Arquitetural:**
+- **Remover** a opção `cards_per_row` do `ModulesSettings` e do editor
+- A área de membros real já ignora essa configuração (usa carousel fixo)
+- O preview deve refletir isso
 
-**Arquivo:** `src/modules/members-area/pages/buyer/CourseHome.tsx`
-
-**Alteração:** Remover `min-h-screen bg-background` do container interno, pois o ThemeProvider já provê isso.
-
-**Antes (linha 154):**
-```typescript
-<div className="min-h-screen bg-background flex">
-```
-
-**Depois:**
-```typescript
-<div className="flex min-h-screen">
-```
-
-### 4. LessonViewer.tsx - Ajustar container principal
-
-**Arquivo:** `src/modules/members-area/pages/buyer/LessonViewer.tsx`
-
-**Problema:** `LessonViewer` não usa `MembersAreaThemeProvider`.
-
-**Solução:** Adicionar o provider e remover duplicação de background.
-
-**Alteração:** Envolver retorno com `MembersAreaThemeProvider` e ajustar classes.
-
-### 5. Páginas de Setup/Auth - Considerar tema
-
-As páginas de setup (`SetupAccess`, `BuyerAuth`, etc.) também usam `bg-background` mas não têm acesso ao `settings.theme` pois o produto ainda não foi carregado.
-
-**Decisão:** Manter comportamento atual (seguir tema do sistema) para páginas de login/setup, pois:
-- O cliente ainda não tem acesso ao produto
-- O tema do produtor é específico do curso, não da área de login geral
+**Arquivos afetados:**
+- `src/modules/members-area-builder/types/builder.types.ts` - Remover `cards_per_row` de `ModulesSettings`
+- `src/modules/members-area-builder/components/sections/Modules/ModulesEditor.tsx` - Remover select de "Cards por Linha"
 
 ---
 
@@ -162,47 +110,35 @@ As páginas de setup (`SetupAccess`, `BuyerAuth`, etc.) também usam `bg-backgro
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `MembersAreaThemeProvider.tsx` | Aplicar classe `dark` baseada em `settings.theme` |
-| `CourseHome.tsx` | Ajustar container para herdar background do provider |
-| `LessonViewer.tsx` | Adicionar `MembersAreaThemeProvider` e ajustar container |
+| `ModulesView.tsx` | Refatorar de grid para carousel horizontal com cards fixos |
+| `ModulesEditor.tsx` | Remover configuração "Cards por Linha" (não aplicável) |
+| `builder.types.ts` | Remover `cards_per_row` de `ModulesSettings` |
 
 ---
 
-## Fluxo de Dados
+## Fluxo Visual
 
 ```text
-┌─────────────────────────────────────────────────────────┐
-│                   Builder (Produtor)                     │
-│                                                          │
-│   [Global] → Aparência → Tema: "Escuro (Netflix)" ✓     │
-│                                                          │
-└────────────────────────┬────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│              products.members_area_settings              │
-│                                                          │
-│   { theme: "dark", primary_color: "#...", ... }          │
-│                                                          │
-└────────────────────────┬────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│           MembersAreaThemeProvider                       │
-│                                                          │
-│   <div className={cn("...", settings.theme === "dark"   │
-│        && "dark")} />                                    │
-│                                                          │
-└────────────────────────┬────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│              Tailwind Dark Mode Classes                  │
-│                                                          │
-│   bg-background → dark:bg-zinc-950                       │
-│   text-foreground → dark:text-white                      │
-│                                                          │
-└─────────────────────────────────────────────────────────┘
+ANTES (Grid com colunas variáveis)
+┌────────────────────────────────────────────────────┐
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐         │
+│  │          │  │          │  │          │  ← Cards│
+│  │  Card 1  │  │  Card 2  │  │  Card 3  │    ocupam│
+│  │  (GRANDE)│  │  (GRANDE)│  │  (GRANDE)│    toda a│
+│  │          │  │          │  │          │    largura│
+│  └──────────┘  └──────────┘  └──────────┘         │
+└────────────────────────────────────────────────────┘
+
+DEPOIS (Carousel com cards fixos - igual à área real)
+┌────────────────────────────────────────────────────┐
+│  ┌────┐ ┌────┐ ┌────┐ ┌────┐ ┌────┐ ...  ← Scroll │
+│  │    │ │    │ │    │ │    │ │    │    Horizontal  │
+│  │ C1 │ │ C2 │ │ C3 │ │ C4 │ │ C5 │                │
+│  │    │ │    │ │    │ │    │ │    │    ← Cards     │
+│  │    │ │    │ │    │ │    │ │    │    tamanho     │
+│  └────┘ └────┘ └────┘ └────┘ └────┘    fixo        │
+│  Mod 1  Mod 2  Mod 3  Mod 4  Mod 5                 │
+└────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -211,12 +147,14 @@ As páginas de setup (`SetupAccess`, `BuyerAuth`, etc.) também usam `bg-backgro
 
 | Verificação | Resultado Esperado |
 |-------------|-------------------|
-| Builder com tema "Escuro" | Área de membros com fundo escuro |
-| Builder com tema "Claro" | Área de membros com fundo claro |
-| Cliente não pode trocar tema | Sem toggle de tema visível |
-| Sidebar e MobileNav | Continuam funcionando corretamente |
-| Cores primárias | Aplicadas via CSS variables |
-| LessonViewer | Herda tema do builder |
+| Preview Desktop | Cards em carousel horizontal, tamanho fixo |
+| Preview Mobile | Cards menores, 2+ por tela |
+| Área Real Desktop | Idêntica ao preview |
+| Área Real Mobile | Idêntica ao preview mobile |
+| Hover no Editor | Ícone de edição aparece |
+| Hover no Preview Mode | Ícone de play aparece (sem edição) |
+| Editor "Cards por Linha" | Removido (não aplicável) |
+| Scroll horizontal | Funciona no preview |
 
 ---
 
@@ -224,9 +162,9 @@ As páginas de setup (`SetupAccess`, `BuyerAuth`, etc.) também usam `bg-backgro
 
 | Critério | Status |
 |----------|--------|
-| Root Cause Only | Corrige propagação do tema na fonte |
-| Zero Dívida Técnica | Usa sistema existente do Tailwind |
-| Single Source of Truth | `settings.theme` é respeitado |
-| Segurança | Cliente não pode alterar configuração |
+| Root Cause Only | Corrige discrepância visual na fonte (componente de preview) |
+| Zero Dívida Técnica | Preview = Área Real (mesma estrutura) |
+| Single Source of Truth | Um estilo de layout para módulos |
+| Segurança | Sem impacto |
 
 **NOTA FINAL: 10.0/10** - Correção arquitetural seguindo RISE Protocol V3.
