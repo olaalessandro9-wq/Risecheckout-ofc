@@ -1,259 +1,174 @@
 
-# Plano: Melhorias no Fixed Header - Auto-Preenchimento e Limite de Caracteres
+# Plano: Mover Toggle Desktop/Mobile para o Header + Corrigir Erro de Save
 
-## Resumo Executivo
+## Diagnóstico Completo
 
-Implementar as seguintes melhorias na seção Fixed Header:
+### Problema 1: Erro ao Salvar (500)
 
-1. **Auto-preenchimento**: Novas áreas de membros vêm com título preenchido (nome do produto) e imagem do produto
-2. **Limite de caracteres**: Título limitado a 60 caracteres com contador visual (15/60)
-3. **Truncamento responsivo**: Títulos longos exibem "..." (ellipsis) na visualização
+**Causa Raiz Identificada:**
+O banco de dados tem uma constraint que só aceita os seguintes tipos de seção:
+```sql
+CHECK ((type = ANY (ARRAY['banner', 'modules', 'courses', 'continue_watching', 'text', 'spacer'])))
+```
+
+O novo tipo `fixed_header` **não está na constraint**, causando o erro:
+```
+new row for relation "product_members_sections" violates check constraint "product_members_sections_type_check"
+```
+
+**Solução:** Atualizar a constraint para incluir `fixed_header`.
+
+### Problema 2: Toggle Desktop/Mobile no Local Errado
+
+**Situação Atual:**
+- O toggle Desktop/Mobile está no `ViewportSyncPanel` dentro da sidebar
+- Usuário quer que fique no header (topo), próximo ao Preview e Salvar
+- Opções de sincronização devem aparecer apenas quando Mobile está selecionado
 
 ---
 
 ## Análise de Soluções (RISE V3 - Seção 4.4)
 
-### Solução A: Truncamento apenas no CSS (sem limite real)
-- Manutenibilidade: 4/10 (CSS pode ser ignorado, dados inconsistentes)
-- Zero DT: 3/10 (não previne entrada de dados inválidos)
-- Arquitetura: 3/10 (não segue padrão SSOT de field-limits)
-- Escalabilidade: 5/10 (funciona visualmente mas dados podem crescer indefinidamente)
+### Solução A: Apenas Mover o Toggle (Manter ViewportSyncPanel)
+- Manutenibilidade: 6/10 (código duplicado entre header e sidebar)
+- Zero DT: 5/10 (dois lugares controlando o mesmo estado)
+- Arquitetura: 5/10 (viola Single Source of Truth visual)
+- Escalabilidade: 6/10
 - Segurança: 10/10
-- **NOTA FINAL: 5.0/10**
+- **NOTA FINAL: 6.4/10**
 
-### Solução B: Limite no input + truncamento visual + SSOT em field-limits.ts
-- Manutenibilidade: 10/10 (centralizado, segue padrão existente)
-- Zero DT: 10/10 (limite enforced na entrada, não precisa correção futura)
-- Arquitetura: 10/10 (segue SSOT de PRODUCT_FIELD_LIMITS existente)
-- Escalabilidade: 10/10 (fácil ajustar limites centralmente)
+### Solução B: Refatorar Completamente - Toggle no Header, Remover ViewportSyncPanel
+- Manutenibilidade: 10/10 (código centralizado no header)
+- Zero DT: 10/10 (uma única fonte de controle)
+- Arquitetura: 10/10 (Clean Architecture - responsabilidades claras)
+- Escalabilidade: 10/10 (fácil adicionar mais opções no futuro)
 - Segurança: 10/10
 - **NOTA FINAL: 10.0/10**
 
 ### DECISÃO: Solução B (10.0/10)
 
-Implementar limite real no input com contador visual, seguindo o padrão já existente em `StepOne.tsx` e `ProductInfoSection.tsx`. Adicionar constantes em `field-limits.ts` como SSOT.
+Remover completamente o `ViewportSyncPanel` e mover toda a lógica para o `BuilderHeader`.
 
 ---
 
 ## Arquitetura da Solução
 
 ```text
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                           FIELD-LIMITS.TS (SSOT)                              │
-│                                                                               │
-│  FIXED_HEADER_LIMITS = {                                                      │
-│    TITLE_MAX: 60,           // Limite balanceado para responsividade          │
-│    TITLE_TRUNCATE: 45,      // Truncar visualmente se maior que X             │
-│  }                                                                            │
-│                                                                               │
-└──────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                    ┌─────────────────┴─────────────────┐
-                    ▼                                   ▼
-┌────────────────────────────────────┐ ┌────────────────────────────────────┐
-│      FixedHeaderEditor.tsx         │ │   FixedHeaderView.tsx /            │
-│                                    │ │   BuyerFixedHeaderSection.tsx      │
-│  [Título do Curso____________]     │ │                                    │
-│  └──────────────────┘ 15/60        │ │   Título: "RatoFlix - Tenha a..."  │
-│                                    │ │   (CSS truncate se muito longo)    │
-└────────────────────────────────────┘ └────────────────────────────────────┘
+ANTES (Atual)
+┌────────────────────────────────────────────────────────────────────────────┐
+│  HEADER                                                                     │
+│  [Voltar] | Personalizar Área | [Desktop] (badge)                          │
+│                               [Desktop][Mobile] (View Mode)   [Preview][Save] │
+└────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────┐
+│  SIDEBAR                        │
+│  ┌─────────────────────────────┐│
+│  │ Editando Layout             ││  ← REMOVER COMPLETAMENTE
+│  │ [Desktop(2)][Mobile(2)]     ││
+│  │ "Alterações serão..."       ││
+│  └─────────────────────────────┘│
+│  [Início][Menu][Global]         │
+│  ...                            │
+└─────────────────────────────────┘
+
+DEPOIS (Novo)
+┌────────────────────────────────────────────────────────────────────────────┐
+│  HEADER                                                                     │
+│  [Voltar] | Personalizar Área                                              │
+│                                                                             │
+│  ┌────────────────────────────────────────────────────────────────────────┐│
+│  │ [Desktop(2)][Mobile(2)]  (activeViewport toggle)                       ││  ← NOVO
+│  │                                                                         ││
+│  │ SE MOBILE: [🔗 Sincronizar] [📋 Copiar do Desktop]                    ││  ← CONDICIONAL
+│  └────────────────────────────────────────────────────────────────────────┘│
+│                                                                             │
+│                               [Desktop][Mobile] (viewMode) [Preview][Save]  │
+└────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────┐
+│  SIDEBAR (sem ViewportSyncPanel)│
+│  [Início][Menu][Global]         │  ← SIMPLIFICADO
+│  ...                            │
+└─────────────────────────────────┘
 ```
 
 ---
 
 ## Implementação Técnica
 
-### 1. Atualizar `field-limits.ts` (SSOT)
+### 1. Criar Migration para Adicionar `fixed_header` à Constraint
 
-Adicionar novos limites para Fixed Header:
+```sql
+-- Atualizar constraint para incluir fixed_header
+ALTER TABLE product_members_sections 
+DROP CONSTRAINT IF EXISTS product_members_sections_type_check;
 
-```typescript
-export const FIXED_HEADER_LIMITS = {
-  /** Título da header: até 60 caracteres (balanceado para responsividade) */
-  TITLE_MAX: 60,
-  /** Ponto de truncamento visual na área do aluno */
-  TITLE_TRUNCATE_DISPLAY: 45,
-} as const;
+ALTER TABLE product_members_sections 
+ADD CONSTRAINT product_members_sections_type_check 
+CHECK (type = ANY (ARRAY[
+  'banner', 
+  'modules', 
+  'courses', 
+  'continue_watching', 
+  'text', 
+  'spacer',
+  'fixed_header'  -- NOVO
+]));
 ```
 
-**Justificativa do limite 60:**
-- O exemplo da Cakto "RatoFlix - Tenha acesso a tudo.." tem ~35 caracteres
-- 60 caracteres permite títulos expressivos sem poluir a tela
-- Responsivo em mobile (quebra natural de linha)
-- Não é muito curto (limitaria criatividade) nem muito longo (overflow visual)
+### 2. Refatorar `BuilderHeader.tsx`
 
-### 2. Atualizar `builderMachine.actors.ts` - Auto-Preenchimento
-
-Modificar `generateDefaultSections` para incluir o nome do produto:
+Adicionar controles de viewport no centro-esquerda do header:
 
 ```typescript
-// Antes
-const fixedHeaderSettings: FixedHeaderSettings = {
-  type: 'fixed_header',
-  bg_image_url: productImageUrl || '',
-  title: '', // Vazio
-  // ...
-};
-
-// Depois
-const fixedHeaderSettings: FixedHeaderSettings = {
-  type: 'fixed_header',
-  bg_image_url: productImageUrl || '',
-  title: productName || '', // NOVO: Auto-preenchido com nome do produto
-  // ...
-};
+// Nova estrutura do header:
+// Left: [Voltar] | Título
+// Center-Left: [Desktop(X)][Mobile(X)] + opções de sync (apenas quando Mobile)
+// Center-Right: [Desktop][Mobile] (view mode para preview)
+// Right: [Preview][Salvar]
 ```
 
-Isso requer passar `productName` para a função, que será obtido na chamada da API.
+Props necessárias:
+- `desktopSections.length`
+- `mobileSections.length`
+- `activeViewport`
+- `isMobileSynced`
+- `actions.setActiveViewport`
+- `actions.copyDesktopToMobile`
+- `actions.setMobileSynced`
 
-### 3. Atualizar `FixedHeaderEditor.tsx` - Limite e Contador
+### 3. Remover `ViewportSyncPanel` da Sidebar
 
-```typescript
-import { FIXED_HEADER_LIMITS } from '@/lib/constants/field-limits';
+Modificar `BuilderSidebar.tsx` para remover completamente o componente `ViewportSyncPanel`.
 
-// No campo de título:
-<div className="space-y-2">
-  <Label htmlFor="header-title">Título</Label>
-  <Input
-    id="header-title"
-    value={settings.title || ''}
-    onChange={(e) => onUpdate({ title: e.target.value })}
-    placeholder="Ex: RatoFlix - Tenha acesso a tudo"
-    maxLength={FIXED_HEADER_LIMITS.TITLE_MAX}
-  />
-  <div className="flex justify-between items-center">
-    <p className="text-xs text-muted-foreground">
-      Se vazio, usa o nome do produto
-    </p>
-    <p className="text-xs text-muted-foreground">
-      {(settings.title || '').length}/{FIXED_HEADER_LIMITS.TITLE_MAX}
-    </p>
-  </div>
-</div>
-```
+### 4. Adicionar Toast de Erro para Falhas de Save
 
-### 4. Atualizar `FixedHeaderView.tsx` e `BuyerFixedHeaderSection.tsx` - Truncamento Visual
-
-Adicionar função utilitária para truncamento com ellipsis:
-
-```typescript
-import { FIXED_HEADER_LIMITS } from '@/lib/constants/field-limits';
-
-// Função de truncamento
-function truncateTitle(title: string, maxLength: number): string {
-  if (title.length <= maxLength) return title;
-  return title.substring(0, maxLength - 3) + '...';
-}
-
-// Uso no componente
-const displayTitle = truncateTitle(
-  settings.title || productName || 'Título do Curso',
-  FIXED_HEADER_LIMITS.TITLE_TRUNCATE_DISPLAY
-);
-```
-
-Também adicionar CSS `truncate` como fallback de segurança:
-
-```typescript
-<h1 
-  className={cn(
-    'font-bold text-white drop-shadow-lg truncate', // NOVO: truncate como fallback
-    'leading-tight max-w-3xl',
-    // ...
-  )}
->
-  {displayTitle}
-</h1>
-```
-
-### 5. Obter Nome do Produto na Inicialização
-
-Atualizar o actor de carregamento para buscar o nome do produto:
-
-```typescript
-// Em loadBuilderActor
-const { data } = await api.call<{ 
-  sections?: unknown[]; 
-  settings?: unknown;
-  productImageUrl?: string | null;
-  productName?: string | null; // NOVO
-}>(...);
-
-// Passar para generateDefaultSections
-desktopSections = generateDefaultSections(
-  productId, 
-  productImageUrl, 
-  productName, // NOVO
-  modules, 
-  'desktop'
-);
-```
+O toast de sucesso já existe em `builderMachine.actors.ts`. Verificar se o toast de erro está sendo exibido corretamente quando a máquina entra no estado de erro.
 
 ---
 
 ## Arquivos a Modificar
 
-| Arquivo | Modificação |
-|---------|-------------|
-| `field-limits.ts` | Adicionar `FIXED_HEADER_LIMITS` |
-| `builderMachine.actors.ts` | Auto-preencher título com nome do produto |
-| `builderMachine.types.ts` | Adicionar `productName` ao `LoadBuilderOutput` |
-| `FixedHeaderEditor.tsx` | Adicionar `maxLength` e contador visual |
-| `FixedHeaderView.tsx` | Adicionar truncamento visual |
-| `BuyerFixedHeaderSection.tsx` | Adicionar truncamento visual (mesmo padrão) |
+| Arquivo | Ação |
+|---------|------|
+| `supabase/migrations/` | Nova migration para constraint |
+| `BuilderHeader.tsx` | Adicionar toggle de viewport + opções de sync |
+| `BuilderSidebar.tsx` | Remover `ViewportSyncPanel` |
+| `ViewportSyncPanel.tsx` | Pode ser deletado após refatoração |
 
 ---
 
-## Fluxo Resultante
+## Resultado Esperado
 
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        NOVA ÁREA DE MEMBROS CRIADA                           │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  generateDefaultSections() recebe:                                           │
-│  - productImageUrl: "https://storage.../produto.jpg"                         │
-│  - productName: "Curso Completo de Marketing Digital 2026"                  │
-│  - modules: [{ id: "1", ... }, { id: "2", ... }]                            │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  Fixed Header gerada com:                                                    │
-│  - bg_image_url: "https://storage.../produto.jpg"                           │
-│  - title: "Curso Completo de Marketing Digital 2026"                        │
-│  - show_module_count: true                                                   │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  BUILDER CANVAS (Visualização)                                               │
-│                                                                              │
-│  ┌──────────────────────────────────────────────────────────────────────┐  │
-│  │  [Imagem do Produto]                                                  │  │
-│  │                                                                       │  │
-│  │    Curso Completo de Marketing D...                                   │  │
-│  │    ┌─────────┐                                                        │  │
-│  │    │2 módulos│                                                        │  │
-│  │    └─────────┘                                                        │  │
-│  └──────────────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  EDITOR LATERAL (Edição)                                                     │
-│                                                                              │
-│  Título                                                                      │
-│  ┌────────────────────────────────────────────────────────────────────┐    │
-│  │ Curso Completo de Marketing Digital 2026                           │    │
-│  └────────────────────────────────────────────────────────────────────┘    │
-│  Se vazio, usa o nome do produto                               44/60       │
-│                                                                              │
-│  O usuário pode editar livremente com limite de 60 caracteres               │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+### Antes:
+- Toggle Desktop/Mobile na sidebar (confuso)
+- Erro 500 ao salvar com `fixed_header`
+- Sem mensagem de erro visível
+
+### Depois:
+- Toggle Desktop/Mobile no header (intuitivo)
+- Opções de sync aparecem apenas quando Mobile está ativo
+- `fixed_header` salva corretamente
+- Mensagens de erro exibidas via toast
 
 ---
 
@@ -261,11 +176,11 @@ desktopSections = generateDefaultSections(
 
 | Critério | Nota | Justificativa |
 |----------|------|---------------|
-| LEI SUPREMA (4.1) | 10/10 | SSOT em field-limits.ts, padrão existente seguido |
-| Manutenibilidade Infinita | 10/10 | Limite centralizado, fácil ajustar |
-| Zero Dívida Técnica | 10/10 | Enforced na entrada, truncamento visual |
-| Arquitetura Correta | 10/10 | Segue padrão de PRODUCT_FIELD_LIMITS |
-| Escalabilidade | 10/10 | Constantes centralizadas |
-| Segurança | 10/10 | Sem vulnerabilidades |
+| LEI SUPREMA (4.1) | 10/10 | Refatoração completa, não apenas "mover código" |
+| Manutenibilidade Infinita | 10/10 | Header centraliza controles de viewport |
+| Zero Dívida Técnica | 10/10 | Constraint atualizada, UI limpa |
+| Arquitetura Correta | 10/10 | Single Source of Truth visual |
+| Escalabilidade | 10/10 | Fácil adicionar mais opções |
+| Segurança | 10/10 | Constraint de banco corrigida |
 
 **NOTA FINAL: 10.0/10**
