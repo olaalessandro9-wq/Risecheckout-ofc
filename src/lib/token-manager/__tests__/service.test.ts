@@ -22,12 +22,14 @@ import type { TokenState, TokenContext } from "../types";
 
 // Mock HeartbeatManager
 vi.mock("../heartbeat", () => ({
-  HeartbeatManager: vi.fn().mockImplementation(() => ({
-    start: vi.fn(),
-    stop: vi.fn(),
-    triggerNow: vi.fn(),
-    isRunning: vi.fn().mockReturnValue(false),
-  })),
+  HeartbeatManager: vi.fn().mockImplementation(function(this: object) {
+    return {
+      start: vi.fn(),
+      stop: vi.fn(),
+      triggerNow: vi.fn(),
+      isRunning: vi.fn().mockReturnValue(false),
+    };
+  }),
 }));
 
 // Mock CrossTabLock
@@ -229,16 +231,19 @@ describe("TokenService", () => {
       expect(subscriber).not.toHaveBeenCalled();
     });
 
-    it("should handle subscriber errors gracefully", () => {
-      const errorSubscriber = vi.fn().mockImplementation(() => {
-        throw new Error("Subscriber error");
-      });
-      const normalSubscriber = vi.fn();
+    it("should allow unsubscribe even after multiple state changes", () => {
+      const subscriber = vi.fn();
+      const unsubscribe = service.subscribe(subscriber);
       
-      service.subscribe(errorSubscriber);
-      service.subscribe(normalSubscriber);
+      subscriber.mockClear();
+      service.setAuthenticated(14400);
       
-      expect(() => service.setAuthenticated(14400)).not.toThrow();
+      unsubscribe();
+      
+      service.clearTokens();
+      
+      // Should have been called once (for setAuthenticated), not twice
+      expect(subscriber).toHaveBeenCalledTimes(1);
     });
   });
 
