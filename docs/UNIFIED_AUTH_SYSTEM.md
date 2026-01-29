@@ -508,6 +508,55 @@ Esta arquitetura substitui completamente o sistema anterior que tinha:
 
 ---
 
+## ⚠️ Tabelas Deprecadas (Legadas)
+
+> **Atualizado em:** 29 de Janeiro de 2026
+
+As seguintes tabelas são LEGADAS e **NÃO devem ser usadas em código novo**:
+
+### `profiles` - ⚠️ DEPRECATED
+
+| Aspecto | Detalhe |
+|---------|---------|
+| **Status** | DEPRECATED desde 29/01/2026 |
+| **SSOT Substituto** | `public.users` |
+| **FK Restante** | `profiles_id_fkey → auth.users(id)` (herança Supabase) |
+| **Dados** | Migrados para `users` via migration |
+| **Ação Futura** | Remoção planejada após validação completa |
+
+**Campos deprecados e seus substitutos:**
+
+| Campo Deprecated (`profiles`) | Substituto (`users`) |
+|------------------------------|----------------------|
+| `name` | `users.name` |
+| `phone` | `users.phone` |
+| `cpf_cnpj` | `users.cpf_cnpj` |
+| `test_mode_enabled` | `users.test_mode_enabled` |
+| `test_public_key` | Vault (secrets) |
+| `test_access_token` | Vault (secrets) |
+| `mercadopago_collector_id` | `users.mercadopago_collector_id` |
+| `stripe_account_id` | `users.stripe_account_id` |
+| `custom_fee_percent` | `users.custom_fee_percent` |
+
+### `auth.users` - Schema Reservado Supabase
+
+A tabela `auth.users` é gerenciada pelo Supabase e **não deve ser referenciada diretamente**.
+Todas as FKs de tabelas de vendedores agora apontam para `public.users(id)`.
+
+### Tabelas de Compradores (Domínio Separado)
+
+As tabelas abaixo NÃO são deprecated - elas formam um domínio separado para compradores/alunos:
+
+| Tabela | SSOT | Propósito |
+|--------|------|-----------|
+| `buyer_profiles` | ✅ ATIVO | Identidade de compradores/alunos |
+| `buyer_content_access` | ✅ ATIVO | Acesso a conteúdo |
+| `buyer_quiz_attempts` | ✅ ATIVO | Tentativas de quiz |
+| `buyer_saved_cards` | ✅ ATIVO | Cartões salvos |
+| `certificates` | ✅ ATIVO | Certificados emitidos |
+
+---
+
 ## ✅ Compliance RISE V3
 
 | Critério | Status |
@@ -517,6 +566,7 @@ Esta arquitetura substitui completamente o sistema anterior que tinha:
 | Documentação atualizada | ✅ |
 | Limite 300 linhas | ✅ |
 | Single Source of Truth | ✅ |
+| Tabelas legadas documentadas | ✅ |
 | **Score Final** | **10.0/10** |
 
 ---
