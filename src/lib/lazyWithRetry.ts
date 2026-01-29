@@ -37,8 +37,9 @@ const DEFAULT_OPTIONS: Required<LazyWithRetryOptions> = {
 
 /**
  * Verifica se o erro é relacionado a rede/DNS
+ * Exportado para testes unitários
  */
-function isNetworkError(error: unknown): boolean {
+export function isNetworkError(error: unknown): boolean {
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
     return (

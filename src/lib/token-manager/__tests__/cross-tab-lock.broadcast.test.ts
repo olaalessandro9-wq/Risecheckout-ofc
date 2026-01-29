@@ -17,7 +17,7 @@ import { CrossTabLock } from "../cross-tab-lock";
 
 // Mock logger
 vi.mock("@/lib/logger", () => ({
-  createLogger: vi.fn().mockReturnValue({
+  createLogger: () => ({
     debug: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
@@ -28,15 +28,16 @@ vi.mock("@/lib/logger", () => ({
 describe("CrossTabLock - Broadcast", () => {
   let lock: CrossTabLock;
   const mockStorage: Record<string, string> = {};
-  let mockChannel: {
-    postMessage: ReturnType<typeof vi.fn>;
-    close: ReturnType<typeof vi.fn>;
-    onmessage: ((event: MessageEvent) => void) | null;
-  };
+  let mockPostMessage: ReturnType<typeof vi.fn>;
+  let mockClose: ReturnType<typeof vi.fn>;
+  let channelOnMessage: ((event: MessageEvent) => void) | null = null;
 
   beforeEach(() => {
+    // Clear storage
     Object.keys(mockStorage).forEach(key => delete mockStorage[key]);
+    channelOnMessage = null;
 
+    // Mock localStorage
     vi.spyOn(Storage.prototype, "setItem").mockImplementation((key, value) => {
       mockStorage[key] = value;
     });
@@ -49,13 +50,28 @@ describe("CrossTabLock - Broadcast", () => {
       delete mockStorage[key];
     });
 
-    mockChannel = {
-      postMessage: vi.fn(),
-      close: vi.fn(),
-      onmessage: null,
-    };
+    // Create mock functions
+    mockPostMessage = vi.fn();
+    mockClose = vi.fn();
 
-    vi.stubGlobal("BroadcastChannel", vi.fn().mockImplementation(() => mockChannel));
+    // Mock BroadcastChannel as a class
+    class MockBroadcastChannel {
+      postMessage = mockPostMessage;
+      close = mockClose;
+      
+      private _onmessage: ((event: MessageEvent) => void) | null = null;
+      
+      get onmessage() {
+        return this._onmessage;
+      }
+      
+      set onmessage(handler: ((event: MessageEvent) => void) | null) {
+        this._onmessage = handler;
+        channelOnMessage = handler;
+      }
+    }
+
+    vi.stubGlobal("BroadcastChannel", MockBroadcastChannel);
 
     lock = new CrossTabLock();
   });
@@ -73,7 +89,7 @@ describe("CrossTabLock - Broadcast", () => {
       lock.tryAcquire();
       lock.notifySuccess(14400);
 
-      expect(mockChannel.postMessage).toHaveBeenCalledWith(
+      expect(mockPostMessage).toHaveBeenCalledWith(
         expect.objectContaining({
           type: "refresh_success",
           expiresIn: 14400,
@@ -95,7 +111,7 @@ describe("CrossTabLock - Broadcast", () => {
       lock.tryAcquire();
       lock.notifyFailure("Token expired");
 
-      expect(mockChannel.postMessage).toHaveBeenCalledWith(
+      expect(mockPostMessage).toHaveBeenCalledWith(
         expect.objectContaining({
           type: "refresh_fail",
           error: "Token expired",
@@ -122,8 +138,9 @@ describe("CrossTabLock - Broadcast", () => {
     it("should resolve with success when receiving refresh_success message", async () => {
       const promise = lock.waitForResult();
 
-      if (mockChannel.onmessage) {
-        mockChannel.onmessage(new MessageEvent("message", {
+      // Simulate message from another tab
+      if (channelOnMessage) {
+        channelOnMessage(new MessageEvent("message", {
           data: {
             type: "refresh_success",
             tabId: "other_tab",
@@ -140,8 +157,8 @@ describe("CrossTabLock - Broadcast", () => {
     it("should resolve with failure when receiving refresh_fail message", async () => {
       const promise = lock.waitForResult();
 
-      if (mockChannel.onmessage) {
-        mockChannel.onmessage(new MessageEvent("message", {
+      if (channelOnMessage) {
+        channelOnMessage(new MessageEvent("message", {
           data: {
             type: "refresh_fail",
             tabId: "other_tab",
@@ -158,7 +175,7 @@ describe("CrossTabLock - Broadcast", () => {
     it("should timeout after wait timeout period", async () => {
       const promise = lock.waitForResult();
 
-      vi.advanceTimersByTime(20001);
+      await vi.advanceTimersByTimeAsync(20001);
 
       const result = await promise;
       expect(result.success).toBe(false);
@@ -183,9 +200,12 @@ describe("CrossTabLock - Broadcast", () => {
 
     it("should handle BroadcastChannel creation error", () => {
       vi.unstubAllGlobals();
-      vi.stubGlobal("BroadcastChannel", vi.fn().mockImplementation(() => {
-        throw new Error("Channel creation failed");
-      }));
+      class FailingBroadcastChannel {
+        constructor() {
+          throw new Error("Channel creation failed");
+        }
+      }
+      vi.stubGlobal("BroadcastChannel", FailingBroadcastChannel);
 
       expect(() => new CrossTabLock()).not.toThrow();
     });
@@ -196,17 +216,17 @@ describe("CrossTabLock - Broadcast", () => {
 
       const lockData = JSON.parse(mockStorage["rise_auth_refresh_lock"]);
 
-      if (mockChannel.onmessage) {
-        mockChannel.onmessage(new MessageEvent("message", {
+      if (channelOnMessage) {
+        channelOnMessage(new MessageEvent("message", {
           data: {
             type: "refresh_success",
-            tabId: lockData.tabId,
+            tabId: lockData.tabId, // Same tab - should be ignored
             expiresIn: 14400,
           },
         }));
       }
 
-      // Promise should not resolve from our own message
+      // Promise should not resolve from our own message - it stays pending
     });
   });
 });

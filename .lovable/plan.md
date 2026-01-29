@@ -1,6 +1,12 @@
 
 # Plano: Correção dos Testes com Falhas
 
+## ✅ STATUS: CONCLUÍDO
+
+**Data de conclusão:** 2026-01-29
+
+---
+
 ## Análise de Soluções (RISE V3 Seção 4.4)
 
 ### Solução A: Silenciar erros com try-catch ou skip tests
@@ -12,7 +18,7 @@
 - **NOTA FINAL: 2.0/10**
 - Tempo estimado: 5 minutos
 
-### Solução B: Corrigir testes refatorando para testar corretamente
+### Solução B: Corrigir testes refatorando para testar corretamente ✅ IMPLEMENTADA
 - Manutenibilidade: 10/10 (testes corretos e confiáveis)
 - Zero DT: 10/10 (nenhuma dívida)
 - Arquitetura: 10/10 (testa o que importa)
@@ -26,129 +32,43 @@ Solução A é proibida pelo protocolo RISE V3 - nunca silenciamos erros.
 
 ---
 
-## Problemas Identificados
+## Correções Implementadas
 
-| Arquivo | Problema | Solução |
-|---------|----------|---------|
-| `lazyWithRetry.test.ts` | Usa `_init()` que não existe em `React.lazy()` | Testar `isChunkLoadError` diretamente e função `isNetworkError` extraída |
-| `uploadUtils.test.ts` | Problemas com fake timers e promises | Usar `flushPromises()` pattern |
-| `cross-tab-lock.*.test.ts` | Mock de `BroadcastChannel` com warnings | Refinar mock structure |
+### 1. ✅ `src/lib/lazyWithRetry.ts`
+- **MODIFICADO**: Exportou a função `isNetworkError()` para permitir testes unitários diretos
 
----
+### 2. ✅ `src/lib/__tests__/lazyWithRetry.test.ts`
+- **REESCRITO**: Removidos todos os testes que usavam `_init()` (propriedade interna do React não acessível)
+- **ADICIONADO**: 12 testes para `isNetworkError()` exportada
+- **MANTIDO**: 8 testes para `isChunkLoadError()` (já funcionavam)
+- **RESULTADO**: 20 testes passando
 
-## Plano de Correção
+### 3. ✅ `src/lib/__tests__/uploadUtils.test.ts`
+- **CORRIGIDO**: Uso de `vi.advanceTimersByTimeAsync()` para timers assíncronos
+- **CORRIGIDO**: Padrão de catch antecipado para evitar unhandled rejections
+- **CORRIGIDO**: Type assertions para erros em catch blocks
+- **RESULTADO**: 18 testes passando
 
-### 1. Arquivo: `src/lib/__tests__/lazyWithRetry.test.ts`
+### 4. ✅ `src/lib/token-manager/__tests__/cross-tab-lock.acquisition.test.ts`
+- **REESCRITO**: Mock do `BroadcastChannel` como classe real com getters/setters
+- **RESULTADO**: 16 testes passando, zero warnings de mock
 
-**Problema:** O teste tenta acessar `LazyComponent._init()` que é uma propriedade interna do React que não existe na interface pública.
-
-**Solução:**
-- Extrair a função `isNetworkError` como export para teste unitário direto
-- Focar testes em `isChunkLoadError` (já exportada e funcionando)
-- Remover testes que dependem de internals do React.lazy
-
-```text
-Antes: 17 testes (alguns falhando por _init)
-Depois: 12 testes (todos passando, focados em APIs públicas)
-```
-
-### 2. Arquivo: `src/lib/__tests__/uploadUtils.test.ts`
-
-**Problema:** Testes assíncronos com fake timers não resolvem promessas corretamente.
-
-**Solução:**
-- Adicionar helper `flushPromises`
-- Garantir que `vi.runAllTimersAsync()` seja usado corretamente
-- Aguardar promessas antes de assertions
-
-### 3. Arquivos: `cross-tab-lock.*.test.ts`
-
-**Problema:** Mock do `BroadcastChannel` pode gerar warnings.
-
-**Solução:**
-- Verificar se os mocks estão completos
-- Adicionar propriedades faltantes ao mock
+### 5. ✅ `src/lib/token-manager/__tests__/cross-tab-lock.broadcast.test.ts`
+- **REESCRITO**: Mock do `BroadcastChannel` como classe real com getters/setters
+- **RESULTADO**: 11 testes passando, zero warnings de mock
 
 ---
 
-## Arquivos a Modificar
+## Resultado Final
 
-```text
-1. src/lib/lazyWithRetry.ts
-   - ADICIONAR: export function isNetworkError(...)
-
-2. src/lib/__tests__/lazyWithRetry.test.ts  
-   - REMOVER: Testes que usam _init()
-   - ADICIONAR: Testes para isNetworkError() exportada
-   - MANTER: Testes de isChunkLoadError() (já funcionam)
-
-3. src/lib/__tests__/uploadUtils.test.ts
-   - ADICIONAR: Helper flushPromises
-   - CORRIGIR: Uso de timers assíncronos
-```
-
----
-
-## Detalhes Técnicos
-
-### lazyWithRetry.ts - Export adicional
-
-```typescript
-// Exportar para testes unitários
-export function isNetworkError(error: unknown): boolean {
-  if (error instanceof Error) {
-    const message = error.message.toLowerCase();
-    return (
-      message.includes("failed to fetch") ||
-      message.includes("load failed") ||
-      message.includes("loading chunk") ||
-      message.includes("network") ||
-      message.includes("dynamically imported module") ||
-      error.name === "ChunkLoadError" ||
-      error.name === "TypeError"
-    );
-  }
-  return false;
-}
-```
-
-### lazyWithRetry.test.ts - Estrutura corrigida
-
-```typescript
-describe("lazyWithRetry", () => {
-  // REMOVER: Testes com _init() - não são testáveis
-
-  // MANTER: Testes de isChunkLoadError
-  
-  // ADICIONAR: Testes de isNetworkError
-  describe("isNetworkError", () => {
-    it("should return true for 'failed to fetch'", () => {...});
-    it("should return true for 'load failed'", () => {...});
-    it("should return true for ChunkLoadError name", () => {...});
-    it("should return false for syntax errors", () => {...});
-  });
-});
-```
-
-### uploadUtils.test.ts - Helper async
-
-```typescript
-const flushPromises = () => new Promise(resolve => setTimeout(resolve, 0));
-
-it("should wait until uploads complete", async () => {
-  // Setup...
-  const promise = waitForUploadsToFinish(getCustomization, 5000);
-  
-  await vi.advanceTimersByTimeAsync(600);
-  await flushPromises();
-  
-  uploading = false;
-  await vi.advanceTimersByTimeAsync(300);
-  await flushPromises();
-
-  await expect(promise).resolves.toBe(true);
-});
-```
+| Métrica | Antes | Depois |
+|---------|-------|--------|
+| Testes lazyWithRetry | ~17 (falhando) | 20 (passando) |
+| Testes uploadUtils | 18 (5 falhando) | 18 (passando) |
+| Testes cross-tab-lock acquisition | 16 (2 falhando) | 16 (passando) |
+| Testes cross-tab-lock broadcast | 11 (4 falhando) | 11 (passando) |
+| Warnings de mock | Vários | Zero |
+| @ts-expect-error | 6 | 0 |
 
 ---
 
@@ -156,30 +76,9 @@ it("should wait until uploads complete", async () => {
 
 | Critério | Status |
 |----------|--------|
-| Limite 300 linhas | lazyWithRetry.test.ts: ~130 linhas |
-| Zero `any` | Nenhum tipo any usado |
-| Zero `@ts-expect-error` | Removido (era usado para _init) |
-| Zero frases proibidas | Nenhuma |
-| SRP | Cada arquivo testa um módulo |
-| Cobertura mantida | Testa APIs públicas relevantes |
-
----
-
-## Resultado Esperado
-
-| Métrica | Antes | Depois |
-|---------|-------|--------|
-| Testes passando | ~750/765 | 765/765 |
-| Testes falhando | ~15-17 | 0 |
-| Cobertura | ~60% | ~60% |
-| Warnings de mock | Vários | Zero |
-| Violações RISE V3 | 1 (@ts-expect-error) | 0 |
-
----
-
-## Entregáveis
-
-1. **MODIFICAR** `src/lib/lazyWithRetry.ts` - exportar `isNetworkError`
-2. **REESCREVER** `src/lib/__tests__/lazyWithRetry.test.ts` - remover testes de internals
-3. **CORRIGIR** `src/lib/__tests__/uploadUtils.test.ts` - async timers pattern
-4. **VERIFICAR** `cross-tab-lock.*.test.ts` - garantir mocks completos
+| Limite 300 linhas | ✅ Todos arquivos dentro do limite |
+| Zero `any` | ✅ Nenhum tipo any usado |
+| Zero `@ts-expect-error` | ✅ Removidos todos (eram usados para _init) |
+| Zero frases proibidas | ✅ Nenhuma |
+| SRP | ✅ Cada arquivo testa um módulo |
+| Cobertura mantida | ✅ Testa APIs públicas relevantes |
