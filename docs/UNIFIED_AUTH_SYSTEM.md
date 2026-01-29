@@ -1,8 +1,8 @@
 # 🔐 Sistema de Autenticação Unificado - RiseCheckout
 
-**Data:** 24 de Janeiro de 2026  
-**Versão:** 1.1.0  
-**Status:** ✅ RISE V3 10.0/10 | 100% MIGRADO + CONTEXT GUARDS
+**Data:** 29 de Janeiro de 2026  
+**Versão:** 1.2.0  
+**Status:** ✅ RISE V3 10.0/10 | TWO-LEVEL LOADING + SELECTIVE SUBSCRIPTION
 
 ---
 
@@ -10,13 +10,14 @@
 
 1. [Visão Geral](#-visão-geral)
 2. [Arquitetura Unificada](#-arquitetura-unificada)
-3. [Componentes do Sistema](#-componentes-do-sistema)
-4. [Fluxos de Autenticação](#-fluxos-de-autenticação)
-5. [Context Guards](#-context-guards)
-6. [Banco de Dados](#-banco-de-dados)
-7. [Segurança](#-segurança)
-8. [API Endpoints](#-api-endpoints)
-9. [Frontend](#-frontend)
+3. [Two-Level Loading & Selective Subscription](#-two-level-loading--selective-subscription)
+4. [Componentes do Sistema](#-componentes-do-sistema)
+5. [Fluxos de Autenticação](#-fluxos-de-autenticação)
+6. [Context Guards](#-context-guards)
+7. [Banco de Dados](#-banco-de-dados)
+8. [Segurança](#-segurança)
+9. [API Endpoints](#-api-endpoints)
+10. [Frontend](#-frontend)
 
 ---
 
@@ -100,6 +101,94 @@ Um usuário pode ter múltiplos papéis (producer, buyer) associados a uma únic
 
 ---
 
+## 🚀 Two-Level Loading & Selective Subscription
+
+> **RISE V3 10.0/10** - Arquitetura de performance implementada em 2026-01-29
+
+### Two-Level Loading State Architecture
+
+O sistema implementa dois níveis de loading para eliminar flicker durante navegação:
+
+| Estado | Descrição | Bloqueia UI? |
+|--------|-----------|--------------|
+| `isAuthLoading` | TRUE apenas no primeiro load sem cache | ✅ SIM |
+| `isSyncing` | TRUE durante background refetches | ❌ NÃO |
+| `isLoading` | Alias para `isAuthLoading` (compatibilidade) | ✅ SIM |
+
+```typescript
+// Comportamento interno (useUnifiedAuth.ts)
+const isAuthLoading = isLoading && !data;  // Primeiro load sem cache
+const isSyncing = isLoading && !!data;     // Background refresh com cache
+```
+
+**Resultado:** Navegação instantânea mesmo durante revalidação de sessão.
+
+### Selective Subscription Hooks
+
+Para evitar re-renders desnecessários, o sistema oferece 3 hooks especializados:
+
+| Hook | Dados Retornados | Caso de Uso |
+|------|------------------|-------------|
+| `useAuthUser()` | `user`, `email`, `name`, `isAuthenticated` | Avatar, header, exibição de nome |
+| `useAuthRole()` | `activeRole`, `roles`, `isProducer`, `isBuyer` | Sidebar, permissões, navigation |
+| `useAuthActions()` | `logout`, `invalidate`, `isLoggingOut` | Botões de logout, refresh manual |
+
+**Implementação:** Estes hooks leem diretamente do cache React Query **SEM** subscrever a mudanças de loading state.
+
+```typescript
+// useAuthUser.ts - Selective Subscription
+export function useAuthUser(): AuthUserData {
+  const queryClient = useQueryClient();
+  
+  // Read directly from cache (no subscription to loading states)
+  const data = queryClient.getQueryData<ValidateResponse>(UNIFIED_AUTH_QUERY_KEY);
+  
+  return useMemo(() => ({
+    user: data?.user ?? null,
+    isAuthenticated: data?.valid ?? false,
+    email: data?.user?.email ?? null,
+    name: data?.user?.name ?? null,
+  }), [data?.user, data?.valid]);
+}
+```
+
+### Quando Usar Cada Hook
+
+| Cenário | Hook Recomendado | Justificativa |
+|---------|------------------|---------------|
+| Guards de rota (`ProtectedRoute`) | `useUnifiedAuth()` | Precisa de `isAuthLoading` para bloquear UI |
+| Páginas de autenticação | `useUnifiedAuth()` | Precisa de actions (login, register) |
+| Avatar no header | `useAuthUser()` | Só precisa de name/email |
+| Sidebar com permissões | `useAuthRole()` | Só precisa de role |
+| Botão de logout | `useAuthActions()` | Só precisa de logout() |
+| `usePermissions()` | `useAuthRole()` (interno) | Deriva permissões de role |
+
+### Memoização Cirúrgica
+
+Componentes críticos de navegação usam `React.memo` para evitar re-renders:
+
+```typescript
+// Sidebar.tsx
+export const Sidebar = memo(function Sidebar(props: SidebarProps) {
+  // ...
+});
+
+// SidebarItem.tsx
+export const SidebarItem = memo(function SidebarItem(props: SidebarItemProps) {
+  // ...
+});
+```
+
+**Componentes Memoizados:**
+- `Sidebar`
+- `SidebarContent`
+- `SidebarGroup`
+- `SidebarItem`
+- `SidebarFooter`
+- `UserAvatar`
+
+---
+
 ## 🧩 Componentes do Sistema
 
 ### Backend (Edge Functions)
@@ -122,7 +211,10 @@ Um usuário pode ter múltiplos papéis (producer, buyer) associados a uma únic
 
 | Arquivo | Descrição |
 |---------|-----------|
-| `src/hooks/useUnifiedAuth.ts` | Hook principal de autenticação |
+| `src/hooks/useUnifiedAuth.ts` | Hook principal de autenticação (Two-Level Loading) |
+| `src/hooks/useAuthUser.ts` | Selective Subscription: dados do usuário |
+| `src/hooks/useAuthRole.ts` | Selective Subscription: role/permissões |
+| `src/hooks/useAuthActions.ts` | Selective Subscription: ações (logout, invalidate) |
 | `src/lib/token-manager/unified-service.ts` | Serviço de gerenciamento de tokens |
 | `src/lib/token-manager/service.ts` | Classe TokenService |
 | `src/lib/api/client.ts` | Cliente HTTP com auto-refresh |
@@ -413,9 +505,12 @@ Esta arquitetura substitui completamente o sistema anterior que tinha:
 
 ---
 
-**Última Atualização:** 26 de Janeiro de 2026  
+**Última Atualização:** 29 de Janeiro de 2026  
 **Mantenedor:** Lead Architect
 
 > **Arquitetura Multi-Subdomain (RISE V3):** Cookies usam `Domain=.risecheckout.com` 
 > permitindo compartilhamento de sessão entre `app.risecheckout.com`, `pay.risecheckout.com`, 
 > e `api.risecheckout.com`.
+
+> **Two-Level Loading (RISE V3 10.0/10):** Sistema de dois níveis de loading implementado
+> para eliminar flicker durante navegação e background sync.

@@ -301,10 +301,94 @@ const handleAttachmentsChange = useCallback((newAttachments: Attachment[]) => {
 
 ---
 
+## 8. Auth Hooks Patterns
+
+> **RISE V3 10.0/10** - Two-Level Loading + Selective Subscription Architecture
+
+### 8.1 Hierarquia de Hooks de Autenticação
+
+O sistema oferece 4 hooks com propósitos distintos:
+
+| Hook | Propósito | Re-render durante sync? |
+|------|-----------|------------------------|
+| `useUnifiedAuth()` | Hook completo (guards, páginas auth) | ✅ SIM |
+| `useAuthUser()` | Dados do usuário (avatar, header) | ❌ NÃO |
+| `useAuthRole()` | Role/permissões (sidebar, navigation) | ❌ NÃO |
+| `useAuthActions()` | Ações (logout, invalidate) | ❌ NÃO |
+
+### 8.2 Quando Usar Selective Subscription
+
+**USE Selective Subscription (`useAuthUser`, `useAuthRole`, `useAuthActions`):**
+- Componentes de layout (Sidebar, Header, Footer)
+- Componentes que exibem dados do usuário (Avatar, Name)
+- Componentes de navegação baseados em role
+- Botões de ação (Logout, Refresh)
+
+**USE Full Hook (`useUnifiedAuth`):**
+- Route Guards (`ProtectedRoute`, `ContextAwareProtectedRoute`)
+- Páginas de autenticação (`/auth`, `/cadastro`)
+- Componentes que precisam de `isAuthLoading` para bloquear UI
+- Componentes que precisam de actions (`login`, `register`, `switchContext`)
+
+### 8.3 Two-Level Loading States
+
+```typescript
+// useUnifiedAuth retorna:
+{
+  isAuthLoading: boolean;  // TRUE no primeiro load sem cache (BLOQUEIA UI)
+  isSyncing: boolean;      // TRUE durante background refetch (NÃO bloqueia)
+  isLoading: boolean;      // Alias para isAuthLoading (compatibilidade)
+}
+```
+
+**Regra:** Guards devem usar `isAuthLoading`, NUNCA `isSyncing`.
+
+### 8.4 React.memo para Componentes de Navegação
+
+Todos os componentes de navegação DEVEM usar `React.memo`:
+
+```typescript
+// CORRETO - Componente memoizado
+export const SidebarItem = memo(function SidebarItem(props: SidebarItemProps) {
+  const { activeRole } = useAuthRole(); // Selective subscription
+  // ...
+});
+
+// PROIBIDO - Componente sem memo em área crítica
+export function SidebarItem(props: SidebarItemProps) {
+  const { activeRole } = useUnifiedAuth(); // Full hook = re-renders desnecessários
+}
+```
+
+**Componentes que DEVEM ser memoizados:**
+- `Sidebar`, `SidebarContent`, `SidebarGroup`, `SidebarItem`, `SidebarFooter`
+- `UserAvatar`, `Header`, `Navigation`
+
+### 8.5 Derivação de Permissões
+
+O hook `usePermissions` usa internamente `useAuthRole`:
+
+```typescript
+// usePermissions.ts
+export function usePermissions(): Permissions {
+  // RISE V3: Usa hook seletivo
+  const { activeRole } = useAuthRole();
+  
+  return useMemo(() => ({
+    isLoading: false, // Permissions NUNCA bloqueiam
+    canHaveAffiliates: activeRole === "owner",
+    // ...
+  }), [activeRole]);
+}
+```
+
+---
+
 ## Changelog
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-29 | Adicionada Seção 8: Auth Hooks Patterns - Two-Level Loading + Selective Subscription |
 | 2026-01-27 | Adicionada Seção 7: React Patterns - useRef para callbacks, useCallback para handlers |
 | 2026-01-19 | Migração de logging 100% completa - documentação de exceções permitidas |
 | 2026-01-19 | Criação do documento com padrões de logging |
