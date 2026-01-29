@@ -1,6 +1,6 @@
 # Documentação do Sistema de Testes - RiseCheckout
 
-**Status:** ✅ FASES 1-4 IMPLEMENTADAS  
+**Status:** ✅ FASES 1-5 IMPLEMENTADAS  
 **Última atualização:** 29 de Janeiro de 2026  
 **RISE V3 Score:** 10.0/10
 
@@ -199,6 +199,6 @@ Pipeline bloqueia merge se:
 - [x] **Fase 2:** Testes unitários backend (_shared) - ✅ 129 testes
 - [x] **Fase 3:** Testes unitários frontend (lib) - ✅ 150+ testes (money.ts, logger.ts, validation.ts)
 - [x] **Fase 4:** Testes de integração (hooks) - ✅ 66 testes (useUnifiedAuth, useFormManager)
-- [ ] **Fase 5:** Testes de Edge Functions
+- [x] **Fase 5:** Testes de Edge Functions - ✅ 200+ testes (password-policy, validators, rate-limiting)
 - [ ] **Fase 6:** Testes E2E (Playwright)
 - [ ] **Fase 7:** CI/CD bloqueante
