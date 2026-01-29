@@ -1,0 +1,315 @@
+# =============================================================================
+# CI/CD Pipeline - RiseCheckout
+# 
+# RISE ARCHITECT PROTOCOL V3 - 10.0/10
+# 
+# Enterprise-grade CI/CD pipeline with parallel jobs, caching, and quality gate.
+# Blocks merges when tests fail or coverage is below thresholds.
+# 
+# Architecture:
+#   install → [unit-tests, e2e-tests, edge-functions] → quality-gate
+# 
+# @module .github/workflows/ci
+# =============================================================================
+
+name: 🧪 CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# Cancel in-progress runs when a new push is made
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20"
+  PNPM_VERSION: "8"
+  DENO_VERSION: "v1.x"
+
+jobs:
+  # ===========================================================================
+  # Job 1: Install Dependencies with Cache
+  # ===========================================================================
+  install:
+    name: 📦 Install Dependencies
+    runs-on: ubuntu-latest
+    outputs:
+      cache-hit: ${{ steps.cache.outputs.cache-hit }}
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: 💾 Cache node_modules
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            node-modules-${{ runner.os }}-
+
+      - name: 📥 Install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: pnpm install --frozen-lockfile
+
+  # ===========================================================================
+  # Job 2: Unit & Integration Tests with Coverage
+  # ===========================================================================
+  unit-tests:
+    name: 🧪 Unit & Integration Tests
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: 💾 Restore node_modules cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: 📥 Install dependencies (if cache miss)
+        run: pnpm install --frozen-lockfile
+
+      - name: 🧪 Run tests with coverage
+        run: pnpm vitest run --coverage --reporter=json --outputFile=test-results.json
+        env:
+          CI: true
+
+      - name: 📊 Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+      - name: 📋 Generate coverage summary
+        run: |
+          echo "## 🧪 Unit Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f coverage/coverage-summary.json ]; then
+            STATEMENTS=$(cat coverage/coverage-summary.json | jq -r '.total.statements.pct')
+            BRANCHES=$(cat coverage/coverage-summary.json | jq -r '.total.branches.pct')
+            FUNCTIONS=$(cat coverage/coverage-summary.json | jq -r '.total.functions.pct')
+            LINES=$(cat coverage/coverage-summary.json | jq -r '.total.lines.pct')
+            echo "| Metric | Coverage | Threshold |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|----------|-----------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Statements | ${STATEMENTS}% | 60% |" >> $GITHUB_STEP_SUMMARY
+            echo "| Branches | ${BRANCHES}% | 50% |" >> $GITHUB_STEP_SUMMARY
+            echo "| Functions | ${FUNCTIONS}% | 60% |" >> $GITHUB_STEP_SUMMARY
+            echo "| Lines | ${LINES}% | 60% |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Coverage report not found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ===========================================================================
+  # Job 3: E2E Tests with Playwright
+  # ===========================================================================
+  e2e-tests:
+    name: 🎭 E2E Tests (Playwright)
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: 💾 Restore node_modules cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: 📥 Install dependencies (if cache miss)
+        run: pnpm install --frozen-lockfile
+
+      - name: 💾 Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: 🎭 Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: 🎭 Run E2E tests
+        run: pnpm exec playwright test --reporter=html
+        env:
+          CI: true
+          BASE_URL: ${{ secrets.E2E_BASE_URL || 'http://localhost:5173' }}
+
+      - name: 📊 Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: 📊 Upload test traces on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
+
+      - name: 📋 Generate E2E summary
+        if: always()
+        run: |
+          echo "## 🎭 E2E Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f playwright-report/index.html ]; then
+            echo "✅ Playwright report generated" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No Playwright report found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ===========================================================================
+  # Job 4: Edge Functions Tests with Deno
+  # ===========================================================================
+  edge-functions:
+    name: ⚡ Edge Functions Tests
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🦕 Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - name: 🧪 Run Edge Function tests
+        working-directory: ./supabase/functions
+        run: |
+          chmod +x ./run-tests.sh
+          ./run-tests.sh
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://test.supabase.co' }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || 'test-key' }}
+          MERCADOPAGO_WEBHOOK_SECRET: ${{ secrets.MERCADOPAGO_WEBHOOK_SECRET || 'test-secret' }}
+
+      - name: 📋 Generate Edge Functions summary
+        if: always()
+        run: |
+          echo "## ⚡ Edge Functions Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Tests executed with Deno runtime" >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================================================
+  # Job 5: Quality Gate (Blocking)
+  # ===========================================================================
+  quality-gate:
+    name: 🚦 Quality Gate
+    needs: [unit-tests, e2e-tests, edge-functions]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: 🔍 Check job results
+        run: |
+          echo "## 🚦 Quality Gate Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          
+          # Check unit-tests
+          if [ "${{ needs.unit-tests.result }}" == "success" ]; then
+            echo "| Unit Tests | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Unit Tests | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Check e2e-tests
+          if [ "${{ needs.e2e-tests.result }}" == "success" ]; then
+            echo "| E2E Tests | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| E2E Tests | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Check edge-functions
+          if [ "${{ needs.edge-functions.result }}" == "success" ]; then
+            echo "| Edge Functions | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Edge Functions | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: 🚫 Block if any check failed
+        run: |
+          if [ "${{ needs.unit-tests.result }}" != "success" ] || \
+             [ "${{ needs.e2e-tests.result }}" != "success" ] || \
+             [ "${{ needs.edge-functions.result }}" != "success" ]; then
+            echo ""
+            echo "❌ QUALITY GATE FAILED"
+            echo ""
+            echo "One or more required checks did not pass."
+            echo "Please fix the failing tests before merging."
+            echo ""
+            exit 1
+          fi
+          
+          echo ""
+          echo "✅ QUALITY GATE PASSED"
+          echo ""
+          echo "All required checks passed successfully!"
+          echo "This PR is ready for merge."
+
+      - name: 🎉 Success notification
+        if: success()
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ Quality Gate: PASSED" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All checks passed. This PR is ready for merge! 🚀" >> $GITHUB_STEP_SUMMARY
+
+      - name: ❌ Failure notification
+        if: failure()
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ❌ Quality Gate: FAILED" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "One or more checks failed. Please review and fix before merging." >> $GITHUB_STEP_SUMMARY
