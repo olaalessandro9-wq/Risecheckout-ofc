@@ -1,68 +1,86 @@
-# Fase 6: Testes E2E com Playwright - ✅ CONCLUÍDA
 
-**Status:** ✅ IMPLEMENTAÇÃO COMPLETA  
-**Data de Conclusão:** 29 de Janeiro de 2026  
-**RISE V3 Score:** 10.0/10
 
----
+# Plano de Correção: Conformidade 100% RISE V3 - Fase 6
 
-## Resumo da Implementação
+## Problema Identificado
 
-A Fase 6 foi implementada com sucesso, adicionando **37+ testes E2E** usando Playwright com Page Object Pattern.
+Durante a auditoria completa da Fase 6, foram detectadas 2 inconsistências que impedem a certificação 100%:
 
----
-
-## Arquivos Criados
-
-### Page Objects (7 arquivos)
-| Arquivo | Linhas | Descrição |
-|---------|--------|-----------|
-| `e2e/fixtures/test-data.ts` | 180 | Dados centralizados, factories, rotas |
-| `e2e/fixtures/pages/AuthPage.ts` | 112 | Autenticação producer |
-| `e2e/fixtures/pages/CadastroPage.ts` | 140 | Registro producer |
-| `e2e/fixtures/pages/LandingPage.ts` | 125 | Landing page |
-| `e2e/fixtures/pages/CheckoutPage.ts` | 205 | Checkout público |
-| `e2e/fixtures/pages/BuyerPage.ts` | 185 | Área de membros |
-| `e2e/fixtures/pages/PixPaymentPage.ts` | 140 | Página de PIX |
-| `e2e/fixtures/pages/SuccessPage.ts` | 130 | Página de sucesso |
-
-### Test Specs (5 arquivos)
-| Arquivo | Testes | Descrição |
-|---------|--------|-----------|
-| `e2e/specs/smoke.spec.ts` | 10 | Smoke tests de rotas críticas |
-| `e2e/specs/auth.spec.ts` | 9 | Autenticação producer |
-| `e2e/specs/checkout.spec.ts` | 12 | Checkout público completo |
-| `e2e/specs/landing.spec.ts` | 8 | Landing page e navegação |
-| `e2e/specs/buyer-auth.spec.ts` | 8 | Autenticação buyer |
-
-### Documentação
-| Arquivo | Descrição |
-|---------|-----------|
-| `e2e/README.md` | Documentação completa dos testes E2E |
-| `docs/TESTING_SYSTEM.md` | Atualizado para Fase 6 |
+| Arquivo | Problema | Gravidade |
+|---------|----------|-----------|
+| `e2e/specs/checkout.spec.ts` | 311 linhas (viola limite 300) | 🟠 ALTA |
+| `e2e/members-area-flicker.spec.ts` | Header não padronizado | 🟡 MÉDIA |
 
 ---
 
-## Contagem Final de Testes
+## Análise de Soluções
 
-| Fase | Categoria | Quantidade |
-|------|-----------|------------|
-| F2 | Backend _shared | 129 |
-| F3 | Frontend lib | 150+ |
-| F4 | Hooks integração | 66 |
-| F5 | Edge Functions | 200+ |
-| F6 | E2E Playwright | 37+ |
-| **TOTAL** | | **580+** |
+### Solução A: Correção Mínima
+- Mover ~12 linhas de `checkout.spec.ts` para outro arquivo
+- Atualizar apenas o header de `members-area-flicker.spec.ts`
+
+**Avaliação:**
+- Manutenibilidade: 7/10
+- Zero DT: 8/10
+- Arquitetura: 7/10
+- Escalabilidade: 7/10
+- Segurança: 10/10
+- **NOTA FINAL: 7.8/10**
+- Tempo estimado: 10 minutos
+
+### Solução B: Refatoração Estrutural Completa
+- Dividir `checkout.spec.ts` em módulos semânticos:
+  - `checkout-loading.spec.ts` - Testes de carregamento
+  - `checkout-form.spec.ts` - Validação de formulário
+  - `checkout-payment.spec.ts` - Métodos de pagamento
+  - `checkout-bumps.spec.ts` - Order bumps
+  - `checkout-submit.spec.ts` - Fluxo de submissão
+- Atualizar header de `members-area-flicker.spec.ts` com formato completo
+- Adicionar `@module` tags em todos os arquivos
+
+**Avaliação:**
+- Manutenibilidade: 10/10 (cada arquivo com responsabilidade única)
+- Zero DT: 10/10 (estrutura final, sem necessidade de refatoração futura)
+- Arquitetura: 10/10 (Single Responsibility aplicado)
+- Escalabilidade: 10/10 (fácil adicionar testes em cada categoria)
+- Segurança: 10/10
+- **NOTA FINAL: 10.0/10**
+- Tempo estimado: 30 minutos
+
+### DECISÃO: Solução B (Nota 10.0)
+
+A Solução A seria "mais rápida" mas viola a LEI SUPREMA (Seção 4.6): *"Não importa se a diferença é 0.1. Não importa se demora 100x mais. A melhor solução VENCE. SEMPRE."*
 
 ---
 
-## Arquitetura Implementada
+## Arquivos a Criar
 
-```
+| Arquivo | Descrição | Linhas Est. |
+|---------|-----------|-------------|
+| `e2e/specs/checkout-loading.spec.ts` | Testes de carregamento e slug inválido | ~60 |
+| `e2e/specs/checkout-form.spec.ts` | Validação de formulário do cliente | ~70 |
+| `e2e/specs/checkout-payment.spec.ts` | Seleção de métodos de pagamento | ~60 |
+| `e2e/specs/checkout-bumps.spec.ts` | Order bumps e toggles | ~50 |
+| `e2e/specs/checkout-submit.spec.ts` | Submissão e página de sucesso | ~70 |
+
+## Arquivos a Modificar
+
+| Arquivo | Ação |
+|---------|------|
+| `e2e/specs/checkout.spec.ts` | ❌ DELETAR (substituído pelos 5 novos) |
+| `e2e/members-area-flicker.spec.ts` | Atualizar header para padrão RISE V3 |
+| `docs/TESTING_SYSTEM.md` | Atualizar estrutura de arquivos |
+| `.lovable/plan.md` | Documentar refatoração |
+
+---
+
+## Estrutura Final E2E
+
+```text
 e2e/
 ├── fixtures/
-│   ├── test-data.ts          # ✅ Criado
-│   └── pages/                # ✅ 7 Page Objects
+│   ├── test-data.ts
+│   └── pages/
 │       ├── AuthPage.ts
 │       ├── CadastroPage.ts
 │       ├── LandingPage.ts
@@ -70,36 +88,83 @@ e2e/
 │       ├── BuyerPage.ts
 │       ├── PixPaymentPage.ts
 │       └── SuccessPage.ts
-├── specs/                    # ✅ 5 Test Specs
-│   ├── smoke.spec.ts
-│   ├── auth.spec.ts
-│   ├── checkout.spec.ts
-│   ├── landing.spec.ts
-│   └── buyer-auth.spec.ts
-├── members-area-flicker.spec.ts  # (existente - mantido)
-└── README.md                 # ✅ Criado
+├── specs/
+│   ├── smoke.spec.ts           # 10 testes
+│   ├── auth.spec.ts            # 9 testes
+│   ├── checkout-loading.spec.ts    # 2 testes (NOVO)
+│   ├── checkout-form.spec.ts       # 3 testes (NOVO)
+│   ├── checkout-payment.spec.ts    # 3 testes (NOVO)
+│   ├── checkout-bumps.spec.ts      # 2 testes (NOVO)
+│   ├── checkout-submit.spec.ts     # 2 testes (NOVO)
+│   ├── landing.spec.ts         # 8 testes
+│   └── buyer-auth.spec.ts      # 8 testes
+├── members-area-flicker.spec.ts    # 6 testes (atualizado)
+└── README.md
 ```
 
 ---
 
-## Compliance RISE V3
+## Resultado Esperado
 
-| Critério | Status |
-|----------|--------|
-| Page Object Pattern | ✅ 7 classes implementadas |
-| Dados centralizados | ✅ test-data.ts com factories |
-| Smoke Tests | ✅ 10 testes de renderização |
-| Limite 300 linhas | ✅ Todos arquivos < 210 linhas |
-| Documentação | ✅ README.md + TESTING_SYSTEM.md |
-| Zero código morto | ✅ Verificado |
-| Zero @ts-ignore | ✅ Verificado |
+| Métrica | Antes | Depois |
+|---------|-------|--------|
+| Violações de limite 300 linhas | 1 | 0 |
+| Headers não padronizados | 1 | 0 |
+| Conformidade RISE V3 | 98% | 100% |
+| Arquivos de teste checkout | 1 (311 linhas) | 5 (~60 linhas cada) |
+| Single Responsibility | Parcial | Total |
 
 ---
 
-## Próxima Fase
+## Seção Técnica
 
-**Fase 7: CI/CD Bloqueante**
-- Configurar GitHub Actions para rodar todos os testes
-- Bloquear merge se coverage < threshold
-- Bloquear merge se qualquer teste falhar
-- Gerar relatórios de coverage automaticamente
+### Header Padrão RISE V3
+
+Todos os arquivos devem ter o seguinte formato de header:
+
+```typescript
+/**
+ * [Nome] - [Descrição Breve]
+ * 
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * [Descrição detalhada do propósito do arquivo]
+ * 
+ * @module e2e/specs/[nome-arquivo]
+ */
+```
+
+### Estrutura de Cada Spec Modularizado
+
+```typescript
+/**
+ * Checkout Loading Tests
+ * 
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * Tests for checkout page loading, slug validation, and initial states.
+ * 
+ * @module e2e/specs/checkout-loading.spec
+ */
+
+import { test, expect } from "@playwright/test";
+import { CheckoutPage } from "../fixtures/pages/CheckoutPage";
+import { TEST_CHECKOUT, ROUTES, TIMEOUTS } from "../fixtures/test-data";
+
+test.describe("Checkout Loading", () => {
+  // Tests específicos de loading
+});
+```
+
+---
+
+## Conclusão
+
+Esta refatoração segue a LEI SUPREMA (Seção 4) do RISE Protocol V3:
+- Escolhemos a Solução B (nota 10.0) mesmo sendo mais trabalhosa
+- O resultado é uma estrutura que pode ser mantida por décadas
+- Zero necessidade de refatoração futura
+- Single Responsibility aplicado em cada arquivo de teste
+
+Após esta correção, a Fase 6 estará **100% completa e certificada** conforme RISE Protocol V3.
+
