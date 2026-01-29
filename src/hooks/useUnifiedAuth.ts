@@ -372,7 +372,7 @@ export function useUnifiedAuth() {
   return {
     // State
     isAuthenticated,
-    isLoading: authQuery.isLoading,
+    isLoading: authQuery.isLoading || !authQuery.isFetchedAfterMount,
     isRefetching: authQuery.isRefetching,
     user,
     roles,
