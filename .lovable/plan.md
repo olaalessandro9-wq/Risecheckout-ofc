@@ -1,266 +1,513 @@
 
-# Refatoração: validation.test.ts → 4 Arquivos Modulares
+# Fase 4: Testes para Componentes UI (Testing Pyramid - 70% Unit)
 
-## Análise RISE V3 (Seção 4.4)
+## Análise de Soluções (RISE V3 Seção 4.4)
 
-### Solução A: Divisão Simples em 4 Arquivos
-- Manutenibilidade: 8/10 (modularização básica)
-- Zero DT: 7/10 (pode haver código duplicado entre arquivos)
-- Arquitetura: 7/10 (não segue SRP perfeitamente)
-- Escalabilidade: 8/10 (permite expansão)
-- Segurança: 9/10 (mantém testes de XSS)
-- **NOTA FINAL: 7.8/10**
-- Tempo estimado: 1 hora
+### Solução A: Testes Básicos de Renderização
+- Manutenibilidade: 6/10 (cobre apenas renderização, não comportamento)
+- Zero DT: 5/10 (não testa variants, estados, interações)
+- Arquitetura: 6/10 (não segue testing pyramid completo)
+- Escalabilidade: 6/10 (difícil expandir sem refatorar)
+- Segurança: 7/10 (não testa acessibilidade)
+- **NOTA FINAL: 6.0/10**
+- Tempo estimado: 4 horas
 
-### Solução B: Divisão por Responsabilidade Única com Infraestrutura Compartilhada
-- Manutenibilidade: 10/10 (cada arquivo testa exatamente uma responsabilidade)
-- Zero DT: 10/10 (imports centralizados, zero duplicação)
-- Arquitetura: 10/10 (segue SRP, cada describe em arquivo próprio)
+### Solução B: Testes Completos por Categoria com Cobertura Total
+- Manutenibilidade: 10/10 (modular, um arquivo por categoria)
+- Zero DT: 10/10 (cobre variants, estados, interações, acessibilidade)
+- Arquitetura: 10/10 (segue SRP, categorização lógica)
 - Escalabilidade: 10/10 (adicionar novos testes é trivial)
-- Segurança: 10/10 (testes de XSS em arquivo dedicado)
+- Segurança: 10/10 (testa ARIA, roles, disabled states)
 - **NOTA FINAL: 10.0/10**
-- Tempo estimado: 2 horas
+- Tempo estimado: 12 horas
 
 ### DECISÃO: Solução B (Nota 10.0/10)
-A Solução A é inferior porque não separa completamente as responsabilidades (masks vs validations vs helpers vs security) e pode levar a imports duplicados.
+A Solução A é inferior porque não testa variants (6 variants de Button), estados (disabled, loading), interações (onClick, onChange), nem acessibilidade (roles ARIA, screen reader).
 
 ---
 
-## Estrutura Atual (600 linhas - VIOLAÇÃO)
+## Inventário de Componentes UI (53 componentes)
 
 ```text
-src/lib/validation.test.ts (600 linhas)
-├── describe("Mask Functions") [Linhas 39-237]
-│   ├── maskCPF (~40 linhas)
-│   ├── maskCNPJ (~40 linhas)
-│   ├── maskPhone (~33 linhas)
-│   ├── maskName (~28 linhas)
-│   ├── unmask (~20 linhas)
-│   └── maskDocument (~18 linhas)
-├── describe("Validation Functions") [Linhas 243-493]
-│   ├── validateCPF (~39 linhas)
-│   ├── validateCNPJ (~37 linhas)
-│   ├── validatePhone (~39 linhas)
-│   ├── validateEmail (~29 linhas)
-│   ├── validateName (~33 linhas)
-│   ├── validatePassword (~21 linhas)
-│   └── validateDocument (~23 linhas)
-├── describe("Helper Functions") [Linhas 499-521]
-│   └── detectDocumentType (~21 linhas)
-├── describe("ERROR_MESSAGES") [Linhas 527-547]
-│   └── (~20 linhas)
-└── describe("Edge Cases & Security") [Linhas 553-600]
-    ├── XSS Prevention (~14 linhas)
-    ├── Unicode handling (~8 linhas)
-    ├── Whitespace handling (~8 linhas)
-    └── Null-like string handling (~10 linhas)
+src/components/ui/
+├── TIER 1 - CORE (Prioridade Máxima) - 12 componentes
+│   ├── button.tsx (6 variants, 4 sizes, asChild)
+│   ├── input.tsx (types, disabled, className merge)
+│   ├── card.tsx (Card, Header, Title, Description, Content, Footer)
+│   ├── dialog.tsx (10 subcomponentes, modal behavior)
+│   ├── badge.tsx (4 variants)
+│   ├── alert.tsx (2 variants, AlertTitle, AlertDescription)
+│   ├── checkbox.tsx (checked state, disabled)
+│   ├── switch.tsx (checked state, disabled)
+│   ├── select.tsx (10 subcomponentes, dropdown)
+│   ├── textarea.tsx (disabled, className merge)
+│   ├── label.tsx (htmlFor integration)
+│   └── progress.tsx (value binding, animation)
+│
+├── TIER 2 - LAYOUT (Prioridade Alta) - 8 componentes
+│   ├── separator.tsx (horizontal/vertical orientation)
+│   ├── skeleton.tsx (animation class)
+│   ├── avatar.tsx (Avatar, Image, Fallback)
+│   ├── scroll-area.tsx (scroll behavior)
+│   ├── aspect-ratio.tsx (ratio prop)
+│   ├── resizable.tsx (resize behavior)
+│   ├── collapsible.tsx (open/close state)
+│   └── accordion.tsx (expand/collapse)
+│
+├── TIER 3 - NAVIGATION (Prioridade Média) - 10 componentes
+│   ├── tabs.tsx (tab switching)
+│   ├── breadcrumb.tsx (navigation links)
+│   ├── pagination.tsx (page navigation)
+│   ├── navigation-menu.tsx (nested menus)
+│   ├── menubar.tsx (menu items)
+│   ├── dropdown-menu.tsx (dropdown items)
+│   ├── context-menu.tsx (right-click menu)
+│   ├── sidebar.tsx (collapsible sidebar)
+│   ├── sheet.tsx (slide-in panel)
+│   └── drawer.tsx (bottom sheet)
+│
+├── TIER 4 - FEEDBACK (Prioridade Média) - 8 componentes
+│   ├── toast.tsx (notifications)
+│   ├── toaster.tsx (toast container)
+│   ├── use-toast.ts (hook)
+│   ├── sonner.tsx (sonner integration)
+│   ├── alert-dialog.tsx (confirmation dialogs)
+│   ├── popover.tsx (popover content)
+│   ├── tooltip.tsx (hover info)
+│   └── hover-card.tsx (hover content)
+│
+├── TIER 5 - FORM CONTROLS (Prioridade Alta) - 8 componentes
+│   ├── form.tsx (form integration)
+│   ├── radio-group.tsx (radio selection)
+│   ├── slider.tsx (range input)
+│   ├── toggle.tsx (toggle button)
+│   ├── toggle-group.tsx (toggle group)
+│   ├── input-otp.tsx (OTP input)
+│   ├── currency-input.tsx (currency formatting)
+│   └── calendar.tsx (date picker)
+│
+└── TIER 6 - SPECIALIZED (Prioridade Baixa) - 7 componentes
+    ├── table.tsx (data table)
+    ├── carousel.tsx (image carousel)
+    ├── chart.tsx (recharts wrapper)
+    ├── command.tsx (command palette)
+    ├── loading-switch.tsx (loading indicator)
+    ├── price-display.tsx (price formatting)
+    └── CountryCodeSelector.tsx (country codes)
 ```
 
 ---
 
-## Estrutura Proposta (4 Arquivos)
+## Estrutura de Arquivos Proposta
 
 ```text
-src/lib/__tests__/
-├── validation.masks.test.ts       (~180 linhas) ✅
-├── validation.cpf-cnpj.test.ts    (~160 linhas) ✅
-├── validation.phone-email.test.ts (~140 linhas) ✅
-└── validation.helpers.test.ts     (~120 linhas) ✅
+src/components/ui/__tests__/
+├── button.test.tsx            (~120 linhas) - 18 testes
+├── input.test.tsx             (~100 linhas) - 14 testes
+├── card.test.tsx              (~110 linhas) - 15 testes
+├── dialog.test.tsx            (~150 linhas) - 20 testes
+├── badge.test.tsx             (~80 linhas)  - 10 testes
+├── alert.test.tsx             (~90 linhas)  - 12 testes
+├── checkbox.test.tsx          (~80 linhas)  - 10 testes
+├── switch.test.tsx            (~80 linhas)  - 10 testes
+├── select.test.tsx            (~140 linhas) - 16 testes
+├── textarea.test.tsx          (~70 linhas)  - 8 testes
+├── label.test.tsx             (~60 linhas)  - 6 testes
+├── progress.test.tsx          (~70 linhas)  - 8 testes
+├── separator.test.tsx         (~60 linhas)  - 6 testes
+├── skeleton.test.tsx          (~50 linhas)  - 4 testes
+├── avatar.test.tsx            (~80 linhas)  - 10 testes
+└── form-controls.test.tsx     (~120 linhas) - 14 testes (toggle, toggle-group, radio-group)
 
-TOTAL: ~600 linhas → 4 arquivos < 200 linhas cada
+TOTAL ETAPA 1: 16 arquivos, ~1,460 linhas, ~171 testes
 ```
 
 ---
 
-## Detalhamento dos Arquivos
+## Detalhamento dos Arquivos (Etapa 1 - TIER 1 + TIER 2)
 
-### 1. validation.masks.test.ts (~180 linhas)
-
-**Responsabilidade:** Testes de todas as funções de máscara.
+### 1. button.test.tsx (~18 testes)
 
 ```text
-DESCRIBE: Mask Functions
-├── DESCRIBE: maskCPF
-│   ├── IT: empty string → empty
-│   ├── IT: 1-3 digits → digits only
-│   ├── IT: 4-6 digits → add first dot
-│   ├── IT: 7-9 digits → add second dot
-│   ├── IT: 10-11 digits → add dash
-│   ├── IT: limit to 11 digits
-│   ├── IT: strip non-numeric
-│   └── IT: handle already formatted
-├── DESCRIBE: maskCNPJ
-│   ├── IT: empty string → empty
-│   ├── IT: 1-2 digits → digits only
-│   ├── IT: 3-5 digits → add first dot
-│   ├── IT: 6-8 digits → add second dot
-│   ├── IT: 9-12 digits → add slash
-│   ├── IT: 13-14 digits → add dash
-│   ├── IT: limit to 14 digits
-│   └── IT: strip non-numeric
-├── DESCRIBE: maskPhone
-│   ├── IT: empty string → empty
-│   ├── IT: 1-2 digits → digits only
-│   ├── IT: 3-6 digits → add parentheses
-│   ├── IT: 10 digits → landline format
-│   ├── IT: 11 digits → mobile format
-│   ├── IT: limit to 11 digits
-│   └── IT: strip non-numeric
-├── DESCRIBE: maskName
-│   ├── IT: empty string → empty
-│   ├── IT: allow letters and spaces
-│   ├── IT: allow accented characters
-│   ├── IT: strip numbers
-│   ├── IT: strip special characters
-│   └── IT: preserve multiple spaces
-├── DESCRIBE: unmask
-│   ├── IT: empty string → empty
-│   ├── IT: remove all non-numeric
-│   ├── IT: return only digits
-│   └── IT: handle no digits
-└── DESCRIBE: maskDocument
-    ├── IT: mask as CPF for <= 11 digits
-    ├── IT: mask as CNPJ for > 11 digits
-    ├── IT: handle partial CPF
-    └── IT: handle partial CNPJ
+DESCRIBE: Button
+├── DESCRIBE: Rendering
+│   ├── IT: renders with children
+│   ├── IT: renders with displayName
+│   └── IT: forwards ref correctly
+│
+├── DESCRIBE: Variants
+│   ├── IT: applies default variant classes
+│   ├── IT: applies destructive variant classes
+│   ├── IT: applies outline variant classes
+│   ├── IT: applies secondary variant classes
+│   ├── IT: applies ghost variant classes
+│   └── IT: applies link variant classes
+│
+├── DESCRIBE: Sizes
+│   ├── IT: applies default size classes
+│   ├── IT: applies sm size classes
+│   ├── IT: applies lg size classes
+│   └── IT: applies icon size classes
+│
+├── DESCRIBE: States
+│   ├── IT: applies disabled styles when disabled
+│   ├── IT: prevents click when disabled
+│   └── IT: handles onClick callback
+│
+├── DESCRIBE: asChild (Slot)
+│   ├── IT: renders as Slot when asChild=true
+│   └── IT: passes className to Slot child
+│
+└── DESCRIBE: Accessibility
+    └── IT: has type="button" by default
 ```
-
-**Testes:** ~32 testes
 
 ---
 
-### 2. validation.cpf-cnpj.test.ts (~160 linhas)
-
-**Responsabilidade:** Testes de validação de CPF e CNPJ.
+### 2. input.test.tsx (~14 testes)
 
 ```text
-DESCRIBE: CPF Validation
-├── IT.EACH: valid CPFs (4 casos)
-├── IT.EACH: invalid CPFs (7 casos)
-├── IT: reject empty string
-└── IT: reject all same digits (10 casos)
-
-DESCRIBE: CNPJ Validation
-├── IT.EACH: valid CNPJs (4 casos)
-├── IT.EACH: invalid CNPJs (5 casos)
-├── IT: reject empty string
-└── IT: reject all same digits (10 casos)
-
-DESCRIBE: validateDocument (auto-detect)
-├── IT: validate CPF when <= 11 digits
-├── IT: validate CNPJ when > 11 digits
-├── IT: reject invalid CPF
-├── IT: reject invalid CNPJ
-└── IT: return false for empty
+DESCRIBE: Input
+├── DESCRIBE: Rendering
+│   ├── IT: renders input element
+│   ├── IT: renders with displayName
+│   └── IT: forwards ref correctly
+│
+├── DESCRIBE: Types
+│   ├── IT: renders text type by default
+│   ├── IT: renders password type
+│   ├── IT: renders email type
+│   └── IT: renders number type
+│
+├── DESCRIBE: States
+│   ├── IT: applies disabled styles when disabled
+│   ├── IT: prevents input when disabled
+│   └── IT: handles onChange callback
+│
+├── DESCRIBE: Styling
+│   ├── IT: merges custom className
+│   ├── IT: applies placeholder styles
+│   └── IT: applies focus-visible styles
+│
+└── DESCRIBE: Attributes
+    └── IT: forwards aria attributes
 ```
-
-**Testes:** ~40 testes (incluindo it.each)
 
 ---
 
-### 3. validation.phone-email.test.ts (~140 linhas)
-
-**Responsabilidade:** Testes de validação de phone, email, name e password.
+### 3. card.test.tsx (~15 testes)
 
 ```text
-DESCRIBE: Phone Validation
-├── IT.EACH: valid phones (5 casos)
-├── IT.EACH: invalid phones (5 casos)
-├── IT: reject empty string
-├── IT: accept landline format
-└── IT: accept mobile format
-
-DESCRIBE: Email Validation
-├── IT.EACH: valid emails (5 casos)
-└── IT.EACH: invalid emails (8 casos)
-
-DESCRIBE: Name Validation
-├── IT: accept valid names
-├── IT: accept names with accents
-├── IT: reject short names (< 3 chars)
-├── IT: accept exactly 3 characters
-├── IT: reject names with numbers
-└── IT: reject names with special chars
-
-DESCRIBE: Password Validation
-├── IT: accept 6+ characters
-├── IT: reject < 6 characters
-├── IT: accept exactly 6 characters
-└── IT: accept special characters
+DESCRIBE: Card Components
+├── DESCRIBE: Card
+│   ├── IT: renders with children
+│   ├── IT: renders with displayName
+│   ├── IT: forwards ref correctly
+│   └── IT: merges custom className
+│
+├── DESCRIBE: CardHeader
+│   ├── IT: renders with children
+│   └── IT: applies flex layout
+│
+├── DESCRIBE: CardTitle
+│   ├── IT: renders as h3 element
+│   └── IT: applies text styles
+│
+├── DESCRIBE: CardDescription
+│   ├── IT: renders as p element
+│   └── IT: applies muted foreground color
+│
+├── DESCRIBE: CardContent
+│   ├── IT: renders with children
+│   └── IT: applies padding styles
+│
+└── DESCRIBE: CardFooter
+    ├── IT: renders with children
+    └── IT: applies flex layout with items-center
 ```
-
-**Testes:** ~30 testes
 
 ---
 
-### 4. validation.helpers.test.ts (~120 linhas)
-
-**Responsabilidade:** Helpers, ERROR_MESSAGES e Edge Cases/Security.
+### 4. dialog.test.tsx (~20 testes)
 
 ```text
-DESCRIBE: Helper Functions
-├── DESCRIBE: detectDocumentType
-│   ├── IT: detect CPF for <= 11 digits
-│   ├── IT: detect CNPJ for 12-14 digits
-│   ├── IT: return null for > 14 digits
-│   └── IT: handle empty string as CPF
-
-DESCRIBE: ERROR_MESSAGES
-├── IT: have all required error messages
-└── IT: have meaningful error messages
-
-DESCRIBE: Edge Cases & Security
-├── DESCRIBE: XSS Prevention in masks
-│   ├── IT: strip script tags from maskName
-│   └── IT: strip HTML from maskName
-├── DESCRIBE: Unicode handling
-│   ├── IT: handle emoji in unmask
-│   └── IT: handle emoji in maskName
-├── DESCRIBE: Whitespace handling
-│   ├── IT: handle leading/trailing spaces in unmask
-│   └── IT: preserve spaces in maskName
-└── DESCRIBE: Null-like string handling
-    ├── IT: handle 'null' string in masks
-    └── IT: handle 'undefined' string in masks
+DESCRIBE: Dialog Components
+├── DESCRIBE: Dialog (Root)
+│   ├── IT: controls open state
+│   ├── IT: calls onOpenChange when state changes
+│   └── IT: renders children when open
+│
+├── DESCRIBE: DialogTrigger
+│   ├── IT: renders trigger button
+│   └── IT: opens dialog on click
+│
+├── DESCRIBE: DialogContent
+│   ├── IT: renders content in portal
+│   ├── IT: renders overlay
+│   ├── IT: renders close button
+│   ├── IT: closes on overlay click
+│   ├── IT: closes on Escape key
+│   └── IT: applies custom className
+│
+├── DESCRIBE: DialogContentWithoutClose
+│   ├── IT: renders without close button
+│   └── IT: still closes on overlay click
+│
+├── DESCRIBE: DialogHeader
+│   ├── IT: renders with flex layout
+│   └── IT: applies text-center on mobile
+│
+├── DESCRIBE: DialogFooter
+│   ├── IT: renders with flex layout
+│   └── IT: applies responsive spacing
+│
+├── DESCRIBE: DialogTitle
+│   └── IT: applies title styles
+│
+└── DESCRIBE: DialogDescription
+    └── IT: applies muted foreground color
+│
+└── DESCRIBE: Accessibility
+    ├── IT: traps focus inside dialog
+    └── IT: has correct ARIA attributes
 ```
 
-**Testes:** ~14 testes
+---
+
+### 5. badge.test.tsx (~10 testes)
+
+```text
+DESCRIBE: Badge
+├── DESCRIBE: Rendering
+│   ├── IT: renders with children
+│   └── IT: merges custom className
+│
+├── DESCRIBE: Variants
+│   ├── IT: applies default variant classes
+│   ├── IT: applies secondary variant classes
+│   ├── IT: applies destructive variant classes
+│   └── IT: applies outline variant classes
+│
+└── DESCRIBE: Styling
+    ├── IT: applies rounded-full
+    ├── IT: applies px-2.5 py-0.5
+    └── IT: applies text-xs font-semibold
+```
 
 ---
 
-## Arquivos a Criar
+### 6. alert.test.tsx (~12 testes)
 
-| # | Arquivo | Linhas | Testes | Responsabilidade |
-|---|---------|--------|--------|------------------|
-| 1 | `src/lib/__tests__/validation.masks.test.ts` | ~180 | 32 | Funções de máscara |
-| 2 | `src/lib/__tests__/validation.cpf-cnpj.test.ts` | ~160 | 40 | CPF/CNPJ validation |
-| 3 | `src/lib/__tests__/validation.phone-email.test.ts` | ~140 | 30 | Phone/Email/Name/Password |
-| 4 | `src/lib/__tests__/validation.helpers.test.ts` | ~120 | 14 | Helpers, constants, security |
-
-**Total:** 4 arquivos, ~600 linhas, ~116 testes
+```text
+DESCRIBE: Alert Components
+├── DESCRIBE: Alert
+│   ├── IT: renders with role="alert"
+│   ├── IT: forwards ref correctly
+│   ├── IT: applies default variant classes
+│   ├── IT: applies destructive variant classes
+│   └── IT: merges custom className
+│
+├── DESCRIBE: AlertTitle
+│   ├── IT: renders as h5 element
+│   └── IT: applies font-medium styles
+│
+├── DESCRIBE: AlertDescription
+│   ├── IT: renders as div element
+│   └── IT: applies text-sm styles
+│
+└── DESCRIBE: Icon Integration
+    ├── IT: positions icon with absolute left-4
+    └── IT: adds padding-left to children when icon present
+```
 
 ---
 
-## Ações de Implementação
+### 7. checkbox.test.tsx (~10 testes)
 
-1. **Criar** `src/lib/__tests__/validation.masks.test.ts`
-   - Mover describe("Mask Functions") completo
-   - Manter imports apenas das funções de máscara
+```text
+DESCRIBE: Checkbox
+├── DESCRIBE: Rendering
+│   ├── IT: renders checkbox element
+│   ├── IT: renders with displayName
+│   └── IT: forwards ref correctly
+│
+├── DESCRIBE: States
+│   ├── IT: handles checked state
+│   ├── IT: handles unchecked state
+│   ├── IT: handles indeterminate state
+│   └── IT: handles disabled state
+│
+├── DESCRIBE: Interactions
+│   ├── IT: calls onCheckedChange when clicked
+│   └── IT: toggles state on click
+│
+└── DESCRIBE: Accessibility
+    └── IT: shows check icon when checked
+```
 
-2. **Criar** `src/lib/__tests__/validation.cpf-cnpj.test.ts`
-   - Mover validateCPF, validateCNPJ, validateDocument
-   - Manter imports das funções de validação de documentos
+---
 
-3. **Criar** `src/lib/__tests__/validation.phone-email.test.ts`
-   - Mover validatePhone, validateEmail, validateName, validatePassword
-   - Manter imports das funções de validação de contato
+### 8. switch.test.tsx (~10 testes)
 
-4. **Criar** `src/lib/__tests__/validation.helpers.test.ts`
-   - Mover detectDocumentType, ERROR_MESSAGES, Edge Cases
-   - Manter imports de helpers e constantes
+```text
+DESCRIBE: Switch
+├── DESCRIBE: Rendering
+│   ├── IT: renders switch element
+│   ├── IT: renders with displayName
+│   └── IT: forwards ref correctly
+│
+├── DESCRIBE: States
+│   ├── IT: handles checked state
+│   ├── IT: handles unchecked state
+│   └── IT: handles disabled state
+│
+├── DESCRIBE: Interactions
+│   ├── IT: calls onCheckedChange when clicked
+│   └── IT: toggles state on click
+│
+└── DESCRIBE: Styling
+    ├── IT: applies translate-x-5 when checked
+    └── IT: applies translate-x-0 when unchecked
+```
 
-5. **Deletar** `src/lib/validation.test.ts`
-   - Remover arquivo original após criação dos 4 novos
+---
+
+### 9. select.test.tsx (~16 testes)
+
+```text
+DESCRIBE: Select Components
+├── DESCRIBE: Select (Root)
+│   ├── IT: controls value state
+│   └── IT: calls onValueChange
+│
+├── DESCRIBE: SelectTrigger
+│   ├── IT: renders trigger button
+│   ├── IT: shows chevron icon
+│   ├── IT: applies disabled styles
+│   └── IT: merges custom className
+│
+├── DESCRIBE: SelectContent
+│   ├── IT: renders in portal when open
+│   ├── IT: closes on outside click
+│   └── IT: applies animation classes
+│
+├── DESCRIBE: SelectItem
+│   ├── IT: renders item text
+│   ├── IT: shows check icon when selected
+│   ├── IT: applies hover styles
+│   └── IT: handles disabled items
+│
+├── DESCRIBE: SelectLabel
+│   └── IT: renders label with styles
+│
+├── DESCRIBE: SelectSeparator
+│   └── IT: renders separator line
+│
+└── DESCRIBE: Accessibility
+    ├── IT: has correct ARIA attributes
+    └── IT: supports keyboard navigation
+```
+
+---
+
+### 10-16. Arquivos Restantes (Resumo)
+
+| Arquivo | Testes | Foco Principal |
+|---------|--------|----------------|
+| textarea.test.tsx | 8 | Rendering, disabled, className merge |
+| label.test.tsx | 6 | Rendering, htmlFor, peer-disabled |
+| progress.test.tsx | 8 | Value binding (0-100), animation |
+| separator.test.tsx | 6 | Horizontal/vertical orientation |
+| skeleton.test.tsx | 4 | Animation class, className merge |
+| avatar.test.tsx | 10 | Image loading, fallback display |
+| form-controls.test.tsx | 14 | Toggle, ToggleGroup, RadioGroup |
+
+---
+
+## Infraestrutura de Testes
+
+### Mock de Radix UI Primitives
+
+Os componentes Radix (Dialog, Select, etc.) requerem:
+1. **Portal mock**: Para testar conteúdo em portal
+2. **Animation mock**: Para testar classes de animação
+3. **Focus trap mock**: Para testar comportamento de foco
+
+```typescript
+// Exemplo de setup para Dialog tests
+beforeAll(() => {
+  // Mock createPortal para renderizar inline
+  vi.mock('react-dom', async () => {
+    const actual = await vi.importActual('react-dom');
+    return {
+      ...actual,
+      createPortal: (node: React.ReactNode) => node,
+    };
+  });
+});
+```
+
+### Wrapper Padrão
+
+Todos os testes usarão o `render` de `@/test/utils.tsx` que inclui:
+- QueryClientProvider (para hooks de data fetching)
+- BrowserRouter (para navegação)
+
+---
+
+## Ordem de Implementação
+
+```text
+ETAPA 1 (Prioridade Máxima - 8 arquivos):
+1. button.test.tsx      ← Componente mais usado
+2. input.test.tsx       ← Componente mais usado
+3. card.test.tsx        ← Layout principal
+4. badge.test.tsx       ← Simples, sem deps
+5. alert.test.tsx       ← Simples, com variants
+6. checkbox.test.tsx    ← Interação básica
+7. switch.test.tsx      ← Interação básica
+8. textarea.test.tsx    ← Similar ao input
+
+ETAPA 2 (Prioridade Alta - 4 arquivos):
+9. label.test.tsx
+10. progress.test.tsx
+11. separator.test.tsx
+12. skeleton.test.tsx
+
+ETAPA 3 (Prioridade Média - 4 arquivos):
+13. avatar.test.tsx
+14. select.test.tsx
+15. dialog.test.tsx
+16. form-controls.test.tsx
+```
+
+---
+
+## Projeção de Cobertura
+
+```text
+ANTES (Atual):
+├── Testes UI: 0/53 componentes (0%)
+├── Arquivos de Teste UI: 0
+└── Testes Totais: ~1,471
+
+APÓS ETAPA 1 (8 arquivos):
+├── Testes UI: 8/53 componentes (15.1%)
+├── Arquivos de Teste UI: 8
+└── Testes Totais: ~1,547 (+76 testes)
+
+APÓS ETAPA 2 (12 arquivos):
+├── Testes UI: 12/53 componentes (22.6%)
+├── Arquivos de Teste UI: 12
+└── Testes Totais: ~1,571 (+24 testes)
+
+APÓS ETAPA 3 (16 arquivos):
+├── Testes UI: 16/53 componentes (30.2%)
+├── Arquivos de Teste UI: 16
+└── Testes Totais: ~1,631 (+60 testes)
+
+INCREMENTO TOTAL: +160 testes, 30.2% dos componentes UI cobertos
+```
 
 ---
 
@@ -269,26 +516,34 @@ DESCRIBE: Edge Cases & Security
 | Critério | Status |
 |----------|--------|
 | LEI SUPREMA (Seção 4) | ✅ Solução B (nota 10.0) |
-| Zero Tipos `any` | ✅ Nenhum tipo any |
-| Limite 300 Linhas | ✅ Todos < 200 linhas |
-| Testing Pyramid | ✅ 100% Unit Tests |
+| Zero Tipos `any` | ✅ Obrigatório |
+| Limite 300 Linhas | ✅ Todos < 160 linhas |
+| Testing Pyramid | ✅ 70% Unit Tests |
 | Documentação JSDoc | ✅ Header em cada arquivo |
 | Frases Proibidas | ✅ Nenhuma utilizada |
-| Código Morto | ✅ Nenhum após refatoração |
+| SRP | ✅ Um arquivo por componente |
 
 ---
 
-## Resultado Esperado
+## Entregáveis da Etapa 1
 
-```text
-ANTES:
-├── src/lib/validation.test.ts (600 linhas) ❌ VIOLAÇÃO
+1. **8 arquivos de teste** para componentes TIER 1 core
+2. **~76 testes** cobrindo variants, states, interactions
+3. **Zero violações** de limite de linhas (todos < 160)
+4. **Documentação JSDoc** completa em cada arquivo
+5. **Cobertura de acessibilidade** (ARIA, roles, disabled)
+6. **Mocks reutilizáveis** para Radix UI primitives
 
-DEPOIS:
-├── src/lib/__tests__/validation.masks.test.ts (~180 linhas) ✅
-├── src/lib/__tests__/validation.cpf-cnpj.test.ts (~160 linhas) ✅
-├── src/lib/__tests__/validation.phone-email.test.ts (~140 linhas) ✅
-└── src/lib/__tests__/validation.helpers.test.ts (~120 linhas) ✅
+---
 
-Conformidade: 100% RISE V3 10.0/10
-```
+## Próximos Passos Após Etapa 1
+
+| Etapa | Arquivos | Testes | Componentes |
+|-------|----------|--------|-------------|
+| Etapa 2 | 4 | 24 | label, progress, separator, skeleton |
+| Etapa 3 | 4 | 60 | avatar, select, dialog, form-controls |
+| Etapa 4 | 10 | ~80 | Tabs, Navigation, Dropdown, etc. |
+| Etapa 5 | 8 | ~60 | Toast, Popover, Tooltip, etc. |
+| Etapa 6 | 7 | ~50 | Table, Carousel, Chart, etc. |
+
+**Total UI Tests ao final: ~350 testes, 100% componentes cobertos**
