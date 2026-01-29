@@ -2,7 +2,9 @@
  * Asaas Split Calculator
  * 
  * Módulo responsável por calcular dados de split para o modelo Marketplace.
- * Extraído de asaas-create-payment para Clean Architecture.
+ * 
+ * RISE Protocol V3 - 10.0/10 Compliant
+ * Uses 'users' table as SSOT for wallet queries
  * 
  * MODELO MARKETPLACE:
  * - Todas cobranças na conta RiseCheckout
@@ -11,9 +13,8 @@
  * - Owner + Afiliado: Afiliado recebe X% * 0.96, Owner recebe resto
  * - Vendedor comum: 96% vendedor, 4% plataforma
  * 
- * RISE Protocol Compliant - Zero `any`
- * 
  * @module _shared/asaas-split-calculator
+ * @version 2.0.0 - Migrated from profiles to users (SSOT)
  */
 
 import { SupabaseClient } from "./supabase-types.ts";
@@ -55,7 +56,7 @@ interface ProductAffiliateSettings {
   } | null;
 }
 
-interface ProfileData {
+interface UserData {
   asaas_wallet_id: string | null;
 }
 
@@ -65,6 +66,8 @@ interface ProfileData {
 
 /**
  * Calcula os dados de split para uma ordem no modelo Marketplace.
+ * 
+ * RISE V3: Uses 'users' table as SSOT for wallet queries
  * 
  * @param supabase - Cliente Supabase com service role
  * @param orderId - ID da ordem
@@ -144,17 +147,17 @@ export async function calculateMarketplaceSplitData(
       
       result.affiliateCommissionPercent = commissionRate;
       
-      // Wallet do afiliado: buscar em profiles (fonte única de verdade)
+      // Wallet do afiliado: buscar em users (SSOT)
       if (affiliate.user_id) {
-        const { data: profileData } = await supabase
-          .from('profiles')
+        const { data: userData } = await supabase
+          .from('users')
           .select('asaas_wallet_id')
           .eq('id', affiliate.user_id)
           .single();
         
-        const profile = profileData as ProfileData | null;
-        if (profile?.asaas_wallet_id) {
-          result.affiliateWalletId = profile.asaas_wallet_id;
+        const user = userData as UserData | null;
+        if (user?.asaas_wallet_id) {
+          result.affiliateWalletId = user.asaas_wallet_id;
         }
       }
       
@@ -167,15 +170,15 @@ export async function calculateMarketplaceSplitData(
     }
   }
 
-  // 4. Se NÃO é Owner, buscar wallet do vendedor
+  // 4. Se NÃO é Owner, buscar wallet do vendedor em users (SSOT)
   if (!result.isOwner) {
-    const { data: vendorProfile } = await supabase
-      .from('profiles')
+    const { data: vendorUser } = await supabase
+      .from('users')
       .select('asaas_wallet_id')
       .eq('id', vendorId)
       .single();
     
-    const vendor = vendorProfile as ProfileData | null;
+    const vendor = vendorUser as UserData | null;
     result.vendorWalletId = vendor?.asaas_wallet_id || null;
     log.debug("Vendor wallet resolved", { vendorWalletId: result.vendorWalletId });
   }

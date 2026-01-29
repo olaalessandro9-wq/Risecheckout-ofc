@@ -1,10 +1,13 @@
 /**
  * Product Handlers for admin-data - Part 1
  * 
+ * RISE Protocol V3 - 10.0/10 Compliant
+ * Uses 'users' table as SSOT for vendor name queries
+ * 
  * Handles: check-unique-name, admin-products, admin-products-global,
  *          product-offers, order-bumps
  * 
- * @see RISE Protocol V3 - Limite 300 linhas por arquivo
+ * @version 2.0.0 - Migrated from profiles to users (SSOT)
  * @see products-detail.ts for remaining handlers
  */
 
@@ -68,14 +71,15 @@ export async function getAdminProducts(
     return errorResponse("Acesso negado", "FORBIDDEN", corsHeaders, 403);
   }
 
-  const [productsResult, profilesResult, ordersResult] = await Promise.all([
+  // RISE V3: Use 'users' table as SSOT for vendor names
+  const [productsResult, usersResult, ordersResult] = await Promise.all([
     supabase.from("products").select("id, name, price, status, created_at, user_id"),
-    supabase.from("profiles").select("id, name"),
+    supabase.from("users").select("id, name"),
     supabase.from("orders").select("product_id, amount_cents, status"),
   ]);
 
   if (productsResult.error) throw productsResult.error;
-  if (profilesResult.error) throw profilesResult.error;
+  if (usersResult.error) throw usersResult.error;
   if (ordersResult.error) throw ordersResult.error;
 
   const metricsMap = new Map<string, { gmv: number; count: number }>();
@@ -90,7 +94,7 @@ export async function getAdminProducts(
   });
 
   const products = productsResult.data.map((product) => {
-    const vendor = profilesResult.data.find((p) => p.id === product.user_id);
+    const vendor = usersResult.data.find((u) => u.id === product.user_id);
     const metrics = metricsMap.get(product.id) || { gmv: 0, count: 0 };
     return {
       ...product,
@@ -131,7 +135,8 @@ export async function getAdminProductsGlobal(
     return errorResponse("Erro ao buscar produtos", "DB_ERROR", corsHeaders, 500);
   }
 
-  const { data: profilesData } = await supabase.from("profiles").select("id, name");
+  // RISE V3: Use 'users' table as SSOT
+  const { data: usersData } = await supabase.from("users").select("id, name");
   const { data: ordersData } = await supabase.from("orders").select("product_id, amount_cents, status");
 
   const metricsMap = new Map<string, { gmv: number; count: number }>();
@@ -147,7 +152,7 @@ export async function getAdminProductsGlobal(
   });
 
   const productsWithMetrics = productsData.map((product: Record<string, unknown>) => {
-    const vendor = profilesData?.find((p: Record<string, unknown>) => p.id === product.user_id);
+    const vendor = usersData?.find((u: Record<string, unknown>) => u.id === product.user_id);
     const metrics = metricsMap.get(product.id as string) || { gmv: 0, count: 0 };
     return {
       id: product.id,

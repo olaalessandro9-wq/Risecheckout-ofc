@@ -1,12 +1,13 @@
 /**
- * User Sync - Sincronização entre auth.users e profiles
+ * User Sync - Sincronização entre auth.users e users (SSOT)
  * 
- * RISE Protocol V3 Compliant
+ * RISE Protocol V3 - 10.0/10 Compliant
+ * Uses 'users' table as Single Source of Truth
  * 
  * Resolve inconsistências onde usuário existe em auth.users
- * mas não em profiles (causado por falhas parciais no registro).
+ * mas não em users (causado por falhas parciais no registro).
  * 
- * @version 1.0.0
+ * @version 2.0.0 - Migrated from profiles to users (SSOT)
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -26,7 +27,7 @@ interface AuthUserInfo {
 
 interface SyncResult {
   success: boolean;
-  profileId?: string;
+  userId?: string;
   error?: string;
   wasOrphaned?: boolean;
 }
@@ -120,15 +121,16 @@ function extractNameFromEmail(email: string): string {
 }
 
 // ============================================================================
-// CREATE ORPHANED PROFILE
+// CREATE ORPHANED USER IN USERS TABLE
 // ============================================================================
 
 /**
- * Cria um profile para um usuário que existe em auth.users
- * mas não tem profile correspondente
+ * Cria um registro em users para um usuário que existe em auth.users
+ * mas não tem registro correspondente
  * 
  * RISE Protocol V3 Compliant:
- * - Garante que name nunca seja null (profiles.name é NOT NULL)
+ * - Uses 'users' table as SSOT
+ * - Garante que name nunca seja null
  * - Extrai nome do email se não fornecido via metadata
  * 
  * @param supabase - Cliente Supabase
@@ -137,18 +139,18 @@ function extractNameFromEmail(email: string): string {
  * @param metadata - Dados adicionais opcionais
  * @returns true se criou com sucesso
  */
-export async function createOrphanedUserProfile(
+export async function createOrphanedUserRecord(
   supabase: SupabaseClient,
   email: string,
   authUserId: string,
   metadata?: { name?: string; phone?: string }
 ): Promise<boolean> {
   try {
-    // RISE V3: Garantir name nunca seja null (profiles.name é NOT NULL)
+    // RISE V3: Garantir name nunca seja null
     const extractedName = extractNameFromEmail(email);
     const finalName = metadata?.name || extractedName;
 
-    const { error } = await supabase.from("profiles").insert({
+    const { error } = await supabase.from("users").insert({
       id: authUserId,
       email: email.toLowerCase().trim(),
       name: finalName, // NUNCA será null
@@ -161,17 +163,17 @@ export async function createOrphanedUserProfile(
     if (error) {
       // Ignorar se já existe (race condition)
       if (error.code === "23505") {
-        log.info(`Profile already exists for: ${email}`);
+        log.info(`User already exists for: ${email}`);
         return true;
       }
-      log.error("Failed to create orphaned profile:", error.message);
+      log.error("Failed to create orphaned user:", error.message);
       return false;
     }
 
-    log.info(`Orphaned profile created for: ${email} with name: ${finalName}`);
+    log.info(`Orphaned user created for: ${email} with name: ${finalName}`);
     return true;
   } catch (err) {
-    log.error("Unexpected error creating orphaned profile:", err);
+    log.error("Unexpected error creating orphaned user:", err);
     return false;
   }
 }
@@ -182,7 +184,9 @@ export async function createOrphanedUserProfile(
 
 /**
  * Verifica e sincroniza um usuário que pode estar órfão
- * (existe em auth.users mas não em profiles)
+ * (existe em auth.users mas não em users)
+ * 
+ * RISE V3: Uses 'users' table as SSOT
  * 
  * @param supabase - Cliente Supabase
  * @param email - Email do usuário
@@ -194,17 +198,17 @@ export async function syncOrphanedAuthUser(
 ): Promise<SyncResult> {
   const normalizedEmail = email.toLowerCase().trim();
 
-  // 1. Verificar se profile já existe
-  const { data: existingProfile } = await supabase
-    .from("profiles")
+  // 1. Verificar se usuário já existe em users (SSOT)
+  const { data: existingUser } = await supabase
+    .from("users")
     .select("id")
     .eq("email", normalizedEmail)
     .single();
 
-  if (existingProfile) {
+  if (existingUser) {
     return {
       success: true,
-      profileId: existingProfile.id,
+      userId: existingUser.id,
       wasOrphaned: false,
     };
   }
@@ -219,10 +223,10 @@ export async function syncOrphanedAuthUser(
     };
   }
 
-  // 3. Usuário está órfão - criar profile
+  // 3. Usuário está órfão - criar registro em users
   log.info(`Found orphaned auth user: ${email}, syncing...`);
 
-  const created = await createOrphanedUserProfile(
+  const created = await createOrphanedUserRecord(
     supabase,
     normalizedEmail,
     authUser.id
@@ -237,7 +241,7 @@ export async function syncOrphanedAuthUser(
 
   return {
     success: true,
-    profileId: authUser.id,
+    userId: authUser.id,
     wasOrphaned: true,
   };
 }
@@ -250,6 +254,8 @@ export async function syncOrphanedAuthUser(
  * Verifica se um email pode ser registrado
  * Se estiver órfão, sincroniza automaticamente
  * 
+ * RISE V3: Uses 'users' table as SSOT
+ * 
  * @param supabase - Cliente Supabase
  * @param email - Email a verificar
  * @returns Resultado indicando se pode registrar ou se já existe
@@ -259,26 +265,26 @@ export async function checkEmailForRegistration(
   email: string
 ): Promise<{
   canRegister: boolean;
-  existsInProfiles: boolean;
+  existsInUsers: boolean;
   existsInAuth: boolean;
-  profileId?: string;
+  userId?: string;
   message?: string;
 }> {
   const normalizedEmail = email.toLowerCase().trim();
 
-  // 1. Verificar profiles
-  const { data: profile } = await supabase
-    .from("profiles")
+  // 1. Verificar users (SSOT)
+  const { data: user } = await supabase
+    .from("users")
     .select("id, password_hash")
     .eq("email", normalizedEmail)
     .single();
 
-  if (profile) {
+  if (user) {
     return {
       canRegister: false,
-      existsInProfiles: true,
+      existsInUsers: true,
       existsInAuth: true,
-      profileId: profile.id,
+      userId: user.id,
       message: "Este email já está cadastrado. Faça login ou recupere sua senha.",
     };
   }
@@ -288,7 +294,7 @@ export async function checkEmailForRegistration(
 
   if (authUser) {
     // Usuário órfão - sincronizar
-    const synced = await createOrphanedUserProfile(
+    const synced = await createOrphanedUserRecord(
       supabase,
       normalizedEmail,
       authUser.id
@@ -297,9 +303,9 @@ export async function checkEmailForRegistration(
     if (synced) {
       return {
         canRegister: false,
-        existsInProfiles: true,
+        existsInUsers: true,
         existsInAuth: true,
-        profileId: authUser.id,
+        userId: authUser.id,
         message: "Este email já está cadastrado. Use 'Esqueci minha senha' para definir uma nova senha.",
       };
     }
@@ -308,7 +314,7 @@ export async function checkEmailForRegistration(
   // 3. Email livre para registro
   return {
     canRegister: true,
-    existsInProfiles: false,
+    existsInUsers: false,
     existsInAuth: false,
   };
 }

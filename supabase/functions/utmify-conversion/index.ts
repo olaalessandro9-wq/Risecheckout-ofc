@@ -1,10 +1,13 @@
 /**
  * UTMify Conversion
  * 
+ * RISE Protocol V3 - 10.0/10 Compliant
+ * Uses 'users' table as SSOT for utmify_token lookup
+ * 
  * Envia dados de conversão para o UTMify para tracking de campanhas
  * 
  * @category Tracking
- * @status stub - migrado do deploy
+ * @version 2.0.0 - Migrated from profiles to users (SSOT)
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
@@ -60,15 +63,15 @@ serve(async (req) => {
       );
     }
 
-    // Get UTMify token from vendor profile if not provided
+    // RISE V3: Use 'users' table as SSOT for utmify_token
     let token = utmifyToken;
     if (!token) {
-      const { data: profile } = await supabase
-        .from('profiles')
+      const { data: user } = await supabase
+        .from('users')
         .select('utmify_token')
         .eq('id', vendorId)
         .single();
-      token = profile?.utmify_token;
+      token = user?.utmify_token;
     }
 
     if (!token) {

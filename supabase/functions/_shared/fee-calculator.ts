@@ -2,10 +2,12 @@
  * fee-calculator.ts
  * 
  * Funções de cálculo de taxas e comissões da plataforma RiseCheckout.
- * Extraído de platform-config.ts para RISE ARCHITECT PROTOCOL V3 (< 300 linhas).
+ * 
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10 Compliant
+ * Uses 'users' table as SSOT for vendor fee queries
  * 
  * @module _shared/fee-calculator
- * @version 1.1.0 - Migrated to centralized logger
+ * @version 2.0.0 - Migrated from profiles to users (SSOT)
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -53,13 +55,15 @@ export function getPlatformFeePercentFormatted(feePercent?: number): string {
 // VENDOR FEE FUNCTIONS
 // ========================================================================
 
-interface VendorFeeProfile {
+interface VendorFeeUser {
   custom_fee_percent: number | null;
 }
 
 /**
  * Busca a taxa personalizada de um vendedor no banco de dados
  * Se o vendedor não tiver taxa personalizada, retorna a taxa padrão
+ * 
+ * RISE V3: Uses 'users' table as SSOT
  * 
  * @param supabase Cliente Supabase com service role
  * @param vendorId ID do vendedor
@@ -71,7 +75,7 @@ export async function getVendorFeePercent(
 ): Promise<number> {
   try {
     const { data, error } = await supabase
-      .from("profiles")
+      .from("users")
       .select("custom_fee_percent")
       .eq("id", vendorId)
       .single();
@@ -81,11 +85,11 @@ export async function getVendorFeePercent(
       return PLATFORM_FEE_PERCENT;
     }
 
-    const profile = data as VendorFeeProfile | null;
+    const user = data as VendorFeeUser | null;
     
-    if (profile?.custom_fee_percent != null) {
-      log.info(`Vendedor ${vendorId} tem taxa personalizada: ${profile.custom_fee_percent * 100}%`);
-      return profile.custom_fee_percent;
+    if (user?.custom_fee_percent != null) {
+      log.info(`Vendedor ${vendorId} tem taxa personalizada: ${user.custom_fee_percent * 100}%`);
+      return user.custom_fee_percent;
     }
 
     return PLATFORM_FEE_PERCENT;

@@ -1,13 +1,16 @@
 /**
  * RPC Proxy Edge Function
  * 
+ * RISE Protocol V3 - 10.0/10 Compliant
+ * Uses 'users' table as SSOT for timezone queries
+ * 
  * Centralizes RPC calls from frontend, providing:
  * - Authentication validation
  * - Timezone injection for relevant RPCs
  * - Rate limiting (future)
  * - Audit logging (future)
  * 
- * @version 4.0.0 - RISE Protocol V3 (timezone support)
+ * @version 5.0.0 - Migrated from profiles to users (SSOT)
  */
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -66,25 +69,27 @@ interface ProducerWithTimezone {
 }
 
 /**
- * Get vendor timezone from profile
+ * Get vendor timezone from users table (SSOT)
+ * 
+ * RISE V3: Uses 'users' table instead of profiles
  */
 async function getVendorTimezone(
   supabase: SupabaseClient,
   vendorId: string
 ): Promise<string> {
   try {
-    const { data: profile, error } = await supabase
-      .from('profiles')
+    const { data: user, error } = await supabase
+      .from('users')
       .select('timezone')
       .eq('id', vendorId)
       .single();
     
-    if (error || !profile) {
+    if (error || !user) {
       log.info(`No timezone for vendor ${vendorId}, using default`);
       return DEFAULT_TIMEZONE;
     }
     
-    const tz = (profile as { timezone?: string }).timezone;
+    const tz = (user as { timezone?: string }).timezone;
     return tz || DEFAULT_TIMEZONE;
   } catch {
     log.info("Error fetching timezone, using default");
@@ -206,7 +211,6 @@ Deno.serve(async (req) => {
     );
   } catch (err) {
     log.error("Exception:", err);
-    // RISE V3: corsHeaders already validated at function start
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

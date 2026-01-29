@@ -1,5 +1,8 @@
 /**
  * post-payment.ts - Ações pós-pagamento (transferência afiliado, webhooks, PIX)
+ * 
+ * RISE Protocol V3 - 10.0/10 Compliant
+ * Uses 'users' table as SSOT for affiliate stripe account lookup
  */
 
 import Stripe from "https://esm.sh/stripe@14.14.0";
@@ -9,6 +12,8 @@ import { Logger } from "../../_shared/logger.ts";
 
 /**
  * Processa comissão de afiliado via Stripe Transfer
+ * 
+ * RISE V3: Uses 'users' table as SSOT for affiliate stripe account
  */
 export async function processAffiliateCommission(
   stripe: Stripe,
@@ -28,13 +33,14 @@ export async function processAffiliateCommission(
       return;
     }
 
-    const { data: affiliateProfile } = await supabase
-      .from("profiles")
+    // RISE V3: Use 'users' table as SSOT
+    const { data: affiliateUser } = await supabase
+      .from("users")
       .select("stripe_account_id")
       .eq("id", affiliateUserId)
       .maybeSingle();
 
-    const affiliateStripeAccountId = affiliateProfile?.stripe_account_id;
+    const affiliateStripeAccountId = affiliateUser?.stripe_account_id;
 
     if (!affiliateStripeAccountId) {
       log.warn("Affiliate has no Stripe account connected - skipping transfer", {

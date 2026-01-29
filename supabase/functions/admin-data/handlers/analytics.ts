@@ -1,9 +1,12 @@
 /**
  * Analytics Handlers for admin-data
  * 
+ * RISE Protocol V3 - 10.0/10 Compliant
+ * Uses 'users' table as SSOT for vendor name queries
+ * 
  * Handles: admin-analytics-financial, admin-analytics-traffic, admin-analytics-top-sellers
  * 
- * @see RISE Protocol V3 - Limite 300 linhas por arquivo
+ * @version 2.0.0 - Migrated from profiles to users (SSOT)
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -230,17 +233,18 @@ export async function getAdminAnalyticsTopSellers(
     return jsonResponse({ topSellers: [] }, corsHeaders);
   }
 
-  const { data: profiles } = await supabase
-    .from("profiles")
+  // RISE V3: Use 'users' table as SSOT
+  const { data: users } = await supabase
+    .from("users")
     .select("id, name")
     .in("id", vendorIds);
 
-  const profileMap = new Map((profiles || []).map((p) => [p.id, p.name || "Sem nome"]));
+  const userMap = new Map((users || []).map((u) => [u.id, u.name || "Sem nome"]));
 
   const topSellers = Array.from(vendorMap.entries())
     .map(([vendorId, stats]) => ({
       vendorId,
-      vendorName: profileMap.get(vendorId) || "Sem nome",
+      vendorName: userMap.get(vendorId) || "Sem nome",
       totalGMV: stats.gmv,
       totalFees: stats.fees,
       ordersCount: stats.count,

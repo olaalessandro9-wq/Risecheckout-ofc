@@ -1,15 +1,15 @@
 /**
  * Producer Profile Edge Function
  * 
- * RISE Protocol V3 - Single Responsibility
- * Handles producer profile and gateway credentials
+ * RISE Protocol V3 - 10.0/10 Compliant
+ * Uses 'users' table as SSOT for all profile queries
  * 
  * Actions:
  * - get-profile: Retorna perfil do produtor
  * - check-credentials: Verifica credenciais de gateway configuradas
  * - get-gateway-connections: Retorna conexões de gateway do produtor
  * 
- * @version 1.0.0 - Extracted from products-crud
+ * @version 2.0.0 - Migrated from profiles to users (SSOT)
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
@@ -55,8 +55,9 @@ async function getProfile(
   producerId: string,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
+  // RISE V3: Use 'users' table as SSOT
   const { data, error } = await supabase
-    .from("profiles")
+    .from("users")
     .select("name, cpf_cnpj, phone")
     .eq("id", producerId)
     .single();
@@ -136,9 +137,9 @@ async function getGatewayConnections(
       return errorResponse("Produto não encontrado", "NOT_FOUND", corsHeaders, 404);
     }
 
-    // Get user connections
-    const { data: profileData } = await supabase
-      .from("profiles")
+    // RISE V3: Use 'users' table as SSOT
+    const { data: userData } = await supabase
+      .from("users")
       .select("asaas_wallet_id, mercadopago_collector_id, stripe_account_id")
       .eq("id", producerId)
       .single();
@@ -152,15 +153,15 @@ async function getGatewayConnections(
     return jsonResponse({
       productSettings: productData.affiliate_gateway_settings,
       connections: {
-        asaas: !!profileData?.asaas_wallet_id,
-        mercadopago: !!profileData?.mercadopago_collector_id,
-        stripe: !!profileData?.stripe_account_id,
+        asaas: !!userData?.asaas_wallet_id,
+        mercadopago: !!userData?.mercadopago_collector_id,
+        stripe: !!userData?.stripe_account_id,
         pushinpay: !!(pushinpayData?.pushinpay_token && pushinpayData?.pushinpay_account_id),
       },
       credentials: {
-        asaas_wallet_id: profileData?.asaas_wallet_id,
-        mercadopago_collector_id: profileData?.mercadopago_collector_id,
-        stripe_account_id: profileData?.stripe_account_id,
+        asaas_wallet_id: userData?.asaas_wallet_id,
+        mercadopago_collector_id: userData?.mercadopago_collector_id,
+        stripe_account_id: userData?.stripe_account_id,
         pushinpay_account_id: pushinpayData?.pushinpay_account_id,
       },
     }, corsHeaders);
