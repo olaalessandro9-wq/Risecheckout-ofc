@@ -375,13 +375,31 @@ export function useUnifiedAuth() {
     }
   }, [isAuthenticated, invalidate]);
   
+  // ========================================================================
+  // RISE V3 10.0/10: TWO-LEVEL LOADING STATE ARCHITECTURE
+  // ========================================================================
+  // 
+  // isAuthLoading: TRUE apenas no PRIMEIRO carregamento (sem cache)
+  //                Usado por guards/rotas para bloquear UI
+  //
+  // isSyncing: TRUE durante background refetches (com cache)
+  //            NÃO bloqueia UI - apenas para indicadores sutis
+  //
+  // isLoading: Alias para isAuthLoading (backward compatibility)
+  // ========================================================================
+  
+  const isInitialLoad = authQuery.isLoading && !authQuery.isFetchedAfterMount;
+  const isSyncing = authQuery.isFetching && authQuery.isFetchedAfterMount;
+  
   return {
     // State
     isAuthenticated,
-    // RISE V3 10.0/10: isLoading inclui isFetching para esperar revalidação
-    // isLoading = true quando fetch inicial OU quando revalidando em background
-    // Isso garante que a UI espere a confirmação do backend antes de decidir
-    isLoading: authQuery.isLoading || authQuery.isFetching,
+    
+    // RISE V3 10.0/10: Two-Level Loading State
+    isAuthLoading: isInitialLoad,  // Bloqueia UI (primeiro load sem cache)
+    isSyncing,                      // Background sync (NÃO bloqueia UI)
+    isLoading: isInitialLoad,       // Backward compatibility (alias)
+    
     isRefetching: authQuery.isRefetching,
     user,
     roles,

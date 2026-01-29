@@ -1,12 +1,15 @@
 /**
  * SidebarItem - Item de Navegação com Prefetch
  * 
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10 (Memoização Cirúrgica)
+ * 
  * Renderiza um item de navegação com prefetch de chunks e dados no hover.
  * Suporta rotas internas (com GuardedLink) e links externos.
  * 
- * @see RISE ARCHITECT PROTOCOL V3 - Componentes Type-Safe + Prefetch
+ * React.memo previne re-renders durante background auth sync.
  */
 
+import { memo } from "react";
 import { useLocation } from "react-router-dom";
 import { useMemo, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -50,10 +53,14 @@ const ROUTE_PREFETCH_MAP: Record<string, () => Promise<unknown>> = {
 };
 
 // ============================================================================
-// COMPONENT
+// COMPONENT (MEMOIZED)
 // ============================================================================
 
-export function SidebarItem({ item, showLabels, onNavigate }: SidebarItemProps) {
+export const SidebarItem = memo(function SidebarItem({ 
+  item, 
+  showLabels, 
+  onNavigate 
+}: SidebarItemProps) {
   const location = useLocation();
   const queryClient = useQueryClient();
   const { role } = usePermissions();
@@ -175,4 +182,4 @@ export function SidebarItem({ item, showLabels, onNavigate }: SidebarItemProps) 
       return _exhaustive;
     }
   }
-}
+});

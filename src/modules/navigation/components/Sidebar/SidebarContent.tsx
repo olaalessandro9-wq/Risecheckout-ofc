@@ -1,12 +1,15 @@
 /**
  * SidebarContent - Composição do Conteúdo do Sidebar
  * 
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10 (Memoização Cirúrgica)
+ * 
  * Compõe Brand, Navegação e Footer.
  * Recebe dados do useNavigation hook.
  * 
- * @see RISE ARCHITECT PROTOCOL V3 - Composição de Componentes
+ * React.memo previne re-renders durante background auth sync.
  */
 
+import { memo } from "react";
 import { SidebarBrand } from "./SidebarBrand";
 import { SidebarItem } from "./SidebarItem";
 import { SidebarGroup } from "./SidebarGroup";
@@ -33,10 +36,10 @@ interface SidebarContentProps {
 }
 
 // ============================================================================
-// COMPONENT
+// COMPONENT (MEMOIZED)
 // ============================================================================
 
-export function SidebarContent({
+export const SidebarContent = memo(function SidebarContent({
   items,
   showLabels,
   fullWidth = false,
@@ -84,4 +87,4 @@ export function SidebarContent({
       <SidebarFooter isCollapsed={!showLabels} />
     </div>
   );
-}
+});

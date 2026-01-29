@@ -1,13 +1,20 @@
 /**
  * UserAvatar - Avatar do usuário com menu dropdown
  * 
- * RISE V3: Agora usa useContextSwitcher para troca unificada de contexto
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10 (Selective Subscription + Memoização)
+ * 
+ * Usa useAuthUser para dados do usuário (Selective Subscription)
+ * Usa useContextSwitcher para troca unificada de contexto
+ * 
+ * React.memo previne re-renders durante background auth sync.
  */
 
+import { memo } from "react";
 import { useNavigate } from "react-router-dom";
-import { User, LogOut, ArrowLeftRight, Loader2, GraduationCap, LayoutDashboard } from "lucide-react";
+import { User, LogOut, Loader2, GraduationCap, LayoutDashboard } from "lucide-react";
 import { useState } from "react";
-import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
+import { useAuthUser } from "@/hooks/useAuthUser";
+import { useAuthActions } from "@/hooks/useAuthActions";
 import { useContextSwitcher } from "@/hooks/useContextSwitcher";
 import {
   DropdownMenu,
@@ -34,9 +41,13 @@ function getInitials(name: string | null | undefined, email?: string | null): st
   return "??";
 }
 
-export function UserAvatar() {
-  const { user, logout } = useUnifiedAuth();
+export const UserAvatar = memo(function UserAvatar() {
   const navigate = useNavigate();
+  
+  // RISE V3: Usa hooks seletivos em vez de useUnifiedAuth completo
+  const { user, email, name } = useAuthUser();
+  const { logout, isLoggingOut } = useAuthActions();
+  
   const { 
     activeRole, 
     canSwitchToBuyer, 
@@ -45,10 +56,10 @@ export function UserAvatar() {
     goToProducerPanel,
     isSwitching 
   } = useContextSwitcher();
+  
   const [isNavigating, setIsNavigating] = useState(false);
   
-  const userName = user?.name;
-  const initials = getInitials(userName, user?.email);
+  const initials = getInitials(name, email);
   
   const handleLogout = async () => {
     await logout();
@@ -77,14 +88,14 @@ export function UserAvatar() {
     }
   };
 
-  const isLoading = isNavigating || isSwitching;
+  const isLoading = isNavigating || isSwitching || isLoggingOut;
   
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
           className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold cursor-pointer hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-          title={userName || user?.email || "Usuário"}
+          title={name || email || "Usuário"}
         >
           {initials}
         </button>
@@ -102,7 +113,7 @@ export function UserAvatar() {
             </span>
           </div>
           <p className="text-sm text-muted-foreground truncate mt-1">
-            {user?.email}
+            {email}
           </p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -147,11 +158,16 @@ export function UserAvatar() {
         <DropdownMenuItem 
           onClick={handleLogout} 
           className="cursor-pointer text-destructive focus:text-destructive"
+          disabled={isLoggingOut}
         >
-          <LogOut className="mr-2 h-4 w-4" />
-          <span>Sair</span>
+          {isLoggingOut ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <LogOut className="mr-2 h-4 w-4" />
+          )}
+          <span>{isLoggingOut ? "Saindo..." : "Sair"}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
+});

@@ -1,12 +1,15 @@
 /**
  * SidebarGroup - Grupo Expansível de Navegação
  * 
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10 (Memoização Cirúrgica)
+ * 
  * Renderiza um item com sub-itens (children) usando Collapsible.
  * Usa GuardedLink para navegação segura com proteção de alterações não salvas.
  * 
- * @see RISE ARCHITECT PROTOCOL V3 - Componentes Type-Safe
+ * React.memo previne re-renders durante background auth sync.
  */
 
+import { memo } from "react";
 import { useLocation } from "react-router-dom";
 import { ChevronDown } from "lucide-react";
 import { useMemo } from "react";
@@ -38,10 +41,10 @@ interface SidebarGroupProps {
 }
 
 // ============================================================================
-// COMPONENT
+// COMPONENT (MEMOIZED)
 // ============================================================================
 
-export function SidebarGroup({
+export const SidebarGroup = memo(function SidebarGroup({
   item,
   showLabels,
   isExpanded,
@@ -121,10 +124,10 @@ export function SidebarGroup({
       </Collapsible>
     </li>
   );
-}
+});
 
 // ============================================================================
-// CHILD COMPONENT
+// CHILD COMPONENT (MEMOIZED)
 // ============================================================================
 
 interface SidebarGroupChildProps {
@@ -133,7 +136,11 @@ interface SidebarGroupChildProps {
   onNavigate?: () => void;
 }
 
-function SidebarGroupChild({ item, showLabels, onNavigate }: SidebarGroupChildProps) {
+const SidebarGroupChild = memo(function SidebarGroupChild({ 
+  item, 
+  showLabels, 
+  onNavigate 
+}: SidebarGroupChildProps) {
   const location = useLocation();
   const ChildIcon = item.icon;
 
@@ -182,4 +189,4 @@ function SidebarGroupChild({ item, showLabels, onNavigate }: SidebarGroupChildPr
       </GuardedLink>
     </li>
   );
-}
+});

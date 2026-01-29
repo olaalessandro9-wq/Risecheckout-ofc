@@ -1,12 +1,15 @@
 /**
  * Sidebar - Container Principal do Sidebar
  * 
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10 (Memoização Cirúrgica)
+ * 
  * Gerencia renderização desktop (aside) e mobile (Sheet).
  * Recebe dados do useNavigation hook.
  * 
- * @see RISE ARCHITECT PROTOCOL V3 - Componente Container
+ * React.memo previne re-renders durante background auth sync.
  */
 
+import { memo } from "react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { SidebarContent } from "./SidebarContent";
@@ -22,10 +25,10 @@ interface SidebarProps {
 }
 
 // ============================================================================
-// COMPONENT
+// COMPONENT (MEMOIZED)
 // ============================================================================
 
-export function Sidebar({ navigation }: SidebarProps) {
+export const Sidebar = memo(function Sidebar({ navigation }: SidebarProps) {
   const {
     state,
     showLabels,
@@ -104,4 +107,4 @@ export function Sidebar({ navigation }: SidebarProps) {
       {mobileSidebar}
     </>
   );
-}
+});
