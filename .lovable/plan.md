@@ -1,84 +1,321 @@
 
-# Plano: Correção dos Testes com Falhas
-
-## ✅ STATUS: CONCLUÍDO
-
-**Data de conclusão:** 2026-01-29
-
----
+# Plano: Atingir 70% de Coverage Global
 
 ## Análise de Soluções (RISE V3 Seção 4.4)
 
-### Solução A: Silenciar erros com try-catch ou skip tests
-- Manutenibilidade: 2/10 (esconde problemas reais)
-- Zero DT: 1/10 (cria dívida técnica massiva)
-- Arquitetura: 2/10 (viola princípio de testes)
-- Escalabilidade: 2/10 (problemas acumulam)
-- Segurança: 3/10 (reduz cobertura)
-- **NOTA FINAL: 2.0/10**
-- Tempo estimado: 5 minutos
+### Solucao A: Adicionar testes superficiais em muitos arquivos
+- Manutenibilidade: 4/10 (testes rasos nao capturam bugs reais)
+- Zero DT: 3/10 (cobertura falsa - linhas cobertas sem valor)
+- Arquitetura: 3/10 (nao segue Testing Pyramid)
+- Escalabilidade: 3/10 (testes frageis quebram facilmente)
+- Seguranca: 4/10 (falsa sensacao de seguranca)
+- **NOTA FINAL: 3.4/10**
+- Tempo estimado: 3 dias
 
-### Solução B: Corrigir testes refatorando para testar corretamente ✅ IMPLEMENTADA
-- Manutenibilidade: 10/10 (testes corretos e confiáveis)
-- Zero DT: 10/10 (nenhuma dívida)
-- Arquitetura: 10/10 (testa o que importa)
-- Escalabilidade: 10/10 (fácil adicionar novos testes)
-- Segurança: 10/10 (cobertura completa)
+### Solucao B: Testes profundos em modulos criticos com alta ciclomatica
+- Manutenibilidade: 10/10 (testa logica real e edge cases)
+- Zero DT: 10/10 (cada teste tem valor real)
+- Arquitetura: 10/10 (Testing Pyramid - 70% Unit focado)
+- Escalabilidade: 10/10 (testes robustos sobrevivem refatoracoes)
+- Seguranca: 10/10 (cobertura real de codigo critico)
 - **NOTA FINAL: 10.0/10**
-- Tempo estimado: 45 minutos
+- Tempo estimado: 5-7 dias
 
-### DECISÃO: Solução B (Nota 10.0/10)
-Solução A é proibida pelo protocolo RISE V3 - nunca silenciamos erros.
-
----
-
-## Correções Implementadas
-
-### 1. ✅ `src/lib/lazyWithRetry.ts`
-- **MODIFICADO**: Exportou a função `isNetworkError()` para permitir testes unitários diretos
-
-### 2. ✅ `src/lib/__tests__/lazyWithRetry.test.ts`
-- **REESCRITO**: Removidos todos os testes que usavam `_init()` (propriedade interna do React não acessível)
-- **ADICIONADO**: 12 testes para `isNetworkError()` exportada
-- **MANTIDO**: 8 testes para `isChunkLoadError()` (já funcionavam)
-- **RESULTADO**: 20 testes passando
-
-### 3. ✅ `src/lib/__tests__/uploadUtils.test.ts`
-- **CORRIGIDO**: Uso de `vi.advanceTimersByTimeAsync()` para timers assíncronos
-- **CORRIGIDO**: Padrão de catch antecipado para evitar unhandled rejections
-- **CORRIGIDO**: Type assertions para erros em catch blocks
-- **RESULTADO**: 18 testes passando
-
-### 4. ✅ `src/lib/token-manager/__tests__/cross-tab-lock.acquisition.test.ts`
-- **REESCRITO**: Mock do `BroadcastChannel` como classe real com getters/setters
-- **RESULTADO**: 16 testes passando, zero warnings de mock
-
-### 5. ✅ `src/lib/token-manager/__tests__/cross-tab-lock.broadcast.test.ts`
-- **REESCRITO**: Mock do `BroadcastChannel` como classe real com getters/setters
-- **RESULTADO**: 11 testes passando, zero warnings de mock
+### DECISAO: Solucao B (Nota 10.0/10)
+Solucao A viola RISE V3 - "cobertura falsa" e divida tecnica disfarçada.
 
 ---
 
-## Resultado Final
+## Diagnostico Atual
 
-| Métrica | Antes | Depois |
-|---------|-------|--------|
-| Testes lazyWithRetry | ~17 (falhando) | 20 (passando) |
-| Testes uploadUtils | 18 (5 falhando) | 18 (passando) |
-| Testes cross-tab-lock acquisition | 16 (2 falhando) | 16 (passando) |
-| Testes cross-tab-lock broadcast | 11 (4 falhando) | 11 (passando) |
-| Warnings de mock | Vários | Zero |
-| @ts-expect-error | 6 | 0 |
+### Arquivos de Teste Existentes (106 arquivos)
+
+| Categoria | Arquivos de Teste | Status |
+|-----------|-------------------|--------|
+| **lib/__tests__/** | 9 arquivos | Coberto |
+| **lib/api/** | 4 testes inline | Coberto |
+| **lib/token-manager/__tests__/** | 6 arquivos | Coberto |
+| **lib/order-status/__tests__/** | 1 arquivo | Coberto |
+| **lib/date-range/** | 1 teste inline | Coberto |
+| **lib/payment-gateways/** | 3 testes inline | Coberto |
+| **lib/timezone/** | 1 teste inline | Coberto |
+| **lib/products/__tests__/** | 2 arquivos | Coberto |
+| **lib/storage/__tests__/** | 2 arquivos | Coberto |
+| **lib/rpc/__tests__/** | 1 arquivo | Coberto |
+| **lib/checkout/** | 2 testes inline | Coberto |
+| **lib/session-commander/** | 1 teste inline | Coberto |
+| **hooks/__tests__/** | 8 arquivos | Parcial |
+| **hooks/checkout/** | 1 teste | Parcial |
+| **hooks/*.test.ts** | 5 arquivos inline | Parcial |
+| **providers/__tests__/** | 3 arquivos | Coberto |
+| **contexts/__tests__/** | 2 arquivos | Coberto |
+| **components/ui/__tests__/** | 17 arquivos | Coberto |
+| **modules/admin/machines/__tests__/** | 1 arquivo | Coberto |
+| **modules/products/machines/__tests__/** | 2 arquivos | Coberto |
+| **modules/checkout-public/machines/__tests__/** | 2 arquivos | Coberto |
+| **modules/pixels/machines/__tests__/** | 1 arquivo | Coberto |
+| **modules/utmify/machines/__tests__/** | 1 arquivo | Coberto |
+| **modules/webhooks/machines/__tests__/** | 1 arquivo | Coberto |
+| **modules/affiliation/machines/__tests__/** | 1 arquivo | Coberto |
+| **modules/dashboard/machines/__tests__/** | 1 arquivo | Coberto |
+| **modules/financeiro/machines/__tests__/** | 1 arquivo | Coberto |
+
+### Modulos SEM Testes (Gaps Criticos)
+
+| Modulo/Arquivo | Linhas Estimadas | Complexidade | Prioridade |
+|----------------|------------------|--------------|------------|
+| **src/modules/navigation/machines/** | 200+ | Alta | CRITICA |
+| **src/modules/members-area-builder/machines/** | 400+ | Alta | CRITICA |
+| **src/lib/session-commander/coordinator.ts** | 280 | Alta | CRITICA |
+| **src/lib/session-commander/session-monitor.ts** | 150+ | Media | ALTA |
+| **src/lib/session-commander/feedback.ts** | 80+ | Baixa | MEDIA |
+| **src/hooks/useAuthRole.ts** | 100+ | Media | ALTA |
+| **src/hooks/useAffiliations.ts** | 150+ | Media | ALTA |
+| **src/hooks/useBuyerOrders.ts** | 120+ | Media | ALTA |
+| **src/hooks/useCheckoutEditor.ts** | 180+ | Alta | ALTA |
+| **src/hooks/useMarketplaceProducts.ts** | 100+ | Media | MEDIA |
+| **src/hooks/usePaymentAccountCheck.ts** | 80+ | Media | MEDIA |
+| **src/hooks/useVendorPixels.ts** | 100+ | Media | MEDIA |
+| **src/hooks/useProductPixels.ts** | 80+ | Media | MEDIA |
+| **src/services/marketplace.ts** | 150+ | Media | ALTA |
+| **src/services/offers.ts** | 100+ | Media | ALTA |
+| **src/lib/products/ensureSingleCheckout.ts** | 60+ | Media | MEDIA |
 
 ---
 
-## Validação RISE V3
+## Plano de Implementacao por Fases
 
-| Critério | Status |
+### Fase 9: State Machines Faltantes (~80 testes)
+
+**Objetivo:** Completar cobertura de 100% das State Machines XState
+
+#### 9.1 Navigation Machine
+```text
+src/modules/navigation/machines/__tests__/
+├── navigationMachine.test.ts         (~25 testes)
+├── navigationMachine.guards.test.ts  (~15 testes)
+└── navigationMachine.actions.test.ts (~10 testes)
+```
+
+**Testes planejados:**
+- Estados: idle, navigating, blocked, confirmed
+- Transicoes: NAVIGATE, CONFIRM_NAVIGATION, CANCEL_NAVIGATION
+- Guards: hasUnsavedChanges, isBlocking
+- Actions: setTargetPath, clearNavigation
+
+#### 9.2 Builder Machine
+```text
+src/modules/members-area-builder/machines/__tests__/
+├── builderMachine.test.ts            (~30 testes)
+├── builderMachine.guards.test.ts     (~10 testes)
+└── builderMachine.actions.test.ts    (~15 testes)
+```
+
+**Testes planejados:**
+- Estados: idle, loading, ready, saving, error
+- Transicoes: LOAD, ADD_SECTION, UPDATE_SECTION, DELETE_SECTION, SAVE
+- Guards: canSave, hasChanges
+- Actions: todas as 12 actions exportadas
+
+---
+
+### Fase 10: Session Commander (~50 testes)
+
+**Objetivo:** Testar sistema critico de refresh de sessao
+
+```text
+src/lib/session-commander/__tests__/
+├── coordinator.test.ts        (~25 testes)
+├── session-monitor.test.ts    (~15 testes)
+└── feedback.test.ts           (~10 testes)
+```
+
+**Testes planejados - coordinator.ts:**
+- Deduplication: multiplos callers recebem mesma Promise
+- Retry logic: exponential backoff com jitter
+- Status handlers: success, wait, unauthorized, error
+- Timeout handling: AbortController
+- Singleton behavior
+
+**Testes planejados - session-monitor.ts:**
+- Event listeners: visibilitychange, focus, online
+- Threshold detection: token near expiry
+- Coordinator integration
+
+**Testes planejados - feedback.ts:**
+- Toast functions: showReconnecting, showReconnected, etc.
+- Toast dismissal
+
+---
+
+### Fase 11: Hooks Restantes (~60 testes)
+
+**Objetivo:** Completar cobertura de hooks de dados
+
+#### 11.1 Hooks de Auth/Role
+```text
+src/hooks/__tests__/
+├── useAuthRole.test.ts           (~12 testes)
+└── useContextSwitcher.test.ts    (~8 testes)
+```
+
+#### 11.2 Hooks de Afiliacao
+```text
+src/hooks/__tests__/
+├── useAffiliations.test.ts       (~10 testes)
+├── useAffiliationDetails.test.ts (~8 testes)
+├── useAffiliationProduct.test.ts (~6 testes)
+└── useAffiliateRequest.test.ts   (~6 testes)
+```
+
+#### 11.3 Hooks de Checkout/Products
+```text
+src/hooks/__tests__/
+├── useCheckoutEditor.test.ts     (~12 testes)
+├── useBuyerOrders.test.ts        (~8 testes)
+├── useProductPixels.test.ts      (~6 testes)
+└── useVendorPixels.test.ts       (~6 testes)
+```
+
+---
+
+### Fase 12: Services Layer (~30 testes)
+
+**Objetivo:** Testar camada de servicos
+
+```text
+src/services/__tests__/
+├── marketplace.test.ts (~15 testes)
+└── offers.test.ts      (~15 testes)
+```
+
+**Testes planejados:**
+- Funcoes de fetch com mocks de API
+- Transformacao de dados
+- Error handling
+
+---
+
+### Fase 13: Lib Faltante (~25 testes)
+
+**Objetivo:** Completar cobertura da pasta lib
+
+```text
+src/lib/products/__tests__/
+└── ensureSingleCheckout.test.ts (~10 testes)
+
+src/lib/links/__tests__/
+└── generatePaymentLink.test.ts  (~8 testes)
+
+src/lib/orderBump/__tests__/
+└── orderBumpHelpers.test.ts     (~7 testes)
+```
+
+---
+
+## Estimativa de Impacto no Coverage
+
+| Fase | Testes | Linhas Cobertas | Coverage Estimado |
+|------|--------|-----------------|-------------------|
+| Atual | 765 | ~3500 | 60% |
+| Fase 9 (Machines) | +80 | +500 | 63% |
+| Fase 10 (Session) | +50 | +400 | 66% |
+| Fase 11 (Hooks) | +60 | +500 | 69% |
+| Fase 12 (Services) | +30 | +250 | 70% |
+| Fase 13 (Lib) | +25 | +150 | 71% |
+| **TOTAL** | **1010** | **~5300** | **71%** |
+
+---
+
+## Arvore de Arquivos Planejada
+
+```text
+src/
+├── modules/
+│   ├── navigation/machines/__tests__/
+│   │   ├── navigationMachine.test.ts          (NOVO)
+│   │   ├── navigationMachine.guards.test.ts   (NOVO)
+│   │   └── navigationMachine.actions.test.ts  (NOVO)
+│   └── members-area-builder/machines/__tests__/
+│       ├── builderMachine.test.ts             (NOVO)
+│       ├── builderMachine.guards.test.ts      (NOVO)
+│       └── builderMachine.actions.test.ts     (NOVO)
+├── lib/
+│   ├── session-commander/__tests__/
+│   │   ├── coordinator.test.ts                (NOVO)
+│   │   ├── session-monitor.test.ts            (NOVO)
+│   │   └── feedback.test.ts                   (NOVO)
+│   ├── products/__tests__/
+│   │   └── ensureSingleCheckout.test.ts       (NOVO)
+│   ├── links/__tests__/
+│   │   └── generatePaymentLink.test.ts        (NOVO)
+│   └── orderBump/__tests__/
+│       └── orderBumpHelpers.test.ts           (NOVO)
+├── hooks/__tests__/
+│   ├── useAuthRole.test.ts                    (NOVO)
+│   ├── useContextSwitcher.test.ts             (NOVO)
+│   ├── useAffiliations.test.ts                (NOVO)
+│   ├── useAffiliationDetails.test.ts          (NOVO)
+│   ├── useAffiliationProduct.test.ts          (NOVO)
+│   ├── useAffiliateRequest.test.ts            (NOVO)
+│   ├── useCheckoutEditor.test.ts              (NOVO)
+│   ├── useBuyerOrders.test.ts                 (NOVO)
+│   ├── useProductPixels.test.ts               (NOVO)
+│   └── useVendorPixels.test.ts                (NOVO)
+└── services/__tests__/
+    ├── marketplace.test.ts                    (NOVO)
+    └── offers.test.ts                         (NOVO)
+```
+
+---
+
+## Validacao RISE V3
+
+| Criterio | Status |
 |----------|--------|
-| Limite 300 linhas | ✅ Todos arquivos dentro do limite |
-| Zero `any` | ✅ Nenhum tipo any usado |
-| Zero `@ts-expect-error` | ✅ Removidos todos (eram usados para _init) |
-| Zero frases proibidas | ✅ Nenhuma |
-| SRP | ✅ Cada arquivo testa um módulo |
-| Cobertura mantida | ✅ Testa APIs públicas relevantes |
+| Limite 300 linhas por arquivo | Cada teste < 200 linhas |
+| Zero `any` types | Tipagem completa |
+| Zero `@ts-expect-error` | Nenhum |
+| Testing Pyramid | 70% Unit, 20% Integration, 10% E2E |
+| Single Responsibility | 1 arquivo = 1 modulo testado |
+| Manutenibilidade Infinita | Testes documentados e claros |
+
+---
+
+## Cronograma de Execucao
+
+| Fase | Duracao | Dependencias |
+|------|---------|--------------|
+| Fase 9: State Machines | 2 dias | Nenhuma |
+| Fase 10: Session Commander | 1 dia | Nenhuma |
+| Fase 11: Hooks | 2 dias | Nenhuma |
+| Fase 12: Services | 1 dia | Nenhuma |
+| Fase 13: Lib Faltante | 1 dia | Nenhuma |
+| **TOTAL** | **7 dias** | - |
+
+---
+
+## Metricas de Sucesso
+
+| Metrica | Atual | Meta |
+|---------|-------|------|
+| Testes Totais | 765 | 1010+ |
+| Coverage Statements | 60% | 70%+ |
+| Coverage Branches | 50% | 55%+ |
+| Coverage Functions | 60% | 70%+ |
+| Coverage Lines | 60% | 70%+ |
+| Testes Falhando | 0 | 0 |
+| Warnings de Mock | 0 | 0 |
+
+---
+
+## Entregaveis
+
+1. **Fase 9:** 6 arquivos de teste para State Machines faltantes
+2. **Fase 10:** 3 arquivos de teste para Session Commander
+3. **Fase 11:** 10 arquivos de teste para Hooks
+4. **Fase 12:** 2 arquivos de teste para Services
+5. **Fase 13:** 3 arquivos de teste para Lib faltante
+6. **Documentacao:** Atualizacao do TESTING_REPORT.md com todas as fases
+
+**Total: 24 novos arquivos de teste, ~245 novos testes**
