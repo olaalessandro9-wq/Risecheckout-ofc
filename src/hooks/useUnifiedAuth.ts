@@ -59,8 +59,9 @@ export interface UnifiedAuthState {
 // CONSTANTS
 // ============================================================================
 
-const AUTH_STALE_TIME = 5 * 60 * 1000; // 5 minutes
-const AUTH_CACHE_TIME = 10 * 60 * 1000; // 10 minutes
+// RISE V3 10.0/10: staleTime: 0 força revalidação a cada mount
+// AUTH_STALE_TIME removido - não mais utilizado
+const AUTH_CACHE_TIME = 10 * 60 * 1000; // 10 minutes (gcTime)
 
 const UNIFIED_AUTH_QUERY_KEY = ["unified-auth"] as const;
 
@@ -194,10 +195,15 @@ export function useUnifiedAuth() {
       }
       return result;
     },
-    staleTime: AUTH_STALE_TIME,
+    // RISE V3 10.0/10: Força revalidação a cada mount
+    // staleTime: 0 garante que dados são sempre "stale"
+    // refetchOnMount: 'always' dispara fetch mesmo com cache
+    // Isso previne o flash de form quando há navegação SPA
+    staleTime: 0,
     gcTime: AUTH_CACHE_TIME,
     retry: false,
     refetchOnWindowFocus: true,
+    refetchOnMount: 'always',
   });
   
   // Login mutation
@@ -372,7 +378,10 @@ export function useUnifiedAuth() {
   return {
     // State
     isAuthenticated,
-    isLoading: authQuery.isLoading || !authQuery.isFetchedAfterMount,
+    // RISE V3 10.0/10: isLoading inclui isFetching para esperar revalidação
+    // isLoading = true quando fetch inicial OU quando revalidando em background
+    // Isso garante que a UI espere a confirmação do backend antes de decidir
+    isLoading: authQuery.isLoading || authQuery.isFetching,
     isRefetching: authQuery.isRefetching,
     user,
     roles,
