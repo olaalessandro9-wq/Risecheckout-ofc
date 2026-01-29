@@ -1,210 +1,215 @@
 
-# Plano: Modernização do Auth de Alunos - Tema Azul + Layout Invertido + Correção de CSS
+# Plano: Correção de Foreign Keys Legadas - Migração para `users` SSOT
 
-## Diagnóstico Confirmado
+## Diagnóstico Completo
 
-A análise do código revelou que as páginas de autenticação de alunos (BuyerAuth, BuyerCadastro, BuyerRecuperarSenha) possuem **3 problemas críticos**:
+### O Problema Identificado
 
-### 1. Token CSS Inexistente (Bug Visual)
+O sistema de autenticação foi migrado para usar a tabela `users` como **Single Source of Truth (SSOT)**, mas **19+ tabelas** ainda mantêm Foreign Keys para:
+- `auth.users(id)` - 17 tabelas
+- `profiles(id)` - 3 tabelas
+
+Isso causa erros de FK quando usuários criados pelo sistema unificado tentam:
+- Criar produtos (FK para `auth.users`)
+- Conectar Mercado Pago (FK para `profiles`)
+- Criar webhooks, orders, etc.
+
+### Usuários Afetados
+
 ```text
-PROBLEMA:
-┌─────────────────────────────────────────────────────────┐
-│ Os arquivos usam: --auth-purple                        │
-│ Mas index.css NÃO define este token!                   │
-│                                                         │
-│ Resultado: hsl(var(--auth-purple)) = hsl() = INVÁLIDO  │
-│ O navegador ignora a cor → aparece preto/transparente   │
-└─────────────────────────────────────────────────────────┘
+Usuários com BUG (criados apos 22/01/2026):
+┌───────────────────────────────────┬───────────────┬───────────────┐
+│ Email                             │ auth.users    │ profiles      │
+├───────────────────────────────────┼───────────────┼───────────────┤
+│ sandro099@gmail.com               │ ❌ MISSING    │ ❌ MISSING    │
+│ sandro098@gmail.com               │ ❌ MISSING    │ ❌ MISSING    │
+│ maiconmiranda1528@gmail.com       │ ❌ MISSING    │ ❌ MISSING    │
+│ olaalessandro9@gmail.com          │ ❌ MISSING    │ ❌ MISSING    │
+└───────────────────────────────────┴───────────────┴───────────────┘
+
+Usuarios OK (criados antes da migracao):
+┌───────────────────────────────────┬───────────────┬───────────────┐
+│ rdgsandro1@gmail.com              │ ✓ EXISTS      │ ✓ EXISTS      │
+│ alessanderlaem@gmail.com          │ ✓ EXISTS      │ ✓ EXISTS      │
+└───────────────────────────────────┴───────────────┴───────────────┘
 ```
 
-### 2. Layout Não Invertido
-As páginas de produtor já foram invertidas (formulário esquerda, branding direita), mas as de aluno ainda estão no layout antigo (branding esquerda, formulário direita).
+### Tabelas com FKs Legadas para `auth.users`
 
-### 3. Ocorrências do Bug
-| Arquivo | Ocorrências de `--auth-purple` |
-|---------|--------------------------------|
-| `BuyerAuth.tsx` | 10 ocorrências |
-| `BuyerCadastro.tsx` | 12 ocorrências |
-| `BuyerRecuperarSenha.tsx` | 8 ocorrências |
-| **Total** | **30 ocorrências** |
+| Tabela | Coluna | Impacto |
+|--------|--------|---------|
+| `products` | `user_id` | **Criacao de produtos** |
+| `orders` | `vendor_id` | Vendas |
+| `vendor_integrations` | `vendor_id` | Integracoes |
+| `affiliates` | `user_id` | Afiliados |
+| `checkout_sessions` | `vendor_id` | Checkout |
+| `outbound_webhooks` | `vendor_id` | Webhooks |
+| `payment_gateway_settings` | `user_id` | Config pagamento |
+| `mercadopago_split_config` | `vendor_id` | Split MP |
+| `vendor_profiles` | `user_id` | Perfil vendedor |
+| `order_events` | `vendor_id` | Eventos |
+| `security_audit_log` | `user_id` | Auditoria |
+| `vendor_pixels` | `vendor_id` | Pixels |
+| `profiles` | `id` | Tabela legada |
+
+### Tabelas com FKs Legadas para `profiles`
+
+| Tabela | Coluna | Impacto |
+|--------|--------|---------|
+| `oauth_states` | `vendor_id` | **Conexao Mercado Pago** |
+| `notifications` | `user_id` | Notificacoes |
+| `producer_audit_log` | `producer_id` | Auditoria |
 
 ---
 
-## Análise de Soluções (RISE V3 Seção 4.4)
+## Analise de Solucoes (RISE V3 Secao 4.4)
 
-### Solução A: Substituir por Tokens Existentes (Blue Theme)
-- Manutenibilidade: 10/10 (usa tokens centralizados SSOT)
-- Zero DT: 10/10 (remove código morto, alinha com sistema)
-- Arquitetura: 10/10 (consistência com páginas de produtor)
-- Escalabilidade: 10/10 (qualquer nova página herda automaticamente)
-- Segurança: 10/10 (sem impacto)
+### Solucao A: Migrar FKs para tabela `users`
+- Manutenibilidade: 10/10 (elimina duplicidade, SSOT verdadeiro)
+- Zero DT: 10/10 (resolve causa raiz permanentemente)
+- Arquitetura: 10/10 (alinha com decisao de usar `users` como SSOT)
+- Escalabilidade: 10/10 (novos usuarios funcionam imediatamente)
+- Seguranca: 10/10 (sem impacto)
 - **NOTA FINAL: 10.0/10**
-- Tempo estimado: 1 hora
+- Tempo estimado: 4-6 horas
 
-### Solução B: Adicionar --auth-purple de Volta ao CSS
-- Manutenibilidade: 4/10 (mantém inconsistência entre produtor e aluno)
-- Zero DT: 2/10 (cria exceção, não resolve causa raiz)
-- Arquitetura: 3/10 (viola decisão de tema azul)
-- Escalabilidade: 3/10 (cada contexto precisa tokens diferentes)
-- Segurança: 10/10 (sem impacto)
-- **NOTA FINAL: 4.4/10**
-- Tempo estimado: 10 minutos
+### Solucao B: Criar registros em `auth.users` e `profiles` durante registro
+- Manutenibilidade: 4/10 (mantem 3 tabelas de identidade)
+- Zero DT: 3/10 (nao resolve problema arquitetural)
+- Arquitetura: 2/10 (viola decisao de SSOT em `users`)
+- Escalabilidade: 3/10 (mantem complexidade desnecessaria)
+- Seguranca: 8/10 (funcional, mas complexo)
+- **NOTA FINAL: 4.0/10**
+- Tempo estimado: 2 horas
 
-### DECISÃO: Solução A (Nota 10.0/10)
+### Solucao C: Correcao pontual apenas para usuarios afetados
+- Manutenibilidade: 2/10 (nao resolve causa raiz)
+- Zero DT: 1/10 (problema volta para proximos usuarios)
+- Arquitetura: 1/10 (gambiarra)
+- Escalabilidade: 0/10 (cada novo usuario tera o problema)
+- Seguranca: 10/10 (sem impacto)
+- **NOTA FINAL: 2.8/10**
+- Tempo estimado: 30 minutos
 
-Substituir todas as referências a `--auth-purple` pelos tokens azuis existentes, seguindo exatamente o padrão aplicado nas páginas de produtor.
+### DECISAO: Solucao A (Nota 10.0/10)
 
----
-
-## Implementação Técnica
-
-### Fase 1: Mapeamento de Substituição
-
-| Token Antigo (Inexistente) | Token Novo (Blue Theme) |
-|----------------------------|-------------------------|
-| `--auth-purple` | `--auth-accent-secondary` (cyan-500) |
-| `from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-purple))]` | `from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))]` |
-
-### Fase 2: Inversão de Layout
-
-```text
-ANTES (BuyerAuth.tsx atual):
-┌─────────────────┬─────────────────┐
-│   BRANDING      │    FORMULÁRIO   │
-│   (Esquerda)    │    (Direita)    │
-│   border-r      │    flex-1       │
-└─────────────────┴─────────────────┘
-
-DEPOIS (Alinhado com Auth.tsx):
-┌─────────────────┬─────────────────┐
-│   FORMULÁRIO    │    BRANDING     │
-│   (Esquerda)    │    (Direita)    │
-│   border-r      │    border-l     │
-└─────────────────┴─────────────────┘
-```
-
-### Fase 3: Adicionar Terceiro Glow (Sofisticação Visual)
-
-Adicionar o mesmo elemento de glow azul terciário usado nas páginas de produtor:
-```tsx
-<div className="absolute top-[40%] right-[20%] w-[30%] h-[30%] rounded-full bg-[hsl(var(--auth-accent-tertiary)/0.05)] blur-[100px]" />
-```
+A migracao completa das FKs para `users` e a unica solucao que:
+1. Elimina o problema permanentemente
+2. Alinha a arquitetura com a decisao de SSOT
+3. Permite que novos usuarios funcionem sem intervencao manual
 
 ---
 
-## Arquivos a Modificar
+## Implementacao Tecnica
 
-| Arquivo | Modificações |
-|---------|-------------|
-| `src/modules/members-area/pages/buyer/BuyerAuth.tsx` | Inverter layout + substituir 10x `--auth-purple` → `--auth-accent-secondary` |
-| `src/modules/members-area/pages/buyer/BuyerCadastro.tsx` | Inverter layout + substituir 12x `--auth-purple` → `--auth-accent-secondary` |
-| `src/modules/members-area/pages/buyer/BuyerRecuperarSenha.tsx` | Inverter layout + substituir 8x `--auth-purple` → `--auth-accent-secondary` |
+### Fase 1: Migracao de FKs de `auth.users` para `users`
 
-**Nota**: `BuyerResetPassword.tsx` já usa `ResetPasswordLayout` que foi corrigido anteriormente.
+```sql
+-- 1. products.user_id
+ALTER TABLE products DROP CONSTRAINT products_user_id_fkey;
+ALTER TABLE products ADD CONSTRAINT products_user_id_fkey 
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+
+-- 2. orders.vendor_id
+ALTER TABLE orders DROP CONSTRAINT orders_vendor_id_fkey;
+ALTER TABLE orders ADD CONSTRAINT orders_vendor_id_fkey 
+  FOREIGN KEY (vendor_id) REFERENCES users(id) ON DELETE CASCADE;
+
+-- 3. vendor_integrations.vendor_id
+ALTER TABLE vendor_integrations DROP CONSTRAINT vendor_integrations_vendor_id_fkey;
+ALTER TABLE vendor_integrations ADD CONSTRAINT vendor_integrations_vendor_id_fkey 
+  FOREIGN KEY (vendor_id) REFERENCES users(id) ON DELETE CASCADE;
+
+-- ... (14+ tabelas adicionais)
+```
+
+### Fase 2: Migracao de FKs de `profiles` para `users`
+
+```sql
+-- 1. oauth_states.vendor_id
+ALTER TABLE oauth_states DROP CONSTRAINT oauth_states_vendor_id_fkey;
+ALTER TABLE oauth_states ADD CONSTRAINT oauth_states_vendor_id_fkey 
+  FOREIGN KEY (vendor_id) REFERENCES users(id) ON DELETE CASCADE;
+
+-- 2. notifications.user_id
+ALTER TABLE notifications DROP CONSTRAINT notifications_user_id_fkey;
+ALTER TABLE notifications ADD CONSTRAINT notifications_user_id_fkey 
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+
+-- 3. producer_audit_log.producer_id
+ALTER TABLE producer_audit_log DROP CONSTRAINT producer_audit_log_producer_id_fkey;
+ALTER TABLE producer_audit_log ADD CONSTRAINT producer_audit_log_producer_id_fkey 
+  FOREIGN KEY (producer_id) REFERENCES users(id) ON DELETE SET NULL;
+```
+
+### Fase 3: Atualizar Documentacao
+
+Atualizar `docs/DATABASE_SCHEMA.md` e `docs/UNIFIED_AUTH_SYSTEM.md` para refletir que `users` e o unico SSOT de identidade.
+
+### Fase 4: Deprecar Tabelas Legadas
+
+Adicionar comentarios nas tabelas `profiles` e `auth.users` indicando que sao legadas e nao devem ser usadas diretamente.
 
 ---
 
-## Detalhes da Inversão (BuyerAuth.tsx)
+## Lista Completa de Alteracoes de FK
 
-### Estrutura Atual (Linhas 119-265)
-```tsx
-<div className="w-full flex">
-  {/* Left Panel - Visual Branding (Desktop Only) */}
-  <div className="hidden lg:flex lg:w-1/2 ... border-r ...">
-    {/* Logo + Feature Highlight + Footer */}
-  </div>
-  
-  {/* Right Panel - Auth Form */}
-  <div className="flex-1 flex items-center justify-center ...">
-    {/* Form */}
-  </div>
-</div>
-```
+### FKs para `auth.users` que precisam migrar para `users`
 
-### Nova Estrutura (Invertida)
-```tsx
-<div className="w-full flex">
-  {/* Left Panel - Form (NOVO) */}
-  <div className="flex-1 flex items-center justify-center ... lg:w-1/2 lg:border-r ...">
-    {/* Form */}
-  </div>
-  
-  {/* Right Panel - Branding (NOVO) */}
-  <div className="hidden lg:flex lg:w-1/2 ... border-l ...">
-    {/* Logo + Feature Highlight + Footer */}
-  </div>
-</div>
-```
+| # | Tabela | Constraint | Nova Referencia |
+|---|--------|------------|-----------------|
+| 1 | `products` | `products_user_id_fkey` | `users(id)` |
+| 2 | `orders` | `orders_vendor_id_fkey` | `users(id)` |
+| 3 | `order_events` | `order_events_vendor_id_fkey` | `users(id)` |
+| 4 | `checkout_sessions` | `checkout_sessions_vendor_id_fkey` | `users(id)` |
+| 5 | `outbound_webhooks` | `outbound_webhooks_vendor_id_fkey` | `users(id)` |
+| 6 | `vendor_integrations` | `vendor_integrations_vendor_id_fkey` | `users(id)` |
+| 7 | `payment_gateway_settings` | `payment_gateway_settings_user_id_fkey` | `users(id)` |
+| 8 | `mercadopago_split_config` | `mercadopago_split_config_vendor_id_fkey` | `users(id)` |
+| 9 | `affiliates` | `affiliates_user_id_fkey` | `users(id)` |
+| 10 | `vendor_profiles` | `vendor_profiles_user_id_fkey` | `users(id)` |
+| 11 | `security_audit_log` | `security_audit_log_user_id_fkey` | `users(id)` |
+| 12 | `vendor_pixels` | `vendor_pixels_vendor_id_fkey` | `users(id)` |
+
+### FKs para `profiles` que precisam migrar para `users`
+
+| # | Tabela | Constraint | Nova Referencia |
+|---|--------|------------|-----------------|
+| 1 | `oauth_states` | `oauth_states_vendor_id_fkey` | `users(id)` |
+| 2 | `notifications` | `notifications_user_id_fkey` | `users(id)` |
+| 3 | `producer_audit_log` | `producer_audit_log_producer_id_fkey` | `users(id)` |
 
 ---
 
-## Substituições Específicas por Arquivo
+## Verificacao Pos-Migracao
 
-### BuyerAuth.tsx
-```diff
-- bg-[hsl(var(--auth-purple)/0.1)]
-+ bg-[hsl(var(--auth-accent-secondary)/0.08)]
+Apos a migracao, executar:
 
-- to-[hsl(var(--auth-purple))]
-+ to-[hsl(var(--auth-accent-secondary))]
-```
+```sql
+-- Verificar que todas as FKs agora apontam para users
+SELECT 
+    cl.relname as table_name,
+    c.conname as constraint_name,
+    pg_get_constraintdef(c.oid) as definition
+FROM pg_constraint c
+JOIN pg_class cl ON c.conrelid = cl.oid
+WHERE (pg_get_constraintdef(c.oid) LIKE '%auth.users%'
+   OR pg_get_constraintdef(c.oid) LIKE '%profiles%')
+AND c.contype = 'f'
+AND cl.relnamespace = 'public'::regnamespace;
 
-### BuyerCadastro.tsx
-```diff
-- to-[hsl(var(--auth-purple))]
-+ to-[hsl(var(--auth-accent-secondary))]
-
-- hover:border-[hsl(var(--auth-purple)/0.5)]
-+ hover:border-[hsl(var(--auth-accent-secondary)/0.5)]
-
-- from-[hsl(var(--auth-purple))] to-pink-600
-+ from-[hsl(var(--auth-accent-secondary))] to-[hsl(var(--auth-accent-tertiary))]
-```
-
-### BuyerRecuperarSenha.tsx
-```diff
-- bg-[hsl(var(--auth-purple)/0.1)]
-+ bg-[hsl(var(--auth-accent-secondary)/0.08)]
-
-- to-[hsl(var(--auth-purple))]
-+ to-[hsl(var(--auth-accent-secondary))]
+-- Deve retornar ZERO linhas apos a migracao
 ```
 
 ---
 
 ## Conformidade RISE V3
 
-| Critério | Nota | Justificativa |
+| Criterio | Nota | Justificativa |
 |----------|------|---------------|
-| Manutenibilidade Infinita | 10/10 | Remove código morto, usa tokens SSOT |
-| Zero Dívida Técnica | 10/10 | Elimina 30 referências a token inexistente |
-| Arquitetura Correta | 10/10 | Consistência total com páginas de produtor |
-| Escalabilidade | 10/10 | Padrão único para todo o sistema de auth |
-| Segurança | 10/10 | Sem impacto |
+| Manutenibilidade Infinita | 10/10 | SSOT verdadeiro em `users` |
+| Zero Divida Tecnica | 10/10 | Elimina referencias legadas |
+| Arquitetura Correta | 10/10 | Alinha com decisao documentada |
+| Escalabilidade | 10/10 | Novos usuarios funcionam automaticamente |
+| Seguranca | 10/10 | Sem impacto |
 | **NOTA FINAL** | **10.0/10** | |
-
----
-
-## Resultado Visual Esperado
-
-```text
-NOVO LAYOUT (CONSISTENTE COM PRODUTOR):
-┌─────────────────────────────────────────────────────────┐
-│                                                         │
-│   ┌───────────────────┐   ┌───────────────────┐        │
-│   │                   │   │                   │        │
-│   │   PAINEL DO       │   │   BRANDING        │        │
-│   │   ALUNO           │   │                   │        │
-│   │   ─────────────   │   │   Acesse seus     │        │
-│   │   [Email      ]   │   │   cursos          │        │
-│   │   [Senha      ]   │   │   e conteúdos     │        │
-│   │   [  ENTRAR   ]   │   │   exclusivos      │        │
-│   │                   │   │                   │        │
-│   └───────────────────┘   └───────────────────┘        │
-│                                                         │
-│   Tema: AZUL → CYAN (gradiente)                        │
-│   Glows: Azul suave nos cantos (3 elementos)           │
-│   Botões: Azul consistente                             │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
-```
