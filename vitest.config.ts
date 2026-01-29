@@ -63,13 +63,9 @@ export default defineConfig({
     // Reporter
     reporters: ["default"],
     
-    // Pool configuration for better performance
-    pool: "forks",
-    poolOptions: {
-      forks: {
-        singleFork: true,
-      },
-    },
+    // Vitest 4.x: pool options are now top-level
+    isolate: true,
+    fileParallelism: false,
   },
   resolve: {
     alias: {
