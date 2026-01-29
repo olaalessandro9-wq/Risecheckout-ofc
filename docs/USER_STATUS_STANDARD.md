@@ -22,7 +22,7 @@ A ordem de verificação no `handleLogin` é:
 5. password validation    → Verificação de senha bcrypt
 ```
 
-## Campos de Moderação (Tabela `profiles`)
+## Campos de Moderação (Tabela `users` - SSOT)
 
 | Campo | Tipo | Descrição |
 |-------|------|-----------|
