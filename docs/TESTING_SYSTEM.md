@@ -1,6 +1,6 @@
 # Documentação do Sistema de Testes - RiseCheckout
 
-**Status:** ✅ FASES 1-5 IMPLEMENTADAS  
+**Status:** ✅ FASES 1-6 IMPLEMENTADAS  
 **Última atualização:** 29 de Janeiro de 2026  
 **RISE V3 Score:** 10.0/10
 
@@ -14,15 +14,17 @@ O RiseCheckout implementa uma **Pirâmide de Testes Enterprise** seguindo o RISE
               ▲
              /│\
             / │ \
-           / E2E \           ~10% (Playwright)
+           / E2E \           ~10% (Playwright - 37+ testes)
           /───────\
          /         \
-        / Integração\        ~20% (Vitest + MSW)
+        / Integração\        ~20% (Vitest + MSW - 66 testes)
        /─────────────\
       /               \
-     /    Unitários    \     ~70% (Vitest)
+     /    Unitários    \     ~70% (Vitest - 279+ testes)
     /───────────────────\
 ```
+
+**Total: 580+ testes**
 
 ---
 
@@ -31,6 +33,8 @@ O RiseCheckout implementa uma **Pirâmide de Testes Enterprise** seguindo o RISE
 ```
 risecheckout/
 ├── vitest.config.ts           # Configuração principal Vitest
+├── playwright.config.ts       # Configuração Playwright
+├── playwright-fixture.ts      # Re-export de fixtures
 ├── src/test/
 │   ├── setup.ts               # Setup global (DOM mocks, MSW)
 │   ├── utils.tsx              # Render helpers, test utilities
@@ -39,7 +43,30 @@ risecheckout/
 │       ├── handlers.ts        # MSW request handlers
 │       └── server.ts          # MSW server instance
 ├── e2e/                       # Testes E2E (Playwright)
-└── playwright.config.ts       # Configuração Playwright
+│   ├── fixtures/
+│   │   ├── test-data.ts       # Dados centralizados
+│   │   └── pages/             # Page Objects
+│   │       ├── AuthPage.ts
+│   │       ├── CadastroPage.ts
+│   │       ├── LandingPage.ts
+│   │       ├── CheckoutPage.ts
+│   │       ├── PixPaymentPage.ts
+│   │       ├── SuccessPage.ts
+│   │       └── BuyerPage.ts
+│   ├── specs/
+│   │   ├── smoke.spec.ts      # 10 testes
+│   │   ├── auth.spec.ts       # 9 testes
+│   │   ├── checkout.spec.ts   # 12 testes
+│   │   ├── landing.spec.ts    # 8 testes
+│   │   └── buyer-auth.spec.ts # 8 testes
+│   ├── members-area-flicker.spec.ts  # 6 testes
+│   └── README.md
+└── supabase/functions/_shared/  # Testes Edge Functions
+    ├── password-policy.test.ts
+    ├── validators.test.ts
+    └── rate-limiting/
+        ├── service.test.ts
+        └── configs.test.ts
 ```
 
 ---
@@ -65,11 +92,17 @@ pnpm test:coverage
 ### Testes E2E (Playwright)
 
 ```bash
-# Executar testes E2E
+# Executar todos os testes E2E
 pnpm exec playwright test
 
 # Com UI mode
 pnpm exec playwright test --ui
+
+# Executar arquivo específico
+pnpm exec playwright test e2e/specs/auth.spec.ts
+
+# Modo headed (ver browser)
+pnpm exec playwright test --headed
 ```
 
 ### Testes de Edge Functions (Deno)
@@ -81,62 +114,33 @@ cd supabase/functions
 
 ---
 
-## Escrevendo Testes
+## Page Object Pattern (E2E)
 
-### Teste Unitário Básico
+Todas as interações de página são encapsuladas em Page Objects:
 
 ```typescript
-import { describe, it, expect } from "vitest";
+// Exemplo de uso
+import { AuthPage } from "../fixtures/pages/AuthPage";
 
-describe("MyModule", () => {
-  it("should do something", () => {
-    expect(1 + 1).toBe(2);
-  });
+test("should login successfully", async ({ page }) => {
+  const authPage = new AuthPage(page);
+  await authPage.navigate();
+  await authPage.login("user@example.com", "password123");
+  await authPage.waitForLoginComplete();
 });
 ```
 
-### Teste de Componente React
+### Page Objects Disponíveis
 
-```typescript
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@/test/utils";
-import { MyComponent } from "./MyComponent";
-
-describe("MyComponent", () => {
-  it("should render correctly", () => {
-    render(<MyComponent title="Hello" />);
-    
-    expect(screen.getByText("Hello")).toBeInTheDocument();
-  });
-});
-```
-
-### Teste com Mock de API (MSW)
-
-```typescript
-import { describe, it, expect } from "vitest";
-import { render, screen, waitFor } from "@/test/utils";
-import { server } from "@/test/mocks/server";
-import { http, HttpResponse } from "msw";
-import { MyDataComponent } from "./MyDataComponent";
-
-describe("MyDataComponent", () => {
-  it("should handle API error", async () => {
-    // Override handler para este teste
-    server.use(
-      http.get("/api/data", () => {
-        return HttpResponse.json({ error: "Failed" }, { status: 500 });
-      })
-    );
-
-    render(<MyDataComponent />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Error loading data")).toBeInTheDocument();
-    });
-  });
-});
-```
+| Page Object | Página | Métodos Principais |
+|-------------|--------|-------------------|
+| `AuthPage` | /auth | `login()`, `navigate()`, `waitForLoginComplete()` |
+| `CadastroPage` | /cadastro | `register()`, `fillEmail()`, `acceptTerms()` |
+| `LandingPage` | / | `clickLogin()`, `scrollToFeatures()`, `getCtaCount()` |
+| `CheckoutPage` | /pay/:slug | `fillCustomerForm()`, `selectPaymentPix()`, `applyCoupon()` |
+| `BuyerPage` | /minha-conta | `login()`, `selectCourse()`, `markLessonComplete()` |
+| `PixPaymentPage` | /pay/pix/:id | `copyPixCode()`, `waitForQrCode()` |
+| `SuccessPage` | /success/:id | `isSuccessful()`, `getOrderId()` |
 
 ---
 
@@ -144,7 +148,9 @@ describe("MyDataComponent", () => {
 
 | Tipo | Padrão | Exemplo |
 |------|--------|---------|
-| Arquivo de teste | `*.test.ts(x)` ou `*.spec.ts(x)` | `money.test.ts` |
+| Arquivo de teste unitário | `*.test.ts(x)` | `money.test.ts` |
+| Arquivo de teste E2E | `*.spec.ts` | `auth.spec.ts` |
+| Page Object | `*Page.ts` | `AuthPage.ts` |
 | Describe blocks | Nome do módulo/componente | `describe("formatCentsToBRL", ...)` |
 | Test cases | `should + ação esperada` | `it("should format cents to BRL", ...)` |
 
@@ -181,6 +187,31 @@ Prioridade ordenada por risco:
 
 ---
 
+## Status das Fases
+
+- [x] **Fase 1:** Infraestrutura Base (Vitest, MSW, Setup) - ✅ Completo
+- [x] **Fase 2:** Testes unitários backend (_shared) - ✅ 129 testes
+- [x] **Fase 3:** Testes unitários frontend (lib) - ✅ 150+ testes
+- [x] **Fase 4:** Testes de integração (hooks) - ✅ 66 testes
+- [x] **Fase 5:** Testes de Edge Functions - ✅ 200+ testes
+- [x] **Fase 6:** Testes E2E (Playwright) - ✅ 37+ testes
+- [ ] **Fase 7:** CI/CD bloqueante
+
+---
+
+## Contagem de Testes por Fase
+
+| Fase | Categoria | Quantidade |
+|------|-----------|------------|
+| F2 | Backend _shared | 129 |
+| F3 | Frontend lib | 150+ |
+| F4 | Hooks integração | 66 |
+| F5 | Edge Functions | 200+ |
+| F6 | E2E Playwright | 37+ |
+| **TOTAL** | | **580+** |
+
+---
+
 ## CI/CD Integration
 
 Os testes são executados automaticamente via GitHub Actions em:
@@ -190,15 +221,3 @@ Os testes são executados automaticamente via GitHub Actions em:
 Pipeline bloqueia merge se:
 - Coverage abaixo dos thresholds
 - Qualquer teste falhar
-
----
-
-## Status das Fases
-
-- [x] **Fase 1:** Infraestrutura Base (Vitest, MSW, Setup) - ✅ Completo
-- [x] **Fase 2:** Testes unitários backend (_shared) - ✅ 129 testes
-- [x] **Fase 3:** Testes unitários frontend (lib) - ✅ 150+ testes (money.ts, logger.ts, validation.ts)
-- [x] **Fase 4:** Testes de integração (hooks) - ✅ 66 testes (useUnifiedAuth, useFormManager)
-- [x] **Fase 5:** Testes de Edge Functions - ✅ 200+ testes (password-policy, validators, rate-limiting)
-- [ ] **Fase 6:** Testes E2E (Playwright)
-- [ ] **Fase 7:** CI/CD bloqueante
