@@ -35,9 +35,10 @@ describe("stripeGateway", () => {
       expect(installments).toBeDefined();
       expect(installments.length).toBeGreaterThan(0);
       
-      // First installment should be full amount (1x)
-      expect(installments[0].installments).toBe(1);
-      expect(installments[0].installmentAmount).toBe(10000);
+      // First installment should be full amount (1x) - uses 'value' not 'installments'
+      expect(installments[0].value).toBe(1);
+      // installmentAmount is in BRL (reais), not centavos
+      expect(installments[0].installmentAmount).toBe(100);
     });
 
     it("should respect maxInstallments param", () => {
@@ -45,25 +46,25 @@ describe("stripeGateway", () => {
 
       expect(installments.length).toBeLessThanOrEqual(6);
       
-      // All installments should be <= 6
+      // All installments should be <= 6 - uses 'value' property
       installments.forEach(inst => {
-        expect(inst.installments).toBeLessThanOrEqual(6);
+        expect(inst.value).toBeLessThanOrEqual(6);
       });
     });
 
     it("should apply lower interest than MercadoPago", () => {
       const installments = stripeGateway.generateInstallments(10000, 12);
       
-      // Find 12x installment
-      const twelvex = installments.find(i => i.installments === 12 || i.value === 12);
+      // Find 12x installment using 'value' property
+      const twelvex = installments.find(i => i.value === 12);
       
       if (twelvex) {
-        // Total with interest should be greater than original
-        expect(twelvex.totalAmount).toBeGreaterThan(10000);
+        // Total with interest should be greater than original (100 BRL)
+        expect(twelvex.totalAmount).toBeGreaterThan(100);
         
         // Stripe's 1.99% is lower than MP's 2.99%
         // So total interest should be less than ~40% (which would be 2.99% x 12)
-        expect(twelvex.totalAmount).toBeLessThan(14000);
+        expect(twelvex.totalAmount).toBeLessThan(140);
       }
     });
 
