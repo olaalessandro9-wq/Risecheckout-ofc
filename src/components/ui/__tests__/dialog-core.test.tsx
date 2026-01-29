@@ -1,18 +1,17 @@
 /**
- * Dialog Component Tests
+ * Dialog Core Component Tests
  *
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  *
- * Tests for Dialog components covering:
- * - Dialog open/close state
- * - DialogTrigger interaction
- * - DialogContent rendering
- * - DialogHeader, DialogFooter, DialogTitle, DialogDescription
- * - DialogContentWithoutClose variant
+ * Tests for core Dialog components:
+ * - Dialog (Root): open/close state management
+ * - DialogTrigger: user interaction
+ * - DialogContent: rendering, styling, accessibility
+ * - DialogContentWithoutClose: variant without close button
  *
  * Note: Uses fireEvent instead of userEvent due to clipboard compatibility
  *
- * @module components/ui/__tests__/dialog.test
+ * @module components/ui/__tests__/dialog-core.test
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -23,13 +22,11 @@ import {
   DialogTrigger,
   DialogContent,
   DialogContentWithoutClose,
-  DialogHeader,
-  DialogFooter,
   DialogTitle,
   DialogDescription,
 } from "../dialog";
 
-describe("Dialog Components", () => {
+describe("Dialog Core Components", () => {
   describe("Dialog (Root)", () => {
     it("controls open state", () => {
       render(
@@ -55,7 +52,7 @@ describe("Dialog Components", () => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
 
-    it("calls onOpenChange when state changes", async () => {
+    it("calls onOpenChange when state changes", () => {
       const handleChange = vi.fn();
       
       render(
@@ -84,7 +81,7 @@ describe("Dialog Components", () => {
       expect(screen.getByText("Open Dialog")).toBeInTheDocument();
     });
 
-    it("opens dialog on click", async () => {
+    it("opens dialog on click", () => {
       render(
         <Dialog>
           <DialogTrigger data-testid="trigger">Open</DialogTrigger>
@@ -115,7 +112,7 @@ describe("Dialog Components", () => {
       
       expect(screen.getByRole("dialog")).toBeInTheDocument();
       expect(screen.getByText("Dialog body content")).toBeInTheDocument();
-      expect(screen.getByText("Close")).toBeInTheDocument(); // sr-only close button
+      expect(screen.getByText("Close")).toBeInTheDocument();
     });
 
     it("forwards ref correctly", () => {
@@ -157,7 +154,7 @@ describe("Dialog Components", () => {
       expect(content).toHaveClass("max-w-xl");
     });
 
-    it("closes on Escape key", async () => {
+    it("closes on Escape key", () => {
       const handleChange = vi.fn();
       
       render(
@@ -187,124 +184,6 @@ describe("Dialog Components", () => {
       
       expect(screen.getByTestId("content")).toBeInTheDocument();
       expect(screen.queryByText("Close")).not.toBeInTheDocument();
-    });
-  });
-
-  describe("DialogHeader", () => {
-    it("renders with flex layout", () => {
-      render(
-        <Dialog open>
-          <DialogContent>
-            <DialogHeader data-testid="header">
-              <DialogTitle>Title</DialogTitle>
-              <DialogDescription>Description</DialogDescription>
-            </DialogHeader>
-          </DialogContent>
-        </Dialog>
-      );
-      const header = screen.getByTestId("header");
-      expect(header).toHaveClass("flex", "flex-col", "space-y-1.5");
-    });
-
-    it("applies text-center on mobile (sm:text-left)", () => {
-      render(
-        <Dialog open>
-          <DialogContent>
-            <DialogHeader data-testid="header">
-              <DialogTitle>Title</DialogTitle>
-              <DialogDescription>Description</DialogDescription>
-            </DialogHeader>
-          </DialogContent>
-        </Dialog>
-      );
-      const header = screen.getByTestId("header");
-      expect(header).toHaveClass("text-center", "sm:text-left");
-    });
-  });
-
-  describe("DialogFooter", () => {
-    it("renders with flex layout", () => {
-      render(
-        <Dialog open>
-          <DialogContent>
-            <DialogTitle>Test</DialogTitle>
-            <DialogDescription>Description</DialogDescription>
-            <DialogFooter data-testid="footer">
-              <button>Cancel</button>
-              <button>Confirm</button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      );
-      const footer = screen.getByTestId("footer");
-      expect(footer).toHaveClass("flex", "flex-col-reverse", "sm:flex-row", "sm:justify-end");
-    });
-  });
-
-  describe("DialogTitle", () => {
-    it("renders title text", () => {
-      render(
-        <Dialog open>
-          <DialogContent>
-            <DialogTitle>My Dialog Title</DialogTitle>
-            <DialogDescription>Description</DialogDescription>
-          </DialogContent>
-        </Dialog>
-      );
-      expect(screen.getByText("My Dialog Title")).toBeInTheDocument();
-    });
-
-    it("applies title styling", () => {
-      render(
-        <Dialog open>
-          <DialogContent>
-            <DialogTitle data-testid="title">Title</DialogTitle>
-            <DialogDescription>Description</DialogDescription>
-          </DialogContent>
-        </Dialog>
-      );
-      const title = screen.getByTestId("title");
-      expect(title).toHaveClass("text-lg", "font-semibold", "leading-none", "tracking-tight");
-    });
-
-    it("forwards ref correctly", () => {
-      const ref = createRef<HTMLHeadingElement>();
-      render(
-        <Dialog open>
-          <DialogContent>
-            <DialogTitle ref={ref}>Title</DialogTitle>
-            <DialogDescription>Description</DialogDescription>
-          </DialogContent>
-        </Dialog>
-      );
-      expect(ref.current).toBeInstanceOf(HTMLHeadingElement);
-    });
-  });
-
-  describe("DialogDescription", () => {
-    it("renders description text", () => {
-      render(
-        <Dialog open>
-          <DialogContent>
-            <DialogTitle>Title</DialogTitle>
-            <DialogDescription>This is a helpful description.</DialogDescription>
-          </DialogContent>
-        </Dialog>
-      );
-      expect(screen.getByText("This is a helpful description.")).toBeInTheDocument();
-    });
-
-    it("applies muted foreground color", () => {
-      render(
-        <Dialog open>
-          <DialogContent>
-            <DialogTitle>Title</DialogTitle>
-            <DialogDescription data-testid="desc">Description</DialogDescription>
-          </DialogContent>
-        </Dialog>
-      );
-      const desc = screen.getByTestId("desc");
-      expect(desc).toHaveClass("text-sm", "text-muted-foreground");
     });
   });
 });

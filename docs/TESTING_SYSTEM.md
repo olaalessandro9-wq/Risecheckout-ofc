@@ -1,6 +1,6 @@
 # Documentação do Sistema de Testes - RiseCheckout
 
-**Status:** ✅ FASES 1-7 COMPLETAS (100% RISE V3)  
+**Status:** ✅ FASES 1-8 COMPLETAS (100% RISE V3)  
 **Última atualização:** 29 de Janeiro de 2026  
 **RISE V3 Score:** 10.0/10
 
@@ -20,11 +20,11 @@ O RiseCheckout implementa uma **Pirâmide de Testes Enterprise** seguindo o RISE
         / Integração\        ~20% (Vitest + MSW - 66 testes)
        /─────────────\
       /               \
-     /    Unitários    \     ~70% (Vitest - 279+ testes)
+     /    Unitários    \     ~70% (Vitest - 458+ testes)
     /───────────────────\
 ```
 
-**Total: 586+ testes**
+**Total: 765+ testes**
 
 ---
 
@@ -42,6 +42,24 @@ risecheckout/
 │   └── mocks/
 │       ├── handlers.ts        # MSW request handlers
 │       └── server.ts          # MSW server instance
+├── src/components/ui/__tests__/  # Fase 8: Testes UI Components
+│   ├── button.test.tsx        # 18 testes
+│   ├── input.test.tsx         # 14 testes
+│   ├── card.test.tsx          # 15 testes
+│   ├── badge.test.tsx         # 10 testes
+│   ├── alert.test.tsx         # 12 testes
+│   ├── checkbox.test.tsx      # 10 testes
+│   ├── switch.test.tsx        # 10 testes
+│   ├── textarea.test.tsx      # 8 testes
+│   ├── label.test.tsx         # 7 testes
+│   ├── progress.test.tsx      # 10 testes
+│   ├── separator.test.tsx     # 10 testes
+│   ├── skeleton.test.tsx      # 6 testes
+│   ├── avatar.test.tsx        # 8 testes
+│   ├── select.test.tsx        # 16 testes
+│   ├── dialog-core.test.tsx   # 11 testes (Dialog, Trigger, Content)
+│   ├── dialog-parts.test.tsx  # 8 testes (Header, Footer, Title, Description)
+│   └── form-controls.test.tsx # 16 testes (Toggle, ToggleGroup, RadioGroup)
 ├── e2e/                       # Testes E2E (Playwright)
 │   ├── fixtures/
 │   │   ├── test-data.ts       # Dados centralizados
@@ -77,6 +95,46 @@ risecheckout/
 
 ---
 
+## Fase 8: Testes de Componentes UI
+
+### Estrutura
+
+```text
+src/components/ui/__tests__/
+├── button.test.tsx       # 18 testes - variants, sizes, asChild
+├── input.test.tsx        # 14 testes - types, states, attributes
+├── card.test.tsx         # 15 testes - Card, Header, Title, Description, Content, Footer
+├── badge.test.tsx        # 10 testes - variants, styling
+├── alert.test.tsx        # 12 testes - Alert, AlertTitle, AlertDescription
+├── checkbox.test.tsx     # 10 testes - states, interactions
+├── switch.test.tsx       # 10 testes - states, styling
+├── textarea.test.tsx     # 8 testes - rendering, states
+├── label.test.tsx        # 7 testes - rendering, htmlFor
+├── progress.test.tsx     # 10 testes - value binding, transform
+├── separator.test.tsx    # 10 testes - orientation, decorative
+├── skeleton.test.tsx     # 6 testes - animation, styling
+├── avatar.test.tsx       # 8 testes - fallback, className
+├── select.test.tsx       # 16 testes - trigger, content, items
+├── dialog-core.test.tsx  # 11 testes - Dialog, Trigger, Content
+├── dialog-parts.test.tsx # 8 testes - Header, Footer, Title, Description
+└── form-controls.test.tsx # 16 testes - Toggle, ToggleGroup, RadioGroup
+```
+
+### Total: 179 testes de componentes UI
+
+### Padrões Seguidos
+
+| Critério | Status |
+|----------|--------|
+| Limite 300 linhas/arquivo | ✅ Todos < 200 linhas |
+| Zero tipos `any` | ✅ 100% tipado |
+| Zero `@ts-ignore` | ✅ Nenhum |
+| Header JSDoc RISE V3 | ✅ Todos |
+| Frases proibidas | ✅ Zero |
+| Single Responsibility | ✅ 1 componente/arquivo |
+
+---
+
 ## Como Executar Testes
 
 ### Testes Unitários/Integração (Vitest)
@@ -93,6 +151,9 @@ pnpm test:ui
 
 # Com coverage report
 pnpm test:coverage
+
+# Apenas testes UI
+pnpm test src/components/ui/__tests__
 ```
 
 ### Testes E2E (Playwright)
@@ -245,6 +306,7 @@ Após deploy, configurar no GitHub → Settings → Branches → main:
 - [x] **Fase 5:** Testes de Edge Functions - ✅ 200+ testes
 - [x] **Fase 6:** Testes E2E (Playwright) - ✅ 43+ testes
 - [x] **Fase 7:** CI/CD Bloqueante - ✅ Pipeline completo
+- [x] **Fase 8:** Testes UI Components - ✅ 179 testes
 
 ---
 
@@ -257,7 +319,8 @@ Após deploy, configurar no GitHub → Settings → Branches → main:
 | F4 | Hooks integração | 66 |
 | F5 | Edge Functions | 200+ |
 | F6 | E2E Playwright | 43+ |
-| **TOTAL** | | **586+** |
+| F8 | UI Components | 179 |
+| **TOTAL** | | **765+** |
 
 ---
 
@@ -265,13 +328,14 @@ Após deploy, configurar no GitHub → Settings → Branches → main:
 
 ### RISE V3 Certified 10.0/10
 
-✅ 586+ testes automatizados  
+✅ 765+ testes automatizados  
 ✅ 60%+ coverage thresholds  
 ✅ CI/CD bloqueante com quality gate  
 ✅ Jobs paralelos e cache otimizado  
 ✅ Artifacts e summary reports  
 ✅ Single Responsibility em todos os arquivos  
-✅ Zero arquivos acima de 300 linhas
+✅ Zero arquivos acima de 300 linhas  
+✅ 17 arquivos de testes UI (Fase 8)
 
 ---
 
