@@ -326,7 +326,7 @@ Todas as constantes de autenticação foram centralizadas em um único arquivo:
 
 > **NOTA HISTÓRICA (2026-01-20):** Os antigos Password Markers (`PASSWORD_REQUIRES_RESET`, 
 > `PASSWORD_PENDING_SETUP`, `PASSWORD_OWNER_NO_PASSWORD`) foram **ELIMINADOS** nesta versão.
-> O estado da conta agora é controlado exclusivamente pelo enum `account_status` na tabela `profiles`.
+> O estado da conta agora é controlado exclusivamente pelo enum `account_status` na tabela `users` (SSOT).
 
 ---
 

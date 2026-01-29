@@ -160,7 +160,7 @@ async function processAffiliateCode(
     .from("affiliates")
     .select(`
       id, user_id, commission_rate, status, pix_gateway, credit_card_gateway, gateway_credentials,
-      profiles:user_id(asaas_wallet_id, mercadopago_collector_id, stripe_account_id)
+      user:user_id(asaas_wallet_id, mercadopago_collector_id, stripe_account_id)
     `)
     .eq("affiliate_code", affiliate_code)
     .eq("product_id", product_id)
@@ -211,17 +211,17 @@ async function processAffiliateCode(
 }
 
 /**
- * Extract wallet IDs from affiliate's profile (Single Source of Truth)
+ * Extract wallet IDs from affiliate's user record (Single Source of Truth)
  * 
- * RISE V3 Solution D: Affiliates inherit credentials from their profiles table.
+ * RISE V3 Solution D: Affiliates inherit credentials from the users table (SSOT).
  * The affiliates.gateway_credentials column is DEPRECATED.
  */
 function extractWalletIds(affiliate: AffiliateRecord) {
-  const profile = affiliate.profiles;
+  const userRecord = affiliate.user;
   return {
-    asaas: profile?.asaas_wallet_id || null,
-    mercadopago: profile?.mercadopago_collector_id || null,
-    stripe: profile?.stripe_account_id || null,
+    asaas: userRecord?.asaas_wallet_id || null,
+    mercadopago: userRecord?.mercadopago_collector_id || null,
+    stripe: userRecord?.stripe_account_id || null,
   };
 }
 

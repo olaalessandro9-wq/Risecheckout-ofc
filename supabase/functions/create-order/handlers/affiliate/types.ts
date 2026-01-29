@@ -75,7 +75,8 @@ export interface AffiliateRecord {
   pix_gateway: string | null;
   credit_card_gateway: string | null;
   gateway_credentials: Record<string, string> | null;
-  profiles: AffiliateProfile | null;
+  /** User record with payout identifiers (SSOT: users table) */
+  user: AffiliateProfile | null;
 }
 
 export interface AffiliateUserData {

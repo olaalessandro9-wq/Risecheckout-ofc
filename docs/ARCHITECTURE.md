@@ -52,7 +52,7 @@ RiseCheckout é uma plataforma de checkout high-end no modelo **Marketplace**.
 - `orders` - Pedidos
 - `order_items` - Itens do pedido
 - `order_events` - Histórico de eventos
-- `profiles` - Dados de vendedores (wallet IDs)
+- `users` - Dados de vendedores (wallet IDs) - SSOT
 - `affiliates` - Afiliações
 
 ## 🔗 Edge Functions

@@ -235,7 +235,7 @@ Valor Produtor   = Valor Líquido - Comissão Afiliado
 │    → Vendedor: R$ 98,00                                │
 │                                                         │
 │  NOTA: Taxas personalizadas são configuradas           │
-│  via profiles.custom_fee_percent                       │
+│  via users.custom_fee_percent (SSOT)                   │
 │                                                         │
 └─────────────────────────────────────────────────────────┘
 ```
