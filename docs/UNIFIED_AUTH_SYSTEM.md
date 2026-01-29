@@ -283,6 +283,22 @@ O sistema de autenticação unificado é complementado por **Context Guards** qu
 
 ## 🗃️ Banco de Dados
 
+### Single Source of Truth (SSOT)
+
+> **Migração concluída em 29/01/2026**: Todas as Foreign Keys de tabelas de vendedores agora 
+> referenciam `public.users(id)` em vez de `auth.users(id)` ou `profiles(id)`.
+
+| Tabela | FK Antiga | FK Nova (SSOT) |
+|--------|-----------|----------------|
+| `products` | `auth.users(id)` | `users(id)` |
+| `orders` | `auth.users(id)` | `users(id)` |
+| `vendor_integrations` | `auth.users(id)` | `users(id)` |
+| `oauth_states` | `profiles(id)` | `users(id)` |
+| `notifications` | `profiles(id)` | `users(id)` |
+| + 10 outras tabelas | ⬅️ | ✅ |
+
+**Resultado:** Usuários criados pelo sistema unificado podem criar produtos, conectar gateways e realizar todas as operações sem erros de FK.
+
 ### Tabela: `users`
 
 ```sql
