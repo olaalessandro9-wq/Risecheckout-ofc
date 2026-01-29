@@ -1,88 +1,57 @@
 
-# Plano de Correção - Fase 1 (Finalização)
+# Plano de Testes Automatizados - RiseCheckout
 
-## RISE V3 Diagnosis
+## Status Geral
 
-**Status Atual:** 95% completo  
-**Bloqueador Encontrado:** Scripts de teste ausentes no `package.json`
-
----
-
-## Problema Identificado
-
-O `package.json` atual tem apenas:
-
-```json
-"scripts": {
-  "dev": "vite",
-  "build": "vite build",
-  "build:dev": "vite build --mode development",
-  "lint": "eslint .",
-  "preview": "vite preview"
-}
-```
-
-**Faltam os scripts de teste essenciais.**
+| Fase | Status | Testes | Detalhes |
+|------|--------|--------|----------|
+| 1 | ✅ COMPLETA | N/A | Infraestrutura configurada |
+| 2 | ✅ COMPLETA | 125/125 | Backend _shared tests |
+| 3 | 🔲 PENDENTE | 0 | Frontend lib tests |
+| 4 | 🔲 PENDENTE | 0 | Frontend hooks tests |
+| 5 | 🔲 PENDENTE | 0 | Edge Function integration |
+| 6 | 🔲 PENDENTE | 0 | E2E Playwright |
+| 7 | 🔲 PENDENTE | 0 | CI/CD Pipeline |
 
 ---
 
-## Correções Necessárias
+## Fase 2 - Resultados
 
-### 1. Adicionar Scripts de Teste ao package.json
+### Arquivos Criados
 
-```json
-"scripts": {
-  "dev": "vite",
-  "build": "vite build",
-  "build:dev": "vite build --mode development",
-  "lint": "eslint .",
-  "preview": "vite preview",
-  "test": "vitest run",
-  "test:watch": "vitest",
-  "test:ui": "vitest --ui",
-  "test:coverage": "vitest run --coverage"
-}
-```
+| Arquivo | Testes | Status |
+|---------|--------|--------|
+| `fee-calculator.test.ts` | 31 | ✅ Passando |
+| `idempotency.test.ts` | 25 | ✅ Passando |
+| `coupon-validation.test.ts` | 37 | ✅ Passando |
+| `grant-members-access.test.ts` | 32 | ✅ Passando |
 
-### 2. (Opcional) Mover Dependências de Teste para devDependencies
+### Bugs Descobertos
 
-As seguintes dependências deveriam estar em `devDependencies`:
-- `vitest`
-- `@vitest/coverage-v8`
-- `@vitest/ui`
-- `@testing-library/jest-dom`
-- `@testing-library/react`
-- `@testing-library/user-event`
-- `jsdom`
-- `msw`
-
-**Nota:** Isso é uma melhoria de organização, não um bloqueador.
+1. **`validateCouponPayload`**: Não trata `null`/`undefined` - lança exceção em vez de retornar `{ valid: false }`. Documentado como BUG nos testes.
 
 ---
 
-## Arquivos a Modificar
+## Próxima Fase: 3 - Testes Unitários Frontend
 
-| Arquivo | Ação | Prioridade |
-|---------|------|------------|
-| `package.json` | Adicionar scripts de teste | CRÍTICO |
-| `package.json` | Mover test deps para devDependencies | BAIXA |
+### Arquivos a Criar
 
----
+1. `src/lib/money.test.ts` - JÁ EXISTE (50+ testes)
+2. `src/lib/logger.test.ts` - PENDENTE
+3. `src/lib/validation.test.ts` - PENDENTE
 
-## Validação Pós-Correção
+### Prioridade
 
-Após a correção, os seguintes comandos devem funcionar:
-
-1. `pnpm test` - Executa todos os testes uma vez
-2. `pnpm test:watch` - Modo watch para desenvolvimento
-3. `pnpm test:ui` - Interface visual do Vitest
-4. `pnpm test:coverage` - Relatório de cobertura
+- money.ts ✅ (já criado na Fase 1)
+- logger.ts
+- validation.ts (se existir)
 
 ---
 
-## Resultado Esperado
+## Métricas Atuais
 
-Após a correção:
-- **Fase 1 será 100% completa**
-- Todos os testes existentes poderão ser executados
-- A infraestrutura estará pronta para as Fases 2-7
+| Métrica | Fase 1 | Fase 2 | Meta Final |
+|---------|--------|--------|------------|
+| Testes Backend | 0 | 125 | 150+ |
+| Testes Frontend | 0 | 50+ | 150+ |
+| Cobertura Geral | 0% | ~10% | 70%+ |
