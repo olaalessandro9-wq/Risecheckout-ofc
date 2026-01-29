@@ -33,10 +33,10 @@ describe("productFormMachine state transitions", () => {
       expect(actor.getSnapshot().matches("idle")).toBe(true);
     });
 
-    it("has null productId and userId initially", () => {
+    it("has null productId and undefined userId initially", () => {
       const { context } = actor.getSnapshot();
       expect(context.productId).toBeNull();
-      expect(context.userId).toBeNull();
+      expect(context.userId).toBeUndefined();
     });
 
     it("has empty serverData and editedData", () => {

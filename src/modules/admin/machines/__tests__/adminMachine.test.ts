@@ -36,8 +36,8 @@ describe("adminMachine", () => {
     it("has correct initial context with owner role", () => {
       const { context } = actor.getSnapshot();
       expect(context.callerRole).toBe("owner");
-      expect(context.activeTab).toBe("dashboard");
-      expect(context.period).toBe("30d");
+      expect(context.activeTab).toBe("finance");
+      expect(context.period).toBe("all");
     });
 
     it("has correct users state structure", () => {
