@@ -1,99 +1,188 @@
 
+# Plano: Correção da Race Condition de Autenticação
 
-# Plano: Alinhar Conteúdo com a Borda Inferior do Header
+## Diagnóstico Completo
 
-## Diagnóstico
+### Sintoma
+Usuário é redirecionado para `/auth`, precisa dar F5 para login funcionar automaticamente.
 
-### Problema Identificado
-O conteúdo (título, stats, descrição) está com padding bottom muito grande:
+### Fluxo Problemático
+```
+1. User em /dashboard
+2. Token expira → redirecionado para /auth
+3. useUnifiedAuth armazena: { valid: false } no cache
+4. User dá F5 ou navega
+5. React Query retorna do cache: { valid: false }, isLoading: false
+6. Condição `!authLoading && !isAuthenticated` → TRUE
+7. Form de login é renderizado IMEDIATAMENTE
+8. validateSession() roda em paralelo → retorna valid: true (auto-refresh funciona!)
+9. MAS a UI já decidiu mostrar o form
+10. isAuthenticated fica TRUE → useEffect roda navigate("/dashboard")
+11. Mas visualmente o user vê o form por 1-2 segundos (flash)
+```
 
-| Viewport | Padding Atual | Resultado |
-|----------|---------------|-----------|
-| Mobile | 32px (pb-8) | Alto demais |
-| Tablet | 48px (pb-12) | Alto demais |
-| Desktop | 64px (pb-16) | Alto demais |
-| XL | 80px (pb-20) | Alto demais |
-
-### Objetivo
-Alinhar o conteúdo para que a descrição termine praticamente na mesma linha da borda inferior da imagem, com apenas um pequeno respiro visual (tipo Netflix/Cakto).
+### Problema Real
+A página Auth usa `isLoading: authQuery.isLoading` que é `false` quando há dados em cache, mesmo que estejam stale. O refetch acontece em background, mas a UI já tomou a decisão errada.
 
 ---
 
 ## Análise de Soluções (RISE V3 - Seção 4.4)
 
-### Solução A: Reduzir Padding Bottom para Valores Mínimos
-- Manutenibilidade: 10/10 (mudança simples)
-- Zero DT: 10/10 (resolve diretamente)
-- Arquitetura: 10/10 (classes Tailwind padrão)
-- Escalabilidade: 10/10 (responsivo)
+### Solução A: Adicionar `isFetchedAfterMount` como Guard Extra
+- Manutenibilidade: 9/10 (mudança mínima)
+- Zero DT: 8/10 (pode ter edge cases)
+- Arquitetura: 7/10 (guard implícito)
+- Escalabilidade: 8/10
+- Segurança: 10/10
+- **NOTA FINAL: 8.4/10**
+- Tempo: 15 minutos
+
+### Solução B: Criar `isInitialLoad` no useUnifiedAuth
+- Manutenibilidade: 10/10 (semântica clara)
+- Zero DT: 10/10 (resolve completamente)
+- Arquitetura: 10/10 (padrão correto)
+- Escalabilidade: 10/10 (todas as páginas beneficiam)
 - Segurança: 10/10
 - **NOTA FINAL: 10.0/10**
-- Tempo estimado: 5 minutos
+- Tempo: 30 minutos
 
-### DECISÃO: Solução A (10.0/10)
+### Solução C: Usar `enabled: false` + refetch manual
+- Manutenibilidade: 6/10 (complexidade extra)
+- Zero DT: 7/10 (pode quebrar outras coisas)
+- Arquitetura: 5/10 (contra padrão React Query)
+- Escalabilidade: 6/10
+- Segurança: 10/10
+- **NOTA FINAL: 6.8/10**
+- Tempo: 45 minutos
 
-Reduzir o padding bottom para valores mínimos que dão apenas um pequeno respiro visual.
+### DECISÃO: Solução B (10.0/10)
+
+Adicionar uma flag `isInitialLoad` no `useUnifiedAuth` que é `true` até que a primeira validação pós-mount complete. Isso garante que todas as páginas esperem a revalidação antes de tomar decisões.
 
 ---
 
 ## Implementação Técnica
 
-### Novos Valores de Padding Bottom
+### 1. `useUnifiedAuth.ts` - Adicionar `isInitialLoad`
 
-| Viewport | Valor Anterior | Valor Novo | Resultado |
-|----------|----------------|------------|-----------|
-| Mobile | pb-8 (32px) | pb-4 (16px) | Encostado |
-| Tablet (md) | pb-12 (48px) | pb-6 (24px) | Pequeno respiro |
-| Desktop (lg) | pb-16 (64px) | pb-8 (32px) | Respiro elegante |
-| XL | pb-20 (80px) | pb-10 (40px) | Confortável |
+Usar `isFetchedAfterMount` do React Query para determinar se o primeiro fetch pós-mount já completou:
 
-### Arquivos a Modificar
+```typescript
+// Hook atual retorna
+isLoading: authQuery.isLoading
 
-1. **`BuyerFixedHeaderSection.tsx`** (linha 108)
-2. **`FixedHeaderView.tsx`** (linha 147)
-
-### Código da Mudança
-
-**ANTES (ambos arquivos):**
-```tsx
-'pb-8 md:pb-12 lg:pb-16 xl:pb-20',
+// Novo comportamento
+isLoading: authQuery.isLoading || !authQuery.isFetchedAfterMount
 ```
 
-**DEPOIS (ambos arquivos):**
-```tsx
-'pb-4 md:pb-6 lg:pb-8 xl:pb-10',
+Isso significa:
+- `isLoading: true` durante o fetch inicial
+- `isLoading: true` se dados em cache mas ainda não revalidou pós-mount
+- `isLoading: false` SOMENTE após a primeira revalidação completar
+
+### 2. Impacto nas Páginas
+
+Com essa mudança, TODAS as páginas que usam `isLoading` terão comportamento correto automaticamente:
+
+**Auth.tsx:**
+```typescript
+// Redirect if already authenticated
+useEffect(() => {
+  if (!authLoading && isAuthenticated) {  // ✅ Agora espera revalidação
+    navigate("/dashboard");
+  }
+}, [authLoading, isAuthenticated, navigate]);
+```
+
+**BuyerAuth.tsx:**
+```typescript
+// Redirect if already authenticated
+useEffect(() => {
+  if (!authLoading && isAuthenticated) {  // ✅ Agora espera revalidação
+    navigate(redirectUrl);
+  }
+}, [authLoading, isAuthenticated, navigate, redirectUrl]);
+```
+
+### 3. Código da Mudança
+
+**`src/hooks/useUnifiedAuth.ts` - Linha 375:**
+
+```typescript
+// ANTES
+isLoading: authQuery.isLoading,
+
+// DEPOIS
+isLoading: authQuery.isLoading || !authQuery.isFetchedAfterMount,
 ```
 
 ---
 
-## Resultado Visual Esperado
+## Diagrama do Fluxo Corrigido
 
-### Antes:
 ```
-┌─────────────────────────────────────────────┐
-│           [IMAGEM DE FUNDO]                 │
-│                                             │
-│  RISE COMMUNITY                             │
-│  [4 módulos · 0 aulas]                      │
-│  Descrição...                               │
-│                                             │
-│                                             │ ← Muito espaço
-└─────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                       FLUXO CORRIGIDO                            │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. User navega para /auth                                       │
+│                                                                  │
+│  2. React Query:                                                 │
+│     - Retorna cache stale: { valid: false }                      │
+│     - isLoading: false                                           │
+│     - isFetchedAfterMount: false  ← CHAVE!                       │
+│                                                                  │
+│  3. useUnifiedAuth:                                              │
+│     - isLoading = false || !false = TRUE  ← Esperando!           │
+│                                                                  │
+│  4. Auth.tsx:                                                    │
+│     - if (authLoading) → Mostra spinner (correto!)               │
+│                                                                  │
+│  5. validateSession() completa:                                  │
+│     - valid: true (auto-refresh funcionou!)                      │
+│     - isFetchedAfterMount: true                                  │
+│                                                                  │
+│  6. useUnifiedAuth:                                              │
+│     - isLoading = false || !true = FALSE                         │
+│     - isAuthenticated = true                                     │
+│                                                                  │
+│  7. Auth.tsx useEffect:                                          │
+│     - !authLoading && isAuthenticated → navigate("/dashboard")   │
+│     - ZERO flash de form de login!                               │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-### Depois:
-```
-┌─────────────────────────────────────────────┐
-│           [IMAGEM DE FUNDO]                 │
-│                                             │
-│                                             │
-│  RISE COMMUNITY                             │
-│  [4 módulos · 0 aulas]                      │
-│  Descrição...                               │ ← Alinhado com borda
-└─────────────────────────────────────────────┘
-```
+---
 
-O texto da descrição terminará praticamente na mesma linha da borda inferior do header, dando aquele visual profissional estilo Cakto/Netflix.
+## Arquivos a Modificar
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/hooks/useUnifiedAuth.ts` | 1 linha: adicionar `\|\| !authQuery.isFetchedAfterMount` |
+
+**Total: 1 arquivo, 1 linha modificada.**
+
+---
+
+## Testes de Validação
+
+1. **Cenário: Sessão válida, cache stale**
+   - Navegar para /auth com cookie válido
+   - Esperado: Spinner → Redirect automático para /dashboard
+   - Não deve mostrar form de login
+
+2. **Cenário: Sessão expirada, refresh token válido**
+   - Access token expirado, refresh token ok
+   - Esperado: Spinner → auto-refresh → Redirect para /dashboard
+
+3. **Cenário: Sessão totalmente expirada**
+   - Ambos tokens inválidos
+   - Esperado: Spinner → Form de login
+
+4. **Cenário: Login fresh**
+   - User sem cache
+   - Esperado: Spinner → Form de login
 
 ---
 
@@ -101,12 +190,11 @@ O texto da descrição terminará praticamente na mesma linha da borda inferior 
 
 | Critério | Nota | Justificativa |
 |----------|------|---------------|
-| LEI SUPREMA (4.1) | 10/10 | Solução correta, sem hacks |
-| Manutenibilidade Infinita | 10/10 | Classes Tailwind padrão |
-| Zero Dívida Técnica | 10/10 | Resolve completamente |
-| Arquitetura Correta | 10/10 | Sem overrides |
-| Escalabilidade | 10/10 | Responsivo em todos os viewports |
+| LEI SUPREMA (4.1) | 10/10 | Solução correta na fonte |
+| Manutenibilidade Infinita | 10/10 | 1 linha, semântica clara |
+| Zero Dívida Técnica | 10/10 | Resolve o problema pela raiz |
+| Arquitetura Correta | 10/10 | Usa React Query corretamente |
+| Escalabilidade | 10/10 | Todas as páginas beneficiam |
 | Segurança | 10/10 | Não afeta segurança |
 
 **NOTA FINAL: 10.0/10**
-
