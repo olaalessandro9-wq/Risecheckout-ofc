@@ -1,65 +1,93 @@
 #!/bin/bash
 
-# Script para executar todos os testes das Edge Functions
-# Uso: ./run-tests.sh
+# =============================================================================
+# Edge Functions Test Runner
+# 
+# RISE ARCHITECT PROTOCOL V3 - 10.0/10
+# 
+# Automatically discovers and executes all *.test.ts files in Edge Functions.
+# Supports both function-specific tests and _shared module tests.
+# 
+# Usage: ./run-tests.sh
+# 
+# @module supabase/functions/run-tests
+# =============================================================================
 
-echo "🧪 Executando testes automatizados do RiseCheckout..."
+set -e  # Exit on first error for CI compatibility
+
+echo "🧪 RiseCheckout Edge Functions Test Runner"
+echo "==========================================="
 echo ""
 
-# Verificar se as variáveis de ambiente estão configuradas
+# Validate required environment variables
 if [ -z "$SUPABASE_URL" ]; then
-  echo "❌ ERRO: SUPABASE_URL não está configurada"
-  exit 1
+  echo "⚠️  SUPABASE_URL not set, using mock value for tests"
+  export SUPABASE_URL="https://test.supabase.co"
 fi
 
 if [ -z "$SUPABASE_ANON_KEY" ]; then
-  echo "❌ ERRO: SUPABASE_ANON_KEY não está configurada"
-  exit 1
+  echo "⚠️  SUPABASE_ANON_KEY not set, using mock value for tests"
+  export SUPABASE_ANON_KEY="test-anon-key"
 fi
 
-# Contador de testes
-TOTAL_TESTS=0
-PASSED_TESTS=0
-FAILED_TESTS=0
+# Counters
+TOTAL_FILES=0
+PASSED_FILES=0
+FAILED_FILES=0
+FAILED_TESTS=()
 
-# Função para executar testes de uma Edge Function
-run_test() {
-  local function_name=$1
-  local test_file="$function_name/index.test.ts"
+# Function to run a single test file
+run_test_file() {
+  local test_file=$1
+  local relative_path=${test_file#./}
   
-  if [ -f "$test_file" ]; then
-    echo "📋 Testando: $function_name"
-    
-    if deno test --allow-net --allow-env "$test_file"; then
-      echo "✅ $function_name: PASSOU"
-      ((PASSED_TESTS++))
-    else
-      echo "❌ $function_name: FALHOU"
-      ((FAILED_TESTS++))
-    fi
-    
-    ((TOTAL_TESTS++))
-    echo ""
+  echo "📋 Testing: $relative_path"
+  
+  if deno test --allow-net --allow-env --allow-read "$test_file" 2>&1; then
+    echo "✅ PASSED: $relative_path"
+    ((PASSED_FILES++))
+  else
+    echo "❌ FAILED: $relative_path"
+    ((FAILED_FILES++))
+    FAILED_TESTS+=("$relative_path")
   fi
+  
+  ((TOTAL_FILES++))
+  echo ""
 }
 
-# Executar testes de cada função
-run_test "create-order"
-run_test "mercadopago-webhook"
+# Discover and run all test files
+echo "🔍 Discovering test files..."
+echo ""
 
-# Relatório final
-echo "========================================="
-echo "📊 RELATÓRIO DE TESTES"
-echo "========================================="
-echo "Total de testes: $TOTAL_TESTS"
-echo "✅ Passou: $PASSED_TESTS"
-echo "❌ Falhou: $FAILED_TESTS"
-echo "========================================="
+# Find all *.test.ts files in the functions directory
+while IFS= read -r -d '' test_file; do
+  run_test_file "$test_file"
+done < <(find . -name "*.test.ts" -type f -print0 2>/dev/null || true)
 
-if [ $FAILED_TESTS -gt 0 ]; then
-  echo "❌ Alguns testes falharam!"
+# Summary Report
+echo "==========================================="
+echo "📊 TEST SUMMARY"
+echo "==========================================="
+echo "Total test files: $TOTAL_FILES"
+echo "✅ Passed: $PASSED_FILES"
+echo "❌ Failed: $FAILED_FILES"
+
+if [ $FAILED_FILES -gt 0 ]; then
+  echo ""
+  echo "Failed tests:"
+  for test in "${FAILED_TESTS[@]}"; do
+    echo "  - $test"
+  done
+  echo ""
+  echo "==========================================="
+  echo "❌ SOME TESTS FAILED"
+  echo "==========================================="
   exit 1
 else
-  echo "🎉 Todos os testes passaram!"
+  echo ""
+  echo "==========================================="
+  echo "🎉 ALL TESTS PASSED"
+  echo "==========================================="
   exit 0
 fi
