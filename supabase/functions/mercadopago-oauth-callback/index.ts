@@ -10,7 +10,7 @@
  * 2. Valida state na tabela oauth_states (previne CSRF/hijack)
  * 3. Troca code por access_token
  * 4. Busca user_id (collector_id) na API do MP
- * 5. Salva collector_id, email e data em profiles
+ * 5. Salva collector_id, email e data em users (SSOT)
  * 6. Salva access_token em vendor_integrations via Vault
  * 7. Redireciona para página de sucesso/erro no domínio principal
  */
@@ -127,7 +127,7 @@ serve(async (req) => {
     // 7. Buscar informações do usuário MP
     const userInfo = await fetchMercadoPagoUserInfo(user_id, access_token);
 
-    // 8. Salvar integração (profiles, vault, vendor_integrations)
+    // 8. Salvar integração (users, vault, vendor_integrations)
     const saveResult = await saveOAuthIntegration(supabase, {
       vendorId,
       accessToken: access_token,

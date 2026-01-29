@@ -123,9 +123,9 @@ export async function saveAsaasSettings(
       });
 
       if (walletError) {
-        log.warn("Erro ao atualizar profiles.asaas_wallet_id", walletError);
+        log.warn("Erro ao atualizar users.asaas_wallet_id", walletError);
       } else {
-        log.info("profiles.asaas_wallet_id atualizado", { wallet_id: config.wallet_id });
+        log.info("users.asaas_wallet_id atualizado", { wallet_id: config.wallet_id });
       }
     }
 
