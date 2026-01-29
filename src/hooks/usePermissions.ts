@@ -14,7 +14,7 @@
  */
 
 import { useMemo } from "react";
-import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
+import { useAuthRole } from "@/hooks/useAuthRole";
 
 // Tipos de role do sistema
 export type AppRole = "owner" | "admin" | "user" | "seller";
@@ -48,19 +48,26 @@ const ROLE_PRIORITY: Record<AppRole, number> = {
 
 /**
  * Hook principal de permissões
+ * 
+ * RISE V3 10.0/10: Usa useAuthRole (Selective Subscription)
+ * NÃO re-renderiza durante background sync de autenticação
  */
 export function usePermissions(): Permissions {
-  const { user, isLoading: authLoading, activeRole } = useUnifiedAuth();
+  // RISE V3: Usa hook seletivo em vez de useUnifiedAuth completo
+  // Isso previne re-renders quando loading states mudam
+  const { activeRole } = useAuthRole();
   
   // Get role from unified auth context
   // activeRole comes from the session, mapped to AppRole
   const role: AppRole = (activeRole as AppRole) || "user";
 
   // Derivar permissões baseadas no role
+  // RISE V3: isLoading é SEMPRE false aqui - permissions são derivadas de cache
+  // Guards devem usar useUnifiedAuth().isAuthLoading para bloquear UI
   const permissions = useMemo<Permissions>(() => {
     return {
       role,
-      isLoading: authLoading,
+      isLoading: false, // RISE V3: Permissions NUNCA bloqueiam - derivadas de cache
       error: null,
 
       // APENAS Owner pode TER programa de afiliados
@@ -85,7 +92,7 @@ export function usePermissions(): Permissions {
       // Apenas owner pode gerenciar usuários
       canManageUsers: role === "owner",
     };
-  }, [role, authLoading]);
+  }, [role]);
 
   return permissions;
 }

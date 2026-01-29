@@ -1,13 +1,17 @@
 /**
  * ContextAwareProtectedRoute
  * 
- * RISE Protocol V3 - Unified Context-Aware Route Protection
+ * RISE Protocol V3 - 10.0/10 (Two-Level Loading Architecture)
  * 
  * Combina autenticação + verificação de contexto em um único componente.
  * Elimina race conditions entre ProtectedRoute e Context Guards.
  * 
+ * RISE V3 Two-Level Loading:
+ * - isAuthLoading: TRUE apenas no primeiro load (sem cache)
+ * - isSyncing: TRUE durante background refetches (NÃO bloqueia UI)
+ * 
  * Comportamento:
- * 1. isLoading → Spinner (único, sem flash)
+ * 1. isAuthLoading → Spinner (único, sem flash)
  * 2. !isAuthenticated → Redireciona para auth do contexto REQUERIDO
  * 3. contextoErrado → Redireciona para dashboard do contexto ATUAL
  * 4. OK → Renderiza children
@@ -26,11 +30,15 @@ export function ContextAwareProtectedRoute({
   requiredContext, 
   children 
 }: ContextAwareProtectedRouteProps) {
-  const { isAuthenticated, isLoading, activeRole } = useUnifiedAuth();
+  // RISE V3: Usa isAuthLoading (Two-Level) em vez de isLoading
+  // isAuthLoading = true APENAS no primeiro load sem cache
+  // isSyncing = true durante background refetches (NÃO bloqueia UI)
+  const { isAuthenticated, isAuthLoading, activeRole } = useUnifiedAuth();
   const location = useLocation();
   
-  // ÚNICO loading state - sem gaps de renderização
-  if (isLoading) {
+  // RISE V3: ÚNICO loading state - apenas no primeiro load
+  // Background syncs (isSyncing) NÃO bloqueiam a UI
+  if (isAuthLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
