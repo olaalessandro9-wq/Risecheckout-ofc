@@ -1,24 +1,15 @@
 /**
- * Storage Proxy Tests
+ * Storage Proxy Upload Tests
  * 
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
- * Tests for centralized storage operations:
- * - Upload via Edge Function
- * - Remove files
- * - List files
- * - Copy files
- * - Image upload helper
+ * Tests for upload-related storage operations:
+ * - uploadViaEdge: Upload files via Edge Function
+ * - uploadImage: Helper for image uploads with auto-generated paths
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import {
-  uploadViaEdge,
-  removeViaEdge,
-  listViaEdge,
-  copyViaEdge,
-  uploadImage,
-} from "../storageProxy";
+import { uploadViaEdge, uploadImage } from "../storageProxy";
 
 // Mock api
 const mockApiCall = vi.fn();
@@ -60,7 +51,7 @@ vi.stubGlobal("crypto", {
   randomUUID: () => "test-uuid-1234",
 });
 
-describe("StorageProxy", () => {
+describe("StorageProxy - Upload Operations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -68,8 +59,6 @@ describe("StorageProxy", () => {
   afterEach(() => {
     vi.clearAllMocks();
   });
-
-  // ========== UPLOAD VIA EDGE ==========
 
   describe("uploadViaEdge", () => {
     it("should upload file and return public URL", async () => {
@@ -174,138 +163,6 @@ describe("StorageProxy", () => {
       expect(result.error?.message).toBe("Network error");
     });
   });
-
-  // ========== REMOVE VIA EDGE ==========
-
-  describe("removeViaEdge", () => {
-    it("should remove files successfully", async () => {
-      mockApiCall.mockResolvedValue({ data: {}, error: null });
-
-      const result = await removeViaEdge("bucket", ["file1.png", "file2.png"]);
-
-      expect(result.error).toBeNull();
-      expect(mockApiCall).toHaveBeenCalledWith("storage-management", {
-        action: "remove",
-        bucket: "bucket",
-        paths: ["file1.png", "file2.png"],
-      });
-    });
-
-    it("should return success for empty paths array", async () => {
-      const result = await removeViaEdge("bucket", []);
-
-      expect(result.error).toBeNull();
-      expect(mockApiCall).not.toHaveBeenCalled();
-    });
-
-    it("should handle API error", async () => {
-      mockApiCall.mockResolvedValue({
-        data: null,
-        error: { message: "Permission denied" },
-      });
-
-      const result = await removeViaEdge("bucket", ["file.png"]);
-
-      expect(result.error?.message).toBe("Permission denied");
-    });
-  });
-
-  // ========== LIST VIA EDGE ==========
-
-  describe("listViaEdge", () => {
-    it("should list files in prefix", async () => {
-      mockApiCall.mockResolvedValue({
-        data: {
-          files: [
-            { name: "file1.png", metadata: {} },
-            { name: "file2.png", metadata: {} },
-          ],
-        },
-        error: null,
-      });
-
-      const result = await listViaEdge("bucket", "products/");
-
-      expect(result.files).toHaveLength(2);
-      expect(result.error).toBeNull();
-    });
-
-    it("should pass limit and offset options", async () => {
-      mockApiCall.mockResolvedValue({ data: { files: [] }, error: null });
-
-      await listViaEdge("bucket", "prefix/", { limit: 10, offset: 20 });
-
-      expect(mockApiCall).toHaveBeenCalledWith("storage-management", {
-        action: "list",
-        bucket: "bucket",
-        prefix: "prefix/",
-        limit: 10,
-        offset: 20,
-      });
-    });
-
-    it("should return empty array when no files", async () => {
-      mockApiCall.mockResolvedValue({ data: {}, error: null });
-
-      const result = await listViaEdge("bucket", "empty/");
-
-      expect(result.files).toEqual([]);
-    });
-
-    it("should handle error", async () => {
-      mockApiCall.mockResolvedValue({
-        data: null,
-        error: { message: "List failed" },
-      });
-
-      const result = await listViaEdge("bucket", "prefix/");
-
-      expect(result.files).toBeNull();
-      expect(result.error?.message).toBe("List failed");
-    });
-  });
-
-  // ========== COPY VIA EDGE ==========
-
-  describe("copyViaEdge", () => {
-    it("should copy file and return new public URL", async () => {
-      mockApiCall.mockResolvedValue({
-        data: { publicUrl: "https://example.com/copy.png" },
-        error: null,
-      });
-
-      const result = await copyViaEdge("bucket", "original.png", "copy.png");
-
-      expect(result.publicUrl).toBe("https://example.com/copy.png");
-      expect(result.error).toBeNull();
-    });
-
-    it("should call API with correct parameters", async () => {
-      mockApiCall.mockResolvedValue({ data: { publicUrl: "url" }, error: null });
-
-      await copyViaEdge("my-bucket", "from/path.png", "to/path.png");
-
-      expect(mockApiCall).toHaveBeenCalledWith("storage-management", {
-        action: "copy",
-        bucket: "my-bucket",
-        fromPath: "from/path.png",
-        toPath: "to/path.png",
-      });
-    });
-
-    it("should handle error", async () => {
-      mockApiCall.mockResolvedValue({
-        data: { error: "Source file not found" },
-        error: null,
-      });
-
-      const result = await copyViaEdge("bucket", "missing.png", "copy.png");
-
-      expect(result.error?.message).toBe("Source file not found");
-    });
-  });
-
-  // ========== UPLOAD IMAGE HELPER ==========
 
   describe("uploadImage", () => {
     it("should upload image with generated filename", async () => {
