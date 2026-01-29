@@ -1,5 +1,10 @@
 /**
  * ProductRow - Individual product row with actions dropdown
+ * 
+ * RISE V3 10.0/10 - Prefetch on Hover
+ * 
+ * Implementa prefetch do chunk ProductEdit no hover para
+ * navegação instantânea ao clicar em um produto.
  */
 
 import { MoreVertical } from "lucide-react";
@@ -14,6 +19,30 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { Product } from "./types";
 
+// ============================================================================
+// PREFETCH - Chunk JS do ProductEdit (RISE V3 Pattern)
+// ============================================================================
+
+/**
+ * Flag module-level para evitar múltiplos imports.
+ * Uma vez que o chunk está em cache, o prefetch é desnecessário.
+ */
+let prefetched = false;
+
+/**
+ * Prefetch do chunk ProductEdit no hover.
+ * Segue o padrão estabelecido em SidebarItem.tsx.
+ */
+const prefetchProductEdit = () => {
+  if (prefetched) return;
+  prefetched = true;
+  import("@/pages/ProductEdit");
+};
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
 interface ProductRowProps {
   product: Product;
   onEdit: (id: string) => void;
@@ -22,6 +51,10 @@ interface ProductRowProps {
   duplicateIsPending: boolean;
   deleteIsPending: boolean;
 }
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
 
 export function ProductRow({
   product,
@@ -35,6 +68,7 @@ export function ProductRow({
     <tr 
       className="border-b border-border hover:bg-muted/20 transition-colors cursor-pointer"
       onClick={() => onEdit(product.id)}
+      onMouseEnter={prefetchProductEdit}
     >
       <td className="p-4 text-foreground">{product.name}</td>
       <td className="p-4 text-foreground">
