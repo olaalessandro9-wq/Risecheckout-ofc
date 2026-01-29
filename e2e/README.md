@@ -18,14 +18,18 @@ e2e/
 │       ├── PixPaymentPage.ts # PIX payment page
 │       ├── SuccessPage.ts    # Payment success page
 │       └── BuyerPage.ts      # Buyer area pages
-├── specs/                    # Test specifications
-│   ├── smoke.spec.ts         # Smoke tests (critical routes)
-│   ├── auth.spec.ts          # Producer authentication tests
-│   ├── checkout.spec.ts      # Public checkout tests
-│   ├── landing.spec.ts       # Landing page tests
-│   └── buyer-auth.spec.ts    # Buyer authentication tests
-├── members-area-flicker.spec.ts  # Legacy flicker fix tests
-└── README.md                 # This file
+├── specs/                    # Test specifications (Single Responsibility)
+│   ├── smoke.spec.ts             # Smoke tests (critical routes)
+│   ├── auth.spec.ts              # Producer authentication tests
+│   ├── checkout-loading.spec.ts  # Checkout page loading tests
+│   ├── checkout-form.spec.ts     # Checkout form validation tests
+│   ├── checkout-payment.spec.ts  # Payment method selection tests
+│   ├── checkout-bumps.spec.ts    # Order bump tests
+│   ├── checkout-submit.spec.ts   # Submit flow and success tests
+│   ├── landing.spec.ts           # Landing page tests
+│   └── buyer-auth.spec.ts        # Buyer authentication tests
+├── members-area-flicker.spec.ts  # Flicker fix validation tests
+└── README.md                     # This file
 ```
 
 ## Page Object Pattern
@@ -89,15 +93,15 @@ Producer authentication flow tests:
 - Navigation to registration
 - Navigation to password recovery
 
-### Checkout Tests (`checkout.spec.ts`)
-Public checkout flow tests:
-- Invalid slug handling
-- Form validation
-- Coupon system
-- Payment method selection
-- Order bumps
-- Submit flow
-- Success page
+### Checkout Tests (Modularized - Single Responsibility)
+
+| File | Responsibility |
+|------|---------------|
+| `checkout-loading.spec.ts` | Page loading, invalid slug handling |
+| `checkout-form.spec.ts` | Customer form validation |
+| `checkout-payment.spec.ts` | Payment methods and coupon system |
+| `checkout-bumps.spec.ts` | Order bump display and toggle |
+| `checkout-submit.spec.ts` | Form submission and success page |
 
 ### Landing Tests (`landing.spec.ts`)
 Landing page tests:
@@ -134,6 +138,7 @@ All test data is centralized in `fixtures/test-data.ts`:
 3. **Isolate Tests**: Each test should be independent
 4. **Clear Assertions**: Use descriptive assertion messages
 5. **Handle Variability**: Account for optional UI elements
+6. **Single Responsibility**: Each spec file tests one specific domain
 
 ## Adding New Tests
 
@@ -141,6 +146,7 @@ All test data is centralized in `fixtures/test-data.ts`:
 2. Add test data to `fixtures/test-data.ts` if needed
 3. Create test specs in `specs/` following naming convention: `*.spec.ts`
 4. Follow the Page Object Pattern for all page interactions
+5. Keep each file under 300 lines (RISE V3 requirement)
 
 ## CI/CD Integration
 

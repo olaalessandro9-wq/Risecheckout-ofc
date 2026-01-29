@@ -1,6 +1,6 @@
 # Documentação do Sistema de Testes - RiseCheckout
 
-**Status:** ✅ FASES 1-6 IMPLEMENTADAS  
+**Status:** ✅ FASES 1-6 IMPLEMENTADAS (100% RISE V3)  
 **Última atualização:** 29 de Janeiro de 2026  
 **RISE V3 Score:** 10.0/10
 
@@ -14,7 +14,7 @@ O RiseCheckout implementa uma **Pirâmide de Testes Enterprise** seguindo o RISE
               ▲
              /│\
             / │ \
-           / E2E \           ~10% (Playwright - 37+ testes)
+           / E2E \           ~10% (Playwright - 43+ testes)
           /───────\
          /         \
         / Integração\        ~20% (Vitest + MSW - 66 testes)
@@ -24,7 +24,7 @@ O RiseCheckout implementa uma **Pirâmide de Testes Enterprise** seguindo o RISE
     /───────────────────\
 ```
 
-**Total: 580+ testes**
+**Total: 586+ testes**
 
 ---
 
@@ -54,11 +54,15 @@ risecheckout/
 │   │       ├── SuccessPage.ts
 │   │       └── BuyerPage.ts
 │   ├── specs/
-│   │   ├── smoke.spec.ts      # 10 testes
-│   │   ├── auth.spec.ts       # 9 testes
-│   │   ├── checkout.spec.ts   # 12 testes
-│   │   ├── landing.spec.ts    # 8 testes
-│   │   └── buyer-auth.spec.ts # 8 testes
+│   │   ├── smoke.spec.ts           # 10 testes
+│   │   ├── auth.spec.ts            # 9 testes
+│   │   ├── checkout-loading.spec.ts    # 2 testes (Single Responsibility)
+│   │   ├── checkout-form.spec.ts       # 3 testes (Single Responsibility)
+│   │   ├── checkout-payment.spec.ts    # 5 testes (Single Responsibility)
+│   │   ├── checkout-bumps.spec.ts      # 2 testes (Single Responsibility)
+│   │   ├── checkout-submit.spec.ts     # 4 testes (Single Responsibility)
+│   │   ├── landing.spec.ts         # 8 testes
+│   │   └── buyer-auth.spec.ts      # 8 testes
 │   ├── members-area-flicker.spec.ts  # 6 testes
 │   └── README.md
 └── supabase/functions/_shared/  # Testes Edge Functions
@@ -194,7 +198,7 @@ Prioridade ordenada por risco:
 - [x] **Fase 3:** Testes unitários frontend (lib) - ✅ 150+ testes
 - [x] **Fase 4:** Testes de integração (hooks) - ✅ 66 testes
 - [x] **Fase 5:** Testes de Edge Functions - ✅ 200+ testes
-- [x] **Fase 6:** Testes E2E (Playwright) - ✅ 37+ testes
+- [x] **Fase 6:** Testes E2E (Playwright) - ✅ 43+ testes (100% RISE V3)
 - [ ] **Fase 7:** CI/CD bloqueante
 
 ---
@@ -207,8 +211,22 @@ Prioridade ordenada por risco:
 | F3 | Frontend lib | 150+ |
 | F4 | Hooks integração | 66 |
 | F5 | Edge Functions | 200+ |
-| F6 | E2E Playwright | 37+ |
-| **TOTAL** | | **580+** |
+| F6 | E2E Playwright | 43+ |
+| **TOTAL** | | **586+** |
+
+---
+
+## Arquitetura E2E - Single Responsibility (RISE V3)
+
+Os testes de checkout foram modularizados em 5 arquivos semânticos:
+
+| Arquivo | Responsabilidade | Testes |
+|---------|-----------------|--------|
+| `checkout-loading.spec.ts` | Carregamento e slug inválido | 2 |
+| `checkout-form.spec.ts` | Validação de formulário | 3 |
+| `checkout-payment.spec.ts` | Métodos de pagamento e cupom | 5 |
+| `checkout-bumps.spec.ts` | Order bumps | 2 |
+| `checkout-submit.spec.ts` | Submissão e sucesso | 4 |
 
 ---
 
