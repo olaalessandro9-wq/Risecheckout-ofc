@@ -55,7 +55,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
     'PUSHINPAY_API_TOKEN': 'pushinpay',
     'PUSHINPAY_WEBHOOK_TOKEN': 'pushinpay',
     'PUSHINPAY_PLATFORM_ACCOUNT_ID': 'pushinpay',
-    'PLATFORM_PUSHINPAY_ACCOUNT_ID': 'pushinpay',
     'PUSHINPAY_BASE_URL_PROD': 'pushinpay',
     'PUSHINPAY_BASE_URL_SANDBOX': 'pushinpay',
     
