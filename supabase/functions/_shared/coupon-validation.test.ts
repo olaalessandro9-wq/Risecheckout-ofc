@@ -448,28 +448,41 @@ Deno.test("Edge Case: empty object should fail", () => {
   assertEquals(result.error, "Código do cupom é obrigatório");
 });
 
-// NOTE: These tests document current behavior - null/undefined throws
-// In a future refactor, these should return { valid: false } instead
-Deno.test("Edge Case: null payload throws (BUG - should return valid: false)", () => {
-  let threw = false;
-  try {
-    validateCouponPayload(null);
-  } catch {
-    threw = true;
-  }
-  // Current behavior: throws. Future: should return { valid: false }
-  assertEquals(threw, true);
+// RISE V3: Testes validam comportamento CORRETO (não bugs)
+Deno.test("Edge Case: null payload should return valid: false", () => {
+  const result = validateCouponPayload(null);
+  
+  assertEquals(result.valid, false);
+  assertEquals(result.error, "Payload inválido");
 });
 
-Deno.test("Edge Case: undefined payload throws (BUG - should return valid: false)", () => {
-  let threw = false;
-  try {
-    validateCouponPayload(undefined);
-  } catch {
-    threw = true;
-  }
-  // Current behavior: throws. Future: should return { valid: false }
-  assertEquals(threw, true);
+Deno.test("Edge Case: undefined payload should return valid: false", () => {
+  const result = validateCouponPayload(undefined);
+  
+  assertEquals(result.valid, false);
+  assertEquals(result.error, "Payload inválido");
+});
+
+Deno.test("Edge Case: non-object payload (string) should return valid: false", () => {
+  const result = validateCouponPayload("not an object");
+  
+  assertEquals(result.valid, false);
+  assertEquals(result.error, "Payload deve ser um objeto");
+});
+
+Deno.test("Edge Case: non-object payload (number) should return valid: false", () => {
+  const result = validateCouponPayload(12345);
+  
+  assertEquals(result.valid, false);
+  assertEquals(result.error, "Payload deve ser um objeto");
+});
+
+Deno.test("Edge Case: non-object payload (array) should return valid: false", () => {
+  const result = validateCouponPayload([1, 2, 3]);
+  
+  assertEquals(result.valid, false);
+  // Arrays are typeof "object", so they pass the object check but fail on code
+  assertEquals(result.valid, false);
 });
 
 // ============================================================================

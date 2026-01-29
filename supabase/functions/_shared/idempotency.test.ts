@@ -266,16 +266,22 @@ Deno.test("Edge Case: Unicode in orderId should work", () => {
   assertStringIncludes(result, unicodeOrderId);
 });
 
-Deno.test("Edge Case: null/undefined custom key should generate from orderId", () => {
+Deno.test("Edge Case: undefined custom key should generate from orderId", () => {
   const orderId = "order-test";
   
-  // @ts-ignore - Testing runtime behavior with undefined
-  const result1 = generateIdempotencyKey(orderId, undefined);
-  // @ts-ignore - Testing runtime behavior with null
-  const result2 = generateIdempotencyKey(orderId, null);
+  // Cast explícito para testar comportamento runtime (RISE V3: Zero @ts-ignore)
+  const result = generateIdempotencyKey(orderId, undefined as unknown as string);
   
-  assertStringIncludes(result1, "order_");
-  assertStringIncludes(result2, "order_");
+  assertStringIncludes(result, "order_");
+});
+
+Deno.test("Edge Case: null custom key should generate from orderId", () => {
+  const orderId = "order-test";
+  
+  // Cast explícito para testar comportamento runtime (RISE V3: Zero @ts-ignore)
+  const result = generateIdempotencyKey(orderId, null as unknown as string);
+  
+  assertStringIncludes(result, "order_");
 });
 
 // ============================================================================
