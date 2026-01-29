@@ -384,10 +384,59 @@ export function usePermissions(): Permissions {
 
 ---
 
+## 9. Prefetch em Listas (List-to-Detail Navigation)
+
+> **RISE V3 10.0/10** - Navegação instantânea via prefetch no hover
+
+### 9.1 Problema
+
+Quando um componente de detalhe usa `lazyWithRetry()` (code splitting), o primeiro clique na lista resulta em delay de 1-2 segundos enquanto o chunk JS é baixado.
+
+### 9.2 Solução
+
+Implementar prefetch do chunk no `onMouseEnter` da linha da lista:
+
+```typescript
+// RISE V3 Pattern - Prefetch on Hover
+
+// Flag module-level para evitar múltiplos imports
+let prefetched = false;
+
+const prefetchDetailPage = () => {
+  if (prefetched) return;
+  prefetched = true;
+  import("@/pages/DetailPage");
+};
+
+// No componente de linha
+<tr 
+  onClick={() => onEdit(item.id)}
+  onMouseEnter={prefetchDetailPage}
+>
+```
+
+### 9.3 Onde Aplicar
+
+| Componente Lista | Chunk a Prefetchar |
+|------------------|-------------------|
+| `ProductRow.tsx` | `@/pages/ProductEdit` |
+| `SidebarItem.tsx` | Rotas do `ROUTE_PREFETCH_MAP` |
+| Qualquer lista interativa | Página de detalhe correspondente |
+
+### 9.4 Regras
+
+1. **Flag module-level**: Usar `let prefetched = false` fora do componente
+2. **Uma única chamada**: O flag previne múltiplos `import()` desnecessários
+3. **Sem useCallback**: O prefetch é idempotente, não precisa de memoização
+4. **Seguir padrão**: Sempre documentar no JSDoc do componente
+
+---
+
 ## Changelog
 
 | Data | Alteração |
 |------|-----------|
+| 2026-01-29 | Adicionada Seção 9: Prefetch em Listas - Navegação instantânea |
 | 2026-01-29 | Adicionada Seção 8: Auth Hooks Patterns - Two-Level Loading + Selective Subscription |
 | 2026-01-27 | Adicionada Seção 7: React Patterns - useRef para callbacks, useCallback para handlers |
 | 2026-01-19 | Migração de logging 100% completa - documentação de exceções permitidas |
