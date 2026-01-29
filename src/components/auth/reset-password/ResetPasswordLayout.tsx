@@ -1,3 +1,9 @@
+/**
+ * ResetPasswordLayout - Layout for password reset pages
+ * 
+ * @version 3.0.0 - Blue Theme + Inverted Layout (Form Left, Branding Right)
+ */
+
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import type { ResetPasswordConfig } from "./types";
@@ -10,19 +16,37 @@ interface ResetPasswordLayoutProps {
 export function ResetPasswordLayout({ config, children }: ResetPasswordLayoutProps) {
   return (
     <div className="min-h-screen w-full flex bg-[hsl(var(--auth-bg))] text-[hsl(var(--auth-text-primary))] overflow-hidden relative">
-      {/* Background Elements */}
+      {/* Background Elements - Blue Glows */}
       <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-[hsl(var(--auth-accent)/0.1)] blur-[120px]" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-[hsl(var(--auth-purple)/0.1)] blur-[120px]" />
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-[hsl(var(--auth-accent)/0.08)] blur-[120px]" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-[hsl(var(--auth-accent-secondary)/0.08)] blur-[120px]" />
+        <div className="absolute top-[40%] right-[20%] w-[30%] h-[30%] rounded-full bg-[hsl(var(--auth-accent-tertiary)/0.05)] blur-[100px]" />
       </div>
 
       <div className="w-full flex">
-        {/* Left Panel - Visual Branding (Desktop Only) */}
-        <div className="hidden lg:flex lg:w-1/2 relative bg-[hsl(var(--auth-panel-bg))] backdrop-blur-sm border-r border-[hsl(var(--auth-border))] flex-col justify-between p-12">
+        {/* Left Panel - Form (INVERTED) */}
+        <div className="flex-1 flex items-center justify-center p-4 md:p-8 lg:p-12 lg:w-1/2 lg:border-r lg:border-[hsl(var(--auth-border)/0.05)] relative z-10">
+          <div className="w-full max-w-md">
+            {/* Mobile Logo */}
+            <div className="lg:hidden flex justify-center mb-8">
+              <Link to="/" className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] flex items-center justify-center shadow-lg shadow-[hsl(var(--auth-accent)/0.3)]">
+                  <span className="font-bold text-white">R</span>
+                </div>
+                <span className="font-bold text-lg text-white">RiseCheckout</span>
+              </Link>
+            </div>
+
+            {children}
+          </div>
+        </div>
+
+        {/* Right Panel - Visual Branding (Desktop Only) (INVERTED) */}
+        <div className="hidden lg:flex lg:w-1/2 relative bg-[hsl(var(--auth-bg-elevated)/0.03)] backdrop-blur-sm flex-col justify-between p-12">
           {/* Logo */}
           <div className="relative z-10">
             <Link to="/" className="flex items-center gap-3 w-fit hover:opacity-80 transition-opacity">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-purple))] flex items-center justify-center shadow-lg shadow-[hsl(var(--auth-accent)/0.2)]">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] flex items-center justify-center shadow-lg shadow-[hsl(var(--auth-accent)/0.3)]">
                 <span className="font-bold text-white text-xl">R</span>
               </div>
               <span className="font-bold text-xl text-white tracking-tight">RiseCheckout</span>
@@ -39,7 +63,7 @@ export function ResetPasswordLayout({ config, children }: ResetPasswordLayoutPro
             >
               <h2 className="text-4xl font-bold text-white leading-tight">
                 Crie uma nova senha <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-purple))]">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))]">
                   segura
                 </span>
               </h2>
@@ -52,23 +76,6 @@ export function ResetPasswordLayout({ config, children }: ResetPasswordLayoutPro
           {/* Footer Copyright */}
           <div className="relative z-10 text-xs text-[hsl(var(--auth-text-muted))]">
             © 2026 RiseCheckout Inc. Todos os direitos reservados.
-          </div>
-        </div>
-
-        {/* Right Panel - Form */}
-        <div className="flex-1 flex items-center justify-center p-4 md:p-8 lg:p-12 relative z-10">
-          <div className="w-full max-w-md">
-            {/* Mobile Logo */}
-            <div className="lg:hidden flex justify-center mb-8">
-              <Link to="/" className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-purple))] flex items-center justify-center">
-                  <span className="font-bold text-white">R</span>
-                </div>
-                <span className="font-bold text-lg text-white">RiseCheckout</span>
-              </Link>
-            </div>
-
-            {children}
           </div>
         </div>
       </div>

@@ -280,9 +280,16 @@
     --auth-input-border: 0 0% 100%;        /* white - Para uso com opacity (white/10) */
     --auth-input-placeholder: 215 13% 40%; /* slate-600 */
     
-    /* Auth Accent Tokens */
+    /* Auth Accent Tokens (Blue Theme - RISE V3) */
     --auth-accent: 217 91% 60%;            /* blue-500 */
-    --auth-accent-secondary: 271 81% 56%;  /* purple-600 */
+    --auth-accent-secondary: 199 89% 48%;  /* cyan-500 - tema azul consistente */
+    --auth-accent-tertiary: 221 83% 53%;   /* blue-600 */
+    --auth-accent-glow: 217 91% 60%;       /* blue-500 para shadows */
+    
+    /* Auth Gradient Tokens (Blue Theme) */
+    --auth-gradient-start: 199 89% 48%;    /* cyan-500 */
+    --auth-gradient-mid: 217 91% 60%;      /* blue-500 */
+    --auth-gradient-end: 221 83% 53%;      /* blue-600 */
     
     /* ═══════════════════════════════════════════════════════════════════════════
        PAYMENT PAGES DESIGN TOKENS
