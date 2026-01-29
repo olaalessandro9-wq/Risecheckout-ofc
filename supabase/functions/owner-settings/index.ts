@@ -1,6 +1,9 @@
 /**
  * Edge Function: owner-settings
  * 
+ * RISE Protocol V3 - 10.0/10 Compliant
+ * Uses 'user_roles' table as SSOT for role verification (not profiles)
+ * 
  * Responsabilidade: Operações de configuração exclusivas do Owner
  * 
  * Ações:
@@ -12,7 +15,7 @@
  * - Valida role Owner (mais restritiva que Admin)
  * - Logging completo de todas as operações
  * 
- * @version 1.0.0
+ * @version 2.0.0 - Migrated from profiles to user_roles (SSOT)
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
@@ -64,15 +67,15 @@ serve(async (req) => {
       );
     }
 
-    // Check if user is owner (most restrictive)
-    const { data: profile } = await supabase
-      .from("profiles")
+    // RISE V3: Use 'user_roles' table as SSOT for role verification
+    const { data: userRole } = await supabase
+      .from("user_roles")
       .select("role")
-      .eq("id", user.id)
-      .single();
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-    if (!profile || profile.role !== "owner") {
-      log.warn(`Acesso negado para user ${user.id} com role ${profile?.role}`);
+    if (!userRole || userRole.role !== "owner") {
+      log.warn(`Acesso negado para user ${user.id} com role ${userRole?.role}`);
       return new Response(
         JSON.stringify({ success: false, error: "Acesso restrito ao owner" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }

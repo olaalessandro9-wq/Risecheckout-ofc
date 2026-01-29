@@ -43,9 +43,9 @@ export async function handleEnsureProducerAccess(
     
     // If no user exists, create one
     if (!user) {
-      // Get producer's name for the profile
-      const { data: profile } = await supabase
-        .from("profiles")
+      // Get producer's name from users table (SSOT)
+      const { data: producer } = await supabase
+        .from("users")
         .select("name")
         .eq("id", producerUserId)
         .single();
@@ -57,7 +57,7 @@ export async function handleEnsureProducerAccess(
           email: normalizedEmail,
           password_hash: null,
           account_status: "owner_no_password",
-          name: profile?.name || null,
+          name: producer?.name || null,
           is_active: true,
         })
         .select("id")

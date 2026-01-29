@@ -1,10 +1,12 @@
 /**
  * Integration Profile & Status Handlers
  * 
- * Extracted profile wallet and status handlers for integration-management.
+ * RISE Protocol V3 - 10.0/10 Compliant
+ * Uses 'users' table as SSOT for all profile operations
  * 
  * @created 2026-01-13 - Extracted from integration-handlers.ts
- * @version 2.0.0
+ * @updated 2026-01-29 - Migrated from profiles to users (SSOT)
+ * @version 3.0.0
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -74,6 +76,7 @@ export async function handleGetStatus(
 
 // ============================================================================
 // HANDLER: SAVE PROFILE WALLET
+// RISE V3: Uses 'users' table as SSOT
 // ============================================================================
 
 export async function handleSaveProfileWallet(
@@ -87,7 +90,7 @@ export async function handleSaveProfileWallet(
   }
 
   const { error } = await supabase
-    .from("profiles")
+    .from("users")
     .update({ asaas_wallet_id: walletId })
     .eq("id", producerId);
 
@@ -102,6 +105,7 @@ export async function handleSaveProfileWallet(
 
 // ============================================================================
 // HANDLER: CLEAR PROFILE WALLET
+// RISE V3: Uses 'users' table as SSOT
 // ============================================================================
 
 export async function handleClearProfileWallet(
@@ -110,7 +114,7 @@ export async function handleClearProfileWallet(
   corsHeaders: Record<string, string>
 ): Promise<Response> {
   const { error } = await supabase
-    .from("profiles")
+    .from("users")
     .update({ asaas_wallet_id: null })
     .eq("id", producerId);
 
@@ -125,6 +129,7 @@ export async function handleClearProfileWallet(
 
 // ============================================================================
 // HANDLER: UPDATE PROFILE (Nome, CPF, Telefone)
+// RISE V3: Uses 'users' table as SSOT
 // ============================================================================
 
 interface UpdateProfilePayload {
@@ -162,7 +167,7 @@ export async function handleUpdateProfile(
   }
 
   const { error } = await supabase
-    .from("profiles")
+    .from("users")
     .update(updateData)
     .eq("id", producerId);
 

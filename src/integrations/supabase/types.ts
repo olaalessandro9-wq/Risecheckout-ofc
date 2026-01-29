@@ -4101,6 +4101,7 @@ export type Database = {
           test_mode_enabled: boolean | null
           timezone: string | null
           updated_at: string | null
+          utmify_token: string | null
         }
         Insert: {
           account_status?:
@@ -4137,6 +4138,7 @@ export type Database = {
           test_mode_enabled?: boolean | null
           timezone?: string | null
           updated_at?: string | null
+          utmify_token?: string | null
         }
         Update: {
           account_status?:
@@ -4173,6 +4175,7 @@ export type Database = {
           test_mode_enabled?: boolean | null
           timezone?: string | null
           updated_at?: string | null
+          utmify_token?: string | null
         }
         Relationships: []
       }

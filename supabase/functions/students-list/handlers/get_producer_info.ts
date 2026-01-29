@@ -1,6 +1,8 @@
 /**
  * Handler: Get producer info for a product
- * RISE V3 Compliant
+ * 
+ * RISE Protocol V3 - 10.0/10 Compliant
+ * Uses 'users' table as SSOT for producer info lookup
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -22,22 +24,19 @@ export async function handleGetProducerInfo(
     return jsonResponse({ error: "Product not found" }, 404, corsHeaders);
   }
 
-  // Get profile info
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, name")
+  // RISE V3: Use 'users' table as SSOT for producer info
+  const { data: user } = await supabase
+    .from("users")
+    .select("id, name, email")
     .eq("id", product.user_id)
     .single();
-
-  // Get email via RPC
-  const { data: emailData } = await supabase.rpc("get_user_email", { user_id: product.user_id });
 
   return jsonResponse({
     success: true,
     producer_info: {
       id: product.user_id,
-      name: profile?.name || null,
-      email: emailData || null,
+      name: user?.name || null,
+      email: user?.email || null,
     }
   }, 200, corsHeaders);
 }

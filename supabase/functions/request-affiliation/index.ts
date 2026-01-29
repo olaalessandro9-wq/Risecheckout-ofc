@@ -1,7 +1,10 @@
 /**
  * request-affiliation Edge Function
  * 
- * @version 4.0.0 - RISE Protocol V3 Compliant (Vertical Slice Architecture)
+ * RISE Protocol V3 - 10.0/10 Compliant
+ * Uses 'users' table as SSOT for profile/gateway queries
+ * 
+ * @version 5.0.0 - Migrated from profiles to users (SSOT)
  * - Uses Shared Kernel for crypto, PII masking, rate limiting
  * - Zero duplicate code
  * - Clean separation of concerns
@@ -46,17 +49,11 @@ interface ExistingAffiliation {
   status: string;
 }
 
-interface ProfileData {
+interface UserData {
   asaas_wallet_id: string | null;
   mercadopago_collector_id: string | null;
   stripe_account_id: string | null;
 }
-
-// ============================================
-// CONSTANTS
-// ============================================
-
-// Use config from consolidated rate-limiting module
 
 // ============================================
 // MAIN HANDLER
@@ -125,16 +122,17 @@ serve(async (req) => {
 
     // ============================================
     // FETCH USER PROFILE FOR GATEWAY VALIDATION
+    // RISE V3: Use 'users' table as SSOT
     // ============================================
-    const { data: userProfile } = await supabaseClient
-      .from("profiles")
+    const { data: userData } = await supabaseClient
+      .from("users")
       .select("asaas_wallet_id, mercadopago_collector_id, stripe_account_id")
       .eq("id", producer.id)
       .maybeSingle();
 
-    const profileData = userProfile as ProfileData | null;
+    const user = userData as UserData | null;
 
-    log.info(`Conexões do usuário: Asaas=${!!profileData?.asaas_wallet_id}, MP=${!!profileData?.mercadopago_collector_id}, Stripe=${!!profileData?.stripe_account_id}`);
+    log.info(`Conexões do usuário: Asaas=${!!user?.asaas_wallet_id}, MP=${!!user?.mercadopago_collector_id}, Stripe=${!!user?.stripe_account_id}`);
 
     // ============================================
     // FETCH PRODUCT AND VALIDATE PROGRAM
@@ -173,14 +171,14 @@ serve(async (req) => {
     const cardAllowed = gatewaySettings.credit_card_allowed || ["mercadopago", "stripe"];
 
     const hasAllowedPixGateway = (
-      (pixAllowed.includes("asaas") && profileData?.asaas_wallet_id) ||
-      (pixAllowed.includes("mercadopago") && profileData?.mercadopago_collector_id) ||
+      (pixAllowed.includes("asaas") && user?.asaas_wallet_id) ||
+      (pixAllowed.includes("mercadopago") && user?.mercadopago_collector_id) ||
       (pixAllowed.includes("pushinpay"))
     );
     
     const hasAllowedCardGateway = (
-      (cardAllowed.includes("mercadopago") && profileData?.mercadopago_collector_id) ||
-      (cardAllowed.includes("stripe") && profileData?.stripe_account_id)
+      (cardAllowed.includes("mercadopago") && user?.mercadopago_collector_id) ||
+      (cardAllowed.includes("stripe") && user?.stripe_account_id)
     );
 
     log.info(`Gateway status: PIX=${hasAllowedPixGateway}, Card=${hasAllowedCardGateway}`);

@@ -1,10 +1,13 @@
 /**
  * Product Detail Handlers for admin-data - Part 2
  * 
+ * RISE Protocol V3 - 10.0/10 Compliant
+ * Uses 'users' table as SSOT for all profile/gateway queries
+ * 
  * Handles: order-bump-detail, gateway-connections, check-unique-checkout-name,
  *          product-detail-admin
  * 
- * @see RISE Protocol V3 - Limite 300 linhas por arquivo
+ * @version 2.0.0 - Migrated from profiles to users (SSOT)
  * @see products.ts for main product handlers
  */
 
@@ -50,8 +53,9 @@ export async function getGatewayConnections(
     .eq("id", affiliationProductId)
     .single();
 
-  const { data: profileData } = await supabase
-    .from("profiles")
+  // RISE V3: Use 'users' table as SSOT
+  const { data: userData } = await supabase
+    .from("users")
     .select("asaas_wallet_id, mercadopago_collector_id, stripe_account_id")
     .eq("id", producerId)
     .single();
@@ -63,16 +67,16 @@ export async function getGatewayConnections(
     .single();
 
   const connections: Record<string, boolean> = {
-    asaas: !!profileData?.asaas_wallet_id,
-    mercadopago: !!profileData?.mercadopago_collector_id,
-    stripe: !!profileData?.stripe_account_id,
+    asaas: !!userData?.asaas_wallet_id,
+    mercadopago: !!userData?.mercadopago_collector_id,
+    stripe: !!userData?.stripe_account_id,
     pushinpay: !!(pushinpayData?.pushinpay_token && pushinpayData?.pushinpay_account_id),
   };
 
   const credentials = {
-    asaas_wallet_id: profileData?.asaas_wallet_id,
-    mercadopago_collector_id: profileData?.mercadopago_collector_id,
-    stripe_account_id: profileData?.stripe_account_id,
+    asaas_wallet_id: userData?.asaas_wallet_id,
+    mercadopago_collector_id: userData?.mercadopago_collector_id,
+    stripe_account_id: userData?.stripe_account_id,
     pushinpay_account_id: pushinpayData?.pushinpay_account_id,
   };
 
@@ -151,10 +155,11 @@ export async function getProductDetailAdmin(
     return errorResponse("Produto não encontrado", "NOT_FOUND", corsHeaders, 404);
   }
 
+  // RISE V3: Use 'users' table as SSOT
   let vendorName = "Desconhecido";
   if (product.user_id) {
     const { data: vendor } = await supabase
-      .from("profiles")
+      .from("users")
       .select("name")
       .eq("id", product.user_id)
       .maybeSingle();

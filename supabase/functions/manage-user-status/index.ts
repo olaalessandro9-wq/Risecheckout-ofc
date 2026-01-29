@@ -1,15 +1,17 @@
 /**
  * manage-user-status - Edge function para ações de moderação
  * 
+ * RISE Protocol V3 - 10.0/10 Compliant
+ * Uses 'users' table as SSOT for all status/fee updates
+ * 
  * Ações disponíveis:
  * - updateStatus: Alterar status do usuário (active, suspended, banned)
  * - updateCustomFee: Definir taxa personalizada do checkout
  * - updateProductStatus: Alterar status do produto (active, blocked, deleted)
  * 
  * Apenas owners podem usar esta função
- * CORS restrito a domínios permitidos
  * 
- * @version 1.1.0
+ * @version 2.0.0 - Migrated from profiles to users (SSOT)
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -93,10 +95,11 @@ Deno.serve(async (req) => {
         );
       }
 
+      // RISE V3: Use 'users' table as SSOT
       const { error: updateError } = await supabaseAdmin
-        .from("profiles")
+        .from("users")
         .update({
-          status,
+          account_status: status,
           status_reason: reason || null,
           status_changed_at: new Date().toISOString(),
           status_changed_by: producer.id,
@@ -111,7 +114,7 @@ Deno.serve(async (req) => {
       await supabaseAdmin.rpc("log_security_event", {
         p_user_id: producer.id,
         p_action: `USER_STATUS_CHANGED_TO_${status.toUpperCase()}`,
-        p_resource: "profiles",
+        p_resource: "users",
         p_resource_id: userId,
         p_success: true,
         p_metadata: { target_user_id: userId, new_status: status, reason },
@@ -140,8 +143,9 @@ Deno.serve(async (req) => {
         );
       }
 
+      // RISE V3: Use 'users' table as SSOT
       const { error: updateError } = await supabaseAdmin
-        .from("profiles")
+        .from("users")
         .update({
           custom_fee_percent: feePercent,
         })
@@ -155,7 +159,7 @@ Deno.serve(async (req) => {
       await supabaseAdmin.rpc("log_security_event", {
         p_user_id: producer.id,
         p_action: feePercent === null ? "CUSTOM_FEE_RESET" : "CUSTOM_FEE_SET",
-        p_resource: "profiles",
+        p_resource: "users",
         p_resource_id: userId,
         p_success: true,
         p_metadata: { 

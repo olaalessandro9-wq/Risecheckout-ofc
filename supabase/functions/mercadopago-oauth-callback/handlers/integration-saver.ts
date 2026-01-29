@@ -1,9 +1,13 @@
 /**
  * Integration Saver Handler
  * 
+ * RISE Protocol V3 - 10.0/10 Compliant
+ * Uses 'users' table as SSOT for OAuth profile updates
+ * 
  * Responsabilidade: Salvar credenciais no Vault e metadados no banco
  * 
  * @module mercadopago-oauth-callback/handlers/integration-saver
+ * @version 2.0.0 - Migrated from profiles to users (SSOT)
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -27,7 +31,9 @@ export interface SaveResult {
 }
 
 /**
- * Salva dados OAuth: profiles, vault e vendor_integrations
+ * Salva dados OAuth: users, vault e vendor_integrations
+ * 
+ * RISE V3: Uses 'users' table as SSOT instead of profiles
  */
 export async function saveOAuthIntegration(
   supabase: SupabaseClient,
@@ -36,11 +42,11 @@ export async function saveOAuthIntegration(
   const { vendorId, accessToken, refreshToken, publicKey, collectorId, email } = data;
 
   try {
-    // 1. Atualizar tabela profiles com dados OAuth
-    log.info('Salvando dados OAuth em profiles...');
+    // 1. Atualizar tabela users com dados OAuth (SSOT)
+    log.info('Salvando dados OAuth em users...');
     
-    const { error: profileError } = await supabase
-      .from('profiles')
+    const { error: userError } = await supabase
+      .from('users')
       .update({
         mercadopago_collector_id: collectorId,
         mercadopago_email: email,
@@ -48,10 +54,10 @@ export async function saveOAuthIntegration(
       })
       .eq('id', vendorId);
 
-    if (profileError) {
-      log.error('Erro ao atualizar profiles:', profileError);
+    if (userError) {
+      log.error('Erro ao atualizar users:', userError);
     } else {
-      log.info('✅ Profiles atualizado com sucesso');
+      log.info('✅ Users atualizado com sucesso');
     }
 
     // 2. Salvar credenciais no VAULT

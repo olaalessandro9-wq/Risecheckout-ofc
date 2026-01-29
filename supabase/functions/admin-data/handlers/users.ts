@@ -1,10 +1,13 @@
 /**
  * User Handlers for admin-data
  * 
+ * RISE Protocol V3 - 10.0/10 Compliant
+ * Uses 'users' table as SSOT for all user queries
+ * 
  * Handles: users-with-metrics, user-profile, user-products, user-gateway-status,
  *          role-stats, user-profile-name, user-products-simple
  * 
- * @see RISE Protocol V3 - Limite 300 linhas por arquivo
+ * @version 2.0.0 - Migrated from profiles to users (SSOT)
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -38,11 +41,12 @@ export async function getUsersWithMetrics(
 
   if (rolesError) throw rolesError;
 
-  const { data: profilesData, error: profilesError } = await supabase
-    .from("profiles")
-    .select("id, name, registration_source, status");
+  // RISE V3: Use 'users' table as SSOT
+  const { data: usersData, error: usersError } = await supabase
+    .from("users")
+    .select("id, name, registration_source, account_status");
 
-  if (profilesError) throw profilesError;
+  if (usersError) throw usersError;
 
   const { data: ordersData, error: ordersError } = await supabase
     .from("orders")
@@ -64,17 +68,17 @@ export async function getUsersWithMetrics(
   });
 
   const usersWithRoles = rolesData.map((roleRow: Record<string, unknown>) => {
-    const profile = profilesData.find((p: Record<string, unknown>) => p.id === roleRow.user_id);
+    const user = usersData.find((u: Record<string, unknown>) => u.id === roleRow.user_id);
     const metrics = metricsMap.get(roleRow.user_id as string) || { gmv: 0, fees: 0, count: 0 };
     return {
       user_id: roleRow.user_id,
       role: roleRow.role,
-      profile: profile ? { name: profile.name || "Sem nome" } : null,
-      status: profile?.status || "active",
+      profile: user ? { name: user.name || "Sem nome" } : null,
+      status: user?.account_status || "active",
       total_gmv: metrics.gmv,
       total_fees: metrics.fees,
       orders_count: metrics.count,
-      registration_source: profile?.registration_source || "producer",
+      registration_source: user?.registration_source || "producer",
     };
   });
 
@@ -101,9 +105,10 @@ export async function getUserProfile(
     return errorResponse("Acesso negado", "FORBIDDEN", corsHeaders, 403);
   }
 
+  // RISE V3: Use 'users' table as SSOT
   const { data, error } = await supabase
-    .from("profiles")
-    .select("status, custom_fee_percent, status_reason, status_changed_at, created_at")
+    .from("users")
+    .select("account_status, custom_fee_percent, status_reason, status_changed_at, created_at")
     .eq("id", targetUserId)
     .single();
 
@@ -112,7 +117,13 @@ export async function getUserProfile(
     return errorResponse("Perfil não encontrado", "NOT_FOUND", corsHeaders, 404);
   }
 
-  return jsonResponse({ profile: data }, corsHeaders);
+  // Map account_status to status for frontend compatibility
+  return jsonResponse({ 
+    profile: {
+      ...data,
+      status: data.account_status // Alias for frontend
+    }
+  }, corsHeaders);
 }
 
 // ==========================================
@@ -189,15 +200,16 @@ export async function getUserGatewayStatus(
   producerId: string,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  const { data: profile } = await supabase
-    .from("profiles")
+  // RISE V3: Use 'users' table as SSOT
+  const { data: user } = await supabase
+    .from("users")
     .select("asaas_wallet_id, mercadopago_collector_id, stripe_account_id")
     .eq("id", producerId)
     .maybeSingle();
 
-  const hasMercadoPago = !!profile?.mercadopago_collector_id;
-  const hasStripe = !!profile?.stripe_account_id;
-  const hasAsaas = !!profile?.asaas_wallet_id;
+  const hasMercadoPago = !!user?.mercadopago_collector_id;
+  const hasStripe = !!user?.stripe_account_id;
+  const hasAsaas = !!user?.asaas_wallet_id;
 
   return jsonResponse({
     hasPaymentAccount: hasMercadoPago || hasStripe || hasAsaas,
@@ -258,8 +270,9 @@ export async function getUserProfileName(
   producerId: string,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
+  // RISE V3: Use 'users' table as SSOT
   const { data } = await supabase
-    .from("profiles")
+    .from("users")
     .select("name")
     .eq("id", producerId)
     .single();

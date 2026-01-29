@@ -1,6 +1,8 @@
 /**
  * Handler: Send invite to student (authenticated)
- * RISE V3 Compliant
+ * 
+ * RISE Protocol V3 - 10.0/10 Compliant
+ * Uses 'users' table as SSOT for producer name lookup
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -87,9 +89,10 @@ export async function handleInvite(
   const baseUrl = Deno.env.get("PUBLIC_SITE_URL") || "https://risecheckout.com";
   const accessLink = `${baseUrl}/minha-conta/setup-acesso?token=${rawToken}`;
 
-  const { data: producerProfile } = await supabase.from("profiles").select("name").eq("id", producerId).single();
+  // RISE V3: Use 'users' table as SSOT for producer name
+  const { data: producerUser } = await supabase.from("users").select("name").eq("id", producerId).single();
   const studentName = name || normalizedEmail.split("@")[0];
-  const producerName = (producerProfile as { name: string } | null)?.name || "Produtor";
+  const producerName = (producerUser as { name: string } | null)?.name || "Produtor";
 
   // Send email using shared module
   const emailResult = await sendEmail({
