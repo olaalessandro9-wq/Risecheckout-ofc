@@ -196,8 +196,8 @@ Pipeline bloqueia merge se:
 ## Status das Fases
 
 - [x] **Fase 1:** Infraestrutura Base (Vitest, MSW, Setup) - ✅ Completo
-- [x] **Fase 2:** Testes unitários backend (_shared) - ✅ 127+ testes
-- [ ] **Fase 3:** Testes unitários frontend (lib) - 🔜 Próximo
+- [x] **Fase 2:** Testes unitários backend (_shared) - ✅ 129 testes
+- [x] **Fase 3:** Testes unitários frontend (lib) - ✅ 100+ testes (logger.ts, validation.ts)
 - [ ] **Fase 4:** Testes de integração (hooks)
 - [ ] **Fase 5:** Testes de Edge Functions
 - [ ] **Fase 6:** Testes E2E (Playwright)
