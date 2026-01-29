@@ -55,9 +55,11 @@ describe("Logger Module", () => {
       it("should log trace messages with correct prefix in development", () => {
         logger.trace("TestContext", "Trace message");
         
-        // In dev mode, trace should be logged
+        // Logger combines all into one string: "🔍 [Rise][TestContext] Trace message"
         expect(consoleDebugSpy).toHaveBeenCalledWith(
-          expect.stringContaining("[Rise][TestContext]"),
+          expect.stringContaining("[Rise][TestContext]")
+        );
+        expect(consoleDebugSpy).toHaveBeenCalledWith(
           expect.stringContaining("Trace message")
         );
       });
@@ -67,9 +69,8 @@ describe("Logger Module", () => {
         logger.trace("TestContext", "Trace with data", data);
         
         expect(consoleDebugSpy).toHaveBeenCalledWith(
-          expect.stringContaining("Trace message") || expect.anything(),
-          expect.anything(),
-          expect.anything()
+          expect.stringContaining("Trace with data"),
+          data
         );
       });
     });
@@ -79,8 +80,7 @@ describe("Logger Module", () => {
         logger.debug("TestContext", "Debug message");
         
         expect(consoleDebugSpy).toHaveBeenCalledWith(
-          expect.stringContaining("🐛"),
-          expect.anything()
+          expect.stringContaining("🐛")
         );
       });
 
@@ -88,8 +88,7 @@ describe("Logger Module", () => {
         logger.debug("MyComponent", "Debugging something");
         
         expect(consoleDebugSpy).toHaveBeenCalledWith(
-          expect.stringContaining("[MyComponent]"),
-          expect.anything()
+          expect.stringContaining("[MyComponent]")
         );
       });
     });
@@ -99,8 +98,7 @@ describe("Logger Module", () => {
         logger.info("TestContext", "Info message");
         
         expect(consoleLogSpy).toHaveBeenCalledWith(
-          expect.stringContaining("ℹ️"),
-          expect.anything()
+          expect.stringContaining("ℹ️")
         );
       });
 
@@ -108,8 +106,7 @@ describe("Logger Module", () => {
         logger.info("OrderService", "Order created");
         
         expect(consoleLogSpy).toHaveBeenCalledWith(
-          expect.stringContaining("[OrderService]"),
-          expect.anything()
+          expect.stringContaining("[OrderService]")
         );
       });
     });
@@ -119,8 +116,7 @@ describe("Logger Module", () => {
         logger.warn("TestContext", "Warning message");
         
         expect(consoleWarnSpy).toHaveBeenCalledWith(
-          expect.stringContaining("⚠️"),
-          expect.anything()
+          expect.stringContaining("⚠️")
         );
       });
 
@@ -128,8 +124,7 @@ describe("Logger Module", () => {
         logger.warn("PaymentGateway", "Rate limit approaching");
         
         expect(consoleWarnSpy).toHaveBeenCalledWith(
-          expect.stringContaining("[PaymentGateway]"),
-          expect.anything()
+          expect.stringContaining("[PaymentGateway]")
         );
       });
     });
@@ -139,8 +134,7 @@ describe("Logger Module", () => {
         logger.error("TestContext", "Error message");
         
         expect(consoleErrorSpy).toHaveBeenCalledWith(
-          expect.stringContaining("🚨"),
-          expect.anything()
+          expect.stringContaining("🚨")
         );
       });
 
@@ -148,8 +142,7 @@ describe("Logger Module", () => {
         logger.error("DatabaseService", "Connection failed");
         
         expect(consoleErrorSpy).toHaveBeenCalledWith(
-          expect.stringContaining("[DatabaseService]"),
-          expect.anything()
+          expect.stringContaining("[DatabaseService]")
         );
       });
 
@@ -202,8 +195,7 @@ describe("Logger Module", () => {
       log.info("Service started");
       
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining("[MyService]"),
-        expect.anything()
+        expect.stringContaining("[MyService]")
       );
     });
 
@@ -225,16 +217,13 @@ describe("Logger Module", () => {
       log.warn("Third call");
       
       expect(consoleDebugSpy).toHaveBeenCalledWith(
-        expect.stringContaining("[PersistentContext]"),
-        expect.anything()
+        expect.stringContaining("[PersistentContext]")
       );
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining("[PersistentContext]"),
-        expect.anything()
+        expect.stringContaining("[PersistentContext]")
       );
       expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("[PersistentContext]"),
-        expect.anything()
+        expect.stringContaining("[PersistentContext]")
       );
     });
 
@@ -310,8 +299,7 @@ describe("Logger Module", () => {
       logger.info("Context-With_Special.Chars", "Message");
       
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining("[Context-With_Special.Chars]"),
-        expect.anything()
+        expect.stringContaining("[Context-With_Special.Chars]")
       );
     });
 
@@ -331,8 +319,7 @@ describe("Logger Module", () => {
       logger.info("Test", "Message");
       
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining("[Rise]"),
-        expect.anything()
+        expect.stringContaining("[Rise]")
       );
     });
 
@@ -345,32 +332,27 @@ describe("Logger Module", () => {
       
       // Trace uses 🔍
       expect(consoleDebugSpy).toHaveBeenCalledWith(
-        expect.stringContaining("🔍"),
-        expect.anything()
+        expect.stringContaining("🔍")
       );
       
       // Debug uses 🐛
       expect(consoleDebugSpy).toHaveBeenCalledWith(
-        expect.stringContaining("🐛"),
-        expect.anything()
+        expect.stringContaining("🐛")
       );
       
       // Info uses ℹ️
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining("ℹ️"),
-        expect.anything()
+        expect.stringContaining("ℹ️")
       );
       
       // Warn uses ⚠️
       expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("⚠️"),
-        expect.anything()
+        expect.stringContaining("⚠️")
       );
       
       // Error uses 🚨
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining("🚨"),
-        expect.anything()
+        expect.stringContaining("🚨")
       );
     });
   });
