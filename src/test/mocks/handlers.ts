@@ -15,7 +15,7 @@ import { http, HttpResponse } from "msw";
 // Constants
 // ============================================================================
 
-const API_URL = "https://api.risecheckout.com";
+const API_URL = "https://api.risecheckout.com/functions/v1";
 const SUPABASE_URL = "https://wivbtmtgpsxupfjwwovf.supabase.co";
 
 // ============================================================================
