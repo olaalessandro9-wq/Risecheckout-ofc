@@ -129,7 +129,7 @@ export async function fetchProducerProfile(
   producerId: string
 ): Promise<ProducerRecord | null> {
   const { data } = await supabase
-    .from("profiles")
+    .from("users")
     .select("id, name")
     .eq("id", producerId)
     .maybeSingle();
