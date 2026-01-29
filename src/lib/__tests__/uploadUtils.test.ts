@@ -195,19 +195,20 @@ describe("uploadUtils", () => {
       vi.useRealTimers();
     });
 
-    it("should resolve immediately when no uploads pending", async () => {
+    it("should resolve when no uploads pending", async () => {
       const getCustomization = vi.fn().mockReturnValue({
         topComponents: [{ type: "text", content: {} }],
       });
 
       const promise = waitForUploadsToFinish(getCustomization, 5000);
       
-      vi.advanceTimersByTime(300);
+      // Run the first interval check
+      await vi.runOnlyPendingTimersAsync();
       
       await expect(promise).resolves.toBe(true);
     });
 
-    it("should wait until uploads complete", async () => {
+    it("should poll until uploads complete", async () => {
       let uploading = true;
       const getCustomization = vi.fn().mockImplementation(() => ({
         topComponents: [{ type: "image", content: { _uploading: uploading } }],
@@ -215,13 +216,18 @@ describe("uploadUtils", () => {
 
       const promise = waitForUploadsToFinish(getCustomization, 5000);
 
-      // Still uploading
-      vi.advanceTimersByTime(600);
+      // First poll - still uploading
+      await vi.advanceTimersByTimeAsync(300);
       expect(getCustomization).toHaveBeenCalled();
+
+      // Second poll - still uploading
+      await vi.advanceTimersByTimeAsync(300);
 
       // Complete upload
       uploading = false;
-      vi.advanceTimersByTime(300);
+      
+      // Third poll - should detect completion
+      await vi.advanceTimersByTimeAsync(300);
 
       await expect(promise).resolves.toBe(true);
     });
@@ -233,9 +239,15 @@ describe("uploadUtils", () => {
 
       const promise = waitForUploadsToFinish(getCustomization, 1000);
 
-      vi.advanceTimersByTime(1100);
+      // Catch early to avoid unhandled rejection warning
+      const resultPromise = promise.catch((err) => err);
 
-      await expect(promise).rejects.toThrow("Timeout waiting for uploads to finish");
+      // Advance past timeout
+      await vi.advanceTimersByTimeAsync(1200);
+
+      const error = await resultPromise;
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toBe("Timeout waiting for uploads to finish");
     });
 
     it("should use default timeout of 45000ms", async () => {
@@ -245,29 +257,38 @@ describe("uploadUtils", () => {
 
       const promise = waitForUploadsToFinish(getCustomization);
 
-      // Should not timeout at 44 seconds
-      vi.advanceTimersByTime(44000);
-      
-      // Should timeout at 45+ seconds
-      vi.advanceTimersByTime(1500);
+      // Catch early to avoid unhandled rejection warning
+      const resultPromise = promise.catch((err) => err);
 
-      await expect(promise).rejects.toThrow("Timeout");
+      // Advance past default timeout
+      await vi.advanceTimersByTimeAsync(45500);
+
+      const error = await resultPromise;
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toContain("Timeout");
     });
 
-    it("should check at 300ms intervals", async () => {
+    it("should poll at 300ms intervals", async () => {
       let callCount = 0;
+      let uploading = true;
+      
       const getCustomization = vi.fn().mockImplementation(() => {
         callCount++;
-        return { topComponents: [] };
+        if (callCount >= 3) {
+          uploading = false;
+        }
+        return { 
+          topComponents: [{ type: "image", content: { _uploading: uploading } }] 
+        };
       });
 
       const promise = waitForUploadsToFinish(getCustomization, 5000);
 
-      vi.advanceTimersByTime(300);
+      // Run enough intervals for upload to complete
+      await vi.advanceTimersByTimeAsync(900);
       
-      await promise;
-      
-      expect(callCount).toBeGreaterThanOrEqual(1);
+      await expect(promise).resolves.toBe(true);
+      expect(callCount).toBeGreaterThanOrEqual(3);
     });
   });
 });

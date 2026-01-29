@@ -18,7 +18,7 @@ import { CrossTabLock } from "../cross-tab-lock";
 
 // Mock logger
 vi.mock("@/lib/logger", () => ({
-  createLogger: vi.fn().mockReturnValue({
+  createLogger: () => ({
     debug: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
@@ -29,15 +29,16 @@ vi.mock("@/lib/logger", () => ({
 describe("CrossTabLock - Acquisition", () => {
   let lock: CrossTabLock;
   const mockStorage: Record<string, string> = {};
-  let mockChannel: {
-    postMessage: ReturnType<typeof vi.fn>;
-    close: ReturnType<typeof vi.fn>;
-    onmessage: ((event: MessageEvent) => void) | null;
-  };
+  let mockPostMessage: ReturnType<typeof vi.fn>;
+  let mockClose: ReturnType<typeof vi.fn>;
+  let channelOnMessage: ((event: MessageEvent) => void) | null = null;
 
   beforeEach(() => {
+    // Clear storage
     Object.keys(mockStorage).forEach(key => delete mockStorage[key]);
+    channelOnMessage = null;
 
+    // Mock localStorage
     vi.spyOn(Storage.prototype, "setItem").mockImplementation((key, value) => {
       mockStorage[key] = value;
     });
@@ -50,13 +51,28 @@ describe("CrossTabLock - Acquisition", () => {
       delete mockStorage[key];
     });
 
-    mockChannel = {
-      postMessage: vi.fn(),
-      close: vi.fn(),
-      onmessage: null,
-    };
+    // Create mock functions
+    mockPostMessage = vi.fn();
+    mockClose = vi.fn();
 
-    vi.stubGlobal("BroadcastChannel", vi.fn().mockImplementation(() => mockChannel));
+    // Mock BroadcastChannel as a class
+    class MockBroadcastChannel {
+      postMessage = mockPostMessage;
+      close = mockClose;
+      
+      private _onmessage: ((event: MessageEvent) => void) | null = null;
+      
+      get onmessage() {
+        return this._onmessage;
+      }
+      
+      set onmessage(handler: ((event: MessageEvent) => void) | null) {
+        this._onmessage = handler;
+        channelOnMessage = handler;
+      }
+    }
+
+    vi.stubGlobal("BroadcastChannel", MockBroadcastChannel);
 
     lock = new CrossTabLock();
   });
@@ -115,7 +131,7 @@ describe("CrossTabLock - Acquisition", () => {
     it("should broadcast refresh_start on acquisition", () => {
       lock.tryAcquire();
       
-      expect(mockChannel.postMessage).toHaveBeenCalledWith(
+      expect(mockPostMessage).toHaveBeenCalledWith(
         expect.objectContaining({
           type: "refresh_start",
         })
@@ -195,7 +211,7 @@ describe("CrossTabLock - Acquisition", () => {
 
     it("should close BroadcastChannel on destroy", () => {
       lock.destroy();
-      expect(mockChannel.close).toHaveBeenCalled();
+      expect(mockClose).toHaveBeenCalled();
     });
   });
 });
