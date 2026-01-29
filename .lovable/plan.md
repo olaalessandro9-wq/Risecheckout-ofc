@@ -1,813 +1,407 @@
 
-# Plano Completo: Implementação dos 25 Arquivos de Teste Faltantes da Fase 2
+# Plano Fase 3: Expansão Avançada de Testes Automatizados
 
-## Análise de Soluções (RISE Protocol V3 - Seção 4.4)
+## Status Atual do Projeto
 
-### Solução A: Implementação Sequencial por Subfase
-- Manutenibilidade: 8/10 - Testes separados por domínio
-- Zero DT: 7/10 - Possíveis inconsistências entre subfases
-- Arquitetura: 7/10 - Dependências podem não ser identificadas
-- Escalabilidade: 7/10 - Requer ajustes incrementais
-- Segurança: 8/10 - Cobertura gradual de vulnerabilidades
-- **NOTA FINAL: 7.4/10**
-- Tempo estimado: 5-7 dias
+### Inventário Completo de Arquivos de Teste
 
-### Solução B: Implementação Paralela com Mocks Compartilhados
-- Manutenibilidade: 10/10 - Mocks centralizados, padrões uniformes
-- Zero DT: 10/10 - Infraestrutura de testes completa desde o início
-- Arquitetura: 10/10 - Estrutura modular seguindo Testing Pyramid
-- Escalabilidade: 10/10 - Handlers MSW reutilizáveis
-- Segurança: 10/10 - Cobertura completa desde gateways até helpers
+| Categoria | Arquivos de Teste | Quantidade |
+|-----------|-------------------|------------|
+| **Infraestrutura** | `src/test/infrastructure.test.ts` | 1 |
+| **API Layer** | `client.test.ts`, `errors.test.ts`, `public-client.test.ts`, `types.test.ts`, `analytics.test.ts`, `products.test.ts` | 6 |
+| **Hooks Core** | `useAuthUser.test.ts`, `useAuthActions.test.ts`, `useCheckoutState.test.ts`, `usePermissions.test.ts`, `useUnifiedAuth.test.ts` | 5 |
+| **Hooks Form** | `__tests__/useFormValidation.*.test.ts` (7 arquivos modulares) | 7 |
+| **Hooks Checkout** | `useCheckoutData.test.ts`, `useCheckoutSubmit.test.ts`, `useCouponValidation.test.ts`, `useFormManager.test.ts`, `useTrackingService.test.ts`, `useVisitTracker.test.ts` | 6 |
+| **Checkout Helpers** | `fetchAffiliateInfo.test.ts`, `fetchCheckoutById.test.ts`, `fetchOrderBumps.test.ts`, `fetchProductData.test.ts`, `resolveCheckoutSlug.test.ts` | 5 |
+| **Payment Gateways** | `gateway-factory.test.ts`, `index.test.ts`, `installments.test.ts`, `mercado-pago/index.test.ts`, `stripe/index.test.ts`, `mercadopago-sync.test.ts`, `useGatewayManager.test.ts` | 7 |
+| **Lib/Utils** | `money.test.ts`, `validation.test.ts`, `logger.test.ts`, `generateSlug.test.ts`, `normalizeDataUrl.test.ts`, `uniqueCheckoutName.test.ts`, `uniqueName.test.ts` | 7 |
+| **Checkout Design** | `normalizeDesign.test.ts`, `themePresets.test.ts` | 2 |
+| **Services** | `date-range/service.test.ts`, `timezone/service.test.ts`, `session-commander/retry-strategy.test.ts` | 3 |
+| **E2E (Playwright)** | 9 specs + 1 spec avulso | 10 |
+| **TOTAL SRC** | | **~50 arquivos** |
+
+### Cálculo de Cobertura Atual
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        COBERTURA ATUAL DO PROJETO                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ARQUIVOS FONTE (estimativa baseada em listagem):                           │
+│  ├── src/lib/              ~45 arquivos                                     │
+│  ├── src/hooks/            ~40 arquivos                                     │
+│  ├── src/components/       ~200 arquivos                                    │
+│  ├── src/modules/          ~150 arquivos                                    │
+│  ├── src/features/         ~15 arquivos                                     │
+│  ├── src/services/         ~2 arquivos                                      │
+│  ├── src/contexts/         ~2 arquivos                                      │
+│  ├── src/providers/        ~3 arquivos                                      │
+│  ├── src/schemas/          ~1 arquivo                                       │
+│  └── src/pages/            ~20 arquivos                                     │
+│  TOTAL ESTIMADO:           ~478 arquivos fonte                              │
+│                                                                              │
+│  ARQUIVOS COM TESTES:      ~50 arquivos                                     │
+│                                                                              │
+│  COBERTURA DE ARQUIVOS:    ~10.5%                                           │
+│                                                                              │
+│  ████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  10.5%            │
+│                                                                              │
+│  TESTES TOTAIS:            ~930 (incluindo Fase 2)                          │
+│  META RISE V3:             70%+ cobertura                                   │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Análise de Soluções (RISE V3 - Seção 4.4)
+
+### Solução A: Foco em Componentes UI (React Testing Library)
+- Manutenibilidade: 8/10 - Componentes bem testados, mas UI muda frequentemente
+- Zero DT: 7/10 - Testes frágeis a mudanças de design
+- Arquitetura: 7/10 - Não cobre lógica crítica de negócio
+- Escalabilidade: 7/10 - Cada novo componente precisa de teste
+- Segurança: 6/10 - Não testa validações de backend
+- **NOTA FINAL: 7.0/10**
+- Tempo estimado: 2-3 semanas
+
+### Solução B: Foco em XState Machines + Módulos Core
+- Manutenibilidade: 10/10 - Máquinas de estado são imutáveis e previsíveis
+- Zero DT: 10/10 - Testa transições de estado, não UI
+- Arquitetura: 10/10 - Segue SSOT do RISE V3
+- Escalabilidade: 10/10 - Máquinas são auto-documentadas
+- Segurança: 9/10 - Testa guards e validações críticas
+- **NOTA FINAL: 9.8/10**
+- Tempo estimado: 3-4 semanas
+
+### Solução C: Híbrida - XState + Módulos + Componentes Críticos
+- Manutenibilidade: 10/10 - Cobre toda a pirâmide
+- Zero DT: 10/10 - Testes de estado + integração
+- Arquitetura: 10/10 - Segue Testing Pyramid Enterprise
+- Escalabilidade: 10/10 - Modelo replicável para novos módulos
+- Segurança: 10/10 - Testa desde guards até rendering
 - **NOTA FINAL: 10.0/10**
-- Tempo estimado: 7-10 dias
+- Tempo estimado: 4-5 semanas
 
-### DECISÃO: Solução B (Nota 10.0)
+### DECISÃO: Solução C (Nota 10.0)
 
-A Solução B implementa infraestrutura de mocks compartilhados primeiro, garantindo consistência entre todos os 25 arquivos de teste. Seguindo a LEI SUPREMA, escolhemos a melhor solução independente do tempo adicional.
+A Solução C implementa uma abordagem de Pirâmide de Testes completa, priorizando:
+1. **XState Machines** (SSOT do projeto) - Máxima prioridade
+2. **Módulos Core** (checkout-public, products, dashboard) - Segunda prioridade
+3. **Componentes Críticos** (checkout forms, payment) - Terceira prioridade
 
 ---
 
-## Inventário Completo: 25 Arquivos Faltantes
+## Fase 3: Inventário de Arquivos Pendentes
 
-### SUBFASE 2.1: API Endpoints (2 arquivos)
+### SUBFASE 3.1: XState Machines (Alta Prioridade - SSOT)
 
-| # | Arquivo | Linhas | Funções a Testar | Testes Est. |
+| # | Arquivo | Módulo | Funções a Testar | Testes Est. |
 |---|---------|--------|------------------|-------------|
-| 1 | `src/lib/api/endpoints/analytics.test.ts` | 121 | getDashboard, getSalesChart, getProductAnalytics | 9 |
-| 2 | `src/lib/api/endpoints/products.test.ts` | 183 | list, get, create, update, delete, getSettings, updateSettings | 14 |
+| 1 | `src/modules/checkout-public/machines/checkoutPublicMachine.test.ts` | checkout-public | states, transitions, guards, actions | 25 |
+| 2 | `src/modules/products/machines/productFormMachine.test.ts` | products | states, transitions, actors | 20 |
+| 3 | `src/modules/dashboard/machines/dateRangeMachine.test.ts` | dashboard | date selection, presets | 12 |
+| 4 | `src/modules/utmify/machines/*.test.ts` | utmify | config, validation | 10 |
+| 5 | `src/modules/financeiro/machines/*.test.ts` | financeiro | balance, transactions | 12 |
+| 6 | `src/modules/affiliation/machines/*.test.ts` | affiliation | requests, status | 10 |
+| 7 | `src/modules/webhooks/machines/*.test.ts` | webhooks | config, delivery | 10 |
+| 8 | `src/modules/pixels/machines/*.test.ts` | pixels | tracking config | 8 |
+| 9 | `src/modules/admin/machines/*.test.ts` | admin | user management | 12 |
+| 10 | `src/lib/token-manager/machine.test.ts` | auth | refresh, cross-tab | 15 |
 
-**Subtotal Subfase 2.1:** 2 arquivos, ~23 testes
+**Subtotal Subfase 3.1:** 10 arquivos, ~134 testes
 
 ---
 
-### SUBFASE 2.2: Payment Gateways (5 arquivos)
+### SUBFASE 3.2: Módulos Core - Hooks & Services
 
-| # | Arquivo | Linhas | Funções a Testar | Testes Est. |
+| # | Arquivo | Módulo | Funções a Testar | Testes Est. |
 |---|---------|--------|------------------|-------------|
-| 3 | `src/lib/payment-gateways/helpers/mercadopago-sync.test.ts` | 89 | syncMercadoPagoHiddenFields, updateMercadoPagoInstallmentsSelect | 10 |
-| 4 | `src/lib/payment-gateways/gateways/mercado-pago/index.test.ts` | 27 | generateInstallments, getInterestRate | 6 |
-| 5 | `src/lib/payment-gateways/gateways/stripe/index.test.ts` | 28 | generateInstallments, getInterestRate | 6 |
-| 6 | `src/components/checkout/payment/hooks/useGatewayManager.test.ts` | 209 | loadMercadoPagoSDK, loadStripeSDK, useGatewayManager | 15 |
-| 7 | `src/lib/payment-gateways/index.test.ts` | ~30 | barrel exports | 5 |
+| 11 | `src/modules/checkout-public/hooks/useCheckoutPublicMachine.test.ts` | checkout-public | hook integration | 10 |
+| 12 | `src/modules/checkout-public/adapters/*.test.ts` | checkout-public | data transformation | 8 |
+| 13 | `src/modules/checkout-public/mappers/*.test.ts` | checkout-public | DTO mapping | 8 |
+| 14 | `src/modules/dashboard/hooks/*.test.ts` | dashboard | analytics hooks | 12 |
+| 15 | `src/modules/dashboard/utils/*.test.ts` | dashboard | chart formatters | 8 |
+| 16 | `src/modules/members-area/services/*.test.ts` | members-area | content delivery | 10 |
+| 17 | `src/modules/members-area/hooks/*.test.ts` | members-area | lesson progress | 10 |
+| 18 | `src/modules/members-area/utils/*.test.ts` | members-area | formatting | 6 |
 
-**Subtotal Subfase 2.2:** 5 arquivos, ~42 testes
-
----
-
-### SUBFASE 2.3: Business Hooks (11 arquivos)
-
-| # | Arquivo | Linhas | Funções a Testar | Testes Est. |
-|---|---------|--------|------------------|-------------|
-| 8 | `src/hooks/checkout/useVisitTracker.test.ts` | 78 | useVisitTracker (tracking, session, errors) | 8 |
-| 9 | `src/hooks/checkout/useTrackingService.test.ts` | 102 | fireInitiateCheckout, firePurchase | 10 |
-| 10 | `src/hooks/checkout/useCheckoutData.test.ts` | 209 | loadCheckoutData, state management | 12 |
-| 11 | `src/hooks/checkout/helpers/fetchProductData.test.ts` | 52 | fetchProductData | 5 |
-| 12 | `src/hooks/checkout/helpers/fetchOrderBumps.test.ts` | 90 | fetchOrderBumps | 6 |
-| 13 | `src/hooks/checkout/helpers/fetchAffiliateInfo.test.ts` | 71 | getAffiliateCode, fetchAffiliateInfo | 8 |
-| 14 | `src/hooks/checkout/helpers/resolveCheckoutSlug.test.ts` | 31 | resolveCheckoutSlug | 4 |
-| 15 | `src/hooks/checkout/helpers/fetchCheckoutById.test.ts` | 59 | fetchCheckoutById | 5 |
-| 16 | `src/hooks/useAuthUser.test.ts` | 81 | useAuthUser (user, isAuthenticated, email, name) | 6 |
-| 17 | `src/hooks/useAuthActions.test.ts` | 98 | logout, invalidate, isLoggingOut | 8 |
-| 18 | `src/hooks/useFormValidation.test.ts` | 231 | onChange, onBlur, validate, reset, setValue, getRawValue | 20 |
-| 19 | `src/hooks/usePermissions.test.ts` | 117 | usePermissions, useHasMinRole, useCanHaveAffiliates | 12 |
-
-**Subtotal Subfase 2.3:** 12 arquivos (incluindo fetchCheckoutById), ~104 testes
+**Subtotal Subfase 3.2:** 8 arquivos, ~72 testes
 
 ---
 
-### SUBFASE 2.4: Utilities & Support (7 arquivos)
+### SUBFASE 3.3: Lib Avançado (Pendentes)
 
-| # | Arquivo | Linhas | Funções a Testar | Testes Est. |
-|---|---------|--------|------------------|-------------|
-| 20 | `src/lib/utils/uniqueName.test.ts` | 23 | ensureUniqueName | 5 |
-| 21 | `src/lib/utils/uniqueCheckoutName.test.ts` | ~30 | ensureUniqueCheckoutName | 5 |
-| 22 | `src/lib/utils/normalizeDataUrl.test.ts` | 49 | normalizeDataUrl | 8 |
-| 23 | `src/lib/checkout/normalizeDesign.test.ts` | 188 | normalizeDesign, ensureDerivedProperties, deepMerge | 15 |
-| 24 | `src/lib/checkout/themePresets.test.ts` | 233 | THEME_PRESETS, FONT_OPTIONS | 8 |
-| 25 | `src/lib/date-range/service.test.ts` | 203 | getRange, getCustomRange, withTimezone, withReferenceDate | 15 |
-| 26 | `src/lib/timezone/service.test.ts` | 305 | getDateBoundaries, getHourInTimezone, format, formatDate, formatTime | 18 |
+| # | Arquivo | Funções a Testar | Testes Est. |
+|---|---------|------------------|-------------|
+| 19 | `src/lib/token-manager/service.test.ts` | TokenService class | 15 |
+| 20 | `src/lib/token-manager/persistence.test.ts` | storage, recovery | 10 |
+| 21 | `src/lib/token-manager/heartbeat.test.ts` | keep-alive, timeout | 8 |
+| 22 | `src/lib/token-manager/cross-tab-lock.test.ts` | BroadcastChannel | 8 |
+| 23 | `src/lib/rpc/rpcProxy.test.ts` | RPC calls | 10 |
+| 24 | `src/lib/storage/storageProxy.test.ts` | Storage operations | 8 |
+| 25 | `src/lib/order-status/service.test.ts` | status transitions | 10 |
+| 26 | `src/lib/products/deleteProduct.test.ts` | cascading delete | 6 |
+| 27 | `src/lib/products/duplicateProduct.test.ts` | deep clone | 6 |
+| 28 | `src/lib/checkouts/cloneCheckoutDeep.test.ts` | checkout duplication | 8 |
+| 29 | `src/lib/checkouts/duplicateCheckout.test.ts` | with relations | 8 |
+| 30 | `src/lib/checkout/cloneCustomization.test.ts` | design clone | 6 |
+| 31 | `src/lib/links/attachOfferToCheckoutSmart.test.ts` | offer linking | 8 |
+| 32 | `src/lib/orderBump/fetchCandidates.test.ts` | candidate selection | 8 |
+| 33 | `src/lib/security.test.ts` | XSS protection | 10 |
+| 34 | `src/lib/uploadUtils.test.ts` | file validation | 8 |
+| 35 | `src/lib/utils.test.ts` | general utilities | 10 |
+| 36 | `src/lib/utmify-helper.test.ts` | UTM parsing | 8 |
+| 37 | `src/lib/lazyWithRetry.test.ts` | lazy loading | 6 |
 
-**Subtotal Subfase 2.4:** 7 arquivos, ~74 testes
-
----
-
-## Resumo Quantitativo
-
-| Subfase | Arquivos | Testes | Cobertura Adicional |
-|---------|----------|--------|---------------------|
-| 2.1 API Endpoints | 2 | ~23 | +1.2% |
-| 2.2 Payment Gateways | 5 | ~42 | +3.0% |
-| 2.3 Business Hooks | 12 | ~104 | +7.1% |
-| 2.4 Utilities | 7 | ~74 | +4.2% |
-| **TOTAL** | **26** | **~243** | **+15.5%** |
-
-**Nota:** São 26 arquivos porque `fetchCheckoutById.test.ts` foi identificado durante a análise.
+**Subtotal Subfase 3.3:** 19 arquivos, ~161 testes
 
 ---
 
-## Projeção de Cobertura Final
+### SUBFASE 3.4: Contextos e Providers
 
-```text
-┌────────────────────────────────────────────────────────────────┐
-│                    COBERTURA FINAL FASE 2                       │
-│                                                                 │
-│  ANTES (Atual):                                                │
-│  Arquivos: 18/168 (10.7%)                                      │
-│  Testes: ~630                                                  │
-│  ██████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░                 │
-│                                                                 │
-│  APÓS (Fase 2 Completa):                                       │
-│  Arquivos: 44/168 (26.2%)                                      │
-│  Testes: ~873                                                  │
-│  ██████████████████████░░░░░░░░░░░░░░░░░░░░░░                 │
-│                                                                 │
-└────────────────────────────────────────────────────────────────┘
-```
+| # | Arquivo | Funções a Testar | Testes Est. |
+|---|---------|------------------|-------------|
+| 38 | `src/contexts/CheckoutContext.test.tsx` | context state | 10 |
+| 39 | `src/contexts/UltrawidePerformanceContext.test.tsx` | performance hooks | 6 |
+| 40 | `src/providers/NavigationGuardProvider.test.tsx` | route protection | 8 |
+| 41 | `src/providers/UnsavedChangesGuard.test.tsx` | dirty form detection | 8 |
+| 42 | `src/providers/theme.test.tsx` | theme switching | 6 |
+
+**Subtotal Subfase 3.4:** 5 arquivos, ~38 testes
 
 ---
 
-## Ordem de Implementação (Dependências Respeitadas)
+### SUBFASE 3.5: Componentes Críticos (React Testing Library)
 
-### Etapa 1: Infraestrutura de Mocks (Pré-requisito)
+| # | Arquivo | Componente | Testes Est. |
+|---|---------|------------|-------------|
+| 43 | `src/components/checkout/CouponField.test.tsx` | Coupon validation | 10 |
+| 44 | `src/components/checkout/SecurityBadges.test.tsx` | Trust indicators | 5 |
+| 45 | `src/components/checkout/TurnstileWidget.test.tsx` | Bot protection | 6 |
+| 46 | `src/components/checkout/OrderBumpList.test.tsx` | Order bump selection | 10 |
+| 47 | `src/components/checkout/payment/CreditCardForm.test.tsx` | Card form | 15 |
+| 48 | `src/components/checkout/payment/GatewayCardForm.test.tsx` | Gateway routing | 10 |
+| 49 | `src/components/auth/*.test.tsx` | Login/Register forms | 12 |
+| 50 | `src/components/guards/*.test.tsx` | Route protection | 8 |
+| 51 | `src/components/AppErrorBoundary.test.tsx` | Error handling | 6 |
+| 52 | `src/components/RouteErrorBoundary.test.tsx` | Route errors | 6 |
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  CRIAR/ATUALIZAR MSW HANDLERS                                   │
-│                                                                  │
-│  1. src/test/mocks/handlers/analytics-handlers.ts               │
-│  2. src/test/mocks/handlers/products-handlers.ts                │
-│  3. src/test/mocks/handlers/checkout-public-handlers.ts         │
-│  4. src/test/mocks/handlers/track-visit-handlers.ts             │
-│  5. Atualizar src/test/mocks/handlers.ts (barrel export)        │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+**Subtotal Subfase 3.5:** 10 arquivos, ~88 testes
 
-### Etapa 2: Utilities (Funções Puras - Sem Dependências)
+---
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  ORDEM DE IMPLEMENTAÇÃO - UTILITIES                             │
-│                                                                  │
-│  1. src/lib/utils/normalizeDataUrl.test.ts                      │
-│     └─ Função pura, zero dependências                          │
-│                                                                  │
-│  2. src/lib/checkout/themePresets.test.ts                       │
-│     └─ Constantes puras, zero dependências                     │
-│                                                                  │
-│  3. src/lib/checkout/normalizeDesign.test.ts                    │
-│     └─ Depende de themePresets (já testado)                    │
-│                                                                  │
-│  4. src/lib/timezone/service.test.ts                            │
-│     └─ Classe isolada, usa Intl API                            │
-│                                                                  │
-│  5. src/lib/date-range/service.test.ts                          │
-│     └─ Depende de TimezoneService (já testado)                 │
-│                                                                  │
-│  6. src/lib/utils/uniqueName.test.ts                            │
-│     └─ Usa MSW mock para api.call                              │
-│                                                                  │
-│  7. src/lib/utils/uniqueCheckoutName.test.ts                    │
-│     └─ Usa MSW mock para api.call                              │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+### SUBFASE 3.6: Services Layer
 
-### Etapa 3: API Endpoints
+| # | Arquivo | Funções a Testar | Testes Est. |
+|---|---------|------------------|-------------|
+| 53 | `src/services/marketplace.test.ts` | marketplace ops | 8 |
+| 54 | `src/services/offers.test.ts` | offer management | 8 |
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  ORDEM DE IMPLEMENTAÇÃO - API ENDPOINTS                         │
-│                                                                  │
-│  1. src/lib/api/endpoints/analytics.test.ts                     │
-│     └─ Usa handlers de analytics-handlers.ts                   │
-│                                                                  │
-│  2. src/lib/api/endpoints/products.test.ts                      │
-│     └─ Usa handlers de products-handlers.ts                    │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+**Subtotal Subfase 3.6:** 2 arquivos, ~16 testes
 
-### Etapa 4: Payment Gateways
+---
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  ORDEM DE IMPLEMENTAÇÃO - PAYMENT GATEWAYS                      │
-│                                                                  │
-│  1. src/lib/payment-gateways/gateways/mercado-pago/index.test.ts│
-│     └─ Gateway específico (função pura)                        │
-│                                                                  │
-│  2. src/lib/payment-gateways/gateways/stripe/index.test.ts      │
-│     └─ Gateway específico (função pura)                        │
-│                                                                  │
-│  3. src/lib/payment-gateways/helpers/mercadopago-sync.test.ts   │
-│     └─ DOM manipulation (jsdom)                                │
-│                                                                  │
-│  4. src/lib/payment-gateways/index.test.ts                      │
-│     └─ Barrel export (depende dos anteriores)                  │
-│                                                                  │
-│  5. src/components/checkout/payment/hooks/useGatewayManager.test.ts│
-│     └─ Hook complexo (depende de todos os gateways)            │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+### SUBFASE 3.7: Hooks Avançados (Pendentes)
 
-### Etapa 5: Checkout Helpers
+| # | Arquivo | Hook | Testes Est. |
+|---|---------|------|-------------|
+| 55 | `src/hooks/useAdminAnalytics.test.ts` | Admin analytics | 8 |
+| 56 | `src/hooks/useAffiliateRequest.test.ts` | Affiliate requests | 8 |
+| 57 | `src/hooks/useAffiliateTracking.test.ts` | Tracking | 6 |
+| 58 | `src/hooks/useAffiliationDetails.test.ts` | Details fetch | 6 |
+| 59 | `src/hooks/useAffiliations.test.ts` | List affiliations | 6 |
+| 60 | `src/hooks/useBuyerOrders.test.ts` | Buyer orders | 8 |
+| 61 | `src/hooks/useCheckoutEditor.test.ts` | Editor state | 10 |
+| 62 | `src/hooks/useContextSwitcher.test.ts` | Context switching | 6 |
+| 63 | `src/hooks/useDecryptCustomerData.test.ts` | Decryption | 8 |
+| 64 | `src/hooks/useDecryptCustomerBatch.test.ts` | Batch decrypt | 8 |
+| 65 | `src/hooks/useFormDirtyGuard.test.ts` | Form guard | 6 |
+| 66 | `src/hooks/useMarketplaceProducts.test.ts` | Marketplace | 8 |
+| 67 | `src/hooks/usePaymentAccountCheck.test.ts` | Account check | 6 |
+| 68 | `src/hooks/useProduct.test.tsx` | Product CRUD | 10 |
+| 69 | `src/hooks/useProductPixels.test.ts` | Pixel config | 6 |
+| 70 | `src/hooks/useResetPassword.test.ts` | Password reset | 8 |
+| 71 | `src/hooks/useVendorPixels.test.ts` | Vendor pixels | 6 |
+| 72 | `src/hooks/useVendorTimezone.test.ts` | Timezone | 4 |
+
+**Subtotal Subfase 3.7:** 18 arquivos, ~128 testes
+
+---
+
+## Resumo Quantitativo Fase 3
+
+| Subfase | Categoria | Arquivos | Testes | Prioridade |
+|---------|-----------|----------|--------|------------|
+| 3.1 | XState Machines | 10 | ~134 | 🔴 CRÍTICA |
+| 3.2 | Módulos Core | 8 | ~72 | 🔴 CRÍTICA |
+| 3.3 | Lib Avançado | 19 | ~161 | 🟠 ALTA |
+| 3.4 | Contextos/Providers | 5 | ~38 | 🟠 ALTA |
+| 3.5 | Componentes Críticos | 10 | ~88 | 🟡 MÉDIA |
+| 3.6 | Services | 2 | ~16 | 🟡 MÉDIA |
+| 3.7 | Hooks Avançados | 18 | ~128 | 🟡 MÉDIA |
+| **TOTAL** | | **72** | **~637** | |
+
+---
+
+## Projeção de Cobertura Pós-Fase 3
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│  ORDEM DE IMPLEMENTAÇÃO - CHECKOUT HELPERS                      │
-│                                                                  │
-│  1. src/hooks/checkout/helpers/fetchProductData.test.ts         │
-│     └─ Helper atômico com MSW                                  │
-│                                                                  │
-│  2. src/hooks/checkout/helpers/fetchOrderBumps.test.ts          │
-│     └─ Helper atômico com MSW                                  │
-│                                                                  │
-│  3. src/hooks/checkout/helpers/fetchAffiliateInfo.test.ts       │
-│     └─ Helper com RPC mock                                     │
-│                                                                  │
-│  4. src/hooks/checkout/helpers/resolveCheckoutSlug.test.ts      │
-│     └─ Helper com RPC mock                                     │
-│                                                                  │
-│  5. src/hooks/checkout/helpers/fetchCheckoutById.test.ts        │
-│     └─ Helper atômico com MSW                                  │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Etapa 6: Business Hooks
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  ORDEM DE IMPLEMENTAÇÃO - BUSINESS HOOKS                        │
-│                                                                  │
-│  1. src/hooks/useAuthUser.test.ts                               │
-│     └─ Selective subscription hook                             │
-│                                                                  │
-│  2. src/hooks/useAuthActions.test.ts                            │
-│     └─ Mutation hook com logout/invalidate                     │
-│                                                                  │
-│  3. src/hooks/useFormValidation.test.ts                         │
-│     └─ Hook complexo com máscaras e validação                  │
-│                                                                  │
-│  4. src/hooks/usePermissions.test.ts                            │
-│     └─ Permission derivation hook                              │
-│                                                                  │
-│  5. src/hooks/checkout/useVisitTracker.test.ts                  │
-│     └─ Effect hook com sessionStorage                          │
-│                                                                  │
-│  6. src/hooks/checkout/useTrackingService.test.ts               │
-│     └─ Hook com UTMify mock                                    │
-│                                                                  │
-│  7. src/hooks/checkout/useCheckoutData.test.ts                  │
-│     └─ Orquestrador (depende de todos os helpers)              │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    PROJEÇÃO DE COBERTURA PÓS-FASE 3                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ANTES (Atual):                                                             │
+│  Arquivos com Teste: ~50/478 (10.5%)                                        │
+│  Testes Totais: ~930                                                        │
+│  ████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  10.5%             │
+│                                                                              │
+│  APÓS (Fase 3 Completa):                                                    │
+│  Arquivos com Teste: ~122/478 (25.5%)                                       │
+│  Testes Totais: ~1,567                                                      │
+│  ████████████████████████████████░░░░░░░░░░░░░░░░░░░░░░  25.5%             │
+│                                                                              │
+│  INCREMENTO: +15.0% cobertura, +637 testes                                  │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Detalhamento Técnico por Arquivo
+## Cronograma de Execução
 
-### Subfase 2.1: API Endpoints
+| Etapa | Subfase | Arquivos | Tempo Est. | Dependências |
+|-------|---------|----------|------------|--------------|
+| 1 | 3.1 XState Machines | 10 | 4-5 dias | Nenhuma (SSOT) |
+| 2 | 3.2 Módulos Core | 8 | 3 dias | Etapa 1 |
+| 3 | 3.3 Lib Avançado | 19 | 4 dias | Nenhuma |
+| 4 | 3.4 Contextos | 5 | 2 dias | Etapa 3 |
+| 5 | 3.5 Componentes | 10 | 3 dias | Etapas 1-4 |
+| 6 | 3.6 Services | 2 | 1 dia | Nenhuma |
+| 7 | 3.7 Hooks Avançados | 18 | 4 dias | Etapas 1-4 |
+| **TOTAL** | | **72** | **21-22 dias** | |
 
-#### 1. `analytics.test.ts` (~9 testes)
+---
 
-```text
-Casos de Teste:
-├── analyticsApi.getDashboard
-│   ├── should call api.call with correct action and default period
-│   ├── should pass custom period to params
-│   └── should handle API errors gracefully
-├── analyticsApi.getSalesChart
-│   ├── should return sales data points array
-│   └── should handle empty data
-└── analyticsApi.getProductAnalytics
-    ├── should call with productId and period
-    ├── should return product-specific metrics
-    └── should handle product not found error
-```
-
-#### 2. `products.test.ts` (~14 testes)
+## Ordem de Implementação Recomendada
 
 ```text
-Casos de Teste:
-├── productsApi.list
-│   ├── should return paginated products
-│   ├── should pass filter params correctly
-│   └── should handle empty list
-├── productsApi.get
-│   ├── should return single product by ID
-│   └── should handle product not found
-├── productsApi.create
-│   ├── should create product with input
-│   └── should validate required fields
-├── productsApi.update
-│   ├── should update product fields
-│   └── should handle partial updates
-├── productsApi.delete
-│   ├── should delete product by ID
-│   └── should handle delete errors
-└── productsApi.getSettings/updateSettings
-    ├── should get product settings
-    ├── should update settings
-    └── should handle settings not found
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      FLUXO DE IMPLEMENTAÇÃO FASE 3                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│   ETAPA 1: XSTATE MACHINES (SSOT - MÁXIMA PRIORIDADE)                       │
+│   ├── checkoutPublicMachine.test.ts                                         │
+│   ├── productFormMachine.test.ts                                            │
+│   ├── dateRangeMachine.test.ts                                              │
+│   └── token-manager/machine.test.ts                                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│   ETAPA 2: TOKEN MANAGER COMPLETO                                           │
+│   ├── service.test.ts                                                       │
+│   ├── persistence.test.ts                                                   │
+│   ├── heartbeat.test.ts                                                     │
+│   └── cross-tab-lock.test.ts                                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│   ETAPA 3: LIB UTILITIES                                                    │
+│   ├── rpcProxy.test.ts, storageProxy.test.ts                               │
+│   ├── order-status/service.test.ts                                          │
+│   ├── products/*.test.ts, checkouts/*.test.ts                               │
+│   └── security.test.ts, utils.test.ts, uploadUtils.test.ts                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│   ETAPA 4: MÓDULOS CORE                                                     │
+│   ├── checkout-public/hooks, adapters, mappers                              │
+│   ├── dashboard/hooks, utils                                                │
+│   └── members-area/services, hooks, utils                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│   ETAPA 5: CONTEXTOS & PROVIDERS                                            │
+│   ├── CheckoutContext.test.tsx                                              │
+│   ├── NavigationGuardProvider.test.tsx                                      │
+│   └── UnsavedChangesGuard.test.tsx                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│   ETAPA 6: COMPONENTES CRÍTICOS                                             │
+│   ├── CouponField.test.tsx, OrderBumpList.test.tsx                          │
+│   ├── CreditCardForm.test.tsx, GatewayCardForm.test.tsx                     │
+│   └── ErrorBoundaries.test.tsx                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│   ETAPA 7: HOOKS AVANÇADOS                                                  │
+│   ├── useCheckoutEditor.test.ts                                             │
+│   ├── useDecryptCustomerData.test.ts                                        │
+│   └── Demais hooks de negócio                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### Subfase 2.2: Payment Gateways
+## Infraestrutura Adicional Necessária
 
-#### 3. `mercadopago-sync.test.ts` (~10 testes)
-
-```text
-Casos de Teste:
-├── syncMercadoPagoHiddenFields
-│   ├── should sync cardholderName to hidden field
-│   ├── should sync document with mask removed
-│   ├── should detect CPF vs CNPJ correctly
-│   ├── should dispatch input events
-│   └── should handle missing DOM elements gracefully
-└── updateMercadoPagoInstallmentsSelect
-    ├── should clear existing options
-    ├── should add new installment options
-    ├── should select current value
-    ├── should handle empty installments array
-    └── should handle missing select element
-```
-
-#### 4. `mercado-pago/index.test.ts` (~6 testes)
+### Novos MSW Handlers
 
 ```text
-Casos de Teste:
-├── mercadoPagoGateway.id
-│   └── should be 'mercadopago'
-├── mercadoPagoGateway.displayName
-│   └── should be 'Mercado Pago'
-├── mercadoPagoGateway.generateInstallments
-│   ├── should use MP interest rate (2.99%)
-│   ├── should respect maxInstallments param
-│   └── should delegate to generateInstallments
-└── mercadoPagoGateway.getInterestRate
-    └── should return 0.0299
+src/test/mocks/handlers/
+├── token-manager-handlers.ts     # Token refresh, validation
+├── order-status-handlers.ts      # Status transitions
+├── members-area-handlers.ts      # Content, lessons
+├── admin-handlers.ts             # User management
+└── marketplace-handlers.ts       # Marketplace ops
 ```
 
-#### 5. `stripe/index.test.ts` (~6 testes)
+### Test Utilities Adicionais
 
 ```text
-Casos de Teste:
-├── stripeGateway.id
-│   └── should be 'stripe'
-├── stripeGateway.displayName
-│   └── should be 'Stripe'
-├── stripeGateway.generateInstallments
-│   ├── should use Stripe interest rate (1.99%)
-│   ├── should respect maxInstallments param
-│   └── should delegate to generateInstallments
-└── stripeGateway.getInterestRate
-    └── should return 0.0199
-```
-
-#### 6. `useGatewayManager.test.ts` (~15 testes)
-
-```text
-Casos de Teste:
-├── Initial State
-│   ├── should start with isReady=false when no config
-│   ├── should start with isLoading=false when disabled
-│   └── should have gateway=null initially
-├── Loading SDK
-│   ├── should set isLoading=true during load
-│   ├── should set isReady=true after successful load
-│   ├── should set error on load failure
-│   └── should use correct loader for gateway type
-├── Gateway Loaders Registry
-│   ├── should have loader for mercadopago
-│   ├── should have loader for stripe
-│   ├── should have loader for pushinpay (resolves true)
-│   └── should reject unsupported gateways
-├── Reload Functionality
-│   ├── should trigger reload on reload() call
-│   └── should increment loadAttempt
-└── Error Handling
-    ├── should handle missing publicKey
-    └── should handle SDK load timeout
-```
-
-#### 7. `payment-gateways/index.test.ts` (~5 testes)
-
-```text
-Casos de Teste:
-├── Exports
-│   ├── should export getGateway function
-│   ├── should export getAvailableGateways function
-│   ├── should export isGatewaySupported function
-│   ├── should export generateInstallments function
-│   └── should export MercadoPagoCardForm component
-```
-
----
-
-### Subfase 2.3: Business Hooks
-
-#### 8. `useVisitTracker.test.ts` (~8 testes)
-
-```text
-Casos de Teste:
-├── Session Tracking
-│   ├── should track visit only once per session
-│   ├── should store tracking key in sessionStorage
-│   └── should skip tracking if already tracked
-├── API Call
-│   ├── should call track-visit edge function
-│   ├── should pass UTM params from URL
-│   ├── should include user agent and referrer
-│   └── should handle API errors gracefully
-└── Edge Cases
-    └── should not track if checkoutId is undefined
-```
-
-#### 9. `useTrackingService.test.ts` (~10 testes)
-
-```text
-Casos de Teste:
-├── fireInitiateCheckout
-│   ├── should not fire if productId is null
-│   ├── should not fire if productName is null
-│   └── should be a no-op for UTMify
-├── firePurchase
-│   ├── should fire UTMify purchase event
-│   ├── should pass correct order data
-│   ├── should extract UTM parameters
-│   ├── should not fire if vendorId is null
-│   ├── should not fire if UTMify config invalid
-│   └── should format date correctly for UTMify
-└── Config Handling
-    └── should accept null utmifyConfig
-```
-
-#### 10. `useCheckoutData.test.ts` (~12 testes)
-
-```text
-Casos de Teste:
-├── Loading State
-│   ├── should start with isLoading=true
-│   ├── should set isLoading=false after load
-│   └── should set isError=true on failure
-├── Data Fetching
-│   ├── should call BFF with correct slug
-│   ├── should extract affiliate code from URL
-│   ├── should normalize design correctly
-│   └── should format order bumps
-├── Gateway Resolution
-│   ├── should use affiliate gateway if present
-│   ├── should fallback to product gateway
-│   └── should default to mercadopago
-├── Error Handling
-│   ├── should handle BFF errors
-│   └── should set isError on exception
-```
-
-#### 11-15. Checkout Helpers (~28 testes total)
-
-```text
-fetchProductData.test.ts (5 testes):
-├── should fetch product by ID
-├── should throw on API error
-├── should throw on invalid response
-├── should throw if product not found
-└── should return ProductRawData interface
-
-fetchOrderBumps.test.ts (6 testes):
-├── should fetch order bumps by checkoutId
-├── should return empty array on error
-├── should return empty array on invalid response
-├── should format bumps correctly
-├── should preserve price semantics
-└── should handle missing offer
-
-fetchAffiliateInfo.test.ts (8 testes):
-├── getAffiliateCode should extract ref param
-├── getAffiliateCode should return null if no ref
-├── fetchAffiliateInfo should return default if no code
-├── fetchAffiliateInfo should call RPC
-├── fetchAffiliateInfo should return gateway info
-├── fetchAffiliateInfo should handle RPC error
-├── fetchAffiliateInfo should handle empty data
-└── fetchAffiliateInfo should return default on error
-
-resolveCheckoutSlug.test.ts (4 testes):
-├── should resolve slug to checkoutId and productId
-├── should throw on RPC error
-├── should throw on empty data
-└── should throw on missing checkout_id
-
-fetchCheckoutById.test.ts (5 testes):
-├── should fetch checkout by ID
-├── should throw on API error
-├── should throw on invalid response
-├── should throw if checkout not found
-└── should return CheckoutRawData interface
-```
-
-#### 16. `useAuthUser.test.ts` (~6 testes)
-
-```text
-Casos de Teste:
-├── should return null user when not authenticated
-├── should return user data from cache
-├── should return isAuthenticated from cache
-├── should return email accessor
-├── should return name accessor
-└── should not re-render on loading state changes
-```
-
-#### 17. `useAuthActions.test.ts` (~8 testes)
-
-```text
-Casos de Teste:
-├── logout
-│   ├── should call logout API
-│   ├── should clear query data on success
-│   ├── should clear TokenService
-│   └── should invalidate all queries
-├── invalidate
-│   ├── should invalidate auth query
-│   └── should trigger refetch
-└── isLoggingOut
-    ├── should be true during logout
-    └── should be false after logout
-```
-
-#### 18. `useFormValidation.test.ts` (~20 testes)
-
-```text
-Casos de Teste:
-├── CPF Field
-│   ├── should apply CPF mask
-│   ├── should validate CPF on blur
-│   ├── should return error for invalid CPF
-│   └── should return raw value without mask
-├── CNPJ Field
-│   ├── should apply CNPJ mask
-│   ├── should validate CNPJ on blur
-│   └── should return error for invalid CNPJ
-├── Phone Field
-│   ├── should apply phone mask
-│   └── should validate phone format
-├── Email Field
-│   ├── should validate email format
-│   └── should return error for invalid email
-├── Name Field
-│   ├── should validate name length
-│   └── should require at least 2 words
-├── Required Fields
-│   ├── should return error for empty required field
-│   └── should allow empty optional field
-├── State Management
-│   ├── should track isTouched
-│   ├── should reset field
-│   ├── should setValue programmatically
-│   └── should validate on manual call
-└── maxLength
-    └── should return correct maxLength for each type
-```
-
-#### 19. `usePermissions.test.ts` (~12 testes)
-
-```text
-Casos de Teste:
-├── Owner Role
-│   ├── should have canHaveAffiliates=true
-│   ├── should have canAccessAdminPanel=true
-│   ├── should have canViewSecurityLogs=true
-│   └── should have canManageUsers=true
-├── Admin Role
-│   ├── should have canAccessAdminPanel=true
-│   └── should have canHaveAffiliates=false
-├── User Role
-│   ├── should have canBecomeAffiliate=true
-│   ├── should have canManageProducts=true
-│   └── should have canHaveAffiliates=false
-├── useHasMinRole
-│   ├── should return true for owner >= user
-│   └── should return false for user >= owner
-└── useCanHaveAffiliates
-    └── should return correct canHaveAffiliates value
-```
-
----
-
-### Subfase 2.4: Utilities
-
-#### 20. `uniqueName.test.ts` (~5 testes)
-
-```text
-Casos de Teste:
-├── should return unique name from API
-├── should handle API error
-├── should fallback to base name on empty response
-├── should pass correct action and productName
-└── should handle special characters in name
-```
-
-#### 21. `uniqueCheckoutName.test.ts` (~5 testes)
-
-```text
-Casos de Teste:
-├── should return unique checkout name from API
-├── should handle API error
-├── should throw on invalid response
-├── should pass productId and baseName
-└── should ignore first parameter (signature stability)
-```
-
-#### 22. `normalizeDataUrl.test.ts` (~8 testes)
-
-```text
-Casos de Teste:
-├── should return empty string for empty input
-├── should remove whitespace and newlines
-├── should remove duplicate prefixes
-├── should handle multiple duplications
-├── should add prefix if missing
-├── should handle different image types (png, jpeg, gif)
-├── should log error for invalid result
-└── should return normalized valid data URL
-```
-
-#### 23. `normalizeDesign.test.ts` (~15 testes)
-
-```text
-Casos de Teste:
-├── Theme Detection
-│   ├── should default to light theme
-│   ├── should use design.theme if present
-│   └── should use checkout.theme as fallback
-├── Preset Application
-│   ├── should apply light preset colors
-│   └── should apply dark preset colors
-├── Color Merging
-│   ├── should merge design.colors with preset
-│   ├── should deep merge nested objects
-│   └── should not mutate original preset
-├── Derived Properties
-│   ├── should ensure border property
-│   ├── should ensure infoBox property
-│   ├── should ensure orderBump property
-│   ├── should ensure creditCardFields property
-│   ├── should ensure orderSummary property
-│   ├── should ensure footer property
-│   └── should ensure securePurchase property
-```
-
-#### 24. `themePresets.test.ts` (~8 testes)
-
-```text
-Casos de Teste:
-├── THEME_PRESETS.light
-│   ├── should have name 'light'
-│   ├── should have white background
-│   └── should have all required color properties
-├── THEME_PRESETS.dark
-│   ├── should have name 'dark'
-│   ├── should have dark background
-│   └── should have all required color properties
-└── FONT_OPTIONS
-    ├── should have 5 font options
-    └── should include Inter as first option
-```
-
-#### 25. `date-range/service.test.ts` (~15 testes)
-
-```text
-Casos de Teste:
-├── getRange('today')
-│   ├── should return today's boundaries in SP timezone
-│   ├── should return correct ISO strings
-│   └── should have preset='today'
-├── getRange('yesterday')
-│   └── should return yesterday's boundaries
-├── getRange('7days')
-│   ├── should include 7 complete days
-│   └── should start 6 days ago (includes today)
-├── getRange('30days')
-│   └── should include 30 complete days
-├── getRange('max')
-│   ├── should start from maxStartDate
-│   └── should end at today
-├── getCustomRange
-│   ├── should use custom from/to dates
-│   └── should have preset='custom'
-├── withTimezone
-│   └── should create new instance with different timezone
-└── withReferenceDate
-    └── should use reference date instead of now
-```
-
-#### 26. `timezone/service.test.ts` (~18 testes)
-
-```text
-Casos de Teste:
-├── getDateBoundaries
-│   ├── should return startOfDay in UTC
-│   ├── should return endOfDay in UTC
-│   ├── should handle DST transitions
-│   └── should throw on invalid date parts
-├── toStartOfDay
-│   └── should return only startOfDay ISO
-├── toEndOfDay
-│   └── should return only endOfDay ISO
-├── getHourInTimezone
-│   ├── should return hour in SP timezone
-│   ├── should handle Date object
-│   └── should handle ISO string
-├── getDateInTimezone
-│   └── should return YYYY-MM-DD format
-├── format
-│   ├── should return date, time, full, relative
-│   └── should format relative time correctly
-├── formatDate
-│   └── should return dd/MM/yyyy
-├── formatTime
-│   └── should return HH:mm
-├── formatFull
-│   └── should return dd/MM/yyyy HH:mm
-├── withTimezone
-│   └── should create instance with new timezone
-└── withLocale
-    └── should create instance with new locale
-```
-
----
-
-## MSW Handlers Necessários
-
-### handlers/analytics-handlers.ts
-
-```typescript
-// Handlers para analytics-api edge function
-http.post('*/functions/v1/analytics-api', ({ request }) => {
-  const body = await request.json();
-  switch (body.action) {
-    case 'dashboard':
-      return HttpResponse.json({ data: mockDashboardData });
-    case 'sales_chart':
-      return HttpResponse.json({ data: mockSalesChart });
-    case 'product_analytics':
-      return HttpResponse.json({ data: mockProductAnalytics });
-  }
-});
-```
-
-### handlers/products-handlers.ts
-
-```typescript
-// Handlers para products-api edge function
-http.post('*/functions/v1/products-api', ({ request }) => {
-  const body = await request.json();
-  // Handle list, get, create, update, delete, getSettings, updateSettings
-});
-```
-
-### handlers/checkout-public-handlers.ts
-
-```typescript
-// Handlers para checkout-public-data edge function
-http.post('*/functions/v1/checkout-public-data', ({ request }) => {
-  const body = await request.json();
-  // Handle product, checkout, order-bumps, offer, resolve-and-load
-});
+src/test/
+├── xstate-utils.ts               # XState testing helpers
+│   ├── createTestMachine()
+│   ├── simulateTransition()
+│   └── assertState()
+└── component-utils.tsx           # React component helpers
+    ├── renderWithProviders()
+    └── createMockContext()
 ```
 
 ---
 
 ## Métricas de Sucesso
 
-| Métrica | Antes | Depois | Meta |
-|---------|-------|--------|------|
-| Arquivos de Teste | 18 | 44 | 44+ |
-| Testes Totais | ~630 | ~873 | 850+ |
-| Cobertura de Arquivos | 10.7% | 26.2% | 25%+ |
-| Subfase 2.1 Completa | 66% | 100% | 100% |
-| Subfase 2.2 Completa | 37.5% | 100% | 100% |
-| Subfase 2.3 Completa | 21% | 100% | 100% |
-| Subfase 2.4 Completa | 22% | 100% | 100% |
+| Métrica | Atual | Meta Fase 3 | Meta Final |
+|---------|-------|-------------|------------|
+| Arquivos de Teste | 50 | 122 | 200+ |
+| Testes Totais | ~930 | ~1,567 | 2,500+ |
+| Cobertura de Arquivos | 10.5% | 25.5% | 70%+ |
+| XState Machines Testadas | 0/10 | 10/10 | 10/10 |
+| Módulos Core Testados | 0/5 | 5/5 | 5/5 |
 
 ---
 
-## Cronograma de Execução
+## Certificação RISE V3 - Fase 3
 
-| Etapa | Arquivos | Tempo Est. | Dependências |
-|-------|----------|------------|--------------|
-| 1. MSW Handlers | 4 arquivos | 1 dia | Nenhuma |
-| 2. Utilities | 7 arquivos | 2 dias | Etapa 1 |
-| 3. API Endpoints | 2 arquivos | 1 dia | Etapa 1 |
-| 4. Payment Gateways | 5 arquivos | 2 dias | Etapas 1-2 |
-| 5. Checkout Helpers | 5 arquivos | 1 dia | Etapa 1 |
-| 6. Business Hooks | 7 arquivos | 2 dias | Etapas 1-5 |
-| **TOTAL** | **30 arquivos** | **9 dias** | - |
+| Critério | Conformidade |
+|----------|--------------|
+| LEI SUPREMA (Seção 4) | ✅ Solução C escolhida (nota 10.0) |
+| Zero Tipos `any` | ✅ Obrigatório em todos os testes |
+| Limite 300 Linhas | ✅ Modularização por domínio |
+| XState como SSOT | ✅ Prioridade máxima (Subfase 3.1) |
+| Testing Pyramid | ✅ 70% Unit / 20% Integration / 10% E2E |
+| Documentação | ✅ Atualizar TESTING_SYSTEM.md |
 
 ---
 
@@ -815,9 +409,9 @@ http.post('*/functions/v1/checkout-public-data', ({ request }) => {
 
 | Aspecto | Valor |
 |---------|-------|
-| **Arquivos de Teste Novos** | 26 (incluindo fetchCheckoutById) |
-| **MSW Handlers Novos** | 4 |
-| **Testes Novos** | ~243 |
-| **Cobertura Final** | 26.2% (de 10.7%) |
-| **Tempo Total Estimado** | 9 dias |
+| **Arquivos de Teste Novos** | 72 |
+| **Testes Novos** | ~637 |
+| **Cobertura Final Fase 3** | 25.5% (de 10.5%) |
+| **Tempo Total Estimado** | 21-22 dias |
 | **Nota RISE V3** | 10.0/10 |
+| **Foco Principal** | XState Machines + Módulos Core |
