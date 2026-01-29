@@ -10,6 +10,7 @@
  */
 
 import { http, HttpResponse } from "msw";
+import { domainHandlers } from "./handlers/index";
 
 // ============================================================================
 // Constants
@@ -149,11 +150,11 @@ const orderHandlers = [
 ];
 
 // ============================================================================
-// Product Handlers
+// Legacy Product Handlers (Supabase REST - kept for backward compatibility)
 // ============================================================================
 
-const productHandlers = [
-  // Get product
+const legacyProductHandlers = [
+  // Get product via Supabase REST
   http.get(`${SUPABASE_URL}/rest/v1/products`, ({ request }) => {
     const url = new URL(request.url);
     const id = url.searchParams.get("id");
@@ -219,7 +220,8 @@ const couponHandlers = [
 export const handlers = [
   ...authHandlers,
   ...orderHandlers,
-  ...productHandlers,
+  ...legacyProductHandlers,
   ...checkoutHandlers,
   ...couponHandlers,
+  ...domainHandlers,
 ];
