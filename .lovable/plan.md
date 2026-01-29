@@ -1,221 +1,315 @@
 
-# Fase 3: Continuação - Etapas 2 e 3
+# Fase 3, Etapa 4: Testes para Contextos e Providers
 
-## Resumo do Progresso
+## Análise de Soluções (RISE V3 Seção 4.4)
 
-### Etapa 1 (Concluída)
-- 11 arquivos de teste para XState Machines criados
-- ~180 testes implementados
-- Cobertura de arquivos: 10.5% → ~12%
+### Solução A: Testes Unitários Simples
+- Manutenibilidade: 7/10 (falta cobertura de edge cases)
+- Zero DT: 6/10 (não testa integrações entre providers)
+- Arquitetura: 6/10 (viola SOLID - não testa contratos completos)
+- Escalabilidade: 7/10 (difícil adicionar testes de integração depois)
+- Segurança: 8/10 (testa XSS básico)
+- **NOTA FINAL: 6.8/10**
+- Tempo estimado: 2 horas
 
-### Status Atual
-- **Cobertura:** ~12% (62 arquivos de teste)
-- **Testes Totais:** ~1.100
+### Solução B: Testes Unitários + Integração Completos
+- Manutenibilidade: 10/10 (modularização por responsabilidade)
+- Zero DT: 10/10 (cobre todos os edge cases e integrações)
+- Arquitetura: 10/10 (testa contratos, hooks e providers separadamente)
+- Escalabilidade: 10/10 (estrutura permite expansão futura)
+- Segurança: 10/10 (testa XSS, localStorage, beforeunload)
+- **NOTA FINAL: 10.0/10**
+- Tempo estimado: 6 horas
 
----
-
-## Etapa 2: Token Manager Completo
-
-### Arquivos a Criar
-
-| # | Arquivo | Funções a Testar | Testes Est. |
-|---|---------|------------------|-------------|
-| 1 | `src/lib/token-manager/__tests__/service.test.ts` | TokenService class, initialize, setAuthenticated, hasValidToken, subscribe, refresh | 25 |
-| 2 | `src/lib/token-manager/__tests__/persistence.test.ts` | persistTokenState, restoreTokenState, clearPersistedState, error handling | 20 |
-| 3 | `src/lib/token-manager/__tests__/heartbeat.test.ts` | HeartbeatManager, start/stop, triggerNow, suspension detection | 15 |
-| 4 | `src/lib/token-manager/__tests__/cross-tab-lock.test.ts` | CrossTabLock, tryAcquire, release, isOtherTabRefreshing, waitForResult, BroadcastChannel | 20 |
-
-**Subtotal Etapa 2:** 4 arquivos, ~80 testes
-
-### Detalhes de Implementacao
-
-**service.test.ts:**
-- Testar construtor e estado inicial (idle)
-- Testar lazy initialization (isInitialized)
-- Testar setAuthenticated e transicao de estado
-- Testar hasValidToken em diferentes estados
-- Testar subscribe/unsubscribe pattern
-- Testar clearTokens e limpeza de estado
-- Mock de HeartbeatManager, CrossTabLock e SessionCommander
-
-**persistence.test.ts:**
-- Testar persistTokenState para diferentes estados
-- Testar restoreTokenState com dados validos e invalidos
-- Testar clearPersistedState
-- Testar tratamento de erros de localStorage (QuotaExceeded, SecurityError)
-- Mock de localStorage via vi.spyOn
-
-**heartbeat.test.ts:**
-- Testar start/stop do timer
-- Testar callback imediato no start
-- Testar intervalos regulares
-- Testar deteccao de suspensao (gap > 2x intervalo)
-- Testar triggerNow e getTimeSinceLastTick
-- Usar vi.useFakeTimers
-
-**cross-tab-lock.test.ts:**
-- Testar tryAcquire quando nao existe lock
-- Testar tryAcquire quando outro tab tem lock
-- Testar expiracao de lock (TTL 30s)
-- Testar release e notifySuccess/notifyFailure
-- Testar isOtherTabRefreshing
-- Testar waitForResult com timeout
-- Mock de BroadcastChannel e localStorage
+### DECISÃO: Solução B (Nota 10.0/10)
+A Solução A é inferior porque não cobre a integração entre providers (ex: UnsavedChangesGuard + NavigationGuardProvider), não testa edge cases de localStorage, e não valida o comportamento do useBlocker do react-router-dom.
 
 ---
 
-## Etapa 3: Lib Utilities
+## Arquivos a Criar
 
-### Arquivos a Criar
+| # | Arquivo | Responsabilidade | Linhas Est. | Testes Est. |
+|---|---------|------------------|-------------|-------------|
+| 1 | `src/contexts/__tests__/CheckoutContext.test.tsx` | Provider dual-mode, hook, erro fora do provider | ~180 | 18 |
+| 2 | `src/contexts/__tests__/UltrawidePerformanceContext.test.tsx` | matchMedia, configs ultrawide, hooks especializados | ~160 | 15 |
+| 3 | `src/providers/__tests__/theme.test.tsx` | localStorage, classList, fallback fora do provider | ~140 | 12 |
+| 4 | `src/providers/__tests__/NavigationGuardProvider.test.tsx` | registerDirty, hasAnyDirty, blocker state | ~200 | 20 |
+| 5 | `src/providers/__tests__/UnsavedChangesGuard.test.tsx` | Integração com NavigationGuardProvider, auto-ID | ~120 | 10 |
+| 6 | `src/hooks/__tests__/useFormDirtyGuard.test.tsx` | register/unregister lifecycle, cleanup | ~100 | 8 |
 
-| # | Arquivo | Funções a Testar | Testes Est. |
-|---|---------|------------------|-------------|
-| 5 | `src/lib/rpc/rpcProxy.test.ts` | invokeRpc, validateCouponRpc, getCheckoutBySlugRpc, etc. | 20 |
-| 6 | `src/lib/storage/storageProxy.test.ts` | uploadViaEdge, removeViaEdge, listViaEdge, copyViaEdge, uploadImage | 18 |
-| 7 | `src/lib/order-status/service.test.ts` | getDisplayLabel, getColorScheme, normalize, isPaid, isPending, isTerminal | 25 |
-| 8 | `src/lib/security.test.ts` | sanitize, sanitizeHtml, sanitizeText, sanitizeUrl, sanitizeColor, sanitizeFormObject | 20 |
-| 9 | `src/lib/utils.test.ts` | cn, parseJsonSafely | 12 |
-| 10 | `src/lib/uploadUtils.test.ts` | getAllComponentsFromCustomization, hasPendingUploads, waitForUploadsToFinish | 12 |
-| 11 | `src/lib/lazyWithRetry.test.ts` | lazyWithRetry, isChunkLoadError, retry logic, network error detection | 15 |
-| 12 | `src/lib/utmify-helper.test.ts` | extractUTMParameters, formatDateForUTMify, convertToCents | 12 |
-| 13 | `src/lib/products/deleteProduct.test.ts` | deleteProductCascade, validation, error handling | 10 |
-| 14 | `src/lib/products/duplicateProduct.test.ts` | duplicateProductDeep, validation, error handling | 10 |
-| 15 | `src/lib/checkouts/cloneCheckoutDeep.test.ts` | cloneCheckoutDeep, RPC integration | 8 |
-| 16 | `src/lib/checkouts/duplicateCheckout.test.ts` | duplicateCheckout, slug sanitization | 8 |
-
-**Subtotal Etapa 3:** 12 arquivos, ~170 testes
-
-### Detalhes de Implementacao
-
-**rpcProxy.test.ts:**
-- Mock de api.call e api.publicCall
-- Testar invokeRpc com diferentes authLevels
-- Testar RPCs tipados: validateCouponRpc, getCheckoutBySlugRpc, etc.
-- Testar tratamento de erros
-
-**storageProxy.test.ts:**
-- Mock de api.call
-- Testar fileToBase64 (funcao interna)
-- Testar uploadViaEdge com File e Blob
-- Testar removeViaEdge com array vazio
-- Testar listViaEdge e copyViaEdge
-- Testar helper uploadImage
-
-**order-status/service.test.ts:**
-- Testar normalizacao de todos os status de gateway
-- Testar mapeamento expired/cancelled/failed para pending
-- Testar getDisplayLabel para cada status canonico
-- Testar getColorScheme
-- Testar isPaid, isPending, isTerminal
-- Testar getStatusOptions
-
-**security.test.ts:**
-- Testar sanitize com XSS payloads
-- Testar sanitizeText remove todas as tags
-- Testar sanitizeUrl bloqueia javascript: e data:
-- Testar sanitizeColor valida formato hex
-- Testar sanitizeFormObject com diferentes tipos de campos
-
-**utils.test.ts:**
-- Testar cn com diferentes combinacoes de classes
-- Testar parseJsonSafely com string, objeto, null, invalido
-
-**uploadUtils.test.ts:**
-- Testar getAllComponentsFromCustomization com diferentes estruturas
-- Testar hasPendingUploads
-- Testar waitForUploadsToFinish com timeout
-
-**lazyWithRetry.test.ts:**
-- Mock de React.lazy
-- Testar retry em erro de rede
-- Testar nao retry em erro de sintaxe
-- Testar isChunkLoadError com diferentes mensagens
-
-**utmify-helper.test.ts:**
-- Testar extractUTMParameters com URL completa
-- Testar formatDateForUTMify com Date e string
-- Testar convertToCents com valores decimais
-
-**deleteProduct.test.ts / duplicateProduct.test.ts:**
-- Mock de api.call
-- Testar validacao de productId
-- Testar erro de Edge Function
-- Testar sucesso
-
-**cloneCheckoutDeep.test.ts / duplicateCheckout.test.ts:**
-- Mock de rpcProxy
-- Testar chamada correta de RPC
-- Testar tratamento de erros
+**Total:** 6 arquivos, ~900 linhas, ~83 testes
 
 ---
 
-## Resumo Quantitativo
+## Detalhes Técnicos de Implementação
 
-| Etapa | Arquivos | Testes | Prioridade |
-|-------|----------|--------|------------|
-| 2 - Token Manager | 4 | ~80 | CRITICA |
-| 3 - Lib Utilities | 12 | ~170 | ALTA |
-| **TOTAL** | **16** | **~250** | |
+### 1. CheckoutContext.test.tsx (~18 testes)
+
+```text
+DESCRIBE: CheckoutProvider
+├── IT: fornece valor quando usado com prop value
+├── IT: fornece valor quando usado com props separadas
+├── IT: memoiza valor corretamente (evita re-renders)
+├── IT: retorna checkout null quando não fornecido
+├── IT: retorna orderBumps vazio quando não fornecido
+├── IT: retorna vendorId null para segurança
+├── IT: aceita productData opcional
+├── IT: aceita customization opcional
+└── IT: atualiza valor quando props mudam
+
+DESCRIBE: useCheckoutContext
+├── IT: retorna valor do contexto quando dentro do provider
+├── IT: lança erro quando fora do provider
+├── IT: retorna todos os campos esperados
+├── IT: retorna design quando fornecido via value
+├── IT: retorna design quando fornecido via prop design
+└── IT: permite acesso a orderBumps do contexto
+```
+
+**Mocks Necessários:**
+- Não precisa de mocks externos (contexto puro)
 
 ---
 
-## Projecao de Cobertura Pos-Etapas 2-3
+### 2. UltrawidePerformanceContext.test.tsx (~15 testes)
+
+```text
+DESCRIBE: UltrawidePerformanceProvider
+├── IT: detecta monitor ultrawide (≥2560px)
+├── IT: detecta monitor normal (<2560px)
+├── IT: responde a mudanças de media query
+├── IT: retorna chartConfig padrão para normal
+├── IT: retorna chartConfig otimizado para ultrawide
+├── IT: disableAnimations é true para ultrawide
+├── IT: disableBlur é true para ultrawide
+├── IT: disableHoverEffects é true para ultrawide
+└── IT: memoiza value corretamente
+
+DESCRIBE: useUltrawidePerformance
+├── IT: retorna valor padrão fora do provider
+├── IT: retorna valor correto dentro do provider
+└── IT: reflete mudanças de ultrawide
+
+DESCRIBE: useChartPerformanceConfig
+├── IT: retorna apenas chartConfig
+└── IT: retorna config correto baseado em ultrawide
+```
+
+**Mocks Necessários:**
+- `window.matchMedia` (configurável para testes)
+- `window.innerWidth` (para estado inicial)
+- `@/lib/logger` (createLogger mock)
+
+---
+
+### 3. theme.test.tsx (~12 testes)
+
+```text
+DESCRIBE: ThemeProvider
+├── IT: inicializa com tema do localStorage
+├── IT: inicializa com 'light' se localStorage vazio
+├── IT: inicializa com 'light' se localStorage inválido
+├── IT: aplica classe ao documentElement
+├── IT: remove classe anterior ao mudar tema
+├── IT: salva tema no localStorage ao mudar
+├── IT: trata erro de localStorage graciosamente
+└── IT: memoiza value corretamente
+
+DESCRIBE: useTheme
+├── IT: retorna tema atual
+├── IT: permite mudar tema via setTheme
+├── IT: retorna fallback fora do provider
+└── IT: fallback setTheme é no-op seguro
+```
+
+**Mocks Necessários:**
+- `localStorage` (getItem, setItem)
+- `document.documentElement.classList` (add, remove)
+- `@/lib/logger` (createLogger mock)
+
+---
+
+### 4. NavigationGuardProvider.test.tsx (~20 testes)
+
+```text
+DESCRIBE: NavigationGuardProvider
+├── IT: renderiza children corretamente
+├── IT: fornece valor de contexto
+├── IT: aceita textos customizados do diálogo
+└── IT: registra beforeunload handler
+
+DESCRIBE: registerDirty/unregisterDirty
+├── IT: registra formulário como dirty
+├── IT: remove registro quando isDirty=false
+├── IT: permite múltiplos registros simultâneos
+├── IT: unregister remove formulário específico
+└── IT: não afeta outros registros ao unregister
+
+DESCRIBE: hasAnyDirty/isDirtyById
+├── IT: retorna false quando nenhum dirty
+├── IT: retorna true quando pelo menos um dirty
+├── IT: isDirtyById retorna true para ID específico
+├── IT: isDirtyById retorna false para ID inexistente
+└── IT: reflete mudanças em tempo real
+
+DESCRIBE: attemptNavigation
+├── IT: chama navigate com path correto
+└── IT: passa state opcional para navigate
+
+DESCRIBE: AlertDialog (blocker state)
+├── IT: não exibe dialog quando não bloqueado
+├── IT: handleCancel reseta blocker
+└── IT: handleProceed limpa dirty e prossegue
+```
+
+**Mocks Necessários:**
+- `react-router-dom` (useNavigate, useBlocker)
+- `window.addEventListener` (beforeunload)
+- AlertDialog components (render verification)
+
+---
+
+### 5. UnsavedChangesGuard.test.tsx (~10 testes)
+
+```text
+DESCRIBE: UnsavedChangesGuard
+├── IT: renderiza children
+├── IT: gera ID automático se não fornecido
+├── IT: usa ID fornecido quando disponível
+├── IT: registra como dirty quando isDirty=true
+├── IT: registra como não-dirty quando isDirty=false
+├── IT: atualiza registro quando isDirty muda
+├── IT: faz unregister ao desmontar
+├── IT: props deprecated não afetam comportamento
+└── IT: funciona com múltiplos guards simultâneos
+```
+
+**Mocks Necessários:**
+- NavigationGuardProvider (wrapper obrigatório)
+- `useFormDirtyGuard` (mock para isolamento)
+
+---
+
+### 6. useFormDirtyGuard.test.tsx (~8 testes)
+
+```text
+DESCRIBE: useFormDirtyGuard
+├── IT: chama registerDirty no mount
+├── IT: chama registerDirty quando isDirty muda
+├── IT: chama unregisterDirty no unmount
+├── IT: usa ID correto ao registrar
+├── IT: atualiza registro quando ID muda
+├── IT: lança erro fora do NavigationGuardProvider
+├── IT: cleanup é chamado corretamente
+└── IT: não re-registra se valores iguais
+```
+
+**Mocks Necessários:**
+- NavigationGuardProvider (wrapper obrigatório)
+- `useNavigationGuard` (mock parcial para spy)
+
+---
+
+## Infraestrutura de Mocks
+
+### Mock de matchMedia (Configurável)
+
+```typescript
+function createMatchMediaMock(matches: boolean) {
+  return vi.fn().mockImplementation((query: string) => ({
+    matches,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+}
+```
+
+### Mock de useBlocker (react-router-dom)
+
+```typescript
+const mockBlocker = {
+  state: "unblocked" as "blocked" | "unblocked" | "proceeding",
+  proceed: vi.fn(),
+  reset: vi.fn(),
+};
+
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual("react-router-dom");
+  return {
+    ...actual,
+    useBlocker: vi.fn(() => mockBlocker),
+    useNavigate: vi.fn(() => vi.fn()),
+  };
+});
+```
+
+### Wrapper de Teste com NavigationGuardProvider
+
+```typescript
+function renderWithNavigationGuard(ui: ReactElement) {
+  return render(
+    <BrowserRouter>
+      <NavigationGuardProvider>
+        {ui}
+      </NavigationGuardProvider>
+    </BrowserRouter>
+  );
+}
+```
+
+---
+
+## Projeção de Cobertura
 
 ```text
 ANTES (Atual):
-Arquivos com Teste: ~62/478 (13%)
-Testes Totais: ~1,100
+Arquivos com Teste: 80/478 (16.7%)
+Testes Totais: ~1,400
 
-APOS (Etapas 2-3):
-Arquivos com Teste: ~78/478 (16.3%)
-Testes Totais: ~1,350
+APÓS (Etapa 4):
+Arquivos com Teste: 86/478 (18.0%)
+Testes Totais: ~1,483
 
-INCREMENTO: +3.3% cobertura, +250 testes
+INCREMENTO: +1.3% cobertura, +83 testes
 ```
 
 ---
 
-## Infraestrutura de Mocks Necessaria
-
-### Mocks Comuns (ja existentes)
-- `@/lib/logger` - createLogger mock
-- `@/lib/api` - api.call e api.publicCall mocks
-
-### Novos Mocks
-- BroadcastChannel - para cross-tab-lock
-- localStorage - para persistence e cross-tab-lock
-- FileReader - para storageProxy (fileToBase64)
-- React.lazy - para lazyWithRetry
-
----
-
-## Ordem de Implementacao
+## Ordem de Implementação
 
 ```text
-1. Token Manager (Etapa 2)
-   service.test.ts → persistence.test.ts → heartbeat.test.ts → cross-tab-lock.test.ts
-
-2. Lib Core (Etapa 3 - Parte A)
-   security.test.ts → utils.test.ts → order-status/service.test.ts
-
-3. Lib RPC/Storage (Etapa 3 - Parte B)
-   rpcProxy.test.ts → storageProxy.test.ts
-
-4. Lib Helpers (Etapa 3 - Parte C)
-   lazyWithRetry.test.ts → utmify-helper.test.ts → uploadUtils.test.ts
-
-5. Products/Checkouts (Etapa 3 - Parte D)
-   deleteProduct.test.ts → duplicateProduct.test.ts → cloneCheckoutDeep.test.ts → duplicateCheckout.test.ts
+1. theme.test.tsx (mais simples, sem dependências)
+2. CheckoutContext.test.tsx (contexto puro, sem mocks complexos)
+3. UltrawidePerformanceContext.test.tsx (matchMedia mock)
+4. useFormDirtyGuard.test.tsx (hook isolado)
+5. NavigationGuardProvider.test.tsx (useBlocker mock)
+6. UnsavedChangesGuard.test.tsx (integração final)
 ```
 
 ---
 
-## Validacao RISE V3
+## Validação RISE V3
 
-| Criterio | Status |
+| Critério | Status |
 |----------|--------|
-| LEI SUPREMA (Secao 4) | Solucao C mantida (nota 10.0) |
-| Zero Tipos `any` | Obrigatorio em todos os testes |
-| Limite 300 Linhas | Modularizacao por arquivo |
-| Testing Pyramid | 70% Unit (foco atual) |
-| Documentacao JSDoc | Obrigatorio em cada arquivo |
+| LEI SUPREMA (Seção 4) | Solução B (nota 10.0) |
+| Zero Tipos `any` | Obrigatório |
+| Limite 300 Linhas | Todos <200 linhas |
+| Testing Pyramid | 70% Unit |
+| Documentação JSDoc | Obrigatório em cada arquivo |
+| Frases Proibidas | Nenhuma utilizada |
+
+---
+
+## Entregáveis
+
+1. **6 arquivos de teste** seguindo RISE V3 10.0/10
+2. **~83 testes** cobrindo todos os edge cases
+3. **Zero violações** de limite de linhas
+4. **Documentação JSDoc** completa em cada arquivo
+5. **Mocks reutilizáveis** para testes futuros
