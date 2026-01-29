@@ -1,215 +1,231 @@
 
-# Plano: Correção de Foreign Keys Legadas - Migração para `users` SSOT
+# Relatório de Auditoria RISE V3 - Validação Pós-Migração
 
-## Diagnóstico Completo
+## Status Geral da Migração FK para `users` SSOT
 
-### O Problema Identificado
+### ✅ SUCESSO CONFIRMADO
 
-O sistema de autenticação foi migrado para usar a tabela `users` como **Single Source of Truth (SSOT)**, mas **19+ tabelas** ainda mantêm Foreign Keys para:
-- `auth.users(id)` - 17 tabelas
-- `profiles(id)` - 3 tabelas
+| Verificação | Resultado |
+|-------------|-----------|
+| Usuário `sandro099@gmail.com` em `users` | ✅ Existe (ID: adf69f91-...) |
+| Role atribuída | ✅ `seller` |
+| Pode criar produtos | ✅ FK `products_user_id_fkey` → `users(id)` |
+| Pode conectar Mercado Pago | ✅ FK `oauth_states_vendor_id_fkey` → `users(id)` |
+| Pode criar orders | ✅ FK `orders_vendor_id_fkey` → `users(id)` |
 
-Isso causa erros de FK quando usuários criados pelo sistema unificado tentam:
-- Criar produtos (FK para `auth.users`)
-- Conectar Mercado Pago (FK para `profiles`)
-- Criar webhooks, orders, etc.
+### 15 FKs Migradas com Sucesso para `users(id)`
 
-### Usuários Afetados
+| Tabela | Constraint | Status |
+|--------|------------|--------|
+| `products` | `products_user_id_fkey` | ✅ |
+| `orders` | `orders_vendor_id_fkey` | ✅ |
+| `order_events` | `order_events_vendor_id_fkey` | ✅ |
+| `checkout_sessions` | `checkout_sessions_vendor_id_fkey` | ✅ |
+| `outbound_webhooks` | `outbound_webhooks_vendor_id_fkey` | ✅ |
+| `vendor_integrations` | `vendor_integrations_vendor_id_fkey` | ✅ |
+| `payment_gateway_settings` | `payment_gateway_settings_user_id_fkey` | ✅ |
+| `mercadopago_split_config` | `mercadopago_split_config_vendor_id_fkey` | ✅ |
+| `affiliates` | `affiliates_user_id_fkey` | ✅ |
+| `vendor_profiles` | `vendor_profiles_user_id_fkey` | ✅ |
+| `security_audit_log` | `security_audit_log_user_id_fkey` | ✅ |
+| `vendor_pixels` | `vendor_pixels_vendor_id_fkey` | ✅ |
+| `oauth_states` | `oauth_states_vendor_id_fkey` | ✅ |
+| `notifications` | `notifications_user_id_fkey` | ✅ |
+| `producer_audit_log` | `producer_audit_log_producer_id_fkey` | ✅ |
+
+---
+
+## ⚠️ INCONSISTÊNCIAS ENCONTRADAS (Requerem Correção)
+
+### 1. FK Legada Restante: `profiles → auth.users`
 
 ```text
-Usuários com BUG (criados apos 22/01/2026):
-┌───────────────────────────────────┬───────────────┬───────────────┐
-│ Email                             │ auth.users    │ profiles      │
-├───────────────────────────────────┼───────────────┼───────────────┤
-│ sandro099@gmail.com               │ ❌ MISSING    │ ❌ MISSING    │
-│ sandro098@gmail.com               │ ❌ MISSING    │ ❌ MISSING    │
-│ maiconmiranda1528@gmail.com       │ ❌ MISSING    │ ❌ MISSING    │
-│ olaalessandro9@gmail.com          │ ❌ MISSING    │ ❌ MISSING    │
-└───────────────────────────────────┴───────────────┴───────────────┘
-
-Usuarios OK (criados antes da migracao):
-┌───────────────────────────────────┬───────────────┬───────────────┐
-│ rdgsandro1@gmail.com              │ ✓ EXISTS      │ ✓ EXISTS      │
-│ alessanderlaem@gmail.com          │ ✓ EXISTS      │ ✓ EXISTS      │
-└───────────────────────────────────┴───────────────┴───────────────┘
+PROBLEMA DETECTADO:
+┌─────────────────────────────────────────────────────────────┐
+│ Tabela: profiles                                            │
+│ Constraint: profiles_id_fkey                                │
+│ Referência: auth.users(id) ← LEGADO                        │
+│                                                             │
+│ Esta é a ÚNICA FK restante para auth.users no schema       │
+│ público. A tabela profiles é uma tabela LEGADA que deve    │
+│ ser marcada como deprecated ou removida.                   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Tabelas com FKs Legadas para `auth.users`
+**Impacto:** Baixo (tabela não usada pelo novo sistema, mas viola princípio SSOT)
 
-| Tabela | Coluna | Impacto |
-|--------|--------|---------|
-| `products` | `user_id` | **Criacao de produtos** |
-| `orders` | `vendor_id` | Vendas |
-| `vendor_integrations` | `vendor_id` | Integracoes |
-| `affiliates` | `user_id` | Afiliados |
-| `checkout_sessions` | `vendor_id` | Checkout |
-| `outbound_webhooks` | `vendor_id` | Webhooks |
-| `payment_gateway_settings` | `user_id` | Config pagamento |
-| `mercadopago_split_config` | `vendor_id` | Split MP |
-| `vendor_profiles` | `user_id` | Perfil vendedor |
-| `order_events` | `vendor_id` | Eventos |
-| `security_audit_log` | `user_id` | Auditoria |
-| `vendor_pixels` | `vendor_id` | Pixels |
-| `profiles` | `id` | Tabela legada |
+### 2. FKs para `buyer_profiles` (6 tabelas)
 
-### Tabelas com FKs Legadas para `profiles`
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ Tabelas com FK para buyer_profiles (contexto de alunos):   │
+├─────────────────────────────────────────────────────────────┤
+│ 1. buyer_audit_log.buyer_id                                 │
+│ 2. buyer_content_access.buyer_id                            │
+│ 3. buyer_quiz_attempts.buyer_id                             │
+│ 4. buyer_saved_cards.buyer_id                               │
+│ 5. certificates.buyer_id                                    │
+│ 6. orders.buyer_id                                          │
+└─────────────────────────────────────────────────────────────┘
+```
 
-| Tabela | Coluna | Impacto |
-|--------|--------|---------|
-| `oauth_states` | `vendor_id` | **Conexao Mercado Pago** |
-| `notifications` | `user_id` | Notificacoes |
-| `producer_audit_log` | `producer_id` | Auditoria |
+**Análise RISE V3:** Estas FKs são VÁLIDAS porque `buyer_profiles` é uma tabela de domínio específico para compradores/alunos. A tabela `users` é SSOT para identidade de VENDORS (produtores). O sistema tem dois domínios de identidade intencionalmente separados:
+- `users` → Produtores/Vendedores (SSOT migrado)
+- `buyer_profiles` → Compradores/Alunos (mantido)
+
+### 3. Arquivos @deprecated sem Remoção Planejada
+
+| Arquivo | Linha | Descrição |
+|---------|-------|-----------|
+| `_shared/product-crud-handlers.ts` | 31 | `external_delivery` deprecated |
+| `_shared/kernel/types/affiliate/credentials.ts` | 74 | `GatewayCredentials` deprecated |
+| `_shared/webhook-idempotency.ts` | 6 | Re-export deprecated |
+| `_shared/http-client.ts` | 6 | Re-export deprecated |
+| `_shared/payment-validation.ts` | 6 | Re-export deprecated |
+| `order-bump-crud/index.ts` | 46, 58 | `checkout_id`, `discount_price` deprecated |
+
+**Impacto:** Baixo (código funcional mas com dívida técnica documentada)
+
+### 4. TODO/FIXME no Código
+
+Encontrados **1034 matches** em 146 arquivos. Porém, a maioria são **falsos positivos** (strings contendo "Todos", comentários de copyright, etc.).
 
 ---
 
-## Analise de Solucoes (RISE V3 Secao 4.4)
+## ✅ CONFORMIDADE RISE V3 - VALIDADO
 
-### Solucao A: Migrar FKs para tabela `users`
-- Manutenibilidade: 10/10 (elimina duplicidade, SSOT verdadeiro)
-- Zero DT: 10/10 (resolve causa raiz permanentemente)
-- Arquitetura: 10/10 (alinha com decisao de usar `users` como SSOT)
-- Escalabilidade: 10/10 (novos usuarios funcionam imediatamente)
-- Seguranca: 10/10 (sem impacto)
-- **NOTA FINAL: 10.0/10**
-- Tempo estimado: 4-6 horas
+### Design Tokens (CSS)
 
-### Solucao B: Criar registros em `auth.users` e `profiles` durante registro
-- Manutenibilidade: 4/10 (mantem 3 tabelas de identidade)
-- Zero DT: 3/10 (nao resolve problema arquitetural)
-- Arquitetura: 2/10 (viola decisao de SSOT em `users`)
-- Escalabilidade: 3/10 (mantem complexidade desnecessaria)
-- Seguranca: 8/10 (funcional, mas complexo)
-- **NOTA FINAL: 4.0/10**
-- Tempo estimado: 2 horas
+| Categoria | Status | Detalhes |
+|-----------|--------|----------|
+| `--auth-purple` removido | ✅ | Substituído por `--auth-accent-secondary` (cyan) |
+| Tokens Auth documentados | ✅ | index.css linhas 258-292 |
+| Tema Azul consistente | ✅ | Todas as páginas de auth usam tokens corretos |
 
-### Solucao C: Correcao pontual apenas para usuarios afetados
-- Manutenibilidade: 2/10 (nao resolve causa raiz)
-- Zero DT: 1/10 (problema volta para proximos usuarios)
-- Arquitetura: 1/10 (gambiarra)
-- Escalabilidade: 0/10 (cada novo usuario tera o problema)
-- Seguranca: 10/10 (sem impacto)
-- **NOTA FINAL: 2.8/10**
+### Documentação
+
+| Documento | Status | Última Atualização |
+|-----------|--------|-------------------|
+| `UNIFIED_AUTH_SYSTEM.md` | ✅ Atualizado | 29/01/2026 - v1.2.0 |
+| `UI_COMPONENTS_LIBRARY.md` | ✅ Atualizado | 24/01/2026 - v2.1.0 |
+
+### Código Morto/Legado
+
+| Verificação | Resultado |
+|-------------|-----------|
+| `auth.users` no frontend | ✅ Zero matches |
+| `--auth-purple` no frontend | ✅ Zero matches |
+| `.from('profiles')` no frontend | ✅ Zero matches |
+| `.from('auth.users')` no frontend | ✅ Zero matches |
+
+### Contagem de Identidade
+
+| Tabela | Registros | Observação |
+|--------|-----------|------------|
+| `users` | 12 | ✅ SSOT de vendedores |
+| `auth.users` | 10 | ⚠️ Tabela Supabase (não editável) |
+| `profiles` | 6 | ⚠️ Tabela legada |
+
+---
+
+## Análise de Soluções para Pendências
+
+### Solução A: Correção Completa (Marcar profiles como deprecated + documentar)
+
+- Manutenibilidade: 10/10 (clareza total sobre tabelas legadas)
+- Zero DT: 9/10 (documenta dívida sem resolver 100%)
+- Arquitetura: 10/10 (SSOT claro)
+- Escalabilidade: 10/10 (novos devs sabem ignorar profiles)
+- Segurança: 10/10 (sem impacto)
+- **NOTA FINAL: 9.8/10**
 - Tempo estimado: 30 minutos
 
-### DECISAO: Solucao A (Nota 10.0/10)
+### Solução B: Remoção Total de profiles e migração de dados
 
-A migracao completa das FKs para `users` e a unica solucao que:
-1. Elimina o problema permanentemente
-2. Alinha a arquitetura com a decisao de SSOT
-3. Permite que novos usuarios funcionem sem intervencao manual
+- Manutenibilidade: 10/10 (elimina tabela legada)
+- Zero DT: 10/10 (zero código morto)
+- Arquitetura: 10/10 (SSOT absoluto)
+- Escalabilidade: 10/10 (esquema limpo)
+- Segurança: 10/10 (sem impacto)
+- **NOTA FINAL: 10.0/10**
+- Tempo estimado: 2-4 horas (requer migração de dados de 6 perfis)
+
+### DECISÃO: Solução B (Nota 10.0/10)
+
+Conforme RISE V3 Seção 4.6 ("1 ANO vs 5 MINUTOS"), a Solução B é obrigatória mesmo demandando mais tempo.
 
 ---
 
-## Implementacao Tecnica
+## Plano de Correção (Fase 2)
 
-### Fase 1: Migracao de FKs de `auth.users` para `users`
+### 1. Deprecar Tabela `profiles`
 
 ```sql
--- 1. products.user_id
-ALTER TABLE products DROP CONSTRAINT products_user_id_fkey;
-ALTER TABLE products ADD CONSTRAINT products_user_id_fkey 
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
-
--- 2. orders.vendor_id
-ALTER TABLE orders DROP CONSTRAINT orders_vendor_id_fkey;
-ALTER TABLE orders ADD CONSTRAINT orders_vendor_id_fkey 
-  FOREIGN KEY (vendor_id) REFERENCES users(id) ON DELETE CASCADE;
-
--- 3. vendor_integrations.vendor_id
-ALTER TABLE vendor_integrations DROP CONSTRAINT vendor_integrations_vendor_id_fkey;
-ALTER TABLE vendor_integrations ADD CONSTRAINT vendor_integrations_vendor_id_fkey 
-  FOREIGN KEY (vendor_id) REFERENCES users(id) ON DELETE CASCADE;
-
--- ... (14+ tabelas adicionais)
+-- Adicionar comentário de deprecação
+COMMENT ON TABLE profiles IS 
+'⚠️ DEPRECATED [2026-01-29]: Esta tabela é LEGADA. 
+Use a tabela "users" como SSOT para identidade de vendedores.
+FK profiles_id_fkey ainda aponta para auth.users por herança Supabase.
+Dados serão migrados para users em próxima fase.';
 ```
 
-### Fase 2: Migracao de FKs de `profiles` para `users`
+### 2. Migrar Dados de profiles para users
 
 ```sql
--- 1. oauth_states.vendor_id
-ALTER TABLE oauth_states DROP CONSTRAINT oauth_states_vendor_id_fkey;
-ALTER TABLE oauth_states ADD CONSTRAINT oauth_states_vendor_id_fkey 
-  FOREIGN KEY (vendor_id) REFERENCES users(id) ON DELETE CASCADE;
-
--- 2. notifications.user_id
-ALTER TABLE notifications DROP CONSTRAINT notifications_user_id_fkey;
-ALTER TABLE notifications ADD CONSTRAINT notifications_user_id_fkey 
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
-
--- 3. producer_audit_log.producer_id
-ALTER TABLE producer_audit_log DROP CONSTRAINT producer_audit_log_producer_id_fkey;
-ALTER TABLE producer_audit_log ADD CONSTRAINT producer_audit_log_producer_id_fkey 
-  FOREIGN KEY (producer_id) REFERENCES users(id) ON DELETE SET NULL;
+-- Sincronizar dados faltantes (se houver campos exclusivos)
+UPDATE users u
+SET 
+  -- campos que existem apenas em profiles
+  phone = COALESCE(u.phone, p.phone),
+  name = COALESCE(u.name, p.name)
+FROM profiles p
+WHERE u.id = p.id;
 ```
 
-### Fase 3: Atualizar Documentacao
+### 3. Remover @deprecated sem plano de remoção
 
-Atualizar `docs/DATABASE_SCHEMA.md` e `docs/UNIFIED_AUTH_SYSTEM.md` para refletir que `users` e o unico SSOT de identidade.
+Criar issue/task para cada item @deprecated com prazo de remoção.
 
-### Fase 4: Deprecar Tabelas Legadas
+### 4. Atualizar Documentação Final
 
-Adicionar comentarios nas tabelas `profiles` e `auth.users` indicando que sao legadas e nao devem ser usadas diretamente.
-
----
-
-## Lista Completa de Alteracoes de FK
-
-### FKs para `auth.users` que precisam migrar para `users`
-
-| # | Tabela | Constraint | Nova Referencia |
-|---|--------|------------|-----------------|
-| 1 | `products` | `products_user_id_fkey` | `users(id)` |
-| 2 | `orders` | `orders_vendor_id_fkey` | `users(id)` |
-| 3 | `order_events` | `order_events_vendor_id_fkey` | `users(id)` |
-| 4 | `checkout_sessions` | `checkout_sessions_vendor_id_fkey` | `users(id)` |
-| 5 | `outbound_webhooks` | `outbound_webhooks_vendor_id_fkey` | `users(id)` |
-| 6 | `vendor_integrations` | `vendor_integrations_vendor_id_fkey` | `users(id)` |
-| 7 | `payment_gateway_settings` | `payment_gateway_settings_user_id_fkey` | `users(id)` |
-| 8 | `mercadopago_split_config` | `mercadopago_split_config_vendor_id_fkey` | `users(id)` |
-| 9 | `affiliates` | `affiliates_user_id_fkey` | `users(id)` |
-| 10 | `vendor_profiles` | `vendor_profiles_user_id_fkey` | `users(id)` |
-| 11 | `security_audit_log` | `security_audit_log_user_id_fkey` | `users(id)` |
-| 12 | `vendor_pixels` | `vendor_pixels_vendor_id_fkey` | `users(id)` |
-
-### FKs para `profiles` que precisam migrar para `users`
-
-| # | Tabela | Constraint | Nova Referencia |
-|---|--------|------------|-----------------|
-| 1 | `oauth_states` | `oauth_states_vendor_id_fkey` | `users(id)` |
-| 2 | `notifications` | `notifications_user_id_fkey` | `users(id)` |
-| 3 | `producer_audit_log` | `producer_audit_log_producer_id_fkey` | `users(id)` |
+Adicionar seção em `UNIFIED_AUTH_SYSTEM.md` sobre tabelas deprecadas.
 
 ---
 
-## Verificacao Pos-Migracao
+## Resumo Executivo
 
-Apos a migracao, executar:
+| Categoria | Status |
+|-----------|--------|
+| **Migração FKs Vendedores** | ✅ 100% SUCESSO (15/15 tabelas) |
+| **Usuário sandro099@gmail.com** | ✅ Funcional |
+| **Tokens CSS Auth** | ✅ Tema azul consistente |
+| **Documentação** | ✅ Atualizada |
+| **Código morto frontend** | ✅ Zero |
+| **FK legada restante** | ⚠️ 1 (profiles → auth.users) |
+| **@deprecated pendentes** | ⚠️ 6 arquivos |
 
-```sql
--- Verificar que todas as FKs agora apontam para users
-SELECT 
-    cl.relname as table_name,
-    c.conname as constraint_name,
-    pg_get_constraintdef(c.oid) as definition
-FROM pg_constraint c
-JOIN pg_class cl ON c.conrelid = cl.oid
-WHERE (pg_get_constraintdef(c.oid) LIKE '%auth.users%'
-   OR pg_get_constraintdef(c.oid) LIKE '%profiles%')
-AND c.contype = 'f'
-AND cl.relnamespace = 'public'::regnamespace;
+### Conformidade RISE V3
 
--- Deve retornar ZERO linhas apos a migracao
-```
+| Critério | Nota |
+|----------|------|
+| Manutenibilidade Infinita | 9.5/10 |
+| Zero Dívida Técnica | 9.0/10 |
+| Arquitetura Correta | 10/10 |
+| Escalabilidade | 10/10 |
+| Segurança | 10/10 |
+| **NOTA FINAL** | **9.7/10** |
+
+### Ações Requeridas para 10.0/10
+
+1. ✅ Migração FK vendedores → `users` (CONCLUÍDA)
+2. ⏳ Deprecar/remover tabela `profiles`
+3. ⏳ Documentar @deprecated com prazo de remoção
+4. ⏳ Atualizar doc com seção "Tabelas Legadas"
 
 ---
 
-## Conformidade RISE V3
+## Conclusão
 
-| Criterio | Nota | Justificativa |
-|----------|------|---------------|
-| Manutenibilidade Infinita | 10/10 | SSOT verdadeiro em `users` |
-| Zero Divida Tecnica | 10/10 | Elimina referencias legadas |
-| Arquitetura Correta | 10/10 | Alinha com decisao documentada |
-| Escalabilidade | 10/10 | Novos usuarios funcionam automaticamente |
-| Seguranca | 10/10 | Sem impacto |
-| **NOTA FINAL** | **10.0/10** | |
+A migração de FKs para o SSOT `users` foi um **SUCESSO TOTAL** para o escopo definido (tabelas de vendedores). O usuário `sandro099@gmail.com` agora pode criar produtos, conectar gateways e realizar todas as operações sem erros de FK.
+
+Restam pendências menores (tabela `profiles` e items `@deprecated`) que não impactam a funcionalidade mas violam o princípio "Zero Dívida Técnica" do RISE V3. Recomendo uma Fase 2 para atingir nota 10.0/10.
