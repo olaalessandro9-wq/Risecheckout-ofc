@@ -37,6 +37,16 @@ export interface CouponProductJoin {
 // ============================================
 
 export function validateCouponPayload(data: unknown): { valid: boolean; error?: string; sanitized?: CouponPayload } {
+  // RISE V3: Tratamento explícito de null/undefined
+  if (data === null || data === undefined) {
+    return { valid: false, error: "Payload inválido" };
+  }
+
+  // Verificação adicional para garantir que é um objeto
+  if (typeof data !== "object") {
+    return { valid: false, error: "Payload deve ser um objeto" };
+  }
+
   const payload = data as Record<string, unknown>;
   
   if (!payload.code || typeof payload.code !== "string") {
