@@ -19,7 +19,7 @@ import { toast } from "sonner";
 // CONTEXT VALUE TYPE
 // ============================================================================
 
-interface UTMifyContextValue {
+export interface UTMifyContextValue {
   // State
   readonly isLoading: boolean;
   readonly isReady: boolean;
