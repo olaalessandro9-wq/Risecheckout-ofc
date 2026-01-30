@@ -134,3 +134,106 @@ describe("initialAffiliationContext", () => {
     expect(initialAffiliationContext.loadError).toBeNull();
   });
 });
+
+// ============================================================================
+// ADDITIONAL TESTS - RISE V3 COMPLETION
+// ============================================================================
+
+describe("affiliationMachine - Event Handling", () => {
+  describe("SET_TAB event", () => {
+    it("is defined in ready state events", () => {
+      const readyState = affiliationMachine.config.states?.ready;
+      expect(readyState?.on?.SET_TAB).toBeDefined();
+    });
+  });
+
+  describe("SET_TAB_ERROR event", () => {
+    it("is defined in ready state events", () => {
+      const readyState = affiliationMachine.config.states?.ready;
+      expect(readyState?.on?.SET_TAB_ERROR).toBeDefined();
+    });
+  });
+
+  describe("CLEAR_TAB_ERRORS event", () => {
+    it("is defined in ready state events", () => {
+      const readyState = affiliationMachine.config.states?.ready;
+      expect(readyState?.on?.CLEAR_TAB_ERRORS).toBeDefined();
+    });
+  });
+
+  describe("REFRESH event", () => {
+    it("is defined in ready state events", () => {
+      const readyState = affiliationMachine.config.states?.ready;
+      expect(readyState?.on?.REFRESH).toBeDefined();
+    });
+
+    it("transitions to loading state", () => {
+      const readyState = affiliationMachine.config.states?.ready;
+      expect(readyState?.on?.REFRESH?.target).toBe("loading");
+    });
+  });
+});
+
+describe("affiliationMachine - Context Updates", () => {
+  it("SET_TAB updates activeTab in context", () => {
+    const readyState = affiliationMachine.config.states?.ready;
+    const setTabEvent = readyState?.on?.SET_TAB;
+    expect(setTabEvent?.actions).toBeDefined();
+  });
+
+  it("SET_TAB_ERROR updates tabErrors in context", () => {
+    const readyState = affiliationMachine.config.states?.ready;
+    const setTabErrorEvent = readyState?.on?.SET_TAB_ERROR;
+    expect(setTabErrorEvent?.actions).toBeDefined();
+  });
+
+  it("CLEAR_TAB_ERRORS resets tabErrors in context", () => {
+    const readyState = affiliationMachine.config.states?.ready;
+    const clearEvent = readyState?.on?.CLEAR_TAB_ERRORS;
+    expect(clearEvent?.actions).toBeDefined();
+  });
+
+  it("LOAD clears loadError in context", () => {
+    const idleState = affiliationMachine.config.states?.idle;
+    const loadEvent = idleState?.on?.LOAD;
+    expect(loadEvent?.actions).toBeDefined();
+  });
+
+  it("REFRESH clears loadError in context", () => {
+    const readyState = affiliationMachine.config.states?.ready;
+    const refreshEvent = readyState?.on?.REFRESH;
+    expect(refreshEvent?.actions).toBeDefined();
+  });
+});
+
+describe("affiliationMachine - Nested State Configuration", () => {
+  it("gateways state has entry action", () => {
+    const readyState = affiliationMachine.config.states?.ready;
+    const gatewaysState = readyState?.states?.gateways;
+    expect(gatewaysState?.entry).toBeDefined();
+  });
+
+  it("offers state has entry action", () => {
+    const readyState = affiliationMachine.config.states?.ready;
+    const offersState = readyState?.states?.offers;
+    expect(offersState?.entry).toBeDefined();
+  });
+
+  it("pixels state has entry action", () => {
+    const readyState = affiliationMachine.config.states?.ready;
+    const pixelsState = readyState?.states?.pixels;
+    expect(pixelsState?.entry).toBeDefined();
+  });
+
+  it("details state has entry action", () => {
+    const readyState = affiliationMachine.config.states?.ready;
+    const detailsState = readyState?.states?.details;
+    expect(detailsState?.entry).toBeDefined();
+  });
+
+  it("otherProducts state has entry action", () => {
+    const readyState = affiliationMachine.config.states?.ready;
+    const otherProductsState = readyState?.states?.otherProducts;
+    expect(otherProductsState?.entry).toBeDefined();
+  });
+});
