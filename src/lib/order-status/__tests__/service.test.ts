@@ -100,6 +100,11 @@ describe("OrderStatusService", () => {
       expect(colors).toEqual(STATUS_COLORS.pending);
     });
 
+    it("should return pending colors for undefined status", () => {
+      const colors = orderStatusService.getColorScheme(undefined);
+      expect(colors).toEqual(STATUS_COLORS.pending);
+    });
+
     it("should return pending colors for unknown status", () => {
       const colors = orderStatusService.getColorScheme("unknown_status");
       expect(colors).toEqual(STATUS_COLORS.pending);
@@ -197,6 +202,14 @@ describe("OrderStatusService", () => {
     it("should return false for refunded", () => {
       expect(orderStatusService.isPaid("refunded")).toBe(false);
     });
+
+    it("should return false for null", () => {
+      expect(orderStatusService.isPaid(null)).toBe(false);
+    });
+
+    it("should return false for undefined", () => {
+      expect(orderStatusService.isPaid(undefined)).toBe(false);
+    });
   });
 
   // ========== IS PENDING ==========
@@ -216,6 +229,14 @@ describe("OrderStatusService", () => {
 
     it("should return false for paid", () => {
       expect(orderStatusService.isPending("paid")).toBe(false);
+    });
+
+    it("should return true for null (defaults to pending)", () => {
+      expect(orderStatusService.isPending(null)).toBe(true);
+    });
+
+    it("should return true for undefined (defaults to pending)", () => {
+      expect(orderStatusService.isPending(undefined)).toBe(true);
     });
   });
 
@@ -237,6 +258,14 @@ describe("OrderStatusService", () => {
     it("should return false for pending (can still become paid)", () => {
       expect(orderStatusService.isTerminal("pending")).toBe(false);
     });
+
+    it("should return false for null (normalizes to pending)", () => {
+      expect(orderStatusService.isTerminal(null)).toBe(false);
+    });
+
+    it("should return false for undefined (normalizes to pending)", () => {
+      expect(orderStatusService.isTerminal(undefined)).toBe(false);
+    });
   });
 
   // ========== VALIDATE ==========
@@ -254,6 +283,18 @@ describe("OrderStatusService", () => {
 
     it("should throw for null", () => {
       expect(() => orderStatusService.validate(null)).toThrow();
+    });
+
+    it("should throw for undefined", () => {
+      expect(() => orderStatusService.validate(undefined)).toThrow();
+    });
+
+    it("should throw for number", () => {
+      expect(() => orderStatusService.validate(123)).toThrow();
+    });
+
+    it("should throw for object", () => {
+      expect(() => orderStatusService.validate({})).toThrow();
     });
   });
 
@@ -278,11 +319,20 @@ describe("OrderStatusService", () => {
       expect(options[0]).toHaveProperty("label");
     });
 
-    it("should have correct labels", () => {
+    it("should have correct labels for all statuses", () => {
       const options = orderStatusService.getStatusOptions();
-      const paidOption = options.find(o => o.value === "paid");
       
-      expect(paidOption?.label).toBe("Pago");
+      expect(options.find(o => o.value === "paid")?.label).toBe("Pago");
+      expect(options.find(o => o.value === "pending")?.label).toBe("Pendente");
+      expect(options.find(o => o.value === "refunded")?.label).toBe("Reembolso");
+      expect(options.find(o => o.value === "chargeback")?.label).toBe("Chargeback");
+    });
+
+    it("should return all canonical statuses as options", () => {
+      const options = orderStatusService.getStatusOptions();
+      const values = options.map(o => o.value);
+      
+      expect(values).toEqual(CANONICAL_STATUSES);
     });
   });
 });
