@@ -45,13 +45,13 @@ vi.mock("../config/navigationConfig", () => ({
   ],
 }));
 
-// Mock navigation helpers
+// Mock navigation helpers with correct values from SIDEBAR_WIDTHS
 vi.mock("../utils/navigationHelpers", () => ({
   findActiveGroups: vi.fn(() => []),
   getSidebarWidth: vi.fn((state, hovering) => {
-    if (state === "expanded") return 256;
-    if (state === "compact" && hovering) return 256;
-    if (state === "compact") return 64;
+    if (state === "expanded") return 280;
+    if (state === "collapsed" && hovering) return 280;
+    if (state === "collapsed") return 80;
     return 0;
   }),
   shouldShowLabels: vi.fn((state, hovering) => state === "expanded" || hovering),
@@ -138,8 +138,8 @@ describe("useNavigation", () => {
         wrapper: createWrapper(),
       });
 
-      // expanded = 256
-      expect(result.current.currentWidth).toBe(256);
+      // expanded = 280 (from SIDEBAR_WIDTHS)
+      expect(result.current.currentWidth).toBe(280);
     });
 
     it("should filter visibleItems by permissions", () => {

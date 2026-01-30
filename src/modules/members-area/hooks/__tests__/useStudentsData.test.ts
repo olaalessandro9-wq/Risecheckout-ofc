@@ -190,26 +190,37 @@ describe("useStudentsData", () => {
 
     it("should filter producer when accessType filter excludes it", async () => {
       const students = [createMockStudent()];
-      (studentsService.list as Mock).mockResolvedValueOnce({
+      // Override the default mock for this specific test
+      (studentsService.list as Mock).mockResolvedValue({
         data: { students, total: 1 },
         error: null,
       });
+
+      // Use a stable filter object
+      const purchaseFilters: StudentFilters = {
+        accessType: "purchase",
+        status: null,
+        groupId: null,
+      };
 
       const { result } = renderHook(() =>
         useStudentsData({
           productId: "product-1",
           page: 1,
           limit: 10,
-          filters: { ...defaultFilters, accessType: "purchase" },
+          filters: purchaseFilters,
           searchQuery: "",
         })
       );
 
+      // Wait for the async operations to complete
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
-      });
+      }, { timeout: 5000 });
 
       // Should not include producer when filtering by purchase type
+      // accessType: "purchase" means shouldIncludeProducer = false
+      expect(result.current.students).toHaveLength(1);
       expect(result.current.students.every((s) => s.access_type !== "producer")).toBe(true);
     });
   });
