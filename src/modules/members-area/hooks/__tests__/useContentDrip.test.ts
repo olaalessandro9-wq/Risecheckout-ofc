@@ -92,8 +92,8 @@ describe("useContentDrip", () => {
         content_id: "content-1",
         release_type: "days_after_purchase",
         days_after_purchase: 7,
-        fixed_date: undefined,
-        after_content_id: undefined,
+        fixed_date: null,
+        after_content_id: null,
       });
       expect(settingsMap.get("content-2")?.release_type).toBe("fixed_date");
     });

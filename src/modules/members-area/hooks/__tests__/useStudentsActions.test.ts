@@ -34,11 +34,6 @@ vi.mock("@/lib/logger", () => ({
   }),
 }));
 
-// Mock DOM APIs for export
-const mockCreateElement = vi.spyOn(document, "createElement");
-const mockAppendChild = vi.spyOn(document.body, "appendChild");
-const mockRemoveChild = vi.spyOn(document.body, "removeChild");
-
 // Test factory
 function createMockStudent(): BuyerWithGroups {
   return {
@@ -58,15 +53,8 @@ describe("useStudentsActions", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockCreateElement.mockImplementation((tagName) => {
-      const element = document.createElement(tagName);
-      if (tagName === "a") {
-        element.click = vi.fn();
-      }
-      return element;
-    });
-    mockAppendChild.mockImplementation((node) => node as Node);
-    mockRemoveChild.mockImplementation((node) => node as Node);
+    
+    // Mock URL global
     global.URL.createObjectURL = vi.fn(() => "blob:test");
     global.URL.revokeObjectURL = vi.fn();
   });
