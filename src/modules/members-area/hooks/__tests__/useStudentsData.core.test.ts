@@ -1,8 +1,10 @@
 /**
- * useStudentsData Hook Tests
+ * useStudentsData Hook Tests - Core Functionality
  * 
- * RISE V3 Compliant - 10.0/10
- * Tests student data fetching with filters and producer display
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * Tests initialization, producer display, and fetchStudents
+ * 
+ * @module test/modules/members-area/hooks/useStudentsData.core
  */
 
 import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
@@ -61,7 +63,7 @@ const defaultFilters: StudentFilters = {
   groupId: null,
 };
 
-describe("useStudentsData", () => {
+describe("useStudentsData - Core", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -183,20 +185,17 @@ describe("useStudentsData", () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      // Only the regular student, not producer
       expect(result.current.students).toHaveLength(1);
       expect(result.current.students[0].access_type).toBe("purchase");
     });
 
     it("should filter producer when accessType filter excludes it", async () => {
       const students = [createMockStudent()];
-      // Override the default mock for this specific test
       (studentsService.list as Mock).mockResolvedValue({
         data: { students, total: 1 },
         error: null,
       });
 
-      // Use a stable filter object
       const purchaseFilters: StudentFilters = {
         accessType: "purchase",
         status: null,
@@ -213,83 +212,12 @@ describe("useStudentsData", () => {
         })
       );
 
-      // Wait for the async operations to complete
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       }, { timeout: 5000 });
 
-      // Should not include producer when filtering by purchase type
-      // accessType: "purchase" means shouldIncludeProducer = false
       expect(result.current.students).toHaveLength(1);
       expect(result.current.students.every((s) => s.access_type !== "producer")).toBe(true);
-    });
-  });
-
-  describe("filters", () => {
-    it("should pass filters to service", async () => {
-      (studentsService.list as Mock).mockResolvedValueOnce({
-        data: { students: [], total: 0 },
-        error: null,
-      });
-
-      renderHook(() =>
-        useStudentsData({
-          productId: "product-1",
-          page: 1,
-          limit: 10,
-          filters: {
-            accessType: "purchase",
-            status: "active",
-            groupId: "group-1",
-          },
-          searchQuery: "john",
-        })
-      );
-
-      await waitFor(() => {
-        expect(studentsService.list).toHaveBeenCalledWith("product-1", {
-          page: 1,
-          limit: 10,
-          search: "john",
-          access_type: "purchase",
-          status: "active",
-          group_id: "group-1",
-        });
-      });
-    });
-  });
-
-  describe("stats", () => {
-    it("should use backend stats when available", async () => {
-      (studentsService.list as Mock).mockResolvedValueOnce({
-        data: {
-          students: [createMockStudent()],
-          total: 100,
-          stats: {
-            totalStudents: 100,
-            averageProgress: 75,
-            completionRate: 50,
-          },
-        },
-        error: null,
-      });
-
-      const { result } = renderHook(() =>
-        useStudentsData({
-          productId: "product-1",
-          page: 1,
-          limit: 10,
-          filters: defaultFilters,
-          searchQuery: "",
-        })
-      );
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      expect(result.current.stats.averageProgress).toBe(75);
-      expect(result.current.stats.completionRate).toBe(50);
     });
   });
 
@@ -322,31 +250,6 @@ describe("useStudentsData", () => {
         "product-1",
         expect.objectContaining({ search: "new search" })
       );
-    });
-  });
-
-  describe("error handling", () => {
-    it("should handle fetch error gracefully", async () => {
-      (studentsService.list as Mock).mockResolvedValueOnce({
-        data: null,
-        error: "Network error",
-      });
-
-      const { result } = renderHook(() =>
-        useStudentsData({
-          productId: "product-1",
-          page: 1,
-          limit: 10,
-          filters: defaultFilters,
-          searchQuery: "",
-        })
-      );
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      expect(result.current.students).toEqual([]);
     });
   });
 });
