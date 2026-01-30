@@ -10,23 +10,31 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 
 // Mock dependencies
-vi.mock("./useUnifiedAuth", () => ({
+vi.mock("@/hooks/useUnifiedAuth", () => ({
   useUnifiedAuth: vi.fn(() => ({
     user: { id: "test-user", timezone: "America/New_York" },
   })),
 }));
 
-vi.mock("@/lib/timezone", () => ({
-  TimezoneService: vi.fn().mockImplementation(({ timezone }) => ({
-    timezone,
-    format: vi.fn(),
-    getDateBoundaries: vi.fn(),
-  })),
-  DEFAULT_TIMEZONE: "America/Sao_Paulo",
-}));
+vi.mock("@/lib/timezone", () => {
+  // Class must be defined inside the factory since vi.mock is hoisted
+  class MockTimezoneService {
+    timezone: string;
+    constructor(config: { timezone?: string } = {}) {
+      this.timezone = config.timezone || "America/Sao_Paulo";
+    }
+    format = () => "";
+    getDateBoundaries = () => ({ startOfDay: new Date(), endOfDay: new Date() });
+  }
+
+  return {
+    TimezoneService: MockTimezoneService,
+    DEFAULT_TIMEZONE: "America/Sao_Paulo",
+  };
+});
 
 import { useVendorTimezone } from "../useVendorTimezone";
-import { useUnifiedAuth } from "../useUnifiedAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { DEFAULT_TIMEZONE } from "@/lib/timezone";
 
 describe("useVendorTimezone", () => {

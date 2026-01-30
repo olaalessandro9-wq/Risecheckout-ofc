@@ -36,7 +36,7 @@ const mockSwitchToProducer = vi.fn();
 const mockSwitchToBuyer = vi.fn();
 const mockSwitchContext = vi.fn();
 
-vi.mock("./useUnifiedAuth", () => ({
+vi.mock("@/hooks/useUnifiedAuth", () => ({
   useUnifiedAuth: vi.fn(() => ({
     isAuthenticated: true,
     isLoading: false,
@@ -52,7 +52,7 @@ vi.mock("./useUnifiedAuth", () => ({
 }));
 
 import { useContextSwitcher } from "../useContextSwitcher";
-import { useUnifiedAuth } from "../useUnifiedAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { toast } from "sonner";
 
 describe("useContextSwitcher", () => {
