@@ -1,5 +1,14 @@
 {
   "imports": {
     "@shared/": "./_shared/"
+  },
+  "test": {
+    "include": ["./**/*.test.ts"],
+    "exclude": ["./node_modules/"],
+    "reporter": "pretty"
+  },
+  "coverage": {
+    "include": ["./_shared/**/*.ts"],
+    "exclude": ["./_shared/**/*.test.ts"]
   }
 }
