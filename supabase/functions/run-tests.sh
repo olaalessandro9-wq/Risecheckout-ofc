@@ -9,6 +9,8 @@
 # Supports both function-specific tests and _shared module tests.
 # 
 # Usage: ./run-tests.sh
+# Environment Variables:
+#   VERBOSE=1  - Use verbose output (default: compact dot reporter)
 # 
 # @module supabase/functions/run-tests
 # =============================================================================
@@ -43,7 +45,14 @@ run_test_file() {
   
   echo "📋 Testing: $relative_path"
   
-  if deno test --allow-net --allow-env --allow-read "$test_file" 2>&1; then
+  # Use dot reporter for compact output (prevents stdout truncation in Lovable ~50KB limit)
+  # Set VERBOSE=1 for detailed output during local debugging
+  local reporter_flag="--reporter=dot"
+  if [ "$VERBOSE" = "1" ]; then
+    reporter_flag=""
+  fi
+  
+  if deno test --allow-net --allow-env --allow-read $reporter_flag "$test_file" 2>&1; then
     echo "✅ PASSED: $relative_path"
     ((PASSED_FILES++))
   else
