@@ -42,7 +42,7 @@ A **Fase 7 do Sistema de Testes Enterprise** foi concluída com sucesso. O proje
 ┌─────────────────┐    ┌─────────────────────┐    ┌─────────────────────┐
 │   UNIT TESTS    │    │      E2E TESTS      │    │  EDGE FUNC TESTS    │
 │   (Vitest)      │    │    (Playwright)     │    │      (Deno)         │
-│   Coverage 60%  │    │    43+ testes       │    │    200+ testes      │
+│   Coverage 60%  │    │    43+ testes       │    │    463+ testes      │
 └─────────────────┘    └─────────────────────┘    └─────────────────────┘
           │                         │                         │
           └─────────────────────────┼─────────────────────────┘
@@ -161,14 +161,14 @@ A **Fase 7 do Sistema de Testes Enterprise** foi concluída com sucesso. O proje
 
 | Categoria | Testes | Localização |
 |-----------|--------|-------------|
-| Validators | Vários | `_shared/validators.test.ts` |
+| Validators (Modular) | 80 | `_shared/validators/*.test.ts` |
 | Password Policy | Vários | `_shared/password-policy.test.ts` |
 | Fee Calculator | Vários | `_shared/fee-calculator.test.ts` |
 | Idempotency | Vários | `_shared/idempotency.test.ts` |
 | Grant Access | Vários | `_shared/grant-members-access.test.ts` |
 | Coupon Validation | Vários | `_shared/coupon-validation.test.ts` |
 | Rate Limiting | Vários | `_shared/rate-limiting/*.test.ts` |
-| **Total** | **200+** | |
+| **Total** | **463+** | |
 
 ---
 
@@ -179,9 +179,9 @@ A **Fase 7 do Sistema de Testes Enterprise** foi concluída com sucesso. O proje
 | F2 | Backend _shared | 129 |
 | F3 | Frontend lib | 150+ |
 | F4 | Hooks integração | 66 |
-| F5 | Edge Functions | 200+ |
+| F5 | Edge Functions | 463+ |
 | F6 | E2E Playwright | 43+ |
-| **TOTAL** | | **586+** |
+| **TOTAL** | | **1105+** |
 
 ---
 
@@ -223,7 +223,7 @@ Para que o Quality Gate seja verdadeiramente bloqueante, é necessário configur
 ║  ✅ Artifacts (Coverage, Playwright Report, Traces)                          ║
 ║  ✅ Quality Gate Bloqueante (exit 1 se falha)                                ║
 ║  ✅ 6 Scripts de Teste (package.json sincronizado)                           ║
-║  ✅ 586+ Testes Automatizados                                                ║
+║  ✅ 1105+ Testes Automatizados                                               ║
 ║  ✅ Coverage Thresholds (60%/50%/60%/60%)                                    ║
 ║                                                                               ║
 ║  Conformidade:                                                                ║
