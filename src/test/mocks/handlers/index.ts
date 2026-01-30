@@ -21,16 +21,31 @@ export {
   mockResolveSlugResponse,
 } from "./checkout-public-handlers";
 export { trackVisitHandlers, mockTrackVisitResponse } from "./track-visit-handlers";
+export { 
+  marketplaceHandlers, 
+  mockMarketplaceProducts, 
+  mockMarketplaceCategories,
+  mockAffiliationStatusResponse,
+} from "./marketplace-handlers";
+export { 
+  offersHandlers, 
+  mockOffers, 
+  mockOffersWithNulls,
+} from "./offers-handlers";
 
 // Combined handlers array for easy import
 import { analyticsHandlers } from "./analytics-handlers";
 import { productsHandlers } from "./products-handlers";
 import { checkoutPublicHandlers } from "./checkout-public-handlers";
 import { trackVisitHandlers } from "./track-visit-handlers";
+import { marketplaceHandlers } from "./marketplace-handlers";
+import { offersHandlers } from "./offers-handlers";
 
 export const domainHandlers = [
   ...analyticsHandlers,
   ...productsHandlers,
   ...checkoutPublicHandlers,
   ...trackVisitHandlers,
+  ...marketplaceHandlers,
+  ...offersHandlers,
 ];
