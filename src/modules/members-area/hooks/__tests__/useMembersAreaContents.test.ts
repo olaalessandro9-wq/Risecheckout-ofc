@@ -1,0 +1,299 @@
+/**
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * Tests for useMembersAreaContents hook
+ * 
+ * Coverage:
+ * - addContent
+ * - updateContent
+ * - deleteContent
+ * - reorderContents
+ * - Error handling
+ * - Toast notifications
+ */
+
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderHook, act, waitFor } from '@testing-library/react';
+import { useMembersAreaContents } from '../useMembersAreaContents';
+import { api } from '@/lib/api';
+import { toast } from 'sonner';
+import type { ModuleWithContents, MemberContent } from '../../types';
+
+vi.mock('@/lib/api');
+vi.mock('sonner');
+vi.mock('@/lib/logger', () => ({
+  createLogger: () => ({
+    error: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+  }),
+}));
+
+describe('useMembersAreaContents', () => {
+  const mockDispatch = vi.fn();
+  const mockModules: ModuleWithContents[] = [
+    {
+      id: 'module-1',
+      title: 'Module 1',
+      product_id: 'product-1',
+      position: 0,
+      created_at: '2024-01-01',
+      updated_at: '2024-01-01',
+      description: null,
+      cover_image_url: null,
+      contents: [
+        {
+          id: 'content-1',
+          module_id: 'module-1',
+          type: 'text',
+          title: 'Content 1',
+          position: 0,
+          created_at: '2024-01-01',
+          updated_at: '2024-01-01',
+          description: null,
+          content_url: null,
+          thumbnail_url: null,
+          duration_seconds: null,
+          is_free: false,
+          drip_days: null,
+          settings: null,
+        },
+      ],
+    },
+  ];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe('addContent', () => {
+    it('deve adicionar conteúdo com sucesso', async () => {
+      const newContent: MemberContent = {
+        id: 'content-2',
+        module_id: 'module-1',
+        type: 'video',
+        title: 'New Content',
+        position: 1,
+        created_at: '2024-01-01',
+        updated_at: '2024-01-01',
+        description: null,
+        content_url: null,
+        thumbnail_url: null,
+        duration_seconds: null,
+        is_free: false,
+        drip_days: null,
+        settings: null,
+      };
+
+      vi.mocked(api.call).mockResolvedValueOnce({
+        data: { success: true, data: newContent },
+        error: null,
+      });
+
+      const { result } = renderHook(() =>
+        useMembersAreaContents({ modules: mockModules, dispatch: mockDispatch })
+      );
+
+      let addedContent: MemberContent | null = null;
+      await act(async () => {
+        addedContent = await result.current.addContent('module-1', {
+          type: 'video',
+          title: 'New Content',
+          description: null,
+          content_url: null,
+          thumbnail_url: null,
+          duration_seconds: null,
+          is_free: false,
+          drip_days: null,
+          settings: null,
+        });
+      });
+
+      expect(addedContent).toEqual(newContent);
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'ADD_CONTENT',
+        moduleId: 'module-1',
+        content: newContent,
+      });
+      expect(toast.success).toHaveBeenCalledWith('Conteúdo criado!');
+    });
+
+    it('deve retornar null se módulo não existir', async () => {
+      const { result } = renderHook(() =>
+        useMembersAreaContents({ modules: mockModules, dispatch: mockDispatch })
+      );
+
+      let addedContent: MemberContent | null = null;
+      await act(async () => {
+        addedContent = await result.current.addContent('non-existent-module', {
+          type: 'text',
+          title: 'Content',
+          description: null,
+          content_url: null,
+          thumbnail_url: null,
+          duration_seconds: null,
+          is_free: false,
+          drip_days: null,
+          settings: null,
+        });
+      });
+
+      expect(addedContent).toBeNull();
+      expect(mockDispatch).not.toHaveBeenCalled();
+    });
+
+    it('deve mostrar erro se API falhar', async () => {
+      vi.mocked(api.call).mockResolvedValueOnce({
+        data: null,
+        error: new Error('API Error'),
+      });
+
+      const { result } = renderHook(() =>
+        useMembersAreaContents({ modules: mockModules, dispatch: mockDispatch })
+      );
+
+      let addedContent: MemberContent | null = null;
+      await act(async () => {
+        addedContent = await result.current.addContent('module-1', {
+          type: 'text',
+          title: 'Content',
+          description: null,
+          content_url: null,
+          thumbnail_url: null,
+          duration_seconds: null,
+          is_free: false,
+          drip_days: null,
+          settings: null,
+        });
+      });
+
+      expect(addedContent).toBeNull();
+      expect(toast.error).toHaveBeenCalledWith('Erro ao criar conteúdo');
+    });
+  });
+
+  describe('updateContent', () => {
+    it('deve atualizar conteúdo com sucesso', async () => {
+      vi.mocked(api.call).mockResolvedValueOnce({
+        data: { success: true },
+        error: null,
+      });
+
+      const { result } = renderHook(() =>
+        useMembersAreaContents({ modules: mockModules, dispatch: mockDispatch })
+      );
+
+      await act(async () => {
+        await result.current.updateContent('content-1', { title: 'Updated Title' });
+      });
+
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'UPDATE_CONTENT',
+        id: 'content-1',
+        data: { title: 'Updated Title' },
+      });
+      expect(toast.success).toHaveBeenCalledWith('Conteúdo atualizado!');
+    });
+
+    it('deve mostrar erro se API falhar', async () => {
+      vi.mocked(api.call).mockResolvedValueOnce({
+        data: null,
+        error: new Error('API Error'),
+      });
+
+      const { result } = renderHook(() =>
+        useMembersAreaContents({ modules: mockModules, dispatch: mockDispatch })
+      );
+
+      await act(async () => {
+        await result.current.updateContent('content-1', { title: 'Updated Title' });
+      });
+
+      expect(mockDispatch).not.toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith('Erro ao atualizar conteúdo');
+    });
+  });
+
+  describe('deleteContent', () => {
+    it('deve deletar conteúdo com sucesso', async () => {
+      vi.mocked(api.call).mockResolvedValueOnce({
+        data: { success: true },
+        error: null,
+      });
+
+      const { result } = renderHook(() =>
+        useMembersAreaContents({ modules: mockModules, dispatch: mockDispatch })
+      );
+
+      await act(async () => {
+        await result.current.deleteContent('content-1');
+      });
+
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'DELETE_CONTENT',
+        id: 'content-1',
+      });
+      expect(toast.success).toHaveBeenCalledWith('Conteúdo deletado!');
+    });
+
+    it('deve mostrar erro se API falhar', async () => {
+      vi.mocked(api.call).mockResolvedValueOnce({
+        data: null,
+        error: new Error('API Error'),
+      });
+
+      const { result } = renderHook(() =>
+        useMembersAreaContents({ modules: mockModules, dispatch: mockDispatch })
+      );
+
+      await act(async () => {
+        await result.current.deleteContent('content-1');
+      });
+
+      expect(mockDispatch).not.toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith('Erro ao deletar conteúdo');
+    });
+  });
+
+  describe('reorderContents', () => {
+    it('deve reordenar conteúdos com sucesso', async () => {
+      vi.mocked(api.call).mockResolvedValueOnce({
+        data: { success: true },
+        error: null,
+      });
+
+      const { result } = renderHook(() =>
+        useMembersAreaContents({ modules: mockModules, dispatch: mockDispatch })
+      );
+
+      await act(async () => {
+        await result.current.reorderContents('module-1', ['content-2', 'content-1']);
+      });
+
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'REORDER_CONTENTS',
+        moduleId: 'module-1',
+        orderedIds: ['content-2', 'content-1'],
+      });
+      expect(toast.success).toHaveBeenCalledWith('Ordem atualizada!');
+    });
+
+    it('deve mostrar erro se API falhar', async () => {
+      vi.mocked(api.call).mockResolvedValueOnce({
+        data: null,
+        error: new Error('API Error'),
+      });
+
+      const { result } = renderHook(() =>
+        useMembersAreaContents({ modules: mockModules, dispatch: mockDispatch })
+      );
+
+      await act(async () => {
+        await result.current.reorderContents('module-1', ['content-2', 'content-1']);
+      });
+
+      expect(mockDispatch).not.toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith('Erro ao reordenar conteúdos');
+    });
+  });
+});
