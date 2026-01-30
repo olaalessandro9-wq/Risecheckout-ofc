@@ -275,3 +275,125 @@ Deno.test("Edge Case: should maintain precision with odd numbers", () => {
   assertEquals(result.commissionCents, 6720);
   assertEquals(result.producerCents, 2880);
 });
+
+// ============================================================================
+// EXPANDED TESTS - RISE V3 Phase 4
+// ============================================================================
+
+// Edge Cases: Negative Values
+Deno.test("calculatePlatformFeeCents: should handle negative amount gracefully", () => {
+  const result = calculatePlatformFeeCents(-1000);
+  assertEquals(result, 0); // Should not return negative fees
+});
+
+Deno.test("calculatePlatformFeeReais: should handle negative amount gracefully", () => {
+  const result = calculatePlatformFeeReais(-100);
+  assertEquals(result, 0); // Should not return negative fees
+});
+
+// Edge Cases: Very Small Amounts
+Deno.test("calculatePlatformFeeCents: should handle very small amounts (10 cents)", () => {
+  const result = calculatePlatformFeeCents(10);
+  assertEquals(result, 0); // 4% of 10 = 0.4, floored to 0
+});
+
+Deno.test("calculatePlatformFeeCents: should handle very small amounts (25 cents)", () => {
+  const result = calculatePlatformFeeCents(25);
+  assertEquals(result, 1); // 4% of 25 = 1
+});
+
+// Edge Cases: Extreme Fee Percentages
+Deno.test("calculatePlatformFeeCents: should handle 0% fee", () => {
+  const result = calculatePlatformFeeCents(10000, 0);
+  assertEquals(result, 0);
+});
+
+Deno.test("calculatePlatformFeeCents: should handle 100% fee", () => {
+  const result = calculatePlatformFeeCents(10000, 1.0);
+  assertEquals(result, 10000);
+});
+
+Deno.test("calculatePlatformFeeReais: should handle 0% fee", () => {
+  const result = calculatePlatformFeeReais(100, 0);
+  assertEquals(result, 0);
+});
+
+Deno.test("calculatePlatformFeeReais: should handle 100% fee", () => {
+  const result = calculatePlatformFeeReais(100, 1.0);
+  assertAlmostEquals(result, 100, 0.001);
+});
+
+// Edge Cases: Precision and Rounding
+Deno.test("calculatePlatformFeeCents: should maintain precision for 9997 cents", () => {
+  const result = calculatePlatformFeeCents(9997);
+  assertEquals(result, 399); // 4% of 9997 = 399.88, floored to 399
+});
+
+Deno.test("calculatePlatformFeeCents: should maintain precision for 12345 cents", () => {
+  const result = calculatePlatformFeeCents(12345);
+  assertEquals(result, 493); // 4% of 12345 = 493.8, floored to 493
+});
+
+// Affiliate Commission Tests
+Deno.test("calculateAffiliateCommission: should calculate commission correctly", () => {
+  const result = calculateAffiliateCommission(10000, 0.10);
+  assertEquals(result, 1000); // 10% of 10000 = 1000 cents
+});
+
+Deno.test("calculateAffiliateCommission: should handle 0% commission", () => {
+  const result = calculateAffiliateCommission(10000, 0);
+  assertEquals(result, 0);
+});
+
+Deno.test("calculateAffiliateCommission: should handle 50% commission", () => {
+  const result = calculateAffiliateCommission(10000, 0.50);
+  assertEquals(result, 5000);
+});
+
+Deno.test("calculateAffiliateCommission: should floor fractional results", () => {
+  const result = calculateAffiliateCommission(123, 0.15);
+  assertEquals(result, 18); // 15% of 123 = 18.45, floored to 18
+});
+
+// Platform Fee Formatting Tests
+Deno.test("getPlatformFeePercentFormatted: should return formatted percentage", () => {
+  const result = getPlatformFeePercentFormatted();
+  assertEquals(typeof result, 'string');
+  assertEquals(result, '4%'); // Default 4%
+});
+
+Deno.test("getPlatformFeePercentFormatted: should format custom percentage", () => {
+  const result = getPlatformFeePercentFormatted(0.10);
+  assertEquals(result, '10%');
+});
+
+Deno.test("getPlatformFeePercentFormatted: should format decimal percentage", () => {
+  const result = getPlatformFeePercentFormatted(0.025);
+  assertEquals(result, '2.5%');
+});
+
+// Integration Tests: Real-world Scenarios
+Deno.test("Real-world scenario: R$ 497 product with 4% platform fee", () => {
+  const amountCents = 49700;
+  const platformFee = calculatePlatformFeeCents(amountCents);
+  assertEquals(platformFee, 1988); // R$ 19.88
+});
+
+Deno.test("Real-world scenario: R$ 1997 product with 10% affiliate commission", () => {
+  const amountCents = 199700;
+  const affiliateCommission = calculateAffiliateCommission(amountCents, 0.10);
+  assertEquals(affiliateCommission, 19970); // R$ 199.70
+});
+
+Deno.test("Real-world scenario: R$ 97 product with 4% platform fee and 15% affiliate", () => {
+  const amountCents = 9700;
+  const platformFee = calculatePlatformFeeCents(amountCents);
+  const affiliateCommission = calculateAffiliateCommission(amountCents, 0.15);
+  
+  assertEquals(platformFee, 388); // R$ 3.88
+  assertEquals(affiliateCommission, 1455); // R$ 14.55
+  
+  // Vendor receives: 9700 - 388 - 1455 = 7857 (R$ 78.57)
+  const vendorAmount = amountCents - platformFee - affiliateCommission;
+  assertEquals(vendorAmount, 7857);
+});
