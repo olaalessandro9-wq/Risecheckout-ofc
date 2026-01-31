@@ -12,42 +12,106 @@ import { MarketplaceRoute } from "../MarketplaceRoute";
 import * as ReactRouterDOM from "react-router-dom";
 import * as UseUnifiedAuth from "@/hooks/useUnifiedAuth";
 import * as UsePermissions from "@/hooks/usePermissions";
-import type { UnifiedAuthState } from "@/hooks/useUnifiedAuth";
-import type { Permissions } from "@/hooks/usePermissions";
+import type { AppRole, Permissions } from "@/hooks/usePermissions";
+import type { UnifiedUser } from "@/hooks/useUnifiedAuth";
 
 // ============================================================================
 // MOCKS
 // ============================================================================
 
-// Mock react-router-dom
 vi.mock("react-router-dom", async () => {
   const actual = await vi.importActual("react-router-dom");
   return {
     ...actual,
-    Navigate: ({ to }: any) => <div data-testid="navigate-to">{to}</div>,
+    Navigate: ({ to }: { to: string }) => <div data-testid="navigate-to">{to}</div>,
     useLocation: vi.fn(),
   };
 });
 
-// Mock useUnifiedAuth
 vi.mock("@/hooks/useUnifiedAuth", () => ({
   useUnifiedAuth: vi.fn(),
 }));
 
-// Mock usePermissions
 vi.mock("@/hooks/usePermissions", () => ({
   usePermissions: vi.fn(),
 }));
 
-// Mock EmBreve page
 vi.mock("@/pages/EmBreve", () => ({
   default: () => <div data-testid="em-breve">Em Breve</div>,
 }));
 
-// Mock lucide-react icons
 vi.mock("lucide-react", () => ({
-  Loader2: ({ className }: any) => <div data-testid="loader-icon" className={className}>Loader2</div>,
+  Loader2: ({ className }: { className?: string }) => <div data-testid="loader-icon" className={className}>Loader2</div>,
 }));
+
+// ============================================================================
+// TYPE-SAFE FACTORIES
+// ============================================================================
+
+function createMockUser(overrides: Partial<UnifiedUser> = {}): UnifiedUser {
+  return {
+    id: "test-user-id",
+    email: "test@example.com",
+    name: "Test User",
+    timezone: "America/Sao_Paulo",
+    ...overrides,
+  };
+}
+
+function createMockAuthState(config: {
+  isAuthenticated: boolean;
+  isAuthLoading: boolean;
+  activeRole?: AppRole | "buyer";
+}) {
+  const activeRole = config.activeRole ?? "user";
+  return {
+    isAuthenticated: config.isAuthenticated,
+    isAuthLoading: config.isAuthLoading,
+    isSyncing: false,
+    isLoading: config.isAuthLoading,
+    isRefetching: false,
+    activeRole: activeRole as AppRole | "buyer" | null,
+    user: config.isAuthenticated ? createMockUser() : null,
+    roles: [] as AppRole[],
+    expiresIn: null,
+    isProducer: activeRole !== "buyer",
+    isBuyer: activeRole === "buyer",
+    canSwitchToProducer: true,
+    canSwitchToBuyer: true,
+    login: vi.fn(),
+    logout: vi.fn(),
+    register: vi.fn(),
+    switchContext: vi.fn(),
+    switchToProducer: vi.fn(),
+    switchToBuyer: vi.fn(),
+    refresh: vi.fn(),
+    refreshSession: vi.fn(),
+    invalidate: vi.fn(),
+    isLoggingIn: false,
+    isLoggingOut: false,
+    isSwitching: false,
+    loginError: null as string | null,
+  };
+}
+
+function createMockPermissions(
+  role: AppRole,
+  overrides: Partial<Permissions> = {}
+): Permissions {
+  return {
+    role,
+    isLoading: false,
+    error: null,
+    canHaveAffiliates: role === "owner",
+    canManageUsers: role === "owner",
+    canAccessMarketplace: true,
+    canBecomeAffiliate: true,
+    canAccessAdminPanel: role === "owner" || role === "admin",
+    canViewSecurityLogs: role === "owner",
+    canManageProducts: true,
+    ...overrides,
+  };
+}
 
 // ============================================================================
 // TEST HELPERS
@@ -56,20 +120,9 @@ vi.mock("lucide-react", () => ({
 function mockAuth(config: {
   isAuthenticated: boolean;
   isAuthLoading: boolean;
-  activeRole?: "producer" | "buyer" | "admin" | "owner";
+  activeRole?: AppRole | "buyer";
 }) {
-  const mockReturn: Partial<UnifiedAuthState> = {
-    isAuthenticated: config.isAuthenticated,
-    isAuthLoading: config.isAuthLoading,
-    activeRole: config.activeRole || "producer",
-    user: config.isAuthenticated ? { id: "1", email: "test@example.com" } : null,
-    login: vi.fn(),
-    logout: vi.fn(),
-    register: vi.fn(),
-    switchContext: vi.fn(),
-    refreshSession: vi.fn(),
-  };
-  vi.mocked(UseUnifiedAuth.useUnifiedAuth).mockReturnValue(mockReturn as UnifiedAuthState);
+  vi.mocked(UseUnifiedAuth.useUnifiedAuth).mockReturnValue(createMockAuthState(config));
 }
 
 const ProtectedContent = () => <div data-testid="protected-content">Protected Content</div>;
@@ -89,10 +142,6 @@ describe("Simple Guards", () => {
       key: "default",
     });
   });
-
-  // ==========================================================================
-  // BUYER ROUTE
-  // ==========================================================================
 
   describe("BuyerRoute", () => {
     it("should render children when authenticated as buyer", () => {
@@ -120,7 +169,7 @@ describe("Simple Guards", () => {
     });
 
     it("should redirect to /dashboard when producer tries to access", () => {
-      mockAuth({ isAuthenticated: true, isAuthLoading: false, activeRole: "producer" });
+      mockAuth({ isAuthenticated: true, isAuthLoading: false, activeRole: "user" });
 
       render(
         <BuyerRoute>
@@ -144,13 +193,9 @@ describe("Simple Guards", () => {
     });
   });
 
-  // ==========================================================================
-  // PRODUCER ROUTE
-  // ==========================================================================
-
   describe("ProducerRoute", () => {
     it("should render children when authenticated as producer", () => {
-      mockAuth({ isAuthenticated: true, isAuthLoading: false, activeRole: "producer" });
+      mockAuth({ isAuthenticated: true, isAuthLoading: false, activeRole: "user" });
 
       render(
         <ProducerRoute>
@@ -210,17 +255,11 @@ describe("Simple Guards", () => {
     });
   });
 
-  // ==========================================================================
-  // MARKETPLACE ROUTE
-  // ==========================================================================
-
   describe("MarketplaceRoute", () => {
     it("should render children when user is admin", () => {
-      vi.mocked(UsePermissions.usePermissions).mockReturnValue({
-        role: "admin",
-        isLoading: false,
-        error: null,
-      } as Permissions);
+      vi.mocked(UsePermissions.usePermissions).mockReturnValue(
+        createMockPermissions("admin")
+      );
 
       render(
         <MarketplaceRoute>
@@ -232,11 +271,9 @@ describe("Simple Guards", () => {
     });
 
     it("should render children when user is owner", () => {
-      vi.mocked(UsePermissions.usePermissions).mockReturnValue({
-        role: "owner",
-        isLoading: false,
-        error: null,
-      } as Permissions);
+      vi.mocked(UsePermissions.usePermissions).mockReturnValue(
+        createMockPermissions("owner")
+      );
 
       render(
         <MarketplaceRoute>
@@ -248,11 +285,9 @@ describe("Simple Guards", () => {
     });
 
     it("should show EmBreve page when user is regular user", () => {
-      vi.mocked(UsePermissions.usePermissions).mockReturnValue({
-        role: "user",
-        isLoading: false,
-        error: null,
-      } as Permissions);
+      vi.mocked(UsePermissions.usePermissions).mockReturnValue(
+        createMockPermissions("user")
+      );
 
       render(
         <MarketplaceRoute>
@@ -265,11 +300,9 @@ describe("Simple Guards", () => {
     });
 
     it("should show EmBreve page when user is seller", () => {
-      vi.mocked(UsePermissions.usePermissions).mockReturnValue({
-        role: "seller",
-        isLoading: false,
-        error: null,
-      } as Permissions);
+      vi.mocked(UsePermissions.usePermissions).mockReturnValue(
+        createMockPermissions("seller")
+      );
 
       render(
         <MarketplaceRoute>
@@ -281,11 +314,9 @@ describe("Simple Guards", () => {
     });
 
     it("should show loading spinner when permissions are loading", () => {
-      vi.mocked(UsePermissions.usePermissions).mockReturnValue({
-        role: "user",
-        isLoading: true,
-        error: null,
-      } as Permissions);
+      vi.mocked(UsePermissions.usePermissions).mockReturnValue(
+        createMockPermissions("user", { isLoading: true })
+      );
 
       render(
         <MarketplaceRoute>

@@ -36,21 +36,34 @@ vi.mock("@/lib/validation", () => ({
   },
 }));
 
+// ============================================================================
+// FACTORY
+// ============================================================================
+
+function createRequiredFieldsConfig(
+  overrides: Partial<Omit<RequiredFieldsConfig, "name" | "email">> = {}
+): RequiredFieldsConfig {
+  return {
+    name: true,
+    email: true,
+    cpf: false,
+    phone: false,
+    ...overrides,
+  };
+}
+
+// ============================================================================
+// TESTS
+// ============================================================================
+
 describe("validators - Full Validation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe("validatePersonalData", () => {
-    const requiredFieldsAll: RequiredFieldsConfig = {
-      cpf: true,
-      phone: true,
-    };
-
-    const requiredFieldsMinimal: RequiredFieldsConfig = {
-      cpf: false,
-      phone: false,
-    };
+    const requiredFieldsAll = createRequiredFieldsConfig({ cpf: true, phone: true });
+    const requiredFieldsMinimal = createRequiredFieldsConfig({ cpf: false, phone: false });
 
     it("should validate complete valid data", () => {
       const data: PersonalData = {
@@ -102,11 +115,7 @@ describe("validators - Full Validation", () => {
         phone: "11987654321",
       };
 
-      const result = validatePersonalData(data, {
-        cpf: false,
-        phone: true,
-      });
-
+      const result = validatePersonalData(data, createRequiredFieldsConfig({ cpf: false, phone: true }));
       expect(result.isValid).toBe(true);
       expect(result.errors).not.toHaveProperty("cpf");
     });
@@ -119,21 +128,14 @@ describe("validators - Full Validation", () => {
         phone: "",
       };
 
-      const result = validatePersonalData(data, {
-        cpf: true,
-        phone: false,
-      });
-
+      const result = validatePersonalData(data, createRequiredFieldsConfig({ cpf: true, phone: false }));
       expect(result.isValid).toBe(true);
       expect(result.errors).not.toHaveProperty("phone");
     });
   });
 
   describe("validateRequiredFields", () => {
-    const requiredFieldsAll: RequiredFieldsConfig = {
-      cpf: true,
-      phone: true,
-    };
+    const requiredFieldsAll = createRequiredFieldsConfig({ cpf: true, phone: true });
 
     it("should return no errors for complete data", () => {
       const data: PersonalData = {
@@ -191,11 +193,7 @@ describe("validators - Full Validation", () => {
         phone: "11987654321",
       };
 
-      const errors = validateRequiredFields(data, {
-        cpf: false,
-        phone: true,
-      });
-
+      const errors = validateRequiredFields(data, createRequiredFieldsConfig({ cpf: false, phone: true }));
       expect(errors).not.toHaveProperty("cpf");
     });
 

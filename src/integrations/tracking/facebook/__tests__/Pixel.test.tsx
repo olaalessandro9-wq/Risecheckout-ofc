@@ -13,7 +13,7 @@ describe("Facebook Pixel Component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     document.querySelectorAll('script[src*="facebook"]').forEach((s) => s.remove());
-    delete (window as Record<string, unknown>).fbq;
+    delete (window as unknown as Record<string, unknown>).fbq;
   });
 
   afterEach(() => {
