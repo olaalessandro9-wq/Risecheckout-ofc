@@ -121,7 +121,7 @@ export function validateCreateProduct(data: Record<string, unknown>): { valid: b
       price: data.price as number,
       delivery_url: deliveryUrl,
       delivery_type: deliveryType,
-      external_delivery: externalDelivery, // @deprecated - kept for legacy
+      external_delivery: externalDelivery, // @deprecated - kept for database sync
       support_name: typeof data.support_name === "string" ? data.support_name.trim() : "",
       support_email: typeof data.support_email === "string" ? data.support_email.trim().toLowerCase() : "",
       image_url: (data.image_url as string) || null,
