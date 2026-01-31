@@ -12,6 +12,8 @@ import { MarketplaceRoute } from "../MarketplaceRoute";
 import * as ReactRouterDOM from "react-router-dom";
 import * as UseUnifiedAuth from "@/hooks/useUnifiedAuth";
 import * as UsePermissions from "@/hooks/usePermissions";
+import type { UnifiedAuthState } from "@/hooks/useUnifiedAuth";
+import type { Permissions } from "@/hooks/usePermissions";
 
 // ============================================================================
 // MOCKS
@@ -56,7 +58,7 @@ function mockAuth(config: {
   isAuthLoading: boolean;
   activeRole?: "producer" | "buyer" | "admin" | "owner";
 }) {
-  vi.mocked(UseUnifiedAuth.useUnifiedAuth).mockReturnValue({
+  const mockReturn: Partial<UnifiedAuthState> = {
     isAuthenticated: config.isAuthenticated,
     isAuthLoading: config.isAuthLoading,
     activeRole: config.activeRole || "producer",
@@ -66,7 +68,8 @@ function mockAuth(config: {
     register: vi.fn(),
     switchContext: vi.fn(),
     refreshSession: vi.fn(),
-  } as any);
+  };
+  vi.mocked(UseUnifiedAuth.useUnifiedAuth).mockReturnValue(mockReturn as UnifiedAuthState);
 }
 
 const ProtectedContent = () => <div data-testid="protected-content">Protected Content</div>;
@@ -217,7 +220,7 @@ describe("Simple Guards", () => {
         role: "admin",
         isLoading: false,
         error: null,
-      } as any);
+      } as Permissions);
 
       render(
         <MarketplaceRoute>
@@ -233,7 +236,7 @@ describe("Simple Guards", () => {
         role: "owner",
         isLoading: false,
         error: null,
-      } as any);
+      } as Permissions);
 
       render(
         <MarketplaceRoute>
@@ -249,7 +252,7 @@ describe("Simple Guards", () => {
         role: "user",
         isLoading: false,
         error: null,
-      } as any);
+      } as Permissions);
 
       render(
         <MarketplaceRoute>
@@ -266,7 +269,7 @@ describe("Simple Guards", () => {
         role: "seller",
         isLoading: false,
         error: null,
-      } as any);
+      } as Permissions);
 
       render(
         <MarketplaceRoute>
@@ -282,7 +285,7 @@ describe("Simple Guards", () => {
         role: "user",
         isLoading: true,
         error: null,
-      } as any);
+      } as Permissions);
 
       render(
         <MarketplaceRoute>

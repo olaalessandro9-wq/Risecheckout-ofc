@@ -10,6 +10,15 @@ import ThemeToggle from "../ThemeToggle";
 import * as ThemeProvider from "@/providers/theme";
 
 // ============================================================================
+// TYPES
+// ============================================================================
+
+type MockThemeReturn = {
+  theme: "light" | "dark" | undefined;
+  setTheme: ReturnType<typeof vi.fn>;
+};
+
+// ============================================================================
 // MOCKS
 // ============================================================================
 
@@ -50,7 +59,7 @@ describe("ThemeToggle", () => {
       vi.mocked(ThemeProvider.useTheme).mockReturnValue({
         theme: "light",
         setTheme: setThemeMock,
-      } as any);
+      } satisfies MockThemeReturn);
 
       render(<ThemeToggle />);
 
@@ -62,7 +71,7 @@ describe("ThemeToggle", () => {
       vi.mocked(ThemeProvider.useTheme).mockReturnValue({
         theme: "light",
         setTheme: setThemeMock,
-      } as any);
+      } satisfies MockThemeReturn);
 
       render(<ThemeToggle />);
 
@@ -74,7 +83,7 @@ describe("ThemeToggle", () => {
       vi.mocked(ThemeProvider.useTheme).mockReturnValue({
         theme: "dark",
         setTheme: setThemeMock,
-      } as any);
+      } satisfies MockThemeReturn);
 
       render(<ThemeToggle />);
 
@@ -86,7 +95,7 @@ describe("ThemeToggle", () => {
       vi.mocked(ThemeProvider.useTheme).mockReturnValue({
         theme: "light",
         setTheme: setThemeMock,
-      } as any);
+      } satisfies MockThemeReturn);
 
       render(<ThemeToggle />);
 
@@ -107,7 +116,7 @@ describe("ThemeToggle", () => {
       vi.mocked(ThemeProvider.useTheme).mockReturnValue({
         theme: "light",
         setTheme: setThemeMock,
-      } as any);
+      } satisfies MockThemeReturn);
 
       render(<ThemeToggle />);
 
@@ -121,7 +130,7 @@ describe("ThemeToggle", () => {
       vi.mocked(ThemeProvider.useTheme).mockReturnValue({
         theme: "dark",
         setTheme: setThemeMock,
-      } as any);
+      } satisfies MockThemeReturn);
 
       render(<ThemeToggle />);
 
@@ -135,7 +144,7 @@ describe("ThemeToggle", () => {
       vi.mocked(ThemeProvider.useTheme).mockReturnValue({
         theme: "light",
         setTheme: setThemeMock,
-      } as any);
+      } satisfies MockThemeReturn);
 
       render(<ThemeToggle />);
 
@@ -155,7 +164,7 @@ describe("ThemeToggle", () => {
       vi.mocked(ThemeProvider.useTheme).mockReturnValue({
         theme: "light",
         setTheme: setThemeMock,
-      } as any);
+      } satisfies MockThemeReturn);
 
       render(<ThemeToggle />);
 
@@ -167,7 +176,7 @@ describe("ThemeToggle", () => {
       vi.mocked(ThemeProvider.useTheme).mockReturnValue({
         theme: "light",
         setTheme: setThemeMock,
-      } as any);
+      } satisfies MockThemeReturn);
 
       render(<ThemeToggle />);
 
@@ -179,7 +188,7 @@ describe("ThemeToggle", () => {
       vi.mocked(ThemeProvider.useTheme).mockReturnValue({
         theme: "dark",
         setTheme: setThemeMock,
-      } as any);
+      } satisfies MockThemeReturn);
 
       render(<ThemeToggle />);
 
@@ -197,7 +206,7 @@ describe("ThemeToggle", () => {
       vi.mocked(ThemeProvider.useTheme).mockReturnValue({
         theme: "light",
         setTheme: setThemeMock,
-      } as any);
+      } satisfies MockThemeReturn);
 
       render(<ThemeToggle />);
 
@@ -211,9 +220,9 @@ describe("ThemeToggle", () => {
 
     it("should render correctly when theme is undefined", () => {
       vi.mocked(ThemeProvider.useTheme).mockReturnValue({
-        theme: undefined as any,
+        theme: undefined,
         setTheme: setThemeMock,
-      } as any);
+      } satisfies MockThemeReturn);
 
       render(<ThemeToggle />);
 

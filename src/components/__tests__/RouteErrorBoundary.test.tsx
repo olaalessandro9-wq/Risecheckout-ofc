@@ -67,14 +67,12 @@ describe("RouteErrorBoundary", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
-    
     // Mock window.location.reload
     reloadSpy = vi.fn();
     Object.defineProperty(window, "location", {
       value: { reload: reloadSpy },
       writable: true,
     });
-    
     // Mock sessionStorage
     const sessionStorageMock: Record<string, string> = {};
     vi.spyOn(Storage.prototype, "getItem").mockImplementation((key) => {
@@ -83,7 +81,6 @@ describe("RouteErrorBoundary", () => {
     vi.spyOn(Storage.prototype, "setItem").mockImplementation((key, value) => {
       sessionStorageMock[key] = value;
     });
-    
     // Mock useRouteError
     useRouteErrorMock = vi.mocked(ReactRouterDOM.useRouteError);
   });

@@ -9,6 +9,7 @@ import { render, screen } from "@/test/utils";
 import { ContextAwareProtectedRoute } from "../ContextAwareProtectedRoute";
 import * as ReactRouterDOM from "react-router-dom";
 import * as UseUnifiedAuth from "@/hooks/useUnifiedAuth";
+import type { UnifiedAuthState } from "@/hooks/useUnifiedAuth";
 
 // ============================================================================
 // MOCKS
@@ -43,7 +44,7 @@ function mockAuth(config: {
   isAuthLoading: boolean;
   activeRole?: "producer" | "buyer" | "admin" | "owner";
 }) {
-  vi.mocked(UseUnifiedAuth.useUnifiedAuth).mockReturnValue({
+  const mockReturn: Partial<UnifiedAuthState> = {
     isAuthenticated: config.isAuthenticated,
     isAuthLoading: config.isAuthLoading,
     activeRole: config.activeRole || "producer",
@@ -53,7 +54,8 @@ function mockAuth(config: {
     register: vi.fn(),
     switchContext: vi.fn(),
     refreshSession: vi.fn(),
-  } as any);
+  };
+  vi.mocked(UseUnifiedAuth.useUnifiedAuth).mockReturnValue(mockReturn as UnifiedAuthState);
 }
 
 const ProtectedContent = () => <div data-testid="protected-content">Protected Content</div>;
