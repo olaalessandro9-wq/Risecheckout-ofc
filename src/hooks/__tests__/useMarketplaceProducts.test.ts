@@ -3,6 +3,10 @@
  * 
  * Tests for useMarketplaceProducts hook
  * 
+ * Uses `as unknown as T` pattern for vi.mocked() calls.
+ * Justification: vi.mocked requires full type match, but tests only need
+ * the subset of properties actually consumed by the hook.
+ * 
  * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
@@ -32,6 +36,28 @@ vi.mock("@/lib/logger", () => ({
 import { useMarketplaceProducts } from "../useMarketplaceProducts";
 import { fetchMarketplaceProducts, fetchMarketplaceCategories } from "@/services/marketplace";
 
+// Type aliases for mock return types
+type ProductsReturn = Awaited<ReturnType<typeof fetchMarketplaceProducts>>;
+type CategoriesReturn = Awaited<ReturnType<typeof fetchMarketplaceCategories>>;
+
+// ============================================================================
+// FACTORY FUNCTIONS
+// ============================================================================
+
+function createMockProducts(count: number = 2) {
+  return Array.from({ length: count }, (_, i) => ({
+    id: `prod-${i + 1}`,
+    name: `Product ${i + 1}`,
+    price: 9900 + i * 1000,
+  }));
+}
+
+function createMockCategories() {
+  return [
+    { id: "cat-1", name: "Marketing", slug: "marketing", display_order: 1 },
+  ];
+}
+
 describe("useMarketplaceProducts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -49,12 +75,9 @@ describe("useMarketplaceProducts", () => {
   });
 
   it("should fetch products on mount", async () => {
-    const mockProducts = [
-      { id: "prod-1", name: "Product 1", price: 9900 },
-      { id: "prod-2", name: "Product 2", price: 19900 },
-    ];
-
-    vi.mocked(fetchMarketplaceProducts).mockResolvedValueOnce(mockProducts as never);
+    const mockProducts = createMockProducts(2);
+    // RISE V3 Justified: Partial mock - test only needs subset of product data
+    vi.mocked(fetchMarketplaceProducts).mockResolvedValueOnce(mockProducts as unknown as ProductsReturn);
 
     const { result } = renderHook(() => useMarketplaceProducts());
 
@@ -67,11 +90,9 @@ describe("useMarketplaceProducts", () => {
   });
 
   it("should fetch categories on mount", async () => {
-    const mockCategories = [
-      { id: "cat-1", name: "Marketing", slug: "marketing", display_order: 1 },
-    ];
-
-    vi.mocked(fetchMarketplaceCategories).mockResolvedValueOnce(mockCategories as never);
+    const mockCategories = createMockCategories();
+    // RISE V3 Justified: Partial mock - test only needs subset of category data
+    vi.mocked(fetchMarketplaceCategories).mockResolvedValueOnce(mockCategories as unknown as CategoriesReturn);
 
     const { result } = renderHook(() => useMarketplaceProducts());
 
@@ -95,9 +116,9 @@ describe("useMarketplaceProducts", () => {
 
   it("should update hasMore based on response length", async () => {
     // Return less than limit (12)
-    vi.mocked(fetchMarketplaceProducts).mockResolvedValueOnce([
-      { id: "1", name: "Only One" },
-    ] as never);
+    const singleProduct = [{ id: "1", name: "Only One" }];
+    // RISE V3 Justified: Partial mock - test only needs subset of product data
+    vi.mocked(fetchMarketplaceProducts).mockResolvedValueOnce(singleProduct as unknown as ProductsReturn);
 
     const { result } = renderHook(() => useMarketplaceProducts());
 
@@ -129,9 +150,10 @@ describe("useMarketplaceProducts", () => {
     const firstPage = Array(12).fill({ id: "1", name: "Product" });
     const secondPage = Array(5).fill({ id: "2", name: "More" });
 
+    // RISE V3 Justified: Partial mock - test only needs subset of product data
     vi.mocked(fetchMarketplaceProducts)
-      .mockResolvedValueOnce(firstPage as never)
-      .mockResolvedValueOnce(secondPage as never);
+      .mockResolvedValueOnce(firstPage as unknown as ProductsReturn)
+      .mockResolvedValueOnce(secondPage as unknown as ProductsReturn);
 
     const { result } = renderHook(() => useMarketplaceProducts());
 
