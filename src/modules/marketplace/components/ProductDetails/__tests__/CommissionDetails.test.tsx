@@ -10,7 +10,7 @@ import { CommissionDetails } from "../CommissionDetails";
 import type { Offer } from "../hooks/useProductOffers";
 
 // ============================================================================
-// TEST DATA
+// TEST DATA - Using correct Offer interface
 // ============================================================================
 
 const mockOfferOneTime: Offer = {
@@ -18,7 +18,8 @@ const mockOfferOneTime: Offer = {
   name: "Oferta Única",
   price: 9700,
   type: "one_time",
-  commissionValue: 2910,
+  commission: 2910,
+  checkoutUrl: "https://example.com/checkout/offer-001",
 };
 
 const mockOfferRecurring: Offer = {
@@ -26,7 +27,8 @@ const mockOfferRecurring: Offer = {
   name: "Oferta Recorrente",
   price: 4700,
   type: "recurring",
-  commissionValue: 1410,
+  commission: 1410,
+  checkoutUrl: "https://example.com/checkout/offer-002",
 };
 
 // ============================================================================

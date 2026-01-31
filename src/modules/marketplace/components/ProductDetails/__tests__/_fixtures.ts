@@ -24,12 +24,22 @@ export const mockMarketplaceProduct: MarketplaceProduct = {
   image_url: "https://example.com/curso-marketing.jpg",
   requires_manual_approval: false,
   has_order_bump_commission: true,
-  status: "active",
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-15T00:00:00Z",
   views_count: 1250,
   clicks_count: 340,
   sales_count: 87,
+  approval_mode: "automatic",
+  conversion_rate: 25.5,
+  cookie_duration_days: 30,
+  description: "Descrição completa do produto",
+  marketplace_enabled: true,
+  product_type: "course",
+  support_email: "suporte@example.com",
+  support_name: "Suporte Rise",
+  total_affiliates: 15,
+  total_earnings: 500000,
+  user_id: "user-001",
 };
 
 export const mockOwnerProduct: MarketplaceProduct = {

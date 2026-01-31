@@ -25,6 +25,67 @@ vi.mock('@/lib/logger', () => ({
   }),
 }));
 
+// ============================================================================
+// TYPE DEFINITIONS FOR TEST RESPONSES
+// ============================================================================
+
+interface SuccessResponse {
+  success: boolean;
+}
+
+interface ContentProgressResponse {
+  success: boolean;
+  progress: {
+    content_id: string;
+    is_completed: boolean;
+    completed_at: string | null;
+  };
+}
+
+interface ModuleProgressResponse {
+  success: boolean;
+  module_progress: {
+    module_id: string;
+    total_contents: number;
+    completed_contents: number;
+    progress_percentage: number;
+  };
+}
+
+interface CourseProgressResponse {
+  success: boolean;
+  course_progress: {
+    product_id: string;
+    total_modules: number;
+    modules: Array<{ module_id: string; progress: number }>;
+    overall_progress: number;
+  };
+}
+
+interface StatsResponse {
+  success: boolean;
+  stats: {
+    total_completed: number;
+    total_time_spent: number;
+    last_activity: string;
+  };
+}
+
+interface TimeTrackingResponse {
+  success: boolean;
+  time_tracking: {
+    content_id: string;
+    time_spent_seconds: number;
+  };
+}
+
+interface AccessCheckResponse {
+  success: boolean;
+  can_access: boolean;
+  reason: string;
+  prerequisite_id?: string;
+}
+
 describe('Integration: Fluxo de Progresso do Aluno', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -43,11 +104,11 @@ describe('Integration: Fluxo de Progresso do Aluno', () => {
             is_completed: true,
             completed_at: new Date().toISOString(),
           },
-        },
+        } as ContentProgressResponse,
         error: null,
       });
 
-      const result = await api.call('members-area-progress', {
+      const result = await api.call<ContentProgressResponse>('members-area-progress', {
         action: 'mark-complete',
         buyer_id: buyerId,
         content_id: contentId,
@@ -71,11 +132,11 @@ describe('Integration: Fluxo de Progresso do Aluno', () => {
             completed_contents: 2,
             progress_percentage: 50,
           },
-        },
+        } as ModuleProgressResponse,
         error: null,
       });
 
-      const result = await api.call('members-area-progress', {
+      const result = await api.call<ModuleProgressResponse>('members-area-progress', {
         action: 'get-module-progress',
         buyer_id: buyerId,
         module_id: moduleId,
@@ -104,11 +165,11 @@ describe('Integration: Fluxo de Progresso do Aluno', () => {
             ],
             overall_progress: 50,
           },
-        },
+        } as CourseProgressResponse,
         error: null,
       });
 
-      const result = await api.call('members-area-progress', {
+      const result = await api.call<CourseProgressResponse>('members-area-progress', {
         action: 'get-course-progress',
         buyer_id: buyerId,
         product_id: productId,
@@ -123,11 +184,11 @@ describe('Integration: Fluxo de Progresso do Aluno', () => {
 
       // 1. Marcar conteúdo como completo
       vi.mocked(api.call).mockResolvedValueOnce({
-        data: { success: true },
+        data: { success: true } as SuccessResponse,
         error: null,
       });
 
-      await api.call('members-area-progress', {
+      await api.call<SuccessResponse>('members-area-progress', {
         action: 'mark-complete',
         buyer_id: buyerId,
         content_id: contentId,
@@ -142,11 +203,11 @@ describe('Integration: Fluxo de Progresso do Aluno', () => {
             total_time_spent: 3600, // 1 hora
             last_activity: new Date().toISOString(),
           },
-        },
+        } as StatsResponse,
         error: null,
       });
 
-      const statsResult = await api.call('members-area-progress', {
+      const statsResult = await api.call<StatsResponse>('members-area-progress', {
         action: 'get-stats',
         buyer_id: buyerId,
       });
@@ -168,11 +229,11 @@ describe('Integration: Fluxo de Progresso do Aluno', () => {
             is_completed: false,
             completed_at: null,
           },
-        },
+        } as ContentProgressResponse,
         error: null,
       });
 
-      const result = await api.call('members-area-progress', {
+      const result = await api.call<ContentProgressResponse>('members-area-progress', {
         action: 'mark-incomplete',
         buyer_id: buyerId,
         content_id: contentId,
@@ -194,11 +255,11 @@ describe('Integration: Fluxo de Progresso do Aluno', () => {
             completed_contents: 0,
             progress_percentage: 0,
           },
-        },
+        } as ModuleProgressResponse,
         error: null,
       });
 
-      const result = await api.call('members-area-progress', {
+      const result = await api.call<ModuleProgressResponse>('members-area-progress', {
         action: 'get-module-progress',
         buyer_id: buyerId,
         module_id: moduleId,
@@ -220,11 +281,11 @@ describe('Integration: Fluxo de Progresso do Aluno', () => {
             completed_contents: 5,
             progress_percentage: 100,
           },
-        },
+        } as ModuleProgressResponse,
         error: null,
       });
 
-      const result = await api.call('members-area-progress', {
+      const result = await api.call<ModuleProgressResponse>('members-area-progress', {
         action: 'get-module-progress',
         buyer_id: buyerId,
         module_id: moduleId,
@@ -245,11 +306,11 @@ describe('Integration: Fluxo de Progresso do Aluno', () => {
             content_id: contentId,
             time_spent_seconds: timeSpent,
           },
-        },
+        } as TimeTrackingResponse,
         error: null,
       });
 
-      const result = await api.call('members-area-progress', {
+      const result = await api.call<TimeTrackingResponse>('members-area-progress', {
         action: 'track-time',
         buyer_id: buyerId,
         content_id: contentId,
@@ -273,11 +334,11 @@ describe('Integration: Fluxo de Progresso do Aluno', () => {
           can_access: false,
           reason: 'prerequisite_not_completed',
           prerequisite_id: prerequisiteId,
-        },
+        } as AccessCheckResponse,
         error: null,
       });
 
-      const result = await api.call('members-area-progress', {
+      const result = await api.call<AccessCheckResponse>('members-area-progress', {
         action: 'check-access',
         buyer_id: buyerId,
         content_id: contentId,

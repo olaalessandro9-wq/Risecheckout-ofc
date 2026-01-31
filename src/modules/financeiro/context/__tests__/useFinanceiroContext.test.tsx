@@ -18,16 +18,16 @@ import { BrowserRouter } from "react-router-dom";
 import { FinanceiroProvider, useFinanceiroContext } from "../FinanceiroContext";
 import type { ReactNode } from "react";
 
-// Mock XState
+// Mock XState - using correct property name: lastConnectedAt (not lastSync)
 const mockSend = vi.fn();
 const mockState = {
   value: "ready",
   context: {
     connectionStatuses: {
-      asaas: { connected: true, lastSync: new Date().toISOString() },
-      pushinpay: { connected: false, lastSync: null },
-      mercadopago: { connected: true, lastSync: new Date().toISOString() },
-      stripe: { connected: false, lastSync: null },
+      asaas: { id: "asaas", connected: true, mode: "production", lastConnectedAt: new Date().toISOString() },
+      pushinpay: { id: "pushinpay", connected: false, mode: null, lastConnectedAt: null },
+      mercadopago: { id: "mercadopago", connected: true, mode: "production", lastConnectedAt: new Date().toISOString() },
+      stripe: { id: "stripe", connected: false, mode: null, lastConnectedAt: null },
     },
     selectedGateway: "asaas",
     error: null,
@@ -196,11 +196,11 @@ describe("useFinanceiroContext", () => {
       expect(result.current.connectionStatuses.pushinpay.connected).toBe(false);
     });
 
-    it("provides lastSync timestamps", () => {
+    it("provides lastConnectedAt timestamps", () => {
       const { result } = renderHook(() => useFinanceiroContext(), { wrapper });
 
-      expect(result.current.connectionStatuses.asaas.lastSync).toBeTruthy();
-      expect(result.current.connectionStatuses.pushinpay.lastSync).toBeNull();
+      expect(result.current.connectionStatuses.asaas.lastConnectedAt).toBeTruthy();
+      expect(result.current.connectionStatuses.pushinpay.lastConnectedAt).toBeNull();
     });
   });
 
@@ -215,10 +215,10 @@ describe("useFinanceiroContext", () => {
 
     it("handles all gateways disconnected", () => {
       mockState.context.connectionStatuses = {
-        asaas: { connected: false, lastSync: null },
-        pushinpay: { connected: false, lastSync: null },
-        mercadopago: { connected: false, lastSync: null },
-        stripe: { connected: false, lastSync: null },
+        asaas: { id: "asaas", connected: false, mode: null, lastConnectedAt: null },
+        pushinpay: { id: "pushinpay", connected: false, mode: null, lastConnectedAt: null },
+        mercadopago: { id: "mercadopago", connected: false, mode: null, lastConnectedAt: null },
+        stripe: { id: "stripe", connected: false, mode: null, lastConnectedAt: null },
       };
 
       const { result } = renderHook(() => useFinanceiroContext(), { wrapper });

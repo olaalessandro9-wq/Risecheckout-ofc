@@ -14,13 +14,31 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MarketplaceFilters } from "../index";
 
 // ============================================
-// MOCKS
+// MOCKS - Full category type matching database schema
 // ============================================
 
 const mockOnFiltersChange = vi.fn();
 const mockCategories = [
-  { id: "cat-1", name: "Categoria 1", icon: "📚" },
-  { id: "cat-2", name: "Categoria 2", icon: "💻" },
+  { 
+    id: "cat-1", 
+    name: "Categoria 1", 
+    icon: "📚",
+    active: true,
+    created_at: "2024-01-01T00:00:00Z",
+    description: "Descrição categoria 1",
+    display_order: 1,
+    updated_at: "2024-01-01T00:00:00Z",
+  },
+  { 
+    id: "cat-2", 
+    name: "Categoria 2", 
+    icon: "💻",
+    active: true,
+    created_at: "2024-01-01T00:00:00Z",
+    description: "Descrição categoria 2",
+    display_order: 2,
+    updated_at: "2024-01-01T00:00:00Z",
+  },
 ];
 
 vi.mock("../FilterHeader", () => ({
