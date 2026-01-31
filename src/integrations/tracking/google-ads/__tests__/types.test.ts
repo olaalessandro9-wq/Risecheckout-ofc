@@ -19,16 +19,23 @@ import { createMockIntegration } from "./_test-helpers";
 describe("Google Ads Types", () => {
   describe("GoogleAdsConfig", () => {
     it("should accept valid minimal config", () => {
-      const config: GoogleAdsConfig = { conversion_id: "AW-123456789" };
+      const config: GoogleAdsConfig = {
+        conversion_id: "AW-123456789",
+        enabled: true,
+      };
       expect(config.conversion_id).toBe("AW-123456789");
+      expect(config.enabled).toBe(true);
     });
 
     it("should accept config with all optional fields", () => {
       const config: GoogleAdsConfig = {
         conversion_id: "AW-123456789",
         conversion_label: "test_label",
-        event_labels: [{ eventType: "purchase", label: "purchase_label", enabled: true }],
+        event_labels: [
+          { eventType: "purchase", label: "purchase_label", enabled: true },
+        ],
         selected_products: ["prod_1", "prod_2"],
+        enabled: true,
       };
       expect(config.conversion_label).toBe("test_label");
       expect(config.event_labels).toHaveLength(1);
@@ -39,7 +46,7 @@ describe("Google Ads Types", () => {
   describe("GoogleAdsIntegration", () => {
     it("should accept valid integration data", () => {
       const integration = createMockIntegration();
-      expect(integration.integration_type).toBe("GOOGLE_ADS");
+      expect(integration.id).toBe("integration_123");
       expect(integration.active).toBe(true);
       expect(integration.vendor_id).toBe("vendor_123");
     });
@@ -173,7 +180,10 @@ describe("Google Ads Types", () => {
     it("should allow config in integration", () => {
       const config: GoogleAdsConfig = {
         conversion_id: "AW-123456789",
-        event_labels: [{ eventType: "purchase", label: "purchase_label", enabled: true }],
+        event_labels: [
+          { eventType: "purchase", label: "purchase_label", enabled: true },
+        ],
+        enabled: true,
       };
       const integration = createMockIntegration({ config });
       expect(integration.config.event_labels).toHaveLength(1);

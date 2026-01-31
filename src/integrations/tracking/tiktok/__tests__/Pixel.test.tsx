@@ -12,9 +12,11 @@ import type { TikTokIntegration } from "../types";
 describe("TikTok Pixel Component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    document.querySelectorAll('script[src*="tiktok"]').forEach((s) => s.remove());
-    delete (window as Record<string, unknown>).ttq;
-    delete (window as Record<string, unknown>)._tiktok_pixel;
+    document
+      .querySelectorAll('script[src*="tiktok"]')
+      .forEach((s) => s.remove());
+    delete (window as unknown as Record<string, unknown>).ttq;
+    delete (window as unknown as Record<string, unknown>)._tiktok_pixel;
   });
 
   afterEach(() => {
@@ -24,12 +26,12 @@ describe("TikTok Pixel Component", () => {
   describe("Rendering", () => {
     it("should render nothing visible", () => {
       const config: TikTokIntegration = {
+        id: "integration_123",
         config: {
           pixel_id: "123456789",
           enabled: true,
         },
         active: true,
-        integration_type: "TIKTOK_PIXEL",
         vendor_id: "vendor_123",
         created_at: "2025-01-01T00:00:00Z",
         updated_at: "2025-01-01T00:00:00Z",
@@ -55,12 +57,12 @@ describe("TikTok Pixel Component", () => {
 
     it("should not inject script if inactive", () => {
       const config: TikTokIntegration = {
+        id: "integration_123",
         config: {
           pixel_id: "123456789",
           enabled: true,
         },
         active: false,
-        integration_type: "TIKTOK_PIXEL",
         vendor_id: "vendor_123",
         created_at: "2025-01-01T00:00:00Z",
         updated_at: "2025-01-01T00:00:00Z",
@@ -74,12 +76,12 @@ describe("TikTok Pixel Component", () => {
 
     it("should not inject script if pixel_id is empty", () => {
       const config: TikTokIntegration = {
+        id: "integration_123",
         config: {
           pixel_id: "",
           enabled: true,
         },
         active: true,
-        integration_type: "TIKTOK_PIXEL",
         vendor_id: "vendor_123",
         created_at: "2025-01-01T00:00:00Z",
         updated_at: "2025-01-01T00:00:00Z",
@@ -93,12 +95,12 @@ describe("TikTok Pixel Component", () => {
 
     it("should inject script with valid config", () => {
       const config: TikTokIntegration = {
+        id: "integration_123",
         config: {
           pixel_id: "123456789",
           enabled: true,
         },
         active: true,
-        integration_type: "TIKTOK_PIXEL",
         vendor_id: "vendor_123",
         created_at: "2025-01-01T00:00:00Z",
         updated_at: "2025-01-01T00:00:00Z",
@@ -112,12 +114,12 @@ describe("TikTok Pixel Component", () => {
 
     it("should initialize ttq object", () => {
       const config: TikTokIntegration = {
+        id: "integration_123",
         config: {
           pixel_id: "123456789",
           enabled: true,
         },
         active: true,
-        integration_type: "TIKTOK_PIXEL",
         vendor_id: "vendor_123",
         created_at: "2025-01-01T00:00:00Z",
         updated_at: "2025-01-01T00:00:00Z",
@@ -136,12 +138,12 @@ describe("TikTok Pixel Component", () => {
   describe("Script Injection", () => {
     it("should not duplicate scripts on re-render", () => {
       const config: TikTokIntegration = {
+        id: "integration_123",
         config: {
           pixel_id: "123456789",
           enabled: true,
         },
         active: true,
-        integration_type: "TIKTOK_PIXEL",
         vendor_id: "vendor_123",
         created_at: "2025-01-01T00:00:00Z",
         updated_at: "2025-01-01T00:00:00Z",
@@ -149,23 +151,27 @@ describe("TikTok Pixel Component", () => {
 
       const { rerender } = render(<Pixel config={config} />);
 
-      const scriptsBefore = document.querySelectorAll('script[src*="tiktok"]').length;
+      const scriptsBefore = document.querySelectorAll(
+        'script[src*="tiktok"]'
+      ).length;
 
       rerender(<Pixel config={config} />);
 
-      const scriptsAfter = document.querySelectorAll('script[src*="tiktok"]').length;
+      const scriptsAfter = document.querySelectorAll(
+        'script[src*="tiktok"]'
+      ).length;
 
       expect(scriptsAfter).toBe(scriptsBefore);
     });
 
     it("should set correct script src", () => {
       const config: TikTokIntegration = {
+        id: "integration_123",
         config: {
           pixel_id: "123456789",
           enabled: true,
         },
         active: true,
-        integration_type: "TIKTOK_PIXEL",
         vendor_id: "vendor_123",
         created_at: "2025-01-01T00:00:00Z",
         updated_at: "2025-01-01T00:00:00Z",
@@ -176,20 +182,22 @@ describe("TikTok Pixel Component", () => {
       const script = document.querySelector('script[src*="tiktok"]');
 
       expect(script).not.toBeNull();
-      expect(script?.getAttribute("src")).toBe("https://analytics.tiktok.com/i18n/pixel/events.js?v=1");
+      expect(script?.getAttribute("src")).toBe(
+        "https://analytics.tiktok.com/i18n/pixel/events.js?v=1"
+      );
     });
   });
 
   describe("Configuration Handling", () => {
     it("should handle selected_products option", () => {
       const config: TikTokIntegration = {
+        id: "integration_123",
         config: {
           pixel_id: "123456789",
           enabled: true,
           selected_products: ["prod_1", "prod_2"],
         },
         active: true,
-        integration_type: "TIKTOK_PIXEL",
         vendor_id: "vendor_123",
         created_at: "2025-01-01T00:00:00Z",
         updated_at: "2025-01-01T00:00:00Z",
@@ -204,12 +212,12 @@ describe("TikTok Pixel Component", () => {
   describe("Cleanup", () => {
     it("should maintain ttq after unmount", () => {
       const config: TikTokIntegration = {
+        id: "integration_123",
         config: {
           pixel_id: "123456789",
           enabled: true,
         },
         active: true,
-        integration_type: "TIKTOK_PIXEL",
         vendor_id: "vendor_123",
         created_at: "2025-01-01T00:00:00Z",
         updated_at: "2025-01-01T00:00:00Z",
@@ -228,12 +236,12 @@ describe("TikTok Pixel Component", () => {
   describe("Edge Cases", () => {
     it("should handle config changes", () => {
       const config1: TikTokIntegration = {
+        id: "integration_123",
         config: {
           pixel_id: "123456789",
           enabled: true,
         },
         active: true,
-        integration_type: "TIKTOK_PIXEL",
         vendor_id: "vendor_123",
         created_at: "2025-01-01T00:00:00Z",
         updated_at: "2025-01-01T00:00:00Z",
@@ -242,12 +250,12 @@ describe("TikTok Pixel Component", () => {
       const { rerender } = render(<Pixel config={config1} />);
 
       const config2: TikTokIntegration = {
+        id: "integration_456",
         config: {
           pixel_id: "987654321",
           enabled: true,
         },
         active: true,
-        integration_type: "TIKTOK_PIXEL",
         vendor_id: "vendor_123",
         created_at: "2025-01-01T00:00:00Z",
         updated_at: "2025-01-01T00:00:00Z",
@@ -260,12 +268,12 @@ describe("TikTok Pixel Component", () => {
 
     it("should handle inactive to active transition", () => {
       const config1: TikTokIntegration = {
+        id: "integration_123",
         config: {
           pixel_id: "123456789",
           enabled: true,
         },
         active: false,
-        integration_type: "TIKTOK_PIXEL",
         vendor_id: "vendor_123",
         created_at: "2025-01-01T00:00:00Z",
         updated_at: "2025-01-01T00:00:00Z",
@@ -276,12 +284,12 @@ describe("TikTok Pixel Component", () => {
       expect(window.ttq).toBeUndefined();
 
       const config2: TikTokIntegration = {
+        id: "integration_123",
         config: {
           pixel_id: "123456789",
           enabled: true,
         },
         active: true,
-        integration_type: "TIKTOK_PIXEL",
         vendor_id: "vendor_123",
         created_at: "2025-01-01T00:00:00Z",
         updated_at: "2025-01-01T00:00:00Z",

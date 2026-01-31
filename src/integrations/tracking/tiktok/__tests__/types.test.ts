@@ -49,30 +49,30 @@ describe("TikTok Pixel Types", () => {
   describe("TikTokIntegration", () => {
     it("should accept valid integration data", () => {
       const integration: TikTokIntegration = {
+        id: "integration_123",
         config: {
           pixel_id: "123456789",
           enabled: true,
         },
         active: true,
-        integration_type: "TIKTOK_PIXEL",
         vendor_id: "vendor_123",
         created_at: "2025-01-01T00:00:00Z",
         updated_at: "2025-01-01T00:00:00Z",
       };
 
-      expect(integration.integration_type).toBe("TIKTOK_PIXEL");
+      expect(integration.id).toBe("integration_123");
       expect(integration.active).toBe(true);
       expect(integration.vendor_id).toBe("vendor_123");
     });
 
     it("should accept inactive integration", () => {
       const integration: TikTokIntegration = {
+        id: "integration_123",
         config: {
           pixel_id: "123456789",
           enabled: false,
         },
         active: false,
-        integration_type: "TIKTOK_PIXEL",
         vendor_id: "vendor_123",
         created_at: "2025-01-01T00:00:00Z",
         updated_at: "2025-01-01T00:00:00Z",
@@ -249,9 +249,9 @@ describe("TikTok Pixel Types", () => {
       };
 
       const integration: TikTokIntegration = {
+        id: "integration_123",
         config,
         active: true,
-        integration_type: "TIKTOK_PIXEL",
         vendor_id: "vendor_123",
         created_at: "2025-01-01T00:00:00Z",
         updated_at: "2025-01-01T00:00:00Z",
