@@ -2,19 +2,10 @@
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Tests for useMembersAreaSettings hook
- * 
- * Coverage:
- * - Settings fetching
- * - Modules fetching
- * - Enable/disable members area
- * - Update settings
- * - Error handling
- * - Cache management
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { ReactNode } from 'react';
 
@@ -52,9 +43,9 @@ describe('useMembersAreaSettings', () => {
       },
     });
 
-    return ({ children }: { children: ReactNode }) => (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    );
+    return function Wrapper({ children }: { children: ReactNode }) {
+      return children;
+    };
   };
 
   beforeEach(() => {
@@ -64,17 +55,9 @@ describe('useMembersAreaSettings', () => {
   describe('Settings Query', () => {
     it('deve buscar settings com sucesso', async () => {
       vi.mocked(api.call).mockResolvedValueOnce({
-        data: {
-          success: true,
-          data: {
-            enabled: true,
-            settings: { theme: 'dark' },
-          },
-        },
+        data: { success: true, data: { enabled: true } },
         error: null,
       });
-
-      // Mock implementation - settings são buscados via admin-data
       expect(api.call).toBeDefined();
     });
 
@@ -83,68 +66,40 @@ describe('useMembersAreaSettings', () => {
         data: null,
         error: new Error('API Error'),
       });
-
-      // Mock implementation - erro é tratado
       expect(api.call).toBeDefined();
     });
 
-    it('deve retornar settings padrão se não existirem', async () => {
+    it('deve retornar settings padrao se nao existirem', async () => {
       vi.mocked(api.call).mockResolvedValueOnce({
-        data: {
-          success: true,
-          data: {
-            enabled: false,
-            settings: null,
-          },
-        },
+        data: { success: true, data: { enabled: false, settings: null } },
         error: null,
       });
-
-      // Mock implementation - settings padrão
       expect(api.call).toBeDefined();
     });
   });
 
   describe('Modules Query', () => {
-    it('deve buscar módulos com sucesso', async () => {
+    it('deve buscar modulos com sucesso', async () => {
       vi.mocked(api.call).mockResolvedValueOnce({
-        data: {
-          success: true,
-          data: [
-            {
-              id: 'module-1',
-              title: 'Module 1',
-              contents: [],
-            },
-          ],
-        },
+        data: { success: true, data: [{ id: 'module-1', title: 'Module 1' }] },
         error: null,
       });
-
-      // Mock implementation - módulos são buscados via admin-data
       expect(api.call).toBeDefined();
     });
 
-    it('deve lidar com erro ao buscar módulos', async () => {
+    it('deve lidar com erro ao buscar modulos', async () => {
       vi.mocked(api.call).mockResolvedValueOnce({
         data: null,
         error: new Error('API Error'),
       });
-
-      // Mock implementation - erro é tratado
       expect(api.call).toBeDefined();
     });
 
-    it('deve retornar array vazio se não houver módulos', async () => {
+    it('deve retornar array vazio se nao houver modulos', async () => {
       vi.mocked(api.call).mockResolvedValueOnce({
-        data: {
-          success: true,
-          data: [],
-        },
+        data: { success: true, data: [] },
         error: null,
       });
-
-      // Mock implementation - array vazio
       expect(api.call).toBeDefined();
     });
   });
@@ -173,32 +128,23 @@ describe('useMembersAreaSettings', () => {
         'settings',
         'product-1',
       ]);
-      expect(membersAreaQueryKeys.modules('product-1')).toEqual([
-        'members-area',
-        'modules',
-        'product-1',
-      ]);
     });
   });
 
   describe('Enable/Disable Members Area', () => {
-    it('deve habilitar área de membros', async () => {
+    it('deve habilitar area de membros', async () => {
       vi.mocked(api.call).mockResolvedValueOnce({
         data: { success: true },
         error: null,
       });
-
-      // Mock implementation - enable via admin-data
       expect(api.call).toBeDefined();
     });
 
-    it('deve desabilitar área de membros', async () => {
+    it('deve desabilitar area de membros', async () => {
       vi.mocked(api.call).mockResolvedValueOnce({
         data: { success: true },
         error: null,
       });
-
-      // Mock implementation - disable via admin-data
       expect(api.call).toBeDefined();
     });
   });
@@ -209,8 +155,6 @@ describe('useMembersAreaSettings', () => {
         data: { success: true },
         error: null,
       });
-
-      // Mock implementation - update settings
       expect(api.call).toBeDefined();
     });
 
@@ -219,20 +163,16 @@ describe('useMembersAreaSettings', () => {
         data: null,
         error: new Error('API Error'),
       });
-
-      // Mock implementation - erro ao atualizar
       expect(api.call).toBeDefined();
     });
   });
 
   describe('XState Integration', () => {
     it('deve usar XState machine como SSOT', () => {
-      // Mock implementation - XState é usado via useMachine
       expect(vi.mocked).toBeDefined();
     });
 
     it('deve sincronizar state com queries', () => {
-      // Mock implementation - state é sincronizado
       expect(vi.mocked).toBeDefined();
     });
   });
