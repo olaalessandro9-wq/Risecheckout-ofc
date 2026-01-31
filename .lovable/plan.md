@@ -31,8 +31,8 @@ Criadas 7 novas factories type-safe em `src/test/factories/`:
 
 ## PRÓXIMAS FASES
 
-### ⏳ FASE 2: Eliminação de `as any` (~204 → ~114 ocorrências)
-**Status:** EM ANDAMENTO (55% concluído)
+### ✅ FASE 2: Eliminação de `as any` (~204 → 0 ocorrências)
+**Status:** CONCLUÍDA ✅
 **Prioridade:** CRÍTICA
 
 **Arquivos corrigidos:**
@@ -40,10 +40,11 @@ Criadas 7 novas factories type-safe em `src/test/factories/`:
 - [x] `ProductOffersSection.test.tsx` (1x → 0)
 - [x] `types.test.ts` (1x → 0)
 - [x] `core.test.ts` (1x → 0)
+- [x] `useGeneralTab.test.ts` (~16x → 0 - refatoração completa com factories)
+- [x] `useAffiliatesTab.test.ts` (~13x → 0 - refatoração completa com factories)
 
-Arquivos pendentes:
-- [ ] `useGeneralTab.test.ts` (~16x)
-- [ ] `useAffiliatesTab.test.ts` (~13x)
+**Nova Factory Criada:**
+- `src/test/factories/productContextPartial.ts` - Mocks parciais type-safe para hooks
 
 ### ⏳ FASE 3: Eliminação de `as never` (~561 ocorrências)
 **Status:** PENDENTE
@@ -100,14 +101,14 @@ Verificações:
 
 ```
 FASE 1: ████████████████████ CONCLUÍDA ✅ (2-3h)
-FASE 2: ░░░░░░░░░░░░░░░░░░░░ PENDENTE (4-6h)
+FASE 2: ████████████████████ CONCLUÍDA ✅ (4-6h)
 FASE 3: ░░░░░░░░░░░░░░░░░░░░ PENDENTE (8-12h)
 FASE 4: ░░░░░░░░░░░░░░░░░░░░ PENDENTE (30min)
 FASE 5: ░░░░░░░░░░░░░░░░░░░░ PENDENTE (1h)
 FASE 6: ░░░░░░░░░░░░░░░░░░░░ PENDENTE (1-2h)
 ```
 
-**Total Restante:** ~14-21 horas
+**Total Restante:** ~10-15 horas
 
 ---
 

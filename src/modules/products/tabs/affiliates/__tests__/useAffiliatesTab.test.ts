@@ -10,10 +10,14 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useAffiliatesTab } from '../useAffiliatesTab';
 import * as ProductContext from '../../../context/ProductContext';
 import { toast } from 'sonner';
+import {
+  createMockUseAffiliatesTabContext,
+  type UseAffiliatesTabContextMock,
+} from '@/test/factories';
 
 // Mock dependencies
 vi.mock('../../../context/ProductContext');
@@ -31,67 +35,24 @@ vi.mock('@/lib/logger', () => ({
 const mockApiCall = vi.fn();
 vi.mock('@/lib/api', () => ({
   api: {
-    call: (...args: any[]) => mockApiCall(...args),
+    call: (...args: unknown[]) => mockApiCall(...args),
   },
 }));
 
 describe('useAffiliatesTab', () => {
-  const mockProduct = {
-    id: 'test-product-id',
-    name: 'Test Product',
-  };
-
-  const mockFormState = {
-    serverData: {
-      affiliateSettings: {
-        enabled: false,
-        defaultRate: 30,
-        cookieDuration: 30,
-        attributionModel: 'last_click' as const,
-        requireApproval: true,
-        commissionOnOrderBump: false,
-        commissionOnUpsell: false,
-        supportEmail: '',
-        publicDescription: '',
-        showInMarketplace: false,
-        marketplaceDescription: '',
-        marketplaceCategory: '',
-      },
-    },
-    editedData: {
-      affiliate: {
-        enabled: false,
-        defaultRate: 30,
-        cookieDuration: 30,
-        attributionModel: 'last_click' as const,
-        requireApproval: true,
-        commissionOnOrderBump: false,
-        commissionOnUpsell: false,
-        supportEmail: '',
-        publicDescription: '',
-        showInMarketplace: false,
-        marketplaceDescription: '',
-        marketplaceCategory: '',
-      },
-    },
-    dirtyFlags: {
-      affiliate: false,
-    },
-  };
-
-  const mockDispatchForm = vi.fn();
-  const mockSaveAffiliateSettings = vi.fn();
+  let mockContext: UseAffiliatesTabContextMock;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    vi.mocked(ProductContext.useProductContext).mockReturnValue({
-      product: mockProduct,
-      formState: mockFormState,
-      dispatchForm: mockDispatchForm,
-      saveAffiliateSettings: mockSaveAffiliateSettings,
-      saving: false,
-    } as any);
+    // Create fresh mock for each test
+    mockContext = createMockUseAffiliatesTabContext();
+
+    // Configure mock - uses 'as unknown as T' pattern (RISE V3 justified)
+    // Justification: vi.mocked requires full type match but we only need partial context
+    vi.mocked(ProductContext.useProductContext).mockReturnValue(
+      mockContext as unknown as ReturnType<typeof ProductContext.useProductContext>
+    );
 
     mockApiCall.mockResolvedValue({
       data: { success: true },
@@ -107,8 +68,8 @@ describe('useAffiliatesTab', () => {
     it('should initialize with default affiliate settings', () => {
       const { result } = renderHook(() => useAffiliatesTab());
 
-      expect(result.current.localSettings).toEqual(mockFormState.editedData.affiliate);
-      expect(result.current.serverSettings).toEqual(mockFormState.serverData.affiliateSettings);
+      expect(result.current.localSettings).toEqual(mockContext.formState.editedData.affiliate);
+      expect(result.current.serverSettings).toEqual(mockContext.formState.serverData.affiliateSettings);
     });
 
     it('should initialize with default gateway settings', () => {
@@ -130,18 +91,16 @@ describe('useAffiliatesTab', () => {
 
   describe('Change Detection', () => {
     it('should detect affiliate settings changes', () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        product: mockProduct,
+      const contextWithChanges = createMockUseAffiliatesTabContext({
         formState: {
-          ...mockFormState,
-          dirtyFlags: {
-            affiliate: true,
-          },
+          ...mockContext.formState,
+          dirtyFlags: { affiliate: true },
         },
-        dispatchForm: mockDispatchForm,
-        saveAffiliateSettings: mockSaveAffiliateSettings,
-        saving: false,
-      } as any);
+      });
+
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        contextWithChanges as unknown as ReturnType<typeof ProductContext.useProductContext>
+      );
 
       const { result } = renderHook(() => useAffiliatesTab());
 
@@ -171,7 +130,7 @@ describe('useAffiliatesTab', () => {
         result.current.handleChange('enabled', true);
       });
 
-      expect(mockDispatchForm).toHaveBeenCalledWith({
+      expect(mockContext.dispatchForm).toHaveBeenCalledWith({
         type: 'EDIT_AFFILIATE',
         payload: { enabled: true },
       });
@@ -184,7 +143,7 @@ describe('useAffiliatesTab', () => {
         result.current.handleChange('defaultRate', 50);
       });
 
-      expect(mockDispatchForm).toHaveBeenCalledWith({
+      expect(mockContext.dispatchForm).toHaveBeenCalledWith({
         type: 'EDIT_AFFILIATE',
         payload: { defaultRate: 50 },
       });
@@ -197,7 +156,7 @@ describe('useAffiliatesTab', () => {
         result.current.handleChange('cookieDuration', 60);
       });
 
-      expect(mockDispatchForm).toHaveBeenCalledWith({
+      expect(mockContext.dispatchForm).toHaveBeenCalledWith({
         type: 'EDIT_AFFILIATE',
         payload: { cookieDuration: 60 },
       });
@@ -224,21 +183,12 @@ describe('useAffiliatesTab', () => {
 
   describe('Validation', () => {
     it('should validate defaultRate minimum', async () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        product: mockProduct,
-        formState: {
-          ...mockFormState,
-          editedData: {
-            affiliate: {
-              ...mockFormState.editedData.affiliate,
-              defaultRate: 0,
-            },
-          },
-        },
-        dispatchForm: mockDispatchForm,
-        saveAffiliateSettings: mockSaveAffiliateSettings,
-        saving: false,
-      } as any);
+      const contextWithInvalidRate = createMockUseAffiliatesTabContext();
+      contextWithInvalidRate.formState.editedData.affiliate.defaultRate = 0;
+
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        contextWithInvalidRate as unknown as ReturnType<typeof ProductContext.useProductContext>
+      );
 
       const { result } = renderHook(() => useAffiliatesTab());
 
@@ -247,25 +197,16 @@ describe('useAffiliatesTab', () => {
       });
 
       expect(toast.error).toHaveBeenCalledWith('A comissão deve estar entre 1% e 90%');
-      expect(mockSaveAffiliateSettings).not.toHaveBeenCalled();
+      expect(mockContext.saveAffiliateSettings).not.toHaveBeenCalled();
     });
 
     it('should validate defaultRate maximum', async () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        product: mockProduct,
-        formState: {
-          ...mockFormState,
-          editedData: {
-            affiliate: {
-              ...mockFormState.editedData.affiliate,
-              defaultRate: 95,
-            },
-          },
-        },
-        dispatchForm: mockDispatchForm,
-        saveAffiliateSettings: mockSaveAffiliateSettings,
-        saving: false,
-      } as any);
+      const contextWithInvalidRate = createMockUseAffiliatesTabContext();
+      contextWithInvalidRate.formState.editedData.affiliate.defaultRate = 95;
+
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        contextWithInvalidRate as unknown as ReturnType<typeof ProductContext.useProductContext>
+      );
 
       const { result } = renderHook(() => useAffiliatesTab());
 
@@ -277,21 +218,12 @@ describe('useAffiliatesTab', () => {
     });
 
     it('should validate cookieDuration minimum', async () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        product: mockProduct,
-        formState: {
-          ...mockFormState,
-          editedData: {
-            affiliate: {
-              ...mockFormState.editedData.affiliate,
-              cookieDuration: 0,
-            },
-          },
-        },
-        dispatchForm: mockDispatchForm,
-        saveAffiliateSettings: mockSaveAffiliateSettings,
-        saving: false,
-      } as any);
+      const contextWithInvalidCookie = createMockUseAffiliatesTabContext();
+      contextWithInvalidCookie.formState.editedData.affiliate.cookieDuration = 0;
+
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        contextWithInvalidCookie as unknown as ReturnType<typeof ProductContext.useProductContext>
+      );
 
       const { result } = renderHook(() => useAffiliatesTab());
 
@@ -303,21 +235,12 @@ describe('useAffiliatesTab', () => {
     });
 
     it('should validate cookieDuration maximum', async () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        product: mockProduct,
-        formState: {
-          ...mockFormState,
-          editedData: {
-            affiliate: {
-              ...mockFormState.editedData.affiliate,
-              cookieDuration: 400,
-            },
-          },
-        },
-        dispatchForm: mockDispatchForm,
-        saveAffiliateSettings: mockSaveAffiliateSettings,
-        saving: false,
-      } as any);
+      const contextWithInvalidCookie = createMockUseAffiliatesTabContext();
+      contextWithInvalidCookie.formState.editedData.affiliate.cookieDuration = 400;
+
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        contextWithInvalidCookie as unknown as ReturnType<typeof ProductContext.useProductContext>
+      );
 
       const { result } = renderHook(() => useAffiliatesTab());
 
@@ -329,21 +252,12 @@ describe('useAffiliatesTab', () => {
     });
 
     it('should validate email format', async () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        product: mockProduct,
-        formState: {
-          ...mockFormState,
-          editedData: {
-            affiliate: {
-              ...mockFormState.editedData.affiliate,
-              supportEmail: 'invalid-email',
-            },
-          },
-        },
-        dispatchForm: mockDispatchForm,
-        saveAffiliateSettings: mockSaveAffiliateSettings,
-        saving: false,
-      } as any);
+      const contextWithInvalidEmail = createMockUseAffiliatesTabContext();
+      contextWithInvalidEmail.formState.editedData.affiliate.supportEmail = 'invalid-email';
+
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        contextWithInvalidEmail as unknown as ReturnType<typeof ProductContext.useProductContext>
+      );
 
       const { result } = renderHook(() => useAffiliatesTab());
 
@@ -355,22 +269,13 @@ describe('useAffiliatesTab', () => {
     });
 
     it('should validate marketplace description when showInMarketplace is true', async () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        product: mockProduct,
-        formState: {
-          ...mockFormState,
-          editedData: {
-            affiliate: {
-              ...mockFormState.editedData.affiliate,
-              showInMarketplace: true,
-              marketplaceDescription: '',
-            },
-          },
-        },
-        dispatchForm: mockDispatchForm,
-        saveAffiliateSettings: mockSaveAffiliateSettings,
-        saving: false,
-      } as any);
+      const contextWithMarketplace = createMockUseAffiliatesTabContext();
+      contextWithMarketplace.formState.editedData.affiliate.showInMarketplace = true;
+      contextWithMarketplace.formState.editedData.affiliate.marketplaceDescription = '';
+
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        contextWithMarketplace as unknown as ReturnType<typeof ProductContext.useProductContext>
+      );
 
       const { result } = renderHook(() => useAffiliatesTab());
 
@@ -382,22 +287,13 @@ describe('useAffiliatesTab', () => {
     });
 
     it('should validate marketplace description minimum length', async () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        product: mockProduct,
-        formState: {
-          ...mockFormState,
-          editedData: {
-            affiliate: {
-              ...mockFormState.editedData.affiliate,
-              showInMarketplace: true,
-              marketplaceDescription: 'Too short',
-            },
-          },
-        },
-        dispatchForm: mockDispatchForm,
-        saveAffiliateSettings: mockSaveAffiliateSettings,
-        saving: false,
-      } as any);
+      const contextWithShortDesc = createMockUseAffiliatesTabContext();
+      contextWithShortDesc.formState.editedData.affiliate.showInMarketplace = true;
+      contextWithShortDesc.formState.editedData.affiliate.marketplaceDescription = 'Too short';
+
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        contextWithShortDesc as unknown as ReturnType<typeof ProductContext.useProductContext>
+      );
 
       const { result } = renderHook(() => useAffiliatesTab());
 
@@ -409,22 +305,13 @@ describe('useAffiliatesTab', () => {
     });
 
     it('should validate marketplace description maximum length', async () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        product: mockProduct,
-        formState: {
-          ...mockFormState,
-          editedData: {
-            affiliate: {
-              ...mockFormState.editedData.affiliate,
-              showInMarketplace: true,
-              marketplaceDescription: 'a'.repeat(501),
-            },
-          },
-        },
-        dispatchForm: mockDispatchForm,
-        saveAffiliateSettings: mockSaveAffiliateSettings,
-        saving: false,
-      } as any);
+      const contextWithLongDesc = createMockUseAffiliatesTabContext();
+      contextWithLongDesc.formState.editedData.affiliate.showInMarketplace = true;
+      contextWithLongDesc.formState.editedData.affiliate.marketplaceDescription = 'a'.repeat(501);
+
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        contextWithLongDesc as unknown as ReturnType<typeof ProductContext.useProductContext>
+      );
 
       const { result } = renderHook(() => useAffiliatesTab());
 
@@ -436,23 +323,14 @@ describe('useAffiliatesTab', () => {
     });
 
     it('should validate marketplace category when showInMarketplace is true', async () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        product: mockProduct,
-        formState: {
-          ...mockFormState,
-          editedData: {
-            affiliate: {
-              ...mockFormState.editedData.affiliate,
-              showInMarketplace: true,
-              marketplaceDescription: 'a'.repeat(60),
-              marketplaceCategory: '',
-            },
-          },
-        },
-        dispatchForm: mockDispatchForm,
-        saveAffiliateSettings: mockSaveAffiliateSettings,
-        saving: false,
-      } as any);
+      const contextWithNoCategory = createMockUseAffiliatesTabContext();
+      contextWithNoCategory.formState.editedData.affiliate.showInMarketplace = true;
+      contextWithNoCategory.formState.editedData.affiliate.marketplaceDescription = 'a'.repeat(60);
+      contextWithNoCategory.formState.editedData.affiliate.marketplaceCategory = '';
+
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        contextWithNoCategory as unknown as ReturnType<typeof ProductContext.useProductContext>
+      );
 
       const { result } = renderHook(() => useAffiliatesTab());
 
@@ -474,12 +352,12 @@ describe('useAffiliatesTab', () => {
 
       expect(mockApiCall).toHaveBeenCalledWith('product-settings', {
         action: 'update-affiliate-gateway-settings',
-        productId: mockProduct.id,
+        productId: mockContext.product?.id,
         gatewaySettings: expect.any(Object),
       });
 
-      expect(mockSaveAffiliateSettings).toHaveBeenCalled();
-      expect(mockDispatchForm).toHaveBeenCalledWith({ type: 'SAVE_SUCCESS' });
+      expect(mockContext.saveAffiliateSettings).toHaveBeenCalled();
+      expect(mockContext.dispatchForm).toHaveBeenCalledWith({ type: 'SAVE_SUCCESS' });
       expect(toast.success).toHaveBeenCalledWith('Configurações de afiliados salvas com sucesso');
     });
 
@@ -496,7 +374,7 @@ describe('useAffiliatesTab', () => {
       });
 
       expect(toast.error).toHaveBeenCalledWith('Não foi possível salvar as configurações');
-      expect(mockSaveAffiliateSettings).not.toHaveBeenCalled();
+      expect(mockContext.saveAffiliateSettings).not.toHaveBeenCalled();
     });
 
     it('should handle network error during save', async () => {
