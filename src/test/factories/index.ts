@@ -39,3 +39,6 @@ export * from "./checkoutPublicContext";
 
 // Pixels Context Factories
 export * from "./pixelsContext";
+
+// Product Context Partial Factories (for hook tests)
+export * from "./productContextPartial";

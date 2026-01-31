@@ -10,103 +10,59 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useGeneralTab } from '../useGeneralTab';
 import * as ProductContext from '../../../context/ProductContext';
 import * as Hooks from '../hooks';
+import {
+  createMockUseGeneralTabContext,
+  createMockUseGeneralTabImage,
+  createMockUseGeneralTabOffers,
+  createMockUseGeneralTabMemberGroups,
+  createMockProductOffer,
+  createMockMemberGroup,
+  type UseGeneralTabContextMock,
+  type UseGeneralTabImageMock,
+  type UseGeneralTabOffersMock,
+  type UseGeneralTabMemberGroupsMock,
+} from '@/test/factories';
 
 // Mock dependencies
 vi.mock('../../../context/ProductContext');
 vi.mock('../hooks');
 
 describe('useGeneralTab', () => {
-  const mockProduct = {
-    id: 'test-product-id',
-    name: 'Test Product',
-    description: 'Test Description',
-    price: 99.99,
-    image_url: 'https://example.com/image.jpg',
-    support_name: 'Support Team',
-    support_email: 'support@example.com',
-    delivery_url: 'https://example.com/delivery',
-    delivery_type: 'url',
-    members_area_enabled: false,
-  };
-
-  const mockFormState = {
-    serverData: {
-      general: {
-        name: 'Test Product',
-        description: 'Test Description',
-        price: 99.99,
-        support_name: 'Support Team',
-        support_email: 'support@example.com',
-        delivery_url: 'https://example.com/delivery',
-        delivery_type: 'url',
-      },
-    },
-    editedData: {
-      general: {
-        name: 'Test Product',
-        description: 'Test Description',
-        price: 99.99,
-        support_name: 'Support Team',
-        support_email: 'support@example.com',
-        delivery_url: 'https://example.com/delivery',
-        delivery_type: 'url',
-      },
-    },
-  };
-
-  const mockDispatchForm = vi.fn();
-  const mockFormErrors = { general: {} };
-
-  const mockImageHook = {
-    image: {
-      imageFile: null,
-      imagePreview: null,
-      pendingRemoval: false,
-    },
-    handleImageFileChange: vi.fn(),
-    handleImageUrlChange: vi.fn(),
-    handleRemoveImage: vi.fn(),
-  };
-
-  const mockOffersHook = {
-    localOffers: [],
-    offersModified: false,
-    deletedOfferIds: [],
-    handleOffersChange: vi.fn(),
-    handleOffersModifiedChange: vi.fn(),
-    handleOfferDeleted: vi.fn(),
-  };
-
-  const mockMemberGroupsHook = {
-    memberGroups: [],
-    hasMembersArea: false,
-  };
+  // Type-safe mocks using factories
+  let mockContext: UseGeneralTabContextMock;
+  let mockImageHook: UseGeneralTabImageMock;
+  let mockOffersHook: UseGeneralTabOffersMock;
+  let mockMemberGroupsHook: UseGeneralTabMemberGroupsMock;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    vi.mocked(ProductContext.useProductContext).mockReturnValue({
-      product: mockProduct,
-      formState: mockFormState,
-      dispatchForm: mockDispatchForm,
-      formErrors: mockFormErrors,
-    } as any);
+    // Create fresh mocks for each test
+    mockContext = createMockUseGeneralTabContext();
+    mockImageHook = createMockUseGeneralTabImage();
+    mockOffersHook = createMockUseGeneralTabOffers();
+    mockMemberGroupsHook = createMockUseGeneralTabMemberGroups();
 
-    vi.mocked(Hooks.useGeneralTabImage).mockReturnValue(mockImageHook as any);
-    vi.mocked(Hooks.useGeneralTabOffers).mockReturnValue(mockOffersHook as any);
-    vi.mocked(Hooks.useGeneralTabMemberGroups).mockReturnValue(mockMemberGroupsHook as any);
+    // Configure mocks - uses 'as unknown as T' pattern (RISE V3 justified)
+    // Justification: vi.mocked requires full type match but we only need partial context
+    vi.mocked(ProductContext.useProductContext).mockReturnValue(
+      mockContext as unknown as ReturnType<typeof ProductContext.useProductContext>
+    );
+    vi.mocked(Hooks.useGeneralTabImage).mockReturnValue(mockImageHook);
+    vi.mocked(Hooks.useGeneralTabOffers).mockReturnValue(mockOffersHook);
+    vi.mocked(Hooks.useGeneralTabMemberGroups).mockReturnValue(mockMemberGroupsHook);
   });
 
   describe('Initialization', () => {
     it('should initialize with product data from context', () => {
       const { result } = renderHook(() => useGeneralTab());
 
-      expect(result.current.product).toEqual(mockProduct);
-      expect(result.current.form).toEqual(mockFormState.editedData.general);
+      expect(result.current.product).toEqual(mockContext.product);
+      expect(result.current.form).toEqual(mockContext.formState.editedData.general);
     });
 
     it('should initialize with empty errors', () => {
@@ -128,8 +84,8 @@ describe('useGeneralTab', () => {
       expect(Hooks.useGeneralTabImage).toHaveBeenCalled();
       expect(Hooks.useGeneralTabOffers).toHaveBeenCalled();
       expect(Hooks.useGeneralTabMemberGroups).toHaveBeenCalledWith({
-        productId: mockProduct.id,
-        membersAreaEnabled: mockProduct.members_area_enabled,
+        productId: mockContext.product?.id,
+        membersAreaEnabled: mockContext.product?.members_area_enabled,
       });
     });
   });
@@ -152,7 +108,7 @@ describe('useGeneralTab', () => {
         });
       });
 
-      expect(mockDispatchForm).toHaveBeenCalledWith({
+      expect(mockContext.dispatchForm).toHaveBeenCalledWith({
         type: 'EDIT_GENERAL',
         payload: expect.objectContaining({
           name: 'Updated Product',
@@ -170,7 +126,7 @@ describe('useGeneralTab', () => {
         }));
       });
 
-      expect(mockDispatchForm).toHaveBeenCalledWith({
+      expect(mockContext.dispatchForm).toHaveBeenCalledWith({
         type: 'EDIT_GENERAL',
         payload: expect.objectContaining({
           price: 149.99,
@@ -181,17 +137,21 @@ describe('useGeneralTab', () => {
 
   describe('Error Handling', () => {
     it('should map form errors from context', () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        product: mockProduct,
-        formState: mockFormState,
-        dispatchForm: mockDispatchForm,
+      const contextWithErrors = createMockUseGeneralTabContext({
         formErrors: {
           general: {
             name: 'Nome é obrigatório',
             price: 'Preço inválido',
           },
+          upsell: {},
+          affiliate: {},
+          checkoutSettings: {},
         },
-      } as any);
+      });
+
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        contextWithErrors as unknown as ReturnType<typeof ProductContext.useProductContext>
+      );
 
       const { result } = renderHook(() => useGeneralTab());
 
@@ -206,7 +166,7 @@ describe('useGeneralTab', () => {
         result.current.clearError('name');
       });
 
-      expect(mockDispatchForm).toHaveBeenCalledWith({
+      expect(mockContext.dispatchForm).toHaveBeenCalledWith({
         type: 'SET_VALIDATION_ERROR',
         section: 'general',
         field: 'name',
@@ -234,14 +194,13 @@ describe('useGeneralTab', () => {
   describe('Offers Handling', () => {
     it('should provide offers state from hook', () => {
       const mockOffers = [
-        { id: 'offer-1', name: 'Offer 1', price: 49.99 },
-        { id: 'offer-2', name: 'Offer 2', price: 79.99 },
+        createMockProductOffer({ id: 'offer-1', name: 'Offer 1', price: 4999 }),
+        createMockProductOffer({ id: 'offer-2', name: 'Offer 2', price: 7999 }),
       ];
 
-      vi.mocked(Hooks.useGeneralTabOffers).mockReturnValue({
-        ...mockOffersHook,
-        localOffers: mockOffers,
-      } as any);
+      vi.mocked(Hooks.useGeneralTabOffers).mockReturnValue(
+        createMockUseGeneralTabOffers({ localOffers: mockOffers })
+      );
 
       const { result } = renderHook(() => useGeneralTab());
 
@@ -260,14 +219,16 @@ describe('useGeneralTab', () => {
   describe('Member Groups', () => {
     it('should provide member groups from hook', () => {
       const mockGroups = [
-        { id: 'group-1', name: 'Group 1' },
-        { id: 'group-2', name: 'Group 2' },
+        createMockMemberGroup({ id: 'group-1', name: 'Group 1' }),
+        createMockMemberGroup({ id: 'group-2', name: 'Group 2' }),
       ];
 
-      vi.mocked(Hooks.useGeneralTabMemberGroups).mockReturnValue({
-        memberGroups: mockGroups,
-        hasMembersArea: true,
-      } as any);
+      vi.mocked(Hooks.useGeneralTabMemberGroups).mockReturnValue(
+        createMockUseGeneralTabMemberGroups({
+          memberGroups: mockGroups,
+          hasMembersArea: true,
+        })
+      );
 
       const { result } = renderHook(() => useGeneralTab());
 
@@ -284,20 +245,12 @@ describe('useGeneralTab', () => {
     });
 
     it('should detect form changes', () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        product: mockProduct,
-        formState: {
-          ...mockFormState,
-          editedData: {
-            general: {
-              ...mockFormState.editedData.general,
-              name: 'Changed Name',
-            },
-          },
-        },
-        dispatchForm: mockDispatchForm,
-        formErrors: mockFormErrors,
-      } as any);
+      const contextWithChanges = createMockUseGeneralTabContext();
+      contextWithChanges.formState.editedData.general.name = 'Changed Name';
+
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        contextWithChanges as unknown as ReturnType<typeof ProductContext.useProductContext>
+      );
 
       const { result } = renderHook(() => useGeneralTab());
 
@@ -305,14 +258,15 @@ describe('useGeneralTab', () => {
     });
 
     it('should detect image changes', () => {
-      vi.mocked(Hooks.useGeneralTabImage).mockReturnValue({
-        ...mockImageHook,
-        image: {
-          imageFile: new File([''], 'test.jpg'),
-          imagePreview: 'blob:test',
-          pendingRemoval: false,
-        },
-      } as any);
+      vi.mocked(Hooks.useGeneralTabImage).mockReturnValue(
+        createMockUseGeneralTabImage({
+          image: {
+            imageFile: new File([''], 'test.jpg'),
+            imageUrl: 'blob:test',
+            pendingRemoval: false,
+          },
+        })
+      );
 
       const { result } = renderHook(() => useGeneralTab());
 
@@ -320,14 +274,15 @@ describe('useGeneralTab', () => {
     });
 
     it('should detect image removal', () => {
-      vi.mocked(Hooks.useGeneralTabImage).mockReturnValue({
-        ...mockImageHook,
-        image: {
-          imageFile: null,
-          imagePreview: null,
-          pendingRemoval: true,
-        },
-      } as any);
+      vi.mocked(Hooks.useGeneralTabImage).mockReturnValue(
+        createMockUseGeneralTabImage({
+          image: {
+            imageFile: null,
+            imageUrl: '',
+            pendingRemoval: true,
+          },
+        })
+      );
 
       const { result } = renderHook(() => useGeneralTab());
 
@@ -335,10 +290,9 @@ describe('useGeneralTab', () => {
     });
 
     it('should detect offers modifications', () => {
-      vi.mocked(Hooks.useGeneralTabOffers).mockReturnValue({
-        ...mockOffersHook,
-        offersModified: true,
-      } as any);
+      vi.mocked(Hooks.useGeneralTabOffers).mockReturnValue(
+        createMockUseGeneralTabOffers({ offersModified: true })
+      );
 
       const { result } = renderHook(() => useGeneralTab());
 
@@ -346,10 +300,9 @@ describe('useGeneralTab', () => {
     });
 
     it('should detect deleted offers', () => {
-      vi.mocked(Hooks.useGeneralTabOffers).mockReturnValue({
-        ...mockOffersHook,
-        deletedOfferIds: ['offer-1', 'offer-2'],
-      } as any);
+      vi.mocked(Hooks.useGeneralTabOffers).mockReturnValue(
+        createMockUseGeneralTabOffers({ deletedOfferIds: ['offer-1', 'offer-2'] })
+      );
 
       const { result } = renderHook(() => useGeneralTab());
 
@@ -357,12 +310,11 @@ describe('useGeneralTab', () => {
     });
 
     it('should return false when product is null', () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        product: null,
-        formState: mockFormState,
-        dispatchForm: mockDispatchForm,
-        formErrors: mockFormErrors,
-      } as any);
+      const contextWithNullProduct = createMockUseGeneralTabContext({ product: null });
+
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        contextWithNullProduct as unknown as ReturnType<typeof ProductContext.useProductContext>
+      );
 
       const { result } = renderHook(() => useGeneralTab());
 
@@ -387,20 +339,12 @@ describe('useGeneralTab', () => {
       expect(result.current.hasChanges).toBe(false);
 
       // Change the mock to return modified data
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        product: mockProduct,
-        formState: {
-          ...mockFormState,
-          editedData: {
-            general: {
-              ...mockFormState.editedData.general,
-              name: 'Modified Name',
-            },
-          },
-        },
-        dispatchForm: mockDispatchForm,
-        formErrors: mockFormErrors,
-      } as any);
+      const modifiedContext = createMockUseGeneralTabContext();
+      modifiedContext.formState.editedData.general.name = 'Modified Name';
+
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        modifiedContext as unknown as ReturnType<typeof ProductContext.useProductContext>
+      );
 
       rerender();
 
