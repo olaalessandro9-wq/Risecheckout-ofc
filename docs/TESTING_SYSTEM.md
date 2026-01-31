@@ -39,9 +39,18 @@ risecheckout/
 │   ├── setup.ts               # Setup global (DOM mocks, MSW)
 │   ├── utils.tsx              # Render helpers, test utilities
 │   ├── infrastructure.test.ts # Testes de validação da infra
-│   └── mocks/
-│       ├── handlers.ts        # MSW request handlers
-│       └── server.ts          # MSW server instance
+│   ├── mocks/
+│   │   ├── handlers.ts        # MSW request handlers
+│   │   └── server.ts          # MSW server instance
+│   └── factories/             # Type-Safe Mock Factories (RISE V3)
+│       ├── index.ts           # Barrel export
+│       ├── xstate.ts          # XState mocks (createMockUseMachine, etc.)
+│       ├── productContext.ts  # ProductContext factories
+│       ├── generalTab.ts      # GeneralTab hook factories
+│       ├── productTabsContext.ts # Tab-specific factories
+│       ├── webhooksContext.ts # Webhooks factories
+│       ├── webhooksContext.test-helpers.ts # Webhooks mocks
+│       └── ... (15+ factory files)
 ├── src/components/ui/__tests__/  # Fase 8: Testes UI Components
 │   ├── button.test.tsx        # 18 testes
 │   ├── input.test.tsx         # 14 testes
