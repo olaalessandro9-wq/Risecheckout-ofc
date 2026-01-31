@@ -51,21 +51,21 @@ export function createMockDateRangeState(
  * @returns DateRangeActions completo e tipado
  */
 export function createMockDateRangeActions(
-  overrides: Partial<Record<keyof DateRangeActions, ReturnType<typeof vi.fn>>> = {}
+  overrides: Partial<DateRangeActions> = {}
 ): DateRangeActions {
   return {
-    setPreset: vi.fn(),
-    openDropdown: vi.fn(),
-    closeDropdown: vi.fn(),
-    openCalendar: vi.fn(),
-    closeCalendar: vi.fn(),
-    setLeftDate: vi.fn(),
-    setRightDate: vi.fn(),
-    setLeftMonth: vi.fn(),
-    setRightMonth: vi.fn(),
-    applyCustomRange: vi.fn(),
-    cancel: vi.fn(),
-    restoreSaved: vi.fn(),
+    setPreset: vi.fn() as unknown as (preset: DateRangePreset) => void,
+    openDropdown: vi.fn() as unknown as () => void,
+    closeDropdown: vi.fn() as unknown as () => void,
+    openCalendar: vi.fn() as unknown as () => void,
+    closeCalendar: vi.fn() as unknown as () => void,
+    setLeftDate: vi.fn() as unknown as (date: Date) => void,
+    setRightDate: vi.fn() as unknown as (date: Date) => void,
+    setLeftMonth: vi.fn() as unknown as (date: Date) => void,
+    setRightMonth: vi.fn() as unknown as (date: Date) => void,
+    applyCustomRange: vi.fn() as unknown as () => void,
+    cancel: vi.fn() as unknown as () => void,
+    restoreSaved: vi.fn() as unknown as () => void,
     ...overrides,
   };
 }

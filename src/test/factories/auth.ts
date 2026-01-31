@@ -36,7 +36,7 @@ export function createMockUnifiedAuthState(
 }
 
 export function createMockPermissions(
-  role: AppRole = "user",
+  role: "owner" | "admin" | "user" | "seller" = "user",
   overrides: Partial<Permissions> = {}
 ): Permissions {
   return {
