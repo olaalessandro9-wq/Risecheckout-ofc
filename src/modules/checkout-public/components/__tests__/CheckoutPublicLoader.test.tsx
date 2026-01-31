@@ -2,7 +2,10 @@
  * CheckoutPublicLoader Component Tests
  * 
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
- * Tests loading states, error display, and content rendering.
+ * 
+ * Uses `as unknown as T` pattern for vi.mocked() calls.
+ * Justification: vi.mocked requires full type match, but tests only need
+ * the subset of properties actually consumed by the component.
  * 
  * @module test/modules/checkout-public/components/CheckoutPublicLoader
  */
@@ -30,8 +33,36 @@ vi.mock("../CheckoutPublicContent", () => ({
   ),
 }));
 
-// Factory for mock machine state
-function createMockMachine(overrides: Partial<ReturnType<typeof hooks.useCheckoutPublicMachine>> = {}) {
+// Type alias for mock return type
+type CheckoutMachineReturn = ReturnType<typeof hooks.useCheckoutPublicMachine>;
+
+// ============================================================================
+// FACTORY FUNCTIONS
+// ============================================================================
+
+interface MockCheckoutMachine {
+  isIdle: boolean;
+  isLoading: boolean;
+  isValidating: boolean;
+  isError: boolean;
+  isReady: boolean;
+  isSubmitting: boolean;
+  isPaymentPending: boolean;
+  isSuccess: boolean;
+  errorReason: string | null;
+  errorMessage: string | null;
+  canRetry: boolean;
+  retryCount: number;
+  retry: ReturnType<typeof vi.fn>;
+  giveUp: ReturnType<typeof vi.fn>;
+  checkout: { id: string } | null;
+  product: { id: string } | null;
+  design: { backgroundColor: string } | null;
+}
+
+function createMockCheckoutMachine(
+  overrides?: Partial<MockCheckoutMachine>
+): MockCheckoutMachine {
   return {
     isIdle: false,
     isLoading: false,
@@ -51,7 +82,7 @@ function createMockMachine(overrides: Partial<ReturnType<typeof hooks.useCheckou
     product: null,
     design: null,
     ...overrides,
-  } as ReturnType<typeof hooks.useCheckoutPublicMachine>;
+  };
 }
 
 describe("CheckoutPublicLoader", () => {
@@ -61,8 +92,9 @@ describe("CheckoutPublicLoader", () => {
 
   describe("loading states", () => {
     it("should show loading spinner when idle", () => {
+      // RISE V3 Justified: Partial mock - component only uses subset of machine state
       vi.mocked(hooks.useCheckoutPublicMachine).mockReturnValue(
-        createMockMachine({ isIdle: true })
+        createMockCheckoutMachine({ isIdle: true }) as unknown as CheckoutMachineReturn
       );
 
       render(<CheckoutPublicLoader />);
@@ -72,7 +104,7 @@ describe("CheckoutPublicLoader", () => {
 
     it("should show loading spinner when loading", () => {
       vi.mocked(hooks.useCheckoutPublicMachine).mockReturnValue(
-        createMockMachine({ isLoading: true })
+        createMockCheckoutMachine({ isLoading: true }) as unknown as CheckoutMachineReturn
       );
 
       render(<CheckoutPublicLoader />);
@@ -82,7 +114,7 @@ describe("CheckoutPublicLoader", () => {
 
     it("should show loading spinner when validating", () => {
       vi.mocked(hooks.useCheckoutPublicMachine).mockReturnValue(
-        createMockMachine({ isValidating: true })
+        createMockCheckoutMachine({ isValidating: true }) as unknown as CheckoutMachineReturn
       );
 
       render(<CheckoutPublicLoader />);
@@ -94,10 +126,10 @@ describe("CheckoutPublicLoader", () => {
   describe("error state", () => {
     it("should show error display when isError", () => {
       vi.mocked(hooks.useCheckoutPublicMachine).mockReturnValue(
-        createMockMachine({ 
+        createMockCheckoutMachine({ 
           isError: true, 
-          errorReason: "FETCH_FAILED" as const,
-        })
+          errorReason: "FETCH_FAILED",
+        }) as unknown as CheckoutMachineReturn
       );
 
       render(<CheckoutPublicLoader />);
@@ -114,12 +146,12 @@ describe("CheckoutPublicLoader", () => {
 
     it("should show content when ready with data", () => {
       vi.mocked(hooks.useCheckoutPublicMachine).mockReturnValue(
-        createMockMachine({
+        createMockCheckoutMachine({
           isReady: true,
-          checkout: mockCheckout as never,
-          product: mockProduct as never,
-          design: mockDesign as never,
-        })
+          checkout: mockCheckout,
+          product: mockProduct,
+          design: mockDesign,
+        }) as unknown as CheckoutMachineReturn
       );
 
       render(<CheckoutPublicLoader />);
@@ -129,12 +161,12 @@ describe("CheckoutPublicLoader", () => {
 
     it("should show content when submitting", () => {
       vi.mocked(hooks.useCheckoutPublicMachine).mockReturnValue(
-        createMockMachine({
+        createMockCheckoutMachine({
           isSubmitting: true,
-          checkout: mockCheckout as never,
-          product: mockProduct as never,
-          design: mockDesign as never,
-        })
+          checkout: mockCheckout,
+          product: mockProduct,
+          design: mockDesign,
+        }) as unknown as CheckoutMachineReturn
       );
 
       render(<CheckoutPublicLoader />);
@@ -144,12 +176,12 @@ describe("CheckoutPublicLoader", () => {
 
     it("should show content when payment pending", () => {
       vi.mocked(hooks.useCheckoutPublicMachine).mockReturnValue(
-        createMockMachine({
+        createMockCheckoutMachine({
           isPaymentPending: true,
-          checkout: mockCheckout as never,
-          product: mockProduct as never,
-          design: mockDesign as never,
-        })
+          checkout: mockCheckout,
+          product: mockProduct,
+          design: mockDesign,
+        }) as unknown as CheckoutMachineReturn
       );
 
       render(<CheckoutPublicLoader />);
@@ -159,12 +191,12 @@ describe("CheckoutPublicLoader", () => {
 
     it("should show content when success", () => {
       vi.mocked(hooks.useCheckoutPublicMachine).mockReturnValue(
-        createMockMachine({
+        createMockCheckoutMachine({
           isSuccess: true,
-          checkout: mockCheckout as never,
-          product: mockProduct as never,
-          design: mockDesign as never,
-        })
+          checkout: mockCheckout,
+          product: mockProduct,
+          design: mockDesign,
+        }) as unknown as CheckoutMachineReturn
       );
 
       render(<CheckoutPublicLoader />);
@@ -176,12 +208,12 @@ describe("CheckoutPublicLoader", () => {
   describe("fallback state", () => {
     it("should show not found error when no data available", () => {
       vi.mocked(hooks.useCheckoutPublicMachine).mockReturnValue(
-        createMockMachine({
+        createMockCheckoutMachine({
           isReady: true,
           checkout: null,
           product: null,
           design: null,
-        })
+        }) as unknown as CheckoutMachineReturn
       );
 
       render(<CheckoutPublicLoader />);

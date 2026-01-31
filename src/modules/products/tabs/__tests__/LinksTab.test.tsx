@@ -3,7 +3,9 @@
  * 
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
- * Tests for the Links tab component that manages payment links.
+ * Uses `as unknown as T` pattern for vi.mocked() calls.
+ * Justification: vi.mocked requires full type match, but tests only need
+ * the subset of properties actually consumed by the component.
  * 
  * @module test/modules/products/tabs/LinksTab
  */
@@ -39,12 +41,42 @@ vi.mock("sonner", () => ({
   },
 }));
 
-describe("LinksTab", () => {
-  const mockProduct = {
-    id: "product-123",
-    name: "Test Product",
-  };
+// Type alias for mock return type
+type ProductContextReturn = ReturnType<typeof ProductContext.useProductContext>;
 
+// ============================================================================
+// FACTORY FUNCTIONS
+// ============================================================================
+
+interface MockLinksContextReturn {
+  product: { id: string; name?: string } | null;
+  paymentLinks: Array<{
+    id: string;
+    slug: string;
+    url: string;
+    offer_name: string;
+    offer_price: number;
+    is_default: boolean;
+    status: string;
+    checkouts?: string[];
+  }>;
+  refreshPaymentLinks: ReturnType<typeof vi.fn>;
+  loading: boolean;
+}
+
+function createMockLinksContext(
+  overrides?: Partial<MockLinksContextReturn>
+): MockLinksContextReturn {
+  return {
+    product: { id: "product-123", name: "Test Product" },
+    paymentLinks: [],
+    refreshPaymentLinks: vi.fn(),
+    loading: false,
+    ...overrides,
+  };
+}
+
+describe("LinksTab", () => {
   const mockPaymentLinks = [
     {
       id: "link-1",
@@ -68,24 +100,19 @@ describe("LinksTab", () => {
     },
   ];
 
-  const defaultContextReturn = {
-    product: mockProduct,
-    paymentLinks: mockPaymentLinks,
-    refreshPaymentLinks: vi.fn(),
-    loading: false,
-  };
-
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(ProductContext.useProductContext).mockReturnValue(defaultContextReturn as never);
+    // RISE V3 Justified: Partial mock - component only uses subset of context
+    vi.mocked(ProductContext.useProductContext).mockReturnValue(
+      createMockLinksContext({ paymentLinks: mockPaymentLinks }) as unknown as ProductContextReturn
+    );
   });
 
   describe("loading state", () => {
     it("should show loading message when product is null", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContextReturn,
-        product: null,
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockLinksContext({ product: null }) as unknown as ProductContextReturn
+      );
 
       render(<LinksTab />);
 
@@ -93,10 +120,9 @@ describe("LinksTab", () => {
     });
 
     it("should show loading message when product id is missing", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContextReturn,
-        product: { id: "" },
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockLinksContext({ product: { id: "" } }) as unknown as ProductContextReturn
+      );
 
       render(<LinksTab />);
 
@@ -104,11 +130,9 @@ describe("LinksTab", () => {
     });
 
     it("should show loading spinner when loading with no links", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContextReturn,
-        loading: true,
-        paymentLinks: [],
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockLinksContext({ loading: true, paymentLinks: [] }) as unknown as ProductContextReturn
+      );
 
       render(<LinksTab />);
 
@@ -116,11 +140,9 @@ describe("LinksTab", () => {
     });
 
     it("should not show loading spinner when loading with existing links", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContextReturn,
-        loading: true,
-        paymentLinks: mockPaymentLinks,
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockLinksContext({ loading: true, paymentLinks: mockPaymentLinks }) as unknown as ProductContextReturn
+      );
 
       render(<LinksTab />);
 
@@ -157,21 +179,22 @@ describe("LinksTab", () => {
     });
 
     it("should handle links with empty checkouts array", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContextReturn,
-        paymentLinks: [
-          {
-            id: "link-3",
-            slug: "test-offer-3",
-            url: "https://example.com/p/test-offer-3",
-            offer_name: "Offer 3",
-            offer_price: 7900,
-            is_default: false,
-            status: "active",
-            checkouts: [],
-          },
-        ],
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockLinksContext({
+          paymentLinks: [
+            {
+              id: "link-3",
+              slug: "test-offer-3",
+              url: "https://example.com/p/test-offer-3",
+              offer_name: "Offer 3",
+              offer_price: 7900,
+              is_default: false,
+              status: "active",
+              checkouts: [],
+            },
+          ],
+        }) as unknown as ProductContextReturn
+      );
 
       render(<LinksTab />);
 
@@ -179,20 +202,21 @@ describe("LinksTab", () => {
     });
 
     it("should handle links without checkouts property", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContextReturn,
-        paymentLinks: [
-          {
-            id: "link-4",
-            slug: "test-offer-4",
-            url: "https://example.com/p/test-offer-4",
-            offer_name: "Offer 4",
-            offer_price: 5900,
-            is_default: false,
-            status: "active",
-          },
-        ],
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockLinksContext({
+          paymentLinks: [
+            {
+              id: "link-4",
+              slug: "test-offer-4",
+              url: "https://example.com/p/test-offer-4",
+              offer_name: "Offer 4",
+              offer_price: 5900,
+              is_default: false,
+              status: "active",
+            },
+          ],
+        }) as unknown as ProductContextReturn
+      );
 
       render(<LinksTab />);
 
@@ -202,10 +226,9 @@ describe("LinksTab", () => {
 
   describe("empty links", () => {
     it("should handle empty payment links array", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContextReturn,
-        paymentLinks: [],
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockLinksContext({ paymentLinks: [] }) as unknown as ProductContextReturn
+      );
 
       render(<LinksTab />);
 
@@ -229,21 +252,22 @@ describe("LinksTab", () => {
     });
 
     it("should show inactive links", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContextReturn,
-        paymentLinks: [
-          {
-            id: "link-5",
-            slug: "inactive-offer",
-            url: "https://example.com/p/inactive-offer",
-            offer_name: "Inactive Offer",
-            offer_price: 3900,
-            is_default: false,
-            status: "inactive",
-            checkouts: [],
-          },
-        ],
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockLinksContext({
+          paymentLinks: [
+            {
+              id: "link-5",
+              slug: "inactive-offer",
+              url: "https://example.com/p/inactive-offer",
+              offer_name: "Inactive Offer",
+              offer_price: 3900,
+              is_default: false,
+              status: "inactive",
+              checkouts: [],
+            },
+          ],
+        }) as unknown as ProductContextReturn
+      );
 
       render(<LinksTab />);
 

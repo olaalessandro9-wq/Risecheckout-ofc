@@ -2,7 +2,10 @@
  * ProductHeader Component Tests
  * 
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
- * Tests navigation, save button states, and dirty state handling.
+ * 
+ * Uses `as unknown as T` pattern for vi.mocked() calls.
+ * Justification: vi.mocked requires full type match, but tests only need
+ * the subset of properties actually consumed by the component.
  * 
  * @module test/modules/products/components/ProductHeader
  */
@@ -22,21 +25,54 @@ vi.mock("@/providers/NavigationGuardProvider", () => ({
   useNavigationGuard: vi.fn(),
 }));
 
-describe("ProductHeader", () => {
-  const defaultContext = {
+// Type aliases for mock return types
+type ProductContextReturn = ReturnType<typeof ProductContext.useProductContext>;
+type NavigationGuardReturn = ReturnType<typeof NavigationGuardProvider.useNavigationGuard>;
+
+// ============================================================================
+// FACTORY FUNCTIONS
+// ============================================================================
+
+interface MockProductHeaderContext {
+  saveAll: ReturnType<typeof vi.fn>;
+  saving: boolean;
+  hasUnsavedChanges: boolean;
+}
+
+function createMockProductHeaderContext(
+  overrides?: Partial<MockProductHeaderContext>
+): MockProductHeaderContext {
+  return {
     saveAll: vi.fn(),
     saving: false,
     hasUnsavedChanges: false,
+    ...overrides,
   };
+}
 
-  const defaultGuard = {
+interface MockNavigationGuard {
+  attemptNavigation: ReturnType<typeof vi.fn>;
+}
+
+function createMockNavigationGuard(
+  overrides?: Partial<MockNavigationGuard>
+): MockNavigationGuard {
+  return {
     attemptNavigation: vi.fn(),
+    ...overrides,
   };
+}
 
+describe("ProductHeader", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(ProductContext.useProductContext).mockReturnValue(defaultContext as never);
-    vi.mocked(NavigationGuardProvider.useNavigationGuard).mockReturnValue(defaultGuard as never);
+    // RISE V3 Justified: Partial mock - component only uses subset of context
+    vi.mocked(ProductContext.useProductContext).mockReturnValue(
+      createMockProductHeaderContext() as unknown as ProductContextReturn
+    );
+    vi.mocked(NavigationGuardProvider.useNavigationGuard).mockReturnValue(
+      createMockNavigationGuard() as unknown as NavigationGuardReturn
+    );
   });
 
   describe("back button", () => {
@@ -49,9 +85,9 @@ describe("ProductHeader", () => {
     it("should call attemptNavigation when back clicked", () => {
       const attemptNavigation = vi.fn();
       
-      vi.mocked(NavigationGuardProvider.useNavigationGuard).mockReturnValue({
-        attemptNavigation,
-      } as never);
+      vi.mocked(NavigationGuardProvider.useNavigationGuard).mockReturnValue(
+        createMockNavigationGuard({ attemptNavigation }) as unknown as NavigationGuardReturn
+      );
 
       render(<ProductHeader />);
 
@@ -69,10 +105,9 @@ describe("ProductHeader", () => {
     });
 
     it("should be disabled when no unsaved changes", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContext,
-        hasUnsavedChanges: false,
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockProductHeaderContext({ hasUnsavedChanges: false }) as unknown as ProductContextReturn
+      );
 
       render(<ProductHeader />);
 
@@ -80,10 +115,9 @@ describe("ProductHeader", () => {
     });
 
     it("should be enabled when has unsaved changes", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContext,
-        hasUnsavedChanges: true,
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockProductHeaderContext({ hasUnsavedChanges: true }) as unknown as ProductContextReturn
+      );
 
       render(<ProductHeader />);
 
@@ -91,11 +125,9 @@ describe("ProductHeader", () => {
     });
 
     it("should be disabled while saving", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContext,
-        saving: true,
-        hasUnsavedChanges: true,
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockProductHeaderContext({ saving: true, hasUnsavedChanges: true }) as unknown as ProductContextReturn
+      );
 
       render(<ProductHeader />);
 
@@ -103,10 +135,9 @@ describe("ProductHeader", () => {
     });
 
     it("should show saving text when saving", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContext,
-        saving: true,
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockProductHeaderContext({ saving: true }) as unknown as ProductContextReturn
+      );
 
       render(<ProductHeader />);
 
@@ -116,11 +147,9 @@ describe("ProductHeader", () => {
     it("should call saveAll when clicked", () => {
       const saveAll = vi.fn();
       
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContext,
-        saveAll,
-        hasUnsavedChanges: true,
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockProductHeaderContext({ saveAll, hasUnsavedChanges: true }) as unknown as ProductContextReturn
+      );
 
       render(<ProductHeader />);
 
@@ -132,10 +161,9 @@ describe("ProductHeader", () => {
 
   describe("loading spinner", () => {
     it("should show spinner when saving", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContext,
-        saving: true,
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockProductHeaderContext({ saving: true }) as unknown as ProductContextReturn
+      );
 
       const { container } = render(<ProductHeader />);
 
@@ -144,10 +172,9 @@ describe("ProductHeader", () => {
     });
 
     it("should not show spinner when not saving", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContext,
-        saving: false,
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockProductHeaderContext({ saving: false }) as unknown as ProductContextReturn
+      );
 
       const { container } = render(<ProductHeader />);
 
