@@ -13,8 +13,8 @@ describe("Kwai Pixel Component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     document.querySelectorAll('script[src*="kwai"]').forEach((s) => s.remove());
-    delete (window as Record<string, unknown>).kwaiq;
-    delete (window as Record<string, unknown>)._kwai_pixel;
+    delete (window as unknown as Record<string, unknown>).kwaiq;
+    delete (window as unknown as Record<string, unknown>)._kwai_pixel;
   });
 
   afterEach(() => {
@@ -24,9 +24,9 @@ describe("Kwai Pixel Component", () => {
   describe("Rendering", () => {
     it("should render nothing visible", () => {
       const config: KwaiIntegration = {
+        id: "integration_123",
         config: { pixel_id: "123456789", enabled: true },
         active: true,
-        integration_type: "KWAI_PIXEL",
         vendor_id: "vendor_123",
         created_at: "2025-01-01T00:00:00Z",
         updated_at: "2025-01-01T00:00:00Z",
@@ -49,9 +49,9 @@ describe("Kwai Pixel Component", () => {
 
     it("should not inject script if inactive", () => {
       const config: KwaiIntegration = {
+        id: "integration_123",
         config: { pixel_id: "123456789", enabled: true },
         active: false,
-        integration_type: "KWAI_PIXEL",
         vendor_id: "vendor_123",
         created_at: "2025-01-01T00:00:00Z",
         updated_at: "2025-01-01T00:00:00Z",
@@ -63,23 +63,25 @@ describe("Kwai Pixel Component", () => {
 
     it("should inject script with valid config", () => {
       const config: KwaiIntegration = {
+        id: "integration_123",
         config: { pixel_id: "123456789", enabled: true },
         active: true,
-        integration_type: "KWAI_PIXEL",
         vendor_id: "vendor_123",
         created_at: "2025-01-01T00:00:00Z",
         updated_at: "2025-01-01T00:00:00Z",
       };
 
       render(<Pixel config={config} />);
-      expect(document.querySelectorAll('script[src*="kwai"]').length).toBeGreaterThan(0);
+      expect(
+        document.querySelectorAll('script[src*="kwai"]').length
+      ).toBeGreaterThan(0);
     });
 
     it("should initialize kwaiq function", () => {
       const config: KwaiIntegration = {
+        id: "integration_123",
         config: { pixel_id: "123456789", enabled: true },
         active: true,
-        integration_type: "KWAI_PIXEL",
         vendor_id: "vendor_123",
         created_at: "2025-01-01T00:00:00Z",
         updated_at: "2025-01-01T00:00:00Z",
@@ -94,18 +96,22 @@ describe("Kwai Pixel Component", () => {
   describe("Edge Cases", () => {
     it("should not duplicate scripts on re-render", () => {
       const config: KwaiIntegration = {
+        id: "integration_123",
         config: { pixel_id: "123456789", enabled: true },
         active: true,
-        integration_type: "KWAI_PIXEL",
         vendor_id: "vendor_123",
         created_at: "2025-01-01T00:00:00Z",
         updated_at: "2025-01-01T00:00:00Z",
       };
 
       const { rerender } = render(<Pixel config={config} />);
-      const scriptsBefore = document.querySelectorAll('script[src*="kwai"]').length;
+      const scriptsBefore = document.querySelectorAll(
+        'script[src*="kwai"]'
+      ).length;
       rerender(<Pixel config={config} />);
-      const scriptsAfter = document.querySelectorAll('script[src*="kwai"]').length;
+      const scriptsAfter = document.querySelectorAll(
+        'script[src*="kwai"]'
+      ).length;
       expect(scriptsAfter).toBe(scriptsBefore);
     });
   });

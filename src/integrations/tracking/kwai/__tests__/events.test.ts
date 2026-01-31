@@ -20,12 +20,12 @@ const mockKwaiq = vi.fn();
 
 describe("Kwai Pixel Events", () => {
   beforeEach(() => {
-    (window as Record<string, unknown>).kwaiq = mockKwaiq;
+    (window as unknown as Record<string, unknown>).kwaiq = mockKwaiq;
     vi.clearAllMocks();
   });
 
   afterEach(() => {
-    delete (window as Record<string, unknown>).kwaiq;
+    delete (window as unknown as Record<string, unknown>).kwaiq;
   });
 
   describe("isValidKwaiConfig", () => {
@@ -61,7 +61,9 @@ describe("Kwai Pixel Events", () => {
 
     it("should send event with kwaiq.track method", async () => {
       const mockTrack = vi.fn();
-      (window as Record<string, unknown>).kwaiq = { track: mockTrack };
+      (window as unknown as Record<string, unknown>).kwaiq = {
+        track: mockTrack,
+      };
 
       const result = await sendKwaiEvent("123456789", "TestEvent", {
         value: 100,
@@ -80,7 +82,7 @@ describe("Kwai Pixel Events", () => {
     });
 
     it("should return error if kwaiq is not available", async () => {
-      delete (window as Record<string, unknown>).kwaiq;
+      delete (window as unknown as Record<string, unknown>).kwaiq;
 
       const result = await sendKwaiEvent("123456789", "TestEvent", {});
 
@@ -275,7 +277,7 @@ describe("Kwai Pixel Events", () => {
     });
 
     it("should handle kwaiq without track method", async () => {
-      (window as Record<string, unknown>).kwaiq = {};
+      (window as unknown as Record<string, unknown>).kwaiq = {};
 
       const result = await sendKwaiEvent("123456789", "TestEvent", {});
 

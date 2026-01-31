@@ -40,15 +40,15 @@ describe("Kwai Pixel Types", () => {
   describe("KwaiIntegration", () => {
     it("should accept valid integration data", () => {
       const integration: KwaiIntegration = {
+        id: "integration_123",
         config: { pixel_id: "123456789", enabled: true },
         active: true,
-        integration_type: "KWAI_PIXEL",
         vendor_id: "vendor_123",
         created_at: "2025-01-01T00:00:00Z",
         updated_at: "2025-01-01T00:00:00Z",
       };
 
-      expect(integration.integration_type).toBe("KWAI_PIXEL");
+      expect(integration.id).toBe("integration_123");
       expect(integration.active).toBe(true);
     });
   });

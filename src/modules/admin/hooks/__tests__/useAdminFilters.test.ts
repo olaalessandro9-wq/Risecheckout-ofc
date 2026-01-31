@@ -1,11 +1,11 @@
 /**
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
- * 
+ *
  * useAdminFilters - Testes Unitários
- * 
+ *
  * Testa o hook de filtros reutilizável do módulo Admin.
  * Cobre casos de sucesso, erro e borda.
- * 
+ *
  * @version 1.0.0
  */
 
@@ -26,15 +26,40 @@ interface TestItem {
 }
 
 const mockItems: TestItem[] = [
-  { id: "1", name: "João Silva", email: "joao@test.com", status: "active", age: 25 },
-  { id: "2", name: "Maria Santos", email: "maria@test.com", status: "inactive", age: 30 },
-  { id: "3", name: "Pedro Costa", email: "pedro@test.com", status: "active", age: 35 },
-  { id: "4", name: "Ana Oliveira", email: "ana@test.com", status: "suspended", age: 28 },
+  {
+    id: "1",
+    name: "João Silva",
+    email: "joao@test.com",
+    status: "active",
+    age: 25,
+  },
+  {
+    id: "2",
+    name: "Maria Santos",
+    email: "maria@test.com",
+    status: "inactive",
+    age: 30,
+  },
+  {
+    id: "3",
+    name: "Pedro Costa",
+    email: "pedro@test.com",
+    status: "active",
+    age: 35,
+  },
+  {
+    id: "4",
+    name: "Ana Oliveira",
+    email: "ana@test.com",
+    status: "suspended",
+    age: 28,
+  },
 ];
 
 interface TestFilters {
   status: string;
   minAge: number | null;
+  [key: string]: string | number | null;
 }
 
 const initialFilters: TestFilters = {
@@ -42,10 +67,7 @@ const initialFilters: TestFilters = {
   minAge: null,
 };
 
-const searchFieldExtractor = (item: TestItem) => [
-  item.name,
-  item.email,
-];
+const searchFieldExtractor = (item: TestItem) => [item.name, item.email];
 
 const customFilterFn = (item: TestItem, filters: TestFilters) => {
   if (filters.status !== "all" && item.status !== filters.status) {
@@ -188,7 +210,12 @@ describe("useAdminFilters - Search Term", () => {
 describe("useAdminFilters - Custom Filters", () => {
   it("should apply custom filter function", () => {
     const { result } = renderHook(() =>
-      useAdminFilters(mockItems, searchFieldExtractor, initialFilters, customFilterFn)
+      useAdminFilters(
+        mockItems,
+        searchFieldExtractor,
+        initialFilters,
+        customFilterFn
+      )
     );
 
     act(() => {
@@ -196,12 +223,19 @@ describe("useAdminFilters - Custom Filters", () => {
     });
 
     expect(result.current.filteredItems).toHaveLength(2);
-    expect(result.current.filteredItems.every(item => item.status === "active")).toBe(true);
+    expect(
+      result.current.filteredItems.every((item) => item.status === "active")
+    ).toBe(true);
   });
 
   it("should combine search term and custom filters", () => {
     const { result } = renderHook(() =>
-      useAdminFilters(mockItems, searchFieldExtractor, initialFilters, customFilterFn)
+      useAdminFilters(
+        mockItems,
+        searchFieldExtractor,
+        initialFilters,
+        customFilterFn
+      )
     );
 
     act(() => {
@@ -215,7 +249,12 @@ describe("useAdminFilters - Custom Filters", () => {
 
   it("should filter by numeric criteria", () => {
     const { result } = renderHook(() =>
-      useAdminFilters(mockItems, searchFieldExtractor, initialFilters, customFilterFn)
+      useAdminFilters(
+        mockItems,
+        searchFieldExtractor,
+        initialFilters,
+        customFilterFn
+      )
     );
 
     act(() => {
@@ -223,7 +262,9 @@ describe("useAdminFilters - Custom Filters", () => {
     });
 
     expect(result.current.filteredItems).toHaveLength(2);
-    expect(result.current.filteredItems.every(item => item.age >= 30)).toBe(true);
+    expect(
+      result.current.filteredItems.every((item) => item.age >= 30)
+    ).toBe(true);
   });
 });
 
@@ -234,7 +275,12 @@ describe("useAdminFilters - Custom Filters", () => {
 describe("useAdminFilters - Filter Management", () => {
   it("should update single filter with setFilter", () => {
     const { result } = renderHook(() =>
-      useAdminFilters(mockItems, searchFieldExtractor, initialFilters, customFilterFn)
+      useAdminFilters(
+        mockItems,
+        searchFieldExtractor,
+        initialFilters,
+        customFilterFn
+      )
     );
 
     act(() => {
@@ -247,7 +293,12 @@ describe("useAdminFilters - Filter Management", () => {
 
   it("should update multiple filters with setFilters", () => {
     const { result } = renderHook(() =>
-      useAdminFilters(mockItems, searchFieldExtractor, initialFilters, customFilterFn)
+      useAdminFilters(
+        mockItems,
+        searchFieldExtractor,
+        initialFilters,
+        customFilterFn
+      )
     );
 
     act(() => {
@@ -260,7 +311,12 @@ describe("useAdminFilters - Filter Management", () => {
 
   it("should clear all filters with clearFilters", () => {
     const { result } = renderHook(() =>
-      useAdminFilters(mockItems, searchFieldExtractor, initialFilters, customFilterFn)
+      useAdminFilters(
+        mockItems,
+        searchFieldExtractor,
+        initialFilters,
+        customFilterFn
+      )
     );
 
     act(() => {
@@ -297,7 +353,12 @@ describe("useAdminFilters - Active Filters Detection", () => {
 
   it("should detect active custom filters", () => {
     const { result } = renderHook(() =>
-      useAdminFilters(mockItems, searchFieldExtractor, initialFilters, customFilterFn)
+      useAdminFilters(
+        mockItems,
+        searchFieldExtractor,
+        initialFilters,
+        customFilterFn
+      )
     );
 
     act(() => {
@@ -309,7 +370,12 @@ describe("useAdminFilters - Active Filters Detection", () => {
 
   it("should not detect 'all' as active filter", () => {
     const { result } = renderHook(() =>
-      useAdminFilters(mockItems, searchFieldExtractor, initialFilters, customFilterFn)
+      useAdminFilters(
+        mockItems,
+        searchFieldExtractor,
+        initialFilters,
+        customFilterFn
+      )
     );
 
     act(() => {
@@ -321,7 +387,12 @@ describe("useAdminFilters - Active Filters Detection", () => {
 
   it("should not detect null/undefined/empty as active filters", () => {
     const { result } = renderHook(() =>
-      useAdminFilters(mockItems, searchFieldExtractor, initialFilters, customFilterFn)
+      useAdminFilters(
+        mockItems,
+        searchFieldExtractor,
+        initialFilters,
+        customFilterFn
+      )
     );
 
     act(() => {
