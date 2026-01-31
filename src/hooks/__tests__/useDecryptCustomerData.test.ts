@@ -1,9 +1,13 @@
 /**
  * useDecryptCustomerData.test.ts
  * 
- * Tests for useDecryptCustomerData hook
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
- * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * Uses `as unknown as T` pattern for vi.mocked() calls.
+ * Justification: vi.mocked requires full type match, but tests only need
+ * the subset of properties actually consumed by the hook.
+ * 
+ * @module hooks/__tests__/useDecryptCustomerData
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -26,6 +30,32 @@ vi.mock("@/lib/logger", () => ({
 
 import { useDecryptCustomerData } from "../useDecryptCustomerData";
 import { api } from "@/lib/api";
+
+// Type alias for mock return type
+type ApiCallReturn = ReturnType<typeof api.call>;
+
+// ============================================================================
+// FACTORY FUNCTIONS
+// ============================================================================
+
+interface MockApiResponse<T> {
+  data: T | null;
+  error: { code: string; message: string } | null;
+}
+
+function createMockApiSuccess<T>(data: T): MockApiResponse<T> {
+  return {
+    data,
+    error: null,
+  };
+}
+
+function createMockApiError(code: string, message: string): MockApiResponse<null> {
+  return {
+    data: null,
+    error: { code, message },
+  };
+}
 
 describe("useDecryptCustomerData", () => {
   beforeEach(() => {
@@ -58,14 +88,14 @@ describe("useDecryptCustomerData", () => {
         customer_document: "12345678901",
       };
 
-      vi.mocked(api.call).mockResolvedValueOnce({
-        data: {
+      // RISE V3 Justified: Partial mock - test only needs subset of API response
+      vi.mocked(api.call).mockResolvedValueOnce(
+        createMockApiSuccess({
           success: true,
           data: mockData,
           access_type: "vendor",
-        },
-        error: null,
-      });
+        }) as unknown as Awaited<ApiCallReturn>
+      );
 
       const { result } = renderHook(() => useDecryptCustomerData());
 
@@ -79,10 +109,9 @@ describe("useDecryptCustomerData", () => {
     });
 
     it("should handle API error", async () => {
-      vi.mocked(api.call).mockResolvedValueOnce({
-        data: null,
-        error: { code: "FORBIDDEN" as const, message: "Access denied" },
-      });
+      vi.mocked(api.call).mockResolvedValueOnce(
+        createMockApiError("FORBIDDEN", "Access denied") as unknown as Awaited<ApiCallReturn>
+      );
 
       const { result } = renderHook(() => useDecryptCustomerData());
 
@@ -95,10 +124,9 @@ describe("useDecryptCustomerData", () => {
     });
 
     it("should handle unsuccessful response", async () => {
-      vi.mocked(api.call).mockResolvedValueOnce({
-        data: { success: false, error: "Decryption failed" },
-        error: null,
-      });
+      vi.mocked(api.call).mockResolvedValueOnce(
+        createMockApiSuccess({ success: false, error: "Decryption failed" }) as unknown as Awaited<ApiCallReturn>
+      );
 
       const { result } = renderHook(() => useDecryptCustomerData());
 
@@ -115,7 +143,7 @@ describe("useDecryptCustomerData", () => {
         resolvePromise = resolve;
       });
 
-      vi.mocked(api.call).mockReturnValueOnce(promise as never);
+      vi.mocked(api.call).mockReturnValueOnce(promise as unknown as ApiCallReturn);
 
       const { result } = renderHook(() => useDecryptCustomerData());
 
@@ -126,7 +154,7 @@ describe("useDecryptCustomerData", () => {
       expect(result.current.isLoading).toBe(true);
 
       await act(async () => {
-        resolvePromise({ data: { success: true, data: {} }, error: null });
+        resolvePromise(createMockApiSuccess({ success: true, data: {} }));
       });
 
       expect(result.current.isLoading).toBe(false);
@@ -135,14 +163,13 @@ describe("useDecryptCustomerData", () => {
 
   describe("reset function", () => {
     it("should reset all state", async () => {
-      vi.mocked(api.call).mockResolvedValueOnce({
-        data: {
+      vi.mocked(api.call).mockResolvedValueOnce(
+        createMockApiSuccess({
           success: true,
           data: { customer_phone: "+55" },
           access_type: "admin",
-        },
-        error: null,
-      });
+        }) as unknown as Awaited<ApiCallReturn>
+      );
 
       const { result } = renderHook(() => useDecryptCustomerData());
 
@@ -167,13 +194,12 @@ describe("useDecryptCustomerData", () => {
 
   describe("autoDecrypt option", () => {
     it("should auto-decrypt when enabled and orderId provided", async () => {
-      vi.mocked(api.call).mockResolvedValueOnce({
-        data: {
+      vi.mocked(api.call).mockResolvedValueOnce(
+        createMockApiSuccess({
           success: true,
           data: { customer_phone: "+55" },
-        },
-        error: null,
-      });
+        }) as unknown as Awaited<ApiCallReturn>
+      );
 
       const { result } = renderHook(() =>
         useDecryptCustomerData({

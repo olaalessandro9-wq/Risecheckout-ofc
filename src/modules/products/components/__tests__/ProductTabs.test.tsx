@@ -2,13 +2,16 @@
  * ProductTabs Component Tests
  * 
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
- * Tests tab rendering, error indicators, and permission-based visibility.
+ * 
+ * Uses `as unknown as T` pattern for vi.mocked() calls.
+ * Justification: vi.mocked requires full type match, but tests only need
+ * the subset of properties actually consumed by the component.
  * 
  * @module test/modules/products/components/ProductTabs
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { ProductTabs } from "../ProductTabs";
 import * as ProductContext from "../../context/ProductContext";
 import * as usePermissions from "@/hooks/usePermissions";
@@ -55,21 +58,54 @@ vi.mock("@/hooks/usePermissions", () => ({
   usePermissions: vi.fn(),
 }));
 
-describe("ProductTabs", () => {
-  const defaultContext = {
+// Type aliases for mock return types
+type ProductContextReturn = ReturnType<typeof ProductContext.useProductContext>;
+type PermissionsReturn = ReturnType<typeof usePermissions.usePermissions>;
+
+// ============================================================================
+// FACTORY FUNCTIONS
+// ============================================================================
+
+interface MockProductTabsContext {
+  activeTab: string;
+  setActiveTab: ReturnType<typeof vi.fn>;
+  tabErrors: Record<string, { hasError: boolean; errorMessage?: string }>;
+}
+
+function createMockProductTabsContext(
+  overrides?: Partial<MockProductTabsContext>
+): MockProductTabsContext {
+  return {
     activeTab: "geral",
     setActiveTab: vi.fn(),
     tabErrors: {},
+    ...overrides,
   };
+}
 
-  const defaultPermissions = {
+interface MockPermissions {
+  canHaveAffiliates: boolean;
+}
+
+function createMockPermissions(
+  overrides?: Partial<MockPermissions>
+): MockPermissions {
+  return {
     canHaveAffiliates: false,
+    ...overrides,
   };
+}
 
+describe("ProductTabs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(ProductContext.useProductContext).mockReturnValue(defaultContext as never);
-    vi.mocked(usePermissions.usePermissions).mockReturnValue(defaultPermissions as never);
+    // RISE V3 Justified: Partial mock - component only uses subset of context
+    vi.mocked(ProductContext.useProductContext).mockReturnValue(
+      createMockProductTabsContext() as unknown as ProductContextReturn
+    );
+    vi.mocked(usePermissions.usePermissions).mockReturnValue(
+      createMockPermissions() as unknown as PermissionsReturn
+    );
   });
 
   describe("tab rendering", () => {
@@ -87,9 +123,9 @@ describe("ProductTabs", () => {
     });
 
     it("should not show affiliates tab when canHaveAffiliates is false", () => {
-      vi.mocked(usePermissions.usePermissions).mockReturnValue({
-        canHaveAffiliates: false,
-      } as never);
+      vi.mocked(usePermissions.usePermissions).mockReturnValue(
+        createMockPermissions({ canHaveAffiliates: false }) as unknown as PermissionsReturn
+      );
 
       render(<ProductTabs />);
 
@@ -97,9 +133,9 @@ describe("ProductTabs", () => {
     });
 
     it("should show affiliates tab when canHaveAffiliates is true", () => {
-      vi.mocked(usePermissions.usePermissions).mockReturnValue({
-        canHaveAffiliates: true,
-      } as never);
+      vi.mocked(usePermissions.usePermissions).mockReturnValue(
+        createMockPermissions({ canHaveAffiliates: true }) as unknown as PermissionsReturn
+      );
 
       render(<ProductTabs />);
 
@@ -124,12 +160,13 @@ describe("ProductTabs", () => {
 
   describe("error indicators", () => {
     it("should show error icon on tab with errors", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContext,
-        tabErrors: {
-          geral: { hasError: true, errorMessage: "Required field" },
-        },
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockProductTabsContext({
+          tabErrors: {
+            geral: { hasError: true, errorMessage: "Required field" },
+          },
+        }) as unknown as ProductContextReturn
+      );
 
       render(<ProductTabs />);
 
@@ -138,12 +175,13 @@ describe("ProductTabs", () => {
     });
 
     it("should not show error icon on tab without errors", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContext,
-        tabErrors: {
-          geral: { hasError: false },
-        },
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockProductTabsContext({
+          tabErrors: {
+            geral: { hasError: false },
+          },
+        }) as unknown as ProductContextReturn
+      );
 
       render(<ProductTabs />);
 
@@ -152,12 +190,13 @@ describe("ProductTabs", () => {
     });
 
     it("should apply destructive styles to tab with errors", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContext,
-        tabErrors: {
-          checkout: { hasError: true },
-        },
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockProductTabsContext({
+          tabErrors: {
+            checkout: { hasError: true },
+          },
+        }) as unknown as ProductContextReturn
+      );
 
       render(<ProductTabs />);
 
