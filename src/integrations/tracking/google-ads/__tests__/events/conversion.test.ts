@@ -21,105 +21,98 @@ import type {
 
 const mockGtag = vi.fn();
 
+// ============================================================================
+// FACTORY
+// ============================================================================
+
+function createMockConfig(overrides?: Partial<GoogleAdsConfig>): GoogleAdsConfig {
+  return {
+    conversion_id: "AW-123456789",
+    conversion_label: "global_label",
+    enabled: true,
+    ...overrides,
+  };
+}
+
+// ============================================================================
+// TESTS
+// ============================================================================
+
 describe("Google Ads Conversion Events", () => {
   beforeEach(() => {
-    (window as Record<string, unknown>).gtag = mockGtag;
-    (window as Record<string, unknown>).dataLayer = [];
+    (window as unknown as Record<string, unknown>).gtag = mockGtag;
+    (window as unknown as Record<string, unknown>).dataLayer = [];
     vi.clearAllMocks();
   });
 
   afterEach(() => {
-    delete (window as Record<string, unknown>).gtag;
-    delete (window as Record<string, unknown>).dataLayer;
+    delete (window as unknown as Record<string, unknown>).gtag;
+    delete (window as unknown as Record<string, unknown>).dataLayer;
   });
 
   describe("getConversionLabel", () => {
     it("should return event-specific label when available", () => {
-      const config: GoogleAdsConfig = {
-        conversion_id: "AW-123456789",
-        conversion_label: "global_label",
+      const config = createMockConfig({
         event_labels: [
           { eventType: "purchase", label: "purchase_label", enabled: true },
         ],
-      };
+      });
 
       const label = getConversionLabel(config, "purchase");
-
       expect(label).toBe("purchase_label");
     });
 
     it("should return global label when event label not found", () => {
-      const config: GoogleAdsConfig = {
-        conversion_id: "AW-123456789",
-        conversion_label: "global_label",
-        event_labels: [],
-      };
-
+      const config = createMockConfig({ event_labels: [] });
       const label = getConversionLabel(config, "purchase");
-
       expect(label).toBe("global_label");
     });
 
     it("should skip disabled event labels", () => {
-      const config: GoogleAdsConfig = {
-        conversion_id: "AW-123456789",
-        conversion_label: "global_label",
+      const config = createMockConfig({
         event_labels: [
           { eventType: "purchase", label: "disabled_label", enabled: false },
         ],
-      };
+      });
 
       const label = getConversionLabel(config, "purchase");
-
       expect(label).toBe("global_label");
     });
 
     it("should return global label when eventType is undefined", () => {
-      const config: GoogleAdsConfig = {
-        conversion_id: "AW-123456789",
-        conversion_label: "global_label",
-      };
-
+      const config = createMockConfig();
       const label = getConversionLabel(config);
-
       expect(label).toBe("global_label");
     });
   });
 
   describe("isValidGoogleAdsConfig", () => {
     it("should return true for valid config with global label", () => {
-      const config: GoogleAdsConfig = {
-        conversion_id: "AW-123456789",
-        conversion_label: "global_label",
-      };
-
+      const config = createMockConfig();
       expect(isValidGoogleAdsConfig(config)).toBe(true);
     });
 
     it("should return true for valid config with event labels", () => {
-      const config: GoogleAdsConfig = {
-        conversion_id: "AW-123456789",
+      const config = createMockConfig({
+        conversion_label: undefined,
         event_labels: [
           { eventType: "purchase", label: "purchase_label", enabled: true },
         ],
-      };
+      });
 
       expect(isValidGoogleAdsConfig(config)).toBe(true);
     });
 
     it("should return false if conversion_id is missing", () => {
-      const config: GoogleAdsConfig = {
-        conversion_id: "",
-        conversion_label: "global_label",
-      };
-
+      const config = createMockConfig({ conversion_id: "" });
       expect(isValidGoogleAdsConfig(config)).toBe(false);
     });
 
     it("should return false if no labels are configured", () => {
-      const config: GoogleAdsConfig = {
-        conversion_id: "AW-123456789",
-      };
+      const config = createMockConfig({
+        conversion_label: undefined,
+        event_labels: undefined,
+      });
 
       expect(isValidGoogleAdsConfig(config)).toBe(false);
     });
@@ -127,10 +120,7 @@ describe("Google Ads Conversion Events", () => {
 
   describe("sendGoogleAdsConversion", () => {
     it("should send conversion with gtag", async () => {
-      const config: GoogleAdsConfig = {
-        conversion_id: "AW-123456789",
-        conversion_label: "global_label",
-      };
+      const config = createMockConfig();
 
       const conversionData: GoogleAdsConversionData = {
         conversionId: "AW-123456789",
@@ -148,10 +138,10 @@ describe("Google Ads Conversion Events", () => {
     });
 
     it("should return error if config is invalid", async () => {
-      const config: GoogleAdsConfig = {
+      const config = createMockConfig({
         conversion_id: "",
         conversion_label: "",
-      };
+      });
 
       const conversionData: GoogleAdsConversionData = {
         conversionId: "",
@@ -169,12 +159,9 @@ describe("Google Ads Conversion Events", () => {
     });
 
     it("should return error if gtag is not available", async () => {
-      delete (window as Record<string, unknown>).gtag;
+      delete (window as unknown as Record<string, unknown>).gtag;
 
-      const config: GoogleAdsConfig = {
-        conversion_id: "AW-123456789",
-        conversion_label: "global_label",
-      };
+      const config = createMockConfig();
 
       const conversionData: GoogleAdsConversionData = {
         conversionId: "AW-123456789",
@@ -192,18 +179,10 @@ describe("Google Ads Conversion Events", () => {
     });
 
     it("should include items in conversion", async () => {
-      const config: GoogleAdsConfig = {
-        conversion_id: "AW-123456789",
-        conversion_label: "global_label",
-      };
+      const config = createMockConfig();
 
       const items: GoogleAdsItem[] = [
-        {
-          id: "prod_1",
-          name: "Product 1",
-          price: 99.9,
-          quantity: 1,
-        },
+        { id: "prod_1", name: "Product 1", price: 99.9, quantity: 1 },
       ];
 
       const conversionData: GoogleAdsConversionData = {
@@ -223,20 +202,14 @@ describe("Google Ads Conversion Events", () => {
         "conversion",
         expect.objectContaining({
           items: expect.arrayContaining([
-            expect.objectContaining({
-              id: "prod_1",
-              name: "Product 1",
-            }),
+            expect.objectContaining({ id: "prod_1", name: "Product 1" }),
           ]),
         })
       );
     });
 
     it("should include customer data in conversion", async () => {
-      const config: GoogleAdsConfig = {
-        conversion_id: "AW-123456789",
-        conversion_label: "global_label",
-      };
+      const config = createMockConfig();
 
       const customer: GoogleAdsCustomer = {
         email_hash: "hashed_email",
@@ -278,11 +251,7 @@ describe("Google Ads Conversion Events", () => {
 
   describe("trackPurchase", () => {
     it("should track purchase conversion", async () => {
-      const config: GoogleAdsConfig = {
-        conversion_id: "AW-123456789",
-        conversion_label: "purchase_label",
-      };
-
+      const config = createMockConfig({ conversion_label: "purchase_label" });
       const result = await trackPurchase(config, "order_123", 99.9);
 
       expect(mockGtag).toHaveBeenCalledWith("event", "conversion", expect.any(Object));
@@ -290,10 +259,7 @@ describe("Google Ads Conversion Events", () => {
     });
 
     it("should return error if purchase label not configured", async () => {
-      const config: GoogleAdsConfig = {
-        conversion_id: "AW-123456789",
-      };
-
+      const config = createMockConfig({ conversion_label: undefined });
       const result = await trackPurchase(config, "order_123", 99.9);
 
       expect(result.success).toBe(false);
@@ -301,23 +267,13 @@ describe("Google Ads Conversion Events", () => {
     });
 
     it("should include items and customer in purchase", async () => {
-      const config: GoogleAdsConfig = {
-        conversion_id: "AW-123456789",
-        conversion_label: "purchase_label",
-      };
+      const config = createMockConfig({ conversion_label: "purchase_label" });
 
       const items: GoogleAdsItem[] = [
-        {
-          id: "prod_1",
-          name: "Product 1",
-          price: 99.9,
-          quantity: 1,
-        },
+        { id: "prod_1", name: "Product 1", price: 99.9, quantity: 1 },
       ];
 
-      const customer: GoogleAdsCustomer = {
-        email_hash: "hashed_email",
-      };
+      const customer: GoogleAdsCustomer = { email_hash: "hashed_email" };
 
       await trackPurchase(config, "order_123", 99.9, items, customer);
 
@@ -336,11 +292,7 @@ describe("Google Ads Conversion Events", () => {
 
   describe("trackLead", () => {
     it("should track lead conversion", async () => {
-      const config: GoogleAdsConfig = {
-        conversion_id: "AW-123456789",
-        conversion_label: "lead_label",
-      };
-
+      const config = createMockConfig({ conversion_label: "lead_label" });
       const result = await trackLead(config);
 
       expect(mockGtag).toHaveBeenCalledWith("event", "conversion", expect.any(Object));
@@ -348,10 +300,7 @@ describe("Google Ads Conversion Events", () => {
     });
 
     it("should return error if lead label not configured", async () => {
-      const config: GoogleAdsConfig = {
-        conversion_id: "AW-123456789",
-      };
-
+      const config = createMockConfig({ conversion_label: undefined });
       const result = await trackLead(config);
 
       expect(result.success).toBe(false);
@@ -359,10 +308,7 @@ describe("Google Ads Conversion Events", () => {
     });
 
     it("should include customer in lead", async () => {
-      const config: GoogleAdsConfig = {
-        conversion_id: "AW-123456789",
-        conversion_label: "lead_label",
-      };
+      const config = createMockConfig({ conversion_label: "lead_label" });
 
       const customer: GoogleAdsCustomer = {
         email_hash: "hashed_email",
@@ -387,10 +333,7 @@ describe("Google Ads Conversion Events", () => {
       const originalWindow = global.window;
       delete (global as { window?: Window }).window;
 
-      const config: GoogleAdsConfig = {
-        conversion_id: "AW-123456789",
-        conversion_label: "global_label",
-      };
+      const config = createMockConfig();
 
       const conversionData: GoogleAdsConversionData = {
         conversionId: "AW-123456789",
@@ -413,10 +356,7 @@ describe("Google Ads Conversion Events", () => {
         throw new Error("Tracking error");
       });
 
-      const config: GoogleAdsConfig = {
-        conversion_id: "AW-123456789",
-        conversion_label: "global_label",
-      };
+      const config = createMockConfig();
 
       const conversionData: GoogleAdsConversionData = {
         conversionId: "AW-123456789",

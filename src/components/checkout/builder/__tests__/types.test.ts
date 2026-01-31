@@ -19,6 +19,33 @@ import type {
   BuilderComponentConfig,
   BuilderComponentContent,
 } from "../types";
+import type { TextContent, ImageContent } from "@/types/checkout-components.types";
+
+// ============================================================================
+// TYPE-SAFE FACTORIES
+// ============================================================================
+
+function createTextContent(overrides: Partial<TextContent> = {}): TextContent {
+  return {
+    text: "Default text",
+    fontSize: 16,
+    color: "#000000",
+    alignment: "center",
+    ...overrides,
+  };
+}
+
+function createImageContent(overrides: Partial<ImageContent> = {}): ImageContent {
+  return {
+    imageUrl: "https://example.com/image.jpg",
+    alignment: "center",
+    ...overrides,
+  };
+}
+
+// ============================================================================
+// TESTS
+// ============================================================================
 
 describe("Builder Types", () => {
   describe("ComponentData Interface", () => {
@@ -26,12 +53,7 @@ describe("Builder Types", () => {
       const validData: ComponentData = {
         id: "test-1",
         type: "text",
-        content: {
-          text: "Test",
-          fontSize: 16,
-          color: "#000000",
-          alignment: "center",
-        },
+        content: createTextContent({ text: "Test" }),
       };
       expect(validData.id).toBe("test-1");
       expect(validData.type).toBe("text");
@@ -67,12 +89,12 @@ describe("Builder Types", () => {
       const validComponent: CheckoutComponent = {
         id: "checkout-1",
         type: "text",
-        content: {
+        content: createTextContent({
           text: "Checkout Text",
           fontSize: 18,
           color: "#FF0000",
           alignment: "left",
-        },
+        }),
       };
       expect(validComponent.id).toBe("checkout-1");
     });
@@ -80,10 +102,7 @@ describe("Builder Types", () => {
     it("accepts CheckoutComponent without id", () => {
       const validComponent: CheckoutComponent = {
         type: "image",
-        content: {
-          imageUrl: "https://example.com/image.jpg",
-          alignment: "center",
-        },
+        content: createImageContent(),
       };
       expect(validComponent.id).toBeUndefined();
     });
@@ -110,9 +129,7 @@ describe("Builder Types", () => {
         icon: "TestIcon",
         view: () => null,
         editor: () => null,
-        defaults: {
-          text: "Default text",
-        },
+        defaults: createTextContent({ text: "Default text" }),
       };
       expect(validConfig.label).toBe("Test Component");
     });
@@ -122,7 +139,7 @@ describe("Builder Types", () => {
         label: "Required Label",
         view: () => null,
         editor: () => null,
-        defaults: {},
+        defaults: createTextContent(),
       };
       expect(config.label).toBeDefined();
     });
@@ -132,7 +149,7 @@ describe("Builder Types", () => {
         label: "Test",
         view: () => null,
         editor: () => null,
-        defaults: {},
+        defaults: createTextContent(),
       };
       expect(typeof config.view).toBe("function");
     });
@@ -142,7 +159,7 @@ describe("Builder Types", () => {
         label: "Test",
         view: () => null,
         editor: () => null,
-        defaults: {},
+        defaults: createTextContent(),
       };
       expect(typeof config.editor).toBe("function");
     });
@@ -152,7 +169,7 @@ describe("Builder Types", () => {
         label: "Test",
         view: () => null,
         editor: () => null,
-        defaults: {},
+        defaults: createTextContent(),
       };
       expect(config.defaults).toBeDefined();
     });
@@ -163,7 +180,7 @@ describe("Builder Types", () => {
         icon: "IconComponent",
         view: () => null,
         editor: () => null,
-        defaults: {},
+        defaults: createTextContent(),
       };
       expect(configWithIcon.icon).toBeDefined();
 
@@ -171,7 +188,7 @@ describe("Builder Types", () => {
         label: "Without Icon",
         view: () => null,
         editor: () => null,
-        defaults: {},
+        defaults: createTextContent(),
       };
       expect(configWithoutIcon.icon).toBeUndefined();
     });
@@ -179,27 +196,27 @@ describe("Builder Types", () => {
 
   describe("BuilderComponentContent Type", () => {
     it("is compatible with CheckoutComponentContent", () => {
-      const content: BuilderComponentContent = {
+      const content: BuilderComponentContent = createTextContent({
         text: "Test content",
         fontSize: 16,
-      };
+      });
       expect(content).toBeDefined();
     });
 
     it("accepts any valid content structure", () => {
-      const textContent: BuilderComponentContent = {
+      const textContent: BuilderComponentContent = createTextContent({
         text: "Text",
         fontSize: 16,
         color: "#000000",
         alignment: "center",
-      };
+      });
       expect(textContent).toBeDefined();
 
-      const imageContent: BuilderComponentContent = {
+      const imageContent: BuilderComponentContent = createImageContent({
         imageUrl: "https://example.com/image.jpg",
         alignment: "center",
         maxWidth: 720,
-      };
+      });
       expect(imageContent).toBeDefined();
     });
   });
@@ -209,7 +226,7 @@ describe("Builder Types", () => {
       const componentData: ComponentData = {
         id: "data-1",
         type: "text",
-        content: { text: "Test" },
+        content: createTextContent({ text: "Test" }),
       };
 
       const checkoutComponent: CheckoutComponent = {
@@ -223,9 +240,9 @@ describe("Builder Types", () => {
     });
 
     it("BuilderComponentContent is compatible with content field", () => {
-      const content: BuilderComponentContent = {
+      const content: BuilderComponentContent = createTextContent({
         text: "Content",
-      };
+      });
 
       const component: ComponentData = {
         id: "test",
@@ -239,7 +256,6 @@ describe("Builder Types", () => {
 
   describe("Type Safety", () => {
     it("prevents invalid type assignments", () => {
-      // This test validates TypeScript compilation
       const data: ComponentData = {
         id: "safe-1",
         type: "text",
@@ -260,7 +276,7 @@ describe("Builder Types", () => {
         label: "Required Fields",
         view: () => null,
         editor: () => null,
-        defaults: {},
+        defaults: createTextContent(),
       };
       expect(config.label).toBeDefined();
       expect(config.view).toBeDefined();
