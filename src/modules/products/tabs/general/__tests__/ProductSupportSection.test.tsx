@@ -22,6 +22,7 @@ describe('ProductSupportSection', () => {
     support_email: 'support@example.com',
     delivery_url: '',
     delivery_type: 'standard' as const,
+    external_delivery: false,
   };
 
   const mockSetForm = vi.fn();

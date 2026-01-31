@@ -45,16 +45,17 @@ describe('ProductOffersSection', () => {
     support_email: '',
     delivery_url: '',
     delivery_type: 'standard' as const,
+    external_delivery: false,
   };
 
   const mockOffers = [
-    { id: 'offer-1', name: 'Offer 1', price: 49.99 },
-    { id: 'offer-2', name: 'Offer 2', price: 79.99 },
+    { id: 'offer-1', name: 'Offer 1', price: 49.99, product_id: 'prod-1', status: 'active', is_default: false, member_group_id: null, created_at: '2026-01-01', updated_at: '2026-01-01' },
+    { id: 'offer-2', name: 'Offer 2', price: 79.99, product_id: 'prod-1', status: 'active', is_default: true, member_group_id: null, created_at: '2026-01-01', updated_at: '2026-01-01' },
   ];
 
   const mockMemberGroups = [
-    { id: 'group-1', name: 'Group 1' },
-    { id: 'group-2', name: 'Group 2' },
+    { id: 'group-1', name: 'Group 1', is_default: false },
+    { id: 'group-2', name: 'Group 2', is_default: true },
   ];
 
   const mockOnOffersChange = vi.fn();
