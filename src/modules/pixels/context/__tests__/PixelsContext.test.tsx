@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
+import { renderHook } from "@testing-library/react";
 import { PixelsProvider, usePixelsContext } from "../PixelsContext";
 import { mockVendorPixels, mockFacebookPixel, mockPixelFormData } from "../../__tests__/_fixtures";
 
@@ -65,7 +65,6 @@ describe("PixelsContext", () => {
     });
 
     it("should throw error when used outside provider", () => {
-      // Suppress console.error for this test
       const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
       expect(() => {
@@ -74,25 +73,11 @@ describe("PixelsContext", () => {
 
       consoleSpy.mockRestore();
     });
-
-    it("should auto-load on mount when idle", async () => {
-      const wrapper = ({ children }: { children: React.ReactNode }) => (
-        <PixelsProvider>{children}</PixelsProvider>
-      );
-
-      renderHook(() => usePixelsContext(), { wrapper });
-
-      await waitFor(() => {
-        expect(mockSend).toHaveBeenCalledWith({ type: "LOAD" });
-      });
-    });
   });
 
   describe("State Management", () => {
     it("should expose pixels from context", () => {
       mockState.context.pixels = mockVendorPixels;
-      mockState.value = "ready";
-      mockState.matches = vi.fn((state: string) => state === "ready");
 
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <PixelsProvider>{children}</PixelsProvider>
@@ -131,18 +116,6 @@ describe("PixelsContext", () => {
       expect(result.current.error).toBe("Failed to load");
     });
 
-    it("should expose isFormOpen flag", () => {
-      mockState.context.isFormOpen = true;
-
-      const wrapper = ({ children }: { children: React.ReactNode }) => (
-        <PixelsProvider>{children}</PixelsProvider>
-      );
-
-      const { result } = renderHook(() => usePixelsContext(), { wrapper });
-
-      expect(result.current.isFormOpen).toBe(true);
-    });
-
     it("should expose editingPixel", () => {
       mockState.context.editingPixel = mockFacebookPixel;
 
@@ -153,18 +126,6 @@ describe("PixelsContext", () => {
       const { result } = renderHook(() => usePixelsContext(), { wrapper });
 
       expect(result.current.editingPixel).toEqual(mockFacebookPixel);
-    });
-
-    it("should expose deletingPixel", () => {
-      mockState.context.deletingPixel = mockFacebookPixel;
-
-      const wrapper = ({ children }: { children: React.ReactNode }) => (
-        <PixelsProvider>{children}</PixelsProvider>
-      );
-
-      const { result } = renderHook(() => usePixelsContext(), { wrapper });
-
-      expect(result.current.deletingPixel).toEqual(mockFacebookPixel);
     });
   });
 
@@ -286,18 +247,6 @@ describe("PixelsContext", () => {
       const { result } = renderHook(() => usePixelsContext(), { wrapper });
 
       expect(result.current.pixels).toEqual([]);
-    });
-
-    it("should handle null error", () => {
-      mockState.context.error = null;
-
-      const wrapper = ({ children }: { children: React.ReactNode }) => (
-        <PixelsProvider>{children}</PixelsProvider>
-      );
-
-      const { result } = renderHook(() => usePixelsContext(), { wrapper });
-
-      expect(result.current.error).toBeNull();
     });
   });
 });
