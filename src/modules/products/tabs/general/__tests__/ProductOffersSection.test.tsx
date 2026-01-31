@@ -13,6 +13,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ProductOffersSection } from '../ProductOffersSection';
 import * as ProductContext from '../../../context/ProductContext';
+import { createMockProductContextValue } from '@/test/factories';
 
 // Mock dependencies
 vi.mock('../../../context/ProductContext', () => ({
@@ -21,7 +22,18 @@ vi.mock('../../../context/ProductContext', () => ({
 
 const mockOffersManager = vi.fn();
 vi.mock('@/components/products/OffersManager', () => ({
-  OffersManager: (props: any) => {
+  OffersManager: (props: {
+    productId: string;
+    productName: string;
+    offers: unknown[];
+    defaultPrice: string;
+    memberGroups?: { id: string; name: string; is_default: boolean }[];
+    hasMembersArea?: boolean;
+    onOffersChange: () => void;
+    onModifiedChange: () => void;
+    onOfferDeleted: () => void;
+    onOfferCreated: () => void;
+  }) => {
     mockOffersManager(props);
     return (
       <div data-testid="offers-manager">
@@ -65,9 +77,10 @@ describe('ProductOffersSection', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(ProductContext.useProductContext).mockReturnValue({
+    const mockContextValue = createMockProductContextValue({
       refreshAll: mockRefreshAll,
-    } as any);
+    });
+    vi.mocked(ProductContext.useProductContext).mockReturnValue(mockContextValue);
   });
 
   describe('Rendering', () => {

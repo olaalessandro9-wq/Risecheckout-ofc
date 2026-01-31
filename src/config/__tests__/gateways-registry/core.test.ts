@@ -13,6 +13,7 @@ import {
   integrationTypeToGatewayId,
   gatewayIdToIntegrationType,
 } from "../../gateways/registry";
+import type { IntegrationType } from "../../gateways/types";
 
 // ============================================================================
 // GATEWAY_ORDER
@@ -81,7 +82,7 @@ describe("GATEWAY_ID_MAP", () => {
 
   it("should be the inverse of INTEGRATION_TYPE_MAP", () => {
     Object.entries(INTEGRATION_TYPE_MAP).forEach(([gatewayId, integrationType]) => {
-      expect(GATEWAY_ID_MAP[integrationType as any]).toBe(gatewayId);
+      expect(GATEWAY_ID_MAP[integrationType as IntegrationType]).toBe(gatewayId);
     });
   });
 });
