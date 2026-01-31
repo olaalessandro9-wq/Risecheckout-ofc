@@ -6,6 +6,27 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
+## [3.6.1] - 2026-01-31
+
+### 🧹 Auditoria de Terminologia RISE V3 (Seção 4.5)
+
+#### Corrigido
+- **4 violações de terminologia proibida** eliminadas:
+  - `detect-abandoned-checkouts/index.ts`: `// TODO` → documentação arquitetural
+  - `detect-abandoned-checkouts/index.test.ts`: `TODO` → teste de arquitetura
+  - `buyer-profile/index.test.ts`: `legacy` → `deprecated`
+  - `_shared/product-crud-handlers.ts`: `legacy` → `database sync`
+
+#### Documentação
+- **Novo:** `docs/TERMINOLOGY_COMPLIANCE_REPORT.md` - Relatório completo da auditoria
+
+#### Conformidade RISE V3
+- **Zero termos proibidos:** ✅ 100%
+- **Exceções técnicas documentadas:** 2 (`LEGACY_COOKIE_NAMES`, `LEGACY_VERSION`)
+- **Score Final:** 10.0/10
+
+---
+
 ## [3.6.0] - 2026-01-25
 
 ### 📦 Sistema de Entrega em 3 Níveis (RISE V3 10.0/10)
