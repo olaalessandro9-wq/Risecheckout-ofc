@@ -4,6 +4,10 @@
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Tests for the Members Area tab component that manages members area settings.
+ * Uses `as unknown as T` pattern for vi.mocked() calls.
+ * 
+ * Justification: vi.mocked requires full type match, but tests only need
+ * the subset of properties actually consumed by the component.
  * 
  * @module test/modules/products/tabs/MembersAreaTab
  */
@@ -14,6 +18,12 @@ import { MembersAreaTab } from "../members-area/MembersAreaTab";
 import * as ProductContext from "../../context/ProductContext";
 import * as MembersAreaHooks from "@/modules/members-area/hooks";
 import { BrowserRouter } from "react-router-dom";
+import {
+  createMockMembersAreaTabContext,
+  createMockMembersAreaTabHook,
+  type MembersAreaTabProductContextMock,
+  type MembersAreaTabHookMock,
+} from "@/test/factories";
 
 // Mock dependencies
 vi.mock("../../context/ProductContext", () => ({
@@ -32,40 +42,37 @@ vi.mock("sonner", () => ({
   },
 }));
 
+// Type aliases for mock return types
+type ProductContextMock = ReturnType<typeof ProductContext.useProductContext>;
+type MembersAreaHookReturn = ReturnType<typeof MembersAreaHooks.useMembersArea>;
+
 const renderWithRouter = (component: React.ReactElement) => {
   return render(<BrowserRouter>{component}</BrowserRouter>);
 };
 
 describe("MembersAreaTab", () => {
-  const mockProduct = {
-    productId: "product-123",
-  };
-
-  const defaultContextReturn = {
-    productId: "product-123",
-  };
-
-  const defaultMembersAreaReturn = {
-    isLoading: false,
-    settings: {
-      enabled: false,
-    },
-    modules: [],
-    updateSettings: vi.fn(),
-  };
+  let defaultContextReturn: MembersAreaTabProductContextMock;
+  let defaultMembersAreaReturn: MembersAreaTabHookMock;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(ProductContext.useProductContext).mockReturnValue(defaultContextReturn as never);
-    vi.mocked(MembersAreaHooks.useMembersArea).mockReturnValue(defaultMembersAreaReturn as never);
+    defaultContextReturn = createMockMembersAreaTabContext();
+    defaultMembersAreaReturn = createMockMembersAreaTabHook();
+    
+    // RISE V3 Justified: Partial mock - component only uses subset of context
+    vi.mocked(ProductContext.useProductContext).mockReturnValue(
+      defaultContextReturn as unknown as ProductContextMock
+    );
+    vi.mocked(MembersAreaHooks.useMembersArea).mockReturnValue(
+      defaultMembersAreaReturn as unknown as MembersAreaHookReturn
+    );
   });
 
   describe("loading state", () => {
     it("should show loading spinner when isLoading is true", () => {
-      vi.mocked(MembersAreaHooks.useMembersArea).mockReturnValue({
-        ...defaultMembersAreaReturn,
-        isLoading: true,
-      } as never);
+      vi.mocked(MembersAreaHooks.useMembersArea).mockReturnValue(
+        createMockMembersAreaTabHook({ isLoading: true }) as unknown as MembersAreaHookReturn
+      );
 
       const { container } = renderWithRouter(<MembersAreaTab />);
 
@@ -74,10 +81,9 @@ describe("MembersAreaTab", () => {
     });
 
     it("should not render content when loading", () => {
-      vi.mocked(MembersAreaHooks.useMembersArea).mockReturnValue({
-        ...defaultMembersAreaReturn,
-        isLoading: true,
-      } as never);
+      vi.mocked(MembersAreaHooks.useMembersArea).mockReturnValue(
+        createMockMembersAreaTabHook({ isLoading: true }) as unknown as MembersAreaHookReturn
+      );
 
       renderWithRouter(<MembersAreaTab />);
 
@@ -108,29 +114,28 @@ describe("MembersAreaTab", () => {
 
   describe("members area enabled", () => {
     beforeEach(() => {
-      vi.mocked(MembersAreaHooks.useMembersArea).mockReturnValue({
-        ...defaultMembersAreaReturn,
-        settings: {
-          enabled: true,
-        },
-        modules: [
-          {
-            id: "module-1",
-            name: "Module 1",
-            contents: [
-              { id: "content-1", name: "Content 1" },
-              { id: "content-2", name: "Content 2" },
-            ],
-          },
-          {
-            id: "module-2",
-            name: "Module 2",
-            contents: [
-              { id: "content-3", name: "Content 3" },
-            ],
-          },
-        ],
-      } as never);
+      vi.mocked(MembersAreaHooks.useMembersArea).mockReturnValue(
+        createMockMembersAreaTabHook({
+          settings: { enabled: true },
+          modules: [
+            {
+              id: "module-1",
+              name: "Module 1",
+              contents: [
+                { id: "content-1", name: "Content 1" },
+                { id: "content-2", name: "Content 2" },
+              ],
+            },
+            {
+              id: "module-2",
+              name: "Module 2",
+              contents: [
+                { id: "content-3", name: "Content 3" },
+              ],
+            },
+          ],
+        }) as unknown as MembersAreaHookReturn
+      );
     });
 
     it("should show active label when enabled", () => {
@@ -163,10 +168,9 @@ describe("MembersAreaTab", () => {
   describe("toggle functionality", () => {
     it("should call updateSettings when toggle is clicked", async () => {
       const updateSettings = vi.fn().mockResolvedValue(undefined);
-      vi.mocked(MembersAreaHooks.useMembersArea).mockReturnValue({
-        ...defaultMembersAreaReturn,
-        updateSettings,
-      } as never);
+      vi.mocked(MembersAreaHooks.useMembersArea).mockReturnValue(
+        createMockMembersAreaTabHook({ updateSettings }) as unknown as MembersAreaHookReturn
+      );
 
       renderWithRouter(<MembersAreaTab />);
 
@@ -182,10 +186,9 @@ describe("MembersAreaTab", () => {
       const updateSettings = vi.fn().mockImplementation(() => 
         new Promise(resolve => setTimeout(resolve, 100))
       );
-      vi.mocked(MembersAreaHooks.useMembersArea).mockReturnValue({
-        ...defaultMembersAreaReturn,
-        updateSettings,
-      } as never);
+      vi.mocked(MembersAreaHooks.useMembersArea).mockReturnValue(
+        createMockMembersAreaTabHook({ updateSettings }) as unknown as MembersAreaHookReturn
+      );
 
       renderWithRouter(<MembersAreaTab />);
 
@@ -202,13 +205,12 @@ describe("MembersAreaTab", () => {
 
   describe("empty modules", () => {
     it("should show 0 modules and contents when empty", () => {
-      vi.mocked(MembersAreaHooks.useMembersArea).mockReturnValue({
-        ...defaultMembersAreaReturn,
-        settings: {
-          enabled: true,
-        },
-        modules: [],
-      } as never);
+      vi.mocked(MembersAreaHooks.useMembersArea).mockReturnValue(
+        createMockMembersAreaTabHook({
+          settings: { enabled: true },
+          modules: [],
+        }) as unknown as MembersAreaHookReturn
+      );
 
       renderWithRouter(<MembersAreaTab />);
 

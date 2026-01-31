@@ -4,16 +4,26 @@
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Tests for the Cupons tab component that manages product coupons.
+ * Uses `as unknown as T` pattern for vi.mocked() calls.
+ * 
+ * Justification: vi.mocked requires full type match, but tests only need
+ * the subset of properties actually consumed by the component.
  * 
  * @module test/modules/products/tabs/CuponsTab
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { CuponsTab } from "../CuponsTab";
 import * as ProductContext from "../../context/ProductContext";
 import * as ConfirmDelete from "@/components/common/ConfirmDelete";
-import { api } from "@/lib/api";
+import {
+  createMockCuponsTabContext,
+  createMockCoupon,
+  createMockConfirmDelete,
+  type CuponsTabContextMock,
+  type ConfirmDeleteMock,
+} from "@/test/factories";
 
 // Mock dependencies
 vi.mock("../../context/ProductContext", () => ({
@@ -50,59 +60,40 @@ vi.mock("sonner", () => ({
   },
 }));
 
+// Type aliases for mock return types
+type ProductContextMock = ReturnType<typeof ProductContext.useProductContext>;
+type ConfirmDeleteReturn = ReturnType<typeof ConfirmDelete.useConfirmDelete>;
+
 describe("CuponsTab", () => {
-  const mockProduct = {
-    id: "product-123",
-    name: "Test Product",
-  };
+  let defaultContextReturn: CuponsTabContextMock;
+  let defaultConfirmReturn: ConfirmDeleteMock;
 
   const mockCoupons = [
-    {
-      id: "coupon-1",
-      code: "SAVE10",
-      discount: 10,
-      discount_type: "percentage",
-      startDate: new Date("2024-01-01"),
-      endDate: new Date("2024-12-31"),
-      applyToOrderBumps: true,
-      usageCount: 5,
-    },
-    {
-      id: "coupon-2",
-      code: "SAVE20",
-      discount: 20,
-      discount_type: "percentage",
-      startDate: null,
-      endDate: null,
-      applyToOrderBumps: false,
-      usageCount: 0,
-    },
+    createMockCoupon({ id: "coupon-1", code: "SAVE10" }),
+    createMockCoupon({ id: "coupon-2", code: "SAVE20", discount: 20 }),
   ];
-
-  const defaultContextReturn = {
-    product: mockProduct,
-    coupons: mockCoupons,
-    refreshCoupons: vi.fn(),
-    loading: false,
-  };
-
-  const defaultConfirmReturn = {
-    confirm: vi.fn(),
-    Bridge: vi.fn(() => <div data-testid="confirm-bridge">Bridge</div>),
-  };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(ProductContext.useProductContext).mockReturnValue(defaultContextReturn as never);
-    vi.mocked(ConfirmDelete.useConfirmDelete).mockReturnValue(defaultConfirmReturn as never);
+    defaultContextReturn = createMockCuponsTabContext({ coupons: mockCoupons });
+    defaultConfirmReturn = createMockConfirmDelete({
+      Bridge: vi.fn(() => <div data-testid="confirm-bridge">Bridge</div>),
+    });
+    
+    // RISE V3 Justified: Partial mock - component only uses subset of context
+    vi.mocked(ProductContext.useProductContext).mockReturnValue(
+      defaultContextReturn as unknown as ProductContextMock
+    );
+    vi.mocked(ConfirmDelete.useConfirmDelete).mockReturnValue(
+      defaultConfirmReturn as unknown as ConfirmDeleteReturn
+    );
   });
 
   describe("loading state", () => {
     it("should show loading message when product is null", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContextReturn,
-        product: null,
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockCuponsTabContext({ product: null }) as unknown as ProductContextMock
+      );
 
       render(<CuponsTab />);
 
@@ -110,11 +101,9 @@ describe("CuponsTab", () => {
     });
 
     it("should show loading spinner when loading with no coupons", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContextReturn,
-        loading: true,
-        coupons: [],
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockCuponsTabContext({ loading: true, coupons: [] }) as unknown as ProductContextMock
+      );
 
       render(<CuponsTab />);
 
@@ -122,11 +111,9 @@ describe("CuponsTab", () => {
     });
 
     it("should not show loading spinner when loading with existing coupons", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContextReturn,
-        loading: true,
-        coupons: mockCoupons,
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockCuponsTabContext({ loading: true, coupons: mockCoupons }) as unknown as ProductContextMock
+      );
 
       render(<CuponsTab />);
 
@@ -180,21 +167,18 @@ describe("CuponsTab", () => {
     });
 
     it("should handle coupons with null dates", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContextReturn,
-        coupons: [
-          {
-            id: "coupon-3",
-            code: "NODEADLINE",
-            discount: 15,
-            discount_type: "percentage",
-            startDate: null,
-            endDate: null,
-            applyToOrderBumps: true,
-            usageCount: 0,
-          },
-        ],
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockCuponsTabContext({
+          coupons: [
+            createMockCoupon({
+              id: "coupon-3",
+              code: "NODEADLINE",
+              startDate: null,
+              endDate: null,
+            }),
+          ],
+        }) as unknown as ProductContextMock
+      );
 
       render(<CuponsTab />);
 
@@ -204,10 +188,9 @@ describe("CuponsTab", () => {
 
   describe("empty coupons", () => {
     it("should handle empty coupons array", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContextReturn,
-        coupons: [],
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockCuponsTabContext({ coupons: [] }) as unknown as ProductContextMock
+      );
 
       render(<CuponsTab />);
 

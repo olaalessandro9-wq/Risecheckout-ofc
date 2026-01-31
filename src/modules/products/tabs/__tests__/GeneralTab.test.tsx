@@ -4,6 +4,10 @@
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Tests for the General tab component that orchestrates product information sections.
+ * Uses `as unknown as T` pattern for vi.mocked() calls.
+ * 
+ * Justification: vi.mocked requires full type match, but tests only need
+ * the subset of properties actually consumed by the component.
  * 
  * @module test/modules/products/tabs/GeneralTab
  */
@@ -12,6 +16,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { GeneralTab } from "../GeneralTab";
 import * as GeneralModule from "../general";
+import {
+  createMockUseGeneralTabReturn,
+  type UseGeneralTabReturn,
+} from "@/test/factories";
 
 // Mock all general module exports
 vi.mock("../general", () => ({
@@ -23,48 +31,26 @@ vi.mock("../general", () => ({
   ProductDeliverySection: vi.fn(() => <div data-testid="product-delivery-section">Product Delivery</div>),
 }));
 
-describe("GeneralTab", () => {
-  const mockProduct = {
-    id: "product-123",
-    name: "Test Product",
-    description: "Test Description",
-    price: 9900,
-    image_url: "https://example.com/image.jpg",
-  };
+// Type alias for the mock return type
+type MockReturn = ReturnType<typeof GeneralModule.useGeneralTab>;
 
-  const defaultHookReturn = {
-    product: mockProduct,
-    form: {
-      name: "Test Product",
-      description: "Test Description",
-      price: 9900,
-    },
-    setForm: vi.fn(),
-    errors: {},
-    clearError: vi.fn(),
-    image: null,
-    localOffers: [],
-    memberGroups: [],
-    hasMembersArea: false,
-    handleImageFileChange: vi.fn(),
-    handleImageUrlChange: vi.fn(),
-    handleRemoveImage: vi.fn(),
-    handleOffersChange: vi.fn(),
-    handleOffersModifiedChange: vi.fn(),
-    handleOfferDeleted: vi.fn(),
-  };
+describe("GeneralTab", () => {
+  let defaultHookReturn: UseGeneralTabReturn;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(GeneralModule.useGeneralTab).mockReturnValue(defaultHookReturn as never);
+    defaultHookReturn = createMockUseGeneralTabReturn();
+    // RISE V3 Justified: Partial mock - component only uses subset of hook return
+    vi.mocked(GeneralModule.useGeneralTab).mockReturnValue(
+      defaultHookReturn as unknown as MockReturn
+    );
   });
 
   describe("loading state", () => {
     it("should show loading message when product is null", () => {
-      vi.mocked(GeneralModule.useGeneralTab).mockReturnValue({
-        ...defaultHookReturn,
-        product: null,
-      } as never);
+      vi.mocked(GeneralModule.useGeneralTab).mockReturnValue(
+        createMockUseGeneralTabReturn({ product: null }) as unknown as MockReturn
+      );
 
       render(<GeneralTab />);
 
@@ -72,10 +58,9 @@ describe("GeneralTab", () => {
     });
 
     it("should not render sections when product is null", () => {
-      vi.mocked(GeneralModule.useGeneralTab).mockReturnValue({
-        ...defaultHookReturn,
-        product: null,
-      } as never);
+      vi.mocked(GeneralModule.useGeneralTab).mockReturnValue(
+        createMockUseGeneralTabReturn({ product: null }) as unknown as MockReturn
+      );
 
       render(<GeneralTab />);
 
@@ -114,7 +99,7 @@ describe("GeneralTab", () => {
 
       expect(GeneralModule.ProductImageSection).toHaveBeenCalledWith(
         expect.objectContaining({
-          currentImageUrl: mockProduct.image_url,
+          currentImageUrl: defaultHookReturn.product?.image_url,
           image: defaultHookReturn.image,
           onImageFileChange: defaultHookReturn.handleImageFileChange,
           onImageUrlChange: defaultHookReturn.handleImageUrlChange,
@@ -129,7 +114,7 @@ describe("GeneralTab", () => {
 
       expect(GeneralModule.ProductOffersSection).toHaveBeenCalledWith(
         expect.objectContaining({
-          productId: mockProduct.id,
+          productId: defaultHookReturn.product?.id,
           form: defaultHookReturn.form,
           offers: defaultHookReturn.localOffers,
           onOffersChange: defaultHookReturn.handleOffersChange,
@@ -182,10 +167,9 @@ describe("GeneralTab", () => {
         { id: "offer-2", name: "Offer 2", price: 7900 },
       ];
 
-      vi.mocked(GeneralModule.useGeneralTab).mockReturnValue({
-        ...defaultHookReturn,
-        localOffers: mockOffers,
-      } as never);
+      vi.mocked(GeneralModule.useGeneralTab).mockReturnValue(
+        createMockUseGeneralTabReturn({ localOffers: mockOffers }) as unknown as MockReturn
+      );
 
       render(<GeneralTab />);
 
@@ -203,11 +187,12 @@ describe("GeneralTab", () => {
         { id: "group-2", name: "Group 2" },
       ];
 
-      vi.mocked(GeneralModule.useGeneralTab).mockReturnValue({
-        ...defaultHookReturn,
-        memberGroups: mockMemberGroups,
-        hasMembersArea: true,
-      } as never);
+      vi.mocked(GeneralModule.useGeneralTab).mockReturnValue(
+        createMockUseGeneralTabReturn({
+          memberGroups: mockMemberGroups,
+          hasMembersArea: true,
+        }) as unknown as MockReturn
+      );
 
       render(<GeneralTab />);
 
@@ -226,10 +211,9 @@ describe("GeneralTab", () => {
         price: "Preço inválido",
       };
 
-      vi.mocked(GeneralModule.useGeneralTab).mockReturnValue({
-        ...defaultHookReturn,
-        errors: mockErrors,
-      } as never);
+      vi.mocked(GeneralModule.useGeneralTab).mockReturnValue(
+        createMockUseGeneralTabReturn({ errors: mockErrors }) as unknown as MockReturn
+      );
 
       render(<GeneralTab />);
 
