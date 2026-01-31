@@ -13,6 +13,11 @@ import { render, screen } from "@testing-library/react";
 import { renderHook } from "@testing-library/react";
 import { AffiliationProvider, useAffiliationContext } from "../AffiliationContext";
 import type { AffiliationTabId } from "../../machines";
+import {
+  createMockAffiliationMachineContext,
+  createMockAffiliationDetails,
+  createMockOtherProducerProduct,
+} from "@/test/factories";
 
 // Mock @xstate/react
 vi.mock("@xstate/react", () => ({ useMachine: vi.fn() }));
@@ -28,7 +33,7 @@ import { useMachine } from "@xstate/react";
 // FIXTURES
 // ============================================================================
 
-const mockAffiliation = {
+const mockAffiliation = createMockAffiliationDetails({
   id: "aff-123",
   affiliate_code: "CODE123",
   commission_rate: 10,
@@ -36,32 +41,36 @@ const mockAffiliation = {
   total_sales_count: 5,
   total_sales_amount: 500,
   created_at: "2024-01-01",
-  product: { id: "prod-1", name: "Product 1" },
-  offers: [],
-  checkouts: [],
-  producer: null,
-  pixels: [],
-  pix_gateway: null,
-  credit_card_gateway: null,
-  allowed_gateways: { pix_allowed: [], credit_card_allowed: [], require_gateway_connection: false },
-};
+});
 
-const mockOtherProducts = [{ id: "prod-2", name: "Product 2" }];
+const mockOtherProducts = [createMockOtherProducerProduct({ id: "prod-2", name: "Product 2" })];
 
-const createMockSnapshot = (overrides = {}) => ({
+interface MockSnapshot {
+  matches: (state: string) => boolean;
+  context: ReturnType<typeof createMockAffiliationMachineContext>;
+}
+
+const createMockSnapshot = (overrides: Partial<MockSnapshot> = {}): MockSnapshot => ({
   matches: vi.fn((state: string) => state === "idle"),
-  context: {
+  context: createMockAffiliationMachineContext({
     affiliationId: null,
     affiliation: null,
     otherProducts: [],
     activeTab: "gateways" as AffiliationTabId,
     tabErrors: {},
     loadError: null,
-  },
+  }),
   ...overrides,
 });
 
 const createMockSend = () => vi.fn();
+
+/**
+ * XState v5 useMachine return type is complex with 16+ required fields on MachineSnapshot.
+ * For test mocks, we use type assertion since creating a full snapshot is impractical.
+ * This is a JUSTIFIED use of type assertion per RISE V3 Section 4 - test infrastructure.
+ */
+type MockUseMachineReturn = ReturnType<typeof useMachine>;
 
 // ============================================================================
 // TESTS
@@ -76,7 +85,8 @@ describe("AffiliationContext", () => {
     it("renders children", () => {
       const mockSend = createMockSend();
       const mockSnapshot = createMockSnapshot();
-      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend] as any);
+      // JUSTIFIED: XState v5 MachineSnapshot has 16+ fields; full mock is impractical for tests
+      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend, {}] as unknown as MockUseMachineReturn);
       render(<AffiliationProvider affiliationId="aff-123"><div>Test Child</div></AffiliationProvider>);
       expect(screen.getByText("Test Child")).toBeInTheDocument();
     });
@@ -84,7 +94,8 @@ describe("AffiliationContext", () => {
     it("calls useMachine with affiliationMachine", () => {
       const mockSend = createMockSend();
       const mockSnapshot = createMockSnapshot();
-      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend] as any);
+      // JUSTIFIED: XState v5 MachineSnapshot has 16+ fields; full mock is impractical for tests
+      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend, {}] as unknown as MockUseMachineReturn);
       render(<AffiliationProvider affiliationId="aff-123"><div>Test</div></AffiliationProvider>);
       expect(useMachine).toHaveBeenCalledWith(expect.objectContaining({ id: "affiliation" }));
     });
@@ -92,7 +103,8 @@ describe("AffiliationContext", () => {
     it("sends LOAD event when affiliationId is provided", () => {
       const mockSend = createMockSend();
       const mockSnapshot = createMockSnapshot();
-      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend] as any);
+      // JUSTIFIED: XState v5 MachineSnapshot has 16+ fields; full mock is impractical for tests
+      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend, {}] as unknown as MockUseMachineReturn);
       render(<AffiliationProvider affiliationId="aff-123"><div>Test</div></AffiliationProvider>);
       expect(mockSend).toHaveBeenCalledWith({ type: "LOAD", affiliationId: "aff-123" });
     });
@@ -100,7 +112,8 @@ describe("AffiliationContext", () => {
     it("does not send LOAD when affiliationId is undefined", () => {
       const mockSend = createMockSend();
       const mockSnapshot = createMockSnapshot();
-      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend] as any);
+      // JUSTIFIED: XState v5 MachineSnapshot has 16+ fields; full mock is impractical for tests
+      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend, {}] as unknown as MockUseMachineReturn);
       render(<AffiliationProvider affiliationId={undefined}><div>Test</div></AffiliationProvider>);
       expect(mockSend).not.toHaveBeenCalled();
     });
@@ -108,7 +121,8 @@ describe("AffiliationContext", () => {
     it("sends LOAD when affiliationId changes", () => {
       const mockSend = createMockSend();
       const mockSnapshot = createMockSnapshot();
-      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend] as any);
+      // JUSTIFIED: XState v5 MachineSnapshot has 16+ fields; full mock is impractical for tests
+      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend, {}] as unknown as MockUseMachineReturn);
       const { rerender } = render(<AffiliationProvider affiliationId="aff-123"><div>Test</div></AffiliationProvider>);
       mockSend.mockClear();
       rerender(<AffiliationProvider affiliationId="aff-456"><div>Test</div></AffiliationProvider>);
@@ -120,7 +134,8 @@ describe("AffiliationContext", () => {
     it("returns context value when inside provider", () => {
       const mockSend = createMockSend();
       const mockSnapshot = createMockSnapshot();
-      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend] as any);
+      // JUSTIFIED: XState v5 MachineSnapshot has 16+ fields; full mock is impractical for tests
+      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend, {}] as unknown as MockUseMachineReturn);
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <AffiliationProvider affiliationId="aff-123">{children}</AffiliationProvider>
       );
@@ -140,7 +155,8 @@ describe("AffiliationContext", () => {
     it("derives idle state correctly", () => {
       const mockSend = createMockSend();
       const mockSnapshot = createMockSnapshot({ matches: vi.fn((state: string) => state === "idle") });
-      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend] as any);
+      // JUSTIFIED: XState v5 MachineSnapshot has 16+ fields; full mock is impractical for tests
+      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend, {}] as unknown as MockUseMachineReturn);
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <AffiliationProvider affiliationId={undefined}>{children}</AffiliationProvider>
       );
@@ -152,7 +168,8 @@ describe("AffiliationContext", () => {
     it("derives loading state correctly", () => {
       const mockSend = createMockSend();
       const mockSnapshot = createMockSnapshot({ matches: vi.fn((state: string) => state === "loading") });
-      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend] as any);
+      // JUSTIFIED: XState v5 MachineSnapshot has 16+ fields; full mock is impractical for tests
+      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend, {}] as unknown as MockUseMachineReturn);
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <AffiliationProvider affiliationId="aff-123">{children}</AffiliationProvider>
       );
@@ -165,16 +182,17 @@ describe("AffiliationContext", () => {
       const mockSend = createMockSend();
       const mockSnapshot = createMockSnapshot({
         matches: vi.fn((state: string) => state === "ready"),
-        context: {
+        context: createMockAffiliationMachineContext({
           affiliationId: "aff-123",
           affiliation: mockAffiliation,
           otherProducts: mockOtherProducts,
           activeTab: "gateways" as AffiliationTabId,
           tabErrors: {},
           loadError: null,
-        },
+        }),
       });
-      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend] as any);
+      // JUSTIFIED: XState v5 MachineSnapshot has 16+ fields; full mock is impractical for tests
+      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend, {}] as unknown as MockUseMachineReturn);
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <AffiliationProvider affiliationId="aff-123">{children}</AffiliationProvider>
       );
@@ -189,16 +207,17 @@ describe("AffiliationContext", () => {
       const mockSend = createMockSend();
       const mockSnapshot = createMockSnapshot({
         matches: vi.fn((state: string) => state === "error"),
-        context: {
+        context: createMockAffiliationMachineContext({
           affiliationId: "aff-123",
           affiliation: null,
           otherProducts: [],
           activeTab: "gateways" as AffiliationTabId,
           tabErrors: {},
           loadError: "Failed to load",
-        },
+        }),
       });
-      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend] as any);
+      // JUSTIFIED: XState v5 MachineSnapshot has 16+ fields; full mock is impractical for tests
+      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend, {}] as unknown as MockUseMachineReturn);
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <AffiliationProvider affiliationId="aff-123">{children}</AffiliationProvider>
       );
@@ -212,7 +231,8 @@ describe("AffiliationContext", () => {
     it("setActiveTab sends SET_TAB event", () => {
       const mockSend = createMockSend();
       const mockSnapshot = createMockSnapshot();
-      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend] as any);
+      // JUSTIFIED: XState v5 MachineSnapshot has 16+ fields; full mock is impractical for tests
+      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend, {}] as unknown as MockUseMachineReturn);
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <AffiliationProvider affiliationId="aff-123">{children}</AffiliationProvider>
       );
@@ -224,7 +244,8 @@ describe("AffiliationContext", () => {
     it("setTabError sends SET_TAB_ERROR event", () => {
       const mockSend = createMockSend();
       const mockSnapshot = createMockSnapshot();
-      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend] as any);
+      // JUSTIFIED: XState v5 MachineSnapshot has 16+ fields; full mock is impractical for tests
+      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend, {}] as unknown as MockUseMachineReturn);
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <AffiliationProvider affiliationId="aff-123">{children}</AffiliationProvider>
       );
@@ -236,7 +257,8 @@ describe("AffiliationContext", () => {
     it("clearTabErrors sends CLEAR_TAB_ERRORS event", () => {
       const mockSend = createMockSend();
       const mockSnapshot = createMockSnapshot();
-      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend] as any);
+      // JUSTIFIED: XState v5 MachineSnapshot has 16+ fields; full mock is impractical for tests
+      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend, {}] as unknown as MockUseMachineReturn);
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <AffiliationProvider affiliationId="aff-123">{children}</AffiliationProvider>
       );
@@ -248,7 +270,8 @@ describe("AffiliationContext", () => {
     it("refetch sends REFRESH event when affiliationId is present", async () => {
       const mockSend = createMockSend();
       const mockSnapshot = createMockSnapshot();
-      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend] as any);
+      // JUSTIFIED: XState v5 MachineSnapshot has 16+ fields; full mock is impractical for tests
+      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend, {}] as unknown as MockUseMachineReturn);
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <AffiliationProvider affiliationId="aff-123">{children}</AffiliationProvider>
       );
@@ -260,7 +283,8 @@ describe("AffiliationContext", () => {
     it("refetch does not send event when affiliationId is undefined", async () => {
       const mockSend = createMockSend();
       const mockSnapshot = createMockSnapshot();
-      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend] as any);
+      // JUSTIFIED: XState v5 MachineSnapshot has 16+ fields; full mock is impractical for tests
+      vi.mocked(useMachine).mockReturnValue([mockSnapshot, mockSend, {}] as unknown as MockUseMachineReturn);
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <AffiliationProvider affiliationId={undefined}>{children}</AffiliationProvider>
       );

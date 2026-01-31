@@ -10,6 +10,7 @@
 
 import { describe, it, expect } from 'vitest';
 import type { AffiliateSettingValue, OnChangeHandler } from '../types';
+import type { AffiliateSettings } from '../../../types/product.types';
 
 describe('Affiliates Types', () => {
   describe('AffiliateSettingValue', () => {
@@ -43,7 +44,8 @@ describe('Affiliates Types', () => {
         expect(value).toBeDefined();
       };
 
-      handler('enabled' as any, true);
+      const validField: keyof AffiliateSettings = 'enabled';
+      handler(validField, true);
     });
   });
 });

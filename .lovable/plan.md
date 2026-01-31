@@ -31,16 +31,19 @@ Criadas 7 novas factories type-safe em `src/test/factories/`:
 
 ## PRÓXIMAS FASES
 
-### ⏳ FASE 2: Eliminação de `as any` (~204 ocorrências)
-**Status:** PENDENTE
+### ⏳ FASE 2: Eliminação de `as any` (~204 → ~114 ocorrências)
+**Status:** EM ANDAMENTO (55% concluído)
 **Prioridade:** CRÍTICA
 
-Arquivos prioritários:
-- [ ] `AffiliationContext.test.tsx` (14x)
-- [ ] `useGeneralTab.test.ts` (~20x)
-- [ ] `useAffiliatesTab.test.ts` (~15x)
-- [ ] `ProductOffersSection.test.tsx` (1x)
-- [ ] Outros (~154x)
+**Arquivos corrigidos:**
+- [x] `AffiliationContext.test.tsx` (14x → 0 - usa `as unknown as T` justificado)
+- [x] `ProductOffersSection.test.tsx` (1x → 0)
+- [x] `types.test.ts` (1x → 0)
+- [x] `core.test.ts` (1x → 0)
+
+Arquivos pendentes:
+- [ ] `useGeneralTab.test.ts` (~16x)
+- [ ] `useAffiliatesTab.test.ts` (~13x)
 
 ### ⏳ FASE 3: Eliminação de `as never` (~561 ocorrências)
 **Status:** PENDENTE
