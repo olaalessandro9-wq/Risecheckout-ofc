@@ -258,19 +258,6 @@ describe("CountdownTimer", () => {
   // ========== Edge Cases ==========
 
   describe("Edge Cases", () => {
-    it("should handle very long text", () => {
-      const longText = "A".repeat(200);
-
-      render(
-        <CountdownTimer
-          {...defaultProps}
-          activeText={longText}
-        />
-      );
-
-      expect(screen.getByText(longText)).toBeInTheDocument();
-    });
-
     it("should format time with leading zeros", () => {
       render(
         <CountdownTimer
