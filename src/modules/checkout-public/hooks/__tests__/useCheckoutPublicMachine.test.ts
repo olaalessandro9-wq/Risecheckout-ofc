@@ -15,15 +15,26 @@ vi.mock("react-router-dom", () => ({
   useSearchParams: () => [new URLSearchParams()],
 }));
 
+// Create a complete XState mock with all required methods
+const mockState = {
+  value: "idle",
+  matches: vi.fn((state: string) => state === "idle"),
+  context: mockLoadedContext,
+  can: vi.fn(() => true), // ✅ Add the missing can() method
+  hasTag: vi.fn(() => false),
+  toStrings: vi.fn(() => ["idle"]),
+  children: {},
+  history: undefined,
+  meta: {},
+  done: false,
+  event: { type: "INIT" },
+  _event: { type: "INIT" },
+};
+
+const mockSend = vi.fn();
+
 vi.mock("@xstate/react", () => ({
-  useMachine: vi.fn(() => [
-    {
-      value: "idle",
-      matches: (state: string) => state === "idle",
-      context: mockLoadedContext,
-    },
-    vi.fn(),
-  ]),
+  useMachine: vi.fn(() => [mockState, mockSend]),
 }));
 
 vi.mock("@/hooks/checkout/helpers", () => ({
@@ -37,6 +48,12 @@ vi.mock("@/hooks/checkout/helpers", () => ({
 describe("useCheckoutPublicMachine", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    
+    // Reset mock state
+    mockState.value = "idle";
+    mockState.matches = vi.fn((state: string) => state === "idle");
+    mockState.context = mockLoadedContext;
+    mockState.can = vi.fn(() => true);
   });
 
   describe("Hook Initialization", () => {
