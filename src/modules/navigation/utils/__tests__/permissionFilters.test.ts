@@ -225,11 +225,12 @@ describe("permissionFilters", () => {
         canHaveAffiliates: true,
         canAccessAdminPanel: true,
         canManageProducts: true,
-        canManageOrders: true,
-        canManageUsers: false,
-        canViewAnalytics: true,
-        canManageIntegrations: true,
-        canManageWebhooks: true,
+        canAccessMarketplace: true,
+        canBecomeAffiliate: true,
+        canViewSecurityLogs: true,
+        canManageUsers: true,
+        isLoading: false,
+        error: null,
       };
       const navPermissions = extractNavigationPermissions(fullPermissions);
       expect(navPermissions).toEqual({
@@ -245,11 +246,12 @@ describe("permissionFilters", () => {
         canHaveAffiliates: false,
         canAccessAdminPanel: false,
         canManageProducts: false,
-        canManageOrders: false,
+        canAccessMarketplace: true,
+        canBecomeAffiliate: true,
+        canViewSecurityLogs: false,
         canManageUsers: false,
-        canViewAnalytics: false,
-        canManageIntegrations: false,
-        canManageWebhooks: false,
+        isLoading: false,
+        error: null,
       };
       const navPermissions = extractNavigationPermissions(fullPermissions);
       expect(navPermissions).toEqual({

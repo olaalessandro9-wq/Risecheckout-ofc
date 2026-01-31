@@ -47,7 +47,7 @@ describe("Google Ads Tracker Component", () => {
 
     it("should not inject script if conversion_id is empty", () => {
       const integration = createMockIntegration({
-        config: { conversion_id: "", conversion_label: "test_label" },
+        config: { conversion_id: "", conversion_label: "test_label", enabled: true },
       });
       render(<Tracker integration={integration} />);
       const scripts = document.querySelectorAll('script[src*="googletagmanager"]');
@@ -96,6 +96,7 @@ describe("Google Ads Tracker Component", () => {
         config: {
           conversion_id: "AW-123456789",
           conversion_label: "test_label",
+          enabled: true,
           selected_products: ["prod_1", "prod_2"],
         },
       });
@@ -108,6 +109,7 @@ describe("Google Ads Tracker Component", () => {
         config: {
           conversion_id: "AW-123456789",
           conversion_label: "test_label",
+          enabled: true,
           event_labels: [
             { eventType: "purchase", label: "purchase_label", enabled: true },
           ],
@@ -136,6 +138,7 @@ describe("Google Ads Tracker Component", () => {
         config: {
           conversion_id: "AW-987654321",
           conversion_label: "test_label_2",
+          enabled: true,
         },
       });
       rerender(<Tracker integration={integration2} />);

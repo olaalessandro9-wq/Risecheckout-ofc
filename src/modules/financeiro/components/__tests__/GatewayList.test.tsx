@@ -10,21 +10,27 @@
  * - PaymentCard integration
  * - Gateway registry SSOT compliance
  *
+ * REFATORADO: Usa factories type-safe de src/test/factories/gateway.ts
+ * - Substitui 'lastSync' por 'lastConnectedAt' (SSOT)
+ * - Inclui campos obrigatórios 'id' e 'mode'
+ *
  * @module modules/financeiro/components/__tests__/GatewayList.test
+ * @version 2.0.0
  */
 
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@/test/utils";
 import { GatewayList } from "../GatewayList";
-import type { GatewayConnectionMap } from "@/config/gateways/types";
+import { 
+  createMockGatewayConnectionMap,
+  createMixedGatewayConnectionMap,
+  createAllConnectedGatewayMap,
+  createAllDisconnectedGatewayMap,
+} from "@/test/factories/gateway";
 
 describe("GatewayList", () => {
-  const mockConnectionStatuses: GatewayConnectionMap = {
-    asaas: { connected: true, lastSync: new Date().toISOString() },
-    pushinpay: { connected: false, lastSync: null },
-    mercadopago: { connected: true, lastSync: new Date().toISOString() },
-    stripe: { connected: false, lastSync: null },
-  };
+  // Factory type-safe: alguns conectados, alguns não
+  const mockConnectionStatuses = createMixedGatewayConnectionMap();
 
   describe("Rendering", () => {
     it("renders all gateways from GATEWAY_ORDER", () => {
@@ -98,12 +104,7 @@ describe("GatewayList", () => {
     });
 
     it("handles all gateways connected", () => {
-      const allConnected: GatewayConnectionMap = {
-        asaas: { connected: true, lastSync: new Date().toISOString() },
-        pushinpay: { connected: true, lastSync: new Date().toISOString() },
-        mercadopago: { connected: true, lastSync: new Date().toISOString() },
-        stripe: { connected: true, lastSync: new Date().toISOString() },
-      };
+      const allConnected = createAllConnectedGatewayMap();
 
       const onSelect = vi.fn();
       render(
@@ -117,12 +118,7 @@ describe("GatewayList", () => {
     });
 
     it("handles all gateways disconnected", () => {
-      const allDisconnected: GatewayConnectionMap = {
-        asaas: { connected: false, lastSync: null },
-        pushinpay: { connected: false, lastSync: null },
-        mercadopago: { connected: false, lastSync: null },
-        stripe: { connected: false, lastSync: null },
-      };
+      const allDisconnected = createAllDisconnectedGatewayMap();
 
       const onSelect = vi.fn();
       render(
@@ -256,12 +252,7 @@ describe("GatewayList", () => {
     });
 
     it("renders correctly with minimal connection data", () => {
-      const minimalStatuses: GatewayConnectionMap = {
-        asaas: { connected: false, lastSync: null },
-        pushinpay: { connected: false, lastSync: null },
-        mercadopago: { connected: false, lastSync: null },
-        stripe: { connected: false, lastSync: null },
-      };
+      const minimalStatuses = createMockGatewayConnectionMap();
 
       const onSelect = vi.fn();
       render(

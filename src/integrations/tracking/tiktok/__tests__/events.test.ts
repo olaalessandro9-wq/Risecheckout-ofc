@@ -16,18 +16,22 @@ import {
   trackInitiateCheckout,
   trackRefund,
 } from "../events";
-import { createMockConfig, createMockItem, createMockCustomer } from "./_test-helpers";
+import {
+  createMockConfig,
+  createMockItem,
+  createMockCustomer,
+} from "./_test-helpers";
 
 const mockTtq = { track: vi.fn() };
 
 describe("TikTok Pixel Events", () => {
   beforeEach(() => {
-    (window as Record<string, unknown>).ttq = mockTtq;
+    (window as unknown as Record<string, unknown>).ttq = mockTtq;
     vi.clearAllMocks();
   });
 
   afterEach(() => {
-    delete (window as Record<string, unknown>).ttq;
+    delete (window as unknown as Record<string, unknown>).ttq;
   });
 
   describe("isValidTikTokConfig", () => {
@@ -48,7 +52,10 @@ describe("TikTok Pixel Events", () => {
         value: 100,
         currency: "BRL",
       });
-      expect(mockTtq.track).toHaveBeenCalledWith("TestEvent", expect.any(Object));
+      expect(mockTtq.track).toHaveBeenCalledWith(
+        "TestEvent",
+        expect.any(Object)
+      );
       expect(result.success).toBe(true);
     });
 
@@ -59,7 +66,7 @@ describe("TikTok Pixel Events", () => {
     });
 
     it("should return error if ttq is not available", async () => {
-      delete (window as Record<string, unknown>).ttq;
+      delete (window as unknown as Record<string, unknown>).ttq;
       const result = await sendTikTokEvent("123456789", "TestEvent", {});
       expect(result.success).toBe(false);
       expect(result.message).toContain("ttq");
@@ -69,7 +76,10 @@ describe("TikTok Pixel Events", () => {
       const customer = createMockCustomer();
       const items = [createMockItem()];
       await sendTikTokEvent("123456789", "TestEvent", { customer, items });
-      expect(mockTtq.track).toHaveBeenCalledWith("TestEvent", expect.any(Object));
+      expect(mockTtq.track).toHaveBeenCalledWith(
+        "TestEvent",
+        expect.any(Object)
+      );
     });
   });
 
@@ -88,7 +98,10 @@ describe("TikTok Pixel Events", () => {
       const config = createMockConfig();
       const item = createMockItem();
       const result = await trackViewContent(config, item);
-      expect(mockTtq.track).toHaveBeenCalledWith("ViewContent", expect.any(Object));
+      expect(mockTtq.track).toHaveBeenCalledWith(
+        "ViewContent",
+        expect.any(Object)
+      );
       expect(result.success).toBe(true);
     });
   });
@@ -98,7 +111,10 @@ describe("TikTok Pixel Events", () => {
       const config = createMockConfig();
       const items = [createMockItem()];
       const result = await trackAddToCart(config, items, 99.9);
-      expect(mockTtq.track).toHaveBeenCalledWith("AddToCart", expect.any(Object));
+      expect(mockTtq.track).toHaveBeenCalledWith(
+        "AddToCart",
+        expect.any(Object)
+      );
       expect(result.success).toBe(true);
     });
   });
@@ -127,7 +143,10 @@ describe("TikTok Pixel Events", () => {
       const config = createMockConfig();
       const items = [createMockItem()];
       const result = await trackInitiateCheckout(config, items, 99.9);
-      expect(mockTtq.track).toHaveBeenCalledWith("InitiateCheckout", expect.any(Object));
+      expect(mockTtq.track).toHaveBeenCalledWith(
+        "InitiateCheckout",
+        expect.any(Object)
+      );
       expect(result.success).toBe(true);
     });
   });

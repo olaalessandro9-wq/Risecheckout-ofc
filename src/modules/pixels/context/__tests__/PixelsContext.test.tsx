@@ -9,17 +9,17 @@ import { renderHook } from "@testing-library/react";
 import { PixelsProvider, usePixelsContext } from "../PixelsContext";
 import { mockVendorPixels, mockFacebookPixel, mockPixelFormData } from "../../__tests__/_fixtures";
 
-// Mock XState machine
+// Mock XState machine with proper typing
 const mockSend = vi.fn();
 const mockState = {
-  value: "idle",
-  matches: vi.fn((state: string) => state === "idle"),
+  value: "idle" as string,
+  matches: vi.fn((state: string) => mockState.value === state),
   context: {
-    pixels: [],
-    editingPixel: null,
-    deletingPixel: null,
-    error: null,
-    lastRefreshAt: null,
+    pixels: [] as typeof mockVendorPixels,
+    editingPixel: null as typeof mockFacebookPixel | null,
+    deletingPixel: null as typeof mockFacebookPixel | null,
+    error: null as string | null,
+    lastRefreshAt: null as number | null,
     isFormOpen: false,
     isSaving: false,
   },
@@ -39,7 +39,7 @@ describe("PixelsContext", () => {
     
     // Reset mock state
     mockState.value = "idle";
-    mockState.matches = vi.fn((state: string) => state === "idle");
+    mockState.matches = vi.fn((state: string) => mockState.value === state);
     mockState.context = {
       pixels: [],
       editingPixel: null,

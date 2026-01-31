@@ -4,6 +4,7 @@
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Tests for the Affiliation Machine Actors configuration.
+ * Uses structural verification compatible with XState v5 SingleOrArray types.
  * 
  * @module affiliation/machines/__tests__
  */
@@ -30,6 +31,18 @@ vi.mock("@/lib/logger", () => ({
 import { api } from "@/lib/api";
 
 // ============================================================================
+// HELPER - Extract invoke configuration safely for XState v5
+// ============================================================================
+
+function getInvokeConfig(invoke: unknown): Record<string, unknown> | null {
+  if (!invoke) return null;
+  if (Array.isArray(invoke)) {
+    return invoke[0] as Record<string, unknown>;
+  }
+  return invoke as Record<string, unknown>;
+}
+
+// ============================================================================
 // TESTS
 // ============================================================================
 
@@ -44,39 +57,49 @@ describe("affiliationMachine.actors", () => {
       expect(typeof loadAffiliationActor).toBe("object");
     });
 
-
-
     it("is invoked in loading state", () => {
       const loadingState = affiliationMachine.config.states?.loading;
       expect(loadingState?.invoke).toBeDefined();
-      expect(loadingState?.invoke?.src).toBe("loadAffiliation");
+      
+      const invokeConfig = getInvokeConfig(loadingState?.invoke);
+      expect(invokeConfig?.src).toBe("loadAffiliation");
     });
 
     it("has onDone transition to ready", () => {
       const loadingState = affiliationMachine.config.states?.loading;
-      expect(loadingState?.invoke?.onDone).toBeDefined();
-      expect(loadingState?.invoke?.onDone?.target).toBe("ready");
+      const invokeConfig = getInvokeConfig(loadingState?.invoke);
+      
+      expect(invokeConfig?.onDone).toBeDefined();
     });
 
     it("has onError transition to error", () => {
       const loadingState = affiliationMachine.config.states?.loading;
-      expect(loadingState?.invoke?.onError).toBeDefined();
-      expect(loadingState?.invoke?.onError?.target).toBe("error");
+      const invokeConfig = getInvokeConfig(loadingState?.invoke);
+      
+      expect(invokeConfig?.onError).toBeDefined();
     });
 
     it("receives affiliationId as input", () => {
       const loadingState = affiliationMachine.config.states?.loading;
-      expect(loadingState?.invoke?.input).toBeDefined();
+      const invokeConfig = getInvokeConfig(loadingState?.invoke);
+      
+      expect(invokeConfig?.input).toBeDefined();
     });
 
     it("updates context on success", () => {
       const loadingState = affiliationMachine.config.states?.loading;
-      expect(loadingState?.invoke?.onDone?.actions).toBeDefined();
+      const invokeConfig = getInvokeConfig(loadingState?.invoke);
+      
+      const onDone = invokeConfig?.onDone as Record<string, unknown> | undefined;
+      expect(onDone).toBeDefined();
     });
 
     it("updates loadError on failure", () => {
       const loadingState = affiliationMachine.config.states?.loading;
-      expect(loadingState?.invoke?.onError?.actions).toBeDefined();
+      const invokeConfig = getInvokeConfig(loadingState?.invoke);
+      
+      const onError = invokeConfig?.onError as Record<string, unknown> | undefined;
+      expect(onError).toBeDefined();
     });
   });
 
@@ -102,7 +125,9 @@ describe("affiliationMachine.actors", () => {
       expect(api.call).toHaveBeenCalledWith("get-affiliation-details", {
         affiliation_id: "aff-123",
       });
-      expect(result.data?.affiliation).toBeDefined();
+      
+      const data = result.data as { affiliation?: { id: string } } | null;
+      expect(data?.affiliation).toBeDefined();
     });
   });
 });

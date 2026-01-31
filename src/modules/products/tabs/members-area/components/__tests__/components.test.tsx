@@ -3,13 +3,14 @@
  * 
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
- * Simplified tests for ContentsList, ModulesList, SortableContentItem, and SortableModuleItem.
+ * Simplified tests for ContentsList and SortableContentItem.
  * 
  * @module products/tabs/members-area/components/__tests__/components.test
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import type { MemberContent } from "@/modules/members-area/types";
 
 // Mock dependencies
 vi.mock('@dnd-kit/core', () => ({
@@ -21,17 +22,17 @@ vi.mock('@dnd-kit/core', () => ({
     transition: null,
     isDragging: false,
   })),
-  DndContext: ({ children }: any) => <div>{children}</div>,
+  DndContext: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   closestCenter: vi.fn(),
   useSensors: vi.fn(() => []),
   useSensor: vi.fn(),
   PointerSensor: vi.fn(),
   KeyboardSensor: vi.fn(),
-  DragOverlay: ({ children }: any) => <div>{children}</div>,
+  DragOverlay: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
 vi.mock('@dnd-kit/sortable', () => ({
-  SortableContext: ({ children }: any) => <div>{children}</div>,
+  SortableContext: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   verticalListSortingStrategy: {},
   useSortable: vi.fn(() => ({
     attributes: {},
@@ -41,7 +42,7 @@ vi.mock('@dnd-kit/sortable', () => ({
     transition: null,
     isDragging: false,
   })),
-  arrayMove: (arr: any[], oldIndex: number, newIndex: number) => {
+  arrayMove: (arr: unknown[], oldIndex: number, newIndex: number) => {
     const newArr = [...arr];
     const [removed] = newArr.splice(oldIndex, 1);
     newArr.splice(newIndex, 0, removed);
@@ -50,47 +51,56 @@ vi.mock('@dnd-kit/sortable', () => ({
 }));
 
 vi.mock('@/components/ui/button', () => ({
-  Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+  Button: ({ children, ...props }: { children: React.ReactNode }) => <button {...props}>{children}</button>,
 }));
 
 vi.mock('@/components/ui/card', () => ({
-  Card: ({ children }: any) => <div>{children}</div>,
-  CardContent: ({ children }: any) => <div>{children}</div>,
+  Card: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  CardContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
 // Import components after mocks
 import { ContentsList } from '../ContentsList';
 import { SortableContentItem } from '../SortableContentItem';
 
+// ============================================================================
+// MOCK FACTORIES
+// ============================================================================
+
+function createMockMemberContent(
+  overrides: Partial<MemberContent> = {}
+): MemberContent {
+  return {
+    id: 'content-1',
+    module_id: 'module-1',
+    title: 'Test Content',
+    description: null,
+    content_type: 'video',
+    content_url: 'https://example.com/video.mp4',
+    body: null,
+    content_data: null,
+    duration_seconds: 300,
+    position: 0,
+    is_active: true,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    ...overrides,
+  };
+}
+
+// ============================================================================
+// TESTS
+// ============================================================================
+
 describe('MembersArea Components', () => {
   describe('ContentsList', () => {
-    const mockModule = {
-      id: 'module-1',
-      title: 'Test Module',
-      description: '',
-      order: 0,
-      product_id: 'product-1',
-      created_at: '',
-      updated_at: '',
-    };
-
-    const mockContents = [
-      {
-        id: 'content-1',
-        title: 'Test Content',
-        type: 'video' as const,
-        order: 0,
-        module_id: 'module-1',
-        product_id: 'product-1',
-        created_at: '',
-        updated_at: '',
-      },
+    const mockContents: MemberContent[] = [
+      createMockMemberContent({ id: 'content-1', title: 'Test Content' }),
     ];
 
     const mockHandlers = {
-      onEdit: vi.fn(),
-      onDelete: vi.fn(),
-      onReorder: vi.fn(),
+      onEditContent: vi.fn(),
+      onDeleteContent: vi.fn(),
     };
 
     beforeEach(() => {
@@ -100,11 +110,10 @@ describe('MembersArea Components', () => {
     it('should render contents list', () => {
       render(
         <ContentsList
-          module={mockModule}
+          moduleId="module-1"
           contents={mockContents}
-          onEdit={mockHandlers.onEdit}
-          onDelete={mockHandlers.onDelete}
-          onReorder={mockHandlers.onReorder}
+          onEditContent={mockHandlers.onEditContent}
+          onDeleteContent={mockHandlers.onDeleteContent}
         />
       );
 
@@ -114,11 +123,10 @@ describe('MembersArea Components', () => {
     it('should render empty state when no contents', () => {
       render(
         <ContentsList
-          module={mockModule}
+          moduleId="module-1"
           contents={[]}
-          onEdit={mockHandlers.onEdit}
-          onDelete={mockHandlers.onDelete}
-          onReorder={mockHandlers.onReorder}
+          onEditContent={mockHandlers.onEditContent}
+          onDeleteContent={mockHandlers.onDeleteContent}
         />
       );
 
@@ -126,23 +134,15 @@ describe('MembersArea Components', () => {
     });
   });
 
-  // ModulesList tests removed due to complex dependencies
-
   describe('SortableContentItem', () => {
-    const mockContent = {
+    const mockContent = createMockMemberContent({
       id: 'content-1',
       title: 'Test Content',
-      type: 'video' as const,
-      order: 0,
-      module_id: 'module-1',
-      product_id: 'product-1',
-      created_at: '',
-      updated_at: '',
-    };
+    });
 
     const mockHandlers = {
-      onEdit: vi.fn(),
-      onDelete: vi.fn(),
+      onEditContent: vi.fn(),
+      onDeleteContent: vi.fn(),
     };
 
     beforeEach(() => {
@@ -153,14 +153,12 @@ describe('MembersArea Components', () => {
       render(
         <SortableContentItem
           content={mockContent}
-          onEdit={mockHandlers.onEdit}
-          onDelete={mockHandlers.onDelete}
+          onEditContent={mockHandlers.onEditContent}
+          onDeleteContent={mockHandlers.onDeleteContent}
         />
       );
 
       expect(screen.getByText('Test Content')).toBeInTheDocument();
     });
   });
-
-  // SortableModuleItem tests removed due to complex dependencies
 });

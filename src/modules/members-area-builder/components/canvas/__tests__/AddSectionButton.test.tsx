@@ -12,9 +12,9 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { AddSectionButton } from "../AddSectionButton";
-import type { Section } from "../../../types";
+import type { Section, SectionType } from "../../../types";
 
 // Mock the registry module
 vi.mock("../../../registry", () => ({
@@ -42,7 +42,7 @@ vi.mock("../../../registry", () => ({
   },
   getAvailableSectionTypes: vi.fn((sections: Section[]) => {
     const existingTypes = sections.map(s => s.type);
-    const allTypes = ["banner", "text", "spacer", "fixed_header"];
+    const allTypes: SectionType[] = ["banner", "text", "spacer", "fixed_header"];
     return allTypes.filter(t => !existingTypes.includes(t));
   }),
 }));

@@ -12,6 +12,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ProductDeliverySection } from '../ProductDeliverySection';
+import type { GeneralFormData } from '../../../types/formData.types';
 
 // Mock dependencies
 vi.mock('sonner', () => ({
@@ -21,17 +22,22 @@ vi.mock('sonner', () => ({
   },
 }));
 
-describe('ProductDeliverySection', () => {
-  const mockForm = {
+// Helper to create valid GeneralFormData
+function createMockFormData(overrides: Partial<GeneralFormData> = {}): GeneralFormData {
+  return {
     name: '',
     description: '',
     price: 0,
     support_name: '',
     support_email: '',
     delivery_url: 'https://example.com/delivery',
-    delivery_type: 'standard' as const,
+    delivery_type: 'standard',
+    external_delivery: false,
+    ...overrides,
   };
+}
 
+describe('ProductDeliverySection', () => {
   const mockSetForm = vi.fn();
 
   beforeEach(() => {
@@ -42,7 +48,7 @@ describe('ProductDeliverySection', () => {
     it('should render section title', () => {
       render(
         <ProductDeliverySection
-          form={mockForm}
+          form={createMockFormData()}
           setForm={mockSetForm}
         />
       );
@@ -53,7 +59,7 @@ describe('ProductDeliverySection', () => {
     it('should render all delivery options', () => {
       render(
         <ProductDeliverySection
-          form={mockForm}
+          form={createMockFormData()}
           setForm={mockSetForm}
         />
       );
@@ -66,7 +72,7 @@ describe('ProductDeliverySection', () => {
     it('should show delivery URL input for standard delivery', () => {
       render(
         <ProductDeliverySection
-          form={mockForm}
+          form={createMockFormData()}
           setForm={mockSetForm}
         />
       );
@@ -80,7 +86,7 @@ describe('ProductDeliverySection', () => {
     it('should select standard delivery by default', () => {
       render(
         <ProductDeliverySection
-          form={mockForm}
+          form={createMockFormData()}
           setForm={mockSetForm}
         />
       );
@@ -92,7 +98,7 @@ describe('ProductDeliverySection', () => {
     it('should change delivery type when clicking option', () => {
       render(
         <ProductDeliverySection
-          form={mockForm}
+          form={createMockFormData()}
           setForm={mockSetForm}
         />
       );
@@ -106,7 +112,7 @@ describe('ProductDeliverySection', () => {
     it('should clear delivery URL when switching to non-standard delivery', () => {
       render(
         <ProductDeliverySection
-          form={mockForm}
+          form={createMockFormData()}
           setForm={mockSetForm}
         />
       );
@@ -115,7 +121,7 @@ describe('ProductDeliverySection', () => {
       fireEvent.click(externalOption!);
 
       const updater = mockSetForm.mock.calls[0][0];
-      const result = updater(mockForm);
+      const result = updater(createMockFormData());
       
       expect(result.delivery_type).toBe('external');
       expect(result.delivery_url).toBe('');
@@ -126,7 +132,7 @@ describe('ProductDeliverySection', () => {
     it('should render URL input for standard delivery', () => {
       render(
         <ProductDeliverySection
-          form={mockForm}
+          form={createMockFormData()}
           setForm={mockSetForm}
         />
       );
@@ -140,7 +146,7 @@ describe('ProductDeliverySection', () => {
     it('should update delivery URL', () => {
       render(
         <ProductDeliverySection
-          form={mockForm}
+          form={createMockFormData()}
           setForm={mockSetForm}
         />
       );
@@ -154,11 +160,10 @@ describe('ProductDeliverySection', () => {
 
   describe('Edge Cases', () => {
     it('should handle missing delivery_type by deriving from external_delivery', () => {
-      const formWithoutType = {
-        ...mockForm,
-        delivery_type: undefined as any,
+      const formWithoutType = createMockFormData({
+        delivery_type: undefined as unknown as 'standard',
         external_delivery: true,
-      };
+      });
 
       render(
         <ProductDeliverySection
@@ -172,14 +177,9 @@ describe('ProductDeliverySection', () => {
     });
 
     it('should handle empty delivery URL', () => {
-      const formWithEmptyUrl = {
-        ...mockForm,
-        delivery_url: '',
-      };
-
       render(
         <ProductDeliverySection
-          form={formWithEmptyUrl}
+          form={createMockFormData({ delivery_url: '' })}
           setForm={mockSetForm}
         />
       );

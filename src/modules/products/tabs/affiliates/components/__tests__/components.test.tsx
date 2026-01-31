@@ -10,18 +10,19 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import type { AffiliateSettings } from '../../../../types/product.types';
 
 // Mock UI components
 vi.mock('@/components/ui/card', () => ({
-  Card: ({ children }: any) => <div data-testid="card">{children}</div>,
-  CardHeader: ({ children }: any) => <div>{children}</div>,
-  CardTitle: ({ children }: any) => <h3>{children}</h3>,
-  CardDescription: ({ children }: any) => <p>{children}</p>,
-  CardContent: ({ children }: any) => <div>{children}</div>,
+  Card: ({ children }: { children: React.ReactNode }) => <div data-testid="card">{children}</div>,
+  CardHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  CardTitle: ({ children }: { children: React.ReactNode }) => <h3>{children}</h3>,
+  CardDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
+  CardContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
 vi.mock('@/components/ui/switch', () => ({
-  Switch: ({ checked, onCheckedChange, ...props }: any) => (
+  Switch: ({ checked, onCheckedChange, ...props }: { checked?: boolean; onCheckedChange?: (v: boolean) => void }) => (
     <button
       role="switch"
       aria-checked={checked}
@@ -33,29 +34,29 @@ vi.mock('@/components/ui/switch', () => ({
 }));
 
 vi.mock('@/components/ui/input', () => ({
-  Input: (props: any) => <input data-testid="input" {...props} />,
+  Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => <input data-testid="input" {...props} />,
 }));
 
 vi.mock('@/components/ui/label', () => ({
-  Label: ({ children, ...props }: any) => <label {...props}>{children}</label>,
+  Label: ({ children, ...props }: { children: React.ReactNode }) => <label {...props}>{children}</label>,
 }));
 
 vi.mock('@/components/ui/button', () => ({
-  Button: ({ children, ...props }: any) => (
+  Button: ({ children, ...props }: { children: React.ReactNode }) => (
     <button data-testid="button" {...props}>{children}</button>
   ),
 }));
 
 vi.mock('@/components/ui/textarea', () => ({
-  Textarea: (props: any) => <textarea data-testid="textarea" {...props} />,
+  Textarea: (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => <textarea data-testid="textarea" {...props} />,
 }));
 
 vi.mock('@/components/ui/select', () => ({
-  Select: ({ children }: any) => <div data-testid="select">{children}</div>,
-  SelectTrigger: ({ children }: any) => <div>{children}</div>,
+  Select: ({ children }: { children: React.ReactNode }) => <div data-testid="select">{children}</div>,
+  SelectTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   SelectValue: () => <span>Select value</span>,
-  SelectContent: ({ children }: any) => <div>{children}</div>,
-  SelectItem: ({ children }: any) => <div>{children}</div>,
+  SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SelectItem: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
 // Import components after mocks
@@ -64,6 +65,18 @@ import { CommissionSettings } from '../CommissionSettings';
 import { AdvancedRules } from '../AdvancedRules';
 import { AffiliateInviteLink } from '../AffiliateInviteLink';
 import { SupportContact } from '../SupportContact';
+
+// Helper to create valid AffiliateSettings
+function createMockAffiliateSettings(overrides: Partial<AffiliateSettings> = {}): AffiliateSettings {
+  return {
+    enabled: true,
+    defaultRate: 10,
+    requireApproval: false,
+    attributionModel: 'last_click',
+    cookieDuration: 30,
+    ...overrides,
+  };
+}
 
 describe('Affiliates Components', () => {
   describe('AffiliateProgramStatus', () => {
@@ -121,11 +134,6 @@ describe('Affiliates Components', () => {
   });
 
   describe('CommissionSettings', () => {
-    const mockSettings = {
-      commission_type: 'percentage' as const,
-      commission_value: 10,
-      cookie_duration: 30,
-    };
     const mockOnChange = vi.fn();
 
     beforeEach(() => {
@@ -135,7 +143,7 @@ describe('Affiliates Components', () => {
     it('should render component', () => {
       const { container } = render(
         <CommissionSettings
-          settings={mockSettings}
+          settings={createMockAffiliateSettings()}
           onChange={mockOnChange}
         />
       );
@@ -146,7 +154,7 @@ describe('Affiliates Components', () => {
     it('should accept settings prop', () => {
       const { container } = render(
         <CommissionSettings
-          settings={mockSettings}
+          settings={createMockAffiliateSettings({ defaultRate: 25 })}
           onChange={mockOnChange}
         />
       );
@@ -156,11 +164,6 @@ describe('Affiliates Components', () => {
   });
 
   describe('AdvancedRules', () => {
-    const mockSettings = {
-      min_payout: 50,
-      auto_approve: true,
-      require_approval: false,
-    };
     const mockOnChange = vi.fn();
 
     beforeEach(() => {
@@ -170,7 +173,7 @@ describe('Affiliates Components', () => {
     it('should render component', () => {
       const { container } = render(
         <AdvancedRules
-          settings={mockSettings}
+          settings={createMockAffiliateSettings({ requireApproval: true })}
           onChange={mockOnChange}
         />
       );
@@ -181,7 +184,7 @@ describe('Affiliates Components', () => {
     it('should accept settings prop', () => {
       const { container } = render(
         <AdvancedRules
-          settings={mockSettings}
+          settings={createMockAffiliateSettings()}
           onChange={mockOnChange}
         />
       );
@@ -207,10 +210,6 @@ describe('Affiliates Components', () => {
   });
 
   describe('SupportContact', () => {
-    const mockSettings = {
-      support_email: 'support@example.com',
-      support_message: 'Contact us for help',
-    };
     const mockOnChange = vi.fn();
 
     beforeEach(() => {
@@ -220,7 +219,7 @@ describe('Affiliates Components', () => {
     it('should render component', () => {
       const { container } = render(
         <SupportContact
-          settings={mockSettings}
+          settings={createMockAffiliateSettings({ supportEmail: 'support@example.com' })}
           onChange={mockOnChange}
         />
       );
@@ -231,7 +230,7 @@ describe('Affiliates Components', () => {
     it('should accept settings prop', () => {
       const { container } = render(
         <SupportContact
-          settings={mockSettings}
+          settings={createMockAffiliateSettings()}
           onChange={mockOnChange}
         />
       );

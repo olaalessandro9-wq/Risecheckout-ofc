@@ -22,12 +22,12 @@ const mockFbq = vi.fn();
 
 describe("Facebook Pixel Events", () => {
   beforeEach(() => {
-    (window as Record<string, unknown>).fbq = mockFbq;
+    (window as unknown as Record<string, unknown>).fbq = mockFbq;
     vi.clearAllMocks();
   });
 
   afterEach(() => {
-    delete (window as Record<string, unknown>).fbq;
+    delete (window as unknown as Record<string, unknown>).fbq;
   });
 
   describe("trackEvent", () => {
@@ -37,7 +37,7 @@ describe("Facebook Pixel Events", () => {
     });
 
     it("should handle missing fbq gracefully", () => {
-      delete (window as Record<string, unknown>).fbq;
+      delete (window as unknown as Record<string, unknown>).fbq;
       expect(() => trackEvent("TestEvent")).not.toThrow();
       expect(mockFbq).not.toHaveBeenCalled();
     });
@@ -59,7 +59,7 @@ describe("Facebook Pixel Events", () => {
     });
 
     it("should handle missing fbq gracefully", () => {
-      delete (window as Record<string, unknown>).fbq;
+      delete (window as unknown as Record<string, unknown>).fbq;
       expect(() => trackCustomEvent("CustomEvent")).not.toThrow();
     });
   });
@@ -72,7 +72,7 @@ describe("Facebook Pixel Events", () => {
     });
 
     it("should handle missing fbq gracefully", () => {
-      delete (window as Record<string, unknown>).fbq;
+      delete (window as unknown as Record<string, unknown>).fbq;
       expect(() => trackViewContent(createMockProduct())).not.toThrow();
     });
   });
@@ -80,14 +80,13 @@ describe("Facebook Pixel Events", () => {
   describe("trackInitiateCheckout", () => {
     it("should track InitiateCheckout event", () => {
       const product = createMockProduct();
-      trackInitiateCheckout(product);
+      trackInitiateCheckout(product, 9990, 1);
       expect(mockFbq).toHaveBeenCalledWith("track", "InitiateCheckout", expect.any(Object));
     });
 
     it("should include bump data when provided", () => {
       const product = createMockProduct();
-      const bump = createMockBump();
-      trackInitiateCheckout(product, bump);
+      trackInitiateCheckout(product, 14990, 2);
       expect(mockFbq).toHaveBeenCalledWith("track", "InitiateCheckout", expect.any(Object));
     });
   });
@@ -138,16 +137,17 @@ describe("Facebook Pixel Events", () => {
     });
 
     it("should handle all events without fbq", () => {
-      delete (window as Record<string, unknown>).fbq;
+      delete (window as unknown as Record<string, unknown>).fbq;
       const product = createMockProduct();
+      const bump = createMockBump();
       expect(() => {
         trackViewContent(product);
-        trackInitiateCheckout(product);
-        trackPurchase(product, "order_123");
-        trackAddToCart(product);
-        trackCompleteRegistration();
+        trackInitiateCheckout(product, 9990, 1);
+        trackPurchase("order_123", 9990, product);
+        trackAddToCart(bump, 99.9);
+        trackCompleteRegistration("test@example.com");
         trackPageView();
-        trackLead();
+        trackLead("test@example.com");
       }).not.toThrow();
     });
   });

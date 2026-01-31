@@ -6,13 +6,21 @@
  * Testa o componente de grid de métricas do dashboard.
  * Cobre renderização, loading, métricas e integração com configuração.
  * 
- * @version 1.0.0
+ * REFATORADO: Usa factories type-safe de src/test/factories/dashboard.ts
+ * - Substitui 'percentage' por 'label' (SSOT TrendData)
+ * - Inclui todos os campos obrigatórios de DashboardMetrics
+ * 
+ * @version 2.0.0
  */
 
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { MetricsGrid } from "../MetricsGrid";
-import type { DashboardMetrics, TrendData } from "../../../types";
+import type { TrendData } from "../../../types";
+import { 
+  createMockDashboardMetrics, 
+  createMockTrendData 
+} from "@/test/factories/dashboard";
 
 // ============================================
 // MOCKS
@@ -29,7 +37,7 @@ vi.mock("../MetricCard", () => ({
     <div data-testid={`metric-card-${title.toLowerCase().replace(/\s+/g, "-")}`}>
       <span data-testid="metric-title">{title}</span>
       <span data-testid="metric-value">{isLoading ? "Loading..." : value}</span>
-      {trend && <span data-testid="metric-trend">{trend.percentage}%</span>}
+      {trend && <span data-testid="metric-trend">{trend.label}</span>}
     </div>
   ),
 }));
@@ -83,42 +91,42 @@ vi.mock("../../../config", () => ({
 }));
 
 // ============================================
-// MOCK DATA
+// MOCK DATA (Type-Safe Factories)
 // ============================================
 
-const mockMetrics: DashboardMetrics = {
+const mockMetrics = createMockDashboardMetrics({
   totalRevenue: "R$ 50.000,00",
   paidRevenue: "R$ 45.000,00",
   pendingRevenue: "R$ 5.000,00",
   conversionRate: "85%",
-  revenueTrend: {
+  revenueTrend: createMockTrendData({
     value: 15.5,
-    percentage: "+15.5",
+    label: "+15.5%",
     isPositive: true,
-  },
-  paidRevenueTrend: {
+  }),
+  paidRevenueTrend: createMockTrendData({
     value: 12.3,
-    percentage: "+12.3",
+    label: "+12.3%",
     isPositive: true,
-  },
-  pendingRevenueTrend: {
+  }),
+  pendingRevenueTrend: createMockTrendData({
     value: -5.2,
-    percentage: "-5.2",
+    label: "-5.2%",
     isPositive: false,
-  },
-  conversionTrend: {
+  }),
+  conversionTrend: createMockTrendData({
     value: 3.1,
-    percentage: "+3.1",
+    label: "+3.1%",
     isPositive: true,
-  },
-};
+  }),
+});
 
-const mockEmptyMetrics: DashboardMetrics = {
+const mockEmptyMetrics = createMockDashboardMetrics({
   totalRevenue: "R$ 0,00",
   paidRevenue: "R$ 0,00",
   pendingRevenue: "R$ 0,00",
   conversionRate: "0%",
-};
+});
 
 // ============================================
 // TESTS: RENDERING
@@ -308,12 +316,12 @@ describe("MetricsGrid - Metric Types", () => {
 
 describe("MetricsGrid - Edge Cases", () => {
   it("should handle very large values", () => {
-    const largeMetrics: DashboardMetrics = {
+    const largeMetrics = createMockDashboardMetrics({
       totalRevenue: "R$ 999.999.999,99",
       paidRevenue: "R$ 999.999.999,99",
       pendingRevenue: "R$ 999.999.999,99",
       conversionRate: "100%",
-    };
+    });
 
     render(<MetricsGrid metrics={largeMetrics} isLoading={false} />);
 
@@ -322,11 +330,11 @@ describe("MetricsGrid - Edge Cases", () => {
   });
 
   it("should handle partial metrics data", () => {
-    const partialMetrics: Partial<DashboardMetrics> = {
+    const partialMetrics = createMockDashboardMetrics({
       totalRevenue: "R$ 10.000,00",
-    };
+    });
 
-    render(<MetricsGrid metrics={partialMetrics as DashboardMetrics} isLoading={false} />);
+    render(<MetricsGrid metrics={partialMetrics} isLoading={false} />);
 
     expect(screen.getByText("R$ 10.000,00")).toBeInTheDocument();
   });
@@ -347,10 +355,10 @@ describe("MetricsGrid - Edge Cases", () => {
 
     expect(screen.getByText("R$ 50.000,00")).toBeInTheDocument();
 
-    const updatedMetrics: DashboardMetrics = {
+    const updatedMetrics = createMockDashboardMetrics({
       ...mockMetrics,
       totalRevenue: "R$ 60.000,00",
-    };
+    });
 
     rerender(<MetricsGrid metrics={updatedMetrics} isLoading={false} />);
 

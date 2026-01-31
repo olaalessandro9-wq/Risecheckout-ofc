@@ -13,53 +13,54 @@ import * as ThemeProvider from "@/providers/theme";
 // TYPES
 // ============================================================================
 
-type MockThemeReturn = {
-  theme: "light" | "dark" | undefined;
-  setTheme: ReturnType<typeof vi.fn>;
-};
+type Theme = "light" | "dark";
+
+interface MockThemeReturn {
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
+}
 
 // ============================================================================
 // MOCKS
 // ============================================================================
 
-// Mock theme provider
 vi.mock("@/providers/theme", () => ({
   useTheme: vi.fn(),
 }));
 
-// Mock lucide-react icons
 vi.mock("lucide-react", () => ({
-  Moon: ({ className }: any) => <div data-testid="moon-icon" className={className}>Moon</div>,
-  Sun: ({ className }: any) => <div data-testid="sun-icon" className={className}>Sun</div>,
+  Moon: ({ className }: { className?: string }) => <div data-testid="moon-icon" className={className}>Moon</div>,
+  Sun: ({ className }: { className?: string }) => <div data-testid="sun-icon" className={className}>Sun</div>,
 }));
 
-// Mock cn utility
 vi.mock("@/lib/utils", () => ({
-  cn: (...classes: any[]) => classes.filter(Boolean).join(" "),
+  cn: (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(" "),
 }));
+
+// ============================================================================
+// FACTORY
+// ============================================================================
+
+function createMockTheme(theme: Theme): MockThemeReturn {
+  return {
+    theme,
+    setTheme: vi.fn() as (theme: Theme) => void,
+  };
+}
 
 // ============================================================================
 // TESTS
 // ============================================================================
 
 describe("ThemeToggle", () => {
-  let setThemeMock: ReturnType<typeof vi.fn>;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    setThemeMock = vi.fn();
   });
-
-  // ==========================================================================
-  // RENDERING
-  // ==========================================================================
 
   describe("Rendering", () => {
     it("should render toggle button", () => {
-      vi.mocked(ThemeProvider.useTheme).mockReturnValue({
-        theme: "light",
-        setTheme: setThemeMock,
-      } satisfies MockThemeReturn);
+      const mockTheme = createMockTheme("light");
+      vi.mocked(ThemeProvider.useTheme).mockReturnValue(mockTheme);
 
       render(<ThemeToggle />);
 
@@ -68,10 +69,8 @@ describe("ThemeToggle", () => {
     });
 
     it("should render with light theme styling", () => {
-      vi.mocked(ThemeProvider.useTheme).mockReturnValue({
-        theme: "light",
-        setTheme: setThemeMock,
-      } satisfies MockThemeReturn);
+      const mockTheme = createMockTheme("light");
+      vi.mocked(ThemeProvider.useTheme).mockReturnValue(mockTheme);
 
       render(<ThemeToggle />);
 
@@ -80,10 +79,8 @@ describe("ThemeToggle", () => {
     });
 
     it("should render with dark theme styling", () => {
-      vi.mocked(ThemeProvider.useTheme).mockReturnValue({
-        theme: "dark",
-        setTheme: setThemeMock,
-      } satisfies MockThemeReturn);
+      const mockTheme = createMockTheme("dark");
+      vi.mocked(ThemeProvider.useTheme).mockReturnValue(mockTheme);
 
       render(<ThemeToggle />);
 
@@ -92,10 +89,8 @@ describe("ThemeToggle", () => {
     });
 
     it("should render sun and moon icons", () => {
-      vi.mocked(ThemeProvider.useTheme).mockReturnValue({
-        theme: "light",
-        setTheme: setThemeMock,
-      } satisfies MockThemeReturn);
+      const mockTheme = createMockTheme("light");
+      vi.mocked(ThemeProvider.useTheme).mockReturnValue(mockTheme);
 
       render(<ThemeToggle />);
 
@@ -107,64 +102,48 @@ describe("ThemeToggle", () => {
     });
   });
 
-  // ==========================================================================
-  // INTERACTIONS
-  // ==========================================================================
-
   describe("Interactions", () => {
     it("should toggle from light to dark when clicked", () => {
-      vi.mocked(ThemeProvider.useTheme).mockReturnValue({
-        theme: "light",
-        setTheme: setThemeMock,
-      } satisfies MockThemeReturn);
+      const mockTheme = createMockTheme("light");
+      vi.mocked(ThemeProvider.useTheme).mockReturnValue(mockTheme);
 
       render(<ThemeToggle />);
 
       const button = screen.getByRole("button");
       button.click();
 
-      expect(setThemeMock).toHaveBeenCalledWith("dark");
+      expect(mockTheme.setTheme).toHaveBeenCalledWith("dark");
     });
 
     it("should toggle from dark to light when clicked", () => {
-      vi.mocked(ThemeProvider.useTheme).mockReturnValue({
-        theme: "dark",
-        setTheme: setThemeMock,
-      } satisfies MockThemeReturn);
+      const mockTheme = createMockTheme("dark");
+      vi.mocked(ThemeProvider.useTheme).mockReturnValue(mockTheme);
 
       render(<ThemeToggle />);
 
       const button = screen.getByRole("button");
       button.click();
 
-      expect(setThemeMock).toHaveBeenCalledWith("light");
+      expect(mockTheme.setTheme).toHaveBeenCalledWith("light");
     });
 
     it("should call setTheme only once per click", () => {
-      vi.mocked(ThemeProvider.useTheme).mockReturnValue({
-        theme: "light",
-        setTheme: setThemeMock,
-      } satisfies MockThemeReturn);
+      const mockTheme = createMockTheme("light");
+      vi.mocked(ThemeProvider.useTheme).mockReturnValue(mockTheme);
 
       render(<ThemeToggle />);
 
       const button = screen.getByRole("button");
       button.click();
 
-      expect(setThemeMock).toHaveBeenCalledTimes(1);
+      expect(mockTheme.setTheme).toHaveBeenCalledTimes(1);
     });
   });
 
-  // ==========================================================================
-  // ACCESSIBILITY
-  // ==========================================================================
-
   describe("Accessibility", () => {
     it("should have aria-label", () => {
-      vi.mocked(ThemeProvider.useTheme).mockReturnValue({
-        theme: "light",
-        setTheme: setThemeMock,
-      } satisfies MockThemeReturn);
+      const mockTheme = createMockTheme("light");
+      vi.mocked(ThemeProvider.useTheme).mockReturnValue(mockTheme);
 
       render(<ThemeToggle />);
 
@@ -173,10 +152,8 @@ describe("ThemeToggle", () => {
     });
 
     it("should have descriptive title for light theme", () => {
-      vi.mocked(ThemeProvider.useTheme).mockReturnValue({
-        theme: "light",
-        setTheme: setThemeMock,
-      } satisfies MockThemeReturn);
+      const mockTheme = createMockTheme("light");
+      vi.mocked(ThemeProvider.useTheme).mockReturnValue(mockTheme);
 
       render(<ThemeToggle />);
 
@@ -185,10 +162,8 @@ describe("ThemeToggle", () => {
     });
 
     it("should have descriptive title for dark theme", () => {
-      vi.mocked(ThemeProvider.useTheme).mockReturnValue({
-        theme: "dark",
-        setTheme: setThemeMock,
-      } satisfies MockThemeReturn);
+      const mockTheme = createMockTheme("dark");
+      vi.mocked(ThemeProvider.useTheme).mockReturnValue(mockTheme);
 
       render(<ThemeToggle />);
 
@@ -197,16 +172,10 @@ describe("ThemeToggle", () => {
     });
   });
 
-  // ==========================================================================
-  // EDGE CASES
-  // ==========================================================================
-
   describe("Edge Cases", () => {
     it("should handle multiple rapid clicks", () => {
-      vi.mocked(ThemeProvider.useTheme).mockReturnValue({
-        theme: "light",
-        setTheme: setThemeMock,
-      } satisfies MockThemeReturn);
+      const mockTheme = createMockTheme("light");
+      vi.mocked(ThemeProvider.useTheme).mockReturnValue(mockTheme);
 
       render(<ThemeToggle />);
 
@@ -215,14 +184,12 @@ describe("ThemeToggle", () => {
       button.click();
       button.click();
 
-      expect(setThemeMock).toHaveBeenCalledTimes(3);
+      expect(mockTheme.setTheme).toHaveBeenCalledTimes(3);
     });
 
-    it("should render correctly when theme is undefined", () => {
-      vi.mocked(ThemeProvider.useTheme).mockReturnValue({
-        theme: undefined,
-        setTheme: setThemeMock,
-      } satisfies MockThemeReturn);
+    it("should render correctly when theme is light (default)", () => {
+      const mockTheme = createMockTheme("light");
+      vi.mocked(ThemeProvider.useTheme).mockReturnValue(mockTheme);
 
       render(<ThemeToggle />);
 

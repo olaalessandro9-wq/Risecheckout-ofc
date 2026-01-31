@@ -241,11 +241,11 @@ describe("navigationHelpers", () => {
 
     it("should handle SSR (window undefined)", () => {
       const originalWindow = global.window;
-      // @ts-expect-error - Testing SSR
-      delete global.window;
+      // Simulate SSR by setting window to undefined
+      Object.defineProperty(global, 'window', { value: undefined, writable: true });
       expect(getStoredSidebarState(storageKey)).toBe("collapsed");
       expect(getStoredSidebarState(storageKey, "expanded")).toBe("expanded");
-      global.window = originalWindow;
+      Object.defineProperty(global, 'window', { value: originalWindow, writable: true });
     });
   });
 
@@ -271,10 +271,10 @@ describe("navigationHelpers", () => {
 
     it("should handle SSR (window undefined)", () => {
       const originalWindow = global.window;
-      // @ts-expect-error - Testing SSR
-      delete global.window;
+      // Simulate SSR by setting window to undefined
+      Object.defineProperty(global, 'window', { value: undefined, writable: true });
       expect(() => saveSidebarState(storageKey, "expanded")).not.toThrow();
-      global.window = originalWindow;
+      Object.defineProperty(global, 'window', { value: originalWindow, writable: true });
     });
   });
 });

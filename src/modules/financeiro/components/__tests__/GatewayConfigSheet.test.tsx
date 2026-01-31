@@ -11,23 +11,24 @@
  * - Gateway registry data display
  * - Edge cases (null gatewayId)
  *
+ * REFATORADO: Usa factories type-safe de src/test/factories/gateway.ts
+ * - Substitui 'lastSync' por 'lastConnectedAt' (SSOT)
+ * - Inclui campos obrigatórios 'id' e 'mode'
+ *
  * @module modules/financeiro/components/__tests__/GatewayConfigSheet.test
+ * @version 2.0.0
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@/test/utils";
 import { GatewayConfigSheet } from "../GatewayConfigSheet";
+import { createMixedGatewayConnectionMap } from "@/test/factories/gateway";
 import type { GatewayConnectionMap } from "@/config/gateways/types";
 
-// Mock FinanceiroContext
+// Mock FinanceiroContext usando factory type-safe
 vi.mock("../../context/FinanceiroContext", () => ({
   useFinanceiroContext: vi.fn(() => ({
-    connectionStatuses: {
-      asaas: { connected: true, lastSync: new Date().toISOString() },
-      pushinpay: { connected: false, lastSync: null },
-      mercadopago: { connected: true, lastSync: new Date().toISOString() },
-      stripe: { connected: false, lastSync: null },
-    } as GatewayConnectionMap,
+    connectionStatuses: createMixedGatewayConnectionMap() as GatewayConnectionMap,
   })),
 }));
 

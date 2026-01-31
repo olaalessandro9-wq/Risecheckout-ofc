@@ -16,20 +16,21 @@ const mockGtag = vi.fn();
 
 describe("Google Ads Ecommerce Events", () => {
   beforeEach(() => {
-    (window as Record<string, unknown>).gtag = mockGtag;
-    (window as Record<string, unknown>).dataLayer = [];
+    (window as unknown as Record<string, unknown>).gtag = mockGtag;
+    (window as unknown as Record<string, unknown>).dataLayer = [];
     vi.clearAllMocks();
   });
 
   afterEach(() => {
-    delete (window as Record<string, unknown>).gtag;
-    delete (window as Record<string, unknown>).dataLayer;
+    delete (window as unknown as Record<string, unknown>).gtag;
+    delete (window as unknown as Record<string, unknown>).dataLayer;
   });
 
   describe("trackPageView", () => {
     it("should track page_view event", async () => {
       const config: GoogleAdsConfig = {
         conversion_id: "AW-123456789",
+        enabled: true,
       };
 
       const result = await trackPageView(config);
@@ -41,10 +42,11 @@ describe("Google Ads Ecommerce Events", () => {
     });
 
     it("should return error if gtag is not available", async () => {
-      delete (window as Record<string, unknown>).gtag;
+      delete (window as unknown as Record<string, unknown>).gtag;
 
       const config: GoogleAdsConfig = {
         conversion_id: "AW-123456789",
+        enabled: true,
       };
 
       const result = await trackPageView(config);
@@ -60,6 +62,7 @@ describe("Google Ads Ecommerce Events", () => {
 
       const config: GoogleAdsConfig = {
         conversion_id: "AW-123456789",
+        enabled: true,
       };
 
       const result = await trackPageView(config);
@@ -72,6 +75,7 @@ describe("Google Ads Ecommerce Events", () => {
     it("should track add_to_cart event", async () => {
       const config: GoogleAdsConfig = {
         conversion_id: "AW-123456789",
+        enabled: true,
       };
 
       const items: GoogleAdsItem[] = [
@@ -100,10 +104,11 @@ describe("Google Ads Ecommerce Events", () => {
     });
 
     it("should return error if gtag is not available", async () => {
-      delete (window as Record<string, unknown>).gtag;
+      delete (window as unknown as Record<string, unknown>).gtag;
 
       const config: GoogleAdsConfig = {
         conversion_id: "AW-123456789",
+        enabled: true,
       };
 
       const result = await trackAddToCart(config, [], 0);
@@ -115,6 +120,7 @@ describe("Google Ads Ecommerce Events", () => {
     it("should handle multiple items", async () => {
       const config: GoogleAdsConfig = {
         conversion_id: "AW-123456789",
+        enabled: true,
       };
 
       const items: GoogleAdsItem[] = [
@@ -153,6 +159,7 @@ describe("Google Ads Ecommerce Events", () => {
 
       const config: GoogleAdsConfig = {
         conversion_id: "AW-123456789",
+        enabled: true,
       };
 
       const result = await trackAddToCart(config, [], 0);
@@ -165,6 +172,7 @@ describe("Google Ads Ecommerce Events", () => {
     it("should track view_item event", async () => {
       const config: GoogleAdsConfig = {
         conversion_id: "AW-123456789",
+        enabled: true,
       };
 
       const item: GoogleAdsItem = {
@@ -192,10 +200,11 @@ describe("Google Ads Ecommerce Events", () => {
     });
 
     it("should return error if gtag is not available", async () => {
-      delete (window as Record<string, unknown>).gtag;
+      delete (window as unknown as Record<string, unknown>).gtag;
 
       const config: GoogleAdsConfig = {
         conversion_id: "AW-123456789",
+        enabled: true,
       };
 
       const item: GoogleAdsItem = {
@@ -214,6 +223,7 @@ describe("Google Ads Ecommerce Events", () => {
     it("should handle item without category", async () => {
       const config: GoogleAdsConfig = {
         conversion_id: "AW-123456789",
+        enabled: true,
       };
 
       const item: GoogleAdsItem = {
@@ -247,6 +257,7 @@ describe("Google Ads Ecommerce Events", () => {
 
       const config: GoogleAdsConfig = {
         conversion_id: "AW-123456789",
+        enabled: true,
       };
 
       const item: GoogleAdsItem = {
@@ -269,6 +280,7 @@ describe("Google Ads Ecommerce Events", () => {
 
       const config: GoogleAdsConfig = {
         conversion_id: "AW-123456789",
+        enabled: true,
       };
 
       const pageViewResult = await trackPageView(config);

@@ -1,25 +1,48 @@
 /**
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
- * 
+ *
  * OrdersTable - Testes Unitários
- * 
+ *
  * Testa o componente de tabela de pedidos com ordenação e ações.
  * Cobre casos de loading, vazio, sucesso e interações.
- * 
+ *
  * @version 1.0.0
  */
 
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { OrdersTable } from "../OrdersTable";
-import type { AdminOrder, OrderSortField } from "@/modules/admin/types/admin.types";
+import type { AdminOrder } from "@/modules/admin/types/admin.types";
 
 // ============================================
-// MOCK DATA
+// MOCK DATA FACTORY
 // ============================================
+
+function createMockOrder(overrides: Partial<AdminOrder> = {}): AdminOrder {
+  return {
+    id: "order-1",
+    orderId: "ORD-12345678-ABCD",
+    customerName: "João Silva",
+    customerEmail: "joao@test.com",
+    customerPhone: "+5511999999999",
+    customerDocument: "123.456.789-00",
+    productName: "Curso de React",
+    productImageUrl: "https://example.com/image.jpg",
+    productOwnerId: "owner_123",
+    vendorId: "vendor_123",
+    status: "paid",
+    amount: "R$ 297,00",
+    amountCents: 29700,
+    paymentMethod: "pix",
+    createdAt: "15/01/2024",
+    fullCreatedAt: "15/01/2024 14:30",
+    createdAtISO: "2024-01-15T14:30:00Z",
+    ...overrides,
+  };
+}
 
 const mockOrders: AdminOrder[] = [
-  {
+  createMockOrder({
     id: "order-1",
     orderId: "ORD-12345678-ABCD",
     customerName: "João Silva",
@@ -28,8 +51,8 @@ const mockOrders: AdminOrder[] = [
     status: "paid",
     amount: "R$ 297,00",
     fullCreatedAt: "15/01/2024 14:30",
-  },
-  {
+  }),
+  createMockOrder({
     id: "order-2",
     orderId: "ORD-87654321-EFGH",
     customerName: "Maria Santos",
@@ -38,8 +61,8 @@ const mockOrders: AdminOrder[] = [
     status: "pending",
     amount: "R$ 97,00",
     fullCreatedAt: "16/01/2024 10:15",
-  },
-  {
+  }),
+  createMockOrder({
     id: "order-3",
     orderId: "ORD-11223344-IJKL",
     customerName: "Pedro Costa",
@@ -48,7 +71,7 @@ const mockOrders: AdminOrder[] = [
     status: "refunded",
     amount: "R$ 1.997,00",
     fullCreatedAt: "17/01/2024 16:45",
-  },
+  }),
 ];
 
 // ============================================
@@ -434,8 +457,8 @@ describe("OrdersTable - Actions", () => {
     );
 
     const actionButtons = container.querySelectorAll('button[class*="ghost"]');
-    const viewButton = Array.from(actionButtons).find(btn => 
-      btn.closest('tr')?.textContent?.includes('João Silva')
+    const viewButton = Array.from(actionButtons).find((btn) =>
+      btn.closest("tr")?.textContent?.includes("João Silva")
     );
 
     if (viewButton) {
@@ -451,10 +474,9 @@ describe("OrdersTable - Actions", () => {
 
 describe("OrdersTable - Edge Cases", () => {
   it("should handle very long product names with truncation", () => {
-    const longNameOrder: AdminOrder = {
-      ...mockOrders[0],
+    const longNameOrder = createMockOrder({
       productName: "A".repeat(200),
-    };
+    });
 
     const mockOnSort = vi.fn();
     const mockOnViewDetails = vi.fn();

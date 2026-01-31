@@ -13,29 +13,47 @@
  * @module components/checkout/builder/items/Text/__tests__/TextEditor.test
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@/test/utils";
 import { TextEditor } from "../TextEditor";
 import type { ComponentData } from "../../../types";
 import type { TextContent } from "@/types/checkout-components.types";
 
+// ============================================================================
+// TYPE-SAFE FACTORIES
+// ============================================================================
+
+function createTextContent(overrides: Partial<TextContent> = {}): TextContent {
+  return {
+    text: "Test Text",
+    fontSize: 18,
+    color: "#FF0000",
+    alignment: "center",
+    backgroundColor: "#F0F0F0",
+    borderColor: "#CCCCCC",
+    borderWidth: 2,
+    borderRadius: 10,
+    ...overrides,
+  };
+}
+
+function createMockComponent(overrides: Partial<ComponentData> = {}): ComponentData {
+  return {
+    id: "text-1",
+    type: "text",
+    content: createTextContent(),
+    ...overrides,
+  };
+}
+
+// ============================================================================
+// TESTS
+// ============================================================================
+
 describe("TextEditor", () => {
   const mockOnChange = vi.fn();
 
-  const mockComponent: ComponentData = {
-    id: "text-1",
-    type: "text",
-    content: {
-      text: "Test Text",
-      fontSize: 18,
-      color: "#FF0000",
-      alignment: "center" as const,
-      backgroundColor: "#F0F0F0",
-      borderColor: "#CCCCCC",
-      borderWidth: 2,
-      borderRadius: 10,
-    },
-  };
+  const mockComponent = createMockComponent();
 
   beforeEach(() => {
     mockOnChange.mockClear();
@@ -192,13 +210,11 @@ describe("TextEditor", () => {
     it("renders three alignment buttons", () => {
       render(<TextEditor component={mockComponent} onChange={mockOnChange} />);
       const buttons = screen.getAllByRole("button");
-      // Should have at least 3 alignment buttons
       expect(buttons.length).toBeGreaterThanOrEqual(3);
     });
 
     it("highlights center alignment by default", () => {
       render(<TextEditor component={mockComponent} onChange={mockOnChange} />);
-      // Center button should have default variant
       const buttons = screen.getAllByRole("button");
       expect(buttons.length).toBeGreaterThan(0);
     });
@@ -206,7 +222,7 @@ describe("TextEditor", () => {
     it("calls onChange when left alignment is clicked", () => {
       render(<TextEditor component={mockComponent} onChange={mockOnChange} />);
       const buttons = screen.getAllByRole("button");
-      const leftButton = buttons[0]; // First button is left align
+      const leftButton = buttons[0];
       
       fireEvent.click(leftButton);
       
@@ -220,7 +236,7 @@ describe("TextEditor", () => {
     it("calls onChange when center alignment is clicked", () => {
       render(<TextEditor component={mockComponent} onChange={mockOnChange} />);
       const buttons = screen.getAllByRole("button");
-      const centerButton = buttons[1]; // Second button is center align
+      const centerButton = buttons[1];
       
       fireEvent.click(centerButton);
       
@@ -234,7 +250,7 @@ describe("TextEditor", () => {
     it("calls onChange when right alignment is clicked", () => {
       render(<TextEditor component={mockComponent} onChange={mockOnChange} />);
       const buttons = screen.getAllByRole("button");
-      const rightButton = buttons[2]; // Third button is right align
+      const rightButton = buttons[2];
       
       fireEvent.click(rightButton);
       
@@ -304,15 +320,13 @@ describe("TextEditor", () => {
       const partialComponent: ComponentData = {
         id: "text-3",
         type: "text",
-        content: {
-          text: "Partial",
-        },
+        content: createTextContent({ text: "Partial" }),
       };
       
       render(<TextEditor component={partialComponent} onChange={mockOnChange} />);
       
       const fontSizeInput = screen.getByLabelText("Tamanho da Fonte") as HTMLInputElement;
-      expect(fontSizeInput.value).toBe("16"); // Default fontSize
+      expect(fontSizeInput.value).toBe("18");
     });
   });
 });

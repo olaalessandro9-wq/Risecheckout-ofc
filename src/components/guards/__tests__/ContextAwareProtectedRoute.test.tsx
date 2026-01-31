@@ -9,31 +9,79 @@ import { render, screen } from "@/test/utils";
 import { ContextAwareProtectedRoute } from "../ContextAwareProtectedRoute";
 import * as ReactRouterDOM from "react-router-dom";
 import * as UseUnifiedAuth from "@/hooks/useUnifiedAuth";
-import type { UnifiedAuthState } from "@/hooks/useUnifiedAuth";
+import type { AppRole } from "@/hooks/usePermissions";
+import type { UnifiedUser } from "@/hooks/useUnifiedAuth";
 
 // ============================================================================
 // MOCKS
 // ============================================================================
 
-// Mock react-router-dom
 vi.mock("react-router-dom", async () => {
   const actual = await vi.importActual("react-router-dom");
   return {
     ...actual,
-    Navigate: ({ to }: any) => <div data-testid="navigate-to">{to}</div>,
+    Navigate: ({ to }: { to: string }) => <div data-testid="navigate-to">{to}</div>,
     useLocation: vi.fn(),
   };
 });
 
-// Mock useUnifiedAuth
 vi.mock("@/hooks/useUnifiedAuth", () => ({
   useUnifiedAuth: vi.fn(),
 }));
 
-// Mock lucide-react icons
 vi.mock("lucide-react", () => ({
-  Loader2: ({ className }: any) => <div data-testid="loader-icon" className={className}>Loader2</div>,
+  Loader2: ({ className }: { className?: string }) => <div data-testid="loader-icon" className={className}>Loader2</div>,
 }));
+
+// ============================================================================
+// TYPE-SAFE FACTORIES
+// ============================================================================
+
+function createMockUser(overrides: Partial<UnifiedUser> = {}): UnifiedUser {
+  return {
+    id: "test-user-id",
+    email: "test@example.com",
+    name: "Test User",
+    timezone: "America/Sao_Paulo",
+    ...overrides,
+  };
+}
+
+function createMockAuthState(config: {
+  isAuthenticated: boolean;
+  isAuthLoading: boolean;
+  activeRole?: AppRole | "buyer";
+}) {
+  const activeRole = config.activeRole ?? "user";
+  return {
+    isAuthenticated: config.isAuthenticated,
+    isAuthLoading: config.isAuthLoading,
+    isSyncing: false,
+    isLoading: config.isAuthLoading,
+    isRefetching: false,
+    activeRole: activeRole as AppRole | "buyer" | null,
+    user: config.isAuthenticated ? createMockUser() : null,
+    roles: [] as AppRole[],
+    expiresIn: null,
+    isProducer: activeRole !== "buyer",
+    isBuyer: activeRole === "buyer",
+    canSwitchToProducer: true,
+    canSwitchToBuyer: true,
+    login: vi.fn(),
+    logout: vi.fn(),
+    register: vi.fn(),
+    switchContext: vi.fn(),
+    switchToProducer: vi.fn(),
+    switchToBuyer: vi.fn(),
+    refresh: vi.fn(),
+    refreshSession: vi.fn(),
+    invalidate: vi.fn(),
+    isLoggingIn: false,
+    isLoggingOut: false,
+    isSwitching: false,
+    loginError: null as string | null,
+  };
+}
 
 // ============================================================================
 // TEST HELPERS
@@ -42,20 +90,9 @@ vi.mock("lucide-react", () => ({
 function mockAuth(config: {
   isAuthenticated: boolean;
   isAuthLoading: boolean;
-  activeRole?: "producer" | "buyer" | "admin" | "owner";
+  activeRole?: AppRole | "buyer";
 }) {
-  const mockReturn: Partial<UnifiedAuthState> = {
-    isAuthenticated: config.isAuthenticated,
-    isAuthLoading: config.isAuthLoading,
-    activeRole: config.activeRole || "producer",
-    user: config.isAuthenticated ? { id: "1", email: "test@example.com" } : null,
-    login: vi.fn(),
-    logout: vi.fn(),
-    register: vi.fn(),
-    switchContext: vi.fn(),
-    refreshSession: vi.fn(),
-  };
-  vi.mocked(UseUnifiedAuth.useUnifiedAuth).mockReturnValue(mockReturn as UnifiedAuthState);
+  vi.mocked(UseUnifiedAuth.useUnifiedAuth).mockReturnValue(createMockAuthState(config));
 }
 
 const ProtectedContent = () => <div data-testid="protected-content">Protected Content</div>;
@@ -76,10 +113,6 @@ describe("ContextAwareProtectedRoute", () => {
     });
   });
 
-  // ==========================================================================
-  // LOADING STATES
-  // ==========================================================================
-
   describe("Loading States", () => {
     it("should show loading spinner when auth is loading", () => {
       mockAuth({ isAuthenticated: false, isAuthLoading: true });
@@ -96,7 +129,7 @@ describe("ContextAwareProtectedRoute", () => {
     });
 
     it("should not show loading when auth is loaded", () => {
-      mockAuth({ isAuthenticated: true, isAuthLoading: false, activeRole: "producer" });
+      mockAuth({ isAuthenticated: true, isAuthLoading: false, activeRole: "user" });
 
       render(
         <ContextAwareProtectedRoute requiredContext="producer">
@@ -108,10 +141,6 @@ describe("ContextAwareProtectedRoute", () => {
       expect(screen.getByTestId("protected-content")).toBeInTheDocument();
     });
   });
-
-  // ==========================================================================
-  // AUTHENTICATION
-  // ==========================================================================
 
   describe("Authentication", () => {
     it("should redirect to /auth when not authenticated (producer context)", () => {
@@ -141,13 +170,9 @@ describe("ContextAwareProtectedRoute", () => {
     });
   });
 
-  // ==========================================================================
-  // PRODUCER CONTEXT
-  // ==========================================================================
-
   describe("Producer Context", () => {
     it("should render children when authenticated as producer in producer route", () => {
-      mockAuth({ isAuthenticated: true, isAuthLoading: false, activeRole: "producer" });
+      mockAuth({ isAuthenticated: true, isAuthLoading: false, activeRole: "user" });
 
       render(
         <ContextAwareProtectedRoute requiredContext="producer">
@@ -196,10 +221,6 @@ describe("ContextAwareProtectedRoute", () => {
     });
   });
 
-  // ==========================================================================
-  // BUYER CONTEXT
-  // ==========================================================================
-
   describe("Buyer Context", () => {
     it("should render children when authenticated as buyer in buyer route", () => {
       mockAuth({ isAuthenticated: true, isAuthLoading: false, activeRole: "buyer" });
@@ -214,7 +235,7 @@ describe("ContextAwareProtectedRoute", () => {
     });
 
     it("should redirect to producer dashboard when producer tries to access buyer route", () => {
-      mockAuth({ isAuthenticated: true, isAuthLoading: false, activeRole: "producer" });
+      mockAuth({ isAuthenticated: true, isAuthLoading: false, activeRole: "user" });
 
       render(
         <ContextAwareProtectedRoute requiredContext="buyer">
@@ -253,13 +274,9 @@ describe("ContextAwareProtectedRoute", () => {
     });
   });
 
-  // ==========================================================================
-  // EDGE CASES
-  // ==========================================================================
-
   describe("Edge Cases", () => {
     it("should handle loading state with authenticated user", () => {
-      mockAuth({ isAuthenticated: true, isAuthLoading: true, activeRole: "producer" });
+      mockAuth({ isAuthenticated: true, isAuthLoading: true, activeRole: "user" });
 
       render(
         <ContextAwareProtectedRoute requiredContext="producer">
@@ -267,7 +284,6 @@ describe("ContextAwareProtectedRoute", () => {
         </ContextAwareProtectedRoute>
       );
 
-      // Loading takes precedence
       expect(screen.getByTestId("loader-icon")).toBeInTheDocument();
       expect(screen.queryByTestId("protected-content")).not.toBeInTheDocument();
     });

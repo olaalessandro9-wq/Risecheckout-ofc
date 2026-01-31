@@ -4,13 +4,14 @@
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { extractUTMParameters, formatDateForUTMify } from "../utils";
 
 describe("UTMify Utils", () => {
   describe("extractUTMParameters", () => {
     it("should extract all UTM parameters from URL", () => {
-      const url = "https://example.com?utm_source=google&utm_campaign=summer&utm_medium=cpc&utm_content=ad1&utm_term=shoes&src=fb&sck=123";
+      const url =
+        "https://example.com?utm_source=google&utm_campaign=summer&utm_medium=cpc&utm_content=ad1&utm_term=shoes&src=fb&sck=123";
       const params = extractUTMParameters(url);
 
       expect(params.utm_source).toBe("google");
@@ -43,8 +44,7 @@ describe("UTMify Utils", () => {
     });
 
     it("should use window.location.href if no URL provided", () => {
-      const originalLocation = window.location;
-      delete (window as { location?: Location }).location;
+      const originalHref = window.location.href;
       Object.defineProperty(window, "location", {
         value: { href: "https://example.com?utm_source=test" },
         writable: true,
@@ -55,7 +55,11 @@ describe("UTMify Utils", () => {
 
       expect(params.utm_source).toBe("test");
 
-      window.location = originalLocation;
+      Object.defineProperty(window, "location", {
+        value: { href: originalHref },
+        writable: true,
+        configurable: true,
+      });
     });
 
     it("should handle invalid URLs gracefully", () => {
@@ -104,7 +108,8 @@ describe("UTMify Utils", () => {
 
   describe("Edge Cases", () => {
     it("should handle URLs with special characters", () => {
-      const url = "https://example.com?utm_source=google%20ads&utm_campaign=test%2Bcampaign";
+      const url =
+        "https://example.com?utm_source=google%20ads&utm_campaign=test%2Bcampaign";
       const params = extractUTMParameters(url);
 
       expect(params.utm_source).toBe("google ads");
