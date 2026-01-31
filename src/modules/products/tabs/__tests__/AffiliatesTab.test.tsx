@@ -4,6 +4,10 @@
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Tests for the Affiliates tab component that manages affiliate program settings.
+ * Uses `as unknown as T` pattern for vi.mocked() calls.
+ * 
+ * Justification: vi.mocked requires full type match, but tests only need
+ * the subset of properties actually consumed by the component.
  * 
  * @module test/modules/products/tabs/AffiliatesTab
  */
@@ -39,14 +43,37 @@ vi.mock("../../components/AffiliateGatewaySettings", () => ({
   AffiliateGatewaySettings: vi.fn(() => <div data-testid="affiliate-gateway-settings">Gateway Settings</div>),
 }));
 
-describe("AffiliatesTab", () => {
-  const mockProduct = {
-    id: "product-123",
-    name: "Test Product",
-  };
+// Type aliases for mock return types
+type AffiliatesHookReturn = ReturnType<typeof AffiliatesModule.useAffiliatesTab>;
+type ProductContextReturn = ReturnType<typeof ProductContext.useProductContext>;
 
-  const defaultHookReturn = {
-    product: mockProduct,
+// ============================================================================
+// FACTORY FUNCTIONS
+// ============================================================================
+
+interface MockAffiliatesHookReturn {
+  product: { id: string; name?: string } | null;
+  localSettings: {
+    enabled: boolean;
+    commissionPercentage: number;
+    cookieDuration: number;
+    showInMarketplace: boolean;
+    marketplaceDescription: string;
+    marketplaceCategory: string;
+  };
+  gatewaySettings: {
+    pixGateway: string | null;
+    creditCardGateway: string | null;
+  };
+  handleChange: ReturnType<typeof vi.fn>;
+  handleGatewaySettingsChange: ReturnType<typeof vi.fn>;
+}
+
+function createMockAffiliatesHookReturn(
+  overrides?: Partial<MockAffiliatesHookReturn>
+): MockAffiliatesHookReturn {
+  return {
+    product: { id: "product-123", name: "Test Product" },
     localSettings: {
       enabled: false,
       commissionPercentage: 10,
@@ -61,24 +88,40 @@ describe("AffiliatesTab", () => {
     },
     handleChange: vi.fn(),
     handleGatewaySettingsChange: vi.fn(),
+    ...overrides,
   };
+}
 
-  const defaultContextReturn = {
+interface MockProductContextReturn {
+  saving: boolean;
+}
+
+function createMockProductContextReturn(
+  overrides?: Partial<MockProductContextReturn>
+): MockProductContextReturn {
+  return {
     saving: false,
+    ...overrides,
   };
+}
 
+describe("AffiliatesTab", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(AffiliatesModule.useAffiliatesTab).mockReturnValue(defaultHookReturn as never);
-    vi.mocked(ProductContext.useProductContext).mockReturnValue(defaultContextReturn as never);
+    // RISE V3 Justified: Partial mock - component only uses subset of hook return
+    vi.mocked(AffiliatesModule.useAffiliatesTab).mockReturnValue(
+      createMockAffiliatesHookReturn() as unknown as AffiliatesHookReturn
+    );
+    vi.mocked(ProductContext.useProductContext).mockReturnValue(
+      createMockProductContextReturn() as unknown as ProductContextReturn
+    );
   });
 
   describe("loading state", () => {
     it("should show loading spinner when product is not loaded", () => {
-      vi.mocked(AffiliatesModule.useAffiliatesTab).mockReturnValue({
-        ...defaultHookReturn,
-        product: null,
-      } as never);
+      vi.mocked(AffiliatesModule.useAffiliatesTab).mockReturnValue(
+        createMockAffiliatesHookReturn({ product: null }) as unknown as AffiliatesHookReturn
+      );
 
       const { container } = render(<AffiliatesTab />);
 
@@ -87,10 +130,9 @@ describe("AffiliatesTab", () => {
     });
 
     it("should show loading spinner when product id is missing", () => {
-      vi.mocked(AffiliatesModule.useAffiliatesTab).mockReturnValue({
-        ...defaultHookReturn,
-        product: { id: "" },
-      } as never);
+      vi.mocked(AffiliatesModule.useAffiliatesTab).mockReturnValue(
+        createMockAffiliatesHookReturn({ product: { id: "" } }) as unknown as AffiliatesHookReturn
+      );
 
       const { container } = render(<AffiliatesTab />);
 
@@ -99,10 +141,9 @@ describe("AffiliatesTab", () => {
     });
 
     it("should not render components when loading", () => {
-      vi.mocked(AffiliatesModule.useAffiliatesTab).mockReturnValue({
-        ...defaultHookReturn,
-        product: null,
-      } as never);
+      vi.mocked(AffiliatesModule.useAffiliatesTab).mockReturnValue(
+        createMockAffiliatesHookReturn({ product: null }) as unknown as AffiliatesHookReturn
+      );
 
       render(<AffiliatesTab />);
 
@@ -135,13 +176,15 @@ describe("AffiliatesTab", () => {
 
   describe("affiliate program enabled", () => {
     beforeEach(() => {
-      vi.mocked(AffiliatesModule.useAffiliatesTab).mockReturnValue({
-        ...defaultHookReturn,
-        localSettings: {
-          ...defaultHookReturn.localSettings,
-          enabled: true,
-        },
-      } as never);
+      const defaultSettings = createMockAffiliatesHookReturn();
+      vi.mocked(AffiliatesModule.useAffiliatesTab).mockReturnValue(
+        createMockAffiliatesHookReturn({
+          localSettings: {
+            ...defaultSettings.localSettings,
+            enabled: true,
+          },
+        }) as unknown as AffiliatesHookReturn
+      );
     });
 
     it("should render all affiliate components when enabled", () => {
@@ -190,16 +233,18 @@ describe("AffiliatesTab", () => {
 
   describe("marketplace settings", () => {
     beforeEach(() => {
-      vi.mocked(AffiliatesModule.useAffiliatesTab).mockReturnValue({
-        ...defaultHookReturn,
-        localSettings: {
-          ...defaultHookReturn.localSettings,
-          enabled: true,
-          showInMarketplace: true,
-          marketplaceDescription: "Test description",
-          marketplaceCategory: "digital",
-        },
-      } as never);
+      vi.mocked(AffiliatesModule.useAffiliatesTab).mockReturnValue(
+        createMockAffiliatesHookReturn({
+          localSettings: {
+            enabled: true,
+            commissionPercentage: 10,
+            cookieDuration: 30,
+            showInMarketplace: true,
+            marketplaceDescription: "Test description",
+            marketplaceCategory: "digital",
+          },
+        }) as unknown as AffiliatesHookReturn
+      );
     });
 
     it("should render marketplace settings when enabled", () => {
@@ -211,17 +256,22 @@ describe("AffiliatesTab", () => {
 
   describe("gateway settings", () => {
     beforeEach(() => {
-      vi.mocked(AffiliatesModule.useAffiliatesTab).mockReturnValue({
-        ...defaultHookReturn,
-        localSettings: {
-          ...defaultHookReturn.localSettings,
-          enabled: true,
-        },
-        gatewaySettings: {
-          pixGateway: "pushinpay",
-          creditCardGateway: "stripe",
-        },
-      } as never);
+      vi.mocked(AffiliatesModule.useAffiliatesTab).mockReturnValue(
+        createMockAffiliatesHookReturn({
+          localSettings: {
+            enabled: true,
+            commissionPercentage: 10,
+            cookieDuration: 30,
+            showInMarketplace: false,
+            marketplaceDescription: "",
+            marketplaceCategory: "",
+          },
+          gatewaySettings: {
+            pixGateway: "pushinpay",
+            creditCardGateway: "stripe",
+          },
+        }) as unknown as AffiliatesHookReturn
+      );
     });
 
     it("should render gateway settings when program is enabled", () => {
@@ -233,17 +283,19 @@ describe("AffiliatesTab", () => {
 
   describe("saving state", () => {
     beforeEach(() => {
-      vi.mocked(AffiliatesModule.useAffiliatesTab).mockReturnValue({
-        ...defaultHookReturn,
-        localSettings: {
-          ...defaultHookReturn.localSettings,
-          enabled: true,
-        },
-      } as never);
+      const defaultSettings = createMockAffiliatesHookReturn();
+      vi.mocked(AffiliatesModule.useAffiliatesTab).mockReturnValue(
+        createMockAffiliatesHookReturn({
+          localSettings: {
+            ...defaultSettings.localSettings,
+            enabled: true,
+          },
+        }) as unknown as AffiliatesHookReturn
+      );
 
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        saving: true,
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockProductContextReturn({ saving: true }) as unknown as ProductContextReturn
+      );
     });
 
     it("should still render components when saving", () => {

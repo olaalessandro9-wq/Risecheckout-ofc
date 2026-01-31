@@ -1,6 +1,10 @@
 /**
  * BuilderHeader Tests
  * 
+ * Uses `as unknown as T` pattern for vi.mocked() calls.
+ * Justification: vi.mocked requires full type match, but tests only need
+ * the subset of properties actually consumed by the component.
+ * 
  * @see RISE ARCHITECT PROTOCOL V3 - UI Component Tests
  */
 
@@ -8,7 +12,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { BuilderHeader } from "../header/BuilderHeader";
-import type { BuilderState, BuilderActions } from "../../types";
+import type { BuilderState, BuilderActions, MembersAreaBuilderSettings, Section } from "../../types";
 
 // Mock navigate
 const mockNavigate = vi.fn();
@@ -24,8 +28,40 @@ const renderWithRouter = (ui: React.ReactElement) => {
   return render(<MemoryRouter>{ui}</MemoryRouter>);
 };
 
-describe("BuilderHeader", () => {
-  const createMockState = (overrides: Partial<BuilderState> = {}): BuilderState => ({
+// ============================================================================
+// FACTORY FUNCTIONS
+// ============================================================================
+
+function createMockSettings(): MembersAreaBuilderSettings {
+  return {
+    theme: "light",
+    primary_color: "#000000",
+    show_menu_desktop: true,
+    show_menu_mobile: true,
+    menu_items: [],
+    sidebar_animation: "click",
+    login_layout: "centered",
+  };
+}
+
+function createMockSection(overrides?: Partial<Section>): Section {
+  return {
+    id: "section-1",
+    product_id: "product-1",
+    type: "modules",
+    viewport: "desktop",
+    title: null,
+    position: 0,
+    settings: { type: "modules", course_id: null, show_title: "always", show_progress: true, card_size: "medium", title_size: "medium" },
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
+function createMockState(overrides: Partial<BuilderState> = {}): BuilderState {
+  return {
     viewMode: "desktop",
     activeViewport: "desktop",
     isPreviewMode: false,
@@ -35,7 +71,7 @@ describe("BuilderHeader", () => {
     desktopSections: [],
     mobileSections: [],
     sections: [],
-    settings: {} as never,
+    settings: createMockSettings(),
     selectedSectionId: null,
     selectedMenuItemId: null,
     isMenuCollapsed: false,
@@ -44,9 +80,11 @@ describe("BuilderHeader", () => {
     selectedModuleId: null,
     isEditingModule: false,
     ...overrides,
-  });
+  };
+}
 
-  const createMockActions = (): BuilderActions => ({
+function createMockActions(): BuilderActions {
+  return {
     addSection: vi.fn().mockResolvedValue(null),
     updateSection: vi.fn().mockResolvedValue(undefined),
     updateSectionSettings: vi.fn().mockResolvedValue(undefined),
@@ -68,8 +106,10 @@ describe("BuilderHeader", () => {
     updateModule: vi.fn().mockResolvedValue(undefined),
     selectModule: vi.fn(),
     setEditingModule: vi.fn(),
-  });
+  };
+}
 
+describe("BuilderHeader", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -197,8 +237,15 @@ describe("BuilderHeader", () => {
         <BuilderHeader
           productId="test-id"
           state={createMockState({
-            desktopSections: [{} as never, {} as never, {} as never],
-            mobileSections: [{} as never, {} as never],
+            desktopSections: [
+              createMockSection({ id: "d1" }),
+              createMockSection({ id: "d2" }),
+              createMockSection({ id: "d3" }),
+            ],
+            mobileSections: [
+              createMockSection({ id: "m1", viewport: "mobile" }),
+              createMockSection({ id: "m2", viewport: "mobile" }),
+            ],
           })}
           actions={createMockActions()}
         />

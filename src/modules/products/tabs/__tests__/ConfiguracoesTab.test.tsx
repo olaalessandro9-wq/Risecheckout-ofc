@@ -4,6 +4,10 @@
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Tests for the Configuracoes tab component that manages product settings.
+ * Uses `as unknown as T` pattern for vi.mocked() calls.
+ * 
+ * Justification: vi.mocked requires full type match, but tests only need
+ * the subset of properties actually consumed by the component.
  * 
  * @module test/modules/products/tabs/ConfiguracoesTab
  */
@@ -26,26 +30,40 @@ vi.mock("@/components/products/ProductSettingsPanel", () => ({
   )),
 }));
 
+// Type alias for mock return type
+type ProductContextReturn = ReturnType<typeof ProductContext.useProductContext>;
+
+// ============================================================================
+// FACTORY FUNCTIONS
+// ============================================================================
+
+interface MockProductContextReturn {
+  product: { id: string; name?: string } | null;
+}
+
+function createMockConfiguracoesContext(
+  overrides?: Partial<MockProductContextReturn>
+): MockProductContextReturn {
+  return {
+    product: { id: "product-123", name: "Test Product" },
+    ...overrides,
+  };
+}
+
 describe("ConfiguracoesTab", () => {
-  const mockProduct = {
-    id: "product-123",
-    name: "Test Product",
-  };
-
-  const defaultContextReturn = {
-    product: mockProduct,
-  };
-
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(ProductContext.useProductContext).mockReturnValue(defaultContextReturn as never);
+    // RISE V3 Justified: Partial mock - component only uses subset of context
+    vi.mocked(ProductContext.useProductContext).mockReturnValue(
+      createMockConfiguracoesContext() as unknown as ProductContextReturn
+    );
   });
 
   describe("loading state", () => {
     it("should show loading message when product is null", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        product: null,
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockConfiguracoesContext({ product: null }) as unknown as ProductContextReturn
+      );
 
       render(<ConfiguracoesTab />);
 
@@ -53,9 +71,9 @@ describe("ConfiguracoesTab", () => {
     });
 
     it("should show loading message when product id is missing", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        product: { id: "" },
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockConfiguracoesContext({ product: { id: "" } }) as unknown as ProductContextReturn
+      );
 
       render(<ConfiguracoesTab />);
 
@@ -63,9 +81,9 @@ describe("ConfiguracoesTab", () => {
     });
 
     it("should not render ProductSettingsPanel when loading", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        product: null,
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockConfiguracoesContext({ product: null }) as unknown as ProductContextReturn
+      );
 
       render(<ConfiguracoesTab />);
 
@@ -83,13 +101,13 @@ describe("ConfiguracoesTab", () => {
     it("should pass product id to ProductSettingsPanel", () => {
       render(<ConfiguracoesTab />);
 
-      expect(screen.getByText(`Settings Panel for ${mockProduct.id}`)).toBeInTheDocument();
+      expect(screen.getByText("Settings Panel for product-123")).toBeInTheDocument();
     });
 
     it("should render with different product id", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        product: { id: "different-product-456" },
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockConfiguracoesContext({ product: { id: "different-product-456" } }) as unknown as ProductContextReturn
+      );
 
       render(<ConfiguracoesTab />);
 
@@ -107,9 +125,9 @@ describe("ConfiguracoesTab", () => {
 
   describe("layout structure", () => {
     it("should render loading state within a card container", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        product: null,
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockConfiguracoesContext({ product: null }) as unknown as ProductContextReturn
+      );
 
       const { container } = render(<ConfiguracoesTab />);
 
