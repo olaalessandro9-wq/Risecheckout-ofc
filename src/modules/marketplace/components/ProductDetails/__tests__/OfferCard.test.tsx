@@ -15,7 +15,7 @@ vi.mock("../utils", () => ({
 }));
 
 // ============================================================================
-// TEST DATA
+// TEST DATA - Using correct Offer interface
 // ============================================================================
 
 const mockOfferOneTime: Offer = {
@@ -24,7 +24,7 @@ const mockOfferOneTime: Offer = {
   price: 29700,
   type: "one_time",
   commission: 8910,
-  commissionValue: 8910,
+  checkoutUrl: "https://example.com/checkout/offer-001",
 };
 
 const mockOfferRecurring: Offer = {
@@ -33,7 +33,7 @@ const mockOfferRecurring: Offer = {
   price: 9700,
   type: "recurring",
   commission: 2910,
-  commissionValue: 2910,
+  checkoutUrl: "https://example.com/checkout/offer-002",
 };
 
 // ============================================================================

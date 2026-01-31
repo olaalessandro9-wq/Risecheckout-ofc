@@ -83,24 +83,46 @@ describe("CheckoutPublicContent", () => {
     vi.clearAllMocks();
 
     mockMachine = {
+      // State Flags
+      isIdle: false,
+      isLoading: false,
+      isValidating: false,
+      isReady: true,
+      isSubmitting: false,
+      isPaymentPending: false,
+      isSuccess: false,
+      isError: false,
+      
+      // Error Info
+      errorReason: null,
+      errorMessage: null,
+      canRetry: false,
+      retryCount: 0,
+      
+      // Loaded Data
       checkout: mockLoadedContext.checkout,
       product: mockLoadedContext.product,
       design: mockLoadedContext.design,
       orderBumps: mockLoadedContext.orderBumps,
       offer: null,
       resolvedGateways: mockLoadedContext.resolvedGateways,
+      affiliate: null,
+      
+      // Form State
       formData: mockLoadedContext.formData,
       formErrors: {},
       selectedBumps: [],
       appliedCoupon: null,
       selectedPaymentMethod: "pix",
-      isLoading: false,
-      isSubmitting: false,
-      isPaymentPending: false,
-      isSuccess: false,
-      isError: false,
-      error: null,
+      
+      // Payment State
+      orderId: null,
+      accessToken: null,
+      paymentData: null,
       navigationData: null,
+      
+      // Actions
+      load: vi.fn(),
       updateField: vi.fn(),
       updateMultipleFields: vi.fn(),
       toggleBump: vi.fn(),
@@ -110,6 +132,11 @@ describe("CheckoutPublicContent", () => {
       submit: vi.fn(),
       retry: vi.fn(),
       giveUp: vi.fn(),
+      notifyPaymentSuccess: vi.fn(),
+      notifyPaymentError: vi.fn(),
+      notifyPaymentConfirmed: vi.fn(),
+      notifyPaymentFailed: vi.fn(),
+      notifyPaymentTimeout: vi.fn(),
     };
   });
 

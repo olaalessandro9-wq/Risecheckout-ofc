@@ -25,6 +25,7 @@ import type {
   ResolvedGateways,
 } from "../mappers";
 import type { ThemePreset } from "@/lib/checkout/themePresets";
+import { THEME_PRESETS } from "@/lib/checkout/themePresets";
 
 // ============================================================================
 // FORM DATA
@@ -57,16 +58,13 @@ export const mockFormErrors: FormErrors = {
 
 export const mockCheckoutUI: CheckoutUIModel = {
   id: "checkout-001",
+  vendorId: "vendor-001",
   name: "Checkout Principal",
   slug: "checkout-principal",
-  productId: "prod-001",
+  visits_count: 100,
+  seller_name: "Loja Teste",
+  font: "Inter",
   theme: "light",
-  primaryColor: "#4F46E5",
-  backgroundColor: "#FFFFFF",
-  textColor: "#1F2937",
-  pixEnabled: true,
-  cardEnabled: true,
-  boletoEnabled: false,
 };
 
 export const mockProductUI: ProductUIModel = {
@@ -74,58 +72,50 @@ export const mockProductUI: ProductUIModel = {
   name: "Curso Completo de Marketing",
   description: "Aprenda marketing digital do zero",
   price: 29700, // R$ 297,00
-  imageUrl: "https://example.com/product.jpg",
-  maxInstallments: 12,
-  supportEmail: "suporte@example.com",
+  image_url: "https://example.com/product.jpg",
+  required_fields: {
+    name: true,
+    email: true,
+    phone: false,
+    cpf: false,
+  },
+  default_payment_method: "pix",
 };
 
 export const mockOfferUI: OfferUIModel = {
-  id: "offer-001",
-  name: "Oferta Especial",
-  description: "Desconto exclusivo",
-  price: 19700, // R$ 197,00
-  originalPrice: 29700,
-  type: "upsell",
+  offerId: "offer-001",
+  offerName: "Oferta Especial",
+  offerPrice: 19700, // R$ 197,00
 };
 
 export const mockOrderBumpUI: OrderBumpUIModel = {
   id: "bump-001",
+  product_id: "prod-bump-001",
   name: "Bônus Exclusivo",
   description: "Material complementar",
   price: 4700, // R$ 47,00
-  originalPrice: 9700,
-  imageUrl: "https://example.com/bump.jpg",
-  displayOrder: 1,
+  original_price: 9700,
+  image_url: "https://example.com/bump.jpg",
+  call_to_action: "Adicionar ao pedido",
 };
 
 export const mockAffiliateUI: AffiliateUIModel = {
-  id: "aff-001",
-  code: "PARCEIRO123",
-  name: "Parceiro Afiliado",
+  affiliateId: "aff-001",
+  affiliateCode: "PARCEIRO123",
+  affiliateUserId: "user-aff-001",
   commissionRate: 30,
+  pixGateway: null,
+  creditCardGateway: null,
 };
 
 export const mockResolvedGateways: ResolvedGateways = {
-  pixGateway: "mercadopago",
-  cardGateway: "mercadopago",
-  publicKeys: {
-    mercadopago: "TEST-public-key-123",
-  },
+  pix: "mercadopago",
+  creditCard: "mercadopago",
+  mercadoPagoPublicKey: "TEST-public-key-123",
+  stripePublicKey: null,
 };
 
-export const mockDesign: ThemePreset = {
-  name: "Modern",
-  colors: {
-    primary: "#4F46E5",
-    background: "#FFFFFF",
-    text: "#1F2937",
-    accent: "#10B981",
-  },
-  fonts: {
-    heading: "Inter",
-    body: "Inter",
-  },
-};
+export const mockDesign: ThemePreset = THEME_PRESETS.light;
 
 // ============================================================================
 // COUPON
@@ -179,9 +169,11 @@ export const mockPixNavigation: PixNavigationData = {
   type: "pix",
   orderId: "order-001",
   accessToken: "access_token_xyz",
+  gateway: "mercadopago",
+  amount: 29700,
+  checkoutSlug: "checkout-principal",
   qrCode: "00020126580014br.gov.bcb.pix...",
   qrCodeBase64: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
-  expiresAt: "2026-01-31T23:59:59Z",
 };
 
 export const mockCardNavigation: CardNavigationData = {
@@ -237,9 +229,10 @@ export const mockInitialContext: CheckoutPublicContext = {
   affiliate: null,
   design: null,
   resolvedGateways: {
-    pixGateway: null,
-    cardGateway: null,
-    publicKeys: {},
+    pix: "mercadopago",
+    creditCard: "mercadopago",
+    mercadoPagoPublicKey: null,
+    stripePublicKey: null,
   },
   formData: {
     name: "",

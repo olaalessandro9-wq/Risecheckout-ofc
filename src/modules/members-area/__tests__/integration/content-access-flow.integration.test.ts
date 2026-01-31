@@ -25,6 +25,36 @@ vi.mock('@/lib/logger', () => ({
   }),
 }));
 
+// ============================================================================
+// TYPE DEFINITIONS FOR TEST RESPONSES
+// ============================================================================
+
+interface SuccessResponse {
+  success: boolean;
+}
+
+interface AccessCheckResponse {
+  success: boolean;
+  has_access: boolean;
+  access_type?: string;
+  groups?: string[];
+}
+
+interface ContentDripResponse {
+  success: boolean;
+  contents: Array<{
+    id: string;
+    drip_days?: number | null;
+    is_available: boolean;
+    is_free?: boolean;
+  }>;
+}
+
+interface GroupsListResponse {
+  success: boolean;
+  groups: string[];
+}
+
 describe('Integration: Fluxo de Liberação de Conteúdo', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -39,11 +69,11 @@ describe('Integration: Fluxo de Liberação de Conteúdo', () => {
 
       // 2. Conceder acesso à área de membros
       vi.mocked(api.call).mockResolvedValueOnce({
-        data: { success: true },
+        data: { success: true } as SuccessResponse,
         error: null,
       });
 
-      const grantAccessResult = await api.call('grant-member-access', {
+      const grantAccessResult = await api.call<SuccessResponse>('grant-member-access', {
         buyer_id: buyerId,
         product_id: productId,
         order_id: orderId,
@@ -58,11 +88,11 @@ describe('Integration: Fluxo de Liberação de Conteúdo', () => {
           success: true, 
           has_access: true,
           access_type: 'purchase'
-        },
+        } as AccessCheckResponse,
         error: null,
       });
 
-      const checkAccessResult = await api.call('students-access', {
+      const checkAccessResult = await api.call<AccessCheckResponse>('students-access', {
         action: 'check',
         buyer_id: buyerId,
         product_id: productId,
@@ -85,11 +115,11 @@ describe('Integration: Fluxo de Liberação de Conteúdo', () => {
             { id: 'content-2', drip_days: 7, is_available: false },
             { id: 'content-3', drip_days: 14, is_available: false },
           ],
-        },
+        } as ContentDripResponse,
         error: null,
       });
 
-      const dripResult = await api.call('members-area-drip', {
+      const dripResult = await api.call<ContentDripResponse>('members-area-drip', {
         action: 'check',
         buyer_id: buyerId,
         product_id: productId,
@@ -116,11 +146,11 @@ describe('Integration: Fluxo de Liberação de Conteúdo', () => {
         data: {
           success: true,
           groups: ['group-basic'],
-        },
+        } as GroupsListResponse,
         error: null,
       });
 
-      const groupsResult = await api.call('students-groups', {
+      const groupsResult = await api.call<GroupsListResponse>('students-groups', {
         action: 'list',
         buyer_id: buyerId,
         product_id: productId,
@@ -139,11 +169,11 @@ describe('Integration: Fluxo de Liberação de Conteúdo', () => {
 
       // 1. Adicionar usuário ao grupo VIP
       vi.mocked(api.call).mockResolvedValueOnce({
-        data: { success: true },
+        data: { success: true } as SuccessResponse,
         error: null,
       });
 
-      await api.call('students-groups', {
+      await api.call<SuccessResponse>('students-groups', {
         action: 'add',
         buyer_id: buyerId,
         product_id: productId,
@@ -156,11 +186,11 @@ describe('Integration: Fluxo de Liberação de Conteúdo', () => {
           success: true,
           has_access: true,
           groups: ['group-basic', 'group-vip'],
-        },
+        } as AccessCheckResponse,
         error: null,
       });
 
-      const accessResult = await api.call('students-groups', {
+      const accessResult = await api.call<AccessCheckResponse>('students-groups', {
         action: 'check',
         buyer_id: buyerId,
         product_id: productId,
@@ -178,11 +208,11 @@ describe('Integration: Fluxo de Liberação de Conteúdo', () => {
 
       // Revogar acesso
       vi.mocked(api.call).mockResolvedValueOnce({
-        data: { success: true },
+        data: { success: true } as SuccessResponse,
         error: null,
       });
 
-      await api.call('students-access', {
+      await api.call<SuccessResponse>('students-access', {
         action: 'revoke',
         buyer_id: buyerId,
         product_id: productId,
@@ -193,11 +223,11 @@ describe('Integration: Fluxo de Liberação de Conteúdo', () => {
         data: {
           success: true,
           has_access: false,
-        },
+        } as AccessCheckResponse,
         error: null,
       });
 
-      const checkResult = await api.call('students-access', {
+      const checkResult = await api.call<AccessCheckResponse>('students-access', {
         action: 'check',
         buyer_id: buyerId,
         product_id: productId,
@@ -216,11 +246,11 @@ describe('Integration: Fluxo de Liberação de Conteúdo', () => {
           contents: [
             { id: 'content-free', is_free: true, is_available: true },
           ],
-        },
+        } as ContentDripResponse,
         error: null,
       });
 
-      const result = await api.call('members-area-drip', {
+      const result = await api.call<ContentDripResponse>('members-area-drip', {
         action: 'list-free',
         product_id: productId,
       });
@@ -239,11 +269,11 @@ describe('Integration: Fluxo de Liberação de Conteúdo', () => {
           contents: [
             { id: 'content-1', drip_days: null, is_available: true },
           ],
-        },
+        } as ContentDripResponse,
         error: null,
       });
 
-      const result = await api.call('members-area-drip', {
+      const result = await api.call<ContentDripResponse>('members-area-drip', {
         action: 'check',
         buyer_id: buyerId,
         product_id: productId,
