@@ -6,13 +6,19 @@
  * Testa o componente de cabeçalho do dashboard.
  * Cobre renderização, integração com DateRangeFilter e estilos.
  * 
- * @version 1.0.0
+ * REFATORADO: Usa factories type-safe de src/test/factories/dashboard.ts
+ * 
+ * @version 2.0.0
  */
 
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { DashboardHeader } from "../DashboardHeader";
 import type { DateRangeState, DateRangeActions } from "../../../hooks/useDateRangeState";
+import { 
+  createMockDateRangeState, 
+  createMockDateRangeActions 
+} from "@/test/factories/dashboard";
 
 // ============================================
 // MOCKS
@@ -29,27 +35,18 @@ vi.mock("@/contexts/UltrawidePerformanceContext", () => ({
 vi.mock("../../DateRangeFilter", () => ({
   DateRangeFilter: ({ state, actions }: { state: DateRangeState; actions: DateRangeActions }) => (
     <div data-testid="date-range-filter">
-      <span>Preset: {state.selectedPreset}</span>
-      <button onClick={() => actions.setPreset("last7Days")}>Set Last 7 Days</button>
+      <span>Preset: {state.preset}</span>
+      <button onClick={() => actions.setPreset("7days")}>Set Last 7 Days</button>
     </div>
   ),
 }));
 
 // ============================================
-// MOCK DATA
+// MOCK DATA (Type-Safe Factories)
 // ============================================
 
-const mockState: DateRangeState = {
-  selectedPreset: "last30Days",
-  customRange: null,
-  isCustom: false,
-};
-
-const mockActions: DateRangeActions = {
-  setPreset: vi.fn(),
-  setCustomRange: vi.fn(),
-  resetToDefault: vi.fn(),
-};
+const mockState = createMockDateRangeState({ preset: "30days" });
+const mockActions = createMockDateRangeActions();
 
 // ============================================
 // TESTS: RENDERING
@@ -77,7 +74,7 @@ describe("DashboardHeader - Rendering", () => {
   it("should pass state to DateRangeFilter", () => {
     render(<DashboardHeader state={mockState} actions={mockActions} />);
 
-    expect(screen.getByText("Preset: last30Days")).toBeInTheDocument();
+    expect(screen.getByText("Preset: 30days")).toBeInTheDocument();
   });
 
   it("should pass actions to DateRangeFilter", () => {
@@ -155,14 +152,14 @@ describe("DashboardHeader - Title Styling", () => {
 
 describe("DashboardHeader - Subtitle Styling", () => {
   it("should apply muted-foreground color to subtitle", () => {
-    const { container } = render(<DashboardHeader state={mockState} actions={mockActions} />);
+    render(<DashboardHeader state={mockState} actions={mockActions} />);
 
     const subtitle = screen.getByText("Visão geral do seu desempenho e métricas");
     expect(subtitle.className).toContain("text-muted-foreground");
   });
 
   it("should have responsive font sizes for subtitle", () => {
-    const { container } = render(<DashboardHeader state={mockState} actions={mockActions} />);
+    render(<DashboardHeader state={mockState} actions={mockActions} />);
 
     const subtitle = screen.getByText("Visão geral do seu desempenho e métricas");
     expect(subtitle.className).toContain("text-sm");
@@ -170,7 +167,7 @@ describe("DashboardHeader - Subtitle Styling", () => {
   });
 
   it("should apply font-medium to subtitle", () => {
-    const { container } = render(<DashboardHeader state={mockState} actions={mockActions} />);
+    render(<DashboardHeader state={mockState} actions={mockActions} />);
 
     const subtitle = screen.getByText("Visão geral do seu desempenho e métricas");
     expect(subtitle.className).toContain("font-medium");
@@ -212,43 +209,35 @@ describe("DashboardHeader - Filter Container", () => {
 });
 
 // ============================================
-// TESTS: STATE VARIATIONS
+// TESTS: STATE VARIATIONS (Type-Safe)
 // ============================================
 
 describe("DashboardHeader - State Variations", () => {
   it("should handle custom date range state", () => {
-    const customState: DateRangeState = {
-      selectedPreset: "custom",
-      customRange: {
+    const customState = createMockDateRangeState({
+      preset: "custom",
+      savedRange: {
         from: new Date("2024-01-01"),
         to: new Date("2024-01-31"),
       },
-      isCustom: true,
-    };
+      calendarOpen: false,
+    });
 
     render(<DashboardHeader state={customState} actions={mockActions} />);
 
     expect(screen.getByText("Preset: custom")).toBeInTheDocument();
   });
 
-  it("should handle last7Days preset", () => {
-    const last7State: DateRangeState = {
-      selectedPreset: "last7Days",
-      customRange: null,
-      isCustom: false,
-    };
+  it("should handle 7days preset", () => {
+    const last7State = createMockDateRangeState({ preset: "7days" });
 
     render(<DashboardHeader state={last7State} actions={mockActions} />);
 
-    expect(screen.getByText("Preset: last7Days")).toBeInTheDocument();
+    expect(screen.getByText("Preset: 7days")).toBeInTheDocument();
   });
 
   it("should handle today preset", () => {
-    const todayState: DateRangeState = {
-      selectedPreset: "today",
-      customRange: null,
-      isCustom: false,
-    };
+    const todayState = createMockDateRangeState({ preset: "today" });
 
     render(<DashboardHeader state={todayState} actions={mockActions} />);
 
@@ -262,11 +251,7 @@ describe("DashboardHeader - State Variations", () => {
 
 describe("DashboardHeader - Actions Integration", () => {
   it("should provide all actions to DateRangeFilter", () => {
-    const actions: DateRangeActions = {
-      setPreset: vi.fn(),
-      setCustomRange: vi.fn(),
-      resetToDefault: vi.fn(),
-    };
+    const actions = createMockDateRangeActions();
 
     render(<DashboardHeader state={mockState} actions={actions} />);
 
@@ -279,34 +264,25 @@ describe("DashboardHeader - Actions Integration", () => {
 // ============================================
 
 describe("DashboardHeader - Edge Cases", () => {
-  it("should handle null customRange", () => {
-    const stateWithNull: DateRangeState = {
-      selectedPreset: "last30Days",
-      customRange: null,
-      isCustom: false,
-    };
+  it("should handle undefined savedRange", () => {
+    const stateWithNoRange = createMockDateRangeState({
+      preset: "30days",
+      savedRange: undefined,
+    });
 
-    render(<DashboardHeader state={stateWithNull} actions={mockActions} />);
+    render(<DashboardHeader state={stateWithNoRange} actions={mockActions} />);
 
     expect(screen.getByText("Dashboard")).toBeInTheDocument();
   });
 
   it("should render consistently with different presets", () => {
-    const presets: Array<DateRangeState["selectedPreset"]> = [
-      "today",
-      "yesterday",
-      "last7Days",
-      "last30Days",
-      "last90Days",
-      "custom",
-    ];
+    const presets = ["today", "yesterday", "7days", "30days", "max", "custom"] as const;
 
     presets.forEach((preset) => {
-      const state: DateRangeState = {
-        selectedPreset: preset,
-        customRange: null,
-        isCustom: preset === "custom",
-      };
+      const state = createMockDateRangeState({
+        preset,
+        calendarOpen: preset === "custom",
+      });
 
       const { unmount } = render(<DashboardHeader state={state} actions={mockActions} />);
 
